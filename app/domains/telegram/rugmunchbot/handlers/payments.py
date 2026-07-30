@@ -4,6 +4,7 @@ RugMunchBot -- Payment handlers.
 
 Telegram Stars payment pre-checkout and successful payment routing.
 """
+
 from __future__ import annotations
 
 import time
@@ -29,6 +30,7 @@ logger = get_logger("rmi_bot")
 
 _SEP = "\u2501" * 28
 
+
 async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.pre_checkout_query
     payload = query.invoice_payload
@@ -38,6 +40,7 @@ async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         logger.warning("Unknown invoice payload: %s", payload)
         await query.answer(ok=False, error_message="Invalid invoice.")
+
 
 async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     payment = update.message.successful_payment
@@ -134,6 +137,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                     "",
                 ]
                 from app.domains.telegram.rugmunchbot.formatters import format_scan_report
+
                 report = format_scan_report(result)
                 full_report = "\n".join(report_lines) + report
                 db.log_scan(user.id, pending["address"], result["chain"], "deep", result["risk_score"])
@@ -143,7 +147,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                     reply_markup=scan_result_kb(pending["address"], result["chain"]),
                     disable_web_page_preview=True,
                 )
-            except (telegram.error.TelegramError) as e:
+            except telegram.error.TelegramError as e:
                 logger.error(f"Deep scan payment error: {e}")
                 await msg.edit_text(
                     f"\u274c Deep scan failed: {str(e)[:200]}\n\nContact support for help.",

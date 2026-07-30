@@ -140,12 +140,8 @@ async def ingest_etherscan_combined() -> dict[str, int]:
     with open(csv_path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
 
-    scam_rows = [
-        r for r in rows if any(kw in r.get("label", "").lower() for kw in SCAM_LABEL_KEYWORDS)
-    ]
-    wallet_rows = [
-        r for r in rows if not any(kw in r.get("label", "").lower() for kw in SCAM_LABEL_KEYWORDS)
-    ]
+    scam_rows = [r for r in rows if any(kw in r.get("label", "").lower() for kw in SCAM_LABEL_KEYWORDS)]
+    wallet_rows = [r for r in rows if not any(kw in r.get("label", "").lower() for kw in SCAM_LABEL_KEYWORDS)]
 
     logger.info(
         f"Etherscan combined: {len(rows)} total → {len(scam_rows)} scam → known_scams, {len(wallet_rows)} → wallet_profiles"
@@ -181,9 +177,7 @@ async def ingest_etherscan_combined() -> dict[str, int]:
         else:
             collection = "wallet_profiles"
             doc_id = make_doc_id("wallet_profiles", f"eth_combined:{address}:{chain}")
-            content = (
-                f"Etherscan labeled address: {address} ({name}) on {chain}. Category: {label}."
-            )
+            content = f"Etherscan labeled address: {address} ({name}) on {chain}. Category: {label}."
             metadata = {
                 "address": address.lower(),
                 "label": label,
@@ -323,9 +317,7 @@ async def ingest_solana_flagged_tokens() -> dict[str, int]:
     for t in tokens:
         name_lower = (t.get("name", "") + " " + t.get("symbol", "")).lower()
         tags_lower = [str(tag).lower() for tag in t.get("tags", [])]
-        if any(kw in name_lower for kw in scam_keywords) or any(
-            kw in " ".join(tags_lower) for kw in scam_keywords
-        ):
+        if any(kw in name_lower for kw in scam_keywords) or any(kw in " ".join(tags_lower) for kw in scam_keywords):
             flagged.append(t)
 
     logger.info(f"Solana token list: {len(tokens)} total, {len(flagged)} flagged as scam/spam")
@@ -367,9 +359,7 @@ async def ingest_solana_flagged_tokens() -> dict[str, int]:
 
 async def ingest_metamask_domains() -> dict[str, int]:
     """Ingest MetaMask phishing domain blacklist in batches of 50."""
-    config_url = (
-        "https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/master/src/config.json"
-    )
+    config_url = "https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/master/src/config.json"
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -415,9 +405,7 @@ async def ingest_metamask_domains() -> dict[str, int]:
             errors += 1
 
         if (batch_idx + 1) % 100 == 0:
-            logger.info(
-                f"  MetaMask: {batch_idx + 1}/{total_batches} batches | ingested: {ingested}"
-            )
+            logger.info(f"  MetaMask: {batch_idx + 1}/{total_batches} batches | ingested: {ingested}")
             await asyncio.sleep(0.05)
 
     return {"ingested": ingested, "errors": errors}
@@ -614,9 +602,7 @@ async def ingest_phishdestroy() -> dict[str, int]:
                         errors += 1
 
                     if (batch_idx + 1) % 100 == 0:
-                        logger.info(
-                            f"  PhishDestroy: {batch_idx + 1}/{total_batches} | ingested: {ingested}"
-                        )
+                        logger.info(f"  PhishDestroy: {batch_idx + 1}/{total_batches} | ingested: {ingested}")
                         await asyncio.sleep(0.05)
     except Exception as e:
         logger.warning(f"PhishDestroy active_domains.json failed: {e}")
@@ -660,9 +646,7 @@ async def ingest_phishdestroy() -> dict[str, int]:
                             errors += 1
 
                         if (batch_idx + 1) % 100 == 0:
-                            logger.info(
-                                f"  PhishDestroy: {batch_idx + 1}/{total_batches} | ingested: {ingested}"
-                            )
+                            logger.info(f"  PhishDestroy: {batch_idx + 1}/{total_batches} | ingested: {ingested}")
                             await asyncio.sleep(0.05)
         except Exception as e:
             logger.warning(f"PhishDestroy domains.txt failed: {e}")

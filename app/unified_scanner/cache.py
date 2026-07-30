@@ -16,6 +16,7 @@ logger = get_logger(__name__)
 # ── Shared async Redis connection pool ────────────────────────────────
 _redis_pool = None
 
+
 async def _get_redis():
     """Get or create a shared async Redis connection with pooling."""
     global _redis_pool
@@ -32,6 +33,7 @@ async def _get_redis():
         )
     return aioredis.Redis(connection_pool=_redis_pool)
 
+
 async def _cache_get(key: str) -> dict | None:
     """Get cached wallet scan result using shared connection pool."""
     try:
@@ -42,6 +44,7 @@ async def _cache_get(key: str) -> dict | None:
     except (ConnectionError, OSError, json.JSONDecodeError):
         logger.debug("wallet cache get failed", exc_info=True)
     return None
+
 
 async def _cache_set(key: str, data: dict, ttl: int = 3600) -> None:
     """Cache wallet scan result for 1 hour using shared connection pool."""

@@ -25,6 +25,7 @@ CHAINS = {
     "mantle": {"id": "5000", "explorer": "https://mantlescan.xyz"},
 }
 
+
 @dataclass
 class WalletRiskFactors:
     """100+ risk factors scored per wallet - populated from real on-chain data."""

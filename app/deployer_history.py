@@ -37,19 +37,14 @@ DEXSCREENER_SEARCH = "https://api.dexscreener.com/latest/dex/search?q={}"
 DEXSCREENER_PAIRS_BY_TOKEN = "https://api.dexscreener.com/latest/dex/tokens/{}"
 SOLSCAN_TOKEN_ACCOUNTS = "https://api.solscan.io/account/tokens?address={}&pageSize=100"
 SOLSCAN_ACCOUNT_TXS = "https://api.solscan.io/account/transactions?address={}&pageSize=50"
-ETHERSCAN_TXLIST = (
-    "https://api.etherscan.io/api?module=account&action=txlist&address={}&sort=desc&limit=100"
-)
-BASESCAN_TXLIST = (
-    "https://api.basescan.org/api?module=account&action=txlist&address={}&sort=desc&limit=100"
-)
-BSCSCAN_TXLIST = (
-    "https://api.bscscan.com/api?module=account&action=txlist&address={}&sort=desc&limit=100"
-)
+ETHERSCAN_TXLIST = "https://api.etherscan.io/api?module=account&action=txlist&address={}&sort=desc&limit=100"
+BASESCAN_TXLIST = "https://api.basescan.org/api?module=account&action=txlist&address={}&sort=desc&limit=100"
+BSCSCAN_TXLIST = "https://api.bscscan.com/api?module=account&action=txlist&address={}&sort=desc&limit=100"
 
 # Rate limiting: max requests per second per host
 _RATE_LIMITERS: dict[str, float] = {}
 _RATE_LIMIT_WINDOW = 0.5  # 500ms between requests to same host
+
 
 async def _rate_limit_host(host: str) -> None:
     """Simple per-host rate limiter to avoid being rate-limited by APIs."""
@@ -59,6 +54,7 @@ async def _rate_limit_host(host: str) -> None:
     if wait > 0:
         await asyncio.sleep(wait)
     _RATE_LIMITERS[host] = time.time()
+
 
 # Contract creation function signatures
 CREATE2_SIG = "0x60806040"  # Common contract creation prefix
@@ -97,6 +93,7 @@ SCAM_PATTERNS = {
     },
 }
 
+
 def _validate_url(url: str) -> bool:
     """Validate URL using urlparse to prevent SSRF and injection."""
     try:
@@ -105,6 +102,7 @@ def _validate_url(url: str) -> bool:
         return all([result.scheme in ("http", "https"), result.netloc, result.path])
     except (ConnectionError, OSError, TimeoutError):
         return False
+
 
 @dataclass
 class DeployedToken:
@@ -130,6 +128,7 @@ class DeployedToken:
     age_days: float = 0.0
     max_holder_pct: float = 0.0
 
+
 @dataclass
 class DeployerProfile:
     """Complete deployer analysis result."""
@@ -152,7 +151,9 @@ class DeployerProfile:
     recommendation: str = ""
     errors: list[str] = field(default_factory=list)
 
+
 # ── Core scoring engine ─────────────────────────────────────────
+
 
 def _compute_deployer_risk(profile: DeployerProfile) -> float:
     """
@@ -201,6 +202,7 @@ def _compute_deployer_risk(profile: DeployerProfile) -> float:
     raw = rug_score + honey_score + volume_score + lifespan_score + pattern_score
     return min(raw, 100.0)
 
+
 def _classify_deployer_risk(score: float) -> str:
     """Classify score into risk category."""
     if score >= 70:
@@ -212,6 +214,7 @@ def _classify_deployer_risk(score: float) -> str:
     if score >= 10:
         return "low"
     return "safe"
+
 
 def _generate_recommendation(profile: DeployerProfile, score: float) -> str:
     """Generate human-readable recommendation based on deployer analysis."""
@@ -249,7 +252,9 @@ def _generate_recommendation(profile: DeployerProfile, score: float) -> str:
         f"{profile.total_tokens_deployed} with healthy lifespans."
     )
 
+
 # ── Data fetching helpers ───────────────────────────────────────
+
 
 async def _fetch_json(url: str, timeout: int = 15) -> dict[str, Any] | list[Any] | None:
     """Fetch JSON from URL with timeout, rate limiting, and error handling."""
@@ -291,6 +296,7 @@ async def _fetch_json(url: str, timeout: int = 15) -> dict[str, Any] | list[Any]
         logger.debug(f"Error fetching {url[:80]}: {e}")
         return None
 
+
 async def _fetch_dexscreener_pairs(address: str) -> list[dict[str, Any]]:
     """Fetch pairs from DexScreener associated with an address."""
     url = DEXSCREENER_SEARCH.format(quote(address))
@@ -299,6 +305,7 @@ async def _fetch_dexscreener_pairs(address: str) -> list[dict[str, Any]]:
         return []
     pairs: list[dict[str, Any]] = data.get("pairs", []) or []
     return pairs
+
 
 async def _fetch_etherscan_txs(address: str, api_url: str) -> list[dict[str, Any]]:
     """Fetch transactions from block explorer to find contract creations."""
@@ -309,6 +316,7 @@ async def _fetch_etherscan_txs(address: str, api_url: str) -> list[dict[str, Any
     txs: list[dict[str, Any]] = data.get("result", []) or []
     return txs
 
+
 def _is_contract_creation(tx: dict[str, Any]) -> bool:
     """Check if a transaction is a contract creation."""
     # Contract creation has 'contractAddress' set
@@ -316,6 +324,7 @@ def _is_contract_creation(tx: dict[str, Any]) -> bool:
         return True
     # Also check if 'to' is empty (another creation indicator)
     return bool(not tx.get("to") or tx.get("to") == "")
+
 
 def _extract_token_from_pair(pair: dict[str, Any], deployer_address: str) -> DeployedToken | None:
     """
@@ -345,26 +354,14 @@ def _extract_token_from_pair(pair: dict[str, Any], deployer_address: str) -> Dep
         volume_24h=float(pair.get("volume", {}).get("h24", 0)),
         holders=int(pair.get("fdv", 0) > 0),  # rough proxy
         is_verified=token.get("verified", False),
-        deploy_time=datetime.fromtimestamp(pair_created_at / 1000, tz=UTC).isoformat()
-        if pair_created_at
-        else "",
-        age_days=(datetime.now(UTC).timestamp() - pair_created_at / 1000) / 86400
-        if pair_created_at
-        else 0,
+        deploy_time=datetime.fromtimestamp(pair_created_at / 1000, tz=UTC).isoformat() if pair_created_at else "",
+        age_days=(datetime.now(UTC).timestamp() - pair_created_at / 1000) / 86400 if pair_created_at else 0,
     )
 
     # Check for suspicious patterns in the pair
     txns = pair.get("txns", {})
-    buys = (
-        txns.get("h24", {}).get("buys", 0)
-        if isinstance(txns, dict) and isinstance(txns.get("h24"), dict)
-        else 0
-    )
-    sells = (
-        txns.get("h24", {}).get("sells", 0)
-        if isinstance(txns, dict) and isinstance(txns.get("h24"), dict)
-        else 0
-    )
+    buys = txns.get("h24", {}).get("buys", 0) if isinstance(txns, dict) and isinstance(txns.get("h24"), dict) else 0
+    sells = txns.get("h24", {}).get("sells", 0) if isinstance(txns, dict) and isinstance(txns.get("h24"), dict) else 0
 
     if buys == 0 and sells == 0 and deployed.age_days < 7:
         deployed.flags.append("no_trading_activity")
@@ -380,9 +377,8 @@ def _extract_token_from_pair(pair: dict[str, Any], deployer_address: str) -> Dep
 
     return deployed
 
-async def _analyze_deployer_evm(
-    address: str, tokens: list[DeployedToken]
-) -> tuple[list[DeployedToken], list[str]]:
+
+async def _analyze_deployer_evm(address: str, tokens: list[DeployedToken]) -> tuple[list[DeployedToken], list[str]]:
     """Attempt to find contract deployments via block explorers."""
     patterns: list[str] = []
     explorers = [
@@ -440,7 +436,9 @@ async def _analyze_deployer_evm(
 
     return tokens, patterns
 
+
 # ── Chain detection ─────────────────────────────────────────────
+
 
 def _detect_chain_from_address(address: str) -> list[str]:
     """Detect possible chains from address format."""
@@ -453,21 +451,19 @@ def _detect_chain_from_address(address: str) -> list[str]:
         chains = ["unknown"]
     return chains
 
+
 # ── Main analyzer class ─────────────────────────────────────────
+
 
 class DeployerHistoryAnalyzer:
     """Analyzes the complete deployment history of a token creator address."""
 
     def __init__(self, address: str) -> None:
-        if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(
-            r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address
-        ):
+        if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
             raise ValueError(f"Invalid address format: {address[:20]}")
         self.address = address.lower()
         self.chains = _detect_chain_from_address(address)
-        self.is_evm = any(
-            c in self.chains for c in ["ethereum", "bsc", "base", "polygon", "arbitrum", "optimism"]
-        )
+        self.is_evm = any(c in self.chains for c in ["ethereum", "bsc", "base", "polygon", "arbitrum", "optimism"])
         self.is_solana = "solana" in self.chains
 
     async def analyze(self) -> dict[str, Any]:
@@ -562,23 +558,15 @@ class DeployerHistoryAnalyzer:
                     token_accounts = sol_data.get("data", [])
                     if isinstance(token_accounts, list):
                         for acct in token_accounts[:50]:
-                            token_addr = (
-                                acct.get("tokenAddress", "") if isinstance(acct, dict) else ""
-                            )
+                            token_addr = acct.get("tokenAddress", "") if isinstance(acct, dict) else ""
                             if token_addr and token_addr not in seen_addresses:
                                 seen_addresses.add(token_addr)
                                 deployed = DeployedToken(
                                     address=token_addr,
                                     chain="solana",
-                                    name=acct.get("tokenName", "")
-                                    if isinstance(acct, dict)
-                                    else "",
-                                    symbol=acct.get("tokenSymbol", "")
-                                    if isinstance(acct, dict)
-                                    else "",
-                                    liquidity_usd=float(
-                                        acct.get("tokenAmount", {}).get("uiAmount", 0)
-                                    )
+                                    name=acct.get("tokenName", "") if isinstance(acct, dict) else "",
+                                    symbol=acct.get("tokenSymbol", "") if isinstance(acct, dict) else "",
+                                    liquidity_usd=float(acct.get("tokenAmount", {}).get("uiAmount", 0))
                                     if isinstance(acct, dict)
                                     else 0,
                                 )
@@ -620,10 +608,7 @@ class DeployerHistoryAnalyzer:
             patterns.append("suspicious_renounce:no_trading_after_launch")
 
         # Cross-chain avoidance (deployer only on obscure chains)
-        if (
-            all(c in ("base", "polygon", "unknown") for c in profile.chains_used)
-            and profile.total_tokens_deployed >= 2
-        ):
+        if all(c in ("base", "polygon", "unknown") for c in profile.chains_used) and profile.total_tokens_deployed >= 2:
             patterns.append("avoidance:limited_to_less_scanned_chains")
 
         return list(set(patterns))

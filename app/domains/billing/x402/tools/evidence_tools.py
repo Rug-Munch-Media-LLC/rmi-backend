@@ -35,6 +35,7 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-sentinel-t1"])
 
+
 @sub_router.post("/sentinel_scan")
 async def sentinel_full_scan(req: SentinelScanRequest) -> dict[str, str]:
     """Full SENTINEL deep scan - all 9 modules in parallel with graceful degradation.
@@ -61,8 +62,9 @@ async def sentinel_full_scan(req: SentinelScanRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/holder_analysis")
 async def holder_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -85,8 +87,9 @@ async def holder_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/bundle_detect")
 async def bundle_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -109,8 +112,9 @@ async def bundle_detect_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/exchange_fund_check")
 async def exchange_fund_check_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -133,8 +137,9 @@ async def exchange_fund_check_endpoint(req: SentinelModuleRequest) -> dict[str, 
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/liquidity_verify")
 async def liquidity_verify_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -157,8 +162,9 @@ async def liquidity_verify_endpoint(req: SentinelModuleRequest) -> dict[str, str
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/dev_reputation")
 async def dev_reputation_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -183,8 +189,9 @@ async def dev_reputation_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/wash_trading")
 async def wash_trading_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -207,8 +214,9 @@ async def wash_trading_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/social_engineering")
 async def social_engineering_endpoint(req: SentinelModuleRequest) -> dict:
@@ -236,8 +244,9 @@ async def social_engineering_endpoint(req: SentinelModuleRequest) -> dict:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/metadata_fingerprint")
 async def metadata_fingerprint_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -260,8 +269,9 @@ async def metadata_fingerprint_endpoint(req: SentinelModuleRequest) -> dict[str,
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/sentiment_check")
 async def sentiment_check_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -284,8 +294,9 @@ async def sentiment_check_endpoint(req: SentinelModuleRequest) -> dict[str, str]
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @sub_router.post("/pumpfun_analysis")
 async def pumpfun_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
@@ -318,5 +329,5 @@ async def pumpfun_analysis_endpoint(req: SentinelModuleRequest) -> dict[str, str
         }
     except HTTPException:
         raise
-    except (ConnectionError, TimeoutError, ValueError, TypeError) as e :
+    except (ConnectionError, TimeoutError, ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

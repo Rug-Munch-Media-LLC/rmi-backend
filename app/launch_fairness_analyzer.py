@@ -41,6 +41,7 @@ logger = get_logger("launch_fairness_analyzer")
 
 # ── Enums ────────────────────────────────────────────────────────
 
+
 class FairnessSignal(Enum):
     SNIPED_DISTRIBUTION = "sniped_distribution"
     BUNDLED_LAUNCH = "bundled_launch"
@@ -52,12 +53,14 @@ class FairnessSignal(Enum):
     FAKE_VOLUME = "fake_volume"
     FAIR_LAUNCH = "fair_launch"
 
+
 class Severity(Enum):
     NONE = "none"
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
     CRITICAL = "critical"
+
 
 @dataclass
 class FairnessSignalResult:
@@ -79,6 +82,7 @@ class FairnessSignalResult:
             "details": self.details,
             "evidence": self.evidence,
         }
+
 
 @dataclass
 class LaunchFairnessResult:
@@ -119,7 +123,9 @@ class LaunchFairnessResult:
             "sources_used": self.sources_used,
         }
 
+
 # ── Utility Functions ───────────────────────────────────────────
+
 
 def _detect_chain(address: str) -> str:
     """Detect likely blockchain from address format."""
@@ -130,8 +136,10 @@ def _detect_chain(address: str) -> str:
         return "solana"
     return "unknown"
 
+
 def _normalize_address(addr: str) -> str:
     return addr.strip().lower()
+
 
 def _severity_from_score(score: float) -> Severity:
     if score >= 0.8:
@@ -144,6 +152,7 @@ def _severity_from_score(score: float) -> Severity:
         return Severity.LOW
     return Severity.NONE
 
+
 def _risk_level_from_score(score: float) -> str:
     """Map fairness score (100 = fair) to risk level."""
     if score >= 80:
@@ -154,7 +163,9 @@ def _risk_level_from_score(score: float) -> str:
         return "high"
     return "critical"
 
+
 # ── Signal Detection Functions ──────────────────────────────────
+
 
 def _detect_sniped_distribution(
     token_address: str,
@@ -219,6 +230,7 @@ def _detect_sniped_distribution(
 
     return result
 
+
 def _detect_bundled_launch(
     token_address: str,
     chain: str,
@@ -276,9 +288,7 @@ def _detect_bundled_launch(
     for amount_key, count in amounts_seen.items():
         if count >= 3:
             identical_amounts += count
-            bundle_evidence.append(
-                f"{count} wallets bought {amount_key} USD (identical - bot pattern)"
-            )
+            bundle_evidence.append(f"{count} wallets bought {amount_key} USD (identical - bot pattern)")
 
     if bundle_count >= 2 or total_bundled_wallets >= 5:
         result.detected = True
@@ -296,6 +306,7 @@ def _detect_bundled_launch(
         result.details = f"Minor bundling indicators ({bundle_count} groups)"
 
     return result
+
 
 def _detect_concentrated_holders(
     holders_data: list[dict[str, Any]] | None = None,
@@ -331,9 +342,7 @@ def _detect_concentrated_holders(
         result.detected = True
         result.score = 1.0
         result.severity = Severity.CRITICAL
-        result.details = (
-            f"Extreme concentration: top 10 holders control {top_10_pct:.1f}% of supply"
-        )
+        result.details = f"Extreme concentration: top 10 holders control {top_10_pct:.1f}% of supply"
     elif top_10_pct >= 70:
         result.detected = True
         result.score = 0.7
@@ -352,6 +361,7 @@ def _detect_concentrated_holders(
 
     result.evidence = evidence
     return result
+
 
 def _detect_lp_manipulation(
     lp_data: dict[str, Any] | None = None,
@@ -386,11 +396,7 @@ def _detect_lp_manipulation(
 
     if simulated_txs:
         # Check if any LP removal transactions exist
-        lp_removes = [
-            t
-            for t in simulated_txs
-            if t.get("type", "").lower() in ("remove_liquidity", "lp_withdraw")
-        ]
+        lp_removes = [t for t in simulated_txs if t.get("type", "").lower() in ("remove_liquidity", "lp_withdraw")]
         if lp_removes:
             evidence.append(f"{len(lp_removes)} LP removal transaction(s) detected")
 
@@ -412,6 +418,7 @@ def _detect_lp_manipulation(
         result.evidence = evidence
 
     return result
+
 
 def _detect_bot_activity(
     simulated_txs: list[dict[str, Any]] | None = None,
@@ -467,8 +474,7 @@ def _detect_bot_activity(
     # Identical gas prices across wallets = coordinated bots
     if len(set(gas_prices.values())) <= 2 and len(gas_prices) >= 5:
         evidence.append(
-            f"All wallets using identical gas price "
-            f"({next(iter(gas_prices.values()))} gwei) - coordinated bots"
+            f"All wallets using identical gas price ({next(iter(gas_prices.values()))} gwei) - coordinated bots"
         )
 
     if bot_wallet_count >= 3:
@@ -484,6 +490,7 @@ def _detect_bot_activity(
         result.details = f"Minor bot indicators ({bot_wallet_count} wallets)"
 
     return result
+
 
 def _detect_presale_concentration(
     presale_data: dict[str, Any] | None = None,
@@ -519,16 +526,12 @@ def _detect_presale_concentration(
         result.detected = True
         result.score = 0.9
         result.severity = Severity.CRITICAL
-        result.details = (
-            f"Extreme presale concentration: {presale_pct:.1f}% allocated before public launch"
-        )
+        result.details = f"Extreme presale concentration: {presale_pct:.1f}% allocated before public launch"
     elif presale_pct >= 30:
         result.detected = True
         result.score = 0.6
         result.severity = Severity.HIGH
-        result.details = (
-            f"High presale allocation: {presale_pct:.1f}% - significant insider advantage"
-        )
+        result.details = f"High presale allocation: {presale_pct:.1f}% - significant insider advantage"
     elif presale_pct >= 15:
         result.detected = True
         result.score = 0.4
@@ -543,6 +546,7 @@ def _detect_presale_concentration(
 
     result.evidence = evidence
     return result
+
 
 def _detect_rapid_dump(
     simulated_txs: list[dict[str, Any]] | None = None,
@@ -564,8 +568,7 @@ def _detect_rapid_dump(
     early_sells = [
         t
         for t in simulated_txs
-        if t.get("type", "").lower() in ("sell", "remove_liquidity", "swap_out")
-        and t.get("block_number", 9999) < 50
+        if t.get("type", "").lower() in ("sell", "remove_liquidity", "swap_out") and t.get("block_number", 9999) < 50
     ]
 
     if not early_sells:
@@ -599,7 +602,9 @@ def _detect_rapid_dump(
     result.evidence = evidence
     return result
 
+
 # ── Main Analysis Function ──────────────────────────────────────
+
 
 async def analyze_launch_fairness(
     token_address: str,
@@ -731,17 +736,11 @@ async def analyze_launch_fairness(
     # ── Set aggregate metrics ──
     if holders_data:
         total = sum(float(h.get("balance", 0)) for h in holders_data)
-        top3_pct = (
-            sum(float(h.get("balance", 0)) for h in holders_data[:3]) / total * 100
-            if total > 0
-            else 0
-        )
+        top3_pct = sum(float(h.get("balance", 0)) for h in holders_data[:3]) / total * 100 if total > 0 else 0
         result.top_holder_concentration_pct = top3_pct
 
     result.sniper_count = (
-        len(
-            {t.get("from", "") for t in (simulated_txs or []) if t.get("type", "").lower() == "buy"}
-        )
+        len({t.get("from", "") for t in (simulated_txs or []) if t.get("type", "").lower() == "buy"})
         if simulated_txs
         else 0
     )
@@ -751,9 +750,7 @@ async def analyze_launch_fairness(
         if simulated_txs
         else 0
     )
-    result.presale_allocation_pct = (
-        presale_data.get("presale_allocation_pct", 0.0) if presale_data else 0.0
-    )
+    result.presale_allocation_pct = presale_data.get("presale_allocation_pct", 0.0) if presale_data else 0.0
     result.lp_add_delay_blocks = lp_data.get("add_delay_blocks", 0) if lp_data else 0
 
     # ── Generate warnings ──
@@ -762,9 +759,7 @@ async def analyze_launch_fairness(
     if result.top_holder_concentration_pct > 80:
         result.warnings.append("Extreme top-holder concentration - potential dump risk")
     if result.lp_add_delay_blocks > 200:
-        result.warnings.append(
-            f"LP added {result.lp_add_delay_blocks} blocks late - early buyers couldn't sell"
-        )
+        result.warnings.append(f"LP added {result.lp_add_delay_blocks} blocks late - early buyers couldn't sell")
     if result.bot_wallets_detected > 10:
         result.warnings.append(f"{result.bot_wallets_detected}+ bot wallets detected")
 
@@ -773,6 +768,7 @@ async def analyze_launch_fairness(
 
     result.analysis_time_ms = (time.time() - start_time) * 1000
     return result.to_dict()
+
 
 def _generate_summary(result: LaunchFairnessResult) -> str:
     """Generate human-readable summary."""
@@ -803,6 +799,7 @@ def _generate_summary(result: LaunchFairnessResult) -> str:
         parts.append(f"Bots: {result.bot_wallets_detected}")
 
     return " | ".join(parts)
+
 
 # ── Direct execution for testing ──
 if __name__ == "__main__":

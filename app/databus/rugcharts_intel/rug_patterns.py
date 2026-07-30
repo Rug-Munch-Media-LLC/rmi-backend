@@ -79,6 +79,7 @@ RUG_PATTERNS = [
     },
 ]
 
+
 async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) -> dict | None:
     """Match token characteristics against known rug pull patterns.
     Each pattern gets a similarity score. High matches = high rug probability.
@@ -139,9 +140,7 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
                         signals["holder_count"] = len(holders)
                         total = sum(float(h.get("amount", 0)) for h in holders)
                         if total > 0:
-                            signals["top_holder_pct"] = (
-                                float(holders[0].get("amount", 0)) / total * 100
-                            )
+                            signals["top_holder_pct"] = float(holders[0].get("amount", 0)) / total * 100
 
                 r3 = await c.post(
                     f"https://mainnet.helius-rpc.com/?api-key={api_key}",

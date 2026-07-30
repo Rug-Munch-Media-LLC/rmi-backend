@@ -83,10 +83,13 @@ async def telegram_auth(req: TelegramAuthRequest, request: Request) -> JSONRespo
         "access_token": jwt_token,
         "refresh_token": jwt_token,
         "user": {
-            "id": user["id"], "email": user["email"],
+            "id": user["id"],
+            "email": user["email"],
             "display_name": user.get("display_name"),
-            "wallet_address": None, "wallet_chain": None,
-            "tier": user.get("tier", "FREE"), "role": user.get("role", "USER"),
+            "wallet_address": None,
+            "wallet_chain": None,
+            "tier": user.get("tier", "FREE"),
+            "role": user.get("role", "USER"),
             "created_at": user.get("created_at"),
         },
     }

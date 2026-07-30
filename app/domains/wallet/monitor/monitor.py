@@ -1,4 +1,5 @@
 """Wallet Monitor — Per-chain WebSocket Monitor."""
+
 from __future__ import annotations
 
 import asyncio
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
 class WalletMonitor:
     """Per-chain real-time wallet monitor with WebSocket connection."""
 
@@ -62,10 +64,19 @@ class WalletMonitor:
         while self.running:
             try:
                 async with websockets.connect(self.ws_url) as ws:
-                    await ws.send(json.dumps({
-                        "jsonrpc": "2.0", "id": 1, "method": "eth_subscribe",
-                        "params": ["alchemy_minedTransactions", {"addresses": [], "includeRemoved": False, "hashesOnly": False}],
-                    }))
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "jsonrpc": "2.0",
+                                "id": 1,
+                                "method": "eth_subscribe",
+                                "params": [
+                                    "alchemy_minedTransactions",
+                                    {"addresses": [], "includeRemoved": False, "hashesOnly": False},
+                                ],
+                            }
+                        )
+                    )
                     async for message in ws:
                         if not self.running:
                             break
@@ -79,7 +90,14 @@ class WalletMonitor:
                                 await self._process_tx(tx)
                         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             continue
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, websockets.ConnectionClosed) as e:
+            except (
+                ConnectionError,
+                OSError,
+                TimeoutError,
+                httpx.HTTPError,
+                httpx.TimeoutException,
+                websockets.ConnectionClosed,
+            ) as e:
                 logger.warning("evm_ws_error chain=%s error=%s", self.chain, e)
                 await asyncio.sleep(5)
 
@@ -98,18 +116,29 @@ class WalletMonitor:
         for log in raw.get("logs", []):
             topics = log.get("topics", [])
             if topics and topics[0].lower() == TRANSFER_TOPIC.lower():
-                token_transfers.append({"token": log.get("address", ""),
-                    "from": "0x" + topics[1][-40:] if len(topics) > 1 else "",
-                    "to": "0x" + topics[2][-40:] if len(topics) > 2 else "",
-                    "value": log.get("data", "0x")})
-        return WalletTx(hash=raw.get("hash", ""), from_addr=raw.get("from", ""),
+                token_transfers.append(
+                    {
+                        "token": log.get("address", ""),
+                        "from": "0x" + topics[1][-40:] if len(topics) > 1 else "",
+                        "to": "0x" + topics[2][-40:] if len(topics) > 2 else "",
+                        "value": log.get("data", "0x"),
+                    }
+                )
+        return WalletTx(
+            hash=raw.get("hash", ""),
+            from_addr=raw.get("from", ""),
             to_addr=to_addr or raw.get("contractAddress", ""),
-            value=float(raw.get("value", 0)) / 1e18, chain=self.chain,
+            value=float(raw.get("value", 0)) / 1e18,
+            chain=self.chain,
             timestamp=datetime.now(UTC).isoformat(),
             gas_price=float(raw.get("gasPrice", 0)) / 1e9,
             is_contract_interaction=len(data) > 2 and not is_contract_creation,
-            is_contract_creation=is_contract_creation, is_approval=is_approval,
-            dex_swap=dex_swap, token_transfers=token_transfers, raw=raw)
+            is_contract_creation=is_contract_creation,
+            is_approval=is_approval,
+            dex_swap=dex_swap,
+            token_transfers=token_transfers,
+            raw=raw,
+        )
 
     # ─── SOLANA ────────────────────────────────────────────────
     async def _listen_solana(self) -> None:
@@ -120,12 +149,17 @@ class WalletMonitor:
             try:
                 async with websockets.connect(self.ws_url) as ws:
                     watched = list(self._watched)
-                    for idx, acc in enumerate(watched[:
-                        100]):
-                        await ws.send(json.dumps({
-                            "jsonrpc": "2.0", "id": idx + 1, "method": "accountSubscribe",
-                            "params": [acc, {"commitment": "confirmed", "encoding": "jsonParsed"}],
-                        }))
+                    for idx, acc in enumerate(watched[:100]):
+                        await ws.send(
+                            json.dumps(
+                                {
+                                    "jsonrpc": "2.0",
+                                    "id": idx + 1,
+                                    "method": "accountSubscribe",
+                                    "params": [acc, {"commitment": "confirmed", "encoding": "jsonParsed"}],
+                                }
+                            )
+                        )
                     async for message in ws:
                         if not self.running:
                             break
@@ -139,7 +173,14 @@ class WalletMonitor:
                                 await self._process_tx(tx)
                         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                             continue
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, websockets.ConnectionClosed) as e:
+            except (
+                ConnectionError,
+                OSError,
+                TimeoutError,
+                httpx.HTTPError,
+                httpx.TimeoutException,
+                websockets.ConnectionClosed,
+            ) as e:
                 logger.warning("solana_ws_error error=%s", e)
                 await asyncio.sleep(5)
 
@@ -148,16 +189,28 @@ class WalletMonitor:
             return None
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(self.rpc_url, json={
-                    "jsonrpc": "2.0", "id": 1, "method": "getSignaturesForAddress",
-                    "params": [account, {"limit": 1}]})
+                resp = await client.post(
+                    self.rpc_url,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getSignaturesForAddress",
+                        "params": [account, {"limit": 1}],
+                    },
+                )
                 sigs = (resp.json()).get("result", [])
                 if not sigs:
                     return None
                 sig = sigs[0]["signature"]
-                tx_resp = await client.post(self.rpc_url, json={
-                    "jsonrpc": "2.0", "id": 1, "method": "getTransaction",
-                    "params": [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}]})
+                tx_resp = await client.post(
+                    self.rpc_url,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getTransaction",
+                        "params": [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}],
+                    },
+                )
                 return self._parse_solana_tx(tx_resp.json().get("result", {}), sig)
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             return None
@@ -178,14 +231,27 @@ class WalletMonitor:
                     break
         token_transfers: list[dict] = []
         for p in meta.get("postTokenBalances", []):
-            token_transfers.append({"token": p.get("mint", ""), "owner": p.get("owner", ""),
-                "ui_amount": p.get("uiTokenAmount", {}).get("uiAmountString", "0")})
-        return WalletTx(hash=signature, from_addr=from_addr, to_addr=to_addr,
-            value=float(meta.get("fee", 0)) / 1e9, chain="solana",
+            token_transfers.append(
+                {
+                    "token": p.get("mint", ""),
+                    "owner": p.get("owner", ""),
+                    "ui_amount": p.get("uiTokenAmount", {}).get("uiAmountString", "0"),
+                }
+            )
+        return WalletTx(
+            hash=signature,
+            from_addr=from_addr,
+            to_addr=to_addr,
+            value=float(meta.get("fee", 0)) / 1e9,
+            chain="solana",
             timestamp=datetime.now(UTC).isoformat(),
             is_contract_interaction=len(msg.get("instructions", [])) > 0,
-            is_contract_creation=False, is_approval=False, dex_swap=dex_swap,
-            token_transfers=token_transfers, raw=raw)
+            is_contract_creation=False,
+            is_approval=False,
+            dex_swap=dex_swap,
+            token_transfers=token_transfers,
+            raw=raw,
+        )
 
     # ─── CORE PROCESSING ──────────────────────────────────────
     async def _process_tx(self, tx: WalletTx) -> None:
@@ -201,29 +267,59 @@ class WalletMonitor:
             for h in await r.lrange(key, 0, 49):
                 try:
                     d = json.loads(h)
-                    history.append(WalletTx(hash=d["hash"], from_addr=d["from"], to_addr=d["to"],
-                        value=d["value"], chain=d["chain"], timestamp=d["timestamp"],
-                        is_approval=d.get("is_approval", False), dex_swap=d.get("dex_swap"),
-                        token_transfers=d.get("token_transfers", [])))
+                    history.append(
+                        WalletTx(
+                            hash=d["hash"],
+                            from_addr=d["from"],
+                            to_addr=d["to"],
+                            value=d["value"],
+                            chain=d["chain"],
+                            timestamp=d["timestamp"],
+                            is_approval=d.get("is_approval", False),
+                            dex_swap=d.get("dex_swap"),
+                            token_transfers=d.get("token_transfers", []),
+                        )
+                    )
                 except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                     pass
         alerts = await self.alert_engine.evaluate(tx, history)
         if r and tx.to_addr and await r.sismember(SCAMMER_SET_KEY, tx.to_addr.lower()):
-            alerts.append(WalletAlert(alert_type="known_scammer_interaction", wallet=tx.from_addr,
-                chain=tx.chain, tx_hash=tx.hash, severity="critical",
-                message=f"Interaction with known scammer {tx.to_addr}",
-                metadata={"scammer": tx.to_addr}, timestamp=tx.timestamp))
+            alerts.append(
+                WalletAlert(
+                    alert_type="known_scammer_interaction",
+                    wallet=tx.from_addr,
+                    chain=tx.chain,
+                    tx_hash=tx.hash,
+                    severity="critical",
+                    message=f"Interaction with known scammer {tx.to_addr}",
+                    metadata={"scammer": tx.to_addr},
+                    timestamp=tx.timestamp,
+                )
+            )
         await BurstDetector.record(tx.from_addr, tx.chain, tx.hash)
         burst = await BurstDetector.check(tx.from_addr, tx.chain)
         if burst:
-            alerts.append(WalletAlert(alert_type="burst", wallet=tx.from_addr, chain=tx.chain,
-                tx_hash=tx.hash, severity=burst.severity,
-                message=f"Unusual tx velocity: {burst.tx_count} txs in {burst.window_seconds}s",
-                metadata=burst.to_dict(), timestamp=tx.timestamp))
+            alerts.append(
+                WalletAlert(
+                    alert_type="burst",
+                    wallet=tx.from_addr,
+                    chain=tx.chain,
+                    tx_hash=tx.hash,
+                    severity=burst.severity,
+                    message=f"Unusual tx velocity: {burst.tx_count} txs in {burst.window_seconds}s",
+                    metadata=burst.to_dict(),
+                    timestamp=tx.timestamp,
+                )
+            )
         await AutoLabeler.update_counters(tx)
         label = await AutoLabeler.suggest_label(tx.from_addr, tx.chain)
-        intel = {"type": "intel", "tx": tx.to_dict(), "wallet": tx.from_addr,
-                 "chain": tx.chain, "timestamp": datetime.now(UTC).isoformat()}
+        intel = {
+            "type": "intel",
+            "tx": tx.to_dict(),
+            "wallet": tx.from_addr,
+            "chain": tx.chain,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
         await AlertChannel.publish_intel(intel)
         for alert in alerts:
             d = alert.to_dict()

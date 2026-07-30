@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def reciprocal_rank_fusion(
     *ranked_lists: list[dict[str, Any]],
     k: int = 60,
@@ -60,6 +61,7 @@ def reciprocal_rank_fusion(
         results.append(entry)
 
     return results
+
 
 async def hybrid_query(
     query: str,
@@ -117,13 +119,16 @@ async def hybrid_query(
     try:
         if collections:
             vector_docs = await search_fn(
-                query, collections,
-                limit=limit * 2, min_similarity=min_similarity,
+                query,
+                collections,
+                limit=limit * 2,
+                min_similarity=min_similarity,
             )
         else:
             vector_docs = await search_fn(
                 query,
-                limit=limit * 2, min_similarity=min_similarity,
+                limit=limit * 2,
+                min_similarity=min_similarity,
             )
     except Exception as exc:
         logger.warning("Vector search failed in hybrid_query: %s", exc)
@@ -133,8 +138,11 @@ async def hybrid_query(
     vector_ranked = sorted(vector_docs, key=lambda d: d.get("similarity", 0), reverse=True)
 
     merged = reciprocal_rank_fusion(
-        entity_ranked, vector_ranked,
-        k=60, entity_boost=entity_boost, entity_doc_ids=entity_doc_ids,
+        entity_ranked,
+        vector_ranked,
+        k=60,
+        entity_boost=entity_boost,
+        entity_doc_ids=entity_doc_ids,
     )
 
     return {
@@ -143,6 +151,7 @@ async def hybrid_query(
         "entity_docs": entity_docs,
         "vector_docs": vector_docs[:limit],
     }
+
 
 def get_entity_lookup() -> EntityLookup:
     """Return the singleton EntityLookup instance."""

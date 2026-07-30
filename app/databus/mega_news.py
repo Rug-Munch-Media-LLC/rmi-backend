@@ -126,6 +126,7 @@ NEGATIVE_WORDS = {
     "fear",
 }
 
+
 def score_sentiment(text: str) -> float:
     """Fast lexicon-based sentiment: -1 (bearish) to +1 (bullish)"""
     words = set(text.lower().split())
@@ -133,6 +134,7 @@ def score_sentiment(text: str) -> float:
     neg = len(words & NEGATIVE_WORDS)
     total = pos + neg
     return (pos - neg) / total if total > 0 else 0.0
+
 
 def extract_tickers(text: str) -> list[str]:
     """Extract crypto tickers from text"""
@@ -142,6 +144,7 @@ def extract_tickers(text: str) -> list[str]:
         if t not in ("THE", "AND", "FOR", "BTC", "ETH", "SOL"):
             tickers.add(t)
     return list(tickers)[:5]
+
 
 def fetch_all_feeds(db=None) -> dict:
     """Fetch ALL 50+ RSS feeds, deduplicate, score, store. Returns stats."""
@@ -165,17 +168,13 @@ def fetch_all_feeds(db=None) -> dict:
             for item in items:
                 title = item.findtext("title", "").strip()
                 description = (
-                    item.findtext("description", "")
-                    or item.findtext("{http://www.w3.org/2005/Atom}summary", "")
+                    item.findtext("description", "") or item.findtext("{http://www.w3.org/2005/Atom}summary", "")
                 ).strip()
                 link = (
-                    item.findtext("link", "")
-                    or (item.find("link") is not None and item.find("link").get("href", ""))
+                    item.findtext("link", "") or (item.find("link") is not None and item.find("link").get("href", ""))
                 ).strip()
                 pub_date = (
-                    item.findtext("pubDate", "")
-                    or item.findtext("{http://www.w3.org/2005/Atom}updated", "")
-                    or ""
+                    item.findtext("pubDate", "") or item.findtext("{http://www.w3.org/2005/Atom}updated", "") or ""
                 )
 
                 if not title or len(title) < 10:
@@ -216,9 +215,7 @@ def fetch_all_feeds(db=None) -> dict:
 
         import redis
 
-        r = redis.Redis(
-            host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True
-        )
+        r = redis.Redis(host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
 
         # Index by time (sorted set)
         for a in results:
@@ -286,6 +283,7 @@ def fetch_all_feeds(db=None) -> dict:
         stats = {"total_fetched": len(results), "redis_error": str(e)[:100]}
 
     return stats
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [news] %(message)s")

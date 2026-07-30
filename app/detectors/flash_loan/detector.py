@@ -34,6 +34,7 @@ from app.detectors.flash_loan.models import (
 
 logger = get_logger(__name__)
 
+
 class FlashLoanAttackDetector:
     """Real-time flash loan attack detection and analysis engine.
 
@@ -110,9 +111,7 @@ class FlashLoanAttackDetector:
                         attacks = await self._analyze_transaction(trace)
                         if attacks:
                             report.attacks_confirmed.extend(attacks)
-                            report.flash_loans_detected += sum(
-                                len(a.flash_loan_calls) for a in attacks
-                            )
+                            report.flash_loans_detected += sum(len(a.flash_loan_calls) for a in attacks)
 
         report.scan_end = datetime.now(UTC).isoformat()
         report.duration_seconds = (
@@ -344,9 +343,7 @@ class FlashLoanAttackDetector:
                         protocol = FlashLoanProtocol.UNKNOWN
 
                     amount_raw = self._extract_amount_from_input(call_input)
-                    amount_usd = _estimate_token_price_usd(
-                        call.get("to", ""), trace.chain, amount_raw
-                    )
+                    amount_usd = _estimate_token_price_usd(call.get("to", ""), trace.chain, amount_raw)
                     flash_loans.append(
                         FlashLoanCall(
                             protocol=protocol,
@@ -468,8 +465,7 @@ class FlashLoanAttackDetector:
 
         for i, fl in enumerate(flash_loans, 1):
             timeline.append(
-                f"Step {i}: {fl.protocol.value.upper()} flash loan - "
-                f"${fl.amount_borrowed_usd:,.0f} borrowed"
+                f"Step {i}: {fl.protocol.value.upper()} flash loan - ${fl.amount_borrowed_usd:,.0f} borrowed"
             )
 
         if trace.internal_calls:

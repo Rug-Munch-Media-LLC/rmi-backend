@@ -90,8 +90,8 @@ class QualityMetrics:
 
 
 __all__ = [
-    "ProviderStatus",
     "FeedPost",
     "ProviderHealth",
+    "ProviderStatus",
     "QualityMetrics",
 ]

@@ -22,8 +22,9 @@ async def _health_check() -> DomainHealth:
             healthy=True,
             details={"tools": len(PRICING), "middleware": "available"},
         )
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         return DomainHealth(name="x402", healthy=False, error=str(e))
+
 
 health_mod.register_health_check("x402", _health_check)
 

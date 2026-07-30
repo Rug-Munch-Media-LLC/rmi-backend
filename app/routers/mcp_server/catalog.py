@@ -21,6 +21,7 @@ from .config import (
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_catalog"])
 
+
 def _build_tools_list() -> tuple[Any, Any, Any, Any]:
     """Build the full MCP-compatible tools list."""
     data = _get_tools()
@@ -39,11 +40,7 @@ def _build_tools_list() -> tuple[Any, Any, Any, Any]:
         cat = pricing.get("category", "analysis")
         cats[cat] = cats.get(cat, 0) + 1
         real_tool = TOOL_ALIASES.get(tool_id, tool_id)
-        endpoint = (
-            f"/api/v1/x402-databus/{tool_id}"
-            if tool_id in databus_ids
-            else f"/api/v1/x402-tools/{real_tool}"
-        )
+        endpoint = f"/api/v1/x402-databus/{tool_id}" if tool_id in databus_ids else f"/api/v1/x402-tools/{real_tool}"
         tools[tool_id] = {
             "name": tool_id,
             "description": _desc(tool_id, pricing),
@@ -53,9 +50,7 @@ def _build_tools_list() -> tuple[Any, Any, Any, Any]:
             "trial_free": int(pricing.get("trial_free", 1)),
             "chains": sorted(chains_data.keys()),
             "endpoint": endpoint,
-            "method": pricing.get("method", "POST")
-            if isinstance(pricing.get("method"), str)
-            else "POST",
+            "method": pricing.get("method", "POST") if isinstance(pricing.get("method"), str) else "POST",
             "databus": tool_id in databus_ids,
         }
 
@@ -79,6 +74,7 @@ def _build_tools_list() -> tuple[Any, Any, Any, Any]:
             }
 
     return tools, cats, chains_data, fac_count
+
 
 @router.get("/mcp/tools")
 async def mcp_tools_list(request: Request) -> dict[str, str]:
@@ -130,6 +126,7 @@ async def mcp_tools_list(request: Request) -> dict[str, str]:
         "updated_at": datetime.now(UTC).isoformat(),
     }
 
+
 @router.get("/tools")
 async def mcp_tools_mcp_router_format(request: Request) -> dict:
     """Serve tools in mcp-router compatible format."""
@@ -152,6 +149,7 @@ async def mcp_tools_mcp_router_format(request: Request) -> dict:
             }
         )
     return {"tools": services}
+
 
 @router.get("/mcp/capabilities")
 async def mcp_capabilities() -> dict[str, str]:

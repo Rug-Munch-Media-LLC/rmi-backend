@@ -20,6 +20,7 @@ from app.domains.x402.models import (
 
 log = get_logger(__name__)
 
+
 class X402Service:
     """Async facade over the x402 payment system."""
 
@@ -36,7 +37,7 @@ class X402Service:
 
             raw = await _catalog_mod.list_tools_catalog()
             return self._wrap_catalog(raw)
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             log.warning("x402_catalog_fetch_failed", error=str(e))
             return ToolCatalog()
 
@@ -59,7 +60,7 @@ class X402Service:
             if asyncio.iscoroutine(raw):
                 raw = await raw
             return self._wrap_facilitators(raw)
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             log.warning("x402_facilitators_fetch_failed", error=str(e))
             return self._default_facilitators()
 
@@ -113,9 +114,7 @@ class X402Service:
                         name=t.get("name", t.get("tool", "")),
                         description=t.get("description", ""),
                         category=t.get("category", ""),
-                        tier_required=X402Tier(
-                            tier_str.lower() if isinstance(tier_str, str) else "free"
-                        ),
+                        tier_required=X402Tier(tier_str.lower() if isinstance(tier_str, str) else "free"),
                         price_usd=float(t.get("price_usd", 0) or 0),
                         endpoint=t.get("endpoint", ""),
                         enabled=bool(t.get("enabled", True)),

@@ -21,6 +21,7 @@ CACHEABLE_TOOLS = {"token_price", "token_metadata", "wallet_tokens", "entity_int
 # ═══════════════════════════════════════════════════════════════
 MAX_PAYLOAD_SIZE = 1_048_576  # 1MB for standard JSON APIs
 
+
 async def cache_middleware(request: Request, call_next) -> Any:
     """Check Redis cache before executing tool. Store result after."""
     path = request.url.path
@@ -36,7 +37,7 @@ async def cache_middleware(request: Request, call_next) -> Any:
     try:
         body = await request.body()
         params = json.loads(body) if body else {}
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         return await call_next(request)
 
     try:
@@ -61,9 +62,10 @@ async def cache_middleware(request: Request, call_next) -> Any:
                 status_code=response.status_code,
                 headers={**dict(response.headers), "X-Cache": "MISS"},
             )
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             pass
     return response
+
 
 async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
     """Check for emergency lockdown status. Block non-admin routes if active."""
@@ -79,6 +81,7 @@ async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
 
         try:
             from app.config import settings as _s
+
             _host, _port, _pass = _s.redis_host, _s.redis_port, _s.redis_password
         except Exception:
             _host, _port, _pass = "localhost", 6379, ""
@@ -104,11 +107,13 @@ async def emergency_lockdown_middleware(request: Request, call_next) -> Any:
         pass
     return await call_next(request)
 
+
 async def hsts_middleware(request: Request, call_next) -> Any:
     """Force HTTPS and prevent protocol downgrade attacks."""
     response = await call_next(request)
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
+
 
 async def request_id_middleware(request: Request, call_next) -> Any:
     """Generate unique request ID for log correlation."""
@@ -116,6 +121,7 @@ async def request_id_middleware(request: Request, call_next) -> Any:
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
     return response
+
 
 async def payload_size_limit_middleware(request: Request, call_next) -> Any:
     """Enforce 1MB payload limit on non-upload routes."""
@@ -127,6 +133,7 @@ async def payload_size_limit_middleware(request: Request, call_next) -> Any:
                 content={"error": "Payload Too Large", "detail": "Maximum payload size is 1MB"},
             )
     return await call_next(request)
+
 
 async def secure_cookie_middleware(request: Request, call_next) -> Any:
     """Enforce secure cookie flags for admin sessions."""

@@ -2,6 +2,7 @@
 Prediction Market — Kalshi Source
 REST API /series, /markets, /events, /orderbook (unauthenticated).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -18,10 +19,15 @@ logger = get_logger("prediction_market.kalshi")
 
 KALSHI_BASE = "https://external-api.kalshi.com/trade-api/v2"
 
+
 async def search(http_client: Any, query: str) -> list[PredictionMarket]:
     try:
-        resp = await http_client.get(f"{KALSHI_BASE}/events", params={"status": "open", "limit": 50},
-                                     headers={"Accept": "application/json"}, timeout=10.0)
+        resp = await http_client.get(
+            f"{KALSHI_BASE}/events",
+            params={"status": "open", "limit": 50},
+            headers={"Accept": "application/json"},
+            timeout=10.0,
+        )
         if resp.status_code != 200:
             logger.warning(f"Kalshi events returned {resp.status_code}")
             return []
@@ -38,8 +44,12 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
             if i > 0:
                 await asyncio.sleep(0.3)
             try:
-                mr = await http_client.get(f"{KALSHI_BASE}/markets", params={"event_ticker": event_ticker, "status": "open", "limit": 10},
-                                           headers={"Accept": "application/json"}, timeout=8.0)
+                mr = await http_client.get(
+                    f"{KALSHI_BASE}/markets",
+                    params={"event_ticker": event_ticker, "status": "open", "limit": 10},
+                    headers={"Accept": "application/json"},
+                    timeout=8.0,
+                )
                 if mr.status_code == 200:
                     markets_data = mr.json()
                     for m in markets_data.get("markets", []):
@@ -49,14 +59,17 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
             except (ConnectionError, OSError, TimeoutError):
                 continue
         return results
-    except (json.JSONDecodeError, KeyError, TypeError) as e :
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
         logger.debug("search_error", exc_info=True)
         logger.warning(f"Kalshi search error: {e}")
         return []
 
+
 async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
     try:
-        resp = await http_client.get(f"{KALSHI_BASE}/events", params={"status": "open", "limit": min(limit * 2, 30)}, timeout=10.0)
+        resp = await http_client.get(
+            f"{KALSHI_BASE}/events", params={"status": "open", "limit": min(limit * 2, 30)}, timeout=10.0
+        )
         if resp.status_code != 200:
             return []
         data = resp.json()
@@ -65,7 +78,11 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
         for event in events[:limit]:
             event_ticker = event.get("ticker", "")
             try:
-                mr = await http_client.get(f"{KALSHI_BASE}/markets", params={"event_ticker": event_ticker, "status": "open", "limit": 5}, timeout=8.0)
+                mr = await http_client.get(
+                    f"{KALSHI_BASE}/markets",
+                    params={"event_ticker": event_ticker, "status": "open", "limit": 5},
+                    timeout=8.0,
+                )
                 if mr.status_code == 200:
                     markets_data = mr.json()
                     for m in markets_data.get("markets", []):
@@ -75,10 +92,11 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
             except (ConnectionError, OSError, TimeoutError):
                 continue
         return results[:limit]
-    except (json.JSONDecodeError, KeyError, TypeError) as e :
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
         logger.debug("trending_error", exc_info=True)
         logger.warning(f"Kalshi trending error: {e}")
         return []
+
 
 async def detail(http_client: Any, ticker: str) -> PredictionMarket | None:
     try:
@@ -100,10 +118,11 @@ async def detail(http_client: Any, ticker: str) -> PredictionMarket | None:
                     pm.probability_no = 1.0 - best_yes
                     return pm
         return None
-    except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+    except (requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
         logger.debug("detail_error", exc_info=True)
         logger.warning(f"Kalshi detail error for {ticker}: {e}")
         return None
+
 
 def _parse_market(m: dict) -> PredictionMarket | None:
     try:
@@ -118,14 +137,19 @@ def _parse_market(m: dict) -> PredictionMarket | None:
         prob_no = 1.0 - prob_yes if prob_yes else 0.5
         tokens_mentioned = extract_token_symbols(title)
         return PredictionMarket(
-            source="kalshi", source_id=ticker, question=title, slug=ticker,
-            probability_yes=prob_yes, probability_no=prob_no,
-            volume_usd=volume, category=category,
+            source="kalshi",
+            source_id=ticker,
+            question=title,
+            slug=ticker,
+            probability_yes=prob_yes,
+            probability_no=prob_no,
+            volume_usd=volume,
+            category=category,
             tokens_mentioned=tokens_mentioned,
             url=f"https://kalshi.com/markets/{ticker}" if ticker else "",
             updated_at=datetime.now(UTC).isoformat(),
         )
-    except (ValueError, TypeError, KeyError) as e :
+    except (ValueError, TypeError, KeyError) as e:
         logger.debug("_parse_market_error", exc_info=True)
         logger.warning(f"Failed to parse Kalshi market: {e}")
         return None

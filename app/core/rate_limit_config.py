@@ -12,6 +12,7 @@ class RateLimitRule:
     burst: int = 1
     exempt_internal: bool = True
 
+
 RULES: list[RateLimitRule] = [
     RateLimitRule("health", "1000/min"),
     RateLimitRule("auth", "5/min", burst=2),

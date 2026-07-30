@@ -18,6 +18,7 @@ log = get_logger(__name__)
 
 HASH_KEY = "rmi:alerts"
 
+
 class AlertRepository:
     """Async Redis-backed subscription storage."""
 
@@ -34,7 +35,7 @@ class AlertRepository:
         for value in raw.values():
             try:
                 out.append(AlertSubscription.model_validate_json(value))
-            except (ValueError, TypeError, KeyError, OSError) as e :
+            except (ValueError, TypeError, KeyError, OSError) as e:
                 log.warning("alert_repo_corrupt_record", error=str(e))
         return out
 
@@ -48,7 +49,7 @@ class AlertRepository:
             return None
         try:
             return AlertSubscription.model_validate_json(raw)
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             log.warning("alert_repo_corrupt_record", alert_id=alert_id, error=str(e))
             return None
 

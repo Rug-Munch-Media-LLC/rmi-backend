@@ -13,6 +13,7 @@ from enum import Enum
 
 class OracleType(Enum):
     """Supported oracle types."""
+
     CHAINLINK = "chainlink"
     UNISWAP_V2_TWAP = "uniswap_v2_twap"
     UNISWAP_V3_TWAP = "uniswap_v3_twap"
@@ -29,8 +30,10 @@ class OracleType(Enum):
                 return member
         return cls.CUSTOM
 
+
 class ManipulationType(Enum):
     """Types of oracle manipulation attacks."""
+
     TWAP_POISONING = "twap_poisoning"
     CHAINLINK_STALE = "chainlink_stale"
     FLASH_LOAN_SWAP = "flash_loan_swap"
@@ -41,8 +44,10 @@ class ManipulationType(Enum):
     FRESH_WALLET_SWAP = "fresh_wallet_swap"
     PROPORTIONAL_VOLUME_ANOMALY = "proportional_volume_anomaly"
 
+
 class Severity(Enum):
     """Severity levels for detected incidents."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -56,9 +61,11 @@ class Severity(Enum):
     def __lt__(self, other) -> bool:
         return self.score < other.score if isinstance(other, Severity) else NotImplemented
 
+
 @dataclass
 class PriceSnapshot:
     """A single price observation at a point in time."""
+
     timestamp: float
     block_number: int
     price: float
@@ -69,9 +76,11 @@ class PriceSnapshot:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 @dataclass
 class TWAPWindow:
     """Time-Weighted Average Price window data."""
+
     start_block: int
     end_block: int
     start_time: float
@@ -100,9 +109,11 @@ class TWAPWindow:
         result["manipulation_risk"] = self.manipulation_risk()
         return result
 
+
 @dataclass
 class OracleRead:
     """A single oracle price read with metadata."""
+
     tx_hash: str
     block_number: int
     timestamp: float
@@ -116,6 +127,7 @@ class OracleRead:
 
     def is_stale(self) -> bool:
         from .constants import CHAINLINK_FEED_UPDATE_THRESHOLD_SECONDS
+
         return self.price_age_seconds > CHAINLINK_FEED_UPDATE_THRESHOLD_SECONDS
 
     def deviation_from_expected(self) -> float | None:
@@ -129,9 +141,11 @@ class OracleRead:
         result["is_stale"] = self.is_stale()
         return result
 
+
 @dataclass
 class PriceManipulation:
     """A single detected price manipulation incident."""
+
     manipulation_type: ManipulationType
     severity: Severity
     chain: str
@@ -166,9 +180,11 @@ class PriceManipulation:
         result["label"] = self.label()
         return result
 
+
 @dataclass
 class ManipulationReport:
     """Complete oracle manipulation scan report."""
+
     scan_id: str
     chain: str
     blocks_scanned: int
@@ -221,6 +237,7 @@ class ManipulationReport:
 
     def json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
+
 
 __all__ = [
     "ManipulationReport",

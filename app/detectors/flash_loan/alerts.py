@@ -18,6 +18,7 @@ from app.detectors.flash_loan.models import AttackSeverity
 
 logger = get_logger(__name__)
 
+
 def _parse_cli_args() -> argparse.Namespace:
     """Parse command-line arguments for standalone operation."""
     parser = argparse.ArgumentParser(
@@ -66,6 +67,7 @@ def _parse_cli_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
 def _severity_from_str(s: str) -> AttackSeverity | None:
     """Convert severity string to enum."""
     mapping = {
@@ -76,6 +78,7 @@ def _severity_from_str(s: str) -> AttackSeverity | None:
         "critical": AttackSeverity.CRITICAL,
     }
     return mapping.get(s.lower())
+
 
 async def _run_cli() -> None:
     """Execute the CLI workflow."""
@@ -115,9 +118,9 @@ async def _run_cli() -> None:
             )
             return
 
-        logger.info("\n%s", '═' * 60)
+        logger.info("\n%s", "═" * 60)
         logger.info(report.summary())
-        logger.info("%s\n", '═' * 60)
+        logger.info("%s\n", "═" * 60)
 
     if not attacks:
         logger.info("✅ No flash loan attacks detected.")
@@ -137,15 +140,15 @@ async def _run_cli() -> None:
     filtered = [a for a in attacks if severity_order.index(a.severity) >= min_idx]
 
     if not filtered:
-        logger.info("No attacks at severity >= %s", args.severity or 'info')
+        logger.info("No attacks at severity >= %s", args.severity or "info")
         return
 
     for i, attack in enumerate(filtered, 1):
-        logger.info("\n%s", '─' * 60)
+        logger.info("\n%s", "─" * 60)
         logger.info("⚠️  ATTACK #%s", i)
-        logger.info("%s", '─' * 60)
+        logger.info("%s", "─" * 60)
         logger.info("  Severity:     %s", attack.severity.value.upper())
-        logger.info("  Type:         %s", attack.attack_type.value.replace('_', ' ').title())
+        logger.info("  Type:         %s", attack.attack_type.value.replace("_", " ").title())
         logger.info("  Protocol:     %s", attack.protocol_used.value.upper())
         logger.info("  Chain:        %s", attack.chain)
         logger.info("  Block:        #%s", attack.block_number)
@@ -157,9 +160,9 @@ async def _run_cli() -> None:
         logger.info("  Sophistication: %s/10", f"{attack.sophistication_score:.1f}")
 
         if attack.tags:
-            logger.info("  Tags:         %s", ', '.join(attack.tags))
+            logger.info("  Tags:         %s", ", ".join(attack.tags))
         if attack.targets:
-            logger.info("  Targets:      %s", ', '.join(a[:16] for a in attack.targets[:3]))
+            logger.info("  Targets:      %s", ", ".join(a[:16] for a in attack.targets[:3]))
         if attack.flash_loan_calls:
             logger.info("  Flash Loans:  %s", len(attack.flash_loan_calls))
             for fl in attack.flash_loan_calls:
@@ -169,11 +172,11 @@ async def _run_cli() -> None:
             for event in attack.exploit_timeline[:5]:
                 logger.info("    → %s", event)
 
-    logger.info("\n%s", '═' * 60)
+    logger.info("\n%s", "═" * 60)
     logger.info("Total: %s attack(s) detected", len(filtered))
     total_impact = sum(a.attacker_profit_usd + a.victim_loss_usd for a in filtered)
     logger.info("Total financial impact: $%s", f"{total_impact:,.2f}")
-    logger.info("%s", '═' * 60)
+    logger.info("%s", "═" * 60)
 
     if args.monitor:
         logger.info("\n🔄 Continuous monitoring mode. Next scan in 60s...")
@@ -183,9 +186,11 @@ async def _run_cli() -> None:
             for attack in report.attacks_confirmed:
                 logger.info("\n⚠️  NEW: %s", attack.summary())
 
+
 def main() -> None:
     """CLI entry point."""
     asyncio.run(_run_cli())
+
 
 if __name__ == "__main__":
     main()

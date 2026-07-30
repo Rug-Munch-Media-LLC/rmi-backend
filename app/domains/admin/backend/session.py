@@ -3,6 +3,7 @@ Admin Backend — Session Manager
 =================================
 Admin session management: create, validate, destroy, list active sessions.
 """
+
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ from app.core.logging import get_logger
 from app.domains.admin.backend.models import AdminRole
 
 logger = get_logger("rmi_admin_backend")
+
 
 class SessionManager:
     """
@@ -45,9 +47,7 @@ class SessionManager:
             "ip_address": ip_address,
             "user_agent": user_agent,
             "created_at": datetime.now(UTC).isoformat(),
-            "expires_at": (
-                datetime.now(UTC) + timedelta(hours=SessionManager.SESSION_TIMEOUT_HOURS)
-            ).isoformat(),
+            "expires_at": (datetime.now(UTC) + timedelta(hours=SessionManager.SESSION_TIMEOUT_HOURS)).isoformat(),
             "last_active": datetime.now(UTC).isoformat(),
             "is_active": True,
         }
@@ -74,7 +74,7 @@ class SessionManager:
                     await SessionManager.destroy_session(old_session)
 
             return session_id
-        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Session creation failed: {e}")
             return ""
@@ -100,9 +100,11 @@ class SessionManager:
                 await SessionManager.destroy_session(session_id)
                 return None
             session["last_active"] = datetime.now(UTC).isoformat()
-            await r.setex(f"admin_session:{session_id}", SessionManager.SESSION_TIMEOUT_HOURS * 3600, json.dumps(session))
+            await r.setex(
+                f"admin_session:{session_id}", SessionManager.SESSION_TIMEOUT_HOURS * 3600, json.dumps(session)
+            )
             return session
-        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError, KeyError) as e :
+        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError, KeyError) as e:
             logger.debug("validate_session_error", exc_info=True)
             logger.error(f"Session validation failed: {e}")
             return None
@@ -127,7 +129,16 @@ class SessionManager:
                     await r.srem(f"admin_sessions:{admin_id}", session_id)
             await r.delete(f"admin_session:{session_id}")
             return True
-        except (ConnectionError, OSError, asyncio.TimeoutError, json.JSONDecodeError, ValueError, KeyError, TypeError, TimeoutError) as e :
+        except (
+            ConnectionError,
+            OSError,
+            asyncio.TimeoutError,
+            json.JSONDecodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            TimeoutError,
+        ) as e:
             logger.debug("destroy_session_error", exc_info=True)
             logger.error(f"Session destroy failed: {e}")
             return False
@@ -155,7 +166,7 @@ class SessionManager:
                         sessions.append(session)
                     else:
                         await r.srem(f"admin_sessions:{admin_id}", sid)
-        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError, KeyError) as e :
+        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError, KeyError) as e:
             logger.debug("get_active_sessions_error", exc_info=True)
             logger.error(f"Get active sessions failed: {e}")
         return sessions
@@ -178,7 +189,7 @@ class SessionManager:
                 await r.delete(f"admin_session:{sid}")
                 count += 1
             await r.delete(f"admin_sessions:{admin_id}")
-        except (ConnectionError, OSError, ValueError) as e :
+        except (ConnectionError, OSError, ValueError) as e:
             logger.debug("destroy_all_sessions_error", exc_info=True)
             logger.error(f"Destroy all sessions failed: {e}")
         return count

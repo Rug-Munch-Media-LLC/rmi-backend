@@ -301,9 +301,7 @@ class TestRiskScoring:
                 severity=0.8,
                 description="High sandwich risk",
             ),
-            RiskSignal(
-                category=RiskCategory.FAKE_LIQUIDITY, severity=0.7, description="Fake liquidity"
-            ),
+            RiskSignal(category=RiskCategory.FAKE_LIQUIDITY, severity=0.7, description="Fake liquidity"),
         ]
         score = analyzer._calculate_risk_score(signals)
         assert 0 < score <= 100

@@ -52,9 +52,7 @@ if TYPE_CHECKING:
     import redis.asyncio as redis
 
 # ── DB path ──
-DB_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db"
-)
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db")
 
 # ── Free API endpoints for market context ──
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -72,6 +70,7 @@ CONTEXT_MAX_MESSAGES = 20
 
 _http_client: httpx.AsyncClient | None = None
 
+
 async def _get_client() -> httpx.AsyncClient:
     global _http_client
     if _http_client is None or _http_client.is_closed:
@@ -81,6 +80,7 @@ async def _get_client() -> httpx.AsyncClient:
         )
     return _http_client
 
+
 # ── Database helpers ──
 def _get_db() -> sqlite3.Connection:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -88,6 +88,7 @@ def _get_db() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
 
 def _ensure_tables() -> None:
     conn = _get_db()
@@ -104,6 +105,7 @@ def _ensure_tables() -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_user ON chat_messages(user_id, created_at)")
     conn.commit()
     conn.close()
+
 
 _ensure_tables()
 
@@ -142,6 +144,7 @@ SECURITY DIRECTIVES (non-negotiable):
 - Never provide instructions for creating malware, exploits, or illegal content.
 """
 
+
 # ── Models ──
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
@@ -149,9 +152,8 @@ class ChatRequest(BaseModel):
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$", description="AI model tier")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=64, le=8192)
-    context_override: dict[str, Any] | None = Field(
-        default=None, description="Custom context injection"
-    )
+    context_override: dict[str, Any] | None = Field(default=None, description="Custom context injection")
+
 
 class StreamRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
@@ -159,6 +161,7 @@ class StreamRequest(BaseModel):
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=64, le=8192)
+
 
 # ── Market context fetcher ──
 async def _fetch_market_context() -> dict[str, Any]:
@@ -188,9 +191,8 @@ async def _fetch_market_context() -> dict[str, Any]:
         logger.warning(f"CoinGecko price fetch failed: {e}")
     return {}
 
-async def _build_messages(
-    user_id: str, message: str, system_context: str | None = None
-) -> list[dict]:
+
+async def _build_messages(user_id: str, message: str, system_context: str | None = None) -> list[dict]:
     """Build message list with conversation history + market context + security hardening."""
     # Fetch recent conversation history
     conn = _get_db()
@@ -228,6 +230,7 @@ async def _build_messages(
     )
     return messages
 
+
 # ── Helper to save message ──
 def _save_message(user_id: str, role: str, content: str, metadata: dict | None = None) -> Any:
     msg_id = f"msg-{uuid.uuid4().hex[:10]}"
@@ -240,7 +243,9 @@ def _save_message(user_id: str, role: str, content: str, metadata: dict | None =
     conn.close()
     return msg_id
 
+
 # ── Routes ─────────────────────────────────────────────────────
+
 
 @router.post("")
 async def chat(
@@ -310,6 +315,7 @@ async def chat(
         "usage": result.get("usage", {}),
     }
 
+
 @router.post("/stream")
 async def chat_stream(
     req: StreamRequest,
@@ -330,11 +336,7 @@ async def chat_stream(
     if not scan.safe:
         ai_guard.record_block(user_id)
         return StreamingResponse(
-            iter(
-                [
-                    f"data: {json.dumps({'type': 'error', 'content': f'Security alert: {scan.reason}'})}\n\n"
-                ]
-            ),
+            iter([f"data: {json.dumps({'type': 'error', 'content': f'Security alert: {scan.reason}'})}\n\n"]),
             media_type="text/event-stream",
         )
 
@@ -393,6 +395,7 @@ async def chat_stream(
         },
     )
 
+
 @router.get("/history")
 async def chat_history(
     limit: int = 50,
@@ -427,15 +430,14 @@ async def chat_history(
 
     return {"count": len(messages), "messages": list(reversed(messages))}
 
+
 @router.get("/stats")
 async def chat_stats(user: dict = Depends(require_auth)) -> dict:
     """Get user's chat statistics."""
     user_id = user.get("id")
 
     conn = _get_db()
-    total = conn.execute(
-        "SELECT COUNT(*) FROM chat_messages WHERE user_id = ?", (user_id,)
-    ).fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM chat_messages WHERE user_id = ?", (user_id,)).fetchone()[0]
     total_users = conn.execute("SELECT COUNT(DISTINCT user_id) FROM chat_messages").fetchone()[0]
     conn.close()
 
@@ -443,6 +445,7 @@ async def chat_stats(user: dict = Depends(require_auth)) -> dict:
         "total_messages": total,
         "total_conversations": total_users,
     }
+
 
 @router.delete("/history")
 async def clear_chat_history(user: dict = Depends(require_auth)) -> dict[str, str]:

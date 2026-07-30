@@ -24,9 +24,11 @@ logger = get_logger(__name__)
 
 # ─── CLUSTERING ALGORITHMS ──────────────────────────────────────────────
 
+
 def hash_address(address: str) -> str:
     """Generate a consistent hash for an address."""
     return hashlib.sha256(address.lower().encode()).hexdigest()[:16]
+
 
 class WalletCluster:
     """Represents a cluster of related wallets."""
@@ -39,9 +41,7 @@ class WalletCluster:
         self.labels: set[str] = set()
         self.metadata: dict[str, Any] = {}
 
-    def add_address(
-        self, address: str, chain: str = "unknown", confidence: float = 0.5, label: str = ""
-    ) -> None:
+    def add_address(self, address: str, chain: str = "unknown", confidence: float = 0.5, label: str = "") -> None:
         """Add an address to the cluster."""
         self.addresses.add(address.lower())
         self.chains.add(chain)
@@ -68,6 +68,7 @@ class WalletCluster:
             "labels": list(self.labels),
             "metadata": self.metadata,
         }
+
 
 class EntityGraph:
     """Graph-based wallet entity mapping."""
@@ -106,11 +107,7 @@ class EntityGraph:
 
     def find_clusters(self, min_size: int = 2) -> list[dict[str, Any]]:
         """Return clusters with at least min_size members."""
-        return [
-            cluster.to_dict()
-            for cluster in self.nodes.values()
-            if len(cluster.addresses) >= min_size
-        ]
+        return [cluster.to_dict() for cluster in self.nodes.values() if len(cluster.addresses) >= min_size]
 
     def get_entity(self, cluster_id: str) -> dict[str, Any] | None:
         """Get a specific entity."""
@@ -135,15 +132,15 @@ class EntityGraph:
             "edges": self.edges,
         }
 
+
 # ─── CLUSTERING STRATEGIES ──────────────────────────────────────────────
+
 
 class ClusteringStrategy:
     """Base class for clustering strategies."""
 
     @staticmethod
-    def detect_shared_constructor(
-        addresses: list[str], evm_client: EVMClient
-    ) -> dict[str, list[str]]:
+    def detect_shared_constructor(addresses: list[str], evm_client: EVMClient) -> dict[str, list[str]]:
         """
         Detect wallets created by the same contract (e.g., Uniswap pools).
         Returns addresses grouped by creator contract.
@@ -162,9 +159,7 @@ class ClusteringStrategy:
         return dict(clusters)
 
     @staticmethod
-    def detect_shared_interactions(
-        addresses: list[str], evm_client: EVMClient, protocol: str
-    ) -> dict[str, list[str]]:
+    def detect_shared_interactions(addresses: list[str], evm_client: EVMClient, protocol: str) -> dict[str, list[str]]:
         """
         Detect wallets that interact with the same protocol.
         """
@@ -183,14 +178,14 @@ class ClusteringStrategy:
 
         return dict(clusters)
 
+
 # ─── MAIN CLUSTERING ENGINE ─────────────────────────────────────────────
+
 
 class EntityClusteringEngine:
     """Main entity clustering engine."""
 
-    def __init__(
-        self, evm_client: EVMClient | None = None, solana_client: SolanaClient | None = None
-    ) -> None:
+    def __init__(self, evm_client: EVMClient | None = None, solana_client: SolanaClient | None = None) -> None:
         self.graph = EntityGraph()
         self.evm_client = evm_client or EVMClient()
         self.solana_client = solana_client or SolanaClient()
@@ -254,9 +249,7 @@ class EntityClusteringEngine:
         Build a comprehensive entity graph from wallet addresses.
         """
         # Add wallets to graph
-        self.batch_add_wallets(
-            [{"address": addr, "chain": "ethereum"} for addr in wallet_addresses]
-        )
+        self.batch_add_wallets([{"address": addr, "chain": "ethereum"} for addr in wallet_addresses])
 
         # Find clusters
         clusters = self.graph.find_clusters(min_size=1)
@@ -280,7 +273,9 @@ class EntityClusteringEngine:
 
         return dict(entity_map)
 
+
 # ─── API EXPORTS ────────────────────────────────────────────────────────
+
 
 def get_clustering_engine() -> EntityClusteringEngine:
     """Get a configured clustering engine instance."""

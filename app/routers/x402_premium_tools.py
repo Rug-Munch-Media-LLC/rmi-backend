@@ -31,26 +31,29 @@ router = APIRouter()
 # Request Models
 # ═══════════════════════════════════════════════════════════
 
+
 class AddressRequest(BaseModel):
     address: str = Field(..., description="Wallet address, token contract, or ENS name")
     chain: str = Field(default="base", description="Blockchain: base, solana, ethereum, bsc, etc.")
 
+
 class WebhookRegisterRequest(BaseModel):
     url: str = Field(..., description="Webhook callback URL")
-    events: list[str] = Field(
-        default=["rug_pull", "whale_move", "price_crash"], description="Events to monitor"
-    )
+    events: list[str] = Field(default=["rug_pull", "whale_move", "price_crash"], description="Events to monitor")
     address: str | None = Field(default=None, description="Specific address to watch (optional)")
     chain: str = Field(default="all", description="Chain filter")
+
 
 class InvestigationRequest(BaseModel):
     address: str = Field(..., description="Target address, token, or wallet")
     chain: str = Field(default="base")
     depth: str = Field(default="standard", description="standard | deep | forensic")
 
+
 # ═══════════════════════════════════════════════════════════
 # TOOL: Reputation Score ($0.10)
 # ═══════════════════════════════════════════════════════════
+
 
 @router.post("/reputation_score")
 async def reputation_score(req: AddressRequest) -> dict[str, str]:
@@ -278,9 +281,11 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
         logger.error(f"Reputation score failed: {e}")
         raise AppError(message=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════
 # TOOL: Webhook Register ($0.02 setup + webhook delivery)
 # ═══════════════════════════════════════════════════════════
+
 
 @router.post("/webhook_register")
 async def webhook_register(req: WebhookRegisterRequest) -> dict[str, str]:
@@ -356,6 +361,7 @@ async def webhook_register(req: WebhookRegisterRequest) -> dict[str, str]:
         logger.error(f"Webhook register failed: {e}")
         raise AppError(message=str(e)) from e
 
+
 @router.get("/webhook_list")
 async def webhook_list(address: str | None = None) -> dict:
     """List registered webhooks for an address or globally."""
@@ -386,9 +392,11 @@ async def webhook_list(address: str | None = None) -> dict:
     except Exception as e:
         raise AppError(message=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════
 # TOOL: Investigation Report ($0.25)
 # ═══════════════════════════════════════════════════════════
+
 
 @router.post("/investigation_report")
 async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
@@ -474,9 +482,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
                     sources.extend(forensics.get("sources_used", []))
         except (aiohttp.ClientError, TimeoutError, json.JSONDecodeError) as e:
             logger.debug(f"Forensics service unavailable: {e}")
-            sections["on_chain"] = {
-                "error": "Forensics unavailable - continuing with other sources"
-            }
+            sections["on_chain"] = {"error": "Forensics unavailable - continuing with other sources"}
 
         # ── Section 4: Market Context ──
         try:
@@ -526,19 +532,13 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
             recommendation = "Low risk. Standard due diligence recommended."
         elif rep_score >= 60 and risk_score < 50:
             verdict = "CAUTION"
-            recommendation = (
-                "Moderate risk. Verify contract ownership and liquidity locks before interacting."
-            )
+            recommendation = "Moderate risk. Verify contract ownership and liquidity locks before interacting."
         elif rep_score >= 40 or risk_score < 70:
             verdict = "HIGH_RISK"
-            recommendation = (
-                "High risk. Multiple red flags detected. Exercise extreme caution or avoid."
-            )
+            recommendation = "High risk. Multiple red flags detected. Exercise extreme caution or avoid."
         else:
             verdict = "AVOID"
-            recommendation = (
-                "Critical risk. Confirmed scam indicators. Do not interact with this address."
-            )
+            recommendation = "Critical risk. Confirmed scam indicators. Do not interact with this address."
 
         return {
             "tool": "Investigation Report",
@@ -561,9 +561,11 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
         logger.error(f"Investigation report failed: {e}")
         raise AppError(message=str(e)) from e
 
+
 # ═══════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════
+
 
 async def _lookup_labels_async(address: str) -> list[dict]:
     """Async wrapper for wallet label lookups."""

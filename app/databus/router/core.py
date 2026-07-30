@@ -62,6 +62,7 @@ async def databus_fetch(request: Request) -> Any:
         raise HTTPException(502, f"No data available for {data_type}")
     return result
 
+
 @router.get("/fetch/{data_type}")
 async def databus_fetch_get(
     data_type: str,
@@ -76,17 +77,17 @@ async def databus_fetch_get(
         if key not in ("admin_key", "force_fresh"):
             kwargs[key] = value
 
-    result = await databus.fetch(
-        data_type=data_type, admin_key=admin_key, force_fresh=force_fresh, **kwargs
-    )
+    result = await databus.fetch(data_type=data_type, admin_key=admin_key, force_fresh=force_fresh, **kwargs)
     if result is None:
         raise HTTPException(502, f"No data available for {data_type}")
     return result
+
 
 @router.get("/health")
 async def databus_health() -> Any:
     """Full system health: cache, vault, chains, stats."""
     return await databus.health()
+
 
 @router.get("/capacity")
 async def databus_capacity() -> Any:
@@ -95,12 +96,14 @@ async def databus_capacity() -> Any:
         await databus.initialize()
     return databus.capacity_report()
 
+
 @router.get("/chains")
 async def databus_chains() -> Any:
     """List all available data types and their provider fallback chains."""
     if not databus._initialized:
         await databus.initialize()
     return databus.list_chains()
+
 
 @router.get("/access-matrix")
 async def databus_access_matrix(request: Request) -> Any | dict[str, str]:
@@ -109,12 +112,11 @@ async def databus_access_matrix(request: Request) -> Any | dict[str, str]:
         from app.databus.access_control import access_controller
 
         # Non-admin sees a limited view - only their tier's access
-        return {
-            "note": "Full matrix requires admin key. Your access depends on your consumer type."
-        }
+        return {"note": "Full matrix requires admin key. Your access depends on your consumer type."}
     from app.databus.access_control import access_controller
 
     return access_controller.list_access_matrix()
+
 
 @router.get("/mcp-scope/{tool_id}")
 async def databus_mcp_scope(tool_id: str) -> dict:
@@ -126,6 +128,7 @@ async def databus_mcp_scope(tool_id: str) -> dict:
         return {"tool_id": tool_id, "allowed_types": [], "note": "Unknown tool or no scope defined"}
     return {"tool_id": tool_id, "allowed_types": allowed}
 
+
 @router.get("/x402-scope/{tier}")
 async def databus_x402_scope(tier: str) -> dict:
     """Get the data types an x402 pricing tier can access."""
@@ -133,4 +136,3 @@ async def databus_x402_scope(tier: str) -> dict:
 
     allowed = access_controller.get_x402_allowed_types(tier)
     return {"tier": tier, "allowed_types": allowed}
-

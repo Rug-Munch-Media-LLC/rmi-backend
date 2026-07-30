@@ -5,6 +5,7 @@ RugMunchBot -- Message handler + AI chat system.
 Auto-detect contract addresses, $TOKEN lookups, and tiered AI chat
 (RAG backend -> local intent matching -> friendly redirect).
 """
+
 from __future__ import annotations
 
 import re
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("rmi_bot")
 
+
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None:
@@ -56,6 +58,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if is_evm(text) or is_sol(text):
         ctx.args = [text]
         from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_scan
+
         await cmd_scan(update, ctx)
         return
 
@@ -87,17 +90,31 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
                         )
                         if addr:
                             from app.domains.telegram.rugmunchbot.formatters import web_scan_button
+
                             await update.message.reply_text(
                                 quick_text,
                                 parse_mode=ParseMode.HTML,
-                                reply_markup=InlineKeyboardMarkup([
-                                    [InlineKeyboardButton("\U0001f50d Full Scan", callback_data=f"scan_{addr}_{chain}")],
-                                    [web_scan_button(addr, chain)],
-                                ]),
+                                reply_markup=InlineKeyboardMarkup(
+                                    [
+                                        [
+                                            InlineKeyboardButton(
+                                                "\U0001f50d Full Scan", callback_data=f"scan_{addr}_{chain}"
+                                            )
+                                        ],
+                                        [web_scan_button(addr, chain)],
+                                    ]
+                                ),
                                 disable_web_page_preview=True,
                             )
                             return
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
+        except (
+            ConnectionError,
+            OSError,
+            TimeoutError,
+            httpx.HTTPError,
+            httpx.TimeoutException,
+            telegram.error.TelegramError,
+        ) as e:
             logger.debug(f"handle_message $TOKEN lookup failed for {symbol}: {e}")
 
     # Natural language address extraction
@@ -106,11 +123,13 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if evm_match:
         ctx.args = [evm_match.group()]
         from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_scan
+
         await cmd_scan(update, ctx)
         return
     if sol_match:
         ctx.args = [sol_match.group()]
         from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_scan
+
         await cmd_scan(update, ctx)
         return
 
@@ -118,6 +137,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     allowed, _used, _limit = db.check_rate_limit(user.id, "ai_msg")
     if not allowed:
         from app.domains.telegram.rugmunchbot.formatters import paywall_text
+
         await update.message.reply_text(
             paywall_text(user.id, "ai_msg"),
             parse_mode=ParseMode.HTML,
@@ -132,9 +152,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if rag_response:
         logger.info("AI chat tier=1 (rag) user=%s text=%.60s", user.id, text)
         db.increment_usage(user.id, ai_msg=True)
-        await update.message.reply_text(
-            rag_response[:4000], parse_mode=ParseMode.HTML, reply_markup=back_kb()
-        )
+        await update.message.reply_text(rag_response[:4000], parse_mode=ParseMode.HTML, reply_markup=back_kb())
         return
 
     # Tier 2: Local intent matching
@@ -168,6 +186,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         disable_web_page_preview=True,
     )
 
+
 async def _try_rag_backend(query: str) -> str | None:
     """Tier 1: Query RMI RAG backend. Returns response text or None."""
     try:
@@ -197,119 +216,146 @@ async def _try_rag_backend(query: str) -> str | None:
         logger.debug("RAG backend error: %s", e)
     return None
 
+
 # --- Local intent matching (Tier 2) ---
 
 _INTENT_RULES: list[tuple[re.Pattern, str]] = [
-    (re.compile(
-        r"\b(scan|check|audit|rug|scam|honeypot|safu|drain|phish|malicious|"
-        r"dangerous|secure|risky|safe(ty)?|is this safe|is it safe|trustworthy)\b",
-        re.IGNORECASE,
-    ), (
-        "\U0001f50d <b>Token Security Scan</b>\n\n"
-        "Use <code>/scan &lt;address&gt;</code> to run a full security audit. "
-        "I check for:\n"
-        "\u2022 \U0001f36f Honeypot detection\n"
-        "\u2022 \U0001f3c3 Rug pull risks\n"
-        "\u2022 \U0001f4e6 Bundle / wash trading\n"
-        "\u2022 \U0001f9db Dev wallet history\n"
-        "\u2022 \U0001f4ca Liquidity & holder analysis\n\n"
-        "Just paste any contract address and I'll auto-detect it!"
-    )),
-    (re.compile(
-        r"\b(price|chart|worth|value|how much|cost|mc[aap]+|market cap|volume|"
-        r"liquidity|pump|dump|buy|sell|token price|usd)\b",
-        re.IGNORECASE,
-    ), (
-        "\U0001f4ca <b>Price & Market Data</b>\n\n"
-        "Use <code>/quick &lt;symbol&gt;</code> or <code>$TOKEN</code> for instant prices.\n"
-        "Use <code>/chart &lt;address&gt;</code> for technical analysis charts.\n"
-        "Use <code>/scan &lt;address&gt;</code> for full market data.\n\n"
-        "\U0001f4b0 I pull real-time data from DexScreener and CoinGecko."
-    )),
-    (re.compile(
-        r"\b(wallet|portfolio|balance|holdings|my token|my coin|bag|"
-        r"hodl|fund|money)\b",
-        re.IGNORECASE,
-    ), (
-        "\U0001f9db <b>Wallet Analysis</b>\n\n"
-        "Use <code>/wallet &lt;address&gt;</code> to analyze any wallet.\n"
-        "Use <code>/portfolio</code> to view your tracked wallets.\n\n"
-        "I show:\n"
-        "\u2022 \U0001f4b0 Token balances & values\n"
-        "\u2022 \U0001f504 Recent transaction history\n"
-        "\u2022 \u26a0\ufe0f Risk metrics & scam checks\n"
-        "\u2022 \U0001f517 Counterparty connections"
-    )),
-    (re.compile(
-        r"\b(compare|vs |versus|better than|which (is|one)|difference)\b", re.IGNORECASE
-    ), (
-        "\u2696\ufe0f <b>Token Comparison</b>\n\n"
-        "Use <code>/compare &lt;addr1&gt; &lt;addr2&gt;</code> to pit two tokens "
-        "side-by-side.\n\n"
-        "I'll show you both risk scores, prices, liquidity, and holder metrics "
-        "in one view!"
-    )),
-    (re.compile(
-        r"\b(trending|hot|popular|what to buy|best coin|moon|gem|"
-        r"next 100x|top token|gainers|movers)\b",
-        re.IGNORECASE,
-    ), (
-        "\U0001f525 <b>Trending Tokens</b>\n\n"
-        "Check <code>/trending</code> for the hottest tokens right now.\n"
-        "I show real-time data on:\n"
-        "\u2022 \U0001f4c8 Top gainers\n"
-        "\u2022 \U0001f4a7 Highest volume\n"
-        "\u2022 \U0001f195 New pairs\n"
-        "\u2022 \U0001f3e0 Most holders"
-    )),
-    (re.compile(
-        r"\b(alert|notify|watch|track|monitor|notification|remind|follow)\b",
-        re.IGNORECASE,
-    ), (
-        "\U0001f514 <b>Price Alerts</b>\n\n"
-        "Use <code>/watch &lt;address&gt;</code> to add tokens to your watchlist.\n"
-        "Use <code>/alerts</code> to manage your price alerts.\n\n"
-        "\U0001f4cc <b>Scout+</b> tier gets real-time push alerts for price moves, "
-        "large transactions, and security events."
-    )),
-    (re.compile(
-        r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|"
-        r"gm|gn|what'?s up|welcome)\b",
-        re.IGNORECASE,
-    ), (
-        "\U0001f44b <b>Hey there!</b>\n\n"
-        "I'm <b>RugMunch</b> \u2014 your crypto security sidekick. "
-        "I scan tokens for scams, analyze wallets, track prices, and more across 77+ chains.\n\n"
-        "\U0001f6e1\ufe0f <b>Try these:</b>\n"
-        "\u2022 Paste a contract address \u2192 auto scan\n"
-        "\u2022 <code>$TOKEN</code> \u2192 instant price\n"
-        "\u2022 <code>/help</code> \u2192 all commands"
-        f"{footer_links()}"
-    )),
-    (re.compile(r"\b(thank|thanks|ty|thx|appreciate|good bot|nice|great)\b", re.IGNORECASE), (
-        "\U0001f64c You're welcome! Happy to help keep the crypto space safe.\n\n"
-        "If you find this useful, tell your friends! \n"
-        "Use <code>/refer</code> to get your referral link."
-    )),
-    (re.compile(
-        r"\b(help|how|what|can you|capabilities|features|commands|what do|"
-        r"what are|guide|tutorial|docs|documentation)\b",
-        re.IGNORECASE,
-    ), (
-        "\U0001f916 <b>RugMunch Capabilities</b>\n\n"
-        "I'm a multi-chain crypto intelligence bot. Here's what I can do:\n\n"
-        "\U0001f50d <code>/scan &lt;addr&gt;</code> \u2014 Full token security audit\n"
-        "\U0001f9db <code>/wallet &lt;addr&gt;</code> \u2014 Wallet forensics\n"
-        "\U0001f4ca <code>/quick &lt;symbol&gt;</code> \u2014 Price lookup\n"
-        "\U0001f4c8 <code>/chart &lt;addr&gt;</code> \u2014 Technical analysis\n"
-        "\u2696\ufe0f <code>/compare &lt;a&gt; &lt;b&gt;</code> \u2014 Side-by-side compare\n"
-        "\U0001f525 <code>/trending</code> \u2014 Hot tokens\n"
-        "\U0001f4f0 <code>/news</code> \u2014 Crypto headlines\n"
-        "\U0001f393 <code>/scamschool</code> \u2014 Learn scam patterns\n"
-        "\U0001f451 <code>/pricing</code> \u2014 Upgrade your tier"
-        f"{footer_links()}"
-    )),
+    (
+        re.compile(
+            r"\b(scan|check|audit|rug|scam|honeypot|safu|drain|phish|malicious|"
+            r"dangerous|secure|risky|safe(ty)?|is this safe|is it safe|trustworthy)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f50d <b>Token Security Scan</b>\n\n"
+            "Use <code>/scan &lt;address&gt;</code> to run a full security audit. "
+            "I check for:\n"
+            "\u2022 \U0001f36f Honeypot detection\n"
+            "\u2022 \U0001f3c3 Rug pull risks\n"
+            "\u2022 \U0001f4e6 Bundle / wash trading\n"
+            "\u2022 \U0001f9db Dev wallet history\n"
+            "\u2022 \U0001f4ca Liquidity & holder analysis\n\n"
+            "Just paste any contract address and I'll auto-detect it!"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(price|chart|worth|value|how much|cost|mc[aap]+|market cap|volume|"
+            r"liquidity|pump|dump|buy|sell|token price|usd)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f4ca <b>Price & Market Data</b>\n\n"
+            "Use <code>/quick &lt;symbol&gt;</code> or <code>$TOKEN</code> for instant prices.\n"
+            "Use <code>/chart &lt;address&gt;</code> for technical analysis charts.\n"
+            "Use <code>/scan &lt;address&gt;</code> for full market data.\n\n"
+            "\U0001f4b0 I pull real-time data from DexScreener and CoinGecko."
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(wallet|portfolio|balance|holdings|my token|my coin|bag|"
+            r"hodl|fund|money)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f9db <b>Wallet Analysis</b>\n\n"
+            "Use <code>/wallet &lt;address&gt;</code> to analyze any wallet.\n"
+            "Use <code>/portfolio</code> to view your tracked wallets.\n\n"
+            "I show:\n"
+            "\u2022 \U0001f4b0 Token balances & values\n"
+            "\u2022 \U0001f504 Recent transaction history\n"
+            "\u2022 \u26a0\ufe0f Risk metrics & scam checks\n"
+            "\u2022 \U0001f517 Counterparty connections"
+        ),
+    ),
+    (
+        re.compile(r"\b(compare|vs |versus|better than|which (is|one)|difference)\b", re.IGNORECASE),
+        (
+            "\u2696\ufe0f <b>Token Comparison</b>\n\n"
+            "Use <code>/compare &lt;addr1&gt; &lt;addr2&gt;</code> to pit two tokens "
+            "side-by-side.\n\n"
+            "I'll show you both risk scores, prices, liquidity, and holder metrics "
+            "in one view!"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(trending|hot|popular|what to buy|best coin|moon|gem|"
+            r"next 100x|top token|gainers|movers)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f525 <b>Trending Tokens</b>\n\n"
+            "Check <code>/trending</code> for the hottest tokens right now.\n"
+            "I show real-time data on:\n"
+            "\u2022 \U0001f4c8 Top gainers\n"
+            "\u2022 \U0001f4a7 Highest volume\n"
+            "\u2022 \U0001f195 New pairs\n"
+            "\u2022 \U0001f3e0 Most holders"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(alert|notify|watch|track|monitor|notification|remind|follow)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f514 <b>Price Alerts</b>\n\n"
+            "Use <code>/watch &lt;address&gt;</code> to add tokens to your watchlist.\n"
+            "Use <code>/alerts</code> to manage your price alerts.\n\n"
+            "\U0001f4cc <b>Scout+</b> tier gets real-time push alerts for price moves, "
+            "large transactions, and security events."
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|"
+            r"gm|gn|what'?s up|welcome)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f44b <b>Hey there!</b>\n\n"
+            "I'm <b>RugMunch</b> \u2014 your crypto security sidekick. "
+            "I scan tokens for scams, analyze wallets, track prices, and more across 77+ chains.\n\n"
+            "\U0001f6e1\ufe0f <b>Try these:</b>\n"
+            "\u2022 Paste a contract address \u2192 auto scan\n"
+            "\u2022 <code>$TOKEN</code> \u2192 instant price\n"
+            "\u2022 <code>/help</code> \u2192 all commands"
+            f"{footer_links()}"
+        ),
+    ),
+    (
+        re.compile(r"\b(thank|thanks|ty|thx|appreciate|good bot|nice|great)\b", re.IGNORECASE),
+        (
+            "\U0001f64c You're welcome! Happy to help keep the crypto space safe.\n\n"
+            "If you find this useful, tell your friends! \n"
+            "Use <code>/refer</code> to get your referral link."
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(help|how|what|can you|capabilities|features|commands|what do|"
+            r"what are|guide|tutorial|docs|documentation)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f916 <b>RugMunch Capabilities</b>\n\n"
+            "I'm a multi-chain crypto intelligence bot. Here's what I can do:\n\n"
+            "\U0001f50d <code>/scan &lt;addr&gt;</code> \u2014 Full token security audit\n"
+            "\U0001f9db <code>/wallet &lt;addr&gt;</code> \u2014 Wallet forensics\n"
+            "\U0001f4ca <code>/quick &lt;symbol&gt;</code> \u2014 Price lookup\n"
+            "\U0001f4c8 <code>/chart &lt;addr&gt;</code> \u2014 Technical analysis\n"
+            "\u2696\ufe0f <code>/compare &lt;a&gt; &lt;b&gt;</code> \u2014 Side-by-side compare\n"
+            "\U0001f525 <code>/trending</code> \u2014 Hot tokens\n"
+            "\U0001f4f0 <code>/news</code> \u2014 Crypto headlines\n"
+            "\U0001f393 <code>/scamschool</code> \u2014 Learn scam patterns\n"
+            "\U0001f451 <code>/pricing</code> \u2014 Upgrade your tier"
+            f"{footer_links()}"
+        ),
+    ),
 ]
+
 
 def local_ai_response(text: str, user) -> str | None:
     """Tier 2: Match user intent against keyword patterns."""

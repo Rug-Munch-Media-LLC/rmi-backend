@@ -21,6 +21,7 @@ logger = get_logger("x402_databus_payment")
 # ── x402 Payment Verification ────────────────────────────────────
 # Verifies payment via x402 enforcement middleware.
 
+
 def _clean_response(result: dict) -> dict:
     """Strip internal DataBus fields that reveal provider architecture.
 
@@ -39,6 +40,7 @@ def _clean_response(result: dict) -> dict:
         result["data"].pop("provider", None)
     return result
 
+
 async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) -> dict[str, Any]:
     """Verify x402 payment header. Returns payment info or 402 response.
 
@@ -51,9 +53,7 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
     if not x402_payment:
         # Resolve identifier for trial check: wallet first, then fingerprint, then IP
         wallet = request.headers.get("X-WALLET", "") or request.query_params.get("wallet", "")
-        fingerprint = request.headers.get("X-Device-Id", "") or request.headers.get(
-            "X-Fingerprint", ""
-        )
+        fingerprint = request.headers.get("X-Device-Id", "") or request.headers.get("X-Fingerprint", "")
         ip = request.client.host if request.client else "unknown"
 
         # Use the most specific identifier available
@@ -106,9 +106,7 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
                         "solana": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                         "ethereum": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                     },
-                    "pay_to": os.getenv(
-                        "X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"
-                    ),
+                    "pay_to": os.getenv("X402_EVM_PAY_TO", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"),
                     "wallet_connect": True,
                     "connect_wallet_for_trials": pricing.get("trial_free", 0) > 0,
                 },
@@ -158,25 +156,31 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
 
     raise PaymentRequiredError("payment_verification_failed")
 
+
 # ── Request Models ───────────────────────────────────────────────
+
 
 class AddressRequest(BaseModel):
     address: str
     chain: str = "solana"
 
+
 class MintRequest(BaseModel):
     mint: str
     chain: str = "solana"
+
 
 class QueryRequest(BaseModel):
     query: str = ""
     chain: str = "solana"
     category: str = ""
 
+
 class AddressDepthRequest(BaseModel):
     address: str
     chain: str = "solana"
     depth: int = 2
+
 
 class GenericDataRequest(BaseModel):
     data_type: str

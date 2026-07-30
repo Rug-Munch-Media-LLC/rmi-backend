@@ -87,6 +87,7 @@ def list_models() -> str:
 
 def model_keyboard() -> Any:
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
     buttons = []
     row = []
     for mid in MODELS:
@@ -113,6 +114,7 @@ def run_opencode(prompt: str, model: str = DEFAULT_MODEL, max_turns: int = 3) ->
     deepseek-v4-pro for complex reasoning.
     """
     import time
+
     t0 = time.time()
 
     opencode = _opencode_path()
@@ -127,10 +129,14 @@ def run_opencode(prompt: str, model: str = DEFAULT_MODEL, max_turns: int = 3) ->
 
     cmd = [
         opencode,
-        "--prompt", prompt,
-        "--model", model,
-        "--max-turns", str(max_turns),
-        "--format", "text",
+        "--prompt",
+        prompt,
+        "--model",
+        model,
+        "--max-turns",
+        str(max_turns),
+        "--format",
+        "text",
     ]
 
     try:

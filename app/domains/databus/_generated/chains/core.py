@@ -34,6 +34,7 @@ from app.databus.provider_implementations import (
 
 logger = get_logger("databus.providers.chains.core")
 
+
 def build_core_chains(chains: dict[str, ProviderChain]) -> None:
     """Build core pricing, trading, market, and security chains."""
     # Token Price
@@ -77,9 +78,7 @@ def build_core_chains(chains: dict[str, ProviderChain]) -> None:
         data_type="market_overview",
         description="Global market cap, BTC/ETH/SOL prices, fear & greed",
         providers=[
-            Provider(
-                "rmi_market_overview", ProviderTier.LOCAL, _passthrough_market_overview, weight=10.0
-            ),
+            Provider("rmi_market_overview", ProviderTier.LOCAL, _passthrough_market_overview, weight=10.0),
             Provider(
                 "coingecko_global",
                 ProviderTier.FREEMIUM,

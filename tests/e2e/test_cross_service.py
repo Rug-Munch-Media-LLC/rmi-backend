@@ -144,9 +144,7 @@ class TestPryscraperIntegration:
                 headers=auth_headers,
             )
 
-        assert resp.status_code in (200, 500), (
-            f"Unexpected status: {resp.status_code} body: {resp.text[:200]}"
-        )
+        assert resp.status_code in (200, 500), f"Unexpected status: {resp.status_code} body: {resp.text[:200]}"
 
         if resp.status_code == 200:
             body = resp.json()
@@ -526,9 +524,7 @@ class TestFullUserFlow:
         }
 
         mock_db = AsyncMock()
-        mock_db.fetch = AsyncMock(
-            side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name)
-        )
+        mock_db.fetch = AsyncMock(side_effect=lambda chain_name, **kwargs: mock_data.get(chain_name))
 
         with patch("app.databus.databus", mock_db):
             resp = client.post(
@@ -540,9 +536,7 @@ class TestFullUserFlow:
                 headers=auth_headers,
             )
 
-        assert resp.status_code in (200, 401, 403, 500), (
-            f"Unexpected: {resp.status_code} {resp.text[:200]}"
-        )
+        assert resp.status_code in (200, 401, 403, 500), f"Unexpected: {resp.status_code} {resp.text[:200]}"
         if resp.status_code == 200:
             body = resp.json()
             assert body["status"] == "ok"
@@ -572,9 +566,7 @@ class TestFullUserFlow:
         }
 
         mock_db = AsyncMock()
-        mock_db.fetch = AsyncMock(
-            side_effect=lambda chain_name, **kwargs: mock_wallet_data.get(chain_name)
-        )
+        mock_db.fetch = AsyncMock(side_effect=lambda chain_name, **kwargs: mock_wallet_data.get(chain_name))
 
         with patch("app.databus.databus", mock_db):
             resp = client.post(
@@ -597,9 +589,7 @@ class TestFullUserFlow:
         """Authenticated user can access market intelligence endpoints."""
         resp = client.get("/api/v1/market/overview", headers=auth_headers)
 
-        assert resp.status_code != 401, (
-            f"JWT should grant access to market intel, got {resp.status_code}"
-        )
+        assert resp.status_code != 401, f"JWT should grant access to market intel, got {resp.status_code}"
 
     @pytest.mark.e2e
     def test_health_endpoint_public_no_auth(self, client):
@@ -893,18 +883,14 @@ class TestMultiAppAuth:
             headers={"X-API-Key": "wrong-key-12345"},
         )
 
-        assert resp.status_code == 401, (
-            f"Wrong API key should be 401, got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 401, f"Wrong API key should be 401, got {resp.status_code}: {resp.text[:200]}"
 
     @pytest.mark.e2e
     def test_missing_api_key_rejected_by_backend(self, client):
         """Missing X-API-Key gets 401 from backend endpoints."""
         resp = client.get("/api/v1/pryscraper/health")
 
-        assert resp.status_code == 401, (
-            f"Missing API key should be 401, got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 401, f"Missing API key should be 401, got {resp.status_code}: {resp.text[:200]}"
 
     @pytest.mark.e2e
     def test_jwt_acceptance_contract_between_services(self):
@@ -964,9 +950,7 @@ class TestMultiAppAuth:
             headers={"X-API-Key": API_KEY},
         )
 
-        assert resp.status_code in (401, 403), (
-            f"Expected 401/403 without auth, got {resp.status_code}"
-        )
+        assert resp.status_code in (401, 403), f"Expected 401/403 without auth, got {resp.status_code}"
 
     @pytest.mark.e2e
     def test_invalid_signature_rejected_by_all_services(self):
@@ -1003,6 +987,4 @@ class TestMultiAppAuth:
             token = _create_jwt(f"tier-test-{tier}", f"{tier.lower()}@rugmunch.io", tier)
             payload = _verify_jwt(token)
             assert payload is not None
-            assert payload["tier"] == tier, (
-                f"Tier '{tier}' not preserved in JWT: got '{payload['tier']}'"
-            )
+            assert payload["tier"] == tier, f"Tier '{tier}' not preserved in JWT: got '{payload['tier']}'"

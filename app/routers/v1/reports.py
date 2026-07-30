@@ -32,17 +32,18 @@ router = APIRouter(prefix="/reports", tags=["reports-v1"])
 
 # ── Request / Response models ────────────────────────────────────────
 
+
 class ReportRequest(BaseModel):
     """Custom report generation request."""
 
     subject_type: Literal["token", "wallet", "entity"]
     subject_id: str  # Address or token contract
-    sections: list[Literal["risk", "holders", "transactions", "news", "technical"]] = Field(
-        ..., min_length=1
-    )
+    sections: list[Literal["risk", "holders", "transactions", "news", "technical"]] = Field(..., min_length=1)
     format: Literal["json", "markdown"] = "json"
 
+
 # ── Section handlers ────────────────────────────────────────────────
+
 
 async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch risk assessment section."""
@@ -66,12 +67,8 @@ async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[
                     risk = await svc.get_risk(subject_id, chain)
                     return {
                         "score": risk.risk_score,
-                        "tier": risk.risk_level.value
-                        if hasattr(risk.risk_level, "value")
-                        else str(risk.risk_level),
-                        "factors": [f.get("code", "") for f in risk.flags]
-                        if hasattr(risk, "flags")
-                        else [],
+                        "tier": risk.risk_level.value if hasattr(risk.risk_level, "value") else str(risk.risk_level),
+                        "factors": [f.get("code", "") for f in risk.flags] if hasattr(risk, "flags") else [],
                     }
                 except ImportError:
                     logger.debug("TokenService not available")
@@ -108,6 +105,7 @@ async def _section_risk(subject_type: str, subject_id: str, chain: str) -> dict[
     except Exception as exc:
         logger.debug("section_risk_fail: %s", exc)
         return {"error": "unavailable"}
+
 
 async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch holder distribution section."""
@@ -149,6 +147,7 @@ async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
     except Exception as exc:
         logger.debug("section_holders_fail: %s", exc)
         return {"error": "unavailable"}
+
 
 async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch recent transaction history section."""
@@ -200,6 +199,7 @@ async def _section_transactions(subject_id: str, chain: str) -> dict[str, Any]:
         logger.debug("section_transactions_fail: %s", exc)
         return {"error": "unavailable"}
 
+
 async def _section_news(subject_id: str) -> dict[str, Any]:
     """Fetch news/sentiment section."""
     try:
@@ -237,6 +237,7 @@ async def _section_news(subject_id: str) -> dict[str, Any]:
         logger.debug("section_news_fail: %s", exc)
         return {"error": "unavailable"}
 
+
 async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
     """Fetch technical / contract analysis section."""
     try:
@@ -270,6 +271,7 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
         logger.debug("section_technical_fail: %s", exc)
         return {"error": "unavailable"}
 
+
 # ── Helpers ─────────────────────────────────────────────────────────
 
 _SECTION_HANDLERS = {
@@ -280,6 +282,7 @@ _SECTION_HANDLERS = {
     "technical": _section_technical,
 }
 
+
 def _detect_chain(subject_id: str) -> str:
     """Heuristic chain detection from address format."""
     sid = subject_id.lower().strip()
@@ -288,6 +291,7 @@ def _detect_chain(subject_id: str) -> str:
     if len(sid) >= 32 and len(sid) <= 44 and not sid.startswith("0x"):
         return "solana"
     return "ethereum"
+
 
 def _format_markdown(result: dict[str, Any]) -> str:
     """Format report as Markdown string."""
@@ -314,7 +318,9 @@ def _format_markdown(result: dict[str, Any]) -> str:
         lines.append("")
     return "\n".join(lines)
 
+
 # ── Endpoint ────────────────────────────────────────────────────────
+
 
 @router.post("/custom")
 async def generate_report(request: ReportRequest) -> dict[str, Any]:
@@ -333,15 +339,11 @@ async def generate_report(request: ReportRequest) -> dict[str, Any]:
     for section in request.sections:
         handler = _SECTION_HANDLERS.get(section)
         if handler is None:
-            section_futures[section] = asyncio.create_task(
-                _null_section(section, request.subject_id)
-            )
+            section_futures[section] = asyncio.create_task(_null_section(section, request.subject_id))
             continue
 
         if section == "risk":
-            section_futures[section] = asyncio.create_task(
-                handler(request.subject_type, request.subject_id, chain)
-            )
+            section_futures[section] = asyncio.create_task(handler(request.subject_type, request.subject_id, chain))
         elif section in ("holders", "transactions", "technical"):
             section_futures[section] = asyncio.create_task(handler(request.subject_id, chain))
         elif section == "news":
@@ -374,6 +376,7 @@ async def generate_report(request: ReportRequest) -> dict[str, Any]:
         result["markdown"] = _format_markdown(result)
 
     return result
+
 
 async def _null_section(section: str, subject_id: str) -> dict[str, Any]:
     """Return empty section for unknown section types."""

@@ -7,7 +7,8 @@ KNOWN_SCAM_PATTERNS = [
         "indicators": ["maxSellAmount=0", "tradingEnabled=false", "onlyOwner can transfer", "blacklist all addresses"],
         "severity": "critical",
         "code_snippets": [
-            "maxSellAmount = 0", "tradingEnabled = false",
+            "maxSellAmount = 0",
+            "tradingEnabled = false",
             "require(_isExcludedFromFees[msg.sender] || tradingEnabled)",
             "function enableTrading() external onlyOwner",
         ],
@@ -29,7 +30,8 @@ KNOWN_SCAM_PATTERNS = [
         "severity": "high",
         "code_snippets": [
             "function setFee(uint256 _fee) external onlyOwner",
-            "taxFee = 99", "liquidityFee = 99",
+            "taxFee = 99",
+            "liquidityFee = 99",
         ],
     },
     {
@@ -70,7 +72,12 @@ KNOWN_SCAM_PATTERNS = [
     {
         "name": "Fake Renounce / Ownership Hide",
         "description": "Claims ownership renounced but keeps control via secondary address, proxy, or timelock trick.",
-        "indicators": ["fake renounce", "ownership not actually 0xdead", "hidden owner", "renounceOwnership not called"],
+        "indicators": [
+            "fake renounce",
+            "ownership not actually 0xdead",
+            "hidden owner",
+            "renounceOwnership not called",
+        ],
         "severity": "high",
         "code_snippets": [],
     },
@@ -84,7 +91,12 @@ KNOWN_SCAM_PATTERNS = [
     {
         "name": "Wallet Drainer / Approval Scam",
         "description": "Contract tricks users into approving token spending, then drains their wallets via transferFrom.",
-        "indicators": ["unlimited approval request", "transferFrom in unverified contract", "approveAndCall", "permit exploit"],
+        "indicators": [
+            "unlimited approval request",
+            "transferFrom in unverified contract",
+            "approveAndCall",
+            "permit exploit",
+        ],
         "severity": "critical",
         "code_snippets": [
             "IERC20(token).transferFrom(victim, attacker, balance)",

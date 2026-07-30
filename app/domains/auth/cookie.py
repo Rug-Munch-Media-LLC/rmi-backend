@@ -16,6 +16,7 @@ def _is_localhost(request: Request) -> bool:
     host = request.headers.get("host", "")
     return host.startswith(("localhost", "127.0.0.1", "[::1]"))
 
+
 def _set_auth_cookie(response: Response, token: str, request: Request) -> None:
     """Set the JWT as an HttpOnly cookie."""
     max_age = JWT_EXPIRY_DAYS * 86400
@@ -30,6 +31,7 @@ def _set_auth_cookie(response: Response, token: str, request: Request) -> None:
         httponly=True,
         samesite="strict",
     )
+
 
 def _set_csrf_cookie(response: Response, request: Request) -> str:
     """Generate and set a CSRF token as a non-HttpOnly cookie."""
@@ -46,8 +48,13 @@ def _set_csrf_cookie(response: Response, request: Request) -> str:
     )
     return csrf_token
 
+
 def _clear_auth_cookie(response: Response, request: Request) -> None:
     """Clear the auth cookie (logout)."""
     secure = not _is_localhost(request)
-    response.set_cookie(key="rmi_token", value="", max_age=0, expires=0, path="/", secure=secure, httponly=True, samesite="strict")
-    response.set_cookie(key="csrf_token", value="", max_age=0, expires=0, path="/", secure=secure, httponly=False, samesite="lax")
+    response.set_cookie(
+        key="rmi_token", value="", max_age=0, expires=0, path="/", secure=secure, httponly=True, samesite="strict"
+    )
+    response.set_cookie(
+        key="csrf_token", value="", max_age=0, expires=0, path="/", secure=secure, httponly=False, samesite="lax"
+    )

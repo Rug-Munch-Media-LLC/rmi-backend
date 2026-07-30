@@ -27,6 +27,7 @@ MODELS = {
 # mistral-small-2506 → deprecated, retiring July 2026
 # mistral-medium-2508 → deprecated, retiring Aug 2026
 
+
 async def mistral_chat(
     prompt: str,
     model: str | None = None,
@@ -70,6 +71,7 @@ async def mistral_chat(
         logger.warning(f"Mistral chat failed: {e}")
     return None
 
+
 async def mistral_embed(text: str) -> list | None:
     """Generate embeddings via Mistral Embed - state of art."""
     if not MISTRAL_KEY:
@@ -86,6 +88,7 @@ async def mistral_embed(text: str) -> list | None:
     except Exception as e:
         logger.warning(f"Mistral embed failed: {e}")
     return None
+
 
 async def mistral_moderate(text: str) -> dict | None:
     """Content moderation - jailbreak, toxicity, PII detection."""
@@ -105,6 +108,6 @@ async def mistral_moderate(text: str) -> dict | None:
             )
             if r.status_code == 200:
                 return {"flagged": False, "provider": "mistral"}
-    except (httpx.HTTPError):
+    except httpx.HTTPError:
         pass
     return None

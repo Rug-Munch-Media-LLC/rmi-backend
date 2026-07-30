@@ -58,6 +58,7 @@ CACHE_TTL_BALANCE = 600  # 10 min
 FREE_CREDITS_PER_MONTH = 100_000
 MAX_RPS = 1.0
 
+
 class BitqueryProvider:
     """
     Bitquery GraphQL API provider with intelligent caching.
@@ -272,9 +273,7 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_holder_distribution(
-        self, network: str, token_address: str, limit: int = 100
-    ) -> dict | None:
+    async def get_holder_distribution(self, network: str, token_address: str, limit: int = 100) -> dict | None:
         """
         Get top token holders and their balances.
 
@@ -417,9 +416,7 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_cross_chain_transfers(
-        self, address: str, networks: list[str] | None = None
-    ) -> dict | None:
+    async def get_cross_chain_transfers(self, address: str, networks: list[str] | None = None) -> dict | None:
         """
         Track token transfers across multiple chains for an address.
 

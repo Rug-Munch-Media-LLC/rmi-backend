@@ -10,11 +10,25 @@ def compute_score(r: ScanResult) -> None:
 
     Starts at 50 (neutral/unknown). Adjusted by security checks, holder data,
     liquidity, rug patterns, premium detections.
+
+    Confidence calculation (0-100):
+    - Base confidence from number of modules that attempted (even if no data):
+      each module in modules_run gives +5 base confidence (max 40)
+    - Bonus confidence for modules that returned actual results:
+      each module with data adds +5 to +15 depending on data richness
+    - This ensures confidence doesn't drop to zero just because a token
+      has limited data (e.g., new token on a less-indexed chain).
     """
     score = 50.0
     confidence = 0.0
     flags: list[str] = []
     green: list[str] = []
+
+    # ── Base confidence: modules that were attempted ──
+    # Even if modules return no data, running them counts
+    modules_attempted = len(r.modules_run)
+    base_confidence = min(modules_attempted * 5, 40)
+    confidence += base_confidence
 
     # ── Security checks (GoPlus) ──
     if r.security:
@@ -29,6 +43,9 @@ def compute_score(r: ScanResult) -> None:
                 elif status == "pass":
                     score += 2
                     green.append(check_id)
+        else:
+            # Security module ran but had no checks
+            confidence += 10
 
     # ── Holder concentration ──
     if r.holders:
@@ -41,6 +58,9 @@ def compute_score(r: ScanResult) -> None:
             score += 5
             green.append("HOLDER_DISTRIBUTED")
         confidence += 5
+    else:
+        # Module attempted but no data
+        confidence += 3
 
     # ── Holder health ──
     if r.holder_health:
@@ -50,6 +70,8 @@ def compute_score(r: ScanResult) -> None:
             score -= 10
             flags.append("HOLDER_GINI_HIGH")
         confidence += 5
+    else:
+        confidence += 3
 
     # ── Liquidity ──
     if r.liquidity:
@@ -62,6 +84,8 @@ def compute_score(r: ScanResult) -> None:
             score += 5
             green.append("LP_LOCKED")
         confidence += 5
+    else:
+        confidence += 3
 
     # ── Dev reputation ──
     if r.dev_reputation:
@@ -74,6 +98,8 @@ def compute_score(r: ScanResult) -> None:
             score += 5
             green.append("DEV_REPUTABLE")
         confidence += 5
+    else:
+        confidence += 3
 
     # ── Rug patterns ──
     if r.rug_patterns:
@@ -83,6 +109,8 @@ def compute_score(r: ScanResult) -> None:
             score -= matches * 10
             flags.append(f"RUG_PATTERN_MATCH:{matches}")
         confidence += 5
+    else:
+        confidence += 3
 
     # ── Volume authenticity ──
     if r.volume_auth:
@@ -95,6 +123,8 @@ def compute_score(r: ScanResult) -> None:
             score += 5
             green.append("VOLUME_AUTHENTIC")
         confidence += 5
+    else:
+        confidence += 3
 
     # ── Chain-indexer pattern detection ──
     if r.chain_indexer_patterns:
@@ -108,6 +138,8 @@ def compute_score(r: ScanResult) -> None:
                 if f.get("detected"):
                     flags.append(f"ONCHAIN_{pattern.upper()}")
             confidence += min(len(findings) * 3, 10)
+        else:
+            confidence += 5
 
     # ── Premium detections ──
     if r.premium:

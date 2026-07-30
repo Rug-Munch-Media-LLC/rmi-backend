@@ -26,6 +26,7 @@ from app.domains.billing.facilitators.config import FacilitatorConfig, get_confi
 
 logger = get_logger("facilitator.pieverse")
 
+
 class PieverseFacilitator(Facilitator):
     """BNB Chain Pieverse facilitator - instant settlement for BSC.
 
@@ -180,6 +181,4 @@ class PieverseFacilitator(Facilitator):
                     facilitator=self.name,
                 )
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            return SettlementResult(
-                settled=False, reason=f"Pieverse settlement error: {e}", facilitator=self.name
-            )
+            return SettlementResult(settled=False, reason=f"Pieverse settlement error: {e}", facilitator=self.name)

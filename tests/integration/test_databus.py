@@ -168,9 +168,7 @@ class TestDataBusEndpoints:
         from fastapi.testclient import TestClient
 
         client = TestClient(app)
-        resp = client.get(
-            "/api/v2/labels/lookup?address=0x0000000000000000000000000000000000000000"
-        )
+        resp = client.get("/api/v2/labels/lookup?address=0x0000000000000000000000000000000000000000")
         assert resp.status_code in (200, 404, 422)
         if resp.status_code == 422:
             body = resp.json()

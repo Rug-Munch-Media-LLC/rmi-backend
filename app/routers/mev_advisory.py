@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/v1/mev-advisory", tags=["mev-advisory"])
 BACKEND = settings.backend_url
 RMI_KEY = INTERNAL_API_KEY
 
+
 @router.get("/check/{address}")
 async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict:
     """Check MEV risk before trading a token. Returns sandwich attack risk and protection recommendation."""
@@ -36,9 +37,7 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict:
             emoji = "🔴"
         elif sandwich_count > 3:
             risk = "HIGH"
-            recommendation = (
-                "Moderate sandwich risk detected. Consider MEV protection or lower slippage."
-            )
+            recommendation = "Moderate sandwich risk detected. Consider MEV protection or lower slippage."
             emoji = "🟡"
         elif sandwich_count > 0:
             risk = "LOW"
@@ -62,10 +61,9 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict:
         else [],
     }
 
+
 @router.get("/safe-swap")
-async def safe_swap_params(
-    address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)
-) -> dict:
+async def safe_swap_params(address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)) -> dict:
     """Get optimal swap parameters to avoid MEV."""
     risk = await check_mev_risk(address, chain)
 

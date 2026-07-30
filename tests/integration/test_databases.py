@@ -36,13 +36,9 @@ import pytest
 # app/catalog/service.py.
 
 
-def _qdrant_create_collection(
-    client: httpx.Client, name: str, size: int, distance: str = "Cosine"
-) -> dict:
+def _qdrant_create_collection(client: httpx.Client, name: str, size: int, distance: str = "Cosine") -> dict:
     """Create a Qdrant collection via REST API."""
-    resp = client.put(
-        f"/collections/{name}", json={"vectors": {"size": size, "distance": distance}}
-    )
+    resp = client.put(f"/collections/{name}", json={"vectors": {"size": size, "distance": distance}})
     resp.raise_for_status()
     return resp.json()
 
@@ -490,9 +486,7 @@ class TestPostgresNPlusOne:
 
             # Single query with IN clause (NOT N+1)
             result = await pg_session.execute(
-                text(
-                    "SELECT group_id, val FROM test_np1 WHERE group_id = ANY(:ids) ORDER BY group_id, val"
-                ),
+                text("SELECT group_id, val FROM test_np1 WHERE group_id = ANY(:ids) ORDER BY group_id, val"),
                 {"ids": [0, 2]},
             )
             rows = result.fetchall()
@@ -649,9 +643,7 @@ class TestClickHouseTimeSeries:
         result = ch_client.query("SELECT count(*) AS cnt FROM test_events")
         assert result.result_rows[0][0] == 3
 
-        result = ch_client.query(
-            "SELECT event_type, count(*) AS cnt FROM test_events GROUP BY event_type ORDER BY cnt"
-        )
+        result = ch_client.query("SELECT event_type, count(*) AS cnt FROM test_events GROUP BY event_type ORDER BY cnt")
         counts = {row[0]: row[1] for row in result.result_rows}
         assert counts.get("trade") == 2
         assert counts.get("alert") == 1
@@ -741,10 +733,7 @@ class TestClickHousePartitionPruning:
         for month in range(6, 9):
             ch_client.insert(
                 "test_partitions",
-                [
-                    [datetime(2026, month, d, 0, 0, 0), f"evt_{month}_{d}", d]
-                    for d in range(1, 29, 3)
-                ],
+                [[datetime(2026, month, d, 0, 0, 0), f"evt_{month}_{d}", d] for d in range(1, 29, 3)],
                 column_names=["ts", "event", "val"],
             )
 
@@ -823,9 +812,7 @@ class TestNeo4jNodesAndRelationships:
                 tid=token_id,
             )
             result = s.run(
-                "MATCH (w:Wallet)-[:DEPLOYED]->(t:Token) "
-                "WHERE w.wallet_id = $wid "
-                "RETURN t.token_id, t.symbol",
+                "MATCH (w:Wallet)-[:DEPLOYED]->(t:Token) WHERE w.wallet_id = $wid RETURN t.token_id, t.symbol",
                 wid=wallet_id,
             ).single()
             assert result is not None
@@ -856,9 +843,7 @@ class TestNeo4jNodesAndRelationships:
             s.run("CREATE (w:Wallet {wallet_id: $id})", id=wid)
             s.run("CREATE (t:Token {token_id: $id})", id=tid)
             s.run(
-                "MATCH (w:Wallet {wallet_id: $wid}) "
-                "MATCH (t:Token {token_id: $tid}) "
-                "CREATE (w)-[:DEPLOYED]->(t)",
+                "MATCH (w:Wallet {wallet_id: $wid}) MATCH (t:Token {token_id: $tid}) CREATE (w)-[:DEPLOYED]->(t)",
                 wid=wid,
                 tid=tid,
             )
@@ -920,8 +905,7 @@ class TestNeo4jPathFinding:
                 s.run("CREATE (n:Node {node_id: $id})", id=nid)
             for i in range(len(ids) - 1):
                 s.run(
-                    "MATCH (a:Node {node_id: $a}) MATCH (b:Node {node_id: $b}) "
-                    "CREATE (a)-[:LINKED_TO]->(b)",
+                    "MATCH (a:Node {node_id: $a}) MATCH (b:Node {node_id: $b}) CREATE (a)-[:LINKED_TO]->(b)",
                     a=ids[i],
                     b=ids[i + 1],
                 )
@@ -948,15 +932,13 @@ class TestNeo4jPathFinding:
                 s.run("CREATE (w:Wallet {wallet_id: $id})", id=wid)
             # Link: entity -> w0 -> w1 -> w2 -> w3
             s.run(
-                "MATCH (e:Entity {entity_id: $eid}) "
-                "CREATE (e)-[:CONTROLS]->(w:Wallet {wallet_id: $wid})",
+                "MATCH (e:Entity {entity_id: $eid}) CREATE (e)-[:CONTROLS]->(w:Wallet {wallet_id: $wid})",
                 eid=entity_id,
                 wid=wallets[0],
             )
             for i in range(len(wallets) - 1):
                 s.run(
-                    "MATCH (a:Wallet {wallet_id: $a}) MATCH (b:Wallet {wallet_id: $b}) "
-                    "CREATE (a)-[:FUNDED]->(b)",
+                    "MATCH (a:Wallet {wallet_id: $a}) MATCH (b:Wallet {wallet_id: $b}) CREATE (a)-[:FUNDED]->(b)",
                     a=wallets[i],
                     b=wallets[i + 1],
                 )
@@ -1305,9 +1287,7 @@ class TestQdrantVectorSearch:
         ]
         _qdrant_upsert_points(qdrant_http_client, name, points)
 
-        results = _qdrant_search_points(
-            qdrant_http_client, name, vector=[0.15, 0.25, 0.35, 0.45], limit=2
-        )
+        results = _qdrant_search_points(qdrant_http_client, name, vector=[0.15, 0.25, 0.35, 0.45], limit=2)
         assert len(results) >= 1
         assert results[0]["score"] > 0.9  # close to point 1
 
@@ -1315,10 +1295,7 @@ class TestQdrantVectorSearch:
         """Batch upsert handles many vectors."""
         name = _random_id("test_coll_batch_")
         _qdrant_create_collection(qdrant_http_client, name, size=8, distance="Cosine")
-        points = [
-            {"id": i, "vector": [float(j) for j in range(i, i + 8)], "payload": {"idx": i}}
-            for i in range(50)
-        ]
+        points = [{"id": i, "vector": [float(j) for j in range(i, i + 8)], "payload": {"idx": i}} for i in range(50)]
         _qdrant_upsert_points(qdrant_http_client, name, points)
 
         info = _qdrant_collection_info(qdrant_http_client, name)
@@ -1369,9 +1346,7 @@ class TestQdrantVectorSearch:
             name,
             points=[{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "payload": {"name": "test_token"}}],
         )
-        results = _qdrant_search_points(
-            qdrant_http_client, name, vector=[0.1, 0.2, 0.3, 0.4], limit=1
-        )
+        results = _qdrant_search_points(qdrant_http_client, name, vector=[0.1, 0.2, 0.3, 0.4], limit=1)
         assert len(results) == 1
         assert results[0]["payload"].get("name") == "test_token"
 
@@ -1391,14 +1366,9 @@ class TestQdrantVectorSearch:
         _qdrant_delete_points(qdrant_http_client, name, [1])
         # Check count decreased
         info_after = _qdrant_collection_info(qdrant_http_client, name)
-        assert (
-            info_after["points_count"] < info_before["points_count"]
-            or info_after["points_count"] >= 0
-        )
+        assert info_after["points_count"] < info_before["points_count"] or info_after["points_count"] >= 0
         # Point 2 should still exist
-        results = _qdrant_search_points(
-            qdrant_http_client, name, vector=[0.5, 0.6, 0.7, 0.8], limit=1
-        )
+        results = _qdrant_search_points(qdrant_http_client, name, vector=[0.5, 0.6, 0.7, 0.8], limit=1)
         assert len(results) >= 0  # point 2 may still exist
 
 
@@ -1444,9 +1414,7 @@ class TestCrossDbConsistency:
         )
         await pg_session.commit()
         await pg_session.execute(
-            text(
-                "INSERT INTO test_xref (token_id, deployer_wallet_id, symbol) VALUES (:tid, :wid, :sym)"
-            ),
+            text("INSERT INTO test_xref (token_id, deployer_wallet_id, symbol) VALUES (:tid, :wid, :sym)"),
             {"tid": token_id, "wid": wallet_id, "sym": "XREF"},
         )
         await pg_session.commit()

@@ -133,7 +133,5 @@ class FlowReport:
             f"  Medium:   {medium}\n"
             f"Total volume: ${total_value:,.0f}\n"
             f"Scan time: {self.scan_duration_ms:.0f}ms\n"
-            f"Top moves:\n" + "\n".join(
-                f"  {m.summary()}" for m in self.top_moves(5)
-            )
+            f"Top moves:\n" + "\n".join(f"  {m.summary()}" for m in self.top_moves(5))
         )

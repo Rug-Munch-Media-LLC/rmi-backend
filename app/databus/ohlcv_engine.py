@@ -46,6 +46,7 @@ CACHE_TTL = {
 
 MAX_CANDLES = 500  # Max candles returned per query
 
+
 def _redis() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
@@ -55,16 +56,17 @@ def _redis() -> Any:
         socket_connect_timeout=2,
     )
 
+
 def _frame_key(token: str, chain: str, timeframe: str) -> str:
     """Redis sorted set key for OHLCV candles."""
     return f"ohlcv:{chain}:{token}:{timeframe}"
 
-def _candle_cache_key(
-    token: str, chain: str, timeframe: str, limit: int, end_ts: int | None = None
-) -> str:
+
+def _candle_cache_key(token: str, chain: str, timeframe: str, limit: int, end_ts: int | None = None) -> str:
     """Cache key for bulk candle queries."""
     end = end_ts or int(time.time())
     return f"ohlcv_cache:{chain}:{token}:{timeframe}:{limit}:{end}"
+
 
 class Candle:
     """Single OHLCV candle."""
@@ -112,6 +114,7 @@ class Candle:
             round(self.volume, 2),
             self.trades,
         ]
+
 
 class OHLCVEngine:
     """Real-time OHLCV candle builder and query engine."""
@@ -256,9 +259,7 @@ class OHLCVEngine:
                     candles.append(active.to_dict())
 
             # Cache the result
-            r.setex(
-                cache_key, 60, json.dumps(candles[-limit:] if len(candles) > limit else candles)
-            )
+            r.setex(cache_key, 60, json.dumps(candles[-limit:] if len(candles) > limit else candles))
             r.close()
 
             return candles[-limit:] if len(candles) > limit else candles
@@ -272,9 +273,7 @@ class OHLCVEngine:
         candles = self.get_candles(token, chain, timeframe, limit=1)
         return candles[0] if candles else None
 
-    def get_price_change(
-        self, token: str, chain: str, periods: int = 24, timeframe: str = "1h"
-    ) -> dict:
+    def get_price_change(self, token: str, chain: str, periods: int = 24, timeframe: str = "1h") -> dict:
         """Calculate price change over N periods."""
         candles = self.get_candles(token, chain, timeframe, limit=periods + 1)
         if len(candles) < 2:
@@ -302,11 +301,13 @@ class OHLCVEngine:
             "max_candles_per_query": MAX_CANDLES,
         }
 
+
 # ── Singleton ──────────────────────────────────────────────────────
 
 ohlcv_engine = OHLCVEngine()
 
 # ── DataBus Provider ────────────────────────────────────────────────
+
 
 async def fetch_ohlcv(
     token: str = "", chain: str = "ethereum", timeframe: str = "1h", limit: int = 100, **kw
@@ -332,9 +333,7 @@ async def fetch_ohlcv(
         volumes = [c["volume"] for c in candles]
         summary = {
             "current_price": prices[-1],
-            "price_change_pct": round(((prices[-1] - prices[0]) / prices[0] * 100), 2)
-            if prices[0] > 0
-            else 0,
+            "price_change_pct": round(((prices[-1] - prices[0]) / prices[0] * 100), 2) if prices[0] > 0 else 0,
             "high_24h": max(c["high"] for c in candles),
             "low_24h": min(c["low"] for c in candles),
             "volume_24h": sum(volumes),
@@ -369,6 +368,7 @@ async def fetch_ohlcv(
         "chain": chain,
         "source": "ohlcv_engine",
     }
+
 
 async def ingest_trade_data(
     token: str = "",

@@ -102,9 +102,7 @@ async def send_alert(
                         target["chat_id"],
                         payload.get("description", "unknown"),
                     )
-                    results.append(
-                        {"ok": False, "chat_id": target["chat_id"], "error": payload.get("description")}
-                    )
+                    results.append({"ok": False, "chat_id": target["chat_id"], "error": payload.get("description")})
             except httpx.HTTPError as e:
                 logger.warning("HTTP error sending alert to %s: %s", target["chat_id"], e)
                 results.append({"ok": False, "chat_id": target["chat_id"], "error": str(e)[:100]})
@@ -170,11 +168,7 @@ async def send_system_alert(
     """
     icons = {"critical": "🚨", "warning": "⚠️", "info": "ℹ️"}
     icon = icons.get(severity, "ℹ️")
-    message = (
-        f"{icon} <b>{title}</b>\n\n"
-        f"{detail}\n\n"
-        f"🕐 <i>Auto-generated alert</i>"
-    )
+    message = f"{icon} <b>{title}</b>\n\n{detail}\n\n🕐 <i>Auto-generated alert</i>"
     return await send_alert(message=message, chat_id=chat_id, alert_type="system")
 
 

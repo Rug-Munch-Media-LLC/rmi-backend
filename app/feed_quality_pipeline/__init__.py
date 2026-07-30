@@ -16,16 +16,16 @@ from app.feed_quality_pipeline.cache import (
     CIRCUIT_BREAKER_THRESHOLD,
     DEDUP_SIMILARITY_THRESHOLD,
     HEALTH_WINDOW_MINUTES,
-    LRUCache,
     LRU_CACHE_MAXSIZE,
     MAX_CONCURRENT_FETCHES,
-    MAX_POSTS_PER_PROVIDER,
     MAX_POST_LENGTH,
+    MAX_POSTS_PER_PROVIDER,
     MAX_TITLE_LENGTH,
     MIN_POST_LENGTH,
     PROVIDER_TIMEOUT_DEFAULT,
     PROVIDER_TIMEOUT_SLOW,
     SEEN_IDS_MAXSIZE,
+    LRUCache,
 )
 from app.feed_quality_pipeline.deduplicator import ContentDeduplicator
 from app.feed_quality_pipeline.health import ProviderHealthMonitor

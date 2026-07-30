@@ -12,12 +12,14 @@ async def get_wallet_labels(wallet_address: str) -> dict[str, Any]:
         "labels": [],
     }
 
+
 async def get_entity_labels(entity_id: str) -> dict[str, Any]:
     """Get entity labels from Neo4j graph."""
     return {
         "entity_id": entity_id,
         "labels": [],
     }
+
 
 async def get_entity_by_labels(labels: list[str]) -> dict[str, Any]:
     """Get entity by labels."""

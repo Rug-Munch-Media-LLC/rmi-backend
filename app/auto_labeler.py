@@ -147,6 +147,7 @@ AUTO_LABELS = {
     },
 }
 
+
 class AutoLabeler:
     """Auto-labeling engine that watches wallets and assigns labels based on behavior."""
 
@@ -211,15 +212,10 @@ class AutoLabeler:
 
         # Check label rules - return only NEW labels not already applied
         existing_label_keys = {
-            line_list["label_key"]
-            for line_list in self.pending_observations.get(f"_labels_{key}", [])
+            line_list["label_key"] for line_list in self.pending_observations.get(f"_labels_{key}", [])
         }
         new_labels = await self._check_labels(address, chain, self.pending_observations[key])
-        unique_new = [
-            line_list
-            for line_list in new_labels
-            if line_list["label_key"] not in existing_label_keys
-        ]
+        unique_new = [line_list for line_list in new_labels if line_list["label_key"] not in existing_label_keys]
 
         # Track applied labels to prevent duplicates
         if f"_labels_{key}" not in self.pending_observations:
@@ -237,17 +233,9 @@ class AutoLabeler:
 
         deploy_count = sum(1 for o in history if o.get("event") == "token_deployed")
         if deploy_count >= 5:
-            applied.append(
-                self._create_label(
-                    "repeat_deployer_5", address, chain, {"deployments": deploy_count}
-                )
-            )
+            applied.append(self._create_label("repeat_deployer_5", address, chain, {"deployments": deploy_count}))
         elif deploy_count >= 3:
-            applied.append(
-                self._create_label(
-                    "repeat_deployer_3", address, chain, {"deployments": deploy_count}
-                )
-            )
+            applied.append(self._create_label("repeat_deployer_3", address, chain, {"deployments": deploy_count}))
 
         # Check funding sources
         funders = set()
@@ -258,24 +246,17 @@ class AutoLabeler:
         scam_funders = funders & self._known_scam_wallets
         if len(scam_funders) >= 3:
             applied.append(
-                self._create_label(
-                    "funding_funnel", address, chain, {"scam_funders": list(scam_funders)[:5]}
-                )
+                self._create_label("funding_funnel", address, chain, {"scam_funders": list(scam_funders)[:5]})
             )
 
         # Check mixer interaction
         mixer_interactions = sum(
             1
             for o in history
-            if o.get("counterparty", "").lower() in self._known_mixers
-            or "tornado" in o.get("protocol", "").lower()
+            if o.get("counterparty", "").lower() in self._known_mixers or "tornado" in o.get("protocol", "").lower()
         )
         if mixer_interactions >= 1:
-            applied.append(
-                self._create_label(
-                    "mixer_user", address, chain, {"mixer_interactions": mixer_interactions}
-                )
-            )
+            applied.append(self._create_label("mixer_user", address, chain, {"mixer_interactions": mixer_interactions}))
 
         # Check CEX laundering pattern
         cex_deposits = set()
@@ -283,34 +264,23 @@ class AutoLabeler:
             if o.get("event") == "deposited_to_exchange" and o.get("exchange"):
                 cex_deposits.add(o["exchange"])
         if len(cex_deposits) >= 3 and len(scam_funders) >= 1:
-            applied.append(
-                self._create_label(
-                    "cex_launderer", address, chain, {"exchanges_used": list(cex_deposits)}
-                )
-            )
+            applied.append(self._create_label("cex_launderer", address, chain, {"exchanges_used": list(cex_deposits)}))
 
         # Check draining pattern
         victim_funds = sum(
             1
             for o in history
-            if o.get("counterparty", "").lower() in self._known_scam_wallets
-            and o.get("event") == "received_funds"
+            if o.get("counterparty", "").lower() in self._known_scam_wallets and o.get("event") == "received_funds"
         )
         if victim_funds >= 5:
-            applied.append(
-                self._create_label("drainer_wallet", address, chain, {"victim_count": victim_funds})
-            )
+            applied.append(self._create_label("drainer_wallet", address, chain, {"victim_count": victim_funds}))
 
         # Check sleeping agent
         if len(history) >= 2:
             timestamps = sorted(o.get("timestamp", 0) for o in history)
             gap = timestamps[-1] - timestamps[0]
             if gap > 90 * 86400:  # 90+ days dormancy
-                applied.append(
-                    self._create_label(
-                        "sleeping_agent", address, chain, {"dormant_days": int(gap / 86400)}
-                    )
-                )
+                applied.append(self._create_label("sleeping_agent", address, chain, {"dormant_days": int(gap / 86400)}))
 
         # Track applied labels
         for label in applied:
@@ -368,8 +338,10 @@ class AutoLabeler:
             "last_run": self.last_run,
         }
 
+
 # Singleton
 _auto_labeler: AutoLabeler | None = None
+
 
 def get_auto_labeler() -> AutoLabeler:
     global _auto_labeler

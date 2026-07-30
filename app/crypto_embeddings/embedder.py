@@ -39,6 +39,7 @@ REDIS_PW = os.getenv("REDIS_PASSWORD", "")
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
 
+
 class CryptoEmbedder:
     """Multi-head embedder for crypto scam detection."""
 
@@ -76,10 +77,14 @@ class CryptoEmbedder:
 
     async def _get_redis(self) -> Any:
         import redis.asyncio as redis
+
         if self._redis is None:
             self._redis = redis.Redis(
-                host=REDIS_HOST, port=REDIS_PORT,
-                password=REDIS_PW or None, db=0, decode_responses=True,
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                password=REDIS_PW or None,
+                db=0,
+                decode_responses=True,
             )
         return self._redis
 
@@ -150,7 +155,7 @@ class CryptoEmbedder:
                 self._cache_hits += 1
                 return json.loads(data)
             self._cache_misses += 1
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             pass
         return None
 
@@ -158,15 +163,20 @@ class CryptoEmbedder:
         try:
             r = await self._get_redis()
             await r.setex(key, ttl, json.dumps(vector))
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             pass
 
     # ─── SPECIALIZED EMBED METHODS ──────────────────────────────
 
     async def embed_token_scam(
-        self, name: str, symbol: str, description: str = "",
-        contract_code: str = "", creator_address: str = "",
-        chain: str = "solana", metadata: dict | None = None,
+        self,
+        name: str,
+        symbol: str,
+        description: str = "",
+        contract_code: str = "",
+        creator_address: str = "",
+        chain: str = "solana",
+        metadata: dict | None = None,
     ) -> EmbeddingResult:
         semantic_text = f"""Token Analysis: {name} ({symbol}) on {chain}.
 Description: {description[:2000]}
@@ -177,71 +187,107 @@ Metadata: {json.dumps(metadata or {})[:1000]}"""
         code_vec = extract_contract_features(contract_code).tolist() if contract_code else [0.0] * 128
         behavioral = extract_transaction_features(metadata or {})
         behavioral_vec = behavioral.tolist()
-        wallet = extract_wallet_features({
-            "address": creator_address,
-            "labels": metadata.get("creator_labels", []) if metadata else [],
-        })
+        wallet = extract_wallet_features(
+            {
+                "address": creator_address,
+                "labels": metadata.get("creator_labels", []) if metadata else [],
+            }
+        )
         wallet_vec = wallet.tolist()
         combined = semantic_vec + code_vec + behavioral_vec + wallet_vec
         return EmbeddingResult(
-            vector=combined, dims=len(combined), model="crypto_multihead_v1",
+            vector=combined,
+            dims=len(combined),
+            model="crypto_multihead_v1",
             head="token_scam",
-            metadata={"name": name, "symbol": symbol, "chain": chain,
-                      "semantic_dim": semantic_dim, "has_code": bool(contract_code),
-                      "has_behavioral": bool(metadata)},
+            metadata={
+                "name": name,
+                "symbol": symbol,
+                "chain": chain,
+                "semantic_dim": semantic_dim,
+                "has_code": bool(contract_code),
+                "has_behavioral": bool(metadata),
+            },
         )
 
     async def embed_wallet(
-        self, address: str, transactions: list[dict] | None = None,
-        labels: list[str] | None = None, chain: str = "solana",
+        self,
+        address: str,
+        transactions: list[dict] | None = None,
+        labels: list[str] | None = None,
+        chain: str = "solana",
         balance_usd: float = 0,
     ) -> EmbeddingResult:
-        wallet_data = {"address": address, "labels": labels or [],
-                       "balance_usd": balance_usd, "transaction_count": len(transactions or [])}
+        wallet_data = {
+            "address": address,
+            "labels": labels or [],
+            "balance_usd": balance_usd,
+            "transaction_count": len(transactions or []),
+        }
         wallet_vec = extract_wallet_features(wallet_data).tolist()
         behavioral_vec = extract_transaction_features({"transactions": transactions or []}).tolist()
         semantic_text = f"Wallet {address} on {chain}. Labels: {', '.join(labels or ['unknown'])}. Activity: {len(transactions or [])} transactions."
         semantic_vec = await self._semantic_embed_one(semantic_text, "semantic")
         combined = semantic_vec + wallet_vec + behavioral_vec
         return EmbeddingResult(
-            vector=combined, dims=len(combined), model="crypto_multihead_v1",
+            vector=combined,
+            dims=len(combined),
+            model="crypto_multihead_v1",
             head="wallet",
-            metadata={"address": address, "chain": chain, "labels": labels or [],
-                      "tx_count": len(transactions or [])},
+            metadata={"address": address, "chain": chain, "labels": labels or [], "tx_count": len(transactions or [])},
         )
 
     async def embed_scam_pattern(
-        self, pattern_name: str, description: str,
+        self,
+        pattern_name: str,
+        description: str,
         code_snippets: list[str] | None = None,
-        indicators: list[str] | None = None, severity: str = "high",
+        indicators: list[str] | None = None,
+        severity: str = "high",
     ) -> EmbeddingResult:
         semantic_text = f"""SCAM PATTERN: {pattern_name}
 Severity: {severity}
 Description: {description}
-Indicators: {', '.join(indicators or [])}
-Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
+Indicators: {", ".join(indicators or [])}
+Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
         semantic_vec = await self._semantic_embed_one(semantic_text, "semantic")
         all_code = "\n".join(code_snippets or [])
         code_vec = extract_contract_features(all_code).tolist()
         combined = semantic_vec + code_vec
         return EmbeddingResult(
-            vector=combined, dims=len(combined), model="crypto_multihead_v1",
+            vector=combined,
+            dims=len(combined),
+            model="crypto_multihead_v1",
             head="scam_pattern",
             metadata={"pattern": pattern_name, "severity": severity, "indicators": indicators or []},
         )
 
-    async def embed_contract(self, address: str, code: str, chain: str = "ethereum", verified: bool = False) -> EmbeddingResult:
+    async def embed_contract(
+        self, address: str, code: str, chain: str = "ethereum", verified: bool = False
+    ) -> EmbeddingResult:
         import numpy as np
+
         result = await ContractCodeEmbedder.embed(code, semantic_embedder=self._openrouter)
         dims_val = len(result)
-        return EmbeddingResult(vector=result.tolist() if isinstance(result, np.ndarray) else result,
-                                dims=dims_val, model="contract_code_v1", head="contract")
+        return EmbeddingResult(
+            vector=result.tolist() if isinstance(result, np.ndarray) else result,
+            dims=dims_val,
+            model="contract_code_v1",
+            head="contract",
+        )
 
-    async def embed_news(self, title: str, content: str, source: str = "", tags: list[str] | None = None) -> EmbeddingResult:
+    async def embed_news(
+        self, title: str, content: str, source: str = "", tags: list[str] | None = None
+    ) -> EmbeddingResult:
         text = f"TITLE: {title}\nSOURCE: {source}\nTAGS: {', '.join(tags or [])}\nCONTENT: {content[:3000]}"
         vec = await self._semantic_embed_one(text, "semantic")
-        return EmbeddingResult(vector=vec, dims=len(vec), model="openai/text-embedding-3-large",
-                                head="news", metadata={"title": title, "source": source, "tags": tags or []})
+        return EmbeddingResult(
+            vector=vec,
+            dims=len(vec),
+            model="openai/text-embedding-3-large",
+            head="news",
+            metadata={"title": title, "source": source, "tags": tags or []},
+        )
 
     async def embed_query(self, query: str) -> list[float]:
         augmented = f"Cryptocurrency scam detection query: {query}"
@@ -262,7 +308,9 @@ Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
 
     @staticmethod
     def weighted_similarity(
-        vec_a: list[float], vec_b: list[float], semantic_dim: int,
+        vec_a: list[float],
+        vec_b: list[float],
+        semantic_dim: int,
         weights: tuple[float, float, float, float] = (0.4, 0.2, 0.2, 0.2),
     ) -> float:
         if len(vec_a) != len(vec_b):
@@ -272,24 +320,42 @@ Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
         behav_start = code_start + 128
         wallet_start = behav_start + 64
         sem_sim = CryptoEmbedder.cosine_similarity(vec_a[:semantic_dim], vec_b[:semantic_dim])
-        code_sim = CryptoEmbedder.cosine_similarity(vec_a[code_start:behav_start],
-                                                     vec_b[code_start:behav_start]) if len(vec_a) > code_start else 0.0
-        behav_sim = CryptoEmbedder.cosine_similarity(vec_a[behav_start:wallet_start],
-                                                      vec_b[behav_start:wallet_start]) if len(vec_a) > behav_start else 0.0
-        wallet_sim = CryptoEmbedder.cosine_similarity(vec_a[wallet_start:],
-                                                       vec_b[wallet_start:]) if len(vec_a) > wallet_start else 0.0
+        code_sim = (
+            CryptoEmbedder.cosine_similarity(vec_a[code_start:behav_start], vec_b[code_start:behav_start])
+            if len(vec_a) > code_start
+            else 0.0
+        )
+        behav_sim = (
+            CryptoEmbedder.cosine_similarity(vec_a[behav_start:wallet_start], vec_b[behav_start:wallet_start])
+            if len(vec_a) > behav_start
+            else 0.0
+        )
+        wallet_sim = (
+            CryptoEmbedder.cosine_similarity(vec_a[wallet_start:], vec_b[wallet_start:])
+            if len(vec_a) > wallet_start
+            else 0.0
+        )
         return weights[0] * sem_sim + weights[1] * code_sim + weights[2] * behav_sim + weights[3] * wallet_sim
 
     # ─── VECTOR STORE INTEGRATION ───────────────────────────────
 
-    async def store(self, collection: str, doc_id: str, vector: list[float],
-                    metadata: dict[str, Any] | None = None, content: str = "") -> bool:
+    async def store(
+        self,
+        collection: str,
+        doc_id: str,
+        vector: list[float],
+        metadata: dict[str, Any] | None = None,
+        content: str = "",
+    ) -> bool:
         try:
             r = await self._get_redis()
             key = f"rag:{collection}:{doc_id}"
             doc = {
-                "id": doc_id, "vector": vector, "metadata": metadata or {},
-                "content": content[:5000], "stored_at": datetime.now(UTC).isoformat(),
+                "id": doc_id,
+                "vector": vector,
+                "metadata": metadata or {},
+                "content": content[:5000],
+                "stored_at": datetime.now(UTC).isoformat(),
             }
             await r.setex(key, 86400 * 30, json.dumps(doc))
             await r.sadd(f"rag:idx:{collection}", doc_id)
@@ -298,8 +364,9 @@ Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
             logger.error(f"Failed to store embedding: {e}")
             return False
 
-    async def search(self, query: str, collection: str = "scam_patterns",
-                     limit: int = 10, min_similarity: float = 0.6) -> list[dict[str, Any]]:
+    async def search(
+        self, query: str, collection: str = "scam_patterns", limit: int = 10, min_similarity: float = 0.6
+    ) -> list[dict[str, Any]]:
         query_vec = await self.embed_query(query)
         q_dim = len(query_vec)
         try:
@@ -330,11 +397,14 @@ Code patterns: {'; '.join(code_snippets or [])[:3000]}"""
                 compare_len = min(q_dim, len(doc_vec))
                 sim = self.cosine_similarity(query_vec[:compare_len], doc_vec[:compare_len])
                 if sim >= min_similarity:
-                    scored.append({
-                        "id": doc["id"], "similarity": round(sim, 4),
-                        "metadata": doc.get("metadata", {}),
-                        "content": doc.get("content", "")[:500],
-                    })
+                    scored.append(
+                        {
+                            "id": doc["id"],
+                            "similarity": round(sim, 4),
+                            "metadata": doc.get("metadata", {}),
+                            "content": doc.get("content", "")[:500],
+                        }
+                    )
             scored.sort(key=lambda x: x["similarity"], reverse=True)
             return scored[:limit]
         except Exception as e:

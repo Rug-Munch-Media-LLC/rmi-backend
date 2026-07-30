@@ -86,7 +86,7 @@ class DocumentProcessor:
                 if i == 0:
                     overlapped.append(c)
                 else:
-                    tail = raw_chunks[i - 1][-self.overlap:]
+                    tail = raw_chunks[i - 1][-self.overlap :]
                     overlapped.append(tail + " " + c)
             raw_chunks = overlapped
 

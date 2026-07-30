@@ -71,13 +71,7 @@ async def threat_intel_check(address: str, chain: str = "sol") -> dict[str, Any]
     result["risk_flags"] = flags
     result["risk_score"] = min(score, 100)
     result["verdict"] = (
-        "CRITICAL"
-        if score >= 60
-        else "HIGH_RISK"
-        if score >= 40
-        else "SUSPICIOUS"
-        if score >= 20
-        else "CLEAN"
+        "CRITICAL" if score >= 60 else "HIGH_RISK" if score >= 40 else "SUSPICIOUS" if score >= 20 else "CLEAN"
     )
 
     return result

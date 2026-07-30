@@ -336,6 +336,7 @@ GOLDEN_TESTS = [
     },
 ]
 
+
 async def evaluate_single(test: dict) -> dict:
     """Run a single test query and score it."""
     query = test["query"]
@@ -361,9 +362,7 @@ async def evaluate_single(test: dict) -> dict:
             total = data.get("total", 0)
 
             # Score: context_precision - how many expected terms appear in results?
-            all_text = " ".join(
-                [res.get("content", res.get("text", "")) for res in results]
-            ).lower()
+            all_text = " ".join([res.get("content", res.get("text", "")) for res in results]).lower()
             terms_found = sum(1 for t in expected_terms if t in all_text)
             precision = terms_found / len(expected_terms) if expected_terms else 0
 
@@ -385,6 +384,7 @@ async def evaluate_single(test: dict) -> dict:
             }
     except Exception as e:
         return {"query": query[:60], "error": str(e)[:200], "score": 0}
+
 
 async def run_evaluation() -> dict:
     """Run full evaluation against golden test set."""
@@ -408,6 +408,7 @@ async def run_evaluation() -> dict:
         "results": results,
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
 
 if __name__ == "__main__":
     result = asyncio.run(run_evaluation())

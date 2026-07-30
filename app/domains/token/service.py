@@ -19,6 +19,7 @@ from app.domains.token.repository import TokenRepository
 
 log = get_logger(__name__)
 
+
 class TokenService(BaseService[TokenDetail]):
     """Orchestrates token data fetch and analysis."""
 

@@ -4,6 +4,7 @@ RugMunchBot -- Core scanning command handlers.
 
 Commands: start, help, scan, wallet, ta, compare, quick, rugcheck
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -39,7 +40,12 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
     web_scan_button,
 )
-from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, scan_result_kb
+from app.domains.telegram.rugmunchbot.keyboards import (
+    back_kb,
+    deep_scan_result_kb,
+    scan_result_kb,
+    upgrade_nudge_kb,
+)
 from app.domains.telegram.rugmunchbot.scanner import analyze_wallet, scan_token
 from app.domains.telegram.rugmunchbot.states import check_spam
 
@@ -47,6 +53,7 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
+
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -59,9 +66,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ref_code = ctx.args[0][4:]
         if ref_code != u.get("referral_code") and not u.get("referred_by"):
             conn = db.get_db()
-            referrer = conn.execute(
-                "SELECT user_id FROM users WHERE referral_code = ?", (ref_code,)
-            ).fetchone()
+            referrer = conn.execute("SELECT user_id FROM users WHERE referral_code = ?", (ref_code,)).fetchone()
             if referrer:
                 conn.execute(
                     "UPDATE users SET referred_by = ?, bonus_scans = bonus_scans + 5 WHERE user_id = ?",
@@ -98,20 +103,21 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\u2b50 <b>Premium from $29.99/mo</b> - unlock everything"
         f"{footer_links()}"
     )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("\U0001f50d Scan a Token", callback_data="menu_scan")],
+    kb = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("\u2b50 View Premium Plans", callback_data="menu_pricing"),
-            InlineKeyboardButton("\U0001f4da Learn About Scams", callback_data="menu_scamschool"),
-        ],
-        [
-            InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-            InlineKeyboardButton("\U0001f4e2 Join Alerts", url=TELEGRAM_CHANNEL),
-        ],
-    ])
-    await update.message.reply_text(
-        text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True
+            [InlineKeyboardButton("\U0001f50d Scan a Token", callback_data="menu_scan")],
+            [
+                InlineKeyboardButton("\u2b50 View Premium Plans", callback_data="menu_pricing"),
+                InlineKeyboardButton("\U0001f4da Learn About Scams", callback_data="menu_scamschool"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
+                InlineKeyboardButton("\U0001f4e2 Join Alerts", url=TELEGRAM_CHANNEL),
+            ],
+        ]
     )
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
+
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     d = thin_sep()
@@ -128,8 +134,10 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"/quick <code>symbol</code> - Quick price check (same as $TOKEN)\n\n"
         f"/price <code>address</code> [chain] - Token price by contract\n"
         f"/dex <code>address</code> [chain] - DEX pairs & liquidity\n"
+        f"/holders <code>address</code> - Top holder analysis (Scout+)\n"
         f"\U0001f9db <b>WALLET INTELLIGENCE</b>\n{d}\n"
         f"/wallet <code>address</code> - Forensic wallet analysis\n"
+        f"/trace <code>address</code> - Cross-chain fund trace (Hunter+)\n"
         f"/portfolio <code>address</code> - Wallet portfolio scanner\n"
         f"/smartmoney <code>address</code> - Smart money detection\n"
         f"/rugmap <code>address</code> - Wallet cluster visualization\n"
@@ -140,6 +148,10 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\U0001f4ca <b>MARKET DATA</b>\n{d}\n"
         f"/trending - Hot tokens right now\n"
         f"/news - Latest crypto news\n\n"
+        f"\U0001f575\ufe0f <b>DEEP ANALYSIS (Pro)</b>\n{d}\n"
+        f"/investigate <code>address</code> - Full investigation report\n"
+        f"/webhook add <code>url</code> - Custom webhook integration\n"
+        f"/api - API access tokens\n\n"
         f"\U0001f4b3 <b>ACCOUNT & BILLING</b>\n{d}\n"
         f"/account - Dashboard & usage stats\n"
         f"/pricing - Subscription plans\n"
@@ -152,18 +164,21 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\u2022 Paste any <code>0x...</code> address to auto-scan\n"
         f"\u2022 Type <code>$PEPE</code> for instant price check\n"
         f"\u2022 Use inline mode: <code>@RugMunchBot address</code> in any chat\n"
-        f"\u2022 Upgrade for bundle detection, wallet forensics & more\n"
+        f"\u2022 Upgrade for wallet forensics, fund tracing & more\n"
         f"\u2022 Use /refer to earn free scans"
         f"{footer_links()}"
     )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-         InlineKeyboardButton("\U0001f4ac Support", url=TELEGRAM_GROUP)],
-        [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-    ])
-    await update.message.reply_text(
-        text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True
+    kb = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
+                InlineKeyboardButton("\U0001f4ac Support", url=TELEGRAM_GROUP),
+            ],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+        ]
     )
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
+
 
 async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -186,10 +201,14 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     target = ctx.args[0]
     chain = ctx.args[1] if len(ctx.args) > 1 else None
     if not is_owner(user.id):
-        allowed, _used, _limit = db.check_rate_limit(user.id, "scan")
+        allowed, used, limit = db.check_rate_limit(user.id, "scan")
         if not allowed:
+            # Show upgrade nudge when hitting limit
+            tier = db.get_user_tier(user.id)
             await update.message.reply_text(
-                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
+                paywall_text(user.id, "scan"),
+                parse_mode=ParseMode.HTML,
+                reply_markup=upgrade_nudge_kb(tier),
             )
             return
     msg = await update.message.reply_text(
@@ -214,13 +233,20 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         report = format_scan_report(result)
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, target, result["chain"], "basic", result["risk_score"])
+        # Use richer keyboard for premium users
+        user_tier = db.get_user_tier(user.id)
+        result_kb = (
+            deep_scan_result_kb(target, result["chain"])
+            if user_tier in ("hunter", "pro")
+            else scan_result_kb(target, result["chain"])
+        )
         await msg.edit_text(
             report,
             parse_mode=ParseMode.HTML,
-            reply_markup=scan_result_kb(target, result["chain"]),
+            reply_markup=result_kb,
             disable_web_page_preview=True,
         )
-    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.error(f"Scan error: {e}")
         await msg.edit_text(
@@ -228,6 +254,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
+
 
 async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -246,8 +273,9 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
+            tier = db.get_user_tier(user.id)
             await update.message.reply_text(
-                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
+                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
     addr = ctx.args[0]
@@ -259,10 +287,8 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         result = await analyze_wallet(addr, chain)
         report = format_wallet_report(result)
         db.increment_usage(user.id, scan=True)
-        await msg.edit_text(
-            report, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
-        )
-    except (httpx.HTTPError) as e :
+        await msg.edit_text(report, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True)
+    except httpx.HTTPError as e:
         logger.debug("cmd_wallet_error", exc_info=True)
         logger.error(f"Wallet error: {e}")
         await msg.edit_text(
@@ -270,6 +296,7 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
+
 
 async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -284,14 +311,12 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
+            tier = db.get_user_tier(user.id)
             await update.message.reply_text(
-                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
+                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
-    target = ctx.args[0]
-    msg = await update.message.reply_text(
-        "\U0001f4ca <b>Running Technical Analysis...</b>", parse_mode=ParseMode.HTML
-    )
+    msg = await update.message.reply_text("\U0001f4ca <b>Running Technical Analysis...</b>", parse_mode=ParseMode.HTML)
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(f"{DEXSCREENER}/tokens/{target}")
@@ -357,14 +382,11 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             text += "\n\n<i>TA is not financial advice. Always /scan for security.</i>"
             text += footer_links()
         db.increment_usage(user.id, scan=True)
-        await msg.edit_text(
-            text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
-        )
+        await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"TA error: {e}")
-        await msg.edit_text(
-            f"\u274c TA failed: {str(e)[:200]}", parse_mode=ParseMode.HTML, reply_markup=back_kb()
-        )
+        await msg.edit_text(f"\u274c TA failed: {str(e)[:200]}", parse_mode=ParseMode.HTML, reply_markup=back_kb())
+
 
 async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -379,8 +401,9 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
+            tier = db.get_user_tier(user.id)
             await update.message.reply_text(
-                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
+                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
     msg = await update.message.reply_text("\u2696\ufe0f <b>Comparing tokens...</b>", parse_mode=ParseMode.HTML)
@@ -422,10 +445,8 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"<b>\U0001f3c6 Verdict</b>\n{thin_sep()}\n" + "\n".join(better) + footer_links()
         )
         db.increment_usage(user.id, scan=True)
-        await msg.edit_text(
-            text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
-        )
-    except (httpx.HTTPError, KeyError, TypeError) as e :
+        await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True)
+    except (httpx.HTTPError, KeyError, TypeError) as e:
         logger.debug("mini_error", exc_info=True)
         logger.error(f"cmd_compare failed: {e}")
         await msg.edit_text(
@@ -433,6 +454,7 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
+
 
 async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Quick price check - same as $TOKEN but as a command."""
@@ -463,16 +485,19 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         f"\U0001f4c8 MCap: {fmt_number(mcap)} | \U0001f4a7 Vol: {fmt_number(vol)}"
                         f"{footer_links()}"
                     )
-                    kb = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("\U0001f50d Full Scan", callback_data=f"scan_{addr}_{chain}")],
-                        [web_scan_button(addr, chain)],
-                    ])
+                    kb = InlineKeyboardMarkup(
+                        [
+                            [InlineKeyboardButton("\U0001f50d Full Scan", callback_data=f"scan_{addr}_{chain}")],
+                            [web_scan_button(addr, chain)],
+                        ]
+                    )
                     await update.message.reply_text(
-                        text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True,
+                        text,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=kb,
+                        disable_web_page_preview=True,
                     )
                     return
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"cmd_quick DexScreener lookup failed for symbol {symbol}: {e}")
-    await update.message.reply_text(
-        f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML
-    )
+    await update.message.reply_text(f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML)

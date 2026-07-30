@@ -18,6 +18,7 @@ class EmbeddingProvider(StrEnum):
     HUGGINGFACE = "huggingface"
     COHERE = "cohere"
 
+
 # Default RAG collections (matches legacy app.rag_engine.COLLECTIONS)
 COLLECTIONS: list[str] = [
     "scam_intel",
@@ -26,6 +27,7 @@ COLLECTIONS: list[str] = [
     "contract_audit",
     "phishing_db",
 ]
+
 
 class SearchRequest(BaseModel):
     """RAG search request."""
@@ -38,6 +40,7 @@ class SearchRequest(BaseModel):
     min_similarity: float = Field(default=0.0, ge=0.0, le=1.0)
     filters: dict[str, Any] = Field(default_factory=dict)
 
+
 class SearchHit(BaseModel):
     """A single search result."""
 
@@ -47,6 +50,7 @@ class SearchHit(BaseModel):
     collection: str = ""
     doc_id: str = ""
 
+
 class SearchResponse(BaseModel):
     """RAG search response."""
 
@@ -55,6 +59,7 @@ class SearchResponse(BaseModel):
     total: int = 0
     took_ms: int = 0
     collection: str = ""
+
 
 class IngestRequest(BaseModel):
     """RAG document ingestion request."""
@@ -66,6 +71,7 @@ class IngestRequest(BaseModel):
     doc_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
 class IngestResult(BaseModel):
     """RAG document ingestion result."""
 
@@ -75,6 +81,7 @@ class IngestResult(BaseModel):
     chunks: int = 0
     error: str | None = None
     ingested_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class FeedbackRecord(BaseModel):
     """Scanner → RAG feedback record."""

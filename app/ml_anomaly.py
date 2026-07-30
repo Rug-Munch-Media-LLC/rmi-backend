@@ -28,6 +28,7 @@ class WalletAnomalyDetector:
             results.append(self.analyze_wallet(addr, chain))
         return {"wallets": results, "total": len(results)}
 
+
 class TokenMetricAnomalyDetector:
     """Detect anomalous token metrics."""
 

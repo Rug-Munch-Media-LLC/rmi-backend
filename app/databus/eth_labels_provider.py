@@ -8,9 +8,7 @@ from __future__ import annotations
 import os
 import sqlite3
 
-DB_PATH = os.environ.get(
-    "ETH_LABELS_DB", os.path.join(os.path.dirname(__file__), "..", "..", "eth-labels.db")
-)
+DB_PATH = os.environ.get("ETH_LABELS_DB", os.path.join(os.path.dirname(__file__), "..", "..", "eth-labels.db"))
 # Fallback paths for different environments
 if not os.path.exists(DB_PATH):
     alt_paths = [
@@ -22,6 +20,7 @@ if not os.path.exists(DB_PATH):
         if os.path.exists(p):
             DB_PATH = p
             break
+
 
 async def fetch_eth_labels(
     address: str | None = None,

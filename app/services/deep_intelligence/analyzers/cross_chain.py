@@ -41,9 +41,7 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
 
     if token_symbol:
         try:
-            resp = await client.http.get(
-                f"https://api.dexscreener.com/latest/dex/search?q={token_symbol}"
-            )
+            resp = await client.http.get(f"https://api.dexscreener.com/latest/dex/search?q={token_symbol}")
             if resp.status_code == 200:
                 search_data = resp.json()
                 pairs = search_data.get("pairs") or []
@@ -60,9 +58,7 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
                                 "liquidity_usd": pair.get("liquidity", {}).get("usd", 0)
                                 if pair.get("liquidity")
                                 else 0,
-                                "volume_24h_usd": pair.get("volume", {}).get("h24", 0)
-                                if pair.get("volume")
-                                else 0,
+                                "volume_24h_usd": pair.get("volume", {}).get("h24", 0) if pair.get("volume") else 0,
                                 "pair_created": pair.get("pairCreatedAt", ""),
                             }
                         )
@@ -70,9 +66,7 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
             logger.warning(f"Cross-chain search failed: {e}")
 
     if len(profiles) >= 3:
-        flags.append(
-            f"Same symbol found on {len(profiles)} chains - possible coordinated multi-chain scam"
-        )
+        flags.append(f"Same symbol found on {len(profiles)} chains - possible coordinated multi-chain scam")
     elif len(profiles) >= 2:
         flags.append(f"Token exists on {len(profiles)} chains - verify they're the same team")
 
@@ -82,11 +76,7 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
     result["risk_flags"] = flags
     result["identity_confidence"] = min(len(profiles) * 25, 100)
     result["verdict"] = (
-        "MULTI_CHAIN_ENTITY"
-        if len(profiles) >= 3
-        else "POSSIBLE_DUPLICATE"
-        if len(profiles) >= 1
-        else "SINGLE_CHAIN"
+        "MULTI_CHAIN_ENTITY" if len(profiles) >= 3 else "POSSIBLE_DUPLICATE" if len(profiles) >= 1 else "SINGLE_CHAIN"
     )
 
     return result

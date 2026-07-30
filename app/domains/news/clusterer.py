@@ -33,6 +33,7 @@ logger = get_logger(__name__)
 # ── Tokenization ────────────────────────────────────────────────────
 _TOKEN_RE = re.compile(r"[a-z0-9]{3,}", re.IGNORECASE)
 
+
 def _shingles(text: str, k: int = 3) -> set[str]:
     """k-shingle set of lowercased alphanumeric tokens. For Jaccard."""
     if not text:
@@ -42,9 +43,11 @@ def _shingles(text: str, k: int = 3) -> set[str]:
         return set(toks)
     return {" ".join(toks[i : i + k]) for i in range(len(toks) - k + 1)}
 
+
 # ── MinHash ─────────────────────────────────────────────────────────
 _NUM_PERM = 128
 _MAX_HASH = (1 << 32) - 1
+
 
 def _minhash_signature(shingles: set[str], seed: int = 42) -> list[int]:
     """128-permutation MinHash signature of a shingle set.
@@ -66,11 +69,13 @@ def _minhash_signature(shingles: set[str], seed: int = 42) -> list[int]:
         sig.append(m)
     return sig
 
+
 def _jaccard_minhash(a: list[int], b: list[int]) -> float:
     """Estimate Jaccard similarity from two MinHash signatures."""
     if not a or not b or len(a) != len(b):
         return 0.0
     return sum(1 for x, y in zip(a, b, strict=False) if x == y) / len(a)
+
 
 # ── DBSCAN (pure-python, no sklearn dep) ────────────────────────────
 def _dbscan(
@@ -90,11 +95,7 @@ def _dbscan(
     for i in range(n):
         if labels[i] != -1:
             continue
-        neighbors = [
-            j
-            for j in range(n)
-            if i != j and (1.0 - _jaccard_minhash(signatures[i], signatures[j])) <= eps
-        ]
+        neighbors = [j for j in range(n) if i != j and (1.0 - _jaccard_minhash(signatures[i], signatures[j])) <= eps]
         if len(neighbors) < min_samples - 1:
             # not enough neighbours - mark as noise (may become border later)
             continue
@@ -106,9 +107,7 @@ def _dbscan(
             if labels[q] == -1:
                 labels[q] = cluster_id
                 q_neighbors = [
-                    j
-                    for j in range(n)
-                    if j != q and (1.0 - _jaccard_minhash(signatures[q], signatures[j])) <= eps
+                    j for j in range(n) if j != q and (1.0 - _jaccard_minhash(signatures[q], signatures[j])) <= eps
                 ]
                 if len(q_neighbors) >= min_samples - 1:
                     seed_set.extend(q_neighbors)
@@ -117,6 +116,7 @@ def _dbscan(
             k += 1
         cluster_id += 1
     return labels
+
 
 # ── Domain types ────────────────────────────────────────────────────
 @dataclass
@@ -151,6 +151,7 @@ class NewsItem:
             sentiment=float(row.get("sentiment", 0.0) or 0.0),
         )
 
+
 @dataclass
 class StoryCluster:
     """One deduplicated story spanning 1+ source items."""
@@ -177,6 +178,7 @@ class StoryCluster:
             "sentiment_avg": round(self.sentiment_avg, 3),
             "item_ids": self.item_ids,
         }
+
 
 # ── Main entry point ────────────────────────────────────────────────
 def cluster_items(
@@ -271,6 +273,7 @@ def cluster_items(
     )
     return stories
 
+
 # ── DB persistence (optional, lazy import) ──────────────────────────
 _PG_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS news_clusters (
@@ -289,6 +292,7 @@ CREATE INDEX IF NOT EXISTS news_clusters_last_updated_idx
   ON news_clusters (last_updated DESC);
 """
 
+
 async def ensure_schema() -> bool:
     """Create news_clusters table if missing. Returns True on success."""
     try:
@@ -303,10 +307,11 @@ async def ensure_schema() -> bool:
             await conn.close()
         logger.info("news_clusters_schema_ready")
         return True
-    except (KeyError, ValueError, TypeError) as exc :
+    except (KeyError, ValueError, TypeError) as exc:
         logger.debug("ensure_schema_error", exc_info=True)
         logger.warning("news_clusters_schema_failed err=%s", exc)
         return False
+
 
 async def persist_clusters(stories: list[StoryCluster]) -> int:
     """Upsert stories to Postgres. Returns rows affected."""
@@ -356,10 +361,11 @@ async def persist_clusters(stories: list[StoryCluster]) -> int:
             return len(rows)
         finally:
             await conn.close()
-    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc :
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
         logger.debug("unknown_error", exc_info=True)
         logger.warning("news_clusters_persist_failed err=%s", exc)
         return 0
+
 
 async def load_recent_clusters(limit: int = 50) -> list[dict]:
     """Load recent clusters from Postgres."""
@@ -392,10 +398,11 @@ async def load_recent_clusters(limit: int = 50) -> list[dict]:
             ]
         finally:
             await conn.close()
-    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc :
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
         logger.debug("load_recent_clusters_error", exc_info=True)
         logger.warning("news_clusters_load_failed err=%s", exc)
         return []
+
 
 __all__ = [
     "NewsItem",

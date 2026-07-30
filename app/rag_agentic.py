@@ -26,6 +26,7 @@ What elevates RAG from "search tool" to "intelligence analyst":
 5. STREAMING RESPONSE - Progressive disclosure
    - Stream findings as they're discovered
 """
+
 from __future__ import annotations
 
 import json
@@ -59,6 +60,7 @@ ANALYSIS_MODEL = os.getenv("RAG_ANALYSIS_MODEL", os.getenv("LLM_MODEL", "deepsee
 # ══════════════════════════════════════════════════════════════════════
 # LLM RERANKER
 # ══════════════════════════════════════════════════════════════════════
+
 
 class LLMReranker:
     """
@@ -156,8 +158,7 @@ Return a JSON list sorted by score descending. Only return the JSON, nothing els
                                     "llm_reasoning": item.get("reasoning", ""),
                                     "llm_flags": item.get("flags", ""),
                                     "confidence": round(
-                                        0.6 * item.get("score", 0)
-                                        + 0.4 * doc_map[doc_id].get("similarity", 0),
+                                        0.6 * item.get("score", 0) + 0.4 * doc_map[doc_id].get("similarity", 0),
                                         4,
                                     ),
                                 }
@@ -172,9 +173,11 @@ Return a JSON list sorted by score descending. Only return the JSON, nothing els
         # Fallback: return top-K by vector similarity
         return sorted(documents, key=lambda x: x.get("similarity", 0), reverse=True)[:top_k]
 
+
 # ══════════════════════════════════════════════════════════════════════
 # MULTI-HOP RETRIEVAL AGENT
 # ══════════════════════════════════════════════════════════════════════
+
 
 class MultiHopRetrievalAgent:
     """
@@ -368,9 +371,7 @@ Return as JSON. Be precise and evidence-based."""
 
         try:
             if action == "scam_pattern":
-                results = await search_multi_collection(
-                    query, collections=["known_scams", "scam_patterns"], limit=10
-                )
+                results = await search_multi_collection(query, collections=["known_scams", "scam_patterns"], limit=10)
             elif action == "code_audit":
                 results = await search_similar(query, "contract_audits", limit=10)
             elif action == "deployer_check":
@@ -410,28 +411,20 @@ Return as JSON. Be precise and evidence-based."""
         """Synthesize final assessment from all findings."""
         if not self.api_key:
             # Heuristic synthesis without LLM
-            high_risk = sum(
-                1 for r in reranked if r.get("severity", "").lower() in ("critical", "high")
-            )
+            high_risk = sum(1 for r in reranked if r.get("severity", "").lower() in ("critical", "high"))
             total = len(reranked) or 1
             return {
                 "overall_risk": "HIGH" if high_risk / total > 0.3 else "MEDIUM",
                 "confidence": min(0.9, high_risk / max(1, total)),
                 "evidence_count": len(reranked),
-                "scam_patterns_found": [
-                    r.get("metadata", {}).get("name", "") for r in reranked[:5]
-                ],
-                "recommendation": "Avoid - high risk indicators detected"
-                if high_risk > 0
-                else "Proceed with caution",
+                "scam_patterns_found": [r.get("metadata", {}).get("name", "") for r in reranked[:5]],
+                "recommendation": "Avoid - high risk indicators detected" if high_risk > 0 else "Proceed with caution",
             }
 
         # Build findings summary
         finding_text = ""
         for f in findings:
-            finding_text += (
-                f"\nHop {f['hop']}: {f['action']} - {f['result'].get('count', 0)} results\n"
-            )
+            finding_text += f"\nHop {f['hop']}: {f['action']} - {f['result'].get('count', 0)} results\n"
             for doc in f.get("result", {}).get("documents", [])[:3]:
                 finding_text += f"  - {doc.get('content', '')[:200]}\n"
 
@@ -470,9 +463,11 @@ Return as JSON. Be precise and evidence-based."""
             "error": "Synthesis failed",
         }
 
+
 # ══════════════════════════════════════════════════════════════════════
 # STREAMING SEARCH (for real-time UX)
 # ══════════════════════════════════════════════════════════════════════
+
 
 async def stream_rag_search(
     query: str,
@@ -537,9 +532,11 @@ async def stream_rag_search(
             + "\n"
         )
 
+
 # ══════════════════════════════════════════════════════════════════════
 # REAL-TIME TOKEN MONITOR
 # ══════════════════════════════════════════════════════════════════════
+
 
 class RealTimeTokenMonitor:
     """
@@ -618,6 +615,7 @@ class RealTimeTokenMonitor:
     def get_recent_alerts(self, limit: int = 20) -> list[dict]:
         return self.alerts[-limit:]
 
+
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETONS
 # ══════════════════════════════════════════════════════════════════════
@@ -626,17 +624,20 @@ _reranker: LLMReranker | None = None
 _agent: MultiHopRetrievalAgent | None = None
 _monitor: RealTimeTokenMonitor | None = None
 
+
 def get_reranker() -> LLMReranker:
     global _reranker
     if _reranker is None:
         _reranker = LLMReranker()
     return _reranker
 
+
 def get_agent() -> MultiHopRetrievalAgent:
     global _agent
     if _agent is None:
         _agent = MultiHopRetrievalAgent()
     return _agent
+
 
 def get_monitor() -> RealTimeTokenMonitor:
     global _monitor

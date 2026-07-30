@@ -112,8 +112,7 @@ class TestTokenPipeline:
                     "volume": {"h24": 50_000},
                     "liquidity": {"usd": 250_000},
                     "fdv": 15_000_000,
-                    "pairCreatedAt": int(time.time() * 1000)
-                    - 14 * 86400_000,  # 14 days ago (mature)
+                    "pairCreatedAt": int(time.time() * 1000) - 14 * 86400_000,  # 14 days ago (mature)
                     "holders": 2500,
                 }
             ]
@@ -219,9 +218,7 @@ class TestTokenPipeline:
         def _m(module: str, **overrides) -> dict:
             base = {"check": module, "result": "scanned"}
             if module in ("goplus", "honeypot"):
-                base.update(
-                    is_honeypot=is_honeypot, risk_score=60 if is_honeypot else 0, source="mock"
-                )
+                base.update(is_honeypot=is_honeypot, risk_score=60 if is_honeypot else 0, source="mock")
             if module == "spam":
                 base.update(is_spam=False, is_sanctioned=False, is_known_scam=False)
             if module == "copycat":
@@ -234,37 +231,19 @@ class TestTokenPipeline:
             stack.enter_context(
                 patch.multiple(
                     "app.domains.scanner.modules._core",
-                    _fetch_with_fallback=AsyncMock(
-                        return_value=(hp_data, "https://api.dexscreener.com/")
-                    ),
+                    _fetch_with_fallback=AsyncMock(return_value=(hp_data, "https://api.dexscreener.com/")),
                     _fetch_json=AsyncMock(return_value=None),
                     _solana_rpc_call=AsyncMock(return_value=None),
                 )
             )
             # Scan module bindings (where from X import Y created names)
+            stack.enter_context(patch.object(scan_mod, "_check_goplus_security", AsyncMock(return_value=_m("goplus"))))
+            stack.enter_context(patch.object(scan_mod, "_check_honeypot_is", AsyncMock(return_value=_m("honeypot"))))
+            stack.enter_context(patch.object(scan_mod, "_check_spam", AsyncMock(return_value=_m("spam"))))
+            stack.enter_context(patch.object(scan_mod, "_check_copycat", AsyncMock(return_value=_m("copycat"))))
+            stack.enter_context(patch.object(scan_mod, "_check_blockscout", AsyncMock(return_value=_m("blockscout"))))
             stack.enter_context(
-                patch.object(
-                    scan_mod, "_check_goplus_security", AsyncMock(return_value=_m("goplus"))
-                )
-            )
-            stack.enter_context(
-                patch.object(scan_mod, "_check_honeypot_is", AsyncMock(return_value=_m("honeypot")))
-            )
-            stack.enter_context(
-                patch.object(scan_mod, "_check_spam", AsyncMock(return_value=_m("spam")))
-            )
-            stack.enter_context(
-                patch.object(scan_mod, "_check_copycat", AsyncMock(return_value=_m("copycat")))
-            )
-            stack.enter_context(
-                patch.object(
-                    scan_mod, "_check_blockscout", AsyncMock(return_value=_m("blockscout"))
-                )
-            )
-            stack.enter_context(
-                patch.object(
-                    scan_mod, "_check_defi_scanner", AsyncMock(return_value=_m("defiscanner"))
-                )
+                patch.object(scan_mod, "_check_defi_scanner", AsyncMock(return_value=_m("defiscanner")))
             )
             stack.enter_context(
                 patch.object(
@@ -330,9 +309,7 @@ class TestTokenPipeline:
                 patch.object(
                     scan_mod,
                     "_check_liquidity_lock_multi",
-                    AsyncMock(
-                        return_value=_m("liquidity", liquidity_usd=250000, liquidity_locked_pct=95)
-                    ),
+                    AsyncMock(return_value=_m("liquidity", liquidity_usd=250000, liquidity_locked_pct=95)),
                 )
             )
             stack.enter_context(
@@ -372,9 +349,7 @@ class TestTokenPipeline:
                 )
             )
             stack.enter_context(
-                patch.object(
-                    scan_mod, "_rag_scam_check", AsyncMock(return_value=_m("rag", risk_score=0))
-                )
+                patch.object(scan_mod, "_rag_scam_check", AsyncMock(return_value=_m("rag", risk_score=0)))
             )
             stack.enter_context(
                 patch.object(
@@ -431,12 +406,8 @@ class TestTokenPipeline:
             # Spam registry (local module)
             stack.enter_context(patch("app.spam_registry.get_spam_registry", return_value=spam_reg))
             # Prevent any real HTTP calls
-            stack.enter_context(
-                patch("httpx.AsyncClient.get", AsyncMock(return_value=_mock_httpx_response({})))
-            )
-            stack.enter_context(
-                patch("httpx.AsyncClient.post", AsyncMock(return_value=_mock_httpx_response({})))
-            )
+            stack.enter_context(patch("httpx.AsyncClient.get", AsyncMock(return_value=_mock_httpx_response({}))))
+            stack.enter_context(patch("httpx.AsyncClient.post", AsyncMock(return_value=_mock_httpx_response({}))))
             yield
 
     @pytest.mark.asyncio
@@ -463,9 +434,7 @@ class TestTokenPipeline:
 
             result = await scan_token(self.TOKEN, "ethereum", tiers=["free"])
 
-        assert result.safety_score < 40, (
-            f"Expected low score for honeypot, got {result.safety_score}"
-        )
+        assert result.safety_score < 40, f"Expected low score for honeypot, got {result.safety_score}"
         assert "honeypot" in result.risk_flags or "high_risk_score" in result.risk_flags
 
     @pytest.mark.asyncio
@@ -477,14 +446,10 @@ class TestTokenPipeline:
             result = await scan_token(self.TOKEN, "ethereum", tiers=["pro"])
 
         assert result.token_address == self.TOKEN
-        assert len(result.modules_run) >= 10, (
-            f"Expected 10+ modules for PRO, got {len(result.modules_run)}"
-        )
+        assert len(result.modules_run) >= 10, f"Expected 10+ modules for PRO, got {len(result.modules_run)}"
         pro_modules = {"deployer", "holders", "verification", "liquidity", "bundle"}
         module_names = {m["module"] for m in result.modules_run}
-        assert pro_modules.intersection(module_names), (
-            f"Expected some PRO modules, got {module_names}"
-        )
+        assert pro_modules.intersection(module_names), f"Expected some PRO modules, got {module_names}"
 
     @pytest.mark.asyncio
     async def test_token_pipeline_elite_tier(self):
@@ -495,14 +460,10 @@ class TestTokenPipeline:
             result = await scan_token(self.TOKEN, "ethereum", tiers=["elite"])
 
         assert result.token_address == self.TOKEN
-        assert len(result.modules_run) >= 15, (
-            f"Expected 15+ modules for ELITE, got {len(result.modules_run)}"
-        )
+        assert len(result.modules_run) >= 15, f"Expected 15+ modules for ELITE, got {len(result.modules_run)}"
         elite_modules = {"price", "rag", "nansen", "blowfish", "dune", "arkham"}
         module_names = {m["module"] for m in result.modules_run}
-        assert elite_modules.intersection(module_names), (
-            f"Expected some ELITE modules, got {module_names}"
-        )
+        assert elite_modules.intersection(module_names), f"Expected some ELITE modules, got {module_names}"
 
     @pytest.mark.asyncio
     async def test_pipeline_error_recovery(self):
@@ -561,9 +522,7 @@ class TestTokenPipeline:
                 patch.object(
                     scan_mod,
                     "_check_spam",
-                    AsyncMock(
-                        return_value={"check": "spam", "result": "scanned", "is_spam": False}
-                    ),
+                    AsyncMock(return_value={"check": "spam", "result": "scanned", "is_spam": False}),
                 )
             )
             stack.enter_context(
@@ -574,12 +533,8 @@ class TestTokenPipeline:
                 )
             )
             stack.enter_context(patch("app.spam_registry.get_spam_registry", return_value=spam_reg))
-            stack.enter_context(
-                patch("httpx.AsyncClient.get", AsyncMock(return_value=_mock_httpx_response({})))
-            )
-            stack.enter_context(
-                patch("httpx.AsyncClient.post", AsyncMock(return_value=_mock_httpx_response({})))
-            )
+            stack.enter_context(patch("httpx.AsyncClient.get", AsyncMock(return_value=_mock_httpx_response({}))))
+            stack.enter_context(patch("httpx.AsyncClient.post", AsyncMock(return_value=_mock_httpx_response({}))))
 
             result = await scan_token(self.TOKEN, "ethereum", tiers=["free"])
 
@@ -589,13 +544,9 @@ class TestTokenPipeline:
         # Modules should have result="error" indicating external API failures
         # (status="success" means the call didn't crash; result dict contains the error)
         error_results = [
-            m
-            for m in result.modules_run
-            if isinstance(m.get("result"), dict) and m["result"].get("result") == "error"
+            m for m in result.modules_run if isinstance(m.get("result"), dict) and m["result"].get("result") == "error"
         ]
-        assert len(error_results) >= 2, (
-            f"Expected some modules to return error results, got {len(error_results)}"
-        )
+        assert len(error_results) >= 2, f"Expected some modules to return error results, got {len(error_results)}"
 
     @pytest.mark.asyncio
     async def test_pipeline_scan_token_empty_address(self):
@@ -609,37 +560,41 @@ class TestTokenPipeline:
     @pytest.mark.asyncio
     async def test_pipeline_quick_scan_text(self):
         """quick_scan_text returns a formatted text summary."""
-        with patch(
-            "app.domains.scanner.modules._core._fetch_with_fallback",
-            AsyncMock(return_value=(self._dexscreener_pairs(), "https://api.dexscreener.com/")),
-        ), patch(
-            "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
-        ), patch(
-            "app.domains.scanner.modules.security._check_goplus_security",
-            AsyncMock(
-                return_value={
-                    "check": "goplus",
-                    "result": "scanned",
-                    "is_honeypot": False,
-                    "risk_score": 0,
-                    "source": "goplus",
-                }
+        with (
+            patch(
+                "app.domains.scanner.modules._core._fetch_with_fallback",
+                AsyncMock(return_value=(self._dexscreener_pairs(), "https://api.dexscreener.com/")),
             ),
-        ), patch(
-            "app.spam_registry.get_spam_registry",
-            return_value=MagicMock(
-                check_token=MagicMock(
+            patch("app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)),
+            patch(
+                "app.domains.scanner.modules.security._check_goplus_security",
+                AsyncMock(
                     return_value={
-                        "is_spam": False,
-                        "is_sanctioned": False,
-                        "is_known_scam": False,
-                        "sources_checked": [],
+                        "check": "goplus",
+                        "result": "scanned",
+                        "is_honeypot": False,
+                        "risk_score": 0,
+                        "source": "goplus",
                     }
-                )
+                ),
             ),
-        ), patch(
-            "app.domains.scanner.modules._core._solana_rpc_call",
-            AsyncMock(return_value=None),
+            patch(
+                "app.spam_registry.get_spam_registry",
+                return_value=MagicMock(
+                    check_token=MagicMock(
+                        return_value={
+                            "is_spam": False,
+                            "is_sanctioned": False,
+                            "is_known_scam": False,
+                            "sources_checked": [],
+                        }
+                    )
+                ),
+            ),
+            patch(
+                "app.domains.scanner.modules._core._solana_rpc_call",
+                AsyncMock(return_value=None),
+            ),
         ):
             from app.domains.scanner.service import quick_scan_text
 
@@ -1071,10 +1026,13 @@ class TestMEVSandwichDetection:
 
         detector = MEVSandwichDetector(chains=["ethereum"])
         # Patch _query_databus to return None (no data available)
-        with patch.object(detector, "_query_databus", AsyncMock(return_value=None)), patch.object(
-            detector,
-            "_analyze_pool_mev_risk",
-            AsyncMock(return_value={"pool_address": "0x0", "mev_vulnerability_score": 0}),
+        with (
+            patch.object(detector, "_query_databus", AsyncMock(return_value=None)),
+            patch.object(
+                detector,
+                "_analyze_pool_mev_risk",
+                AsyncMock(return_value={"pool_address": "0x0", "mev_vulnerability_score": 0}),
+            ),
         ):
             report = await detector.scan()
         assert report is not None
@@ -1099,11 +1057,12 @@ class TestMEVSandwichDetection:
         )
         detector._pools[pool.address.lower()] = pool
 
-        with patch.object(detector, "_query_databus", AsyncMock(return_value=None)), patch.object(
-            detector,
-            "_analyze_pool_mev_risk",
-            AsyncMock(
-                return_value={"pool_address": pool.address, "mev_vulnerability_score": 0.5}
+        with (
+            patch.object(detector, "_query_databus", AsyncMock(return_value=None)),
+            patch.object(
+                detector,
+                "_analyze_pool_mev_risk",
+                AsyncMock(return_value={"pool_address": pool.address, "mev_vulnerability_score": 0.5}),
             ),
         ):
             report = await detector.scan()
@@ -1407,8 +1366,9 @@ class TestFlashLoanAttackDetection:
             }
         ]
 
-        with patch.object(detector, "_fetch_blocks", AsyncMock(return_value=mock_blocks)), patch.object(
-            detector, "_analyze_block_transactions", AsyncMock(return_value=(True, [], []))
+        with (
+            patch.object(detector, "_fetch_blocks", AsyncMock(return_value=mock_blocks)),
+            patch.object(detector, "_analyze_block_transactions", AsyncMock(return_value=(True, [], []))),
         ):
             report = await detector.scan(blocks_back=1)
 
@@ -1586,9 +1546,7 @@ class TestScannerEdgeCases:
         """Unsupported chain returns graceful result, not crash."""
         from app.domains.scanner.service import scan_token
 
-        result = await scan_token(
-            "0x1234567890abcdef1234567890abcdef12345678", "nonexistent_chain_42"
-        )
+        result = await scan_token("0x1234567890abcdef1234567890abcdef12345678", "nonexistent_chain_42")
         assert result is not None
         assert result.chain == "nonexistent_chain_42"
 
@@ -1669,12 +1627,15 @@ class TestScannerEdgeCases:
         }
 
         # Simulate ImportError by making _check_goplus_security fail with error
-        with patch(
-            "app.domains.scanner.modules.security._check_goplus_security",
-            AsyncMock(return_value={"check": "goplus", "result": "error", "error": "unavailable"}),
-        ), patch(
-            "app.domains.scanner.modules._core._fetch_with_fallback",
-            AsyncMock(return_value=(mock_dexscreener, "https://api.dexscreener.com/")),
+        with (
+            patch(
+                "app.domains.scanner.modules.security._check_goplus_security",
+                AsyncMock(return_value={"check": "goplus", "result": "error", "error": "unavailable"}),
+            ),
+            patch(
+                "app.domains.scanner.modules._core._fetch_with_fallback",
+                AsyncMock(return_value=(mock_dexscreener, "https://api.dexscreener.com/")),
+            ),
         ):
             from app.domains.scanner.modules.security import _check_honeypot_is
 
@@ -1688,9 +1649,12 @@ class TestScannerEdgeCases:
     @pytest.mark.asyncio
     async def test_deployer_info_no_explorer(self):
         """Deployer info with no explorer API returns unknown."""
-        with patch("app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)), patch(
-            "app.domains.scanner.modules._core._fetch_with_fallback",
-            AsyncMock(return_value=({}, "")),
+        with (
+            patch("app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)),
+            patch(
+                "app.domains.scanner.modules._core._fetch_with_fallback",
+                AsyncMock(return_value=({}, "")),
+            ),
         ):
             from app.domains.scanner.modules.deployer import _get_deployer_info
 
@@ -1756,40 +1720,41 @@ class TestBatchScanning:
         """Multiple tokens scanned concurrently all complete."""
         from app.domains.scanner.service import scan_token
 
-        with patch(
-            "app.domains.scanner.modules._core._fetch_with_fallback",
-            AsyncMock(return_value=({}, "")),
-        ), patch(
-            "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
-        ), patch(
-            "app.domains.scanner.modules.security._check_goplus_security",
-            AsyncMock(
-                return_value={
-                    "check": "goplus",
-                    "result": "scanned",
-                    "is_honeypot": False,
-                    "risk_score": 0,
-                    "source": "goplus",
-                }
+        with (
+            patch(
+                "app.domains.scanner.modules._core._fetch_with_fallback",
+                AsyncMock(return_value=({}, "")),
             ),
-        ), patch(
-            "app.spam_registry.get_spam_registry",
-            return_value=MagicMock(
-                check_token=MagicMock(
+            patch("app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)),
+            patch(
+                "app.domains.scanner.modules.security._check_goplus_security",
+                AsyncMock(
                     return_value={
-                        "is_spam": False,
-                        "is_sanctioned": False,
-                        "is_known_scam": False,
-                        "sources_checked": [],
+                        "check": "goplus",
+                        "result": "scanned",
+                        "is_honeypot": False,
+                        "risk_score": 0,
+                        "source": "goplus",
                     }
-                )
+                ),
+            ),
+            patch(
+                "app.spam_registry.get_spam_registry",
+                return_value=MagicMock(
+                    check_token=MagicMock(
+                        return_value={
+                            "is_spam": False,
+                            "is_sanctioned": False,
+                            "is_known_scam": False,
+                            "sources_checked": [],
+                        }
+                    )
+                ),
             ),
         ):
             import asyncio
 
-            results = await asyncio.gather(
-                *[scan_token(addr, "ethereum", tiers=["free"]) for addr in self.TOKENS]
-            )
+            results = await asyncio.gather(*[scan_token(addr, "ethereum", tiers=["free"]) for addr in self.TOKENS])
 
         assert len(results) == len(self.TOKENS)
         for i, result in enumerate(results):
@@ -1812,33 +1777,36 @@ class TestBatchScanning:
 
         from app.domains.scanner.service import scan_token
 
-        with patch(
-            "app.domains.scanner.modules._core._fetch_with_fallback",
-            AsyncMock(return_value=({}, "")),
-        ), patch(
-            "app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)
-        ), patch(
-            "app.domains.scanner.modules.security._check_goplus_security",
-            AsyncMock(
-                return_value={
-                    "check": "goplus",
-                    "result": "scanned",
-                    "is_honeypot": False,
-                    "risk_score": 0,
-                    "source": "goplus",
-                }
+        with (
+            patch(
+                "app.domains.scanner.modules._core._fetch_with_fallback",
+                AsyncMock(return_value=({}, "")),
             ),
-        ), patch(
-            "app.spam_registry.get_spam_registry",
-            return_value=MagicMock(
-                check_token=MagicMock(
+            patch("app.domains.scanner.modules._core._fetch_json", AsyncMock(return_value=None)),
+            patch(
+                "app.domains.scanner.modules.security._check_goplus_security",
+                AsyncMock(
                     return_value={
-                        "is_spam": False,
-                        "is_sanctioned": False,
-                        "is_known_scam": False,
-                        "sources_checked": [],
+                        "check": "goplus",
+                        "result": "scanned",
+                        "is_honeypot": False,
+                        "risk_score": 0,
+                        "source": "goplus",
                     }
-                )
+                ),
+            ),
+            patch(
+                "app.spam_registry.get_spam_registry",
+                return_value=MagicMock(
+                    check_token=MagicMock(
+                        return_value={
+                            "is_spam": False,
+                            "is_sanctioned": False,
+                            "is_known_scam": False,
+                            "sources_checked": [],
+                        }
+                    )
+                ),
             ),
         ):
             results = await asyncio.gather(
@@ -1848,7 +1816,5 @@ class TestBatchScanning:
 
         assert len(results) == len(addresses)
         for i, result in enumerate(results):
-            assert not isinstance(result, BaseException), (
-                f"Address {addresses[i]!r} raised {result}"
-            )
+            assert not isinstance(result, BaseException), f"Address {addresses[i]!r} raised {result}"
             assert result is not None

@@ -37,6 +37,7 @@ router = APIRouter(prefix="/api/v1", tags=["pryscraper"])
 
 # ── Request / Response models ──────────────────────────────────────────────
 
+
 class ScrapeRequest(BaseModel):
     """Request body for POST /api/v1/scrape."""
 
@@ -47,6 +48,7 @@ class ScrapeRequest(BaseModel):
     bypass_cloudflare: bool = Field(True, description="Auto-bypass Cloudflare")
     js_render: bool = Field(False, description="Render JavaScript before scrape")
 
+
 class ExtractRequest(BaseModel):
     """Request body for POST /api/v1/extract."""
 
@@ -56,12 +58,14 @@ class ExtractRequest(BaseModel):
     bypass_cloudflare: bool = Field(True, description="Auto-bypass Cloudflare")
     js_render: bool = Field(False, description="Render JavaScript before extraction")
 
+
 class NewsSearchRequest(BaseModel):
     """Request body for POST /api/v1/news/search."""
 
     query: str = Field(..., description="Search query")
     max_results: int = Field(10, ge=1, le=50, description="Maximum results to return")
     days_back: int = Field(7, ge=1, le=30, description="Number of days to search back")
+
 
 class ScrapeResponse(BaseModel):
     """Standardised scrape/extract response."""
@@ -74,7 +78,9 @@ class ScrapeResponse(BaseModel):
     timing_ms: int | None = None
     job_id: str | None = None
 
+
 # ── Endpoints ────────────────────────────────────────────────────────────────
+
 
 @router.post("/scrape")
 async def scrape_url(
@@ -107,6 +113,7 @@ async def scrape_url(
         logger.error("pryscraper_scrape_failed", url=request.url[:60], exc_info=exc)
         raise UpstreamError(str(exc)[:500])
 
+
 @router.post("/extract")
 async def extract_url(
     request: ExtractRequest,
@@ -132,6 +139,7 @@ async def extract_url(
         logger.error("pryscraper_extract_failed", url=request.url[:60], exc_info=exc)
         raise UpstreamError(str(exc)[:500])
 
+
 @router.get("/news/search")
 async def search_news(
     q: str = Query(..., description="Search query"),
@@ -151,6 +159,7 @@ async def search_news(
         logger.error("pryscraper_news_search_failed", query=q[:60], exc_info=exc)
         raise UpstreamError(str(exc)[:500])
 
+
 @router.get("/pryscraper/health")
 async def pryscraper_health(
     client: PryscraperClient = Depends(get_pryscraper_client),
@@ -163,6 +172,7 @@ async def pryscraper_health(
         logger.error("pryscraper_health_failed", exc_info=exc)
         return {"status": "degraded", "error": str(exc)[:200]}
 
+
 @router.get("/pryscraper/stats")
 async def pryscraper_stats(
     client: PryscraperClient = Depends(get_pryscraper_client),
@@ -173,7 +183,9 @@ async def pryscraper_stats(
     except Exception as exc:
         return {"status": "error", "error": str(exc)[:200]}
 
+
 # ── RAG ingestion integration ──────────────────────────────────────────────
+
 
 class IngestNewsRequest(BaseModel):
     """Request body for POST /api/v1/rag/ingest-news."""
@@ -185,6 +197,7 @@ class IngestNewsRequest(BaseModel):
     published_at: str = Field("", description="ISO-8601 publish timestamp")
     categories: list[str] = Field(default_factory=list, description="Topic categories")
     sentiment: float = Field(0.0, ge=-1.0, le=1.0, description="Sentiment score -1..1")
+
 
 @router.post("/rag/ingest-news")
 async def ingest_news_webhook(

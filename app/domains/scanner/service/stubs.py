@@ -8,6 +8,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 async def _get_birdeye_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Birdeye market data for token (price, volume, liquidity).
 
@@ -23,6 +24,7 @@ async def _get_birdeye_data(token_address: str, chain: str) -> dict[str, Any] | 
     """
     logger.info("birdeye_data", token=token_address, chain=chain)
     return {"check": "birdeye", "result": "unavailable", "reason": "Birdeye API not configured"}
+
 
 async def _verify_mint_consensus(token_address: str, chain: str) -> dict[str, Any] | None:
     """Verify mint authority across multiple RPC sources.
@@ -44,6 +46,7 @@ async def _verify_mint_consensus(token_address: str, chain: str) -> dict[str, An
         "reason": "Multi-RPC mint verification not deployed",
     }
 
+
 async def _get_solscan_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Solscan enhanced data for Solana tokens.
 
@@ -57,6 +60,7 @@ async def _get_solscan_data(token_address: str, chain: str) -> dict[str, Any] | 
     logger.info("solscan_data", token=token_address, chain=chain)
     return {"check": "solscan", "result": "unavailable", "reason": "Solscan API not configured"}
 
+
 async def _get_moralis_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Moralis enriched token data.
 
@@ -69,6 +73,7 @@ async def _get_moralis_data(token_address: str, chain: str) -> dict[str, Any] | 
     """
     logger.info("moralis_data", token=token_address, chain=chain)
     return {"check": "moralis", "result": "unavailable", "reason": "Moralis API not configured"}
+
 
 async def _get_etherscan_enhanced(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get enhanced Etherscan data (source code, ABI, events).
@@ -87,6 +92,7 @@ async def _get_etherscan_enhanced(token_address: str, chain: str) -> dict[str, A
         "reason": "Etherscan API key not configured",
     }
 
+
 async def _get_quicknode_pumpfun(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Quicknode Pump.fun data for Solana meme tokens.
 
@@ -104,6 +110,7 @@ async def _get_quicknode_pumpfun(token_address: str, chain: str) -> dict[str, An
         "reason": "Quicknode Pump.fun API not configured",
     }
 
+
 async def _check_nansen(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check Nansen label data for token/address.
 
@@ -116,6 +123,7 @@ async def _check_nansen(token_address: str, chain: str) -> dict[str, Any] | None
     """
     logger.info("nansen_check", token=token_address, chain=chain)
     return {"check": "nansen", "result": "unavailable", "reason": "Nansen API not configured"}
+
 
 async def _check_chainaware(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check ChainAware risk data for token.
@@ -130,9 +138,8 @@ async def _check_chainaware(token_address: str, chain: str) -> dict[str, Any] | 
     logger.info("chainaware_check", token=token_address, chain=chain)
     return {"check": "chainaware", "result": "unavailable", "reason": "ChainAware not integrated"}
 
-async def _check_blowfish(
-    token_address: str, chain: str, user_address: str = ""
-) -> dict[str, Any] | None:
+
+async def _check_blowfish(token_address: str, chain: str, user_address: str = "") -> dict[str, Any] | None:
     """Check Blowfish AI security scan for token.
 
     Args:
@@ -146,6 +153,7 @@ async def _check_blowfish(
     logger.info("blowfish_check", token=token_address, chain=chain, user=user_address)
     return {"check": "blowfish", "result": "unavailable", "reason": "Blowfish API not configured"}
 
+
 async def _check_santiment(symbol: str) -> dict[str, Any] | None:
     """Check Santiment social metrics for token symbol.
 
@@ -157,6 +165,7 @@ async def _check_santiment(symbol: str) -> dict[str, Any] | None:
     """
     logger.info("santiment_check", symbol=symbol)
     return {"check": "santiment", "result": "unavailable", "reason": "Santiment API not configured"}
+
 
 async def _check_news_sentiment(symbol: str) -> dict[str, Any] | None:
     """Check recent news sentiment for token symbol.
@@ -174,6 +183,7 @@ async def _check_news_sentiment(symbol: str) -> dict[str, Any] | None:
         "reason": "News sentiment pipeline not configured",
     }
 
+
 async def _check_augmento(symbol: str) -> dict[str, Any] | None:
     """Check Augmento AI analysis for token.
 
@@ -185,6 +195,7 @@ async def _check_augmento(symbol: str) -> dict[str, Any] | None:
     """
     logger.info("augmento_check", symbol=symbol)
     return {"check": "augmento", "result": "unavailable", "reason": "Augmento API not configured"}
+
 
 async def _check_webacy(address: str, chain: str) -> dict[str, Any] | None:
     """Check Webacy security score for address.
@@ -199,6 +210,7 @@ async def _check_webacy(address: str, chain: str) -> dict[str, Any] | None:
     logger.info("webacy_check", address=address, chain=chain)
     return {"check": "webacy", "result": "unavailable", "reason": "Webacy API not configured"}
 
+
 async def _check_scamsniffer_live(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check ScamSniffer Live for real-time scam alerts.
 
@@ -211,6 +223,7 @@ async def _check_scamsniffer_live(token_address: str, chain: str) -> dict[str, A
     """
     logger.info("scamsniffer_live", token=token_address, chain=chain)
     return {"check": "scamsniffer", "result": "unavailable", "reason": "ScamSniffer not integrated"}
+
 
 async def _check_dune(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check Dune Analytics for on-chain query data.
@@ -225,6 +238,7 @@ async def _check_dune(token_address: str, chain: str) -> dict[str, Any] | None:
     logger.info("dune_check", token=token_address, chain=chain)
     return {"check": "dune", "result": "unavailable", "reason": "Dune API not configured"}
 
+
 async def _check_arkham(address: str, chain: str) -> dict[str, Any] | None:
     """Check Arkham Intelligence for address labels.
 
@@ -238,6 +252,7 @@ async def _check_arkham(address: str, chain: str) -> dict[str, Any] | None:
     logger.info("arkham_check", address=address, chain=chain)
     return {"check": "arkham", "result": "unavailable", "reason": "Arkham API not configured"}
 
+
 async def _check_thegraph(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check The Graph subgraph for token data.
 
@@ -250,4 +265,3 @@ async def _check_thegraph(token_address: str, chain: str) -> dict[str, Any] | No
     """
     logger.info("thegraph_check", token=token_address, chain=chain)
     return {"check": "thegraph", "result": "unavailable", "reason": "Subgraph query not deployed"}
-

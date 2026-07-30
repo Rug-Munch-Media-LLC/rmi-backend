@@ -34,6 +34,7 @@ log = get_logger(__name__)
 # Lazy import - Redis client is created on first use, after app.core.redis is ready
 _redis_client = None
 
+
 def _get_redis() -> Any:
     global _redis_client
     if _redis_client is None:
@@ -41,6 +42,7 @@ def _get_redis() -> Any:
 
         _redis_client = get_redis()
     return _redis_client
+
 
 @dataclass
 class Hit:
@@ -50,6 +52,7 @@ class Hit:
     score: float
     text: str
     metadata: dict[str, Any]
+
 
 class ANNIndex:
     """Per-collection vector index. Holds vectors in memory, persists to Redis.
@@ -96,9 +99,7 @@ class ANNIndex:
                 continue
             idx = self._id_to_idx[doc_id]
             entry = {
-                "vector": (
-                    self._matrix[idx].tolist() if self._matrix is not None else []
-                ),
+                "vector": (self._matrix[idx].tolist() if self._matrix is not None else []),
                 "metadata": self._meta[doc_id].get("metadata", {}),
                 "text": self._meta[doc_id].get("text", ""),
             }
@@ -284,8 +285,10 @@ class ANNIndex:
         self._load()
         return len(self._ids)
 
+
 # ── Per-collection cache ─────────────────────────────────────────────
 _index_cache: dict[str, ANNIndex] = {}
+
 
 def get_index(collection: str) -> ANNIndex:
     """Get or create the ANNIndex for a collection. Cached per process."""

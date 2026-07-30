@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("x402.history")
 
+
 async def token_history(req: HistoryRequest) -> Any:
     """Historical risk/liquidity/holder data for any token.
 
@@ -133,10 +134,12 @@ async def token_history(req: HistoryRequest) -> Any:
             "history": data_points[-50:],
             "trends": trends,
             "scanner_interval": "10 minutes",
-            "_confidence": compute_confidence({
-                "sources_used": ["rmi_scanner"]
-                + (["dexscreener"] if any(d.get("is_current") for d in data_points) else [])
-            }),
+            "_confidence": compute_confidence(
+                {
+                    "sources_used": ["rmi_scanner"]
+                    + (["dexscreener"] if any(d.get("is_current") for d in data_points) else [])
+                }
+            ),
             "guarantee": "Historical data or full refund",
         }
 
@@ -146,5 +149,6 @@ async def token_history(req: HistoryRequest) -> Any:
     except Exception as e:
         logger.error(f"Token history failed: {e}")
         raise AppError(message=str(e)) from e
+
 
 __all__ = ["token_history"]

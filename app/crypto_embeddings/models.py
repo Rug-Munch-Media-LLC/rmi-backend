@@ -32,10 +32,21 @@ OR_FALLBACK_EMBED = "local/bge-small-en-v1.5"
 NVIDIA_EMBED_URL = "https://integrate.api.nvidia.com/v1/embeddings"
 
 COLLECTIONS = [
-    "wallet_profiles", "token_analysis", "scam_patterns", "forensic_reports",
-    "market_intel", "contract_audits", "known_scams", "news_articles",
-    "transaction_patterns", "defi_hacks", "rug_timeline", "vuln_patterns", "crime_reports",
+    "wallet_profiles",
+    "token_analysis",
+    "scam_patterns",
+    "forensic_reports",
+    "market_intel",
+    "contract_audits",
+    "known_scams",
+    "news_articles",
+    "transaction_patterns",
+    "defi_hacks",
+    "rug_timeline",
+    "vuln_patterns",
+    "crime_reports",
 ]
+
 
 @dataclass
 class EmbeddingResult:

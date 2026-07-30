@@ -47,9 +47,7 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
                 }
             )
             cmd = MCP_COMMANDS[mcp_server]
-            result = subprocess.run(
-                cmd, input=mcp_request, capture_output=True, text=True, timeout=30
-            )
+            result = subprocess.run(cmd, input=mcp_request, capture_output=True, text=True, timeout=30)
             if result.returncode == 0 and result.stdout:
                 data = _json.loads(result.stdout)
                 if "result" in data:

@@ -20,6 +20,7 @@ _birdeye_cb = AsyncCircuitBreaker(
     recovery_timeout=30.0,
 )
 
+
 class BirdeyeClient:
     def __init__(self) -> None:
         self.headers = HEADERS
@@ -46,9 +47,7 @@ class BirdeyeClient:
             await asyncio.sleep(wait)
         self.last_call = time.time()
         try:
-            r = await self.client.get(
-                f"{BASE_URL}{endpoint}", headers=self.headers, params=params or {}
-            )
+            r = await self.client.get(f"{BASE_URL}{endpoint}", headers=self.headers, params=params or {})
             if r.status_code == 200:
                 data = r.json()
                 _birdeye_cb.set_stale_result(data)

@@ -225,9 +225,7 @@ class TestSandwichDetectionHeuristics(unittest.TestCase):
         same_sender_victim = dict(self.victim)
         same_sender_backrun = dict(self.backrun)
         same_sender_victim["from_address"] = "0xbot123"
-        confidence = _is_sandwich_pattern(
-            same_sender_frontrun, same_sender_victim, same_sender_backrun
-        )
+        confidence = _is_sandwich_pattern(same_sender_frontrun, same_sender_victim, same_sender_backrun)
         # Should still detect since frontrun and backrun same bot helps
         # But victim being same bot hurts the victim-different-from-bot score
         assert confidence > 0.0

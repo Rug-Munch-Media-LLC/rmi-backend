@@ -23,6 +23,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 # Terminal colors
 class Colors:
     RED = "\033[0;31m"
@@ -35,11 +36,14 @@ class Colors:
     BOLD = "\033[1m"
     RESET = "\033[0m"
 
+
 # ─── UI UTILITIES ──────────────────────────────────────────────────
+
 
 def clear_screen() -> None:
     """Clear terminal screen."""
     subprocess.run(["clear"] if os.name == "posix" else ["cls"])
+
 
 def print_header(title: str) -> None:
     """Print centered header."""
@@ -50,6 +54,7 @@ def print_header(title: str) -> None:
     )
     logger.info(f"{Colors.BLUE}{'=' * width}{Colors.RESET}\n")
 
+
 def print_box(title: str, content: str, color=Colors.WHITE) -> None:
     """Print content in a box."""
     lines = content.split("\n")
@@ -57,15 +62,15 @@ def print_box(title: str, content: str, color=Colors.WHITE) -> None:
     width = max_len + 4
 
     logger.info(f"\n{color}┌{'─' * width}┐{Colors.RESET}")
-    logger.info(
-        f"{color}│{Colors.RESET} {Colors.BOLD}{title.center(width - 2)}{Colors.RESET} {color}│{Colors.RESET}"
-    )
+    logger.info(f"{color}│{Colors.RESET} {Colors.BOLD}{title.center(width - 2)}{Colors.RESET} {color}│{Colors.RESET}")
     logger.info(f"{color}├{'─' * width}┤{Colors.RESET}")
     for line in lines:
         logger.info(f"{color}│{Colors.RESET} {line.ljust(width - 2)} {color}│{Colors.RESET}")
     logger.info(f"{color}└{'─' * width}┘{Colors.RESET}\n")
 
+
 # ─── STATUS MONITOR ────────────────────────────────────────────────
+
 
 def get_backend_status(url: str = "http://127.0.0.1:8010") -> dict[str, Any]:
     """Get backend health status."""
@@ -73,9 +78,10 @@ def get_backend_status(url: str = "http://127.0.0.1:8010") -> dict[str, Any]:
         response = httpx.get(f"{url}/health", timeout=2)
         if response.status_code == 200:
             return response.json()
-    except (httpx.HTTPError):
+    except httpx.HTTPError:
         pass
     return {"error": "Backend not reachable"}
+
 
 def get_redis_status() -> dict[str, Any]:
     """Get Redis connection status."""
@@ -95,7 +101,9 @@ def get_redis_status() -> dict[str, Any]:
         pass
     return {"error": "Redis not reachable"}
 
+
 # ─── DASHBOARD UI ──────────────────────────────────────────────────
+
 
 class Dashboard:
     """Interactive TUI Dashboard."""
@@ -153,9 +161,7 @@ class Dashboard:
         ]
 
         for key, (name, desc) in enumerate(features):
-            logger.info(
-                f"  {Colors.GREEN}{key}{Colors.RESET}. {Colors.CYAN}{name:<20}{Colors.RESET} - {desc}"
-            )
+            logger.info(f"  {Colors.GREEN}{key}{Colors.RESET}. {Colors.CYAN}{name:<20}{Colors.RESET} - {desc}")
         logger.info(f"\n{Colors.PURPLE}Use 'help' for more information{Colors.RESET}\n")
 
     def display_server_control(self) -> None:
@@ -165,9 +171,7 @@ class Dashboard:
         pid = self._get_backend_pid()
         status = "Running" if pid else "Stopped"
 
-        logger.info(
-            f"  Backend Status: {Colors.GREEN if pid else Colors.RED}{status}{Colors.RESET}"
-        )
+        logger.info(f"  Backend Status: {Colors.GREEN if pid else Colors.RED}{status}{Colors.RESET}")
         if pid:
             logger.info(f"  PID: {pid}")
         logger.info("\n  Actions:")
@@ -187,12 +191,10 @@ class Dashboard:
     def _get_backend_pid(self) -> int | None:
         """Get backend process ID."""
         try:
-            result = subprocess.run(
-                ["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5
-            )
+            result = subprocess.run(["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5)
             if result.stdout.strip():
                 return int(result.stdout.strip())
-        except (subprocess.TimeoutExpired):
+        except subprocess.TimeoutExpired:
             pass
         return None
 
@@ -343,7 +345,9 @@ class Dashboard:
             else:
                 logger.info(f"{Colors.RED}Invalid option{Colors.RESET}")
 
+
 # ─── SINGLETON LAUNCHER ────────────────────────────────────────────
+
 
 def launch_dashboard() -> None:
     """Launch the interactive dashboard."""
@@ -354,6 +358,7 @@ def launch_dashboard() -> None:
         pass
     except Exception as e:
         logger.warning(f"{Colors.RED}Dashboard error: {e}{Colors.RESET}")
+
 
 # ─── CLI ENTRY POINT ───────────────────────────────────────────────
 

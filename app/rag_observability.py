@@ -25,15 +25,14 @@ try:
     LANGFUSE_SECRET = os.getenv("LANGFUSE_SECRET_KEY", "")
     LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "http://langfuse-langfuse-web-1:3000")
     if LANGFUSE_KEY and LANGFUSE_SECRET:
-        _langfuse = Langfuse(
-            public_key=LANGFUSE_KEY, secret_key=LANGFUSE_SECRET, host=LANGFUSE_HOST
-        )
+        _langfuse = Langfuse(public_key=LANGFUSE_KEY, secret_key=LANGFUSE_SECRET, host=LANGFUSE_HOST)
         LANGFUSE_AVAILABLE = True
         logger.info("Langfuse observability enabled")
     else:
         logger.info("Langfuse keys not set - using local metrics")
 except ImportError:
     logger.info("Langfuse not installed - using local metrics")
+
 
 @dataclass
 class RAGMetrics:
@@ -48,7 +47,9 @@ class RAGMetrics:
     ingest_docs: int = 0
     errors: int = 0
 
+
 _metrics = RAGMetrics()
+
 
 async def _save_local_metrics() -> None:
     """Persist metrics to Redis for dashboard."""
@@ -63,25 +64,20 @@ async def _save_local_metrics() -> None:
         )
         data = {
             "embedding_calls": _metrics.embedding_calls,
-            "embedding_avg_ms": round(
-                _metrics.embedding_total_ms / max(_metrics.embedding_calls, 1), 1
-            ),
+            "embedding_avg_ms": round(_metrics.embedding_total_ms / max(_metrics.embedding_calls, 1), 1),
             "retrieval_calls": _metrics.retrieval_calls,
-            "retrieval_avg_ms": round(
-                _metrics.retrieval_total_ms / max(_metrics.retrieval_calls, 1), 1
-            ),
+            "retrieval_avg_ms": round(_metrics.retrieval_total_ms / max(_metrics.retrieval_calls, 1), 1),
             "cache_hits": _metrics.cache_hits,
             "cache_misses": _metrics.cache_misses,
-            "cache_hit_rate": round(
-                _metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3
-            ),
+            "cache_hit_rate": round(_metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3),
             "ingest_docs": _metrics.ingest_docs,
             "errors": _metrics.errors,
         }
         await r.setex("rag:metrics", 3600, json.dumps(data))
         await r.close()
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         pass
+
 
 def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3") -> None:
     """Record an embedding operation."""
@@ -93,6 +89,7 @@ def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3")
                 name="rag.embedding",
                 metadata={"duration_ms": duration_ms, "dims": dims, "model": model},
             )
+
 
 def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit: bool = False) -> None:
     """Record a retrieval operation."""
@@ -114,6 +111,7 @@ def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit
                 },
             )
 
+
 def trace_ingest(docs: int, collection: str) -> None:
     """Record an ingestion operation."""
     _metrics.ingest_docs += docs
@@ -124,10 +122,12 @@ def trace_ingest(docs: int, collection: str) -> None:
                 metadata={"docs": docs, "collection": collection},
             )
 
+
 def trace_error(error_type: str, detail: str = "") -> None:
     """Record an error."""
     _metrics.errors += 1
     logger.warning(f"RAG error [{error_type}]: {detail[:200]}")
+
 
 @asynccontextmanager
 async def timed_embedding(dims: int = 1024, model: str = "bge-m3") -> Any:
@@ -138,6 +138,7 @@ async def timed_embedding(dims: int = 1024, model: str = "bge-m3") -> Any:
     finally:
         trace_embedding((time.time() - t0) * 1000, dims, model)
 
+
 @asynccontextmanager
 async def timed_retrieval(collection: str, cache_hit: bool = False) -> Any:
     """Context manager for timing retrieval operations."""
@@ -147,6 +148,7 @@ async def timed_retrieval(collection: str, cache_hit: bool = False) -> Any:
         yield
     finally:
         trace_retrieval((time.time() - t0) * 1000, collection, result_count, cache_hit)
+
 
 def get_metrics() -> dict:
     """Return current metrics snapshot."""
@@ -162,9 +164,7 @@ def get_metrics() -> dict:
         "cache": {
             "hits": _metrics.cache_hits,
             "misses": _metrics.cache_misses,
-            "hit_rate": round(
-                _metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3
-            ),
+            "hit_rate": round(_metrics.cache_hits / max(_metrics.cache_hits + _metrics.cache_misses, 1), 3),
         },
         "ingestion": {"total_docs": _metrics.ingest_docs},
         "errors": _metrics.errors,

@@ -29,6 +29,7 @@ class FlashLoanProtocol(Enum):
     SILO = "silo"
     UNKNOWN = "unknown"
 
+
 class AttackType(Enum):
     """Classification of flash loan-based attacks."""
 
@@ -44,6 +45,7 @@ class AttackType(Enum):
     SYNTHETIC_POSITION = "synthetic_position"
     UNKNOWN = "unknown"
 
+
 class AttackSeverity(Enum):
     """Severity of the detected flash loan attack."""
 
@@ -52,6 +54,7 @@ class AttackSeverity(Enum):
     MEDIUM = "medium"  # $10K-$100K loss
     LOW = "low"  # <$10K loss
     INFO = "info"  # Flash loan detected but no attack confirmed
+
 
 class DetectionMethod(Enum):
     """How the flash loan attack was detected."""
@@ -62,6 +65,7 @@ class DetectionMethod(Enum):
     PROFIT_EXTRACTION = "profit_extraction"  # Attacker made profit from flash loan
     ORACLE_DEVIATION = "oracle_deviation"  # Price moved during flash loan window
     MULTIPLE_CALLS = "multiple_calls"  # Multiple protocol calls in one tx
+
 
 @dataclass
 class FlashLoanCall:
@@ -109,6 +113,7 @@ class FlashLoanCall:
             f"{self.token_symbol or self.token_address[:10]} | "
             f"Block #{self.block_number}"
         )
+
 
 @dataclass
 class TransactionTrace:
@@ -166,6 +171,7 @@ class TransactionTrace:
             except ValueError:
                 return FlashLoanProtocol.UNKNOWN
         return None
+
 
 @dataclass
 class FlashLoanAttack:
@@ -258,6 +264,7 @@ class FlashLoanAttack:
             ],
             "timeline": self.exploit_timeline,
         }
+
 
 @dataclass
 class ScanReport:

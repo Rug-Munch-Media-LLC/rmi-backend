@@ -36,6 +36,7 @@ except ImportError:
 
 # ── Encryption Layer ──────────────────────────────────────────────
 
+
 class WalletEncryption:
     """
     AES-256-GCM encryption with memory-hardened Argon2id key derivation.
@@ -111,7 +112,9 @@ class WalletEncryption:
         key = b"\x00" * 32  # Wipe key
         return result
 
+
 # ── Shamir's Secret Sharing ──────────────────────────────────────
+
 
 class ShamirSecretSharing:
     """
@@ -162,9 +165,7 @@ class ShamirSecretSharing:
             for j, (xj, _) in enumerate(shares):
                 if i != j:
                     numerator = ShamirSecretSharing._gf_mul(numerator, xj)
-                    denominator = ShamirSecretSharing._gf_mul(
-                        denominator, ShamirSecretSharing._gf_sub(xj, xi)
-                    )
+                    denominator = ShamirSecretSharing._gf_mul(denominator, ShamirSecretSharing._gf_sub(xj, xi))
 
             lagrange_coeff = ShamirSecretSharing._gf_div(numerator, denominator)
 
@@ -216,7 +217,9 @@ class ShamirSecretSharing:
             base = ShamirSecretSharing._gf_mul(base, base)
         return result
 
+
 # ── Zero-Knowledge Address Ownership ─────────────────────────────
+
 
 class ZKAddressVerifier:
     """
@@ -253,6 +256,7 @@ class ZKAddressVerifier:
             except (ConnectionError, OSError, TimeoutError):
                 return False
         return True  # Placeholder when nacl not available
+
 
 __all__ = [
     "ShamirSecretSharing",

@@ -211,7 +211,12 @@ def record_token_scan_coverage(
                 source = result.get("source", "")
                 if "own" in str(source).lower() or "clickhouse" in str(source).lower():
                     record_check_source("own_data", module_name)
-                elif "dexscreener" in str(source).lower() or "goplus" in str(source).lower() or "defillama" in str(source).lower() or "coingecko" in str(source).lower():
+                elif (
+                    "dexscreener" in str(source).lower()
+                    or "goplus" in str(source).lower()
+                    or "defillama" in str(source).lower()
+                    or "coingecko" in str(source).lower()
+                ):
                     record_check_source("external", module_name)
                 elif "databus" in str(source).lower():
                     record_check_source("databus", module_name)

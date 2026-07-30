@@ -16,12 +16,14 @@ from app.knowledge_graph.models import EdgeType, NodeType
 # Singleton
 _kg_instance: KnowledgeGraph | None = None
 
+
 async def get_knowledge_graph() -> KnowledgeGraph:
     """Get or create the singleton KnowledgeGraph instance."""
     global _kg_instance
     if _kg_instance is None:
         _kg_instance = KnowledgeGraph()
     return _kg_instance
+
 
 __all__ = [
     "EdgeType",

@@ -57,9 +57,7 @@ class TestAuthScanFlow:
             headers=headers,
         )
         # Should be 200 (success) — scanner works with known tokens
-        assert resp.status_code == 200, (
-            f"Token scan flow failed: {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 200, f"Token scan flow failed: {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert body["status"] == "ok"
         assert "token" in body
@@ -83,9 +81,7 @@ class TestAuthScanFlow:
             json={"address": SOL_WALLET, "chain": "solana"},
             headers=headers,
         )
-        assert resp.status_code == 200, (
-            f"Wallet scan flow failed: {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 200, f"Wallet scan flow failed: {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert body["status"] == "ok"
         assert "address" in body
@@ -107,9 +103,7 @@ class TestAuthScanFlow:
             headers=_AUTH,
         )
         # Auth middleware should pass with just X-API-Key
-        assert resp.status_code in (200, 401, 403), (
-            f"Unexpected: {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code in (200, 401, 403), f"Unexpected: {resp.status_code}: {resp.text[:200]}"
         if resp.status_code == 200:
             body = resp.json()
             assert body["status"] == "ok"
@@ -131,9 +125,7 @@ class TestAuthScanFlow:
             json={"address": SOL_TOKEN, "chain": "solana"},
             headers=headers,
         )
-        assert resp.status_code == 200, (
-            f"Internal key scan failed: {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 200, f"Internal key scan failed: {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert body["status"] == "ok"
         assert "tier" in body
@@ -177,9 +169,7 @@ class TestAuthWalletFlow:
             headers=_AUTH,
         )
         # 200 = profiler active, 404 = not mounted
-        assert resp.status_code in (200, 404, 422), (
-            f"Profiler failed: {resp.status_code}: {resp.text[:100]}"
-        )
+        assert resp.status_code in (200, 404, 422), f"Profiler failed: {resp.status_code}: {resp.text[:100]}"
         if resp.status_code == 200:
             body = resp.json()
             assert "address" in body or "risk_score" in body
@@ -231,9 +221,7 @@ class TestAuthWalletFlow:
             },
             headers=_BEARER_AUTH,
         )
-        assert resp.status_code in (200, 404), (
-            f"Whale subscribe failed: {resp.status_code}: {resp.text[:100]}"
-        )
+        assert resp.status_code in (200, 404), f"Whale subscribe failed: {resp.status_code}: {resp.text[:100]}"
         if resp.status_code == 200:
             body = resp.json()
             assert "id" in body
@@ -367,9 +355,7 @@ class TestErrorFlows:
             json={},
             headers={**_AUTH, **_BEARER},
         )
-        assert resp.status_code == 422, (
-            f"Empty body should be 422: got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 422, f"Empty body should be 422: got {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert "detail" in body
 
@@ -385,9 +371,7 @@ class TestErrorFlows:
             headers={**_AUTH, **_BEARER},
         )
         # Should either reject (422) or attempt gracefully (200/500)
-        assert resp.status_code in (200, 422, 500), (
-            f"Invalid chain: got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code in (200, 422, 500), f"Invalid chain: got {resp.status_code}: {resp.text[:200]}"
 
     @pytest.mark.integration
     def test_malformed_json_returns_422(self, app) -> None:

@@ -20,6 +20,7 @@ from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 
 logger = get_logger("databus.providers.chains.misc")
 
+
 def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
     """Build passthrough chains for Hyperliquid, insider wallets, and prediction signals."""
 
@@ -31,7 +32,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
                 r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
         return None
 
@@ -48,12 +49,10 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
         try:
             limit = kwargs.get("limit", 5)
             async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(
-                    f"http://localhost:8000/api/v1/market/hyperliquid-action?limit={limit}"
-                )
+                r = await c.get(f"http://localhost:8000/api/v1/market/hyperliquid-action?limit={limit}")
                 if r.status_code == 200:
                     return r.json()
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
         return None
 
@@ -76,12 +75,10 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
             limit = kwargs.get("limit", 10)
             tier = kwargs.get("tier", "free")
             async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(
-                    f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}"
-                )
+                r = await c.get(f"http://localhost:8000/api/v1/market/insider-wallets?limit={limit}&tier={tier}")
                 if r.status_code == 200:
                     return r.json()
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
         return None
 
@@ -89,9 +86,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
         data_type="insider_wallets",
         description="Likely insider trader wallets to watch (Premium)",
         providers=[
-            Provider(
-                "rmi_insider_wallets", ProviderTier.LOCAL, _passthrough_insider_wallets, weight=10.0
-            ),
+            Provider("rmi_insider_wallets", ProviderTier.LOCAL, _passthrough_insider_wallets, weight=10.0),
         ],
     )
 
@@ -101,12 +96,10 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
             limit = kwargs.get("limit", 5)
             tier = kwargs.get("tier", "free")
             async with httpx.AsyncClient(timeout=15) as c:
-                r = await c.get(
-                    f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}"
-                )
+                r = await c.get(f"http://localhost:8000/api/v1/market/prediction-signals?limit={limit}&tier={tier}")
                 if r.status_code == 200:
                     return r.json()
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
         return None
 

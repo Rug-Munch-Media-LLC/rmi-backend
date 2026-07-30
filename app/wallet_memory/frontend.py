@@ -357,10 +357,12 @@ async function loadDashboard() {
 </body>
 </html>"""
 
+
 @router.get("/walletsafe/")
 async def walletsafe_root() -> Any:
     """Serve the WalletSafe frontend."""
     return HTMLResponse(content=WALLETSAFE_HTML)
+
 
 @router.get("/walletsafe")
 async def walletsafe_no_slash() -> Any:

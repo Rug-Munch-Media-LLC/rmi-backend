@@ -21,6 +21,7 @@ Architecture:
   4. Store in pgvector + Redis (dual-write)
   5. Trigger re-scan of related tokens/wallets
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -65,6 +66,7 @@ SCRAPE_SOURCES = [
         "selector": "article a",
     },
 ]
+
 
 class RSSFeedConnector:
     """Generic RSS/Atom feed connector for security feeds."""
@@ -113,6 +115,7 @@ class RSSFeedConnector:
             logger.warning(f"RSS {source_name} failed: {e}")
         return results
 
+
 class GoPlusConnector:
     """GoPlus Security API - real-time token risk detection.
     Free tier: rate limited but no API key needed for basic checks."""
@@ -152,6 +155,7 @@ class GoPlusConnector:
         except Exception as e:
             logger.warning(f"GoPlus check failed for {address}: {e}")
         return {}
+
 
 # ══════════════════════════════════════════════════════════════════════
 # KNOWN SCAM DATABASE - Manual curated patterns (expanded)
@@ -324,6 +328,7 @@ KNOWN_SCAMS_EXPANDED = [
 # INGESTION ORCHESTRATOR
 # ══════════════════════════════════════════════════════════════════════
 
+
 class ScamIngestionPipeline:
     """
     Automated pipeline for building the scam knowledge base.
@@ -403,9 +408,7 @@ class ScamIngestionPipeline:
     async def _ingest_all_rss(self, embedder) -> list[dict]:
         """Ingest from all security RSS feeds in parallel."""
         all_docs = []
-        tasks = [
-            RSSFeedConnector.fetch_feed(url, name, limit=15) for url, name in SECURITY_RSS_FEEDS
-        ]
+        tasks = [RSSFeedConnector.fetch_feed(url, name, limit=15) for url, name in SECURITY_RSS_FEEDS]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for i, articles in enumerate(results):
@@ -424,9 +427,7 @@ class ScamIngestionPipeline:
                         description=content,
                         severity="medium",
                     )
-                    doc_id = hashlib.sha256(
-                        f"rss:{source_name}:{article['name']}".encode()
-                    ).hexdigest()[:16]
+                    doc_id = hashlib.sha256(f"rss:{source_name}:{article['name']}".encode()).hexdigest()[:16]
                     all_docs.append(
                         {
                             "id": doc_id,
@@ -472,11 +473,13 @@ class ScamIngestionPipeline:
                 logger.warning(f"Failed to embed curated pattern {pattern['name']}: {e}")
         return docs
 
+
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _pipeline: ScamIngestionPipeline | None = None
+
 
 async def get_ingestion_pipeline() -> ScamIngestionPipeline:
     global _pipeline

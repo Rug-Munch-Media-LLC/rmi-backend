@@ -1,4 +1,5 @@
 """Fuzz tests for blockchain address validation."""
+
 import pytest
 from hypothesis import given, settings, strategies as st
 

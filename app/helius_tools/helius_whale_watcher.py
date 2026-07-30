@@ -10,6 +10,7 @@ Features:
 - Track historical whale behavior patterns
 - Score wallets by "whale influence" (0-100)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -38,6 +39,7 @@ WHALE_THRESHOLDS = {
     "holder_concentration": 10,  # Top 10 holders
 }
 
+
 @dataclass
 class WhaleAlert:
     timestamp: datetime
@@ -54,6 +56,7 @@ class WhaleAlert:
     whale_tags: list[str] = field(default_factory=list)
     related_wallets: list[str] = field(default_factory=list)
 
+
 @dataclass
 class WhaleProfile:
     address: str
@@ -66,6 +69,7 @@ class WhaleProfile:
     last_active: datetime
     avg_transfer_size_usd: float
     dump_history: list[dict[str, Any]]
+
 
 class WhaleWatcher:
     """Monitors Solana for whale activity using Helius enhanced APIs."""
@@ -109,9 +113,7 @@ class WhaleWatcher:
         # Get token supply
         supply_result = await self._rpc_call("getTokenSupply", [token_address])
         supply_info = supply_result.get("value", {}) if isinstance(supply_result, dict) else {}
-        total_supply = (
-            float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
-        )
+        total_supply = float(supply_info.get("amount", 1)) / (10 ** supply_info.get("decimals", 0)) or 1
 
         # Get largest holders
         holders_result = await self._rpc_call("getTokenLargestAccounts", [token_address])
@@ -188,9 +190,7 @@ class WhaleWatcher:
         logger.info("Detecting whale dumps for %s...", token_address)
 
         # Get recent transactions
-        sigs_result = await self._rpc_call(
-            "getSignaturesForAddress", [token_address, {"limit": 200}]
-        )
+        sigs_result = await self._rpc_call("getSignaturesForAddress", [token_address, {"limit": 200}])
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         cutoff_time = datetime.now(UTC) - timedelta(hours=hours_back)
@@ -270,9 +270,7 @@ class WhaleWatcher:
                 )
 
         # Get recent tx count
-        sigs_result = await self._rpc_call(
-            "getSignaturesForAddress", [wallet_address, {"limit": 1000}]
-        )
+        sigs_result = await self._rpc_call("getSignaturesForAddress", [wallet_address, {"limit": 1000}])
         signatures = sigs_result if isinstance(sigs_result, list) else []
 
         # Classify behavior
@@ -292,9 +290,7 @@ class WhaleWatcher:
             if age_days < 30 and len(signatures) > 200:
                 tags.append("aggressive_trader")
 
-        influence_score = min(
-            100, int((sol_balance / 100) * 2 + len(token_holdings) * 3 + len(signatures) / 50)
-        )
+        influence_score = min(100, int((sol_balance / 100) * 2 + len(token_holdings) * 3 + len(signatures) / 50))
 
         return {
             "address": wallet_address,
@@ -328,7 +324,7 @@ class WhaleWatcher:
                     result = await self.scan_token_for_whales(token)
                     if result.get("alerts"):
                         for alert in result["alerts"]:
-                            logger.warning("WHALE ALERT: %s", alert['message'])
+                            logger.warning("WHALE ALERT: %s", alert["message"])
                     self._monitored_tokens[token] = result
                 except Exception as e:
                     logger.error("Monitor error for %s: %s", token, e)

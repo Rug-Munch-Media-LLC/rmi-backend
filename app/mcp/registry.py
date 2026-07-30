@@ -52,9 +52,11 @@ TOOL_CATEGORIES: dict[str, list[str]] = {
 
 __all__ = ["get_server_manifest", "list_tools", "resolve_tool"]
 
+
 def _extract_server(tool_name: str) -> str:
     """Extract server slug from tool name (split on ':')."""
     return tool_name.split(":", 1)[0] if ":" in tool_name else "rmi"
+
 
 def _parse_version(version: str) -> tuple[int, int, int]:
     """Parse semver MAJOR.MINOR.PATCH → tuple of ints."""
@@ -63,9 +65,11 @@ def _parse_version(version: str) -> tuple[int, int, int]:
         raise ValueError(f"Invalid semver: {version!r}")
     return int(parts[0]), int(parts[1]), int(parts[2])
 
+
 def _match_category(description: str, category: str) -> bool:
     """Case-insensitive substring match for category hint in description."""
     return category.lower() in description.lower()
+
 
 def _qualify_name(tool_name: str) -> str:
     """Add the server prefix required by MCPToolManifest pattern.
@@ -74,6 +78,7 @@ def _qualify_name(tool_name: str) -> str:
     Bare names like "get_token_risk" become "rmi:get_token_risk".
     """
     return tool_name if ":" in tool_name else f"rmi:{tool_name}"
+
 
 def _dict_to_manifest(tool_name: str, auth_scope: str) -> MCPToolManifest:
     """Convert a TOOL_CATALOG entry to MCPToolManifest (O(1) via _TOOL_BY_NAME)."""
@@ -87,10 +92,9 @@ def _dict_to_manifest(tool_name: str, auth_scope: str) -> MCPToolManifest:
         output_schema={},
         auth_scope=auth_scope,
         deprecated=tool_name in TOOL_DEPRECATED,
-        successor=(
-            _qualify_name(TOOL_SUCCESSORS[tool_name]) if tool_name in TOOL_SUCCESSORS else None
-        ),
+        successor=(_qualify_name(TOOL_SUCCESSORS[tool_name]) if tool_name in TOOL_SUCCESSORS else None),
     )
+
 
 async def resolve_tool(
     name: str,
@@ -123,13 +127,12 @@ async def resolve_tool(
     if name in TOOL_DEPRECATED and not include_deprecated:
         successor = TOOL_SUCCESSORS.get(name)
         if successor:
-            return await resolve_tool(
-                successor, major_version=major_version, include_deprecated=False
-            )
+            return await resolve_tool(successor, major_version=major_version, include_deprecated=False)
         log.warning("Tool %s is deprecated with no successor", name)
         return None
 
     return _dict_to_manifest(name, TOOL_AUTH_SCOPES.get(name, "public"))
+
 
 async def list_tools(
     server: str | None = None,
@@ -161,6 +164,7 @@ async def list_tools(
         results.append(_dict_to_manifest(tool_name, tool_auth_scope))
 
     return results
+
 
 async def get_server_manifest(server_name: str) -> MCPServerManifest | None:
     """Get the full manifest bundle for a given server."""

@@ -73,6 +73,7 @@ CHAIN_ID_MAP = {
     "gnosis": "100",
 }
 
+
 class MoralisConnector:
     """Moralis Data + Auth API connector."""
 
@@ -118,9 +119,7 @@ class MoralisConnector:
             oldest = min(self._cache, key=lambda k: self._cache[k][1])
             del self._cache[oldest]
 
-    async def _get(
-        self, url: str, key: str | None = None, use_auth_key: bool = False
-    ) -> dict | None:
+    async def _get(self, url: str, key: str | None = None, use_auth_key: bool = False) -> dict | None:
         """Rate-limited GET with caching, key rotation, and circuit breaker."""
         cache_key = f"get:{url}"
         if key is None:
@@ -186,9 +185,7 @@ class MoralisConnector:
 
     # ── Auth API (Key 2) ──────────────────────────────────
 
-    async def request_evm_challenge(
-        self, address: str, chain: str = "eth", domain: str = "rugmunch.io"
-    ) -> dict | None:
+    async def request_evm_challenge(self, address: str, chain: str = "eth", domain: str = "rugmunch.io") -> dict | None:
         """Request SIWE (Sign-In With Ethereum) challenge for MetaMask etc."""
         chain_id = self._chain_id(chain)
         url = f"{AUTH_URL}/challenge/request/evm"
@@ -216,9 +213,7 @@ class MoralisConnector:
             logger.debug(f"EVM challenge error: {e}")
             return None
 
-    async def request_solana_challenge(
-        self, address: str, domain: str = "rugmunch.io"
-    ) -> dict | None:
+    async def request_solana_challenge(self, address: str, domain: str = "rugmunch.io") -> dict | None:
         """Request SIWS (Sign-In With Solana) challenge for Phantom etc."""
         url = f"{AUTH_URL}/challenge/request/solana"
         try:
@@ -261,7 +256,7 @@ class MoralisConnector:
                 if r.status_code in (200, 201):
                     return r.json()  # Contains JWT token
                 return None
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             return None
 
     async def verify_solana_signature(self, message: str, signature: str) -> dict | None:
@@ -280,7 +275,7 @@ class MoralisConnector:
                 if r.status_code in (200, 201):
                     return r.json()  # Contains JWT token
                 return None
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             return None
 
     # ── Data API (Key 1) ──────────────────────────────────
@@ -293,9 +288,7 @@ class MoralisConnector:
             return result
         return result.get("result", result.get("data", [])) if result else []
 
-    async def get_wallet_nfts(
-        self, address: str, chain: str = "eth", limit: int = 20
-    ) -> list[dict]:
+    async def get_wallet_nfts(self, address: str, chain: str = "eth", limit: int = 20) -> list[dict]:
         """Get NFTs owned by wallet."""
         url = f"{DATA_URL}/{address}/nft?chain={self._chain_param(chain)}&limit={limit}&normalizeMetadata=true"
         result = await self._get(url)
@@ -308,9 +301,7 @@ class MoralisConnector:
         url = f"{DATA_URL}/{address}/balance?chain={self._chain_param(chain)}"
         return await self._get(url) or {}
 
-    async def get_wallet_token_transfers(
-        self, address: str, chain: str = "eth", limit: int = 20
-    ) -> list[dict]:
+    async def get_wallet_token_transfers(self, address: str, chain: str = "eth", limit: int = 20) -> list[dict]:
         """Get token transfer history for whale tracking."""
         url = f"{DATA_URL}/{address}/erc20/transfers?chain={self._chain_param(chain)}&limit={limit}"
         result = await self._get(url)
@@ -333,9 +324,7 @@ class MoralisConnector:
         url = f"{DATA_URL}/block/{block_number}?chain={self._chain_param(chain)}"
         return await self._get(url) or {}
 
-    async def get_token_holders(
-        self, token_address: str, chain: str = "eth", limit: int = 20
-    ) -> list[dict]:
+    async def get_token_holders(self, token_address: str, chain: str = "eth", limit: int = 20) -> list[dict]:
         """Get top token holders (EVM chains)."""
         url = f"{DATA_URL}/erc20/{token_address}/owners?chain={self._chain_param(chain)}&limit={limit}"
         result = await self._get(url)
@@ -402,8 +391,10 @@ class MoralisConnector:
             "cache_entries": len(self._cache),
         }
 
+
 # Singleton
 _moralis: MoralisConnector | None = None
+
 
 def get_moralis_connector() -> MoralisConnector:
     global _moralis

@@ -13,6 +13,7 @@ from app.routers.market_intel.utils import _now
 logger = get_logger(__name__)
 router = APIRouter(tags=["market-intel"])
 
+
 @router.get("/likely-rugs")
 async def get_market_likely_rugs(
     request: Request,
@@ -21,6 +22,7 @@ async def get_market_likely_rugs(
     """Likely rug pulls - premium data from scanner."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
+
 
 @router.get("/alpha")
 async def get_market_alpha(
@@ -31,17 +33,20 @@ async def get_market_alpha(
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
 
+
 @router.get("/smart-money")
 async def get_market_smart_money(request: Request) -> dict:
     """Smart money flows by sector."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
 
+
 @router.get("/bundlers")
 async def get_market_bundlers(request: Request) -> dict:
     """Bundler detection - coordinated buy patterns."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
+
 
 @router.get("/insider-wallets")
 async def get_insider_wallets(
@@ -114,6 +119,7 @@ async def get_insider_wallets(
     items = insider_wallets[:limit]
     return {"items": items, "total": len(items), "premium_only": True, "updated_at": now}
 
+
 @router.get("/prediction-signals")
 async def get_prediction_signals(
     request: Request,
@@ -130,44 +136,51 @@ async def get_prediction_signals(
 
     try:
         from app.services.prediction_market_intel import get_prediction_market_intel
+
         intel = get_prediction_market_intel()
         signals = await intel.generate_signals(max_signals=limit)
 
         for s in signals:
             if tier == "free" and s.severity in ("critical", "high"):
-                items.append({
-                    "signal_type": s.signal_type,
-                    "severity": s.severity,
-                    "headline": s.headline,
-                    "insight": s.insight[:100] + "...",
-                    "confidence": s.confidence,
-                    "action": "Upgrade to Premium for full intelligence report.",
-                    "generated_at": s.generated_at,
-                    "source_markets": s.source_markets[:1],
-                })
+                items.append(
+                    {
+                        "signal_type": s.signal_type,
+                        "severity": s.severity,
+                        "headline": s.headline,
+                        "insight": s.insight[:100] + "...",
+                        "confidence": s.confidence,
+                        "action": "Upgrade to Premium for full intelligence report.",
+                        "generated_at": s.generated_at,
+                        "source_markets": s.source_markets[:1],
+                    }
+                )
             else:
-                items.append({
-                    "signal_type": s.signal_type,
-                    "severity": s.severity,
-                    "headline": s.headline,
-                    "insight": s.insight,
-                    "evidence": s.evidence,
-                    "action": s.action,
-                    "confidence": s.confidence,
-                    "generated_at": s.generated_at,
-                    "source_markets": s.source_markets,
-                })
+                items.append(
+                    {
+                        "signal_type": s.signal_type,
+                        "severity": s.severity,
+                        "headline": s.headline,
+                        "insight": s.insight,
+                        "evidence": s.evidence,
+                        "action": s.action,
+                        "confidence": s.confidence,
+                        "generated_at": s.generated_at,
+                        "source_markets": s.source_markets,
+                    }
+                )
     except Exception as e:
         logger.warning(f"Prediction signals fetch failed: {e}")
-        items.append({
-            "signal_type": "ECOSYSTEM_RISK",
-            "severity": "medium",
-            "headline": "Prediction market service temporarily unavailable",
-            "insight": "Falling back to cached intelligence. Full signals will resume shortly.",
-            "confidence": 0.5,
-            "action": "Monitor manually via Polymarket.com",
-            "generated_at": now,
-            "source_markets": [],
-        })
+        items.append(
+            {
+                "signal_type": "ECOSYSTEM_RISK",
+                "severity": "medium",
+                "headline": "Prediction market service temporarily unavailable",
+                "insight": "Falling back to cached intelligence. Full signals will resume shortly.",
+                "confidence": 0.5,
+                "action": "Monitor manually via Polymarket.com",
+                "generated_at": now,
+                "source_markets": [],
+            }
+        )
 
     return {"items": items, "total": len(items), "updated_at": now}

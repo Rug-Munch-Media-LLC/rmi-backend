@@ -18,6 +18,7 @@ DEXSCREENER = "https://api.dexscreener.com/latest/dex/search"
 
 CHAINS = ["ethereum", "bsc", "base", "arbitrum", "polygon", "avalanche", "optimism", "solana"]
 
+
 class CrossChainListing(BaseModel):
     chain: str
     price_usd: float
@@ -29,6 +30,7 @@ class CrossChainListing(BaseModel):
     age_days: int = 0
     suspicious: bool = False
     suspicion_reason: str = ""
+
 
 async def _get_token_chain_listings(symbol: str) -> list[dict]:
     """Find the same token across multiple chains via DexScreener."""
@@ -58,14 +60,15 @@ async def _get_token_chain_listings(symbol: str) -> list[dict]:
         logger.warning(f"Chain listing fetch failed: {e}")
     return listings
 
+
 def _detect_suspicious(listings: list[dict]) -> list[dict]:
     """Flag suspicious listings: inflated volume, price disconnects."""
     if len(listings) < 2:
         return listings
 
-    avg_vol_liq = sum(
-        line.get("volume_24h", 0) / max(line.get("liquidity_usd", 1), 1) for line in listings
-    ) / len(listings)
+    avg_vol_liq = sum(line.get("volume_24h", 0) / max(line.get("liquidity_usd", 1), 1) for line in listings) / len(
+        listings
+    )
     avg_price = sum(line["price_usd"] for line in listings if line["price_usd"] > 0) / max(
         len([line for line in listings if line["price_usd"] > 0]), 1
     )
@@ -89,6 +92,7 @@ def _detect_suspicious(listings: list[dict]) -> list[dict]:
 
     return listings
 
+
 @router.get("/token/{symbol}")
 async def compare_token_chains(symbol: str) -> dict:
     """Compare a token's listings across all chains. Flags suspicious activity."""
@@ -109,6 +113,7 @@ async def compare_token_chains(symbol: str) -> dict:
             f"{len(suspicious)} listings show suspicious patterns."
         ),
     }
+
 
 @router.get("/arbitrage")
 async def find_arbitrage_opportunities(

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("rag.firehose")
 
+
 class FeedSources:
     """All data sources the firehose can pull from."""
 
@@ -102,9 +103,7 @@ class FeedSources:
         docs = []
         try:
             # Scam monitor
-            resp = await self.client.get(
-                "http://localhost:8000/api/v1/databus/fetch/scam_monitor", timeout=20
-            )
+            resp = await self.client.get("http://localhost:8000/api/v1/databus/fetch/scam_monitor", timeout=20)
             if resp.status_code == 200:
                 data = resp.json()
                 alerts = data.get("alerts", data.get("data", []))
@@ -123,9 +122,7 @@ class FeedSources:
                     )
 
             # Social metrics
-            resp2 = await self.client.get(
-                "http://localhost:8000/api/v1/databus/fetch/social_metrics", timeout=20
-            )
+            resp2 = await self.client.get("http://localhost:8000/api/v1/databus/fetch/social_metrics", timeout=20)
             if resp2.status_code == 200:
                 data2 = resp2.json()
                 metrics = data2.get("metrics", data2.get("data", {}))
@@ -171,9 +168,7 @@ class FeedSources:
                             "chain": (row.get("chain", "Ethereum") or "Ethereum").lower(),
                             "label_type": row.get("label_type", "scam"),
                             "source": "etherscan",
-                            "severity": "critical"
-                            if "phish" in row.get("label_type", "").lower()
-                            else "high",
+                            "severity": "critical" if "phish" in row.get("label_type", "").lower() else "high",
                         },
                     }
                 )
@@ -220,9 +215,7 @@ class FeedSources:
         """Pull Polymarket prediction data for market intel."""
         docs = []
         try:
-            resp = await self.client.get(
-                "http://localhost:8000/api/v1/databus/fetch/prediction_markets", timeout=20
-            )
+            resp = await self.client.get("http://localhost:8000/api/v1/databus/fetch/prediction_markets", timeout=20)
             if resp.status_code == 200:
                 data = resp.json()
                 markets = data.get("markets", data.get("data", []))

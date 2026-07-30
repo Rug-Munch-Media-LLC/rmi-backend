@@ -3,6 +3,7 @@ Pump & Dump — Main Detector
 =============================
 PumpDumpDetector class and convenience functions.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -37,6 +38,7 @@ from app.domains.detectors.pump_dump_detector_package.types import (
 
 logger = get_logger("pump_dump_detector")
 
+
 class PumpDumpDetector:
     """
     Comprehensive pump-and-dump / coordinated market manipulation detector.
@@ -63,9 +65,12 @@ class PumpDumpDetector:
         """
         timestamp = datetime.now(UTC).isoformat()
         result = PumpDumpAnalysisResult(
-            token_address=token_address, chain=chain,
-            token_symbol="", token_name="",
-            risk_score=0.0, risk_level="low",
+            token_address=token_address,
+            chain=chain,
+            token_symbol="",
+            token_name="",
+            risk_score=0.0,
+            risk_level="low",
             analysis_timestamp=timestamp,
         )
 
@@ -121,12 +126,10 @@ class PumpDumpDetector:
             result.unique_traders_analyzed = estimate_traders(pairs_data)
 
             if pairs_data.get("pairs"):
-                vol_24h = sum(
-                    float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs_data["pairs"]
-                )
+                vol_24h = sum(float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs_data["pairs"])
                 result.total_volume_analyzed_usd = vol_24h
 
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Error analyzing {token_address} on {chain}: {e}")
             result.error = str(e)[:200]
@@ -137,7 +140,9 @@ class PumpDumpDetector:
     async def close(self) -> None:
         await self._client.aclose()
 
+
 # ── Convenience Functions ────────────────────────────────────────────
+
 
 async def analyze_token(
     token_address: str,
@@ -150,12 +155,14 @@ async def analyze_token(
     finally:
         await detector.close()
 
+
 def analyze_token_sync(
     token_address: str,
     chain: str = "ethereum",
 ) -> dict:
     """Synchronous wrapper for environments without async support."""
     return asyncio.run(analyze_token(token_address, chain)).to_dict()
+
 
 # ── CLI Entry Point ──────────────────────────────────────────────────
 

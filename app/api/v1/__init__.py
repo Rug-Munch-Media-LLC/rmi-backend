@@ -64,6 +64,7 @@ from app.api.v1.catalog import router as catalog_router
 
 api_v1_router.append(catalog_router)
 
+
 def build_v1_router() -> APIRouter:
     """Construct the v1 aggregator with all migrated routes mounted."""
     aggregated = APIRouter(prefix="/api/v1")

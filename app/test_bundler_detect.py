@@ -107,6 +107,7 @@ class TestHelpers(unittest.TestCase):
     def test_label_risk_none(self) -> None:
         assert _label_risk(0) == "none"
 
+
 class TestDataModels(unittest.TestCase):
     """Test dataclass models."""
 
@@ -195,6 +196,7 @@ class TestDataModels(unittest.TestCase):
         assert d["wallet_count"] == 3
         assert d["total_supply_pct"] == 45.0
 
+
 class TestBundlerDetector(unittest.TestCase):
     """Test main BundlerDetector class."""
 
@@ -220,9 +222,7 @@ class TestBundlerDetector(unittest.TestCase):
         # Format validation passes for any valid EVM address regardless of chain string
         assert self.detector._validate_address("0x1234567890123456789012345678901234567890", "bitcoin")
         # But scan() will reject unsupported chains
-        report = asyncio.run(
-            self.detector.scan("0x1234567890123456789012345678901234567890", "bitcoin")
-        )
+        report = asyncio.run(self.detector.scan("0x1234567890123456789012345678901234567890", "bitcoin"))
         assert report.risk_label == "error"
         assert "unsupported chain" in str(report.errors).lower()
 
@@ -349,14 +349,11 @@ class TestBundlerDetector(unittest.TestCase):
     def test_quick_check_no_holders(self) -> None:
         with (
             patch.object(self.detector, "_fetch_holders", return_value=[]),
-            patch.object(
-                self.detector, "_fetch_metadata", return_value={"name": "TST", "symbol": "TST"}
-            ),
+            patch.object(self.detector, "_fetch_metadata", return_value={"name": "TST", "symbol": "TST"}),
         ):
-            result = asyncio.run(
-                self.detector.quick_check("0x1234567890123456789012345678901234567890", "ethereum")
-            )
+            result = asyncio.run(self.detector.quick_check("0x1234567890123456789012345678901234567890", "ethereum"))
             assert "error" in result
+
 
 class TestEdgeCases(unittest.TestCase):
     """Test edge cases for robustness."""
@@ -408,6 +405,7 @@ class TestEdgeCases(unittest.TestCase):
         ]
         result = detector._analyze_launch_timing(buys)
         assert result["total_buys_first_blocks"] == 10
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -24,6 +24,7 @@ DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/search?q={}"
 BIRDEYE_API = "https://public-api.birdeye.so/defi/v3/token/holder?address={}"
 BIRDEYE_FALLBACK = "https://api.birdeye.so/defi/holder?token={}"
 
+
 async def _rpc_call(chain: str, method: str, params: list) -> Any:
     """Call into the x402_tools RPC fallback system."""
     try:
@@ -33,6 +34,7 @@ async def _rpc_call(chain: str, method: str, params: list) -> Any:
     except Exception as e:
         logger.debug(f"RPC call failed: {e}")
         return None
+
 
 async def _fetch(url: str, timeout: int = 10) -> dict | None:
     """Single URL fetch with aiohttp."""
@@ -47,6 +49,7 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
         logger.debug(f"Fetch failed: {url} - {e}")
     return None
 
+
 async def _fetch_with_fallback(urls: list[str]) -> tuple[Any, str | None]:
     """Try multiple URLs in sequence."""
     for url in urls:
@@ -54,6 +57,7 @@ async def _fetch_with_fallback(urls: list[str]) -> tuple[Any, str | None]:
         if result:
             return result, url
     return None, None
+
 
 def _compute_accumulation_score(
     buy_volume_ratio: float,
@@ -102,6 +106,7 @@ def _compute_accumulation_score(
 
     return round(min(score, 100), 1)
 
+
 def _classify_accumulation(score: float) -> str:
     """Classify accumulation intensity."""
     if score >= 80:
@@ -113,6 +118,7 @@ def _classify_accumulation(score: float) -> str:
     elif score >= 20:
         return "low"
     return "none"
+
 
 def _generate_recommendation(score: float, persona: str) -> str:
     """Generate human-readable recommendation."""
@@ -139,6 +145,7 @@ def _generate_recommendation(score: float, persona: str) -> str:
     elif score >= 20:
         return "LOW accumulation signals. No significant whale activity detected."
     return "No accumulation signals detected. Current market is neutral."
+
 
 async def detect_accumulation(token_address: str, chain: str) -> dict:
     """
@@ -170,8 +177,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
         pairs = [
             p
             for p in dex_data["pairs"]
-            if p.get("chainId") == chain
-            or p.get("baseToken", {}).get("address", "").lower() == token_address.lower()
+            if p.get("chainId") == chain or p.get("baseToken", {}).get("address", "").lower() == token_address.lower()
         ]
         if pairs:
             result["sources_used"].append("dexscreener")
@@ -208,9 +214,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
         result["analysis"]["sell_count_24h"] = sell_count_24h
 
         if buy_volume_ratio > 1.5:
-            signal_messages.append(
-                f"🔵 Heavy buy pressure: {buy_volume_ratio:.1f}x more buys than sells in 24h"
-            )
+            signal_messages.append(f"🔵 Heavy buy pressure: {buy_volume_ratio:.1f}x more buys than sells in 24h")
         elif buy_volume_ratio > 1.0:
             signal_messages.append(f"🔵 Slight buy advantage: {buy_volume_ratio:.1f}x buy ratio")
 
@@ -267,18 +271,14 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
         # Check if this token has smart money activity by looking at recent buys
         if chain == "solana":
             # Fetch recent signatures for the token
-            sigs = await _rpc_call(
-                "solana", "getSignaturesForAddress", [token_address, {"limit": 20}]
-            )
+            sigs = await _rpc_call("solana", "getSignaturesForAddress", [token_address, {"limit": 20}])
             if sigs and len(sigs) > 5:
                 # High recent transaction count is a signal of interest
                 result["analysis"]["recent_tx_count"] = len(sigs)
                 if len(sigs) > 10:
                     smart_money_involved = True
                     recent_large_buys = min(len(sigs) // 4, 10)
-                    signal_messages.append(
-                        f"🟢 Smart money activity: {len(sigs)} recent transactions detected"
-                    )
+                    signal_messages.append(f"🟢 Smart money activity: {len(sigs)} recent transactions detected")
     except (ConnectionError, OSError, TimeoutError):
         pass
 
@@ -325,9 +325,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
             "during dip (smart money buying the dip)"
         )
     elif price_change_24h > 20 and buy_volume_ratio > 1.5:
-        signal_messages.append(
-            "📈 Price up 20%+ with continued buy pressure - momentum accumulation"
-        )
+        signal_messages.append("📈 Price up 20%+ with continued buy pressure - momentum accumulation")
 
     # ── Step 9: Assemble report ───────────────────────────────────
     persona = "trader"  # default persona for API tool
@@ -338,9 +336,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict:
     result["classification"] = classification
     result["signals"] = signal_messages
     result["recommendation"] = recommendation
-    result["analysis"]["price_usd"] = (
-        round(price_usd, 8) if price_usd < 0.01 else round(price_usd, 4)
-    )
+    result["analysis"]["price_usd"] = round(price_usd, 8) if price_usd < 0.01 else round(price_usd, 4)
     result["analysis"]["volume_24h_usd"] = round(volume_24h, 2)
     result["analysis"]["liquidity_usd"] = round(liquidity_usd, 2)
 

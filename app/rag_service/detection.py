@@ -17,6 +17,7 @@ from app.rag_service.state import _pattern_cache, _pattern_cache_loaded
 
 logger = get_logger(__name__)
 
+
 async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dict[str, Any]:
     """Compare a token against all known scam patterns."""
     embedder = await get_embedder()
@@ -36,26 +37,33 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
             continue
         hits = sum(1 for s in pattern["code_snippets"] if s.lower() in code_lower)
         if hits > 0:
-            quick_matches.append({
-                "pattern": pattern["name"], "severity": pattern["severity"],
-                "quick_match_score": hits / len(pattern["code_snippets"]),
-                "matched_snippets": hits,
-            })
+            quick_matches.append(
+                {
+                    "pattern": pattern["name"],
+                    "severity": pattern["severity"],
+                    "quick_match_score": hits / len(pattern["code_snippets"]),
+                    "matched_snippets": hits,
+                }
+            )
 
     token_result = await embedder.embed_token_scam(
-        name=name, symbol=symbol, description=desc, contract_code=code,
-        chain=token_data.get("chain", "solana"), metadata=token_data,
+        name=name,
+        symbol=symbol,
+        description=desc,
+        contract_code=code,
+        chain=token_data.get("chain", "solana"),
+        metadata=token_data,
     )
 
     token_total = len(token_result.vector)
     if token_total > 128 + 64 + 64:
         token_sem_end = token_total - 128 - 64 - 64
         token_sem = token_result.vector[:token_sem_end]
-        token_code = token_result.vector[token_sem_end: token_sem_end + 128]
+        token_code = token_result.vector[token_sem_end : token_sem_end + 128]
     elif token_total > 128:
         token_sem_end = token_total - 128
         token_sem = token_result.vector[:token_sem_end]
-        token_code = token_result.vector[token_sem_end: token_sem_end + 128]
+        token_code = token_result.vector[token_sem_end : token_sem_end + 128]
     else:
         token_sem = token_result.vector
         token_code = [0.0] * 128
@@ -67,7 +75,8 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
             pattern_result = _pattern_cache[pattern_name]
         else:
             pattern_result = await embedder.embed_scam_pattern(
-                pattern_name=pattern["name"], description=pattern["description"],
+                pattern_name=pattern["name"],
+                description=pattern["description"],
                 code_snippets=pattern.get("code_snippets", []),
                 indicators=pattern.get("indicators", []),
                 severity=pattern.get("severity", "high"),
@@ -75,11 +84,19 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
             _pattern_cache[pattern_name] = pattern_result
             try:
                 r = await _get_redis()
-                await r.setex(f"rag:pattern_cache:{pattern_name}", 86400 * 30, json.dumps({
-                    "vector": pattern_result.vector, "dims": pattern_result.dims,
-                    "model": pattern_result.model, "head": pattern_result.head,
-                }))
-            except (json.JSONDecodeError):
+                await r.setex(
+                    f"rag:pattern_cache:{pattern_name}",
+                    86400 * 30,
+                    json.dumps(
+                        {
+                            "vector": pattern_result.vector,
+                            "dims": pattern_result.dims,
+                            "model": pattern_result.model,
+                            "head": pattern_result.head,
+                        }
+                    ),
+                )
+            except json.JSONDecodeError:
                 pass
 
         pat_total = len(pattern_result.vector)
@@ -94,16 +111,25 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
             continue
         sem_sim = embedder.cosine_similarity(token_sem[:min_sem], pattern_sem[:min_sem])
 
-        pat_code_features = extract_contract_features("\n".join(pattern.get("code_snippets", []))).tolist() if pattern.get("code_snippets") else [0.0] * 128
+        pat_code_features = (
+            extract_contract_features("\n".join(pattern.get("code_snippets", []))).tolist()
+            if pattern.get("code_snippets")
+            else [0.0] * 128
+        )
         code_sim = embedder.cosine_similarity(token_code, pat_code_features) if any(pat_code_features) else 0.0
 
         combined = 0.7 * sem_sim + 0.3 * code_sim
         if combined >= threshold:
-            deep_matches.append({
-                "pattern": pattern["name"], "severity": pattern["severity"],
-                "description": pattern["description"], "similarity": round(combined, 4),
-                "semantic_sim": round(sem_sim, 4), "code_sim": round(code_sim, 4),
-            })
+            deep_matches.append(
+                {
+                    "pattern": pattern["name"],
+                    "severity": pattern["severity"],
+                    "description": pattern["description"],
+                    "similarity": round(combined, 4),
+                    "semantic_sim": round(sem_sim, 4),
+                    "code_sim": round(code_sim, 4),
+                }
+            )
 
     deep_matches.sort(key=lambda x: x["similarity"], reverse=True)
     return {
@@ -113,14 +139,17 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
         "threat_severity": deep_matches[0]["severity"] if deep_matches else "low",
     }
 
+
 async def get_goplus_analysis(token_address: str, chain: str = "1") -> dict[str, Any]:
     """Run GoPlus Security API token risk check."""
     from app.scam_sources import GoPlusConnector
+
     result = await GoPlusConnector.check_token(chain, token_address)
     if not result:
         return {"error": "GoPlus check returned no data", "address": token_address, "chain": chain}
     try:
         from app.rag_service.indexing import ingest_document
+
         content = (
             f"GoPlus Security Scan [{chain}]: {token_address} - "
             f"honeypot={result.get('is_honeypot')}, buy_tax={result.get('buy_tax')}, "
@@ -129,9 +158,16 @@ async def get_goplus_analysis(token_address: str, chain: str = "1") -> dict[str,
             f"hidden_owner={result.get('hidden_owner')}, "
             f"risk_score={result.get('risk_score')}"
         )
-        await ingest_document(collection="token_analysis", content=content, metadata={
-            "source": "goplus", "address": token_address, "chain": chain, **result,
-        })
+        await ingest_document(
+            collection="token_analysis",
+            content=content,
+            metadata={
+                "source": "goplus",
+                "address": token_address,
+                "chain": chain,
+                **result,
+            },
+        )
     except Exception as e:
         logger.warning(f"Failed to ingest GoPlus result for {token_address}: {e}")
     return result

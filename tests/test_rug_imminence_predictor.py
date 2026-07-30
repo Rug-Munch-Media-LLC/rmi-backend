@@ -44,16 +44,12 @@ class TestRIPResult:
     """RIPResult dataclass tests."""
 
     def test_low_imminence(self):
-        result = RIPResult(
-            token_address="0x1234", chain="base", score=20, imminence=ImminenceLevel.LOW
-        )
+        result = RIPResult(token_address="0x1234", chain="base", score=20, imminence=ImminenceLevel.LOW)
         assert "LOW" in result.summary()
         assert "🟢" in result.summary()
 
     def test_critical_imminence(self):
-        result = RIPResult(
-            token_address="0x1234", chain="base", score=85, imminence=ImminenceLevel.CRITICAL
-        )
+        result = RIPResult(token_address="0x1234", chain="base", score=85, imminence=ImminenceLevel.CRITICAL)
         assert "CRITICAL" in result.summary()
         assert "🔴" in result.summary()
 
@@ -169,9 +165,7 @@ class TestRugImminencePredictor:
         assert key == "base:0xabc"
 
     def test_cache_lifecycle(self, predictor):
-        result = RIPResult(
-            token_address="0x1234", chain="base", score=30, imminence=ImminenceLevel.LOW
-        )
+        result = RIPResult(token_address="0x1234", chain="base", score=30, imminence=ImminenceLevel.LOW)
         predictor._set_cache(result)
 
         cached = predictor._get_cached("0x1234", "base")
@@ -186,9 +180,7 @@ class TestRugImminencePredictor:
                     with patch.object(predictor, "_analyze_bundle_pattern", new=AsyncMock()):
                         with patch.object(predictor, "_analyze_social_velocity", new=AsyncMock()):
                             with patch.object(predictor, "_analyze_contract_risk", new=AsyncMock()):
-                                with patch.object(
-                                    predictor, "_analyze_liquidity_migration", new=AsyncMock()
-                                ):
+                                with patch.object(predictor, "_analyze_liquidity_migration", new=AsyncMock()):
                                     result = await predictor.predict(
                                         "0x1234567890123456789012345678901234567890", "base"
                                     )
@@ -201,17 +193,13 @@ class TestRugImminencePredictor:
         assert result.scan_duration_ms > 0
 
     def test_generate_warnings_no_flags(self):
-        result = RIPResult(
-            token_address="0x1", chain="base", score=20, imminence=ImminenceLevel.LOW
-        )
+        result = RIPResult(token_address="0x1", chain="base", score=20, imminence=ImminenceLevel.LOW)
         predictor = RugImminencePredictor()
         predictor._generate_warnings(result)
         assert any("No imminent rug" in w for w in result.warnings)
 
     def test_generate_warnings_with_flags(self):
-        result = RIPResult(
-            token_address="0x1", chain="base", score=80, imminence=ImminenceLevel.HIGH
-        )
+        result = RIPResult(token_address="0x1", chain="base", score=80, imminence=ImminenceLevel.HIGH)
         result.signals["lp_health"] = SignalCategory(
             name="LP Health",
             weight=0.25,
@@ -223,9 +211,7 @@ class TestRugImminencePredictor:
         assert any("HONEYPOT" in w for w in result.warnings)
 
     def test_generate_recommendations_priority(self):
-        result = RIPResult(
-            token_address="0x1", chain="base", score=85, imminence=ImminenceLevel.CRITICAL
-        )
+        result = RIPResult(token_address="0x1", chain="base", score=85, imminence=ImminenceLevel.CRITICAL)
         result.signals["lp_health"] = SignalCategory(
             name="LP Health",
             weight=0.25,
@@ -264,9 +250,7 @@ class TestRugImminencePredictor:
             patch.object(
                 predictor,
                 "_check_lp_lock",
-                new=AsyncMock(
-                    return_value={"locked": False, "unlocked": True, "unlock_date": None}
-                ),
+                new=AsyncMock(return_value={"locked": False, "unlocked": True, "unlock_date": None}),
             ),
         ):
             await predictor._analyze_lp_health(result)
@@ -317,9 +301,7 @@ class TestRugImminencePredictor:
                 }
             )
             mock_hp.return_value = mock_instance
-            with patch(
-                "app.domains.scanners.contract_authority.ContractAuthorityScanner"
-            ) as mock_auth:
+            with patch("app.domains.scanners.contract_authority.ContractAuthorityScanner") as mock_auth:
                 auth_instance = AsyncMock()
                 auth_instance.scan = AsyncMock(
                     return_value={

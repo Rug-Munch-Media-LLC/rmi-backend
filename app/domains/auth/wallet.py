@@ -16,9 +16,8 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-def verify_wallet_signature(
-    message: str, signature: str, address: str, chain: str = "base"
-) -> bool:
+
+def verify_wallet_signature(message: str, signature: str, address: str, chain: str = "base") -> bool:
     """
     Verify a wallet signature with cryptographic validation and nonce freshness check.
 
@@ -87,12 +86,12 @@ def verify_wallet_signature(
             # Delete nonce after successful verification (replay protection)
             r.delete(nonce_key)
 
-        except (ValueError, TypeError) as e :
+        except (ValueError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Error parsing nonce data: {e}")
             return False
 
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Redis not available for nonce verification: {e}")
         # Continue with signature verification even if Redis is unavailable
@@ -104,6 +103,7 @@ def verify_wallet_signature(
     else:
         # Default to EVM signature verification for all other chains
         return _verify_evm_signature(address, message, signature)
+
 
 def _verify_evm_signature(address: str, message: str, signature: str) -> bool:
     """Verify an EVM wallet signature."""
@@ -118,10 +118,11 @@ def _verify_evm_signature(address: str, message: str, signature: str) -> bool:
         # eth_account not available - fail closed
         logger.error("eth_account not available for EVM signature verification")
         return False
-    except (ConnectionError, TimeoutError, ValueError) as e :
+    except (ConnectionError, TimeoutError, ValueError) as e:
         logger.debug("_verify_evm_signature_error", exc_info=True)
         logger.debug(f"EVM signature verification failed: {e}")
         return False
+
 
 def _verify_solana_signature(address: str, message: str, signature: str) -> bool:
     """Verify a Solana wallet signature."""
@@ -136,10 +137,11 @@ def _verify_solana_signature(address: str, message: str, signature: str) -> bool
     except ImportError:
         logger.error("nacl not available for Solana signature verification")
         return False
-    except (ConnectionError, TimeoutError, ValueError) as e :
+    except (ConnectionError, TimeoutError, ValueError) as e:
         logger.debug("_verify_solana_signature_error", exc_info=True)
         logger.debug(f"Solana signature verification failed: {e}")
         return False
+
 
 def decode_signature(signature: str) -> tuple[str, str, int]:
     """
@@ -156,6 +158,7 @@ def decode_signature(signature: str) -> tuple[str, str, int]:
     v = sig_bytes[64]
 
     return r, s, v
+
 
 async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[str, Any]:
     """
@@ -188,7 +191,7 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
             password=os.environ["REDIS_PASSWORD"],
             decode_responses=True,
         )
-    except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+    except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
         logger.debug("get_or_create_wallet_user_error", exc_info=True)
         logger.warning(f"Redis not available for wallet user lookup: {e}")
 
@@ -245,6 +248,7 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
         "chain": chain,
     }
 
+
 async def verify_auth_token(token: str) -> dict[str, Any] | None:
     """
     Verify a JWT token and return user info.
@@ -265,7 +269,7 @@ async def verify_auth_token(token: str) -> dict[str, Any] | None:
                 "tier": user.get("tier", "FREE"),
                 "role": user.get("role", "USER"),
             }
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("verify_auth_token_error", exc_info=True)
         logger.debug(f"Token verification failed: {e}")
     return None

@@ -95,6 +95,7 @@ Write a 1-paragraph RECOMMENDATION. Be direct: AVOID / CAUTION / NEUTRAL / OPPOR
 Justify in 2 sentences. If the asset is a serial rugger, say so clearly.""",
 }
 
+
 # ── Data gathering (fan-out from catalog) ─────────────────────────
 async def _gather_token(catalog, chain: str, address: str) -> dict:
     """Gather all data sources for a token."""
@@ -124,6 +125,7 @@ async def _gather_token(catalog, chain: str, address: str) -> dict:
         "risk": _risk,
     }
 
+
 async def _gather_wallet(catalog, chain: str, address: str) -> dict:
     """Gather data for a wallet report."""
     from app.catalog.models import Chain
@@ -146,6 +148,7 @@ async def _gather_wallet(catalog, chain: str, address: str) -> dict:
         "entity": entity,
     }
 
+
 async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list:
     """Fetch news mentioning this subject."""
     if not catalog._health.postgres:
@@ -165,9 +168,10 @@ async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list:
         from app.domains.news.router import _adapt_legacy_row as _adapt_news_row
 
         return [_adapt_news_row(dict(r)) for r in rows]
-    except (KeyError, ValueError, TypeError) as e :
+    except (KeyError, ValueError, TypeError) as e:
         log.warning(f"fetch_news_fail: {e}")
         return []
+
 
 # ── Risk scoring (deterministic) ───────────────────────────────────
 def _compute_risk_token(token_data: dict) -> tuple[int, list[str], RiskTier]:
@@ -218,6 +222,7 @@ def _compute_risk_token(token_data: dict) -> tuple[int, list[str], RiskTier]:
         tier = RiskTier.CRITICAL
     return score, factors, tier
 
+
 def _compute_risk_wallet(wallet_data: dict) -> tuple[int, list[str], RiskTier]:
     score = 0
     factors = []
@@ -248,10 +253,9 @@ def _compute_risk_wallet(wallet_data: dict) -> tuple[int, list[str], RiskTier]:
         tier = RiskTier.CRITICAL
     return score, factors, tier
 
+
 # ── Report generation ──────────────────────────────────────────────
-async def generate_token_report(
-    catalog, chain: str, address: str, model: str = "deepseek-v3"
-) -> ScanReport:
+async def generate_token_report(catalog, chain: str, address: str, model: str = "deepseek-v3") -> ScanReport:
     """Generate a research report for a token. Falls back to templated
     sections if LLM is unreachable."""
     start = time.monotonic()
@@ -325,13 +329,11 @@ async def generate_token_report(
         try:
             r = await llm.chat(prompt, model=model, max_tokens=400)
             return r if r else _template_fallback(name, sections_ctx[name])
-        except (KeyError, TypeError) as e :
+        except (KeyError, TypeError) as e:
             log.warning(f"section_{name}_llm_fail: {e}")
             return _template_fallback(name, sections_ctx[name])
 
-    tasks = [
-        _section(name, REPORT_PROMPTS[name].format(**ctx)) for name, ctx in sections_ctx.items()
-    ]
+    tasks = [_section(name, REPORT_PROMPTS[name].format(**ctx)) for name, ctx in sections_ctx.items()]
     section_texts = await asyncio.gather(*tasks)
     sections = dict(zip(sections_ctx.keys(), section_texts, strict=False))
 
@@ -392,9 +394,8 @@ async def generate_token_report(
     )
     return report
 
-async def generate_wallet_report(
-    catalog, chain: str, address: str, model: str = "deepseek-v3"
-) -> ScanReport:
+
+async def generate_wallet_report(catalog, chain: str, address: str, model: str = "deepseek-v3") -> ScanReport:
     """Generate a research report for a wallet."""
     data = await _gather_wallet(catalog, chain, address)
     if "error" in data:
@@ -505,6 +506,7 @@ async def generate_wallet_report(
         sections=sections,
     )
 
+
 def _template_fallback(name: str, ctx: dict) -> str:
     """Templated content for when LLM is unreachable."""
     sid = ctx.get("subject_id", "unknown")
@@ -529,17 +531,10 @@ def _template_fallback(name: str, ctx: dict) -> str:
     if name == "social_signals":
         return "## Social Signals\n\nTemplated (no real data)"
     if name == "recommendation":
-        verdict = (
-            "AVOID"
-            if rs >= 75
-            else "CAUTION"
-            if rs >= 50
-            else "NEUTRAL"
-            if rs >= 25
-            else "OPPORTUNITY"
-        )
+        verdict = "AVOID" if rs >= 75 else "CAUTION" if rs >= 50 else "NEUTRAL" if rs >= 25 else "OPPORTUNITY"
         return f"## Recommendation\n\n**{verdict}** (risk {rs}/100). Templated fallback."
     return f"## {name.title()}\n\n(Templated fallback)"
+
 
 # ── Save to Postgres + MinIO ────────────────────────────────────────
 async def save_report(catalog, report: ScanReport) -> bool:
@@ -576,9 +571,9 @@ async def save_report(catalog, report: ScanReport) -> bool:
                 # MinIO upload is complex; skip for v1, store markdown in Postgres instead
                 # Future: use boto3 or httpx PUT to minio with signed URL
                 pass
-            except (httpx.HTTPError) as e :
+            except httpx.HTTPError as e:
                 log.debug(f"minio_upload_skip: {e}")
         return True
-    except (httpx.HTTPError) as e :
+    except httpx.HTTPError as e:
         log.warning(f"save_report_fail: {e}")
         return False

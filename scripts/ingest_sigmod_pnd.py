@@ -46,9 +46,7 @@ async def ingest():
             }
 
             try:
-                r = await client.post(
-                    RAG_URL, json=payload, headers={"X-RMI-Key": "rmi-internal-2026"}
-                )
+                r = await client.post(RAG_URL, json=payload, headers={"X-RMI-Key": "rmi-internal-2026"})
                 if r.status_code == 200:
                     count += 1
             except Exception:

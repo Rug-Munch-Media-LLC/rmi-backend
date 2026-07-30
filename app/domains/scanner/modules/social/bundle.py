@@ -14,7 +14,6 @@ import httpx
 
 from app.domains.scanner.modules._core import (
     PREFER_OWN_DATA,
-    _fetch_json,
     _solana_rpc_call,
     logger,
 )
@@ -23,7 +22,6 @@ from app.domains.scanner.modules.social.community import (
     _get_top_symbols,
     _levenshtein_distance,
 )
-
 
 # ── Copycat Detection ──────────────────────────────
 
@@ -95,34 +93,55 @@ async def _check_copycat(
             logger.debug("own_copycat_detect_failed", error=str(exc)[:60])
 
     # ── Tier 2: Static Levenshtein distance (original behavior) ──
-    top_symbols = _get_top_symbols()
+    top_symbols = sorted(_get_top_symbols())  # Sort for deterministic iteration
     symbol_upper = symbol.upper() if symbol else ""
 
     if symbol_upper in top_symbols:
         return {"check": "copycat", "result": "clean", "match_type": "exact_symbol"}
 
-    for top in top_symbols:
-        if symbol_upper and _levenshtein_distance(symbol_upper, top) <= 2:
-            return {
-                "check": "copycat",
-                "result": "high_risk",
-                "similar_to": top,
-                "distance": _levenshtein_distance(symbol_upper, top),
-                "match_type": "symbol_similarity",
-                "source": "static_top_symbols",
-            }
+    # Find the best (minimum distance) symbol match
+    best = None
+    best_dist = 999
+    if symbol_upper:
+        for top in top_symbols:
+            dist = _levenshtein_distance(symbol_upper, top)
+            if dist <= 2 and dist < best_dist:
+                best = top
+                best_dist = dist
+
+    if best:
+        return {
+            "check": "copycat",
+            "result": "high_risk",
+            "similar_to": best,
+            "distance": best_dist,
+            "match_type": "symbol_similarity",
+            "source": "static_top_symbols",
+        }
 
     if name:
         name_upper = name.upper()
+        best = None
+        best_dist = 999
         for top in top_symbols:
-            if top in name_upper or _levenshtein_distance(name_upper, top) <= 3:
-                return {
-                    "check": "copycat",
-                    "result": "medium_risk",
-                    "similar_to": top,
-                    "match_type": "name_similarity",
-                    "source": "static_top_symbols",
-                }
+            if top in name_upper:
+                best = top
+                best_dist = 0
+                break
+            dist = _levenshtein_distance(name_upper, top)
+            if dist <= 3 and dist < best_dist:
+                best = top
+                best_dist = dist
+
+        if best:
+            return {
+                "check": "copycat",
+                "result": "medium_risk",
+                "similar_to": best,
+                "match_type": "name_similarity" if best_dist > 0 else "name_squatting",
+                "distance": best_dist,
+                "source": "static_top_symbols",
+            }
 
     return {"check": "copycat", "result": "clean", "match_type": "unique", "source": "static_top_symbols"}
 

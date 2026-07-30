@@ -9,6 +9,7 @@ from app.domains.airdrop.multichain.models import CrossChainHolder, TokenSource
 
 logger = get_logger("darkroom_multichain_airdrop")
 
+
 class MultiChainSnapshotEngine:
     """
     Aggregate token holders across multiple chains and tokens.
@@ -34,9 +35,7 @@ class MultiChainSnapshotEngine:
         excluded = {a.lower() for a in (exclude_addresses or [])}
 
         for source in sources:
-            logger.info(
-                f"Snapshotting {source.token_symbol} on {source.chain} at {source.token_address}"
-            )
+            logger.info(f"Snapshotting {source.token_symbol} on {source.chain} at {source.token_address}")
 
             # Get holders for this source
             holders = await MultiChainSnapshotEngine._get_holders_for_source(source)
@@ -60,9 +59,7 @@ class MultiChainSnapshotEngine:
                 # Update chain address mapping
                 all_holders[addr].chain_addresses[source.chain] = addr
 
-        logger.info(
-            f"Multi-chain snapshot: {len(all_holders)} unique holders across {len(sources)} sources"
-        )
+        logger.info(f"Multi-chain snapshot: {len(all_holders)} unique holders across {len(sources)} sources")
         return all_holders
 
     @staticmethod
@@ -104,7 +101,7 @@ class MultiChainSnapshotEngine:
                     "topics": [transfer_topic],
                 }
             )
-        except (ConnectionError, TimeoutError, ValueError) as e :
+        except (ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("_get_evm_holders_error", exc_info=True)
             logger.error(f"EVM log query failed: {e}")
             return {}
@@ -165,7 +162,7 @@ class MultiChainSnapshotEngine:
 
             return holders
 
-        except (ValueError, KeyError, TypeError) as e :
+        except (ValueError, KeyError, TypeError) as e:
             logger.debug("_get_solana_holders_error", exc_info=True)
             logger.error(f"Solana holder fetch failed: {e}")
             return {}

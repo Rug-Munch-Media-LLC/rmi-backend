@@ -38,9 +38,21 @@ logger = get_logger(__name__)
 
 # EVM chains (address-portable) — same address format across all
 EVM_CHAINS = {
-    "ethereum", "bsc", "polygon", "arbitrum", "base",
-    "optimism", "avalanche", "fantom", "gnosis", "linea",
-    "celo", "scroll", "zksync", "blast", "mantle",
+    "ethereum",
+    "bsc",
+    "polygon",
+    "arbitrum",
+    "base",
+    "optimism",
+    "avalanche",
+    "fantom",
+    "gnosis",
+    "linea",
+    "celo",
+    "scroll",
+    "zksync",
+    "blast",
+    "mantle",
 }
 
 # Non-EVM chains (different address format, need different signals)
@@ -62,6 +74,7 @@ class DeployerMatcher:
     def _storage(self) -> Any:
         if self._wallet_storage is None:
             from app.wallet_memory.storage import get_storage
+
             self._wallet_storage = get_storage()
         return self._wallet_storage
 
@@ -129,17 +142,19 @@ class DeployerMatcher:
                 for c in chains:
                     deployments_by_chain[c] = per_chain
 
-            results.append(MultiChainDeployer(
-                deployer_address=r["deployer"],
-                chains=chains,
-                chain_count=chain_count,
-                total_deployments=total,
-                deployments_by_chain=deployments_by_chain,
-                first_seen=self._parse_ts(r.get("first_seen")),
-                last_seen=self._parse_ts(r.get("last_seen")),
-                confidence=confidence,
-                evidence=evidence,
-            ))
+            results.append(
+                MultiChainDeployer(
+                    deployer_address=r["deployer"],
+                    chains=chains,
+                    chain_count=chain_count,
+                    total_deployments=total,
+                    deployments_by_chain=deployments_by_chain,
+                    first_seen=self._parse_ts(r.get("first_seen")),
+                    last_seen=self._parse_ts(r.get("last_seen")),
+                    confidence=confidence,
+                    evidence=evidence,
+                )
+            )
 
         return results
 
@@ -161,13 +176,15 @@ class DeployerMatcher:
                 entity_id=self._entity_id(deployer, chain),
                 primary_address=addr,
                 primary_chain=chain,
-                addresses=[CrossChainMatch(
-                    address=addr,
-                    chain=chain,
-                    confidence=1.0,
-                    method="same_deployer",
-                    evidence="Direct lookup",
-                )],
+                addresses=[
+                    CrossChainMatch(
+                        address=addr,
+                        chain=chain,
+                        confidence=1.0,
+                        method="same_deployer",
+                        evidence="Direct lookup",
+                    )
+                ],
                 total_addresses=1,
                 total_chains=1,
                 chains=[chain],
@@ -183,13 +200,15 @@ class DeployerMatcher:
         for ev_chain, ev_list in chain_map.items():
             is_evm = ev_chain in EVM_CHAINS
             conf = 0.95 if is_evm else 0.75
-            addresses.append(CrossChainMatch(
-                address=deployer.lower(),
-                chain=ev_chain,
-                confidence=conf,
-                method="same_deployer",
-                evidence=f"Deployed {len(ev_list)} token(s) on {ev_chain}",
-            ))
+            addresses.append(
+                CrossChainMatch(
+                    address=deployer.lower(),
+                    chain=ev_chain,
+                    confidence=conf,
+                    method="same_deployer",
+                    evidence=f"Deployed {len(ev_list)} token(s) on {ev_chain}",
+                )
+            )
 
         # Primary chain is the one with most deployments
         primary_chain = max(chain_map, key=lambda c: len(chain_map[c]))
@@ -319,15 +338,15 @@ class DeployerMatcher:
         dry_run: bool = False,
     ) -> dict[str, Any]:
         """Find all multi-chain deployers and persist them.
-        
+
         This is the main batch processing method.
-        
+
         Args:
             min_chains: Minimum chains for multi-chain qualification
             chain_filter: Optional chain restriction
             limit: Max deployers to process
             dry_run: If True, only print what would be done
-            
+
         Returns:
             Summary dict with counts
         """
@@ -419,6 +438,7 @@ class DeployerMatcher:
 
 
 # ── Quick helpers ─────────────────────────────────────────────────────────
+
 
 async def find_and_persist_multi_chain_deployers(
     min_chains: int = 2,

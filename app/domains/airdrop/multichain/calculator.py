@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("darkroom_multichain_airdrop")
 
+
 class WeightedAirdropCalculator:
     """
     Calculate airdrop allocations based on weighted holdings across chains.
@@ -58,9 +59,7 @@ class WeightedAirdropCalculator:
             if cross_chain_bonus > 0 and len(chains_present) > 1:
                 bonus = score * cross_chain_bonus * (len(chains_present) - 1)
                 score += bonus
-                logger.debug(
-                    f"Cross-chain bonus for {addr}: +{bonus} ({len(chains_present)} chains)"
-                )
+                logger.debug(f"Cross-chain bonus for {addr}: +{bonus} ({len(chains_present)} chains)")
 
             holder.weighted_score = score
 
@@ -85,9 +84,7 @@ class WeightedAirdropCalculator:
             allocation = int(total_pool_int * ratio)
             holder.airdrop_allocation = str(allocation)
 
-        logger.info(
-            f"Proportional allocation: {len(qualified)} qualified, total score: {total_score}"
-        )
+        logger.info(f"Proportional allocation: {len(qualified)} qualified, total score: {total_score}")
         return {h.primary_address: h for h in qualified}
 
     @staticmethod

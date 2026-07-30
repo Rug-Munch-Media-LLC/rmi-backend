@@ -78,6 +78,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("x402_enforcement")
 
+
 async def x402_enforcement_middleware(request: Request, call_next: Any) -> Response:
     """[DEPRECATED] x402 payment enforcement middleware.
 
@@ -92,6 +93,7 @@ async def x402_enforcement_middleware(request: Request, call_next: Any) -> Respo
     response.headers["X-Deprecated-Reason"] = "Use domain/x402/middleware.py instead"
     return response
 
+
 # ── PEP 562: lazy globals that get rebound after module load ──────
 def __getattr__(name: str) -> Any:
     """Resolve rebound globals from their source modules at access time."""
@@ -105,6 +107,7 @@ def __getattr__(name: str) -> Any:
         return _pv.VERIFIER
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
+
 # ── Legacy non-blocking Redis helper ─────────────────────────────
 async def get_redis_async() -> Any:
     """Get async Redis client."""
@@ -114,6 +117,7 @@ async def get_redis_async() -> Any:
         return _get_async()
     except (AttributeError, ImportError):
         return None
+
 
 # ── X402Enforcer class (OO facade) ───────────────────────────────
 class X402Enforcer:
@@ -150,6 +154,7 @@ class X402Enforcer:
 
     def ensure_pay_addresses(self) -> None:
         return _ensure_pay_addresses()
+
 
 # ── Public API (backward-compatible with full enforcement.py surface) ──
 __all__ = [

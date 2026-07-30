@@ -102,9 +102,7 @@ class TestSettingsValidation:
         """Non-default secret in production should work (must also set cors_origins)."""
         from app.config import Settings
 
-        with patch.dict(
-            os.environ, {"ENVIRONMENT": "prod", "CORS_ORIGINS": '["https://example.com"]'}
-        ):
+        with patch.dict(os.environ, {"ENVIRONMENT": "prod", "CORS_ORIGINS": '["https://example.com"]'}):
             settings = Settings(
                 jwt_secret="production-secret-123456789012345",
                 cors_origins=["https://example.com"],
@@ -134,9 +132,7 @@ class TestSettingsOverrides:
         from app.config import Settings
 
         custom_url = "postgresql+asyncpg://user:pass@remote:5432/db"
-        settings = Settings(
-            jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=custom_url
-        )
+        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", database_url=custom_url)
         assert settings.database_url == custom_url
 
     def test_override_redis_url(self):
@@ -144,9 +140,7 @@ class TestSettingsOverrides:
         from app.config import Settings
 
         custom_url = "redis://remote:6380/1"
-        settings = Settings(
-            jwt_secret="test-secret-key-32-chars-long-enough!!", redis_url=custom_url
-        )
+        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", redis_url=custom_url)
         assert settings.redis_url == custom_url
 
     def test_override_cors_origins(self):
@@ -154,9 +148,7 @@ class TestSettingsOverrides:
         from app.config import Settings
 
         origins = ["https://app.example.com", "https://admin.example.com"]
-        settings = Settings(
-            jwt_secret="test-secret-key-32-chars-long-enough!!", cors_origins=origins
-        )
+        settings = Settings(jwt_secret="test-secret-key-32-chars-long-enough!!", cors_origins=origins)
         assert settings.cors_origins == origins
 
     def test_jwt_algorithm_default(self):

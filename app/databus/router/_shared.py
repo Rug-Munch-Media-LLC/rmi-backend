@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("databus.router")
 
+
 def verify_admin(request: Request) -> bool:
     """Verify admin API key from request headers.
 

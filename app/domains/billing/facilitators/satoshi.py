@@ -27,6 +27,7 @@ from app.domains.billing.facilitators.config import FacilitatorConfig, get_confi
 
 logger = get_logger("facilitator.satoshi")
 
+
 class SatoshiFacilitator(Facilitator):
     """
     Satoshi Facilitator - Bitcoin x402 pay-per-call.
@@ -134,9 +135,7 @@ class SatoshiFacilitator(Facilitator):
                 data = await resp.json()
 
                 if resp.status != 200:
-                    return self._format_error(
-                        f"Satoshi: {data.get('error', f'HTTP {resp.status}')}"
-                    )
+                    return self._format_error(f"Satoshi: {data.get('error', f'HTTP {resp.status}')}")
 
                 if data.get("isValid") or data.get("verified"):
                     settlement_chain = data.get("settlementChain", "base" if not is_btc else "base")
@@ -178,9 +177,7 @@ class SatoshiFacilitator(Facilitator):
         """Settle BTC payment on target chain (Base or Solana)."""
         try:
             is_btc = payment_data.get("token", "").upper() == "BTC"
-            settle_url = (
-                self._config.satoshi_btc_settle_url if is_btc else self._config.satoshi_settle_url
-            )
+            settle_url = self._config.satoshi_btc_settle_url if is_btc else self._config.satoshi_settle_url
 
             body = {
                 "paymentData": payment_data,
@@ -202,9 +199,7 @@ class SatoshiFacilitator(Facilitator):
             ):
                 data = await resp.json()
                 if resp.status == 200:
-                    target_chain = payment_data.get(
-                        "settlement_chain", payment_data.get("chain", "base")
-                    )
+                    target_chain = payment_data.get("settlement_chain", payment_data.get("chain", "base"))
                     return SettlementResult(
                         settled=True,
                         settlement_id=data.get("settlementId"),

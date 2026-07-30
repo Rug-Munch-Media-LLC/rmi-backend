@@ -430,6 +430,7 @@ TOOL_SUCCESSORS: dict[str, str] = {}  # empty - no successor mappings yet
 MCP_SERVER_VERSION = "5.0.0"
 MCP_PROTOCOL_VERSION = "2024-11-05"
 
+
 # ── Tool implementations ──────────────────────────────────────────
 async def call_tool(name: str, arguments: dict) -> dict:
     """Dispatch a tool call to the appropriate backend."""
@@ -571,9 +572,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
         if not token or not token.rag_embedding_id:
             return {"error": "token not in catalog or no RAG embedding", "similar": []}
         # Use RAG to search for similar by querying with the token's content
-        rag_hits = await catalog.rag_search(
-            query=token.symbol or "token", top_k=int(arguments.get("limit", 10))
-        )
+        rag_hits = await catalog.rag_search(query=token.symbol or "token", top_k=int(arguments.get("limit", 10)))
         return {"result": {"subject": arguments["address"], "similar": rag_hits[:10]}}
 
     if name == "resolve_entity":
@@ -591,9 +590,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
             return {"error": "sql parameter required"}
         # Safety: only allow SELECT / WITH statements, no writes
         sql_upper = sql.upper().lstrip()
-        if not (
-            sql_upper.startswith(("SELECT", "WITH", "SHOW", "DESCRIBE"))
-        ):
+        if not (sql_upper.startswith(("SELECT", "WITH", "SHOW", "DESCRIBE"))):
             return {"error": "only SELECT/WITH/SHOW/DESCRIBE queries are allowed"}
         max_rows = min(int(arguments.get("max_rows", 1000)), 10000)
         params = arguments.get("params", [])
@@ -679,6 +676,7 @@ async def call_tool(name: str, arguments: dict) -> dict:
         return {"result": health}
 
     return {"error": f"unknown tool: {name}"}
+
 
 def _tier_from_score(score: int) -> str:
     if score < 25:

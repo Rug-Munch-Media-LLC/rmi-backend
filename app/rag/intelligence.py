@@ -31,6 +31,7 @@ log = get_logger(__name__)
 
 # ── Data types ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class RAGContext:
     """RAG enrichment context attached to a scan result or wallet profile.
@@ -55,25 +56,27 @@ class RAGContext:
     query_id: str = ""
     error: str = ""
 
+
 # ── Scam similarity collections (in priority order) ───────────────────────
 
 SCAM_COLLECTIONS: list[str] = [
-    "scams",        # Documented scam patterns (app.rag.ingestion.ingest_scam_pattern)
-    "scanner",      # Past scan results (app.rag.ingestion.ingest_scan_result)
-    "scam_intel",   # Legacy scam intelligence (app.rag.models COLLECTIONS)
+    "scams",  # Documented scam patterns (app.rag.ingestion.ingest_scam_pattern)
+    "scanner",  # Past scan results (app.rag.ingestion.ingest_scan_result)
+    "scam_intel",  # Legacy scam intelligence (app.rag.models COLLECTIONS)
 ]
 
 WALLET_COLLECTIONS: list[str] = [
-    "wallet",       # Wallet profiles (app.rag.ingestion.ingest_wallet_profile)
-    "scanner",      # Past scans that reference this wallet as deployer
+    "wallet",  # Wallet profiles (app.rag.ingestion.ingest_wallet_profile)
+    "scanner",  # Past scans that reference this wallet as deployer
 ]
 
 MARKET_COLLECTIONS: list[str] = [
-    "news",         # News articles (app.rag.ingestion.ingest_news_article)
-    "research",     # Research posts (app.rag.ingestion.ingest_research_post)
+    "news",  # News articles (app.rag.ingestion.ingest_news_article)
+    "research",  # Research posts (app.rag.ingestion.ingest_research_post)
 ]
 
 # ── RAGIntelligenceEnricher ───────────────────────────────────────────────
+
 
 class RAGIntelligenceEnricher:
     """Query RAG to enrich scanner results, wallet profiles, and market queries.
@@ -81,7 +84,7 @@ class RAGIntelligenceEnricher:
     Usage:
         enricher = RAGIntelligenceEnricher()
         enriched = await enricher.enrich_scan_result(scan_result)
-        print(enriched.rag_context.fusion_summary)
+        logger.info(enriched.rag_context.fusion_summary)
 
     Thread-safety: methods are async-safe; a single enricher may be shared
     across concurrent request handlers because each call creates fresh
@@ -404,9 +407,11 @@ class RAGIntelligenceEnricher:
 
         return "\n".join(lines)
 
+
 # ── Convenience singleton ─────────────────────────────────────────────────
 
 _default_enricher: RAGIntelligenceEnricher | None = None
+
 
 def get_enricher() -> RAGIntelligenceEnricher:
     """Get the default RAGIntelligenceEnricher singleton."""
@@ -414,6 +419,7 @@ def get_enricher() -> RAGIntelligenceEnricher:
     if _default_enricher is None:
         _default_enricher = RAGIntelligenceEnricher()
     return _default_enricher
+
 
 __all__ = [
     "MARKET_COLLECTIONS",

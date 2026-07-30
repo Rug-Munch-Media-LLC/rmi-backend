@@ -15,6 +15,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("facilitator.startup")
 
+
 async def register_all_facilitators() -> None:
     """
     Register all available facilitators with the global registry.
@@ -34,7 +35,7 @@ async def register_all_facilitators() -> None:
 
         registry.register(PrimevFacilitator())
         logger.info("Registered: Primev FastRPC (fee-free Ethereum)")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("register_all_facilitators_error", exc_info=True)
         logger.warning(f"Failed to register Primev: {e}")
 
@@ -45,7 +46,7 @@ async def register_all_facilitators() -> None:
 
         registry.register(CoinbaseCDPFacilitator())
         logger.info("Registered: Coinbase CDP (Base + Solana, fee-free)")
-    except (ConnectionError, TimeoutError, ValueError) as e :
+    except (ConnectionError, TimeoutError, ValueError) as e:
         logger.debug("register_all_facilitators_error", exc_info=True)
         logger.warning(f"Failed to register Coinbase CDP: {e}")
 
@@ -79,7 +80,7 @@ async def register_all_facilitators() -> None:
             logger.info("Registered: TRON Self-Verify (USDT/USDC/USDD via TronGrid, fee-free)")
         else:
             logger.info("TRON Self-Verify: skipped (no X402_TRON_PAY_TO wallet configured)")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register TRON Self-Verify: {e}")
 
@@ -89,7 +90,7 @@ async def register_all_facilitators() -> None:
 
         registry.register(PayAIFacilitator())
         logger.info("Registered: PayAI (Base + Solana, deferred)")
-    except (ConnectionError, TimeoutError, ValueError) as e :
+    except (ConnectionError, TimeoutError, ValueError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register PayAI: {e}")
 
@@ -100,7 +101,7 @@ async def register_all_facilitators() -> None:
 
         registry.register(AsterPayFacilitator())
         logger.info("Registered: AsterPay (European, EUR/SEPA off-ramp)")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register AsterPay: {e}")
 
@@ -110,7 +111,7 @@ async def register_all_facilitators() -> None:
 
         registry.register(CloudflareX402Facilitator())
         logger.info("Registered: Cloudflare x402 (Base Sepolia/Ethereum, deferred)")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register Cloudflare x402: {e}")
 
@@ -134,7 +135,7 @@ async def register_all_facilitators() -> None:
             logger.info("Registered: Bitcoin Self-Verify (BTC via Mempool.space, fee-free)")
         else:
             logger.info("Bitcoin Self-Verify: skipped (no X402_BTC_PAY_TO wallet configured)")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register Bitcoin Self-Verify: {e}")
 
@@ -150,7 +151,7 @@ async def register_all_facilitators() -> None:
             logger.info("Registered: x402-rs (self-hosted, multi-chain)")
         else:
             logger.info("x402-rs: container not running - skipped")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.info(f"x402-rs: not available - {e}")
 
@@ -160,7 +161,7 @@ async def register_all_facilitators() -> None:
 
         registry.register(EIP7702Facilitator())
         logger.info("Registered: EIP-7702 Universal EVM (all chains, all tokens)")
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Failed to register EIP-7702: {e}")
 

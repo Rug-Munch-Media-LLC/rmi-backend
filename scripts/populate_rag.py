@@ -8,9 +8,7 @@ API = "http://localhost:8000/api/v1/rag/ingest"
 
 
 def ingest(collection, content, metadata=None):
-    payload = json.dumps(
-        {"collection": collection, "content": content, "metadata": metadata or {}}
-    ).encode()
+    payload = json.dumps({"collection": collection, "content": content, "metadata": metadata or {}}).encode()
     req = urllib.request.Request(API, data=payload, headers={"Content-Type": "application/json"})
     try:
         resp = urllib.request.urlopen(req, timeout=15)

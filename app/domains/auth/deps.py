@@ -20,6 +20,7 @@ def _extract_token(request: Request) -> str | None:
         return auth_header[7:]
     return None
 
+
 async def get_current_user(request: Request) -> dict[str, Any] | None:
     """Verify JWT from cookie or Authorization header."""
     token = _extract_token(request)
@@ -33,12 +34,14 @@ async def get_current_user(request: Request) -> dict[str, Any] | None:
         return None
     return user
 
+
 async def require_auth(request: Request) -> dict[str, Any]:
     """Require valid JWT. Raises 401 if missing/invalid."""
     user = await get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     return user
+
 
 async def require_public_profile(request: Request) -> dict[str, Any]:
     """Require authenticated user with a public profile."""

@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 
 LAST_KNOWN_LAUNCHES: dict[str, set] = {}
 
+
 async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict[str, Any]:
     """Get trending tokens from multiple sources, normalized across chains."""
     import time
@@ -37,9 +38,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                         continue
                     age_hours = 999
                     if created:
-                        age_hours = (
-                            now - datetime.fromtimestamp(created / 1000, tz=UTC)
-                        ).total_seconds() / 3600
+                        age_hours = (now - datetime.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600
                     trending_score = (vol * 0.6 + liq * 0.3) / max(age_hours, 1)
                     trending.append(
                         {
@@ -80,9 +79,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                             "price_usd": float(attrs.get("base_token_price_usd", 0)),
                             "liquidity_usd": float(attrs.get("reserve_in_usd", 0)),
                             "volume_24h": float(attrs.get("volume_usd", {}).get("h24", 0)),
-                            "price_change_24h": float(
-                                attrs.get("price_change_percentage", {}).get("h24", 0)
-                            ),
+                            "price_change_24h": float(attrs.get("price_change_percentage", {}).get("h24", 0)),
                             "source": "geckoterminal",
                         }
                     )
@@ -133,6 +130,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
         "updated_at": datetime.now(UTC).isoformat(),
     }
 
+
 async def get_new_launches(chain: str = "solana", since_seconds: int = 300) -> dict[str, Any]:
     """Get tokens launched in the last N seconds."""
     import time
@@ -144,9 +142,7 @@ async def get_new_launches(chain: str = "solana", since_seconds: int = 300) -> d
     launches = []
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
-            resp = await client.get(
-                "https://api.dexscreener.com/latest/dex/search", params={"q": chain, "limit": 50}
-            )
+            resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": chain, "limit": 50})
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
                 for pair in pairs:

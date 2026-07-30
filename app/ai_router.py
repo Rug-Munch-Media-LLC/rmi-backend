@@ -5,6 +5,7 @@ Stub AI Router - Intelligent Model-First Provider Swapping
 Routes requests to optimal AI provider based on quota, latency, and cost.
 For now, a minimal stub that delegates to OpenRouter.
 """
+
 from __future__ import annotations
 
 import base64
@@ -48,20 +49,24 @@ PROVIDERS = {
     },
 }
 
+
 @router.post("/ai/completions")
 async def ai_completions(request: dict[str, Any]) -> dict[str, str]:
     """AI completion via optimal provider routing."""
     return {"error": "AI Router not fully configured", "provider": "openrouter"}
+
 
 @router.post("/ai/chat")
 async def ai_chat(request: dict[str, Any]) -> dict[str, str]:
     """AI chat endpoint with provider fallback."""
     return {"error": "AI Router not fully configured", "provider": "openrouter"}
 
+
 @router.get("/ai/providers")
 async def list_providers() -> dict[str, list]:
     """List available AI providers."""
     return {"providers": list(PROVIDERS.keys())}
+
 
 @router.get("/ai/models")
 async def list_models() -> dict:

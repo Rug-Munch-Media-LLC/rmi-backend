@@ -21,10 +21,9 @@ from app.core.logging import get_logger
 
 logger = get_logger("x402.stream")
 
+
 async def sse_alert_stream(
-    events: str = Query(
-        default="rug_pull,whale_move,price_crash", description="Comma-separated event types"
-    ),
+    events: str = Query(default="rug_pull,whale_move,price_crash", description="Comma-separated event types"),
     chain: str = Query(default="all"),
 ) -> Any:
     """Server-Sent Events stream for real-time security alerts.
@@ -93,5 +92,6 @@ async def sse_alert_stream(
             "Access-Control-Allow-Origin": "*",
         },
     )
+
 
 __all__ = ["sse_alert_stream"]

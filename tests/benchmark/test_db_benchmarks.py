@@ -26,9 +26,7 @@ class TestPostgresBenchmarks:
 
     @pytest.mark.asyncio
     @pytest.mark.benchmark
-    async def test_pg_select_by_primary_key(
-        self, pg_conn: Any, assert_time: Any, timer: Any
-    ) -> None:
+    async def test_pg_select_by_primary_key(self, pg_conn: Any, assert_time: Any, timer: Any) -> None:
         """Benchmark: PostgreSQL SELECT by primary key must complete < 50ms.
 
         Creates a test table, inserts a row, then measures how long it
@@ -149,8 +147,7 @@ class TestPostgresBenchmarks:
 
         timer.start()
         row = await pg_conn.fetchrow(
-            "UPDATE bm_update_test SET status = $1, score = $2 "
-            "WHERE id = 1 RETURNING id, status, score",
+            "UPDATE bm_update_test SET status = $1, score = $2 WHERE id = 1 RETURNING id, status, score",
             "completed",
             95,
         )

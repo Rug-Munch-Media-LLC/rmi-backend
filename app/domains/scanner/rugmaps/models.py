@@ -20,6 +20,7 @@ def _format_timestamp(ts: int | float | datetime | None) -> str | None:
         return ts.isoformat()
     return str(ts)
 
+
 @dataclass
 class BubbleNode:
     """A node in the bubble map."""
@@ -70,6 +71,7 @@ class BubbleNode:
             "tags": self.tags,
         }
 
+
 @dataclass
 class BubbleLink:
     """A link between nodes."""
@@ -101,6 +103,7 @@ class BubbleLink:
             "volume": self.total_volume,
             "transactions": self.transaction_count,
         }
+
 
 @dataclass
 class BubbleMap:

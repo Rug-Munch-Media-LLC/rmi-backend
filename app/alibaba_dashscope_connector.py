@@ -57,6 +57,7 @@ QWEN_MODELS = {
     },
 }
 
+
 class AlibabaDashScopeConnector:
     """Alibaba DashScope AI services connector."""
 
@@ -169,9 +170,7 @@ class AlibabaDashScopeConnector:
             await _dashscope_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
-    async def generate_marketing_content(
-        self, content_type: str, topic: str, details: dict | None = None
-    ) -> dict:
+    async def generate_marketing_content(self, content_type: str, topic: str, details: dict | None = None) -> dict:
         """Generate marketing content for specific use cases."""
 
         # Content type templates
@@ -294,9 +293,7 @@ Tone: Exciting, clear, benefit-focused
             temperature=details.get("temperature", 0.7),
         )
 
-    async def generate_variations(
-        self, base_content: str, num_variations: int = 5, platform: str = "twitter"
-    ) -> dict:
+    async def generate_variations(self, base_content: str, num_variations: int = 5, platform: str = "twitter") -> dict:
         """Generate multiple variations of content."""
 
         prompt = f"""Generate {num_variations} variations of this content for {platform}:
@@ -317,9 +314,7 @@ Variation 2: [content]
 ...
 """
 
-        return await self.generate_text(
-            prompt=prompt, model="qwen-plus", max_tokens=2000, temperature=0.8
-        )
+        return await self.generate_text(prompt=prompt, model="qwen-plus", max_tokens=2000, temperature=0.8)
 
     async def summarize_content(self, content: str, summary_type: str = "bullet_points") -> dict:
         """Summarize long content into different formats."""
@@ -336,9 +331,7 @@ Variation 2: [content]
 {content[:3000]}  # Limit input length
 """
 
-        return await self.generate_text(
-            prompt=prompt, model="qwen-turbo", max_tokens=500, temperature=0.5
-        )
+        return await self.generate_text(prompt=prompt, model="qwen-turbo", max_tokens=500, temperature=0.5)
 
     def list_models(self) -> list[dict]:
         """List available Qwen models."""
@@ -353,8 +346,10 @@ Variation 2: [content]
             "models_available": list(QWEN_MODELS.keys()),
         }
 
+
 # Singleton
 _alibaba_dashscope: AlibabaDashScopeConnector | None = None
+
 
 def get_alibaba_dashscope_connector() -> AlibabaDashScopeConnector:
     global _alibaba_dashscope

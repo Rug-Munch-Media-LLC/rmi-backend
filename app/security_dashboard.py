@@ -24,6 +24,7 @@ class SecurityDashboard:
             "by_type": {},
         }
 
+
 def create_alert_from_detection(detection: dict[str, Any]) -> dict[str, Any]:
     """Create an alert from a detection."""
     return {
@@ -32,6 +33,7 @@ def create_alert_from_detection(detection: dict[str, Any]) -> dict[str, Any]:
         "status": "pending",
         "created_at": "2026-05-12T00:00:00Z",
     }
+
 
 def get_dashboard() -> SecurityDashboard:
     """Get the global dashboard instance."""

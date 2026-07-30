@@ -19,19 +19,41 @@ Entity types:
 import re
 
 CHAIN_NAMES: set[str] = {
-    "ethereum", "solana", "base", "bsc", "arbitrum",
-    "polygon", "optimism", "avalanche", "fantom",
+    "ethereum",
+    "solana",
+    "base",
+    "bsc",
+    "arbitrum",
+    "polygon",
+    "optimism",
+    "avalanche",
+    "fantom",
 }
 
 PROTOCOL_NAMES: set[str] = {
-    "uniswap", "aave", "compound", "curve", "lido",
-    "makerdao", "pancakeswap", "sushiswap", "raydium",
-    "jupiter", "orca",
+    "uniswap",
+    "aave",
+    "compound",
+    "curve",
+    "lido",
+    "makerdao",
+    "pancakeswap",
+    "sushiswap",
+    "raydium",
+    "jupiter",
+    "orca",
 }
 
 SCAM_KEYWORDS: set[str] = {
-    "rug pull", "honeypot", "flash loan attack", "drain",
-    "exploit", "hack", "phishing", "scam", "wash trading",
+    "rug pull",
+    "honeypot",
+    "flash loan attack",
+    "drain",
+    "exploit",
+    "hack",
+    "phishing",
+    "scam",
+    "wash trading",
 }
 
 # Compiled regex patterns (tx_hash BEFORE evm_address to avoid overlap)

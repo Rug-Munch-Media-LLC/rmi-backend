@@ -21,7 +21,6 @@ from app.core.logging import get_logger
 from app.domains.scanner.engines.own_dex_data.client import (
     _get_ch_client,
     _load_pair_cache,
-    _run_sync,
 )
 
 logger = get_logger(__name__)

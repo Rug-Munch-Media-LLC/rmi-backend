@@ -25,6 +25,7 @@ import os as _os
 
 _ETHERSCAN_KEY = _os.getenv("ETHERSCAN_API_KEY", "")
 
+
 async def resolve_ens_name(address: str) -> str | None:
     """Resolve an Ethereum address to an ENS name via Etherscan API."""
     import httpx
@@ -59,6 +60,7 @@ async def resolve_ens_name(address: str) -> str | None:
         logger.debug(f"ENS resolution failed: {e}")
 
     return None
+
 
 async def fetch_farcaster_profile(fid: int) -> dict[str, Any] | None:
     """Fetch Farcaster profile by FID using Warpcast v2 API (free, no auth)."""
@@ -101,6 +103,7 @@ async def fetch_farcaster_profile(fid: int) -> dict[str, Any] | None:
     except Exception as e:
         logger.warning(f"Farcaster fetch failed for FID {fid}: {e}")
         return None
+
 
 async def resolve_farcaster_handle(handle: str) -> int | None:
     """Resolve a Farcaster username to FID using Warpcast v2 API."""

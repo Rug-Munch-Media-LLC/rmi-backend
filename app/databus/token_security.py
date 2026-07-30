@@ -42,6 +42,7 @@ CACHE_TTL = 300  # 5 min active, 1 hour dormant
 
 # ── Check Definitions ──────────────────────────────────────────────
 
+
 class SecurityCheck:
     """A single security check with weight, category, and scoring."""
 
@@ -64,6 +65,7 @@ class SecurityCheck:
         self.tier = tier
         self.description = description
         self.auto_fail = auto_fail
+
 
 # ── 37+ Security Checks ────────────────────────────────────────────
 
@@ -214,18 +216,10 @@ SECURITY_CHECKS = [
         "Creator wallet removed significant liquidity",
     ),
     # ── CATEGORY: Holder Distribution (HD) ──
-    SecurityCheck(
-        "HD01", "Top 10 Concentration", "holders", 2.0, 1, "Top 10 holders control >50% of supply"
-    ),
-    SecurityCheck(
-        "HD02", "Creator Holdings", "holders", 2.5, 1, "Creator/deployer wallet holds >5% supply"
-    ),
-    SecurityCheck(
-        "HD03", "Holder Count", "holders", 1.0, 1, "Very few holders suggests no organic adoption"
-    ),
-    SecurityCheck(
-        "HD04", "Whale Dominance", "holders", 1.5, 2, "Wallets >1% supply own >80% collectively"
-    ),
+    SecurityCheck("HD01", "Top 10 Concentration", "holders", 2.0, 1, "Top 10 holders control >50% of supply"),
+    SecurityCheck("HD02", "Creator Holdings", "holders", 2.5, 1, "Creator/deployer wallet holds >5% supply"),
+    SecurityCheck("HD03", "Holder Count", "holders", 1.0, 1, "Very few holders suggests no organic adoption"),
+    SecurityCheck("HD04", "Whale Dominance", "holders", 1.5, 2, "Wallets >1% supply own >80% collectively"),
     SecurityCheck(
         "HD05",
         "Fresh Wallet %",
@@ -270,9 +264,7 @@ SECURITY_CHECKS = [
         2,
         "Deployer wallet previously launched scam tokens",
     ),
-    SecurityCheck(
-        "DT02", "Deployer Funding", "deployer", 2.0, 2, "Deployer funded from Tornado Cash or mixer"
-    ),
+    SecurityCheck("DT02", "Deployer Funding", "deployer", 2.0, 2, "Deployer funded from Tornado Cash or mixer"),
     SecurityCheck(
         "DT03",
         "Multi-Token Deployer",
@@ -306,9 +298,7 @@ SECURITY_CHECKS = [
         1,
         "Creator/team controls >20% of total supply",
     ),
-    SecurityCheck(
-        "TE02", "Tax Anomaly", "tokenomics", 2.5, 1, "Buy/sell tax >10% - predatory economics"
-    ),
+    SecurityCheck("TE02", "Tax Anomaly", "tokenomics", 2.5, 1, "Buy/sell tax >10% - predatory economics"),
     SecurityCheck(
         "TE03",
         "Transfer Fee",
@@ -352,9 +342,7 @@ SECURITY_CHECKS = [
         "LP was removed or significantly drained",
         auto_fail=True,
     ),
-    SecurityCheck(
-        "RP03", "Price Crash", "rug_pull", 2.0, 2, "Price dropped >90% within 24h - possible rug"
-    ),
+    SecurityCheck("RP03", "Price Crash", "rug_pull", 2.0, 2, "Price dropped >90% within 24h - possible rug"),
     SecurityCheck(
         "RP04",
         "Duplicate Token",
@@ -373,8 +361,10 @@ SECURITY_CHECKS = [
     ),
 ]
 
+
 def get_checks_by_tier(tier: int) -> list[SecurityCheck]:
     return [c for c in SECURITY_CHECKS if c.tier <= tier]
+
 
 def get_check_matrix() -> dict:
     """Full security check matrix with descriptions."""
@@ -400,7 +390,9 @@ def get_check_matrix() -> dict:
         },
     }
 
+
 # ── Scoring Engine ─────────────────────────────────────────────────
+
 
 class TokenSecurityScorer:
     """Weighs and aggregates security check results into a 0-100 risk score."""
@@ -467,7 +459,9 @@ class TokenSecurityScorer:
         band, color = TokenSecurityScorer.band_for_score(score)
         return round(score, 1), band, color
 
+
 # ── Quick Scan Provider ─────────────────────────────────────────────
+
 
 async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[str, Any]:
     """Tier 1 quick scan - GoPlus + basic checks. <1s target."""
@@ -551,9 +545,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                 owner_change_balance = goplus_data.get("owner_change_balance", "0")
                 results["CR04"] = {
                     "status": "warning" if owner_change_balance in ("1", "1.0") else "pass",
-                    "details": "Owner can change balances"
-                    if owner_change_balance in ("1", "1.0")
-                    else "",
+                    "details": "Owner can change balances" if owner_change_balance in ("1", "1.0") else "",
                 }
 
                 # Blacklist
@@ -583,11 +575,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
     # ── Our DataBus checks ──
     # Age check
     try:
-        api_key = (
-            kw.get("api_key", "")
-            or os.getenv("HELIUS_API_KEY", "")
-            or os.getenv("ALCHEMY_API_KEY", "")
-        )
+        api_key = kw.get("api_key", "") or os.getenv("HELIUS_API_KEY", "") or os.getenv("ALCHEMY_API_KEY", "")
         if api_key and chain == "solana":
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.post(
@@ -659,7 +647,9 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
         "source": "token_security_matrix",
     }
 
+
 # ── Full Security Scan (Tier 1 + 2 + 3 async) ─────────────────────
+
 
 async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dict | None:
     """DataBus provider: Full token security scan.
@@ -719,6 +709,7 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
         pass
 
     return result
+
 
 async def get_check_matrix_endpoint(**kw) -> dict:
     """Returns the full security check matrix definition."""

@@ -55,7 +55,9 @@ from app.services.deep_intelligence.models import (
 async def full_deep_intel(*args: Any, **kwargs: Any) -> dict[str, Any]:
     """Composite deep intelligence report — lazily imported."""
     from app.services.deep_intelligence.processors.composite import full_deep_intel as _impl
+
     return await _impl(*args, **kwargs)
+
 
 __all__ = [
     # Core

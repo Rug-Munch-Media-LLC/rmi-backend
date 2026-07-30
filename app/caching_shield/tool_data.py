@@ -95,5 +95,6 @@ class ToolData:
     def stats(self) -> dict:
         return self._layer.stats()
 
+
 # Singleton
 td = ToolData()

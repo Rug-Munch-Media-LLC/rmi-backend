@@ -28,11 +28,13 @@ from app.domains.reports.generator import (
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
+
 class GenerateRequest(BaseModel):
     subject_type: str = Field(..., pattern="^(token|wallet)$")
     subject_id: str = Field(..., description='"chain:address"')
     model: str = "deepseek-v3"
     save: bool = True
+
 
 class GenerateResponse(BaseModel):
     report_id: str
@@ -47,6 +49,7 @@ class GenerateResponse(BaseModel):
     markdown: str
     paid_via_x402: str | None = None
     error: str | None = None
+
 
 @router.post("/generate", response_model=GenerateResponse)
 async def generate_report(req: GenerateRequest) -> GenerateResponse:
@@ -67,7 +70,7 @@ async def generate_report(req: GenerateRequest) -> GenerateResponse:
             report = await generate_wallet_report(catalog, chain, address, model=req.model)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
-    except (ValueError) as e :
+    except ValueError as e:
         raise HTTPException(500, f"report_generation_failed: {e}") from e
     if req.save:
         await save_report(catalog, report)
@@ -86,6 +89,7 @@ async def generate_report(req: GenerateRequest) -> GenerateResponse:
         markdown=report.to_markdown(),
         paid_via_x402=report.paid_via_x402,
     )
+
 
 def _extract_risk_factors(exec_summary: str) -> list[str]:
     """Heuristically extract risk factor names from the exec summary."""
@@ -106,6 +110,7 @@ def _extract_risk_factors(exec_summary: str) -> list[str]:
     ]
     text_l = exec_summary.lower()
     return [k for k in keywords if k in text_l]
+
 
 @router.get("/{report_id}")
 async def get_report(report_id: str) -> dict:
@@ -128,5 +133,5 @@ async def get_report(report_id: str) -> dict:
         return d
     except HTTPException:
         raise
-    except (KeyError, ValueError, TypeError) as e :
+    except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(500, f"get_report_fail: {e}") from e

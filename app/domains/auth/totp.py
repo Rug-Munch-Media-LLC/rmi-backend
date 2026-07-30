@@ -48,13 +48,16 @@ TOTP_DIGITS = 6
 TOTP_INTERVAL = 30
 TOTP_WINDOW = 1
 
+
 def _generate_totp_secret() -> str:
     if not PYOTP_AVAILABLE:
         raise RuntimeError("pyotp not installed")
     return pyotp.random_base32()
 
+
 def _build_totp(secret: str) -> Any:
     return pyotp.TOTP(secret, digits=TOTP_DIGITS, interval=TOTP_INTERVAL)
+
 
 def _verify_totp(secret: str, code: str) -> bool:
     if not PYOTP_AVAILABLE or not secret or not code:
@@ -62,15 +65,18 @@ def _verify_totp(secret: str, code: str) -> bool:
     totp = _build_totp(secret)
     return totp.verify(code, valid_window=TOTP_WINDOW)
 
+
 def _get_totp_uri(secret: str, email: str) -> str:
     totp = _build_totp(secret)
     return totp.provisioning_uri(name=email, issuer_name=TOTP_ISSUER)
+
 
 def _generate_qr_base64(uri: str) -> str:
     img = qrcode.make(uri)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
 
 def _generate_backup_codes(count: int = 8) -> list[str]:
     codes = []
@@ -80,13 +86,17 @@ def _generate_backup_codes(count: int = 8) -> list[str]:
         codes.append(f"{code[:4]}-{code[4:]}")
     return codes
 
+
 def _hash_backup_code(code: str) -> str:
     return hash_password(code)
+
 
 def _verify_backup_code(code: str, hashed: str) -> bool:
     return verify_password(code, hashed)
 
+
 # ── 2FA Endpoints ──
+
 
 @router.post("/2fa/setup")
 async def twofa_setup(request: Request) -> dict[str, Any]:
@@ -111,6 +121,7 @@ async def twofa_setup(request: Request) -> dict[str, Any]:
     }
     r.setex(f"rmi:2fa_pending:{user['id']}", timedelta(minutes=10), json.dumps(pending))
     return {"secret": secret, "qr_code": qr_b64, "uri": uri, "backup_codes": backup_codes}
+
 
 @router.post("/2fa/enable")
 async def twofa_enable(req: TwoFAEnableRequest, request: Request) -> dict[str, Any]:
@@ -139,6 +150,7 @@ async def twofa_enable(req: TwoFAEnableRequest, request: Request) -> dict[str, A
     logger.info(f"[2FA ENABLED] user={user['id']} email={user['email']}")
     return {"status": "ok", "message": "2FA enabled successfully", "method": "totp"}
 
+
 @router.post("/2fa/disable")
 async def twofa_disable(request: Request) -> dict[str, Any]:
     user = await get_current_user(request)
@@ -152,6 +164,7 @@ async def twofa_disable(request: Request) -> dict[str, Any]:
     logger.info(f"[2FA DISABLED] user={user['id']} email={user['email']}")
     return {"status": "ok", "message": "2FA disabled successfully"}
 
+
 @router.get("/2fa/status", response_model=TwoFAStatusResponse)
 async def twofa_status(request: Request) -> dict[str, Any]:
     user = await get_current_user(request)
@@ -164,6 +177,7 @@ async def twofa_status(request: Request) -> dict[str, Any]:
         "created_at": user.get("totp_created_at"),
         "last_used": user.get("totp_last_used"),
     }
+
 
 @router.post("/2fa/verify")
 async def twofa_verify(req: TwoFAVerifyRequest, request: Request) -> dict[str, Any]:
@@ -179,6 +193,7 @@ async def twofa_verify(req: TwoFAVerifyRequest, request: Request) -> dict[str, A
     user["totp_last_used"] = datetime.now(UTC).isoformat()
     _save_user(user)
     return {"status": "ok", "verified": True}
+
 
 @router.post("/2fa/login")
 async def twofa_login(req: TwoFALoginRequest, request: Request) -> JSONResponse:
@@ -207,7 +222,9 @@ async def twofa_login(req: TwoFALoginRequest, request: Request) -> JSONResponse:
             raise HTTPException(status_code=401, detail="Invalid 2FA code or backup code")
     user["totp_last_used"] = datetime.now(UTC).isoformat()
     _save_user(user)
-    token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"), user.get("wallet_address"))
+    token = _create_jwt(
+        user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"), user.get("wallet_address")
+    )
     logger.info(f"[2FA LOGIN] user={user['id']} email={user['email']}")
     body = {
         "access_token": token,

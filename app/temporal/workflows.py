@@ -19,6 +19,7 @@ class TokenScannerWorkflow:
             retry_policy=RetryPolicy(maximum_attempts=3),
         )
 
+
 @workflow.defn
 class DatabusHealthCheckWorkflow:
     @workflow.run
@@ -32,6 +33,7 @@ class DatabusHealthCheckWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=2),
             )
         return results
+
 
 @workflow.defn
 class ChainReindexWorkflow:

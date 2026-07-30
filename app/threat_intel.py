@@ -36,6 +36,7 @@ LOCAL_BLOCKLIST_PATH = os.getenv("THREAT_BLOCKLIST_PATH", "/etc/rmi/blocklist.js
 # Darkweb feed (replace with actual source)
 DARKWEB_FEED_URL = None  # os.getenv("DARKWEB_FEED_URL")
 
+
 @dataclass
 class ThreatEntity:
     """Reputation data for address."""
@@ -47,6 +48,7 @@ class ThreatEntity:
     flags: list[str]
     source: str
     last_updated: str
+
 
 @dataclass
 class SanctionsMatch:
@@ -60,7 +62,9 @@ class SanctionsMatch:
     program: str
     confidence: float
 
+
 # ─── BLOCKLIST MANAGER ───────────────────────────────────────────
+
 
 class BlocklistManager:
     """Manages local and external threat blocklists."""
@@ -84,9 +88,7 @@ class BlocklistManager:
 
             self.last_updated = datetime.now(UTC).isoformat()
             self._loaded = True
-            logger.info(
-                f"Blocklists loaded: OFAC={len(self.ofac_sdn)}, Local={len(self.local_blocklist)}"
-            )
+            logger.info(f"Blocklists loaded: OFAC={len(self.ofac_sdn)}, Local={len(self.local_blocklist)}")
 
             return True
 
@@ -161,7 +163,9 @@ class BlocklistManager:
 
         return matches
 
+
 # ─── THREAT AGGREGATOR ───────────────────────────────────────────
+
 
 class ThreatAggregator:
     """Aggregates threat intelligence from multiple sources."""
@@ -236,14 +240,17 @@ class ThreatAggregator:
         """Check multiple addresses."""
         return {addr: self.check_address(addr, chain) for addr in addresses}
 
+
 # ─── GLOBAL SINGLETON ────────────────────────────────────────────
 
 _local_blocklist = BlocklistManager()
 _aggregator = ThreatAggregator(_local_blocklist)
 
+
 def get_aggregator() -> ThreatAggregator:
     """Get global threat aggregator."""
     return _aggregator
+
 
 def check_wallet_reputation(address: str, chain: str = "base") -> dict[str, Any]:
     """
@@ -268,14 +275,17 @@ def check_wallet_reputation(address: str, chain: str = "base") -> dict[str, Any]
         "last_updated": result.last_updated,
     }
 
+
 def check_sanctions(address: str) -> list[SanctionsMatch]:
     """Check OFAC sanctions for address."""
     return _local_blocklist.get_matches(address)
+
 
 def add_to_blocklist(address: str, reason: str = "") -> bool:
     """Add address to local blocklist."""
     _local_blocklist.local_blocklist.add(address.lower())
     return _save_local_list()
+
 
 def _save_local_list() -> bool:
     """Save local blocklist to file."""

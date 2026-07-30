@@ -21,6 +21,7 @@ from .config import (
 logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_jsonrpc"])
 
+
 @router.post("/mcp")
 async def mcp_jsonrpc(request: Request) -> Any:
     """MCP Streamable HTTP transport - handle JSON-RPC requests.
@@ -187,9 +188,7 @@ async def mcp_jsonrpc(request: Request) -> Any:
                         }
                     )
                 result = (
-                    resp.json()
-                    if "application/json" in (resp.headers.get("content-type", ""))
-                    else {"data": resp.text}
+                    resp.json() if "application/json" in (resp.headers.get("content-type", "")) else {"data": resp.text}
                 )
                 return JSONResponse(
                     {

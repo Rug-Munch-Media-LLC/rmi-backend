@@ -71,7 +71,6 @@ def enrich_tool_response(
     if opt_out:
         return raw_result
 
-
     try:
         r = _redis()
     except (ConnectionError, TimeoutError, OSError):
@@ -126,10 +125,10 @@ def enrich_tool_response(
                             "patterns": result.get("patterns", [])[:3],
                         }
                     )
-            except (RuntimeError, ConnectionError, TimeoutError):
-                pass
-    except (ImportError, RuntimeError):
-        pass
+            except (RuntimeError, ConnectionError, TimeoutError) as e:
+                logger.warning("Enrichment init error: %s", e)
+    except (ImportError, RuntimeError) as e:
+        logger.warning("Enrichment import error: %s", e)
 
     # 5c. LLM-synthesized summary (DeepSeek Flash, ~$0.0003/call)
     llm_summary = ""
@@ -149,8 +148,8 @@ def enrich_tool_response(
         from app.routers.x402_advanced_tools import compute_confidence
 
         raw_result["_confidence"] = compute_confidence(raw_result)
-    except (ImportError, TypeError, ValueError):
-        pass
+    except (ImportError, TypeError, ValueError) as e:
+        logger.warning("Confidence scoring import failed: %s", e)
 
     # 6. Merge into response
     sanction_count = len(sanctioned)

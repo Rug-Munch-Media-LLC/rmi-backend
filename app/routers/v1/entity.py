@@ -42,6 +42,7 @@ _SUPPORTED_CHAINS = [
     "fantom",
 ]
 
+
 async def _get_wallet_profile(address: str, chain: str) -> dict | None:
     """Get wallet profile from storage (ClickHouse + Redis, degradation-aware)."""
     try:
@@ -52,6 +53,7 @@ async def _get_wallet_profile(address: str, chain: str) -> dict | None:
     except Exception as exc:
         logger.debug("wallet_profile_fail chain=%s addr=%s: %s", chain, address[:12], exc)
         return None
+
 
 async def _resolve_entity(address: str, chain: str) -> dict[str, Any] | None:
     """Resolve cross-chain entity for a wallet address."""
@@ -64,6 +66,7 @@ async def _resolve_entity(address: str, chain: str) -> dict[str, Any] | None:
         logger.debug("entity_resolve_fail addr=%s: %s", address[:12], exc)
         return None
 
+
 async def _get_labels(address: str, chain: str) -> dict[str, Any] | None:
     """Get unified labels from all federated sources."""
     try:
@@ -75,9 +78,8 @@ async def _get_labels(address: str, chain: str) -> dict[str, Any] | None:
         logger.debug("label_resolve_fail addr=%s: %s", address[:12], exc)
         return None
 
-async def _get_risk_score(
-    address: str, chain: str, intel: dict | None = None
-) -> dict[str, Any] | None:
+
+async def _get_risk_score(address: str, chain: str, intel: dict | None = None) -> dict[str, Any] | None:
     """Get composite risk score for a wallet."""
     try:
         from app.wallet_memory.risk_scoring import RiskScorer
@@ -87,6 +89,7 @@ async def _get_risk_score(
     except Exception as exc:
         logger.debug("risk_score_fail addr=%s: %s", address[:12], exc)
         return None
+
 
 async def _get_chain_profile(address: str, chain: str) -> dict[str, Any]:
     """Get single-chain profile fragment.
@@ -106,12 +109,8 @@ async def _get_chain_profile(address: str, chain: str) -> dict[str, Any]:
         return {
             "balance": str(profile.get("total_volume", "")),
             "tx_count": profile.get("total_transactions", 0),
-            "first_seen": (
-                str(profile.get("first_seen_at")) if profile.get("first_seen_at") else None
-            ),
-            "last_seen": (
-                str(profile.get("last_seen_at")) if profile.get("last_seen_at") else None
-            ),
+            "first_seen": (str(profile.get("first_seen_at")) if profile.get("first_seen_at") else None),
+            "last_seen": (str(profile.get("last_seen_at")) if profile.get("last_seen_at") else None),
             "risk_score": profile.get("risk_score"),
             "risk_level": profile.get("risk_level"),
         }
@@ -126,6 +125,7 @@ async def _get_chain_profile(address: str, chain: str) -> dict[str, Any]:
         "risk_level": None,
     }
 
+
 async def _get_deployer_history(address: str) -> list[dict[str, Any]]:
     """Get deployer history for a wallet across all chains."""
     try:
@@ -136,6 +136,7 @@ async def _get_deployer_history(address: str) -> list[dict[str, Any]]:
     except Exception as exc:
         logger.debug("deployer_history_fail addr=%s: %s", address[:12], exc)
         return []
+
 
 @router.get("/{address}/cross-chain")
 async def entity_cross_chain(address: str) -> dict[str, Any]:
@@ -161,9 +162,7 @@ async def entity_cross_chain(address: str) -> dict[str, Any]:
     # ── Stage 2: Fan-out across all chains ────────────────────────
     # Get wallet profiles for all chains in parallel
     chain_profiles: dict[str, Any] = {}
-    profile_tasks = {
-        chain: asyncio.create_task(_get_chain_profile(addr, chain)) for chain in _SUPPORTED_CHAINS
-    }
+    profile_tasks = {chain: asyncio.create_task(_get_chain_profile(addr, chain)) for chain in _SUPPORTED_CHAINS}
     for chain, task in profile_tasks.items():
         try:
             result = await task
@@ -221,9 +220,7 @@ async def entity_cross_chain(address: str) -> dict[str, Any]:
     intel_data: dict[str, Any] = {}
     if labels:
         intel_data["labels"] = labels.get("labels", [])
-        intel_data["scam_associations"] = (
-            [{"type": "sanctioned"}] if labels.get("is_sanctioned") else []
-        )
+        intel_data["scam_associations"] = [{"type": "sanctioned"}] if labels.get("is_sanctioned") else []
         intel_data["risk_contribution"] = labels.get("risk_contribution", 0)
 
     if entity:
@@ -273,6 +270,7 @@ async def entity_cross_chain(address: str) -> dict[str, Any]:
         response["deployer_history"] = deployer_history
 
     return response
+
 
 def _max_confidence(entity: dict[str, Any]) -> float:
     """Get the maximum confidence score across all resolved addresses."""

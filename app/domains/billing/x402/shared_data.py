@@ -1,4 +1,5 @@
 """x402 shared data — constants, pricing, token tables, tool aliases."""
+
 from __future__ import annotations
 
 import os
@@ -93,7 +94,6 @@ BUNDLES: dict[str, dict[str, Any]] = {
 }
 
 
-
 TOOL_ALIASES: dict[str, str] = {
     # Security
     "airdrop_check": "airdrop_finder",
@@ -144,7 +144,6 @@ try:
     TOOL_ALIASES.update(EXPANDED_ALIASES)
 except (AttributeError, ImportError):
     pass
-
 
 
 # Supported payment tokens across all chains
@@ -326,6 +325,3 @@ def _resolve_pay_to(chain: str) -> str:
     if env_key:
         return os.getenv(env_key, "")
     return ""
-
-
-

@@ -43,6 +43,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
+
 class L1Cache:
     """In-memory LRU cache with Stale-While-Revalidate support.
 
@@ -115,6 +116,7 @@ class L1Cache:
             "hit_rate": round((self.hits + self.stale_hits) / total * 100, 1) if total > 0 else 0,
             "fresh_hit_rate": round(self.hits / total * 100, 1) if total > 0 else 0,
         }
+
 
 class L2RedisCache:
     """Redis cache. Shared across processes. TTL-managed automatically."""
@@ -201,6 +203,7 @@ class L2RedisCache:
             "hit_rate": round(self.hits / total * 100, 1) if total > 0 else 0,
         }
 
+
 class CacheLayer:
     """
     Three-tier cache with Stale-While-Revalidate + per-type stats.
@@ -221,9 +224,7 @@ class CacheLayer:
         # SWR: caller sets this to a coroutine factory for background refresh
         self.stale_refresh_callback: Callable | None = None
         # Per-type hit/miss tracking for TTL tuning
-        self._type_stats: dict[str, dict[str, int]] = defaultdict(
-            lambda: {"hits": 0, "stale_hits": 0, "misses": 0}
-        )
+        self._type_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"hits": 0, "stale_hits": 0, "misses": 0})
         # Data type TTLs - optimized for FREE tier usage to avoid rate limits
         # and maximize our 1-month Arkham trial + Alchemy free quota.
         self.ttl_config = {
@@ -337,9 +338,7 @@ class CacheLayer:
         self._type_stats[dtype]["misses"] += 1
         return None, False
 
-    async def set(
-        self, key: str, value: Any, ttl: int | None = None, data_type: str = "default"
-    ) -> None:
+    async def set(self, key: str, value: Any, ttl: int | None = None, data_type: str = "default") -> None:
         """Set in cache. Writes to L1 + L2."""
         if ttl is None:
             ttl = self.ttl_config.get(data_type, 60)
@@ -365,9 +364,7 @@ class CacheLayer:
         result = {}
         for dtype, counts in self._type_stats.items():
             total = counts["hits"] + counts["stale_hits"] + counts["misses"]
-            hit_rate = (
-                round((counts["hits"] + counts["stale_hits"]) / total * 100, 1) if total > 0 else 0
-            )
+            hit_rate = round((counts["hits"] + counts["stale_hits"]) / total * 100, 1) if total > 0 else 0
             entry = {
                 "hits": counts["hits"],
                 "stale_hits": counts["stale_hits"],
@@ -402,9 +399,11 @@ class CacheLayer:
             "ttl_config": self.ttl_config,
         }
 
+
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _cache: CacheLayer | None = None
+
 
 def get_cache() -> CacheLayer:
     global _cache

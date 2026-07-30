@@ -17,6 +17,7 @@ from app.detectors.flash_loan.models import TransactionTrace
 
 logger = get_logger(__name__)
 
+
 class BlockchainDataLayer:
     """Handles all blockchain RPC communication for the detector.
 
@@ -75,9 +76,7 @@ class BlockchainDataLayer:
             List of TransactionTrace objects
         """
         try:
-            block_data = await self._rpc_call(
-                chain, "eth_getBlockByNumber", [hex(block_number), True]
-            )
+            block_data = await self._rpc_call(chain, "eth_getBlockByNumber", [hex(block_number), True])
             if block_data and "transactions" in block_data:
                 txs = []
                 for tx_data in block_data["transactions"]:
@@ -188,9 +187,7 @@ class BlockchainDataLayer:
             if result and "result" in result:
                 return result["result"]
             elif result and "error" in result:
-                logger.warning(
-                    "RPC error on %s: %s", chain, result["error"].get("message", "unknown")
-                )
+                logger.warning("RPC error on %s: %s", chain, result["error"].get("message", "unknown"))
         except Exception as e:
             logger.warning("RPC call failed for %s: %s", chain, e)
 

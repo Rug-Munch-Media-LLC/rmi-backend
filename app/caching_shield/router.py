@@ -30,6 +30,7 @@ from app.core.logging import get_logger
 logger = get_logger("caching_shield.router")
 router = APIRouter(prefix="/api/v1/cache", tags=["caching-shield"])
 
+
 def _verify_admin(request: Request) -> bool:
     """Verify admin key for destructive operations."""
     admin_key = os.getenv("ADMIN_API_KEY", "")
@@ -42,6 +43,7 @@ def _verify_admin(request: Request) -> bool:
         logger.warning("admin_auth_failed: invalid X-Admin-Key")
         return False
     return True
+
 
 @router.get("/health")
 async def cache_health() -> dict[str, str]:
@@ -72,11 +74,13 @@ async def cache_health() -> dict[str, str]:
         },
     }
 
+
 @router.get("/stats")
 async def cache_stats() -> Any:
     """Detailed cache statistics."""
     cache = get_rpc_cache()
     return await cache.health()
+
 
 @router.post("/clear")
 async def cache_clear(request: Request) -> dict[str, str]:
@@ -91,6 +95,7 @@ async def cache_clear(request: Request) -> dict[str, str]:
         "timestamp": time.time(),
         "message": "L1 in-memory cache cleared. L2 (Redis) cache intact.",
     }
+
 
 @router.get("/rate-limits")
 async def rate_limits_status() -> dict:
@@ -115,6 +120,7 @@ async def rate_limits_status() -> dict:
         "providers": result,
     }
 
+
 @router.get("/solana-tracker")
 async def solana_tracker_stats() -> dict:
     """Get Solana Tracker multi-key load balancing stats."""
@@ -125,6 +131,7 @@ async def solana_tracker_stats() -> dict:
         "timestamp": time.time(),
         **st.stats(),
     }
+
 
 @router.get("/capacity")
 async def capacity_report() -> dict:

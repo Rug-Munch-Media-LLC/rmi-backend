@@ -21,16 +21,21 @@ def _check_pool_vulnerability(pool: dict) -> list[str]:
         flags.append("high_fee_sandwich_vuln")
     return flags
 
+
 def _estimate_mev_vulnerability_score(flags: list[str]) -> float:
     """Compute a 0.0-1.0 MEV vulnerability score from flags."""
     score = 0.0
     weights = {
-        "low_liquidity_high_vuln": 0.8, "low_liquidity_medium_vuln": 0.5,
-        "stale_pricing_vuln": 0.3, "low_fee_arb_vuln": 0.4, "high_fee_sandwich_vuln": 0.6,
+        "low_liquidity_high_vuln": 0.8,
+        "low_liquidity_medium_vuln": 0.5,
+        "stale_pricing_vuln": 0.3,
+        "low_fee_arb_vuln": 0.4,
+        "high_fee_sandwich_vuln": 0.6,
     }
     for flag in flags:
         score += weights.get(flag, 0.1)
     return min(score, 1.0)
+
 
 def _is_sandwich_pattern(frontrun: dict, victim: dict, backrun: dict) -> float:
     """Heuristic check: are these three transactions a sandwich attack? Returns confidence 0.0-1.0."""

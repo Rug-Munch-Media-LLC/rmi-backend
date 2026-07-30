@@ -37,6 +37,7 @@ router = APIRouter(prefix="/api/v1/developer", tags=["developer-tier"])
 
 # ── EVM Signature Verification ───────────────────────────────────
 
+
 def verify_evm_signature(address: str, message: str, signature: str) -> bool:
     """Verify an EVM wallet signature.
 
@@ -56,6 +57,7 @@ def verify_evm_signature(address: str, message: str, signature: str) -> bool:
     except ValueError:
         return False
 
+
 def verify_solana_signature(address: str, message: str, signature: str) -> bool:
     """Verify a Solana wallet signature."""
     try:
@@ -74,6 +76,7 @@ def verify_solana_signature(address: str, message: str, signature: str) -> bool:
         return False
     except ValueError:
         return False
+
 
 # ── Tier Definitions ──────────────────────────────────────────────
 
@@ -126,6 +129,7 @@ TIERS = {
 
 # ── Redis Helper ─────────────────────────────────────────────────
 
+
 def create_tier(tier: str) -> dict[str, Any] | None:
     """Create a new developer API key."""
     r = get_redis()
@@ -167,6 +171,7 @@ def create_tier(tier: str) -> dict[str, Any] | None:
 
     return key_info
 
+
 def get_usage_for_key(hashed_key: str) -> dict[str, Any]:
     """Get usage stats for an API key."""
     r = get_redis()
@@ -197,20 +202,26 @@ def get_usage_for_key(hashed_key: str) -> dict[str, Any]:
         "rate_limit_per_min": tier_config["rate_limit_per_min"],
     }
 
+
 # ── Request/Response Models ──────────────────────────────────────
+
 
 class RegisterRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
     tier: str = Field(default="free")
     wallet_address: str | None = None
 
+
 class VerifyRequest(BaseModel):
     api_key: str
+
 
 class UsageRequest(BaseModel):
     api_key: str
 
+
 # ── Endpoints ────────────────────────────────────────────────────
+
 
 @router.post("/register")
 async def register_developer(req: RegisterRequest) -> Any:
@@ -221,10 +232,7 @@ async def register_developer(req: RegisterRequest) -> Any:
             status_code=400,
             content={
                 "error": f"Invalid tier. Available: {', '.join(TIERS.keys())}",
-                "tiers": {
-                    k: {"daily_limit": v["daily_limit"], "price": v["price_usd"]}
-                    for k, v in TIERS.items()
-                },
+                "tiers": {k: {"daily_limit": v["daily_limit"], "price": v["price_usd"]} for k, v in TIERS.items()},
             },
         )
 
@@ -271,6 +279,7 @@ result = rmi.scan("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
         },
     )
 
+
 @router.post("/verify")
 async def verify_key(req: VerifyRequest) -> Any:
     """Verify an API key and get usage stats."""
@@ -284,6 +293,7 @@ async def verify_key(req: VerifyRequest) -> Any:
         return JSONResponse(status_code=401, content={"error": "Invalid API key"})
 
     return JSONResponse(content={"valid": True, **usage})
+
 
 @router.post("/usage")
 async def get_usage(req: UsageRequest) -> Any:
@@ -326,6 +336,7 @@ async def get_usage(req: UsageRequest) -> Any:
         }
     )
 
+
 @router.get("/tiers")
 async def list_tiers() -> Any:
     """List available developer tiers."""
@@ -347,12 +358,15 @@ async def list_tiers() -> Any:
         }
     )
 
+
 # ── Wallet Identity Verification ─────────────────────────────────
+
 
 class WalletVerifyRequest(BaseModel):
     address: str
     signature: str
     chain: str = "evm"  # evm or solana
+
 
 @router.post("/wallet/verify")
 async def verify_wallet_identity(req: WalletVerifyRequest) -> Any:
@@ -376,9 +390,7 @@ async def verify_wallet_identity(req: WalletVerifyRequest) -> Any:
         return JSONResponse(status_code=400, content={"error": "chain must be 'evm' or 'solana'"})
 
     if not valid:
-        return JSONResponse(
-            status_code=401, content={"error": "Invalid signature - wallet ownership not proven"}
-        )
+        return JSONResponse(status_code=401, content={"error": "Invalid signature - wallet ownership not proven"})
 
     # Store wallet identity in Redis
     r = get_redis()
@@ -413,6 +425,7 @@ async def verify_wallet_identity(req: WalletVerifyRequest) -> Any:
         }
     )
 
+
 @router.post("/wallet/get_challenge")
 async def get_wallet_challenge(req: VerifyRequest) -> Any:
     """Get a challenge message to sign with your wallet."""
@@ -442,6 +455,7 @@ async def get_wallet_challenge(req: VerifyRequest) -> Any:
         }
     )
 
+
 @router.get("/wallet/status/{chain}/{address}")
 async def wallet_status(chain: str, address: str) -> Any:
     """Check wallet verification status and benefits."""
@@ -467,7 +481,9 @@ async def wallet_status(chain: str, address: str) -> Any:
         }
     )
 
+
 # ── Middleware Helper ─────────────────────────────────────────────
+
 
 async def check_developer_key(request: Request) -> dict[str, Any] | None:
     """Check if request has a valid developer API key.

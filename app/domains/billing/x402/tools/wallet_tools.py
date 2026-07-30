@@ -37,6 +37,7 @@ sub_router = APIRouter(tags=["x402-wallet-tools"])
 # TOOL 2: Wallet Profiler ($0.75)
 # ═══════════════════════════════════════════════════════════════
 
+
 async def _profile_wallet(address: str, chain: str) -> dict:
     """Full wallet profile with persona detection and activity analysis."""
     result = {"chain": chain, "address": address, "sources_used": []}
@@ -127,6 +128,7 @@ async def _profile_wallet(address: str, chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/wallet")
 async def wallet_profiler(req: WalletRequest) -> dict[str, str]:
     """Full wallet analysis - persona, activity, holdings, patterns."""
@@ -140,12 +142,14 @@ async def wallet_profiler(req: WalletRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL 3: Smart Money Tracker ($1.00)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
     """Track whale movements and smart money patterns."""
@@ -159,9 +163,7 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
             ]
         )
         if data and data.get("pairs"):
-            trending = sorted(
-                data["pairs"], key=lambda p: p.get("volume", {}).get("h24", 0), reverse=True
-            )[:limit]
+            trending = sorted(data["pairs"], key=lambda p: p.get("volume", {}).get("h24", 0), reverse=True)[:limit]
             result["trending_tokens"] = [
                 {
                     "address": p.get("baseToken", {}).get("address"),
@@ -179,12 +181,8 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
     try:
         data, _ = await fetch_with_fallback(["https://api.llama.fi/protocols"])
         if data:
-            protocols = sorted(
-                data, key=lambda p: p.get("chainTvls", {}).get(f"{chain}", 0), reverse=True
-            )[:10]
-            result["top_protocols"] = [
-                {"name": p.get("name"), "tvl": p.get("tvl")} for p in protocols
-            ]
+            protocols = sorted(data, key=lambda p: p.get("chainTvls", {}).get(f"{chain}", 0), reverse=True)[:10]
+            result["top_protocols"] = [{"name": p.get("name"), "tvl": p.get("tvl")} for p in protocols]
             result["sources_used"].append("defillama")
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
@@ -225,6 +223,7 @@ async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict:
 
     return result
 
+
 @sub_router.get("/smartmoney")
 async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0, limit: int = 20) -> dict[str, str]:
     """Real-time whale/insider tracking across chains."""
@@ -238,12 +237,14 @@ async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0,
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL 7: Cluster Detection ($1.00)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _cluster_analysis(address: str, chain: str, depth: int) -> dict:
     """Map wallet clusters and funding chains."""
@@ -305,14 +306,11 @@ async def _cluster_analysis(address: str, chain: str, depth: int) -> dict:
 
     # Layer 4: Compute cluster metrics
     result["cluster_risk"] = (
-        "low"
-        if result.get("cluster_size", 0) < 5
-        else "medium"
-        if result.get("cluster_size", 0) < 20
-        else "high"
+        "low" if result.get("cluster_size", 0) < 5 else "medium" if result.get("cluster_size", 0) < 20 else "high"
     )
 
     return result
+
 
 @sub_router.post("/cluster")
 async def cluster_detection(req: ClusterRequest) -> dict[str, str]:
@@ -327,12 +325,14 @@ async def cluster_detection(req: ClusterRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL 15: Whale Decoder ($0.15)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _whale_decoder(address: str, chain: str) -> dict:
     """Advanced whale wallet analysis."""
@@ -382,14 +382,12 @@ async def _whale_decoder(address: str, chain: str) -> dict:
                 result["native_balance_wei"] = balance
                 result["native_balance_eth"] = int(balance, 16) / 1e18
                 result["sources_used"].append(f"{chain}_rpc")
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             pass
 
     # DexScreener for recent activity
     try:
-        data, _ = await fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/search?q={address[:10]}"]
-        )
+        data, _ = await fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/search?q={address[:10]}"])
         if data and data.get("pairs"):
             result["recent_pairs"] = len(data["pairs"])
             result["sources_used"].append("dexscreener")
@@ -410,17 +408,12 @@ async def _whale_decoder(address: str, chain: str) -> dict:
 
     result["persona"] = persona
     result["activity_level"] = (
-        "high"
-        if result.get("recent_pairs", 0) > 5
-        else "medium"
-        if result.get("recent_pairs", 0) > 1
-        else "low"
+        "high" if result.get("recent_pairs", 0) > 5 else "medium" if result.get("recent_pairs", 0) > 1 else "low"
     )
-    result["trust_score"] = (
-        85 if persona in ["whale", "mega_whale"] else 60 if persona == "dolphin" else 40
-    )
+    result["trust_score"] = 85 if persona in ["whale", "mega_whale"] else 60 if persona == "dolphin" else 40
 
     return result
+
 
 @sub_router.post("/whale")
 async def whale_decoder(req: GenericRequest) -> dict[str, str]:
@@ -436,12 +429,14 @@ async def whale_decoder(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL 23: Portfolio Tracker ($0.10)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
     """Multi-wallet portfolio tracker."""
@@ -475,6 +470,7 @@ async def _portfolio_tracker(addresses: list[str], chain: str) -> dict:
     result["total_wallets"] = len(result["wallets"])
     return result
 
+
 @sub_router.post("/portfolio_tracker")
 async def portfolio_tracker(req: WalletListRequest) -> dict[str, str]:
     """Multi-wallet portfolio tracker."""
@@ -488,12 +484,14 @@ async def portfolio_tracker(req: WalletListRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError, KeyError) as e :
+    except (ValueError, TypeError, KeyError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL 24: Copy Trade Finder ($0.10)
 # ═══════════════════════════════════════════════════════════════
+
 
 async def _copy_trade_finder(chain: str) -> dict:
     """Find profitable wallets to copy trade."""
@@ -503,9 +501,7 @@ async def _copy_trade_finder(chain: str) -> dict:
     try:
         data, _ = await fetch_with_fallback(["https://api.dexscreener.com/latest/dex/search?q="])
         if data and data.get("pairs"):
-            gainers = sorted(
-                data["pairs"], key=lambda p: p.get("priceChange", {}).get("h24", 0), reverse=True
-            )[:10]
+            gainers = sorted(data["pairs"], key=lambda p: p.get("priceChange", {}).get("h24", 0), reverse=True)[:10]
             result["top_gainers"] = [
                 {
                     "symbol": p.get("baseToken", {}).get("symbol"),
@@ -524,6 +520,7 @@ async def _copy_trade_finder(chain: str) -> dict:
 
     return result
 
+
 @sub_router.post("/copy_trade_finder")
 async def copy_trade_finder(req: GenericRequest) -> dict[str, str]:
     """Copy trade intelligence."""
@@ -537,5 +534,5 @@ async def copy_trade_finder(req: GenericRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

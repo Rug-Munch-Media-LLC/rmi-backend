@@ -12,6 +12,7 @@ Architecture:
   - Metadata filtering (chain, severity, date range)
   - Automatic index maintenance
 """
+
 from __future__ import annotations
 
 import json
@@ -26,9 +27,11 @@ from app.core.secrets import get_secret_or_none
 
 logger = get_logger(__name__)
 
+
 def _get_url() -> str:
     """Get Supabase URL from env dynamically."""
     return os.environ.get("SUPABASE_URL", "")
+
 
 def _get_headers() -> dict:
     """Build headers dynamically to pick up env changes without module reload.
@@ -37,16 +40,13 @@ def _get_headers() -> dict:
     table and executes RPC functions (search_embeddings, exec_sql) that require
     service_role privileges. The anon key would be blocked by RLS policies.
     """
-    key = (
-        get_secret_or_none("SUPABASE_SERVICE_KEY", "")
-        or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
-        or ""
-    )
+    key = get_secret_or_none("SUPABASE_SERVICE_KEY", "") or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY") or ""
     return {
         "apikey": key,
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
+
 
 # Table configuration
 VECTOR_TABLE = "rag_vectors"
@@ -60,9 +60,8 @@ EMBEDDING_DIM = int(os.environ.get("RAG_EMBEDDING_DIM", "0"))  # 0 = auto-detect
 # This MUST match the vector(N) in the CREATE TABLE and search_embeddings RPC.
 # Migration scripts use 640, .env sets RAG_EMBEDDING_DIM=640.
 # Defaults to EMBEDDING_DIM if set, otherwise 640.
-TABLE_DIM = (
-    int(os.environ.get("RAG_TABLE_DIM", str(max(EMBEDDING_DIM, 1)))) if EMBEDDING_DIM > 0 else 640
-)
+TABLE_DIM = int(os.environ.get("RAG_TABLE_DIM", str(max(EMBEDDING_DIM, 1)))) if EMBEDDING_DIM > 0 else 640
+
 
 def pad_vector(vec: list, target_dim: int) -> list:
     """Pad or truncate a vector to exactly target_dim dimensions."""
@@ -71,6 +70,7 @@ def pad_vector(vec: list, target_dim: int) -> list:
     if len(vec) > target_dim:
         return vec[:target_dim]
     return vec + [0.0] * (target_dim - len(vec))
+
 
 # SQL for table creation
 CREATE_TABLE_SQL = f"""
@@ -103,6 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_rag_content_fts ON {VECTOR_TABLE}
 -- CREATE INDEX IF NOT EXISTS idx_rag_embedding_ivfflat ON {VECTOR_TABLE}
 --     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 """
+
 
 class SupabaseVectorStore:
     """
@@ -223,8 +224,8 @@ class SupabaseVectorStore:
                 """
                 await self._rpc("exec_sql", {"sql": create_sql})
                 self._table_ready = True
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+                logger.warning("Supabase vector table init failed: %s", e)
 
         # Try direct insert to check if table exists
         if not self._table_ready:
@@ -241,9 +242,7 @@ class SupabaseVectorStore:
                 url = f"{_get_url()}/rest/v1/rag_vectors"
                 params = {"on_conflict": "id"}
                 async with httpx.AsyncClient(timeout=10) as client:
-                    resp = await client.post(
-                        url, json=test_row, params=params, headers=_get_headers()
-                    )
+                    resp = await client.post(url, json=test_row, params=params, headers=_get_headers())
                     if resp.status_code in (200, 201):
                         self._table_ready = True
                         logger.info("pgvector: rag_vectors table ready")
@@ -384,9 +383,7 @@ class SupabaseVectorStore:
                     if not dv:
                         continue
                     compare_len = min(q_len, len(dv))
-                    sim = embedder.cosine_similarity(
-                        query_embedding[:compare_len], dv[:compare_len]
-                    )
+                    sim = embedder.cosine_similarity(query_embedding[:compare_len], dv[:compare_len])
                     if sim >= min_similarity:
                         scored.append(
                             {
@@ -629,8 +626,8 @@ class SupabaseVectorStore:
             try:
                 drop_sql = "DROP INDEX IF EXISTS idx_rag_embedding_hnsw;"
                 await self._rpc("exec_sql", {"sql": drop_sql})
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+                logger.warning("HNSW index drop failed: %s", e)
 
             sql = f"""
             CREATE INDEX IF NOT EXISTS idx_rag_embedding_hnsw
@@ -679,19 +676,19 @@ class SupabaseVectorStore:
             if collection:
                 safe_collection = collection.replace("'", "''")
                 where = f"WHERE collection = '{safe_collection}'"
-            sql = (
-                f"SELECT DISTINCT {safe_column} FROM {VECTOR_TABLE} {where} ORDER BY {safe_column}"
-            )
+            sql = f"SELECT DISTINCT {safe_column} FROM {VECTOR_TABLE} {where} ORDER BY {safe_column}"
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return [r[safe_column] for r in (rows or [])]
         except (httpx.HTTPError, ConnectionError, TimeoutError):
             return []
+
 
 # ══════════════════════════════════════════════════════════════════════
 # SINGLETON
 # ══════════════════════════════════════════════════════════════════════
 
 _vector_store: SupabaseVectorStore | None = None
+
 
 async def get_vector_store() -> SupabaseVectorStore:
     global _vector_store

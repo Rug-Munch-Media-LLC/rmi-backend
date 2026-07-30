@@ -38,6 +38,7 @@ logger = get_logger("gcloud.multi")
 ACCOUNTS_DIR = "/root/.secrets/google"
 os.makedirs(ACCOUNTS_DIR, exist_ok=True)
 
+
 @dataclass
 class GCloudAccount:
     """Single Google Cloud account managed via service account."""
@@ -71,7 +72,7 @@ class GCloudAccount:
             async with httpx.AsyncClient(timeout=8) as c:
                 r = await c.get(url, headers=self.headers())
                 return r.status_code in (200, 404, 403)  # 403=disabled, 404=not found, 200=ok
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             return False
 
     async def probe(self) -> dict:
@@ -112,6 +113,7 @@ class GCloudAccount:
                 return vectors if vectors else None
         except (ConnectionError, OSError, TimeoutError):
             return None
+
 
 class MultiCloudManager:
     """Manages multiple Google Cloud accounts from service account JSONs."""
@@ -166,9 +168,7 @@ class MultiCloudManager:
             )
         return result
 
-    async def best_embed(
-        self, texts: list, preferred_project: str | None = None
-    ) -> tuple[list | None, str]:
+    async def best_embed(self, texts: list, preferred_project: str | None = None) -> tuple[list | None, str]:
         """Try to embed using the best available account."""
         ordered = self.accounts
         if preferred_project:
@@ -189,7 +189,9 @@ class MultiCloudManager:
 
         return None, "none"
 
+
 _multi: MultiCloudManager | None = None
+
 
 def get_multi_cloud() -> MultiCloudManager:
     global _multi

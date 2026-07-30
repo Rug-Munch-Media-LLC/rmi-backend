@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 CEREBRAS_KEY = os.getenv("CEREBRAS_API_KEY", "")
 BASE = "https://api.cerebras.ai/v1"
 
+
 async def cerebras_chat(
     prompt: str, system: str | None = None, temperature: float = 0.7, max_tokens: int = 1024
 ) -> dict | None:

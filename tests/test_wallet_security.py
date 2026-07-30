@@ -137,9 +137,7 @@ class TestChainRouting:
         with (
             patch("app.domains.auth.wallet._verify_evm_signature", return_value=False) as evm_mock,
             patch("app.domains.auth.wallet._verify_solana_signature") as sol_mock,
-            patch(
-                "app.domains.auth.wallet.datetime"
-            ),  # prevent real Redis/nonce check timing issues
+            patch("app.domains.auth.wallet.datetime"),  # prevent real Redis/nonce check timing issues
         ):
             verify_wallet_signature(
                 "Nonce: abc123",
@@ -155,9 +153,7 @@ class TestChainRouting:
         from app.domains.auth.wallet import verify_wallet_signature
 
         with (
-            patch(
-                "app.domains.auth.wallet._verify_solana_signature", return_value=False
-            ) as sol_mock,
+            patch("app.domains.auth.wallet._verify_solana_signature", return_value=False) as sol_mock,
             patch("app.domains.auth.wallet._verify_evm_signature") as evm_mock,
         ):
             verify_wallet_signature(
@@ -246,9 +242,7 @@ class TestWalletUserCreation:
             patch("redis.Redis", return_value=mock_redis_client),
             patch("app.domains.auth._create_jwt", return_value="token"),
         ):
-            result = await get_or_create_wallet_user(
-                "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", "evm"
-            )
+            result = await get_or_create_wallet_user("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", "evm")
 
             assert "@wallet.rmi" in result["email"]
 

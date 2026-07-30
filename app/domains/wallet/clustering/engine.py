@@ -32,6 +32,7 @@ from app.domains.wallet.clustering.visualization import (
 
 logger = logging.getLogger(__name__)
 
+
 class WalletClusteringEngine:
     """
     Advanced wallet clustering engine using multiple forensic signals.
@@ -78,12 +79,14 @@ class WalletClusteringEngine:
         conn = self.connections[pair]
         conn.transaction_count += 1
         conn.total_volume += tx.amount
-        conn.evidence.append({
-            "signature": tx.signature,
-            "timestamp": tx.timestamp.isoformat(),
-            "amount": tx.amount,
-            "token": tx.token,
-        })
+        conn.evidence.append(
+            {
+                "signature": tx.signature,
+                "timestamp": tx.timestamp.isoformat(),
+                "amount": tx.amount,
+                "token": tx.token,
+            }
+        )
         if conn.first_connection is None or tx.timestamp < conn.first_connection:
             conn.first_connection = tx.timestamp
         if conn.last_connection is None or tx.timestamp > conn.last_connection:
@@ -119,22 +122,38 @@ class WalletClusteringEngine:
             self.clusters[cluster.cluster_id] = cluster
         return merged
 
-    def get_connections_for_bubble_map(self, center_wallet: str, depth: int = 2,
-                                        min_strength: float | None = None, max_wallets: int = 250) -> tuple[list[str], list[Connection]]:
+    def get_connections_for_bubble_map(
+        self, center_wallet: str, depth: int = 2, min_strength: float | None = None, max_wallets: int = 250
+    ) -> tuple[list[str], list[Connection]]:
         return get_connections_for_bubble_map(
-            self.connections, self.wallets, center_wallet, depth,
-            min_strength or self.MIN_CONNECTION_STRENGTH, max_wallets,
+            self.connections,
+            self.wallets,
+            center_wallet,
+            depth,
+            min_strength or self.MIN_CONNECTION_STRENGTH,
+            max_wallets,
         )
 
     def generate_bubble_map_data(self, center_wallet: str, depth: int = 2, max_wallets: int = 250) -> dict:
         return generate_bubble_map_data(self.connections, self.wallets, center_wallet, depth, max_wallets)
 
-    def generate_ai_forensic_breakdown(self, center_wallet: str, initial_depth: int = 2,
-                                        initial_max_wallets: int = 250, max_expansion_depth: int = 5,
-                                        absolute_max_wallets: int = 1000) -> dict:
+    def generate_ai_forensic_breakdown(
+        self,
+        center_wallet: str,
+        initial_depth: int = 2,
+        initial_max_wallets: int = 250,
+        max_expansion_depth: int = 5,
+        absolute_max_wallets: int = 1000,
+    ) -> dict:
         return generate_ai_forensic_breakdown(
-            self.connections, self.wallets, self.transactions, center_wallet,
-            initial_depth, initial_max_wallets, max_expansion_depth, absolute_max_wallets,
+            self.connections,
+            self.wallets,
+            self.transactions,
+            center_wallet,
+            initial_depth,
+            initial_max_wallets,
+            max_expansion_depth,
+            absolute_max_wallets,
         )
 
     def get_cluster_report(self, cluster_id: str) -> dict | None:
@@ -143,8 +162,10 @@ class WalletClusteringEngine:
             return None
         return get_cluster_report(cluster, self.wallets, self.connections)
 
+
 # Global engine instance
 _clustering_engine = None
+
 
 def get_clustering_engine() -> WalletClusteringEngine:
     """Get global clustering engine instance."""
@@ -152,6 +173,7 @@ def get_clustering_engine() -> WalletClusteringEngine:
     if _clustering_engine is None:
         _clustering_engine = WalletClusteringEngine()
     return _clustering_engine
+
 
 if __name__ == "__main__":
     logger.info("=" * 70)

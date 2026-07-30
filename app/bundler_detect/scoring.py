@@ -24,6 +24,7 @@ def gini_coefficient(values: list[float]) -> float:
     gini = (2 * cumulative) / (n * sum(sorted_vals)) - (n + 1) / n
     return max(0.0, min(gini, 1.0))
 
+
 def entropy(values: list[float]) -> float:
     """Shannon entropy, normalized [0, 1]. 1 = uniform, 0 = concentrated."""
     total = sum(values)
@@ -40,6 +41,7 @@ def entropy(values: list[float]) -> float:
     max_entropy = math.log2(n)
     return raw / max_entropy if max_entropy > 0 else 0.0
 
+
 def time_cluster_similarity(timestamps: list[float]) -> float:
     """Score how tightly clustered timestamps are (0=spread, 1=all at once)."""
     if len(timestamps) < 2:
@@ -55,6 +57,7 @@ def time_cluster_similarity(timestamps: list[float]) -> float:
         return 0.5 - (span - 60) / (300 - 60) * 0.3
     return max(0.0, 0.2 - (span - 300) / 3600)
 
+
 def funding_overlap(funding_sources: list[str]) -> float:
     """Score how many wallets share the same funding source (0-1)."""
     if not funding_sources:
@@ -63,9 +66,11 @@ def funding_overlap(funding_sources: list[str]) -> float:
     if total < 2:
         return 0.0
     from collections import Counter
+
     source_counts = Counter(funding_sources)
     shared = sum(c for c in source_counts.values() if c > 1)
     return shared / total
+
 
 def label_risk(score: float) -> str:
     """Convert numeric score to risk label."""

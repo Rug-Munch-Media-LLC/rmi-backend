@@ -44,6 +44,7 @@ FRAUD_FEATURES = [
     "failed_tx_ratio",
 ]
 
+
 class FraudGNNDetector:
     """CPU-only GNN fraud detector using pre-trained sklearn models."""
 
@@ -138,9 +139,7 @@ class FraudGNNDetector:
         y = np.array([0, 0, 0, 0, 1, 1, 1, 1, 0, 0])  # 0=legit, 1=fraud
 
         X_scaled = self.scaler.fit_transform(X)
-        self.model = RandomForestClassifier(
-            n_estimators=50, max_depth=10, random_state=42, n_jobs=1
-        )
+        self.model = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42, n_jobs=1)
         self.model.fit(X_scaled, y)
         self.model_type = "fallback:random_forest"
 
@@ -205,8 +204,10 @@ class FraudGNNDetector:
             "model_dir": str(MODEL_DIR),
         }
 
+
 # Singleton
 _detector: FraudGNNDetector | None = None
+
 
 def get_fraud_gnn() -> FraudGNNDetector:
     global _detector

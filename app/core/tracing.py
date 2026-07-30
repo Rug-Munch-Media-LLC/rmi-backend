@@ -13,9 +13,11 @@ if TYPE_CHECKING:
 
 try:
     from app.config import settings as _s
+
     TRACING_ENABLED = _s.otel_enabled or os.getenv("OTEL_ENABLED", "false").lower() == "true"
 except Exception:
     TRACING_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+
 
 def setup_tracing(app: FastAPI) -> None:
     if not TRACING_ENABLED:
@@ -36,15 +38,22 @@ def setup_tracing(app: FastAPI) -> None:
 
         return response
 
-    @app.get("/api/v1/traces/recent", tags=["observability"], summary="Recent Traces", description="View recent OpenTelemetry traces. When OTEL is enabled, traces are exported to Grafana Tempo and available at the Tempo UI (:3000). Returns an empty list when tracing is disabled.")
+    @app.get(
+        "/api/v1/traces/recent",
+        tags=["observability"],
+        summary="Recent Traces",
+        description="View recent OpenTelemetry traces. When OTEL is enabled, traces are exported to Grafana Tempo and available at the Tempo UI (:3000). Returns an empty list when tracing is disabled.",
+    )
     async def recent_traces(limit: int = 20) -> dict[str, Any]:
         return {
             "traces": [],
             "note": "OpenTelemetry export to Grafana Tempo configured. Traces available at :3000.",
         }
 
+
 def start_span(name: str, attributes: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"name": name, "start": time.perf_counter(), "attrs": attributes or {}}
+
 
 def end_span(span: dict[str, Any]) -> None:
     span["elapsed_ms"] = (time.perf_counter() - span["start"]) * 1000

@@ -41,12 +41,14 @@ OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 MODEL = "deepseek-v4-flash"
 
+
 def _validate_https_url(url: str) -> str:
     """Ensure URL uses HTTPS scheme to prevent SSRF via user-influenced URLs."""
     parsed = urlparse(url)
     if parsed.scheme not in ("https",):
         raise ValueError(f"Only HTTPS URLs allowed, got: {parsed.scheme}://")
     return url
+
 
 @dataclass
 class WalletScanResult:
@@ -91,6 +93,7 @@ class WalletScanResult:
     tier: str = "free"
     scan_duration_ms: float = 0.0
 
+
 class UnifiedWalletScanner:
     """THE wallet scanner. Beats anything on the market."""
 
@@ -103,9 +106,7 @@ class UnifiedWalletScanner:
     ) -> WalletScanResult:
         start = time.monotonic()
         params = {"address": address, "chain": chain}
-        r = WalletScanResult(
-            address=address, chain=chain, scanned_at=datetime.now(UTC).isoformat(), tier=tier
-        )
+        r = WalletScanResult(address=address, chain=chain, scanned_at=datetime.now(UTC).isoformat(), tier=tier)
 
         try:
             # Phase 1: Core DataBus fetches
@@ -150,7 +151,7 @@ class UnifiedWalletScanner:
 
             self._compute_risk(r)
 
-        except (ValueError, TypeError, KeyError, OSError) as e :
+        except (ValueError, TypeError, KeyError, OSError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Wallet scan failed for {address}: {e}")
 
@@ -162,9 +163,7 @@ class UnifiedWalletScanner:
 
         async def _one(c) -> tuple[Any, Any] | tuple[Any, None]:
             try:
-                return c, await asyncio.wait_for(
-                    databus.fetch(c, admin_key=admin_key, **params), timeout
-                )
+                return c, await asyncio.wait_for(databus.fetch(c, admin_key=admin_key, **params), timeout)
             except (AttributeError, ImportError):
                 return c, None
 
@@ -202,9 +201,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     async def _rag_enrich(self, r) -> None:
         try:
-            rag_url = _validate_https_url(
-                f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5"
-            )
+            rag_url = _validate_https_url(f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5")
             async with httpx.AsyncClient(timeout=8) as client:
                 resp = await client.get(
                     rag_url,
@@ -241,7 +238,7 @@ class UnifiedWalletScanner:
                 r.enrichment_sources.append("ai:ollama_cloud")
                 if r.persona.startswith("Scam") or r.persona.startswith("Bot"):
                     r.risk_flags.append(f"PERSONA_{r.persona.upper().replace(' ', '_')}")
-        except (ValueError, KeyError, TypeError) as e :
+        except (ValueError, KeyError, TypeError) as e:
             logger.debug("_ai_persona_error", exc_info=True)
             logger.warning(f"AI persona failed: {e}")
 
@@ -264,9 +261,7 @@ class UnifiedWalletScanner:
         scam_value = 0.0
         for token in r.holdings:
             risk = token.get("risk_score", token.get("safety_score", 50))
-            if isinstance(risk, (int, float)) and (
-                risk > 70 if "risk_score" in token else risk < 30
-            ):
+            if isinstance(risk, (int, float)) and (risk > 70 if "risk_score" in token else risk < 30):
                 scam_count += 1
                 scam_value += float(token.get("value_usd", 0) or 0)
         r.scam_tokens_held = scam_count
@@ -319,9 +314,7 @@ class UnifiedWalletScanner:
                 to_addr = tx.get("to", tx.get("target", ""))
                 if to_addr:
                     nodes.append({"id": to_addr, "type": "counterparty"})
-                    edges.append(
-                        {"from": r.address, "to": to_addr, "value": tx.get("value_usd", 0)}
-                    )
+                    edges.append({"from": r.address, "to": to_addr, "value": tx.get("value_usd", 0)})
             r.flow_data = {"nodes": nodes[:10], "edges": edges[:15]}
             r.modules_run.append("flow_visualization")
 
@@ -375,7 +368,7 @@ class UnifiedWalletScanner:
                 )
             r.risk_forecast = resp.json()["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             r.risk_forecast = "Unable to forecast"
 
     def _compute_risk(self, r) -> None:
@@ -392,7 +385,9 @@ class UnifiedWalletScanner:
                 s += 25
         r.risk_score = min(100.0, s)
 
+
 _scanner: UnifiedWalletScanner | None = None
+
 
 def get_wallet_scanner() -> UnifiedWalletScanner:
     global _scanner

@@ -2,6 +2,7 @@
 Honeypot Detector — Data Models
 Enums, dataclasses, and result types for honeypot/malicious token analysis.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ class FindingSeverity(Enum):
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
+
 
 class HoneypotType(Enum):
     SELL_RESTRICTION = "sell_restriction"
@@ -37,6 +39,7 @@ class HoneypotType(Enum):
     RUG_PULL = "rug_pull"
     UNKNOWN = "unknown"
 
+
 @dataclass
 class SecurityFinding:
     finding_type: HoneypotType
@@ -53,6 +56,7 @@ class SecurityFinding:
             "detail": self.detail,
             "code_reference": self.code_reference,
         }
+
 
 @dataclass
 class TokenInfo:
@@ -100,6 +104,7 @@ class TokenInfo:
             "implementation": self.implementation_address,
             "chain_data_sources": self.chain_data_sources,
         }
+
 
 @dataclass
 class HoneypotAnalysisResult:
@@ -166,7 +171,13 @@ class HoneypotAnalysisResult:
         if not self.findings:
             lines.append("  ✅ No suspicious findings detected.")
         else:
-            severity_emoji = {FindingSeverity.CRITICAL: "🔴", FindingSeverity.HIGH: "🟠", FindingSeverity.MEDIUM: "🟡", FindingSeverity.LOW: "🔵", FindingSeverity.INFO: "⚪"}
+            severity_emoji = {
+                FindingSeverity.CRITICAL: "🔴",
+                FindingSeverity.HIGH: "🟠",
+                FindingSeverity.MEDIUM: "🟡",
+                FindingSeverity.LOW: "🔵",
+                FindingSeverity.INFO: "⚪",
+            }
             for finding in self.findings:
                 emoji = severity_emoji.get(finding.severity, "⚪")
                 lines.append(f"  {emoji} [{finding.severity.value.upper()}] {finding.description}")

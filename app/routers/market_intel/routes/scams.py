@@ -14,6 +14,7 @@ from app.routers.market_intel.utils import _now, _safe_float
 logger = get_logger(__name__)
 router = APIRouter(tags=["market-intel"])
 
+
 @router.get("/scams")
 async def get_market_scams(
     request: Request,
@@ -52,9 +53,7 @@ async def get_market_scams(
                 liquidity = _safe_float(
                     p.get("liquidity", {}).get("usd") if isinstance(p.get("liquidity"), dict) else 0
                 )
-                vol_24h = _safe_float(
-                    (p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0
-                )
+                vol_24h = _safe_float((p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0)
                 change_24h = _safe_float(
                     (p.get("priceChange") or {}).get("h24") if isinstance(p.get("priceChange"), dict) else 0
                 )
@@ -76,24 +75,27 @@ async def get_market_scams(
                 if not indicators:
                     indicators.append("Suspicious trading pattern")
 
-                items.append({
-                    "id": f"scam_{chain}_{addr[:12]}",
-                    "token_address": addr,
-                    "symbol": symbol,
-                    "name": name or symbol,
-                    "chain": chain,
-                    "type": scam_type,
-                    "severity": severity,
-                    "status": "active",
-                    "victims": int(vol_24h / 100) if vol_24h > 0 else 0,
-                    "amount_stolen": vol_24h * 0.3 if vol_24h > 0 else 0,
-                    "detected_at": now,
-                    "description": f"{symbol} showing {change_24h:+.0f}% 24h change with ${liquidity:,.0f} liquidity. {'Extreme pump detected.' if change_24h > 500 else 'Suspicious pattern flagged.'}",
-                    "indicators": indicators[:4],
-                })
+                items.append(
+                    {
+                        "id": f"scam_{chain}_{addr[:12]}",
+                        "token_address": addr,
+                        "symbol": symbol,
+                        "name": name or symbol,
+                        "chain": chain,
+                        "type": scam_type,
+                        "severity": severity,
+                        "status": "active",
+                        "victims": int(vol_24h / 100) if vol_24h > 0 else 0,
+                        "amount_stolen": vol_24h * 0.3 if vol_24h > 0 else 0,
+                        "detected_at": now,
+                        "description": f"{symbol} showing {change_24h:+.0f}% 24h change with ${liquidity:,.0f} liquidity. {'Extreme pump detected.' if change_24h > 500 else 'Suspicious pattern flagged.'}",
+                        "indicators": indicators[:4],
+                    }
+                )
 
     items = items[:limit]
     return {"items": items, "total": len(items), "updated_at": now}
+
 
 @router.get("/alerts-feed")
 async def get_market_alerts_feed(
@@ -128,9 +130,7 @@ async def get_market_alerts_feed(
                 liquidity = _safe_float(
                     p.get("liquidity", {}).get("usd") if isinstance(p.get("liquidity"), dict) else 0
                 )
-                vol_24h = _safe_float(
-                    (p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0
-                )
+                vol_24h = _safe_float((p.get("volume") or {}).get("h24") if isinstance(p.get("volume"), dict) else 0)
                 change_24h = _safe_float(
                     (p.get("priceChange") or {}).get("h24") if isinstance(p.get("priceChange"), dict) else 0
                 )
@@ -157,44 +157,54 @@ async def get_market_alerts_feed(
                     severity = "medium"
                     desc = f"{symbol} showing anomalous trading. {change_24h:+.0f}% 24h, ${liquidity:,.0f} liq."
 
-                items.append({
-                    "id": f"scam_{chain}_{addr[:12]}",
-                    "type": alert_type,
-                    "title": f"{alert_type.replace('_', ' ').title()}: {symbol} on {chain.title()}",
-                    "description": desc,
-                    "severity": severity,
-                    "token": symbol,
-                    "chain": chain,
-                    "wallet": addr[:16] + "...",
-                    "amount_usd": vol_24h,
-                    "created_at": now,
-                    "source": "dexscreener",
-                    "metadata": {"price": price, "change_24h": change_24h, "liquidity": liquidity, "market_cap": mcap},
-                })
+                items.append(
+                    {
+                        "id": f"scam_{chain}_{addr[:12]}",
+                        "type": alert_type,
+                        "title": f"{alert_type.replace('_', ' ').title()}: {symbol} on {chain.title()}",
+                        "description": desc,
+                        "severity": severity,
+                        "token": symbol,
+                        "chain": chain,
+                        "wallet": addr[:16] + "...",
+                        "amount_usd": vol_24h,
+                        "created_at": now,
+                        "source": "dexscreener",
+                        "metadata": {
+                            "price": price,
+                            "change_24h": change_24h,
+                            "liquidity": liquidity,
+                            "market_cap": mcap,
+                        },
+                    }
+                )
 
     # 2. System alerts from the existing alerts endpoint (internal fetch)
     try:
         import httpx as _hx
+
         base_url = str(request.base_url).rstrip("/")
         async with _hx.AsyncClient(timeout=5) as c:
             r = await c.get(f"{base_url}/api/v1/alerts")
             if r.status_code == 200:
                 sys_data = r.json()
                 for a in (sys_data.get("alerts") or [])[:15]:
-                    items.append({
-                        "id": a.get("id", ""),
-                        "type": a.get("type", "alert"),
-                        "title": a.get("title", ""),
-                        "description": a.get("description", ""),
-                        "severity": a.get("severity", "medium"),
-                        "token": a.get("token") or "",
-                        "chain": a.get("chain") or "",
-                        "wallet": a.get("wallet") or "",
-                        "amount_usd": _safe_float(a.get("amount_usd", 0)),
-                        "created_at": a.get("created_at", now),
-                        "source": "rmi_detector",
-                        "metadata": a.get("metadata", {}),
-                    })
+                    items.append(
+                        {
+                            "id": a.get("id", ""),
+                            "type": a.get("type", "alert"),
+                            "title": a.get("title", ""),
+                            "description": a.get("description", ""),
+                            "severity": a.get("severity", "medium"),
+                            "token": a.get("token") or "",
+                            "chain": a.get("chain") or "",
+                            "wallet": a.get("wallet") or "",
+                            "amount_usd": _safe_float(a.get("amount_usd", 0)),
+                            "created_at": a.get("created_at", now),
+                            "source": "rmi_detector",
+                            "metadata": a.get("metadata", {}),
+                        }
+                    )
     except Exception as e:
         logger.warning(f"Failed to fetch system alerts: {e}")
 
@@ -205,20 +215,24 @@ async def get_market_alerts_feed(
             if r2.status_code == 200:
                 ba_data = r2.json()
                 for a in (ba_data.get("bad_actors") or [])[:10]:
-                    items.append({
-                        "id": f"bad_actor_{a.get('address', '')[:12]}",
-                        "type": "bad_actor",
-                        "title": f"Known Bad Actor: {a.get('label', 'Unknown')}",
-                        "description": a.get("description", f"Flagged wallet {a.get('address', '')[:16]}... - {a.get('label', '')}"),
-                        "severity": a.get("severity", "high"),
-                        "token": "",
-                        "chain": a.get("chain", ""),
-                        "wallet": a.get("address", ""),
-                        "amount_usd": 0,
-                        "created_at": now,
-                        "source": "rugmaps",
-                        "metadata": {"label": a.get("label", ""), "tags": a.get("tags", [])},
-                    })
+                    items.append(
+                        {
+                            "id": f"bad_actor_{a.get('address', '')[:12]}",
+                            "type": "bad_actor",
+                            "title": f"Known Bad Actor: {a.get('label', 'Unknown')}",
+                            "description": a.get(
+                                "description", f"Flagged wallet {a.get('address', '')[:16]}... - {a.get('label', '')}"
+                            ),
+                            "severity": a.get("severity", "high"),
+                            "token": "",
+                            "chain": a.get("chain", ""),
+                            "wallet": a.get("address", ""),
+                            "amount_usd": 0,
+                            "created_at": now,
+                            "source": "rugmaps",
+                            "metadata": {"label": a.get("label", ""), "tags": a.get("tags", [])},
+                        }
+                    )
     except Exception as e:
         logger.warning(f"Failed to fetch bad actors: {e}")
 

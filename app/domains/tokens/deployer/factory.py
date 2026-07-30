@@ -60,9 +60,7 @@ class TokenDeployerFactory:
         private_key = os.getenv(config["key_env"], "")
         if not private_key:
             raise ValueError(f"No deployer key configured for {chain}. Set {config['key_env']} in .env")
-        return config["deployer_class"](
-            chain if config["deployer_class"] == EVMDeployer else "", private_key, rpc_url
-        )
+        return config["deployer_class"](chain if config["deployer_class"] == EVMDeployer else "", private_key, rpc_url)
 
     @classmethod
     def list_supported_chains(cls) -> list[dict[str, str]]:
@@ -70,10 +68,12 @@ class TokenDeployerFactory:
         chains = []
         for chain, config in cls.CHAIN_CONFIG.items():
             has_key = bool(os.getenv(config["key_env"], ""))
-            chains.append({
-                "chain": chain,
-                "configured": has_key,
-                "rpc_env": config["rpc_env"],
-                "key_env": config["key_env"],
-            })
+            chains.append(
+                {
+                    "chain": chain,
+                    "configured": has_key,
+                    "rpc_env": config["rpc_env"],
+                    "key_env": config["key_env"],
+                }
+            )
         return chains

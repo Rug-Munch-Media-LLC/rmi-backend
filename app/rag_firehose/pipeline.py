@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("rag.firehose")
 
+
 class IngestionPipeline:
     """Filters, deduplicates, and enriches documents before RAG storage."""
 
@@ -114,9 +115,26 @@ class IngestionPipeline:
 
         # Known chains
         known_chains = [
-            "ethereum", "bsc", "polygon", "arbitrum", "optimism", "avalanche",
-            "solana", "base", "fantom", "gnosis", "celo", "zksync", "linea",
-            "scroll", "mantle", "sui", "aptos", "near", "tron", "bitcoin",
+            "ethereum",
+            "bsc",
+            "polygon",
+            "arbitrum",
+            "optimism",
+            "avalanche",
+            "solana",
+            "base",
+            "fantom",
+            "gnosis",
+            "celo",
+            "zksync",
+            "linea",
+            "scroll",
+            "mantle",
+            "sui",
+            "aptos",
+            "near",
+            "tron",
+            "bitcoin",
         ]
         for chain in known_chains:
             if chain.lower() in content.lower():
@@ -128,9 +146,22 @@ class IngestionPipeline:
 
         # Known protocols
         known_protocols = [
-            "uniswap", "aave", "curve", "balancer", "sushi", "pancake",
-            "raydium", "jupiter", "orca", "marinade", "lido", "eigenlayer",
-            "compound", "maker", "yearn", "convex",
+            "uniswap",
+            "aave",
+            "curve",
+            "balancer",
+            "sushi",
+            "pancake",
+            "raydium",
+            "jupiter",
+            "orca",
+            "marinade",
+            "lido",
+            "eigenlayer",
+            "compound",
+            "maker",
+            "yearn",
+            "convex",
         ]
         for proto in known_protocols:
             if proto.lower() in content.lower():
@@ -138,9 +169,7 @@ class IngestionPipeline:
 
         return entities
 
-    async def ingest(
-        self, collection: str, content: str, metadata: dict, doc_id: str | None = None
-    ) -> dict[str, Any]:
+    async def ingest(self, collection: str, content: str, metadata: dict, doc_id: str | None = None) -> dict[str, Any]:
         """Run the full pipeline: dedup -> quality -> extract -> classify -> store."""
 
         # 1. Hash and dedup

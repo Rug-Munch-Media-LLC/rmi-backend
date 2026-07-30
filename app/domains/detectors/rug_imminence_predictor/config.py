@@ -1,4 +1,5 @@
 """Configuration and constants for rug imminence prediction."""
+
 from __future__ import annotations
 
 import os
@@ -30,6 +31,7 @@ SIGNAL_NAMES = {
 
 _KNOWN_LP_LOCKERS: list[str] | None = None
 
+
 def _get_known_lp_lockers() -> list[str]:
     global _KNOWN_LP_LOCKERS
     if _KNOWN_LP_LOCKERS is not None:
@@ -50,6 +52,7 @@ def _get_known_lp_lockers() -> list[str]:
         ]
         logger.info("Using default LP lockers list")
     return _KNOWN_LP_LOCKERS
+
 
 SCORE_THRESHOLDS = {
     ImminenceLevel.LOW: (0, 30),

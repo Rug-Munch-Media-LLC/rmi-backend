@@ -36,6 +36,7 @@ logger = get_logger("rpc_rate_limiter")
 
 # ── Provider Rate Limits ───────────────────────────────────────────────────
 
+
 @dataclass
 class ProviderLimit:
     name: str
@@ -43,6 +44,7 @@ class ProviderLimit:
     burst_size: int
     # Additional per-method constraints
     method_limits: dict[str, tuple[float, int]] = field(default_factory=dict)
+
 
 PROVIDER_LIMITS: dict[str, ProviderLimit] = {
     "helius": ProviderLimit(
@@ -79,6 +81,7 @@ BURST_PREFIX = "rmi:ratelimit_burst:"
 # In-memory fallback
 MEM_BUCKET_CLEANUP_INTERVAL = 60  # seconds
 
+
 class RpcRateLimiter:
     """Token bucket rate limiter using Redis (with in-memory fallback).
 
@@ -114,9 +117,7 @@ class RpcRateLimiter:
                 port = int(os.getenv("REDIS_PORT", "6379"))
                 password = self._redis_password or os.getenv("REDIS_PASSWORD", "")
                 url = f"redis://:{password}@{host}:{port}" if password else f"redis://{host}:{port}"
-                self._redis = aioredis.from_url(
-                    url, socket_connect_timeout=2, decode_responses=False
-                )
+                self._redis = aioredis.from_url(url, socket_connect_timeout=2, decode_responses=False)
                 await self._redis.ping()
                 logger.info("RpcRateLimiter: Redis connected OK")
                 return self._redis
@@ -273,9 +274,11 @@ class RpcRateLimiter:
         """Return all configured provider limits (read-only)."""
         return PROVIDER_LIMITS.copy()
 
+
 # ── Singleton ──────────────────────────────────────────────────────────────
 
 _limiter: RpcRateLimiter | None = None
+
 
 def get_rate_limiter() -> RpcRateLimiter:
     global _limiter

@@ -19,6 +19,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class GhostunnelConfig:
     """Ghostunnel configuration."""
@@ -32,7 +33,9 @@ class GhostunnelConfig:
     acceptonly: str | None = None
     status: str | None = "127.0.0.1:8080"
 
+
 # ─── GHOSTUNNEL MANAGER ───────────────────────────────────────────
+
 
 class GhostunnelManager:
     """Manages Ghostunnel processes."""
@@ -45,9 +48,7 @@ class GhostunnelManager:
     def _check_available(self) -> bool:
         """Check if ghostunnel is installed."""
         try:
-            result = subprocess.run(
-                [self.ghostunnel_bin, "version"], capture_output=True, timeout=5
-            )
+            result = subprocess.run([self.ghostunnel_bin, "version"], capture_output=True, timeout=5)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
@@ -137,9 +138,11 @@ class GhostunnelManager:
             }
         return status
 
+
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _manager: GhostunnelManager | None = None
+
 
 def get_ghostunnel_manager() -> GhostunnelManager:
     """Get or create Ghostunnel manager."""
@@ -147,6 +150,7 @@ def get_ghostunnel_manager() -> GhostunnelManager:
     if _manager is None:
         _manager = GhostunnelManager()
     return _manager
+
 
 def start_tunnel(listen: str, target: str, **kwargs) -> str:
     """
@@ -161,10 +165,12 @@ def start_tunnel(listen: str, target: str, **kwargs) -> str:
     manager = get_ghostunnel_manager()
     return manager.start_tunnel(config)
 
+
 def stop_tunnel(listen: str) -> bool:
     """Convenience function to stop a tunnel."""
     manager = get_ghostunnel_manager()
     return manager.stop_tunnel(listen)
+
 
 def stop_all_tunnels() -> int:
     """Convenience function to stop all tunnels."""

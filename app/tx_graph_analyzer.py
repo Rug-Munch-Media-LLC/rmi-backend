@@ -31,6 +31,7 @@ class TransactionGraph:
             "outflows": [],
         }
 
+
 def build_graph_from_transactions(transactions: list[dict[str, Any]]) -> TransactionGraph:
     """Build a graph from transaction list."""
     graph = TransactionGraph()

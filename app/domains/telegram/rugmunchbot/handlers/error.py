@@ -2,6 +2,7 @@
 """
 RugMunchBot -- Global error handler.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
+
 
 async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     logger.error(f"Exception: {ctx.error}", exc_info=ctx.error)

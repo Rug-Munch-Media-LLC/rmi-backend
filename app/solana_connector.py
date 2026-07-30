@@ -36,6 +36,7 @@ SOLANA_RPC_URLS = {
 
 # ─── DATA MODELS ──────────────────────────────────────────────────
 
+
 @dataclass
 class SolanaAccount:
     """Solana account data."""
@@ -46,6 +47,7 @@ class SolanaAccount:
     executable: bool
     rent_epoch: int
     data: str | None = None
+
 
 @dataclass
 class SolanaTransaction:
@@ -59,7 +61,9 @@ class SolanaTransaction:
     pre_balances: list[int]
     post_balances: list[int]
 
+
 # ─── SOLANA CLIENT ────────────────────────────────────────────────
+
 
 class SolanaClient:
     """High-level Solana client wrapper."""
@@ -236,9 +240,11 @@ class SolanaClient:
             post_balances=[],
         )
 
+
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _default_client: SolanaClient | None = None
+
 
 def get_solana_client(network: str = "mainnet") -> SolanaClient:
     """Get or create Solana client instance."""
@@ -246,6 +252,7 @@ def get_solana_client(network: str = "mainnet") -> SolanaClient:
     if _default_client is None:
         _default_client = SolanaClient(network=network)
     return _default_client
+
 
 def check_solana_connection() -> bool:
     """Quick check if Solana RPC is accessible."""
@@ -257,6 +264,7 @@ def check_solana_connection() -> bool:
         return client.get_health()
     except (ConnectionError, OSError, TimeoutError):
         return False
+
 
 # ─── CIRCUIT BREAKER ──────────────────────────────────────────────
 # Prevents cascading failures when Solana RPC endpoints are degraded.

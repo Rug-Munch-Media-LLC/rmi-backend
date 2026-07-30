@@ -8,4 +8,3 @@ Regenerate via: scripts/generate_provider_chains.py
 """
 
 from __future__ import annotations
-

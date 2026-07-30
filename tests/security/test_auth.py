@@ -253,9 +253,7 @@ class TestAuthMiddlewareAPIKey:
         # This might be public — try a known protected path
         resp2 = client.get("/api/v1/wallet/abc123")
         # At least one should be protected
-        assert resp2.status_code == 401, (
-            f"Expected 401 for protected route without API key, got {resp2.status_code}"
-        )
+        assert resp2.status_code == 401, f"Expected 401 for protected route without API key, got {resp2.status_code}"
         body = resp2.json()
         assert "detail" in body
 
@@ -278,9 +276,7 @@ class TestAuthMiddlewareAPIKey:
         # 404 is fine — the route exists but wallet not found (that's auth passing)
         # 200 is also fine — wallet might exist
         # 401 is the failure case
-        assert resp.status_code != 401, (
-            f"Expected non-401 with valid API key, got {resp.status_code}"
-        )
+        assert resp.status_code != 401, f"Expected non-401 with valid API key, got {resp.status_code}"
 
     def test_empty_api_key_rejected(self, client):
         """Empty X-API-Key header should be rejected."""
@@ -482,9 +478,7 @@ class TestInternalKey:
             "/api/v1/_test/",
             headers={"X-API-Key": auth_token},
         )
-        assert resp.status_code in (200, 401, 404), (
-            f"Auth token should reach backend, got {resp.status_code}"
-        )
+        assert resp.status_code in (200, 401, 404), f"Auth token should reach backend, got {resp.status_code}"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -542,6 +536,4 @@ class TestAuthMiddlewareConfig:
         resp = client.get("/api/v1/version")
         # This may be public - use a definitely protected route
         resp = client.get("/api/v1/token/SOL123")
-        assert resp.status_code == 401, (
-            f"Protected route should 401 without API key, got {resp.status_code}"
-        )
+        assert resp.status_code == 401, f"Protected route should 401 without API key, got {resp.status_code}"

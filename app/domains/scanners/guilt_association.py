@@ -170,32 +170,20 @@ INTERACTION_TYPE_SENT_TO_SIDESHIFT = "sent_to_sideshift"
 INTERACTION_TYPE_RECEIVED_FROM_SIDESHIFT = "received_from_sideshift"
 INTERACTION_TYPE_OTHER_MIXER_CONTACT = "mixer_contact"
 
+
 def _classify_interaction(service_label: str, is_incoming: bool) -> str:
     """Derive a semantic interaction type from the mixer label and flow direction."""
     label_lower = service_label.lower()
     if "fixedfloat" in label_lower:
-        return (
-            INTERACTION_TYPE_RECEIVED_FROM_FIXEDFLOAT
-            if is_incoming
-            else INTERACTION_TYPE_SENT_TO_FIXEDFLOAT
-        )
+        return INTERACTION_TYPE_RECEIVED_FROM_FIXEDFLOAT if is_incoming else INTERACTION_TYPE_SENT_TO_FIXEDFLOAT
     if "changenow" in label_lower:
-        return (
-            INTERACTION_TYPE_RECEIVED_FROM_CHANGENOW
-            if is_incoming
-            else INTERACTION_TYPE_SENT_TO_CHANGENOW
-        )
+        return INTERACTION_TYPE_RECEIVED_FROM_CHANGENOW if is_incoming else INTERACTION_TYPE_SENT_TO_CHANGENOW
     if "sideshift" in label_lower:
-        return (
-            INTERACTION_TYPE_RECEIVED_FROM_SIDESHIFT
-            if is_incoming
-            else INTERACTION_TYPE_SENT_TO_SIDESHIFT
-        )
+        return INTERACTION_TYPE_RECEIVED_FROM_SIDESHIFT if is_incoming else INTERACTION_TYPE_SENT_TO_SIDESHIFT
     if "tornado" in label_lower or "mixer" in label_lower or "sinbad" in label_lower:
-        return (
-            INTERACTION_TYPE_RECEIVED_FROM_MIXER if is_incoming else INTERACTION_TYPE_SENT_TO_MIXER
-        )
+        return INTERACTION_TYPE_RECEIVED_FROM_MIXER if is_incoming else INTERACTION_TYPE_SENT_TO_MIXER
     return INTERACTION_TYPE_OTHER_MIXER_CONTACT
+
 
 def _is_mixer_type(interaction_type: str) -> bool:
     """Return True if the interaction type involves a classic mixer (not fixedfloat/changenow)."""
@@ -205,7 +193,9 @@ def _is_mixer_type(interaction_type: str) -> bool:
         INTERACTION_TYPE_OTHER_MIXER_CONTACT,
     )
 
+
 # ─── Report Dataclass ────────────────────────────────────────────────
+
 
 @dataclass
 class FlagEntry:
@@ -216,6 +206,7 @@ class FlagEntry:
     type: str  # interaction type string
     tx_hash: str = ""
     timestamp: int | None = None  # Unix seconds
+
 
 @dataclass
 class GuiltAssociationReport:
@@ -243,7 +234,9 @@ class GuiltAssociationReport:
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
+
 # ─── Analyzer ────────────────────────────────────────────────────────
+
 
 class GuiltAssociationAnalyzer:
     """Check a deployer wallet for associations with known mixing / laundering services.
@@ -300,7 +293,7 @@ class GuiltAssociationAnalyzer:
             # Compute final score and label
             self._compute_risk(report)
 
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("analyze_error", exc_info=True)
             logger.exception(f"Guilt association analyzer failed for {address} on {chain}")
             report.errors.append(str(e))
@@ -375,9 +368,7 @@ class GuiltAssociationAnalyzer:
                 if tx_ts >= thirty_days_ago:
                     report.recent_mixer_funding = True
 
-    async def _fetch_etherscan_txs(
-        self, address: str, api_url: str, api_key: str, action: str
-    ) -> list[dict]:
+    async def _fetch_etherscan_txs(self, address: str, api_url: str, api_key: str, action: str) -> list[dict]:
         """Fetch transaction list from an Etherscan-compatible block explorer API."""
         params = {
             "module": "account",
@@ -400,7 +391,7 @@ class GuiltAssociationAnalyzer:
             if isinstance(data.get("result"), list):
                 return data["result"][: self.EVM_TX_LIMIT]
             return []
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_etherscan_txs_error", exc_info=True)
             logger.warning(f"Etherscan fetch failed ({action}): {e}")
             return []
@@ -449,7 +440,7 @@ class GuiltAssociationAnalyzer:
                     report.interacted_addresses.append(from_addr)
                     if tx_ts >= thirty_days_ago:
                         report.recent_mixer_funding = True
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Solana funding sources failed: {e}")
 
@@ -463,7 +454,7 @@ class GuiltAssociationAnalyzer:
                     page=page,
                     page_size=100,
                 )
-            except (httpx.HTTPError) as e :
+            except httpx.HTTPError as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Solana transfers page {page} failed: {e}")
                 continue
@@ -517,7 +508,7 @@ class GuiltAssociationAnalyzer:
                     page=page,
                     page_size=40,
                 )
-            except (httpx.HTTPError) as e :
+            except httpx.HTTPError as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Solana transactions page {page} failed: {e}")
                 continue
@@ -670,7 +661,9 @@ class GuiltAssociationAnalyzer:
         """Close the underlying HTTP client."""
         await self._http.aclose()
 
+
 # ─── Standalone entry point ──────────────────────────────────────────
+
 
 async def run_guilt_association(deployer_address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Convenience runner - returns a plain dict for pipeline integration."""

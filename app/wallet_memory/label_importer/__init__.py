@@ -57,15 +57,19 @@ from .ofac import _load_ofac_sanctions
 _loading = False
 _last_load_counts: dict[str, int] = {}
 
+
 def get_last_load_counts() -> dict[str, int]:
     """Return counts from the most recent label import."""
     return _last_load_counts
+
 
 def is_loading() -> bool:
     """Check if a label import is currently in progress."""
     return _loading
 
+
 # ── Main entry point ──
+
 
 async def load_all_static_labels() -> dict[str, int]:
     """
@@ -104,8 +108,7 @@ async def load_all_static_labels() -> dict[str, int]:
         # Ensure connections
         await storage._ensure_connections()
         logger.info(
-            f"Storage connections: redis={'ok' if storage._redis else 'no'}, "
-            f"clickhouse={'ok' if storage._ch else 'no'}"
+            f"Storage connections: redis={'ok' if storage._redis else 'no'}, clickhouse={'ok' if storage._ch else 'no'}"
         )
 
         # Ensure ClickHouse table exists
@@ -119,9 +122,7 @@ async def load_all_static_labels() -> dict[str, int]:
             path = os.path.join(LABELS_DIR, filename)
             key = filename.replace(".csv", "").replace("_labels", "")
             if os.path.exists(path):
-                c = await _load_csv_labels(
-                    storage, path, chain, addr_col, label_cols, source_name=key
-                )
+                c = await _load_csv_labels(storage, path, chain, addr_col, label_cols, source_name=key)
                 counts[key] = c
             else:
                 counts[key] = 0
@@ -132,9 +133,7 @@ async def load_all_static_labels() -> dict[str, int]:
             path = os.path.join(LABELS_DIR, filename)
             key = filename.replace(".csv", "").replace("_labels", "")
             if os.path.exists(path):
-                c = await _load_csv_labels(
-                    storage, path, chain, addr_col, label_cols, source_name=key
-                )
+                c = await _load_csv_labels(storage, path, chain, addr_col, label_cols, source_name=key)
                 counts[key] = c
             else:
                 counts[key] = 0
@@ -180,6 +179,7 @@ async def load_all_static_labels() -> dict[str, int]:
 
     _last_load_counts = counts
     return counts
+
 
 import os
 

@@ -1,4 +1,5 @@
 """x402 shared models — Pydantic request/response types."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -78,8 +79,6 @@ class GenericRequest(BaseModel):
     limit: int = 20
 
 
-
-
 class BundleRequest(BaseModel):
     address: str = ""
     token: str = ""
@@ -144,4 +143,3 @@ class SentinelModuleRequest(BaseModel):
 
 
 # Re-exported for tools that mirror legacy symbols
-

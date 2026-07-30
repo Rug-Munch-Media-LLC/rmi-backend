@@ -24,6 +24,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("wallet_memory.risk_scoring")
 
+
 class RiskScorer:
     """
     Composite risk scorer combining label, cluster, and deployer signals.

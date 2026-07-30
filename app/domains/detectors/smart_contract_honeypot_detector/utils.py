@@ -1,4 +1,5 @@
 """HTTP helper utilities for the honeypot detector."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,9 +8,14 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-async def fetch_with_fallback(urls: list[str], headers: dict[str, str] | None = None, timeout: int = 15, json_mode: bool = True) -> tuple[Any, str]:
+
+async def fetch_with_fallback(
+    urls: list[str], headers: dict[str, str] | None = None, timeout: int = 15, json_mode: bool = True
+) -> tuple[Any, str]:
     import httpx
-    if headers is None: headers = {"User-Agent": "RMI-Honeypot/1.0"}
+
+    if headers is None:
+        headers = {"User-Agent": "RMI-Honeypot/1.0"}
     async with httpx.AsyncClient(timeout=timeout) as client:
         for url in urls:
             try:

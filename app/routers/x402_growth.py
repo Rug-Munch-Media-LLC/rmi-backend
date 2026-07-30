@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/v1/x402", tags=["x402-Growth"])
 _webhooks: dict[str, dict] = {}
 _webhook_events: list[dict] = []
 
+
 @router.post("/webhooks/register")
 async def register_webhook(url: str = Query(...), events: str = Query("payment.confirmed")) -> dict:
     """Register a webhook URL for payment notifications.
@@ -53,10 +54,12 @@ async def register_webhook(url: str = Query(...), events: str = Query("payment.c
     }
     return {"webhook_id": hook_id, "url": url, "events": events}
 
+
 @router.get("/webhooks")
 async def list_webhooks() -> dict[str, list]:
     """List registered webhooks."""
     return {"webhooks": list(_webhooks.values()), "total": len(_webhooks)}
+
 
 @router.delete("/webhooks/{hook_id}")
 async def delete_webhook(hook_id: str) -> dict[str, bool]:
@@ -64,10 +67,12 @@ async def delete_webhook(hook_id: str) -> dict[str, bool]:
     _webhooks.pop(hook_id, None)
     return {"deleted": True}
 
+
 @router.get("/webhooks/events")
 async def webhook_events(limit: int = 100) -> dict:
     """View recent webhook delivery events."""
     return {"events": list(reversed(_webhooks))[:limit], "total": len(_webhook_events)}
+
 
 async def fire_payment_webhook(
     tx_hash: str, tool: str, amount_usd: float, chain: str, status: str = "confirmed"
@@ -92,9 +97,11 @@ async def fire_payment_webhook(
                 except (aiohttp.ClientError, TimeoutError) as e:
                     logger.warning(f"Webhook delivery failed for {hook['url']}: {e}")
 
+
 # ═══════════════════════════════════════════════════════════════════
 #  7. USAGE ANALYTICS
 # ═══════════════════════════════════════════════════════════════════
+
 
 @router.get("/usage")
 async def get_usage(agent_id: str = Query(""), days: int = Query(7)) -> dict:
@@ -140,9 +147,11 @@ async def get_usage(agent_id: str = Query(""), days: int = Query(7)) -> dict:
         "note": "Full usage tracking requires Redis. Install redis for per-call analytics.",
     }
 
+
 # ═══════════════════════════════════════════════════════════════════
 #  8. HOSTED PAYMENT PAGE
 # ═══════════════════════════════════════════════════════════════════
+
 
 @router.get("/pay/{invoice_id}")
 async def payment_page(invoice_id: str) -> Any:
@@ -199,6 +208,7 @@ loadInvoice();
 </html>"""
     return HTMLResponse(content=html)
 
+
 @router.get("/invoice/{invoice_id}")
 async def get_invoice(invoice_id: str) -> dict:
     """Get invoice details (for hosted payment page)."""
@@ -211,6 +221,7 @@ async def get_invoice(invoice_id: str) -> dict:
         "status": "pending",
         "tool": "unknown",
     }
+
 
 # ═══════════════════════════════════════════════════════════════════
 #  9. ADDITIONAL CHAINS - Polygon, Arbitrum, Optimism, Avalanche
@@ -255,6 +266,7 @@ ADDITIONAL_CHAINS = {
     },
 }
 
+
 @router.post("/chains/add")
 async def add_chains() -> dict:
     """Register Polygon, Arbitrum, Optimism, Avalanche into CHAIN_USDC.
@@ -270,6 +282,7 @@ async def add_chains() -> dict:
             CHAIN_USDC[chain] = cfg
             added.append(chain)
     return {"chains_added": added, "total_chains": len(CHAIN_USDC), "status": "active"}
+
 
 @router.get("/chains")
 async def list_chains() -> dict[str, dict]:
@@ -290,12 +303,14 @@ async def list_chains() -> dict[str, dict]:
         "note": f"{len(CHAIN_USDC)} chains supported. All EVM chains share the same payment address.",
     }
 
+
 # ═══════════════════════════════════════════════════════════════════
 #  10. AFFILIATE SYSTEM
 # ═══════════════════════════════════════════════════════════════════
 
 _affiliates: dict[str, dict] = {}
 _AFFILIATE_COMMISSION = 0.10  # 10%
+
 
 @router.post("/affiliates/register")
 async def register_affiliate(name: str = Query(...), email: str = Query("")) -> dict:
@@ -315,6 +330,7 @@ async def register_affiliate(name: str = Query(...), email: str = Query("")) -> 
     }
     return {"affiliate_code": code, "commission": f"{_AFFILIATE_COMMISSION * 100}%", "name": name}
 
+
 @router.get("/affiliates/{code}")
 async def affiliate_stats(code: str) -> Any:
     """Get affiliate stats - earnings, referrals, payouts."""
@@ -323,10 +339,12 @@ async def affiliate_stats(code: str) -> Any:
         raise NotFoundError("Affiliate not found")
     return aff
 
+
 @router.get("/affiliates")
 async def list_affiliates() -> dict[str, list]:
     """List all affiliates."""
     return {"affiliates": list(_affiliates.values()), "total": len(_affiliates)}
+
 
 def record_affiliate_commission(affiliate_code: str, amount_usd: float) -> None:
     """Record affiliate commission for a payment."""

@@ -42,8 +42,12 @@ class PaymentVerifier:
 
             chain_id = get_evm_chain_id(accepted["network"])
             authorization = ExactEIP3009Authorization(
-                from_address=auth["from"], to=auth["to"], value=auth["value"],
-                valid_after=auth["validAfter"], valid_before=auth["validBefore"], nonce=auth["nonce"],
+                from_address=auth["from"],
+                to=auth["to"],
+                value=auth["value"],
+                valid_after=auth["validAfter"],
+                valid_before=auth["validBefore"],
+                nonce=auth["nonce"],
             )
             extra = accepted.get("extra", {})
             token_name = extra.get("name", "USD Coin")
@@ -64,8 +68,10 @@ class PaymentVerifier:
                 "types": {k: [{"name": f["name"], "type": f["type"]} for f in v] for k, v in all_types.items()},
                 "primaryType": primary_type,
                 "domain": {
-                    "name": domain.name, "version": domain.version,
-                    "chainId": domain.chain_id, "verifyingContract": domain.verifying_contract,
+                    "name": domain.name,
+                    "version": domain.version,
+                    "chainId": domain.chain_id,
+                    "verifyingContract": domain.verifying_contract,
                 },
                 "message": {k: ("0x" + v.hex() if isinstance(v, bytes) else str(v)) for k, v in message.items()},
             }
@@ -81,8 +87,12 @@ class PaymentVerifier:
             if str(auth["value"]) != str(accepted.get("amount", "")):
                 return {"verified": False, "reason": "Amount mismatch"}
 
-            return {"verified": True, "reason": "EIP-712 signature verified locally",
-                    "payer": auth["from"], "tx_hash": None}
+            return {
+                "verified": True,
+                "reason": "EIP-712 signature verified locally",
+                "payer": auth["from"],
+                "tx_hash": None,
+            }
         except Exception as e:
             logger.error(f"Local EIP-712 verification error: {e}")
             return {"verified": False, "reason": f"Local verification error: {e!s}"}
@@ -90,51 +100,82 @@ class PaymentVerifier:
     async def _verify_via_payai(self, payload_data: dict, requirements_data: dict | None) -> dict[str, Any]:
         """Fallback: verify via PayAI facilitator HTTP."""
         import aiohttp
+
         accepted = payload_data.get("accepted", {})
         flat_req = {
-            "x402Version": 2, "scheme": accepted.get("scheme", "exact"),
+            "x402Version": 2,
+            "scheme": accepted.get("scheme", "exact"),
             "network": accepted.get("network", "eip155:8453"),
-            "asset": accepted.get("asset", ""), "amount": accepted.get("amount", ""),
-            "payTo": accepted.get("payTo", ""), "maxTimeoutSeconds": accepted.get("maxTimeoutSeconds", 60),
-            "extra": accepted.get("extra", {}), "resource": {},
+            "asset": accepted.get("asset", ""),
+            "amount": accepted.get("amount", ""),
+            "payTo": accepted.get("payTo", ""),
+            "maxTimeoutSeconds": accepted.get("maxTimeoutSeconds", 60),
+            "extra": accepted.get("extra", {}),
+            "resource": {},
         }
         if requirements_data:
             flat_req["resource"] = requirements_data.get("resource", {})
 
         body = {"x402Version": 2, "paymentPayload": payload_data, "paymentRequirements": flat_req}
         try:
-            async with aiohttp.ClientSession() as session, session.post(
-                "https://facilitator.payai.network/verify", json=body,
-                headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=15),
-            ) as resp:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    "https://facilitator.payai.network/verify",
+                    json=body,
+                    headers={"Content-Type": "application/json"},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp,
+            ):
                 data = await resp.json()
                 if data.get("isValid"):
-                    return {"verified": True, "reason": "Verified via PayAI",
-                            "payer": data.get("payer"), "tx_hash": None}
-                return {"verified": False, "reason": f"PayAI: {data.get('invalidReason', 'unknown')}",
-                        "payer": data.get("payer")}
+                    return {
+                        "verified": True,
+                        "reason": "Verified via PayAI",
+                        "payer": data.get("payer"),
+                        "tx_hash": None,
+                    }
+                return {
+                    "verified": False,
+                    "reason": f"PayAI: {data.get('invalidReason', 'unknown')}",
+                    "payer": data.get("payer"),
+                }
         except Exception as e:
             logger.error(f"PayAI verification error: {e}")
             return {"verified": False, "reason": f"PayAI connection error: {e!s}"}
 
     async def verify_payment(
-        self, x402_payload: str, network_key: str = "base",
-        expected_amount: str | None = None, expected_tool: str | None = None,
+        self,
+        x402_payload: str,
+        network_key: str = "base",
+        expected_amount: str | None = None,
+        expected_tool: str | None = None,
     ) -> dict[str, Any]:
         """Verify an x402 payment payload with layered verification."""
         try:
             payload_data = json.loads(x402_payload)
         except json.JSONDecodeError:
-            return {"verified": False, "reason": "Invalid JSON in x402 payload",
-                    "tx_hash": None, "amount": None, "network": network_key, "settlement_id": None}
+            return {
+                "verified": False,
+                "reason": "Invalid JSON in x402 payload",
+                "tx_hash": None,
+                "amount": None,
+                "network": network_key,
+                "settlement_id": None,
+            }
 
         if network_key.startswith("base"):
             local_result = self._verify_eip712_local(payload_data)
             if local_result["verified"]:
-                return {"verified": True, "reason": local_result["reason"],
-                        "tx_hash": local_result.get("tx_hash"), "amount": expected_amount,
-                        "network": network_key, "settlement_id": None, "payer": local_result.get("payer")}
+                return {
+                    "verified": True,
+                    "reason": local_result["reason"],
+                    "tx_hash": local_result.get("tx_hash"),
+                    "amount": expected_amount,
+                    "network": network_key,
+                    "settlement_id": None,
+                    "payer": local_result.get("payer"),
+                }
             logger.warning(f"Local verification failed: {local_result['reason']}")
 
         config = FACILITATOR_CONFIGS.get(network_key, FACILITATOR_CONFIGS.get("base", {}))
@@ -143,14 +184,21 @@ class PaymentVerifier:
             accepted = payload_data.get("accepted", {})
             resource = payload_data.get("resource", {})
             requirements_data = {
-                "x402Version": payload_data.get("x402Version", 2), "resource": resource,
-                "accepts": [{"scheme": accepted.get("scheme", "exact"),
-                             "network": accepted.get("network", config.get("network", "eip155:8453")),
-                             "asset": accepted.get("asset", ""), "amount": accepted.get("amount", ""),
-                             "payTo": accepted.get("payTo", ""),
-                             "maxTimeoutSeconds": accepted.get("maxTimeoutSeconds", 60),
-                             "extra": accepted.get("extra", {})}],
+                "x402Version": payload_data.get("x402Version", 2),
+                "resource": resource,
+                "accepts": [
+                    {
+                        "scheme": accepted.get("scheme", "exact"),
+                        "network": accepted.get("network", config.get("network", "eip155:8453")),
+                        "asset": accepted.get("asset", ""),
+                        "amount": accepted.get("amount", ""),
+                        "payTo": accepted.get("payTo", ""),
+                        "maxTimeoutSeconds": accepted.get("maxTimeoutSeconds", 60),
+                        "extra": accepted.get("extra", {}),
+                    }
+                ],
             }
-        except (TypeError, ValueError, KeyError):
-            pass
+        except (TypeError, ValueError, KeyError) as e:
+            logger.warning("X402 verifier error: %s", e)
+            return None
         return await self._verify_via_payai(payload_data, requirements_data)

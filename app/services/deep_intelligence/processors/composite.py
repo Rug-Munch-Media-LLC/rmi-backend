@@ -29,9 +29,8 @@ from app.sweep_all import results
 
 logger = get_logger("deep_intel")
 
-async def full_deep_intel(
-    token_address: str, chain: str = "sol", wallet: str | None = None
-) -> dict[str, Any]:
+
+async def full_deep_intel(token_address: str, chain: str = "sol", wallet: str | None = None) -> dict[str, Any]:
     """
     Run ALL 12 features and produce a composite deep intelligence report.
     """
@@ -40,9 +39,7 @@ async def full_deep_intel(
     # Run all analyses in parallel
     [
         deployer_reputation(token_address, chain),
-        preflight_simulate(
-            token_address, wallet or "0x0000000000000000000000000000000000000000", 100, chain
-        ),
+        preflight_simulate(token_address, wallet or "0x0000000000000000000000000000000000000000", 100, chain),
         liquidity_lock_authenticity(token_address, chain),
         volume_authenticity(token_address, chain),
         slow_rug_detector(token_address, chain),

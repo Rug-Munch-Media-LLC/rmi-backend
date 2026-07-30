@@ -28,6 +28,7 @@ BLOCKSCOUT_URL = os.getenv("BLOCKSCOUT_URL", "http://rmi-blockscout-backend:4000
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
+
 class CommunityForensicsWorker:
     """Background worker for community forensics tasks."""
 
@@ -115,9 +116,7 @@ class CommunityForensicsWorker:
                 try:
                     resp = await self.blockscout.get("/api/v2/main-page/indexing-status")
                     if resp.status_code == 200:
-                        logger.info(
-                            f"[OK] Blockscout healthy: {resp.json().get('finished_indexing_blocks', False)}"
-                        )
+                        logger.info(f"[OK] Blockscout healthy: {resp.json().get('finished_indexing_blocks', False)}")
                 except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                     logger.warning(f"[WARN] Blockscout health check failed: {e}")
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
@@ -130,6 +129,7 @@ class CommunityForensicsWorker:
         await self.blockscout.aclose()
         logger.info("[OK] Community Forensics Worker stopped")
 
+
 async def main() -> None:
     worker = CommunityForensicsWorker()
 
@@ -137,6 +137,7 @@ async def main() -> None:
         await worker.run()
     except KeyboardInterrupt:
         await worker.shutdown()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

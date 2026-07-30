@@ -36,6 +36,7 @@ logger = get_logger("metadata_fingerprint")
 # HTML structure extractor - strips text content, keeps tag hierarchy
 # ---------------------------------------------------------------------------
 
+
 class _TagStructureExtractor(HTMLParser):
     """Parses HTML and builds a structural fingerprint of tag order."""
 
@@ -50,6 +51,7 @@ class _TagStructureExtractor(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         self.tags.append(f"</{tag}>")
 
+
 def extract_html_structure(html: str) -> str:
     """Return a normalised tag-structure string from raw HTML."""
     if not html:
@@ -62,6 +64,7 @@ def extract_html_structure(html: str) -> str:
         return re.sub(r"\s+", " ", html).strip()
     return "".join(extractor.tags)
 
+
 def hash_html_structure(html: str) -> str:
     """SHA-256 hash of the HTML tag structure (content-independent)."""
     structure = extract_html_structure(html)
@@ -69,9 +72,11 @@ def hash_html_structure(html: str) -> str:
         return ""
     return hashlib.sha256(structure.encode("utf-8")).hexdigest()
 
+
 # ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class TokenMetadata:
@@ -85,6 +90,7 @@ class TokenMetadata:
     logo_url: str = ""
     creator: str = ""
 
+
 @dataclass
 class SocialOverlapResult:
     overlapping_links: list[str]
@@ -92,6 +98,7 @@ class SocialOverlapResult:
     total_unique: int
     overlap_ratio: float  # 0.0-1.0
     shared_domains: list[str] = field(default_factory=list)
+
 
 @dataclass
 class FingerprintReport:
@@ -108,9 +115,11 @@ class FingerprintReport:
     warnings: list[str] = field(default_factory=list)
     confidence: str = "LOW"  # LOW, MEDIUM, HIGH
 
+
 # ---------------------------------------------------------------------------
 # MetadataFingerprinter
 # ---------------------------------------------------------------------------
+
 
 class MetadataFingerprinter:
     """Fingerprints token metadata and detects near-duplicate / copycat tokens.
@@ -139,9 +148,7 @@ class MetadataFingerprinter:
     DEXSCREENER_BASE = "https://api.dexscreener.com"
     BIRDEYE_BASE = "https://public-api.birdeye.so"
 
-    def __init__(
-        self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = ""
-    ) -> None:
+    def __init__(self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = "") -> None:
         self.dexscreener_client = dexscreener_client or httpx.AsyncClient(timeout=15.0)
         self.birdeye_key = birdeye_api_key
         self.birdeye_client = httpx.AsyncClient(timeout=15.0)
@@ -209,9 +216,7 @@ class MetadataFingerprinter:
             confidence=confidence,
         )
 
-    async def compare_tokens(
-        self, addr1: str, addr2: str, chain: str = "solana"
-    ) -> dict[str, object]:
+    async def compare_tokens(self, addr1: str, addr2: str, chain: str = "solana") -> dict[str, object]:
         """Compare metadata of two tokens and return a detailed similarity report."""
         meta1 = await self._fetch_metadata(addr1, chain)
         meta2 = await self._fetch_metadata(addr2, chain)
@@ -292,13 +297,7 @@ class MetadataFingerprinter:
         #   HTML structure is the strongest copycat signal
         #   Description similarity catches template-scam reruns
         #   Social overlap reveals shared infrastructure
-        overall = (
-            html_match * 0.30
-            + desc_similarity * 0.35
-            + social_ratio * 0.20
-            + name_sim * 0.10
-            + symbol_sim * 0.05
-        )
+        overall = html_match * 0.30 + desc_similarity * 0.35 + social_ratio * 0.20 + name_sim * 0.10 + symbol_sim * 0.05
 
         return {
             "token_1": meta1.address,
@@ -328,9 +327,7 @@ class MetadataFingerprinter:
         overlap_ratio = len(overlapping) / total_unique if total_unique else 0.0
 
         # Identify shared domains (e.g. both link to same Twitter account)
-        shared_domains = list(
-            {self._domain_from_url(url) for url in overlapping if self._domain_from_url(url)}
-        )
+        shared_domains = list({self._domain_from_url(url) for url in overlapping if self._domain_from_url(url)})
 
         return SocialOverlapResult(
             overlapping_links=sorted(overlapping),
@@ -391,26 +388,18 @@ class MetadataFingerprinter:
         sym = symbol.upper().strip()
         return sym in self.STABLECOIN_SYMBOLS or sym.startswith(("W", "ST"))
 
-    def _generate_warnings(
-        self, meta: TokenMetadata, similar: list[dict[str, object]]
-    ) -> list[str]:
+    def _generate_warnings(self, meta: TokenMetadata, similar: list[dict[str, object]]) -> list[str]:
         warnings: list[str] = []
 
         for entry in similar:
             overall = float(entry.get("overall_similarity", 0))
             addr = str(entry.get("token_2", "unknown"))
             if overall >= 0.9:
-                warnings.append(
-                    f"CLONE: near-identical metadata to {addr[:12]}... (similarity {(overall):.0%})"
-                )
+                warnings.append(f"CLONE: near-identical metadata to {addr[:12]}... (similarity {(overall):.0%})")
             elif overall >= 0.7:
-                warnings.append(
-                    f"COPYCAT: similar metadata to {addr[:12]}... (similarity {(overall):.0%})"
-                )
+                warnings.append(f"COPYCAT: similar metadata to {addr[:12]}... (similarity {(overall):.0%})")
             elif overall >= 0.5:
-                warnings.append(
-                    f"LINKED: partial metadata overlap with {addr[:12]}... (similarity {(overall):.0%})"
-                )
+                warnings.append(f"LINKED: partial metadata overlap with {addr[:12]}... (similarity {(overall):.0%})")
 
         # Skip NO_DESCRIPTION for stablecoins/wrapped tokens - they don't need marketing copy
         if not meta.description and not self._is_stablecoin_or_wrapped(meta.symbol):
@@ -428,9 +417,7 @@ class MetadataFingerprinter:
                     continue
                 cached_hash = hash_html_structure(cached.website_html)
                 if cached_hash == html_hash:
-                    warnings.append(
-                        f"HTML_STRUCTURE_MATCH: identical site structure as {addr[:12]}..."
-                    )
+                    warnings.append(f"HTML_STRUCTURE_MATCH: identical site structure as {addr[:12]}...")
                     break  # one match is enough
 
         return warnings
@@ -530,7 +517,7 @@ class MetadataFingerprinter:
                     # Logo URL from pair data
                     dex_logo_url = info.get("imageUrl", "") or ""
 
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"DexScreener metadata fetch failed for {token_address}: {e}")
 
@@ -588,7 +575,16 @@ class MetadataFingerprinter:
                 list_data = resp2.json().get("data") or {}
                 birdeye_description = list_data.get("description", "") or ""
 
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Birdeye metadata fetch failed for {token_address}: {e}")
 

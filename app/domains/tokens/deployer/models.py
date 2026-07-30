@@ -43,6 +43,7 @@ class TokenDeployment:
         d["updated_at"] = self.updated_at
         return d
 
+
 @dataclass
 class DeployParams:
     """Parameters for token deployment."""

@@ -41,12 +41,14 @@ OLLAMA_URL = "https://ollama.com/v1/chat/completions"
 OLLAMA_KEY = os.getenv("OLLAMA_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
 MODEL = "deepseek-v4-flash"
 
+
 def _validate_https_url(url: str) -> str:
     """Ensure URL uses HTTPS scheme to prevent SSRF via user-influenced URLs."""
     parsed = urlparse(url)
     if parsed.scheme not in ("https",):
         raise ValueError(f"Only HTTPS URLs allowed, got: {parsed.scheme}://")
     return url
+
 
 @dataclass
 class WalletScanResult:
@@ -91,6 +93,7 @@ class WalletScanResult:
     tier: str = "free"
     scan_duration_ms: float = 0.0
 
+
 class UnifiedWalletScanner:
     """THE wallet scanner. Beats anything on the market."""
 
@@ -103,9 +106,7 @@ class UnifiedWalletScanner:
     ) -> WalletScanResult:
         start = time.monotonic()
         params = {"address": address, "chain": chain}
-        r = WalletScanResult(
-            address=address, chain=chain, scanned_at=datetime.now(UTC).isoformat(), tier=tier
-        )
+        r = WalletScanResult(address=address, chain=chain, scanned_at=datetime.now(UTC).isoformat(), tier=tier)
 
         try:
             # Phase 1: Core DataBus fetches
@@ -156,16 +157,12 @@ class UnifiedWalletScanner:
         r.scan_duration_ms = (time.monotonic() - start) * 1000
         return r
 
-    async def _fetch_batch(
-        self, chains, params, admin_key, timeout=30
-    ) -> dict | tuple[Any, Any] | tuple[Any, None]:
+    async def _fetch_batch(self, chains, params, admin_key, timeout=30) -> dict | tuple[Any, Any] | tuple[Any, None]:
         from app.databus import databus
 
         async def _one(c) -> tuple[Any, Any] | tuple[Any, None]:
             try:
-                return c, await asyncio.wait_for(
-                    databus.fetch(c, admin_key=admin_key, **params), timeout
-                )
+                return c, await asyncio.wait_for(databus.fetch(c, admin_key=admin_key, **params), timeout)
             except (TimeoutError, Exception) as e:
                 logger.debug(f"DataBus fetch failed for {c}: {e}")
                 return c, None
@@ -204,9 +201,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     async def _rag_enrich(self, r) -> None:
         try:
-            rag_url = _validate_https_url(
-                f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5"
-            )
+            rag_url = _validate_https_url(f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5")
             req = Request(
                 rag_url,
                 headers={"X-RMI-Key": INTERNAL_API_KEY},
@@ -265,9 +260,7 @@ class UnifiedWalletScanner:
         scam_value = 0.0
         for token in r.holdings:
             risk = token.get("risk_score", token.get("safety_score", 50))
-            if isinstance(risk, (int, float)) and (
-                risk > 70 if "risk_score" in token else risk < 30
-            ):
+            if isinstance(risk, (int, float)) and (risk > 70 if "risk_score" in token else risk < 30):
                 scam_count += 1
                 scam_value += float(token.get("value_usd", 0) or 0)
         r.scam_tokens_held = scam_count
@@ -320,9 +313,7 @@ class UnifiedWalletScanner:
                 to_addr = tx.get("to", tx.get("target", ""))
                 if to_addr:
                     nodes.append({"id": to_addr, "type": "counterparty"})
-                    edges.append(
-                        {"from": r.address, "to": to_addr, "value": tx.get("value_usd", 0)}
-                    )
+                    edges.append({"from": r.address, "to": to_addr, "value": tx.get("value_usd", 0)})
             r.flow_data = {"nodes": nodes[:10], "edges": edges[:15]}
             r.modules_run.append("flow_visualization")
 
@@ -396,7 +387,9 @@ class UnifiedWalletScanner:
                 s += 25
         r.risk_score = min(100.0, s)
 
+
 _scanner: UnifiedWalletScanner | None = None
+
 
 def get_wallet_scanner() -> UnifiedWalletScanner:
     global _scanner

@@ -87,9 +87,14 @@ async def ingest_post_to_rag(post: Post) -> dict:
     """Ingest a published bulletin board post into the RAG research collection."""
     try:
         from app.rag.ingestion import ingest_research_post as _ingest_research
+
         report = await _ingest_research(
-            post_id=post.post_id, title=post.title, content=post.content,
-            category=post.category, tags=post.tags, author=post.author_name,
+            post_id=post.post_id,
+            title=post.title,
+            content=post.content,
+            category=post.category,
+            tags=post.tags,
+            author=post.author_name,
         )
         return {
             "success": report.status in ("completed", "partial"),

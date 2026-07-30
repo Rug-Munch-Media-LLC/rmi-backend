@@ -33,6 +33,7 @@ CHAINS = {
 DATABUS_BASE = os.environ.get("DATABUS_URL", f"{settings.backend_url}/api/v1/databus")
 ETH_LABELS_URL = os.environ.get("ETH_LABELS_URL", f"{settings.backend_url}/api/v1/eth-labels")
 
+
 class AddressProfile(BaseModel):
     address: str
     labels: list[dict[str, str]] = []
@@ -43,6 +44,7 @@ class AddressProfile(BaseModel):
     rag_context: dict | None = None
     entity_hints: list[str] = []
 
+
 async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
     """Fetch balance/activity for an address on one chain via DataBus."""
     try:
@@ -50,9 +52,10 @@ async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
             resp = await client.get(f"{DATABUS_BASE}/{chain}/balance/{address}")
             if resp.status_code == 200:
                 return {"chain": chain, **resp.json()}
-    except (httpx.HTTPError, ConnectionError, TimeoutError):
-        pass
+    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+        logger.warning("Address profiler API error: %s", e)
     return {"chain": chain, "balance_usd": 0, "tx_count": 0, "error": "unavailable"}
+
 
 async def _fetch_eth_labels(address: str) -> list[dict]:
     """Look up address in eth-labels database."""
@@ -61,9 +64,10 @@ async def _fetch_eth_labels(address: str) -> list[dict]:
             resp = await client.get(f"{ETH_LABELS_URL}/lookup/{address}")
             if resp.status_code == 200:
                 return resp.json().get("labels", [])
-    except (httpx.HTTPError, ConnectionError, TimeoutError):
-        pass
+    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+        logger.warning("Address profiler API error: %s", e)
     return []
+
 
 @router.get("/profile/{address}")
 async def get_address_profile(address: str, chains: str = Query(None)) -> Any:
@@ -82,9 +86,7 @@ async def get_address_profile(address: str, chains: str = Query(None)) -> Any:
     labels = await _fetch_eth_labels(address)
 
     # Compute profile
-    chains_active = [
-        r for r in chain_results if r.get("balance_usd", 0) > 0 or r.get("tx_count", 0) > 0
-    ]
+    chains_active = [r for r in chain_results if r.get("balance_usd", 0) > 0 or r.get("tx_count", 0) > 0]
     total_value = sum(r.get("balance_usd", 0) or 0 for r in chains_active)
 
     # Risk scoring (simple heuristic)
@@ -134,10 +136,7 @@ async def get_address_profile(address: str, chains: str = Query(None)) -> Any:
                     entity_hints.extend(e for e in entities if e not in entity_hints)
                 labels_from_meta = meta.get("labels", [])
                 if isinstance(labels_from_meta, list):
-                    entity_hints.extend(
-                        f"label:{l}" for l in labels_from_meta
-                        if f"label:{l}" not in entity_hints
-                    )
+                    entity_hints.extend(f"label:{l}" for l in labels_from_meta if f"label:{l}" not in entity_hints)
             # Boost risk if RAG has scam flags for this wallet
             if entity_hints:
                 for hint in entity_hints:
@@ -147,9 +146,11 @@ async def get_address_profile(address: str, chains: str = Query(None)) -> Any:
                         if factor not in risk_factors:
                             risk_factors.append(factor)
     except ImportError:
-        pass
+        logger.warning("Import failed in address profiler")
+        # Optional dependency
     except Exception as exc:
         from app.core.logging import get_logger
+
         get_logger(__name__).warning("rag_wallet_context_failed", error=str(exc)[:100])
 
     profile = {

@@ -21,6 +21,7 @@ from app.domains.wallet.models import (
 
 logger = get_logger("wallet_labels")
 
+
 def import_legacy_wallets(manager: object) -> int:
     """Import wallets from legacy v1 JSON files into v2 vault."""
     imported = 0
@@ -86,5 +87,6 @@ def import_legacy_wallets(manager: object) -> int:
         logger.info(f"Imported {imported} legacy wallets")
 
     return imported
+
 
 __all__ = ["import_legacy_wallets"]

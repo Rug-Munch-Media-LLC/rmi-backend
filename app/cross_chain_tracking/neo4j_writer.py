@@ -52,7 +52,7 @@ def _get_driver() -> Any | None:
 
 async def ensure_schema() -> bool:
     """Create indexes and constraints for cross-chain entity schema.
-    
+
     Safe to call repeatedly (idempotent via IF NOT EXISTS).
     """
     driver = _get_driver()
@@ -131,9 +131,9 @@ async def upsert_wallet(
     is_deployer: bool = False,
 ) -> str:
     """Create or update a Wallet node.
-    
+
     wallet_id format: "chain:address" (matching catalog/models.py Wallet)
-    
+
     Returns the wallet_id.
     """
     driver = _get_driver()
@@ -198,7 +198,7 @@ async def create_same_as_edge(
     method: str = "same_deployer",
 ) -> bool:
     """Create a SAME_AS edge between two wallets (same entity, different chains).
-    
+
     This is THE critical cross-chain edge used by catalog/service.py's
     resolve_entity() query.
     """
@@ -285,7 +285,7 @@ async def create_bridged_to_edge(
     confidence: float = 0.8,
 ) -> bool:
     """Create a BRIDGED_TO edge between two wallets (cross-chain bridge).
-    
+
     This represents funds moving from source chain → bridge → dest chain
     where the same operator controls both addresses.
     """
@@ -366,7 +366,7 @@ async def get_cross_chain_edges_for_wallet(
     wallet_id: str,
 ) -> list[dict[str, Any]]:
     """Get all cross-chain edges from a wallet.
-    
+
     Returns list of {wallet_id, address, chain, relationship, confidence}.
     """
     driver = _get_driver()

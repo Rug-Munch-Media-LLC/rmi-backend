@@ -11,6 +11,7 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
+
 def _get_user(user_id: str) -> dict[str, Any] | None:
     """Fetch user record by id from Redis hash rmi:users."""
     r = get_redis()
@@ -24,6 +25,7 @@ def _get_user(user_id: str) -> dict[str, Any] | None:
     except (json.JSONDecodeError, TypeError):
         return None
 
+
 def _get_user_by_email(email: str) -> dict[str, Any] | None:
     """Fetch user record by email via rmi:users:email index."""
     r = get_redis()
@@ -36,6 +38,7 @@ def _get_user_by_email(email: str) -> dict[str, Any] | None:
         return _get_user(user_id.decode("utf-8"))
     return _get_user(user_id)
 
+
 def _save_user(user: dict[str, Any]) -> None:
     """Persist user record to Redis hash rmi:users, refresh email index if present."""
     r = get_redis()
@@ -45,6 +48,7 @@ def _save_user(user: dict[str, Any]) -> None:
     r.hset("rmi:users", user_id, json.dumps(user))
     if user.get("email"):
         r.hset("rmi:users:email", user["email"].lower(), user_id)
+
 
 def _is_valid_email(email: str) -> bool:
     """Basic email validation."""

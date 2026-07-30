@@ -44,6 +44,7 @@ logger = get_logger("agent.system")
 # AGENT DEFINITIONS
 # ═══════════════════════════════════════════════════════════
 
+
 @dataclass
 class AgentDef:
     id: str
@@ -58,6 +59,7 @@ class AgentDef:
     color: str = "#8B5CF6"  # UI color
     output_format: str = "standard"  # standard, evidence_chain, threat_rating
     databus_context: list[str] = field(default_factory=list)  # DataBus chains to inject
+
 
 MUNCH_BASE = """You are Agent MUNCH, a crypto intelligence operative for Rug Munch Intelligence.
 You are NOT a generic AI assistant. You are a highly trained specialist operative.
@@ -354,6 +356,7 @@ ROUTES = {
     ],
 }
 
+
 def classify(msg: str) -> str:
     m = msg.lower()
     for agent_id, keywords in ROUTES.items():
@@ -361,9 +364,11 @@ def classify(msg: str) -> str:
             return agent_id
     return "general"
 
+
 # ═══════════════════════════════════════════════════════════
 # RAG CONTEXT INJECTION
 # ═══════════════════════════════════════════════════════════
+
 
 async def fetch_databus_context(chains: list[str]) -> str:
     """Fetch real data from DataBus and format as context for the LLM."""
@@ -385,24 +390,21 @@ async def fetch_databus_context(chains: list[str]) -> str:
                         result = data.get("data", data.get("results", [{}]))
                         if isinstance(result, list) and result:
                             result = result[0].get("data", result[0]) if result else {}
-                        context_parts.append(
-                            f"[{chain} DATA]: {json.dumps(result, default=str)[:800]}"
-                        )
+                        context_parts.append(f"[{chain} DATA]: {json.dumps(result, default=str)[:800]}")
             except Exception as e:
                 logger.warning(f"DataBus context fetch failed for {chain}: {e}")
     except Exception as e:
         logger.warning(f"DataBus context system unavailable: {e}")
 
     if context_parts:
-        return (
-            "\n\nREAL-TIME PLATFORM DATA (use this in your analysis, do not fabricate):\n"
-            + "\n".join(context_parts)
-        )
+        return "\n\nREAL-TIME PLATFORM DATA (use this in your analysis, do not fabricate):\n" + "\n".join(context_parts)
     return ""
+
 
 # ═══════════════════════════════════════════════════════════
 # SMART CACHING
 # ═══════════════════════════════════════════════════════════
+
 
 async def check_cache(msg: str, agent_id: str) -> str | None:
     """Check Redis for previously answered similar questions."""
@@ -426,6 +428,7 @@ async def check_cache(msg: str, agent_id: str) -> str | None:
         pass
     return None
 
+
 async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -> None:
     """Store response in Redis cache. TTL defaults to 1 hour."""
     try:
@@ -445,9 +448,11 @@ async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -
     except (ConnectionError, OSError):
         pass
 
+
 # ═══════════════════════════════════════════════════════════
 # STREAMING ROUTER
 # ═══════════════════════════════════════════════════════════
+
 
 async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict, None]:
     """Route to specialist agent, inject RAG context, stream response.
@@ -523,15 +528,11 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                     return
                                 try:
                                     ch = json.loads(d)
-                                    txt = (
-                                        ch.get("choices", [{}])[0]
-                                        .get("delta", {})
-                                        .get("content", "")
-                                    )
+                                    txt = ch.get("choices", [{}])[0].get("delta", {}).get("content", "")
                                     if txt:
                                         full_response += txt
                                         yield {"type": "token", "text": txt}
-                                except (json.JSONDecodeError):
+                                except json.JSONDecodeError:
                                     pass
                         if full_response:
                             await store_cache(msg, agent_id, full_response)
@@ -595,15 +596,11 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                                     return
                                 try:
                                     ch = json.loads(d)
-                                    txt = (
-                                        ch.get("choices", [{}])[0]
-                                        .get("delta", {})
-                                        .get("content", "")
-                                    )
+                                    txt = ch.get("choices", [{}])[0].get("delta", {}).get("content", "")
                                     if txt:
                                         full_response += txt
                                         yield {"type": "token", "text": txt}
-                                except (json.JSONDecodeError):
+                                except json.JSONDecodeError:
                                     pass
                         if full_response:
                             await store_cache(msg, agent_id, full_response)
@@ -620,6 +617,7 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
         "text": "All providers unavailable (Gemini rate-limited, OpenRouter failed)",
     }
     yield {"type": "done"}
+
 
 def agents_list() -> list:
     return [

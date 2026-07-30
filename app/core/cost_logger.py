@@ -30,11 +30,13 @@ _buffer: list[tuple] = []
 _BUFFER_FLUSH_INTERVAL = 30  # seconds
 _last_flush = 0
 
+
 def _compute_cost(model: str, tokens_in: int, tokens_out: int) -> float:
     costs = MODEL_COSTS.get(model, {"input": 0, "output": 0})
     input_cost = (tokens_in / 1_000_000) * costs["input"]
     output_cost = (tokens_out / 1_000_000) * costs["output"]
     return round(input_cost + output_cost, 8)
+
 
 def log_cost_sync(
     model_name: str,
@@ -70,9 +72,8 @@ def log_cost_sync(
         )
         client.disconnect()
     except (ConnectionError, OSError):
-        _buffer.append(
-            (model_name, agent_name, tokens_in, tokens_out, cost, int(latency_ms), status)
-        )
+        _buffer.append((model_name, agent_name, tokens_in, tokens_out, cost, int(latency_ms), status))
+
 
 async def log_cost(
     model_name: str,
@@ -85,6 +86,7 @@ async def log_cost(
 ) -> None:
     """Async-friendly cost logging. Falls back to sync for simplicity."""
     log_cost_sync(model_name, tokens_in, tokens_out, cost_usd, latency_ms, agent_name, status)
+
 
 async def get_usage(limit: int = 50) -> dict:
     """Get recent cost usage from ClickHouse."""
@@ -130,6 +132,7 @@ async def get_usage(limit: int = 50) -> dict:
         "entries": len(log),
         "log": log,
     }
+
 
 async def get_daily_summary(days: int = 7) -> dict:
     """Get cost breakdown by day and model."""

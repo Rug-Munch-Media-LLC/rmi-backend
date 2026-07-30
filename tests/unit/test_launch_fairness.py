@@ -55,9 +55,7 @@ class TestLaunchFairnessAnalyzer(unittest.TestCase):
         """Invalid address should produce warnings but not crash."""
         import asyncio
 
-        result = asyncio.run(
-            analyze_launch_fairness("invalid!", chain="ethereum", simulate_data=True)
-        )
+        result = asyncio.run(analyze_launch_fairness("invalid!", chain="ethereum", simulate_data=True))
         assert "warnings" in result
         assert len(result["warnings"]) > 0
 

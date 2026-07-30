@@ -63,6 +63,7 @@ What should our platform do in response? Options:
 Be concise. Do not speculate beyond what the article says.
 """
 
+
 class LLMRouter:
     """Async client for the self-hosted LiteLLM proxy.
 

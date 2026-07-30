@@ -14,6 +14,7 @@ from app.domains.wallet.clustering import Transaction, get_clustering_engine
 
 logger = get_logger(__name__)
 
+
 async def feed_wallet_transactions(wallet: str, limit: int = 50) -> int:
     """Fetch real transactions for a wallet and load into clustering engine.
     Returns number of transactions loaded. Cached for 5 min."""
@@ -67,6 +68,7 @@ async def feed_wallet_transactions(wallet: str, limit: int = 50) -> int:
     logger.info(f"Fed {count} transactions for {wallet[:12]}...")
     return count
 
+
 async def get_holders_for_token(token_address: str, limit: int = 20) -> list[str]:
     """Get top token holders. Uses cached Helius token-accounts lookup."""
     cache = get_chain_cache()
@@ -86,6 +88,7 @@ async def get_holders_for_token(token_address: str, limit: int = 20) -> list[str
 
     await cache.set("holders", holders, token_address, limit, ttl=300)
     return holders
+
 
 async def get_wallet_balance(wallet: str) -> float:
     """Get SOL balance with caching."""

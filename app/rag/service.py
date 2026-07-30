@@ -26,6 +26,7 @@ from app.rag.models import (
 
 log = get_logger(__name__)
 
+
 class RAGService:
     """Async facade over the v3 RAG engine (M3 deliverable)."""
 
@@ -41,6 +42,7 @@ class RAGService:
         # Expand query with crypto/security synonyms for better recall
         try:
             from app.rag.retrieval import QueryExpander
+
             expanded_query = QueryExpander().expand(req.query)
         except Exception:
             expanded_query = req.query  # Fall through on expansion failure
@@ -155,6 +157,7 @@ class RAGService:
             collection=getattr(raw, "collection", collection),
             doc_id=getattr(raw, "id", ""),
         )
+
 
 async def init_rag() -> None:
     """Initialize the RAG system. Called from app.core.lifespan.

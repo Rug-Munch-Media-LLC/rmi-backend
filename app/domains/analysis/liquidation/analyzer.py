@@ -3,6 +3,7 @@ Liquidation Cascade — Core Analyzer
 =====================================
 LiquidationCascadeAnalyzer class — main analysis orchestration.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -25,6 +26,7 @@ from app.domains.analysis.liquidation.models import (
 
 logger = get_logger(__name__)
 
+
 class LiquidationCascadeAnalyzer:
     """Main analyzer class for liquidation cascade risk."""
 
@@ -44,20 +46,16 @@ class LiquidationCascadeAnalyzer:
             return None
         rpc = self.rpc_overrides.get(chain, chain_config["rpc"])
         try:
-            w3 = self.web3_module.Web3(
-                self.web3_module.HTTPProvider(rpc, request_kwargs={"timeout": 10})
-            )
+            w3 = self.web3_module.Web3(self.web3_module.HTTPProvider(rpc, request_kwargs={"timeout": 10}))
             if w3.is_connected():
                 self._web3_instances[chain] = w3
                 return w3
-        except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+        except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
             logger.debug("_get_web3_error", exc_info=True)
             logger.warning(f"Failed to connect to {chain}: {e}")
         return None
 
-    async def _scan_chain_balances(
-        self, wallet: str, chain: str
-    ) -> tuple[list[CollateralPosition], list[str]]:
+    async def _scan_chain_balances(self, wallet: str, chain: str) -> tuple[list[CollateralPosition], list[str]]:
         """Scan a wallet's token balances on a chain to detect collateral."""
         collateral: list[CollateralPosition] = []
         warnings: list[str] = []
@@ -83,11 +81,14 @@ class LiquidationCascadeAnalyzer:
                         CollateralPosition(
                             asset=native_symbol,
                             asset_address="0x0000000000000000000000000000000000000000",
-                            amount_usd=native_usd, amount_token=native_amount,
-                            ltv=ltv, liquidation_threshold=liq_thresh, price_usd=native_price,
+                            amount_usd=native_usd,
+                            amount_token=native_amount,
+                            ltv=ltv,
+                            liquidation_threshold=liq_thresh,
+                            price_usd=native_price,
                         )
                     )
-        except (ConnectionError, TimeoutError, ValueError) as e :
+        except (ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("_scan_chain_balances_error", exc_info=True)
             warnings.append(f"Failed to fetch native balance on {chain}: {e}")
         return collateral, warnings
@@ -108,7 +109,9 @@ class LiquidationCascadeAnalyzer:
                 DebtPosition(
                     asset="USDC",
                     asset_address="0x0000000000000000000000000000000000000001",
-                    amount_usd=estimated_debt, amount_token=estimated_debt, variable_rate=5.0,
+                    amount_usd=estimated_debt,
+                    amount_token=estimated_debt,
+                    variable_rate=5.0,
                 )
             )
             total_debt_usd = estimated_debt
@@ -116,33 +119,38 @@ class LiquidationCascadeAnalyzer:
         if chain == "bsc":
             protocol_name = "Radiant V2"
         position = ProtocolPosition(
-            protocol=protocol_name, chain=chain, wallet=wallet,
-            collateral=collateral, debt=debt_positions,
-            total_collateral_usd=total_collateral, total_debt_usd=total_debt_usd,
+            protocol=protocol_name,
+            chain=chain,
+            wallet=wallet,
+            collateral=collateral,
+            debt=debt_positions,
+            total_collateral_usd=total_collateral,
+            total_debt_usd=total_debt_usd,
         )
         position.compute_health()
         return position
 
-    async def _fetch_aave_position(
-        self, wallet: str, chain: str, pool_address: str
-    ) -> ProtocolPosition | None:
+    async def _fetch_aave_position(self, wallet: str, chain: str, pool_address: str) -> ProtocolPosition | None:
         """Fetch Aave V3 position using on-chain data."""
         w3 = self._get_web3(chain)
         if not w3:
             return None
-        pool_abi = [{
-            "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-            "name": "getUserAccountData",
-            "outputs": [
-                {"internalType": "uint256", "name": "totalCollateralBase", "type": "uint256"},
-                {"internalType": "uint256", "name": "totalDebtBase", "type": "uint256"},
-                {"internalType": "uint256", "name": "availableBorrowsBase", "type": "uint256"},
-                {"internalType": "uint256", "name": "currentLiquidationThreshold", "type": "uint256"},
-                {"internalType": "uint256", "name": "ltv", "type": "uint256"},
-                {"internalType": "uint256", "name": "healthFactor", "type": "uint256"},
-            ],
-            "stateMutability": "view", "type": "function",
-        }]
+        pool_abi = [
+            {
+                "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+                "name": "getUserAccountData",
+                "outputs": [
+                    {"internalType": "uint256", "name": "totalCollateralBase", "type": "uint256"},
+                    {"internalType": "uint256", "name": "totalDebtBase", "type": "uint256"},
+                    {"internalType": "uint256", "name": "availableBorrowsBase", "type": "uint256"},
+                    {"internalType": "uint256", "name": "currentLiquidationThreshold", "type": "uint256"},
+                    {"internalType": "uint256", "name": "ltv", "type": "uint256"},
+                    {"internalType": "uint256", "name": "healthFactor", "type": "uint256"},
+                ],
+                "stateMutability": "view",
+                "type": "function",
+            }
+        ]
         try:
             pool = w3.eth.contract(address=w3.to_checksum_address(pool_address), abi=pool_abi)
             try:
@@ -161,8 +169,10 @@ class LiquidationCascadeAnalyzer:
                 CollateralPosition(
                     asset="MIXED",
                     asset_address="0x0000000000000000000000000000000000000000",
-                    amount_usd=total_collateral_usd, amount_token=total_collateral_usd,
-                    ltv=liq_threshold_pct * 0.95, liquidation_threshold=liq_threshold_pct,
+                    amount_usd=total_collateral_usd,
+                    amount_token=total_collateral_usd,
+                    ltv=liq_threshold_pct * 0.95,
+                    liquidation_threshold=liq_threshold_pct,
                     price_usd=1.0,
                 )
             ]
@@ -172,19 +182,24 @@ class LiquidationCascadeAnalyzer:
                     DebtPosition(
                         asset="USDC",
                         asset_address="0x0000000000000000000000000000000000000001",
-                        amount_usd=total_debt_usd, amount_token=total_debt_usd,
+                        amount_usd=total_debt_usd,
+                        amount_token=total_debt_usd,
                         variable_rate=5.0,
                     )
                 )
             position = ProtocolPosition(
-                protocol="Aave V3", chain=chain, wallet=wallet,
-                collateral=collateral_details, debt=debt_details,
-                total_collateral_usd=total_collateral_usd, total_debt_usd=total_debt_usd,
+                protocol="Aave V3",
+                chain=chain,
+                wallet=wallet,
+                collateral=collateral_details,
+                debt=debt_details,
+                total_collateral_usd=total_collateral_usd,
+                total_debt_usd=total_debt_usd,
                 health_factor=health_factor,
             )
             position.compute_health()
             return position
-        except (KeyError, TypeError) as e :
+        except (KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Aave V3 fetch error on {chain}: {e}")
             return None
@@ -200,7 +215,8 @@ class LiquidationCascadeAnalyzer:
             chains = list(SUPPORTED_CHAINS.keys())
         if not _validate_address(wallet):
             return LiquidationAnalysis(
-                wallet=wallet, chains_analyzed=[],
+                wallet=wallet,
+                chains_analyzed=[],
                 errors=[f"Invalid wallet address: {wallet}"],
             )
         analysis = LiquidationAnalysis(wallet=wallet, chains_analyzed=chains)
@@ -209,10 +225,7 @@ class LiquidationCascadeAnalyzer:
                 analysis.warnings.append(f"Unsupported chain: {chain}")
                 continue
             position: ProtocolPosition | None = None
-            if (
-                use_onchain and self.web3_module
-                and chain in PROTOCOL_CONFIGS.get("aave_v3", {}).get("pools", {})
-            ):
+            if use_onchain and self.web3_module and chain in PROTOCOL_CONFIGS.get("aave_v3", {}).get("pools", {}):
                 pool_config = PROTOCOL_CONFIGS["aave_v3"]["pools"]
                 if chain in pool_config:
                     position = await self._fetch_aave_position(wallet, chain, pool_config[chain])

@@ -135,9 +135,11 @@ CATEGORY_INDEX: dict[str, list[str]] = {}
 for _key, _meta in CHAIN_METADATA.items():
     CATEGORY_INDEX.setdefault(_meta["category"], []).append(_key)
 
+
 def get_chains_by_category() -> dict[str, list[str]]:
     """Return a dict mapping category names to lists of data_type keys."""
     return dict(CATEGORY_INDEX)
+
 
 __all__ = [
     "CATEGORY_INDEX",

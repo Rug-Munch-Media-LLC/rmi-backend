@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 async def fetch_metadata(http: httpx.AsyncClient, address: str, chain: str) -> dict[str, Any]:
     """Fetch token metadata from DexScreener."""
     try:
@@ -51,6 +52,7 @@ async def fetch_metadata(http: httpx.AsyncClient, address: str, chain: str) -> d
         logger.debug(f"Metadata fetch error: {e}")
         return {}
 
+
 async def fetch_holders(
     http: httpx.AsyncClient,
     address: str,
@@ -65,6 +67,7 @@ async def fetch_holders(
     except Exception as e:
         logger.debug(f"Holder fetch error: {e}")
         return []
+
 
 async def _fetch_solana_holders(
     http: httpx.AsyncClient,
@@ -113,6 +116,7 @@ async def _fetch_solana_holders(
 
     return []
 
+
 async def _fetch_evm_holders(
     http: httpx.AsyncClient,
     address: str,
@@ -141,6 +145,7 @@ async def _fetch_evm_holders(
         logger.debug(f"EVM holder fetch error: {e}")
 
     return []
+
 
 async def fetch_buys(http: httpx.AsyncClient, address: str, chain: str) -> list[dict[str, Any]]:
     """Fetch recent buy transactions for the token."""

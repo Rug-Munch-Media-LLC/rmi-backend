@@ -38,6 +38,7 @@ PROJECT_TOKENS = {
     "SHIFT_AI": "ShiftAITokenAddressPlaceholder123456",
 }
 
+
 @dataclass
 class TokenAffiliation:
     """Represents a wallet's affiliation with a token project."""
@@ -50,6 +51,7 @@ class TokenAffiliation:
     acquisition_method: str = "unknown"  # prebond, purchase, airdrop, transfer
     evidence_strength: str = "unverified"  # confirmed, strong, circumstantial
 
+
 @dataclass
 class CrossProjectConnection:
     """Represents a connection between projects via shared wallets."""
@@ -59,6 +61,7 @@ class CrossProjectConnection:
     connection_type: str  # holder, deployer, funder, bridge
     evidence_tier: str
     notes: str = ""
+
 
 class CrossTokenAffiliationTracker:
     """
@@ -264,15 +267,11 @@ class CrossTokenAffiliationTracker:
             # Add project connections
             for project in wallet.cross_project_affiliations:
                 network["projects"].add(project)
-                network["edges"].append(
-                    {"source": wallet.address, "target": project, "type": "affiliation"}
-                )
+                network["edges"].append({"source": wallet.address, "target": project, "type": "affiliation"})
 
         network["projects"] = list(network["projects"])
 
-        logger.info(
-            f"  ✓ Network mapped: {len(network['nodes'])} wallets, {len(network['projects'])} projects"
-        )
+        logger.info(f"  ✓ Network mapped: {len(network['nodes'])} wallets, {len(network['projects'])} projects")
 
         return network
 
@@ -283,9 +282,7 @@ class CrossTokenAffiliationTracker:
             "summary": {
                 "total_wallets_analyzed": len(self.affiliations),
                 "cross_project_wallets": len(self.connections),
-                "projects_involved": list(
-                    {proj for conn in self.connections for proj in conn.projects}
-                ),
+                "projects_involved": list({proj for conn in self.connections for proj in conn.projects}),
             },
             "critical_connections": [],
             "evidence_by_tier": {
@@ -324,18 +321,19 @@ class CrossTokenAffiliationTracker:
             if conn.evidence_tier == "tier_1_direct" or "SMOKING_GUN" in conn.notes.upper()
         ]
 
+
 # === SYNC WRAPPERS ===
 def track_wallet(wallet: str) -> list[TokenAffiliation]:
     """Synchronous wrapper for tracking wallet affiliations."""
     tracker = CrossTokenAffiliationTracker()
     return asyncio.run(tracker.track_wallet_affiliations(wallet))
 
-def find_cross_project_wallets(
-    projects: list[str], min_projects: int = 2
-) -> list[CrossProjectConnection]:
+
+def find_cross_project_wallets(projects: list[str], min_projects: int = 2) -> list[CrossProjectConnection]:
     """Synchronous wrapper for finding cross-project wallets."""
     tracker = CrossTokenAffiliationTracker()
     return asyncio.run(tracker.find_cross_project_wallets(projects, min_projects))
+
 
 if __name__ == "__main__":
     # Test the tracker
@@ -369,9 +367,7 @@ if __name__ == "__main__":
         logger.info("CROSS-PROJECT WALLETS:")
         logger.info("=" * 70)
 
-        connections = await tracker.find_cross_project_wallets(
-            ["CRM", "SOSANA", "PBTC", "SHIFT_AI"], min_projects=2
-        )
+        connections = await tracker.find_cross_project_wallets(["CRM", "SOSANA", "PBTC", "SHIFT_AI"], min_projects=2)
 
         for conn in connections[:10]:
             logger.info(f"\n🔹 {conn.wallet}")

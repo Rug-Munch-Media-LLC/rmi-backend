@@ -29,15 +29,9 @@ from app.core.logging import get_logger
 logger = get_logger("wallet_drain_scanner")
 
 # ── Free API sources ─────────────────────────────────────────────
-ETHERSCAN_API = (
-    "https://api.etherscan.io/api?module=account&action=txlist&address={}&sort=desc&limit=100"
-)
-BASESCAN_API = (
-    "https://api.basescan.org/api?module=account&action=txlist&address={}&sort=desc&limit=100"
-)
-BSCSCAN_API = (
-    "https://api.bscscan.com/api?module=account&action=txlist&address={}&sort=desc&limit=100"
-)
+ETHERSCAN_API = "https://api.etherscan.io/api?module=account&action=txlist&address={}&sort=desc&limit=100"
+BASESCAN_API = "https://api.basescan.org/api?module=account&action=txlist&address={}&sort=desc&limit=100"
+BSCSCAN_API = "https://api.bscscan.com/api?module=account&action=txlist&address={}&sort=desc&limit=100"
 SOLSCAN_API = "https://api.solscan.io/account/tokens?address={}"
 DEFILLAMA_TOKEN_APPROVALS = "https://coins.llama.fi/approvals/ethereum/{}"
 
@@ -65,11 +59,14 @@ _URL_SAFE = re.compile(
     r"^https?://[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*(?::\d{1,5})?(?:/[^\s\"<>]*)?$"
 )
 
+
 def _validate_url(url: str) -> bool:
     """Basic URL validation to prevent SSRF / injection."""
     return bool(_URL_SAFE.match(url))
 
+
 # ── Core scoring engine ─────────────────────────────────────────
+
 
 def _compute_drain_score(
     unlimited_approvals: int,
@@ -100,6 +97,7 @@ def _compute_drain_score(
     raw = unlimited_score + drainer_score + permit_score + amount_score + nft_score + delegate_score
     return min(raw, 100.0)
 
+
 def _classify_drain_risk(score: float) -> str:
     """Classify score into risk category."""
     if score >= 70:
@@ -111,6 +109,7 @@ def _classify_drain_risk(score: float) -> str:
     if score >= 10:
         return "low"
     return "none"
+
 
 def _generate_recommendation(score: float, dangerous_approval_ratio: float) -> str:
     """Generate human-readable recommendation based on score and ratio."""
@@ -137,15 +136,15 @@ def _generate_recommendation(score: float, dangerous_approval_ratio: float) -> s
         )
     return "No drain risks detected. Wallet approval hygiene appears healthy."
 
+
 # ── Main detector class ─────────────────────────────────────────
+
 
 class WalletDrainScanner:
     """Scans a wallet address for dangerous approvals and drain vulnerabilities."""
 
     def __init__(self, address: str, chain: str = "ethereum") -> None:
-        if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(
-            r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address
-        ):
+        if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
             raise ValueError(f"Invalid address format: {address[:20]}")
         self.address = address.lower()
         self.chain = chain.lower()
@@ -243,9 +242,7 @@ class WalletDrainScanner:
                                     {
                                         "type": "unlimited_approve",
                                         "spender": spender,
-                                        "value": "unlimited"
-                                        if value >= MAX_UINT256
-                                        else f"{value} (near-max)",
+                                        "value": "unlimited" if value >= MAX_UINT256 else f"{value} (near-max)",
                                         "tx_hash": tx.get("hash", ""),
                                     }
                                 )
@@ -316,9 +313,7 @@ class WalletDrainScanner:
                             result["dangerous_approvals"].append(
                                 {
                                     "type": "delegated_token",
-                                    "mint": token.get(
-                                        "tokenAddress", token.get("token_address", "")
-                                    ),
+                                    "mint": token.get("tokenAddress", token.get("token_address", "")),
                                     "delegate": delegate,
                                     "amount": token.get("amount", "unlimited"),
                                 }

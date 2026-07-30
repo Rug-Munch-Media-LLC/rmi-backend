@@ -125,8 +125,12 @@ def extract_entities(text: str) -> EntityExtractionResult:
             scam_keywords.append(kw)
 
     return EntityExtractionResult(
-        evm_addresses=evm_addresses, solana_addresses=solana_addresses,
-        token_symbols=token_symbols, chain_names=chain_names,
-        protocol_names=protocol_names, scam_keywords=scam_keywords,
-        tx_hashes=tx_hashes, ens_domains=ens_domains,
+        evm_addresses=evm_addresses,
+        solana_addresses=solana_addresses,
+        token_symbols=token_symbols,
+        chain_names=chain_names,
+        protocol_names=protocol_names,
+        scam_keywords=scam_keywords,
+        tx_hashes=tx_hashes,
+        ens_domains=ens_domains,
     )

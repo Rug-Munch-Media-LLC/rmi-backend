@@ -49,9 +49,7 @@ async def detect_temporal_clusters(
         for tx in profile.get("transactions", []):
             timestamp = tx.get("timestamp")
             if timestamp:
-                window = timestamp.replace(
-                    minute=(timestamp.minute // 5) * 5, second=0, microsecond=0
-                )
+                window = timestamp.replace(minute=(timestamp.minute // 5) * 5, second=0, microsecond=0)
                 time_windows[window].add(wallet)
 
     # Find wallets appearing together frequently
@@ -99,6 +97,7 @@ async def detect_temporal_clusters(
             clustered.update(cluster_wallets)
 
     return clusters
+
 
 async def detect_counterparty_clusters(
     wallet_profiles: dict[str, dict],
@@ -168,6 +167,7 @@ async def detect_counterparty_clusters(
             clustered.update(cluster_wallets)
 
     return clusters
+
 
 async def detect_behavioral_clusters(
     wallet_profiles: dict[str, dict],
@@ -275,6 +275,7 @@ async def detect_behavioral_clusters(
 
     return clusters
 
+
 async def detect_funding_clusters(
     wallet_profiles: dict[str, dict],
     wallets: list[str],
@@ -319,4 +320,3 @@ async def detect_funding_clusters(
             clusters.append(cluster)
 
     return clusters
-

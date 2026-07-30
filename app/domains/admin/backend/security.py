@@ -3,6 +3,7 @@ Admin Backend — Security Manager
 ==================================
 Rate limiting, IP blocking, failed login tracking.
 """
+
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ from typing import Any
 from app.core.logging import get_logger
 
 logger = get_logger("rmi_admin_backend")
+
 
 class SecurityManager:
     """
@@ -76,7 +78,7 @@ class SecurityManager:
                 "window": window,
             }
 
-        except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Rate limit check failed: {e}")
             return {"allowed": True, "remaining": -1, "reset_at": 0}
@@ -106,7 +108,7 @@ class SecurityManager:
             await r.sadd("blocked_ips:all", ip)
             logger.warning(f"IP blocked: {ip} for {duration_hours}h - {reason}")
             return True
-        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError) as e :
+        except (json.JSONDecodeError, ValueError, TypeError, ConnectionError, OSError) as e:
             logger.debug("block_ip_error", exc_info=True)
             logger.error(f"IP block failed: {e}")
             return False
@@ -126,7 +128,7 @@ class SecurityManager:
             await r.delete(f"blocked_ip:{ip}")
             await r.srem("blocked_ips:all", ip)
             return True
-        except (ConnectionError, OSError, ValueError) as e :
+        except (ConnectionError, OSError, ValueError) as e:
             logger.debug("unblock_ip_error", exc_info=True)
             logger.error(f"IP unblock failed: {e}")
             return False
@@ -145,7 +147,7 @@ class SecurityManager:
             )
             data = await r.get(f"blocked_ip:{ip}")
             return json.loads(data) if data else None
-        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e :
+        except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
             logger.debug("is_ip_blocked_error", exc_info=True)
             logger.error(f"IP block check failed: {e}")
             return None
@@ -169,7 +171,7 @@ class SecurityManager:
                 ip = identifier.split(":")[-1] if ":" in identifier else identifier
                 await SecurityManager.block_ip(ip, "Too many failed login attempts", 1)
             return count
-        except (ConnectionError, OSError, ValueError) as e :
+        except (ConnectionError, OSError, ValueError) as e:
             logger.debug("track_failed_login_error", exc_info=True)
             logger.error(f"Failed login tracking error: {e}")
             return 0
@@ -188,7 +190,7 @@ class SecurityManager:
             )
             await r.delete(f"failed_logins:{identifier}")
             return True
-        except (ConnectionError, OSError, ValueError) as e :
+        except (ConnectionError, OSError, ValueError) as e:
             logger.debug("reset_failed_login_error", exc_info=True)
             logger.error(f"Reset failed login error: {e}")
             return False

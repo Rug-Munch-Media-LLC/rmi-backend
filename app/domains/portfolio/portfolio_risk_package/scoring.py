@@ -2,6 +2,7 @@
 Portfolio Risk — Token Risk Scorer
 Scores tokens using heuristics or the unified scanner when available.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -13,6 +14,7 @@ logger = get_logger(__name__)
 
 KNOWN_SCAM_TOKENS: set[str] = set()
 
+
 class TokenRiskScorer:
     def __init__(self) -> None:
         self._scanner_available = False
@@ -21,6 +23,7 @@ class TokenRiskScorer:
     def _try_import_scanner(self) -> None:
         try:
             import importlib
+
             self._scanner_available = importlib.util.find_spec("app.unified_scanner") is not None
         except ImportError:
             pass
@@ -31,9 +34,14 @@ class TokenRiskScorer:
         if self._scanner_available:
             try:
                 from app.unified_scanner import scan_token as _scan_token
+
                 result = await _scan_token(chain, address)
                 if result:
-                    return {"risk_score": result.get("safety_score", 50), "risk_flags": result.get("risk_flags", []), "reason": "Scanner"}
+                    return {
+                        "risk_score": result.get("safety_score", 50),
+                        "risk_flags": result.get("risk_flags", []),
+                        "reason": "Scanner",
+                    }
             except (AttributeError, ImportError):
                 pass
         return self._heuristic_score(chain, address, symbol)

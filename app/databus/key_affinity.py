@@ -8,6 +8,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.key_affinity")
 
+
 class KeyAffinitySelector:
     """Select API keys with consistent affinity based on request params.
 
@@ -26,13 +27,7 @@ class KeyAffinitySelector:
         if len(available_keys) == 1:
             return available_keys[0]
         # Hash the most relevant parameter
-        entity = (
-            kwargs.get("address")
-            or kwargs.get("mint")
-            or kwargs.get("token")
-            or kwargs.get("entity")
-            or ""
-        )
+        entity = kwargs.get("address") or kwargs.get("mint") or kwargs.get("token") or kwargs.get("entity") or ""
         if entity:
             affinity_key = f"{pool_name}:{entity}"
             # Check cached assignment
@@ -57,6 +52,7 @@ class KeyAffinitySelector:
 
     def stats(self) -> dict:
         return {"affinity_assignments": len(self._assignments)}
+
 
 # Module-level singleton instance
 key_affinity = KeyAffinitySelector()

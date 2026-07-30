@@ -36,6 +36,7 @@ _l1: dict[str, tuple] = {}
 _cache_hits = 0
 _cache_misses = 0
 
+
 class MCPDataSources:
     """Wraps free MCP servers as cached data sources."""
 
@@ -87,7 +88,7 @@ class MCPDataSources:
                 if result:
                     try:
                         parsed = json.loads(result)
-                    except (json.JSONDecodeError):
+                    except json.JSONDecodeError:
                         parsed = {"value": str(result)[:500]}
                     _l1[cache_key] = (time.monotonic() + ttl, parsed)
                     return parsed
@@ -111,9 +112,7 @@ class MCPDataSources:
             ttl=15,
         )
 
-    async def evm_transactions(
-        self, address: str, chain: str = "ethereum", limit: int = 10
-    ) -> dict | None:
+    async def evm_transactions(self, address: str, chain: str = "ethereum", limit: int = 10) -> dict | None:
         """Get recent transactions."""
         return await self._mcp_call(
             BOAR_URL,
@@ -149,9 +148,7 @@ class MCPDataSources:
             ttl=3600,
         )
 
-    async def evm_block_info(
-        self, block_number: int | None = None, chain: str = "ethereum"
-    ) -> dict | None:
+    async def evm_block_info(self, block_number: int | None = None, chain: str = "ethereum") -> dict | None:
         """Get block info."""
         args = {"chain": chain}
         if block_number:
@@ -225,8 +222,10 @@ class MCPDataSources:
             },
         }
 
+
 # Singleton
 _mcp: MCPDataSources | None = None
+
 
 def get_mcp_sources() -> MCPDataSources:
     global _mcp

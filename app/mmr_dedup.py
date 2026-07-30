@@ -18,6 +18,7 @@ Where:
 Used after _rrf_fuse() in rag_service.py to ensure the final
 top-K results contain minimal duplicate/near-duplicate content.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -28,6 +29,7 @@ from typing import Any
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     """Compute cosine similarity between two vectors."""
@@ -48,6 +50,7 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
 
     return dot / (mag_a * mag_b)
 
+
 def text_jaccard_similarity(text_a: str, text_b: str) -> float:
     """
     Token-level Jaccard similarity for text dedup when embeddings unavailable.
@@ -67,6 +70,7 @@ def text_jaccard_similarity(text_a: str, text_b: str) -> float:
     union = tokens_a | tokens_b
 
     return len(intersection) / len(union) if union else 0.0
+
 
 def content_hash_dedup(
     results: list[dict[str, Any]],
@@ -95,6 +99,7 @@ def content_hash_dedup(
         deduped.append(r)
 
     return deduped
+
 
 def mmr_rerank(
     results: list[dict[str, Any]],
@@ -195,6 +200,7 @@ def mmr_rerank(
 
     return selected
 
+
 async def mmr_dedup_results(
     results: list[dict[str, Any]],
     query_score_field: str = "rrf_score",
@@ -230,6 +236,7 @@ async def mmr_dedup_results(
             lambda_param=lambda_param,
             top_k=top_k,
         )
+
 
 async def _enrich_with_embeddings(
     results: list[dict[str, Any]],
@@ -293,6 +300,7 @@ async def _enrich_with_embeddings(
                 await r.aclose()
 
     return results
+
 
 def cluster_similar_results(
     results: list[dict[str, Any]],

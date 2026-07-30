@@ -289,9 +289,7 @@ class TestSQLInjectionDefense:
         )
         # The route exists and should handle this gracefully
         # Any 4xx or even 200 is acceptable; 500 is the failure case
-        assert resp.status_code != 500, (
-            f"SQL injection '{injection_payload}' caused 500 Internal Server Error"
-        )
+        assert resp.status_code != 500, f"SQL injection '{injection_payload}' caused 500 Internal Server Error"
 
     @pytest.mark.parametrize(
         "injection_payload",

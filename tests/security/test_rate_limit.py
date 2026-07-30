@@ -518,9 +518,7 @@ class TestAcquireProvider:
         limiter._redis_failed = True
 
         with patch.object(limiter, "_ensure_redis", return_value=None):
-            allowed, wait = await limiter.acquire_provider(
-                "test-provider", "embed", tokens=1, rate=1.0, burst=5.0
-            )
+            allowed, wait = await limiter.acquire_provider("test-provider", "embed", tokens=1, rate=1.0, burst=5.0)
             assert allowed is True
             assert isinstance(wait, float)
             assert wait == 0.0  # No wait when allowed

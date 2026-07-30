@@ -8,6 +8,7 @@ Usage:
     predictor = RugImminencePredictor()
     result = await predictor.predict("0x1234...", chain="base")
 """
+
 from __future__ import annotations
 
 from app.domains.detectors.rug_imminence_predictor_package.predictor import RugImminencePredictor

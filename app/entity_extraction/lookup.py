@@ -25,6 +25,7 @@ REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
+
 class EntityLookup:
     """
     Redis-backed exact-match entity index using sorted sets.
@@ -73,18 +74,25 @@ class EntityLookup:
         """Lazily create and return the async Redis client."""
         if self._redis is None:
             import redis.asyncio as aioredis
+
             self._redis = aioredis.Redis(
-                host=self._redis_host, port=self._redis_port,
+                host=self._redis_host,
+                port=self._redis_port,
                 password=self._redis_password or None,
-                db=self._redis_db, decode_responses=True,
+                db=self._redis_db,
+                decode_responses=True,
             )
         return self._redis
 
     # ── Indexing ────────────────────────────────────────────────────
 
     async def index_entity(
-        self, entity_type: str, entity_value: str, doc_id: str,
-        metadata: dict[str, Any] | None = None, score: float = 1.0,
+        self,
+        entity_type: str,
+        entity_value: str,
+        doc_id: str,
+        metadata: dict[str, Any] | None = None,
+        score: float = 1.0,
     ) -> None:
         """Store an entity -> doc mapping in Redis."""
         try:
@@ -116,8 +124,13 @@ class EntityLookup:
     @staticmethod
     def _normalise(entity_type: str, entity_value: str) -> str:
         _lower_types = {
-            "evm_address", "tx_hash", "chain_name", "protocol_name",
-            "scam_keyword", "ens_domain", "token_symbol",
+            "evm_address",
+            "tx_hash",
+            "chain_name",
+            "protocol_name",
+            "scam_keyword",
+            "ens_domain",
+            "token_symbol",
         }
         if entity_type in _lower_types:
             return entity_value.lower()
@@ -131,8 +144,14 @@ class EntityLookup:
             r = await self._get_redis()
             results: list[dict[str, Any]] = []
             entity_types = [
-                "evm_address", "solana_address", "token_symbol", "chain_name",
-                "protocol_name", "scam_keyword", "tx_hash", "ens_domain",
+                "evm_address",
+                "solana_address",
+                "token_symbol",
+                "chain_name",
+                "protocol_name",
+                "scam_keyword",
+                "tx_hash",
+                "ens_domain",
             ]
             norm_value = entity_value.lower()
 
@@ -143,12 +162,14 @@ class EntityLookup:
                 for member_json, score in members_with_scores:
                     try:
                         member = json.loads(member_json)
-                        results.append({
-                            "doc_id": member["doc_id"],
-                            "entity_type": etype,
-                            "metadata": member.get("metadata", {}),
-                            "score": float(score),
-                        })
+                        results.append(
+                            {
+                                "doc_id": member["doc_id"],
+                                "entity_type": etype,
+                                "metadata": member.get("metadata", {}),
+                                "score": float(score),
+                            }
+                        )
                     except (json.JSONDecodeError, KeyError) as parse_err:
                         logger.warning("Malformed entity member in %s: %s", key, parse_err)
 
@@ -174,11 +195,13 @@ class EntityLookup:
                 for member_json, score in members_with_scores:
                     try:
                         member = json.loads(member_json)
-                        docs.append({
-                            "doc_id": member["doc_id"],
-                            "metadata": member.get("metadata", {}),
-                            "score": float(score),
-                        })
+                        docs.append(
+                            {
+                                "doc_id": member["doc_id"],
+                                "metadata": member.get("metadata", {}),
+                                "score": float(score),
+                            }
+                        )
                     except (json.JSONDecodeError, KeyError) as parse_err:
                         logger.warning("Malformed member in %s: %s", entity_key, parse_err)
                 if docs:
@@ -192,7 +215,10 @@ class EntityLookup:
     # ── Batch indexing ───────────────────────────────────────────────
 
     async def batch_index(
-        self, doc_id: str, text: str, collection: str,
+        self,
+        doc_id: str,
+        text: str,
+        collection: str,
         metadata: dict[str, Any] | None = None,
     ) -> EntityExtractionResult:
         """Extract entities from text and index them all in one call."""
@@ -220,9 +246,14 @@ class EntityLookup:
     @staticmethod
     def _entity_score(entity_type: str) -> float:
         scores: dict[str, float] = {
-            "evm_address": 3.0, "solana_address": 3.0, "tx_hash": 3.0,
-            "ens_domain": 2.5, "token_symbol": 2.0, "scam_keyword": 2.0,
-            "protocol_name": 1.5, "chain_name": 1.0,
+            "evm_address": 3.0,
+            "solana_address": 3.0,
+            "tx_hash": 3.0,
+            "ens_domain": 2.5,
+            "token_symbol": 2.0,
+            "scam_keyword": 2.0,
+            "protocol_name": 1.5,
+            "chain_name": 1.0,
         }
         return scores.get(entity_type, 1.0)
 

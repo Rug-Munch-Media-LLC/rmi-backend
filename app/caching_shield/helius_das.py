@@ -35,6 +35,7 @@ logger = get_logger("helius_das")
 
 DAS_BASE = "https://mainnet.helius-rpc.com"
 
+
 class HeliusDasClient:
     """Indexed Solana token data via Helius DAS API. Uses existing RPC keys."""
 
@@ -57,9 +58,7 @@ class HeliusDasClient:
 
     async def _post(self, method: str, params: dict, ttl: int = 60) -> dict | None:
         """Make a cached DAS API call."""
-        cache_key = hashlib.sha256(
-            f"{method}:{json.dumps(params, sort_keys=True)}".encode()
-        ).hexdigest()[:24]
+        cache_key = hashlib.sha256(f"{method}:{json.dumps(params, sort_keys=True)}".encode()).hexdigest()[:24]
 
         # L1 cache
         entry = self._l1.get(cache_key)
@@ -157,7 +156,9 @@ class HeliusDasClient:
             "total_rps": len(self._keys) * 25,
         }
 
+
 _das_client: HeliusDasClient | None = None
+
 
 def get_helius_das() -> HeliusDasClient:
     global _das_client

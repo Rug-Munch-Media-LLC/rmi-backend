@@ -15,6 +15,7 @@ async def run_scan(token_address: str, chain: str = "solana") -> dict[str, Any]:
         "safety_score": 50,
     }
 
+
 async def get_scan_result(scan_id: str) -> dict[str, Any]:
     """Get scan result by ID."""
     return {
@@ -22,6 +23,7 @@ async def get_scan_result(scan_id: str) -> dict[str, Any]:
         "status": "pending",
         "result": {},
     }
+
 
 async def rug_shield(token_address: str, chain: str = "solana") -> dict[str, Any]:
     """Run rug shield scan."""
@@ -31,6 +33,7 @@ async def rug_shield(token_address: str, chain: str = "solana") -> dict[str, Any
         "rug_shield": "pending",
     }
 
+
 async def honeypot_check(token_address: str, chain: str = "solana") -> dict[str, Any]:
     """Check honeypot status."""
     return {
@@ -38,6 +41,7 @@ async def honeypot_check(token_address: str, chain: str = "solana") -> dict[str,
         "chain": chain,
         "is_honeypot": False,
     }
+
 
 async def token_forensics(token_address: str, chain: str = "solana") -> dict[str, Any]:
     """Run token forensics."""

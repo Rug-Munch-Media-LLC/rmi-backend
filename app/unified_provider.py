@@ -16,11 +16,13 @@ logger = get_logger(__name__)
 
 _provider: UnifiedProvider | None = None
 
+
 def get_unified_provider() -> UnifiedProvider:
     global _provider
     if _provider is None:
         _provider = UnifiedProvider()
     return _provider
+
 
 class UnifiedProvider:
     """Multi-source chain data with fallback cascade."""
@@ -140,14 +142,9 @@ class UnifiedProvider:
         try:
             if not self.birdeye:
                 return []
-            data = await self.birdeye._call(
-                "/defi/token_holders", {"address": mint, "offset": 0, "limit": limit}
-            )
+            data = await self.birdeye._call("/defi/token_holders", {"address": mint, "offset": 0, "limit": limit})
             items = data.get("data", {}).get("items", [])
-            return [
-                {"address": i.get("owner", ""), "amount": i.get("uiAmount", 0), "source": "birdeye"}
-                for i in items
-            ]
+            return [{"address": i.get("owner", ""), "amount": i.get("uiAmount", 0), "source": "birdeye"} for i in items]
         except (ConnectionError, TimeoutError, OSError) as e:
             logger.debug("Birdeye holders failed: %s", e)
             return []
@@ -157,9 +154,7 @@ class UnifiedProvider:
             if not self.solscan:
                 return []
             holders = (
-                self.solscan.get_token_holders(mint, limit=limit)
-                if hasattr(self.solscan, "get_token_holders")
-                else []
+                self.solscan.get_token_holders(mint, limit=limit) if hasattr(self.solscan, "get_token_holders") else []
             )
             if isinstance(holders, list):
                 return [
@@ -253,8 +248,7 @@ class UnifiedProvider:
             )
             if isinstance(txs, list):
                 return [
-                    {"signature": t.get("txHash", t.get("signature", "")), "source": "solscan"}
-                    for t in txs[:limit]
+                    {"signature": t.get("txHash", t.get("signature", "")), "source": "solscan"} for t in txs[:limit]
                 ]
             return []
         except (ConnectionError, TimeoutError, OSError) as e:
@@ -278,8 +272,8 @@ class UnifiedProvider:
                 if price:
                     await cache.set("price", price, mint, ttl=60)
                     return price
-        except (ConnectionError, TimeoutError, OSError):
-            pass
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.debug("Unified provider connection error: %s", e)
 
         # 2. DexScreener
         try:
@@ -293,8 +287,8 @@ class UnifiedProvider:
                         price = float(pairs[0].get("priceUsd", 0))
                         await cache.set("price", price, mint, ttl=60)
                         return price
-        except (httpx.HTTPError, ConnectionError, TimeoutError):
-            pass
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("Unified provider HTTP error: %s", e)
 
         await cache.set("price", None, mint, ttl=60)
         return None
@@ -322,8 +316,8 @@ class UnifiedProvider:
                 }
                 await cache.set("meta", result, mint, ttl=600)
                 return result
-        except (ConnectionError, TimeoutError, OSError):
-            pass
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.debug("Unified provider connection error: %s", e)
 
         # 2. DexScreener
         try:
@@ -342,8 +336,8 @@ class UnifiedProvider:
                         }
                         await cache.set("meta", result, mint, ttl=600)
                         return result
-        except (httpx.HTTPError, ConnectionError, TimeoutError):
-            pass
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("Unified provider HTTP error: %s", e)
 
         result = {"name": mint[:8], "symbol": "???", "source": "fallback"}
         await cache.set("meta", result, mint, ttl=600)

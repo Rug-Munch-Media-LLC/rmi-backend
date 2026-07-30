@@ -41,6 +41,7 @@ _coingecko_cb = AsyncCircuitBreaker(
 
 # ── API Keys ───────────────────────────────────────────────
 
+
 def _load_key(filename: str) -> str:
     """Load API key from /root/.secrets/ or env var."""
     env = os.getenv(filename.upper(), "")
@@ -52,8 +53,10 @@ def _load_key(filename: str) -> str:
     except (ConnectionError, OSError, TimeoutError):
         return ""
 
+
 COINGECKO_FREE_KEY = _load_key("coingecko_api_key")  # Demo key: CG-...
 COINGECKO_PRO_KEY = _load_key("coingecko_api_key_pro")  # Also Demo tier
+
 
 class CoinGeckoConnector:
     """CoinGecko Demo API connector with rate limiting, caching, and smart polling.
@@ -419,9 +422,11 @@ class CoinGeckoConnector:
             "rate_limit": "30 req/min",
         }
 
+
 # ── Singleton ──────────────────────────────────────────────
 
 _connector: CoinGeckoConnector | None = None
+
 
 def get_coingecko_connector() -> CoinGeckoConnector:
     global _connector

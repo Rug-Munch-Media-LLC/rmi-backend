@@ -2,6 +2,7 @@
 """
 RugMunchBot -- Inline query handler.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

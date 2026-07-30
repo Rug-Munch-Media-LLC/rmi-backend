@@ -44,19 +44,18 @@ SENSITIVE_KEYS = {
     "ssn",
 }
 
+
 def _scrub_secrets(data: Any) -> Any:
     """Recursively replace sensitive values with '[REDACTED]'.
 
     Walks dicts and lists, checking each key against SENSITIVE_KEYS.
     """
     if isinstance(data, dict):
-        return {
-            k: "[REDACTED]" if k.lower() in SENSITIVE_KEYS else _scrub_secrets(v)
-            for k, v in data.items()
-        }
+        return {k: "[REDACTED]" if k.lower() in SENSITIVE_KEYS else _scrub_secrets(v) for k, v in data.items()}
     if isinstance(data, list):
         return [_scrub_secrets(x) for x in data]
     return data
+
 
 def setup_sentry() -> bool:
     """Initialize the Sentry SDK pointed at our self-hosted GlitchTip.
@@ -66,6 +65,7 @@ def setup_sentry() -> bool:
     """
     try:
         from app.config import settings as _s
+
         dsn = _s.glitchtip_dsn or _s.sentry_dsn
     except Exception:
         dsn = os.getenv("GLITCHTIP_DSN") or os.getenv("SENTRY_DSN")
@@ -84,6 +84,7 @@ def setup_sentry() -> bool:
 
     try:
         from app.config import settings as _s
+
         env = _s.environment
         traces_sample_rate = _s.sentry_traces_sample_rate
     except Exception:
@@ -105,6 +106,7 @@ def setup_sentry() -> bool:
     )
     log.info(f"sentry_initialized dsn={dsn[:30]}... env={env} sample_rate={traces_sample_rate}")
     return True
+
 
 def _before_send(event: dict, hint: dict) -> dict | None:
     """Strip secrets before sending to GlitchTip.
@@ -128,12 +130,14 @@ def _before_send(event: dict, hint: dict) -> dict | None:
         log.warning(f"sentry_scrub_fail err={e}")
         return event  # Better to log it than to drop it
 
+
 def _before_send_transaction(event: dict, hint: dict) -> dict | None:
     """Drop transactions that are health checks / metrics scrapes (high volume, low value)."""
     url = event.get("transaction") or event.get("request", {}).get("url", "")
     if any(s in url for s in ("/health", "/ready", "/live", "/metrics", "/openapi.json")):
         return None
     return event
+
 
 def capture_exception(error: BaseException, **extra: Any) -> None:
     """Manually capture an exception. For use in catch blocks where
@@ -148,6 +152,7 @@ def capture_exception(error: BaseException, **extra: Any) -> None:
     except Exception as e:
         log.warning(f"sentry_capture_fail err={e}")
 
+
 def capture_message(message: str, level: str = "info", **extra: Any) -> None:
     """Manually capture a message. For non-exception events."""
     try:
@@ -159,6 +164,7 @@ def capture_message(message: str, level: str = "info", **extra: Any) -> None:
             sentry_sdk.capture_message(message, level=level)
     except Exception as e:
         log.warning(f"sentry_message_fail err={e}")
+
 
 def flush_sentry(timeout: float = 2.0) -> None:
     """Flush pending events. Call before shutdown."""

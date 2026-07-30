@@ -14,6 +14,7 @@ def get_portfolio(wallet: str, chain: str = "base") -> dict[str, Any]:
         "total_value_usd": 0,
     }
 
+
 def get_multi_wallet_portfolio(wallets: list[str], chain: str = "base") -> dict[str, Any]:
     """Get portfolio for multiple wallets."""
     return {
@@ -22,6 +23,7 @@ def get_multi_wallet_portfolio(wallets: list[str], chain: str = "base") -> dict[
         "portfolios": [],
         "total_value_usd": 0,
     }
+
 
 def get_portfolio_history(wallet: str, chain: str = "base", days: int = 7) -> dict[str, Any]:
     """Get portfolio history."""

@@ -3,6 +3,7 @@ News Service — Core Aggregation Service
 =========================================
 Thin NewsService class that delegates fetching to fetchers module.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,6 +16,7 @@ from app.domains.news.news_service import fetchers_api, fetchers_rss
 from app.domains.news.news_service.sources import BEARISH_WORDS, BULLISH_WORDS, CATEGORY_KEYWORDS
 
 logger = get_logger(__name__)
+
 
 class NewsService:
     """Multi-source crypto news aggregator - 170+ sources, real data only."""
@@ -62,16 +64,27 @@ class NewsService:
 
     def _categorize_reddit(self, subreddit: str, text: str) -> str:
         sub_cats = {
-            "CryptoCurrency": "market", "CryptoMarkets": "market", "ethdev": "protocol",
-            "CryptoTechnology": "protocol", "defi": "defi", "ethfinance": "defi",
-            "solana": "protocol", "CryptoScams": "security", "Bitcoin": "market",
-            "ethereum": "protocol", "NFT": "nft_gaming", "web3": "protocol",
-            "layer2": "layer2", "CryptoGaming": "nft_gaming",
+            "CryptoCurrency": "market",
+            "CryptoMarkets": "market",
+            "ethdev": "protocol",
+            "CryptoTechnology": "protocol",
+            "defi": "defi",
+            "ethfinance": "defi",
+            "solana": "protocol",
+            "CryptoScams": "security",
+            "Bitcoin": "market",
+            "ethereum": "protocol",
+            "NFT": "nft_gaming",
+            "web3": "protocol",
+            "layer2": "layer2",
+            "CryptoGaming": "nft_gaming",
         }
         return sub_cats.get(subreddit, self._categorize(text))
 
     # ─── FETCH DELEGATION ─────────────────────────────────────────
-    async def _fetch_rss(self, url: str, source_name: str, limit: int = 5, use_proxy: bool = False) -> list[dict[str, Any]]:
+    async def _fetch_rss(
+        self, url: str, source_name: str, limit: int = 5, use_proxy: bool = False
+    ) -> list[dict[str, Any]]:
         return await fetchers_rss.fetch_rss(self, url, source_name, limit, use_proxy)
 
     async def _fetch_all_rss(self, limit_per_source: int = 3) -> list[dict[str, Any]]:
@@ -100,23 +113,34 @@ class NewsService:
 
     # ─── MAIN AGGREGATOR ──────────────────────────────────────────
     async def fetch_all(
-        self, limit: int = 100, include_rss: bool = True, include_reddit: bool = True,
-        include_api: bool = True, include_internal: bool = True,
+        self,
+        limit: int = 100,
+        include_rss: bool = True,
+        include_reddit: bool = True,
+        include_api: bool = True,
+        include_internal: bool = True,
     ) -> dict[str, Any]:
         """Fetch from all sources. Heavy operation - call sparingly."""
         all_sources = []
         tasks, task_labels = [], []
         if include_rss:
-            tasks.append(self._fetch_all_rss(3)); task_labels.append("RSS")
+            tasks.append(self._fetch_all_rss(3))
+            task_labels.append("RSS")
         if include_reddit:
-            tasks.append(self._fetch_all_reddit()); task_labels.append("Reddit")
+            tasks.append(self._fetch_all_reddit())
+            task_labels.append("Reddit")
         if include_api:
-            tasks.append(self._fetch_coingecko(15)); task_labels.append("CoinGecko")
-            tasks.append(self._fetch_cryptopanic(15)); task_labels.append("CryptoPanic")
+            tasks.append(self._fetch_coingecko(15))
+            task_labels.append("CoinGecko")
+            tasks.append(self._fetch_cryptopanic(15))
+            task_labels.append("CryptoPanic")
         if include_internal:
-            tasks.append(self._fetch_ghost(5)); task_labels.append("Ghost")
-            tasks.append(self._fetch_rmi_scanner()); task_labels.append("Scanner")
-            tasks.append(self._fetch_rmi_alerts()); task_labels.append("Alerts")
+            tasks.append(self._fetch_ghost(5))
+            task_labels.append("Ghost")
+            tasks.append(self._fetch_rmi_scanner())
+            task_labels.append("Scanner")
+            tasks.append(self._fetch_rmi_alerts())
+            task_labels.append("Alerts")
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for label, result in zip(task_labels, results, strict=False):
@@ -150,15 +174,21 @@ class NewsService:
             sentiment_counts[s] = sentiment_counts.get(s, 0) + 1
 
         return {
-            "status": "success", "articles": result, "total": len(result),
-            "sources": sources, "source_count": len(sources),
+            "status": "success",
+            "articles": result,
+            "total": len(result),
+            "sources": sources,
+            "source_count": len(sources),
             "sentiment_summary": sentiment_counts,
             "tiers": sorted({a.get("tier", "unknown") for a in result}),
-            "cached": False, "fetched_at": datetime.now(UTC).isoformat(),
+            "cached": False,
+            "fetched_at": datetime.now(UTC).isoformat(),
         }
+
 
 # ─── Singleton ───────────────────────────────────────────────────
 _news_service: NewsService | None = None
+
 
 def get_news_service() -> NewsService:
     global _news_service

@@ -17,6 +17,7 @@ async def get_stats() -> dict[str, Any]:
     ann_stats = {}
     try:
         from app.ann_index import get_ann_index
+
         ann = get_ann_index()
         ann_stats = ann.stats()
     except (AttributeError, ImportError):
@@ -37,6 +38,7 @@ async def get_stats() -> dict[str, Any]:
     cache_stats = {}
     try:
         from app.semantic_cache import get_semantic_cache
+
         cache = get_semantic_cache()
         cache_stats = await cache.stats()
     except (AttributeError, ImportError):

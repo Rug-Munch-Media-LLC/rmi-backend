@@ -1,6 +1,7 @@
 """
 RIP — Enums, Types & Constants
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -22,9 +23,11 @@ class ImminenceLevel(Enum):
     def numeric(self) -> int:
         return {"low": 1, "medium": 2, "high": 3, "critical": 4}[self.value]
 
+
 @dataclass
 class SignalCategory:
     """A single signal category with weight, score, and evidence."""
+
     name: str
     weight: float  # 0-1, all weights sum to 1
     score: float = 0.0  # 0-100
@@ -35,9 +38,11 @@ class SignalCategory:
     def weighted_contribution(self) -> float:
         return self.score * self.weight
 
+
 @dataclass
 class RIPResult:
     """Complete rug imminence prediction result."""
+
     token_address: str
     chain: str
     token_name: str = ""
@@ -120,6 +125,7 @@ class RIPResult:
             "sources_failed": self.sources_failed,
         }
 
+
 # Default signal weights (sum to 1.0)
 DEFAULT_WEIGHTS = {
     "lp_health": 0.25,
@@ -160,6 +166,14 @@ SCORE_THRESHOLDS = {
 }
 
 VALID_CHAINS = {
-    "base", "solana", "ethereum", "bsc", "polygon",
-    "arbitrum", "optimism", "avalanche", "fantom", "gnosis",
+    "base",
+    "solana",
+    "ethereum",
+    "bsc",
+    "polygon",
+    "arbitrum",
+    "optimism",
+    "avalanche",
+    "fantom",
+    "gnosis",
 }

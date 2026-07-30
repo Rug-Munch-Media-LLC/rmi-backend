@@ -171,9 +171,7 @@ class TestWalletDrainScanner:
 
     def test_known_drainer_benign_not_detected(self):
         """Well-known benign contracts should NOT be detected as drainers."""
-        assert not WalletDrainScanner._is_known_drainer(
-            "0x7a250d5630b4cf539739df2c5dacb4c659f2488d"
-        )
+        assert not WalletDrainScanner._is_known_drainer("0x7a250d5630b4cf539739df2c5dacb4c659f2488d")
 
     def test_known_drainer_dead_prefix(self):
         """Addresses with 0xdead prefix should be flagged."""

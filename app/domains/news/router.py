@@ -55,11 +55,13 @@ SOURCE_AUTHORITY: dict[str, float] = {
     "twitter-crypto": 0.3,
 }
 
+
 def recency_decay(hours_old: float, half_life: float = 6.0) -> float:
     """Exponential decay: 1.0 at 0h, 0.5 at half_life, 0.25 at 2*half_life."""
     if hours_old < 0:
         return 1.0
     return 0.5 ** (hours_old / half_life)
+
 
 def source_authority(source: str) -> float:
     s = (source or "").lower().strip()
@@ -68,14 +70,14 @@ def source_authority(source: str) -> float:
             return val
     return 0.3  # unknown source
 
-def trend_score(
-    hours_old: float, source: str, sentiment: float | None, social_velocity: int = 0
-) -> float:
+
+def trend_score(hours_old: float, source: str, sentiment: float | None, social_velocity: int = 0) -> float:
     """Composite trending score per v4.0 formula."""
     s_auth = source_authority(source)
     s_vel = min(2.0, 1.0 + social_velocity / 100.0)
     s_sent = 1.0 + abs(sentiment or 0.0)
     return recency_decay(hours_old) * s_auth * s_vel * s_sent
+
 
 # ── Response models ────────────────────────────────────────────────
 class NewsItemOut(BaseModel):
@@ -92,16 +94,19 @@ class NewsItemOut(BaseModel):
     sentiment_score: float | None = None
     score: float | None = None  # only set for /trending
 
+
 class NewsListResponse(BaseModel):
     items: list[NewsItemOut]
     total: int
     offset: int
+
 
 class NewsAnalysisResponse(BaseModel):
     news_id: str
     analysis: str | None
     model: str | None = None
     error: str | None = None
+
 
 # ── Row adapter (legacy crypto_news → NewsItemOut) ───────────────
 def _adapt_legacy_row(row: dict) -> NewsItemOut:
@@ -139,6 +144,7 @@ def _adapt_legacy_row(row: dict) -> NewsItemOut:
         tokens_mentioned=row.get("tickers") or [],
         sentiment_score=row.get("sentiment"),
     )
+
 
 # ── POST /api/v1/news (list with filters) ─────────────────────────
 @router.post("/news", response_model=NewsListResponse)
@@ -190,7 +196,7 @@ async def list_news(
                         sentiment_score=r["sentiment_score"],
                     )
                 )
-        except (KeyError, ValueError, TypeError) as e :
+        except (KeyError, ValueError, TypeError) as e:
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"news_list_new_fail: {e}")
@@ -212,7 +218,7 @@ async def list_news(
                 rows = await conn.fetch(query, *params)
             for r in rows:
                 items.append(_adapt_legacy_row(dict(r)))
-        except (KeyError, ValueError, TypeError) as e :
+        except (KeyError, ValueError, TypeError) as e:
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"news_list_legacy_fail: {e}")
@@ -263,6 +269,7 @@ async def list_news(
 
     return NewsListResponse(items=items, total=len(items), offset=offset)
 
+
 # ── GET /api/v1/news/trending ─────────────────────────────────────
 @router.get("/news/trending", response_model=NewsListResponse)
 async def trending_news(
@@ -303,7 +310,7 @@ async def trending_news(
             )
             item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
             items.append(item)
-    except (KeyError, ValueError, TypeError) as e :
+    except (KeyError, ValueError, TypeError) as e:
         from app.core.logging import get_logger
 
         get_logger(__name__).warning(f"trending_new_fail: {e}")
@@ -332,13 +339,14 @@ async def trending_news(
                 item = _adapt_legacy_row(d)
                 item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
                 items.append(item)
-        except (ValueError, KeyError, TypeError) as e :
+        except (ValueError, KeyError, TypeError) as e:
             from app.core.logging import get_logger
 
             get_logger(__name__).warning(f"trending_legacy_fail: {e}")
 
     items.sort(key=lambda x: x.score or 0, reverse=True)
     return NewsListResponse(items=items[:limit], total=len(items), offset=0)
+
 
 # ── GET /api/v1/articles/{news_id} ────────────────────────────────
 # Moved off /api/v1/news/{news_id} per Phase 2 Wave 2 (AUDIT-2026-Q3.md)
@@ -381,8 +389,9 @@ async def get_news(news_id: str) -> NewsItemOut:
         raise HTTPException(404, "news item not found")
     except HTTPException:
         raise
-    except (KeyError, ValueError, TypeError) as e :
+    except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(500, f"news_get_fail: {e}") from e
+
 
 # ── POST /api/v1/articles/{news_id}/analyze ───────────────────────
 # Same move rationale as GET /api/v1/articles/{news_id} above.
@@ -441,11 +450,9 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
         llm = LLMRouter()
         analysis = await llm.analyze_news(ni)
         if analysis is None:
-            return NewsAnalysisResponse(
-                news_id=news_id, analysis=None, error="LLM router unavailable"
-            )
+            return NewsAnalysisResponse(news_id=news_id, analysis=None, error="LLM router unavailable")
         return NewsAnalysisResponse(news_id=news_id, analysis=analysis, model="deepseek-v3")
     except HTTPException:
         raise
-    except (KeyError, ValueError, TypeError) as e :
+    except (KeyError, ValueError, TypeError) as e:
         return NewsAnalysisResponse(news_id=news_id, analysis=None, error=str(e))

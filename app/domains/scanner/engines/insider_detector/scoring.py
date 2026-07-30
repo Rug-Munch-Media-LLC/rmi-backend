@@ -22,22 +22,25 @@ from .utils import _check_early_buy, _deduplicate_evidence, _generate_insights
 
 logger = get_logger(__name__)
 
+
 async def detect_insiders(
-    token_address: str, chain: str = "sol",
-    deployer: str | None = None, max_traders: int = 100,
+    token_address: str,
+    chain: str = "sol",
+    deployer: str | None = None,
+    max_traders: int = 100,
 ) -> InsiderReport:
     """Detect ALL insider wallets for a given token.
     Runs every detection method in parallel and aggregates evidence.
     """
     report = InsiderReport(
-        token=token_address, token_symbol=token_address[:10],
-        chain=chain, deployer=deployer or "unknown",
+        token=token_address,
+        token_symbol=token_address[:10],
+        chain=chain,
+        deployer=deployer or "unknown",
     )
 
     # Phase 1: Collect token metadata + deployer in parallel
-    symbol, deployer_addr, token_created_at = await _collect_token_meta(
-        token_address, chain, deployer
-    )
+    symbol, deployer_addr, token_created_at = await _collect_token_meta(token_address, chain, deployer)
     report.token_symbol = symbol or token_address[:10]
     if deployer_addr:
         report.deployer = deployer_addr
@@ -78,10 +81,13 @@ async def detect_insiders(
 
     logger.info(
         "Insider detection complete for %s: %d insiders, $%.0f frontrun value",
-        token_address, len(report.insiders), report.total_frontrun_value,
+        token_address,
+        len(report.insiders),
+        report.total_frontrun_value,
     )
 
     return report
+
 
 async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
     """Score a wallet on how likely it is to be an insider (0-100)."""
@@ -90,16 +96,20 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
 
     try:
         wallet_trades = gmgn.get_wallet_trades(wallet, chain=chain, limit=100)
-    except (ValueError, TypeError, KeyError, OSError) as e :
+    except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("get_insider_score_error", exc_info=True)
         logger.debug("GMGN wallet trades failed: %s", e)
         wallet_trades = []
 
     if not wallet_trades:
         return {
-            "wallet": wallet, "insider_score": 0, "insider_risk": "UNKNOWN",
+            "wallet": wallet,
+            "insider_score": 0,
+            "insider_risk": "UNKNOWN",
             "signals": ["No trade data available"],
-            "pre_event_buys": 0, "avg_lead_time_minutes": 0, "total_frontrun_profit": 0,
+            "pre_event_buys": 0,
+            "avg_lead_time_minutes": 0,
+            "total_frontrun_profit": 0,
         }
 
     pre_event_count = 0
@@ -120,9 +130,7 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
         tx_hash = trade.get("tx_hash", "")
         if not tx_hash:
             continue
-        is_early, lead_time, evidence = await _check_early_buy(
-            token_addr, chain, bought_at, bought_usd, tx_hash
-        )
+        is_early, lead_time, evidence = await _check_early_buy(token_addr, chain, bought_at, bought_usd, tx_hash)
         if is_early:
             pre_event_count += 1
             total_lead_time += lead_time
@@ -163,11 +171,15 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
         risk = "LOW"
 
     return {
-        "wallet": wallet, "insider_score": round(score), "insider_risk": risk,
-        "signals": signals, "pre_event_buys": pre_event_count,
+        "wallet": wallet,
+        "insider_score": round(score),
+        "insider_risk": risk,
+        "signals": signals,
+        "pre_event_buys": pre_event_count,
         "avg_lead_time_minutes": round(total_lead_time / pre_event_count, 1) if pre_event_count else 0,
         "total_frontrun_profit": round(total_profit, 2),
     }
+
 
 async def find_pre_pump_wallets(token_address: str, chain: str = "sol") -> list[dict]:
     """Find wallets that bought this token BEFORE the pump."""
@@ -175,12 +187,16 @@ async def find_pre_pump_wallets(token_address: str, chain: str = "sol") -> list[
     results = []
     for ev in report.insiders:
         if ev.lead_time_minutes >= INSIDER_WINDOW_MIN:
-            results.append({
-                "wallet": ev.wallet, "type": ev.insider_type,
-                "lead_time_minutes": round(ev.lead_time_minutes, 1),
-                "bought_amount_usd": round(ev.bought_amount_usd, 2),
-                "pnl_estimate": round(ev.pnl_estimate, 2),
-                "confidence": ev.confidence, "evidence": ev.evidence,
-            })
+            results.append(
+                {
+                    "wallet": ev.wallet,
+                    "type": ev.insider_type,
+                    "lead_time_minutes": round(ev.lead_time_minutes, 1),
+                    "bought_amount_usd": round(ev.bought_amount_usd, 2),
+                    "pnl_estimate": round(ev.pnl_estimate, 2),
+                    "confidence": ev.confidence,
+                    "evidence": ev.evidence,
+                }
+            )
     results.sort(key=lambda x: x["lead_time_minutes"], reverse=True)
     return results

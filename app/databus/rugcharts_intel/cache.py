@@ -34,6 +34,7 @@ CACHE_TTL = {
     "token_report": 300,
 }
 
+
 def _r() -> Any:
     return redis.Redis(
         host=REDIS_HOST,

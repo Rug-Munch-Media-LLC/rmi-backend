@@ -223,9 +223,7 @@ class TestJWTAuth:
         """Enterprise tier should propagate through JWT."""
         from app.domains.auth.jwt import _create_jwt, _verify_jwt
 
-        token = _create_jwt(
-            user_id="ent-user", email="ent@test.com", tier="ENTERPRISE", role="ADMIN"
-        )
+        token = _create_jwt(user_id="ent-user", email="ent@test.com", tier="ENTERPRISE", role="ADMIN")
         claims = _verify_jwt(token)
         assert claims["tier"] == "ENTERPRISE"
         assert claims["role"] == "ADMIN"
@@ -237,9 +235,7 @@ class TestJWTAuth:
         from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         token = _create_jwt(user_id="claims-test", email="claims@test.com")
-        payload = jwt.decode(
-            token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_signature": False}
-        )
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_signature": False})
         assert payload["sub"] == "claims-test"
         assert "iat" in payload
         assert "exp" in payload
@@ -252,9 +248,7 @@ class TestJWTAuth:
         from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _create_jwt
 
         token = _create_jwt(user_id="exp-test", email="exp@test.com")
-        payload = jwt.decode(
-            token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_signature": False}
-        )
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_signature": False})
         assert payload["exp"] > payload["iat"]
         expected = datetime.now(UTC) + timedelta(days=7)
         assert abs(payload["exp"] - expected.timestamp()) < 86400
@@ -266,9 +260,7 @@ class TestJWTAuth:
         from app.domains.auth.jwt import JWT_ALGORITHM, JWT_SECRET, _create_jwt, _verify_jwt
 
         token = _create_jwt(user_id="exp-test", email="exp@test.com")
-        payload = jose_jwt.decode(
-            token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_signature": False}
-        )
+        payload = jose_jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_signature": False})
         payload["exp"] = int((datetime.now(UTC) - timedelta(hours=1)).timestamp())
         expired_token = jose_jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

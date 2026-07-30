@@ -1,4 +1,5 @@
 """Pydantic request models for x402 DataBus tools."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel
@@ -8,19 +9,23 @@ class AddressRequest(BaseModel):
     address: str
     chain: str = "solana"
 
+
 class MintRequest(BaseModel):
     mint: str
     chain: str = "solana"
+
 
 class QueryRequest(BaseModel):
     query: str = ""
     chain: str = "solana"
     category: str = ""
 
+
 class AddressDepthRequest(BaseModel):
     address: str
     chain: str = "solana"
     depth: int = 2
+
 
 class GenericDataRequest(BaseModel):
     data_type: str

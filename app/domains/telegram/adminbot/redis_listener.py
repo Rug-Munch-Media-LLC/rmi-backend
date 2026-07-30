@@ -18,19 +18,24 @@ REDIS_QUEUE_KEY = "rag:telegram_queue"
 POLL_TIMEOUT = 5  # seconds per BLPOP call; allows clean shutdown
 
 
-SECRET_FILE = "/run/secrets/redis_password"
+SECRET_FILES = [
+    "/run/secrets/redis_password",
+    "/srv/secrets/redis_password",
+]
 
 
 def _resolve_redis_password() -> str:
-    """Resolve Redis password: env var → secret file → empty."""
+    """Resolve Redis password: env var → secret files → empty."""
     pw = os.environ.get("REDIS_PASSWORD", "")
     if pw:
         return pw
-    try:
-        with open(SECRET_FILE) as f:
-            return f.read().strip()
-    except (FileNotFoundError, OSError):
-        return ""
+    for secret_file in SECRET_FILES:
+        try:
+            with open(secret_file) as f:
+                return f.read().strip()
+        except (FileNotFoundError, OSError):
+            continue
+    return ""
 
 
 def _build_redis_url(base_url: str | None, password: str | None) -> str:

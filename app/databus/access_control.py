@@ -41,6 +41,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.access_control")
 
+
 class ConsumerType(Enum):
     PUBLIC_WEB = "public_web"  # RugCharts, RugMaps, market pages (no auth)
     AUTHENTICATED = "authenticated"  # Logged-in user (basic tier)
@@ -48,6 +49,7 @@ class ConsumerType(Enum):
     ADMIN = "admin"  # Internal admin / darkroom
     MCP_TOOL = "mcp_tool"  # MCP server tools (scoped per tool)
     X402_PAID = "x402_paid"  # x402 paid API calls (scoped per tier)
+
 
 # ── DATA TYPE → RESPONSE PACKAGING PER CONSUMER ──────────────────────────────
 # Each data type defines what fields each consumer type can see.
@@ -612,6 +614,7 @@ X402_ACCESS_TIERS = {
     "enterprise": "all",  # Gets everything including admin
 }
 
+
 class AccessController:
     """
     Controls what data each consumer can see and in what format.
@@ -701,9 +704,7 @@ class AccessController:
             return {
                 "error": "access_denied",
                 "message": f"Access to {data_type} requires higher tier",
-                "required_tier": "authenticated"
-                if consumer == ConsumerType.PUBLIC_WEB
-                else "premium",
+                "required_tier": "authenticated" if consumer == ConsumerType.PUBLIC_WEB else "premium",
             }
 
         if packaging == "full":
@@ -735,9 +736,7 @@ class AccessController:
             if isinstance(v, dict):
                 result[k] = AccessController._strip_dangerous(v)
             elif isinstance(v, list):
-                result[k] = [
-                    AccessController._strip_dangerous(i) if isinstance(i, dict) else i for i in v
-                ]
+                result[k] = [AccessController._strip_dangerous(i) if isinstance(i, dict) else i for i in v]
             else:
                 result[k] = v
         return result
@@ -811,6 +810,7 @@ class AccessController:
         for dtype, consumers in DATA_ACCESS_MATRIX.items():
             result[dtype] = {c.value: p for c, p in consumers.items()}
         return result
+
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 access_controller = AccessController()

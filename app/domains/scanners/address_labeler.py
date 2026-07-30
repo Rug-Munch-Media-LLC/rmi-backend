@@ -49,6 +49,7 @@ BUILTIN_EXCHANGE_LABELS: dict[str, str] = {
 
 # ── Report dataclass ─────────────────────────────────────────────────
 
+
 @dataclass
 class LabelEntry:
     """A single label from a specific source."""
@@ -57,6 +58,7 @@ class LabelEntry:
     label: str
     category: str = ""  # exchange, mev, scam, defi, wallet, contract, bridge, etc.
     confidence: float = 1.0
+
 
 @dataclass
 class AddressLabelReport:
@@ -84,7 +86,9 @@ class AddressLabelReport:
     red_flags: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
+
 # ── Labeler class ────────────────────────────────────────────────────
+
 
 class AddressLabeler:
     """Resolve addresses to known labels from multiple sources in parallel."""
@@ -131,7 +135,7 @@ class AddressLabeler:
                                 category=self._infer_category(tag),
                             )
                         )
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_query_etherscan_error", exc_info=True)
             logger.debug(f"Etherscan label query failed for {address}: {e}")
         return entries
@@ -195,7 +199,7 @@ class AddressLabeler:
                 _ROLODETH_CACHE = index
                 _ROLODETH_LAST_FETCH = now
                 return index
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"RolodETH fetch failed: {e}")
 
@@ -257,7 +261,7 @@ class AddressLabeler:
                                 category=labels.get("category", ""),
                             )
                         )
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_query_walletlabels_error", exc_info=True)
             logger.debug(f"walletLabels.xyz query failed for {address}: {e}")
         return entries
@@ -286,7 +290,7 @@ class AddressLabeler:
                                     confidence=item.get("confidence", 1.0),
                                 )
                             )
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_query_bluepages_error", exc_info=True)
             logger.debug(f"bluepages.fyi query failed for {address}: {e}")
         return entries
@@ -338,7 +342,7 @@ class AddressLabeler:
                         )
         except ImportError:
             logger.debug("RAG service not available for address labeling")
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Internal RAG query failed for {address}: {e}")
         return entries
@@ -406,20 +410,11 @@ class AddressLabeler:
             )
         ):
             return "exchange"
-        if any(
-            w in text_lower
-            for w in ("mev", "sandwich", "flashbot", "jit", "front-run", "arbitrageur", "solver")
-        ):
+        if any(w in text_lower for w in ("mev", "sandwich", "flashbot", "jit", "front-run", "arbitrageur", "solver")):
             return "mev"
-        if any(
-            w in text_lower
-            for w in ("rug", "scam", "exploit", "hack", "phish", "drainer", "impersonator", "fake")
-        ):
+        if any(w in text_lower for w in ("rug", "scam", "exploit", "hack", "phish", "drainer", "impersonator", "fake")):
             return "scam"
-        if any(
-            w in text_lower
-            for w in ("bridge", "hop", "across", "synapse", "stargate", "wormhole", "portal")
-        ):
+        if any(w in text_lower for w in ("bridge", "hop", "across", "synapse", "stargate", "wormhole", "portal")):
             return "bridge"
         if any(
             w in text_lower
@@ -552,7 +547,7 @@ class AddressLabeler:
         # Gather results
         try:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_empty_error", exc_info=True)
             logger.warning(f"Label gathering failed for {address}: {e}")
             results = []

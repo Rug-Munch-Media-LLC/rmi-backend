@@ -21,6 +21,7 @@ logger = get_logger("databus.api_providers")
 
 COINSTATS_BASE = "https://openapiv1.coinstats.app"
 
+
 async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
     """Resolve a wallet's complete DeFi position - collateral, borrows, LPs, rewards."""
     import aiohttp
@@ -49,9 +50,7 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
 
             # Fallback: try DeFi-specific endpoint
             url2 = f"{COINSTATS_BASE}/defi/v1/positions/{address}"
-            async with session.get(
-                url2, headers=headers, timeout=aiohttp.ClientTimeout(total=15)
-            ) as resp:
+            async with session.get(url2, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     return {
                         "address": address,
@@ -69,6 +68,7 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
         logger.warning(f"CoinStats fetch failed: {e}")
         return {"error": str(e), "source": "CoinStats"}
 
+
 # ═══════════════════════════════════════════════════════════════
 # 2. MOBULA - Long-tail DEX Token Pricing
 # Free tier: 10,000 credits/month, no rate limit
@@ -76,9 +76,8 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
 
 MOBULA_BASE = "https://api.mobula.io/api/1"
 
-async def fetch_mobula_market(
-    asset: str | None = None, blockchain: str | None = None, limit: int = 20
-) -> dict:
+
+async def fetch_mobula_market(asset: str | None = None, blockchain: str | None = None, limit: int = 20) -> dict:
     """Fetch market data from Mobula - covers long-tail tokens missed by CMC/CG."""
     import aiohttp
 
@@ -118,6 +117,7 @@ async def fetch_mobula_market(
         logger.warning(f"Mobula fetch failed: {e}")
         return {"error": str(e), "source": "Mobula"}
 
+
 async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dict:
     """Fetch wallet portfolio via Mobula - balances, tokens, transaction history."""
     import aiohttp
@@ -153,6 +153,7 @@ async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dic
         logger.warning(f"Mobula wallet fetch failed: {e}")
         return {"error": str(e), "source": "Mobula"}
 
+
 # ═══════════════════════════════════════════════════════════════
 # 3. CRYPTONEWS (cryptocurrency.cv) - Free unlimited news API
 # No API key, no rate limits, REST + RSS
@@ -160,9 +161,8 @@ async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dic
 
 CRYPTONEWS_BASE = "https://cryptocurrency.cv/api"
 
-async def fetch_crypto_news(
-    category: str | None = None, source: str | None = None, limit: int = 20
-) -> dict:
+
+async def fetch_crypto_news(category: str | None = None, source: str | None = None, limit: int = 20) -> dict:
     """Fetch crypto news from cryptocurrency.cv - free, no key, unlimited."""
     import aiohttp
 
@@ -176,9 +176,7 @@ async def fetch_crypto_news(
             if source:
                 params["source"] = source
 
-            async with session.get(
-                url, params=params, timeout=aiohttp.ClientTimeout(total=15)
-            ) as resp:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     articles = data.get("articles", data.get("news", data.get("data", [])))

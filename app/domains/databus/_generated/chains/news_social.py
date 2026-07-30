@@ -19,6 +19,7 @@ from app.databus.provider_core import Provider, ProviderChain, ProviderTier
 
 logger = get_logger("databus.providers.chains.news_social")
 
+
 def build_news_social_chains(chains: dict[str, ProviderChain]) -> None:
     """Build news, social, CT, model registry, and RAG ingestion chains."""
 

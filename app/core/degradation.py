@@ -53,6 +53,7 @@ T = TypeVar("T")
 # TYPES
 # ══════════════════════════════════════════════════════════════════════
 
+
 class StoreHealth(Enum):
     """Current health state of a store."""
 
@@ -60,6 +61,7 @@ class StoreHealth(Enum):
     DEGRADED = "degraded"
     DOWN = "down"
     UNKNOWN = "unknown"
+
 
 class DegradationTier(Enum):
     """Tier in the degradation chain."""
@@ -69,6 +71,7 @@ class DegradationTier(Enum):
     TERTIARY = 3
     CACHE = 4
     EMPTY = 5
+
 
 @dataclass
 class StoreConfig:
@@ -92,6 +95,7 @@ class StoreConfig:
     def is_available(self) -> bool:
         return self.health != StoreHealth.DOWN
 
+
 @dataclass
 class DegradationResult:
     """Result of a degradation chain execution."""
@@ -108,9 +112,11 @@ class DegradationResult:
     def ok(self) -> bool:
         return self.store_used not in ("empty", "degraded")
 
+
 # ══════════════════════════════════════════════════════════════════════
 # IN-PROCESS LRU CACHE (Redis fallback)
 # ══════════════════════════════════════════════════════════════════════
+
 
 class InProcessLRU:
     """Thread-safe in-process LRU cache for Redis degradation.
@@ -180,9 +186,11 @@ class InProcessLRU:
                 "evictions": self._evictions,
             }
 
+
 # ══════════════════════════════════════════════════════════════════════
 # DEGRADATION REGISTRY (global state, X-Degraded-Stores header)
 # ══════════════════════════════════════════════════════════════════════
+
 
 class DegradationRegistry:
     """Global registry tracking which stores are currently degraded.
@@ -229,9 +237,7 @@ class DegradationRegistry:
             store.total_failures += 1
             store.last_failure_time = time.monotonic()
             if was_up:
-                logger.error(
-                    f"Store down: {store_name} -> DOWN ({store.consecutive_failures} consecutive)"
-                )
+                logger.error(f"Store down: {store_name} -> DOWN ({store.consecutive_failures} consecutive)")
 
     def record_success(self, store_name: str) -> None:
         store = self._stores.get(store_name)
@@ -259,11 +265,7 @@ class DegradationRegistry:
     @property
     def degraded_stores(self) -> list[str]:
         """Stores currently in degraded or down state (for X-Degraded-Stores header)."""
-        return sorted(
-            name
-            for name, s in self._stores.items()
-            if s.health in (StoreHealth.DEGRADED, StoreHealth.DOWN)
-        )
+        return sorted(name for name, s in self._stores.items() if s.health in (StoreHealth.DEGRADED, StoreHealth.DOWN))
 
     @property
     def degraded_header(self) -> str:
@@ -287,7 +289,9 @@ class DegradationRegistry:
             for name, s in self._stores.items()
         }
 
+
 _registry: DegradationRegistry | None = None
+
 
 def get_registry() -> DegradationRegistry:
     global _registry
@@ -295,6 +299,7 @@ def get_registry() -> DegradationRegistry:
         _registry = DegradationRegistry()
         _init_default_stores(_registry)
     return _registry
+
 
 def _init_default_stores(registry: DegradationRegistry) -> None:
     """Register the default store configurations."""
@@ -340,9 +345,11 @@ def _init_default_stores(registry: DegradationRegistry) -> None:
     for name, cfg in defaults.items():
         registry.register(name, cfg)
 
+
 # ══════════════════════════════════════════════════════════════════════
 # DEGRADATION CHAIN ENGINE
 # ══════════════════════════════════════════════════════════════════════
+
 
 class DegradationChain:
     """Core degradation chain: try stores in order with timeouts.
@@ -460,10 +467,7 @@ class DegradationChain:
                 )
 
         # ── 4. Return hardcoded fallback ──────────────────────
-        logger.error(
-            f"All stores exhausted for {store_name}: {', '.join(stores_tried)}. "
-            f"Errors: {'; '.join(errors)}"
-        )
+        logger.error(f"All stores exhausted for {store_name}: {', '.join(stores_tried)}. Errors: {'; '.join(errors)}")
         return DegradationResult(
             data=fallback if fallback is not None else _empty_for_store(store_name),
             store_used="empty",
@@ -510,33 +514,41 @@ class DegradationChain:
         }
         return mapping.get(self._store_name, 2.0)
 
+
 # ══════════════════════════════════════════════════════════════════════
 # PRE-BUILT CHAINS (convenience)
 # ══════════════════════════════════════════════════════════════════════
+
 
 def clickhouse_chain() -> DegradationChain:
     """ClickHouse -> DuckDB -> empty[]"""
     return DegradationChain("clickhouse")
 
+
 def neo4j_chain() -> DegradationChain:
     """Neo4j -> Postgres -> empty[]"""
     return DegradationChain("neo4j")
+
 
 def redis_chain() -> DegradationChain:
     """Redis -> InProcessLRU -> degraded"""
     return DegradationChain("redis")
 
+
 def minio_chain() -> DegradationChain:
     """MinIO -> stale_cache -> file_not_found"""
     return DegradationChain("minio")
+
 
 def postgres_chain() -> DegradationChain:
     """Postgres -> DuckDB -> empty[]"""
     return DegradationChain("postgres")
 
+
 # ══════════════════════════════════════════════════════════════════════
 # DECORATOR: @degradable
 # ══════════════════════════════════════════════════════════════════════
+
 
 def degradable(
     stores: list[str],
@@ -597,9 +609,11 @@ def degradable(
 
     return decorator
 
+
 # ══════════════════════════════════════════════════════════════════════
 # CONTEXT MANAGER
 # ══════════════════════════════════════════════════════════════════════
+
 
 @asynccontextmanager
 async def degradation_context(
@@ -629,9 +643,11 @@ async def degradation_context(
     )
     yield result
 
+
 # ══════════════════════════════════════════════════════════════════════
 # MIDDLEWARE: X-Degraded-Stores header injection
 # ══════════════════════════════════════════════════════════════════════
+
 
 async def add_degradation_header(response, _request) -> None:
     """FastAPI middleware to inject X-Degraded-Stores header."""
@@ -640,9 +656,11 @@ async def add_degradation_header(response, _request) -> None:
     if header:
         response.headers["X-Degraded-Stores"] = header
 
+
 # ══════════════════════════════════════════════════════════════════════
 # HEALTH ENDPOINT INTEGRATION
 # ══════════════════════════════════════════════════════════════════════
+
 
 def get_degradation_health() -> dict[str, Any]:
     """Get degradation health status for /health endpoint."""
@@ -653,9 +671,11 @@ def get_degradation_health() -> dict[str, Any]:
         "in_process_lru": registry.lru.stats,
     }
 
+
 # ══════════════════════════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════
+
 
 async def _to_awaitable(fn_or_coro: Any) -> Any:
     """Convert a sync function, async function, or coroutine into an awaitable."""
@@ -668,10 +688,12 @@ async def _to_awaitable(fn_or_coro: Any) -> Any:
         return result
     return fn_or_coro
 
+
 def _short_error(exc: Exception) -> str:
     """Short error description for logging."""
     msg = str(exc)
     return msg[:150] if len(msg) > 150 else msg
+
 
 def _empty_for_store(store: str) -> Any:
     """Sensible empty default per store type."""
@@ -685,24 +707,29 @@ def _empty_for_store(store: str) -> Any:
     }
     return empties.get(store, [])
 
+
 def cache_on_success(store: str, key: str, ttl: int = 300) -> None:
     """Cache a value in the in-process LRU on successful primary store result.
 
     Called manually in route handlers after a successful query.
     """
 
+
 # ══════════════════════════════════════════════════════════════════════
 # CONVENIENCE: Cache successful results for later stale serving
 # ══════════════════════════════════════════════════════════════════════
+
 
 def set_stale_cache(key: str, value: Any, ttl: int | None = None) -> None:
     """Store a value in the in-process LRU for stale cache serving during outages."""
     registry = get_registry()
     registry.lru.set(key, value, ttl)
 
+
 def get_stale_cache(key: str) -> Any | None:
     """Retrieve a value from the in-process LRU."""
     registry = get_registry()
     return registry.lru.get(key)
+
 
 logger.info("Degradation system initialized: 5 store types, 3-tier chains, in-process LRU fallback")

@@ -114,9 +114,7 @@ class ContentPost(Base, TimestampMixin):
     # Relationships
     creator: Mapped[CreatorProfile] = relationship("CreatorProfile", back_populates="posts")
     views: Mapped[list[ViewEvent]] = relationship("ViewEvent", back_populates="post", lazy="selectin")
-    engagements: Mapped[list[EngagementEvent]] = relationship(
-        "EngagementEvent", back_populates="post", lazy="selectin"
-    )
+    engagements: Mapped[list[EngagementEvent]] = relationship("EngagementEvent", back_populates="post", lazy="selectin")
 
     __table_args__ = (
         Index("ix_content_creator", "creator_id"),

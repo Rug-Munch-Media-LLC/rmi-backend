@@ -36,6 +36,7 @@ BADGE_TIERS = [
     {"name": "Legend", "min_correct": 100, "emoji": "👑", "color": "#FFD700"},
 ]
 
+
 @dataclass
 class UserBadge:
     user_id: str
@@ -47,6 +48,7 @@ class UserBadge:
     badges_earned: list[str] = field(default_factory=list)
     accuracy_pct: float = 0.0
 
+
 @dataclass
 class TokenVote:
     token_address: str
@@ -57,6 +59,7 @@ class TokenVote:
     outcome: str | None = None  # None=pending, "clean", "malicious", "rug_confirmed"
     resolved_at: str | None = None
     earned_badge: bool = False
+
 
 def _get_db() -> sqlite3.Connection:
     """Get or create SQLite DB with tables."""
@@ -96,6 +99,7 @@ def _get_db() -> sqlite3.Connection:
     conn.commit()
     return conn
 
+
 def cast_vote(token_address: str, chain: str, voter_id: str, vote: str) -> dict[str, Any]:
     """Cast a vote on a token. One vote per token per user."""
     if vote not in ("clean", "malicious"):
@@ -113,9 +117,7 @@ def cast_vote(token_address: str, chain: str, voter_id: str, vote: str) -> dict[
         )
 
         # Update badge stats
-        total = conn.execute(
-            "SELECT COUNT(*) FROM votes WHERE voter_id = ?", (voter_id,)
-        ).fetchone()[0]
+        total = conn.execute("SELECT COUNT(*) FROM votes WHERE voter_id = ?", (voter_id,)).fetchone()[0]
 
         # Recalculate correct votes using normalized outcome matching
         correct = conn.execute(
@@ -159,6 +161,7 @@ def cast_vote(token_address: str, chain: str, voter_id: str, vote: str) -> dict[
     finally:
         conn.close()
 
+
 def resolve_token_outcome(token_address: str, chain: str, outcome: str) -> dict[str, Any]:
     """Resolve a token's outcome and update voter badges. Call when token rugs or survives."""
     if outcome not in ("clean", "malicious", "rug_confirmed"):
@@ -194,9 +197,7 @@ def resolve_token_outcome(token_address: str, chain: str, outcome: str) -> dict[
 
         for row in voters:
             vid = row[0]
-            total = conn.execute(
-                "SELECT COUNT(*) FROM votes WHERE voter_id = ?", (vid,)
-            ).fetchone()[0]
+            total = conn.execute("SELECT COUNT(*) FROM votes WHERE voter_id = ?", (vid,)).fetchone()[0]
             correct = conn.execute(
                 """SELECT COUNT(*) FROM votes WHERE voter_id = ?
                    AND outcome IS NOT NULL
@@ -235,6 +236,7 @@ def resolve_token_outcome(token_address: str, chain: str, outcome: str) -> dict[
     finally:
         conn.close()
 
+
 def get_user_badge(user_id: str) -> UserBadge | None:
     """Get a user's badge profile."""
     conn = _get_db()
@@ -244,9 +246,7 @@ def get_user_badge(user_id: str) -> UserBadge | None:
             return UserBadge(user_id=user_id)
 
         earned = json.loads(row["earned_tiers"]) if row["earned_tiers"] else []
-        accuracy = (
-            (row["correct_votes"] / row["total_votes"] * 100) if row["total_votes"] > 0 else 0.0
-        )
+        accuracy = (row["correct_votes"] / row["total_votes"] * 100) if row["total_votes"] > 0 else 0.0
 
         next_tier, needed = _next_tier(row["correct_votes"])
 
@@ -265,6 +265,7 @@ def get_user_badge(user_id: str) -> UserBadge | None:
         return UserBadge(user_id=user_id)
     finally:
         conn.close()
+
 
 def get_token_votes(token_address: str, chain: str) -> dict[str, Any]:
     """Get all votes for a token with summary."""
@@ -288,9 +289,7 @@ def get_token_votes(token_address: str, chain: str) -> dict[str, Any]:
             "clean_votes": clean,
             "malicious_votes": malicious,
             "community_consensus": round(consensus, 1),
-            "consensus_label": "clean"
-            if consensus > 60
-            else ("malicious" if consensus < 40 else "divided"),
+            "consensus_label": "clean" if consensus > 60 else ("malicious" if consensus < 40 else "divided"),
             "outcome": votes[0]["outcome"] if total > 0 else None,
             "votes": [dict(v) for v in votes],
         }
@@ -300,22 +299,19 @@ def get_token_votes(token_address: str, chain: str) -> dict[str, Any]:
     finally:
         conn.close()
 
+
 def get_leaderboard(limit: int = 20) -> list[dict[str, Any]]:
     """Get top sleuths by correct votes."""
     conn = _get_db()
     try:
-        rows = conn.execute(
-            "SELECT * FROM badges ORDER BY correct_votes DESC LIMIT ?", (limit,)
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM badges ORDER BY correct_votes DESC LIMIT ?", (limit,)).fetchall()
         return [
             {
                 "user_id": r["user_id"],
                 "tier": r["current_tier"],
                 "correct": r["correct_votes"],
                 "total": r["total_votes"],
-                "accuracy": round(r["correct_votes"] / r["total_votes"] * 100, 1)
-                if r["total_votes"] > 0
-                else 0,
+                "accuracy": round(r["correct_votes"] / r["total_votes"] * 100, 1) if r["total_votes"] > 0 else 0,
                 "badges": json.loads(r["earned_tiers"]) if r["earned_tiers"] else [],
             }
             for r in rows
@@ -326,7 +322,9 @@ def get_leaderboard(limit: int = 20) -> list[dict[str, Any]]:
     finally:
         conn.close()
 
+
 # ── Internal helpers ──────────────────────────────────────────────
+
 
 def _compute_tier(correct: int) -> str:
     """Compute badge tier from correct vote count."""
@@ -337,9 +335,11 @@ def _compute_tier(correct: int) -> str:
             break
     return tier
 
+
 def _get_earned_tiers(correct: int) -> list[str]:
     """Get list of all badge names earned."""
     return [t["name"] for t in BADGE_TIERS if correct >= t["min_correct"]]
+
 
 def _next_tier(correct: int) -> tuple:
     """Get the next tier and votes needed."""

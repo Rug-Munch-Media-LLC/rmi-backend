@@ -20,6 +20,7 @@ from app.domains.detectors.rug_imminence_predictor.models import (
 
 logger = get_logger(__name__)
 
+
 class RugImminencePredictor:
     """Predicts imminent rug pulls by fusing 7 signal categories."""
 
@@ -58,18 +59,12 @@ class RugImminencePredictor:
         result.last_updated = (datetime.now(UTC) + timedelta(seconds=self._cache_ttl)).isoformat()
         self._cache[key] = result
         if len(self._cache) > 500:
-            to_evict = sorted(self._cache.items(), key=lambda x: x[1].last_updated)[
-                : len(self._cache) // 4
-            ]
+            to_evict = sorted(self._cache.items(), key=lambda x: x[1].last_updated)[: len(self._cache) // 4]
             for k, _ in to_evict:
                 del self._cache[k]
-            logger.info(
-                f"Cache eviction: removed {len(to_evict)} entries, {len(self._cache)} remaining"
-            )
+            logger.info(f"Cache eviction: removed {len(to_evict)} entries, {len(self._cache)} remaining")
 
-    async def predict(
-        self, address: str, chain: str = "base", force_refresh: bool = False
-    ) -> RIPResult:
+    async def predict(self, address: str, chain: str = "base", force_refresh: bool = False) -> RIPResult:
         address = address.strip()
         chain = chain.strip().lower()
         valid_chains = {
@@ -85,12 +80,8 @@ class RugImminencePredictor:
             "gnosis",
         }
         if chain not in valid_chains:
-            raise ValueError(
-                f"Unsupported chain '{chain}'. Supported: {', '.join(sorted(valid_chains))}"
-            )
-        if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(
-            r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address
-        ):
+            raise ValueError(f"Unsupported chain '{chain}'. Supported: {', '.join(sorted(valid_chains))}")
+        if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
             raise ValueError(
                 f"Invalid address format: '{address[:20]}...'. Expected 0x-prefixed EVM address or Solana base58."
             )
@@ -99,13 +90,9 @@ class RugImminencePredictor:
             cached = self._get_cached(address, chain)
             if cached:
                 return cached
-        result = RIPResult(
-            token_address=address, chain=chain, last_updated=datetime.now(UTC).isoformat()
-        )
+        result = RIPResult(token_address=address, chain=chain, last_updated=datetime.now(UTC).isoformat())
         for sig_id, weight in self.weights.items():
-            result.signals[sig_id] = SignalCategory(
-                name=SIGNAL_NAMES.get(sig_id, sig_id), weight=weight
-            )
+            result.signals[sig_id] = SignalCategory(name=SIGNAL_NAMES.get(sig_id, sig_id), weight=weight)
         analyzers = [
             self._analyze_lp_health(result),
             self._analyze_deployer_risk(result),
@@ -149,11 +136,7 @@ class RugImminencePredictor:
                     if isinstance(pair.get("volume"), dict)
                     else float(pair.get("volume", 0))
                 )
-                txns_24h = (
-                    pair.get("txns", {}).get("h24", {})
-                    if isinstance(pair.get("txns"), dict)
-                    else {}
-                )
+                txns_24h = pair.get("txns", {}).get("h24", {}) if isinstance(pair.get("txns"), dict) else {}
                 buys = int(txns_24h.get("buys", 0)) if isinstance(txns_24h, dict) else 0
                 sells = int(txns_24h.get("sells", 0)) if isinstance(txns_24h, dict) else 0
                 if liquidity_usd < 1000:
@@ -172,9 +155,7 @@ class RugImminencePredictor:
                     if vol_liq_ratio > 10:
                         sig.score += 15
                         sig.flags.append("high_volume_liquidity_ratio")
-                        sig.evidence.append(
-                            f"Volume/Liquidity ratio {vol_liq_ratio:.1f}x - potential wash trading"
-                        )
+                        sig.evidence.append(f"Volume/Liquidity ratio {vol_liq_ratio:.1f}x - potential wash trading")
                     elif vol_liq_ratio < 0.1:
                         sig.score += 10
                         sig.flags.append("low_activity")
@@ -184,22 +165,16 @@ class RugImminencePredictor:
                     if sell_buy_ratio > 2:
                         sig.score += 15
                         sig.flags.append("sell_pressure")
-                        sig.evidence.append(
-                            f"Sell/Buy ratio {sell_buy_ratio:.1f}x - distribution pressure"
-                        )
+                        sig.evidence.append(f"Sell/Buy ratio {sell_buy_ratio:.1f}x - distribution pressure")
                     elif sell_buy_ratio < 0.3:
                         sig.score += 5
                         sig.flags.append("buy_pressure")
-                        sig.evidence.append(
-                            f"Buy pressure dominates ({sell_buy_ratio:.1f}x) - potential manipulation"
-                        )
+                        sig.evidence.append(f"Buy pressure dominates ({sell_buy_ratio:.1f}x) - potential manipulation")
                 try:
                     lock_info = await self._check_lp_lock(result.token_address, result.chain)
                     if lock_info.get("locked"):
                         sig.score -= 20
-                        sig.evidence.append(
-                            f"LP locked until {lock_info.get('unlock_date', 'unknown')}"
-                        )
+                        sig.evidence.append(f"LP locked until {lock_info.get('unlock_date', 'unknown')}")
                     elif lock_info.get("unlocked") is True:
                         sig.score += 25
                         sig.flags.append("unlocked_liquidity")
@@ -235,15 +210,11 @@ class RugImminencePredictor:
             result.sources_used.append("deployer_analysis")
             age_info = await self._check_wallet_age(deployer, result.chain)
             if age_info:
-                sig.evidence.append(
-                    f"Deployer wallet created {age_info.get('age_days', '?')} days ago"
-                )
+                sig.evidence.append(f"Deployer wallet created {age_info.get('age_days', '?')} days ago")
                 if age_info.get("age_days", 999) < 7:
                     sig.score += 25
                     sig.flags.append("new_deployer_wallet")
-                    sig.evidence.append(
-                        "Deployer wallet < 7 days old - HIGH risk of disposable wallet"
-                    )
+                    sig.evidence.append("Deployer wallet < 7 days old - HIGH risk of disposable wallet")
                 elif age_info.get("age_days", 999) < 30:
                     sig.score += 15
                     sig.flags.append("recent_deployer_wallet")
@@ -257,20 +228,14 @@ class RugImminencePredictor:
             if rug_count > 0:
                 sig.score += 30
                 sig.flags.append("known_rug_deployer")
-                sig.evidence.append(
-                    f"Deployer has {rug_count} previous rug pull(s) out of {total_tokens} tokens"
-                )
+                sig.evidence.append(f"Deployer has {rug_count} previous rug pull(s) out of {total_tokens} tokens")
             elif rug_count == 0 and total_tokens > 0:
                 sig.score -= 10
-                sig.evidence.append(
-                    f"Clean deployer history ({total_tokens} tokens, no known rugs)"
-                )
+                sig.evidence.append(f"Clean deployer history ({total_tokens} tokens, no known rugs)")
             if total_tokens > 5:
                 sig.score += 10
                 sig.flags.append("serial_deployer")
-                sig.evidence.append(
-                    f"Deployer created {total_tokens} tokens - potential serial deployer"
-                )
+                sig.evidence.append(f"Deployer created {total_tokens} tokens - potential serial deployer")
             if active_tokens == 0 and total_tokens > 0:
                 sig.score += 10
                 sig.evidence.append("All previously deployed tokens are inactive/dead")
@@ -288,22 +253,12 @@ class RugImminencePredictor:
                 from app.smart_money_tracker import SmartMoneyTracker
 
                 tracker = SmartMoneyTracker()
-                moves = await tracker.scan_for_token(
-                    result.token_address, result.chain, lookback_hours=24
-                )
+                moves = await tracker.scan_for_token(result.token_address, result.chain, lookback_hours=24)
                 result.sources_used.append("smart_money_tracker")
                 if moves:
-                    insider_sells = [
-                        m
-                        for m in moves
-                        if m.get("type") == "sell" and m.get("category") == "insider"
-                    ]
-                    whale_sells = [
-                        m for m in moves if m.get("type") == "sell" and m.get("category") == "whale"
-                    ]
-                    deployer_moves = [
-                        m for m in moves if m.get("type") == "transfer" and m.get("to_exchange")
-                    ]
+                    insider_sells = [m for m in moves if m.get("type") == "sell" and m.get("category") == "insider"]
+                    whale_sells = [m for m in moves if m.get("type") == "sell" and m.get("category") == "whale"]
+                    deployer_moves = [m for m in moves if m.get("type") == "transfer" and m.get("to_exchange")]
                     if insider_sells:
                         total_insider = sum(m.get("value_usd", 0) for m in insider_sells)
                         sig.score += 20
@@ -318,9 +273,7 @@ class RugImminencePredictor:
                     if deployer_moves:
                         sig.score += 25
                         sig.flags.append("deployer_cashing_out")
-                        sig.evidence.append(
-                            f"Deployer sent funds to exchange ({len(deployer_moves)} txns)"
-                        )
+                        sig.evidence.append(f"Deployer sent funds to exchange ({len(deployer_moves)} txns)")
             except (ImportError, AttributeError):
                 result.sources_failed.append("smart_money_tracker")
             try:
@@ -332,15 +285,11 @@ class RugImminencePredictor:
                     if prev_count > 0 and curr_count < prev_count * 0.8:
                         sig.score += 15
                         sig.flags.append("holder_exodus")
-                        sig.evidence.append(
-                            f"Holders dropped {(1 - curr_count / prev_count) * 100:.0f}% in 24h"
-                        )
+                        sig.evidence.append(f"Holders dropped {(1 - curr_count / prev_count) * 100:.0f}% in 24h")
                     if holder_data.get("top10_pct", 0) > 80:
                         sig.score += 15
                         sig.flags.append("concentrated_holdings")
-                        sig.evidence.append(
-                            f"Top 10 holders own {holder_data['top10_pct']:.0f}% of supply"
-                        )
+                        sig.evidence.append(f"Top 10 holders own {holder_data['top10_pct']:.0f}% of supply")
             except Exception:
                 logger.debug("holder_data_fetch_failed %s", result.token_address[:12])
                 result.sources_failed.append("holder_data")
@@ -368,14 +317,10 @@ class RugImminencePredictor:
                     sig.evidence.append("All initial buyers funded by same wallet")
                 if detection.top10_holder_pct > 90:
                     sig.score += 10
-                    sig.evidence.append(
-                        f"Top 10 holders: {detection.top10_holder_pct:.0f}% - extreme concentration"
-                    )
+                    sig.evidence.append(f"Top 10 holders: {detection.top10_holder_pct:.0f}% - extreme concentration")
                 if detection.identical_amount_count > 3:
                     sig.score += 10
-                    sig.evidence.append(
-                        f"{detection.identical_amount_count} identical purchases - coordinated"
-                    )
+                    sig.evidence.append(f"{detection.identical_amount_count} identical purchases - coordinated")
             else:
                 sig.score -= 10
                 sig.evidence.append("No bundle patterns detected")
@@ -417,9 +362,7 @@ class RugImminencePredictor:
                     if shill_score > 0.7:
                         sig.score += 10
                         sig.flags.append("coordinated_shilling")
-                        sig.evidence.append(
-                            "Coordinated shilling detected (same messages across channels)"
-                        )
+                        sig.evidence.append("Coordinated shilling detected (same messages across channels)")
                     if sentiment_change < -0.3:
                         sig.score += 10
                         sig.flags.append("sentiment_crash")
@@ -430,9 +373,7 @@ class RugImminencePredictor:
                 from app.domains.scanners.sentiment_analyzer import SentimentAnalyzer
 
                 sentiment = SentimentAnalyzer()
-                sent_result = await sentiment.analyze_token_sentiment(
-                    result.token_symbol or result.token_address
-                )
+                sent_result = await sentiment.analyze_token_sentiment(result.token_symbol or result.token_address)
                 result.sources_used.append("sentiment_analyzer")
                 if sent_result and sent_result.get("fear_index", 0) > 70:
                     sig.score += 5
@@ -459,15 +400,11 @@ class RugImminencePredictor:
                 if hp_result and hp_result.get("is_honeypot", False):
                     sig.score += 30
                     sig.flags.append("honeypot")
-                    sig.evidence.append(
-                        f"HONEYPOT DETECTED: {hp_result.get('reason', 'Cannot sell')}"
-                    )
+                    sig.evidence.append(f"HONEYPOT DETECTED: {hp_result.get('reason', 'Cannot sell')}")
                 elif hp_result and hp_result.get("suspicious", False):
                     sig.score += 15
                     sig.flags.append("suspicious_contract")
-                    sig.evidence.append(
-                        f"Suspicious contract behavior: {hp_result.get('reason', '')}"
-                    )
+                    sig.evidence.append(f"Suspicious contract behavior: {hp_result.get('reason', '')}")
                 else:
                     sig.score -= 10
                     sig.evidence.append("No honeypot detected")
@@ -507,9 +444,7 @@ class RugImminencePredictor:
                 from app.domains.scanners.liquidity_verifier import LiquidityVerifier
 
                 verifier = LiquidityVerifier()
-                lp_status = await verifier.verify(
-                    result.token_address, result.chain, lookback_hours=24
-                )
+                lp_status = await verifier.verify(result.token_address, result.chain, lookback_hours=24)
                 result.sources_used.append("liquidity_verifier")
                 if lp_status:
                     if lp_status.get("lp_removed", False):
@@ -536,9 +471,7 @@ class RugImminencePredictor:
                 result.sources_failed.append("liquidity_verifier")
             if not result.signals["liquidity_migration"].evidence:
                 try:
-                    dex_data = await self._fetch_dexscreener_pool(
-                        result.token_address, result.chain
-                    )
+                    dex_data = await self._fetch_dexscreener_pool(result.token_address, result.chain)
                     if dex_data and dex_data.get("pairs"):
                         pair = dex_data["pairs"][0]
                         liq_change = (
@@ -617,9 +550,7 @@ class RugImminencePredictor:
             if sig:
                 for flag in priority_flags:
                     if flag in sig.flags:
-                        result.recommendations.insert(
-                            0, f"\U0001f534 URGENT - {flag_recos.get(flag, 'Exit position')}"
-                        )
+                        result.recommendations.insert(0, f"\U0001f534 URGENT - {flag_recos.get(flag, 'Exit position')}")
         for sig in result.signals.values():
             for flag in sig.flags:
                 if flag in flag_recos and flag_recos[flag] not in result.recommendations:
@@ -628,9 +559,7 @@ class RugImminencePredictor:
             if result.score < 30:
                 result.recommendations.append("\U0001f7e2 No urgent action needed - low risk")
             elif result.score < 55:
-                result.recommendations.append(
-                    "\U0001f4ca Monitor token closely for the next 24-48 hours"
-                )
+                result.recommendations.append("\U0001f4ca Monitor token closely for the next 24-48 hours")
             else:
                 result.recommendations.append("\u26a0\ufe0f Consider reducing exposure")
 
@@ -763,9 +692,11 @@ class RugImminencePredictor:
         """Fetch holder count and concentration data."""
         return None  # Placeholder - would call holder API
 
+
 # ═══════════════════════════════════════════════════════════════
 
 _instance: RugImminencePredictor | None = None
+
 
 def get_predictor(weights: dict[str, float] | None = None) -> RugImminencePredictor:
     """Get or create the singleton predictor instance."""

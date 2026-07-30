@@ -36,12 +36,24 @@ class BulletinBoardManager:
 
     @staticmethod
     async def create_post(
-        title: str, content: str, category: str, author_id: str, author_email: str,
-        author_name: str = "", priority: str = "normal", target_audience: str = "all",
-        status: str = "draft", featured_image: str = "", attachments: list[dict] | None = None,
-        tags: list[str] | None = None, scheduled_at: str | None = None,
-        expires_at: str | None = None, pinned: bool = False, allow_comments: bool = False,
-        meta_title: str = "", meta_description: str = "",
+        title: str,
+        content: str,
+        category: str,
+        author_id: str,
+        author_email: str,
+        author_name: str = "",
+        priority: str = "normal",
+        target_audience: str = "all",
+        status: str = "draft",
+        featured_image: str = "",
+        attachments: list[dict] | None = None,
+        tags: list[str] | None = None,
+        scheduled_at: str | None = None,
+        expires_at: str | None = None,
+        pinned: bool = False,
+        allow_comments: bool = False,
+        meta_title: str = "",
+        meta_description: str = "",
     ) -> Post:
         """Create a new post."""
         post_id = f"post_{int(time.time())}_{os.urandom(4).hex()}"
@@ -51,14 +63,29 @@ class BulletinBoardManager:
         content = ContentSanitizer.sanitize(content)
 
         post = Post(
-            post_id=post_id, title=title[:200], slug=slug, content=content, summary=summary,
-            category=category, status=status, priority=priority, target_audience=target_audience,
-            author_id=author_id, author_email=author_email,
+            post_id=post_id,
+            title=title[:200],
+            slug=slug,
+            content=content,
+            summary=summary,
+            category=category,
+            status=status,
+            priority=priority,
+            target_audience=target_audience,
+            author_id=author_id,
+            author_email=author_email,
             author_name=author_name or author_email.split("@")[0],
-            created_at=now, updated_at=now, scheduled_at=scheduled_at, expires_at=expires_at,
-            pinned=pinned, featured_image=featured_image, attachments=attachments or [],
-            tags=tags or [], meta_title=meta_title or title[:70],
-            meta_description=meta_description or summary[:160], allow_comments=allow_comments,
+            created_at=now,
+            updated_at=now,
+            scheduled_at=scheduled_at,
+            expires_at=expires_at,
+            pinned=pinned,
+            featured_image=featured_image,
+            attachments=attachments or [],
+            tags=tags or [],
+            meta_title=meta_title or title[:70],
+            meta_description=meta_description or summary[:160],
+            allow_comments=allow_comments,
         )
 
         r = await BulletinBoardManager._get_redis()
@@ -84,6 +111,7 @@ class BulletinBoardManager:
         # Supabase backup
         try:
             from supabase import create_client
+
             supabase_url = os.getenv("SUPABASE_URL")
             supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
             if supabase_url and supabase_key:
@@ -116,7 +144,9 @@ class BulletinBoardManager:
         return None
 
     @staticmethod
-    async def update_post(post_id: str, updates: dict[str, Any], editor_id: str = "", editor_email: str = "") -> Post | None:
+    async def update_post(
+        post_id: str, updates: dict[str, Any], editor_id: str = "", editor_email: str = ""
+    ) -> Post | None:
         r = await BulletinBoardManager._get_redis()
         data = await r.hget("rmi:bulletin_posts", post_id)
         if not data:
@@ -125,8 +155,11 @@ class BulletinBoardManager:
         before_state = {k: post_dict.get(k) for k in updates if k in post_dict}
 
         edit_entry = {
-            "edited_at": datetime.now(UTC).isoformat(), "edited_by": editor_id,
-            "editor_email": editor_email, "changes": before_state, "version": post_dict.get("version", 1),
+            "edited_at": datetime.now(UTC).isoformat(),
+            "edited_by": editor_id,
+            "editor_email": editor_email,
+            "changes": before_state,
+            "version": post_dict.get("version", 1),
         }
         history = post_dict.get("edit_history", [])
         history.append(edit_entry)
@@ -165,6 +198,7 @@ class BulletinBoardManager:
 
         try:
             from supabase import create_client
+
             supabase_url = os.getenv("SUPABASE_URL")
             supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
             if supabase_url and supabase_key:
@@ -193,11 +227,17 @@ class BulletinBoardManager:
 
     @staticmethod
     async def list_posts(
-        category: str | None = None, status: str | None = None,
-        target_audience: str | None = None, author_id: str | None = None,
-        pinned_only: bool = False, search_query: str | None = None,
-        tags: list[str] | None = None, limit: int = 50, offset: int = 0,
-        sort_by: str = "created_at", sort_order: str = "desc",
+        category: str | None = None,
+        status: str | None = None,
+        target_audience: str | None = None,
+        author_id: str | None = None,
+        pinned_only: bool = False,
+        search_query: str | None = None,
+        tags: list[str] | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> dict[str, Any]:
         r = await BulletinBoardManager._get_redis()
         if pinned_only:
@@ -223,7 +263,11 @@ class BulletinBoardManager:
 
         if tags:
             all_posts = await r.hgetall("rmi:bulletin_posts")
-            post_ids = {pid for pid in post_ids if pid in all_posts and any(tag in json.loads(all_posts[pid]).get("tags", []) for tag in tags)}
+            post_ids = {
+                pid
+                for pid in post_ids
+                if pid in all_posts and any(tag in json.loads(all_posts[pid]).get("tags", []) for tag in tags)
+            }
 
         all_posts = await r.hgetall("rmi:bulletin_posts")
         posts = [json.loads(all_posts[pid]) for pid in post_ids if pid in all_posts]
@@ -235,7 +279,7 @@ class BulletinBoardManager:
             posts.sort(key=lambda x: (x["post_id"] not in pinned_ids, x.get(sort_by, "")), reverse=not reverse)
 
         total = len(posts)
-        posts = posts[offset: offset + limit]
+        posts = posts[offset : offset + limit]
         return {"posts": posts, "total": total, "limit": limit, "offset": offset}
 
     @staticmethod
@@ -277,7 +321,9 @@ class BulletinBoardManager:
         return archived
 
     @staticmethod
-    async def add_comment(post_id: str, author_id: str, author_name: str, author_email: str, content: str, parent_id: str | None = None) -> Comment | None:
+    async def add_comment(
+        post_id: str, author_id: str, author_name: str, author_email: str, content: str, parent_id: str | None = None
+    ) -> Comment | None:
         r = await BulletinBoardManager._get_redis()
         post_data = await r.hget("rmi:bulletin_posts", post_id)
         if not post_data:
@@ -288,9 +334,15 @@ class BulletinBoardManager:
         comment_id = f"comment_{int(time.time())}_{os.urandom(4).hex()}"
         now = datetime.now(UTC).isoformat()
         comment = Comment(
-            comment_id=comment_id, post_id=post_id, author_id=author_id, author_name=author_name,
-            author_email=author_email, content=ContentSanitizer.sanitize(content)[:2000],
-            created_at=now, updated_at=now, parent_id=parent_id,
+            comment_id=comment_id,
+            post_id=post_id,
+            author_id=author_id,
+            author_name=author_name,
+            author_email=author_email,
+            content=ContentSanitizer.sanitize(content)[:2000],
+            created_at=now,
+            updated_at=now,
+            parent_id=parent_id,
         )
         await r.hset("rmi:bulletin_comments", comment_id, json.dumps(comment.to_dict()))
         await r.sadd(f"bulletin:post_comments:{post_id}", comment_id)

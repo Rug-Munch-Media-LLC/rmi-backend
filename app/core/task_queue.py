@@ -18,9 +18,11 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
 
 TASKS = {}
 
+
 def register_task(name: str, fn: Callable) -> None:
     """Register a background task handler."""
     TASKS[name] = fn
+
 
 async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3) -> None:
     """Enqueue a background task."""
@@ -44,6 +46,7 @@ async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3
         logger.debug(f"Task enqueued: {name}")
     except Exception as e:
         logger.warning(f"Task enqueue failed: {e}")
+
 
 async def process_tasks() -> None:
     """Process tasks from the queue. Run as background loop."""
@@ -84,9 +87,7 @@ async def process_tasks() -> None:
                     delay = 2**retries  # exponential backoff: 2, 4, 8 seconds
                     task["retries"] = retries
                     r.zadd("rmi:task_queue:delayed", {json.dumps(task): time.time() + delay})
-                    logger.warning(
-                        f"Task {name} failed (attempt {retries}/{max_retries}), retrying in {delay}s"
-                    )
+                    logger.warning(f"Task {name} failed (attempt {retries}/{max_retries}), retrying in {delay}s")
                 else:
                     # Dead letter queue
                     r.lpush(
@@ -97,6 +98,7 @@ async def process_tasks() -> None:
         except Exception as e:
             logger.error(f"Task processor error: {e}")
             await asyncio.sleep(1)
+
 
 async def get_queue_stats() -> dict:
     """Get task queue statistics."""

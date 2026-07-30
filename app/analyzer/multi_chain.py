@@ -12,6 +12,7 @@ from app.analyzer.portfolio import build_portfolio
 
 SCAN_DELAY = 0.3  # seconds between chain requests
 
+
 def scan_all_chains(address: str) -> dict:
     """
     Scan a wallet across all supported chains.

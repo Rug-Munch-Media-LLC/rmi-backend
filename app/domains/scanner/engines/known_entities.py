@@ -240,6 +240,7 @@ _lookup: dict[str, dict] = {}
 _solana_programs: dict[str, tuple[str, str]] = {}
 _initialized = False
 
+
 def _init() -> None:
     global _initialized, _lookup, _solana_programs
     if _initialized:
@@ -284,6 +285,7 @@ def _init() -> None:
     _initialized = True
     logger.info(f"known_entities: {len(_lookup)} labels, {len(_solana_programs)} Solana programs")
 
+
 def label_wallet(address: str, chain: str = "ethereum") -> dict:
     """Label a wallet. Returns {"name":..., "type":..., "confidence":..., "entity":...}"""
     _init()
@@ -297,6 +299,7 @@ def label_wallet(address: str, chain: str = "ethereum") -> dict:
         return {"name": name, "type": ptype, "confidence": "HIGH", "entity": None}
     return {"name": "unknown", "type": "unknown", "confidence": "NONE", "entity": None}
 
+
 def is_known_protocol(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known legitimate protocol — NEVER flag as suspicious."""
     result = label_wallet(address, chain)
@@ -307,30 +310,37 @@ def is_known_protocol(address: str, chain: str = "ethereum") -> bool:
         return address in _solana_programs
     return False
 
+
 def is_cex_wallet(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known CEX wallet."""
     return label_wallet(address, chain)["type"].startswith("cex_")
+
 
 def is_dex_contract(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known DEX router/factory/pool."""
     t = label_wallet(address, chain)["type"]
     return t.startswith("dex_") or t in ("token_launchpad",)
 
+
 def is_bridge(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known bridge contract."""
     return label_wallet(address, chain)["type"] == "bridge"
+
 
 def is_lending_protocol(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known lending protocol."""
     return label_wallet(address, chain)["type"] in ("lending", "liquid_staking")
 
+
 def is_mixer(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known mixer (Tornado Cash, etc)."""
     return label_wallet(address, chain)["type"] == "mixer"
 
+
 def is_market_maker(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known market maker."""
     return label_wallet(address, chain)["type"] == "market_maker"
+
 
 def get_exchange_name(address: str, chain: str = "ethereum") -> str | None:
     """Get CEX name if this is an exchange wallet."""
@@ -339,13 +349,11 @@ def get_exchange_name(address: str, chain: str = "ethereum") -> str | None:
         return result.get("entity") or result["name"]
     return None
 
+
 def get_all_known_for_chain(chain: str) -> dict[str, dict]:
     """Get all known labels for a specific chain."""
     _init()
-    return {
-        addr.split(":", 1)[1]: label
-        for addr, label in _lookup.items()
-        if addr.startswith(f"{chain}:")
-    }
+    return {addr.split(":", 1)[1]: label for addr, label in _lookup.items() if addr.startswith(f"{chain}:")}
+
 
 _init()

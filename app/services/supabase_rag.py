@@ -19,12 +19,10 @@ from app.core.secrets import get_secret_or_none
 def _get_url() -> Any | None:
     return os.environ.get("SUPABASE_URL", "")
 
+
 def _get_key() -> Any:
-    return (
-        get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY")
-        or get_secret_or_none("SUPABASE_SERVICE_KEY", "")
-        or ""
-    )
+    return get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY") or get_secret_or_none("SUPABASE_SERVICE_KEY", "") or ""
+
 
 def _get_headers() -> dict:
     key = _get_key()
@@ -33,6 +31,7 @@ def _get_headers() -> dict:
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
+
 
 async def search_similar(
     query_embedding: list[float],
@@ -68,6 +67,7 @@ async def search_similar(
             return r.json()
         return []
 
+
 async def store_embedding(
     document_id: str,
     embedding: list[float],
@@ -95,6 +95,7 @@ async def store_embedding(
         r = await client.post(url, json=payload, headers=headers)
         return r.json() if r.status_code in (200, 201) else None
 
+
 async def get_namespace_stats(namespace: str = "default") -> dict:
     """Get document count and stats for a namespace."""
     url = f"{_get_url()}/rest/v1/embeddings?namespace=eq.{namespace}&select=id"
@@ -105,6 +106,7 @@ async def get_namespace_stats(namespace: str = "default") -> dict:
             "count": int(r.headers.get("content-range", "0").split("/")[-1] or 0),
             "status": r.status_code,
         }
+
 
 # ─── CIRCUIT BREAKER ──────────────────────────────────────────────
 # Prevents cascading failures when Supabase RAG is degraded.

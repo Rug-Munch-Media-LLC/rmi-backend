@@ -40,6 +40,7 @@ if not ARKHAM_API_KEY:
 
 BASE_URL = "https://api.arkhamintelligence.com"
 
+
 # ── Simple TTL Cache ────────────────────────────────────────────────────────
 class _TTLCache:
     """In-memory cache with per-key TTL for rate-limited API responses."""
@@ -64,6 +65,7 @@ class _TTLCache:
 
     def clear(self) -> None:
         self._store.clear()
+
 
 # ── Client ───────────────────────────────────────────────────────────────────
 class ArkhamClient:

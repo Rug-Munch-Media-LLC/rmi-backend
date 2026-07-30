@@ -20,17 +20,19 @@ NETWORKS: ClassVar[list[str]] = [
     "sepa",
 ]
 
-CHAIN_SUFFIXES: ClassVar[frozenset[str]] = frozenset({
-    "solana",
-    "base",
-    "ethereum",
-    "bsc",
-    "polygon",
-    "arbitrum",
-    "optimism",
-    "avalanche",
-    "fantom",
-    "gnosis",
-    "tron",
-    "bitcoin",
-})
+CHAIN_SUFFIXES: ClassVar[frozenset[str]] = frozenset(
+    {
+        "solana",
+        "base",
+        "ethereum",
+        "bsc",
+        "polygon",
+        "arbitrum",
+        "optimism",
+        "avalanche",
+        "fantom",
+        "gnosis",
+        "tron",
+        "bitcoin",
+    }
+)

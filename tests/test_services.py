@@ -150,9 +150,7 @@ class TestPryscraperClientRequest:
         mock_cb.record_failure = AsyncMock()
 
         client = PryscraperClient(base_url="http://pry:8002")
-        client._client.request = AsyncMock(
-            side_effect=httpx.TimeoutException("Connection timed out")
-        )
+        client._client.request = AsyncMock(side_effect=httpx.TimeoutException("Connection timed out"))
 
         result = await client._request("GET", "/health")
 
@@ -495,8 +493,6 @@ class TestDeepIntelRouter:
         mock_fn = AsyncMock(return_value={"reputation": 85, "tokens_created": 12})
         # Patch the function on the already-imported module
         with patch.object(deep_intel_router, "deployer_reputation", mock_fn):
-            result = await deep_intel_router.api_deployer_reputation(
-                address="test-address-123", chain="sol"
-            )
+            result = await deep_intel_router.api_deployer_reputation(address="test-address-123", chain="sol")
             assert result["reputation"] == 85
             mock_fn.assert_awaited_once_with("test-address-123", "sol")

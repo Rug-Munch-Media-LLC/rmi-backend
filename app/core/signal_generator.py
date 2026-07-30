@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """RMI Signal Generator - Automated trading signals from SENTINEL + market data.
 Publishes to Redpanda for real-time consumption. Cron every 5 minutes."""
+
 from __future__ import annotations
 
 import asyncio
@@ -51,6 +52,7 @@ SIGNAL_RULES = {
     },
 }
 
+
 async def fetch_trending(chain: str, limit: int = 10) -> list:
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(
@@ -61,6 +63,7 @@ async def fetch_trending(chain: str, limit: int = 10) -> list:
             data = r.json()
             return data.get("data", data).get("tokens", []) if isinstance(data, dict) else []
     return []
+
 
 async def scan_and_signal(token: dict) -> dict | None:
     addr = token.get("address", "") or token.get("mint", "")
@@ -101,6 +104,7 @@ async def scan_and_signal(token: dict) -> dict | None:
             }
     return None
 
+
 async def publish_signal(signal: dict) -> None:
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -111,6 +115,7 @@ async def publish_signal(signal: dict) -> None:
             )
     except (httpx.HTTPError, json.JSONDecodeError):
         pass
+
 
 async def main() -> Any:
     logger.info(f"Signal Generator - {datetime.now(UTC).isoformat()}")
@@ -137,6 +142,7 @@ async def main() -> Any:
         )
     logger.info(f"Generated {len(signals)} signals across {len(CHAINS)} chains")
     return signals
+
 
 if __name__ == "__main__":
     asyncio.run(main())

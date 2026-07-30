@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("x402.narrative")
 
+
 async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
     """What's the market saying about this token RIGHT NOW?."""
     try:
@@ -51,13 +52,15 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
                         if results:
                             sources.append("cryptopanic")
                             for r in results[:15]:
-                                posts.append({
-                                    "source": "cryptopanic",
-                                    "title": r.get("title", "")[:150],
-                                    "sentiment": r.get("votes", {}).get("positive", 0)
-                                    - r.get("votes", {}).get("negative", 0),
-                                    "created": r.get("created_at", ""),
-                                })
+                                posts.append(
+                                    {
+                                        "source": "cryptopanic",
+                                        "title": r.get("title", "")[:150],
+                                        "sentiment": r.get("votes", {}).get("positive", 0)
+                                        - r.get("votes", {}).get("negative", 0),
+                                        "created": r.get("created_at", ""),
+                                    }
+                                )
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"CryptoPanic fetch failed: {e}")
 
@@ -79,16 +82,18 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
                             sources.append("reddit")
                             for c in children[:10]:
                                 d = c.get("data", {})
-                                posts.append({
-                                    "source": "reddit",
-                                    "title": d.get("title", "")[:150],
-                                    "subreddit": d.get("subreddit", ""),
-                                    "score": d.get("score", 0),
-                                    "comments": d.get("num_comments", 0),
-                                    "created": datetime.utcfromtimestamp(
-                                        d.get("created_utc", 0)
-                                    ).isoformat() if d.get("created_utc") else "",
-                                })
+                                posts.append(
+                                    {
+                                        "source": "reddit",
+                                        "title": d.get("title", "")[:150],
+                                        "subreddit": d.get("subreddit", ""),
+                                        "score": d.get("score", 0),
+                                        "comments": d.get("num_comments", 0),
+                                        "created": datetime.utcfromtimestamp(d.get("created_utc", 0)).isoformat()
+                                        if d.get("created_utc")
+                                        else "",
+                                    }
+                                )
         except (TimeoutError, aiohttp.ClientError, json.JSONDecodeError) as e:
             logger.debug(f"Reddit fetch failed: {e}")
 
@@ -164,5 +169,6 @@ async def narrative_engine(req: NarrativeRequest) -> Any | dict[str, str]:
     except Exception as e:
         logger.error(f"Narrative engine failed: {e}")
         raise AppError(message=str(e)) from e
+
 
 __all__ = ["narrative_engine"]

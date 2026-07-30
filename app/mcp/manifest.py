@@ -72,6 +72,7 @@ class MCPToolManifest(BaseModel):
     documented_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     documentation_url: HttpUrl | None = None
 
+
 class MCPServerManifest(BaseModel):
     """Bundle of tools from one MCP server."""
 

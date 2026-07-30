@@ -18,6 +18,7 @@ SEO_KEYWORDS = "x402 protocol, crypto intelligence API, blockchain token scanner
 
 DEMO_API_KEY = os.getenv("RMI_FREE_API_KEY", "sk-your-free-api-key")
 
+
 def _page(title: str, body: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -70,6 +71,7 @@ a:hover{{text-decoration:underline}}
 </div>
 </body>
 </html>"""
+
 
 @router.get("/docs", summary="Docs Landing", description="Landing page for the x402 API documentation portal.")
 @router.get("/docs/v2/landing")
@@ -132,7 +134,12 @@ Your API key is all you need. We handle the blockchain.
         )
     )
 
-@router.get("/docs/v2/quickstart", summary="Quickstart", description="Quickstart guide for the x402 API. Shows how to get started with token scanning, wallet analysis, and x402 payments.")
+
+@router.get(
+    "/docs/v2/quickstart",
+    summary="Quickstart",
+    description="Quickstart guide for the x402 API. Shows how to get started with token scanning, wallet analysis, and x402 payments.",
+)
 async def quickstart() -> Any:
     return HTMLResponse(
         content=_page(
@@ -185,7 +192,12 @@ no seed phrases to lose.
         )
     )
 
-@router.get("/docs/v2/api-reference", summary="Api Reference", description="Full API reference documentation for all x402 endpoints, including request/response schemas and authentication.")
+
+@router.get(
+    "/docs/v2/api-reference",
+    summary="Api Reference",
+    description="Full API reference documentation for all x402 endpoints, including request/response schemas and authentication.",
+)
 async def api_reference() -> Any:
     return HTMLResponse(
         content=_page(
@@ -244,6 +256,7 @@ console.log(data);</pre>
 """,
         )
     )
+
 
 @router.get("/old-docs")
 async def redirect_old_docs() -> Any:

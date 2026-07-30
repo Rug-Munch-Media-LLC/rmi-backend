@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 SPAM_DATA_DIR = Path(os.getenv("SPAM_DATA_DIR", "/app/data/spam"))
 SPAM_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+
 class SpamRegistry:
     """
     Multi-source spam/sanctions registry.
@@ -91,9 +92,7 @@ class SpamRegistry:
                             self._spam_nfts[chain_name] = nfts
                     elif isinstance(data, list):
                         self._spam_tokens[chain_name] = set(data)
-                    logger.info(
-                        f"GoldRush {chain_name}: {len(self._spam_tokens.get(chain_name, set()))} spam tokens"
-                    )
+                    logger.info(f"GoldRush {chain_name}: {len(self._spam_tokens.get(chain_name, set()))} spam tokens")
                 except Exception as e:
                     logger.debug(f"GoldRush {chain_name} cache read failed: {e}")
 
@@ -232,9 +231,7 @@ class SpamRegistry:
             ],
         }
 
-    def filter_spam_tokens(
-        self, tokens: list[dict], chain: str = "solana"
-    ) -> tuple[list[dict], list[dict]]:
+    def filter_spam_tokens(self, tokens: list[dict], chain: str = "solana") -> tuple[list[dict], list[dict]]:
         """Split token list into clean and spam.
         Returns: (clean_tokens, spam_tokens)"""
         self._ensure_loaded()
@@ -259,7 +256,9 @@ class SpamRegistry:
             "updated": datetime.now(UTC).isoformat(),
         }
 
+
 # ── Seed data loader ──────────────────────────────────────
+
 
 def seed_spam_data() -> None:
     """Download and cache initial spam data from free sources."""
@@ -272,16 +271,12 @@ def seed_spam_data() -> None:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # GoldRush API endpoint (free tier)
-                r = await client.get(
-                    "https://api.goldrush.dev/spam/tokens?chain=ethereum&limit=1000"
-                )
+                r = await client.get("https://api.goldrush.dev/spam/tokens?chain=ethereum&limit=1000")
                 if r.status_code == HTTPStatus.OK:
                     data = r.json()
                     with open(SPAM_DATA_DIR / "goldrush_spam_ethereum.json", "w") as f:
                         json.dump(data, f)
-                    logger.info(
-                        f"Seeded GoldRush ethereum: {len(data) if isinstance(data, list) else 'ok'}"
-                    )
+                    logger.info(f"Seeded GoldRush ethereum: {len(data) if isinstance(data, list) else 'ok'}")
         except Exception as e:
             logger.debug(f"GoldRush seed failed (expected on free tier): {e}")
 
@@ -303,8 +298,10 @@ def seed_spam_data() -> None:
     except Exception as e:
         logger.warning(f"Spam data seed failed: {e}")
 
+
 # Singleton
 _registry: SpamRegistry | None = None
+
 
 def get_spam_registry() -> SpamRegistry:
     global _registry

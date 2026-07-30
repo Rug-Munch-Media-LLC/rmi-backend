@@ -13,6 +13,7 @@ from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
 
 logger = get_logger("rmi.smartmoney")
 
+
 async def cmd_smartmoney(update, ctx) -> None:
     """Handle /smartmoney command - detect smart money wallets."""
     msg = update.message
@@ -78,9 +79,7 @@ async def cmd_smartmoney(update, ctx) -> None:
                 pnl = w.get("pnl_usd", 0)
                 entry = w.get("entry_price", 0)
                 pnl_emoji = "📈" if pnl >= 0 else "📉"
-                lines.append(
-                    f"  {i}. <code>{addr[:8]}...{addr[-4:]}</code> {pnl_emoji} ${pnl:,.0f}"
-                )
+                lines.append(f"  {i}. <code>{addr[:8]}...{addr[-4:]}</code> {pnl_emoji} ${pnl:,.0f}")
                 if entry:
                     lines.append(f"     Entry: ${entry:.8f}")
             lines.append("")

@@ -31,6 +31,7 @@ _CHAIN_ID_MAP = {
     100: "gnosis",
 }
 
+
 async def query_eth_labels_db(address: str, chain: str = "ethereum") -> list[Label]:
     """Query the local eth-labels.db SQLite for an address.
 
@@ -75,11 +76,12 @@ async def query_eth_labels_db(address: str, chain: str = "ethereum") -> list[Lab
                 return labels
             finally:
                 conn.close()
-        except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e :
+        except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
             log.warning("eth_labels_db_query_fail address=%s err=%s", address[:10], e)
             raise
 
     return await asyncio.to_thread(_query)
+
 
 def _parse_date(s: str | None) -> datetime:
     """Parse SQLite date string to datetime."""

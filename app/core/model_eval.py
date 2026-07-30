@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """#8 - Model Evaluation Harness. Benchmarks models on Real-CATS scam data.
 Runs lm-eval locally or via Ollama. Picks the best model per task."""
+
 from __future__ import annotations
 
 import asyncio
@@ -17,9 +18,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 OLLAMA = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-REAL_CATS_PATH = Path(
-    os.getenv("REAL_CATS_PATH", str(Path.home() / "rmi/backend/data/real_cats.json"))
-)
+REAL_CATS_PATH = Path(os.getenv("REAL_CATS_PATH", str(Path.home() / "rmi/backend/data/real_cats.json")))
 
 # Test prompts for scam classification
 BENCHMARK_TASKS = {
@@ -45,6 +44,7 @@ BENCHMARK_TASKS = {
         "metric": "accuracy",
     },
 }
+
 
 async def evaluate_model(model: str, task_name: str) -> dict[str, Any]:
     """Evaluate a model on a benchmark task."""
@@ -102,6 +102,7 @@ async def evaluate_model(model: str, task_name: str) -> dict[str, Any]:
         "results": results,
     }
 
+
 async def compare_models(models: list[str], task: str = "scam_detection") -> dict:
     """Compare multiple models on a benchmark task."""
     scores = []
@@ -114,11 +115,11 @@ async def compare_models(models: list[str], task: str = "scam_detection") -> dic
         "task": task,
         "models_compared": len(scores),
         "leaderboard": [
-            {"model": s["model"], "accuracy": s["accuracy"], "avg_time_ms": s["avg_time_ms"]}
-            for s in scores
+            {"model": s["model"], "accuracy": s["accuracy"], "avg_time_ms": s["avg_time_ms"]} for s in scores
         ],
         "best_model": scores[0]["model"] if scores else None,
     }
+
 
 if __name__ == "__main__":
 

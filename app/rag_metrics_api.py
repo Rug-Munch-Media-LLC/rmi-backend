@@ -13,6 +13,7 @@ from app.rag_observability import get_metrics
 
 router = APIRouter(prefix="/api/v1/rag", tags=["rag-metrics"])
 
+
 @router.get("/metrics")
 async def rag_metrics(request: Request) -> Any:
     """RAG system metrics - latency, cache, ingestion, errors."""

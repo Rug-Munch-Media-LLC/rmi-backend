@@ -35,6 +35,7 @@ try:
 except ImportError:
     admin_ai = None
 
+
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Route all inline keyboard callbacks to the appropriate action."""
     query = update.callback_query
@@ -63,8 +64,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton("🔄 Refresh", callback_data="status"),
-                         InlineKeyboardButton("📊 Health", callback_data="alerts")],
+                        [
+                            InlineKeyboardButton("🔄 Refresh", callback_data="status"),
+                            InlineKeyboardButton("📊 Health", callback_data="alerts"),
+                        ],
                         [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                     ]
                 ),
@@ -80,8 +83,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton("🔄 Refresh", callback_data="disk"),
-                         InlineKeyboardButton("🧠 Memory", callback_data="mem")],
+                        [
+                            InlineKeyboardButton("🔄 Refresh", callback_data="disk"),
+                            InlineKeyboardButton("🧠 Memory", callback_data="mem"),
+                        ],
                         [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                     ]
                 ),
@@ -97,8 +102,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton("🔄 Refresh", callback_data="mem"),
-                         InlineKeyboardButton("💾 Disk", callback_data="disk")],
+                        [
+                            InlineKeyboardButton("🔄 Refresh", callback_data="mem"),
+                            InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                        ],
                         [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                     ]
                 ),
@@ -107,6 +114,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         # ── Git menu ──
         elif data == "git_menu":
             from app.domains.telegram.adminbot.admin_ops import RMI_REPOS
+
             buttons = []
             row = []
             for repo in RMI_REPOS:
@@ -166,8 +174,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     parse_mode=ParseMode.MARKDOWN,
                     reply_markup=InlineKeyboardMarkup(
                         [
-                            [InlineKeyboardButton("🔄 Refresh", callback_data="chain"),
-                             InlineKeyboardButton("🐳 Docker", callback_data="docker")],
+                            [
+                                InlineKeyboardButton("🔄 Refresh", callback_data="chain"),
+                                InlineKeyboardButton("🐳 Docker", callback_data="docker"),
+                            ],
                             [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                         ]
                     ),
@@ -245,9 +255,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         # ── Services ──
         elif data == "services":
             text = admin_ops.service_list()
-            await query.edit_message_text(
-                text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
-            )
+            await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
 
         elif data.startswith("svc_"):
             parts = data.split("_", 2)
@@ -267,8 +275,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton("🔄 Run Full Backup", callback_data="backup_run"),
-                         InlineKeyboardButton("🗄️ DB Backup", callback_data="backup_db")],
+                        [
+                            InlineKeyboardButton("🔄 Run Full Backup", callback_data="backup_run"),
+                            InlineKeyboardButton("🗄️ DB Backup", callback_data="backup_db"),
+                        ],
                         [InlineKeyboardButton("📊 Backup Status", callback_data="backup_status")],
                         [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                     ]
@@ -300,10 +310,14 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton("🖥️ Backend", callback_data="deploy_backend"),
-                         InlineKeyboardButton("🤖 Bot", callback_data="deploy_bot")],
-                        [InlineKeyboardButton("🛡️ Admin Bot", callback_data="deploy_admin"),
-                         InlineKeyboardButton("🏗️ Infra", callback_data="deploy_infra")],
+                        [
+                            InlineKeyboardButton("🖥️ Backend", callback_data="deploy_backend"),
+                            InlineKeyboardButton("🤖 Bot", callback_data="deploy_bot"),
+                        ],
+                        [
+                            InlineKeyboardButton("🛡️ Admin Bot", callback_data="deploy_admin"),
+                            InlineKeyboardButton("🏗️ Infra", callback_data="deploy_infra"),
+                        ],
                         [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                     ]
                 ),
@@ -330,11 +344,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         elif data.startswith("logs_"):
             svc = data.replace("logs_", "")
             result = admin_ops.docker_logs(svc, tail=40)
-            text = (
-                result["output"]
-                if result["ok"] and result["output"]
-                else result.get("error", "no output")
-            )
+            text = result["output"] if result["ok"] and result["output"] else result.get("error", "no output")
             await query.edit_message_text(
                 f"📋 `{svc}` (last 40 lines):\n\n```\n{text[:3000]}\n```",
                 parse_mode=ParseMode.MARKDOWN,
@@ -350,8 +360,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton("🔄 Refresh", callback_data="alerts"),
-                         InlineKeyboardButton("🖥️ Status", callback_data="status")],
+                        [
+                            InlineKeyboardButton("🔄 Refresh", callback_data="alerts"),
+                            InlineKeyboardButton("🖥️ Status", callback_data="status"),
+                        ],
                         [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                     ]
                 ),
@@ -364,18 +376,30 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton("🔄 Restart Backend", callback_data="docker_restart_rmi-backend"),
-                         InlineKeyboardButton("🔄 Restart Bot", callback_data="docker_restart_rugmunchbot")],
-                        [InlineKeyboardButton("🖥️ Full Status", callback_data="status"),
-                         InlineKeyboardButton("📊 Health Check", callback_data="alerts")],
-                        [InlineKeyboardButton("🐳 Docker PS", callback_data="docker_ps"),
-                         InlineKeyboardButton("📦 Backup Status", callback_data="backup_status")],
-                        [InlineKeyboardButton("💾 Disk", callback_data="disk"),
-                         InlineKeyboardButton("🧠 Memory", callback_data="mem")],
-                        [InlineKeyboardButton("📁 Git Status", callback_data="git_menu"),
-                         InlineKeyboardButton("📤 Push All", callback_data="push_all")],
-                        [InlineKeyboardButton("💻 Terminal", callback_data="term_enter"),
-                         InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                        [
+                            InlineKeyboardButton("🔄 Restart Backend", callback_data="docker_restart_rmi-backend"),
+                            InlineKeyboardButton("🔄 Restart Bot", callback_data="docker_restart_rugmunchbot"),
+                        ],
+                        [
+                            InlineKeyboardButton("🖥️ Full Status", callback_data="status"),
+                            InlineKeyboardButton("📊 Health Check", callback_data="alerts"),
+                        ],
+                        [
+                            InlineKeyboardButton("🐳 Docker PS", callback_data="docker_ps"),
+                            InlineKeyboardButton("📦 Backup Status", callback_data="backup_status"),
+                        ],
+                        [
+                            InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                            InlineKeyboardButton("🧠 Memory", callback_data="mem"),
+                        ],
+                        [
+                            InlineKeyboardButton("📁 Git Status", callback_data="git_menu"),
+                            InlineKeyboardButton("📤 Push All", callback_data="push_all"),
+                        ],
+                        [
+                            InlineKeyboardButton("💻 Terminal", callback_data="term_enter"),
+                            InlineKeyboardButton("⬅️ Main Menu", callback_data="main"),
+                        ],
                     ]
                 ),
             )
@@ -434,6 +458,4 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Callback error: {e}")
         with contextlib.suppress(httpx.HTTPError):
-            await query.edit_message_text(
-                f"⚠️ Error: {str(e)[:200]}", reply_markup=back_button("main")
-            )
+            await query.edit_message_text(f"⚠️ Error: {str(e)[:200]}", reply_markup=back_button("main"))

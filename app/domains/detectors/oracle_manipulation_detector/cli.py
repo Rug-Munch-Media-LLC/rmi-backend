@@ -20,6 +20,7 @@ from .detector import OracleManipulationDetector
 
 logger = get_logger(__name__)
 
+
 def main() -> None:
     """Main CLI entry point for the Oracle Manipulation Detector."""
     parser = argparse.ArgumentParser(
@@ -27,18 +28,12 @@ def main() -> None:
     )
     parser.add_argument("--pool", type=str, help="Analyze a specific pool address")
     parser.add_argument("--tx", type=str, help="Analyze a specific transaction hash")
-    parser.add_argument(
-        "--blocks", type=int, default=50, help="Number of blocks to scan (default: 50)"
-    )
-    parser.add_argument(
-        "--chain", type=str, default="ethereum", help="Chain to scan (default: ethereum)"
-    )
+    parser.add_argument("--blocks", type=int, default=50, help="Number of blocks to scan (default: 50)")
+    parser.add_argument("--chain", type=str, default="ethereum", help="Chain to scan (default: ethereum)")
     parser.add_argument("--chains", type=str, help="Comma-separated list of chains to scan")
     parser.add_argument("--monitor", action="store_true", help="Continuous monitoring mode")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
-    parser.add_argument(
-        "--pair", type=str, default="", help="Pair name for pool analysis (e.g., WETH/USDC)"
-    )
+    parser.add_argument("--pair", type=str, default="", help="Pair name for pool analysis (e.g., WETH/USDC)")
     parser.add_argument("--check-feeds", action="store_true", help="Check Chainlink feeds only")
     args = parser.parse_args()
 
@@ -100,6 +95,7 @@ def main() -> None:
             print(report.json())
         else:
             print(report.to_dict())
+
 
 if __name__ == "__main__":
     main()

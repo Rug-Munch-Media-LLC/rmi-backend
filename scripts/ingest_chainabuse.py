@@ -28,9 +28,7 @@ async def ingest_via_api(content: str, metadata: dict) -> bool:
         import httpx
 
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                RAG_API, json={"collection": COLLECTION, "content": content, "metadata": metadata}
-            )
+            resp = await client.post(RAG_API, json={"collection": COLLECTION, "content": content, "metadata": metadata})
             return resp.status_code == 200
     except Exception as e:
         logger.debug(f"API ingest failed: {e}")
@@ -46,17 +44,11 @@ async def main():
         url = f"{CHAINABUSE_API}?limit=100&offset={page * 100}"
         try:
             logger.info(f"Fetching page {page + 1} from ChainAbuse...")
-            async with httpx.AsyncClient(
-                timeout=30, headers={"Accept": "application/json"}
-            ) as client:
+            async with httpx.AsyncClient(timeout=30, headers={"Accept": "application/json"}) as client:
                 resp = await client.get(url)
                 if resp.status_code == 200:
                     data = resp.json()
-                    reports = (
-                        data
-                        if isinstance(data, list)
-                        else data.get("data", data.get("reports", []))
-                    )
+                    reports = data if isinstance(data, list) else data.get("data", data.get("reports", []))
                     if not reports:
                         logger.info(f"No more reports at page {page + 1}")
                         break
@@ -85,11 +77,7 @@ async def main():
                     resp = await client.get(url)
                     if resp.status_code == 200:
                         data = resp.json()
-                        reports = (
-                            data
-                            if isinstance(data, list)
-                            else data.get("data", data.get("reports", []))
-                        )
+                        reports = data if isinstance(data, list) else data.get("data", data.get("reports", []))
                         if reports:
                             all_reports.extend(reports)
                             logger.info(f"Got {len(reports)} reports from alt endpoint")

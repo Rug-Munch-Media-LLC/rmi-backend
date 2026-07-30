@@ -24,6 +24,7 @@ from app.domains.billing.x402.shared import (
 
 sub_router = APIRouter(tags=["x402-labels"])
 
+
 @sub_router.post("/address_labels")
 async def address_labels_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
     """SENTINEL Address Labels - multi-source wallet address labeling.
@@ -48,5 +49,5 @@ async def address_labels_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
             **result,
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
-    except (ValueError, TypeError) as e :
+    except (ValueError, TypeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

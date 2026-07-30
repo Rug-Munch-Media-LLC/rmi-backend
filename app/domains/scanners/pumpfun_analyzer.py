@@ -55,6 +55,7 @@ BOT_MIN_TRADE_COUNT = 3
 # Data models
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CurveState:
     """Represents the current state of a Pump.fun bonding curve."""
@@ -66,6 +67,7 @@ class CurveState:
     token_total_supply: float
     complete: bool  # curve is complete → graduated
     curve_progress: float  # 0-100%
+
 
 @dataclass
 class BuyerProfile:
@@ -79,6 +81,7 @@ class BuyerProfile:
     is_likely_bot: bool
     funding_source: str | None = None
     labels: list[str] = field(default_factory=list)
+
 
 @dataclass
 class PumpFunReport:
@@ -98,9 +101,11 @@ class PumpFunReport:
     top_buyers: list[BuyerProfile] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
+
 # ---------------------------------------------------------------------------
 # Analyzer
 # ---------------------------------------------------------------------------
+
 
 class PumpFunAnalyzer:
     """Analyzes Pump.fun tokens for bonding curve progress, buyer quality,
@@ -109,9 +114,7 @@ class PumpFunAnalyzer:
     Supports Solana only - Pump.fun does not operate on other chains.
     """
 
-    def __init__(
-        self, helius_api_key: str | None = None, dexscreener_client: httpx.AsyncClient | None = None
-    ) -> None:
+    def __init__(self, helius_api_key: str | None = None, dexscreener_client: httpx.AsyncClient | None = None) -> None:
         self.helius_api_key = helius_api_key or os.getenv("HELIUS_API_KEY", "")
         self.client = dexscreener_client or httpx.AsyncClient(timeout=20.0)
         if not self.helius_api_key:
@@ -207,7 +210,7 @@ class PumpFunAnalyzer:
             # DexScreener pair data for progress estimation.
             curve = await self._estimate_curve_from_dexscreener(token_address)
             return curve
-        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e :
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("_fetch_curve_state_error", exc_info=True)
             logger.error(f"Failed to fetch curve state for {token_address}: {e}")
             return None
@@ -278,7 +281,17 @@ class PumpFunAnalyzer:
                 curve_progress=progress,
             )
 
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"DexScreener curve estimation failed: {e}")
             return None
@@ -328,7 +341,17 @@ class PumpFunAnalyzer:
                         continue
                     self._extract_buyer_from_tx(tx, buyer_map)
 
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            OSError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Helius buyer fetch failed: {e}")
 
@@ -492,7 +515,16 @@ class PumpFunAnalyzer:
             # If only pump.fun pairs exist, not migrated
             return False, ""
 
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_check_migration_error", exc_info=True)
             logger.error(f"Migration check failed for {token_address}: {e}")
             return False, ""
@@ -541,10 +573,7 @@ class PumpFunAnalyzer:
             momentum_factor = 0.5  # Low momentum, may fizzle out
 
         probability = (
-            progress_factor * 0.40
-            + organic_factor * 0.25
-            + bot_penalty * 0.20
-            + (momentum_factor / 1.5) * 0.15
+            progress_factor * 0.40 + organic_factor * 0.25 + bot_penalty * 0.20 + (momentum_factor / 1.5) * 0.15
         )
 
         return min(1.0, max(0.0, probability))
@@ -566,13 +595,9 @@ class PumpFunAnalyzer:
 
         if curve.complete:
             if is_migrated:
-                warnings.append(
-                    "GRADUATED: Token has graduated from Pump.fun and migrated to Raydium/DEX"
-                )
+                warnings.append("GRADUATED: Token has graduated from Pump.fun and migrated to Raydium/DEX")
             else:
-                warnings.append(
-                    "GRADUATED: Bonding curve complete but migration not confirmed on DexScreener"
-                )
+                warnings.append("GRADUATED: Bonding curve complete but migration not confirmed on DexScreener")
         else:
             warnings.append(
                 f"CURVE_PROGRESS: Bonding curve at {curve.curve_progress:.1f}% "
@@ -580,9 +605,7 @@ class PumpFunAnalyzer:
             )
 
         if bot_ratio > 0.7:
-            warnings.append(
-                f"HIGH_BOT_RATIO: {bot_ratio:.0%} of buyers are likely bots ({bot_count}/{len(buyers)})"
-            )
+            warnings.append(f"HIGH_BOT_RATIO: {bot_ratio:.0%} of buyers are likely bots ({bot_count}/{len(buyers)})")
         elif bot_ratio > 0.4:
             warnings.append(f"MODERATE_BOT_RATIO: {bot_ratio:.0%} of buyers are likely bots")
 
@@ -596,9 +619,7 @@ class PumpFunAnalyzer:
             if total_sol > 0:
                 dominance = top_buyer.total_sol_spent / total_sol
                 if dominance > 0.3:
-                    warnings.append(
-                        f"WHALE_DOMINANCE: Top buyer holds {dominance:.0%} of total SOL invested"
-                    )
+                    warnings.append(f"WHALE_DOMINANCE: Top buyer holds {dominance:.0%} of total SOL invested")
 
         if curve.curve_progress < 10 and len(buyers) > 0:
             warnings.append("EARLY_STAGE: Token is in very early bonding curve stage - high risk")

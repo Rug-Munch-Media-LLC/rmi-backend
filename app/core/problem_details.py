@@ -39,12 +39,15 @@ _STATUS_TITLES: dict[int, str] = {
     503: "Service Unavailable",
 }
 
+
 def _default_title(status: int) -> str:
     return _STATUS_TITLES.get(status, "Error")
+
 
 def _code_to_type(code: str) -> str:
     """Convert dot-notation error code to URI path, e.g. 'auth.invalid_token' → '/errors/auth/invalid_token'."""
     return f"/errors/{code.replace('.', '/')}"
+
 
 class ProblemDetail(BaseModel):
     """RFC 7807 Problem Details for HTTP APIs.
@@ -123,6 +126,7 @@ class ProblemDetail(BaseModel):
             errors=errors,
             code=code,
         )
+
 
 def problem_response(
     status: int,

@@ -36,6 +36,7 @@ logger = get_logger("darkroom_airdrop")
 
 # ── Data Models ───────────────────────────────────────────────
 
+
 @dataclass
 class AirdropRecipient:
     """Single recipient in an airdrop."""
@@ -46,6 +47,7 @@ class AirdropRecipient:
     claimed: bool = False
     claim_tx: str = ""
     claimed_at: str | None = None
+
 
 @dataclass
 class AirdropSnapshot:
@@ -62,6 +64,7 @@ class AirdropSnapshot:
     excluded_addresses: list[str] = field(default_factory=list)
     min_holdings: str = "0"
     metadata: dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class AirdropCampaign:
@@ -95,6 +98,7 @@ class AirdropCampaign:
         d = asdict(self)
         return d
 
+
 @dataclass
 class VestingSchedule:
     """Vesting schedule for team/dev tokens."""
@@ -111,7 +115,9 @@ class VestingSchedule:
     status: str = "active"  # active, completed, revoked
     tx_hashes: list[str] = field(default_factory=list)
 
+
 # ── Anti-Sniper Protection ────────────────────────────────────
+
 
 class AntiSniperProtection:
     """
@@ -169,9 +175,7 @@ class AntiSniperProtection:
             tx = await deployer.set_trading_enabled(contract_address, False)
             results["tx_hashes"].append(tx)
             results["trading_delayed"] = True
-            logger.info(
-                f"Anti-sniper: trading disabled, will enable after {trading_delay_blocks} blocks"
-            )
+            logger.info(f"Anti-sniper: trading disabled, will enable after {trading_delay_blocks} blocks")
         except Exception as e:
             logger.warning("Trading disable not supported or failed: %s", e)
 
@@ -217,7 +221,9 @@ class AntiSniperProtection:
         # For now, return the target block
         return str(target_block)
 
+
 # ── Snapshot Engine ─────────────────────────────────────────────
+
 
 class SnapshotEngine:
     """
@@ -299,9 +305,7 @@ class SnapshotEngine:
             min_holdings=min_holdings,
         )
 
-        logger.info(
-            f"Snapshot created: {snapshot.snapshot_id} - {len(holders)} holders, {total_supply} total"
-        )
+        logger.info(f"Snapshot created: {snapshot.snapshot_id} - {len(holders)} holders, {total_supply} total")
         return snapshot
 
     @staticmethod
@@ -357,7 +361,9 @@ class SnapshotEngine:
 
         return snapshot
 
+
 # ── Airdrop Distributor ───────────────────────────────────────
+
 
 class AirdropDistributor:
     """
@@ -465,7 +471,9 @@ class AirdropDistributor:
 
         return results
 
+
 # ── Team Allocation Engine ────────────────────────────────────
+
 
 class TeamAllocation:
     """
@@ -530,9 +538,7 @@ class TeamAllocation:
                         start_date=datetime.now(UTC).isoformat(),
                         cliff_months=alloc.get("cliff_months", 0),
                         vesting_months=alloc.get("vesting_months", 0),
-                        monthly_release=str(
-                            vested_amount // max(alloc.get("vesting_months", 1), 1)
-                        ),
+                        monthly_release=str(vested_amount // max(alloc.get("vesting_months", 1), 1)),
                     )
                     # Store vesting schedule
                     await AirdropStorage.save_vesting(vesting)
@@ -555,7 +561,9 @@ class TeamAllocation:
 
         return results
 
+
 # ── Storage ─────────────────────────────────────────────────────
+
 
 class AirdropStorage:
     """Store airdrop snapshots, campaigns, and vesting schedules."""
@@ -647,7 +655,9 @@ class AirdropStorage:
             logger.error("Get campaign failed: %s", e)
             return None
 
+
 # ── Convenience Functions ─────────────────────────────────────
+
 
 async def create_full_token_with_protection(
     chain: str,
@@ -716,9 +726,7 @@ async def create_full_token_with_protection(
 
         # 3. Team allocation
         if team_allocations:
-            team_result = await TeamAllocation.allocate_team_tokens(
-                deployer, deployment, team_allocations
-            )
+            team_result = await TeamAllocation.allocate_team_tokens(deployer, deployment, team_allocations)
             results["team_allocation"] = team_result
 
         # 4. Airdrop from snapshot

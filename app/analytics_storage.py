@@ -26,6 +26,7 @@ logger = get_logger(__name__)
 
 # ─── PERSISTENT MODELS ────────────────────────────────────────────────
 
+
 class TransactionRecord(BaseModel):
     """Represents a transaction record."""
 
@@ -42,6 +43,7 @@ class TransactionRecord(BaseModel):
     function_name: str = ""
     token_transfers: list[dict[str, Any]] = Field(default_factory=list)
 
+
 class WalletHistory(BaseModel):
     """Complete transaction history for a wallet."""
 
@@ -53,6 +55,7 @@ class WalletHistory(BaseModel):
     total_tx_count: int = 0
     total_volume: float = 0.0
     unique_interactions: int = 0
+
 
 class EntityAlertRecord(BaseModel):
     """Record of an alert for an entity."""
@@ -66,7 +69,9 @@ class EntityAlertRecord(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     resolved: bool = False
 
+
 # ─── REDIS STORAGE ────────────────────────────────────────────────────
+
 
 class RedisStorage:
     """Redis-backed storage for historical data."""
@@ -97,9 +102,7 @@ class RedisStorage:
             self.client.zadd(wallet_key, {tx.tx_hash: tx.timestamp.timestamp()})
 
             # Update wallet history
-            self._update_wallet_history(
-                tx.wallet_address if hasattr(tx, "wallet_address") else tx.from_address, tx
-            )
+            self._update_wallet_history(tx.wallet_address if hasattr(tx, "wallet_address") else tx.from_address, tx)
 
             return True
         except Exception as e:
@@ -116,9 +119,7 @@ class RedisStorage:
             logger.error(f"Failed to get transaction: {e}")
             return None
 
-    def get_wallet_history(
-        self, wallet_address: str, chain: str = "ethereum"
-    ) -> WalletHistory | None:
+    def get_wallet_history(self, wallet_address: str, chain: str = "ethereum") -> WalletHistory | None:
         """Get complete wallet history."""
         try:
             key = self.key_prefix("wallet", f"{wallet_address}_{chain}")
@@ -241,9 +242,7 @@ class RedisStorage:
             logger.error(f"Failed to get cluster: {e}")
             return None
 
-    def get_or_create_wallet_history(
-        self, wallet_address: str, chain: str = "ethereum"
-    ) -> WalletHistory:
+    def get_or_create_wallet_history(self, wallet_address: str, chain: str = "ethereum") -> WalletHistory:
         """Get or create wallet history."""
         history = self.get_wallet_history(wallet_address, chain)
         if history is None:
@@ -267,7 +266,9 @@ class RedisStorage:
         # Update transaction count
         history.total_tx_count = len(history.transactions) + 1
 
+
 # ─── DATABASE WRAPPER ─────────────────────────────────────────────────
+
 
 class AnalyticsDatabase:
     """Database wrapper for analytics queries."""
@@ -291,9 +292,7 @@ class AnalyticsDatabase:
         """Store a wallet cluster."""
         self.redis.save_wallet_cluster(cluster_id, members, labels)
 
-    def get_wallet_history(
-        self, wallet_address: str, chain: str = "ethereum"
-    ) -> WalletHistory | None:
+    def get_wallet_history(self, wallet_address: str, chain: str = "ethereum") -> WalletHistory | None:
         """Get wallet history."""
         return self.redis.get_wallet_history(wallet_address, chain)
 
@@ -315,9 +314,7 @@ class AnalyticsDatabase:
 
     # ─── ANALYTICS QUERIES ────────────────────────────────────────────
 
-    def get_wallet_activity_summary(
-        self, wallet_address: str, chain: str = "ethereum"
-    ) -> dict[str, Any]:
+    def get_wallet_activity_summary(self, wallet_address: str, chain: str = "ethereum") -> dict[str, Any]:
         """Get activity summary for a wallet."""
         history = self.redis.get_wallet_history(wallet_address, chain)
 
@@ -387,9 +384,11 @@ class AnalyticsDatabase:
 
         return network
 
+
 # ─── SINGLETON INSTANCE ───────────────────────────────────────────────
 
 _db_instance: AnalyticsDatabase | None = None
+
 
 def get_analytics_database(
     redis_host: str | None = None, redis_port: int | None = None, redis_db: int | None = None
@@ -406,7 +405,9 @@ def get_analytics_database(
 
     return _db_instance
 
+
 # ─── INITIAL DATA IMPORT ──────────────────────────────────────────────
+
 
 def initialize_analytics() -> None:
     """Initialize analytics storage with default data."""
@@ -416,6 +417,7 @@ def initialize_analytics() -> None:
     # db.redis.client.flushdb()
 
     logger.info("Analytics database initialized")
+
 
 if __name__ == "__main__":
     # Test the analytics database

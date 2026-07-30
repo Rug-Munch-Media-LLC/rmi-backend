@@ -51,6 +51,7 @@ POST_TYPES = {
 
 TYPE_LIMITS = {k: v["limit"] for k, v in POST_TYPES.items()}
 
+
 def _get_session_cookie() -> str | None:
     """Read saved session cookie for Ghost admin auth."""
     try:
@@ -61,6 +62,7 @@ def _get_session_cookie() -> str | None:
     except FileNotFoundError:
         pass
     return None
+
 
 async def create_post(
     content: str,
@@ -166,9 +168,8 @@ async def create_post(
     except Exception as e:
         return {"error": str(e)}
 
-async def get_feed(
-    page: int = 1, limit: int = 20, tag: str = "", include: str = "tags,authors"
-) -> dict[str, Any]:
+
+async def get_feed(page: int = 1, limit: int = 20, tag: str = "", include: str = "tags,authors") -> dict[str, Any]:
     """Get feed via Ghost Content API."""
     if not GHOST_CONTENT_KEY:
         return {"posts": [], "error": "content key not configured"}
@@ -195,9 +196,7 @@ async def get_feed(
                 posts = []
                 for p in data.get("posts", []):
                     ptags = [t["name"] for t in p.get("tags", [])]
-                    post_type = next(
-                        (t for t in POST_TYPES if POST_TYPES[t]["tag"] in ptags), "article"
-                    )
+                    post_type = next((t for t in POST_TYPES if POST_TYPES[t]["tag"] in ptags), "article")
                     posts.append(
                         {
                             "id": p["id"],
@@ -224,6 +223,7 @@ async def get_feed(
     except Exception as e:
         return {"posts": [], "error": str(e)}
 
+
 async def create_thread(posts: list[str], post_type: str = "thread") -> dict[str, Any]:
     """Create a thread - multiple connected posts."""
     results = []
@@ -237,11 +237,10 @@ async def create_thread(posts: list[str], post_type: str = "thread") -> dict[str
         "url": results[0].get("url") if results else None,
     }
 
+
 async def generate_briefing() -> dict[str, Any]:
     """Generate daily intelligence briefing from RAG + news sources."""
-    content_parts = [
-        f"# 🕵️ Daily Intelligence Briefing\n\n*{datetime.now(UTC).strftime('%B %d, %Y')}*\n"
-    ]
+    content_parts = [f"# 🕵️ Daily Intelligence Briefing\n\n*{datetime.now(UTC).strftime('%B %d, %Y')}*\n"]
 
     # Pull from RAG
     try:
@@ -273,11 +272,10 @@ async def generate_briefing() -> dict[str, Any]:
         title=f"Daily Briefing - {datetime.now(UTC).strftime('%B %d, %Y')}",
     )
 
+
 async def generate_newsletter() -> dict[str, Any]:
     """Generate weekly newsletter with top stories and analysis."""
-    content_parts = [
-        f"# 📰 Weekly Intelligence Report\n\n*Week of {datetime.now(UTC).strftime('%B %d, %Y')}*\n"
-    ]
+    content_parts = [f"# 📰 Weekly Intelligence Report\n\n*Week of {datetime.now(UTC).strftime('%B %d, %Y')}*\n"]
 
     try:
         from app.rag_service import three_pillar_search

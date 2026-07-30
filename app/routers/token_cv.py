@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/v1/token-cv", tags=["token-cv"])
 
 BACKEND = settings.backend_url
 
+
 class TokenCV(BaseModel):
     token_address: str
     chain: str
@@ -39,6 +40,7 @@ class TokenCV(BaseModel):
     social: dict[str, Any]
     deployer: dict[str, Any]
     summary: str
+
 
 def _generate_summary(cv: dict) -> str:
     """Generate human-readable CV summary."""
@@ -58,6 +60,7 @@ def _generate_summary(cv: dict) -> str:
         f"with ${liq:,.0f} liquidity and {cv.get('holders', 0)} holders. "
         f"SENTINEL rates it {safety}/100 - {verdict}."
     )
+
 
 @router.get("/{chain}/{address}")
 async def get_token_cv(chain: str, address: str) -> Any:
@@ -115,6 +118,7 @@ async def get_token_cv(chain: str, address: str) -> Any:
     }
     cv["summary"] = _generate_summary(cv)
     return cv
+
 
 @router.get("/compare")
 async def compare_tokens(

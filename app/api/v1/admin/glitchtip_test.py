@@ -24,10 +24,12 @@ log = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/_test", tags=["test"])
 
+
 class GlitchtipTestRequest(BaseModel):
     type: str = "error"  # error | exception | message
     message: str = "test event from RMI"
     secret: str | None = None  # should be REDACTED in Sentry
+
 
 @router.post("/glitchtip")
 async def test_glitchtip(req: GlitchtipTestRequest) -> dict:

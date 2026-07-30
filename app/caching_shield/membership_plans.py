@@ -285,6 +285,7 @@ AGENT_SDK_INFO = {
 # MEMBERSHIP CATALOG - Everything available for purchase
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def get_membership_catalog() -> dict:
     """Return the full membership catalog for agents."""
     return {

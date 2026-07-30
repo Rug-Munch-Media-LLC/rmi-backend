@@ -38,6 +38,7 @@ logger = get_logger("rate.limiter")
 # Verified Provider Limits (June 2026)
 # ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ProviderLimit:
     id: str
@@ -52,8 +53,10 @@ class ProviderLimit:
     priority: int = 100  # Higher = preferred within free tier
     timeout: float = 15.0
 
+
 # Configured limits - auto-detected from credit status
 PROVIDERS: list[ProviderLimit] = []
+
 
 def configure_providers(has_openrouter_credits: bool = True) -> None:
     """Configure provider limits based on credit status."""
@@ -195,12 +198,14 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
         ),
     ]
 
+
 # Default: assume credits
 configure_providers(has_openrouter_credits=True)
 
 # ──────────────────────────────────────────────────────────────
 # Redis-Backed Rate Tracker
 # ──────────────────────────────────────────────────────────────
+
 
 class RateTracker:
     """Tracks per-provider usage in Redis + memory. Survives restarts."""
@@ -283,14 +288,10 @@ class RateTracker:
         minute_margin = int(provider.rpm * 0.9)
 
         if counts["day"] >= day_margin:
-            logger.debug(
-                f"{provider.name}: daily limit approached ({counts['day']}/{provider.rpd})"
-            )
+            logger.debug(f"{provider.name}: daily limit approached ({counts['day']}/{provider.rpd})")
             return False
         if counts["minute"] >= minute_margin:
-            logger.debug(
-                f"{provider.name}: RPM limit approached ({counts['minute']}/{provider.rpm})"
-            )
+            logger.debug(f"{provider.name}: RPM limit approached ({counts['minute']}/{provider.rpm})")
             return False
 
         return True
@@ -329,9 +330,11 @@ class RateTracker:
             )
         return result
 
+
 # ──────────────────────────────────────────────────────────────
 # Embedding Cache
 # ──────────────────────────────────────────────────────────────
+
 
 class EmbeddingCache:
     """Caches embedding results to avoid redundant API calls.
@@ -385,7 +388,7 @@ class EmbeddingCache:
             # Save 500 most recent entries with full vectors
             entries = {k: [v[0], v[1]] for k, v in list(self._cache.items())[-500:]}
             r.setex("embed_cache:data", 86400, json.dumps(entries))
-        except (json.JSONDecodeError):
+        except json.JSONDecodeError:
             pass
 
     def load_from_redis(self) -> None:
@@ -421,9 +424,11 @@ class EmbeddingCache:
             "hit_rate": round(self._hits / max(total, 1) * 100, 1),
         }
 
+
 # ──────────────────────────────────────────────────────────────
 # Smart Embedding Dispatcher
 # ──────────────────────────────────────────────────────────────
+
 
 class EmbeddingDispatcher:
     """Routes embedding requests to the best provider with available capacity."""
@@ -441,9 +446,7 @@ class EmbeddingDispatcher:
         try:
             import sentence_transformers
 
-            self._local_model = sentence_transformers.SentenceTransformer(
-                "BAAI/bge-small-en-v1.5", device="cpu"
-            )
+            self._local_model = sentence_transformers.SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
             logger.info("Local BGE-small loaded")
         except Exception as e:
             logger.warning(f"Local model: {e}")
@@ -529,9 +532,7 @@ class EmbeddingDispatcher:
                 continue
 
             # ── API providers ──
-            key = os.environ.get(p.key_env, "") or os.environ.get(
-                p.key_env.replace("_KEY", "_API_KEY"), ""
-            )
+            key = os.environ.get(p.key_env, "") or os.environ.get(p.key_env.replace("_KEY", "_API_KEY"), "")
             if not key or len(key) < 10:
                 continue
 
@@ -585,9 +586,7 @@ class EmbeddingDispatcher:
         except (AttributeError, ImportError):
             pass
 
-    async def _embed_api(
-        self, p: ProviderLimit, key: str, texts: list[str]
-    ) -> list[list[float]] | None:
+    async def _embed_api(self, p: ProviderLimit, key: str, texts: list[str]) -> list[list[float]] | None:
         import httpx
 
         # Gemini uses different auth (key in query param) and different payload format
@@ -636,15 +635,11 @@ class EmbeddingDispatcher:
             try:
                 import sentence_transformers
 
-                self._local_model = sentence_transformers.SentenceTransformer(
-                    "BAAI/bge-small-en-v1.5", device="cpu"
-                )
+                self._local_model = sentence_transformers.SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
             except (AttributeError, ImportError):
                 return None
         loop = asyncio.get_event_loop()
-        vecs = await loop.run_in_executor(
-            None, lambda: self._local_model.encode(texts, normalize_embeddings=True)
-        )
+        vecs = await loop.run_in_executor(None, lambda: self._local_model.encode(texts, normalize_embeddings=True))
         return vecs.tolist() if hasattr(vecs, "tolist") else [[float(x) for x in v] for v in vecs]
 
     def _embed_hash(self, texts: list[str]) -> list[list[float]]:
@@ -653,10 +648,7 @@ class EmbeddingDispatcher:
         vecs = []
         for t in texts:
             h = hashlib.sha256(t.encode()).digest() + hashlib.sha256(("v2:" + t).encode()).digest()
-            v = [
-                (int.from_bytes(h[i : i + 4], "big") / 2**32) * 2 - 1
-                for i in range(0, min(len(h), 1536), 4)
-            ]
+            v = [(int.from_bytes(h[i : i + 4], "big") / 2**32) * 2 - 1 for i in range(0, min(len(h), 1536), 4)]
             while len(v) < 384:
                 v.append(0.0)
             v = v[:384]
@@ -682,8 +674,10 @@ class EmbeddingDispatcher:
             "local_model_loaded": self._local_model is not None,
         }
 
+
 # ── Singleton ──
 _dispatcher: EmbeddingDispatcher | None = None
+
 
 async def get_dispatcher() -> EmbeddingDispatcher:
     global _dispatcher
@@ -691,6 +685,7 @@ async def get_dispatcher() -> EmbeddingDispatcher:
         _dispatcher = EmbeddingDispatcher()
         await _dispatcher.init()
     return _dispatcher
+
 
 async def smart_embed(texts: list[str]) -> tuple[list[list[float]], str]:
     return await (await get_dispatcher()).embed(texts)

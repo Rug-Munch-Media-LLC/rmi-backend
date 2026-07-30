@@ -5,6 +5,7 @@ RMI GMGN AI Agent Integration + Original Intelligence Features
 Cross-reference engine, smart money narrative, sniper detection,
 degen score, trending deep dive - powered by GMGN + Birdeye + AI.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,6 +17,7 @@ import httpx
 from app.birdeye_client import BirdeyeClient
 
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
+
 
 class GMGNClient:
     """GMGN AI Agent API Client - query-only (no trading without private key)"""
@@ -113,9 +115,7 @@ class GMGNClient:
                 scored.append({**t, "intelligence_score": score})
 
             return {
-                "tokens": sorted(
-                    scored, key=lambda x: x.get("intelligence_score", 0), reverse=True
-                ),
+                "tokens": sorted(scored, key=lambda x: x.get("intelligence_score", 0), reverse=True),
                 "count": len(scored),
                 "chain": chain,
                 "timestamp": datetime.now(UTC).isoformat(),
@@ -191,9 +191,7 @@ class GMGNClient:
         if buy > 0 and sell > 0:
             ratio = buy / sell
             if ratio > 2:
-                narrative_parts.append(
-                    f"Bullish buy/sell ratio - {ratio:.1f}x more buys than sells"
-                )
+                narrative_parts.append(f"Bullish buy/sell ratio - {ratio:.1f}x more buys than sells")
                 opportunities.append("Strong buy pressure")
             elif ratio < 0.5:
                 narrative_parts.append(f"Bearish sell pressure - {sell / buy:.1f}x more sells")
@@ -227,9 +225,7 @@ class GMGNClient:
             "address": address,
             "token_name": token.get("name"),
             "symbol": token.get("symbol"),
-            "narrative": " | ".join(narrative_parts)
-            if narrative_parts
-            else "No significant activity detected",
+            "narrative": " | ".join(narrative_parts) if narrative_parts else "No significant activity detected",
             "risk_factors": risk_factors,
             "opportunities": opportunities,
             "verdict": verdict,
@@ -403,9 +399,7 @@ class GMGNClient:
             avg_vol = sum(volumes[:-1]) / max(len(volumes) - 1, 1)
             last_vol = volumes[-1]
             if avg_vol > 0 and last_vol > avg_vol * 5:
-                sniper_signals.append(
-                    f"Volume spike: {last_vol / avg_vol:.1f}x average in last 5 minutes"
-                )
+                sniper_signals.append(f"Volume spike: {last_vol / avg_vol:.1f}x average in last 5 minutes")
                 confidence += 30
 
         # Check for rapid price jumps
@@ -413,9 +407,7 @@ class GMGNClient:
         if len(prices) >= 2:
             total_jump = ((prices[-1] - prices[0]) / prices[0]) * 100 if prices[0] > 0 else 0
             if total_jump > 50:
-                sniper_signals.append(
-                    f"Rapid price appreciation: +{total_jump:.1f}% in {len(ohlcv) * 5} minutes"
-                )
+                sniper_signals.append(f"Rapid price appreciation: +{total_jump:.1f}% in {len(ohlcv) * 5} minutes")
                 confidence += 25
 
         # Check holder concentration (proxy for sniper accumulation)
@@ -472,15 +464,9 @@ class GMGNClient:
             deep_dives.append(
                 {
                     "token": token,
-                    "narrative": narrative
-                    if not isinstance(narrative, Exception)
-                    else {"error": str(narrative)},
-                    "sniper_radar": sniper
-                    if not isinstance(sniper, Exception)
-                    else {"error": str(sniper)},
-                    "degen_score": degen
-                    if not isinstance(degen, Exception)
-                    else {"error": str(degen)},
+                    "narrative": narrative if not isinstance(narrative, Exception) else {"error": str(narrative)},
+                    "sniper_radar": sniper if not isinstance(sniper, Exception) else {"error": str(sniper)},
+                    "degen_score": degen if not isinstance(degen, Exception) else {"error": str(degen)},
                 }
             )
 
@@ -513,9 +499,7 @@ class GMGNClient:
         # Signal 2: Low holders + high volume = fake activity
         holders = gmgn_data.get("holders", 0) or 0
         if holders < 50 and vol > 100000:
-            manipulation_signals.append(
-                f"Only {holders} holders but ${vol / 1e3:.0f}K volume - suspicious"
-            )
+            manipulation_signals.append(f"Only {holders} holders but ${vol / 1e3:.0f}K volume - suspicious")
             confidence += 20
 
         # Signal 3: Price flat despite volume = hidden selling
@@ -526,9 +510,7 @@ class GMGNClient:
 
         # Signal 4: Security flags from Birdeye
         if birdeye_security.get("risk_score", 0) > 50:
-            manipulation_signals.append(
-                f"Birdeye security risk: {birdeye_security.get(risk_level)}"
-            )
+            manipulation_signals.append(f"Birdeye security risk: {birdeye_security.get(risk_level)}")
             confidence += 20
 
         if confidence >= 60:
@@ -545,9 +527,7 @@ class GMGNClient:
             "verdict": verdict,
             "manipulation_confidence": min(confidence, 100),
             "signals": manipulation_signals,
-            "gmgn_data": {
-                k: v for k, v in gmgn_data.items() if k not in ["extensions", "top_holders"]
-            },
+            "gmgn_data": {k: v for k, v in gmgn_data.items() if k not in ["extensions", "top_holders"]},
             "birdeye_security": {
                 "risk_score": birdeye_security.get("risk_score"),
                 "risk_level": birdeye_security.get("risk_level"),
@@ -620,11 +600,7 @@ class GMGNClient:
         """Check if wallet is flagged as smart money"""
         try:
             result = await self.birdeye._call("/v1/wallet/smart_money", {"wallet": wallet})
-            return (
-                result.get("data", {}).get("isSmartMoney", False)
-                if isinstance(result, dict)
-                else False
-            )
+            return result.get("data", {}).get("isSmartMoney", False) if isinstance(result, dict) else False
         except (ConnectionError, OSError, TimeoutError):
             return False
 

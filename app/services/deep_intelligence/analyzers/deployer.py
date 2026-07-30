@@ -55,9 +55,7 @@ async def deployer_reputation(address: str, chain: str = "sol") -> dict[str, Any
         if contracts.get("status") == "1":
             txs = contracts.get("result", [])
             contract_creations = [
-                tx
-                for tx in txs
-                if tx.get("to") == "" or tx.get("input", "").startswith("0x60806040")
+                tx for tx in txs if tx.get("to") == "" or tx.get("input", "").startswith("0x60806040")
             ]
             result["tokens_deployed"] = len(contract_creations)
 

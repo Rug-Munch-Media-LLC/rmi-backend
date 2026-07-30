@@ -18,6 +18,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class BundleDetection:
     """Result of bundle detection on a token."""
@@ -48,6 +49,7 @@ class BundleDetection:
 
     risk_label: str = "unknown"  # critical, high, medium, low
 
+
 class BundleDetector:
     """Multi-signal bundle detection for Solana tokens."""
 
@@ -62,9 +64,7 @@ class BundleDetector:
         transactions: list[dict] | None = None,
     ) -> BundleDetection:
         """Run all bundle detection signals and return combined result."""
-        result = BundleDetection(
-            token_address=token_address, chain=chain, is_bundled=False, confidence=0.0
-        )
+        result = BundleDetection(token_address=token_address, chain=chain, is_bundled=False, confidence=0.0)
 
         if not holders or len(holders) < self.min_holders_for_analysis:
             result.risk_label = "unknown"
@@ -195,9 +195,7 @@ class BundleDetector:
         result.identical_amount_count = identical
 
         # Round number amounts (multiples of 100, 1000, 10000)
-        round_count = sum(
-            1 for a in amounts if a >= 100 and (a % 100 == 0 or a % 1000 == 0 or a % 10000 == 0)
-        )
+        round_count = sum(1 for a in amounts if a >= 100 and (a % 100 == 0 or a % 1000 == 0 or a % 10000 == 0))
         result.round_amount_count = round_count
 
         identical_pct = identical / len(amounts) if amounts else 0
@@ -270,8 +268,10 @@ class BundleDetector:
             return "medium"
         return "low"
 
+
 # Singleton
 _detector: BundleDetector | None = None
+
 
 def get_bundle_detector() -> BundleDetector:
     global _detector

@@ -12,6 +12,7 @@ MCP_PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "Rug Munch Intelligence"
 SERVER_VERSION = "3.2.0"
 
+
 def _get_tools() -> dict[str, Any]:
     try:
         from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES
@@ -20,6 +21,7 @@ def _get_tools() -> dict[str, Any]:
     except ImportError:
         return {"prices": {}, "chains": {}}
 
+
 def _get_facilitator_count() -> int:
     try:
         from app.facilitators.base import get_registry
@@ -27,6 +29,7 @@ def _get_facilitator_count() -> int:
         return len(get_registry().get_all())
     except ImportError:
         return 10
+
 
 def _desc(tool_id: str, pricing: dict) -> str:
     d = pricing.get("description", "")
@@ -111,6 +114,7 @@ def _desc(tool_id: str, pricing: dict) -> str:
         tool_id,
         f"{tool_id.replace('_', ' ').title()} -- real-time crypto intelligence and security analysis.",
     )
+
 
 def _input_schema(tool_id: str) -> dict:
     """Return MCP-compliant inputSchema for a tool."""

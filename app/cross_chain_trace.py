@@ -36,10 +36,12 @@ logger = get_logger("cross_chain_trace")
 TX_HASH_EVM_RE = re.compile(r"^0x[a-fA-F0-9]{64}$")
 TX_HASH_SOLANA_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{64,88}$")
 
+
 def is_valid_tx_hash(tx_hash: str) -> bool:
     """Validate a transaction hash format."""
     tx_hash = tx_hash.strip()
     return bool(TX_HASH_EVM_RE.match(tx_hash) or TX_HASH_SOLANA_RE.match(tx_hash))
+
 
 # ── Rate limiter for async HTTP calls ───────────────────────────────
 _RATE_LIMITERS: dict[str, float] = {}
@@ -125,6 +127,7 @@ KNOWN_EXCHANGES: dict[str, list[str]] = {
     ],
 }
 
+
 class TraceHopType(Enum):
     BRIDGE = "bridge"
     MIXER = "mixer"
@@ -136,11 +139,13 @@ class TraceHopType(Enum):
     BURN = "burn"
     UNKNOWN = "unknown"
 
+
 class ConfidenceLevel(Enum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
     GUESS = "guess"
+
 
 @dataclass
 class TraceHop:
@@ -179,6 +184,7 @@ class TraceHop:
             "is_suspicious": self.is_suspicious,
             "tags": self.tags,
         }
+
 
 @dataclass
 class FundTraceResult:
@@ -221,11 +227,14 @@ class FundTraceResult:
             "sources_used": self.sources_used,
         }
 
+
 # ── Helpers ──────────────────────────────────────────────────────
+
 
 def _normalize_address(addr: str) -> str:
     """Normalize an address to lowercase."""
     return addr.strip().lower()
+
 
 def _detect_chain(address: str) -> str:
     """Detect likely blockchain from address format."""
@@ -248,6 +257,7 @@ def _detect_chain(address: str) -> str:
         return "cosmos"
     return "unknown"
 
+
 def _is_bridge(address: str) -> tuple[bool, str]:
     """Check if an address is a known bridge contract."""
     addr = _normalize_address(address)
@@ -255,6 +265,7 @@ def _is_bridge(address: str) -> tuple[bool, str]:
         if any(_normalize_address(a) == addr for a in addrs):
             return True, protocol
     return False, ""
+
 
 def _is_mixer(address: str) -> tuple[bool, str]:
     """Check if an address is a known mixer."""
@@ -264,6 +275,7 @@ def _is_mixer(address: str) -> tuple[bool, str]:
             return True, protocol
     return False, ""
 
+
 def _is_exchange(address: str) -> tuple[bool, str]:
     """Check if an address is a known exchange wallet."""
     addr = _normalize_address(address)
@@ -271,6 +283,7 @@ def _is_exchange(address: str) -> tuple[bool, str]:
         if any(_normalize_address(a) == addr for a in addrs):
             return True, exchange
     return False, ""
+
 
 def _is_burn_address(addr: str) -> bool:
     """Check if address is a known burn/zero address."""
@@ -283,6 +296,7 @@ def _is_burn_address(addr: str) -> bool:
         "0x0000000000000000000000000000000000000001",
     }
     return normalized in burn_addrs
+
 
 def _compute_confidence(hops: list[TraceHop]) -> float:
     """Compute overall confidence based on hop data quality."""
@@ -310,6 +324,7 @@ def _compute_confidence(hops: list[TraceHop]) -> float:
         scores.append(min(base, 1.0))
 
     return sum(scores) / len(scores)
+
 
 def _compute_suspiciousness(hops: list[TraceHop]) -> float:
     """Compute suspiciousness score 0-1."""
@@ -347,6 +362,7 @@ def _compute_suspiciousness(hops: list[TraceHop]) -> float:
 
     return min(score, 1.0)
 
+
 def _generate_summary(result: FundTraceResult) -> str:
     """Generate human-readable summary of the trace."""
     parts = []
@@ -355,9 +371,7 @@ def _generate_summary(result: FundTraceResult) -> str:
         parts.append(f"⚠️ Funds passed through {result.mixer_hops} mixer(s)")
 
     if result.bridge_hops > 0:
-        parts.append(
-            f"🌉 Crossed {result.bridge_hops} bridge(s) across {result.chain_count} chain(s)"
-        )
+        parts.append(f"🌉 Crossed {result.bridge_hops} bridge(s) across {result.chain_count} chain(s)")
 
     chains_str = ", ".join(result.chains_used)
     if chains_str:
@@ -369,9 +383,7 @@ def _generate_summary(result: FundTraceResult) -> str:
     if result.ultimate_sink != "unknown":
         parts.append(f"📥 Sink: {result.ultimate_sink}")
 
-    parts.append(
-        f"📊 Suspicious: {result.suspicious_score:.0%}, Confidence: {result.confidence_score:.0%}"
-    )
+    parts.append(f"📊 Suspicious: {result.suspicious_score:.0%}, Confidence: {result.confidence_score:.0%}")
 
     if result.suspicious_score > 0.5:
         parts.append("🚨 HIGH SUSPICION - likely obfuscation attempt")
@@ -380,7 +392,9 @@ def _generate_summary(result: FundTraceResult) -> str:
 
     return " | ".join(parts)
 
+
 # ── Async HTTP helpers with rate limiting ─────────────────────────
+
 
 async def fetch_data(
     url: str,
@@ -417,6 +431,7 @@ async def fetch_data(
         logger.debug("Fetch failed for %s: %s", url, e)
         return None
 
+
 async def fetch_with_fallback(
     urls: list[str],
     headers: dict[str, str] | None = None,
@@ -429,7 +444,9 @@ async def fetch_with_fallback(
             return data, url
     return None, None
 
+
 # ── Public API ───────────────────────────────────────────────────
+
 
 async def trace_funds(
     address: str,
@@ -521,9 +538,7 @@ async def trace_funds(
 
     # Check if the address is involved in known bridge or mixer patterns
     # by looking at address similarity patterns
-    is_mixer_related = any(
-        addr[:10] == _normalize_address(m)[:10] for mixers in KNOWN_MIXERS.values() for m in mixers
-    )
+    is_mixer_related = any(addr[:10] == _normalize_address(m)[:10] for mixers in KNOWN_MIXERS.values() for m in mixers)
 
     if is_mixer_related:
         result.warnings.append("Address resembles known mixer contract pattern")
@@ -541,9 +556,7 @@ async def trace_funds(
         if depth == "deep":
             result.chains_used.extend(possible_evm_chains[1:4])  # Add most likely
             result.chain_count = len(set(result.chains_used))
-            result.warnings.append(
-                "Deep scan: full chain analysis recommended with block explorer API keys"
-            )
+            result.warnings.append("Deep scan: full chain analysis recommended with block explorer API keys")
             result.confidence_score = max(result.confidence_score, 0.4)
     elif len(addr) >= 32 and not addr.startswith("0x"):
         result.chains_used.append("solana")
@@ -553,9 +566,7 @@ async def trace_funds(
         if depth == "deep":
             result.chains_used.extend(["ethereum", "bsc", "base"])
             result.chain_count = len(set(result.chains_used))
-            result.warnings.append(
-                "Deep scan: full chain analysis recommended with block explorer API keys"
-            )
+            result.warnings.append("Deep scan: full chain analysis recommended with block explorer API keys")
             result.confidence_score = max(result.confidence_score, 0.4)
 
     # ── Phase 5: Compute scores and summary ──
@@ -588,9 +599,7 @@ async def trace_funds(
         result.confidence_score = min(result.confidence_score, 0.3)
         result.warnings.append("Quick scan: limited depth")
     elif depth == "deep":
-        result.warnings.append(
-            "Deep scan: full chain analysis recommended with block explorer API keys"
-        )
+        result.warnings.append("Deep scan: full chain analysis recommended with block explorer API keys")
         result.confidence_score = max(result.confidence_score, 0.4)
 
     # Generate summary
@@ -601,7 +610,9 @@ async def trace_funds(
 
     return result.to_dict()
 
+
 # ── Interactive CLI ──────────────────────────────────────────────
+
 
 async def main() -> None:
     """Interactive CLI for testing the tracer."""
@@ -617,24 +628,24 @@ async def main() -> None:
 
     result = await trace_funds(address, chain, depth=depth)
 
-    logger.info("\nSummary: %s", result['summary'])
-    logger.info("\nHops: %s", len(result['trace_path']))
-    logger.info("Chains: %s", result['chain_count'])
-    logger.info("Bridges: %s", result['bridge_hops'])
-    logger.info("Mixers: %s", result['mixer_hops'])
-    logger.info("Suspicious Score: %s", result['suspicious_score'])
-    logger.info("Confidence Score: %s", result['confidence_score'])
-    logger.info("Source: %s", result['source_of_funds'])
-    logger.info("Sink: %s", result['ultimate_sink'])
-    logger.info("Analysis Time: %sms", result['analysis_time_ms'])
+    logger.info("\nSummary: %s", result["summary"])
+    logger.info("\nHops: %s", len(result["trace_path"]))
+    logger.info("Chains: %s", result["chain_count"])
+    logger.info("Bridges: %s", result["bridge_hops"])
+    logger.info("Mixers: %s", result["mixer_hops"])
+    logger.info("Suspicious Score: %s", result["suspicious_score"])
+    logger.info("Confidence Score: %s", result["confidence_score"])
+    logger.info("Source: %s", result["source_of_funds"])
+    logger.info("Sink: %s", result["ultimate_sink"])
+    logger.info("Analysis Time: %sms", result["analysis_time_ms"])
 
     if result["warnings"]:
-        logger.info("\nWarnings (%s):", len(result['warnings']))
+        logger.info("\nWarnings (%s):", len(result["warnings"]))
         for w in result["warnings"]:
             logger.info("  ⚠ %s", w)
 
     if result["trace_path"]:
-        logger.info("\nTrace Path (%s hops):", len(result['trace_path']))
+        logger.info("\nTrace Path (%s hops):", len(result["trace_path"]))
         for hop in result["trace_path"]:
             conf_icon = {"high": "🟢", "medium": "🟡", "low": "🟠", "guess": "🔴"}
             suspicious = " ⚠" if hop["is_suspicious"] else ""
@@ -643,7 +654,8 @@ async def main() -> None:
                 f"→ {hop['protocol'] or 'unknown'}{suspicious}"
             )
             if hop["tx_hash"]:
-                logger.info("     Tx: %s...", hop['tx_hash'][:20])
+                logger.info("     Tx: %s...", hop["tx_hash"][:20])
+
 
 if __name__ == "__main__":
     asyncio.run(main())

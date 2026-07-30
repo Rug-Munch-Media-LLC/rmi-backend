@@ -1,4 +1,5 @@
 """Data models for the honeypot detector."""
+
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ class FindingSeverity(Enum):
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
+
 
 class HoneypotType(Enum):
     SELL_RESTRICTION = "sell_restriction"
@@ -34,6 +36,7 @@ class HoneypotType(Enum):
     RUG_PULL = "rug_pull"
     UNKNOWN = "unknown"
 
+
 @dataclass
 class SecurityFinding:
     finding_type: HoneypotType
@@ -43,7 +46,14 @@ class SecurityFinding:
     code_reference: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {"type": self.finding_type.value, "severity": self.severity.value, "description": self.description, "detail": self.detail, "code_reference": self.code_reference}
+        return {
+            "type": self.finding_type.value,
+            "severity": self.severity.value,
+            "description": self.description,
+            "detail": self.detail,
+            "code_reference": self.code_reference,
+        }
+
 
 @dataclass
 class TokenInfo:
@@ -70,7 +80,28 @@ class TokenInfo:
     chain_data_sources: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"address": self.address, "chain": self.chain, "name": self.name, "symbol": self.symbol, "decimals": self.decimals, "total_supply": self.total_supply, "holder_count": self.holder_count, "creator": self.creator_address, "age": self.creation_timestamp, "verified": self.is_verified, "price_usd": self.price_usd, "liquidity_usd": self.liquidity_usd, "volume_24h": self.volume_24h_usd, "market_cap": self.market_cap_usd, "owner": self.owner_address, "ownership_renounced": self.ownership_renounced, "is_proxy": self.is_proxy, "implementation": self.implementation_address, "chain_data_sources": self.chain_data_sources}
+        return {
+            "address": self.address,
+            "chain": self.chain,
+            "name": self.name,
+            "symbol": self.symbol,
+            "decimals": self.decimals,
+            "total_supply": self.total_supply,
+            "holder_count": self.holder_count,
+            "creator": self.creator_address,
+            "age": self.creation_timestamp,
+            "verified": self.is_verified,
+            "price_usd": self.price_usd,
+            "liquidity_usd": self.liquidity_usd,
+            "volume_24h": self.volume_24h_usd,
+            "market_cap": self.market_cap_usd,
+            "owner": self.owner_address,
+            "ownership_renounced": self.ownership_renounced,
+            "is_proxy": self.is_proxy,
+            "implementation": self.implementation_address,
+            "chain_data_sources": self.chain_data_sources,
+        }
+
 
 @dataclass
 class HoneypotAnalysisResult:
@@ -129,10 +160,17 @@ class HoneypotAnalysisResult:
         if not self.findings:
             lines.append("  No suspicious findings detected.")
         else:
-            sev_emoji = {FindingSeverity.CRITICAL: "CRIT", FindingSeverity.HIGH: "HIGH", FindingSeverity.MEDIUM: "MED", FindingSeverity.LOW: "LOW", FindingSeverity.INFO: "INFO"}
+            sev_emoji = {
+                FindingSeverity.CRITICAL: "CRIT",
+                FindingSeverity.HIGH: "HIGH",
+                FindingSeverity.MEDIUM: "MED",
+                FindingSeverity.LOW: "LOW",
+                FindingSeverity.INFO: "INFO",
+            }
             for finding in self.findings:
                 lines.append(f"  [{sev_emoji.get(finding.severity, '?')}] {finding.description}")
-                if finding.detail: lines.append(f"     {finding.detail}")
+                if finding.detail:
+                    lines.append(f"     {finding.detail}")
             lines.append("")
         if self.top_holders:
             lines.append("-- Top Holders --")
@@ -141,10 +179,24 @@ class HoneypotAnalysisResult:
             lines.append("")
         if self.warnings:
             lines.append("-- Warnings --")
-            for w in self.warnings: lines.append(f"  WARN {w}")
+            for w in self.warnings:
+                lines.append(f"  WARN {w}")
             lines.append("")
         lines.append(f"Scan completed: {self.scan_timestamp}")
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"token": self.token.to_dict(), "risk_score": self.risk_score, "risk_label": self.risk_label, "findings": [f.to_dict() for f in self.findings], "buy_tax_pct": self.buy_tax_pct, "sell_tax_pct": self.sell_tax_pct, "liquidity_locked_pct": self.liquidity_locked_pct, "liquidity_lock_duration_days": self.liquidity_lock_duration_days, "top_holders": self.top_holders, "warnings": self.warnings, "chain_data_sources": self.chain_data_sources, "scan_timestamp": self.scan_timestamp}
+        return {
+            "token": self.token.to_dict(),
+            "risk_score": self.risk_score,
+            "risk_label": self.risk_label,
+            "findings": [f.to_dict() for f in self.findings],
+            "buy_tax_pct": self.buy_tax_pct,
+            "sell_tax_pct": self.sell_tax_pct,
+            "liquidity_locked_pct": self.liquidity_locked_pct,
+            "liquidity_lock_duration_days": self.liquidity_lock_duration_days,
+            "top_holders": self.top_holders,
+            "warnings": self.warnings,
+            "chain_data_sources": self.chain_data_sources,
+            "scan_timestamp": self.scan_timestamp,
+        }

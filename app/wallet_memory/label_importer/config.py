@@ -16,7 +16,9 @@ SOLANA_LABELS_REPO = (
     "https://raw.githubusercontent.com/ImMike/"
     "crypto-wallet-address-labels/main/datasets/solana-wallet-and-program-labels"
 )
-BSC_LABELS_REPO = "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/bsc-ethereum-address-tags"
+BSC_LABELS_REPO = (
+    "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/bsc-ethereum-address-tags"
+)
 ETH_EXCHANGE_LABELS_REPO = (
     "https://raw.githubusercontent.com/ImMike/"
     "crypto-wallet-address-labels/main/datasets/ethereum-exchange-and-dex-labels"
@@ -25,36 +27,71 @@ ETH_CLUSTER_LABELS_REPO = (
     "https://raw.githubusercontent.com/ImMike/"
     "crypto-wallet-address-labels/main/datasets/ethereum-cluster-exchange-labels"
 )
-ETH_CONTRACT_LABELS_REPO = "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/ethereum-contract-name-labels"
-OFAC_URL = (
-    "https://raw.githubusercontent.com/OFAC/crypto-sanctions-list/main/crypto-sanctions-list.json"
+ETH_CONTRACT_LABELS_REPO = (
+    "https://raw.githubusercontent.com/ImMike/crypto-wallet-address-labels/main/datasets/ethereum-contract-name-labels"
 )
+OFAC_URL = "https://raw.githubusercontent.com/OFAC/crypto-sanctions-list/main/crypto-sanctions-list.json"
 
 CLEAN_DIR = os.path.join(DATA_DIR, "wallet-labels-clean")
 
 SOLANA_CSV_SPECS = [
-    ("solana_cex_labels.csv", "solana", "address", {
-        "label_type": "label_type", "label_subtype": "label_subtype",
-        "name": "address_name", "project": "project_name",
-    }),
-    ("solana_dapp_labels.csv", "solana", "address", {
-        "name": "dapp_name",
-    }),
-    ("solana_defi_labels.csv", "solana", "address", {
-        "name": "protocol_name",
-    }),
+    (
+        "solana_cex_labels.csv",
+        "solana",
+        "address",
+        {
+            "label_type": "label_type",
+            "label_subtype": "label_subtype",
+            "name": "address_name",
+            "project": "project_name",
+        },
+    ),
+    (
+        "solana_dapp_labels.csv",
+        "solana",
+        "address",
+        {
+            "name": "dapp_name",
+        },
+    ),
+    (
+        "solana_defi_labels.csv",
+        "solana",
+        "address",
+        {
+            "name": "protocol_name",
+        },
+    ),
 ]
 
 ETH_CSV_SPECS = [
-    ("phishing_scams.csv", "ethereum", "address", {
-        "name": "etherscan_tag", "label_type": "etherscan_labels",
-    }),
-    ("etherscan_malicious_labels.csv", "ethereum", "banned_address", {
-        "name": "wallet_tag", "label_type": "data_source",
-    }),
-    ("malicious_smart_contracts.csv", "ethereum", "contract_address", {
-        "name": "contract_tag", "label_type": "source",
-    }),
+    (
+        "phishing_scams.csv",
+        "ethereum",
+        "address",
+        {
+            "name": "etherscan_tag",
+            "label_type": "etherscan_labels",
+        },
+    ),
+    (
+        "etherscan_malicious_labels.csv",
+        "ethereum",
+        "banned_address",
+        {
+            "name": "wallet_tag",
+            "label_type": "data_source",
+        },
+    ),
+    (
+        "malicious_smart_contracts.csv",
+        "ethereum",
+        "contract_address",
+        {
+            "name": "contract_tag",
+            "label_type": "source",
+        },
+    ),
 ]
 
 WALLET_LABELS_DDL = """

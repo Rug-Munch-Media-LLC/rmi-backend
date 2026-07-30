@@ -19,9 +19,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
     try:
         headers = {"X-Messari-API-Key": api_key, "Accept": "application/json"}
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(
-                "https://api.messari.io/news/v1/news/feed", params={"limit": limit}, headers=headers
-            )
+            r = await c.get("https://api.messari.io/news/v1/news/feed", params={"limit": limit}, headers=headers)
             if r.status_code == 200:
                 data = r.json()
                 if data.get("data"):
@@ -29,9 +27,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
                     for item in data["data"]:
                         assets = [a.get("symbol", "Unknown") for a in item.get("assets", [])]
                         sentiment = item.get("sentiment", [])
-                        avg_sentiment = sum(s.get("sentiment", 0) for s in sentiment) / max(
-                            len(sentiment), 1
-                        )
+                        avg_sentiment = sum(s.get("sentiment", 0) for s in sentiment) / max(len(sentiment), 1)
                         articles.append(
                             {
                                 "title": item.get("title", ""),
@@ -48,6 +44,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
     """CoinDesk News API - institutional-grade crypto news with categorization."""
@@ -85,6 +82,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict | None:
     """Santiment - GitHub dev activity and social volume (free tier: 100 calls/day)."""
     api_key = kw.get("api_key", "") or os.getenv("SANTIMENT_API_KEY", "")
@@ -114,14 +112,13 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
                 data = r.json()
                 return {
                     "project": project_slug,
-                    "dev_activity": data.get("data", {})
-                    .get("getMetric", {})
-                    .get("timeseriesData", []),
+                    "dev_activity": data.get("data", {}).get("getMetric", {}).get("timeseriesData", []),
                     "source": "santiment",
                 }
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _virustotal_url_scan(url: str, **kw) -> dict | None:
     """VirusTotal - scan token website URLs for phishing/malware (free: 500 req/day)."""
@@ -130,11 +127,10 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
         return None
     try:
         import base64
+
         url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
         async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(
-                f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": api_key}
-            )
+            r = await c.get(f"https://www.virustotal.com/api/v3/urls/{url_id}", headers={"x-apikey": api_key})
             if r.status_code == 200:
                 data = r.json()
                 stats = data.get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
@@ -148,6 +144,7 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", **kw) -> dict | None:
     """Dune Analytics - finds the first 5-minute buyers of a token.

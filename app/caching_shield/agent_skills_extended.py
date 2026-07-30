@@ -380,6 +380,7 @@ from app.caching_shield.agent_skills import AGENT_SKILLS, get_agent_skills
 
 ALL_AGENT_SKILLS = {**AGENT_SKILLS, **AGENT_SKILLS_EXTENDED}
 
+
 def get_all_agent_skills() -> dict:
     base = get_agent_skills()
     base["skills"] = ALL_AGENT_SKILLS

@@ -17,12 +17,12 @@ import time
 import pytest
 from starlette.testclient import TestClient
 
-THRESHOLD_MEMORY_GROWTH_MB = 10.0   # max allowed RSS growth after requests
-THRESHOLD_GC_CLEANUP_MS = 2000.0   # max time for a full GC collection (the app
-                                    # has ~700K objects from FastAPI + middleware)
+THRESHOLD_MEMORY_GROWTH_MB = 10.0  # max allowed RSS growth after requests
+THRESHOLD_GC_CLEANUP_MS = 2000.0  # max time for a full GC collection (the app
+# has ~700K objects from FastAPI + middleware)
 GC_OBJECTS_AFTER_CLEANUP = 800000  # max tracked objects after collection
-                                    # The app itself registers 700K+ objects
-                                    # from FastAPI routing + middleware setup
+# The app itself registers 700K+ objects
+# from FastAPI routing + middleware setup
 
 
 # ── Memory measurement utilities ──────────────────────────────────────
@@ -82,7 +82,8 @@ class TestMemorySteadyState:
 
     @pytest.mark.benchmark
     def test_memory_stable_after_200_quick_requests(
-        self, benchmark_client: TestClient,
+        self,
+        benchmark_client: TestClient,
     ) -> None:
         """Memory after 200 /live requests should not grow > 10MB.
 
@@ -112,7 +113,8 @@ class TestMemorySteadyState:
 
     @pytest.mark.benchmark
     def test_memory_stable_after_200_health_checks(
-        self, benchmark_client: TestClient,
+        self,
+        benchmark_client: TestClient,
     ) -> None:
         """Memory after 200 /health requests (mocked) should be stable.
 
@@ -125,13 +127,15 @@ class TestMemorySteadyState:
         rss_before = _get_rss_mb()
         assert rss_before > 0, "Cannot measure RSS"
 
-        with patch("app.core.health_route._check_redis") as mr, \
-             patch("app.core.health_route._check_postgres") as mp, \
-             patch("app.core.health_route._check_neo4j") as mn, \
-             patch("app.core.health_route._check_qdrant") as mq, \
-             patch("app.core.health_route._check_clickhouse") as mc, \
-             patch("app.core.health_route._check_minio") as mm, \
-             patch("app.core.health_route._check_reth") as me:
+        with (
+            patch("app.core.health_route._check_redis") as mr,
+            patch("app.core.health_route._check_postgres") as mp,
+            patch("app.core.health_route._check_neo4j") as mn,
+            patch("app.core.health_route._check_qdrant") as mq,
+            patch("app.core.health_route._check_clickhouse") as mc,
+            patch("app.core.health_route._check_minio") as mm,
+            patch("app.core.health_route._check_reth") as me,
+        ):
             for m in (mr, mp, mn, mq, mc, mm, me):
                 m.return_value = {"healthy": True, "latency_ms": 0}
             for _ in range(200):
@@ -143,8 +147,7 @@ class TestMemorySteadyState:
         growth_mb = rss_after - rss_before
 
         assert growth_mb < THRESHOLD_MEMORY_GROWTH_MB, (
-            f"RSS grew by {growth_mb:.1f}MB after 200 /health requests. "
-            f"Threshold: {THRESHOLD_MEMORY_GROWTH_MB}MB"
+            f"RSS grew by {growth_mb:.1f}MB after 200 /health requests. Threshold: {THRESHOLD_MEMORY_GROWTH_MB}MB"
         )
 
 
@@ -166,8 +169,7 @@ class TestGCPerformance:
         """
         elapsed_ms = _run_gc_collection()
         assert elapsed_ms < THRESHOLD_GC_CLEANUP_MS, (
-            f"GC collection took {elapsed_ms:.1f}ms — "
-            f"exceeds {THRESHOLD_GC_CLEANUP_MS}ms threshold"
+            f"GC collection took {elapsed_ms:.1f}ms — exceeds {THRESHOLD_GC_CLEANUP_MS}ms threshold"
         )
 
     @pytest.mark.benchmark
@@ -182,13 +184,13 @@ class TestGCPerformance:
         obj_count = _count_allocated_objects()
 
         assert obj_count < GC_OBJECTS_AFTER_CLEANUP, (
-            f"{obj_count} GC-tracked objects after collection — "
-            f"exceeds {GC_OBJECTS_AFTER_CLEANUP} limit"
+            f"{obj_count} GC-tracked objects after collection — exceeds {GC_OBJECTS_AFTER_CLEANUP} limit"
         )
 
     @pytest.mark.benchmark
     def test_gc_after_request_spike_cleans_up(
-        self, benchmark_client: TestClient,
+        self,
+        benchmark_client: TestClient,
     ) -> None:
         """GC should clean up temporary objects created during requests.
 
@@ -235,15 +237,9 @@ class TestGCGenerations:
         assert len(stats) == 3, f"Expected 3 generations, got {len(stats)}"
 
         for gen_idx, gen_stats in enumerate(stats):
-            assert "collections" in gen_stats, (
-                f"Generation {gen_idx} missing 'collections'"
-            )
-            assert "collected" in gen_stats, (
-                f"Generation {gen_idx} missing 'collected'"
-            )
-            assert "uncollectable" in gen_stats, (
-                f"Generation {gen_idx} missing 'uncollectable'"
-            )
+            assert "collections" in gen_stats, f"Generation {gen_idx} missing 'collections'"
+            assert "collected" in gen_stats, f"Generation {gen_idx} missing 'collected'"
+            assert "uncollectable" in gen_stats, f"Generation {gen_idx} missing 'uncollectable'"
 
     @pytest.mark.benchmark
     def test_gc_no_uncollectable_objects(self) -> None:
@@ -255,7 +251,4 @@ class TestGCGenerations:
         _run_gc_collection()
         stats = gc.get_stats()
         total_uncollectable = sum(g["uncollectable"] for g in stats)
-        assert total_uncollectable == 0, (
-            f"{total_uncollectable} uncollectable objects found — "
-            f"potential memory leak"
-        )
+        assert total_uncollectable == 0, f"{total_uncollectable} uncollectable objects found — potential memory leak"

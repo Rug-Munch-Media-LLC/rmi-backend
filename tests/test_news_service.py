@@ -285,9 +285,7 @@ class TestNewsServiceAggregation:
         ]
 
         svc = NewsService()
-        result = await svc.fetch_all(
-            limit=100, include_reddit=False, include_api=False, include_internal=False
-        )
+        result = await svc.fetch_all(limit=100, include_reddit=False, include_api=False, include_internal=False)
 
         assert len(result["articles"]) == 1
         assert result["articles"][0]["source"] == "CoinDesk"

@@ -20,12 +20,33 @@ logger = get_logger("model_registry")
 # ── FORBIDDEN WORDS (AI-slop prevention) ──────────────────────────
 
 FORBIDDEN_WORDS = [
-    "delve", "tapestry", "landscape", "robust", "moreover", "furthermore",
-    "in conclusion", "it is worth noting", "underscores", "showcasing",
-    "a testament to", "in the realm of", "paradigm shift", "game changer",
-    "revolutionize", "disrupt", "unprecedented", "groundbreaking", "synergy",
-    "ecosystem", "holistic", "cutting-edge", "state-of-the-art", "leveraging",
-    "utilize", "facilitate", "spearhead",
+    "delve",
+    "tapestry",
+    "landscape",
+    "robust",
+    "moreover",
+    "furthermore",
+    "in conclusion",
+    "it is worth noting",
+    "underscores",
+    "showcasing",
+    "a testament to",
+    "in the realm of",
+    "paradigm shift",
+    "game changer",
+    "revolutionize",
+    "disrupt",
+    "unprecedented",
+    "groundbreaking",
+    "synergy",
+    "ecosystem",
+    "holistic",
+    "cutting-edge",
+    "state-of-the-art",
+    "leveraging",
+    "utilize",
+    "facilitate",
+    "spearhead",
 ]
 
 QUALITY_REVIEW_PROMPT = """You are a ruthless editor at RugCharts. Review this content against STRICT standards:
@@ -64,6 +85,7 @@ SLOP_PATTERNS = [
     (r"plays? a (crucial|vital|key|important) role", "AI-slop: 'plays a X role'"),
 ]
 
+
 async def review_content(content: str, content_type: str = "article") -> dict:
     """Review content against quality standards. Returns pass/fail with fixes."""
     if len(content) < 50:
@@ -95,9 +117,7 @@ async def review_content(content: str, content_type: str = "article") -> dict:
     # AI Review if borderline
     if base_score < 85 and len(issues) > 1:
         try:
-            ai_review = await ai_call(
-                "review", QUALITY_REVIEW_PROMPT, content, max_tokens=800, temperature=0.2
-            )
+            ai_review = await ai_call("review", QUALITY_REVIEW_PROMPT, content, max_tokens=800, temperature=0.2)
             if ai_review:
                 try:
                     review_data = json.loads(ai_review.strip().lstrip("```json").rstrip("```"))

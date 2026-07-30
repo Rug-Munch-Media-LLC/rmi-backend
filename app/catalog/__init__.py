@@ -46,6 +46,7 @@ async def _health_check() -> DomainHealth:
     except Exception as e:
         return DomainHealth(name="catalog", healthy=False, error=str(e))
 
+
 health_mod.register_health_check("catalog", _health_check)
 
 # Public API

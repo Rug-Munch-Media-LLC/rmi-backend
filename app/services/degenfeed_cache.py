@@ -49,6 +49,7 @@ def _make_post_key(post_id: str) -> str:
 
 # ── In-memory LRU fallback (used when Redis is down) ────────────
 
+
 class LRUCache:
     """Simple thread-safe in-memory LRU cache with TTL."""
 
@@ -121,9 +122,7 @@ async def get_cached_feed(protocol: str, user_id: str, page: int = 1) -> Any | N
     return _mem_cache.get(key)
 
 
-async def set_cached_feed(
-    protocol: str, user_id: str, data: Any, page: int = 1
-) -> None:
+async def set_cached_feed(protocol: str, user_id: str, data: Any, page: int = 1) -> None:
     """Cache feed data with FEED_CACHE_TTL."""
     key = _make_feed_key(protocol, user_id, page)
     raw = json.dumps(data, default=str)
@@ -155,9 +154,7 @@ async def get_cached_identity(protocol: str, handle: str) -> Any | None:
     return _mem_cache.get(key)
 
 
-async def set_cached_identity(
-    protocol: str, handle: str, data: Any
-) -> None:
+async def set_cached_identity(protocol: str, handle: str, data: Any) -> None:
     """Cache identity data with IDENTITY_CACHE_TTL."""
     key = _make_identity_key(protocol, handle)
     raw = json.dumps(data, default=str)
@@ -218,11 +215,7 @@ async def invalidate_feed(protocol: str, user_id: str) -> None:
             logger.debug("Redis feed invalidation failed: %s", exc)
 
     # Memory: clear all matching keys
-    keys_to_remove = [
-        k
-        for k in _mem_cache._cache
-        if k.startswith(f"{_PREFIX_FEED}{protocol}:{user_id}:")
-    ]
+    keys_to_remove = [k for k in _mem_cache._cache if k.startswith(f"{_PREFIX_FEED}{protocol}:{user_id}:")]
     for k in keys_to_remove:
         _mem_cache.invalidate(k)
 
@@ -246,12 +239,14 @@ async def degenfeed_cache_stats() -> dict[str, Any]:
                 identity_count += 1
             async for _key in redis.scan_iter(match=f"{_PREFIX_POST}*"):
                 post_count += 1
-            stats.update({
-                "redis_feed_keys": feed_count,
-                "redis_identity_keys": identity_count,
-                "redis_post_keys": post_count,
-                "total_redis_keys": feed_count + identity_count + post_count,
-            })
+            stats.update(
+                {
+                    "redis_feed_keys": feed_count,
+                    "redis_identity_keys": identity_count,
+                    "redis_post_keys": post_count,
+                    "total_redis_keys": feed_count + identity_count + post_count,
+                }
+            )
         except Exception as exc:
             stats["redis_error"] = str(exc)
 

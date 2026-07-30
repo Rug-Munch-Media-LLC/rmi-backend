@@ -18,6 +18,7 @@ For production SPLADE, you'd use naver/splade-v3-doc or prithivida/Splade_PP_en_
 This module provides a lightweight approximation using BGE-small features + expansion,
 with a clear upgrade path to a full SPLADE model.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -219,6 +220,7 @@ _STEM_RULES = [
     (r"ive$", ""),  # restrictive → restrict
 ]
 
+
 def simple_stem(word: str) -> str:
     """Aggressive suffix stripping for search matching. Not proper linguistics."""
     for pattern, replacement in _STEM_RULES:
@@ -226,6 +228,7 @@ def simple_stem(word: str) -> str:
         if new != word and len(new) >= 3:
             return new
     return word
+
 
 # ── Tokenizer ─────────────────────────────────────────────────────────
 def tokenize(text: str, remove_stopwords: bool = True, stem: bool = True) -> list[str]:
@@ -267,7 +270,9 @@ def tokenize(text: str, remove_stopwords: bool = True, stem: bool = True) -> lis
 
     return tokens
 
+
 # ── BM25 Implementation ────────────────────────────────────────────────
+
 
 class BM25Index:
     """
@@ -510,7 +515,9 @@ class BM25Index:
         scored.sort(key=lambda x: x["sparse_score"], reverse=True)
         return scored[:limit]
 
+
 # ── Async BM25 Builder (for Redis collections) ──────────────────────
+
 
 async def build_bm25_from_redis(
     collections: list[str] | None = None,
@@ -607,11 +614,13 @@ async def build_bm25_from_redis(
     )
     return index
 
+
 # ── In-memory BM25 cache ───────────────────────────────────────────────
 _bm25_index: BM25Index | None = None
 _bm25_built_at: float = 0.0
 _BM25_TTL = 3600  # Rebuild every hour
 _bm25_lock = asyncio.Lock()
+
 
 async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
     """Get or build the BM25 index (persisted to disk, 1h TTL in memory)."""
@@ -631,9 +640,7 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
 
         # Try loading from disk first
         if os.path.exists(BM25_PATH) and not force_rebuild:
-            loaded = await asyncio.get_running_loop().run_in_executor(
-                None, BM25Index.load, BM25_PATH
-            )
+            loaded = await asyncio.get_running_loop().run_in_executor(None, BM25Index.load, BM25_PATH)
             if loaded and loaded.doc_count > 0:
                 _bm25_index = loaded
                 _bm25_built_at = time.time()
@@ -652,6 +659,7 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
 
         return _bm25_index
 
+
 async def _save_bm25_async(path: str) -> None:
     """Save BM25 index to disk in executor thread."""
     try:
@@ -659,6 +667,7 @@ async def _save_bm25_async(path: str) -> None:
         await loop.run_in_executor(None, _bm25_index.save, path)
     except Exception as e:
         logger.debug(f"BM25 disk save failed (non-critical): {e}")
+
 
 async def bm25_search(
     query: str,
@@ -673,6 +682,7 @@ async def bm25_search(
     index = await get_bm25_index()
     results = index.search(query, limit=limit, min_score=min_score)
     return results
+
 
 async def splade_search(
     query: str,

@@ -69,6 +69,7 @@ NETWORKS = {
     "base": {"name": "Basescan", "url": "https://api.basescan.org/api", "key": ETHERSCAN_API_KEY},
 }
 
+
 class EtherscanConnector:
     """Etherscan family API connector with intelligent key rotation."""
 
@@ -230,9 +231,7 @@ class EtherscanConnector:
         result = await self._get(network, params)
         return result if isinstance(result, list) else []
 
-    async def get_token_balance(
-        self, contract_address: str, address: str, network: str = "eth"
-    ) -> str:
+    async def get_token_balance(self, contract_address: str, address: str, network: str = "eth") -> str:
         """Get ERC-20 token balance for address."""
         return (
             await self._get(
@@ -269,18 +268,11 @@ class EtherscanConnector:
 
     async def get_contract_abi(self, contract: str, network: str = "eth") -> str:
         """Get contract ABI."""
-        return (
-            await self._get(
-                network, {"module": "contract", "action": "getabi", "address": contract}
-            )
-            or ""
-        )
+        return await self._get(network, {"module": "contract", "action": "getabi", "address": contract}) or ""
 
     async def get_contract_source(self, contract: str, network: str = "eth") -> dict:
         """Get contract source code."""
-        result = await self._get(
-            network, {"module": "contract", "action": "getsourcecode", "address": contract}
-        )
+        result = await self._get(network, {"module": "contract", "action": "getsourcecode", "address": contract})
         if isinstance(result, list) and len(result) > 0:
             return result[0]
         return result or {}
@@ -298,16 +290,12 @@ class EtherscanConnector:
 
     async def get_transaction_status(self, tx_hash: str, network: str = "eth") -> dict:
         """Get transaction status (success/fail)."""
-        result = await self._get(
-            network, {"module": "transaction", "action": "getstatus", "txhash": tx_hash}
-        )
+        result = await self._get(network, {"module": "transaction", "action": "getstatus", "txhash": tx_hash})
         return result or {}
 
     async def get_transaction_receipt(self, tx_hash: str, network: str = "eth") -> dict:
         """Get transaction receipt."""
-        result = await self._get(
-            network, {"module": "transaction", "action": "gettxreceiptstatus", "txhash": tx_hash}
-        )
+        result = await self._get(network, {"module": "transaction", "action": "gettxreceiptstatus", "txhash": tx_hash})
         return result or {}
 
     # ── Block API ────────────────────────────────────────────
@@ -322,12 +310,7 @@ class EtherscanConnector:
 
     async def get_block_reward(self, block_number: int, network: str = "eth") -> dict:
         """Get block reward data."""
-        return (
-            await self._get(
-                network, {"module": "block", "action": "getblockreward", "blockno": block_number}
-            )
-            or {}
-        )
+        return await self._get(network, {"module": "block", "action": "getblockreward", "blockno": block_number}) or {}
 
     # ── Logs API ─────────────────────────────────────────────
 
@@ -365,8 +348,10 @@ class EtherscanConnector:
             "cache_entries": len(self._cache),
         }
 
+
 # Singleton
 _etherscan: EtherscanConnector | None = None
+
 
 def get_etherscan_connector() -> EtherscanConnector:
     global _etherscan

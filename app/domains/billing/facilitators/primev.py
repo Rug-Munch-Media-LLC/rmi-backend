@@ -25,6 +25,7 @@ from app.domains.billing.facilitators.config import FacilitatorConfig, get_confi
 
 logger = get_logger("facilitator.primev")
 
+
 class PrimevFacilitator(Facilitator):
     """
     Primev FastRPC - fee-free Ethereum settlement with mev-commit preconfirmations.
@@ -109,9 +110,7 @@ class PrimevFacilitator(Facilitator):
                     data = await resp.json()
 
                     if resp.status != 200:
-                        return self._format_error(
-                            f"Primev: {data.get('error', f'HTTP {resp.status}')}"
-                        )
+                        return self._format_error(f"Primev: {data.get('error', f'HTTP {resp.status}')}")
 
                     if data.get("isValid") or data.get("verified") or data.get("preconfirmed"):
                         return self._format_success(

@@ -40,9 +40,7 @@ def test_valid_citation():
 
 
 def test_invalid_citation():
-    result = validate_section(
-        "Risk score 75/100 [99].", ["Only source 1 available"], on_unciteable="strip"
-    )
+    result = validate_section("Risk score 75/100 [99].", ["Only source 1 available"], on_unciteable="strip")
     assert result["unciteable_count"] == 1
     assert "Data not available" in result["validated_text"]
 

@@ -57,6 +57,7 @@ def get_connections_for_bubble_map(
 
     return list(all_wallets_set), relevant_connections
 
+
 def generate_bubble_map_data(
     connections: dict[tuple[str, str], Connection],
     wallets: dict[str, WalletProfile],
@@ -89,26 +90,30 @@ def generate_bubble_map_data(
         volume = profile.total_volume if profile else 0
         size = min(50, max(10, volume / 100))
 
-        nodes.append({
-            "id": wallet,
-            "type": node_type,
-            "size": size,
-            "color": color,
-            "volume": volume,
-            "transactions": profile.total_transactions if profile else 0,
-            "label": f"{wallet[:8]}...",
-        })
+        nodes.append(
+            {
+                "id": wallet,
+                "type": node_type,
+                "size": size,
+                "color": color,
+                "volume": volume,
+                "transactions": profile.total_transactions if profile else 0,
+                "label": f"{wallet[:8]}...",
+            }
+        )
 
     links = []
     for conn in relevant_connections:
-        links.append({
-            "source": conn.wallet_a,
-            "target": conn.wallet_b,
-            "strength": round(conn.strength, 3),
-            "volume": conn.total_volume,
-            "transactions": conn.transaction_count,
-            "value": conn.strength * 10,
-        })
+        links.append(
+            {
+                "source": conn.wallet_a,
+                "target": conn.wallet_b,
+                "strength": round(conn.strength, 3),
+                "volume": conn.total_volume,
+                "transactions": conn.transaction_count,
+                "value": conn.strength * 10,
+            }
+        )
 
     return {
         "center_wallet": center_wallet,
@@ -120,9 +125,11 @@ def generate_bubble_map_data(
         "generated_at": datetime.now().isoformat(),
     }
 
+
 def _get_known_scammer_wallets() -> set[str]:
     """Get set of known scammer wallets (placeholder)."""
     return set()
+
 
 def generate_ai_forensic_breakdown(
     connections: dict[tuple[str, str], Connection],
@@ -180,26 +187,30 @@ def generate_ai_forensic_breakdown(
     for w in expanded_wallets:
         profile = wallets.get(w)
         if profile:
-            wallet_profiles.append({
-                "address": w,
-                "is_center": w == center_wallet,
-                "total_transactions": profile.total_transactions,
-                "total_volume": profile.total_volume,
-                "unique_counterparties_count": len(profile.unique_counterparties),
-                "first_seen": profile.first_seen.isoformat() if profile.first_seen else None,
-                "last_seen": profile.last_seen.isoformat() if profile.last_seen else None,
-                "preferred_hours": profile.preferred_hours,
-            })
+            wallet_profiles.append(
+                {
+                    "address": w,
+                    "is_center": w == center_wallet,
+                    "total_transactions": profile.total_transactions,
+                    "total_volume": profile.total_volume,
+                    "unique_counterparties_count": len(profile.unique_counterparties),
+                    "first_seen": profile.first_seen.isoformat() if profile.first_seen else None,
+                    "last_seen": profile.last_seen.isoformat() if profile.last_seen else None,
+                    "preferred_hours": profile.preferred_hours,
+                }
+            )
 
     connection_summary = []
     for conn in expanded_connections:
-        connection_summary.append({
-            "source": conn.wallet_a,
-            "target": conn.wallet_b,
-            "strength": round(conn.strength, 3),
-            "total_volume": conn.total_volume,
-            "transaction_count": conn.transaction_count,
-        })
+        connection_summary.append(
+            {
+                "source": conn.wallet_a,
+                "target": conn.wallet_b,
+                "strength": round(conn.strength, 3),
+                "total_volume": conn.total_volume,
+                "transaction_count": conn.transaction_count,
+            }
+        )
 
     return {
         "center_wallet": center_wallet,
@@ -222,6 +233,7 @@ def generate_ai_forensic_breakdown(
         "generated_at": datetime.now().isoformat(),
     }
 
+
 def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], connections: dict) -> dict | None:
     """Get detailed report for a cluster."""
     if not cluster:
@@ -231,22 +243,24 @@ def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], conn
     for wallet in cluster.wallets:
         profile = wallets.get(wallet)
         if profile:
-            wallet_details.append({
-                "address": wallet,
-                "transactions": profile.total_transactions,
-                "volume": profile.total_volume,
-                "counterparties": len(profile.unique_counterparties),
-                "first_seen": profile.first_seen.isoformat() if profile.first_seen else None,
-                "last_seen": profile.last_seen.isoformat() if profile.last_seen else None,
-            })
+            wallet_details.append(
+                {
+                    "address": wallet,
+                    "transactions": profile.total_transactions,
+                    "volume": profile.total_volume,
+                    "counterparties": len(profile.unique_counterparties),
+                    "first_seen": profile.first_seen.isoformat() if profile.first_seen else None,
+                    "last_seen": profile.last_seen.isoformat() if profile.last_seen else None,
+                }
+            )
 
     report = cluster.to_dict()
     report["wallet_details"] = wallet_details
-    report["internal_connections"] = len([
-        conn for conn in connections.values()
-        if conn.wallet_a in cluster.wallets and conn.wallet_b in cluster.wallets
-    ])
+    report["internal_connections"] = len(
+        [conn for conn in connections.values() if conn.wallet_a in cluster.wallets and conn.wallet_b in cluster.wallets]
+    )
     return report
+
 
 __all__ = [
     "generate_ai_forensic_breakdown",

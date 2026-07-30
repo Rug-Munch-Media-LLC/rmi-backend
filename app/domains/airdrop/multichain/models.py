@@ -11,6 +11,7 @@ logger = get_logger("darkroom_multichain_airdrop")
 
 # ── Data Models ───────────────────────────────────────────────
 
+
 class TokenSource:
     """A token on a specific chain that qualifies for airdrop."""
 
@@ -23,6 +24,7 @@ class TokenSource:
     holding_period_days: int | None = None  # Must hold for N days
     is_nft: bool = False
     nft_collection_id: str | None = None
+
 
 class CrossChainHolder:
     """Aggregated holder data across multiple chains."""
@@ -49,6 +51,7 @@ class CrossChainHolder:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 class AirdropTier:
     """Tiered reward structure based on holdings."""
 
@@ -58,6 +61,7 @@ class AirdropTier:
     base_allocation: str = "0"
     bonus_multiplier: float = 1.0
     description: str = ""
+
 
 class MultiChainAirdropCampaign:
     """Full multi-chain airdrop campaign configuration."""
@@ -102,4 +106,3 @@ class MultiChainAirdropCampaign:
 
     def to_dict(self) -> dict:
         return asdict(self)
-

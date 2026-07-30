@@ -56,9 +56,7 @@ async def test_goplus_security_honeypot_detected():
 
         from app.domains.scanner.modules import _check_goplus_security
 
-        result = await _check_goplus_security(
-            "0x1234567890abcdef1234567890abcdef12345678", "ethereum"
-        )
+        result = await _check_goplus_security("0x1234567890abcdef1234567890abcdef12345678", "ethereum")
 
         assert result is not None
         assert result["check"] == "goplus"
@@ -102,9 +100,7 @@ async def test_goplus_security_clean_token():
 
         from app.domains.scanner.modules import _check_goplus_security
 
-        result = await _check_goplus_security(
-            "0xabcdef1234567890abcdef1234567890abcdef12", "ethereum"
-        )
+        result = await _check_goplus_security("0xabcdef1234567890abcdef1234567890abcdef12", "ethereum")
 
         assert result is not None
         assert result["result"] == "scanned"
@@ -120,9 +116,7 @@ async def test_goplus_security_http_error():
 
         from app.domains.scanner.modules import _check_goplus_security
 
-        result = await _check_goplus_security(
-            "0xdead000000000000000000000000000000000000", "ethereum"
-        )
+        result = await _check_goplus_security("0xdead000000000000000000000000000000000000", "ethereum")
 
         assert result is not None
         assert result["check"] == "goplus"
@@ -139,9 +133,7 @@ async def test_goplus_security_timeout():
 
         from app.domains.scanner.modules import _check_goplus_security
 
-        result = await _check_goplus_security(
-            "0xdead000000000000000000000000000000000000", "ethereum"
-        )
+        result = await _check_goplus_security("0xdead000000000000000000000000000000000000", "ethereum")
 
         assert result is not None
         assert result["check"] == "goplus"
@@ -256,7 +248,6 @@ def test_copycat_exact_symbol():
     import pytest as _pytest
 
     _pytest  # silence unused import
-
 
     # Need to call async, but this function is synchronous internally
     # Let's test the underlying helpers directly

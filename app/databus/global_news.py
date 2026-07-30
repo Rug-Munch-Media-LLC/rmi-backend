@@ -114,6 +114,7 @@ MAJOR_NEWS = [
     ("scmp-crypto", "https://www.scmp.com/rss/91/feed"),
 ]
 
+
 def fetch_rss(source, url, limit=30) -> Any:
     """Fetch RSS and return articles."""
     results = []
@@ -128,11 +129,11 @@ def fetch_rss(source, url, limit=30) -> Any:
         # Some feeds have HTML entities that break XML parsing
         try:
             root = SafeET.fromstring(resp.content)
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             try:
                 cleaned = resp.text.replace("&", "&amp;").replace("&amp;amp;", "&amp;")
                 root = SafeET.fromstring(cleaned.encode())
-            except (httpx.HTTPError):
+            except httpx.HTTPError:
                 return results
 
         items = (
@@ -144,16 +145,11 @@ def fetch_rss(source, url, limit=30) -> Any:
         for item in items[:limit]:
             title = (item.findtext("title", "") or "").strip()
             desc = (
-                item.findtext("description", "")
-                or item.findtext("{http://www.w3.org/2005/Atom}summary", "")
-                or ""
+                item.findtext("description", "") or item.findtext("{http://www.w3.org/2005/Atom}summary", "") or ""
             ).strip()
             link = (
                 item.findtext("link", "")
-                or (
-                    item.find("link") is not None
-                    and (item.find("link").get("href", "") or item.find("link").text)
-                )
+                or (item.find("link") is not None and (item.find("link").get("href", "") or item.find("link").text))
                 or ""
             ).strip()
 
@@ -201,6 +197,7 @@ def fetch_rss(source, url, limit=30) -> Any:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug(f"  {source}: {str(e)[:80]}")
     return results
+
 
 def fetch_all_global() -> dict[str, int] | dict[str, str]:
     """Fetch all global news sources."""
@@ -281,6 +278,7 @@ def fetch_all_global() -> dict[str, int] | dict[str, str]:
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             return {"error": str(e), "collected": len(all_articles)}
     return {"collected": 0}
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [global] %(message)s")

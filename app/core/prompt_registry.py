@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/v1/prompts", tags=["prompts"])
 
 _registry: dict[str, dict] = {}
 
+
 def load_all_prompts() -> dict[str, dict]:
     """Load all prompts from prompts/ directory."""
     global _registry
@@ -41,11 +42,13 @@ def load_all_prompts() -> dict[str, dict]:
             pass
     return _registry
 
+
 def get_prompt(name: str) -> dict[str, Any]:
     """Get a prompt by name."""
     if name not in _registry:
         load_all_prompts()
     return _registry.get(name, {})
+
 
 def render_prompt(name: str, **kwargs) -> str:
     """Render a prompt template with variables."""
@@ -60,9 +63,11 @@ def render_prompt(name: str, **kwargs) -> str:
         return f"{system}\n\n{rendered}"
     return rendered
 
+
 @router.get("/")
 async def list_prompts() -> dict:
     return {"prompts": list(_registry.values()), "count": len(_registry)}
+
 
 @router.get("/{name}")
 async def get_prompt_info(name: str) -> dict:
@@ -70,6 +75,7 @@ async def get_prompt_info(name: str) -> dict:
     if not p:
         return {"error": "not found"}
     return p
+
 
 @router.post("/reload")
 async def reload_prompts() -> dict:

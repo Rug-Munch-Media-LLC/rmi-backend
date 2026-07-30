@@ -2,6 +2,7 @@
 RIP — Main Predictor Class
 Orchestrates the 7 signal analyzers and produces the final RIP score.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -45,6 +46,7 @@ KNOWN_LP_LOCKERS_DEFAULT = [
     "0xD152f549545093347A162Dce210e7293f1452150",
 ]
 
+
 def _get_known_lp_lockers() -> list[str]:
     """Get configured LP lockers from env, or use well-known defaults."""
     global _KNOWN_LP_LOCKERS
@@ -58,6 +60,7 @@ def _get_known_lp_lockers() -> list[str]:
         _KNOWN_LP_LOCKERS = list(KNOWN_LP_LOCKERS_DEFAULT)
         logger.info("Using default LP lockers list")
     return _KNOWN_LP_LOCKERS
+
 
 class RugImminencePredictor:
     """Predicts imminent rug pulls by fusing 7 signal categories."""
@@ -98,7 +101,7 @@ class RugImminencePredictor:
         result.last_updated = (datetime.now(UTC) + timedelta(seconds=self._cache_ttl)).isoformat()
         self._cache[key] = result
         if len(self._cache) > 500:
-            to_evict = sorted(self._cache.items(), key=lambda x: x[1].last_updated)[:len(self._cache) // 4]
+            to_evict = sorted(self._cache.items(), key=lambda x: x[1].last_updated)[: len(self._cache) // 4]
             for k, _ in to_evict:
                 del self._cache[k]
             logger.info(f"Cache eviction: removed {len(to_evict)} entries, {len(self._cache)} remaining")
@@ -112,7 +115,9 @@ class RugImminencePredictor:
             raise ValueError(f"Unsupported chain '{chain}'. Supported: {', '.join(sorted(VALID_CHAINS))}")
 
         if not re.match(r"^0x[a-fA-F0-9]{40}$", address) and not re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address):
-            raise ValueError(f"Invalid address format: '{address[:20]}...'. Expected 0x-prefixed EVM address or Solana base58.")
+            raise ValueError(
+                f"Invalid address format: '{address[:20]}...'. Expected 0x-prefixed EVM address or Solana base58."
+            )
 
         t0 = time.time()
 

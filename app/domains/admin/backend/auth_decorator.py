@@ -3,6 +3,7 @@ Admin Backend — Auth Decorator
 ================================
 require_admin() decorator — verify admin authentication and authorization.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -63,9 +64,7 @@ async def require_admin(
         "admin_write" if required_permission.endswith(".write") else "default",
     )
     if not rate_check["allowed"]:
-        raise HTTPException(
-            status_code=429, detail=f"Rate limit exceeded. Reset at {rate_check['reset_at']}"
-        )
+        raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Reset at {rate_check['reset_at']}")
 
     await AuditLogger.log(
         admin_id=admin["id"],

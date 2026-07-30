@@ -24,6 +24,7 @@ ARKHAM_WS_URL = "wss://api.arkhamintelligence.com/ws"
 _subscriptions: dict[str, dict] = {}
 _connected = False
 
+
 async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw) -> dict | None:
     """Subscribe to real-time updates for an address via Arkham WebSocket.
 
@@ -65,12 +66,8 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
                     )
                     if r.status_code == 200:
                         data = r.json()
-                        _subscriptions[address]["entity"] = data.get("arkhamEntity", {}).get(
-                            "name", ""
-                        )
-                        _subscriptions[address]["label"] = data.get("arkhamLabel", {}).get(
-                            "name", ""
-                        )
+                        _subscriptions[address]["entity"] = data.get("arkhamEntity", {}).get("name", "")
+                        _subscriptions[address]["label"] = data.get("arkhamLabel", {}).get("name", "")
                         _subscriptions[address]["last_update"] = datetime.now(UTC).isoformat()
 
                         return {
@@ -93,6 +90,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
         }
 
     return {"status": "no_action", "source": "arkham_ws"}
+
 
 async def broadcast_ws_update(address: str, update: dict) -> None:
     """Called when Arkham WS pushes an update - route through DataBus."""

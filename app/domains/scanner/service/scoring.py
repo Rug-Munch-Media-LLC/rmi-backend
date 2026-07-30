@@ -8,6 +8,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 async def _ingest_scan_to_rag(scan_result: Any) -> None:
     """Ingest scan result to RAG for future similarity searches.
 
@@ -39,6 +40,7 @@ async def _ingest_scan_to_rag(scan_result: Any) -> None:
         logger.debug("ingest_to_rag_skipped (RAG ingestion module not available)")
     except Exception as exc:
         logger.warning("ingest_to_rag_failed", token=scan_result.token_address[:16], error=str(exc))
+
 
 def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
     """Calculate safety score (0-100) from all module results.

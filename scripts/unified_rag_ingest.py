@@ -186,16 +186,12 @@ def parse_cryptoscamdb(data: dict) -> list[dict]:
     entries = data if isinstance(data, list) else data.get("entries", data.get("scams", []))
     docs = []
     for entry in entries[:MAX_DOCS_PER_CYCLE]:
-        addr = (
-            entry if isinstance(entry, str) else entry.get("address", entry.get("id", str(entry)))
-        )
+        addr = entry if isinstance(entry, str) else entry.get("address", entry.get("id", str(entry)))
         name = entry.get("name", "") if isinstance(entry, dict) else ""
         docs.append(
             {
                 "collection": "known_scams",
-                "content": f"CryptoScamDB: {name} - {addr}"
-                if name
-                else f"CryptoScamDB entry: {addr}",
+                "content": f"CryptoScamDB: {name} - {addr}" if name else f"CryptoScamDB entry: {addr}",
                 "metadata": {"address": str(addr), "source": "cryptoscamdb", "name": name},
             }
         )

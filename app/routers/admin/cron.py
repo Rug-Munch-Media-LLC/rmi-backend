@@ -29,17 +29,19 @@ async def cron_jobs(request: Request, _=Depends(verify_admin)) -> dict:
                     try:
                         with open(os.path.join(cron_dir, f)) as fp:
                             job = json.load(fp)
-                            jobs.append({
-                                "id": job.get("id", f.replace(".json", "")),
-                                "name": job.get("name", "Unnamed"),
-                                "schedule": job.get("schedule", "unknown"),
-                                "status": job.get("status", "unknown"),
-                                "last_run": job.get("last_run"),
-                                "next_run": job.get("next_run"),
-                                "enabled": job.get("enabled", True),
-                                "script": job.get("script", ""),
-                                "prompt": job.get("prompt", "")[:100],
-                            })
+                            jobs.append(
+                                {
+                                    "id": job.get("id", f.replace(".json", "")),
+                                    "name": job.get("name", "Unnamed"),
+                                    "schedule": job.get("schedule", "unknown"),
+                                    "status": job.get("status", "unknown"),
+                                    "last_run": job.get("last_run"),
+                                    "next_run": job.get("next_run"),
+                                    "enabled": job.get("enabled", True),
+                                    "script": job.get("script", ""),
+                                    "prompt": job.get("prompt", "")[:100],
+                                }
+                            )
                     except (ValueError, OSError):
                         logger.warning("Could not parse cron job file")
     except Exception as e:
@@ -47,18 +49,34 @@ async def cron_jobs(request: Request, _=Depends(verify_admin)) -> dict:
 
     if not jobs:
         jobs = [
-            {"id": "ghost-daily", "name": "Ghost Daily Post", "schedule": "0 9 * * *", "status": "active", "enabled": True},
-            {"id": "ghost-weekly", "name": "Ghost Weekly Newsletter", "schedule": "0 10 * * 1", "status": "active", "enabled": True},
+            {
+                "id": "ghost-daily",
+                "name": "Ghost Daily Post",
+                "schedule": "0 9 * * *",
+                "status": "active",
+                "enabled": True,
+            },
+            {
+                "id": "ghost-weekly",
+                "name": "Ghost Weekly Newsletter",
+                "schedule": "0 10 * * 1",
+                "status": "active",
+                "enabled": True,
+            },
             {"id": "git-sync", "name": "Git Sync", "schedule": "every 4h", "status": "active", "enabled": True},
-            {"id": "health-check", "name": "Health Check", "schedule": "*/15 * * * *", "status": "active", "enabled": True},
+            {
+                "id": "health-check",
+                "name": "Health Check",
+                "schedule": "*/15 * * * *",
+                "status": "active",
+                "enabled": True,
+            },
         ]
     return {"jobs": jobs, "total": len(jobs)}
 
 
 @cron_router.get("/cron/logs")
-async def cron_logs(
-    request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)
-) -> dict:
+async def cron_logs(request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)) -> dict:
     """Get cron execution logs."""
     logs = []
     log_file = os.path.expanduser("~/.hermes/cron.log")

@@ -25,6 +25,7 @@ DEXSCREENER = "https://api.dexscreener.com/latest/dex/search"
 BACKEND = settings.backend_url
 CHAINS = ["solana", "ethereum", "bsc", "base", "arbitrum", "polygon", "avalanche"]
 
+
 class SnipeSignal(BaseModel):
     chain: str
     symbol: str
@@ -36,6 +37,7 @@ class SnipeSignal(BaseModel):
     safety_score: int
     risk_flags: list[str]
     snipe_score: int = 0  # 0-100, composite attractiveness
+
 
 async def _get_new_pairs(chain: str, max_age_min: int = 30) -> list[dict]:
     """Fetch newly created pairs from DexScreener."""
@@ -52,6 +54,7 @@ async def _get_new_pairs(chain: str, max_age_min: int = 30) -> list[dict]:
         logger.warning(f"DexScreener new pairs fetch failed: {e}")
     return pairs
 
+
 def _compute_snipe_score(liquidity: float, volume: float, age_min: int, safety: int) -> int:
     """Composite attractiveness score for sniping."""
     score = 50
@@ -67,6 +70,7 @@ def _compute_snipe_score(liquidity: float, volume: float, age_min: int, safety: 
         score += 5
     score += (safety - 50) * 0.3  # safety adjustment
     return min(100, max(0, int(score)))
+
 
 @router.get("/signals")
 async def get_snipe_signals(
@@ -129,6 +133,11 @@ async def get_snipe_signals(
     signals.sort(key=lambda s: s["snipe_score"], reverse=True)
     return {"chain": chain, "count": len(signals[:limit]), "signals": signals[:limit]}
 
-@router.get("/chains", summary="List Sniper Chains", description="List all supported blockchain networks available for MEV sniper signal detection.")
+
+@router.get(
+    "/chains",
+    summary="List Sniper Chains",
+    description="List all supported blockchain networks available for MEV sniper signal detection.",
+)
 async def list_sniper_chains() -> dict:
     return {"chains": CHAINS}

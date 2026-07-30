@@ -11,6 +11,7 @@ from .models import Confidence, InsiderEvidence, InsiderReport, InsiderType
 
 logger = get_logger(__name__)
 
+
 def _deduplicate_evidence(evidence_list: list[InsiderEvidence]) -> list[InsiderEvidence]:
     """Deduplicate by wallet + insider_type. Keep highest confidence and PnL."""
     best: dict[tuple[str, str], InsiderEvidence] = {}
@@ -21,14 +22,17 @@ def _deduplicate_evidence(evidence_list: list[InsiderEvidence]) -> list[InsiderE
             best[key] = ev
             continue
         confidence_score = {
-            Confidence.CRITICAL: 4, Confidence.HIGH: 3,
-            Confidence.MEDIUM: 2, Confidence.LOW: 1,
+            Confidence.CRITICAL: 4,
+            Confidence.HIGH: 3,
+            Confidence.MEDIUM: 2,
+            Confidence.LOW: 1,
         }
         ev_score = confidence_score.get(ev.confidence, 0)
         ex_score = confidence_score.get(existing.confidence, 0)
         if ev_score > ex_score or (ev_score == ex_score and ev.pnl_estimate > existing.pnl_estimate):
             best[key] = ev
     return list(best.values())
+
 
 def _generate_insights(report: InsiderReport) -> list[str]:
     """Generate human-readable insights from the report."""
@@ -53,10 +57,7 @@ def _generate_insights(report: InsiderReport) -> list[str]:
             InsiderType.SNIPER: "first-block snipers",
         }
         label = type_labels.get(insider_type, insider_type)
-        insights.append(
-            f"{len(wallets)} {label}: avg lead {avg_lead:.0f}min, "
-            f"${total_pnl:,.0f} estimated profit"
-        )
+        insights.append(f"{len(wallets)} {label}: avg lead {avg_lead:.0f}min, ${total_pnl:,.0f} estimated profit")
 
     for ev in report.insiders:
         if ev.confidence == Confidence.CRITICAL:
@@ -71,9 +72,13 @@ def _generate_insights(report: InsiderReport) -> list[str]:
     )
     return insights
 
+
 async def _check_early_buy(
-    token_address: str, chain: str, bought_at: float,
-    bought_usd: float, tx_hash: str,
+    token_address: str,
+    chain: str,
+    bought_at: float,
+    bought_usd: float,
+    tx_hash: str,
 ) -> tuple[bool, float, InsiderEvidence | None]:
     """Check if a specific buy was an early/insider buy.
     Uses lazy import to avoid circular dependency with collectors.
@@ -89,8 +94,7 @@ async def _check_early_buy(
 
     event_timestamp = None
     event_desc = None
-    for key in ("dexscreener_first_seen", "gmgn_first_trending",
-                 "first_kol_trade_at", "pumpfun_graduated_at"):
+    for key in ("dexscreener_first_seen", "gmgn_first_trending", "first_kol_trade_at", "pumpfun_graduated_at"):
         ts = events.get(key)
         if ts and ts > bought_at and (event_timestamp is None or ts < event_timestamp):
             event_timestamp = ts
@@ -105,10 +109,14 @@ async def _check_early_buy(
 
     pnl = bought_usd * AVG_PRE_TRENDING_PUMP
     evidence = InsiderEvidence(
-        wallet="", insider_type=InsiderType.PRE_TRENDING,
-        bought_at=bought_at, bought_amount_usd=bought_usd,
-        event=event_desc or "Unknown event", event_at=event_timestamp,
-        lead_time_minutes=lead_time, pnl_estimate=pnl,
+        wallet="",
+        insider_type=InsiderType.PRE_TRENDING,
+        bought_at=bought_at,
+        bought_amount_usd=bought_usd,
+        event=event_desc or "Unknown event",
+        event_at=event_timestamp,
+        lead_time_minutes=lead_time,
+        pnl_estimate=pnl,
         evidence=f"Bought ${bought_usd:,.0f} {lead_time:.0f}min before event",
         confidence=Confidence.HIGH if lead_time > 60 else Confidence.MEDIUM,
     )

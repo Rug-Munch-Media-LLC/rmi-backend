@@ -40,6 +40,7 @@ BASIS_POINTS_DENOM = 10000
 
 # ── Risk signal definitions ────────────────────────────────────
 
+
 class RiskCategory(Enum):
     LIQUIDITY_CONCENTRATION = "liquidity_concentration"
     SANDWICH_VULNERABILITY = "sandwich_vulnerability"
@@ -48,6 +49,7 @@ class RiskCategory(Enum):
     PRICE_MANIPULATION = "price_manipulation"
     MEV_EXPOSURE = "mev_exposure"
     FEE_TIER_ABUSE = "fee_tier_abuse"
+
 
 RISK_WEIGHTS = {
     RiskCategory.LIQUIDITY_CONCENTRATION: 25,
@@ -62,6 +64,7 @@ RISK_WEIGHTS = {
 MAX_RISK_SCORE = sum(RISK_WEIGHTS.values())  # 140
 
 # ── Data models ─────────────────────────────────────────────────
+
 
 @dataclass
 class PoolConfig:
@@ -83,6 +86,7 @@ class PoolConfig:
     owner: str = ""
     created_at: int = 0
 
+
 @dataclass
 class Position:
     """A concentrated liquidity position."""
@@ -92,6 +96,7 @@ class Position:
     tick_upper: int
     liquidity: int
     usd_value: float = 0.0
+
 
 @dataclass
 class SwapEvent:
@@ -106,6 +111,7 @@ class SwapEvent:
     price_after: float
     price_impact_pct: float = 0.0
 
+
 @dataclass
 class RiskSignal:
     """A single risk signal with evidence."""
@@ -114,6 +120,7 @@ class RiskSignal:
     severity: float  # 0.0 - 1.0
     description: str
     evidence: list[str] = field(default_factory=list)
+
 
 @dataclass
 class PoolRiskReport:
@@ -131,11 +138,13 @@ class PoolRiskReport:
     recommendations: list[str] = field(default_factory=list)
     analysis_time_ms: int = 0
 
+
 # ── Address validation ──────────────────────────────────────────
 
 # ═══════════════════════════════════════════════════════════════
 # Core Analyzer
 # ═══════════════════════════════════════════════════════════════
+
 
 class DEXPoolManipulationAnalyzer:
     """Analyze a DEX pool for manipulation signals."""
@@ -301,9 +310,7 @@ class DEXPoolManipulationAnalyzer:
 
     # ── Analysis methods ────────────────────────────────────────
 
-    def _analyze_concentration(
-        self, positions: list[Position], pool: PoolConfig
-    ) -> tuple[RiskSignal | None, float]:
+    def _analyze_concentration(self, positions: list[Position], pool: PoolConfig) -> tuple[RiskSignal | None, float]:
         """
         Detect extreme liquidity concentration.
         If top 5 positions control >70% of liquidity, flag it.
@@ -388,8 +395,7 @@ class DEXPoolManipulationAnalyzer:
                         if (
                             s1.price_after > s1.price_before
                             and s2.price_after < s2.price_before
-                            and abs(s2.price_after - s1.price_before) / max(s1.price_before, 0.001)
-                            < 0.02
+                            and abs(s2.price_after - s1.price_before) / max(s1.price_before, 0.001) < 0.02
                         ):
                             sandwich_count += 1
                             # Estimate profit as USD value of price displacement
@@ -416,9 +422,7 @@ class DEXPoolManipulationAnalyzer:
         evidence = []
 
         if sandwich_count > 0:
-            evidence.append(
-                f"Detected {sandwich_count} potential sandwich attack patterns in recent blocks"
-            )
+            evidence.append(f"Detected {sandwich_count} potential sandwich attack patterns in recent blocks")
             evidence.append(f"Estimated profit from sandwich activity: ${total_profit_est:.2f}")
 
         if vulnerability_score > 0.3:
@@ -514,14 +518,11 @@ class DEXPoolManipulationAnalyzer:
                     s1, s2 = swaps[i], swaps[i + 1]
                     # Buy then sell of similar magnitude (within 100% of each other)
                     if (
-                        abs(s1.amount_in - s2.amount_out) / max(s1.amount_in, s2.amount_out, 0.001)
-                        < 1.0
+                        abs(s1.amount_in - s2.amount_out) / max(s1.amount_in, s2.amount_out, 0.001) < 1.0
                         and s1.price_before != s2.price_before
                     ):
                         # Check if price returned to near-original
-                        price_change = abs(s2.price_after - s1.price_before) / max(
-                            s1.price_before, 0.001
-                        )
+                        price_change = abs(s2.price_after - s1.price_before) / max(s1.price_before, 0.001)
                         if price_change < 0.01:  # <1% net change after pair
                             wash_pairs += 1
 
@@ -543,9 +544,7 @@ class DEXPoolManipulationAnalyzer:
         )
         return signal
 
-    def _analyze_price_manipulation(
-        self, swaps: list[SwapEvent], pool: PoolConfig
-    ) -> RiskSignal | None:
+    def _analyze_price_manipulation(self, swaps: list[SwapEvent], pool: PoolConfig) -> RiskSignal | None:
         """
         Detect abnormal price movement patterns.
         - Large price swings with low volume
@@ -571,17 +570,13 @@ class DEXPoolManipulationAnalyzer:
 
             # Large individual impact
             if max_impact > 5.0:
-                risk_factors.append(
-                    f"Single swap caused {max_impact:.2f}% price impact - pool is very thin"
-                )
+                risk_factors.append(f"Single swap caused {max_impact:.2f}% price impact - pool is very thin")
             elif max_impact > 2.0:
                 risk_factors.append(f"Single swap caused {max_impact:.2f}% price impact")
 
             # High average impact indicates thin pool
             if avg_impact > 1.0:
-                risk_factors.append(
-                    f"Average swap impact {avg_impact:.2f}% - persistent thin liquidity"
-                )
+                risk_factors.append(f"Average swap impact {avg_impact:.2f}% - persistent thin liquidity")
 
             # Total price manipulation score
             manip_severity = 0.0
@@ -663,9 +658,7 @@ class DEXPoolManipulationAnalyzer:
 
         # Zero fee with active liquidity - possible fee manipulation
         if pool.fee_tier == 0 and pool.total_liquidity_usd > 10_000:
-            risk_factors.append(
-                "Zero fee tier with active liquidity - unusual, may indicate fee manipulation"
-            )
+            risk_factors.append("Zero fee tier with active liquidity - unusual, may indicate fee manipulation")
             severity += 0.2
 
         if not risk_factors:
@@ -728,27 +721,19 @@ class DEXPoolManipulationAnalyzer:
 
     # ── Recommendations ──────────────────────────────────────────
 
-    def _generate_recommendations(
-        self, signals: list[RiskSignal], risk_score: float, pool: PoolConfig
-    ) -> list[str]:
+    def _generate_recommendations(self, signals: list[RiskSignal], risk_score: float, pool: PoolConfig) -> list[str]:
         """Generate actionable recommendations based on findings."""
         recs: list[str] = []
         categories = {s.category for s in signals}
 
         if max((s.severity for s in signals), default=0) > 0.7:
-            recs.append(
-                "🚨 CRITICAL: Multiple high-severity risks detected. Avoid trading this pool."
-            )
+            recs.append("🚨 CRITICAL: Multiple high-severity risks detected. Avoid trading this pool.")
 
         if RiskCategory.LIQUIDITY_CONCENTRATION in categories:
-            recs.append(
-                "Consider splitting large trades across multiple pools to reduce concentration risk."
-            )
+            recs.append("Consider splitting large trades across multiple pools to reduce concentration risk.")
 
         if RiskCategory.SANDWICH_VULNERABILITY in categories:
-            recs.append(
-                "Use MEV-protected RPC endpoints or private mempools for any trades on this pool."
-            )
+            recs.append("Use MEV-protected RPC endpoints or private mempools for any trades on this pool.")
 
         if RiskCategory.POOL_OWNER_RISK in categories:
             recs.append("Verify pool owner/creator reputation before providing liquidity.")
@@ -763,9 +748,7 @@ class DEXPoolManipulationAnalyzer:
             recs.append("High MEV activity detected. Avoid placing market orders on this pool.")
 
         if RiskCategory.FEE_TIER_ABUSE in categories:
-            recs.append(
-                f"Fee tier ({pool.fee_tier / 100}%) is unusual for this pair. Verify against market standards."
-            )
+            recs.append(f"Fee tier ({pool.fee_tier / 100}%) is unusual for this pair. Verify against market standards.")
 
         if risk_score < 20 and not recs:
             recs.append("✅ Pool appears low risk based on available data.")
@@ -774,9 +757,11 @@ class DEXPoolManipulationAnalyzer:
 
         return recs
 
+
 # ═══════════════════════════════════════════════════════════════
 # Report formatting
 # ═══════════════════════════════════════════════════════════════
+
 
 def format_risk_report(report: PoolRiskReport) -> dict[str, Any]:
     """Convert report to API-friendly dict."""
@@ -811,6 +796,7 @@ def format_risk_report(report: PoolRiskReport) -> dict[str, Any]:
         "fee_tier_bps": report.pool.fee_tier,
         "analysis_time_ms": report.analysis_time_ms,
     }
+
 
 def _risk_level(score: float) -> str:
     if score >= 70:

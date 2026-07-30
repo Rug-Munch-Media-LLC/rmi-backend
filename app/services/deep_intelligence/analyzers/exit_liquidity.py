@@ -46,9 +46,7 @@ async def exit_liquidity_calculator(
 
     flags = []
     if position_pct_of_liq > 10:
-        flags.append(
-            f"Your position is {position_pct_of_liq:.1f}% of the pool - exiting will crash the price"
-        )
+        flags.append(f"Your position is {position_pct_of_liq:.1f}% of the pool - exiting will crash the price")
     if position_pct_of_liq > 50:
         flags.append("CRITICAL: Position exceeds half the liquidity - exit is nearly impossible")
     if liquidity < 10000:

@@ -45,11 +45,11 @@ RAG_MIN_CHUNK_CHARS: int = 32
 # All active RAG collections. Each is a separate vector index + keyword
 # store.  Adding a new data source means adding its collection here.
 RAG_COLLECTIONS: list[str] = [
-    "scanner",    # Token security scanner results
-    "wallet",     # Wallet labels, risk profiles, entity clusters
-    "news",       # News articles and market intelligence
-    "research",   # Research documents, analysis, bulletin board posts
-    "scams",      # Scam pattern documentation, known fraud signatures
+    "scanner",  # Token security scanner results
+    "wallet",  # Wallet labels, risk profiles, entity clusters
+    "news",  # News articles and market intelligence
+    "research",  # Research documents, analysis, bulletin board posts
+    "scams",  # Scam pattern documentation, known fraud signatures
 ]
 
 # ── Quality filter ────────────────────────────────────────────────────

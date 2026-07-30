@@ -132,6 +132,7 @@ FACILITATORS = {
 
 # ── Redis Helper ─────────────────────────────────────────────────
 
+
 async def get_all_health() -> Any:
     """Get health status for all facilitators."""
     result = {}
@@ -151,13 +152,12 @@ async def get_all_health() -> Any:
                 "healthy": healthy,
                 "degraded": degraded,
                 "dead": dead,
-                "offline": sum(
-                    1 for v in FACILITATORS.values() if v.get("status_override") == "dead"
-                ),
+                "offline": sum(1 for v in FACILITATORS.values() if v.get("status_override") == "dead"),
             },
             "timestamp": datetime.now(UTC).isoformat(),
         }
     )
+
 
 @router.get("/status/{name}")
 async def get_facilitator_status(name: str) -> Any:
@@ -173,6 +173,7 @@ async def get_facilitator_status(name: str) -> Any:
 
     return JSONResponse(content=get_facilitator_health(name))
 
+
 @router.get("/chains/{chain}")
 async def get_facilitators_for_chain(chain: str) -> Any:
     """Get healthy facilitators for a specific chain."""
@@ -184,6 +185,7 @@ async def get_facilitators_for_chain(chain: str) -> Any:
             "count": len(facilitators),
         }
     )
+
 
 @router.post("/check/{name}")
 async def trigger_health_check(name: str) -> Any:
@@ -205,7 +207,9 @@ async def trigger_health_check(name: str) -> Any:
         }
     )
 
+
 # ── Payment Success Tracking ─────────────────────────────────────
+
 
 def record_payment_success(facilitator_name: str, success: bool) -> None:
     """Record whether a payment via this facilitator succeeded or failed.

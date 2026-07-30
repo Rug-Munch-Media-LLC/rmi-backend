@@ -20,6 +20,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class CrossChainLink:
     """A link between wallets on different chains."""
@@ -31,6 +32,7 @@ class CrossChainLink:
     link_type: str  # funding, behavioral, naming, entity
     confidence: float
     evidence: str
+
 
 @dataclass
 class CrossChainProfile:
@@ -44,6 +46,7 @@ class CrossChainProfile:
     risk_score: float = 0.0
     labels: list[str] = field(default_factory=list)
     links: list[CrossChainLink] = field(default_factory=list)
+
 
 class CrossChainCorrelator:
     """Multi-chain entity resolution engine."""
@@ -240,16 +243,16 @@ class CrossChainCorrelator:
                 entity_id=f"cc_{gid[:8]}",
                 chains=dict(chains_map),
                 total_addresses=len(keys),
-                links=[
-                    line for line in links if f"{line.source_chain}:{line.source_address}" in keys
-                ],
+                links=[line for line in links if f"{line.source_chain}:{line.source_address}" in keys],
             )
             profiles.append(profile)
 
         return profiles
 
+
 # Singleton
 _correlator: CrossChainCorrelator | None = None
+
 
 def get_cross_chain_correlator() -> CrossChainCorrelator:
     global _correlator
@@ -257,7 +260,9 @@ def get_cross_chain_correlator() -> CrossChainCorrelator:
         _correlator = CrossChainCorrelator()
     return _correlator
 
+
 # ── Legacy compatibility: ChainFingerprint (used by security_intel.py) ──
+
 
 @dataclass
 class ChainFingerprint:

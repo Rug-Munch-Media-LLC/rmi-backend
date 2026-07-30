@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from rapidfuzz import fuzz
 
-from app.feed_quality_pipeline.models import FeedPost
 from app.feed_quality_pipeline.cache import DEDUP_SIMILARITY_THRESHOLD
+from app.feed_quality_pipeline.models import FeedPost
 
 
 class ContentDeduplicator:

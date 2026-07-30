@@ -17,6 +17,7 @@ class TaskType(Enum):
     EMBED = "embed"  # embeddings - Mistral Embed
     CODE = "code"  # code generation - DeepSeek, qwen2.5-coder
 
+
 ROUTING_TABLE = {
     TaskType.FAST: [
         ("gpt-oss-120b", "cerebras", 0.009, 0.0),  # 9ms, free
@@ -48,6 +49,7 @@ ROUTING_TABLE = {
     ],
 }
 
+
 @dataclass
 class RoutingDecision:
     model: str
@@ -56,6 +58,7 @@ class RoutingDecision:
     cost_per_1m_input: float
     fallback_model: str | None = None
     fallback_provider: str | None = None
+
 
 def route_task(task_type: TaskType, prefer: str = "fast") -> RoutingDecision:
     """Route a task to the best model. Falls back to next on failure."""
@@ -78,6 +81,7 @@ def route_task(task_type: TaskType, prefer: str = "fast") -> RoutingDecision:
         fallback_provider=fallback[1] if fallback else None,
     )
 
+
 async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs) -> dict[str, str] | dict:
     """Auto-route a prompt to the best model. Returns response or falls back."""
     decision = route_task(TaskType(task_type), prefer)
@@ -89,13 +93,12 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
 
     # Try fallback
     if decision.fallback_model:
-        result = await _call_provider(
-            decision.fallback_provider, decision.fallback_model, prompt, **kwargs
-        )
+        result = await _call_provider(decision.fallback_provider, decision.fallback_model, prompt, **kwargs)
         if result:
             return {**result, "routing": vars(decision), "fallback_used": True}
 
     return {"error": "All providers failed", "routing": vars(decision)}
+
 
 async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict:
     """Call a specific provider. Returns dict or None."""

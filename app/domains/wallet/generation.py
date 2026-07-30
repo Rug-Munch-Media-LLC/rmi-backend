@@ -37,21 +37,25 @@ try:
         Bip84,
         Bip84Coins,
     )
+
     _HAS_BIP_UTILS = True
 except ImportError:
     pass
 
 try:
     import base58
+
     _HAS_BASE58 = True
 except ImportError:
     pass
 
 try:
     from nacl.signing import SigningKey as NaClSigningKey
+
     _HAS_NACL = True
 except ImportError:
     pass
+
 
 class WalletGenerationMixin:
     """
@@ -77,9 +81,7 @@ class WalletGenerationMixin:
         """Generate a new wallet for any supported chain."""
         chain_meta = CHAIN_REGISTRY.get(chain)
         if not chain_meta:
-            raise ValueError(
-                f"Unsupported chain: {chain}. Supported: {sorted(CHAIN_REGISTRY.keys())}"
-            )
+            raise ValueError(f"Unsupported chain: {chain}. Supported: {sorted(CHAIN_REGISTRY.keys())}")
 
         import time
         from datetime import UTC, datetime
@@ -179,7 +181,7 @@ class WalletGenerationMixin:
                 address = monero_ctx.PublicKey().ToAddress()
                 pub_key = monero_ctx.PublicKey().RawCompressed().ToHex()
                 return address, pub_key, mnemonic
-            except (ValueError, TypeError, KeyError, OSError) as e :
+            except (ValueError, TypeError, KeyError, OSError) as e:
                 logger.debug("_generate_monero_wallet_error", exc_info=True)
                 logger.warning(f"bip_utils Monero failed ({e}), trying fallback")
 
@@ -189,11 +191,7 @@ class WalletGenerationMixin:
             h = hashlib.sha3_256()
             h.update(bytes.fromhex(pub_key))
             raw_addr = h.digest()
-            address = (
-                "4" + base58.b58encode(raw_addr[:64]).decode()[:94]
-                if _HAS_BASE58
-                else "4" + raw_addr.hex()[:94]
-            )
+            address = "4" + base58.b58encode(raw_addr[:64]).decode()[:94] if _HAS_BASE58 else "4" + raw_addr.hex()[:94]
             return address, pub_key, mnemonic
 
         priv = secrets.token_hex(32)
@@ -205,9 +203,18 @@ class WalletGenerationMixin:
         priv = secrets.token_hex(32)
         pub = hashlib.sha256(priv.encode()).hexdigest()
         prefix_map = {
-            "eth": "0x", "base": "0x", "polygon": "0x", "arbitrum": "0x",
-            "optimism": "0x", "avalanche": "0x", "bsc": "0x", "fantom": "0x",
-            "gnosis": "0x", "sol": "", "trx": "T", "xrp": "r",
+            "eth": "0x",
+            "base": "0x",
+            "polygon": "0x",
+            "arbitrum": "0x",
+            "optimism": "0x",
+            "avalanche": "0x",
+            "bsc": "0x",
+            "fantom": "0x",
+            "gnosis": "0x",
+            "sol": "",
+            "trx": "T",
+            "xrp": "r",
         }
         prefix = prefix_map.get(chain_meta.key, chain_meta.key + "_")
         return prefix + pub[:40], pub, ""
@@ -229,8 +236,13 @@ class WalletGenerationMixin:
             mnemonic = Bip39MnemonicGenerator().FromWordsNumber(Bip39WordsNum.WORDS_NUM_24).ToStr()
 
         wallet = self.generate_wallet(
-            chain=chain, name=name, purpose=purpose, tier=tier,
-            tags=tags, group=group, created_by=created_by,
+            chain=chain,
+            name=name,
+            purpose=purpose,
+            tier=tier,
+            tags=tags,
+            group=group,
+            created_by=created_by,
         )
         if mnemonic:
             self._store_mnemonic(wallet.wallet_id, mnemonic)
@@ -254,12 +266,16 @@ class WalletGenerationMixin:
                 wallet = self.generate_wallet(
                     chain=chain,
                     name=f"{name_prefix} {chain.upper()}".strip() if name_prefix else f"{chain.upper()} Payment",
-                    purpose=purpose, tier=tier, group=group, created_by=created_by,
+                    purpose=purpose,
+                    tier=tier,
+                    group=group,
+                    created_by=created_by,
                 )
                 wallets.append(wallet)
-            except (ValueError, TypeError, KeyError, OSError) as e :
+            except (ValueError, TypeError, KeyError, OSError) as e:
                 logger.debug("generate_batch_error", exc_info=True)
                 logger.error(f"Failed to generate {chain} wallet: {e}")
         return wallets
+
 
 __all__ = ["WalletGenerationMixin"]

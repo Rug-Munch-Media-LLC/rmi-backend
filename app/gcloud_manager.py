@@ -32,6 +32,7 @@ logger = get_logger("gcloud")
 # Module-level shared httpx client to avoid connection pool fragmentation
 _gcloud_client: httpx.AsyncClient | None = None
 
+
 async def _get_client() -> httpx.AsyncClient:
     """Get or create a shared httpx client for GCloud API calls."""
     global _gcloud_client
@@ -43,8 +44,10 @@ async def _get_client() -> httpx.AsyncClient:
         )
     return _gcloud_client
 
+
 SA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "cryptorugmunch-sa.json")
 VAULT_PATH = settings.gcloud_sa_vault_path
+
 
 class GoogleCloudManager:
     """Manages Google Cloud credentials and service access."""
@@ -131,8 +134,8 @@ class GoogleCloudManager:
                 )
                 if r.status_code == 200:
                     return [b.get("name", "") for b in r.json().get("items", [])]
-        except (httpx.HTTPError, ConnectionError, TimeoutError):
-            pass
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.warning("GCloud API call failed: %s", e)
         return []
 
     async def upload_to_storage(
@@ -179,16 +182,25 @@ class GoogleCloudManager:
             logger.warning("BigQuery insert: %s", e)
             return False
 
-    async def bigquery_query(self, sql: str) -> list:
-        """Run a BigQuery query. Free tier: 1TB/month."""
+    async def bigquery_query(self, sql: str, params: list[dict] | None = None) -> list:
+        """Run a BigQuery query. Free tier: 1TB/month.
+
+        Args:
+            sql: SQL query string (use @param_name for parameterized values).
+            params: Optional list of parameter dicts with ``name``, ``parameterType``,
+                    and ``parameterValue`` keys (see BigQuery REST API docs).
+        """
         import httpx
 
         try:
+            body: dict = {"query": sql, "useLegacySql": False}
+            if params:
+                body["queryParameters"] = params
             async with httpx.AsyncClient(timeout=30) as c:
                 r = await c.post(
                     "https://bigquery.googleapis.com/bigquery/v2/projects/cryptorugmunch/queries",
                     headers=self.get_headers(),
-                    json={"query": sql, "useLegacySql": False},
+                    json=body,
                 )
                 if r.status_code == 200:
                     data = r.json()
@@ -207,9 +219,7 @@ class GoogleCloudManager:
 
     # ── Cloud Vision ───────────────────────────────────────
 
-    async def vision_ocr(
-        self, image_url: str | None = None, image_bytes: bytes | None = None
-    ) -> str:
+    async def vision_ocr(self, image_url: str | None = None, image_bytes: bytes | None = None) -> str:
         """OCR text from image. Free tier: 1,000 units/month."""
         import httpx
 
@@ -242,9 +252,7 @@ class GoogleCloudManager:
             logger.warning("Vision: %s", e)
             return ""
 
-    async def vision_labels(
-        self, image_url: str | None = None, image_bytes: bytes | None = None
-    ) -> list:
+    async def vision_labels(self, image_url: str | None = None, image_bytes: bytes | None = None) -> list:
         """Detect labels in image. Free tier: 1,000 units/month."""
         import httpx
 
@@ -355,7 +363,9 @@ class GoogleCloudManager:
         except Exception as e:
             return {"authenticated": False, "error": str(e)}
 
+
 _gcloud: GoogleCloudManager | None = None
+
 
 def get_gcloud() -> GoogleCloudManager:
     global _gcloud

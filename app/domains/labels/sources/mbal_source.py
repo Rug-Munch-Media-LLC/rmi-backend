@@ -23,6 +23,7 @@ from app.domains.labels.models import Label, LabelSource
 
 logger = get_logger(__name__)
 
+
 class MBALService:
     """MBAL API Integration for multi-blockchain wallet labels"""
 
@@ -78,9 +79,7 @@ class MBALService:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
             # Query MBAL's address endpoint
-            response = await self.client.get(
-                f"{self.base_url}/address", params=params, headers=headers
-            )
+            response = await self.client.get(f"{self.base_url}/address", params=params, headers=headers)
             response.raise_for_status()
 
             data = response.json()
@@ -225,10 +224,7 @@ class MBALService:
         ):
             return "actor"
 
-        if any(
-            behavior in behavior_lower
-            for behavior in ["mining", "block generation", "transaction fee", "gas"]
-        ):
+        if any(behavior in behavior_lower for behavior in ["mining", "block generation", "transaction fee", "gas"]):
             return "service"
 
         return "entity"  # Default
@@ -272,8 +268,10 @@ class MBALService:
         except (httpx.HTTPError, ConnectionError, TimeoutError, OSError):
             return False
 
+
 # Global instance
 _mbalsy_instance: MBALService | None = None
+
 
 def get_mbalsy_service() -> MBALService:
     """Get the global MBAL service instance."""

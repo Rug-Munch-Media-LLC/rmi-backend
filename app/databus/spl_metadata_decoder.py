@@ -58,6 +58,7 @@ HIGH_RISK_FLAGS = [
     "permanent_delegate_present",
 ]
 
+
 def decode_pubkey(data: bytes, offset: int) -> str | None:
     """Decode a 32-byte Solana pubkey from bytes."""
     if len(data) < offset + 32:
@@ -68,6 +69,7 @@ def decode_pubkey(data: bytes, offset: int) -> str | None:
         return None
     # Encode to base58
     return _bytes_to_base58(pubkey_bytes)
+
 
 def _bytes_to_base58(data: bytes) -> str:
     """Convert bytes to base58 string (Solana pubkey format)."""
@@ -81,6 +83,7 @@ def _bytes_to_base58(data: bytes) -> str:
     leading_zeros = len(data) - len(data.lstrip(b"\x00"))
     result.extend([alphabet[0]] * leading_zeros)
     return result[::-1].decode("ascii")
+
 
 def parse_spl_mint_data(raw_data: bytes) -> dict[str, Any]:
     """
@@ -150,9 +153,8 @@ def parse_spl_mint_data(raw_data: bytes) -> dict[str, Any]:
 
     return result
 
-def _parse_token_extensions(
-    extension_data: bytes, base_result: dict[str, Any]
-) -> list[dict[str, Any]]:
+
+def _parse_token_extensions(extension_data: bytes, base_result: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Parse Token-2022 extension data.
     Extension layout: [extension_type (u16), length (u16), data (variable)]
@@ -222,6 +224,7 @@ def _parse_token_extensions(
             break  # Stop parsing if extension data is malformed
 
     return extensions
+
 
 async def fetch_metaplex_metadata(mint: str, rpc_url: str) -> dict[str, Any] | None:
     """
@@ -302,6 +305,7 @@ async def fetch_metaplex_metadata(mint: str, rpc_url: str) -> dict[str, Any] | N
         logger.debug(f"Metaplex metadata fetch failed: {e}")
 
     return None
+
 
 async def decode_spl_token_metadata(mint: str, rpc_urls: list[str] | None = None) -> dict[str, Any]:
     """
@@ -418,7 +422,9 @@ async def decode_spl_token_metadata(mint: str, rpc_urls: list[str] | None = None
     result["error"] = "All RPC endpoints failed or timed out"
     return result
 
+
 # ── DataBus Provider Integration ───────────────────────────────────
+
 
 async def _spl_metadata_decoder_provider(mint: str = "", **kwargs) -> dict[str, Any] | None:
     """

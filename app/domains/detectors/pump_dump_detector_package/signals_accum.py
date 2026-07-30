@@ -1,4 +1,5 @@
 """Pre-pump accumulation and lifecycle pattern detection signals."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -16,7 +17,9 @@ if TYPE_CHECKING:
 
 
 async def detect_pre_pump_accumulation(
-    client: httpx.AsyncClient, token_address: str, chain: str,
+    client: httpx.AsyncClient,
+    token_address: str,
+    chain: str,
 ) -> dict:
     """Detect wallets accumulating tokens before a pump event."""
     findings: list[dict] = []
@@ -47,19 +50,28 @@ async def detect_pre_pump_accumulation(
         if eb and len(eb) >= 2:
             ta = sum(float(b.get("amountUsd", 0) or 0) for b in eb)
             if ta > 100:
-                accumulations.append(PrePumpAccumulation(
-                    wallets=[wallet], total_accumulated_usd=ta,
-                    accumulation_period_hours=4, avg_entry_price=ta / max(len(eb), 1),
-                    timing_gap_minutes=30,
-                ))
+                accumulations.append(
+                    PrePumpAccumulation(
+                        wallets=[wallet],
+                        total_accumulated_usd=ta,
+                        accumulation_period_hours=4,
+                        avg_entry_price=ta / max(len(eb), 1),
+                        timing_gap_minutes=30,
+                    )
+                )
     if accumulations:
         ta = sum(a.total_accumulated_usd for a in accumulations)
-        findings.append({"finding_type": ManipulationType.PRE_PUMP_ACCUMULATION,
-            "severity": FindingSeverity.HIGH if len(accumulations) >= 3 else FindingSeverity.MEDIUM,
-            "description": f"Pre-pump accumulation detected: {len(accumulations)} wallets accumulated ${ta:,.0f} before pump window",
-            "detail": "Multiple wallets bought early and retained positions" if len(accumulations) >= 3 else "",
-            "evidence": {"accumulation_count": len(accumulations), "total_accumulated": ta}})
+        findings.append(
+            {
+                "finding_type": ManipulationType.PRE_PUMP_ACCUMULATION,
+                "severity": FindingSeverity.HIGH if len(accumulations) >= 3 else FindingSeverity.MEDIUM,
+                "description": f"Pre-pump accumulation detected: {len(accumulations)} wallets accumulated ${ta:,.0f} before pump window",
+                "detail": "Multiple wallets bought early and retained positions" if len(accumulations) >= 3 else "",
+                "evidence": {"accumulation_count": len(accumulations), "total_accumulated": ta},
+            }
+        )
     return {"accumulations": accumulations, "findings": findings}
+
 
 def check_lifecycle_patterns(pairs_data: dict) -> list[dict]:
     """Check for known pump-dump lifecycle patterns."""
@@ -72,33 +84,63 @@ def check_lifecycle_patterns(pairs_data: dict) -> list[dict]:
     if pair_age_hours < 24 and liquidity_usd > 0:
         vol_24h = float(pair.get("volume", {}).get("h24", 0) or 0)
         if vol_24h > liquidity_usd * 5:
-            findings.append({"finding_type": ManipulationType.LIFECYCLE_MATCH, "severity": FindingSeverity.HIGH,
-                "description": f"Pair less than 24h old with volume {vol_24h / liquidity_usd:.0f}x liquidity - pump pattern",
-                "detail": f"Age: ~{pair_age_hours:.0f}h | LP: ${liquidity_usd:,.0f} | Volume: ${vol_24h:,.0f}",
-                "evidence": {"pair_age_hours": pair_age_hours, "liquidity_usd": liquidity_usd, "volume_vs_liquidity": vol_24h / liquidity_usd}})
+            findings.append(
+                {
+                    "finding_type": ManipulationType.LIFECYCLE_MATCH,
+                    "severity": FindingSeverity.HIGH,
+                    "description": f"Pair less than 24h old with volume {vol_24h / liquidity_usd:.0f}x liquidity - pump pattern",
+                    "detail": f"Age: ~{pair_age_hours:.0f}h | LP: ${liquidity_usd:,.0f} | Volume: ${vol_24h:,.0f}",
+                    "evidence": {
+                        "pair_age_hours": pair_age_hours,
+                        "liquidity_usd": liquidity_usd,
+                        "volume_vs_liquidity": vol_24h / liquidity_usd,
+                    },
+                }
+            )
     txns = pair.get("txns", {})
     b1 = int(txns.get("h1", {}).get("buys", 0) or 0)
     s1 = int(txns.get("h1", {}).get("sells", 0) or 0)
     if b1 > 10 and s1 < b1 * 0.3:
-        findings.append({"finding_type": ManipulationType.LIFECYCLE_MATCH, "severity": FindingSeverity.MEDIUM,
-            "description": f"Unbalanced buy/sell ratio in 1h: {b1} buys vs {s1} sells",
-            "detail": "More buyers than sellers can indicate coordinated buying phase",
-            "evidence": {"buys_1h": b1, "sells_1h": s1}})
+        findings.append(
+            {
+                "finding_type": ManipulationType.LIFECYCLE_MATCH,
+                "severity": FindingSeverity.MEDIUM,
+                "description": f"Unbalanced buy/sell ratio in 1h: {b1} buys vs {s1} sells",
+                "detail": "More buyers than sellers can indicate coordinated buying phase",
+                "evidence": {"buys_1h": b1, "sells_1h": s1},
+            }
+        )
     return findings
+
 
 def calculate_risk_score(findings) -> float:
     from app.domains.detectors.pump_dump_detector_package.types import FindingSeverity
+
     if not findings:
         return 0.0
-    score = sum({FindingSeverity.CRITICAL: 35, FindingSeverity.HIGH: 20, FindingSeverity.MEDIUM: 10,
-        FindingSeverity.LOW: 5, FindingSeverity.INFO: 1}.get(f.severity, 0) for f in findings)
+    score = sum(
+        {
+            FindingSeverity.CRITICAL: 35,
+            FindingSeverity.HIGH: 20,
+            FindingSeverity.MEDIUM: 10,
+            FindingSeverity.LOW: 5,
+            FindingSeverity.INFO: 1,
+        }.get(f.severity, 0)
+        for f in findings
+    )
     return min(score, 100.0)
 
+
 def score_to_level(score: float) -> str:
-    if score >= 70: return "critical"
-    elif score >= 40: return "high"
-    elif score >= 20: return "medium"
-    else: return "low"
+    if score >= 70:
+        return "critical"
+    elif score >= 40:
+        return "high"
+    elif score >= 20:
+        return "medium"
+    else:
+        return "low"
+
 
 def estimate_traders(pairs_data: dict) -> int:
     if not pairs_data.get("pairs"):

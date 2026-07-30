@@ -27,6 +27,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("social_velocity")
 
+
 def _parse_timestamp(ts) -> float:
     """Parse a timestamp value into epoch seconds (float).
 
@@ -55,10 +56,12 @@ def _parse_timestamp(ts) -> float:
     logger.warning(f"Unparseable timestamp {ts!r}, using 0")
     return 0.0
 
+
 @dataclass
 class VelocityTimelinePoint:
     timestamp: float  # epoch seconds
     cumulative_count: int
+
 
 @dataclass
 class SocialVelocityReport:
@@ -73,6 +76,7 @@ class SocialVelocityReport:
     first_50_spread_sec: float = 0.0
     median_interarrival_ms: float = 0.0
     warnings: list[str] = field(default_factory=list)
+
 
 class SocialVelocityAnalyzer:
     """Analyzes social mention velocity to detect bot farms and coordinated campaigns.
@@ -291,11 +295,7 @@ class SocialVelocityAnalyzer:
                 }
             )
         # Always include the final point
-        if (
-            len(timestamps) > 1
-            and mention_timeline
-            and mention_timeline[-1]["cumulative_count"] < len(timestamps)
-        ):
+        if len(timestamps) > 1 and mention_timeline and mention_timeline[-1]["cumulative_count"] < len(timestamps):
             mention_timeline.append(
                 {
                     "timestamp": timestamps[-1],
@@ -310,18 +310,12 @@ class SocialVelocityAnalyzer:
                 f"CRITICAL: {max_in_window} mentions arrived within {self.BOT_FARM_WINDOW_SEC}s - bot farm detected"
             )
         if largest_cluster_size >= 5:
-            cluster_types = ", ".join(
-                f"{len(c)} mentions in {c[-1] - c[0]:.2f}s" for c in clusters if len(c) >= 5
-            )
+            cluster_types = ", ".join(f"{len(c)} mentions in {c[-1] - c[0]:.2f}s" for c in clusters if len(c) >= 5)
             warnings.append(f"COORDINATED CLUSTERS: {cluster_types}")
         if median_interarrival_ms < 100:
-            warnings.append(
-                f"BOT-LIKE VELOCITY: median inter-arrival time is {median_interarrival_ms:.0f}ms"
-            )
+            warnings.append(f"BOT-LIKE VELOCITY: median inter-arrival time is {median_interarrival_ms:.0f}ms")
         if total < 10:
-            warnings.append(
-                f"LOW VOLUME: only {total} mentions available (need ≥10 for reliable velocity analysis)"
-            )
+            warnings.append(f"LOW VOLUME: only {total} mentions available (need ≥10 for reliable velocity analysis)")
 
         return SocialVelocityReport(
             velocity_score=velocity_score,

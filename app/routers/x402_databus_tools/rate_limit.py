@@ -17,6 +17,7 @@ logger = get_logger("x402_databus_tools")
 TRIAL_REDIS_PREFIX = "x402:databus_trials:"
 TRIAL_WINDOW_SECONDS = 86400  # 24 hours
 
+
 async def _get_trial_redis() -> Any | None:
     try:
         import redis.asyncio as aioredis
@@ -32,6 +33,7 @@ async def _get_trial_redis() -> Any | None:
         return r
     except (ConnectionError, TimeoutError, OSError):
         return None
+
 
 async def check_trial(identifier: str, tool_id: str, max_trials: int) -> dict[str, Any]:
     """Check if a wallet or fingerprint has remaining trial calls for a tool.
@@ -63,6 +65,7 @@ async def check_trial(identifier: str, tool_id: str, max_trials: int) -> dict[st
         return {"allowed": True, "remaining": max_trials, "reason": "error"}
     finally:
         await r.close()
+
 
 async def consume_trial(identifier: str, tool_id: str) -> bool:
     """Record a trial call. Returns True if recorded."""

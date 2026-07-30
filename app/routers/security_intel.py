@@ -25,10 +25,12 @@ from typing import Any
 
 _lazy_cache: dict[str, object] = {}
 
+
 def _L(module_path) -> Any:
     if module_path not in _lazy_cache:
         _lazy_cache[module_path] = _il.import_module(module_path)
     return _lazy_cache[module_path]
+
 
 # Lightweight imports (eager - these are fast)
 from fastapi import APIRouter
@@ -44,11 +46,13 @@ _sentinel_manager = None
 _wallet_detector = None
 _token_detector = None
 
+
 async def get_sentinel() -> SentinelManager:
     global _sentinel_manager
     if _sentinel_manager is None:
         _sentinel_manager = _L("app.mempool_sentinel").SentinelManager()
     return _sentinel_manager
+
 
 async def get_wallet_detector() -> Any:
     global _wallet_detector
@@ -57,6 +61,7 @@ async def get_wallet_detector() -> Any:
         _wallet_detector = _ml.WalletAnomalyDetector(contamination=0.05)
     return _wallet_detector
 
+
 async def get_token_detector() -> TokenMetricAnomalyDetector:
     global _token_detector
     if _token_detector is None:
@@ -64,52 +69,66 @@ async def get_token_detector() -> TokenMetricAnomalyDetector:
         _token_detector = _ml.TokenMetricAnomalyDetector()
     return _token_detector
 
+
 # ─── MODELS ────────────────────────────────────────────────
+
 
 class ContractScanRequest(BaseModel):
     address: str = Field(..., min_length=32, max_length=44)
     chain: str = Field(default="ethereum")
     deep: bool = Field(default=False, description="Run Slither + Mythril deep scan")
 
+
 class BatchContractRequest(BaseModel):
     addresses: list[str] = Field(..., min_length=1, max_length=50)
     chain: str = Field(default="ethereum")
     deep: bool = Field(default=False)
 
+
 class WalletCheckRequest(BaseModel):
     address: str = Field(..., min_length=32, max_length=44)
     chain: str = Field(default="auto")
 
+
 class WalletAnalyzeRequest(BaseModel):
     address: str = Field(..., min_length=32, max_length=44)
-    transactions: list[dict[str, Any]] = Field(
-        default_factory=list, description="Raw tx list for ML analysis"
-    )
+    transactions: list[dict[str, Any]] = Field(default_factory=list, description="Raw tx list for ML analysis")
     chain: str = Field(default="auto")
+
 
 class GraphAnalyzeRequest(BaseModel):
     transactions: list[dict[str, Any]] = Field(..., min_length=2, max_length=1000)
     chain: str = Field(default="ethereum")
     analysis_types: list[str] = Field(default=["clusters", "flows", "anomalies"])
 
+
 class ThreatBatchRequest(BaseModel):
     addresses: list[str] = Field(..., min_length=1, max_length=100)
     chain: str = Field(default="evm")
+
 
 class CrossChainRequest(BaseModel):
     fingerprints: list[dict[str, Any]] = Field(..., min_length=2, description="Chain fingerprints")
     chains: list[str] = Field(default=["ethereum", "base", "solana"])
 
+
 class TokenMetricRequest(BaseModel):
     token: str = Field(...)
     metrics: dict[str, float] = Field(..., description="Current metric values")
 
+
 class AlertAckRequest(BaseModel):
     alert_id: str = Field(...)
 
+
 # ─── CONTRACT ANALYSIS ─────────────────────────────────────
 
-@router.get("/contract/{address}", summary="Get Contract Intelligence", description="Get contract security intelligence including Mythril and Slither analysis results, known vulnerabilities, and risk scoring.")
+
+@router.get(
+    "/contract/{address}",
+    summary="Get Contract Intelligence",
+    description="Get contract security intelligence including Mythril and Slither analysis results, known vulnerabilities, and risk scoring.",
+)
 async def contract_analysis(address: str, chain: str = "ethereum", deep: bool = False) -> Any:
     """Analyze contract - bytecode scan + optional Slither/Mythril deep scan."""
 
@@ -154,6 +173,7 @@ async def contract_analysis(address: str, chain: str = "ethereum", deep: bool = 
 
     return response
 
+
 @router.post("/scan/batch")
 async def batch_contract_scan(req: BatchContractRequest) -> dict[str, int]:
     """Batch contract scan - fast or deep."""
@@ -188,7 +208,9 @@ async def batch_contract_scan(req: BatchContractRequest) -> dict[str, int]:
             ],
         }
 
+
 # ─── WALLET / THREAT INTEL ──────────────────────────────────
+
 
 @router.get("/wallet/{address}")
 async def wallet_security_check(address: str, chain: str = "auto") -> dict:
@@ -216,6 +238,7 @@ async def wallet_security_check(address: str, chain: str = "auto") -> dict:
         "first_flagged": threat_rep.first_flagged,
         "last_flagged": threat_rep.last_flagged,
     }
+
 
 @router.post("/wallet/analyze")
 async def wallet_ml_analysis(req: WalletAnalyzeRequest) -> dict:
@@ -245,6 +268,7 @@ async def wallet_ml_analysis(req: WalletAnalyzeRequest) -> dict:
         "ml_result": result,
     }
 
+
 @router.post("/threat/check")
 async def batch_threat_check(req: ThreatBatchRequest) -> dict[str, int]:
     """Batch threat intel lookup."""
@@ -261,7 +285,9 @@ async def batch_threat_check(req: ThreatBatchRequest) -> dict[str, int]:
         "results": {a: r.to_dict() for a, r in results.items()},
     }
 
+
 # ─── GRAPH ANALYSIS ─────────────────────────────────────────
+
 
 @router.post("/graph/analyze")
 async def graph_analyze(req: GraphAnalyzeRequest) -> Any:
@@ -317,7 +343,9 @@ async def graph_analyze(req: GraphAnalyzeRequest) -> Any:
 
     return response
 
+
 # ─── CROSS-CHAIN ────────────────────────────────────────────
+
 
 @router.post("/crosschain/correlate")
 async def crosschain_correlate(req: CrossChainRequest) -> dict[str, int]:
@@ -350,7 +378,9 @@ async def crosschain_correlate(req: CrossChainRequest) -> dict[str, int]:
         "all_links": [line.to_dict() for line in links[:20]],
     }
 
+
 # ─── ML / ANOMALY ───────────────────────────────────────────
+
 
 @router.post("/ml/token/anomaly")
 async def token_metric_anomaly(req: TokenMetricRequest) -> Any:
@@ -360,7 +390,9 @@ async def token_metric_anomaly(req: TokenMetricRequest) -> Any:
     result = detector.detect_anomaly(req.token, req.metrics)
     return result
 
+
 # ─── MEMPOOL ────────────────────────────────────────────────
+
 
 @router.get("/mempool/status")
 async def mempool_status() -> dict:
@@ -375,11 +407,17 @@ async def mempool_status() -> dict:
         "recent_patterns": patterns,
     }
 
-@router.post("/mempool/start", summary="Mempool Start", description="Start monitoring the mempool for suspicious transactions on a specified chain.")
+
+@router.post(
+    "/mempool/start",
+    summary="Mempool Start",
+    description="Start monitoring the mempool for suspicious transactions on a specified chain.",
+)
 async def mempool_start(chain: str = "ethereum") -> dict[str, str]:
     sentinel = await get_sentinel()
     await sentinel.start(chain)
     return {"status": "started", "chain": chain}
+
 
 @router.post("/mempool/stop", summary="Mempool Stop", description="Stop monitoring the mempool for a specified chain.")
 async def mempool_stop() -> dict[str, str]:
@@ -387,7 +425,9 @@ async def mempool_stop() -> dict[str, str]:
     await sentinel.stop()
     return {"status": "stopped"}
 
+
 # ─── DASHBOARD ──────────────────────────────────────────────
+
 
 @router.get("/dashboard/stats")
 async def dashboard_stats() -> Any:
@@ -395,6 +435,7 @@ async def dashboard_stats() -> Any:
     _sd = _L("app.security_dashboard")
     dash = _sd.get_dashboard()
     return dash.get_stats()
+
 
 @router.get("/dashboard/alerts")
 async def dashboard_alerts(
@@ -408,6 +449,7 @@ async def dashboard_alerts(
     dash = _sd.get_dashboard()
     return dash.get_alerts(severity, source, limit, unacknowledged)
 
+
 @router.post("/dashboard/acknowledge")
 async def dashboard_acknowledge(req: AlertAckRequest) -> dict:
     """Acknowledge an alert."""
@@ -415,6 +457,7 @@ async def dashboard_acknowledge(req: AlertAckRequest) -> dict:
     dash = _sd.get_dashboard()
     success = await dash.acknowledge(req.alert_id)
     return {"acknowledged": success}
+
 
 @router.get("/dashboard/score")
 async def dashboard_score(hours: int = 24) -> dict:
@@ -427,6 +470,7 @@ async def dashboard_score(hours: int = 24) -> dict:
         "max": 100,
     }
 
+
 @router.get("/dashboard/timeline/{target}")
 async def dashboard_timeline(target: str) -> dict:
     """Get incident timeline for a target."""
@@ -434,7 +478,9 @@ async def dashboard_timeline(target: str) -> dict:
     dash = _sd.get_dashboard()
     return {"timeline": dash.get_incident_timeline(target)}
 
+
 # ─── ENTITY LABELING ─────────────────────────────────────────
+
 
 @router.get("/entity/label/{address}")
 async def entity_label(address: str) -> dict:
@@ -445,21 +491,22 @@ async def entity_label(address: str) -> dict:
         return {"address": address, "entity": None, "known": False}
     return {"address": address, "entity": entity.to_dict(), "known": True}
 
+
 @router.post("/entity/batch")
 async def entity_batch_label(addresses: list[str]) -> Any:
     """Batch entity label lookup."""
     _el = _L("app.entity_labeler")
     return await _el.batch_label_addresses(addresses)
 
+
 @router.get("/entity/search")
-async def entity_search(
-    q: str = "", category: str | None = None, limit: int = 50
-) -> dict[str, list[dict]]:
+async def entity_search(q: str = "", category: str | None = None, limit: int = 50) -> dict[str, list[dict]]:
     """Search entity database."""
     _el = _L("app.entity_labeler")
     db = await _el.get_entity_labeler()
     results = await db.search_entities(query=q, category=category, limit=limit)
     return {"results": [r.to_dict() for r in results], "count": len(results)}
+
 
 @router.get("/entity/stats")
 async def entity_stats() -> Any:
@@ -468,6 +515,7 @@ async def entity_stats() -> Any:
     db = await _el.get_entity_labeler()
     return await db.get_stats()
 
+
 @router.get("/entity/{entity_id}")
 async def entity_detail(entity_id: str) -> Any:
     """Full entity graph with addresses and relationships."""
@@ -475,7 +523,9 @@ async def entity_detail(entity_id: str) -> Any:
     db = await _el.get_entity_labeler()
     return await db.get_entity_graph(entity_id)
 
+
 # ─── PORTFOLIO TRACKER ──────────────────────────────────────
+
 
 @router.get("/portfolio/{wallet}")
 async def portfolio_single(wallet: str, chain: str = "ethereum") -> dict:
@@ -484,12 +534,14 @@ async def portfolio_single(wallet: str, chain: str = "ethereum") -> dict:
     portfolio = await _pt.get_portfolio(wallet, chain)
     return portfolio.to_dict()
 
+
 @router.post("/portfolio/multi")
 async def portfolio_multi(wallets: list[dict[str, str]]) -> dict:
     """Aggregate portfolio across multiple wallets/chains."""
     _pt = _L("app.portfolio_tracker")
     result = await _pt.get_multi_wallet_portfolio(wallets)
     return result.to_dict()
+
 
 @router.get("/portfolio/history/{wallet}")
 async def portfolio_history(wallet: str, chain: str = "ethereum", hours: int = 24) -> dict:
@@ -504,7 +556,9 @@ async def portfolio_history(wallet: str, chain: str = "ethereum", hours: int = 2
         "history": history,
     }
 
+
 # ─── WALLET MONITOR ─────────────────────────────────────────
+
 
 @router.post("/monitor/watch")
 async def monitor_watch(address: str, chain: str = "ethereum", tags: str = "") -> dict[str, bool]:
@@ -514,6 +568,7 @@ async def monitor_watch(address: str, chain: str = "ethereum", tags: str = "") -
     await manager.add_watch(address, chain, tags.split(",") if tags else [])
     return {"watched": True, "address": address, "chain": chain}
 
+
 @router.post("/monitor/unwatch")
 async def monitor_unwatch(address: str, chain: str = "ethereum") -> dict[str, bool]:
     """Remove a wallet from the watchlist."""
@@ -521,6 +576,7 @@ async def monitor_unwatch(address: str, chain: str = "ethereum") -> dict[str, bo
     manager = _wm.WalletMonitorManager()
     await manager.remove_watch(address, chain)
     return {"unwatched": True, "address": address, "chain": chain}
+
 
 @router.get("/monitor/watches")
 async def monitor_list() -> dict:
@@ -530,7 +586,9 @@ async def monitor_list() -> dict:
     watches = await manager.list_watches()
     return {"watches": watches, "count": len(watches)}
 
+
 # ─── EXCHANGE FLOW ANALYZER ─────────────────────────────────
+
 
 @router.post("/flows/analyze")
 async def flows_analyze(
@@ -543,9 +601,8 @@ async def flows_analyze(
 ) -> Any:
     """Analyze fund flows for an entity."""
     _efa = _L("app.exchange_flow_analyzer")
-    return await _efa.analyze_entity_flows(
-        entity_addresses, entity_name, entity_id, chain, transactions, hours
-    )
+    return await _efa.analyze_entity_flows(entity_addresses, entity_name, entity_id, chain, transactions, hours)
+
 
 @router.post("/flows/reserves")
 async def flows_reserves(
@@ -558,6 +615,7 @@ async def flows_reserves(
     _efa = _L("app.exchange_flow_analyzer")
     return await _efa.get_reserves(entity_addresses, entity_name, entity_id, chain)
 
+
 @router.post("/flows/compare")
 async def flows_compare(
     entity_a: dict[str, Any],
@@ -568,7 +626,9 @@ async def flows_compare(
     _efa = _L("app.exchange_flow_analyzer")
     return await _efa.compare_flows(entity_a, entity_b, transactions)
 
+
 # ─── HEALTH ────────────────────────────────────────────────
+
 
 @router.get("/health")
 async def security_health() -> dict[str, str]:
@@ -612,6 +672,7 @@ async def security_health() -> dict[str, str]:
         "version": "2.0.0",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
 
 # Redis helper for health check
 async def _get_redis() -> Any | None:

@@ -11,6 +11,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 class ThreatIntelFeeds:
     """Aggregates free threat intelligence from multiple open sources."""
 
@@ -175,8 +176,10 @@ class ThreatIntelFeeds:
 
         return results
 
+
 # Singleton
 _feeds: ThreatIntelFeeds | None = None
+
 
 def get_threat_feeds() -> ThreatIntelFeeds:
     global _feeds

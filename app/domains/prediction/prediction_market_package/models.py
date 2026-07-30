@@ -2,29 +2,90 @@
 Prediction Market — Data Models
 Unified dataclasses across all prediction market sources.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 SECURITY_KEYWORDS = [
-    "hack","exploit","rug","scam","fraud","breach","leak","drain","phish",
-    "backdoor","vulnerability","zero-day","sanction","indict","arrest",
-    "freeze","seize","clampdown","depeg","insolvent","bankrupt","collapse",
-    "default","theft","heist","compromise","ransomware","malware",
-    "SEC","CFTC","DOJ","FBI","regulatory","enforcement",
+    "hack",
+    "exploit",
+    "rug",
+    "scam",
+    "fraud",
+    "breach",
+    "leak",
+    "drain",
+    "phish",
+    "backdoor",
+    "vulnerability",
+    "zero-day",
+    "sanction",
+    "indict",
+    "arrest",
+    "freeze",
+    "seize",
+    "clampdown",
+    "depeg",
+    "insolvent",
+    "bankrupt",
+    "collapse",
+    "default",
+    "theft",
+    "heist",
+    "compromise",
+    "ransomware",
+    "malware",
+    "SEC",
+    "CFTC",
+    "DOJ",
+    "FBI",
+    "regulatory",
+    "enforcement",
 ]
 
 CRYPTO_KEYWORDS = [
-    "bitcoin","ethereum","solana","crypto","defi","token","blockchain",
-    "web3","nft","stablecoin","usdt","usdc","dai","exchange","binance",
-    "coinbase","uniswap","aave","tether","circle","layer","L1","L2",
-    "rollup","bridge","polygon","arbitrum","optimism","avalanche","fantom",
-    "chainlink","makerdao","lido","eigenlayer",
+    "bitcoin",
+    "ethereum",
+    "solana",
+    "crypto",
+    "defi",
+    "token",
+    "blockchain",
+    "web3",
+    "nft",
+    "stablecoin",
+    "usdt",
+    "usdc",
+    "dai",
+    "exchange",
+    "binance",
+    "coinbase",
+    "uniswap",
+    "aave",
+    "tether",
+    "circle",
+    "layer",
+    "L1",
+    "L2",
+    "rollup",
+    "bridge",
+    "polygon",
+    "arbitrum",
+    "optimism",
+    "avalanche",
+    "fantom",
+    "chainlink",
+    "makerdao",
+    "lido",
+    "eigenlayer",
 ]
+
 
 @dataclass
 class PredictionMarket:
     """Unified prediction market result across all sources."""
+
     source: str
     source_id: str
     question: str
@@ -47,9 +108,11 @@ class PredictionMarket:
         self.is_security_relevant = any(kw in q_lower for kw in SECURITY_KEYWORDS)
         self.is_crypto_relevant = any(kw in q_lower for kw in CRYPTO_KEYWORDS)
 
+
 @dataclass
 class PredictionDigest:
     """Daily intelligence digest of security-relevant prediction markets."""
+
     generated_at: str
     total_markets_searched: int
     security_relevant_count: int
@@ -59,24 +122,106 @@ class PredictionDigest:
     ecosystem_risk_markets: list[PredictionMarket] = field(default_factory=list)
     regulatory_markets: list[PredictionMarket] = field(default_factory=list)
 
+
 # Token extraction helpers
 _COMMON_TOKENS = {
-    "BTC","ETH","SOL","USDT","USDC","DAI","BNB","XRP","ADA","DOGE",
-    "MATIC","POL","DOT","AVAX","LINK","UNI","AAVE","ARB","OP","SUI",
-    "APT","TIA","SEI","STRK","WLD","PEPE","SHIB","BONK","WIF","JUP",
-    "PYTH","RNDR","FET","AGIX","OCEAN","IMX","INJ","EIGEN","ENA","ETHFI",
+    "BTC",
+    "ETH",
+    "SOL",
+    "USDT",
+    "USDC",
+    "DAI",
+    "BNB",
+    "XRP",
+    "ADA",
+    "DOGE",
+    "MATIC",
+    "POL",
+    "DOT",
+    "AVAX",
+    "LINK",
+    "UNI",
+    "AAVE",
+    "ARB",
+    "OP",
+    "SUI",
+    "APT",
+    "TIA",
+    "SEI",
+    "STRK",
+    "WLD",
+    "PEPE",
+    "SHIB",
+    "BONK",
+    "WIF",
+    "JUP",
+    "PYTH",
+    "RNDR",
+    "FET",
+    "AGIX",
+    "OCEAN",
+    "IMX",
+    "INJ",
+    "EIGEN",
+    "ENA",
+    "ETHFI",
 }
 
 _COMMON_PROJECTS = {
-    "polymarket","kalshi","manifold","uniswap","sushiswap","aave","compound",
-    "makerdao","maker","lido","eigenlayer","chainlink","arbitrum","optimism",
-    "polygon","avalanche","fantom","near","celestia","worldcoin","tether",
-    "circle","coinbase","binance","kraken","ftx","celcius","blockfi",
-    "three arrows","alameda","jump crypto","wintermute","curve","balancer",
-    "thorchain","osmosis","dydx","gmx","hyperliquid","jupiter","raydium",
-    "orca","wormhole","layerzero","zksync","starknet","scroll","linea",
-    "base","mantle","mode","blast",
+    "polymarket",
+    "kalshi",
+    "manifold",
+    "uniswap",
+    "sushiswap",
+    "aave",
+    "compound",
+    "makerdao",
+    "maker",
+    "lido",
+    "eigenlayer",
+    "chainlink",
+    "arbitrum",
+    "optimism",
+    "polygon",
+    "avalanche",
+    "fantom",
+    "near",
+    "celestia",
+    "worldcoin",
+    "tether",
+    "circle",
+    "coinbase",
+    "binance",
+    "kraken",
+    "ftx",
+    "celcius",
+    "blockfi",
+    "three arrows",
+    "alameda",
+    "jump crypto",
+    "wintermute",
+    "curve",
+    "balancer",
+    "thorchain",
+    "osmosis",
+    "dydx",
+    "gmx",
+    "hyperliquid",
+    "jupiter",
+    "raydium",
+    "orca",
+    "wormhole",
+    "layerzero",
+    "zksync",
+    "starknet",
+    "scroll",
+    "linea",
+    "base",
+    "mantle",
+    "mode",
+    "blast",
 }
+
 
 def extract_token_symbols(text: str) -> list[str]:
     """Extract known token symbols and project names from text."""

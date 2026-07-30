@@ -1,6 +1,7 @@
 """
 Smart Contract Honeypot & Malicious Token Detector Package.
 """
+
 from app.domains.detectors.smart_contract_honeypot_detector.constants import (
     BENIGN_SELECTORS,
     EVM_CHAINS,

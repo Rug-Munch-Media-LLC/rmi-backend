@@ -21,6 +21,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class SimulationResult:
     """Result of a transaction simulation."""
@@ -46,6 +47,7 @@ class SimulationResult:
     def is_hard_rug(self) -> bool:
         return not self.can_sell and not self.can_buy
 
+
 # ═══════════════════════════════════════════════
 # SOLANA SIMULATION (via Jupiter + Helius)
 # ═══════════════════════════════════════════════
@@ -54,6 +56,7 @@ JUPITER_QUOTE = "https://quote-api.jup.ag/v6/quote"
 JUPITER_SWAP = "https://quote-api.jup.ag/v6/swap"
 WSOL_MINT = "So11111111111111111111111111111111111111112"
 SIMULATION_AMOUNT = 100_000  # 0.0001 SOL for simulation
+
 
 async def simulate_solana(token_address: str) -> SimulationResult:
     """Simulate a sell transaction on Solana."""
@@ -102,9 +105,7 @@ async def simulate_solana(token_address: str) -> SimulationResult:
                 result.warnings.append("⚠️ Cannot sell this token - liquidity may not exist")
             elif result.sell_tax_pct > 90:
                 result.risk = "critical"
-                result.warnings.append(
-                    f"☠️ {result.sell_tax_pct:.0f}% effective tax on sell - likely scam"
-                )
+                result.warnings.append(f"☠️ {result.sell_tax_pct:.0f}% effective tax on sell - likely scam")
             elif result.sell_tax_pct > 50:
                 result.risk = "dangerous"
                 result.warnings.append(f"🔴 {result.sell_tax_pct:.0f}% tax on sell")
@@ -121,9 +122,8 @@ async def simulate_solana(token_address: str) -> SimulationResult:
 
     return result
 
-async def _get_quote(
-    client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int
-) -> dict | None:
+
+async def _get_quote(client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int) -> dict | None:
     """Get a Jupiter swap quote."""
     try:
         params = {
@@ -141,6 +141,7 @@ async def _get_quote(
     except (ConnectionError, OSError, TimeoutError):
         return None
 
+
 # ═══════════════════════════════════════════════
 # EVM SIMULATION (via eth_call)
 # ═══════════════════════════════════════════════
@@ -157,6 +158,7 @@ EVM_RPC_ENDPOINTS = {
     "base": "https://mainnet.base.org",
     "optimism": "https://mainnet.optimism.io",
 }
+
 
 async def simulate_evm(token_address: str, chain: str = "ethereum") -> SimulationResult:
     """Simulate a sell on EVM chains via eth_call."""
@@ -206,6 +208,7 @@ async def simulate_evm(token_address: str, chain: str = "ethereum") -> Simulatio
 
     return result
 
+
 async def _eth_call(client: httpx.AsyncClient, rpc_url: str, to: str, data: str) -> dict:
     """Execute an eth_call JSON-RPC request."""
     try:
@@ -221,6 +224,7 @@ async def _eth_call(client: httpx.AsyncClient, rpc_url: str, to: str, data: str)
         return r.json()
     except Exception as e:
         return {"error": str(e)}
+
 
 async def _simulate_uniswap_sell(client: httpx.AsyncClient, rpc_url: str, token: str) -> dict:
     """Simulate a Uniswap V2 sell transaction."""
@@ -255,9 +259,11 @@ async def _simulate_uniswap_sell(client: httpx.AsyncClient, rpc_url: str, token:
     except (ConnectionError, OSError, TimeoutError):
         return {"success": False}
 
+
 # ═══════════════════════════════════════════════
 # UNIFIED SIMULATION
 # ═══════════════════════════════════════════════
+
 
 async def simulate_transaction(token_address: str, chain: str = "solana") -> SimulationResult:
     """
@@ -269,9 +275,7 @@ async def simulate_transaction(token_address: str, chain: str = "solana") -> Sim
       - risk assessment
       - warnings
     """
-    if chain == "solana" or (
-        len(token_address) in range(32, 45) and not token_address.startswith("0x")
-    ):
+    if chain == "solana" or (len(token_address) in range(32, 45) and not token_address.startswith("0x")):
         return await simulate_solana(token_address)
     else:
         return await simulate_evm(token_address, chain)

@@ -24,8 +24,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 _AUTH = {"X-API-Key": "test-auth-token-32-chars-long!!"}
 
 
-
-
 class TestDataBusProviderChains:
     """Test the DataBus provider chain infrastructure."""
 
@@ -63,9 +61,7 @@ class TestDataBusProviderChains:
         critical = ["token_price", "wallet_labels", "trending", "market_overview"]
         for chain in critical:
             assert chain in chains, f"Critical chain '{chain}' is missing"
-            assert len(chains[chain]) >= 1, (
-                f"Chain '{chain}' should have at least 1 provider, got {len(chains[chain])}"
-            )
+            assert len(chains[chain]) >= 1, f"Chain '{chain}' should have at least 1 provider, got {len(chains[chain])}"
 
     @pytest.mark.integration
     def test_provider_chain_structure(self) -> None:
@@ -76,9 +72,7 @@ class TestDataBusProviderChains:
         for chain_name, chain_data in chains.items():
             providers_list = chain_data.providers if hasattr(chain_data, "providers") else chain_data
             for provider in providers_list:
-                assert isinstance(provider, dict), (
-                    f"Provider in chain '{chain_name}' should be a dict"
-                )
+                assert isinstance(provider, dict), f"Provider in chain '{chain_name}' should be a dict"
                 # Should have either a 'provider' key or represent a callable
                 assert "provider" in provider or "name" in provider or "fn" in provider, (
                     f"Provider in chain '{chain_name}' missing identifier: {provider}"
@@ -264,9 +258,7 @@ class TestDataBusAccessControl:
 
         essential = ["solana", "ethereum", "bsc", "base", "arbitrum", "polygon"]
         for chain in essential:
-            assert chain in SUPPORTED_CHAINS, (
-                f"Essential chain '{chain}' missing from supported chains"
-            )
+            assert chain in SUPPORTED_CHAINS, f"Essential chain '{chain}' missing from supported chains"
 
     @pytest.mark.integration
     def test_databus_tier_limits(self) -> None:

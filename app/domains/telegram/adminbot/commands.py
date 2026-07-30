@@ -34,6 +34,7 @@ except ImportError:
 # START / HELP
 # ═══════════════════════════════════════════════════════════════════
 
+
 @owner_only
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
@@ -68,13 +69,16 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
     )
 
+
 @owner_only
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await cmd_start(update, ctx)
 
+
 # ═══════════════════════════════════════════════════════════════════
 # STATUS
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -86,16 +90,20 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("🔄 Refresh", callback_data="status"),
-                 InlineKeyboardButton("📊 Health", callback_data="alerts")],
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="status"),
+                    InlineKeyboardButton("📊 Health", callback_data="alerts"),
+                ],
                 [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
             ]
         ),
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # DISK
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_disk(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -107,16 +115,20 @@ async def cmd_disk(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("🔄 Refresh", callback_data="disk"),
-                 InlineKeyboardButton("🧠 Memory", callback_data="mem")],
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="disk"),
+                    InlineKeyboardButton("🧠 Memory", callback_data="mem"),
+                ],
                 [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
             ]
         ),
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # MEMORY / CPU
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_mem(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -128,16 +140,20 @@ async def cmd_mem(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("🔄 Refresh", callback_data="mem"),
-                 InlineKeyboardButton("💾 Disk", callback_data="disk")],
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="mem"),
+                    InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                ],
                 [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
             ]
         ),
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # DOCKER
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -147,9 +163,11 @@ async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # SHELL
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -168,9 +186,7 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     cmd = " ".join(args)
-    msg = await update.message.reply_text(
-        f"⏳ Running: `{cmd[:100]}`...", parse_mode=ParseMode.MARKDOWN
-    )
+    msg = await update.message.reply_text(f"⏳ Running: `{cmd[:100]}`...", parse_mode=ParseMode.MARKDOWN)
     result = admin_ops.run_shell(cmd, timeout=30)
     output = result["output"] or result["error"]
     status_line = f"{'✅' if result['ok'] else '❌'} `{cmd[:80]}` ({result['duration']:.1f}s)"
@@ -179,18 +195,18 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # SERVICES
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     args = ctx.args
     if not args:
         text = admin_ops.service_list()
-        await update.message.reply_text(
-            text, parse_mode=ParseMode.MARKDOWN, reply_markup=service_action_keyboard()
-        )
+        await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=service_action_keyboard())
         return
 
     name = args[0]
@@ -211,9 +227,11 @@ async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=back_button("services"),
         )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # BACKUP
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -241,8 +259,10 @@ async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "📦 *Backup Control*",
             reply_markup=InlineKeyboardMarkup(
                 [
-                    [InlineKeyboardButton("🔄 Run Full Backup", callback_data="backup_run"),
-                     InlineKeyboardButton("🗄️ DB Backup", callback_data="backup_db")],
+                    [
+                        InlineKeyboardButton("🔄 Run Full Backup", callback_data="backup_run"),
+                        InlineKeyboardButton("🗄️ DB Backup", callback_data="backup_db"),
+                    ],
                     [InlineKeyboardButton("📊 Backup Status", callback_data="backup_status")],
                     [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                 ]
@@ -250,9 +270,11 @@ async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.MARKDOWN,
         )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # DEPLOY
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -262,10 +284,14 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "🚀 *Deploy Services*",
             reply_markup=InlineKeyboardMarkup(
                 [
-                    [InlineKeyboardButton("🖥️ Backend", callback_data="deploy_backend"),
-                     InlineKeyboardButton("🤖 Bot", callback_data="deploy_bot")],
-                    [InlineKeyboardButton("🛡️ Admin Bot", callback_data="deploy_admin"),
-                     InlineKeyboardButton("🏗️ Infra", callback_data="deploy_infra")],
+                    [
+                        InlineKeyboardButton("🖥️ Backend", callback_data="deploy_backend"),
+                        InlineKeyboardButton("🤖 Bot", callback_data="deploy_bot"),
+                    ],
+                    [
+                        InlineKeyboardButton("🛡️ Admin Bot", callback_data="deploy_admin"),
+                        InlineKeyboardButton("🏗️ Infra", callback_data="deploy_infra"),
+                    ],
                     [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                 ]
             ),
@@ -282,9 +308,11 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=back_button("deploy"),
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -308,18 +336,18 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=back_button("logs_menu"),
         )
     else:
-        j_result = admin_ops.run_shell(
-            f"journalctl -u {service}.service --no-pager -n {tail} 2>&1", timeout=10
-        )
+        j_result = admin_ops.run_shell(f"journalctl -u {service}.service --no-pager -n {tail} 2>&1", timeout=10)
         await msg.edit_text(
             f"📋 `{service}` (systemd, last {tail} lines):\n\n```\n{j_result['output'][:3000]}\n```",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=back_button("logs_menu"),
         )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # HEALTH
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -331,16 +359,20 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("🔄 Refresh", callback_data="alerts"),
-                 InlineKeyboardButton("🖥️ Full Status", callback_data="status")],
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="alerts"),
+                    InlineKeyboardButton("🖥️ Full Status", callback_data="status"),
+                ],
                 [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
             ]
         ),
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # QUICK OPS
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -348,24 +380,36 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "⚡ *Quick Operations*",
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("🔄 Restart Backend", callback_data="docker_restart_rmi-backend"),
-                 InlineKeyboardButton("🔄 Restart Bot", callback_data="docker_restart_rugmunchbot")],
-                [InlineKeyboardButton("🖥️ Full Status", callback_data="status"),
-                 InlineKeyboardButton("📊 Health Check", callback_data="alerts")],
-                [InlineKeyboardButton("🐳 Docker PS", callback_data="docker_ps"),
-                 InlineKeyboardButton("📦 Backup Status", callback_data="backup_status")],
-                [InlineKeyboardButton("💾 Disk", callback_data="disk"),
-                 InlineKeyboardButton("🧠 Memory", callback_data="mem")],
-                [InlineKeyboardButton("📁 Git Status", callback_data="git_menu"),
-                 InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                [
+                    InlineKeyboardButton("🔄 Restart Backend", callback_data="docker_restart_rmi-backend"),
+                    InlineKeyboardButton("🔄 Restart Bot", callback_data="docker_restart_rugmunchbot"),
+                ],
+                [
+                    InlineKeyboardButton("🖥️ Full Status", callback_data="status"),
+                    InlineKeyboardButton("📊 Health Check", callback_data="alerts"),
+                ],
+                [
+                    InlineKeyboardButton("🐳 Docker PS", callback_data="docker_ps"),
+                    InlineKeyboardButton("📦 Backup Status", callback_data="backup_status"),
+                ],
+                [
+                    InlineKeyboardButton("💾 Disk", callback_data="disk"),
+                    InlineKeyboardButton("🧠 Memory", callback_data="mem"),
+                ],
+                [
+                    InlineKeyboardButton("📁 Git Status", callback_data="git_menu"),
+                    InlineKeyboardButton("⬅️ Main Menu", callback_data="main"),
+                ],
             ]
         ),
         parse_mode=ParseMode.MARKDOWN,
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # OPENCODE / OC
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -424,9 +468,11 @@ async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.MARKDOWN,
         )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # GIT
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_git(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -469,9 +515,11 @@ async def cmd_git(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=back_button("git_menu"),
         )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # PUSH
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_push(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -486,9 +534,11 @@ async def cmd_push(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=back_button("git_menu"),
     )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # CHAIN
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_chain(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -501,8 +551,10 @@ async def cmd_chain(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup(
                 [
-                    [InlineKeyboardButton("🔄 Refresh", callback_data="chain"),
-                     InlineKeyboardButton("🐳 Docker", callback_data="docker")],
+                    [
+                        InlineKeyboardButton("🔄 Refresh", callback_data="chain"),
+                        InlineKeyboardButton("🐳 Docker", callback_data="docker"),
+                    ],
                     [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
                 ]
             ),
@@ -514,9 +566,11 @@ async def cmd_chain(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=back_button("main"),
         )
 
+
 # ═══════════════════════════════════════════════════════════════════
 # ALERT
 # ═══════════════════════════════════════════════════════════════════
+
 
 @owner_only
 async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

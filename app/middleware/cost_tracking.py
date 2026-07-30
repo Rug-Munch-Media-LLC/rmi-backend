@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
+
 class TimingStats:
     """Per-endpoint timing histogram for performance monitoring.
 
@@ -64,6 +65,7 @@ class TimingStats:
         """Reset all timing stats."""
         self._stats.clear()
 
+
 class CostBuffer:
     """In-memory buffer of recent costs.
 
@@ -71,9 +73,7 @@ class CostBuffer:
     """
 
     def __init__(self, max_size: int = 10_000) -> None:
-        self._buffer: asyncio.Queue[tuple[str, float, float, float]] = asyncio.Queue(
-            maxsize=max_size
-        )
+        self._buffer: asyncio.Queue[tuple[str, float, float, float]] = asyncio.Queue(maxsize=max_size)
         self._totals: dict[str, float] = defaultdict(float)
 
     def record(self, tenant_id: str, route: str, cost_usd: float, latency_s: float) -> None:
@@ -92,6 +92,7 @@ class CostBuffer:
     def get_all_totals(self) -> dict[str, float]:
         """Snapshot of all tenant totals."""
         return dict(self._totals)
+
 
 class CostTrackingMiddleware(BaseHTTPMiddleware):
     """Records per-request cost + timing stats.

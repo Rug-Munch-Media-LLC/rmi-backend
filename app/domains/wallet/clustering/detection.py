@@ -32,7 +32,8 @@ def detect_temporal_clusters(
             continue
         window_key = tx.timestamp.replace(
             minute=(tx.timestamp.minute // time_window_minutes) * time_window_minutes,
-            second=0, microsecond=0,
+            second=0,
+            microsecond=0,
         )
         time_groups[window_key].append(tx)
 
@@ -67,6 +68,7 @@ def detect_temporal_clusters(
         cluster_id += 1
 
     return clusters
+
 
 def detect_common_counterparty_clusters(
     wallets: dict[str, WalletProfile],
@@ -119,17 +121,20 @@ def detect_common_counterparty_clusters(
                 else:
                     common_cp = common_cp & wallets[w].unique_counterparties
 
-            clusters.append(Cluster(
-                cluster_id=f"counterparty_{cluster_id}",
-                wallets=cluster_wallets,
-                confidence=min(0.95, 0.6 + len(cluster_wallets) * 0.05),
-                detection_methods=["common_counterparties"],
-                common_counterparties=common_cp or set(),
-                center_wallet=_find_center_wallet(cluster_wallets, wallets),
-            ))
+            clusters.append(
+                Cluster(
+                    cluster_id=f"counterparty_{cluster_id}",
+                    wallets=cluster_wallets,
+                    confidence=min(0.95, 0.6 + len(cluster_wallets) * 0.05),
+                    detection_methods=["common_counterparties"],
+                    common_counterparties=common_cp or set(),
+                    center_wallet=_find_center_wallet(cluster_wallets, wallets),
+                )
+            )
             cluster_id += 1
 
     return clusters
+
 
 def detect_pattern_clusters(
     wallets: dict[str, WalletProfile],
@@ -159,7 +164,7 @@ def detect_pattern_clusters(
                 similarity_matrix[(addresses[i], addresses[j])] = sim
 
     cluster_map = defaultdict(set)
-    for (w1, w2) in similarity_matrix:
+    for w1, w2 in similarity_matrix:
         cluster_map[w1].add(w2)
         cluster_map[w2].add(w1)
 
@@ -179,16 +184,19 @@ def detect_pattern_clusters(
             queue.extend(cluster_map[current] - visited)
 
         if len(cluster_wallets) >= 2:
-            clusters.append(Cluster(
-                cluster_id=f"pattern_{cluster_id}",
-                wallets=cluster_wallets,
-                confidence=min(0.85, 0.5 + len(cluster_wallets) * 0.05),
-                detection_methods=["behavioral_pattern"],
-                center_wallet=_find_center_wallet(cluster_wallets, wallets),
-            ))
+            clusters.append(
+                Cluster(
+                    cluster_id=f"pattern_{cluster_id}",
+                    wallets=cluster_wallets,
+                    confidence=min(0.85, 0.5 + len(cluster_wallets) * 0.05),
+                    detection_methods=["behavioral_pattern"],
+                    center_wallet=_find_center_wallet(cluster_wallets, wallets),
+                )
+            )
             cluster_id += 1
 
     return clusters
+
 
 def detect_funding_clusters(
     wallets: dict[str, WalletProfile],
@@ -213,17 +221,20 @@ def detect_funding_clusters(
     cluster_id = 0
     for source, wallet_set in source_wallets.items():
         if len(wallet_set) >= 2:
-            clusters.append(Cluster(
-                cluster_id=f"funding_{cluster_id}",
-                wallets=wallet_set,
-                confidence=0.8 if len(wallet_set) >= 5 else 0.6,
-                detection_methods=["common_funding_source"],
-                center_wallet=source,
-                common_counterparties={source},
-            ))
+            clusters.append(
+                Cluster(
+                    cluster_id=f"funding_{cluster_id}",
+                    wallets=wallet_set,
+                    confidence=0.8 if len(wallet_set) >= 5 else 0.6,
+                    detection_methods=["common_funding_source"],
+                    center_wallet=source,
+                    common_counterparties={source},
+                )
+            )
             cluster_id += 1
 
     return clusters
+
 
 def merge_clusters(clusters: list[Cluster]) -> list[Cluster]:
     """Merge clusters that share wallets."""
@@ -282,6 +293,7 @@ def merge_clusters(clusters: list[Cluster]) -> list[Cluster]:
 
     return merged_clusters
 
+
 def _calculate_fingerprint_similarity(fp1: dict[str, Any], fp2: dict[str, Any]) -> float:
     """Calculate similarity between two behavioral fingerprints."""
     scores = []
@@ -308,6 +320,7 @@ def _calculate_fingerprint_similarity(fp1: dict[str, Any], fp2: dict[str, Any]) 
 
     return sum(scores) / len(scores) if scores else 0
 
+
 def _find_center_wallet(wallets: set[str], wallets_dict: dict) -> str | None:
     """Find the most connected wallet in a cluster (center)."""
     if not wallets:
@@ -325,6 +338,7 @@ def _find_center_wallet(wallets: set[str], wallets_dict: dict) -> str | None:
                 max_connections = connections
                 center = wallet
     return center or next(iter(wallets))
+
 
 __all__ = [
     "_calculate_fingerprint_similarity",

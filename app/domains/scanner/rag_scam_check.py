@@ -54,6 +54,7 @@ SCAM_SYMBOL_PATTERNS: list[tuple[str, str]] = [
     ("DAI", "Mimics DAI"),
 ]
 
+
 async def _score_by_pattern(name: str, symbol: str) -> dict[str, Any]:
     """Score token by name/symbol pattern matching.
 
@@ -92,6 +93,7 @@ async def _score_by_pattern(name: str, symbol: str) -> dict[str, Any]:
         "matched_indicators": matched_indicators,
         "patterns_checked": len(SCAM_NAME_INDICATORS) + len(SCAM_SYMBOL_PATTERNS),
     }
+
 
 async def check_scam(
     token_address: str,
@@ -136,9 +138,7 @@ async def check_scam(
         if query:
             vector_results = await firehose.search_similar(query, top_k=5)
             if vector_results:
-                avg_score = sum(r.get("relevance_score", 0) for r in vector_results) / len(
-                    vector_results
-                )
+                avg_score = sum(r.get("relevance_score", 0) for r in vector_results) / len(vector_results)
                 has_scam_match = any(
                     "scam" in r.get("title", "").lower()
                     or "rug" in r.get("title", "").lower()

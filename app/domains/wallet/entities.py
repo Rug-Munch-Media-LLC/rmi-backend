@@ -12,38 +12,69 @@ from app.domains.wallet.models import CHAIN_REGISTRY, ChainMeta
 
 logger = get_logger("wallet_entities")
 
+
 def get_chain_meta(chain: str) -> ChainMeta | None:
     """Get chain metadata by key."""
     return CHAIN_REGISTRY.get(chain)
+
 
 def list_chains() -> list[str]:
     """List all supported chain keys."""
     return sorted(CHAIN_REGISTRY.keys())
 
+
 def get_chains_by_group() -> dict[str, list[str]]:
     """Get chains grouped by ecosystem."""
     groups = {
         "evm": [
-            k for k, v in CHAIN_REGISTRY.items()
+            k
+            for k, v in CHAIN_REGISTRY.items()
             if v.curve == "secp256k1"
             and v.key
             in [
-                "eth", "base", "polygon", "arbitrum", "optimism",
-                "avalanche", "bsc", "fantom", "gnosis",
+                "eth",
+                "base",
+                "polygon",
+                "arbitrum",
+                "optimism",
+                "avalanche",
+                "bsc",
+                "fantom",
+                "gnosis",
             ]
         ],
         "cosmos": ["atom", "osmo", "juno", "secret", "inj"],
         "bitcoin": [
-            "btc", "btc-segwit", "btc-native-segwit",
-            "ltc", "doge", "dash", "bch", "zec",
+            "btc",
+            "btc-segwit",
+            "btc-native-segwit",
+            "ltc",
+            "doge",
+            "dash",
+            "bch",
+            "zec",
         ],
         "privacy": ["xmr"],
         "l1_alt": [
-            "sol", "dot", "ksm", "ada", "algo", "xlm", "xrp",
-            "near", "apt", "sui", "trx", "xtz", "nano", "ton", "band",
+            "sol",
+            "dot",
+            "ksm",
+            "ada",
+            "algo",
+            "xlm",
+            "xrp",
+            "near",
+            "apt",
+            "sui",
+            "trx",
+            "xtz",
+            "nano",
+            "ton",
+            "band",
         ],
     }
     return groups
+
 
 def resolve_chain_address(chain: str, address: str) -> bool:
     """
@@ -57,6 +88,7 @@ def resolve_chain_address(chain: str, address: str) -> bool:
     if not meta or not meta.address_pattern:
         return True
     return bool(re.match(meta.address_pattern, address))
+
 
 __all__ = [
     "ZKAddressVerifier",

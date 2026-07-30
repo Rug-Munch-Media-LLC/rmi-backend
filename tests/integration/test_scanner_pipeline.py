@@ -210,9 +210,7 @@ class TestScanResultModel:
         from app.domains.scanner.models import ScanResult
 
         result = ScanResult(token_address=SOLANA_TOKEN, chain="solana")
-        result.modules_run.append(
-            {"module": "honeypot", "status": "success", "result": {"is_honeypot": False}}
-        )
+        result.modules_run.append({"module": "honeypot", "status": "success", "result": {"is_honeypot": False}})
         result.modules_run.append({"module": "goplus", "status": "error", "error": "timeout"})
         assert len(result.modules_run) == 2
         assert result.modules_run[0]["module"] == "honeypot"

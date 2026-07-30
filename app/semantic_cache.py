@@ -12,6 +12,7 @@ Redis key layout:
 TTL: 1 hour (crypto data changes fast)
 Max: 10 000 entries, LRU eviction via Redis volatile-lru policy.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -34,6 +35,7 @@ CACHE_TTL = 3600  # 1 hour
 MAX_CACHE_SIZE = 10000
 SIMILARITY_THRESHOLD = 0.95
 EMBEDDING_PREFIX_DIMS = 64  # Use first 64 dims for the lookup hash (fast)
+
 
 class SemanticCache:
     """
@@ -258,11 +260,13 @@ class SemanticCache:
         logger.info(f"Cleared {deleted} semantic cache entries")
         return deleted
 
+
 # ══════════════════════════════════════════════════════════════════════
 # Singleton accessor
 # ══════════════════════════════════════════════════════════════════════
 
 _semantic_cache: SemanticCache | None = None
+
 
 def get_semantic_cache() -> SemanticCache:
     """Return the singleton SemanticCache instance."""

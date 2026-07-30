@@ -62,6 +62,7 @@ SMART_TTLS: dict[str, int] = {
 
 # ── Data Classes ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class CacheEntry:
     """A cached value with metadata."""
@@ -81,6 +82,7 @@ class CacheEntry:
     @property
     def age_seconds(self) -> float:
         return time.monotonic() - self.created_at
+
 
 @dataclass
 class CacheStats:
@@ -114,7 +116,9 @@ class CacheStats:
             "invalidations": self.invalidations,
         }
 
+
 # ── Cache Key Builder ──────────────────────────────────────────────────────
+
 
 def build_key(data_type: str, chain: str, address: str) -> str:
     """Build a standardized cache key.
@@ -138,13 +142,16 @@ def build_key(data_type: str, chain: str, address: str) -> str:
 
     return f"{data_type}:{chain}:{address}"
 
+
 def get_ttl(data_type: str, override: int | None = None) -> int:
     """Get TTL for a data type, with optional override."""
     if override is not None:
         return override
     return SMART_TTLS.get(data_type.lower(), SMART_TTLS["default"])
 
+
 # ── Cache Implementation ────────────────────────────────────────────────────
+
 
 class RpcCache:
     """Two-layer cache: L1 in-memory (OrderedDict, LRU eviction) + L2 Redis.
@@ -526,9 +533,11 @@ class RpcCache:
                 status["l2_ok"] = False
         return status
 
+
 # ── Singleton ──────────────────────────────────────────────────────────────
 
 _cache_instance: RpcCache | None = None
+
 
 def get_rpc_cache() -> RpcCache:
     """Get the global RpcCache singleton."""

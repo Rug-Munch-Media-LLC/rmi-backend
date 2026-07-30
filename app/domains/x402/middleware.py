@@ -115,6 +115,7 @@ FREE_DAILY_LIMIT = 5
 
 X402_NONCE_TTL = 86400  # 24 hours
 
+
 async def _burn_nonce(catalog, tx_hash: str) -> bool:
     """Atomically burn a payment nonce. Returns True if first use, False if replay.
 
@@ -133,10 +134,11 @@ async def _burn_nonce(catalog, tx_hash: str) -> bool:
             log.warning(f"x402_replay_attempt: tx_hash={tx_hash[:10]}...")
             _X402_REPLAY_COUNTER.labels(tool="unknown").inc()
         return bool(ok)
-    except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+    except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
         log.error(f"x402_nonce_burn_fail: {e}")
         # Fail closed - reject if we can't burn atomically
         return False
+
 
 # ── Prometheus counters (lightweight, no external dep) ──────────
 try:
@@ -168,6 +170,7 @@ except (ConnectionError, OSError, TimeoutError):
     _X402_REPLAY_COUNTER = _Stub()
     _X402_REVENUE_COUNTER = _Stub()
 
+
 def get_tool_price_usd(tool: str) -> float:
     """Get the per-call price for a tool in USD.
 
@@ -191,6 +194,7 @@ def get_tool_price_usd(tool: str) -> float:
     except (ConnectionError, OSError, TimeoutError):
         return p.get("pro_cents", 1) / 100.0
 
+
 def get_tool_metadata(tool: str) -> dict:
     """Public-facing tool metadata for /api/v1/x402/catalog."""
     p = PRICING.get(tool, {})
@@ -202,6 +206,7 @@ def get_tool_metadata(tool: str) -> dict:
         "price_ent_usd": p.get("ent_cents", 0) / 100.0,
         "description": p.get("description", ""),
     }
+
 
 # ── Rate limit tracking (Redis) ───────────────────────────────────
 def _agent_id_from_request(request: Request | None) -> str:
@@ -230,6 +235,7 @@ def _agent_id_from_request(request: Request | None) -> str:
         return f"anon:{client.host}"
     return "anon:unknown"
 
+
 async def _check_rate_limit(redis, agent_id: str) -> None:
     """Sliding-window rate limit: 5 free calls/day, 1000 pro, unlimited ent.
 
@@ -257,10 +263,12 @@ async def _check_rate_limit(redis, agent_id: str) -> None:
             )
     except HTTPException:
         raise
-    except (httpx.HTTPError, ValueError, TypeError, ConnectionError, OSError) as e :
+    except (httpx.HTTPError, ValueError, TypeError, ConnectionError, OSError) as e:
         log.warning(f"rate_limit_check_fail: {e}")
 
+
 # ── HMAC key from env ────────────────────────────────────────────
+
 
 def _get_hmac_key() -> bytes:
     """Load HMAC signing key from environment. Never hardcoded."""
@@ -268,11 +276,10 @@ def _get_hmac_key() -> bytes:
     if not key:
         key = os.getenv("ADMIN_API_KEY")
         if not key:
-            raise RuntimeError(
-                "Either X402_HMAC_KEY or ADMIN_API_KEY environment variable is required"
-            )
+            raise RuntimeError("Either X402_HMAC_KEY or ADMIN_API_KEY environment variable is required")
         get_logger("wp.x402").warning("X402_HMAC_KEY not set, using ADMIN_API_KEY")
     return key.encode()
+
 
 # ── Payment challenge ─────────────────────────────────────────────
 def create_invoice(tool: str, agent_id: str) -> dict:
@@ -291,19 +298,16 @@ def create_invoice(tool: str, agent_id: str) -> dict:
         "tool": tool,
         "agent_id": agent_id,
         "amount_usd": amount_usd,
-        "amount_wei": int(amount_usd * 1e18 / float(os.getenv("X402_ETH_PRICE_USD", "3000")))
-        if amount_usd > 0
-        else 0,
+        "amount_wei": int(amount_usd * 1e18 / float(os.getenv("X402_ETH_PRICE_USD", "3000"))) if amount_usd > 0 else 0,
         "pay_to": pay_to or "0xRMI_PLATFORM_WALLET (set X402_PAYMENT_ADDRESS)",
         "chain": os.getenv("X402_PAYMENT_CHAIN", "base"),
         "created_at": datetime.now(UTC).isoformat(),
         "expires_at": (datetime.now(UTC).timestamp() + 3600),
     }
     msg = json.dumps(invoice, sort_keys=True).encode()
-    invoice["signature"] = base64.b64encode(
-        hmac.new(hmac_key, msg, hashlib.sha256).digest()
-    ).decode()
+    invoice["signature"] = base64.b64encode(hmac.new(hmac_key, msg, hashlib.sha256).digest()).decode()
     return invoice
+
 
 def verify_payment_header(x_payment: str, expected_amount_usd: float) -> tuple[str, str] | None:
     """Decode the X-Payment header. Returns (tx_hash, signature) or None.
@@ -316,8 +320,9 @@ def verify_payment_header(x_payment: str, expected_amount_usd: float) -> tuple[s
         decoded = base64.b64decode(x_payment).decode()
         data = json.loads(decoded)
         return data.get("tx_hash", ""), data.get("signature", "")
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         return None
+
 
 async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> bool:
     """Verify an on-chain payment.
@@ -341,7 +346,7 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
         return result.get("verified", False)
     except ImportError:
         pass
-    except (httpx.HTTPError, KeyError, TypeError) as e :
+    except (httpx.HTTPError, KeyError, TypeError) as e:
         get_logger("wp.x402").error(f"verify_payment_on_chain error: {e}")
 
     # Local verification for Base USDC via public RPC
@@ -376,7 +381,15 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
 
                 # Check recipient matches our payment address
                 return not (to_address and pay_to.lower() != to_address)
-        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             get_logger("wp.x402").error(f"Base tx verify failed: {e}")
             return False
 
@@ -400,15 +413,22 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                 )
                 data = r.json()
                 return not ("result" not in data or data["result"] is None)
-        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             get_logger("wp.x402").error(f"Solana tx verify failed: {e}")
             return False
 
     return False
 
-async def record_receipt(
-    catalog, tx_hash: str, tool: str, agent_id: str, amount_usd: float
-) -> bool:
+
+async def record_receipt(catalog, tx_hash: str, tool: str, agent_id: str, amount_usd: float) -> bool:
     """Log the payment receipt to x402_receipts table."""
     if not catalog._health.postgres:
         return False
@@ -426,9 +446,10 @@ async def record_receipt(
                 os.getenv("X402_DEFAULT_TIER", "pro"),
             )
         return True
-    except (httpx.HTTPError, KeyError, ValueError, TypeError) as e :
+    except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
         log.warning(f"receipt_record_fail: {e}")
         return False
+
 
 # ── Main middleware ────────────────────────────────────────────────
 async def require_payment(

@@ -64,8 +64,8 @@ def get_cached_enrichment(address: str) -> dict | None:
         cached = r.get(f"x402:enrich:{address}")
         if cached:
             return json.loads(cached)
-    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError):
-        pass
+    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError) as e:
+        logger.warning("Enrichment error: %s", e)
     return None
 
 
@@ -114,8 +114,8 @@ def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) 
         r.lpush("x402:alerts:high_risk", alert)
         r.ltrim("x402:alerts:high_risk", 0, 999)
         logger.warning("ENRICHMENT ALERT: %s in %s: %s", alert_type, tool_name, data)
-    except (ConnectionError, TimeoutError, OSError):
-        pass
+    except (ConnectionError, TimeoutError, OSError) as e:
+        logger.warning("Enrichment OSError: %s", e)
 
 
 # ── Cron Intel Injection ────────────────────────────────────────────
@@ -277,8 +277,8 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
                 name = contract.get("ContractName", "")
                 if name and name != addr:
                     results[addr] = name
-        except (urllib.error.URLError, ConnectionError, TimeoutError, json.JSONDecodeError, KeyError):
-            pass
+        except (urllib.error.URLError, ConnectionError, TimeoutError, json.JSONDecodeError, KeyError) as e:
+            logger.warning("Enrichment URL error: %s", e)
         time.sleep(0.25)
 
     return results

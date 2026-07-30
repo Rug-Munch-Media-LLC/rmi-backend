@@ -46,6 +46,7 @@ ENDPOINTS = {
 
 # ─── HELPER — wrap a sync HTTP call with CB + stale cache ─────────
 
+
 def _cb_http_get(
     url: str,
     params: dict | None = None,
@@ -76,6 +77,7 @@ def _cb_http_get(
         raise CircuitBreakerOpenError(cb.name, cb.state, f"{cb.name} circuit OPEN — failing fast")
     return httpx.get(url, params=params, timeout=timeout)
 
+
 class _StaleResultAvailable(Exception):
     """Internal sentinel — a stale cached result was found during CB check."""
 
@@ -83,7 +85,9 @@ class _StaleResultAvailable(Exception):
         self.result = result
         super().__init__("stale result")
 
+
 # ─── DEFI LLAMA CLIENT ────────────────────────────────────────────
+
 
 class DeFiLlamaClient:
     """Client for DeFiLlama API."""
@@ -98,12 +102,10 @@ class DeFiLlamaClient:
         try:
             response = httpx.get(f"{self.base}/protocols", timeout=5)
             return response.status_code == 200
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             return False
 
-    def _request(
-        self, endpoint_template: str, **fmt_kwargs: Any
-    ) -> dict[str, Any] | list[dict[str, Any]] | None:
+    def _request(self, endpoint_template: str, **fmt_kwargs: Any) -> dict[str, Any] | list[dict[str, Any]] | None:
         """Internal: sync GET with circuit breaker, returns parsed JSON or None."""
         path = ENDPOINTS[endpoint_template].format(**fmt_kwargs)
         full_url = f"{self.base}{path}"
@@ -116,7 +118,7 @@ class DeFiLlamaClient:
         except httpx.HTTPError:
             _defillama_cb.record_failure(is_server_error=True)
             return None
-        except (httpx.HTTPError):
+        except httpx.HTTPError:
             _defillama_cb.record_failure(is_server_error=True)
             return None
 
@@ -179,9 +181,11 @@ class DeFiLlamaClient:
             }
         ]
 
+
 # ─── GLOBAL SINGLETON ─────────────────────────────────────────────
 
 _client: DeFiLlamaClient | None = None
+
 
 def get_defillama_client() -> DeFiLlamaClient:
     """Get or create DeFiLlama client instance."""
@@ -190,15 +194,18 @@ def get_defillama_client() -> DeFiLlamaClient:
         _client = DeFiLlamaClient()
     return _client
 
+
 def get_defi_tvl() -> dict[str, Any]:
     """Get current DeFi TVL totals."""
     client = get_defillama_client()
     return client.get_protocols_data()
 
+
 def get_defi_protocols() -> list[dict[str, Any]]:
     """Get all DeFi protocols."""
     client = get_defillama_client()
     return client.get_protocols()
+
 
 def get_chain_tvls() -> dict[str, float]:
     """Get TVL by chain."""

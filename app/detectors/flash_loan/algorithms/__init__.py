@@ -144,6 +144,7 @@ _SUSPICIOUS_PATTERNS: list[dict[str, Any]] = [
 # Detection Functions
 # ═══════════════════════════════════════════════════════════════════
 
+
 def _detect_attack_type(
     flash_loans: list[FlashLoanCall],
     trace: TransactionTrace,
@@ -213,6 +214,7 @@ def _detect_attack_type(
 
     return best_type, best_score
 
+
 def _calculate_severity(
     attacker_profit: float,
     victim_loss: float,
@@ -239,6 +241,7 @@ def _calculate_severity(
     elif total_impact > 0:
         return AttackSeverity.LOW
     return AttackSeverity.INFO
+
 
 def _score_sophistication(
     flash_loans: list[FlashLoanCall],
@@ -277,11 +280,13 @@ def _score_sophistication(
 
     return min(10.0, score)
 
+
 def _is_known_flashloan_provider(address: str, chain: str) -> bool:
     """Check if an address is a known flash loan provider on the given chain."""
     address_lower = address.lower()
     providers = FLASHLOAN_PROVIDERS.get(chain, [])
     return any(p.lower() == address_lower for p in providers)
+
 
 def _resolve_shared_aave_sig(
     provider_address: str,
@@ -319,6 +324,7 @@ def _resolve_shared_aave_sig(
 
     # Unknown provider with shared sig - return UNKNOWN
     return FlashLoanProtocol.UNKNOWN
+
 
 def _estimate_token_price_usd(
     token_address: str,

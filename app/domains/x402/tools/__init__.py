@@ -127,6 +127,7 @@ TOOLS = {
     },
 }
 
+
 def list_tools() -> list[dict]:
     """List all available x402 tools."""
     return [
@@ -140,9 +141,11 @@ def list_tools() -> list[dict]:
         for name, info in TOOLS.items()
     ]
 
+
 def get_tool(tool_id: str) -> dict | None:
     """Get a tool by ID."""
     return TOOLS.get(tool_id)
+
 
 async def call_tool(tool_id: str, **kwargs) -> dict:
     """Call a tool by ID with arguments."""
@@ -152,5 +155,5 @@ async def call_tool(tool_id: str, **kwargs) -> dict:
     try:
         result = await tool["function"](**kwargs)
         return {"tool_id": tool_id, "result": result}
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         return {"error": str(e)}

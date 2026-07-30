@@ -33,6 +33,7 @@ router.add_api_route("/rug_probability", rug_probability, methods=["POST"])
 router.add_api_route("/history", token_history, methods=["POST"])
 router.add_api_route("/narrative", narrative_engine, methods=["POST"])
 
+
 @router.post("/cache/clear")
 async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
     """Clear response cache for a specific tool or all tools."""
@@ -42,6 +43,7 @@ async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
         "tool": tool or "all",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
 
 @router.get("/cache/stats")
 async def cache_stats() -> dict[str, int] | dict[str, str]:
@@ -60,6 +62,7 @@ async def cache_stats() -> dict[str, int] | dict[str, str]:
         }
     except Exception as e:
         return {"error": str(e), "cached_entries": 0}
+
 
 __all__ = [
     "AddressRequest",

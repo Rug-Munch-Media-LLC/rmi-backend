@@ -53,6 +53,7 @@ from app.domains.telegram.rugmunchbot.handlers.account import (
     cmd_topup,
 )
 from app.domains.telegram.rugmunchbot.handlers.alerts import check_alerts, cmd_alert, cmd_alerts
+from app.domains.telegram.rugmunchbot.handlers.api_access import cmd_api
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.groups import (
@@ -61,7 +62,9 @@ from app.domains.telegram.rugmunchbot.handlers.groups import (
     cmd_mygroup,
     cmd_voicechat,
 )
+from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
+from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, cmd_trending
 from app.domains.telegram.rugmunchbot.handlers.message import handle_message
 from app.domains.telegram.rugmunchbot.handlers.owner import (
@@ -81,11 +84,13 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_ta,
     cmd_wallet,
 )
+from app.domains.telegram.rugmunchbot.handlers.trace import cmd_trace
 from app.domains.telegram.rugmunchbot.handlers.watchlist import (
     cmd_unwatch,
     cmd_watch,
     cmd_watchlist,
 )
+from app.domains.telegram.rugmunchbot.handlers.webhook import cmd_webhook
 
 logger = get_logger("rmi_bot")
 
@@ -132,6 +137,11 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("rugmap", "Wallet cluster visualization"),
             BotCommand("price", "Token price by contract address"),
             BotCommand("dex", "DEX trading pairs & liquidity data"),
+            BotCommand("holders", "Top holders & concentration (Scout+)"),
+            BotCommand("trace", "Cross-chain fund flow trace (Hunter+)"),
+            BotCommand("investigate", "Deep investigation report (Pro)"),
+            BotCommand("webhook", "Custom webhooks management (Pro)"),
+            BotCommand("api", "API access token (Pro)"),
             BotCommand("news", "Latest crypto news"),
             BotCommand("mygroup", "Your creator coin group"),
             BotCommand("groupinfo", "Group stats (admin)"),
@@ -216,6 +226,13 @@ def main() -> None:
     app.add_handler(CommandHandler("admin_set_tier", cmd_admin_set_tier))
     app.add_handler(CommandHandler("admin_broadcast", cmd_admin_broadcast))
     app.add_handler(CommandHandler("admin_ban", cmd_admin_ban))
+
+    # Premium commands
+    app.add_handler(CommandHandler("holders", cmd_holders))
+    app.add_handler(CommandHandler("trace", cmd_trace))
+    app.add_handler(CommandHandler("investigate", cmd_investigate))
+    app.add_handler(CommandHandler("webhook", cmd_webhook))
+    app.add_handler(CommandHandler("api", cmd_api))
 
     # Group management commands
     app.add_handler(CommandHandler("mygroup", cmd_mygroup))

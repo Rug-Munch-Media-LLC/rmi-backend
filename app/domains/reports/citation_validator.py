@@ -111,10 +111,12 @@ _STOPWORDS = frozenset(
     }
 )
 
+
 def _key_terms(text: str) -> set[str]:
     """Extract key terms (lowercase, 4+ chars, not stopwords) from text."""
     words = re.findall(r"\b[a-zA-Z]{4,}\b", text.lower())
     return {w for w in words if w not in _STOPWORDS}
+
 
 def _extract_citation_indices(citation_str: str, max_index: int) -> list[int]:
     """Parse '1', '1,2,3', or '1-3' into [1, 2, 3] (1-indexed).
@@ -143,6 +145,7 @@ def _extract_citation_indices(citation_str: str, max_index: int) -> list[int]:
                 continue
     return result
 
+
 def _split_sentences_with_citations(text: str) -> list[tuple[str, list[int]]]:
     """Split text into sentences, each annotated with its [N] citations.
 
@@ -161,6 +164,7 @@ def _split_sentences_with_citations(text: str) -> list[tuple[str, list[int]]]:
             indices.extend(_extract_citation_indices(m, max_index=10_000))
         sentences.append((sent, sorted(set(indices))))
     return sentences
+
 
 def _claim_supported_by_source(claim: str, source_text: str, threshold: float = 0.4) -> bool:
     """Check if the claim's key terms appear in the source text.
@@ -182,6 +186,7 @@ def _claim_supported_by_source(claim: str, source_text: str, threshold: float = 
         return False
     overlap = len(claim_terms & source_terms)
     return (overlap / len(claim_terms)) >= threshold
+
 
 def validate_section(
     text: str,
@@ -216,11 +221,7 @@ def validate_section(
     if not sources:
         # No sources provided - every claim is unciteable
         return {
-            "validated_text": (
-                "[Data not available - no RAG sources retrieved]"
-                if on_unciteable == "strip"
-                else text
-            ),
+            "validated_text": ("[Data not available - no RAG sources retrieved]" if on_unciteable == "strip" else text),
             "citations": [],
             "unciteable_count": _count_sentences(text),
             "validation_rate": 0.0,
@@ -235,9 +236,7 @@ def validate_section(
         if not indices:
             # No citations at all - unciteable
             unciteable_count += 1
-            citations.append(
-                {"claim": sent, "source_idx": 0, "source_text": "", "supported": False}
-            )
+            citations.append({"claim": sent, "source_idx": 0, "source_text": "", "supported": False})
             if on_unciteable == "strip":
                 validated_sentences.append("[Data not available]")
             elif on_unciteable == "keep":
@@ -309,6 +308,7 @@ def validate_section(
         "unciteable_count": unciteable_count,
         "validation_rate": validation_rate,
     }
+
 
 def _count_sentences(text: str) -> int:
     """Rough sentence count for empty-sources case."""

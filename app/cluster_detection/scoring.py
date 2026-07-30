@@ -25,6 +25,7 @@ SIGNAL_WEIGHTS: dict[str, float] = {
     "social_connections": 0.05,
 }
 
+
 def calculate_cluster_confidence(cluster: WalletCluster) -> float:
     """Calculate overall confidence score for a cluster."""
     if not cluster.detection_signals:
@@ -45,6 +46,7 @@ def calculate_cluster_confidence(cluster: WalletCluster) -> float:
     confidence = (weighted_score / total_weight) + boost if total_weight > 0 else 0.0
     return min(1.0, confidence)
 
+
 def classify_cluster_type(cluster: WalletCluster) -> ClusterType:
     """Classify the type of cluster based on signals."""
     signal_types = [s.signal_type for s in cluster.detection_signals]
@@ -62,6 +64,7 @@ def classify_cluster_type(cluster: WalletCluster) -> ClusterType:
         return ClusterType.SYBIL
 
     return ClusterType.UNKNOWN
+
 
 def calculate_risk_score(cluster: WalletCluster) -> float:
     """Calculate risk score for a cluster."""
@@ -83,6 +86,7 @@ def calculate_risk_score(cluster: WalletCluster) -> float:
 
     return min(100, score)
 
+
 def calculate_behavioral_similarity(fp1: dict, fp2: dict) -> float:
     """Calculate similarity between two behavioral fingerprints."""
     scores = []
@@ -94,23 +98,19 @@ def calculate_behavioral_similarity(fp1: dict, fp2: dict) -> float:
 
     # Average amount similarity
     if fp1["avg_amount"] > 0 and fp2["avg_amount"] > 0:
-        ratio = min(fp1["avg_amount"], fp2["avg_amount"]) / max(
-            fp1["avg_amount"], fp2["avg_amount"]
-        )
+        ratio = min(fp1["avg_amount"], fp2["avg_amount"]) / max(fp1["avg_amount"], fp2["avg_amount"])
         scores.append(ratio)
 
     # Hour distribution similarity (cosine similarity)
     if fp1["hour_distribution"] and fp2["hour_distribution"]:
-        dot = sum(
-            a * b
-            for a, b in zip(fp1["hour_distribution"], fp2["hour_distribution"], strict=False)
-        )
+        dot = sum(a * b for a, b in zip(fp1["hour_distribution"], fp2["hour_distribution"], strict=False))
         norm1 = sum(a**2 for a in fp1["hour_distribution"]) ** 0.5
         norm2 = sum(a**2 for a in fp2["hour_distribution"]) ** 0.5
         if norm1 > 0 and norm2 > 0:
             scores.append(dot / (norm1 * norm2))
 
     return sum(scores) / len(scores) if scores else 0.0
+
 
 def distribution(values: list[int], bins: int = 24) -> list[float]:
     """Calculate distribution of values."""
@@ -121,9 +121,8 @@ def distribution(values: list[int], bins: int = 24) -> list[float]:
     total = sum(counts)
     return [c / total if total > 0 else 0 for c in counts]
 
-def merge_clusters_by_overlap(
-    all_signals: dict, wallets: list[str]
-) -> list[WalletCluster]:
+
+def merge_clusters_by_overlap(all_signals: dict, wallets: list[str]) -> list[WalletCluster]:
     """Merge clusters that share wallets."""
     wallet_clusters = defaultdict(set)
 

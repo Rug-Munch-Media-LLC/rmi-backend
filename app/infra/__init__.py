@@ -9,4 +9,5 @@
 
 Domain code goes through these - no direct third-party calls from domain.
 """
+
 from __future__ import annotations

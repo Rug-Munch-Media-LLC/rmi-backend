@@ -31,6 +31,7 @@ logger = get_logger("governance_attack")
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
+
 @dataclass
 class HolderStake:
     """Top holder info for governance analysis."""
@@ -40,6 +41,7 @@ class HolderStake:
     label: str = ""
     is_contract: bool = False
     is_exchange: bool = False
+
 
 @dataclass
 class GovernanceParams:
@@ -51,6 +53,7 @@ class GovernanceParams:
     proposal_threshold_pct: float = 0.0  # % of supply needed to propose
     voting_period_blocks: int = 0
     has_timelock: bool = False
+
 
 @dataclass
 class GovernanceAttackReport:
@@ -70,7 +73,9 @@ class GovernanceAttackReport:
     warnings: list[str] = field(default_factory=list)
     citations: list[dict[str, Any]] = field(default_factory=list)
 
+
 # ── Detector Class ──────────────────────────────────────────────────
+
 
 class GovernanceAttackDetector:
     """Detects governance concentration and attack risks.
@@ -98,14 +103,12 @@ class GovernanceAttackDetector:
     async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
-            resp = await self._http.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_dexscreener_token_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
@@ -118,7 +121,7 @@ class GovernanceAttackDetector:
             solscan = FreeSolscanClient()
             holders = solscan.get_holder_wallets(token_address, top_n=top_n)
             return holders or []
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_fetch_solscan_holders_error", exc_info=True)
             logger.warning(f"Solscan holders failed for {token_address}: {e}")
             return []
@@ -136,7 +139,7 @@ class GovernanceAttackDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("data", body)
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_birdeye_overview_error", exc_info=True)
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
         return None
@@ -161,7 +164,7 @@ class GovernanceAttackDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result", []) or []
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_evm_holders_error", exc_info=True)
             logger.warning(f"Etherscan holders failed for {token_address}: {e}")
         return []
@@ -184,7 +187,7 @@ class GovernanceAttackDetector:
                 result = body.get("result", [])
                 if result and len(result) > 0:
                     return result[0].get("SourceCode", "")
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_contract_source_error", exc_info=True)
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
@@ -210,7 +213,16 @@ class GovernanceAttackDetector:
             if resp.status_code == 200:
                 body = resp.json()
                 return body.get("result")
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("_eth_call_error", exc_info=True)
             logger.warning(f"eth_call failed for {to}: {e}")
         return None
@@ -237,9 +249,7 @@ class GovernanceAttackDetector:
             )
         return sorted(holders, key=lambda h: h.percentage, reverse=True)
 
-    async def _check_evm_governance(
-        self, token_address: str, chain: str
-    ) -> GovernanceParams | None:
+    async def _check_evm_governance(self, token_address: str, chain: str) -> GovernanceParams | None:
         """Try to read governance parameters from EVM governor contract.
 
         Checks for OpenZeppelin Governor patterns by reading common
@@ -255,8 +265,7 @@ class GovernanceAttackDetector:
 
         # Detect governance presence
         has_governor = any(
-            kw in source_lower
-            for kw in ["governor", "governance", "igovernor", "governorcompatibilitybravo"]
+            kw in source_lower for kw in ["governor", "governance", "igovernor", "governorcompatibilitybravo"]
         )
 
         if not has_governor:
@@ -270,9 +279,7 @@ class GovernanceAttackDetector:
             try:
                 quorum_raw = int(quorum_result, 16)
                 # OpenZeppelin stores quorum as numerator / 1000 (e.g. 4 = 0.4%)
-                params.quorum_threshold_pct = (
-                    quorum_raw / 1000.0 if quorum_raw < 1000 else quorum_raw / 1e18 * 100
-                )
+                params.quorum_threshold_pct = quorum_raw / 1000.0 if quorum_raw < 1000 else quorum_raw / 1e18 * 100
             except (ValueError, ZeroDivisionError):
                 pass
 
@@ -301,9 +308,7 @@ class GovernanceAttackDetector:
 
         return params
 
-    def _check_solana_governance(
-        self, dex_data: dict | None, birdeye_data: dict | None
-    ) -> GovernanceParams:
+    def _check_solana_governance(self, dex_data: dict | None, birdeye_data: dict | None) -> GovernanceParams:
         """Infer governance risk for Solana SPL tokens.
 
         Solana doesn't have governor contracts in the EVM sense.
@@ -345,9 +350,7 @@ class GovernanceAttackDetector:
         # Top 10 concentration
         if report.top_10_holder_pct >= self.TOP_10_CRITICAL_PCT:
             score += 20
-            warnings.append(
-                f"HIGH: Top 10 holders control {report.top_10_holder_pct:.1f}% - cartel risk"
-            )
+            warnings.append(f"HIGH: Top 10 holders control {report.top_10_holder_pct:.1f}% - cartel risk")
         elif report.top_10_holder_pct >= 60:
             score += 10
             warnings.append(f"MEDIUM: Top 10 holders control {report.top_10_holder_pct:.1f}%")
@@ -355,9 +358,7 @@ class GovernanceAttackDetector:
         # No timelock
         if report.is_governed and not report.has_timelock:
             score += 20
-            warnings.append(
-                "HIGH: Governance changes have no timelock - instant execution possible"
-            )
+            warnings.append("HIGH: Governance changes have no timelock - instant execution possible")
         elif not report.has_timelock:
             score += 10
             warnings.append("MEDIUM: No timelock detected on admin functions")
@@ -365,18 +366,14 @@ class GovernanceAttackDetector:
         # Low quorum
         if report.quorum_threshold > 0 and report.quorum_threshold < self.LOW_QUORUM_PCT:
             score += 15
-            warnings.append(
-                f"HIGH: Governance quorum only {report.quorum_threshold:.2f}% - easily gamed"
-            )
+            warnings.append(f"HIGH: Governance quorum only {report.quorum_threshold:.2f}% - easily gamed")
 
         # Timelock too short
         if report.has_timelock and report.timelock_delay_seconds > 0:
             timelock_hours = report.timelock_delay_seconds / 3600
             if timelock_hours < self.MIN_TIMELOCK_HOURS:
                 score += 10
-                warnings.append(
-                    f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient for reaction"
-                )
+                warnings.append(f"MEDIUM: Timelock only {timelock_hours:.1f}h - insufficient for reaction")
 
         # Governance risk flags from analysis
         for flag in report.governance_risk_flags:

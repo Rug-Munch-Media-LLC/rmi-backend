@@ -42,11 +42,13 @@ logger = get_logger("rmi_security_defense")
 
 # ── Enums ─────────────────────────────────────────────────────
 
+
 class ThreatLevel(StrEnum):
     LOW = "low"  # Suspicious but not malicious
     MEDIUM = "medium"  # Likely automated, rate limit
     HIGH = "high"  # Confirmed bot/malicious, block
     CRITICAL = "critical"  # Active attack, immediate ban
+
 
 class BotType(StrEnum):
     UNKNOWN = "unknown"
@@ -59,6 +61,7 @@ class BotType(StrEnum):
     AI_AGENT = "ai_agent"  # Legitimate AI agent
     HUMAN = "human"  # Verified human
 
+
 class SecurityAction(StrEnum):
     ALLOW = "allow"
     CHALLENGE = "challenge"  # CAPTCHA/Turnstile
@@ -67,7 +70,9 @@ class SecurityAction(StrEnum):
     BAN = "ban"  # Permanent ban
     HONEYPOT = "honeypot"  # Feed fake data
 
+
 # ── Data Models ─────────────────────────────────────────────
+
 
 @dataclass
 class RequestFingerprint:
@@ -123,6 +128,7 @@ class RequestFingerprint:
         # Missing standard headers
         return bool(not self.accept_language or not self.accept_header)
 
+
 @dataclass
 class ThreatAssessment:
     """Result of threat analysis on a request."""
@@ -139,6 +145,7 @@ class ThreatAssessment:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
 
 @dataclass
 class SecurityEvent:
@@ -158,7 +165,9 @@ class SecurityEvent:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 # ── Bot Detection Engine ────────────────────────────────────
+
 
 class BotDetectionEngine:
     """
@@ -383,7 +392,9 @@ class BotDetectionEngine:
             logger.error(f"IP reputation check error: {e}")
             return {"score": 0, "reports": 0}
 
+
 # ── Anomaly Detection ───────────────────────────────────────
+
 
 class AnomalyDetector:
     """
@@ -465,7 +476,9 @@ class AnomalyDetector:
 
         return anomalies
 
+
 # ── Honeypot System ─────────────────────────────────────────
+
 
 class HoneypotSystem:
     """
@@ -561,7 +574,9 @@ class HoneypotSystem:
         except Exception as e:
             logger.error(f"Security event log error: {e}")
 
+
 # ── Geo-blocking ────────────────────────────────────────────
+
 
 class GeoBlocker:
     """Country-based access control."""
@@ -581,7 +596,9 @@ class GeoBlocker:
             "blocked": False,
         }
 
+
 # ── DDoS Protection ─────────────────────────────────────────
+
 
 class DDoSProtector:
     """
@@ -654,7 +671,9 @@ class DDoSProtector:
         except Exception as e:
             logger.error(f"Circuit close error: {e}")
 
+
 # ── Security Middleware Helper ──────────────────────────────
+
 
 async def security_middleware_check(request: Any) -> ThreatAssessment | None:
     """

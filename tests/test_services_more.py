@@ -285,9 +285,7 @@ class TestDeepIntelFunctions:
         from app.services import deep_intel_router
 
         with patch.object(deep_intel_router, "deployer_reputation", mock_fn):
-            result = await deep_intel_router.api_deployer_reputation(
-                address="test-address-123", chain="sol"
-            )
+            result = await deep_intel_router.api_deployer_reputation(address="test-address-123", chain="sol")
             assert result["reputation"] == 85
             mock_fn.assert_awaited_once_with("test-address-123", "sol")
 

@@ -33,6 +33,7 @@ async def _local_token_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _dexscreener_price(**kwargs) -> dict | None:
     """DexScreener - free, no key."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
@@ -47,6 +48,7 @@ async def _dexscreener_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _coingecko_price(**kwargs) -> dict | None:
     """CoinGecko - free for low volume."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
@@ -54,14 +56,13 @@ async def _coingecko_price(**kwargs) -> dict | None:
     try:
         headers = {"x-cg-pro-api-key": api_key} if api_key else {}
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(
-                f"https://api.coingecko.com/api/v3/simple/token_price/{token}", headers=headers
-            )
+            r = await c.get(f"https://api.coingecko.com/api/v3/simple/token_price/{token}", headers=headers)
             if r.status_code == 200:
                 return r.json()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _moralis_price(**kwargs) -> dict | None:
     """Moralis - paid, high quality."""
@@ -79,21 +80,16 @@ async def _moralis_price(**kwargs) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _birdeye_price(address: str = "", **kw) -> dict | None:
     """Birdeye - real-time token price (free tier)."""
     api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
     if not address:
         return None
     try:
-        headers = (
-            {"X-API-KEY": api_key, "accept": "application/json"}
-            if api_key
-            else {"accept": "application/json"}
-        )
+        headers = {"X-API-KEY": api_key, "accept": "application/json"} if api_key else {"accept": "application/json"}
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(
-                f"https://public-api.birdeye.so/defi/price?address={address}", headers=headers
-            )
+            r = await c.get(f"https://public-api.birdeye.so/defi/price?address={address}", headers=headers)
             if r.status_code == 200:
                 data = r.json()
                 return {
@@ -104,6 +100,7 @@ async def _birdeye_price(address: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
     """Solana Tracker - real-time token price (2 keys, 5000 req/mo total)."""
@@ -120,6 +117,7 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
         logger.warning("provider error")
     return None
 
+
 async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
     """Solana Tracker - detailed token metadata and stats."""
     if not mint:
@@ -134,6 +132,7 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
 
 async def _solana_tracker_trending(**kw) -> dict | None:
     """Solana Tracker - trending tokens on Solana."""

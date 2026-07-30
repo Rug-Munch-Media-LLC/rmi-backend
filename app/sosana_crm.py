@@ -14,6 +14,7 @@ logger = get_logger(__name__)
 
 CRM_PATH = "/app/data/SOSANA-CRM-2024.json"
 
+
 class SOSANACRM:
     """Loads and serves the SOSANA criminal investigation data."""
 
@@ -88,10 +89,7 @@ class SOSANACRM:
     def evidence_summary(self) -> dict:
         """Evidence overview with counts."""
         evidence = self.data.get("evidence", {})
-        return {
-            tier: len(items) if isinstance(items, list) else items
-            for tier, items in evidence.items()
-        }
+        return {tier: len(items) if isinstance(items, list) else items for tier, items in evidence.items()}
 
     def persons(self) -> list[dict]:
         """Persons of interest."""
@@ -104,6 +102,7 @@ class SOSANACRM:
     def legal_framework(self) -> dict:
         """Legal and prosecution framework."""
         return self.data.get("legal_framework", {})
+
 
 # Singleton
 sosana = SOSANACRM()

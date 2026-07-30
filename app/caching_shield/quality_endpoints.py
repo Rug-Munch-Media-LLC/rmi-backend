@@ -19,6 +19,7 @@ from fastapi import APIRouter, Request
 router = APIRouter(tags=["mcp-quality"])
 _start_time = time.time()
 
+
 @router.get("/mcp/health")
 async def mcp_health(request: Request) -> dict[str, str]:
     """Agent health check. Returns status + response time so agents can gauge latency."""
@@ -30,6 +31,7 @@ async def mcp_health(request: Request) -> dict[str, str]:
         "version": "3.3.0",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
 
 @router.get("/mcp/status")
 async def mcp_status() -> dict[str, int]:
@@ -49,6 +51,7 @@ async def mcp_status() -> dict[str, int]:
         "providers": {name: pool.stats() for name, pool in mgr.pools.items()},
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
 
 @router.get("/mcp/changelog")
 async def mcp_changelog() -> dict[str, str]:
@@ -99,6 +102,7 @@ async def mcp_changelog() -> dict[str, str]:
         ],
     }
 
+
 @router.get("/mcp/sdk")
 async def mcp_sdk() -> dict[str, dict[str, str]]:
     """Quick-start code examples for Python, TypeScript, and curl."""
@@ -142,14 +146,13 @@ console.log(`Risk score: ${result.data.score}`);""",
         },
     }
 
+
 @router.get("/mcp/trials")
 async def mcp_trials(request: Request) -> dict[str, int | float]:
     """Check remaining free trials for the requesting agent."""
     fp = request.headers.get(
         "X-Agent-Fingerprint",
-        request.headers.get(
-            "X-Forwarded-For", request.client.host if request.client else "unknown"
-        ),
+        request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown"),
     )
 
     return {

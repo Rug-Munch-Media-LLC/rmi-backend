@@ -1,4 +1,5 @@
 """Wallet Monitor — Data Models."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -23,13 +24,19 @@ class WalletTx:
 
     def to_dict(self) -> dict:
         return {
-            "hash": self.hash, "from": self.from_addr, "to": self.to_addr,
-            "value": self.value, "chain": self.chain, "timestamp": self.timestamp,
+            "hash": self.hash,
+            "from": self.from_addr,
+            "to": self.to_addr,
+            "value": self.value,
+            "chain": self.chain,
+            "timestamp": self.timestamp,
             "is_approval": self.is_approval,
             "is_contract_interaction": self.is_contract_interaction,
             "is_contract_creation": self.is_contract_creation,
-            "dex_swap": self.dex_swap, "token_transfers": self.token_transfers,
+            "dex_swap": self.dex_swap,
+            "token_transfers": self.token_transfers,
         }
+
 
 @dataclass
 class WalletAlert:
@@ -44,12 +51,17 @@ class WalletAlert:
 
     def to_dict(self) -> dict:
         return {
-            "type": "wallet_alert", "alert_type": self.alert_type,
-            "wallet": self.wallet, "chain": self.chain, "tx_hash": self.tx_hash,
-            "severity": self.severity, "message": self.message,
+            "type": "wallet_alert",
+            "alert_type": self.alert_type,
+            "wallet": self.wallet,
+            "chain": self.chain,
+            "tx_hash": self.tx_hash,
+            "severity": self.severity,
+            "message": self.message,
             "metadata": self.metadata,
             "timestamp": self.timestamp or datetime.now(UTC).isoformat(),
         }
+
 
 @dataclass
 class BurstSignal:
@@ -62,10 +74,15 @@ class BurstSignal:
 
     def to_dict(self) -> dict:
         return {
-            "type": "burst", "wallet": self.wallet, "chain": self.chain,
-            "tx_count": self.tx_count, "window_seconds": self.window_seconds,
-            "severity": self.severity, "timestamp": self.timestamp,
+            "type": "burst",
+            "wallet": self.wallet,
+            "chain": self.chain,
+            "tx_count": self.tx_count,
+            "window_seconds": self.window_seconds,
+            "severity": self.severity,
+            "timestamp": self.timestamp,
         }
+
 
 @dataclass
 class LabelSuggestion:
@@ -79,8 +96,12 @@ class LabelSuggestion:
 
     def to_dict(self) -> dict:
         return {
-            "type": "label_suggestion", "wallet": self.wallet, "chain": self.chain,
-            "suggested_label": self.suggested_label, "confidence": self.confidence,
-            "reasoning": self.reasoning, "pattern_summary": self.pattern_summary,
+            "type": "label_suggestion",
+            "wallet": self.wallet,
+            "chain": self.chain,
+            "suggested_label": self.suggested_label,
+            "confidence": self.confidence,
+            "reasoning": self.reasoning,
+            "pattern_summary": self.pattern_summary,
             "timestamp": self.timestamp,
         }

@@ -19,6 +19,7 @@ class RiskTier(Enum):
     DANGER = "DANGER"
     CRITICAL = "CRITICAL"
 
+
 class TrustModel(Enum):
     """Bridge security model classification."""
 
@@ -27,6 +28,7 @@ class TrustModel(Enum):
     LIQUIDITY_NETWORK = "liquidity_network"
     HYBRID = "hybrid"
     INTENT_BASED = "intent_based"
+
 
 @dataclass
 class BridgeTVLSnapshot:
@@ -40,6 +42,7 @@ class BridgeTVLSnapshot:
     tvl_change_30d_pct: float
     chain_breakdown: dict[str, float] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
 
 @dataclass
 class BridgeSecurityScore:
@@ -57,6 +60,7 @@ class BridgeSecurityScore:
     vulnerabilities: list[str] = field(default_factory=list)
     strengths: list[str] = field(default_factory=list)
 
+
 @dataclass
 class ExploitSignal:
     """Detection signal that may indicate an exploit."""
@@ -69,6 +73,7 @@ class ExploitSignal:
     detected_value: Any = None
     threshold_value: Any = None
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+
 
 @dataclass
 class BridgeHealthReport:
@@ -107,9 +112,7 @@ class BridgeHealthReport:
         if self.exploit_signals:
             lines.append(f"   🚨 EXPLOIT SIGNALS ({len(self.exploit_signals)})")
             for sig in self.exploit_signals:
-                emoji = {"low": "ℹ️", "medium": "⚠️", "high": "🔴", "critical": "🚨"}.get(
-                    sig.severity, "ℹ️"
-                )
+                emoji = {"low": "ℹ️", "medium": "⚠️", "high": "🔴", "critical": "🚨"}.get(sig.severity, "ℹ️")
                 lines.append(f"   {emoji} [{sig.severity.upper()}] {sig.bridge_name}: {sig.description}")
             lines.append("")
 
@@ -154,6 +157,7 @@ class BridgeHealthReport:
     def to_json(self) -> str:
         """Serialize to JSON."""
         return json.dumps(asdict(self), indent=2, default=str)
+
 
 __all__ = [
     "BridgeHealthReport",

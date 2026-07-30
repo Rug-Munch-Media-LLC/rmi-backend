@@ -21,6 +21,7 @@ def is_owner(update: Update) -> bool:
     """Check if the user is a known owner."""
     return update.effective_user.id in OWNER_IDS
 
+
 def owner_only(func) -> Any | None:
     """Decorator: reject non-owners immediately."""
 
@@ -32,6 +33,7 @@ def owner_only(func) -> Any | None:
 
     return wrapper
 
+
 async def edit_or_reply(
     update: Update,
     ctx: ContextTypes.DEFAULT_TYPE,
@@ -42,15 +44,12 @@ async def edit_or_reply(
     """Edit the callback message or send new reply."""
     if update.callback_query:
         try:
-            await update.callback_query.edit_message_text(
-                text, reply_markup=keyboard, parse_mode=parse_mode
-            )
+            await update.callback_query.edit_message_text(text, reply_markup=keyboard, parse_mode=parse_mode)
         except (ConnectionError, OSError, TimeoutError):
-            await update.callback_query.message.reply_text(
-                text, reply_markup=keyboard, parse_mode=parse_mode
-            )
+            await update.callback_query.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
     else:
         await update.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
+
 
 def main_menu_keyboard() -> Any:
     """Main menu inline keyboard."""
@@ -84,9 +83,11 @@ def main_menu_keyboard() -> Any:
         ]
     )
 
+
 def back_button(data: str = "main") -> Any:
     """Simple back button keyboard."""
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data=data)]])
+
 
 def docker_menu() -> Any:
     """Docker management keyboard."""
@@ -108,6 +109,7 @@ def docker_menu() -> Any:
         ]
     )
 
+
 def service_action_keyboard(svc: str = "") -> Any:
     """Service control action buttons."""
     buttons = []
@@ -122,13 +124,20 @@ def service_action_keyboard(svc: str = "") -> Any:
     buttons.append([InlineKeyboardButton("⬅️ Main Menu", callback_data="main")])
     return InlineKeyboardMarkup(buttons)
 
+
 def logs_menu() -> Any:
     """Logs service selection keyboard."""
     buttons = []
     row = []
     services = [
-        "rmi-backend", "rmi-postgres", "rmi-redis", "rmi-clickhouse",
-        "rmi-neo4j", "rmi-qdrant", "rmi-prometheus", "rmi-mcp-x402",
+        "rmi-backend",
+        "rmi-postgres",
+        "rmi-redis",
+        "rmi-clickhouse",
+        "rmi-neo4j",
+        "rmi-qdrant",
+        "rmi-prometheus",
+        "rmi-mcp-x402",
     ]
     for _i, svc in enumerate(services):
         row.append(InlineKeyboardButton(svc, callback_data=f"logs_{svc}"))
@@ -139,6 +148,7 @@ def logs_menu() -> Any:
         buttons.append(row)
     buttons.append([InlineKeyboardButton("⬅️ Main Menu", callback_data="main")])
     return InlineKeyboardMarkup(buttons)
+
 
 def disk_mem_keyboard() -> Any:
     """Disk/Memory toggle keyboard."""
@@ -151,6 +161,7 @@ def disk_mem_keyboard() -> Any:
             [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
         ]
     )
+
 
 def git_chain_keyboard() -> Any:
     """Git/Chain quick access keyboard."""

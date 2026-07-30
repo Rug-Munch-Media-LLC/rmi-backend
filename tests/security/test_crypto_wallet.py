@@ -317,33 +317,9 @@ class TestHDWalletDerivation:
         mnemonic = Bip39MnemonicGenerator().FromWordsNumber(Bip39WordsNum.WORDS_NUM_24).ToStr()
         seed = Bip39SeedGenerator(mnemonic).Generate()
         base = Bip44.FromSeed(seed, Bip44Coins.ETHEREUM)
-        addr0 = (
-            base.Purpose()
-            .Coin()
-            .Account(0)
-            .Change(Bip44Changes.CHAIN_EXT)
-            .AddressIndex(0)
-            .PublicKey()
-            .ToAddress()
-        )
-        addr1 = (
-            base.Purpose()
-            .Coin()
-            .Account(0)
-            .Change(Bip44Changes.CHAIN_EXT)
-            .AddressIndex(1)
-            .PublicKey()
-            .ToAddress()
-        )
-        addr2 = (
-            base.Purpose()
-            .Coin()
-            .Account(1)
-            .Change(Bip44Changes.CHAIN_EXT)
-            .AddressIndex(0)
-            .PublicKey()
-            .ToAddress()
-        )
+        addr0 = base.Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0).PublicKey().ToAddress()
+        addr1 = base.Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(1).PublicKey().ToAddress()
+        addr2 = base.Purpose().Coin().Account(1).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0).PublicKey().ToAddress()
         assert addr0 != addr1
         assert addr0 != addr2
         assert addr1 != addr2
@@ -424,9 +400,7 @@ class TestEntropyQuality:
         # All are valid 64-char hex strings (32-byte big-endian integers)
         for k in keys:
             val = int(k, 16)
-            assert (
-                0 < val < 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-            )  # secp256k1 n
+            assert 0 < val < 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141  # secp256k1 n
 
 
 # ====================================================================
@@ -515,9 +489,7 @@ class TestEVMSigning:
         """Empty message returns False."""
         from app.domains.auth.wallet import verify_wallet_signature
 
-        result = verify_wallet_signature(
-            "", "0xsig", "0x1234567890123456789012345678901234567890", "evm"
-        )
+        result = verify_wallet_signature("", "0xsig", "0x1234567890123456789012345678901234567890", "evm")
         assert result is False
 
     def test_eth_signature_rejects_short_address(self):
@@ -656,13 +628,8 @@ class TestSignatureVerificationRoundtrip:
         # Recover public key from signature
         msg_hash = hashlib.sha256(message.encode()).digest()
         try:
-            recovered_pub = CoinCurvePubKey.from_signature_and_message(
-                signed.signature, message.encode()
-            )
-            recovered_addr = (
-                "0x"
-                + hashlib.sha3_256(recovered_pub.format(compressed=False)[1:]).hexdigest()[-40:]
-            )
+            recovered_pub = CoinCurvePubKey.from_signature_and_message(signed.signature, message.encode())
+            recovered_addr = "0x" + hashlib.sha3_256(recovered_pub.format(compressed=False)[1:]).hexdigest()[-40:]
             assert recovered_addr.lower() == acct.address.lower()
         except Exception:
             # coincurve API may differ; eth_account recovery is authoritative
@@ -762,9 +729,7 @@ class TestReplayAttackProtection:
 
         mock_redis = MagicMock()
         # Nonce was issued for address 0xAAA...
-        mock_redis.get.return_value = (
-            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2026-07-24T00:00:00"
-        )
+        mock_redis.get.return_value = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2026-07-24T00:00:00"
 
         with patch("redis.Redis", return_value=mock_redis):
             result = verify_wallet_signature(
@@ -965,12 +930,8 @@ class TestArgon2idKeyDerivation:
         password = b"same-password"
 
         if _HAS_ARGON2:
-            kdf1 = Argon2id(
-                salt=b"a" * 16, length=32, time_cost=3, memory_cost=65536, parallelism=4
-            )
-            kdf2 = Argon2id(
-                salt=b"b" * 16, length=32, time_cost=3, memory_cost=65536, parallelism=4
-            )
+            kdf1 = Argon2id(salt=b"a" * 16, length=32, time_cost=3, memory_cost=65536, parallelism=4)
+            kdf2 = Argon2id(salt=b"b" * 16, length=32, time_cost=3, memory_cost=65536, parallelism=4)
             key1 = kdf1.derive(password)
             key2 = kdf2.derive(password)
         else:
@@ -1359,9 +1320,7 @@ class TestChainRegistry:
         from app.wallets.chain_registry import SUPPORTED_CHAINS
 
         # EVM: 0x + 40 hex
-        assert re.match(
-            SUPPORTED_CHAINS["eth"].address_pattern, "0x1234567890abcdef1234567890abcdef12345678"
-        )
+        assert re.match(SUPPORTED_CHAINS["eth"].address_pattern, "0x1234567890abcdef1234567890abcdef12345678")
         assert not re.match(SUPPORTED_CHAINS["eth"].address_pattern, "0x1234")  # too short
 
         # Solana: base58, no ambiguous chars

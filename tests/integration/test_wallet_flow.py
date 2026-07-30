@@ -44,9 +44,7 @@ class TestWalletResolve:
 
         client = TestClient(app)
         resp = client.get(f"/wallet/{_ETH_ADDR}", headers=_AUTH)
-        assert resp.status_code == 501, (
-            f"Expected 501 (not implemented), got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code == 501, f"Expected 501 (not implemented), got {resp.status_code}: {resp.text[:200]}"
         body = resp.json()
         assert "detail" in body
 
@@ -74,9 +72,7 @@ class TestWalletResolve:
             params={"chain": "solana"},
             headers=_AUTH,
         )
-        assert resp.status_code in (422, 501), (
-            f"Expected 422 or 501, got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code in (422, 501), f"Expected 422 or 501, got {resp.status_code}: {resp.text[:200]}"
         # If 422, it means the route validated the address format and rejected solana address
         # (ethereum format only). If 501, the stub didn't validate.
         if resp.status_code == 422:
@@ -184,9 +180,7 @@ class TestWalletInputValidation:
         client = TestClient(app)
         long_addr = "0x" + "a" * 1000
         resp = client.get(f"/wallet/{long_addr}", headers=_AUTH)
-        assert resp.status_code in (422, 501), (
-            f"Expected 422 or 501, got {resp.status_code}: {resp.text[:200]}"
-        )
+        assert resp.status_code in (422, 501), f"Expected 422 or 501, got {resp.status_code}: {resp.text[:200]}"
 
     @pytest.mark.integration
     def test_wallet_missing_address_returns_404(self, app) -> None:
@@ -224,9 +218,7 @@ class TestWalletClustering:
 
         client = TestClient(app)
         resp = client.get("/api/v1/wallet-clusters/", headers=_AUTH)
-        assert resp.status_code in (200, 404, 422), (
-            f"Expected 200, 404, or 422, got {resp.status_code}"
-        )
+        assert resp.status_code in (200, 404, 422), f"Expected 200, 404, or 422, got {resp.status_code}"
 
     @pytest.mark.integration
     def test_wallet_clusters_address_lookup(self, app) -> None:
@@ -238,6 +230,4 @@ class TestWalletClustering:
             f"/api/v1/wallet-clusters/{_ETH_ADDR}",
             headers=_AUTH,
         )
-        assert resp.status_code in (200, 404, 422, 500), (
-            f"Expected 200/404/422/500, got {resp.status_code}"
-        )
+        assert resp.status_code in (200, 404, 422, 500), f"Expected 200/404/422/500, got {resp.status_code}"

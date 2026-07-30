@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 _DOCKER_HOST = os.getenv("DOCKER_HOST_IP", "172.17.0.1")
 OLLAMA_URL = os.getenv("OLLAMA_URL", f"http://{_DOCKER_HOST}:11434")
 
+
 async def ollama_chat(prompt: str, model: str = "phi3:mini", system: str = "") -> dict:
     """Use local Ollama for free AI inference."""
     try:
@@ -54,6 +55,7 @@ async def ollama_chat(prompt: str, model: str = "phi3:mini", system: str = "") -
         logger.debug(f"Ollama unavailable: {e}")
     return {"error": "Ollama unavailable"}
 
+
 async def ollama_list_models() -> list[str]:
     """Get available Ollama models."""
     try:
@@ -65,10 +67,12 @@ async def ollama_list_models() -> list[str]:
         pass
     return []
 
+
 # ═══════════════════════════════════════════════════════════
 # FOUNDRY - EVM smart contract analysis (cast)
 # ═══════════════════════════════════════════════════════════
 CAST_PATH = "/root/.foundry/bin/cast"
+
 
 def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
     """Get contract bytecode, ABI, and metadata using cast."""
@@ -128,6 +132,7 @@ def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
             "cast_available": os.path.exists(CAST_PATH),
         }
 
+
 def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict:
     """Decode a transaction using cast."""
     rpcs = {
@@ -150,6 +155,7 @@ def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict:
         pass
     return {"error": "Decode failed", "tx_hash": tx_hash}
 
+
 # ═══════════════════════════════════════════════════════════
 # SLITHER - Solidity vulnerability scanner
 # ═══════════════════════════════════════════════════════════
@@ -170,6 +176,7 @@ def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict:
         }
     except (subprocess.TimeoutExpired, OSError) as e:
         return {"error": str(e), "slither_available": False}
+
 
 # ═══════════════════════════════════════════════════════════
 # CCXT - 100+ exchange price feeds
@@ -217,6 +224,7 @@ def ccxt_get_prices(symbols: list[str] | None = None) -> dict:
     except (subprocess.TimeoutExpired, OSError) as e:
         return {"error": str(e), "prices": {}}
 
+
 def ccxt_arbitrage(symbol: str = "BTC/USDT") -> dict:
     """Find arbitrage opportunities across exchanges."""
     prices = ccxt_get_prices([symbol])
@@ -234,6 +242,7 @@ def ccxt_arbitrage(symbol: str = "BTC/USDT") -> dict:
             "profitable": spread > 0.5,
         }
     return {"symbol": symbol, "opportunities": 0}
+
 
 # ═══════════════════════════════════════════════════════════
 # WEB3.PY - Direct Ethereum interaction
@@ -276,10 +285,12 @@ def web3_wallet_balance(address: str, chain: str = "ethereum") -> dict:
     except (subprocess.TimeoutExpired, OSError) as e:
         return {"error": str(e), "address": address, "chain": chain}
 
+
 # ═══════════════════════════════════════════════════════════
 # BLOGWATCHER - RSS/Atom feed monitoring
 # ═══════════════════════════════════════════════════════════
 BLOGWATCHER_PATH = "/root/go/bin/blogwatcher"
+
 
 def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict:
     """Fetch RSS/Atom feed using blogwatcher."""
@@ -306,10 +317,12 @@ def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict:
         logger.debug(f"blogwatcher failed: {e}")
     return {"feed": feed_url, "posts": [], "error": "blogwatcher unavailable"}
 
+
 # ═══════════════════════════════════════════════════════════
 # LITELLM - Multi-provider LLM proxy routing
 # ═══════════════════════════════════════════════════════════
 LITELLM_CONFIG = "/srv/rugmuncher-backend/litellm/config.yaml"
+
 
 def litellm_status() -> dict:
     """Check LiteLLM proxy availability."""
@@ -320,10 +333,12 @@ def litellm_status() -> dict:
         "config_size": os.path.getsize(LITELLM_CONFIG) if config_exists else 0,
     }
 
+
 # ═══════════════════════════════════════════════════════════
 # VAULT - Secrets management
 # ═══════════════════════════════════════════════════════════
 VAULT_ADDR = os.getenv("VAULT_ADDR", f"http://{_DOCKER_HOST}:8200")
+
 
 async def vault_get_secret(path: str) -> dict | None:
     """Retrieve a secret from HashiCorp Vault."""
@@ -336,18 +351,18 @@ async def vault_get_secret(path: str) -> dict | None:
         pass
     return None
 
+
 async def vault_list_secrets(path: str = "secret") -> list[str]:
     """List secrets in Vault."""
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(
-                f"{VAULT_ADDR}/v1/{path}?list=true", headers={"X-Vault-Token": "root"}
-            )
+            r = await client.get(f"{VAULT_ADDR}/v1/{path}?list=true", headers={"X-Vault-Token": "root"})
             if r.status_code == 200:
                 return r.json().get("data", {}).get("keys", [])
     except (httpx.HTTPError, TimeoutError, OSError):
         pass
     return []
+
 
 # ═══════════════════════════════════════════════════════════
 # TOOL STATUS - Health check for all integrated tools

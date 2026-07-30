@@ -50,6 +50,7 @@ def load_key(name: str) -> str:
 
     return ""
 
+
 # Enrichment key service name → env var mapping
 SERVICE_KEYS = {
     "nansen": "NANSEN_API_KEY",

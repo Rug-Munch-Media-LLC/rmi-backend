@@ -8,6 +8,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("databus.rag_provider")
 
+
 async def _rag_search_provider(**kwargs) -> dict | None:
     """DataBus provider for hybrid RAG search across all collections."""
     from dotenv import load_dotenv

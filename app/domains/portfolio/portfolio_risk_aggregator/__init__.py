@@ -1,6 +1,7 @@
 """
 Cross-Chain Portfolio Risk Aggregator Package.
 """
+
 from app.domains.portfolio.portfolio_risk_aggregator.aggregator import (
     PortfolioRiskAggregator,
     validate_wallet_address,

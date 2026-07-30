@@ -32,12 +32,14 @@ from app.crypto_embeddings.seed import KNOWN_SCAM_PATTERNS
 # ── Singleton ──
 _embedder: CryptoEmbedder | None = None
 
+
 async def get_embedder() -> CryptoEmbedder:
     global _embedder
     if _embedder is None:
         _embedder = CryptoEmbedder()
         await _embedder.initialize()
     return _embedder
+
 
 __all__ = [
     "COLLECTIONS",

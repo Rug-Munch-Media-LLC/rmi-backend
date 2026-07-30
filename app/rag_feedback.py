@@ -37,6 +37,7 @@ SCANNER_HIT_BOOST = 0.05  # +5% per scanner hit on a document
 MAX_WEIGHT = 3.0  # Cap at 3x original weight
 MIN_WEIGHT = 0.1  # Floor at 10% original
 
+
 async def record_scanner_result(
     address: str,
     chain: str,
@@ -68,9 +69,7 @@ async def record_scanner_result(
 
     try:
         is_scam = verdict in ("scam", "honeypot", "rug", "critical")
-        adjustment = (
-            SCAM_CONFIRMED_BOOST if is_scam else FALSE_POSITIVE_PENALTY if verdict == "safe" else 0
-        )
+        adjustment = SCAM_CONFIRMED_BOOST if is_scam else FALSE_POSITIVE_PENALTY if verdict == "safe" else 0
 
         if adjustment == 0:
             await r.aclose()
@@ -174,6 +173,7 @@ async def record_scanner_result(
             await r.aclose()
         return {"status": "error", "detail": str(e)}
 
+
 async def get_document_weight(doc_id: str) -> float:
     """Get the current learned weight for a RAG document."""
     import os as _os
@@ -195,6 +195,7 @@ async def get_document_weight(doc_id: str) -> float:
         return float(weight) if weight else 1.0
     except (ConnectionError, OSError):
         return 1.0
+
 
 async def get_feedback_stats() -> dict[str, Any]:
     """Get feedback loop statistics."""

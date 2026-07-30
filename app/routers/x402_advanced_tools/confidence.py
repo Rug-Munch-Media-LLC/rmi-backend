@@ -9,6 +9,7 @@ from __future__ import annotations
 
 logger = __import__("logging").getLogger("x402.confidence")
 
+
 def compute_confidence(result: dict) -> dict:
     """Add confidence scoring to any tool result."""
     sources = result.get("sources_used", [])
@@ -83,5 +84,6 @@ def compute_confidence(result: dict) -> dict:
             "unverified": "Insufficient data - treat as directional only",
         }.get(level, ""),
     }
+
 
 __all__ = ["compute_confidence"]

@@ -11,6 +11,7 @@ from app.domains.airdrop.multichain.models import CrossChainHolder
 
 logger = get_logger("darkroom_multichain_airdrop")
 
+
 class CustomSnapshotLoader:
     """
     Load custom snapshot data from uploaded files or manual input.
@@ -131,9 +132,7 @@ class CustomSnapshotLoader:
                 for source_key, amount in holder.holdings_per_source.items():
                     if source_key in deduped[lower_addr].holdings_per_source:
                         existing = int(deduped[lower_addr].holdings_per_source[source_key])
-                        deduped[lower_addr].holdings_per_source[source_key] = str(
-                            existing + int(amount)
-                        )
+                        deduped[lower_addr].holdings_per_source[source_key] = str(existing + int(amount))
                     else:
                         deduped[lower_addr].holdings_per_source[source_key] = amount
                 # Merge chain addresses

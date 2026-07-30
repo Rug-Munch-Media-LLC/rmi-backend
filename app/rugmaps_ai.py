@@ -15,11 +15,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # LLM config - DeepSeek Flash for fast, cheap analysis
-DEEPSEEK_KEY = (
-    os.getenv("DEEPSEEK_API_KEY", "")
-    or os.getenv("LLM_API_KEY", "")
-    or os.getenv("OPENROUTER_API_KEY", "")
-)
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")
 DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
 AI_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")  # Flash by default
 
@@ -27,8 +23,10 @@ AI_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")  # Flash by default
 _analysis_cache: dict[str, dict] = {}
 CACHE_TTL = 3600  # 1 hour
 
+
 def _cache_key(token: str, chain: str) -> str:
     return hashlib.sha256(f"{chain}:{token}".encode()).hexdigest()[:16]
+
 
 async def get_cached_analysis(token: str, chain: str) -> dict | None:
     """Check if we have a cached analysis for this token."""
@@ -40,6 +38,7 @@ async def get_cached_analysis(token: str, chain: str) -> dict | None:
             logger.info(f"RugMaps cache HIT for {token[:12]}...")
             return entry
     return None
+
 
 def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
     """Cache analysis result."""
@@ -53,10 +52,10 @@ def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
         for k, _ in oldest:
             del _analysis_cache[k]
 
+
 async def get_token_holders(token_address: str, chain: str) -> list[dict]:
     """Get token holders from our data sources."""
     try:
-
         bm = get_rugmaps_engine()
         result = await bm.generate_map(center_wallet=token_address, depth=2, min_strength=0.1)
         d = result.to_dict()
@@ -65,11 +64,11 @@ async def get_token_holders(token_address: str, chain: str) -> list[dict]:
         logger.warning(f"Holder fetch failed: {e}")
         return []
 
+
 async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
     """Get wallet labels from our ClickHouse/FAISS database."""
     labels = {}
     try:
-
         bm = get_rugmaps_engine()
         for addr in addresses[:50]:
             try:
@@ -86,6 +85,7 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
     except Exception as e:
         logger.warning(f"Label fetch error: {e}")
     return labels
+
 
 async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
     """Search FAISS indexes for similar scam patterns."""
@@ -151,6 +151,7 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
 
     return unique[:10]
 
+
 async def generate_ai_analysis(
     token_address: str,
     chain: str,
@@ -169,9 +170,7 @@ async def generate_ai_analysis(
         pct = h.get("supply_pct", h.get("pct", "?"))
         label = labels.get(h.get("address", ""), {}).get("entity", {}).get("name", "")
         risk = labels.get(h.get("address", ""), {}).get("risk_score", "?")
-        holder_summary.append(
-            f"  {addr}... - {pct}% supply - label: {label or 'unknown'} - risk: {risk}/100"
-        )
+        holder_summary.append(f"  {addr}... - {pct}% supply - label: {label or 'unknown'} - risk: {risk}/100")
 
     similar_summary = (
         "\n".join(
@@ -272,9 +271,8 @@ Return ONLY valid JSON, no markdown, no code blocks."""
         logger.error(f"AI analysis failed: {e}")
 
     # Fallback analysis from our own data (no AI needed)
-    return generate_fallback_analysis(
-        risk_score, holders, labels, similar_scams, node_count, link_count
-    )
+    return generate_fallback_analysis(risk_score, holders, labels, similar_scams, node_count, link_count)
+
 
 def generate_fallback_analysis(
     risk_score: int,
@@ -294,9 +292,7 @@ def generate_fallback_analysis(
     # Check for high concentration
     top_holder_pct = sum(h.get("supply_pct", h.get("pct", 0)) for h in holders[:3])
     if top_holder_pct > 50:
-        red_flags.append(
-            f"Top 3 holders control {top_holder_pct:.0f}% of supply - extreme concentration risk"
-        )
+        red_flags.append(f"Top 3 holders control {top_holder_pct:.0f}% of supply - extreme concentration risk")
     elif top_holder_pct < 20:
         green_flags.append(f"Well distributed: top 3 holders only control {top_holder_pct:.0f}%")
 
@@ -311,9 +307,7 @@ def generate_fallback_analysis(
             high_risk_count += 1
 
         if risk >= 70:
-            red_flags.append(
-                f"High risk wallet ({risk}/100): {addr[:12]}... {entity.get('name', '')}"
-            )
+            red_flags.append(f"High risk wallet ({risk}/100): {addr[:12]}... {entity.get('name', '')}")
             high_risk_count += 1
             dev_wallets.append(addr)
 

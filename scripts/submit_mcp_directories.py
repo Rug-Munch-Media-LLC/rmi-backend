@@ -110,9 +110,7 @@ async def submit_all():
                 await page.wait_for_timeout(3000)
 
                 # Take screenshot for debugging
-                await page.screenshot(
-                    path=f"/tmp/submit_{site['name'].lower().replace(' ', '_')}.png"
-                )
+                await page.screenshot(path=f"/tmp/submit_{site['name'].lower().replace(' ', '_')}.png")
                 print(f"  Screenshot: /tmp/submit_{site['name'].lower().replace(' ', '_')}.png")
 
                 # Try to find and fill form fields
@@ -163,20 +161,14 @@ async def submit_all():
                 print(f"  Found {len(buttons)} submit buttons")
 
                 if buttons:
-                    results.append(
-                        {"site": site["name"], "status": "form_filled", "submitted": True}
-                    )
+                    results.append({"site": site["name"], "status": "form_filled", "submitted": True})
                     print("  ✅ Ready to submit - review screenshot before clicking")
                 else:
-                    results.append(
-                        {"site": site["name"], "status": "needs_manual", "submitted": False}
-                    )
+                    results.append({"site": site["name"], "status": "needs_manual", "submitted": False})
                     print("  ⚠️ No submit button found - needs manual review")
 
             except Exception as e:
-                results.append(
-                    {"site": site["name"], "status": f"error: {str(e)[:100]}", "submitted": False}
-                )
+                results.append({"site": site["name"], "status": f"error: {str(e)[:100]}", "submitted": False})
                 print(f"  ❌ Error: {e}")
             finally:
                 await page.close()

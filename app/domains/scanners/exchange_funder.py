@@ -27,12 +27,14 @@ from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
 logger = get_logger("exchange_funder")
 
+
 @dataclass
 class ExchangeWallet:
     address: str
     exchange: str
     chain: str
     label: str = ""
+
 
 @dataclass
 class BuyerFundingInfo:
@@ -45,6 +47,7 @@ class BuyerFundingInfo:
     is_fresh_wallet: bool = False  # No prior history
     time_from_funding_to_buy_ms: int = 0  # How fast they bought after funding
     bought_same_block: bool = False
+
 
 @dataclass
 class ExchangeFundReport:
@@ -63,6 +66,7 @@ class ExchangeFundReport:
     risk_level: str = "LOW"
     warnings: list[str] = field(default_factory=list)
     buyer_details: list[BuyerFundingInfo] = field(default_factory=list)
+
 
 class ExchangeFunderDetector:
     """Detects wallets funded from centralized exchanges.
@@ -99,19 +103,17 @@ class ExchangeFunderDetector:
         try:
             sources = self._solscan.get_wallet_funding_sources(wallet, days=days)
             return sources or []
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_fetch_solscan_funding_sources_error", exc_info=True)
             logger.warning(f"Solscan funding sources failed for {wallet}: {e}")
             return []
 
-    async def _fetch_solscan_transfers(
-        self, address: str, page: int = 1, page_size: int = 100
-    ) -> list[dict]:
+    async def _fetch_solscan_transfers(self, address: str, page: int = 1, page_size: int = 100) -> list[dict]:
         """Fetch token transfers for an address from Solscan."""
         try:
             result = self._solscan.account_transfers(address, page=page, page_size=page_size)
             return result or []
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_fetch_solscan_transfers_error", exc_info=True)
             logger.warning(f"Solscan transfers failed for {address}: {e}")
             return []
@@ -120,7 +122,7 @@ class ExchangeFunderDetector:
         """Fetch account info from Solscan."""
         try:
             return self._solscan.account_info(address)
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("_fetch_solscan_account_info_error", exc_info=True)
             logger.warning(f"Solscan account info failed for {address}: {e}")
             return None
@@ -135,14 +137,12 @@ class ExchangeFunderDetector:
     async def _fetch_dexscreener_boosts(self, token_address: str) -> dict | None:
         """Fetch DexScreener boosted token info (free, no key)."""
         try:
-            resp = await self._http.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get("pairs") or []
                 return pairs[0] if pairs else None
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_fetch_dexscreener_boosts_error", exc_info=True)
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
@@ -175,9 +175,7 @@ class ExchangeFunderDetector:
         cex_pct = report.cex_funded_percentage
         if cex_pct > 50:
             score += 40
-            warnings.append(
-                f"CRITICAL: {cex_pct:.1f}% of buyers funded from CEX - likely coordinated snipers"
-            )
+            warnings.append(f"CRITICAL: {cex_pct:.1f}% of buyers funded from CEX - likely coordinated snipers")
         elif cex_pct > 30:
             score += 25
             warnings.append(f"HIGH: {cex_pct:.1f}% CEX-funded buyers - possible sniper operation")
@@ -189,9 +187,7 @@ class ExchangeFunderDetector:
         fresh_pct = report.fresh_wallet_percentage
         if fresh_pct > 40:
             score += 30
-            warnings.append(
-                f"CRITICAL: {fresh_pct:.1f}% of buyers are fresh wallets - classic sniper pattern"
-            )
+            warnings.append(f"CRITICAL: {fresh_pct:.1f}% of buyers are fresh wallets - classic sniper pattern")
         elif fresh_pct > 20:
             score += 15
             warnings.append(f"MODERATE: {fresh_pct:.1f}% fresh wallets")
@@ -236,13 +232,11 @@ class ExchangeFunderDetector:
                     holders = self._solscan.get_holder_wallets(token_address, top_n=20)
                     if holders:
                         buyer_addresses = [
-                            h.get("address", h.get("owner", ""))
-                            for h in holders
-                            if h.get("address") or h.get("owner")
+                            h.get("address", h.get("owner", "")) for h in holders if h.get("address") or h.get("owner")
                         ]
                         # Filter out empty strings
                         buyer_addresses = [a for a in buyer_addresses if a]
-                except (httpx.HTTPError, KeyError, TypeError) as e :
+                except (httpx.HTTPError, KeyError, TypeError) as e:
                     logger.debug("analyze_error", exc_info=True)
                     logger.warning(f"Could not fetch holder wallets for {token_address}: {e}")
 

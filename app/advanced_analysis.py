@@ -49,6 +49,7 @@ EXPLORER_APIS = {
 # WALLET BALANCE & TX HISTORY (real blockchain data)
 # ═══════════════════════════════════════════════════════════════
 
+
 async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
     """Get native token balance via RPC."""
     result = {
@@ -86,9 +87,7 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
     # Get token balances via Moralis/DexScreener
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
-            resp = await client.get(
-                "https://api.dexscreener.com/latest/dex/search", params={"q": address}
-            )
+            resp = await client.get("https://api.dexscreener.com/latest/dex/search", params={"q": address})
             if resp.status_code == HTTPStatus.OK:
                 pairs = resp.json().get("pairs", [])
                 tokens = {}
@@ -109,9 +108,8 @@ async def get_wallet_balance(address: str, chain: str) -> dict[str, Any]:
 
     return result
 
-async def get_transaction_history(
-    address: str, chain: str, limit: int = 50, offset: int = 0
-) -> dict[str, Any]:
+
+async def get_transaction_history(address: str, chain: str, limit: int = 50, offset: int = 0) -> dict[str, Any]:
     """Get transaction history via explorer API."""
     explorer_api = EXPLORER_APIS.get(chain)
     if not explorer_api:
@@ -154,9 +152,11 @@ async def get_transaction_history(
 
     return {"transactions": [], "total": 0}
 
+
 # ═══════════════════════════════════════════════════════════════
 # ADVANCED FUNDING TRACEBACK
 # ═══════════════════════════════════════════════════════════════
+
 
 @dataclass
 class FundingHop:
@@ -169,6 +169,7 @@ class FundingHop:
     is_mixer: bool = False
     is_sanctioned: bool = False
     label: str | None = None
+
 
 MIXER_ADDRESSES = {
     "ethereum": [
@@ -194,6 +195,7 @@ CEX_ADDRESSES = {
     "kraken": ["0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0"],
 }
 
+
 def _match_label(address: str, chain: str) -> str | None:
     """Check if address matches known labels."""
     addr_lower = address.lower()
@@ -210,6 +212,7 @@ def _match_label(address: str, chain: str) -> str | None:
                 return cex_name
 
     return None
+
 
 async def _trace_solana_hop(
     client: httpx.AsyncClient, address: str, chain: str, visited: set[str]
@@ -232,9 +235,7 @@ async def _trace_solana_hop(
                     chain=chain,
                     amount_usd=float(tx.get("amount", 0)),
                     tx_hash=tx.get("txHash", ""),
-                    timestamp=datetime.fromtimestamp(
-                        tx.get("blockTime", 0), tz=UTC
-                    ).isoformat()
+                    timestamp=datetime.fromtimestamp(tx.get("blockTime", 0), tz=UTC).isoformat()
                     if tx.get("blockTime")
                     else None,
                 )
@@ -248,9 +249,8 @@ async def _trace_solana_hop(
         logger.warning("Solana hop trace failed")
     return None
 
-async def _trace_evm_hop(
-    client: httpx.AsyncClient, address: str, chain: str, visited: set[str]
-) -> list[FundingHop]:
+
+async def _trace_evm_hop(client: httpx.AsyncClient, address: str, chain: str, visited: set[str]) -> list[FundingHop]:
     """Trace one hop back for an EVM address using DexScreener."""
     hops: list[FundingHop] = []
     try:
@@ -283,9 +283,9 @@ async def _trace_evm_hop(
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("EVM hop trace failed")
     return hops
-async def trace_funding(
-    address: str, chain: str, max_hops: int = 5, max_depth: int = 3
-) -> dict[str, Any]:
+
+
+async def trace_funding(address: str, chain: str, max_hops: int = 5, max_depth: int = 3) -> dict[str, Any]:
     """Trace funding source hop-by-hop.
 
     Walks back through transaction history to identify the ultimate
@@ -357,17 +357,15 @@ async def trace_funding(
         "total_hops": len(hops),
         "max_depth_reached": depth >= max_depth,
         "funding_source": funding_source,
-        "risk_level": "high"
-        if any(h.is_mixer for h in hops)
-        else "medium"
-        if len(hops) > 3
-        else "low",
+        "risk_level": "high" if any(h.is_mixer for h in hops) else "medium" if len(hops) > 3 else "low",
         "traced_at": datetime.now(UTC).isoformat(),
     }
+
 
 # ═══════════════════════════════════════════════════════════════
 # 100-FACTOR CONTRACT RUG RISK ANALYZER
 # ═══════════════════════════════════════════════════════════════
+
 
 @dataclass
 class RugRiskReport:
@@ -488,9 +486,8 @@ class RugRiskReport:
     confidence: float = 0
     factors_analyzed: int = 0
 
-async def analyze_contract_rug_risk(
-    token_address: str, chain: str, tier: str = "free"
-) -> dict[str, Any]:
+
+async def analyze_contract_rug_risk(token_address: str, chain: str, tier: str = "free") -> dict[str, Any]:
     """100-factor contract rug risk analysis."""
     report = RugRiskReport(token_address=token_address, chain=chain)
     factors_checked = 0
@@ -500,9 +497,7 @@ async def analyze_contract_rug_risk(
     async with httpx.AsyncClient(timeout=20.0) as client:
         # ── Get DexScreener data (covers ~50 factors) ──
         try:
-            resp = await client.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == HTTPStatus.OK:
                 data = resp.json()
                 pairs = data.get("pairs", [])
@@ -529,12 +524,8 @@ async def analyze_contract_rug_risk(
 
                     # Ratios
                     if report.liquidity_usd > 0:
-                        report.mcap_to_liquidity_ratio = (
-                            report.market_cap_usd / report.liquidity_usd
-                        )
-                        report.volume_to_liquidity_ratio = (
-                            report.volume_24h_usd / report.liquidity_usd
-                        )
+                        report.mcap_to_liquidity_ratio = report.market_cap_usd / report.liquidity_usd
+                        report.volume_to_liquidity_ratio = report.volume_24h_usd / report.liquidity_usd
 
                     factors_checked += 15
 
@@ -645,9 +636,7 @@ async def analyze_contract_rug_risk(
                         lp_holder = lp_data[0] if isinstance(lp_data, list) else lp_data
                         report.lp_lock_pct = float(lp_holder.get("percent", 0))
                         report.lp_locked = (
-                            float(lp_holder.get("locked", 0)) > 0
-                            if isinstance(lp_holder, dict)
-                            else False
+                            float(lp_holder.get("locked", 0)) > 0 if isinstance(lp_holder, dict) else False
                         )
 
                     # Check owner
@@ -718,9 +707,7 @@ async def analyze_contract_rug_risk(
 
         # ── Holder distribution (10 factors) ──
         try:
-            resp = await client.get(
-                f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
-            )
+            resp = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
             if resp.status_code == HTTPStatus.OK:
                 pairs = resp.json().get("pairs", [])
                 if pairs:

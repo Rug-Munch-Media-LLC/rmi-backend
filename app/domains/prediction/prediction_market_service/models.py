@@ -1,10 +1,82 @@
 """Data models for prediction market intelligence."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-SECURITY_KEYWORDS = ["hack","exploit","rug","scam","fraud","breach","leak","drain","phish","backdoor","vulnerability","zero-day","sanction","indict","arrest","freeze","seize","clampdown","depeg","insolvent","bankrupt","collapse","default","theft","heist","compromise","ransomware","malware","SEC","CFTC","DOJ","FBI","regulatory","enforcement"]
-CRYPTO_KEYWORDS = ["bitcoin","ethereum","solana","crypto","defi","token","blockchain","web3","nft","stablecoin","usdt","usdc","dai","exchange","binance","coinbase","uniswap","aave","tether","circle","layer","L1","L2","rollup","bridge","polygon","arbitrum","optimism","avalanche","fantom","chainlink","makerdao","lido","eigenlayer"]
+SECURITY_KEYWORDS = [
+    "hack",
+    "exploit",
+    "rug",
+    "scam",
+    "fraud",
+    "breach",
+    "leak",
+    "drain",
+    "phish",
+    "backdoor",
+    "vulnerability",
+    "zero-day",
+    "sanction",
+    "indict",
+    "arrest",
+    "freeze",
+    "seize",
+    "clampdown",
+    "depeg",
+    "insolvent",
+    "bankrupt",
+    "collapse",
+    "default",
+    "theft",
+    "heist",
+    "compromise",
+    "ransomware",
+    "malware",
+    "SEC",
+    "CFTC",
+    "DOJ",
+    "FBI",
+    "regulatory",
+    "enforcement",
+]
+CRYPTO_KEYWORDS = [
+    "bitcoin",
+    "ethereum",
+    "solana",
+    "crypto",
+    "defi",
+    "token",
+    "blockchain",
+    "web3",
+    "nft",
+    "stablecoin",
+    "usdt",
+    "usdc",
+    "dai",
+    "exchange",
+    "binance",
+    "coinbase",
+    "uniswap",
+    "aave",
+    "tether",
+    "circle",
+    "layer",
+    "L1",
+    "L2",
+    "rollup",
+    "bridge",
+    "polygon",
+    "arbitrum",
+    "optimism",
+    "avalanche",
+    "fantom",
+    "chainlink",
+    "makerdao",
+    "lido",
+    "eigenlayer",
+]
+
 
 @dataclass
 class PredictionMarket:
@@ -29,6 +101,7 @@ class PredictionMarket:
         q_lower = self.question.lower()
         self.is_security_relevant = any(kw in q_lower for kw in SECURITY_KEYWORDS)
         self.is_crypto_relevant = any(kw in q_lower for kw in CRYPTO_KEYWORDS)
+
 
 @dataclass
 class PredictionDigest:

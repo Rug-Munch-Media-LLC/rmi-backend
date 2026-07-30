@@ -3,6 +3,7 @@ Pump & Dump — Data Source Fetching
 ====================================
 API helpers for DexScreener, Birdeye, and Helius.
 """
+
 from __future__ import annotations
 
 import os
@@ -15,21 +16,36 @@ from app.domains.detectors.pump_dump_detector_package.types import BIRDEYE_API, 
 
 logger = get_logger("pump_dump_detector")
 
+
 async def fetch_pairs(client: httpx.AsyncClient, token_address: str, chain: str) -> dict:
     """Fetch trading pair data from DexScreener."""
     try:
         resp = await client.get(
-            f"{DEXSCREENER_API}/tokens/{token_address}", timeout=15,
+            f"{DEXSCREENER_API}/tokens/{token_address}",
+            timeout=15,
         )
         if resp.status_code == 200:
             return resp.json()
-    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+    except (
+        httpx.HTTPError,
+        requests.RequestException,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug("fetch_pairs_error", exc_info=True)
         logger.warning(f"DexScreener fetch failed: {e}")
     return {}
 
+
 async def fetch_trades(
-    client: httpx.AsyncClient, token_address: str, chain: str, limit: int = 100,
+    client: httpx.AsyncClient,
+    token_address: str,
+    chain: str,
+    limit: int = 100,
 ) -> list[dict]:
     """Fetch recent trades from DexScreener or Birdeye."""
     trades: list[dict] = []
@@ -46,13 +62,25 @@ async def fetch_trades(
                 trades = data.get("data", {}).get("txs", []) if data.get("success") else []
         else:
             resp = await client.get(f"{DEXSCREENER_API}/token-profiles/latest/v1", timeout=10)
-    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+    except (
+        httpx.HTTPError,
+        requests.RequestException,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug("fetch_trades_error", exc_info=True)
         logger.warning(f"Trade fetch failed: {e}")
     return trades
 
+
 async def fetch_holders(
-    client: httpx.AsyncClient, token_address: str, chain: str,
+    client: httpx.AsyncClient,
+    token_address: str,
+    chain: str,
 ) -> dict:
     """Fetch holder data from available APIs."""
     try:
@@ -70,7 +98,16 @@ async def fetch_holders(
                         "holders": data["data"].get("holder", 0),
                         "total_supply": data["data"].get("supply", 0),
                     }
-    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+    except (
+        httpx.HTTPError,
+        requests.RequestException,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug("fetch_holders_error", exc_info=True)
         logger.warning(f"Holder fetch failed: {e}")
     return {}

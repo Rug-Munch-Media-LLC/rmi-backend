@@ -15,6 +15,7 @@ from .keys import KeyPool, discover_keys
 
 logger = get_logger("api_registry")
 
+
 class UnifiedApiManager:
     """Singleton manager for all API key pools."""
 
@@ -78,14 +79,10 @@ class UnifiedApiManager:
                 bottlenecks.append(f"{name}: only {combined_rps:.0f} RPS across {total_keys} key(s)")
             if combined_quota and combined_quota < 10000:
                 status = "LOW_QUOTA"
-                bottlenecks.append(
-                    f"{name}: only {combined_quota}/mo across {total_keys} key(s)"
-                )
+                bottlenecks.append(f"{name}: only {combined_quota}/mo across {total_keys} key(s)")
             if total_keys == 1 and cfg.rate_rps < 10:
                 status = "SINGLE_KEY_LIMITED"
-                bottlenecks.append(
-                    f"{name}: single key at {cfg.rate_rps} RPS - get more accounts"
-                )
+                bottlenecks.append(f"{name}: single key at {cfg.rate_rps} RPS - get more accounts")
 
             providers[name] = {
                 "keys": total_keys,
@@ -103,6 +100,7 @@ class UnifiedApiManager:
             "bottlenecks": bottlenecks,
             "recommendations": _generate_recommendations(bottlenecks, providers),
         }
+
 
 def _generate_recommendations(bottlenecks: list, providers: dict) -> list:
     """Generate actionable recommendations based on bottlenecks."""
@@ -131,11 +129,13 @@ def _generate_recommendations(bottlenecks: list, providers: dict) -> list:
 
     return recs
 
+
 # ═══════════════════════════════════════════════════════════════════
 # SINGLETON
 # ═══════════════════════════════════════════════════════════════════
 
 _api_manager: UnifiedApiManager | None = None
+
 
 def get_api_manager() -> UnifiedApiManager:
     global _api_manager

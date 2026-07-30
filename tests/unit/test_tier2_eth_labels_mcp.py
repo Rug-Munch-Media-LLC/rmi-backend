@@ -100,9 +100,7 @@ async def test_eth_labels_query_requires_sql_parameter():
 @pytest.mark.asyncio
 async def test_eth_labels_query_blocks_non_select_statements():
     """Test that eth_labels_query rejects non-SELECT queries."""
-    result = await call_tool(
-        "eth_labels_query", {"sql": "UPDATE accounts SET label='bad' WHERE id=1"}
-    )
+    result = await call_tool("eth_labels_query", {"sql": "UPDATE accounts SET label='bad' WHERE id=1"})
 
     assert "error" in result
     assert "only SELECT queries allowed" in result["error"]

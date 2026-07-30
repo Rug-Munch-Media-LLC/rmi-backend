@@ -11,6 +11,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.router.webhooks")
 router = APIRouter(tags=["databus"])
 
+
 @router.post("/webhooks/{service}")
 async def receive_webhook(service: str, request: Request) -> Any:
     """Universal webhook receiver. Routes to correct handler based on service.
@@ -40,6 +41,7 @@ async def receive_webhook(service: str, request: Request) -> Any:
 
     return result
 
+
 @router.get("/webhooks")
 async def list_webhooks_endpoint() -> Any:
     """List all recent webhook events."""
@@ -49,6 +51,7 @@ async def list_webhooks_endpoint() -> Any:
         return await list_webhooks()
     except ImportError:
         raise HTTPException(501, "Webhook system not available") from None
+
 
 @router.post("/webhooks/setup/{service}")
 async def setup_webhook_endpoint(service: str, request: Request) -> Any:
@@ -76,4 +79,3 @@ async def setup_webhook_endpoint(service: str, request: Request) -> Any:
         chains=body.get("chains", []),
     )
     return result
-

@@ -468,11 +468,13 @@ def send_alert(message: str, level: str = "info") -> dict[str, Any]:
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
         redis_password = os.environ.get("REDIS_PASSWORD", "")
         if not redis_password:
-            try:
-                with open("/run/secrets/redis_password") as f:
-                    redis_password = f.read().strip()
-            except (FileNotFoundError, OSError):
-                pass
+            for secret_file in ("/run/secrets/redis_password", "/srv/secrets/redis_password"):
+                try:
+                    with open(secret_file) as f:
+                        redis_password = f.read().strip()
+                        break
+                except (FileNotFoundError, OSError):
+                    continue
 
         if redis_password and "://" in redis_url and "@" not in redis_url:
             parts = redis_url.split("://", 1)

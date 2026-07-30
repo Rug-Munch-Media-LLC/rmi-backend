@@ -15,6 +15,7 @@ from app.domains.wallet.models import WalletRecord
 
 logger = get_logger("wallet_db")
 
+
 class WalletDBMixin:
     """
     Mixin providing persistence operations for WalletManagerV2.
@@ -56,7 +57,7 @@ class WalletDBMixin:
             with open(self.VAULT_PATH, "w") as f:
                 json.dump(data, f, indent=2)
             os.chmod(self.VAULT_PATH, 0o600)
-        except (json.JSONDecodeError) as e :
+        except json.JSONDecodeError as e:
             logger.debug("_save_vault_error", exc_info=True)
             logger.error(f"Vault save error: {e}")
 
@@ -73,7 +74,7 @@ class WalletDBMixin:
                         line = line.strip()
                         if line:
                             self._payments.append(PaymentRecord(**json.loads(line)))
-            except (json.JSONDecodeError) as e :
+            except json.JSONDecodeError as e:
                 logger.debug("_load_payments_error", exc_info=True)
                 logger.error(f"Payments load error: {e}")
 
@@ -185,5 +186,6 @@ class WalletDBMixin:
         mnemonic = ShamirSecretSharing.combine(shares).decode()
         self._store_mnemonic(wallet_id, mnemonic)
         return mnemonic
+
 
 __all__ = ["WalletDBMixin"]

@@ -17,6 +17,7 @@ from .config import PROVIDER_REGISTRY
 
 logger = get_logger("api_registry")
 
+
 @dataclass
 class ApiKey:
     """A single API key with runtime state."""
@@ -42,6 +43,7 @@ class ApiKey:
         burst = cfg.burst if cfg else 15
         self.tokens = float(burst)
         self.last_refill = time.monotonic()
+
 
 def discover_keys() -> dict[str, list[ApiKey]]:
     """Scan environment variables and build key pools per provider."""
@@ -109,6 +111,7 @@ def discover_keys() -> dict[str, list[ApiKey]]:
 
     return pools
 
+
 class KeyPool:
     """Round-robin key pool with health tracking and rate limiting."""
 
@@ -141,10 +144,7 @@ class KeyPool:
                 if key.tokens < 1.0:
                     continue
 
-                if (
-                    self.config.monthly_quota > 0
-                    and key.calls_this_month >= self.config.monthly_quota
-                ):
+                if self.config.monthly_quota > 0 and key.calls_this_month >= self.config.monthly_quota:
                     continue
 
                 key.tokens -= 1.0
@@ -175,9 +175,7 @@ class KeyPool:
         now = time.monotonic()
         key_stats = []
         for k in self.keys:
-            k.tokens = min(
-                float(self.config.burst), k.tokens + (now - k.last_refill) * self.config.rate_rps
-            )
+            k.tokens = min(float(self.config.burst), k.tokens + (now - k.last_refill) * self.config.rate_rps)
             key_stats.append(
                 {
                     "name": k.key_name,
@@ -193,9 +191,7 @@ class KeyPool:
         return {
             "provider": self.provider,
             "total_keys": len(self.keys),
-            "active_keys": sum(
-                1 for k in self.keys if not k.disabled and not (now < k.rate_limited_until)
-            ),
+            "active_keys": sum(1 for k in self.keys if not k.disabled and not (now < k.rate_limited_until)),
             "total_calls": self.total_calls,
             "rate_rps": self.config.rate_rps,
             "burst": self.config.burst,

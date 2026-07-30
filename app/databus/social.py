@@ -44,6 +44,7 @@ CACHE_TTL_WARM = 3600  # 1 hour - recent
 CACHE_TTL_COLD = 86400  # 24 hours - historical
 CACHE_TTL_WEEKLY = 604800  # 7 days - old data
 
+
 class XTwitterProvider:
     """
     X/Twitter data provider with aggressive cache and read budget management.
@@ -130,9 +131,7 @@ class XTwitterProvider:
     def _budget_used(self) -> None:
         self._daily_reads += 1
 
-    async def _api_call(
-        self, method: str, endpoint: str, params: dict | None = None
-    ) -> dict | None:
+    async def _api_call(self, method: str, endpoint: str, params: dict | None = None) -> dict | None:
         """Make an X API call with budget tracking and error handling."""
         if not self._check_budget():
             logger.warning("X API daily read budget exhausted")
@@ -179,9 +178,7 @@ class XTwitterProvider:
         data = await self._api_call(
             "GET",
             f"/users/by/username/{username}",
-            params={
-                "user.fields": "public_metrics,description,created_at,profile_image_url,verified,location,url"
-            },
+            params={"user.fields": "public_metrics,description,created_at,profile_image_url,verified,location,url"},
         )
         if data and "data" in data:
             await self.cache.set(cache_key, data["data"], ttl=CACHE_TTL_COLD)
@@ -279,9 +276,7 @@ class XTwitterProvider:
 
         if uncached and self._check_budget():
             ids_str = ",".join(uncached[:100])
-            data = await self._api_call(
-                "GET", "/tweets", params={"ids": ids_str, "tweet.fields": "public_metrics"}
-            )
+            data = await self._api_call("GET", "/tweets", params={"ids": ids_str, "tweet.fields": "public_metrics"})
             if data and "data" in data:
                 for tweet in data["data"]:
                     tid = tweet["id"]
@@ -299,9 +294,7 @@ class XTwitterProvider:
         if cached:
             return cached
 
-        data = await self._api_call(
-            "GET", f"/users/{user_id}", params={"user.fields": "public_metrics"}
-        )
+        data = await self._api_call("GET", f"/users/{user_id}", params={"user.fields": "public_metrics"})
         if data and "data" in data:
             count = data["data"]["public_metrics"]["followers_count"]
             await self.cache.set(cache_key, count, ttl=CACHE_TTL_WARM)
@@ -322,6 +315,7 @@ class XTwitterProvider:
 
         data = await self._api_call("POST", "/tweets", params=payload)
         return data
+
 
 class SocialDataAggregator:
     """
@@ -346,9 +340,7 @@ class SocialDataAggregator:
         """Get @CryptoRugMunch profile - cached 1h."""
         return await self.x.get_user("CryptoRugMunch")
 
-    async def get_our_tweets(
-        self, count: int = 20, since_id: str | None = None
-    ) -> list[dict] | None:
+    async def get_our_tweets(self, count: int = 20, since_id: str | None = None) -> list[dict] | None:
         """Get @CryptoRugMunch timeline."""
         profile = await self.get_our_profile()
         if not profile:

@@ -36,6 +36,7 @@ logger = get_logger("fallback_engine")
 
 # ── Cache Layer ───────────────────────────────────────────────
 
+
 class FallbackCache:
     """
     Store and retrieve cached results from previous successful tool calls.
@@ -79,7 +80,9 @@ class FallbackCache:
         param_str = json.dumps(params, sort_keys=True)
         return hashlib.sha256(f"{tool}:{param_str}".encode()).hexdigest()[:16]
 
+
 # ── Web Scraping ──────────────────────────────────────────────
+
 
 class SimpleHTMLParser(HTMLParser):
     """Extract text content from HTML pages."""
@@ -105,6 +108,7 @@ class SimpleHTMLParser(HTMLParser):
         if tag in ["script", "style", "noscript"]:
             self.in_data = False
 
+
 async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
     """Fetch and extract text from a web page."""
     try:
@@ -115,9 +119,7 @@ async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
             session.get(
                 url,
                 timeout=aiohttp.ClientTimeout(total=timeout),
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; RMI-Bot/1.0; +https://rugmunch.io/bot)"
-                },
+                headers={"User-Agent": "Mozilla/5.0 (compatible; RMI-Bot/1.0; +https://rugmunch.io/bot)"},
             ) as resp,
         ):
             if resp.status == 200:
@@ -128,6 +130,7 @@ async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
     except Exception as e:
         logger.debug(f"Page fetch failed: {url} - {e}")
     return None
+
 
 async def scrape_solscan(address: str, chain: str = "solana") -> dict:
     """
@@ -169,6 +172,7 @@ async def scrape_solscan(address: str, chain: str = "solana") -> dict:
                 return result
 
     return {}
+
 
 async def scrape_etherscan(address: str, chain: str = "ethereum") -> dict:
     """
@@ -216,6 +220,7 @@ async def scrape_etherscan(address: str, chain: str = "ethereum") -> dict:
 
     return {}
 
+
 async def scrape_dexscreener_web(address: str) -> dict:
     """
     Scrape DexScreener web page for token info.
@@ -247,7 +252,9 @@ async def scrape_dexscreener_web(address: str) -> dict:
 
     return {}
 
+
 # ── Tertiary/Alternative APIs ─────────────────────────────────
+
 
 async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
     """
@@ -268,9 +275,7 @@ async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
         url = f"https://api.geckoterminal.com/api/v2/networks/{gecko_chain}/tokens/{address}"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(
-                url, timeout=aiohttp.ClientTimeout(total=10), headers={"Accept": "application/json"}
-            ) as resp,
+            session.get(url, timeout=aiohttp.ClientTimeout(total=10), headers={"Accept": "application/json"}) as resp,
         ):
             if resp.status == 200:
                 data = await resp.json()
@@ -288,6 +293,7 @@ async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
     except Exception as e:
         logger.debug(f"GeckoTerminal failed: {e}")
     return {}
+
 
 async def fetch_dexlab(address: str) -> dict:
     """
@@ -315,6 +321,7 @@ async def fetch_dexlab(address: str) -> dict:
         pass
     return {}
 
+
 async def fetch_step_finance(address: str) -> dict:
     """
     Step Finance - Solana DeFi analytics.
@@ -333,6 +340,7 @@ async def fetch_step_finance(address: str) -> dict:
     except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
+
 
 async def fetch_moonrank(address: str) -> dict:
     """
@@ -353,6 +361,7 @@ async def fetch_moonrank(address: str) -> dict:
         pass
     return {}
 
+
 async def fetch_unchained(address: str) -> dict:
     """
     Unchained Capital - alternative on-chain data.
@@ -372,7 +381,9 @@ async def fetch_unchained(address: str) -> dict:
         pass
     return {}
 
+
 # ── Community/Unofficial APIs ─────────────────────────────────
+
 
 async def fetch_jito_search(address: str) -> dict:
     """
@@ -393,6 +404,7 @@ async def fetch_jito_search(address: str) -> dict:
         pass
     return {}
 
+
 async def fetch_orca_pools(address: str) -> dict:
     """
     Orca pools - check liquidity on Orca DEX.
@@ -411,6 +423,7 @@ async def fetch_orca_pools(address: str) -> dict:
     except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return {}
+
 
 async def fetch_raydium_pools(address: str) -> dict:
     """
@@ -431,7 +444,9 @@ async def fetch_raydium_pools(address: str) -> dict:
         pass
     return {}
 
+
 # ── Social Media / Sentiment Scraping ─────────────────────────
+
 
 async def scrape_twitter_search(token: str) -> dict:
     """
@@ -445,9 +460,7 @@ async def scrape_twitter_search(token: str) -> dict:
         url = f"https://api.allorigins.win/raw?url={__import__('urllib.parse').quote(f'https://twitter.com/search?q={token}&f=live')}"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(
-                url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}
-            ) as resp,
+            session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}) as resp,
         ):
             if resp.status == 200:
                 text = await resp.text()
@@ -458,6 +471,7 @@ async def scrape_twitter_search(token: str) -> dict:
     except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return result
+
 
 async def scrape_reddit_search(token: str) -> dict:
     """
@@ -471,23 +485,22 @@ async def scrape_reddit_search(token: str) -> dict:
         url = f"https://www.reddit.com/search.json?q={token}&sort=new&limit=10"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(
-                url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "RMI-Bot/1.0"}
-            ) as resp,
+            session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "RMI-Bot/1.0"}) as resp,
         ):
             if resp.status == 200:
                 data = await resp.json()
                 posts = data.get("data", {}).get("children", [])
                 result["posts"] = [
-                    {"title": p["data"].get("title"), "score": p["data"].get("score")}
-                    for p in posts[:10]
+                    {"title": p["data"].get("title"), "score": p["data"].get("score")} for p in posts[:10]
                 ]
                 result["post_count"] = len(result["posts"])
     except (aiohttp.ClientError, TimeoutError, OSError):
         pass
     return result
 
+
 # ── RSS / News Feeds ─────────────────────────────────────────
+
 
 async def fetch_crypto_news_feeds(token: str = "") -> dict:
     """
@@ -522,7 +535,9 @@ async def fetch_crypto_news_feeds(token: str = "") -> dict:
         pass
     return result
 
+
 # ── AI Web Search (via Hermes Agent) ─────────────────────────
+
 
 async def ai_web_search(query: str) -> dict:
     """
@@ -538,9 +553,7 @@ async def ai_web_search(query: str) -> dict:
         url = f"https://html.duckduckgo.com/html/?q={__import__('urllib.parse').quote(query)}"
         async with (
             aiohttp.ClientSession() as session,
-            session.get(
-                url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}
-            ) as resp,
+            session.get(url, timeout=aiohttp.ClientTimeout(total=15), headers={"User-Agent": "Mozilla/5.0"}) as resp,
         ):
             if resp.status == 200:
                 text = await resp.text()
@@ -551,7 +564,9 @@ async def ai_web_search(query: str) -> dict:
         logger.debug(f"AI web search failed: {e}")
     return result
 
+
 # ── Public Blockchain Data Archives ───────────────────────────
+
 
 async def fetch_bigquery_public(address: str) -> dict:
     """
@@ -572,7 +587,9 @@ async def fetch_bigquery_public(address: str) -> dict:
         pass
     return result
 
+
 # ── Master Fallback Orchestrator ──────────────────────────────
+
 
 async def try_all_fallbacks(
     tool: str,
@@ -719,27 +736,23 @@ async def try_all_fallbacks(
     # Extract best price from all sources
     for source, data in results.items():
         if source == "geckoterminal":
-            merged["best_price"] = data.get("geckoterminal", {}).get(
-                "price_usd", merged["best_price"]
-            )
+            merged["best_price"] = data.get("geckoterminal", {}).get("price_usd", merged["best_price"])
             merged["best_liquidity"] = data.get("geckoterminal", {}).get("volume_usd_h24")
         elif source == "dexlab":
             merged["best_price"] = data.get("dexlab", {}).get("price", merged["best_price"])
         elif source == "web_scrape_solana":
-            merged["best_price"] = data.get("web_scrape", {}).get(
-                "scraped_price", merged["best_price"]
-            )
+            merged["best_price"] = data.get("web_scrape", {}).get("scraped_price", merged["best_price"])
         elif source == "dexscreener_web":
-            merged["best_price"] = data.get("dexscreener_web", {}).get(
-                "scraped_price", merged["best_price"]
-            )
+            merged["best_price"] = data.get("dexscreener_web", {}).get("scraped_price", merged["best_price"])
 
     # Store in cache
     await cache.set(cache_key, merged, ttl=3600)  # Cache for 1 hour
 
     return merged
 
+
 # ── Integration with existing tools ───────────────────────────
+
 
 async def audit_with_fallback(address: str, chain: str, redis=None) -> dict:
     """Run audit with full fallback chain."""

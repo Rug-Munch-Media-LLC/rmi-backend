@@ -38,11 +38,14 @@ from typing import Any
 # TIERS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class Tier(StrEnum):
     """Usage tiers with increasing rate limits."""
+
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TIER LIMITS — per-user daily/minute quotas
@@ -70,8 +73,14 @@ TIER_LIMITS: dict[Tier, dict[str, int | float | list[str]]] = {
         "burst_multiplier": 0.25,
         "price_monthly_usd": 19.99,
         "features": [
-            "deep_scan", "signals", "whale_alerts", "api_access",
-            "ai_chat", "sentiment", "arbitrage", "mev_advisory",
+            "deep_scan",
+            "signals",
+            "whale_alerts",
+            "api_access",
+            "ai_chat",
+            "sentiment",
+            "arbitrage",
+            "mev_advisory",
         ],
     },
     Tier.ENTERPRISE: {
@@ -96,17 +105,17 @@ DEFAULT_TIER = Tier.FREE
 # (requests_per_minute, burst_multiplier)
 # burst = max(1, requests_per_minute * burst_multiplier)
 CATEGORY_LIMITS: dict[str, tuple[int, float]] = {
-    "health":    (1000, 0.2),    # 1000/min,  burst 200
-    "auth":      (5,    0.4),    # 5/min,     burst 2
-    "x402":      (1000, 0.2),    # 1000/min,  burst 200 — paid calls are cheap
-    "scan":      (20,   0.25),   # 20/min,    burst 5
-    "ai":        (10,   0.3),    # 10/min,    burst 3
-    "market":    (60,   0.25),   # 60/min,    burst 15
-    "public":    (100,  0.25),   # 100/min,   burst 25
-    "mcp":       (30,   0.25),   # 30/min,    burst 7
-    "admin":     (10,   0.2),    # 10/min,    burst 2
-    "protection":(60,   0.25),   # 60/min,    burst 15
-    "default":   (60,   0.25),   # 60/min,    burst 15
+    "health": (1000, 0.2),  # 1000/min,  burst 200
+    "auth": (5, 0.4),  # 5/min,     burst 2
+    "x402": (1000, 0.2),  # 1000/min,  burst 200 — paid calls are cheap
+    "scan": (20, 0.25),  # 20/min,    burst 5
+    "ai": (10, 0.3),  # 10/min,    burst 3
+    "market": (60, 0.25),  # 60/min,    burst 15
+    "public": (100, 0.25),  # 100/min,   burst 25
+    "mcp": (30, 0.25),  # 30/min,    burst 7
+    "admin": (10, 0.2),  # 10/min,    burst 2
+    "protection": (60, 0.25),  # 60/min,    burst 15
+    "default": (60, 0.25),  # 60/min,    burst 15
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -119,20 +128,17 @@ PATH_CATEGORIES: dict[str, str] = {
     "/live": "health",
     "/ready": "health",
     "/metrics": "health",
-
     # Auth
     "/register": "auth",
     "/login": "auth",
     "/2fa": "auth",
     "/forgot-password": "auth",
     "/auth": "auth",
-
     # x402 / payments — always bypass normal rate limits
     "/api/v1/x402": "x402",
     "/pay": "x402",
     "/affiliates": "x402",
     "/usage": "x402",
-
     # Scanner / analysis endpoints
     "/api/v1/scanner": "scan",
     "/api/v1/contract-analyzer": "scan",
@@ -145,30 +151,24 @@ PATH_CATEGORIES: dict[str, str] = {
     "/api/v1/address-profiler": "scan",
     "/api/v1/mev-advisory": "scan",
     "/api/v1/wallet-clusters": "scan",
-
     # AI / chat
     "/api/v1/ai": "ai",
     "/api/v1/chat": "ai",
     "/api/v1/rag": "ai",
-
     # Market / news
     "/api/v1/market": "market",
     "/api/v1/news": "market",
     "/api/v1/bulletin": "market",
     "/api/v1/bulletin-board": "market",
     "/api/v1/catalog": "market",
-
     # Public data
     "/api/v1/token": "public",
     "/api/v1/wallet": "public",
     "/api/v1/labels": "public",
-
     # Protection suite
     "/api/v1/protect": "protection",
-
     # MCP protocol
     "/mcp": "mcp",
-
     # Admin
     "/api/v1/admin": "admin",
     "/api/v1/_test": "admin",
@@ -178,13 +178,16 @@ PATH_CATEGORIES: dict[str, str] = {
 # ENDPOINT OVERRIDES — specific routes that differ from category defaults
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass(frozen=True)
 class EndpointOverride:
     """Override rate limits for a specific endpoint path."""
+
     path: str
     requests_per_minute: int
     burst: int
     reason: str  # Why this override exists
+
 
 ENDPOINT_OVERRIDES: list[EndpointOverride] = [
     # Heavy scan endpoints — lower rate to protect upstream APIs
@@ -224,6 +227,7 @@ X402_VERIFY_URL = os.getenv(
 # RESOLVERS
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def resolve_category(path: str) -> str:
     """Resolve a request path to a rate limit category.
 
@@ -231,12 +235,11 @@ def resolve_category(path: str) -> str:
     Falls back to 'default'.
     """
     # Sort by descending length so e.g. /api/v1/scanner/deep matches before /api/v1/scanner
-    for prefix, category in sorted(
-        PATH_CATEGORIES.items(), key=lambda x: -len(x[0])
-    ):
+    for prefix, category in sorted(PATH_CATEGORIES.items(), key=lambda x: -len(x[0])):
         if path.startswith(prefix):
             return category
     return "default"
+
 
 def resolve_category_limit(category: str) -> tuple[int, int]:
     """Resolve (requests_per_minute, burst) for a category.
@@ -251,6 +254,7 @@ def resolve_category_limit(category: str) -> tuple[int, int]:
     burst = max(1, int(rpm * burst_factor))
     return rpm, burst
 
+
 def resolve_path_limit(path: str) -> tuple[int, int]:
     """Resolve (requests_per_minute, burst) for a full request path.
 
@@ -264,6 +268,7 @@ def resolve_path_limit(path: str) -> tuple[int, int]:
     # Fall back to category
     category = resolve_category(path)
     return resolve_category_limit(category)
+
 
 def resolve_tier_limit(tier: Tier, path: str) -> dict[str, Any]:
     """Resolve the effective rate limit for a (tier, path) combination.
@@ -290,6 +295,7 @@ def resolve_tier_limit(tier: Tier, path: str) -> dict[str, Any]:
         "features": list(tier_config["features"]),
         "price_monthly_usd": tier_config["price_monthly_usd"],
     }
+
 
 def is_x402_endpoint(path: str) -> bool:
     """Check if a path is an x402 payment endpoint (bypasses rate limits)."""

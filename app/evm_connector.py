@@ -125,6 +125,7 @@ MORALIS_RPC = {
 
 # ─── WEB3 CLIENT ──────────────────────────────────────────────────
 
+
 class EVMClient:
     """
     EVM blockchain client with chain abstraction.
@@ -154,9 +155,7 @@ class EVMClient:
 
             # Build provider with optional Moralis auth header
             if self._use_moralis and MORALIS_API_KEY:
-                provider = HTTPProvider(
-                    self.rpc_url, request_kwargs={"headers": {"X-API-Key": MORALIS_API_KEY}}
-                )
+                provider = HTTPProvider(self.rpc_url, request_kwargs={"headers": {"X-API-Key": MORALIS_API_KEY}})
             else:
                 provider = HTTPProvider(self.rpc_url)
 
@@ -300,7 +299,9 @@ class EVMClient:
         """Convert from wei."""
         return self.w3.from_wei(amount, unit)
 
+
 # ─── CLIENT MANAGER ───────────────────────────────────────────────
+
 
 class ClientManager:
     """Manages multiple EVM clients (one per chain)."""
@@ -308,9 +309,7 @@ class ClientManager:
     def __init__(self) -> None:
         self.clients: dict[str, EVMClient] = {}
 
-    def get_client(
-        self, chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False
-    ) -> EVMClient:
+    def get_client(self, chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False) -> EVMClient:
         """Get or create client for chain."""
         key = f"{chain}:{rpc_url or 'default'}:{use_moralis}"
         if key not in self.clients:
@@ -321,14 +320,15 @@ class ClientManager:
         """Clear all cached clients."""
         self.clients.clear()
 
+
 # Global singleton
 _client_manager = ClientManager()
 
-def get_evm_client(
-    chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False
-) -> EVMClient:
+
+def get_evm_client(chain: str = "base", rpc_url: str | None = None, use_moralis: bool = False) -> EVMClient:
     """Get global EVM client."""
     return _client_manager.get_client(chain, rpc_url, use_moralis)
+
 
 # ─── CIRCUIT BREAKER ──────────────────────────────────────────────
 # Prevents cascading failures when RPC endpoints are degraded.

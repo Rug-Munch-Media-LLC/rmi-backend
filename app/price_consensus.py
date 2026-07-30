@@ -43,6 +43,7 @@ DEFAULT_SOURCE_WEIGHTS = {
 
 # ── Data Classes ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class PriceSource:
     """A single price data provider."""
@@ -53,6 +54,7 @@ class PriceSource:
     last_price: float = 0.0
     last_latency: float = 0.0
     error_count: int = 0
+
 
 @dataclass
 class PriceConsensus:
@@ -73,7 +75,9 @@ class PriceConsensus:
     def is_reliable(self) -> bool:
         return self.confidence >= 60.0 and self.price is not None
 
+
 # ── Price Consensus Engine ─────────────────────────────────────────────────
+
 
 class PriceConsensusEngine:
     """Multi-source price aggregation with MAD-based outlier rejection.
@@ -115,9 +119,7 @@ class PriceConsensusEngine:
         for name, fetcher, weight in sources:
             self._sources[name] = PriceSource(name=name, weight=weight, fetcher=fetcher)
 
-        logger.info(
-            f"PriceConsensusEngine: {len(self._sources)} sources registered: {list(self._sources.keys())}"
-        )
+        logger.info(f"PriceConsensusEngine: {len(self._sources)} sources registered: {list(self._sources.keys())}")
 
     # ── Source Fetchers ──────────────────────────────────────────────────
 
@@ -134,9 +136,7 @@ class PriceConsensusEngine:
                     pairs = data.get("pairs", [])
                     if pairs:
                         # Find the pair with highest liquidity
-                        best = max(
-                            pairs, key=lambda p: float(p.get("liquidity", {}).get("usd", 0) or 0)
-                        )
+                        best = max(pairs, key=lambda p: float(p.get("liquidity", {}).get("usd", 0) or 0))
                         price = best.get("priceUsd")
                         if price:
                             return float(price)
@@ -511,17 +511,13 @@ class PriceConsensusEngine:
         }
         outlier_names = [
             name
-            for name, price, is_outlier in zip(
-                price_names, price_values, outliers_mask, strict=False
-            )
+            for name, price, is_outlier in zip(price_names, price_values, outliers_mask, strict=False)
             if is_outlier
         ]
 
         # If all prices are outliers, fall back to all with low confidence
         if not inlier_prices:
-            logger.warning(
-                f"All prices flagged as outliers for {token_address} - using all with low confidence"
-            )
+            logger.warning(f"All prices flagged as outliers for {token_address} - using all with low confidence")
             weighted_avg = self._weighted_mean(prices)
             return PriceConsensus(
                 price=weighted_avg,
@@ -617,9 +613,7 @@ class PriceConsensusEngine:
             for name, src in self._sources.items():
                 source_stats[name] = {
                     "weight": src.weight,
-                    "effective_weight": round(
-                        src.weight * (1.0 - min(0.5, src.error_count * 0.1)), 3
-                    ),
+                    "effective_weight": round(src.weight * (1.0 - min(0.5, src.error_count * 0.1)), 3),
                     "last_price": src.last_price,
                     "last_latency": round(src.last_latency, 3),
                     "error_count": src.error_count,
@@ -629,9 +623,11 @@ class PriceConsensusEngine:
             "sources": source_stats,
         }
 
+
 # ── Singleton ─────────────────────────────────────────────────────────────
 
 _price_engine: PriceConsensusEngine | None = None
+
 
 def get_price_consensus() -> PriceConsensusEngine:
     """Get the global PriceConsensusEngine singleton."""

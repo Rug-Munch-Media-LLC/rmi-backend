@@ -4,6 +4,7 @@ CryptoRugMunch Bot - Database Layer
 ====================================
 SQLite-based user tracking, subscriptions, scan counts, watchlists.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -14,12 +15,14 @@ from datetime import UTC, datetime, timedelta
 
 DB_PATH = os.getenv("BOT_DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bot_users.db"))
 
+
 def get_db() -> sqlite3.Connection:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
 
 def init_db() -> None:
     conn = get_db()
@@ -76,9 +79,30 @@ def init_db() -> None:
             telegram_payment_id TEXT,
             created_at INTEGER
         );
+        CREATE TABLE IF NOT EXISTS webhooks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            url TEXT NOT NULL,
+            event_type TEXT DEFAULT 'all',
+            backend_id TEXT,
+            is_active INTEGER DEFAULT 1,
+            last_ping TEXT,
+            created_at INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS api_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            token TEXT UNIQUE NOT NULL,
+            name TEXT DEFAULT 'default',
+            is_active INTEGER DEFAULT 1,
+            last_used INTEGER,
+            created_at INTEGER
+        );
         CREATE INDEX IF NOT EXISTS idx_weekly_user ON weekly_usage(user_id, week_start);
         CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlists(user_id, is_active);
         CREATE INDEX IF NOT EXISTS idx_scan_user ON scan_history(user_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_webhooks_user ON webhooks(user_id, is_active);
+        CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id, is_active);
     """)
     # Migration: add bonus columns if they don't exist (SQLite safe)
     with contextlib.suppress(sqlite3.OperationalError):
@@ -91,11 +115,11 @@ def init_db() -> None:
     conn.commit()
     conn.close()
 
+
 # ── User Management ──
 
-def get_or_create_user(
-    user_id: int, username: str | None = None, first_name: str | None = None
-) -> dict:
+
+def get_or_create_user(user_id: int, username: str | None = None, first_name: str | None = None) -> dict:
     conn = get_db()
     row = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if row:
@@ -120,40 +144,39 @@ def get_or_create_user(
     conn.close()
     return result
 
+
 def get_user_tier(user_id: int) -> str:
     conn = get_db()
-    row = conn.execute(
-        "SELECT tier, tier_expires FROM users WHERE user_id = ?", (user_id,)
-    ).fetchone()
+    row = conn.execute("SELECT tier, tier_expires FROM users WHERE user_id = ?", (user_id,)).fetchone()
     conn.close()
     if not row:
         return "free"
     if row["tier"] != "free" and row["tier_expires"] > 0 and time.time() > row["tier_expires"]:
         conn = get_db()
-        conn.execute(
-            "UPDATE users SET tier = 'free', tier_expires = 0 WHERE user_id = ?", (user_id,)
-        )
+        conn.execute("UPDATE users SET tier = 'free', tier_expires = 0 WHERE user_id = ?", (user_id,))
         conn.commit()
         conn.close()
         return "free"
     return row["tier"]
 
+
 def set_user_tier(user_id: int, tier: str, days: int = 30) -> None:
     expires = int(time.time() + timedelta(days=days).total_seconds()) if tier != "free" else 0
     conn = get_db()
-    conn.execute(
-        "UPDATE users SET tier = ?, tier_expires = ? WHERE user_id = ?", (tier, expires, user_id)
-    )
+    conn.execute("UPDATE users SET tier = ?, tier_expires = ? WHERE user_id = ?", (tier, expires, user_id))
     conn.commit()
     conn.close()
 
+
 # ── Weekly Usage ──
+
 
 def _current_week_start() -> str:
     """Return Monday of the current UTC week as YYYY-MM-DD."""
     now = datetime.now(UTC)
     monday = now - timedelta(days=now.weekday())
     return monday.strftime("%Y-%m-%d")
+
 
 def get_weekly_usage(user_id: int) -> tuple[int, int]:
     week = _current_week_start()
@@ -165,6 +188,7 @@ def get_weekly_usage(user_id: int) -> tuple[int, int]:
     conn.close()
     return (row["scans"], row["ai_msgs"]) if row else (0, 0)
 
+
 def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> bool:
     """Consume 1 scan or AI msg. Tries weekly allotment first, then bonus balance."""
     week = _current_week_start()
@@ -175,9 +199,7 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
         row = conn.execute(
             "SELECT scans FROM weekly_usage WHERE user_id = ? AND week_start = ?", (user_id, week)
         ).fetchone()
-        user = conn.execute(
-            "SELECT bonus_scans FROM users WHERE user_id = ?", (user_id,)
-        ).fetchone()
+        user = conn.execute("SELECT bonus_scans FROM users WHERE user_id = ?", (user_id,)).fetchone()
         from app.domains.telegram.rugmunchbot.config import TIERS
 
         tier = get_user_tier(user_id)
@@ -196,9 +218,7 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
             )
         elif user and user["bonus_scans"] > 0:
             # Use bonus balance
-            conn.execute(
-                "UPDATE users SET bonus_scans = bonus_scans - 1 WHERE user_id = ?", (user_id,)
-            )
+            conn.execute("UPDATE users SET bonus_scans = bonus_scans - 1 WHERE user_id = ?", (user_id,))
         else:
             conn.close()
             return False  # No quota available
@@ -209,9 +229,7 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
         row = conn.execute(
             "SELECT ai_msgs FROM weekly_usage WHERE user_id = ? AND week_start = ?", (user_id, week)
         ).fetchone()
-        user = conn.execute(
-            "SELECT bonus_ai_msgs FROM users WHERE user_id = ?", (user_id,)
-        ).fetchone()
+        user = conn.execute("SELECT bonus_ai_msgs FROM users WHERE user_id = ?", (user_id,)).fetchone()
         from app.domains.telegram.rugmunchbot.config import TIERS
 
         tier = get_user_tier(user_id)
@@ -228,20 +246,17 @@ def increment_usage(user_id: int, scan: bool = False, ai_msg: bool = False) -> b
                 (user_id, week),
             )
         elif user and user["bonus_ai_msgs"] > 0:
-            conn.execute(
-                "UPDATE users SET bonus_ai_msgs = bonus_ai_msgs - 1 WHERE user_id = ?", (user_id,)
-            )
+            conn.execute("UPDATE users SET bonus_ai_msgs = bonus_ai_msgs - 1 WHERE user_id = ?", (user_id,))
         else:
             conn.close()
             return False
 
-        conn.execute(
-            "UPDATE users SET total_ai_msgs = total_ai_msgs + 1 WHERE user_id = ?", (user_id,)
-        )
+        conn.execute("UPDATE users SET total_ai_msgs = total_ai_msgs + 1 WHERE user_id = ?", (user_id,))
 
     conn.commit()
     conn.close()
     return True
+
 
 def check_rate_limit(user_id: int, action: str = "scan") -> tuple[bool, int, int]:
     """Returns (allowed, current_used, max_allowed).
@@ -253,9 +268,7 @@ def check_rate_limit(user_id: int, action: str = "scan") -> tuple[bool, int, int
     scans_used, ai_used = get_weekly_usage(user_id)
 
     conn = get_db()
-    user = conn.execute(
-        "SELECT bonus_scans, bonus_ai_msgs FROM users WHERE user_id = ?", (user_id,)
-    ).fetchone()
+    user = conn.execute("SELECT bonus_scans, bonus_ai_msgs FROM users WHERE user_id = ?", (user_id,)).fetchone()
     conn.close()
     bonus_s = user["bonus_scans"] if user else 0
     bonus_a = user["bonus_ai_msgs"] if user else 0
@@ -273,7 +286,9 @@ def check_rate_limit(user_id: int, action: str = "scan") -> tuple[bool, int, int
     allowed = (current < limit) or (bonus > 0)
     return allowed, current, limit
 
+
 # ── Watchlist ──
+
 
 def add_watchlist(
     user_id: int,
@@ -302,6 +317,7 @@ def add_watchlist(
     conn.close()
     return True
 
+
 def get_watchlist(user_id: int) -> list[dict]:
     conn = get_db()
     rows = conn.execute(
@@ -310,6 +326,7 @@ def get_watchlist(user_id: int) -> list[dict]:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
 
 def remove_watchlist(user_id: int, token_address: str) -> bool:
     conn = get_db()
@@ -321,6 +338,7 @@ def remove_watchlist(user_id: int, token_address: str) -> bool:
     result = cursor.rowcount > 0
     conn.close()
     return result
+
 
 def get_active_alerts() -> list[dict]:
     """Return all watchlist entries with active price alerts."""
@@ -337,6 +355,7 @@ def get_active_alerts() -> list[dict]:
     conn.close()
     return [dict(r) for r in rows]
 
+
 def mark_alert_triggered(watch_id: int) -> None:
     """Mark an alert as fired by setting triggered_at and deactivating."""
     conn = get_db()
@@ -346,6 +365,7 @@ def mark_alert_triggered(watch_id: int) -> None:
     )
     conn.commit()
     conn.close()
+
 
 def get_watchlist_for_user(user_id: int, include_triggered: bool = False) -> list[dict]:
     """Get user watchlist with alert metadata.
@@ -366,11 +386,11 @@ def get_watchlist_for_user(user_id: int, include_triggered: bool = False) -> lis
     conn.close()
     return [dict(r) for r in rows]
 
+
 # ── Scan History ──
 
-def log_scan(
-    user_id: int, token_address: str, chain: str, scan_type: str, risk_score: float
-) -> None:
+
+def log_scan(user_id: int, token_address: str, chain: str, scan_type: str, risk_score: float) -> None:
     conn = get_db()
     conn.execute(
         "INSERT INTO scan_history (user_id, token_address, chain, scan_type, risk_score, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -378,6 +398,7 @@ def log_scan(
     )
     conn.commit()
     conn.close()
+
 
 def activate_tier(user_id: int, tier: str, days: int = 30) -> None:
     """Atomically activate a paid tier for N days (sets tier + tier_expires)."""
@@ -390,13 +411,13 @@ def activate_tier(user_id: int, tier: str, days: int = 30) -> None:
     conn.commit()
     conn.close()
 
+
 # ── Stars Balance ──
+
 
 def add_stars(user_id: int, amount: int, action: str, payment_id: str | None = None) -> None:
     conn = get_db()
-    conn.execute(
-        "UPDATE users SET stars_balance = stars_balance + ? WHERE user_id = ?", (amount, user_id)
-    )
+    conn.execute("UPDATE users SET stars_balance = stars_balance + ? WHERE user_id = ?", (amount, user_id))
     conn.execute(
         "INSERT INTO star_transactions (user_id, amount, action, telegram_payment_id, created_at) VALUES (?, ?, ?, ?, ?)",
         (user_id, amount, action, payment_id, int(time.time())),
@@ -404,15 +425,14 @@ def add_stars(user_id: int, amount: int, action: str, payment_id: str | None = N
     conn.commit()
     conn.close()
 
+
 def spend_stars(user_id: int, amount: int, action: str) -> bool:
     conn = get_db()
     row = conn.execute("SELECT stars_balance FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if not row or row["stars_balance"] < amount:
         conn.close()
         return False
-    conn.execute(
-        "UPDATE users SET stars_balance = stars_balance - ? WHERE user_id = ?", (amount, user_id)
-    )
+    conn.execute("UPDATE users SET stars_balance = stars_balance - ? WHERE user_id = ?", (amount, user_id))
     conn.execute(
         "INSERT INTO star_transactions (user_id, amount, action, created_at) VALUES (?, ?, ?, ?)",
         (user_id, -amount, action, int(time.time())),
@@ -421,9 +441,8 @@ def spend_stars(user_id: int, amount: int, action: str) -> bool:
     conn.close()
     return True
 
-def apply_top_up(
-    user_id: int, pack_type: str, amount: int, stars_cost: int, payment_id: str | None = None
-) -> bool:
+
+def apply_top_up(user_id: int, pack_type: str, amount: int, stars_cost: int, payment_id: str | None = None) -> bool:
     """Apply a top-up purchase: deduct stars, credit bonus balance."""
     conn = get_db()
     row = conn.execute("SELECT stars_balance FROM users WHERE user_id = ?", (user_id,)).fetchone()
@@ -437,9 +456,7 @@ def apply_top_up(
     )
     # Credit bonus
     if pack_type == "scans":
-        conn.execute(
-            "UPDATE users SET bonus_scans = bonus_scans + ? WHERE user_id = ?", (amount, user_id)
-        )
+        conn.execute("UPDATE users SET bonus_scans = bonus_scans + ? WHERE user_id = ?", (amount, user_id))
     elif pack_type == "ai_msgs":
         conn.execute(
             "UPDATE users SET bonus_ai_msgs = bonus_ai_msgs + ? WHERE user_id = ?",
@@ -454,7 +471,9 @@ def apply_top_up(
     conn.close()
     return True
 
+
 # ── Stats ──
+
 
 def get_user_stats(user_id: int) -> dict:
     conn = get_db()
@@ -472,6 +491,7 @@ def get_user_stats(user_id: int) -> dict:
         "scans_this_week": scans_used,
         "ai_msgs_this_week": ai_used,
     }
+
 
 # Init on import
 init_db()

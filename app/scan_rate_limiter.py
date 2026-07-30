@@ -29,9 +29,11 @@ logger = get_logger(__name__)
 # ── In-memory fallback (used when Redis is unavailable) ──
 _mem_usage: dict[str, tuple[int, float]] = {}
 
+
 def _check_memory_fallback(identity: str, daily_limit: int) -> dict:
     """In-memory rate limit check — never fails open."""
     from time import monotonic
+
     now = monotonic()
     count, win_start = _mem_usage.get(identity, (0, now))
     if now - win_start > 86400:
@@ -58,6 +60,7 @@ def _check_memory_fallback(identity: str, daily_limit: int) -> dict:
         "limit": daily_limit,
         "upsell": None,
     }
+
 
 FREE_DAILY_LIMIT = int(os.getenv("FREE_SCAN_LIMIT", "5"))
 PRO_DAILY_LIMIT = int(os.getenv("PRO_SCAN_LIMIT", "100"))
@@ -202,6 +205,7 @@ PREMIUM_UPSELL = {
     }
 }
 
+
 def _get_redis() -> aioredis.Redis:  # type: ignore[type-arg]
     """Get async Redis connection for usage tracking."""
     return aioredis.Redis(
@@ -212,13 +216,16 @@ def _get_redis() -> aioredis.Redis:  # type: ignore[type-arg]
         decode_responses=True,
     )
 
+
 def _today_key() -> str:
     """Return today's date key for Redis."""
     return datetime.now(UTC).strftime("%Y-%m-%d")
 
+
 def _identity_key(identity_type: str, identity: str) -> str:
     """Build Redis key for an identity's daily usage."""
     return f"rmi:scan_usage:{_today_key()}:{identity_type}:{identity}"
+
 
 async def check_scan_limit(
     identity: str,
@@ -291,6 +298,7 @@ async def check_scan_limit(
         # On Redis failure, fall back to in-memory counter instead of failing open
         return _check_memory_fallback(identity, daily_limit)
 
+
 async def increment_scan_usage(
     identity: str,
     identity_type: str = "ip",
@@ -308,11 +316,7 @@ async def increment_scan_usage(
     if is_internal or is_x402_paid:
         return {"recorded": False, "total_today": 0, "remaining": -1}
 
-    daily_limit = (
-        ELITE_DAILY_LIMIT
-        if tier == "elite"
-        else (PRO_DAILY_LIMIT if tier == "pro" else FREE_DAILY_LIMIT)
-    )
+    daily_limit = ELITE_DAILY_LIMIT if tier == "elite" else (PRO_DAILY_LIMIT if tier == "pro" else FREE_DAILY_LIMIT)
 
     try:
         r = _get_redis()
@@ -329,6 +333,7 @@ async def increment_scan_usage(
     except Exception as e:
         logger.error("Usage recording failed: %s", e)
         return {"recorded": False, "total_today": 0, "remaining": -1}
+
 
 async def get_usage_stats(identity: str, identity_type: str = "ip") -> dict[str, Any]:
     """Get today's usage stats for an identity."""
@@ -351,6 +356,7 @@ async def get_usage_stats(identity: str, identity_type: str = "ip") -> dict[str,
         logger.error("Usage stats failed: %s", e)
         return {"identity": identity, "scans_today": 0, "error": str(e)}
 
+
 def is_internal_request(request) -> bool:
     """Check if request is from internal/cron (API key header or internal IP)."""
     # Check internal API key header
@@ -359,9 +365,7 @@ def is_internal_request(request) -> bool:
         return True
 
     # Check for x402 payment (already paid)
-    x402_version = (
-        request.headers.get("X-Payment-Version", "") if hasattr(request, "headers") else ""
-    )
+    x402_version = request.headers.get("X-Payment-Version", "") if hasattr(request, "headers") else ""
     if x402_version:
         return False  # x402 is not internal, but it's paid - handled separately
 
@@ -371,6 +375,7 @@ def is_internal_request(request) -> bool:
         return False  # Authenticated user - check their tier
 
     return False
+
 
 def get_identity(request) -> tuple[str, str]:
     """
@@ -388,8 +393,8 @@ def get_identity(request) -> tuple[str, str]:
             payload = _verify_jwt(auth[7:])
             if payload:
                 return payload.get("id", auth[7:][:32]), "user"
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.warning("Rate limiter parsing error: %s", e)
 
     # Fall back to IP
     client_ip = request.client.host if hasattr(request, "client") and request.client else "unknown"
@@ -398,6 +403,7 @@ def get_identity(request) -> tuple[str, str]:
         client_ip = forwarded.split(",")[0].strip()
 
     return client_ip, "ip"
+
 
 def is_x402_paid_request(request) -> bool:
     """Check if request has a valid x402 payment (handled by enforcement middleware)."""

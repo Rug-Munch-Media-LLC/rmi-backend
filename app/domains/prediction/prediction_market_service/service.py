@@ -1,4 +1,5 @@
 """Main prediction market service."""
+
 from __future__ import annotations
 
 import asyncio
@@ -24,6 +25,7 @@ KALSHI_BASE = "https://external-api.kalshi.com/trade-api/v2"
 LIMITLESS_BASE = "https://api.limitless.exchange"
 MANIFOLD_BASE = "https://api.manifold.markets/v0"
 
+
 class PredictionMarketService:
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http = http_client or httpx.AsyncClient(timeout=15.0)
@@ -34,7 +36,10 @@ class PredictionMarketService:
             return self._redis
         try:
             import redis.asyncio as aioredis
-            self._redis = aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True, socket_connect_timeout=3)
+
+            self._redis = aioredis.from_url(
+                os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True, socket_connect_timeout=3
+            )
             if self._redis is None:
                 self._redis = False
         except Exception as e:
@@ -42,7 +47,9 @@ class PredictionMarketService:
             self._redis = False
         return self._redis if self._redis is not False else None
 
-    async def search(self, query: str, categories: list[str] | None = None, min_volume: float = 0, security_only: bool = False) -> list[PredictionMarket]:
+    async def search(
+        self, query: str, categories: list[str] | None = None, min_volume: float = 0, security_only: bool = False
+    ) -> list[PredictionMarket]:
         cache_key = f"predmkt:search:{_cache_hash(query, categories, min_volume, security_only)}"
         redis = self._get_redis()
         if redis:
@@ -52,7 +59,13 @@ class PredictionMarketService:
                     return [_dict_to_market(d) for d in json.loads(cached)]
             except Exception:
                 logger.debug("search_cache_read_failed")
-        results: list[list[PredictionMarket]] = await asyncio.gather(self._search_polymarket(query), self._search_kalshi(query), self._search_limitless(query), self._search_manifold(query), return_exceptions=True)
+        results: list[list[PredictionMarket]] = await asyncio.gather(
+            self._search_polymarket(query),
+            self._search_kalshi(query),
+            self._search_limitless(query),
+            self._search_manifold(query),
+            return_exceptions=True,
+        )
         all_markets: list[PredictionMarket] = []
         sources = ["polymarket", "kalshi", "limitless", "manifold"]
         for i, result in enumerate(results):
@@ -87,7 +100,14 @@ class PredictionMarketService:
                     return _dict_to_digest(json.loads(cached))
             except Exception:
                 logger.debug("digest_cache_read_failed")
-        security_queries = ["crypto hack exploit scam", "defi rug pull fraud", "exchange insolvent breach", "stablecoin depeg collapse", "crypto regulation SEC enforcement", "blockchain vulnerability zero-day"]
+        security_queries = [
+            "crypto hack exploit scam",
+            "defi rug pull fraud",
+            "exchange insolvent breach",
+            "stablecoin depeg collapse",
+            "crypto regulation SEC enforcement",
+            "blockchain vulnerability zero-day",
+        ]
         all_markets: list[PredictionMarket] = []
         searches = [self.search(q, security_only=False) for q in security_queries]
         results = await asyncio.gather(*searches, return_exceptions=True)
@@ -101,11 +121,45 @@ class PredictionMarketService:
             if q_key not in seen_questions:
                 seen_questions.add(q_key)
             unique_markets.append(m)
-        top_threats = sorted([m for m in unique_markets if m.is_security_relevant and m.volume_usd > 10000], key=lambda m: m.volume_usd, reverse=True)
-        token_specific = sorted([m for m in unique_markets if m.is_crypto_relevant and m.is_security_relevant and len(m.tokens_mentioned) > 0], key=lambda m: m.volume_usd, reverse=True)
-        ecosystem_risk = sorted([m for m in unique_markets if m.is_crypto_relevant and not m.is_security_relevant and m.volume_usd > 50000], key=lambda m: m.volume_usd, reverse=True)
-        regulatory = sorted([m for m in unique_markets if m.is_security_relevant and any(kw in m.question.lower() for kw in ["sec","cftc","doj","regulation","sanction","ban"])], key=lambda m: m.volume_usd, reverse=True)
-        digest = PredictionDigest(generated_at=datetime.now(UTC).isoformat(), total_markets_searched=len(unique_markets), security_relevant_count=len([m for m in unique_markets if m.is_security_relevant]), crypto_relevant_count=len([m for m in unique_markets if m.is_crypto_relevant]), top_threats=top_threats[:20], token_specific_markets=token_specific[:20], ecosystem_risk_markets=ecosystem_risk[:10], regulatory_markets=regulatory[:10])
+        top_threats = sorted(
+            [m for m in unique_markets if m.is_security_relevant and m.volume_usd > 10000],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
+        token_specific = sorted(
+            [
+                m
+                for m in unique_markets
+                if m.is_crypto_relevant and m.is_security_relevant and len(m.tokens_mentioned) > 0
+            ],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
+        ecosystem_risk = sorted(
+            [m for m in unique_markets if m.is_crypto_relevant and not m.is_security_relevant and m.volume_usd > 50000],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
+        regulatory = sorted(
+            [
+                m
+                for m in unique_markets
+                if m.is_security_relevant
+                and any(kw in m.question.lower() for kw in ["sec", "cftc", "doj", "regulation", "sanction", "ban"])
+            ],
+            key=lambda m: m.volume_usd,
+            reverse=True,
+        )
+        digest = PredictionDigest(
+            generated_at=datetime.now(UTC).isoformat(),
+            total_markets_searched=len(unique_markets),
+            security_relevant_count=len([m for m in unique_markets if m.is_security_relevant]),
+            crypto_relevant_count=len([m for m in unique_markets if m.is_crypto_relevant]),
+            top_threats=top_threats[:20],
+            token_specific_markets=token_specific[:20],
+            ecosystem_risk_markets=ecosystem_risk[:10],
+            regulatory_markets=regulatory[:10],
+        )
         if redis:
             try:
                 await redis.setex(cache_key, 3600, json.dumps(_digest_to_dict(digest)))
@@ -150,10 +204,8 @@ class PredictionMarketService:
             data = resp.json()
             events = data.get("events", [])
             markets = []
-            for event in events[:
-                10]:
-                for m in event.get("markets", [])[:
-                    5]:
+            for event in events[:10]:
+                for m in event.get("markets", [])[:5]:
                     pm = self._parse_polymarket_market(m, event)
                     if pm:
                         markets.append(pm)
@@ -177,22 +229,39 @@ class PredictionMarketService:
             tags = []
             if event:
                 tags.extend([t.get("label", "") for t in event.get("tags", [])])
-            return PredictionMarket(source="polymarket", source_id=slug, question=question, slug=slug, probability_yes=prob_yes, probability_no=prob_no, volume_usd=volume, liquidity_usd=liquidity, category=m.get("category", event.get("category", "") if event else ""), tags=tags, tokens_mentioned=tokens_mentioned, url=f"https://polymarket.com/event/{slug}" if slug else "", ends_at=m.get("endDate", event.get("endDate", "") if event else ""), updated_at=datetime.now(UTC).isoformat())
+            return PredictionMarket(
+                source="polymarket",
+                source_id=slug,
+                question=question,
+                slug=slug,
+                probability_yes=prob_yes,
+                probability_no=prob_no,
+                volume_usd=volume,
+                liquidity_usd=liquidity,
+                category=m.get("category", event.get("category", "") if event else ""),
+                tags=tags,
+                tokens_mentioned=tokens_mentioned,
+                url=f"https://polymarket.com/event/{slug}" if slug else "",
+                ends_at=m.get("endDate", event.get("endDate", "") if event else ""),
+                updated_at=datetime.now(UTC).isoformat(),
+            )
         except Exception as e:
             logger.warning(f"Failed to parse Polymarket market: {e}")
         return None
 
     async def _trending_polymarket(self, limit: int) -> list[PredictionMarket]:
         try:
-            resp = await self._http.get(f"{POLYMARKET_GAMMA}/events", params={"limit": limit, "active": "true", "closed": "false", "order": "volume", "ascending": "false"}, timeout=10.0)
+            resp = await self._http.get(
+                f"{POLYMARKET_GAMMA}/events",
+                params={"limit": limit, "active": "true", "closed": "false", "order": "volume", "ascending": "false"},
+                timeout=10.0,
+            )
             if resp.status_code != 200:
                 return []
             events = resp.json()
             markets = []
-            for event in events[:
-                limit]:
-                for m in event.get("markets", [])[:
-                    3]:
+            for event in events[:limit]:
+                for m in event.get("markets", [])[:3]:
                     pm = self._parse_polymarket_market(m, event)
                     if pm:
                         markets.append(pm)
@@ -212,7 +281,9 @@ class PredictionMarketService:
                 tokens = self._parse_json_field(m.get("clobTokenIds", "[]"))
                 if isinstance(tokens, list) and len(tokens) >= 2:
                     try:
-                        price_resp = await self._http.get(f"{POLYMARKET_CLOB}/price", params={"token_id": tokens[0], "side": "buy"}, timeout=5.0)
+                        price_resp = await self._http.get(
+                            f"{POLYMARKET_CLOB}/price", params={"token_id": tokens[0], "side": "buy"}, timeout=5.0
+                        )
                         if price_resp.status_code == 200:
                             pm.probability_yes = float(price_resp.json().get("price", pm.probability_yes))
                     except Exception:
@@ -224,7 +295,12 @@ class PredictionMarketService:
 
     async def _search_kalshi(self, query: str) -> list[PredictionMarket]:
         try:
-            resp = await self._http.get(f"{KALSHI_BASE}/events", params={"status": "open", "limit": 50}, headers={"Accept": "application/json"}, timeout=10.0)
+            resp = await self._http.get(
+                f"{KALSHI_BASE}/events",
+                params={"status": "open", "limit": 50},
+                headers={"Accept": "application/json"},
+                timeout=10.0,
+            )
             if resp.status_code != 200:
                 return []
             data = resp.json()
@@ -232,8 +308,7 @@ class PredictionMarketService:
             query_lower = query.lower()
             query_terms = query_lower.split()
             results = []
-            for i, event in enumerate(events[:
-                10]):
+            for i, event in enumerate(events[:10]):
                 event_title = event.get("title", "").lower()
                 event_ticker = event.get("ticker", "")
                 if not any(term in event_title for term in query_terms):
@@ -241,7 +316,12 @@ class PredictionMarketService:
                 if i > 0:
                     await asyncio.sleep(0.3)
                 try:
-                    mr = await self._http.get(f"{KALSHI_BASE}/markets", params={"event_ticker": event_ticker, "status": "open", "limit": 10}, headers={"Accept": "application/json"}, timeout=8.0)
+                    mr = await self._http.get(
+                        f"{KALSHI_BASE}/markets",
+                        params={"event_ticker": event_ticker, "status": "open", "limit": 10},
+                        headers={"Accept": "application/json"},
+                        timeout=8.0,
+                    )
                     if mr.status_code == 200:
                         for m in mr.json().get("markets", []):
                             pm = self._parse_kalshi_market(m)
@@ -267,23 +347,40 @@ class PredictionMarketService:
             prob_yes = yes_bid
             prob_no = 1.0 - prob_yes if prob_yes else 0.5
             tokens_mentioned = _extract_token_symbols(title)
-            return PredictionMarket(source="kalshi", source_id=ticker, question=title, slug=ticker, probability_yes=prob_yes, probability_no=prob_no, volume_usd=volume, category=category, tokens_mentioned=tokens_mentioned, url=f"https://kalshi.com/markets/{ticker}" if ticker else "", updated_at=datetime.now(UTC).isoformat())
+            return PredictionMarket(
+                source="kalshi",
+                source_id=ticker,
+                question=title,
+                slug=ticker,
+                probability_yes=prob_yes,
+                probability_no=prob_no,
+                volume_usd=volume,
+                category=category,
+                tokens_mentioned=tokens_mentioned,
+                url=f"https://kalshi.com/markets/{ticker}" if ticker else "",
+                updated_at=datetime.now(UTC).isoformat(),
+            )
         except Exception as e:
             logger.warning(f"Failed to parse Kalshi market: {e}")
         return None
 
     async def _trending_kalshi(self, limit: int) -> list[PredictionMarket]:
         try:
-            resp = await self._http.get(f"{KALSHI_BASE}/events", params={"status": "open", "limit": min(limit * 2, 30)}, timeout=10.0)
+            resp = await self._http.get(
+                f"{KALSHI_BASE}/events", params={"status": "open", "limit": min(limit * 2, 30)}, timeout=10.0
+            )
             if resp.status_code != 200:
                 return []
             events = resp.json().get("events", [])
             results = []
-            for event in events[:
-                limit]:
+            for event in events[:limit]:
                 event_ticker = event.get("ticker", "")
                 try:
-                    mr = await self._http.get(f"{KALSHI_BASE}/markets", params={"event_ticker": event_ticker, "status": "open", "limit": 5}, timeout=8.0)
+                    mr = await self._http.get(
+                        f"{KALSHI_BASE}/markets",
+                        params={"event_ticker": event_ticker, "status": "open", "limit": 5},
+                        timeout=8.0,
+                    )
                     if mr.status_code == 200:
                         for m in mr.json().get("markets", []):
                             pm = self._parse_kalshi_market(m)
@@ -322,7 +419,12 @@ class PredictionMarketService:
 
     async def _search_limitless(self, query: str) -> list[PredictionMarket]:
         try:
-            resp = await self._http.get(f"{LIMITLESS_BASE}/markets/active", params={"limit": 25}, headers={"Accept": "application/json"}, timeout=10.0)
+            resp = await self._http.get(
+                f"{LIMITLESS_BASE}/markets/active",
+                params={"limit": 25},
+                headers={"Accept": "application/json"},
+                timeout=10.0,
+            )
             if resp.status_code != 200:
                 return []
             data = resp.json()
@@ -354,7 +456,21 @@ class PredictionMarketService:
             category = categories[0] if categories else ""
             tags = m.get("tags", [])
             tokens_mentioned = _extract_token_symbols(title)
-            return PredictionMarket(source="limitless", source_id=str(slug), question=title, slug=str(slug), probability_yes=prob_yes, probability_no=prob_no, volume_usd=volume, category=category, tags=tags, tokens_mentioned=tokens_mentioned, url=f"https://limitless.exchange/markets/{slug}" if slug else "", ends_at=m.get("expirationDate", ""), updated_at=datetime.now(UTC).isoformat())
+            return PredictionMarket(
+                source="limitless",
+                source_id=str(slug),
+                question=title,
+                slug=str(slug),
+                probability_yes=prob_yes,
+                probability_no=prob_no,
+                volume_usd=volume,
+                category=category,
+                tags=tags,
+                tokens_mentioned=tokens_mentioned,
+                url=f"https://limitless.exchange/markets/{slug}" if slug else "",
+                ends_at=m.get("expirationDate", ""),
+                updated_at=datetime.now(UTC).isoformat(),
+            )
         except Exception as e:
             logger.warning(f"Failed to parse Limitless market: {e}")
         return None
@@ -362,7 +478,12 @@ class PredictionMarketService:
     async def _trending_limitless(self, limit: int) -> list[PredictionMarket]:
         try:
             limit = min(limit, 25)
-            resp = await self._http.get(f"{LIMITLESS_BASE}/markets/active", params={"limit": limit}, headers={"Accept": "application/json"}, timeout=10.0)
+            resp = await self._http.get(
+                f"{LIMITLESS_BASE}/markets/active",
+                params={"limit": limit},
+                headers={"Accept": "application/json"},
+                timeout=10.0,
+            )
             if resp.status_code != 200:
                 return []
             data = resp.json()
@@ -374,14 +495,15 @@ class PredictionMarketService:
 
     async def _search_manifold(self, query: str) -> list[PredictionMarket]:
         try:
-            resp = await self._http.get(f"{MANIFOLD_BASE}/search-markets", params={"term": query, "limit": 20}, timeout=10.0)
+            resp = await self._http.get(
+                f"{MANIFOLD_BASE}/search-markets", params={"term": query, "limit": 20}, timeout=10.0
+            )
             if resp.status_code != 200:
                 return []
             data = resp.json()
             contracts = data if isinstance(data, list) else data.get("contracts", data.get("markets", []))
             results = []
-            for c in contracts[:
-                10]:
+            for c in contracts[:10]:
                 pm = self._parse_manifold_market(c)
                 if pm:
                     results.append(pm)
@@ -398,7 +520,20 @@ class PredictionMarketService:
             volume = float(c.get("volume", c.get("volume24Hours", 0)))
             tokens_mentioned = _extract_token_symbols(question)
             tags = list(c.get("tags", []))
-            return PredictionMarket(source="manifold", source_id=str(slug), question=question, slug=str(slug), probability_yes=prob, probability_no=1.0-prob, volume_usd=volume, category="", tags=tags, tokens_mentioned=tokens_mentioned, url=f"https://manifold.markets/{c.get('creatorUsername','')}/{slug}" if slug else "", updated_at=datetime.now(UTC).isoformat())
+            return PredictionMarket(
+                source="manifold",
+                source_id=str(slug),
+                question=question,
+                slug=str(slug),
+                probability_yes=prob,
+                probability_no=1.0 - prob,
+                volume_usd=volume,
+                category="",
+                tags=tags,
+                tokens_mentioned=tokens_mentioned,
+                url=f"https://manifold.markets/{c.get('creatorUsername', '')}/{slug}" if slug else "",
+                updated_at=datetime.now(UTC).isoformat(),
+            )
         except Exception as e:
             logger.warning(f"Failed to parse Manifold market: {e}")
         return None
@@ -412,7 +547,9 @@ class PredictionMarketService:
                 return val
         return val
 
+
 _service: PredictionMarketService | None = None
+
 
 def get_prediction_market_service() -> PredictionMarketService:
     global _service

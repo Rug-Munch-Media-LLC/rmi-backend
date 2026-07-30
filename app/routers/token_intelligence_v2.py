@@ -1,4 +1,5 @@
 """Token Intelligence v2 — composite endpoint aggregating all DataBus layers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -9,10 +10,9 @@ from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/api/v2/tokens", tags=["token-intelligence-v2"])
 
+
 @router.get("/{address}/intelligence")
-async def token_intelligence(
-    address: str, chain: str = Query(default="solana")
-) -> dict[str, Any]:
+async def token_intelligence(address: str, chain: str = Query(default="solana")) -> dict[str, Any]:
     """Return composite token intelligence — all DataBus layers in one call."""
     start = time.perf_counter()
 
@@ -47,8 +47,13 @@ async def token_intelligence(
     )
 
     keys = [
-        "volume_authenticity", "dev_reputation", "holder_health",
-        "rug_patterns", "token_trades", "top_traders", "ohlcv",
+        "volume_authenticity",
+        "dev_reputation",
+        "holder_health",
+        "rug_patterns",
+        "token_trades",
+        "top_traders",
+        "ohlcv",
     ]
 
     response: dict[str, Any] = {

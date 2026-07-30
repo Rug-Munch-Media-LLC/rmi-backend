@@ -53,6 +53,7 @@ class Chain(StrEnum):
     BLAST = "blast"
     MANTLE = "mantle"
 
+
 # Full chain registry - v4.0 says 96 chains. We track the canonical 20 here
 # plus extend via CHAIN_REGISTRY for the remaining 76. Adding a chain is a
 # one-line edit.
@@ -116,11 +117,13 @@ CHAIN_REGISTRY: dict[str, dict[str, str]] = {
     },
 }
 
+
 class RiskTier(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
 
 # ── Entities (Neo4j primary) ───────────────────────────────────────
 class Entity(BaseModel):
@@ -138,6 +141,7 @@ class Entity(BaseModel):
     notes: str | None = None
     store: Literal["neo4j"] = "neo4j"
 
+
 class EntityLabel(BaseModel):
     """A label attached to an entity. Neo4j primary."""
 
@@ -150,6 +154,7 @@ class EntityLabel(BaseModel):
     added_at: datetime
     added_by: str
     store: Literal["neo4j"] = "neo4j"
+
 
 # ── Wallets + Deployers (Neo4j primary) ───────────────────────────
 class Wallet(BaseModel):
@@ -182,6 +187,7 @@ class Wallet(BaseModel):
             pass
         return v
 
+
 class Deployer(Wallet):
     """A wallet that has deployed at least one token. Extends Wallet."""
 
@@ -197,6 +203,7 @@ class Deployer(Wallet):
         le=100,
         description="Weighted: legit_count * 1.0 - rug_count * 3.0 + age_bonus - news_penalty. Cached in Redis TTL 1h.",
     )
+
 
 # ── Tokens (Postgres primary) ──────────────────────────────────────
 class Token(BaseModel):
@@ -222,10 +229,9 @@ class Token(BaseModel):
     risk_tier: RiskTier | None = None
     risk_score: int | None = Field(None, ge=0, le=100)
     risk_factors: list[str] = Field(default_factory=list)
-    rag_embedding_id: str | None = Field(
-        None, description="Cross-store ref to Qdrant point (16-byte hex)"
-    )
+    rag_embedding_id: str | None = Field(None, description="Cross-store ref to Qdrant point (16-byte hex)")
     store: Literal["postgres"] = "postgres"
+
 
 # ── Alerts (Postgres primary) ──────────────────────────────────────
 class Alert(BaseModel):
@@ -253,6 +259,7 @@ class Alert(BaseModel):
     resolved_at: datetime | None = None
     store: Literal["postgres"] = "postgres"
 
+
 # ── News (Postgres primary + Qdrant embeddings) ────────────────────
 class NewsItem(BaseModel):
     """A news article from RSS. Postgres primary; embeddings in Qdrant."""
@@ -275,6 +282,7 @@ class NewsItem(BaseModel):
     rag_embedding_id: str | None = None
     store: Literal["postgres"] = "postgres"
 
+
 # ── RAG Findings (Qdrant primary + Postgres metadata) ───────────────
 class RAGFinding(BaseModel):
     """A fact extracted by RAG. Qdrant primary (vector); metadata in Postgres."""
@@ -291,6 +299,7 @@ class RAGFinding(BaseModel):
     extracted_at: datetime
     qdrant_point_id: str
     store: Literal["qdrant"] = "qdrant"
+
 
 # ── Reports (Postgres + MinIO) ──────────────────────────────────────
 class ScanReport(BaseModel):
@@ -329,10 +338,12 @@ class ScanReport(BaseModel):
         parts.append(f"*Report ID: {self.report_id}*")
         return "\n".join(parts)
 
+
 # ── Wire-format helpers ─────────────────────────────────────────────
 def utcnow() -> datetime:
     """Timezone-aware UTC now. Pydantic serializes to ISO 8601."""
     return datetime.now(UTC)
+
 
 # ── RAG engine collections (kept here so catalog + RAG share the list) ─
 COLLECTIONS: list[str] = [

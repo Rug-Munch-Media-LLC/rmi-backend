@@ -37,6 +37,7 @@ logger = get_logger(__name__)
 # LABEL CONFIDENCE — Multi-source verification
 # ══════════════════════════════════════════════════════════════════════
 
+
 class LabelConfidence(Enum):
     """How confident are we in a wallet label?"""
 
@@ -45,6 +46,7 @@ class LabelConfidence(Enum):
     MEDIUM = "medium"  # 1 trusted source
     LOW = "low"  # 1 untrusted source or pattern match
     UNKNOWN = "unknown"  # No sources have a label
+
 
 @dataclass
 class AggregatedLabel:
@@ -71,6 +73,7 @@ class AggregatedLabel:
     @property
     def source_count(self) -> int:
         return len(self.sources)
+
 
 # ══════════════════════════════════════════════════════════════════════
 # ENTITY TYPES — Classification taxonomy
@@ -209,6 +212,7 @@ ENTITY_TYPES = {
 # TOKEN LAUNCH DETECTION — Cross-source verification
 # ══════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class TokenLaunch:
     """A new token detected across multiple sources."""
@@ -226,9 +230,11 @@ class TokenLaunch:
     risk_flags: list[str] = field(default_factory=list)
     pump_potential: float = 0.0  # 0-100 GMGN-style pump score
 
+
 # ══════════════════════════════════════════════════════════════════════
 # INTELLIGENCE AGGREGATION ENGINE
 # ══════════════════════════════════════════════════════════════════════
+
 
 class IntelligenceAggregationLayer:
     """
@@ -327,7 +333,7 @@ class IntelligenceAggregationLayer:
                 if result:
                     label.sources.append(source_name)
                     label.source_labels[source_name] = result
-            except (KeyError, TypeError) as e :
+            except (KeyError, TypeError) as e:
                 logger.debug("aggregate_wallet_label_error", exc_info=True)
                 logger.debug(f"Source {source_name} failed for {address}: {e}")
 
@@ -457,9 +463,7 @@ class IntelligenceAggregationLayer:
 
     # ── TOKEN LAUNCH DETECTION ────────────────────────────────────
 
-    def detect_token_launches(
-        self, chain: str = "ethereum", max_age_seconds: float = 3600
-    ) -> list[TokenLaunch]:
+    def detect_token_launches(self, chain: str = "ethereum", max_age_seconds: float = 3600) -> list[TokenLaunch]:
         """
         Detect new token launches across all sources.
         Combines: chain-indexer (new contracts), DexScreener (new pairs),
@@ -500,8 +504,7 @@ class IntelligenceAggregationLayer:
             "source_count": label.source_count,
             "sources_checked": label.sources,
             "source_breakdown": {
-                src: label.source_labels.get(src, "no data")
-                for src in self.get_available_sources()[:10]
+                src: label.source_labels.get(src, "no data") for src in self.get_available_sources()[:10]
             },
             "tags": label.tags,
             "timestamp": time.time(),
@@ -536,11 +539,13 @@ class IntelligenceAggregationLayer:
             "queries_served": dict(self._stats),
         }
 
+
 # ══════════════════════════════════════════════════════════════════════
 # GLOBAL INSTANCE
 # ══════════════════════════════════════════════════════════════════════
 
 _intel_layer: IntelligenceAggregationLayer | None = None
+
 
 def get_intel_layer() -> IntelligenceAggregationLayer:
     global _intel_layer
@@ -548,6 +553,7 @@ def get_intel_layer() -> IntelligenceAggregationLayer:
         _intel_layer = IntelligenceAggregationLayer()
         logger.info("IntelligenceAggregationLayer initialized")
     return _intel_layer
+
 
 logger.info(
     f"IntelligenceAggregationLayer module loaded: {len(ENTITY_TYPES)} entity types, 10 label sources, 5 launch sources"

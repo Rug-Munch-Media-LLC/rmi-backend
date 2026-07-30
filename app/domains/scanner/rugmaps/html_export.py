@@ -25,14 +25,28 @@ def _generate_interactive_html(bubble_map: BubbleMap) -> str:
         "center_wallet": bubble_map.center_wallet,
         "depth": bubble_map.depth,
         "nodes": [
-            {"id": n.id, "label": n.label, "type": n.type, "risk": n.risk,
-             "riskScore": n.risk_score, "layer": n.layer, "x": n.x, "y": n.y,
-             "radius": n.radius, "color": n.color, "transactions": n.transaction_count,
-             "entity": {"name": n.entity.name if n.entity else "", "type": n.entity.type if n.entity else ""} if n.entity else None}
+            {
+                "id": n.id,
+                "label": n.label,
+                "type": n.type,
+                "risk": n.risk,
+                "riskScore": n.risk_score,
+                "layer": n.layer,
+                "x": n.x,
+                "y": n.y,
+                "radius": n.radius,
+                "color": n.color,
+                "transactions": n.transaction_count,
+                "entity": {"name": n.entity.name if n.entity else "", "type": n.entity.type if n.entity else ""}
+                if n.entity
+                else None,
+            }
             for n in bubble_map.nodes
         ],
-        "links": [{"source": l.source_id, "target": l.target_id, "strength": l.strength,
-                    "label": l.label, "color": l.color} for l in bubble_map.links],
+        "links": [
+            {"source": l.source_id, "target": l.target_id, "strength": l.strength, "label": l.label, "color": l.color}
+            for l in bubble_map.links
+        ],
         "stats": bubble_map.stats,
         "generated_at": bubble_map.generated_at,
         "_format_timestamp": bubble_map.generated_at,

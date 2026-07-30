@@ -58,14 +58,8 @@ async def warm():
 
     # Report
     h = await cache.health()
-    keys = (
-        len(await cache.l2._redis.keys("databus:*"))
-        if cache.l2._available
-        else cache.l1.stats()["keys"]
-    )
-    print(
-        f"[databus-warm] L1 keys={cache.l1.stats()['keys']}, L2 keys~={keys}, hit_rate={h['combined_hit_rate']}%"
-    )
+    keys = len(await cache.l2._redis.keys("databus:*")) if cache.l2._available else cache.l1.stats()["keys"]
+    print(f"[databus-warm] L1 keys={cache.l1.stats()['keys']}, L2 keys~={keys}, hit_rate={h['combined_hit_rate']}%")
 
 
 asyncio.run(warm())

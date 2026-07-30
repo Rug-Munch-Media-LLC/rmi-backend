@@ -14,6 +14,7 @@ logger = get_logger(__name__)
 _HELIUS_KEYS = None
 _HELIUS_INDEX = 0
 
+
 def _get_helius_key() -> str | None:
     """Round-robin through Helius API keys. Returns None if none configured."""
     global _HELIUS_KEYS, _HELIUS_INDEX
@@ -37,6 +38,7 @@ def _get_helius_key() -> str | None:
     _HELIUS_INDEX += 1
     return key
 
+
 async def _helius_call(method: str, params: list) -> dict | None:
     """Call Helius RPC with credential pool fallback."""
     for _attempt in range(3):
@@ -59,6 +61,7 @@ async def _helius_call(method: str, params: list) -> dict | None:
             logger.debug("helius call failed, trying next key", exc_info=True)
             continue
     return None
+
 
 async def _fetch_helius_wallet(address: str) -> dict[str, Any]:
     """Fetch wallet age, tx count, balances, and token holdings from Helius."""
@@ -104,6 +107,7 @@ async def _fetch_helius_wallet(address: str) -> dict[str, Any]:
         result["sol_balance"] = bal / 1e9 if bal else 0
 
     return result
+
 
 async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
     """Fetch EVM wallet data from Moralis."""
@@ -178,6 +182,7 @@ async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
 
     return result
 
+
 ETHERSCAN_APIS = {
     "ethereum": "https://api.etherscan.io/api",
     "bsc": "https://api.bscscan.com/api",
@@ -188,6 +193,7 @@ ETHERSCAN_APIS = {
     "avalanche": "https://api.snowtrace.io/api",
     "fantom": "https://api.ftmscan.com/api",
 }
+
 
 async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
     """Fetch EVM wallet tx count and age from Etherscan family."""
@@ -219,9 +225,7 @@ async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
                         first_ts = int(txs[0].get("timeStamp", 0))
                         last_ts = int(txs[-1].get("timeStamp", 0))
                         if first_ts:
-                            result["wallet_age_days"] = int(
-                                (datetime.now(UTC).timestamp() - first_ts) / 86400
-                            )
+                            result["wallet_age_days"] = int((datetime.now(UTC).timestamp() - first_ts) / 86400)
                         if last_ts:
                             result["last_tx"] = last_ts
                         result["tx_count_sample"] = len(txs)

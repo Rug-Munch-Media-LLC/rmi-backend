@@ -17,9 +17,7 @@ class TestDomainHealth:
 
     def test_domain_health_creation(self):
         """Test creating a DomainHealth instance."""
-        health = DomainHealth(
-            name="test_domain", healthy=True, details={"key": "value"}, latency_ms=50
-        )
+        health = DomainHealth(name="test_domain", healthy=True, details={"key": "value"}, latency_ms=50)
         assert health.name == "test_domain"
         assert health.healthy is True
         assert health.details == {"key": "value"}

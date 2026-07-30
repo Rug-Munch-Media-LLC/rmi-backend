@@ -59,18 +59,17 @@ async def scan_token(
     admin_key = _get_admin_key(request)
     try:
         result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
-        # Track which modules used own data vs external API fallback
-        own_data_modules = 0
-        fallback_modules = 0
-        for mod_entry in result.modules_run:
-            mod_result = mod_entry.get("result", {})
-            if isinstance(mod_result, dict):
-                source = mod_result.get("source", "")
-                if source in ("own_clickhouse", "own"):
-                    own_data_modules += 1
-                elif mod_entry.get("status") == "success" and source:
-                    fallback_modules += 1
-        fallback_used = fallback_modules > own_data_modules
+        # Track which sources were own data vs external API fallback
+        # enrichment_sources has entries like "price:own", "price:coingecko",
+        # "security:own_clickhouse", "security:goplus"
+        own_data_modules = sum(1 for s in result.enrichment_sources if "own" in s.split(":")[-1].lower())
+        fallback_modules = sum(
+            1
+            for s in result.enrichment_sources
+            if "own" not in s.split(":")[-1].lower() and s.split(":")[-1] not in ("", "unknown")
+        )
+        total_with_source = len(result.enrichment_sources)
+        fallback_used = total_with_source > 0 and fallback_modules >= own_data_modules
 
         return {
             "status": "ok",

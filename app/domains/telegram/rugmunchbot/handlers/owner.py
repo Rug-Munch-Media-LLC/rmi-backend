@@ -2,6 +2,7 @@
 """
 RugMunchBot -- Owner/admin command handlers.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from telegram import Update
 
 logger = get_logger("rmi_bot")
+
 
 async def cmd_admin_stats(update: Update, ctx) -> None:
     if not is_owner(update.effective_user.id):
@@ -44,6 +46,7 @@ async def cmd_admin_stats(update: Update, ctx) -> None:
         parse_mode=ParseMode.HTML,
     )
 
+
 async def cmd_admin_set_tier(update: Update, ctx) -> None:
     if not is_owner(update.effective_user.id):
         return
@@ -57,6 +60,7 @@ async def cmd_admin_set_tier(update: Update, ctx) -> None:
         return
     db.set_user_tier(uid, tier, days)
     await update.message.reply_text(f"\u2705 Set user {uid} to {tier} ({days} days)")
+
 
 async def cmd_admin_broadcast(update: Update, ctx) -> None:
     if not is_owner(update.effective_user.id):
@@ -74,11 +78,12 @@ async def cmd_admin_broadcast(update: Update, ctx) -> None:
             await ctx.bot.send_message(u["user_id"], msg_text, parse_mode=ParseMode.HTML)
             sent += 1
             await asyncio.sleep(0.05)
-        except (KeyError, TypeError) as e :
+        except (KeyError, TypeError) as e:
             logger.debug("cmd_admin_broadcast_error", exc_info=True)
             logger.debug(f"Broadcast failed for user {u['user_id']}: {e}")
             failed += 1
     await update.message.reply_text(f"\U0001f4e2 Broadcast complete.\n\u2705 Sent: {sent}\n\u274c Failed: {failed}")
+
 
 async def cmd_admin_ban(update: Update, ctx) -> None:
     if not is_owner(update.effective_user.id):

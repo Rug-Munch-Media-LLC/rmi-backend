@@ -42,6 +42,7 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
+
 class DuckDBAnalytics:
     """Embedded DuckDB analytics engine.
 
@@ -109,11 +110,7 @@ class DuckDBAnalytics:
         try:
             cursor = self._conn.execute(sql, params or [])
             columns = [d[0] for d in cursor.description] if cursor.description else []
-            rows = (
-                cursor.fetchmany(max_rows)
-                if max_rows is not None and max_rows > 0
-                else cursor.fetchall()
-            )
+            rows = cursor.fetchmany(max_rows) if max_rows is not None and max_rows > 0 else cursor.fetchall()
             elapsed_ms = (time.monotonic() - start) * 1000
             log.info(
                 "duckdb_query rows=%d columns=%d took_ms=%.2f",
@@ -148,11 +145,7 @@ class DuckDBAnalytics:
         Returns:
             list of dicts.
         """
-        pg_url = (
-            os.getenv("PG_URL")
-            or os.getenv("DATABASE_URL")
-            or "postgres://rmi:postgres@localhost:5432/rmi"
-        )
+        pg_url = os.getenv("PG_URL") or os.getenv("DATABASE_URL") or "postgres://rmi:postgres@localhost:5432/rmi"
         self._attach_postgres(pg_url)
         return self.query(sql)
 
@@ -240,7 +233,7 @@ class DuckDBAnalytics:
         )
         return [r["table_name"] for r in rows]
 
-    # DuckDB's ATTACH syntax for Postgres: ATTACH 'postgres://...' AS pg (READ_ONLY)
+        # DuckDB's ATTACH syntax for Postgres: ATTACH 'postgres://...' AS pg (READ_ONLY)
         # Use the SQL escaping: escape single quotes in URL by doubling them
         escaped_url = pg_url.replace("'", "''")
         self._conn.execute("ATTACH ? AS pg (READ_ONLY)", [escaped_url])
@@ -258,13 +251,13 @@ class DuckDBAnalytics:
     def __enter__(self) -> DuckDBAnalytics:
         return self
 
-    def __exit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any
-    ) -> None:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> None:
         self.close()
+
 
 # Convenience factory
 _default_instance: DuckDBAnalytics | None = None
+
 
 def get_default_analytics() -> DuckDBAnalytics:
     """Get a process-wide DuckDBAnalytics instance.

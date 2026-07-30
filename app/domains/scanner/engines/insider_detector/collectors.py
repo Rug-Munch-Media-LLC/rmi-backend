@@ -15,6 +15,7 @@ from .helpers import _parse_timestamp
 
 logger = get_logger(__name__)
 
+
 async def _collect_token_meta(
     token_address: str, chain: str, deployer: str | None = None
 ) -> tuple[str | None, str | None, float | None]:
@@ -58,18 +59,15 @@ async def _collect_token_meta(
                         data = r.json()
                         pairs = data.get("pairs") or []
                         if pairs:
-                            deployer_addr = (
-                                pairs[0].get("info", {}).get("deployer", pairs[0].get("creatorAddress"))
-                            )
+                            deployer_addr = pairs[0].get("info", {}).get("deployer", pairs[0].get("creatorAddress"))
         except (httpx.HTTPError, httpx.TimeoutException, json.JSONDecodeError) as e:
             logger.debug("Deployer fetch failed: %s", e)
 
     await asyncio.gather(_from_dexscreener(), _from_gmgn(), _from_deployer(), return_exceptions=True)
     return symbol, deployer_addr, created_at
 
-async def _get_token_traders(
-    token_address: str, chain: str, max_traders: int = 100
-) -> list[dict[str, Any]]:
+
+async def _get_token_traders(token_address: str, chain: str, max_traders: int = 100) -> list[dict[str, Any]]:
     """Get all traders and their trades for a token."""
     seen_hashes: set = set()
     traders_map: dict[str, dict] = {}
@@ -84,16 +82,27 @@ async def _get_token_traders(
             return
         if wallet not in traders_map:
             traders_map[wallet] = {
-                "wallet": wallet, "buys": [], "sells": [],
-                "total_bought_usd": 0.0, "total_sold_usd": 0.0,
-                "first_buy_at": float("inf"), "last_trade_at": 0, "trade_count": 0,
+                "wallet": wallet,
+                "buys": [],
+                "sells": [],
+                "total_bought_usd": 0.0,
+                "total_sold_usd": 0.0,
+                "first_buy_at": float("inf"),
+                "last_trade_at": 0,
+                "trade_count": 0,
             }
         entry = traders_map[wallet]
         amount_usd = float(trade.get("amount_usd", 0) or 0)
         side = (trade.get("side") or "buy").lower()
         timestamp = trade.get("timestamp", 0) or 0
         price_usd = float(trade.get("price_usd", 0) or 0)
-        trade_entry = {"tx_hash": tx_hash, "amount_usd": amount_usd, "price_usd": price_usd, "timestamp": timestamp, "side": side}
+        trade_entry = {
+            "tx_hash": tx_hash,
+            "amount_usd": amount_usd,
+            "price_usd": price_usd,
+            "timestamp": timestamp,
+            "side": side,
+        }
         if side == "buy":
             entry["buys"].append(trade_entry)
             entry["total_bought_usd"] += amount_usd
@@ -109,14 +118,16 @@ async def _get_token_traders(
     try:
         top_traders = gmgn.get_top_traders(token_address, chain, min(max_traders, 50))
         for t in top_traders:
-            _add_trade({
-                "wallet": t.get("maker", t.get("wallet", "")),
-                "tx_hash": t.get("transaction_hash", t.get("tx_hash", "")),
-                "side": t.get("side", "buy"),
-                "amount_usd": float(t.get("amount_usd", 0) or 0),
-                "price_usd": float(t.get("price_usd", 0) or 0),
-                "timestamp": t.get("timestamp", 0),
-            })
+            _add_trade(
+                {
+                    "wallet": t.get("maker", t.get("wallet", "")),
+                    "tx_hash": t.get("transaction_hash", t.get("tx_hash", "")),
+                    "side": t.get("side", "buy"),
+                    "amount_usd": float(t.get("amount_usd", 0) or 0),
+                    "price_usd": float(t.get("price_usd", 0) or 0),
+                    "timestamp": t.get("timestamp", 0),
+                }
+            )
     except (httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("GMGN top traders failed: %s", e)
 
@@ -125,7 +136,7 @@ async def _get_token_traders(
         if isinstance(wallet_trades, list):
             for t in wallet_trades:
                 _add_trade(t)
-    except (httpx.HTTPError):
+    except httpx.HTTPError:
         logger.debug("unknown_error", exc_info=True)
         logger.warning("get_wallet_trades failed", exc_info=True)
 
@@ -154,17 +165,26 @@ async def _get_token_traders(
     traders.sort(key=lambda x: x["total_bought_usd"], reverse=True)
     return traders[:max_traders]
 
+
 async def _gather_events(
-    token_address: str, chain: str, deployer: str | None,
-    symbol: str | None, token_created_at: float | None,
+    token_address: str,
+    chain: str,
+    deployer: str | None,
+    symbol: str | None,
+    token_created_at: float | None,
 ) -> dict[str, Any]:
     """Gather all event timestamps relevant to this token."""
     events: dict[str, Any] = {
-        "dexscreener_first_seen": None, "dexscreener_first_seen_desc": None,
-        "gmgn_first_trending": None, "gmgn_first_trending_desc": None,
-        "first_kol_trade_at": None, "first_kol_trade_desc": None,
+        "dexscreener_first_seen": None,
+        "dexscreener_first_seen_desc": None,
+        "gmgn_first_trending": None,
+        "gmgn_first_trending_desc": None,
+        "first_kol_trade_at": None,
+        "first_kol_trade_desc": None,
         "deployer_created_at": token_created_at,
-        "pumpfun_graduated_at": None, "cex_listings": [], "volume_spikes": [],
+        "pumpfun_graduated_at": None,
+        "cex_listings": [],
+        "volume_spikes": [],
     }
 
     async def _dex_profiles() -> None:
@@ -200,7 +220,10 @@ async def _gather_events(
                                 created = boost.get("createdAt")
                                 if created:
                                     ts = _parse_timestamp(created)
-                                    if ts and (events.get("dexscreener_first_seen") is None or ts < events["dexscreener_first_seen"]):
+                                    if ts and (
+                                        events.get("dexscreener_first_seen") is None
+                                        or ts < events["dexscreener_first_seen"]
+                                    ):
                                         events["dexscreener_first_seen"] = ts
                                         events["dexscreener_first_seen_desc"] = "DexScreener trending boost"
                                         break
@@ -265,16 +288,32 @@ async def _gather_events(
                         pair = pairs_data["pairs"][0]
                         symbol_found = pair.get("baseToken", {}).get("symbol", "")
                         if symbol_found:
-                            events["cex_listings"] = [{
-                                "symbol": symbol_found,
-                                "detected": "Listing detected on known CEX pairs",
-                                "timestamp": pair.get("pairCreatedAt", 0) / 1000 if pair.get("pairCreatedAt") else None,
-                            }]
-        except (httpx.HTTPError, httpx.TimeoutException, json.JSONDecodeError, ConnectionError, TimeoutError, OSError) as e:
+                            events["cex_listings"] = [
+                                {
+                                    "symbol": symbol_found,
+                                    "detected": "Listing detected on known CEX pairs",
+                                    "timestamp": pair.get("pairCreatedAt", 0) / 1000
+                                    if pair.get("pairCreatedAt")
+                                    else None,
+                                }
+                            ]
+        except (
+            httpx.HTTPError,
+            httpx.TimeoutException,
+            json.JSONDecodeError,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+        ) as e:
             logger.debug("CEX listing check failed: %s", e)
 
     await asyncio.gather(
-        _dex_profiles(), _dex_boosts(), _gmgn_trending(), _kol_trades(),
-        _gmgn_trenches(), _cex_listings(), return_exceptions=True,
+        _dex_profiles(),
+        _dex_boosts(),
+        _gmgn_trending(),
+        _kol_trades(),
+        _gmgn_trenches(),
+        _cex_listings(),
+        return_exceptions=True,
     )
     return events

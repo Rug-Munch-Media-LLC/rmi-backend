@@ -32,6 +32,7 @@ logger = get_logger(__name__)
 _watches: dict[str, dict[str, Any]] = {}
 _updates: dict[str, list[dict[str, Any]]] = {}
 
+
 async def create_watch(
     token_address: str,
     chain: str = "ethereum",
@@ -66,6 +67,7 @@ async def create_watch(
 
     return watch
 
+
 async def get_watch_updates(watch_id: str, since_index: int = 0) -> dict[str, Any]:
     """Get new updates for a watch since the given index."""
     watch = _watches.get(watch_id)
@@ -82,6 +84,7 @@ async def get_watch_updates(watch_id: str, since_index: int = 0) -> dict[str, An
         "total_updates": len(all_updates),
         "next_index": len(all_updates),
     }
+
 
 async def _run_watch_scans(watch_id: str) -> None:
     """Run scanner checks for a watch and push results."""
@@ -175,6 +178,7 @@ async def _run_watch_scans(watch_id: str) -> None:
     with contextlib.suppress(Exception):
         await _publish_to_redis(watch_id, watch)
 
+
 def _push_update(watch_id: str, update: dict[str, Any]) -> None:
     """Push an update to the in-memory queue."""
     if watch_id not in _updates:
@@ -182,6 +186,7 @@ def _push_update(watch_id: str, update: dict[str, Any]) -> None:
     _updates[watch_id].append(update)
     if watch_id in _watches:
         _watches[watch_id]["total_updates"] = len(_updates[watch_id])
+
 
 async def _publish_to_redis(watch_id: str, watch: dict[str, Any]) -> None:
     """Publish watch completion to Redis for WebSocket delivery."""
@@ -207,8 +212,9 @@ async def _publish_to_redis(watch_id: str, watch: dict[str, Any]) -> None:
             ),
         )
         await r.close()
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         pass
+
 
 async def list_active_watches() -> list[dict[str, Any]]:
     """List all active watches."""

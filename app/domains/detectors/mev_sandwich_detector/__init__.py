@@ -1,6 +1,7 @@
 """
 MEV & Sandwich Attack Detector Package.
 """
+
 from app.domains.detectors.mev_sandwich_detector.analysis import (
     _check_pool_vulnerability,
     _estimate_mev_vulnerability_score,

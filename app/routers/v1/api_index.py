@@ -9,6 +9,7 @@ from fastapi import APIRouter
 
 router = APIRouter(tags=["api-index"])
 
+
 @router.get("/api")
 async def api_index() -> dict[str, list[str]]:
     """List all available API versions."""
