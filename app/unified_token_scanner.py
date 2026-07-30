@@ -1,5 +1,5 @@
-"""Deprecated — use app.domains.scanner.unified_token_scanner instead."""
+"""Deprecated — use app.domains.scanner.unified instead."""
 
 from __future__ import annotations
 
-from app.domains.scanner.unified_token_scanner import *
+from app.domains.scanner.unified import *  # noqa: F403

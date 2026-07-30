@@ -9,7 +9,7 @@ Advanced token distribution system with:
   • Multi-chain support (EVM, Solana, TRON)
   • Batch distribution for gas efficiency
 
-All operations are admin-only and stay in /root/tools/ - never committed to git.
+All operations are admin-only and stay in [TOOLS_DIR]/ - never committed to git.
 
 Usage:
   POST /api/v1/admin/tokens/airdrop/snapshot    - Create snapshot from existing token

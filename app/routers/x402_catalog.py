@@ -414,7 +414,7 @@ def get_catalog() -> Any:
     # ── Enrich from gateway configs (add chain info, icons) ──
     candidates = [
         os.environ.get("X402_GATEWAY_DIR"),
-        "/srv/work/repos/rmi-mcp-x402",
+        "x402-gateway",
         "/path/to/rmi-mcp-x402",
     ]
     gateway_base = None

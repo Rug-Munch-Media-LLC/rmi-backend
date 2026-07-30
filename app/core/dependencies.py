@@ -185,9 +185,9 @@ def get_rate_limiter() -> UnifiedRateLimiter:
 def get_token_scanner() -> UnifiedTokenScanner:
     """Token scanner singleton (50+ security modules).
 
-    Wraps ``app.domains.scanner.unified_token_scanner.get_token_scanner``.
+    Wraps ``app.domains.scanner.unified.get_token_scanner``.
     """
-    from app.domains.scanner.unified_token_scanner import get_token_scanner as _get
+    from app.domains.scanner.unified import get_token_scanner as _get
 
     return _get()
 

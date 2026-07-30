@@ -49,7 +49,7 @@ def count_all_tools() -> dict:
 def _count_gateway_tools() -> int:
     """Count x402 gateway tools from CF worker static catalog."""
     # The gateway has ~50 static tools defined in index.ts
-    gateway_dir = Path(os.environ.get("X402_GATEWAY_DIR", "/srv/work/repos/rmi-mcp-x402"))
+    gateway_dir = Path(os.environ.get("X402_GATEWAY_DIR", "x402-gateway"))
     if gateway_dir.exists():
         index_ts = gateway_dir / "index.ts"
         if index_ts.exists():

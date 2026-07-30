@@ -187,14 +187,24 @@ async def scan_token(
     result.risk_flags = risk_flags
 
     # ── Calculate confidence based on how many modules returned data ──
+    # Improved formula: don't penalize for "unavailable" data (no data exists)
+    # Only penalize for actual failures (errors). Track own-data usage.
     successful = sum(1 for m in result.modules_run if m.get("status") == "success")
     total = len(result.modules_run) if result.modules_run else 1
-    base_confidence = min(100, int((successful / total) * 100))
-    # Add bonus for modules with real data (not pending)
+    errored = sum(1 for m in result.modules_run if m.get("status") == "error")
+    unavailable = sum(
+        1
+        for m in result.modules_run
+        if isinstance(m.get("result"), dict) and m["result"].get("result") in ("unavailable", "no_data")
+    )
+    # Base: only penalize errors, not unavailable data
+    non_error_count = total - errored
+    base_confidence = min(100, int((non_error_count / total) * 100))
+    # Add bonus for modules with real data (not pending/unavailable)
     pending_count = sum(
         1 for m in result.modules_run if isinstance(m.get("result"), dict) and m["result"].get("result") == "pending"
     )
-    real_count = successful - pending_count
+    real_count = successful - pending_count - unavailable
     result.confidence = min(100, base_confidence + real_count * 5)
 
     # ── Record own-data coverage metrics ──

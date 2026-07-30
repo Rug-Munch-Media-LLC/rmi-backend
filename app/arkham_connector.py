@@ -31,7 +31,7 @@ _arkham_cb = AsyncCircuitBreaker(
 ARKHAM_API_KEY = os.getenv("ARKHAM_API_KEY", "").strip()
 if not ARKHAM_API_KEY:
     # Fallback to reading from secrets file
-    _secrets_paths = ["/root/.secrets/arkham_api_key"]
+    _secrets_paths = ["[SECRETS_PATH]/arkham_api_key"]
     for _sp in _secrets_paths:
         if os.path.exists(_sp):
             with open(_sp) as _f:
