@@ -5,6 +5,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx
+
 from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
     _fetch_dexscreener,
@@ -69,7 +71,7 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
     else:
         # EVM: try DexScreener for holder estimate + explorer for deployer
         try:
-            ds_data = await _fetch_dexscreener(token_address)
+            ds_data = await _fetch_dexscreener(token_address, chain)
             if ds_data:
                 pair = ds_data["pairs"][0]
                 result["holder_count"] = int(pair.get("holders", 0) or 0)
@@ -94,9 +96,7 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
                                 "percentage": pct,
                             }
                         )
-                    result["holder_count"] = bs_data.get("total", {}).get(
-                        "value", result["holder_count"]
-                    )
+                    result["holder_count"] = bs_data.get("total", {}).get("value", result["holder_count"])
                     result["top_holders"] = top_holders
                     result["source"] = "blockscout"
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
@@ -104,11 +104,11 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
 
     return result
 
+
 # ── 4. Deployer Information ───────────────────────────────────────────
 
-async def _check_liquidity_lock_multi(
-    token_address: str, chain: str, pair_address: str = ""
-) -> dict[str, Any] | None:
+
+async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_address: str = "") -> dict[str, Any] | None:
     """Check liquidity lock status using DexScreener + on-chain data.
 
     Uses the HoneypotDetector for comprehensive liquidity analysis including
@@ -152,12 +152,12 @@ async def _check_liquidity_lock_multi(
             return result
     except ImportError:
         pass
-    except (KeyError, TypeError) as e :
+    except (KeyError, TypeError) as e:
         logger.debug("honeypot_liquidity_failed", error=str(e))
 
-    # Fallback: direct DexScreener check (uses shared per-token cache)
+    # Fallback: DEX data check (own ClickHouse data first, DexScreener API fallback)
     try:
-        ds_data = await _fetch_dexscreener(token_address)
+        ds_data = await _fetch_dexscreener(token_address, chain)
         if ds_data:
             pair = ds_data["pairs"][0]
             liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
@@ -177,9 +177,7 @@ async def _check_liquidity_lock_multi(
                 if pair_addr:
                     supply_data = await _solana_rpc_call("getTokenSupply", [pair_addr])
                     if supply_data:
-                        supply = int(
-                            supply_data.get("result", {}).get("value", {}).get("amount", "0")
-                        )
+                        supply = int(supply_data.get("result", {}).get("value", {}).get("amount", "0"))
                         # Check LP token balance of dead address
                         dead_data = await _solana_rpc_call(
                             "getTokenAccountsByOwner",
@@ -201,9 +199,7 @@ async def _check_liquidity_lock_multi(
                                     .get("amount", "0")
                                 )
                             if supply > 0:
-                                result["liquidity_locked_pct"] = round(
-                                    (dead_balance / supply) * 100, 1
-                                )
+                                result["liquidity_locked_pct"] = round((dead_balance / supply) * 100, 1)
                                 result["lp_burned"] = dead_balance > 0
 
             # Very low liquidity = risk flag
@@ -215,7 +211,9 @@ async def _check_liquidity_lock_multi(
 
     return result
 
+
 # ── 6. Copycat Detection ──────────────────────────────────────────────
+
 
 async def _check_lp_concentration(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check LP concentration — what % of LP is held by top wallets.

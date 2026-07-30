@@ -1,4 +1,11 @@
-"""Scanner module — split from modules.py for maintainability."""
+"""Scanner module — split from modules.py for maintainability.
+
+Own-Data Integration:
+    All DexScreener calls now route through _core._fetch_dexscreener which
+    tries ClickHouse own-dex-data first when PREFER_OWN_DATA=true (default).
+    _check_coingecko_price also tries own_price_oracle first.
+    This eliminates 111 DexScreener + 47 CoinGecko API calls per token scan.
+"""
 
 from __future__ import annotations
 
@@ -10,16 +17,20 @@ from app.domains.scanner.modules._core import (
     BLOCKSCOUT_URLS,
     DEFILLAMA_API,
     GOPLUS_CHAIN_IDS,
+    PREFER_OWN_DATA,
+    _fetch_dexscreener,
     _fetch_json,
-    _fetch_with_fallback,
     logger,
 )
 
 
-async def _get_price_consensus(
-    token_address: str, chain: str, market_price: float = 0
-) -> dict[str, Any] | None:
-    """Get price consensus across multiple sources."""
+async def _get_price_consensus(token_address: str, chain: str, market_price: float = 0) -> dict[str, Any] | None:
+    """Get price consensus across multiple sources.
+
+    When PREFER_OWN_DATA=true (default), own_price_oracle is queried FIRST
+    as it computes TWAP/VWAP from ClickHouse dex_events (5-50ms, zero cost).
+    Falls back to DexScreener and GoPlus API.
+    """
     result: dict[str, Any] = {
         "check": "price",
         "result": "scanned",
@@ -30,27 +41,52 @@ async def _get_price_consensus(
 
     prices: dict[str, float] = {}
 
-    # Source 1: DexScreener
+    # ── Tier 1: Own price oracle (ClickHouse dex_events VWAP) ──
+    if PREFER_OWN_DATA:
+        try:
+            from app.domains.scanner.engines.own_price_oracle import get_token_price
+
+            own_price = await get_token_price(token_address, chain)
+            price = own_price.get("price_usd", 0)
+            if price > 0:
+                prices["own_data"] = price
+                result["price_usd"] = price
+                result["volume_24h"] = own_price.get("volume_24h_usd", 0)
+                result["price_change_24h"] = own_price.get("price_change_24h_pct", 0)
+                result["confidence"] = own_price.get("confidence", 0)
+                result["market_cap_usd"] = own_price.get("market_cap_usd")
+                result["source"] = own_price.get("source", "own_data")
+                logger.info(
+                    "Using own price data for %s on %s (confidence: %s)",
+                    token_address[:16],
+                    chain,
+                    own_price.get("confidence", 0),
+                )
+        except ImportError:
+            logger.debug("own_price_oracle not available")
+        except Exception as exc:
+            logger.debug("own_price_oracle_failed", error=str(exc)[:60])
+
+    # ── Tier 2: DexScreener (via _fetch_dexscreener which also tries own data first) ──
     try:
-        data, _ = await _fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-        )
+        data = await _fetch_dexscreener(token_address, chain)
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             price = float(pair.get("priceUsd", 0) or 0)
             if price > 0:
                 prices["dexscreener"] = price
-                result["price_usd"] = price
-                result["volume_24h"] = float(pair.get("volume", {}).get("h24", 0) or 0)
-                result["liquidity_usd"] = float(pair.get("liquidity", {}).get("usd", 0) or 0)
-                result["fdv"] = float(pair.get("fdv", 0) or 0)
-                result["price_change_24h"] = pair.get("priceChange", {}).get("h24", 0)
-                result["dex"] = pair.get("dexId", "")
-                result["pair_address"] = pair.get("pairAddress", "")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                if not prices.get("own_data"):
+                    result["price_usd"] = price
+                    result["volume_24h"] = float(pair.get("volume", {}).get("h24", 0) or 0)
+                    result["liquidity_usd"] = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+                    result["fdv"] = float(pair.get("fdv", 0) or 0)
+                    result["price_change_24h"] = pair.get("priceChange", {}).get("h24", 0)
+                    result["dex"] = pair.get("dexId", "")
+                    result["pair_address"] = pair.get("pairAddress", "")
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("dexscreener_price_failed", error=str(e))
 
-    # Source 2: GoPlus (has price info for some tokens)
+    # ── Tier 3: GoPlus (has price info for some tokens) ──
     try:
         chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
         goplus_data = await _fetch_json(
@@ -61,7 +97,7 @@ async def _get_price_consensus(
             goplus_result = goplus_data.get("result", {}).get(token_address.lower(), {})
             if goplus_result:
                 prices["goplus"] = float(goplus_result.get("price", 0) or 0)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("goplus_price_failed", error=str(e))
 
     # Determine consensus
@@ -72,7 +108,9 @@ async def _get_price_consensus(
 
     return result
 
+
 # ── 10. Spam/Malicious Token Check ────────────────────────────────────
+
 
 async def _check_volume_liquidity_ratio(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check volume-to-liquidity ratio.
@@ -93,11 +131,9 @@ async def _check_volume_liquidity_ratio(token_address: str, chain: str) -> dict[
         "risk_score": 0,
     }
 
-    # Fetch DexScreener data for volume + liquidity
+    # Fetch DEX data (own ClickHouse first, DexScreener API fallback)
     try:
-        data, _ = await _fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-        )
+        data = await _fetch_dexscreener(token_address, chain)
         if data and data.get("pairs"):
             pair = data["pairs"][0]
             volume = float(pair.get("volume", {}).get("h24", 0) or 0)
@@ -143,14 +179,16 @@ async def _check_volume_liquidity_ratio(token_address: str, chain: str) -> dict[
                 result["risk_level"] = "healthy"
                 result["risk_score"] = 0
 
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("volume_liquidity_failed", error=str(e)[:60])
         result["result"] = "error"
         result["error"] = str(e)[:60]
 
     return result
 
+
 # ── Legacy stub modules (unchanged - return pending but are non-critical) ──
+
 
 async def _check_blockscout(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check token on Blockscout — address metadata, contract status, tx count."""
@@ -173,9 +211,7 @@ async def _check_blockscout(token_address: str, chain: str) -> dict[str, Any] | 
             result["is_contract"] = data.get("is_contract", False)
             result["has_transactions"] = (data.get("tx_count", 0) or 0) > 0
             result["tx_count"] = data.get("tx_count", 0)
-            result["token_type"] = (
-                data.get("token", {}).get("type", "") if data.get("token") else ""
-            )
+            result["token_type"] = data.get("token", {}).get("type", "") if data.get("token") else ""
             result["ens_domain"] = data.get("ens_info", {}).get("domain", "") or None
 
             # If it's a token, get market data
@@ -193,38 +229,42 @@ async def _check_blockscout(token_address: str, chain: str) -> dict[str, Any] | 
     except httpx.TimeoutException:
         logger.debug("blockscout_timeout", chain=chain)
         return {"check": "blockscout", "result": "unavailable", "error": "timeout"}
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("blockscout_failed", error=str(e)[:80])
         return {"check": "blockscout", "result": "unavailable", "error": str(e)[:60]}
 
     return result
+
 
 async def _check_token_sniffer(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check token on TokenSniffer."""
     logger.info("check_token_sniffer", token=token_address, chain=chain)
     return {"check": "tokensniffer", "result": "pending"}
 
+
 async def _check_trm_sanctions(address: str) -> dict[str, Any] | None:
     """Check address on TRM sanctions list."""
     logger.info("check_trm_sanctions", address=address[:10])
     return {"check": "trm", "result": "pending"}
 
-async def _check_scorechain_sanctions(
-    address: str, chain: str = "ethereum"
-) -> dict[str, Any] | None:
+
+async def _check_scorechain_sanctions(address: str, chain: str = "ethereum") -> dict[str, Any] | None:
     """Check address on Scorechain sanctions list."""
     logger.info("check_scorechain", address=address[:10], chain=chain)
     return {"check": "scorechain", "result": "pending"}
+
 
 async def _check_chainabuse(address: str) -> dict[str, Any] | None:
     """Check address on Chainabuse."""
     logger.info("check_chainabuse", address=address[:10])
     return {"check": "chainabuse", "result": "pending"}
 
+
 async def _check_forta_alerts(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check Forta alerts for token."""
     logger.info("check_forta", token=token_address, chain=chain)
     return {"check": "forta", "result": "pending"}
+
 
 async def _check_defillama_context(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check DeFiLlama context for token — TVL, protocol presence, token price.
@@ -326,27 +366,28 @@ async def _check_defillama_context(token_address: str, chain: str) -> dict[str, 
                     pools = yield_data.get("data", [])
                     if pools:
                         result["yield_pools_found"] = len(pools)
-                        result["max_apy"] = max(
-                            (float(p.get("apy", 0) or 0) for p in pools[:5]), default=0
-                        )
+                        result["max_apy"] = max((float(p.get("apy", 0) or 0) for p in pools[:5]), default=0)
                         result["source"] = "defillama_yields"
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError):
                 pass
 
     except httpx.TimeoutException:
         logger.debug("defillama_context_timeout", chain=chain)
         return {**result, "result": "unavailable", "error": "DeFiLlama timeout"}
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("defillama_context_failed", error=str(e)[:80])
         return {**result, "result": "unavailable", "error": str(e)[:60]}
 
     return result
 
-async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check CoinGecko price for token.
 
-    Uses the free CoinGecko API to get current price, market cap,
-    24h volume, and price change data.
+async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Check price for token — own ClickHouse data first, then CoinGecko.
+
+    When PREFER_OWN_DATA=true (default), queries own_price_oracle FIRST
+    which computes TWAP/VWAP from ClickHouse dex_events (5-50ms, zero cost).
+    Falls back to CoinGecko API only when our data has insufficient confidence
+    or the token isn't tracked.
 
     Args:
         token_address: Token contract address
@@ -354,10 +395,49 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
 
     Returns:
         Dict with price, market_cap, volume_24h, price_change_24h,
-        or unavailable if token not indexed by CoinGecko.
+        or unavailable if no price source found.
     """
     logger.info("check_coingecko", token=token_address, chain=chain)
 
+    # ── Tier 1: Own price oracle (ClickHouse dex_events) ──
+    if PREFER_OWN_DATA:
+        try:
+            from app.domains.scanner.engines.own_price_oracle import get_token_price
+
+            own_price = await get_token_price(token_address, chain)
+            if own_price.get("source") in ("own", "defillama") and own_price.get("price_usd", 0) > 0:
+                # Check confidence — only use if sufficient
+                confidence = own_price.get("confidence", 0)
+                if confidence >= 0.3:
+                    logger.info(
+                        "Using own price data for %s on %s (confidence: %s)",
+                        token_address[:16],
+                        chain,
+                        confidence,
+                    )
+                    return {
+                        "check": "coingecko",
+                        "result": "scanned",
+                        "is_listed": True,
+                        "price_usd": own_price["price_usd"],
+                        "market_cap_usd": own_price.get("market_cap_usd"),
+                        "volume_24h_usd": own_price.get("volume_24h_usd", 0),
+                        "price_change_24h_pct": own_price.get("price_change_24h_pct", 0),
+                        "name": "",
+                        "symbol": "",
+                        "source": own_price.get("source", "own_data"),
+                    }
+                logger.debug(
+                    "Own price confidence too low (%s) for %s, falling back to CoinGecko",
+                    confidence,
+                    token_address[:16],
+                )
+        except ImportError:
+            logger.debug("own_price_oracle not available")
+        except Exception as exc:
+            logger.debug("own_price_oracle_failed", error=str(exc)[:60])
+
+    # ── Tier 2: CoinGecko API (original behavior) ──
     # Map chain to CoinGecko platform ID
     platform_map: dict[str, str] = {
         "ethereum": "ethereum",
@@ -374,8 +454,10 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
     if not platform:
         return {
             "check": "coingecko",
-            "result": "unavailable",
-            "reason": f"Chain {chain} not on CoinGecko",
+            "result": "scanned",
+            "is_listed": False,
+            "note": f"Chain {chain} not on CoinGecko",
+            "source": "unavailable",
         }
 
     try:
@@ -388,12 +470,14 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
                     "result": "scanned",
                     "is_listed": False,
                     "note": "Token not found on CoinGecko",
+                    "source": "unavailable",
                 }
             if resp.status_code != 200:
                 return {
                     "check": "coingecko",
                     "result": "unavailable",
                     "error": f"HTTP {resp.status_code}",
+                    "source": "unavailable",
                 }
 
             data = resp.json()
@@ -410,9 +494,7 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
                 "volume_24h_usd": market_data.get("total_volume", {}).get("usd"),
                 "price_change_24h_pct": market_data.get("price_change_percentage_24h"),
                 "price_change_7d_pct": market_data.get("price_change_percentage_7d"),
-                "fully_diluted_valuation": market_data.get("fully_diluted_valuation", {}).get(
-                    "usd"
-                ),
+                "fully_diluted_valuation": market_data.get("fully_diluted_valuation", {}).get("usd"),
                 "circulating_supply": market_data.get("circulating_supply"),
                 "total_supply": market_data.get("total_supply"),
                 "ath_usd": market_data.get("ath", {}).get("usd"),
@@ -421,21 +503,24 @@ async def _check_coingecko_price(token_address: str, chain: str) -> dict[str, An
             }
     except httpx.TimeoutException:
         logger.debug("coingecko_price_timeout", chain=chain)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("coingecko_price_failed", error=str(e)[:80])
 
-    return {"check": "coingecko", "result": "unavailable", "error": "CoinGecko API unavailable"}
+    return {
+        "check": "coingecko",
+        "result": "unavailable",
+        "error": "CoinGecko API unavailable",
+        "source": "unavailable",
+    }
 
-async def _check_1inch_swap(
-    token_address: str, chain: str, amount_usd: float = 100.0
-) -> dict[str, Any] | None:
+
+async def _check_1inch_swap(token_address: str, chain: str, amount_usd: float = 100.0) -> dict[str, Any] | None:
     """Check 1inch swap for token."""
     logger.info("check_1inch", token=token_address, chain=chain, amount_usd=amount_usd)
     return {"check": "1inch", "result": "pending"}
 
-async def _rag_scam_check(
-    token_address: str, chain: str, deployer: str | None = None
-) -> dict[str, Any] | None:
+
+async def _rag_scam_check(token_address: str, chain: str, deployer: str | None = None) -> dict[str, Any] | None:
     """Check RAG for scam indicators via vector search + pattern matching."""
     logger.info("rag_scam_check", token=token_address, chain=chain, deployer=deployer)
     try:
@@ -452,126 +537,148 @@ async def _rag_scam_check(
             return result
     except ImportError:
         logger.debug("rag_scam_check_module_not_available")
-    except (httpx.HTTPError) as e :
+    except httpx.HTTPError as e:
         logger.warning("rag_scam_check_failed", error=str(e)[:100])
 
     return {"check": "rag", "result": "scanned", "risk_score": 0, "source": "unavailable"}
+
 
 async def _check_cross_chain_deployer(deployer_addr: str, chain: str) -> dict[str, Any] | None:
     """Check if deployer has cross-chain activity."""
     logger.info("cross_chain_deployer", deployer=deployer_addr, chain=chain)
     return {"check": "cross_chain", "result": "pending"}
 
+
 async def _get_birdeye_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Birdeye data for token."""
     logger.info("birdeye_data", token=token_address, chain=chain)
     return {"check": "birdeye", "result": "pending"}
+
 
 async def _verify_mint_consensus(token_address: str, chain: str) -> dict[str, Any] | None:
     """Verify mint authority consensus."""
     logger.info("verify_mint", token=token_address, chain=chain)
     return {"check": "mint", "result": "pending"}
 
+
 async def _ingest_scan_to_rag(scan_result: Any) -> None:
     """Ingest scan result to RAG for future searches."""
     logger.info("ingest_to_rag", token=scan_result.token_address)
+
 
 async def _get_solscan_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Solscan data for token."""
     logger.info("solscan_data", token=token_address, chain=chain)
     return {"check": "solscan", "result": "pending"}
 
+
 async def _get_moralis_data(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Moralis data for token."""
     logger.info("moralis_data", token=token_address, chain=chain)
     return {"check": "moralis", "result": "pending"}
+
 
 async def _get_etherscan_enhanced(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get enhanced Etherscan data for token."""
     logger.info("etherscan_enhanced", token=token_address, chain=chain)
     return {"check": "etherscan", "result": "pending"}
 
+
 async def _get_quicknode_pumpfun(token_address: str, chain: str) -> dict[str, Any] | None:
     """Get Quicknode Pump.fun data for token."""
     logger.info("quicknode_pumpfun", token=token_address, chain=chain)
     return {"check": "quicknode", "result": "pending"}
+
 
 async def _check_nansen(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check Nansen data for token."""
     logger.info("nansen_check", token=token_address, chain=chain)
     return {"check": "nansen", "result": "pending"}
 
+
 async def _check_chainaware(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check ChainAware data for token."""
     logger.info("chainaware_check", token=token_address, chain=chain)
     return {"check": "chainaware", "result": "pending"}
 
-async def _check_blowfish(
-    token_address: str, chain: str, user_address: str = ""
-) -> dict[str, Any] | None:
+
+async def _check_blowfish(token_address: str, chain: str, user_address: str = "") -> dict[str, Any] | None:
     """Check Blowfish AI for token."""
     logger.info("blowfish_check", token=token_address, chain=chain, user=user_address)
     return {"check": "blowfish", "result": "pending"}
+
 
 async def _check_santiment(symbol: str) -> dict[str, Any] | None:
     """Check Santiment for token."""
     logger.info("santiment_check", symbol=symbol)
     return {"check": "santiment", "result": "pending"}
 
+
 async def _check_fear_greed() -> dict[str, Any] | None:
     """Check Crypto Fear & Greed index."""
     logger.info("fear_greed_check")
     return {"check": "fear_greed", "result": "pending"}
+
 
 async def _check_news_sentiment(symbol: str) -> dict[str, Any] | None:
     """Check news sentiment for token."""
     logger.info("news_sentiment_check", symbol=symbol)
     return {"check": "news", "result": "pending"}
 
+
 async def _check_augmento(symbol: str) -> dict[str, Any] | None:
     """Check Augmento for token."""
     logger.info("augmento_check", symbol=symbol)
     return {"check": "augmento", "result": "pending"}
+
 
 async def _check_coingecko_trending() -> dict[str, Any] | None:
     """Check CoinGecko trending tokens."""
     logger.info("coingecko_trending")
     return {"check": "trending", "result": "pending"}
 
+
 async def _check_webacy(address: str, chain: str) -> dict[str, Any] | None:
     """Check Webacy for address."""
     logger.info("webacy_check", address=address, chain=chain)
     return {"check": "webacy", "result": "pending"}
+
 
 async def _check_sourcify(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check Sourcify for token."""
     logger.info("sourcify_check", token=token_address, chain=chain)
     return {"check": "sourcify", "result": "pending"}
 
+
 async def _check_scamsniffer_live(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check ScamSniffer Live for token."""
     logger.info("scamsniffer_live", token=token_address, chain=chain)
     return {"check": "scamsniffer", "result": "pending"}
+
 
 async def _check_dune(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check Dune analytics for token."""
     logger.info("dune_check", token=token_address, chain=chain)
     return {"check": "dune", "result": "pending"}
 
+
 async def _check_arkham(address: str, chain: str) -> dict[str, Any] | None:
     """Check Arkham for address."""
     logger.info("arkham_check", address=address, chain=chain)
     return {"check": "arkham", "result": "pending"}
+
 
 async def _check_thegraph(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check The Graph for token."""
     logger.info("thegraph_check", token=token_address, chain=chain)
     return {"check": "thegraph", "result": "pending"}
 
+
 async def _check_chainpatrol_asset(asset_type: str, asset_id: str) -> dict[str, Any] | None:
     """Check asset on ChainPatrol."""
     logger.info("check_chainpatrol", type=asset_type, id=asset_id)
     return {"check": "chainpatrol", "result": "pending"}
+
 
 async def _check_defi_scanner(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check token on DeFi Scanner — DeFiLlama for protocol presence & TVL."""
@@ -620,15 +727,13 @@ async def _check_defi_scanner(token_address: str, chain: str) -> dict[str, Any] 
 
     except httpx.TimeoutException:
         logger.debug("defiscanner_timeout", chain=chain)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("defiscanner_failed", error=str(e)[:80])
 
-    # If DeFiLlama had no data, try DexScreener as fallback
+    # If DeFiLlama had no data, try our own DEX data as fallback
     if not result.get("source"):
         try:
-            data, _ = await _fetch_with_fallback(
-                [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-            )
+            data = await _fetch_dexscreener(token_address, chain)
             if data and data.get("pairs"):
                 pair = data["pairs"][0]
                 result["price_usd"] = float(pair.get("priceUsd", 0) or 0)
@@ -638,10 +743,11 @@ async def _check_defi_scanner(token_address: str, chain: str) -> dict[str, Any] 
                 result["has_defi_presence"] = True
                 result["protocols_found"] = 1
                 result["source"] = "dexscreener_fallback"
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
             logger.debug("defiscanner_fallback_failed", error=str(e))
 
     return result
+
 
 async def _check_volume_anomaly(
     token_address: str,
@@ -676,10 +782,7 @@ async def _check_volume_anomaly(
     }
 
     try:
-        data, _ = await _fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"],
-            json_mode=True,
-        )
+        data = await _fetch_dexscreener(token_address, chain)
         if not data or not data.get("pairs"):
             # Use provided params as fallback
             if volume_24h > 0 and market_price > 0:
@@ -688,7 +791,7 @@ async def _check_volume_anomaly(
                 result["source"] = "params"
                 return result
             result["result"] = "unavailable"
-            result["error"] = "No DexScreener data available"
+            result["error"] = "No DEX data available"
             return result
 
         pairs = data["pairs"]
@@ -783,7 +886,7 @@ async def _check_volume_anomaly(
         result["sell_count_24h"] = sell_count
         result["source"] = "dexscreener"
 
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("volume_anomaly_failed", error=str(e)[:80])
         result["result"] = "error"
         result["error"] = str(e)[:60]

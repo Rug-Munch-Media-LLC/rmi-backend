@@ -1,12 +1,21 @@
-"""Scanner service — volume anomaly detection via DexScreener analysis."""
+"""Scanner service — volume anomaly detection via DexScreener analysis.
+
+Own-Data Integration:
+    DexScreener calls now route through _core._fetch_dexscreener which
+    tries ClickHouse own-dex-data first when PREFER_OWN_DATA=true (default).
+    Falls back to DexScreener API only if our data is insufficient.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
 
 async def _check_volume_anomaly(
     token_address: str,
@@ -45,15 +54,12 @@ async def _check_volume_anomaly(
     }
 
     try:
-        from app.domains.scanner.modules._core import _fetch_with_fallback
+        from app.domains.scanner.modules._core import _fetch_dexscreener
 
-        data, _ = await _fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"],
-            json_mode=True,
-        )
+        data = await _fetch_dexscreener(token_address, chain)
         if not data or not data.get("pairs"):
             result["result"] = "unavailable"
-            result["error"] = "No DexScreener data available"
+            result["error"] = "No DEX data available from own data or DexScreener"
             return result
 
         pairs = data["pairs"]
@@ -147,9 +153,7 @@ async def _check_volume_anomaly(
 
         # ── Signal 4: Volume Concentration Across Pools ──
         if len(pairs) > 1:
-            top_pool_vol = max(
-                (float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs), default=0
-            )
+            top_pool_vol = max((float(p.get("volume", {}).get("h24", 0) or 0) for p in pairs), default=0)
             if total_volume > 0:
                 top_pool_share = top_pool_vol / total_volume
                 signals["top_pool_volume_share"] = round(top_pool_share, 3)

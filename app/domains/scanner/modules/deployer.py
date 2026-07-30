@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from app.domains.scanner.modules._core import (
     EXPLORER_APIS,
     _fetch_dexscreener,
@@ -54,10 +56,10 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("explorer_deployer_failed", error=str(e))
 
-    # Fallback: try DexScreener (uses shared per-token cache)
+    # Fallback: try DEX data (own ClickHouse data first, DexScreener API fallback)
     if not deployer_addr:
         try:
-            ds_data = await _fetch_dexscreener(token_address)
+            ds_data = await _fetch_dexscreener(token_address, chain)
             if ds_data:
                 pair = ds_data["pairs"][0]
                 deployer_addr = pair.get("baseToken", {}).get("address", "")
@@ -92,6 +94,7 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
             result["reputation_label"] = "UNKNOWN"
 
     return result
+
 
 async def _deep_deployer_check(deployer_addr: str, chain: str) -> dict[str, Any] | None:
     """Deep deployer analysis using behavioral fingerprint matching.
