@@ -29,9 +29,7 @@ _BLOCKED_COMMANDS: tuple[re.Pattern[str], ...] = (
 )
 
 # Allowed systemctl actions
-_SYSTEMCTL_ACTIONS: frozenset[str] = frozenset(
-    {"start", "stop", "restart", "status", "reload", "enable", "disable"}
-)
+_SYSTEMCTL_ACTIONS: frozenset[str] = frozenset({"start", "stop", "restart", "status", "reload", "enable", "disable"})
 
 # Known RugMunch repos for git/push operations
 RMI_REPOS: list[str] = [
@@ -161,7 +159,10 @@ def format_status(s: dict[str, Any]) -> str:
 
 def disk_usage() -> dict[str, Any]:
     """Report disk usage for all mounted filesystems."""
-    return _run_subprocess(["df", "-h", "--type=ext4", "--type=xfs", "--type=btrfs", "--exclude-type=tmpfs", "--exclude-type=devtmpfs"], timeout=10)
+    return _run_subprocess(
+        ["df", "-h", "--type=ext4", "--type=xfs", "--type=btrfs", "--exclude-type=tmpfs", "--exclude-type=devtmpfs"],
+        timeout=10,
+    )
 
 
 def format_disk(result: dict[str, Any]) -> str:
@@ -260,9 +261,7 @@ def docker_logs(service: str, tail: int = 50) -> dict[str, Any]:
 
 
 def service_list() -> str:
-    result = _run_subprocess(
-        ["systemctl", "list-units", "--type=service", "--no-pager"], timeout=30
-    )
+    result = _run_subprocess(["systemctl", "list-units", "--type=service", "--no-pager"], timeout=30)
     if result["ok"] and result["output"]:
         lines = result["output"].splitlines()
         return "\n".join(lines[:30])
@@ -410,8 +409,12 @@ def chain_status() -> dict[str, Any]:
     # Check for running chain indexer containers
     result = _run_subprocess(
         [
-            "docker", "ps", "--filter", "name=chain-indexer",
-            "--format", "table {{.Names}}\t{{.Status}}\t{{.Ports}}",
+            "docker",
+            "ps",
+            "--filter",
+            "name=chain-indexer",
+            "--format",
+            "table {{.Names}}\t{{.Status}}\t{{.Ports}}",
         ],
         timeout=10,
     )
@@ -421,8 +424,10 @@ def chain_status() -> dict[str, Any]:
     # Fallback: check for any container with 'chain' or 'indexer' in name
     result = _run_subprocess(
         [
-            "docker", "ps",
-            "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}",
+            "docker",
+            "ps",
+            "--format",
+            "table {{.Names}}\t{{.Status}}\t{{.Image}}",
         ],
         timeout=10,
     )
@@ -430,7 +435,10 @@ def chain_status() -> dict[str, Any]:
     lines = ["📡 *Chain Indexer Status*\n"]
     found = False
     for line in result["output"].splitlines():
-        if any(kw in line.lower() for kw in ["chain", "indexer", "lighthouse", "heimdall", "bor", "geth", "reth", "lodestar"]):
+        if any(
+            kw in line.lower()
+            for kw in ["chain", "indexer", "lighthouse", "heimdall", "bor", "geth", "reth", "lodestar"]
+        ):
             lines.append(f"  {line}")
             found = True
     if not found:
@@ -457,25 +465,33 @@ def send_alert(message: str, level: str = "info") -> dict[str, Any]:
     try:
         import json
 
-        import redis.asyncio as aioredis
-
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
         redis_password = os.environ.get("REDIS_PASSWORD", "")
+        if not redis_password:
+            try:
+                with open("/run/secrets/redis_password") as f:
+                    redis_password = f.read().strip()
+            except (FileNotFoundError, OSError):
+                pass
+
         if redis_password and "://" in redis_url and "@" not in redis_url:
             parts = redis_url.split("://", 1)
             redis_url = f"{parts[0]}://:{redis_password}@{parts[1]}"
 
-        # Use sync redis for simplicity here
         import redis as sync_redis
 
-        client = sync_redis.from_url(redis_url)
-        payload = json.dumps({
-            "level": level.upper(),
-            "title": "🔔 Admin Alert",
-            "body": message,
-            "source": "admin_bot",
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
-        })
+        # Force RESP2 protocol to avoid HELLO/AUTH ordering issue
+        # with redis-py 8.x + DragonflyDB/Redis 7.x password auth.
+        client = sync_redis.from_url(redis_url, protocol=2)
+        payload = json.dumps(
+            {
+                "level": level.upper(),
+                "title": "🔔 Admin Alert",
+                "body": message,
+                "source": "admin_bot",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            }
+        )
         client.rpush("rag:telegram_queue", payload)
         client.close()
         return _ok(f"✅ Alert queued for chat {ADMIN_CHAT_ID}", duration=0.0)

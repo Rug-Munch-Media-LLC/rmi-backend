@@ -18,6 +18,21 @@ REDIS_QUEUE_KEY = "rag:telegram_queue"
 POLL_TIMEOUT = 5  # seconds per BLPOP call; allows clean shutdown
 
 
+SECRET_FILE = "/run/secrets/redis_password"
+
+
+def _resolve_redis_password() -> str:
+    """Resolve Redis password: env var → secret file → empty."""
+    pw = os.environ.get("REDIS_PASSWORD", "")
+    if pw:
+        return pw
+    try:
+        with open(SECRET_FILE) as f:
+            return f.read().strip()
+    except (FileNotFoundError, OSError):
+        return ""
+
+
 def _build_redis_url(base_url: str | None, password: str | None) -> str:
     """Inject password into Redis URL if provided and not already present."""
     if not base_url:
@@ -39,13 +54,15 @@ async def start_redis_listener(bot_app) -> None:
 
     redis_url = _build_redis_url(
         os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
-        os.environ.get("REDIS_PASSWORD", ""),
+        _resolve_redis_password(),
     )
 
     try:
         import redis.asyncio as aioredis
 
-        client = aioredis.from_url(redis_url, decode_responses=True)
+        # Force RESP2 protocol to avoid HELLO/AUTH ordering issue
+        # with redis-py 8.x + DragonflyDB/Redis 7.x password auth.
+        client = aioredis.from_url(redis_url, decode_responses=True, protocol=2)
         await client.ping()
     except ImportError:
         logger.warning("redis.asyncio not installed — Redis listener disabled")
