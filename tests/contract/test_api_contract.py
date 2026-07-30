@@ -190,10 +190,10 @@ class TestScannerEndpointContract:
                 "depth": "quick",
             },
         )
-        assert resp.status_code == 501
+        assert resp.status_code == 200
         body = resp.json()
-        assert "detail" in body
-
+        assert "scan_id" in body
+        assert "risk_score" in body
     def test_scan_result_model_validates_good_data(self):
         """ScanResult accepts valid scan output."""
         data = {
