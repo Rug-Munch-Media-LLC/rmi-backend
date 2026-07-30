@@ -26,11 +26,13 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 class SourceTier(Enum):
     OUR_DATA = 1  # Free, unlimited, fastest
     FREE_RPC = 2  # Free, rate-limited
     FREE_API = 3  # Free, rate-limited
     PAID_API = 4  # Paid, highest quality, last resort
+
 
 class SourceStatus(Enum):
     HEALTHY = "healthy"
@@ -38,6 +40,7 @@ class SourceStatus(Enum):
     RATE_LIMITED = "rate_limited"
     DOWN = "down"
     UNKNOWN = "unknown"
+
 
 @dataclass
 class DataSource:
@@ -77,6 +80,7 @@ class DataSource:
     def tier_label(self) -> str:
         return {1: "OUR", 2: "RPC", 3: "API", 4: "PAID"}[self.tier.value]
 
+
 @dataclass
 class DataResult:
     """Result from a data query with source tracing."""
@@ -88,6 +92,7 @@ class DataResult:
     from_cache: bool = False
     fallback_attempts: int = 0
     all_sources_tried: list[str] = field(default_factory=list)
+
 
 # ══════════════════════════════════════════════════════════════════════
 # DATA SOURCE REGISTRY — Ordered by priority
@@ -101,6 +106,10 @@ DATA_SOURCES = {
     ),
     "chain_indexer_jsonl": DataSource(
         name="Chain Indexer (JSONL)",
+        tier=SourceTier.OUR_DATA,
+    ),
+    "chain_indexer_clickhouse": DataSource(
+        name="Chain Indexer (ClickHouse)",
         tier=SourceTier.OUR_DATA,
     ),
     "clickhouse_labels": DataSource(
@@ -261,6 +270,7 @@ QUERY_FALLBACK_MAP = {
         "moralis",  # Paid
     ],
     "token_holders": [
+        "chain_indexer_clickhouse",  # ClickHouse — 73M+ transfers, sub-10ms
         "chain_indexer_parquet",  # Our data — every transfer on 8 chains
         "chain_indexer_jsonl",  # Raw events for chains not yet in Parquet
         "rpc_ethereum",  # Free RPC fallback — eth_call for balances
@@ -271,6 +281,7 @@ QUERY_FALLBACK_MAP = {
         "moralis",  # Paid
     ],
     "token_transfers": [
+        "chain_indexer_clickhouse",  # ClickHouse — 73M+ transfers, sub-10ms
         "chain_indexer_parquet",  # Our indexed data — 8 chains, every transfer
         "chain_indexer_jsonl",  # Raw NDJSON — Tron + edge cases
         "rpc_ethereum",  # Free RPC pool — eth_getLogs
@@ -288,6 +299,7 @@ QUERY_FALLBACK_MAP = {
     "wallet_profile": [
         "clickhouse_labels",  # 39M+ labels
         "neo4j_entities",  # 169K+ relationships
+        "chain_indexer_clickhouse",  # ClickHouse — 73M+ transfers
         "chain_indexer_parquet",  # Transfer history
         "blockscout",  # Free
         "moralis",  # Paid
@@ -366,6 +378,7 @@ QUERY_FALLBACK_MAP = {
         "tradingview",  # Technical signals
     ],
     "new_launches": [
+        "chain_indexer_clickhouse",  # ClickHouse — deployer_events
         "chain_indexer_parquet",  # Our deployer data
         "gmgn_cli",  # GMGN trenches (pump.fun graduation)
         "dexscreener",  # New pairs
@@ -376,6 +389,7 @@ QUERY_FALLBACK_MAP = {
 # ══════════════════════════════════════════════════════════════════════
 # FALLBACK CHAIN ENGINE
 # ══════════════════════════════════════════════════════════════════════
+
 
 class DataFallbackChain:
     """
@@ -421,9 +435,7 @@ class DataFallbackChain:
 
         src.success_count += 1
         src.consecutive_failures = 0
-        src.avg_latency_ms = (
-            src.avg_latency_ms * (src.success_count - 1) + latency_ms
-        ) / src.success_count
+        src.avg_latency_ms = (src.avg_latency_ms * (src.success_count - 1) + latency_ms) / src.success_count
 
         if src.status in (SourceStatus.DOWN, SourceStatus.DEGRADED):
             src.status = SourceStatus.HEALTHY
@@ -538,11 +550,13 @@ class DataFallbackChain:
         """Get per-source query statistics."""
         return dict(self._stats)
 
+
 # ══════════════════════════════════════════════════════════════════════
 # GLOBAL INSTANCE
 # ══════════════════════════════════════════════════════════════════════
 
 _fallback_chain: DataFallbackChain | None = None
+
 
 def get_fallback_chain() -> DataFallbackChain:
     """Get or create the global DataFallbackChain instance."""
@@ -551,6 +565,7 @@ def get_fallback_chain() -> DataFallbackChain:
         _fallback_chain = DataFallbackChain()
         logger.info("DataFallbackChain initialized")
     return _fallback_chain
+
 
 async def query_with_fallback(
     query_type: str, cache_key: str | None = None, cache_ttl: float = 60, **kwargs
@@ -610,9 +625,11 @@ async def query_with_fallback(
         all_sources_tried=sources,
     )
 
+
 # ══════════════════════════════════════════════════════════════════════
 # SOURCE-DECISION LOGIC — "Can our data answer this?"
 # ══════════════════════════════════════════════════════════════════════
+
 
 def can_answer_from_our_data(query_type: str, chain: str = "ethereum") -> tuple[bool, str]:
     """
@@ -632,10 +649,12 @@ def can_answer_from_our_data(query_type: str, chain: str = "ethereum") -> tuple[
             "optimism",
             "avalanche",
         ):
-            return True, "chain_indexer_parquet"
+            return True, "chain_indexer_clickhouse"
         if chain_lower == "tron":
             return True, "chain_indexer_jsonl"  # Tron has JSONL, not Parquet
         if chain_lower == "solana":
+            if query_type == "token_holders":
+                return False, "chain_indexer_clickhouse"  # solana_spl_balance_changes has holder data
             return False, "helius_solana"  # Free RPC pool not available for Solana — use Helius
 
     # Wallet labels: ClickHouse has 39M+ entries
@@ -651,10 +670,9 @@ def can_answer_from_our_data(query_type: str, chain: str = "ethereum") -> tuple[
 
     return False, "unknown_query_type"
 
+
 # ══════════════════════════════════════════════════════════════════════
 # INIT
 # ══════════════════════════════════════════════════════════════════════
 
-logger.info(
-    f"DataFallbackChain module loaded: {len(DATA_SOURCES)} sources, {len(QUERY_FALLBACK_MAP)} query types"
-)
+logger.info(f"DataFallbackChain module loaded: {len(DATA_SOURCES)} sources, {len(QUERY_FALLBACK_MAP)} query types")

@@ -148,6 +148,51 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    chains["token_transfers"] = ProviderChain(
+        data_type="token_transfers",
+        description="ERC-20 transfer history from chain-indexer ClickHouse (73M+ transfers, 8 EVM chains)",
+        providers=[
+            Provider(
+                "chain_indexer_clickhouse",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_token_transfers"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers — every ERC-20 transfer on 8 chains",
+            ),
+        ],
+    )
+
+    chains["token_holders"] = ProviderChain(
+        data_type="token_holders",
+        description="Token holder analysis from chain-indexer ClickHouse (transfer aggregation)",
+        providers=[
+            Provider(
+                "chain_indexer_holders",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_holders"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers aggregation — holder distribution from transfer activity",
+            ),
+        ],
+    )
+
+    chains["solana_balance_changes"] = ProviderChain(
+        data_type="solana_balance_changes",
+        description="Solana SPL token balance deltas from chain-indexer ClickHouse (16M+ changes)",
+        providers=[
+            Provider(
+                "chain_indexer_solana",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_solana_balance_changes"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse solana_spl_balance_changes — SPL token balance deltas",
+            ),
+        ],
+    )
+
     chains["token_search"] = ProviderChain(
         data_type="token_search",
         description="Search tokens by name/symbol/address (Moralis + MCP)",
