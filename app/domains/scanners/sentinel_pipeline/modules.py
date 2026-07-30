@@ -15,6 +15,7 @@ from ..bundle_detector import BundleDetector
 from ..bytecode_similarity import BytecodeSimilarityAnalyzer
 from ..contract_authority import ContractAuthorityScanner
 from ..contract_diff import ContractDiffAnalyzer
+from ..cross_chain_trace import CrossChainTraceAnalyzer
 from ..decompiler_analyzer import DecompilerAnalyzer
 from ..dev_reputation import DevReputationEngine
 from ..exchange_funder import ExchangeFunderDetector
@@ -37,7 +38,6 @@ from ..sleep_cycle_scanner import SleepCycleAnalyzer
 from ..social_velocity import SocialVelocityAnalyzer
 from ..static_analyzer import StaticAnalyzer
 from ..wash_trading import WashTradingDetector
-from ..cross_chain_trace import CrossChainTraceAnalyzer
 from .config import SentinelConfig
 
 # Wallet Memory Bank integration
