@@ -35,11 +35,15 @@ from app.domains.telegram.adminbot.commands import (
     cmd_docker,
     cmd_git,
     cmd_help,
+    cmd_indexer,
     cmd_logs,
     cmd_mem,
+    cmd_news,
     cmd_oc,
     cmd_push,
     cmd_quick,
+    cmd_ragstats,
+    cmd_scanstats,
     cmd_service,
     cmd_shell,
     cmd_start,
@@ -113,6 +117,12 @@ def main() -> None:
     app.add_handler(CommandHandler("push", cmd_push))
     app.add_handler(CommandHandler("chain", cmd_chain))
     app.add_handler(CommandHandler("alert", cmd_alert))
+
+    # ── NEW Commands v4 (Intelligence) ──
+    app.add_handler(CommandHandler("ragstats", cmd_ragstats))
+    app.add_handler(CommandHandler("news", cmd_news))
+    app.add_handler(CommandHandler("scanstats", cmd_scanstats))
+    app.add_handler(CommandHandler("indexer", cmd_indexer))
 
     # Terminal mode — catch ALL text messages when in terminal
     app.add_handler(

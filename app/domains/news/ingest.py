@@ -28,19 +28,14 @@ from pydantic import HttpUrl
 from app.catalog.models import NewsItem, utcnow
 from app.catalog.service import get_catalog
 from app.core.logging import get_logger
+from app.domains.news.news_service.sources import RSS_FEEDS
 
 logger = get_logger(__name__)
 
 log = get_logger(__name__)
 
-# Default feeds (per v4.0 §T28)
-DEFAULT_FEEDS: list[dict[str, str]] = [
-    {"name": "coindesk", "url": "https://www.coindesk.com/arc/outboundfeeds/rss/"},
-    {"name": "cointelegraph", "url": "https://cointelegraph.com/rss"},
-    {"name": "theblock", "url": "https://www.theblock.co/rss.xml"},
-    {"name": "decrypt", "url": "https://decrypt.co/feed"},
-    {"name": "beincrypto", "url": "https://beincrypto.com/feed/"},
-]
+# All RSS feeds from sources.py (expanded to 200+ sources)
+DEFAULT_FEEDS: list[dict[str, str]] = [{"name": name, "url": url} for url, name in RSS_FEEDS]
 
 
 def _stable_id(source: str, url: str) -> str:
@@ -120,10 +115,17 @@ async def ingest_all(
         "ingested": 0,
         "duplicate": 0,
         "errors": 0,
+        "total_feeds": len(feeds),
     }
+    # Batch fetches to avoid overwhelming connections with 200+ feeds
+    results: list[list[dict]] = []
     async with httpx.AsyncClient() as client:
-        # Fetch all feeds in parallel
-        results = await asyncio.gather(*[fetch_feed(client, f) for f in feeds], return_exceptions=True)
+        for i in range(0, len(feeds), 20):
+            batch = feeds[i : i + 20]
+            batch_results = await asyncio.gather(*[fetch_feed(client, f) for f in batch], return_exceptions=True)
+            results.extend(batch_results)
+            if i + 20 < len(feeds):
+                await asyncio.sleep(0.25)  # Polite delay between batches
     items_to_ingest: list[NewsItem] = []
     for _i, r in enumerate(results):
         if isinstance(r, Exception) or not r:
@@ -203,7 +205,7 @@ async def ingest_all(
     # Embed into RAG for semantic search
     if embed and items_to_ingest:
         try:
-            for ni in items_to_ingest[:50]:  # cap RAG embeds
+            for ni in items_to_ingest[:200]:  # cap RAG embeds (up from 50 for 200+ feeds)
                 r = await cat.rag_ingest(
                     content=f"{ni.title}\n{ni.summary}",
                     collection=collection,
@@ -235,3 +237,11 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     result = asyncio.run(ingest_all())
     logger.info(json.dumps(result, indent=2))
+    print(f"\n📊 Ingest Summary:")
+    print(f"   Total feeds configured: {result.get('total_feeds', '?')}")
+    print(f"   Feeds OK: {result.get('feeds_ok', 0)}")
+    print(f"   Feeds failed: {result.get('feeds_fail', 0)}")
+    print(f"   Raw items: {result.get('items', 0)}")
+    print(f"   Newly ingested: {result.get('ingested', 0)}")
+    print(f"   Duplicates skipped: {result.get('duplicate', 0)}")
+    print(f"   Errors: {result.get('errors', 0)}")

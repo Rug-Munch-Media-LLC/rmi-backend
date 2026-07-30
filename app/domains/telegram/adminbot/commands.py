@@ -6,6 +6,7 @@ All /command handler functions for the RMI Admin Bot.
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -60,6 +61,11 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "*AI Commands:*\n"
         "/oc — OpenCode AI prompt\n"
         "/ai — AI model gateway\n\n"
+        "*Intelligence Commands:*\n"
+        "/ragstats — RAG collection sizes & embedder\n"
+        "/news — Rated news articles\n"
+        "/scanstats — Scanner own_data vs external\n"
+        "/indexer — Chain indexer status\n\n"
         "*Misc:*\n"
         "/chain — Chain indexer status\n"
         "/alert — Send alert message\n"
@@ -605,6 +611,168 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"{'✅' if result['ok'] else '❌'} Alert sent\n\n{result.get('output', '')}",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=back_button("main"),
+        )
+    else:
+        await msg.edit_text(
+            f"❌ {result['error']}",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("main"),
+        )
+
+
+# ═══════════════════════════════════════════════
+# RAG STATS
+# ═══════════════════════════════════════════════
+
+
+@owner_only
+async def cmd_ragstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show RAG collection sizes and embedding model status — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Fetching RAG stats...")
+    result = admin_ops.rag_stats()
+    if result["ok"]:
+        try:
+            data = json.loads(result["output"])
+            lines = ["🧠 *RAG System Stats*\n"]
+            if isinstance(data, dict):
+                for key, val in data.items():
+                    if isinstance(val, (int, float, str)):
+                        lines.append(f"• `{key}`: {val}")
+                    elif isinstance(val, dict):
+                        lines.append(f"\n*{key}:*")
+                        for k, v in val.items():
+                            lines.append(f"  • `{k}`: {v}")
+                    elif isinstance(val, list):
+                        lines.append(f"\n*{key}:*")
+                        for item in val[:20]:
+                            lines.append(f"  • {item}")
+            await msg.edit_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
+        except (json.JSONDecodeError, TypeError) as e:
+            await msg.edit_text(
+                f"🧠 *RAG Stats*\n\n```\n{result['output'][:3000]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=back_button("main"),
+            )
+    else:
+        await msg.edit_text(f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
+
+
+# ═══════════════════════════════════════════════
+# NEWS
+# ═══════════════════════════════════════════════
+
+
+@owner_only
+async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show latest rated news articles with bias/sentiment — OWNER ONLY."""
+    limit = int(ctx.args[0]) if ctx.args and ctx.args[0].isdigit() else 5
+    msg = await update.message.reply_text("⏳ Fetching news feed...")
+    result = admin_ops.news_feed(limit=limit)
+    if result["ok"]:
+        try:
+            items = json.loads(result["output"])
+            if not items:
+                await msg.edit_text(
+                    "📰 No news articles available.", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
+                )
+                return
+            lines = ["📰 *Rated News Feed*\n"]
+            bias_emoji = {"left": "🔵", "center-left": "🔷", "center": "⚪", "center-right": "🔶", "right": "🔴"}
+            for a in items[:limit]:
+                title = a.get("title", "Untitled")[:80]
+                source = a.get("source", "Unknown")
+                source_tier = a.get("source_tier", 5)
+                sentiment = a.get("sentiment_score", 0)
+                bias = a.get("bias", "center")
+                factual = a.get("factual_rating", "N/A")
+                url = a.get("url", "")
+                sent_emoji = "🔥" if sentiment > 30 else "🧊" if sentiment < -30 else "➖"
+                bias_e = bias_emoji.get(bias, "⚪")
+                tier_str = "★" * max(1, 6 - source_tier)
+                lines.append(
+                    f"{sent_emoji} {bias_e} [{tier_str}] *{title}*\n  📰 {source} · Factuality: {factual}\n  🔗 {url}"
+                )
+            lines.append(f"\n{limit} articles · via RMI News Network")
+            await msg.edit_text(
+                "\n".join(lines),
+                parse_mode=ParseMode.MARKDOWN,
+                disable_web_page_preview=False,
+                reply_markup=back_button("main"),
+            )
+        except (json.JSONDecodeError, TypeError) as e:
+            await msg.edit_text(f"❌ Parse error: {e}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
+    else:
+        await msg.edit_text(f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
+
+
+# ═══════════════════════════════════════════════
+# SCANNER STATS
+# ═══════════════════════════════════════════════
+
+
+@owner_only
+async def cmd_scanstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show scanner usage and own_data vs external breakdown — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Fetching scanner stats...")
+    result = admin_ops.scan_stats()
+    if result["ok"]:
+        try:
+            data = json.loads(result["output"])
+            lines = ["🔍 *Scanner Statistics*\n"]
+            metrics = data.get("metrics", {})
+            sufficiency = data.get("sufficiency", {})
+
+            if "error" not in metrics:
+                lines.append("*Coverage (own data vs external):*")
+                lines.append(f"  • Own data: `{metrics.get('own_data_pct', 'N/A')}%`")
+                lines.append(f"  • DataBus: `{metrics.get('databus_pct', 'N/A')}%`")
+                lines.append(f"  • External APIs: `{metrics.get('external_pct', 'N/A')}%`")
+                lines.append(f"  • Total checks: `{metrics.get('total_checks', 'N/A')}`")
+
+            if "error" not in sufficiency:
+                lines.append(f"\n*Self-Sufficiency:*")
+                lines.append(
+                    f"  • Questions covered: `{sufficiency.get('own_data_questions', 0)}/{sufficiency.get('total_questions', 0)}`"
+                )
+                lines.append(f"  • Coverage: `{sufficiency.get('own_data_pct', 0)}%`")
+                dv = sufficiency.get("data_volume", {})
+                if dv:
+                    lines.append(f"\n*Data Volume (24h):*")
+                    lines.append(f"  • EVM Transfers: `{dv.get('evm_transfers_24h', 0):,}`")
+                    lines.append(f"  • DEX Events: `{dv.get('dex_events_24h', 0):,}`")
+                    lines.append(f"  • DEX Fill Rate: `{dv.get('dex_fill_rate_pct', 0)}%`")
+                    lines.append(f"  • Freshness: `{dv.get('freshness_hours', 0)}h ago`")
+
+            await msg.edit_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
+        except (json.JSONDecodeError, TypeError) as e:
+            await msg.edit_text(f"❌ Parse error: {e}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
+    else:
+        await msg.edit_text(f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
+
+
+# ═══════════════════════════════════════════════
+# INDEXER STATUS
+# ═══════════════════════════════════════════════
+
+
+@owner_only
+async def cmd_indexer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show LiteIndexer chain-by-chain status — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Checking chain indexers...")
+    result = admin_ops.indexer_status()
+    if result["ok"]:
+        await msg.edit_text(
+            result["output"][:3500],
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton("🔄 Refresh", callback_data="indexer"),
+                        InlineKeyboardButton("🐳 Docker", callback_data="docker"),
+                    ],
+                    [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                ]
+            ),
         )
     else:
         await msg.edit_text(

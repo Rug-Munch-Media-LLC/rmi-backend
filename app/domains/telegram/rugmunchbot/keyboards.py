@@ -59,19 +59,26 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
         [web_scan_button(address, chain)],
         [
             InlineKeyboardButton("👥 Holders", callback_data=f"holders_{address}_{chain}"),
-            InlineKeyboardButton("🔍 Trace", callback_data=f"trace_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f50d Research", callback_data=f"research_{address}_{chain}"),
         ],
         [
             InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
             InlineKeyboardButton("\u2b50 Watch", callback_data=f"watch_{address}_{chain}"),
         ],
         [
+            InlineKeyboardButton("\U0001f9db Wallet Check", callback_data=f"wallet_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f4ca TA", callback_data=f"ta_{address}_{chain}"),
+        ],
+        [
             InlineKeyboardButton("\U0001f514 Price Alert", callback_data=f"alert_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f4c8 Sentiment", callback_data=f"sentiment_{address}_{chain}"),
         ],
     ]
     dex_btns = dex_buttons(address, chain)
     for i in range(0, len(dex_btns), 2):
         rows.append(dex_btns[i : i + 2])
+    # Upgrade nudge for free users
+    rows.append([InlineKeyboardButton("\u2b50 Unlock Premium Features", callback_data="menu_pricing")])
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
@@ -237,11 +244,20 @@ def deep_scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🔍 Trace", callback_data=f"trace_{address}_{chain}"),
             ],
             [
+                InlineKeyboardButton("\U0001f50d Research", callback_data=f"research_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f4c8 Sentiment", callback_data=f"sentiment_{address}_{chain}"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f9db Wallet Check", callback_data=f"wallet_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f4ca TA", callback_data=f"ta_{address}_{chain}"),
+            ],
+            [
                 InlineKeyboardButton("\U0001f514 Set Alert", callback_data=f"alert_{address}_{chain}"),
                 InlineKeyboardButton("\u2b50 Watch", callback_data=f"watch_{address}_{chain}"),
             ],
             [
                 InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f575\ufe0f Investigate", callback_data=f"investigate_{address}_{chain}"),
             ],
             [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
         ]

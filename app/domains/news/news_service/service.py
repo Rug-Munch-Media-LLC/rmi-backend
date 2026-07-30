@@ -78,6 +78,19 @@ class NewsService:
             "web3": "protocol",
             "layer2": "layer2",
             "CryptoGaming": "nft_gaming",
+            # AI & Tech
+            "artificial": "ai_tech",
+            "MachineLearning": "ai_tech",
+            "artificialintelligence": "ai_tech",
+            "singularity": "ai_tech",
+            "OpenAI": "ai_tech",
+            "LocalLLaMA": "ai_tech",
+            "technology": "tech_business",
+            "gadgets": "tech_business",
+            "Futurology": "tech_business",
+            "startups": "tech_business",
+            "programming": "ai_tech",
+            "Science": "ai_tech",
         }
         return sub_cats.get(subreddit, self._categorize(text))
 
