@@ -40,6 +40,8 @@ from app.databus.providers import ProviderChain, ProviderTier, build_provider_ch
 from app.databus.security import security
 from app.databus.vault import DataBusVault, get_vault
 
+import httpx
+
 logger = get_logger("databus.core")
 
 
@@ -663,8 +665,6 @@ class DataBus:
             # ── RAG: semantic search our 17K+ scam docs ──
             if data_type in ("rag_search", "scanner", "wallet_labels") and (query or address):
                 try:
-                    import httpx
-
                     search_query = query or address
                     async with httpx.AsyncClient(timeout=10) as c:
                         r = await c.post(

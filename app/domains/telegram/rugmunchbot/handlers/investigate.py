@@ -18,6 +18,7 @@ from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
+    WEBSITE_URL,
     fmt_number,
     fmt_pct,
     risk_bar,
@@ -398,7 +399,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     f"📊 MCap: {fmt_number(scan_result['mcap'])} | Liq: {fmt_number(scan_result['liquidity'])}",
                     "",
                     "📋 <b>Full investigation too long for Telegram.</b>",
-                    f"🌐 <a href='https://rugmunch.io/markets/token/{address}'>View full report on RugMunch.io</a>",
+                    f"🌐 <a href='{WEBSITE_URL}/markets/token/{address}'>View full report on RugMunch.io</a>",
                 ]
             )
             summary_lines.append(footer_links())

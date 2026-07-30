@@ -45,19 +45,9 @@ from app.domains.newsletter.schemas import (
     PublishResponse,
     SubscriberImportRow,
 )
+from app.domains.newsletter.services.constants import PLATFORM_FEE_PCT, SUBSCRIPTION_TIERS
 
 logger = get_logger(__name__)
-
-# ── Subscription tiers ──────────────────────────────────────────────
-
-SUBSCRIPTION_TIERS: dict[str, dict[str, Any]] = {
-    "free": {"price_usd": 0, "duration_days": 0, "label": "Free"},
-    "monthly": {"price_usd": 5, "duration_days": 30, "label": "Monthly ($5)"},
-    "annual": {"price_usd": 50, "duration_days": 365, "label": "Annual ($50)"},
-    "founding": {"price_usd": 100, "duration_days": 365, "label": "Founding ($100)"},
-}
-
-PLATFORM_FEE_PCT = 10.0  # 90/10 split
 
 
 class NewsletterService(BaseService[Newsletter]):

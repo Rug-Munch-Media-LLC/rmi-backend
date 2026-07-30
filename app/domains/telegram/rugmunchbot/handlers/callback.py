@@ -21,6 +21,7 @@ from app.domains.telegram.rugmunchbot.config import (
     BOT_USERNAME,
     BUY_STARS_PACKS,
     DEXSCREENER,
+    DEXSCREENER_TOKEN_BOOSTS,
     SCAM_SCHOOL_TOPICS,
     SCAN_PACKS,
     TELEGRAM_CHANNEL,
@@ -138,7 +139,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text("\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
+                r = await client.get(DEXSCREENER_TOKEN_BOOSTS)
                 if r.status_code == 200:
                     boost_list = r.json()
                     if not isinstance(boost_list, list):
@@ -170,7 +171,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text("\U0001f504 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                boosts_r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
+                boosts_r = await client.get(DEXSCREENER_TOKEN_BOOSTS)
                 if boosts_r.status_code == 200:
                     boost_list = boosts_r.json()
                     if isinstance(boost_list, list):

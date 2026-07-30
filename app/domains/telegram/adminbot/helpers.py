@@ -6,12 +6,40 @@ Owner gating, message editing, keyboard builders for the admin bot.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
 from app.domains.telegram.adminbot.config import OWNER_IDS
+
+# ── Rate limiting ──────────────────────────────────────────────────
+SPAM_COOLDOWN: float = 2.0  # seconds between commands
+_last_msg: dict[int, float] = {}
+
+
+def is_rate_limited(uid: int, cooldown: float = SPAM_COOLDOWN) -> bool:
+    """Check if user is spamming. Returns True if they should be blocked."""
+    now = time.time()
+    last = _last_msg.get(uid, 0.0)
+    if now - last < cooldown:
+        return True
+    _last_msg[uid] = now
+    return False
+
+
+def rate_limited(func) -> Any | None:
+    """Decorator: enforce per-user cooldown before command execution."""
+
+    async def wrapper(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Any | None:
+        uid = update.effective_user.id if update.effective_user else 0
+        if is_rate_limited(uid):
+            return  # silently drop spam
+        return await func(update, ctx)
+
+    return wrapper
+
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -23,9 +51,14 @@ def is_owner(update: Update) -> bool:
 
 
 def owner_only(func) -> Any | None:
-    """Decorator: reject non-owners immediately."""
+    """Decorator: reject non-owners immediately + rate limiting."""
 
     async def wrapper(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Any | None:
+        uid = update.effective_user.id if update.effective_user else 0
+        # Rate-limit check (silent drop for spam)
+        if is_rate_limited(uid):
+            return
+        # Authorization check
         if not is_owner(update):
             await update.message.reply_text("⛔ Unauthorized. This bot is for RMI admins only.")
             return

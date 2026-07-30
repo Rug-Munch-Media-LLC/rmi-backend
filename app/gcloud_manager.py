@@ -94,7 +94,6 @@ class GoogleCloudManager:
 
     async def embed_vertex(self, texts: list) -> list | None:
         """Embed using Vertex AI (768d, Cloud credits)."""
-        import httpx
 
         try:
             async with httpx.AsyncClient(timeout=15) as c:
@@ -124,7 +123,6 @@ class GoogleCloudManager:
 
     async def list_buckets(self) -> list:
         """List Cloud Storage buckets."""
-        import httpx
 
         try:
             async with httpx.AsyncClient(timeout=10) as c:
@@ -142,7 +140,6 @@ class GoogleCloudManager:
         self, bucket: str, path: str, data: bytes, content_type: str = "application/octet-stream"
     ) -> bool:
         """Upload file to Cloud Storage."""
-        import httpx
 
         try:
             async with httpx.AsyncClient(timeout=30) as c:
@@ -159,7 +156,6 @@ class GoogleCloudManager:
 
     async def bigquery_insert(self, dataset: str, table: str, rows: list) -> bool:
         """Streaming insert into BigQuery. Uses free tier (1TB queries/mo)."""
-        import httpx
 
         try:
             async with httpx.AsyncClient(timeout=15) as c:
@@ -190,7 +186,6 @@ class GoogleCloudManager:
             params: Optional list of parameter dicts with ``name``, ``parameterType``,
                     and ``parameterValue`` keys (see BigQuery REST API docs).
         """
-        import httpx
 
         try:
             body: dict = {"query": sql, "useLegacySql": False}
@@ -221,7 +216,6 @@ class GoogleCloudManager:
 
     async def vision_ocr(self, image_url: str | None = None, image_bytes: bytes | None = None) -> str:
         """OCR text from image. Free tier: 1,000 units/month."""
-        import httpx
 
         try:
             body = {"requests": [{"features": [{"type": "TEXT_DETECTION"}]}]}
@@ -254,7 +248,6 @@ class GoogleCloudManager:
 
     async def vision_labels(self, image_url: str | None = None, image_bytes: bytes | None = None) -> list:
         """Detect labels in image. Free tier: 1,000 units/month."""
-        import httpx
 
         try:
             body = {"requests": [{"features": [{"type": "LABEL_DETECTION", "maxResults": 10}]}]}
@@ -285,7 +278,6 @@ class GoogleCloudManager:
 
     async def nl_extract_entities(self, text: str) -> list:
         """Extract named entities from text. Free tier: 5,000 units/month."""
-        import httpx
 
         try:
             async with httpx.AsyncClient(timeout=15) as c:
@@ -314,7 +306,6 @@ class GoogleCloudManager:
 
     async def nl_sentiment(self, text: str) -> dict:
         """Analyze sentiment. Free tier: 5,000 units/month."""
-        import httpx
 
         try:
             async with httpx.AsyncClient(timeout=15) as c:
@@ -338,7 +329,6 @@ class GoogleCloudManager:
 
     async def set_lifecycle(self, bucket: str, rules: list) -> bool:
         """Set lifecycle rules on bucket to stay under 5GB free tier."""
-        import httpx
 
         try:
             async with httpx.AsyncClient(timeout=15) as c:

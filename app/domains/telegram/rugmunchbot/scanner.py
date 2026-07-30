@@ -17,6 +17,7 @@ from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
+    SOLANAFM_API,
     GOPLUS,
     HONEYPOT,
 )
@@ -269,7 +270,7 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
             logger.warning(f"analyze_wallet RMI backend failed for {address}: {e}")
         if is_sol(address):
             try:
-                r = await client.get(f"https://api.solana.fm/v0/accounts/{address}")
+                r = await client.get(f"{SOLANAFM_API}/accounts/{address}")
                 if r.status_code == 200:
                     data = r.json()
                     sol_price = await get_sol_price()
