@@ -12,6 +12,112 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ═══════════════════════════════════════════
+# WALLET LABELS - Direct ClickHouse + Redis lookup
+# ═══════════════════════════════════════════
+
+
+async def _query_wallet_labels(address: str, chain: str) -> dict[str, Any]:
+    """Query wallet_labels table directly for known labels.
+
+    Returns the most critical label found, or empty dict if none.
+    Checks both chain-specific and cross-chain.
+    """
+    try:
+        from app.domains.labels.sources.clickhouse_labels import query_clickhouse_labels
+
+        labels = await query_clickhouse_labels(address, chain)
+        if not labels:
+            return {}
+
+        result: dict[str, Any] = {
+            "labels": [],
+            "is_scam": False,
+            "is_exchange": False,
+            "is_mixer": False,
+            "is_sanctioned": False,
+            "is_defi": False,
+            "is_dex": False,
+            "primary_category": "",
+            "primary_label": "",
+        }
+
+        for lbl in labels:
+            entry = {
+                "type": lbl.label_type,
+                "value": lbl.label_value,
+                "category": lbl.attributes.get("category", ""),
+                "source": lbl.source.value,
+                "confidence": lbl.confidence,
+            }
+            result["labels"].append(entry)
+
+            cat = (lbl.attributes.get("category", "") or "").lower()
+            val = (lbl.label_value or "").lower()
+
+            if cat in ("scam", "phishing", "hack", "exploit", "fraud", "malicious", "ransomware", "ponzi"):
+                result["is_scam"] = True
+                result["primary_category"] = "scam"
+                result["primary_label"] = lbl.label_value
+            elif cat in ("mixer",) or "tornado" in val or "mixer" in val:
+                result["is_mixer"] = True
+                if not result["primary_category"]:
+                    result["primary_category"] = "mixer"
+                    result["primary_label"] = lbl.label_value
+            elif cat in ("exchange", "cex"):
+                result["is_exchange"] = True
+                if not result["primary_category"]:
+                    result["primary_category"] = "exchange"
+                    result["primary_label"] = lbl.label_value
+            elif cat in ("sanctioned",) or lbl.attributes.get("is_sanctioned"):
+                result["is_sanctioned"] = True
+                if not result["primary_category"]:
+                    result["primary_category"] = "sanctioned"
+                    result["primary_label"] = lbl.label_value
+            elif cat in ("defi",):
+                result["is_defi"] = True
+            elif cat in ("dex",):
+                result["is_dex"] = True
+            elif not result["primary_category"]:
+                result["primary_category"] = cat
+                result["primary_label"] = lbl.label_value
+
+        return result
+
+    except Exception as e:
+        logger.debug(f"Wallet label query failed for {address}: {e}")
+    return {}
+
+
+async def _check_wallet_labels_scam(address: str, chain: str) -> dict[str, Any] | None:
+    """Quick scam/mixer/sanction check via wallet_labels.
+
+    Returns threat info if address has high-risk labels, None otherwise.
+    """
+    labels = await _query_wallet_labels(address, chain)
+    if not labels:
+        return None
+
+    threats = []
+    if labels.get("is_scam"):
+        threats.append("known_scam")
+    if labels.get("is_mixer"):
+        threats.append("mixer")
+    if labels.get("is_sanctioned"):
+        threats.append("sanctioned")
+
+    if not threats:
+        return None
+
+    return {
+        "threats": threats,
+        "category": labels.get("primary_category", "unknown"),
+        "label": labels.get("primary_label", ""),
+        "source": "wallet_labels",
+        "all_labels": labels.get("labels", []),
+    }
+
+
+# ═══════════════════════════════════════════
 # SENTINEL INTEGRATION - Labels + Intel
 # ═══════════════════════════════════════════
 

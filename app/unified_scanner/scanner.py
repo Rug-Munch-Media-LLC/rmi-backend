@@ -28,6 +28,7 @@ from app.unified_scanner.providers import (
     _check_hapi_risk,
     _check_misttrack_light,
     _check_trm_sanctions_wallet,
+    _check_wallet_labels_scam,
     _close_data_flywheel,
     _fetch_sentinel_labels,
     _fetch_wallet_memory,
@@ -138,6 +139,20 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         factors.is_labeled_insider = "insider" in str(sentinel_labels).lower()
         factors.entity_confidence = max(factors.entity_confidence, sentinel_labels.get("risk_score", 50))
         data_sources.append("sentinel_labels")
+
+    # ── FREE: Wallet Labels (ClickHouse) ──
+    wallet_labels = await _check_wallet_labels_scam(wallet_address, chain)
+    if wallet_labels:
+        threats = wallet_labels.get("threats", [])
+        if "known_scam" in threats:
+            factors.is_labeled_scammer = True
+            factors.scam_token_exposure = max(factors.scam_token_exposure, 1)
+            factors.entity_label = wallet_labels.get("label", factors.entity_label)
+        if "mixer" in threats:
+            factors.tornado_cash_exposure = True
+        if "sanctioned" in threats:
+            factors.is_labeled_sanctioned = True
+        data_sources.append("wallet_labels")
 
     # ── FREE: External threat intelligence ──
     hapi_risk = await _check_hapi_risk(wallet_address, chain)
