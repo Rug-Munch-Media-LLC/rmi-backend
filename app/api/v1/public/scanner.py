@@ -1,7 +1,9 @@
 """Public scanner endpoints - /api/v1/scanner/*.
 
 Token + wallet scanning, scan status checks. Wires user-reported
-addresses into the backend scanner pipeline.
+addresses into the backend scanner pipeline. Also exposes:
+  - GET /metrics — own-data coverage report
+  - GET /sufficiency — data self-sufficiency report from ClickHouse
 """
 
 from __future__ import annotations
@@ -242,3 +244,157 @@ async def scan_wallet_endpoint(request: WalletScanRequest) -> Any:
             token_holdings=[],
             analysis={},
         )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# DATA COVERAGE METRICS
+# ══════════════════════════════════════════════════════════════════════
+
+
+@router.get("/metrics")
+async def get_scanner_metrics() -> dict[str, Any]:
+    """Get own-data coverage report for the scanner.
+
+    Returns what percentage of scanner checks are answered by own data,
+    external API calls, and DataBus. Also shows per-module breakdown
+    and per-question data source mapping.
+
+    Returns:
+        {
+            "own_data_pct": float,     # % answered by ClickHouse/own data
+            "databus_pct": float,      # % answered by DataBus free tier
+            "external_pct": float,     # % requiring external API
+            "total_checks": int,
+            "by_module": {...},
+            "questions": {...},
+            "questions_own_data_pct": float,  # % of 20 scanner questions
+            "target_pct": float,              # Architecture target
+        }
+    """
+    try:
+        from app.domains.scanner.metrics import (
+            OWN_DATA_PCT_TARGET,
+            get_coverage_report,
+        )
+
+        report = get_coverage_report()
+        report["target_pct"] = OWN_DATA_PCT_TARGET
+        return report
+    except ImportError:
+        return {"error": "Metrics module not available", "own_data_pct": 0}
+    except Exception as exc:
+        return {"error": str(exc), "own_data_pct": 0}
+
+
+@router.get("/sufficiency")
+async def get_scanner_sufficiency() -> dict[str, Any]:
+    """Get scanner data self-sufficiency report from ClickHouse.
+
+    Queries the actual ClickHouse database to report how many scanner
+    questions could be answered from our own data right now.
+
+    Returns:
+        {
+            "own_data_questions": int,       # Questions answerable by own data
+            "total_questions": int,           # Total scanner questions
+            "own_data_pct": float,            # Coverage percentage
+            "data_volume": {
+                "evm_transfers_24h": int,
+                "dex_events_24h": int,
+                "deployer_events_total": int,
+            },
+            "capability": {
+                "price": bool,
+                "honeypot": bool,
+                ...
+            },
+        }
+    """
+    try:
+        from app.domains.scanner.metrics import OWN_DATA_CAPABILITY, SCANNER_QUESTIONS
+
+        # Try ClickHouse to get actual data volume
+        data_volume = await _query_self_sufficiency()
+
+        own_data_count = sum(1 for v in OWN_DATA_CAPABILITY.values() if v)
+        total = len(SCANNER_QUESTIONS)
+
+        return {
+            "own_data_questions": own_data_count,
+            "total_questions": total,
+            "own_data_pct": round(own_data_count / total * 100, 1) if total > 0 else 0,
+            "data_volume": data_volume,
+            "capability": OWN_DATA_CAPABILITY,
+            "questions": {k: OWN_DATA_CAPABILITY.get(k, False) for k in SCANNER_QUESTIONS},
+        }
+    except ImportError:
+        return {"error": "Metrics module not available"}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def _query_self_sufficiency() -> dict[str, Any]:
+    """Query ClickHouse for data volume metrics."""
+    import os
+
+    volume: dict[str, Any] = {
+        "evm_transfers_24h": 0,
+        "dex_events_24h": 0,
+        "deployer_events_total": 0,
+        "dex_fill_rate_pct": 0.0,
+        "freshness_hours": 0.0,
+    }
+
+    try:
+        from clickhouse_driver import Client as CHClient
+
+        ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
+        ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000"))
+        ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
+        ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
+        ch_db = "wallet_memory"
+
+        client = CHClient(
+            host=ch_host,
+            port=ch_port,
+            user=ch_user,
+            password=ch_pass,
+            database=ch_db,
+            connect_timeout=5,
+            send_receive_timeout=30,
+        )
+
+        # Query transfer counts
+        rows = client.execute("""
+            SELECT
+                (SELECT count() FROM wallet_memory.evm_transfers
+                 WHERE block_timestamp >= now() - INTERVAL 24 HOUR) AS transfers_24h,
+                (SELECT count() FROM wallet_memory.dex_events
+                 WHERE block_timestamp >= now() - INTERVAL 24 HOUR) AS dex_24h,
+                (SELECT count() FROM wallet_memory.deployer_events) AS deployers_total,
+                (SELECT round(countIf(token0!='')*100.0/count(), 1)
+                 FROM wallet_memory.dex_events
+                 WHERE block_timestamp >= now() - INTERVAL 24 HOUR
+                   AND source='lite_indexer') AS dex_fill_rate
+        """)
+
+        if rows and rows[0]:
+            row = rows[0]
+            volume["evm_transfers_24h"] = row[0]
+            volume["dex_events_24h"] = row[1]
+            volume["deployer_events_total"] = row[2]
+            volume["dex_fill_rate_pct"] = float(row[3] or 0) if row[3] else 0.0
+
+            # Data freshness: age of latest dex event
+            fresh_rows = client.execute("""
+                SELECT round((now() - max(block_timestamp)) / 3600, 1)
+                FROM wallet_memory.dex_events
+                WHERE block_timestamp >= now() - INTERVAL 24 HOUR
+            """)
+            if fresh_rows and fresh_rows[0]:
+                volume["freshness_hours"] = float(fresh_rows[0][0])
+
+        return volume
+
+    except Exception as exc:
+        return {**volume, "error": str(exc)[:100]}

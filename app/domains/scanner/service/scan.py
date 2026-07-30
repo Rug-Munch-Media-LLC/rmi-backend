@@ -86,7 +86,7 @@ async def scan_token(
         tasks.append(run_module("market_data", fetch_market_data, token_address, chain))
         tasks.append(run_module("honeypot", _check_honeypot_is, token_address, chain))
         tasks.append(run_module("goplus", _check_goplus_security, token_address, chain))
-        tasks.append(run_module("copycat", _check_copycat, token_address, ""))
+        tasks.append(run_module("copycat", _check_copycat, "", "", token_address, chain))
         tasks.append(run_module("spam", _check_spam, token_address, chain))
         tasks.append(run_module("blockscout", _check_blockscout, token_address, chain))
         tasks.append(run_module("defiscanner", _check_defi_scanner, token_address, chain))
@@ -196,6 +196,20 @@ async def scan_token(
     )
     real_count = successful - pending_count
     result.confidence = min(100, base_confidence + real_count * 5)
+
+    # ── Record own-data coverage metrics ──
+    try:
+        from app.domains.scanner.metrics import record_token_scan_coverage
+
+        data_sources = [
+            m.get("result", {}).get("source", "") if isinstance(m.get("result"), dict) else ""
+            for m in result.modules_run
+        ]
+        record_token_scan_coverage(data_sources, result.modules_run)
+    except ImportError:
+        pass
+    except Exception:
+        pass
 
     # ── Fuse token risk via DataFusion engine ──
     # Extract module results for the fusion engine to cross-reference

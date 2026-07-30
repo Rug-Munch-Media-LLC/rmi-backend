@@ -10,6 +10,7 @@ import httpx
 from app.domains.scanner.modules._core import (
     EXPLORER_APIS,
     GOPLUS_CHAIN_IDS,
+    PREFER_OWN_DATA,
     _fetch_json,
     _fetch_with_fallback,
     _solana_rpc_call,
@@ -73,6 +74,7 @@ def _get_top_symbols() -> set[str]:
         "RAY",
     }
 
+
 def _levenshtein_distance(s1: str, s2: str) -> int:
     """Compute Levenshtein distance between two strings."""
     if len(s1) < len(s2):
@@ -90,17 +92,80 @@ def _levenshtein_distance(s1: str, s2: str) -> int:
         prev_row = curr_row
     return prev_row[-1]
 
-async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
-    """Check if token is a copycat of a top symbol using Levenshtein distance."""
-    # Also check name for copycat patterns
+
+async def _check_copycat(
+    symbol: str, name: str, token_address: str = "", chain: str = "", deployer: str = ""
+) -> dict[str, Any] | None:
+    """Check if token is a copycat — own ClickHouse data first, then Levenshtein.
+
+    Tier 1: own_copycat_detect — queries ClickHouse deployer_events + RAG
+    Tier 2: Static Levenshtein distance against top symbols (original behavior)
+
+    Args:
+        symbol: Token symbol (e.g., "PEPE")
+        name: Token name (e.g., "Pepe the Frog")
+        token_address: Token contract address
+        chain: Blockchain network identifier
+        deployer: Deployer wallet address
+
+    Returns:
+        Dict with result, match_type, similar_to, and risk assessment.
+
+    Data Sources:
+        - Own ClickHouse deployer_events (primary, zero cost)
+        - RAG vector search (semantic similarity)
+        - Static top-symbol list + Levenshtein (fallback)
+    """
+    # ── Tier 1: Own copycat detection from ClickHouse + RAG ──
+    if PREFER_OWN_DATA and token_address and chain:
+        try:
+            from app.domains.scanner.engines.own_copycat_detect import get_own_copycat_analysis
+
+            own_result = await get_own_copycat_analysis(
+                token_address=token_address,
+                chain=chain,
+                token_symbol=symbol,
+                token_name=name,
+                deployer_address=deployer,
+            )
+            if own_result.get("source") == "own" and own_result.get("similar_tokens"):
+                # Convert to the format expected by caller
+                top_match = own_result["similar_tokens"][0] if own_result["similar_tokens"] else {}
+                match_type = own_result.get("match_type", "similarity")
+
+                if own_result["is_copycat"]:
+                    copycat_of = own_result.get("copycat_of") or top_match.get("symbol", top_match.get("name", ""))
+                    return {
+                        "check": "copycat",
+                        "result": "high_risk",
+                        "similar_to": copycat_of,
+                        "distance": top_match.get("distance", 0),
+                        "score": top_match.get("score", 0),
+                        "match_type": match_type,
+                        "confidence": own_result["confidence"],
+                        "similar_tokens": own_result["similar_tokens"][:5],
+                        "source": "own_clickhouse",
+                    }
+
+                return {
+                    "check": "copycat",
+                    "result": "clean",
+                    "match_type": "unique",
+                    "confidence": 100,
+                    "source": "own_clickhouse",
+                }
+        except ImportError:
+            logger.debug("own_copycat_detect not available")
+        except Exception as exc:
+            logger.debug("own_copycat_detect_failed", error=str(exc)[:60])
+
+    # ── Tier 2: Static Levenshtein distance (original behavior) ──
     top_symbols = _get_top_symbols()
     symbol_upper = symbol.upper() if symbol else ""
 
-    # Direct match to known top symbol = clean (they are the real token)
     if symbol_upper in top_symbols:
         return {"check": "copycat", "result": "clean", "match_type": "exact_symbol"}
 
-    # Levenshtein distance check on symbol
     for top in top_symbols:
         if symbol_upper and _levenshtein_distance(symbol_upper, top) <= 2:
             return {
@@ -109,9 +174,9 @@ async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
                 "similar_to": top,
                 "distance": _levenshtein_distance(symbol_upper, top),
                 "match_type": "symbol_similarity",
+                "source": "static_top_symbols",
             }
 
-    # Check name for top symbol name squatting
     if name:
         name_upper = name.upper()
         for top in top_symbols:
@@ -121,20 +186,67 @@ async def _check_copycat(symbol: str, name: str) -> dict[str, Any] | None:
                     "result": "medium_risk",
                     "similar_to": top,
                     "match_type": "name_similarity",
+                    "source": "static_top_symbols",
                 }
 
-    return {"check": "copycat", "result": "clean", "match_type": "unique"}
+    return {"check": "copycat", "result": "clean", "match_type": "unique", "source": "static_top_symbols"}
+
 
 # ── 7. Bundle Detection ───────────────────────────────────────────────
 
+
 async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Check if token launch was bundled (coordinated buying)."""
+    """Check if token launch was bundled — own ClickHouse data first.
+
+    Tier 1: own_bundle_detect — analyzes evm_transfers from ClickHouse
+    Tier 2: bundle_detector (existing) — external API fallback
+
+    Args:
+        token_address: Token contract address
+        chain: Blockchain network identifier
+
+    Returns:
+        Dict with is_bundled flag, confidence, and all sub-scores.
+
+    Data Sources:
+        - Own ClickHouse evm_transfers (primary, zero cost)
+        - bundle_detector module (fallback)
+    """
+    # ── Tier 1: Own ClickHouse bundle detection (zero cost) ──
+    if PREFER_OWN_DATA:
+        try:
+            from app.domains.scanner.engines.own_bundle_detect import get_own_bundle_analysis
+
+            own_result = await get_own_bundle_analysis(token_address, chain)
+            if own_result.get("source") == "own" and own_result.get("confidence", 0) > 0:
+                logger.info(
+                    "Using own bundle data for %s on %s (bundled: %s, confidence: %s%%)",
+                    token_address[:16],
+                    chain,
+                    own_result["is_bundled"],
+                    own_result["confidence"],
+                )
+                return {
+                    "check": "bundle",
+                    "result": "scanned",
+                    **own_result,
+                    "source": "own_clickhouse",
+                }
+            logger.debug(
+                "Own bundle data insufficient for %s, falling back",
+                token_address[:16],
+            )
+        except ImportError:
+            logger.debug("own_bundle_detect not available")
+        except Exception as exc:
+            logger.debug("own_bundle_detect_failed", error=str(exc)[:60])
+
+    # ── Tier 2: bundle_detector (existing fallback) ──
     try:
         from app.bundle_detector import get_bundle_detector
 
         detector = get_bundle_detector()
 
-        # Fetch recent holders for bundle analysis
         holder_data = await _get_holder_data(token_address, chain)
         holders = []
         if holder_data and holder_data.get("top_holders"):
@@ -142,17 +254,14 @@ async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None
                 holders.append(
                     {
                         "address": h.get("address", ""),
-                        "amount": h.get("percentage", 0) * 100,  # Scale up for detection
+                        "amount": h.get("percentage", 0) * 100,
                     }
                 )
 
-        # Fetch recent transactions
         transactions = []
         try:
             if chain == "solana":
-                sig_data = await _solana_rpc_call(
-                    "getSignaturesForAddress", [token_address, {"limit": 50}]
-                )
+                sig_data = await _solana_rpc_call("getSignaturesForAddress", [token_address, {"limit": 50}])
                 if sig_data:
                     sigs = sig_data.get("result", [])
                     for sig in sigs[:20]:
@@ -187,6 +296,7 @@ async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None
             "top3_holder_pct": bundle_result.top3_holder_pct,
             "top10_holder_pct": bundle_result.top10_holder_pct,
             "holder_count": bundle_result.holder_count,
+            "source": "bundle_detector",
         }
     except ImportError:
         logger.warning("bundle_detector_not_available")
@@ -195,7 +305,9 @@ async def _check_bundle(token_address: str, chain: str) -> dict[str, Any] | None
 
     return {"check": "bundle", "result": "error", "error": "Bundle detection unavailable"}
 
+
 # ── 8. Contract Verification ──────────────────────────────────────────
+
 
 async def _check_contract_verification(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if contract source code is verified via block explorer or Sourcify."""
@@ -250,9 +362,7 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
 
             # Try Blockscout as another fallback
             if chain_id.isdigit():
-                blockscout_url = (
-                    f"https://eth.blockscout.com/api/v2/smart-contracts/{token_address}"
-                )
+                blockscout_url = f"https://eth.blockscout.com/api/v2/smart-contracts/{token_address}"
                 try:
                     async with httpx.AsyncClient(timeout=10.0) as client:
                         resp = await client.get(blockscout_url)
@@ -267,11 +377,11 @@ async def _check_contract_verification(token_address: str, chain: str) -> dict[s
 
     return result
 
+
 # ── 9. Price Impact / Consensus ────────────────────────────────────────
 
-async def _check_social_sentiment(
-    token_address: str, chain: str, symbol: str = ""
-) -> dict[str, Any] | None:
+
+async def _check_social_sentiment(token_address: str, chain: str, symbol: str = "") -> dict[str, Any] | None:
     """Check social sentiment — LunarCrush volume, dominance, sentiment score.
 
     Flags suspicious patterns:
@@ -352,7 +462,9 @@ async def _check_social_sentiment(
 
     return result
 
+
 # ── 12. Token Age Check ───────────────────────────────────────────────
+
 
 async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check how old the token/pool is.
@@ -376,9 +488,7 @@ async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | N
 
     # Try DexScreener for pool creation time
     try:
-        data, _ = await _fetch_with_fallback(
-            [f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"]
-        )
+        data, _ = await _fetch_with_fallback([f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"])
         if data and data.get("pairs"):
             # Use the earliest pair creation time
             creation_times = []
@@ -453,7 +563,9 @@ async def _check_token_age(token_address: str, chain: str) -> dict[str, Any] | N
     result["result"] = "unavailable"
     return result
 
+
 # ── 13. LP Concentration Check ─────────────────────────────────────────
+
 
 async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str, Any] | None:
     """Check if contract ownership has been renounced.
@@ -527,7 +639,7 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
                 result["source"] = "honeypot_detector"
         except ImportError:
             pass
-        except (httpx.HTTPError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("ownership_honeypot_failed", error=str(e)[:60])
 
     # ── Risk scoring ──
@@ -548,5 +660,6 @@ async def _check_ownership_renounced(token_address: str, chain: str) -> dict[str
             result["risk_score"] = 0
 
     return result
+
 
 # ── 15. Volume/Liquidity Ratio Check ──────────────────────────────────

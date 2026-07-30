@@ -192,6 +192,17 @@ class UnifiedTokenScanner:
             # ── Score ──
             self._compute_score(result)
 
+            # ── Record own-data coverage metrics ──
+            try:
+                from app.domains.scanner.metrics import record_token_scan_coverage
+
+                modules_run_list = [{"module": m, "status": "success", "result": {}} for m in result.modules_run]
+                record_token_scan_coverage(result.enrichment_sources, modules_run_list)
+            except ImportError:
+                pass
+            except Exception:
+                pass
+
             # ── Persist: Postgres + Redis cache (fire-and-forget) ──
             asyncio.create_task(self._persist_result(result))
 

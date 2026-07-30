@@ -151,11 +151,11 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
 
 
 async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_address: str = "") -> dict[str, Any] | None:
-    """Check liquidity lock status using DexScreener + on-chain data.
+    """Check liquidity lock status — own ClickHouse data first, then DexScreener.
 
-    Uses the HoneypotDetector for comprehensive liquidity analysis including
-    lock percentage, LP burn status, and pool age. Falls back to DexScreener
-    direct lookup if the detector is unavailable.
+    Tier 1: own_lp_lock — analyzes LP token holders from evm_transfers (ClickHouse)
+    Tier 2: HoneypotDetector — comprehensive liquidity analysis
+    Tier 3: DexScreener direct lookup (last resort)
 
     Args:
         token_address: Token contract address
@@ -164,11 +164,12 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
 
     Returns:
         Dict with liquidity_locked_pct, liquidity_usd, lp_burned flag,
-        pool_age_hours, and source identifier.
+        pool_age_hours, lock_contract details, and source identifier.
 
     Data Sources:
-        - HoneypotDetector (primary)
-        - DexScreener API (fallback)
+        - Own ClickHouse evm_transfers + deployer_events (primary, zero cost)
+        - HoneypotDetector (fallback)
+        - DexScreener API (last resort)
     """
     result: dict[str, Any] = {
         "check": "liquidity",
@@ -179,8 +180,51 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
         "pool_age_hours": 0,
     }
 
+    # ── Tier 1: Own ClickHouse LP lock analysis (zero cost) ──
+    if PREFER_OWN_DATA:
+        try:
+            from app.domains.scanner.engines.own_lp_lock import get_own_lp_lock_status
+
+            own_lock = await get_own_lp_lock_status(token_address, chain, pair_address)
+            if own_lock.get("source") == "own" and own_lock.get("locked_pct", 0) > 0:
+                result["liquidity_locked_pct"] = own_lock.get("locked_pct", 0)
+                result["lp_burned"] = own_lock.get("is_burned", False)
+                result["lock_contract"] = own_lock.get("lock_contract", "")
+                result["lock_contract_name"] = own_lock.get("lock_contract_name", "")
+                result["lp_supply"] = own_lock.get("lp_supply", "0")
+                result["source"] = "own_clickhouse"
+
+                # Also get liquidity USD from own DEX data
+                try:
+                    ds_data = await _fetch_dexscreener(token_address, chain)
+                    if ds_data:
+                        pair = ds_data["pairs"][0]
+                        result["liquidity_usd"] = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+                    pass
+
+                from app.domains.scanner.metrics import record_check_source
+
+                record_check_source("own_data", "lp_lock")
+                logger.info(
+                    "Using own LP lock data for %s on %s (locked: %s%%)",
+                    token_address[:16],
+                    chain,
+                    result["liquidity_locked_pct"],
+                )
+                return result
+
+            logger.debug(
+                "Own LP lock data insufficient for %s, falling back",
+                token_address[:16],
+            )
+        except ImportError:
+            logger.debug("own_lp_lock not available")
+        except Exception as exc:
+            logger.debug("own_lp_lock_failed", error=str(exc)[:60])
+
+    # ── Tier 2: HoneypotDetector ──
     try:
-        # Use the HoneypotDetector which does thorough liquidity analysis
         from app.domains.detectors.smart_contract_honeypot_detector import HoneypotDetector
 
         detector = HoneypotDetector()
@@ -197,7 +241,7 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
     except (KeyError, TypeError) as e:
         logger.debug("honeypot_liquidity_failed", error=str(e))
 
-    # Fallback: DEX data check (own ClickHouse data first, DexScreener API fallback)
+    # ── Tier 3: DEX data fallback (own ClickHouse first, DexScreener API fallback) ──
     try:
         ds_data = await _fetch_dexscreener(token_address, chain)
         if ds_data:
@@ -220,7 +264,6 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
                     supply_data = await _solana_rpc_call("getTokenSupply", [pair_addr])
                     if supply_data:
                         supply = int(supply_data.get("result", {}).get("value", {}).get("amount", "0"))
-                        # Check LP token balance of dead address
                         dead_data = await _solana_rpc_call(
                             "getTokenAccountsByOwner",
                             [
@@ -244,7 +287,6 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
                                 result["liquidity_locked_pct"] = round((dead_balance / supply) * 100, 1)
                                 result["lp_burned"] = dead_balance > 0
 
-            # Very low liquidity = risk flag
             if liquidity < 100:
                 result["liquidity_locked_pct"] = 0
             result["source"] = "dexscreener"
