@@ -191,14 +191,10 @@ async def get_own_security(
         # Run security checks in parallel
         import asyncio
 
-        deployer_data = _query_deployer_data(token_address, chain)
-        transfer_stats = _query_transfer_stats(token_address, chain)
-        dex_tax = _query_dex_tax_data(token_address, chain)
-
-        # Gather results
-        deployer_task = asyncio.create_task(_run_sync(deployer_data))
-        transfer_task = asyncio.create_task(_run_sync(transfer_stats))
-        dex_task = asyncio.create_task(_run_sync(dex_tax))
+        # Run sync ClickHouse queries in thread pool
+        deployer_task = asyncio.create_task(_run_sync(_query_deployer_data, token_address, chain))
+        transfer_task = asyncio.create_task(_run_sync(_query_transfer_stats, token_address, chain))
+        dex_task = asyncio.create_task(_run_sync(_query_dex_tax_data, token_address, chain))
 
         d_data, t_stats, d_tax = await asyncio.gather(
             deployer_task,
@@ -541,7 +537,6 @@ def _cache_security(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    now = time.time()
     return {
         "cache_size": len(_SECURITY_CACHE),
         "cache_max": _SECURITY_CACHE_MAX,
