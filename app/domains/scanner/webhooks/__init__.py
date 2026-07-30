@@ -39,6 +39,7 @@ from __future__ import annotations
 from app.domains.scanner.webhooks.delivery import WebhookDeliveryService
 from app.domains.scanner.webhooks.engine import WebhookEngine
 from app.domains.scanner.webhooks.models import (
+    CreateWebhookRequest,
     WebhookDelivery,
     WebhookEvent,
     WebhookEventType,
@@ -49,6 +50,7 @@ from app.domains.scanner.webhooks.repository import WebhookRepository
 from app.domains.scanner.webhooks.router import router
 
 __all__ = [
+    "CreateWebhookRequest",
     "WebhookDelivery",
     "WebhookDeliveryService",
     "WebhookEngine",
