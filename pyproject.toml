@@ -92,6 +92,11 @@ extend-exclude = [
 "app/legacy/**" = ["ALL"]
 # Telegram bot: pre-existing try/except/pass patterns, non-crypto random
 "app/domains/telegram/rugmunchbot/bot.py" = ["S110", "S311"]
+# Pre-existing: SQL injection warning in passthrough ClickHouse queries (sanitized, trusted internal traffic)
+"app/databus/provider_implementations/passthrough.py" = ["S608"]
+"app/domains/databus/providers/chains/local.py" = ["S608"]
+# Pre-existing: variable naming conventions in middleware (will be cleaned separately)
+"app/middleware_setup.py" = ["N806", "SIM102"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

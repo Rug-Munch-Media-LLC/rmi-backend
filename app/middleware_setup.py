@@ -464,6 +464,11 @@ def _try_register_csrf(app: FastAPI) -> None:
                 if auth.startswith("Bearer "):
                     return cast("Response", await call_next(request))
 
+                # Skip if X-API-Key header is present (service-to-service auth)
+                api_key = request.headers.get("X-API-Key", "")
+                if api_key:
+                    return cast("Response", await call_next(request))
+
                 # Validate CSRF token from header against cookie
                 csrf_cookie = request.cookies.get("csrf_token")
                 csrf_header = request.headers.get("X-CSRF-Token")
