@@ -1,4 +1,10 @@
-"""Scanner module — split from modules.py for maintainability."""
+"""Scanner module — split from modules.py for maintainability.
+
+Own-Data Integration:
+    _get_holder_data now queries own_holder_analysis FIRST which computes
+    holder distribution from ClickHouse evm_transfers (zero cost, always fresh).
+    Falls back to RPC (Solana) / Blockscout (EVM) only when our data is empty.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ import httpx
 
 from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
+    PREFER_OWN_DATA,
     _fetch_dexscreener,
     _fetch_json,
     _solana_rpc_call,
@@ -17,10 +24,10 @@ from app.domains.scanner.modules._core import (
 
 
 async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | None:
-    """Get holder distribution data from chain RPC or DexScreener.
+    """Get holder distribution data — own ClickHouse data first (zero cost).
 
-    For Solana: uses getTokenLargestAccounts RPC for top holder addresses and amounts.
-    For EVM: uses DexScreener + Blockscout for holder counts and concentration.
+    Tier 1: own_holder_analysis — computes from evm_transfers (ClickHouse)
+    Tier 2: Solana RPC (getTokenLargestAccounts) or Blockscout (EVM)
 
     Args:
         token_address: Token contract address
@@ -28,11 +35,13 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
 
     Returns:
         Dict with holder_count, top_holders (ranked), concentration_pct,
-        and source identifier. concentration_pct reflects the top holder's share.
+        and source identifier.
 
     Data Sources:
-        - Solana: getTokenLargestAccounts RPC
-        - EVM: DexScreener API, Blockscout API
+        - Own ClickHouse evm_transfers (primary, zero cost)
+        - Solana getTokenLargestAccounts RPC (Solana fallback)
+        - Blockscout API (EVM fallback)
+        - DexScreener API (last resort)
     """
     result: dict[str, Any] = {
         "check": "holders",
@@ -42,6 +51,39 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
         "concentration_pct": 0.0,
     }
 
+    # ── Tier 1: Own ClickHouse data (zero cost, always fresh) ──
+    if PREFER_OWN_DATA:
+        try:
+            from app.domains.scanner.engines.own_holder_analysis import get_own_holder_analysis
+
+            own_data = await get_own_holder_analysis(token_address, chain)
+            if own_data.get("source") == "own" and own_data.get("top_holders"):
+                result["holder_count"] = own_data.get("holder_count", 0)
+                result["top_holders"] = own_data.get("top_holders", [])
+                result["concentration_pct"] = own_data.get("concentration_pct", 0.0)
+                result["top5_pct"] = own_data.get("top5_pct", 0.0)
+                result["top10_pct"] = own_data.get("top10_pct", 0.0)
+                result["gini_coefficient"] = own_data.get("gini_coefficient", 0.0)
+                result["new_holders_24h"] = own_data.get("new_holders_24h", 0)
+                result["source"] = "own_clickhouse"
+                logger.info(
+                    "Using own holder data for %s on %s (%d holders)",
+                    token_address[:16],
+                    chain,
+                    result["holder_count"],
+                )
+                return result
+
+            logger.debug(
+                "Own holder data insufficient for %s, falling back",
+                token_address[:16],
+            )
+        except ImportError:
+            logger.debug("own_holder_analysis not available")
+        except Exception as exc:
+            logger.debug("own_holder_analysis_failed", error=str(exc)[:60])
+
+    # ── Tier 2: Chain-specific RPC fallback ──
     if chain == "solana":
         # Solana: use getTokenLargestAccounts RPC (with fallback endpoints)
         try:

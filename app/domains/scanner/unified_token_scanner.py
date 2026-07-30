@@ -496,7 +496,14 @@ class UnifiedTokenScanner:
             "modules_run": result.modules_run[:30],
         }
 
-        await r.publish("rmi:rag:ingest", json.dumps(payload))
+        payload_json = json.dumps(payload)
+
+        # Primary: Redis pub/sub (for real-time subscriber)
+        await r.publish("rmi:rag:ingest", payload_json)
+
+        # Backup: LPUSH to Redis list (for polling fallback when DragonflyDB pub/sub is unreliable)
+        await r.lpush("rmi:rag:findings_queue", payload_json)
+
         logger.info(
             "rag_finding_published",
             token=result.token_address,
@@ -509,10 +516,8 @@ class UnifiedTokenScanner:
     async def _auto_label_deployer(self, result: ScanResult) -> None:
         """Auto-label the deployer wallet when dev_reputation shows high risk.
 
-        Called after every scan. Wires deployer data into:
-          a) RAG wallet profile (ingest_wallet_profile)
-          b) ClickHouse scam_addresses + deployer_history tables
-          c) AutoLabeler behavioral observation system
+        Delegates to shared ``auto_label_deployer`` (consolidated from
+        duplicate implementations in service/scan.py and here).
         """
         dev = result.dev_reputation
         if not dev or not isinstance(dev, dict):
@@ -522,99 +527,23 @@ class UnifiedTokenScanner:
         risk_score = float(dev.get("risk_score", 0) or 0)
         risk_label = str(dev.get("risk_label", dev.get("reputation_label", "UNKNOWN")))
 
-        # Only label if risk is significant
         if risk_score < 70 or not deployer_addr or deployer_addr == "unknown":
             return
 
-        labels = ["high_risk_deployer"] if risk_score < 85 else ["malicious_deployer"]
-        chain = result.chain
+        from app.domains.scanner.shared.deployer_labeler import auto_label_deployer
 
-        try:
-            # (a) Ingest wallet profile to RAG
-            try:
-                from app.rag.ingestion import ingest_wallet_profile as _ingest_wallet
-
-                await _ingest_wallet(
-                    wallet_address=deployer_addr,
-                    chain=chain,
-                    labels=labels,
-                    risk_score=risk_score,
-                    entities=[f"deployer_of:{result.token_address[:16]}"],
-                    extra={
-                        "token_name": result.name,
-                        "token_symbol": result.symbol,
-                        "safety_score": result.safety_score,
-                        "source": "unified_scanner",
-                        "risk_flags": result.risk_flags[:10],
-                    },
-                )
-            except ImportError:
-                logger.debug("unified_wallet_rag_ingest_skipped")
-            except Exception as exc:
-                logger.warning("unified_wallet_rag_ingest_failed", error=str(exc)[:100])
-
-            # (b) Persist to ClickHouse
-            try:
-                from app.wallet_memory.storage import get_storage
-
-                storage = get_storage()
-                storage_task = asyncio.gather(
-                    storage.save_scam_address(
-                        address=deployer_addr,
-                        chain_id=chain,
-                        source="unified_token_scanner",
-                        threat_type=risk_label.lower(),
-                        confidence=min(1.0, risk_score / 100.0),
-                        evidence=f"Scanned token {result.token_address[:16]} risk={risk_label} flags={','.join(result.risk_flags[:5])}",
-                    ),
-                    storage.save_deployer_event(
-                        deployer=deployer_addr,
-                        chain_id=chain,
-                        token_address=result.token_address,
-                        token_name=result.name,
-                        token_symbol=result.symbol,
-                        deployed_at=None,
-                        outcome="scam" if risk_label == "CRITICAL" else "suspicious",
-                        is_scam=(risk_label == "CRITICAL"),
-                        risk_score=risk_score,
-                    ),
-                    return_exceptions=True,
-                )
-                await storage_task
-            except ImportError:
-                logger.debug("unified_wallet_storage_persist_skipped")
-            except Exception as exc:
-                logger.warning("unified_wallet_storage_persist_failed", error=str(exc)[:100])
-
-            # (c) Feed observation to AutoLabeler
-            try:
-                from app.auto_labeler import get_auto_labeler
-
-                labeler = get_auto_labeler()
-                await labeler.observe_wallet(
-                    address=deployer_addr,
-                    chain=chain,
-                    observations={
-                        "event": "token_deployed",
-                        "token_address": result.token_address,
-                        "risk_score": risk_score,
-                        "reputation_label": risk_label,
-                    },
-                )
-            except ImportError:
-                logger.debug("unified_auto_labeler_observe_skipped")
-            except Exception as exc:
-                logger.warning("unified_auto_labeler_observe_failed", error=str(exc)[:100])
-
-            logger.info(
-                "deployer_auto_labeled",
-                deployer=deployer_addr[:16],
-                chain=chain,
-                labels=labels,
-                risk=risk_label,
-            )
-        except Exception as exc:
-            logger.warning("unified_auto_label_deployer_failed", error=str(exc)[:100])
+        await auto_label_deployer(
+            deployer_address=deployer_addr,
+            chain=result.chain,
+            risk_score=risk_score,
+            risk_label=risk_label,
+            token_address=result.token_address,
+            token_name=result.name,
+            token_symbol=result.symbol,
+            safety_score=result.safety_score,
+            risk_flags=result.risk_flags,
+            source="unified_token_scanner",
+        )
 
     # ── Persistence ──────────────────────────────────────────────
 

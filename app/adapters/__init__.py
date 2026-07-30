@@ -9,4 +9,6 @@ Submodules:
 
 from __future__ import annotations
 
-from app.adapters.binance_web3 import *
+from app.adapters.binance_web3 import CHAIN_IDS, CHAIN_NAMES, get_wallet_holdings
+
+__all__ = ["CHAIN_IDS", "CHAIN_NAMES", "get_wallet_holdings"]

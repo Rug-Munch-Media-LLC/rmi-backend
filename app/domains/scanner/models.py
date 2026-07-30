@@ -1,4 +1,10 @@
-"""Scanner data models and constants."""
+"""Scanner data models and constants.
+
+NOTE: ``ScanResult`` here is the legacy tier-based result model (used by
+the old ``service/scan.py``).  New code should prefer the field-based
+``ScanResult`` from ``app.domains.scanner.unified_token_scanner``
+(DataBus-powered).
+"""
 
 from __future__ import annotations
 
@@ -9,7 +15,12 @@ from typing import Any
 
 @dataclass
 class ScanResult:
-    """Result of a token security scan."""
+    """Result of a token security scan.
+
+    .. deprecated::
+        Prefer ``app.domains.scanner.unified_token_scanner.ScanResult``
+        (field-based, DataBus-powered) for new implementations.
+    """
 
     token_address: str
     chain: str
@@ -31,6 +42,7 @@ class ScanResult:
     modules_run: list[dict[str, Any]] = field(default_factory=list)  # [{module, status, error?}]
     fusion_brief: dict | None = None  # DataFusion enrichment: fused risk + intelligence brief
     rag_context: dict | None = None  # RAG enrichment context (from RAGIntelligenceEnricher)
+
 
 CHAIN_IDS = {
     "solana": "solana",

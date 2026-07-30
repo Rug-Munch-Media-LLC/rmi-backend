@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 
 import redis.asyncio as aioredis
 
@@ -29,7 +30,14 @@ async def start_redis_listener(bot_app) -> None:
     )
 
     try:
-        client = aioredis.from_url("redis://localhost:6379/0")
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        redis_password = os.environ.get("REDIS_PASSWORD", "")
+        if redis_password and "://" in redis_url:
+            # Inject password into URL if needed
+            if "@" not in redis_url:
+                parts = redis_url.split("://", 1)
+                redis_url = f"{parts[0]}://:{redis_password}@{parts[1]}"
+        client = aioredis.from_url(redis_url)
         await client.ping()
     except (ConnectionError, OSError, ValueError) as exc :
         logger.debug("start_redis_listener_error", exc_info=True)

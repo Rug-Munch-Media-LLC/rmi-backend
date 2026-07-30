@@ -71,6 +71,7 @@ from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin_stats,
 )
 from app.domains.telegram.rugmunchbot.handlers.payments import precheckout, successful_payment
+from app.domains.telegram.rugmunchbot.handlers.price import cmd_dex, cmd_price
 from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_compare,
     cmd_help,
@@ -129,6 +130,8 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("simulate", "Simulate buy/sell trade"),
             BotCommand("smartmoney", "Detect smart money wallets"),
             BotCommand("rugmap", "Wallet cluster visualization"),
+            BotCommand("price", "Token price by contract address"),
+            BotCommand("dex", "DEX trading pairs & liquidity data"),
             BotCommand("news", "Latest crypto news"),
             BotCommand("mygroup", "Your creator coin group"),
             BotCommand("groupinfo", "Group stats (admin)"),
@@ -171,6 +174,8 @@ def main() -> None:
     # Core commands
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("price", cmd_price))
+    app.add_handler(CommandHandler("dex", cmd_dex))
     app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("wallet", cmd_wallet))
     app.add_handler(CommandHandler("ta", cmd_ta))

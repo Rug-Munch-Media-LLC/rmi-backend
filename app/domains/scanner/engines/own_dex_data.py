@@ -72,7 +72,7 @@ _ch_client: Any = None
 _ch_pair_cache: dict[str, dict[str, tuple[str, str]]] = {}  # chain -> {pair: (token0, token1)}
 
 # Pair cache directory (from lite_indexer)
-_PAIR_CACHE_DIR = Path("/srv/data/chain-indexer/state")
+_PAIR_CACHE_DIR = Path(os.getenv("PAIR_CACHE_DIR", "/var/lib/chain-indexer/state"))
 
 
 def _load_pair_cache(chain: str) -> dict[str, tuple[str, str]]:
