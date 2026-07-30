@@ -258,7 +258,7 @@ OWN_DATA_CAPABILITY: dict[str, bool] = {
     "holder_concentration": True,  # own_holder_analysis
     "token_age": True,  # deployer_events → own_security_analysis
     "contract_verified": False,  # Still needs Sourcify/Explorer API
-    "ownership_renounced": False,  # Still needs GoPlus/RPC for now
+    "ownership_renounced": True,  # own_security_analysis (ClickHouse deployer_events)
     "social_sentiment": False,  # No on-chain substitute
     "buy_sell_tax": False,  # Needs bytecode analysis
     "volume_authenticity": False,  # Still needs DexScreener for comparison
