@@ -27,7 +27,7 @@ from app.core.logging import get_logger
 
 logger = get_logger("pumpfun_enhanced")
 
-HELIUS_API_URL = "https://api.helius.xyz/v0"
+HELIUS_API_URL = "https://mainnet.helius-rpc.com/v0"
 JUPITER_PRICE_URL = "https://price.jup.ag/v6"
 DEXSCREENER_URL = "https://api.dexscreener.com/latest/dex/tokens"
 
@@ -35,6 +35,7 @@ DEXSCREENER_URL = "https://api.dexscreener.com/latest/dex/tokens"
 EARLY_SELL_THRESHOLD_S = 60  # 60 seconds = insider flag
 BATCH_WINDOW_S = 2  # 2 second window for batch detection
 MIN_SIGNIFICANT_PROFIT_USD = 500  # minimum USD profit to flag
+
 
 @dataclass
 class WalletTrade:
@@ -48,6 +49,7 @@ class WalletTrade:
     amount_usd: float = 0.0
     token_amount: float = 0.0
     price_usd: float = 0.0
+
 
 @dataclass
 class PnLAnalysis:
@@ -67,6 +69,7 @@ class PnLAnalysis:
     risk_level: str = "unknown"
     signals: list[str] = field(default_factory=list)
 
+
 async def _fetch_helius_transactions(address: str, limit: int = 100) -> list[dict[str, Any]]:
     """Fetch recent transactions for a wallet via Helius."""
     import os
@@ -82,10 +85,20 @@ async def _fetch_helius_transactions(address: str, limit: int = 100) -> list[dic
             if resp.status_code == 200:
                 return resp.json()
             logger.debug("helius_tx_failed", status=resp.status_code)
-    except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+    except (
+        httpx.HTTPError,
+        requests.RequestException,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+    ) as e:
         logger.debug("_fetch_helius_transactions_error", exc_info=True)
         logger.debug("helius_tx_error", error=str(e)[:60])
     return []
+
 
 async def analyze_wallet_pnl(
     token_address: str,
@@ -116,12 +129,18 @@ async def analyze_wallet_pnl(
                         # Use top holder addresses from pair metadata
                         tracked_wallets = []
                         for pair in data["pairs"][:3]:
-                            if (
-                                pair.get("baseToken", {}).get("address", "").lower()
-                                == token_address.lower()
-                            ):
+                            if pair.get("baseToken", {}).get("address", "").lower() == token_address.lower():
                                 tracked_wallets.append(pair.get("pairAddress", ""))
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("analyze_wallet_pnl_error", exc_info=True)
             logger.debug("holder_fetch_failed", error=str(e)[:60])
 
@@ -157,9 +176,7 @@ async def analyze_wallet_pnl(
                     if mint != token_address.lower():
                         continue
 
-                    raw_amount = float(
-                        transfer.get("rawTokenAmount", {}).get("tokenAmount", "0") or 0
-                    )
+                    raw_amount = float(transfer.get("rawTokenAmount", {}).get("tokenAmount", "0") or 0)
                     amount_usd = float(transfer.get("tokenAmount", 0) or 0)
 
                     if tx_type in ("SWAP", "TRANSFER", "UNKNOWN"):
@@ -198,7 +215,7 @@ async def analyze_wallet_pnl(
             wallet_pnl = total_sold - total_bought
             wallet_pnls.append(wallet_pnl)
 
-        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug("wallet_analysis_failed", wallet=wallet[:8], error=str(e)[:60])
             continue
@@ -217,9 +234,7 @@ async def analyze_wallet_pnl(
         sorted_pnls = sorted(wallet_pnls)
         mid = len(sorted_pnls) // 2
         result.median_pnl = (
-            sorted_pnls[mid]
-            if len(sorted_pnls) % 2
-            else ((sorted_pnls[mid - 1] + sorted_pnls[mid]) / 2)
+            sorted_pnls[mid] if len(sorted_pnls) % 2 else ((sorted_pnls[mid - 1] + sorted_pnls[mid]) / 2)
         )
 
     if all_hold_times:
@@ -260,20 +275,13 @@ async def analyze_wallet_pnl(
     result.risk_score = min(100, risk_score)
     result.signals = signals
     result.risk_level = (
-        "critical"
-        if risk_score >= 70
-        else "high"
-        if risk_score >= 40
-        else "medium"
-        if risk_score >= 20
-        else "low"
+        "critical" if risk_score >= 70 else "high" if risk_score >= 40 else "medium" if risk_score >= 20 else "low"
     )
 
     return result
 
-async def check_pumpfun_enhanced(
-    token_address: str, chain: str = "solana"
-) -> dict[str, Any] | None:
+
+async def check_pumpfun_enhanced(token_address: str, chain: str = "solana") -> dict[str, Any] | None:
     """Enhanced pump.fun risk check — wallet PnL + insider detection.
 
     Args:
@@ -296,16 +304,14 @@ async def check_pumpfun_enhanced(
             "total_wallets_analyzed": analysis.total_wallets,
             "early_sell_count": analysis.early_sell_count,
             "early_sell_ratio": round(analysis.early_sell_ratio, 3),
-            "avg_hold_time_s": round(analysis.avg_hold_time_s, 1)
-            if analysis.avg_hold_time_s
-            else None,
+            "avg_hold_time_s": round(analysis.avg_hold_time_s, 1) if analysis.avg_hold_time_s else None,
             "profitable_wallets": analysis.profitable_wallets,
             "losing_wallets": analysis.losing_wallets,
             "median_wallet_pnl": round(analysis.median_pnl, 2),
             "total_realized_pnl": round(analysis.total_realized_pnl, 2),
             "source": "helius",
         }
-    except (httpx.HTTPError) as e :
+    except httpx.HTTPError as e:
         logger.debug("check_pumpfun_enhanced_error", exc_info=True)
         logger.warning("pumpfun_enhanced_failed", error=str(e)[:100])
 

@@ -1,0 +1,27 @@
+[Unit]
+Description=Public Wallet Label Downloader & Ingester
+Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /srv/work/repos/rmi-backend/scripts/download_public_labels.py
+WorkingDirectory=/srv/work/repos/rmi-backend
+User=root
+Group=root
+
+# Environment (override in /etc/conf.d/download-labels or systemd override)
+Environment=PYTHONUNBUFFERED=1
+
+# Resource limits
+CPUQuota=50%
+MemoryMax=1024M
+TimeoutStartSec=600
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

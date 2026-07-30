@@ -37,9 +37,7 @@ try:
     HAS_NETWORKX = True
 except ImportError:
     HAS_NETWORKX = False
-    logger.warning(
-        "networkx not installed - wash trading cycle detection disabled. pip install networkx"
-    )
+    logger.warning("networkx not installed - wash trading cycle detection disabled. pip install networkx")
 
 # ── API Keys ────────────────────────────────────────────────
 
@@ -53,7 +51,7 @@ HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "")
 
 DEXSCREENER_URL = "https://api.dexscreener.com"
 HELIUS_RPC_URL = "https://mainnet.helius-rpc.com"
-HELIUS_API_URL = "https://api.helius.xyz"
+HELIUS_API_URL = "https://mainnet.helius-rpc.com"
 MORALIS_DATA_URL = "https://deep-index.moralis.io/api/v2.2"
 
 ETHERSCAN_NETWORKS = {
@@ -80,6 +78,7 @@ MORALIS_CHAIN_MAP = {
     "base": "base",
 }
 
+
 @dataclass
 class TransferRecord:
     from_address: str
@@ -91,6 +90,7 @@ class TransferRecord:
     dex: str = ""  # "raydium", "orca", "jupiter", "uniswap", etc.
     block_number: int = 0
 
+
 @dataclass
 class WashCycle:
     wallets: list[str]
@@ -100,6 +100,7 @@ class WashCycle:
     confidence: float  # 0-1
     pattern_type: str  # "simple_roundtrip", "multi_hop", "cross_dex", "token_denominated"
     evidence: list[str] = field(default_factory=list)
+
 
 @dataclass
 class WashTradingReport:
@@ -113,6 +114,7 @@ class WashTradingReport:
     token_denominated_wash: int  # Cycles using the same token
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     warnings: list[str] = field(default_factory=list)
+
 
 class WashTradingDetector:
     """Detects wash trading through circular transfer analysis.
@@ -164,7 +166,16 @@ class WashTradingDetector:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result")
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_helius_rpc_error", exc_info=True)
             logger.warning(f"Helius RPC call failed: {e}")
         return None
@@ -180,9 +191,7 @@ class WashTradingDetector:
 
         try:
             # First get signatures
-            sigs_result = await self._helius_rpc(
-                "getSignaturesForAddress", [address, {"limit": limit}]
-            )
+            sigs_result = await self._helius_rpc("getSignaturesForAddress", [address, {"limit": limit}])
             if not sigs_result or not isinstance(sigs_result, list):
                 return []
 
@@ -200,7 +209,16 @@ class WashTradingDetector:
                 if isinstance(data, list):
                     return data
                 return data if data else []
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_helius_enhanced_txs_error", exc_info=True)
             logger.warning(f"Helius Enhanced Transactions failed for {address}: {e}")
 
@@ -218,15 +236,22 @@ class WashTradingDetector:
             logger.warning("MORALIS_API_KEY not set")
             return None
         try:
-            resp = await self.client.get(
-                url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"}
-            )
+            resp = await self.client.get(url, headers={"X-API-Key": MORALIS_API_KEY, "Accept": "application/json"})
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
                     return data
                 return data.get("result", data.get("data", data))
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_moralis_get_error", exc_info=True)
             logger.warning(f"Moralis call failed: {e}")
         return None
@@ -249,7 +274,16 @@ class WashTradingDetector:
                 if data.get("status") == "1":
                     return data.get("result")
                 return data
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_etherscan_get_error", exc_info=True)
             logger.warning(f"Etherscan call failed for {chain}: {e}")
         return None
@@ -263,7 +297,16 @@ class WashTradingDetector:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("pairs") or []
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_dexscreener_token_pairs_error", exc_info=True)
             logger.warning(f"DexScreener lookup failed for {token_address}: {e}")
         return []
@@ -283,9 +326,7 @@ class WashTradingDetector:
         transfers = []
 
         # Get signatures for the token address
-        sigs_result = await self._helius_rpc(
-            "getSignaturesForAddress", [token_address, {"limit": 100}]
-        )
+        sigs_result = await self._helius_rpc("getSignaturesForAddress", [token_address, {"limit": 100}])
         if not sigs_result or not isinstance(sigs_result, list):
             return []
 
@@ -323,14 +364,10 @@ class WashTradingDetector:
                     for inst_group in inner:
                         for inst in inst_group.get("instructions", []):
                             parsed = inst.get("parsed", {})
-                            if (
-                                parsed.get("type") == "transfer"
-                                or parsed.get("type") == "transferChecked"
-                            ):
+                            if parsed.get("type") == "transfer" or parsed.get("type") == "transferChecked":
                                 info = parsed.get("info", {})
                                 token_amount = float(
-                                    info.get("tokenAmount", {}).get("uiAmount", 0)
-                                    or info.get("amount", 0)
+                                    info.get("tokenAmount", {}).get("uiAmount", 0) or info.get("amount", 0)
                                 )
                                 if token_amount <= 0:
                                     continue
@@ -396,15 +433,9 @@ class WashTradingDetector:
                     # Also check native SOL transfers for round-trip detection
                     for native_transfer in tx.get("nativeTransfers", []):
                         # Native transfers are SOL - include if they might be part of wash
-                        from_addr = native_transfer.get(
-                            "fromUserAccount", native_transfer.get("from", "")
-                        )
-                        to_addr = native_transfer.get(
-                            "toUserAccount", native_transfer.get("to", "")
-                        )
-                        amount = (
-                            float(native_transfer.get("amount", 0) or 0) / 1e9
-                        )  # lamports to SOL
+                        from_addr = native_transfer.get("fromUserAccount", native_transfer.get("from", ""))
+                        to_addr = native_transfer.get("toUserAccount", native_transfer.get("to", ""))
+                        amount = float(native_transfer.get("amount", 0) or 0) / 1e9  # lamports to SOL
                         if amount < 0.01:  # Skip dust
                             continue
 
@@ -420,7 +451,17 @@ class WashTradingDetector:
                             )
                         )
 
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError, OSError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            OSError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Solana transfer parsing failed: {e}")
 
@@ -455,9 +496,7 @@ class WashTradingDetector:
                             continue
 
                         # Determine DEX from to_address
-                        dex = self._identify_dex(to_addr, chain) or self._identify_dex(
-                            from_addr, chain
-                        )
+                        dex = self._identify_dex(to_addr, chain) or self._identify_dex(from_addr, chain)
 
                         # Parse timestamp
                         block_ts = tx.get("block_timestamp", "")
@@ -483,7 +522,7 @@ class WashTradingDetector:
                         )
                     if transfers:
                         return transfers
-            except (httpx.HTTPError, ValueError, TypeError, KeyError) as e :
+            except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.warning(f"Moralis transfer fetch failed for {token_address} on {chain}: {e}")
 
@@ -555,9 +594,7 @@ class WashTradingDetector:
 
         return G
 
-    def detect_cycles(
-        self, transfers: list[TransferRecord], max_cycle_length: int = 6
-    ) -> list[WashCycle]:
+    def detect_cycles(self, transfers: list[TransferRecord], max_cycle_length: int = 6) -> list[WashCycle]:
         """Detect circular trading patterns in transfer data.
 
         Uses DFS-based cycle detection on the transfer graph.
@@ -630,9 +667,7 @@ class WashTradingDetector:
             cycles.append(
                 WashCycle(
                     wallets=cycle,
-                    combined_volume=round(
-                        cycle_volume / 2, 4
-                    ),  # Divide by 2 to avoid double counting
+                    combined_volume=round(cycle_volume / 2, 4),  # Divide by 2 to avoid double counting
                     cycle_length=len(cycle),
                     time_span_hours=round(time_span_hours, 2),
                     confidence=round(confidence, 2),
@@ -690,13 +725,9 @@ class WashTradingDetector:
         # Calculate risk
         warnings = []
         if wash_score > 50:
-            warnings.append(
-                f"CRITICAL: {wash_score:.0f}% wash trading detected - likely artificial volume"
-            )
+            warnings.append(f"CRITICAL: {wash_score:.0f}% wash trading detected - likely artificial volume")
         elif wash_score > 25:
-            warnings.append(
-                f"HIGH: {wash_score:.0f}% wash trading detected - significant volume inflation"
-            )
+            warnings.append(f"HIGH: {wash_score:.0f}% wash trading detected - significant volume inflation")
         elif wash_score > 10:
             warnings.append(f"MODERATE: {wash_score:.0f}% wash trading detected")
 
@@ -704,13 +735,7 @@ class WashTradingDetector:
             warnings.append(f"CROSS-DEX: {cross_dex} cycles involving multiple DEXes")
 
         risk_level = (
-            "CRITICAL"
-            if wash_score > 50
-            else "HIGH"
-            if wash_score > 25
-            else "MEDIUM"
-            if wash_score > 10
-            else "LOW"
+            "CRITICAL" if wash_score > 50 else "HIGH" if wash_score > 25 else "MEDIUM" if wash_score > 10 else "LOW"
         )
 
         return WashTradingReport(

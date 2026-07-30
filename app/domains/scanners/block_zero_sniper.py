@@ -43,7 +43,7 @@ SNOWTRACE_API_KEY = os.getenv("SNOWTRACE_API_KEY", "")
 FTMSCAN_API_KEY = os.getenv("FTMSCAN_API_KEY", "")
 
 HELIUS_RPC_URL = "https://mainnet.helius-rpc.com"
-HELIUS_API_URL = "https://api.helius.xyz"
+HELIUS_API_URL = "https://mainnet.helius-rpc.com"
 DEXSCREENER_URL = "https://api.dexscreener.com"
 
 # EVM blockscan network registry
@@ -61,6 +61,7 @@ ETHERSCAN_NETWORKS = {
 
 # ── Data Classes ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class SplitPath:
     """A single split hop: from wallet → to wallet at a given block."""
@@ -68,6 +69,7 @@ class SplitPath:
     from_address: str
     to_address: str
     block: int
+
 
 @dataclass
 class BlockZeroReport:
@@ -91,7 +93,9 @@ class BlockZeroReport:
     split_paths: list[SplitPath] = field(default_factory=list)
     risk_label: str = "UNKNOWN"
 
+
 # ── Analyzer ────────────────────────────────────────────────────────────────
+
 
 class BlockZeroSniperAnalyzer:
     """Analyzes block-zero sniping and split patterns to detect team distribution farms.
@@ -144,9 +148,7 @@ class BlockZeroSniperAnalyzer:
 
         # Gracefully handle missing transaction data
         if earliest_transactions is None:
-            earliest_transactions = await self._fetch_earliest_transactions(
-                token_address, chain_lower
-            )
+            earliest_transactions = await self._fetch_earliest_transactions(token_address, chain_lower)
 
         # If still no data after fetch attempt, return unknown
         if not earliest_transactions:
@@ -324,7 +326,16 @@ class BlockZeroSniperAnalyzer:
                         )
                     )
 
-        except (httpx.HTTPError, requests.RequestException, ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning("Solana split trace failed for %s: %s", wallet, e)
 
@@ -390,7 +401,7 @@ class BlockZeroSniperAnalyzer:
                     )
                 )
 
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning("EVM split trace failed for %s on %s: %s", wallet, chain, e)
 
@@ -475,7 +486,7 @@ class BlockZeroSniperAnalyzer:
             result.sort(key=lambda x: x.get("block", 0))
             return result
 
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(
                 "Failed to fetch Solana earliest txs for %s: %s",
@@ -534,7 +545,7 @@ class BlockZeroSniperAnalyzer:
             # Already sorted asc by Etherscan
             return result
 
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(
                 "Failed to fetch EVM earliest txs for %s on %s: %s",
@@ -561,10 +572,11 @@ class BlockZeroSniperAnalyzer:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("result")
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e :
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
             logger.debug("_helius_rpc_error", exc_info=True)
             logger.warning("Helius RPC call %s failed: %s", method, e)
         return None
+
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -579,6 +591,7 @@ _DEAD_ADDRESSES: set = {
     "0x0000000000000000000000000000000000000001",
     "0xdead000000000000000000000000000000000000",
 }
+
 
 def _is_dead_address(address: str) -> bool:
     """Check if an address is a known dead/burn/null address (case-insensitive)."""

@@ -45,6 +45,13 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _arkham_portfolio,
         _arkham_transfers,
     )
+    from ..chains.chain_indexer import (
+        _chain_indexer_deployer_history,
+        _chain_indexer_dex_events,
+        _chain_indexer_holders,
+        _chain_indexer_solana_balance_changes,
+        _chain_indexer_token_transfers,
+    )
     from ..chains.dexscreener import (
         _dexscreener_holders,
         _dexscreener_price,
@@ -71,13 +78,6 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _solana_tracker_token,
         _solana_tracker_trending,
         _virustotal_url_scan,
-    )
-    from ..chains.chain_indexer import (
-        _chain_indexer_deployer_history,
-        _chain_indexer_dex_events,
-        _chain_indexer_holders,
-        _chain_indexer_solana_balance_changes,
-        _chain_indexer_token_transfers,
     )
     from ..chains.intel_provider import _scraped_intel_provider
     from ..chains.local import (

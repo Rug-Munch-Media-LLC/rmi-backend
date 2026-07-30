@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Public Wallet Label Download (06:00)
+Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
+
+[Timer]
+# Run daily at 06:00
+OnCalendar=daily
+Calendar=daily
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -30,10 +30,13 @@ logger = get_logger("fund_flow_visualizer")
 
 SVG_OUTPUT_DIR = "/root/backend/data/fund_flows"
 
+
 def _ensure_output_dir() -> None:
     os.makedirs(SVG_OUTPUT_DIR, exist_ok=True)
 
+
 # ─── Address shortener ──────────────────────────────────────────────
+
 
 def shorten_address(addr: str) -> str:
     """Shorten address for display: 0x1234...abcd or So1a...2b3c."""
@@ -44,7 +47,9 @@ def shorten_address(addr: str) -> str:
         return addr
     return f"{addr[:6]}...{addr[-4:]}"
 
+
 # ─── Report dataclass ────────────────────────────────────────────────
+
 
 @dataclass
 class FundFlowNode:
@@ -52,11 +57,13 @@ class FundFlowNode:
     role: str  # creator, funder, lp, seller, other
     amount_usd: float
 
+
 @dataclass
 class FundFlowEdge:
     from_addr: str
     to_addr: str
     amount_usd: float
+
 
 @dataclass
 class FundFlowReport:
@@ -68,7 +75,9 @@ class FundFlowReport:
     risk_score: int  # 0-100
     risk_level: str  # low / moderate / high / critical
 
+
 # ─── API Fetchers ────────────────────────────────────────────────────
+
 
 async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
     """Fetch key wallets for an EVM token using block explorer APIs."""
@@ -108,7 +117,16 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                 creator = data["result"][0].get("contractCreator", "")
                 if creator:
                     result["creator"] = creator
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("_fetch_evm_wallets_error", exc_info=True)
             logger.debug(f"EVM creator fetch failed: {e}")
 
@@ -147,11 +165,7 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                         )
 
                     # Sellers = senders who transferred out early
-                    if (
-                        from_addr
-                        and from_addr.lower() != token_address.lower()
-                        and from_addr not in seen
-                    ):
+                    if from_addr and from_addr.lower() != token_address.lower() and from_addr not in seen:
                         seen.add(from_addr)
                         result["sellers"].append(
                             {
@@ -160,7 +174,17 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                                 "timestamp": timestamp,
                             }
                         )
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"EVM transfer fetch failed: {e}")
 
@@ -188,11 +212,22 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
                                 "balance_raw": balance,
                             }
                         )
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, ValueError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"EVM holder fetch failed: {e}")
 
     return result
+
 
 async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
     """Fetch key wallets for a Solana token using Helius/Solscan."""
@@ -206,25 +241,44 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
     helius_key = os.getenv("HELIUS_API_KEY", "")
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        # 1) Get token creation info from Helius
+        # 1) Get token creation info from Helius DAS API
         if helius_key:
             try:
-                url = f"https://api.helius.xyz/v0/token-metadata?api-key={helius_key}"
-                resp = await client.post(url, json={"mintAccounts": [token_address]})
+                resp = await client.post(
+                    f"https://mainnet.helius-rpc.com/?api-key={helius_key}",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": "1",
+                        "method": "getAsset",
+                        "params": {"id": token_address},
+                    },
+                )
                 data = resp.json()
-                if data and isinstance(data, list) and len(data) > 0:
-                    info = data[0]
-                    # The updateAuthority is often the creator
-                    creator = info.get("updateAuthority", info.get("mintAuthority", ""))
-                    if creator:
-                        result["creator"] = creator
-            except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+                if isinstance(data, dict):
+                    info = data.get("result")
+                    if info and isinstance(info, dict):
+                        # DAS API returns authorities array instead of updateAuthority/mintAuthority
+                        authorities = info.get("authorities", [])
+                        if authorities and isinstance(authorities, list) and len(authorities) > 0:
+                            creator = authorities[0].get("address", "")
+                            if creator:
+                                result["creator"] = creator
+            except (
+                httpx.HTTPError,
+                requests.RequestException,
+                json.JSONDecodeError,
+                KeyError,
+                TypeError,
+                ConnectionError,
+                OSError,
+                TimeoutError,
+            ) as e:
                 logger.debug("_fetch_solana_wallets_error", exc_info=True)
                 logger.debug(f"Helius token metadata fetch failed: {e}")
 
             # 2) Get transaction history to find early buyers/sellers
             try:
-                url = f"https://api.helius.xyz/v0/addresses/{token_address}/transactions?api-key={helius_key}"
+                url = f"https://mainnet.helius-rpc.com/v0/addresses/{token_address}/transactions?api-key={helius_key}"
                 resp = await client.get(url)
                 txs = resp.json()
                 if isinstance(txs, list):
@@ -274,15 +328,22 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
                                         "amount_raw": amount,
                                     }
                                 )
-            except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+            except (
+                httpx.HTTPError,
+                requests.RequestException,
+                json.JSONDecodeError,
+                KeyError,
+                TypeError,
+                ConnectionError,
+                OSError,
+                TimeoutError,
+            ) as e:
                 logger.debug("unknown_error", exc_info=True)
                 logger.debug(f"Helius transaction fetch failed: {e}")
 
         # 3) Get top holders from Solscan
         try:
-            url = (
-                f"https://api.solscan.io/v2/token/holders?address={token_address}&offset=0&size=10"
-            )
+            url = f"https://api.solscan.io/v2/token/holders?address={token_address}&offset=0&size=10"
             headers = {"User-Agent": "Mozilla/5.0"}
             resp = await client.get(url, headers=headers)
             data = resp.json()
@@ -307,13 +368,24 @@ async def _fetch_solana_wallets(token_address: str) -> dict[str, Any]:
                                 "balance_raw": holder.get("amount", 0),
                             }
                         )
-        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e :
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.debug(f"Solscan holders fetch failed: {e}")
 
     return result
 
+
 # ─── Graph builder ───────────────────────────────────────────────────
+
 
 def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
     """Build node list and edge list from wallet data.
@@ -454,6 +526,7 @@ def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
 
     return nodes, edges, risk_flags
 
+
 # ─── SVG generation ─────────────────────────────────────────────────
 
 # Color scheme for node roles
@@ -472,6 +545,7 @@ ROLE_LABELS = {
     "seller": "Early Seller",
     "other": "Other Holder",
 }
+
 
 def _generate_svg(
     nodes: list[FundFlowNode],
@@ -529,11 +603,7 @@ def _generate_svg(
             if n_count == 1:
                 cx = x_start + x_span // 2
             else:
-                cx = (
-                    x_start + int(i * x_span / (n_count - 1))
-                    if n_count > 1
-                    else x_start + x_span // 2
-                )
+                cx = x_start + int(i * x_span / (n_count - 1)) if n_count > 1 else x_start + x_span // 2
             cy = y + node_height // 2
             node_positions[n.address.lower()] = (cx, cy)
 
@@ -594,19 +664,13 @@ def _generate_svg(
             continue
 
         # Determine edge thickness (1-5 px)
-        thickness = (
-            1 + 4 * (e.amount_usd / max_amount) if max_amount > 0 and e.amount_usd > 0 else 2
-        )
+        thickness = 1 + 4 * (e.amount_usd / max_amount) if max_amount > 0 and e.amount_usd > 0 else 2
         thickness = max(1, min(5, round(thickness)))
 
         # Determine color from source node role
         from_node = next((n for n in nodes if n.address.lower() == from_key), None)
         edge_color = ROLE_COLORS.get(from_node.role, "#7f8fa6") if from_node else "#7f8fa6"
-        arrow_marker = (
-            f"arrow-{from_node.role}"
-            if from_node and from_node.role in ROLE_COLORS
-            else "arrowhead"
-        )
+        arrow_marker = f"arrow-{from_node.role}" if from_node and from_node.role in ROLE_COLORS else "arrowhead"
 
         # Draw line from bottom of source to top of target
         x1, y1 = from_pos
@@ -685,9 +749,7 @@ def _generate_svg(
     )
     for i, (role, color) in enumerate(ROLE_COLORS.items()):
         ly = legend_y + 30 + i * 24
-        lines.append(
-            f'<rect x="{legend_x + 10}" y="{ly}" width="14" height="14" rx="3" fill="{color}"/>'
-        )
+        lines.append(f'<rect x="{legend_x + 10}" y="{ly}" width="14" height="14" rx="3" fill="{color}"/>')
         lines.append(
             f'<text x="{legend_x + 30}" y="{ly + 12}" fill="#e0e0e0" '
             f'font-family="monospace" font-size="10">{ROLE_LABELS[role]}</text>'
@@ -696,7 +758,9 @@ def _generate_svg(
     lines.append("</svg>")
     return "\n".join(lines)
 
+
 # ─── Main scanner class ─────────────────────────────────────────────
+
 
 class FundFlowVisualizer:
     """Generate SVG fund flow visualization for a token."""
@@ -727,11 +791,9 @@ class FundFlowVisualizer:
             elif is_evm(chain):
                 wallets = await _fetch_evm_wallets(token_address, chain)
             else:
-                logger.warning(
-                    f"Unsupported chain '{chain}' for fund flow, attempting generic fetch"
-                )
+                logger.warning(f"Unsupported chain '{chain}' for fund flow, attempting generic fetch")
                 wallets = await _fetch_evm_wallets(token_address, chain)
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("analyze_error", exc_info=True)
             logger.warning(f"Wallet data fetch failed: {e}")
 
@@ -774,18 +836,14 @@ class FundFlowVisualizer:
             with open(svg_path, "w", encoding="utf-8") as f:
                 f.write(svg_content)
             logger.info(f"Fund flow SVG saved to {svg_path}")
-        except (httpx.HTTPError) as e :
+        except httpx.HTTPError as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Failed to save SVG to {svg_path}: {e}")
             svg_path = ""
 
         # ── Build report ───────────────────────────────────────
-        node_dicts = [
-            {"address": n.address, "role": n.role, "amount_usd": n.amount_usd} for n in nodes
-        ]
-        edge_dicts = [
-            {"from": e.from_addr, "to": e.to_addr, "amount_usd": e.amount_usd} for e in edges
-        ]
+        node_dicts = [{"address": n.address, "role": n.role, "amount_usd": n.amount_usd} for n in nodes]
+        edge_dicts = [{"from": e.from_addr, "to": e.to_addr, "amount_usd": e.amount_usd} for e in edges]
 
         return FundFlowReport(
             svg_content=svg_content,

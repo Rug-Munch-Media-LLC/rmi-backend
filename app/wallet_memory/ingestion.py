@@ -39,6 +39,7 @@ from .models import NormalizedTransaction
 
 # ── Token-bucket rate limiter (uses UnifiedRateLimiter) ──────────────
 
+
 class TokenBucketRateLimiter:
     """Token bucket rate limiter wrapper using UnifiedRateLimiter.
     Blocks until a token is available (unlike the non-blocking acquire).
@@ -55,14 +56,14 @@ class TokenBucketRateLimiter:
         limiter = get_rate_limiter()
         key = f"ingestion:token_bucket:{id(self)}"
         while True:
-            allowed, _headers = await limiter.acquire(
-                key, rate=self.rate, burst=float(self.capacity)
-            )
+            allowed, _headers = await limiter.acquire(key, rate=self.rate, burst=float(self.capacity))
             if allowed:
                 return
             await asyncio.sleep(1.0 / max(self.rate, 0.1))
 
+
 # ── Cooldown tracker ────────────────────────────────────────────────
+
 
 class IngestionCooldown:
     """Per-address cooldown: don't re-fetch within COOLDOWN_SECONDS."""
@@ -235,7 +236,7 @@ class WalletIngestionPipeline:
         for page in range(self.HELIUS_MAX_PAGES):
             await self._helius_limiter.acquire()
 
-            url = f"https://api.helius.com/v0/addresses/{address}/transactions"
+            url = f"https://mainnet.helius-rpc.com/v0/addresses/{address}/transactions"
             params = {"api-key": api_key}
             if cursor:
                 params["cursor"] = cursor
@@ -386,9 +387,7 @@ class WalletIngestionPipeline:
 
     # ── Normalization ──────────────────────────────────────────────
 
-    def _normalize_transactions(
-        self, raw_txs: list[dict], address: str, chain: str
-    ) -> list[NormalizedTransaction]:
+    def _normalize_transactions(self, raw_txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
         """Convert raw API responses into NormalizedTransaction objects."""
         normalized = []
         addr_lower = address.lower().strip()
@@ -400,9 +399,7 @@ class WalletIngestionPipeline:
 
         return normalized
 
-    def _normalize_helius(
-        self, txs: list[dict], address: str, chain: str
-    ) -> list[NormalizedTransaction]:
+    def _normalize_helius(self, txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
         """Parse Helius Enhanced Transactions API response."""
         normalized = []
 
@@ -411,11 +408,7 @@ class WalletIngestionPipeline:
                 # Helius Enhanced Transaction schema
                 tx_hash = tx.get("signature", "")
                 timestamp_ms = tx.get("timestamp", 0)
-                ts = (
-                    datetime.fromtimestamp(timestamp_ms, tz=UTC)
-                    if timestamp_ms
-                    else datetime.now(UTC)
-                )
+                ts = datetime.fromtimestamp(timestamp_ms, tz=UTC) if timestamp_ms else datetime.now(UTC)
 
                 block_slot = tx.get("slot", 0)
                 tx.get("fee", 0) or 0
@@ -468,9 +461,7 @@ class WalletIngestionPipeline:
                                     timestamp=ts,
                                     amount=amount_sol,
                                     chain_id=chain,
-                                    program=",".join(programs_involved)
-                                    if programs_involved
-                                    else "system",
+                                    program=",".join(programs_involved) if programs_involved else "system",
                                     tx_hash=tx_hash,
                                     tx_type="send" if is_send else "receive",
                                     transfer_type="native",
@@ -508,9 +499,7 @@ class WalletIngestionPipeline:
                                 timestamp=ts,
                                 amount=dec_val,
                                 chain_id=chain,
-                                program=",".join(programs_involved)
-                                if programs_involved
-                                else "spl-token",
+                                program=",".join(programs_involved) if programs_involved else "spl-token",
                                 tx_hash=tx_hash,
                                 tx_type="send" if is_send else "receive",
                                 token_address=token_addr,
@@ -547,9 +536,7 @@ class WalletIngestionPipeline:
 
         return normalized
 
-    def _normalize_etherscan(
-        self, txs: list[dict], address: str, chain: str
-    ) -> list[NormalizedTransaction]:
+    def _normalize_etherscan(self, txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
         """Parse Etherscan-family API response."""
         normalized = []
 
@@ -727,9 +714,7 @@ class WalletIngestionPipeline:
                     is_scam=False,
                     risk_score=0.0,
                 )
-                logger.info(
-                    f"Recorded deployer event: {tx.address} deployed {token_addr} on {tx.chain_id}"
-                )
+                logger.info(f"Recorded deployer event: {tx.address} deployed {token_addr} on {tx.chain_id}")
 
             except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
                 logger.warning("error: %s", e)
@@ -743,9 +728,11 @@ class WalletIngestionPipeline:
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.close()
 
+
 # ── Global singleton ────────────────────────────────────────────────
 
 _pipeline: WalletIngestionPipeline | None = None
+
 
 def get_ingestion_pipeline(engine=None, storage=None) -> WalletIngestionPipeline:
     """Get global ingestion pipeline instance."""
