@@ -113,6 +113,22 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     except ImportError:
         pass
 
+    # ── token_launches — always available via chain-indexer ClickHouse ──
+    chains["token_launches"] = ProviderChain(
+        "token_launches",
+        description="New token launch detection via chain-indexer ClickHouse deployer_events",
+        providers=[
+            Provider(
+                "chain_indexer_deployer",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_deployer_history"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse deployer_events — new token launches from indexed chains",
+            ),
+        ],
+    )
+
     try:
         from app.databus.rugcharts_intel import (
             analyze_liquidity_risk,
@@ -151,20 +167,6 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                     get_whale_alerts,
                     weight=10.0,
                     rate_limit_rps=10.0,
-                )
-            ],
-        )
-
-        chains["token_launches"] = ProviderChain(
-            "token_launches",
-            description="New token launch scanner",
-            providers=[
-                Provider(
-                    "launch_scanner",
-                    ProviderTier.LOCAL,
-                    get_token_launches,
-                    weight=10.0,
-                    rate_limit_rps=5.0,
                 )
             ],
         )

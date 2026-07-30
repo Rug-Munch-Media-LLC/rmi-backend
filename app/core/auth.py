@@ -51,13 +51,16 @@ PUBLIC_EXACT_PATHS = frozenset(
 PUBLIC_PREFIXES = (
     "/api/v1/auth/",
     "/api/v1/public/",
+    "/api/v1/databus/webhooks/",  # External webhook receivers (Helius, Moralis, etc.) — auth via Bearer token per-service
     "/ws/",
 )
+
 
 def is_public_path(path: str, method: str) -> bool:
     if path in PUBLIC_EXACT_PATHS:
         return True
     return any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
+
 
 def _path_has_route(path: str, routes: list) -> bool:
     """Check if a path matches any registered route. Simple prefix-based approach."""
@@ -68,7 +71,7 @@ def _path_has_route(path: str, routes: list) -> bool:
             if route.path != "" and (path == route.path or path.startswith(route.path.rstrip("/") + "/")):
                 if route.routes:
                     # Check sub-routes
-                    sub_path = path[len(route.path):] if route.path != "/" else path
+                    sub_path = path[len(route.path) :] if route.path != "/" else path
                     if _path_has_route(sub_path, route.routes):
                         return True
                 # Mount with no sub-routes — assume it handles all paths under prefix
@@ -82,11 +85,13 @@ def _path_has_route(path: str, routes: list) -> bool:
             # Convert Starlette route pattern to match against path
             # Strip path params like {param_id}
             import re
+
             pattern = re.sub(r"\{[^}]+\}", "[^/]+", route_path)
             pattern = "^" + re.escape(pattern).replace(r"\[^/\]\+", "[^/]+") + "$"
             if re.match(pattern, path):
                 return True
     return False
+
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Any:

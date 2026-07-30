@@ -40,6 +40,7 @@ WEBHOOK_CONFIGS = {
     "helius": {
         "secret_env": "HELIUS_WEBHOOK_SECRET",
         "verify_header": "x-helius-signature",
+        "auth_env": "HELIUS_WEBHOOK_SECRET",  # Helius sends authHeader as Bearer token — verify it
         "events": ["transaction", "nft_event", "token_transfer", "account_update"],
         "cache_ttl": 600,
     },
@@ -57,6 +58,7 @@ WEBHOOK_CONFIGS = {
     },
 }
 
+
 def _redis() -> Any:
     return redis.Redis(
         host=REDIS_HOST,
@@ -65,6 +67,7 @@ def _redis() -> Any:
         decode_responses=True,
         socket_connect_timeout=2,
     )
+
 
 async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: bytes = b"") -> dict:
     """Universal webhook handler.
@@ -85,6 +88,18 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
         sig_header = headers.get(config["verify_header"], "")
         if not _verify_signature(secret, raw_body, sig_header):
             return {"error": "Invalid signature", "status": "rejected"}
+
+    # ── 1b. Validate auth header (e.g., Helius sends authHeader as Bearer token) ──
+    auth_env = config.get("auth_env", "")
+    if auth_env:
+        expected_token = os.getenv(auth_env, "")
+        if expected_token:
+            # Starlette lowercases header keys in dict(request.headers)
+            auth_header = headers.get("authorization") or headers.get("Authorization", "")
+            # Support both "Bearer <token>" and raw token formats
+            token = auth_header.removeprefix("Bearer ").strip()
+            if token != expected_token:
+                return {"error": "Invalid auth token", "status": "rejected"}
 
     # ── 2. Deduplicate (prevent replay) ──
     event_id = (
@@ -116,16 +131,12 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
                     "event_type": event_type,
                     "payload": payload,
                     "received_at": datetime.now(UTC).isoformat(),
-                    "headers": {
-                        k: v
-                        for k, v in headers.items()
-                        if k.lower() not in ("authorization", "x-api-key")
-                    },
+                    "headers": {k: v for k, v in headers.items() if k.lower() not in ("authorization", "x-api-key")},
                 }
             ),
         )
         r.close()
-    except (json.JSONDecodeError):
+    except json.JSONDecodeError:
         pass
 
     # ── 4. Index in RAG for intelligence ──
@@ -161,6 +172,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
             from app.alert_pipeline import push_alert
 
             await push_alert(
+                alert_type=f"{service}_webhook",
                 title=f"[{service.upper()}] {risk['title']}",
                 severity=risk["level"].lower(),
                 description=risk["description"],
@@ -180,6 +192,7 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
         "cached": True,
     }
 
+
 def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
     """HMAC signature verification."""
     if not secret or not signature:
@@ -189,6 +202,7 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
         return hmac.compare_digest(expected, signature)
     except (ConnectionError, OSError, TimeoutError):
         return False
+
 
 def _get_scan_triggers(service: str, event_type: str, payload: dict) -> list[str]:
     """Determine which premium scans to trigger based on webhook event."""
@@ -228,6 +242,7 @@ def _get_scan_triggers(service: str, event_type: str, payload: dict) -> list[str
 
     return triggers
 
+
 def _assess_webhook_risk(service: str, event_type: str, payload: dict) -> dict:
     """Quick risk assessment from webhook data."""
     value_usd = float(payload.get("valueUsd") or payload.get("value", 0))
@@ -253,9 +268,8 @@ def _assess_webhook_risk(service: str, event_type: str, payload: dict) -> dict:
 
     return {"level": "LOW", "title": "Routine event", "description": f"{service} {event_type}"}
 
-async def setup_webhook(
-    service: str, webhook_url: str, events: list[str] | None = None, **kw
-) -> dict:
+
+async def setup_webhook(service: str, webhook_url: str, events: list[str] | None = None, **kw) -> dict:
     """Programmatically set up a webhook subscription with a service.
 
     For services that support API-based webhook registration (Helius, Moralis),
@@ -311,6 +325,7 @@ async def setup_webhook(
         "webhook_url": webhook_url,
         "instructions": f"Configure webhook at {service} dashboard to point to {webhook_url}",
     }
+
 
 async def list_webhooks() -> dict:
     """List all configured webhook subscriptions."""

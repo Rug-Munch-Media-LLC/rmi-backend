@@ -100,6 +100,12 @@ def __getattr__(name: str) -> Any:
         "_mcp_bridge": "chains.mcp_bridge",
         # Intel providers
         "_scraped_intel_provider": "chains.intel_provider",
+        # Chain Indexer ClickHouse providers
+        "_chain_indexer_token_transfers": "chains.chain_indexer",
+        "_chain_indexer_dex_events": "chains.chain_indexer",
+        "_chain_indexer_deployer_history": "chains.chain_indexer",
+        "_chain_indexer_solana_balance_changes": "chains.chain_indexer",
+        "_chain_indexer_holders": "chains.chain_indexer",
     }
 
     module_path = _chain_map.get(name)
@@ -180,6 +186,11 @@ __all__ = [
     "_solana_tracker_price",
     "_solana_tracker_token",
     "_solana_tracker_trending",
+    "_chain_indexer_token_transfers",
+    "_chain_indexer_dex_events",
+    "_chain_indexer_deployer_history",
+    "_chain_indexer_solana_balance_changes",
+    "_chain_indexer_holders",
     "_scraped_intel_provider",
     "_spl_metadata_decoder_provider",
     "_virustotal_url_scan",

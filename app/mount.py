@@ -115,6 +115,8 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.v1.api_index",  # /api (version index)
     # v1 API aggregator (strangler fig — mounts all /api/v1/* routes)
     "app.routers.v1",  # /api/v1/* (aggregator)
+    # DataBus core router — webhooks, cache, admin, convenience, premium, social, bitquery, market news
+    "app.databus.router",  # /api/v1/databus/* (webhooks, cache, admin, data fetch)
     # Legacy v1 mounts (thin HTTP layer — kept for backward compat)
     "app.api.v1.auth.alerts",  # /api/v1/alerts/*
     "app.api.v1.public.wallet",  # /api/v1/wallet/*
