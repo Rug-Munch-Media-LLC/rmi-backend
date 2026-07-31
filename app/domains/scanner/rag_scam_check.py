@@ -122,11 +122,10 @@ async def check_scam(
         "source": "pattern_fallback",
     }
 
-    # ── Phase 1: Try ChromaDB vector search ──
+    # ── Phase 1: Try RAG vector search ──
     try:
-        from app.rag_firehose import RagFirehose
+        from app.rag.retrieval import search as rag_search
 
-        firehose = RagFirehose()
         # Build query only from non-empty fields — avoids prefixes leaking "token:" with no value
         query_parts = []
         if symbol:
@@ -136,18 +135,16 @@ async def check_scam(
         query_parts.append(token_address)
         query = " ".join(query_parts)
         if query:
-            vector_results = await firehose.search_similar(query, top_k=5)
+            vector_results = await rag_search(query=query, collection="scam_intel", top_k=5)
             if vector_results:
-                avg_score = sum(r.get("relevance_score", 0) for r in vector_results) / len(vector_results)
+                avg_score = sum(r.score for r in vector_results) / len(vector_results)
                 has_scam_match = any(
-                    "scam" in r.get("title", "").lower()
-                    or "rug" in r.get("title", "").lower()
-                    or "honeypot" in r.get("title", "").lower()
+                    "scam" in r.content.lower() or "rug" in r.content.lower() or "honeypot" in r.content.lower()
                     for r in vector_results
                 )
                 if has_scam_match and avg_score > 0.7:
                     result["risk_score"] = min(100, int(avg_score * 100))
-                    result["matched_indicators"] = [r.get("title", "") for r in vector_results[:3]]
+                    result["matched_indicators"] = [r.content[:120] for r in vector_results[:3]]
                     result["source"] = "chromadb_vector"
                     result["vector_matches"] = len(vector_results)
                     result["result"] = "scanned"
@@ -156,8 +153,8 @@ async def check_scam(
                 result["vector_matches"] = len(vector_results)
                 result["vector_avg_relevance"] = round(avg_score, 4)
     except ImportError:
-        logger.debug("rag_firehose_not_available")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.debug("rag_search_not_available")
+    except (AttributeError, ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("vector_search_failed", error=str(e))
 
     # ── Phase 2: Pattern matching on name/symbol ──
