@@ -15,6 +15,8 @@ import json
 import os
 from datetime import UTC, datetime
 
+import httpx
+
 from app.core.logging import get_logger
 
 logger = get_logger("rag_ingestion")
@@ -157,6 +159,23 @@ async def _embed_batch(docs: list[dict], collection: str) -> int:
             # Check if already indexed
             if r.exists(f"rag:doc:{collection}:{doc_id}"):
                 continue
+
+            # Actually embed the document (bge-m3 via Ollama) and add the
+            # vector to the ANN index so it is searchable — previously this
+            # function only stored text+metadata and never computed vectors.
+            try:
+                from app.rag.ann_index import get_index
+                from app.rag.embeddings import get_embedding
+
+                vector = await get_embedding(doc["text"][:2000])
+                get_index(collection).add(
+                    doc_id,
+                    vector,
+                    metadata=doc.get("metadata", {}),
+                    text=doc["text"][:2000],
+                )
+            except Exception as e:
+                logger.warning(f"Embed failed for {collection}:{doc_id}: {e}")
 
             # Store document metadata
             r.hset(
