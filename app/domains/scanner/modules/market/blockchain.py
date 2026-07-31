@@ -261,8 +261,19 @@ async def _verify_mint_consensus(token_address: str, chain: str) -> dict[str, An
 
 
 async def _ingest_scan_to_rag(scan_result: Any) -> None:
-    """Ingest scan result to RAG for future searches."""
-    logger.info("ingest_to_rag", token=scan_result.token_address)
+    """Ingest scan result to RAG for future searches.
+
+    Deprecated: this stub previously only logged and never ingested. The
+    real implementation lives in ``app.domains.scanner.service.scoring``;
+    this wrapper is kept for backward compatibility and delegates to it.
+    """
+    logger.warning(
+        "ingest_to_rag_deprecated: import from app.domains.scanner.service.scoring instead",
+        token=getattr(scan_result, "token_address", "")[:16],
+    )
+    from app.domains.scanner.service.scoring import _ingest_scan_to_rag as _real_ingest
+
+    await _real_ingest(scan_result)
 
 
 async def _check_sourcify(token_address: str, chain: str) -> dict[str, Any] | None:
