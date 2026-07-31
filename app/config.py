@@ -147,6 +147,10 @@ class Settings(BaseSettings):
         default="",
         description="Internal service-to-service API key. Set RMI_INTERNAL_KEY env var.",
     )
+    rmi_rag_api_key: str = Field(
+        default="",
+        description="API key for rmi-rag-api (X-API-Key header). Set RMI_RAG_API_KEY env var.",
+    )
     dev_bypass_auth: bool = Field(
         default=False,
         description=(
