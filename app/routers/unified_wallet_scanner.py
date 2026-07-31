@@ -31,7 +31,6 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from app.config import settings
-from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -201,14 +200,24 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     async def _rag_enrich(self, r) -> None:
         try:
-            rag_url = _validate_https_url(f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5")
+            # POST /api/v1/rag/v2/search is the real RAG search facade
+            # (GET /api/v1/rag/search was a dead route that always returned empty).
+            body = json.dumps({"query": f"{r.address} scam rug hack", "collection": "scam_intel", "top_k": 5}).encode(
+                "utf-8"
+            )
+            rag_url = _validate_https_url(f"{BACKEND}/api/v1/rag/v2/search")
             req = Request(
                 rag_url,
-                headers={"X-RMI-Key": INTERNAL_API_KEY},
+                data=body,
+                headers={
+                    "X-API-Key": settings.rmi_auth_token,
+                    "Content-Type": "application/json",
+                },
+                method="POST",
             )
             resp = urlopen(req, timeout=8)
             data = json.loads(resp.read())
-            r.rag_matches = data.get("results", [])
+            r.rag_matches = data.get("hits", [])
             if r.rag_matches:
                 r.modules_run.append("rag_entity_resolution")
                 r.enrichment_sources.append("rag:20K_docs")
