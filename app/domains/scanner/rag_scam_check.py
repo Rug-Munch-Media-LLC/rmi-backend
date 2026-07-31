@@ -122,9 +122,9 @@ async def check_scam(
         "source": "pattern_fallback",
     }
 
-    # ── Phase 1: Try RAG vector search ──
+    # ── Phase 1: Try RAG vector search via rmi-rag-api ──
     try:
-        from app.rag.retrieval import search as rag_search
+        from app.config import settings
 
         # Build query only from non-empty fields — avoids prefixes leaking "token:" with no value
         query_parts = []
@@ -135,16 +135,26 @@ async def check_scam(
         query_parts.append(token_address)
         query = " ".join(query_parts)
         if query:
-            vector_results = await rag_search(query=query, collection="scam_intel", top_k=5)
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    "http://rmi-rag-api:8012/api/v1/search",
+                    params={"q": query, "collection": "scam_intel", "limit": 5},
+                    headers={"X-API-Key": settings.rmi_rag_api_key},
+                )
+                resp.raise_for_status()
+                payload = resp.json()
+            vector_results = payload.get("results", [])
             if vector_results:
-                avg_score = sum(r.score for r in vector_results) / len(vector_results)
+                avg_score = sum(float(r.get("similarity", 0) or 0) for r in vector_results) / len(vector_results)
                 has_scam_match = any(
-                    "scam" in r.content.lower() or "rug" in r.content.lower() or "honeypot" in r.content.lower()
+                    "scam" in (r.get("content", "") or "").lower()
+                    or "rug" in (r.get("content", "") or "").lower()
+                    or "honeypot" in (r.get("content", "") or "").lower()
                     for r in vector_results
                 )
                 if has_scam_match and avg_score > 0.7:
                     result["risk_score"] = min(100, int(avg_score * 100))
-                    result["matched_indicators"] = [r.content[:120] for r in vector_results[:3]]
+                    result["matched_indicators"] = [r.get("content", "")[:120] for r in vector_results[:3]]
                     result["source"] = "chromadb_vector"
                     result["vector_matches"] = len(vector_results)
                     result["result"] = "scanned"
@@ -154,7 +164,15 @@ async def check_scam(
                 result["vector_avg_relevance"] = round(avg_score, 4)
     except ImportError:
         logger.debug("rag_search_not_available")
-    except (AttributeError, ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (
+        AttributeError,
+        ValueError,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        httpx.HTTPError,
+        httpx.TimeoutException,
+    ) as e:
         logger.debug("vector_search_failed", error=str(e))
 
     # ── Phase 2: Pattern matching on name/symbol ──
