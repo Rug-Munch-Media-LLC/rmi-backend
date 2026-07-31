@@ -347,12 +347,23 @@ class Settings(BaseSettings):
 
     # ── Embedder ────────────────────────────────────────────────────────
     bge_m3_url: str = Field(
-        default="http://localhost:8001",
-        description="BGE-M3 embedding service URL (Docker container). Set BGE_M3_URL env var.",
+        default="",
+        description=(
+            "DEPRECATED — BGE-M3 container HTTP service (the old :8001 path, nothing "
+            "listens there). BGE-M3 now runs natively via Ollama /api/embed: keep "
+            "EMBEDDER_PRIMARY=ollama with EMBEDDER_PRIMARY_MODEL=bge-m3."
+        ),
     )
     embedder_primary: str = Field(
+        default="ollama",
+        description="Primary embedding backend: ollama | bge-m3 | openrouter. Set EMBEDDER_PRIMARY.",
+    )
+    embedder_primary_model: str = Field(
         default="bge-m3",
-        description="Primary embedding backend: bge-m3 | ollama | openrouter. Set EMBEDDER_PRIMARY.",
+        description=(
+            "Ollama model used by the primary embedder when EMBEDDER_PRIMARY=ollama "
+            "(e.g. bge-m3 = 1024-dim via Ollama /api/embed). Set EMBEDDER_PRIMARY_MODEL."
+        ),
     )
     embedder_fallback: str = Field(
         default="nomic-embed-text",
