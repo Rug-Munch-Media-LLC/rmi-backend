@@ -28,7 +28,10 @@ from app.rag.embedder import (
 log = get_logger(__name__)
 
 # ── Public constants ────────────────────────────────────────────────────
-EMBEDDING_DIM: Final = lookup_dim(settings.embedder_primary)
+# Primary dimension is driven by the primary embedder model (bge-m3=1024d
+# when EMBEDDER_PRIMARY=ollama + EMBEDDER_PRIMARY_MODEL=bge-m3).
+_PRIMARY_MODEL = settings.embedder_primary_model if settings.embedder_primary == "ollama" else settings.embedder_primary
+EMBEDDING_DIM: Final = lookup_dim(_PRIMARY_MODEL)
 
 # Re-export _resize for legacy code (rmi-rag/legacy_supabase.py)
 _resize = normalize_dim
@@ -91,10 +94,18 @@ async def get_embeddings(texts: list[str]) -> list[list[float]]:
 
 
 def current_backend() -> str:
-    """Return a human-readable string describing the active embedder."""
+    """Return the configured PRIMARY embedder backend (e.g. ``ollama:bge-m3``).
+
+    Unwraps the CachedEmbedder/FallbackEmbedder wrappers and reports the
+    primary embedder so stats show what should be serving queries rather
+    than the full fallback chain.
+    """
     try:
         e = _get_embedder()
-        return e.name
+        # Unwrap CachedEmbedder -> FallbackEmbedder -> primary embedder
+        inner = getattr(e, "_inner", e)
+        primary = getattr(inner, "_primary", inner)
+        return primary.name
     except Exception:
         return "unavailable"
 

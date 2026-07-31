@@ -104,7 +104,7 @@ class EmbedderProtocol(ABC):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class BGE_M3_Embedder(EmbedderProtocol):
+class BGE_M3_Embedder(EmbedderProtocol):  # noqa: N801 - legacy class name kept for factory compat
     """BGE-M3 embedder via its container's HTTP API.
 
     Expects a FastAPI service at *url* with a POST ``/embed`` endpoint
@@ -278,7 +278,7 @@ class OllamaEmbedder(EmbedderProtocol):
 
     @property
     def name(self) -> str:
-        return self._model
+        return f"ollama:{self._model}"
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -359,7 +359,7 @@ class OllamaEmbedder(EmbedderProtocol):
                 if attempt < 2:
                     await asyncio.sleep(0.5)
                     continue
-                raise RuntimeError("Ollama returned non-JSON response")
+                raise RuntimeError("Ollama returned non-JSON response") from None
 
         # Should not reach here
         return [[0.0] * self._dim for _ in texts]
@@ -393,7 +393,7 @@ class OllamaEmbedder(EmbedderProtocol):
                             continue
                         raise RuntimeError(f"Ollama legacy embed failed after 3 attempts: {exc}") from exc
                     except json.JSONDecodeError:
-                        raise RuntimeError("Ollama returned non-JSON response")
+                        raise RuntimeError("Ollama returned non-JSON response") from None
 
         tasks = [_one(t) for t in texts]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -460,7 +460,7 @@ class _MemoryCache:
     def __init__(self, maxsize: int = 10_000, default_ttl: int = 86_400) -> None:
         self._maxsize = maxsize
         self._default_ttl = default_ttl
-        self._store: Ordereddict[str, tuple[float, Any]] = OrderedDict()
+        self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()
         self._hits = 0
         self._misses = 0
 
@@ -515,6 +515,9 @@ class CachedEmbedder(EmbedderProtocol):
         self._mem = _MemoryCache(maxsize=maxsize, default_ttl=ttl)
         self._redis: Any = None
         self._redis_ok = False
+        # Held references to fire-and-forget Redis writes (kept alive to
+        # prevent GC cancelling in-flight tasks; see RUF006).
+        self._bg_tasks: set[asyncio.Task[Any]] = set()
         if redis_url or os.getenv("REDIS_URL"):
             self._init_redis(redis_url or "")
 
@@ -574,7 +577,7 @@ class CachedEmbedder(EmbedderProtocol):
 
         # Fire-and-forget Redis write for uncached vectors
         if self._redis_ok:
-            asyncio.ensure_future(self._redis_bulk_set(keys, fresh, uncached_indices))
+            self._spawn_bg(self._redis_bulk_set(keys, fresh, uncached_indices))
 
         return cached  # type: ignore[return-value]
 
@@ -601,8 +604,14 @@ class CachedEmbedder(EmbedderProtocol):
         vec = await self._inner.embed_one(text)
         self._mem.set(key, vec, self._ttl)
         if self._redis_ok:
-            asyncio.ensure_future(self._redis_single_set(key, vec))
+            self._spawn_bg(self._redis_single_set(key, vec))
         return vec
+
+    def _spawn_bg(self, coro: Any) -> None:
+        """Track a background task so it isn't garbage-collected mid-flight."""
+        task = asyncio.ensure_future(coro)
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
 
     async def _redis_single_set(self, key: str, vec: list[float]) -> None:
         try:
@@ -720,7 +729,9 @@ def get_embedder(
     if primary_name == "bge-m3":
         primary_embedder: EmbedderProtocol = _create_bge_m3()
     elif primary_name == "ollama":
-        primary_embedder = _create_ollama(model=fallback_model)
+        # Primary Ollama model is independent of the fallback model so the
+        # chain is e.g. bge-m3 (1024d) primary -> nomic-embed-text fallback.
+        primary_embedder = _create_ollama(model=settings.embedder_primary_model)
     else:
         log.warning(
             "get_embedder_unknown_primary=%s falling_back_to_bge_m3",
