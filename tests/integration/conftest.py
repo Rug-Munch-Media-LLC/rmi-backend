@@ -13,8 +13,8 @@ import os
 # Disable huggingface_hub snapshot download import (qdrant_client pulls
 # it in but the metadata is broken in this environment).
 os.environ.setdefault("HF_HUB_DISABLE_IMPORT", "1")
-os.environ.setdefault("RMI_AUTH_TOKEN", "test-auth-token-32-chars-long!!")
-os.environ.setdefault("RMI_INTERNAL_KEY", "test-internal-key-32-chars-long!!!")
+os.environ.__setitem__("RMI_AUTH_TOKEN", "test-auth-token-32-chars-long!!")
+os.environ.__setitem__("RMI_INTERNAL_KEY", "test-internal-key-32-chars-long!!!")
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-thats-32-chars-long!")
 os.environ.setdefault("RMI_JWT_SECRET", "test-jwt-secret-key-thats-32-chars-long!")
 os.environ.setdefault("ENVIRONMENT", "dev")
@@ -24,7 +24,7 @@ os.environ.setdefault("REDIS_PASSWORD", "")
 os.environ.setdefault("REDIS_HOST", "localhost")
 os.environ.setdefault("REDIS_PORT", "6379")
 
-import pytest
+import pytest  # noqa: E402  (env vars must be set before app imports)
 
 
 @pytest.fixture(scope="session")
