@@ -59,6 +59,11 @@ HEALTH_CHECK_STATUS = Gauge(
     "Last health-check status per store (1=healthy, 0=unhealthy)",
     ["store"],
 )
+RAG_BACKEND_PROXY = Counter(
+    "rag_backend_proxy_total",
+    "Backend calls to the RAG layer (in-process engine or rmi-rag-api proxy)",
+    ["operation", "status"],
+)
 
 
 # ── PrometheusMiddleware ────────────────────────────────────────────

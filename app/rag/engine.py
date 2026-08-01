@@ -17,6 +17,7 @@ Ingest:
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
@@ -31,6 +32,73 @@ log = get_logger(__name__)
 
 # RRF constant
 _RRF_K = 60
+
+# Qdrant fallback: collections that live in Qdrant (e.g. `news` seeded by
+# rmi-rag/scripts/news_to_rag.py) are searchable even though the in-process
+# numpy/Redis index has no data for them. Cache which collections exist.
+_QDRANT_URL = os.getenv("QDRANT_URL", "http://rmi-qdrant:6333").rstrip("/")
+_QDRANT_COLLECTIONS: set[str] = set()
+_QDRANT_PROBED = False
+
+
+async def _qdrant_collection_exists(client: httpx.AsyncClient, collection: str) -> bool:
+    """Probe Qdrant once per process for a collection's existence."""
+    global _QDRANT_PROBED
+    if collection in _QDRANT_COLLECTIONS:
+        return True
+    if not _QDRANT_PROBED:
+        try:
+            r = await client.get("/collections")
+            if r.status_code == 200:
+                names = {c.get("name") for c in r.json().get("result", {}).get("collections", [])}
+                _QDRANT_COLLECTIONS.update(names)
+        except (httpx.HTTPError, httpx.TimeoutException) as e:
+            log.debug("qdrant_probe_failed err=%s", e)
+        _QDRANT_PROBED = True
+    return collection in _QDRANT_COLLECTIONS
+
+
+async def _qdrant_search(
+    query_vec: list[float],
+    collection: str,
+    top_k: int,
+    min_similarity: float,
+) -> list[Hit]:
+    """Vector search against Qdrant (fallback for Qdrant-backed collections).
+
+    Returns Hit objects in the same shape as the local ANN index so the
+    existing RRF fusion / response wrapping keeps working unchanged.
+    """
+    try:
+        async with httpx.AsyncClient(base_url=_QDRANT_URL, timeout=10.0) as client:
+            if not await _qdrant_collection_exists(client, collection):
+                return []
+            payload: dict[str, Any] = {
+                "vector": query_vec,
+                "limit": top_k,
+                "score_threshold": min_similarity if min_similarity > 0 else None,
+                "with_payload": True,
+            }
+            r = await client.post(f"/collections/{collection}/points/search", json=payload)
+            if r.status_code != 200:
+                log.warning("qdrant_search_failed status=%d body=%s", r.status_code, r.text[:200])
+                return []
+            hits: list[Hit] = []
+            for point in r.json().get("result", []):
+                p = point.get("payload", {})
+                meta = p.get("metadata", {}) or {}
+                hits.append(
+                    Hit(
+                        doc_id=str(point.get("id", "")),
+                        score=float(point.get("score", 0.0) or 0.0),
+                        text=p.get("content", ""),
+                        metadata={**meta, "source": p.get("source", meta.get("source", ""))},
+                    )
+                )
+            return hits
+    except (httpx.HTTPError, httpx.TimeoutException) as e:
+        log.debug("qdrant_search_error err=%s", e)
+        return []
 
 
 # ── Three-pillar search ──────────────────────────────────────────────
@@ -64,6 +132,19 @@ async def three_pillar_search(
     # Apply filters post-fusion
     if filters:
         fused = [h for h in fused if _matches_filters(h, filters)]
+
+    # Qdrant fallback: if the in-process index has no data for this
+    # collection, consult Qdrant (e.g. `news` seeded by news_to_rag.py).
+    # Strictly additive — collections with local data are untouched.
+    if not fused:
+        qdrant_hits = await _qdrant_search(qvec, collection, top_k, min_similarity)
+        if qdrant_hits:
+            fused = qdrant_hits[:top_k]
+            log.info(
+                "rag_search_qdrant_fallback collection=%s hits=%d",
+                collection,
+                len(fused),
+            )
 
     took_ms = int((time.monotonic() - start) * 1000)
     log.info(
@@ -117,7 +198,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
 
     # ── Tokenizer ──────────────────────────────────────────────────────
     # Crypto-aware stopwords: keep short token/address terms, filter noise
-    _STOPWORDS: set[str] = {
+    _stopwords: set[str] = {
         "the",
         "this",
         "that",
@@ -152,17 +233,17 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
     }
 
     # Sample large collections to prevent OOM — process up to 10K docs max
-    MAX_KEYWORD_DOCS = 10_000
-    if len(raw) > MAX_KEYWORD_DOCS:
+    max_keyword_docs = 10_000
+    if len(raw) > max_keyword_docs:
         import random
 
-        log.info("keyword_search_sampling collection=%s total=%d sample=%d", collection, len(raw), MAX_KEYWORD_DOCS)
-        raw = dict(random.sample(list(raw.items()), MAX_KEYWORD_DOCS))
+        log.info("keyword_search_sampling collection=%s total=%d sample=%d", collection, len(raw), max_keyword_docs)
+        raw = dict(random.sample(list(raw.items()), max_keyword_docs))
 
     def _tokenize(text: str) -> list[str]:
         """Tokenize: lowercase, split on non-alpha, filter stopwords + length."""
         tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9_#]*", text.lower())
-        return [t for t in tokens if t not in _STOPWORDS and len(t) > 1]
+        return [t for t in tokens if t not in _stopwords and len(t) > 1]
 
     query_tokens = _tokenize(query)
     if not query_tokens:
