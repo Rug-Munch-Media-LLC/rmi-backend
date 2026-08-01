@@ -200,8 +200,7 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     async def _rag_enrich(self, r) -> None:
         try:
-            # POST /api/v1/rag/v2/search is the real RAG search facade
-            # (GET /api/v1/rag/search was a dead route that always returned empty).
+            # POST /api/v1/rag/v2/search is the real RAG search facade.
             body = json.dumps({"query": f"{r.address} scam rug hack", "collection": "scam_intel", "top_k": 5}).encode(
                 "utf-8"
             )

@@ -52,6 +52,13 @@ class NewsArticle(BaseModel):
     token_address: str | None = None
     chain: str | None = None
     comment_count: int | None = 0
+    # Ground News-style ratings (enriched by app.domains.news.ratings)
+    bias: str | None = None
+    sentiment_score: float | None = None
+    sentiment_label: str | None = None
+    factual_rating: str | None = None
+    rating_confidence: float | None = None
+    source_tier: int | None = None
 
 
 class NewsFeedResponse(BaseModel):
@@ -127,11 +134,11 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
 @router.get("/feed", response_model=NewsFeedResponse)
 async def get_news_feed(
     limit: int = Query(50, ge=1, le=200),
-    sentiment: str | None = Query(None, description="bullish, bearish, neutral, slightly_bullish, slightly_bearish"),
-    source: str | None = Query(None),
-    category: str | None = Query(None),
-    tier: str | None = Query(None, description="news, social, market, rmi, api"),
-    kind: str | None = Query(None, description="external, internal, social, api"),
+    sentiment: str | None = None,
+    source: str | None = None,
+    category: str | None = None,
+    tier: str | None = None,
+    kind: str | None = None,
     include_rss: bool = Query(True),
     include_reddit: bool = Query(True),
     include_internal: bool = Query(True),
@@ -186,6 +193,14 @@ async def get_news_feed(
 
     articles = articles[:limit]
 
+    # Enrich with Ground News-style ratings (bias, sentiment_score, factual_rating)
+    try:
+        from app.domains.news.ratings import enrich_articles
+
+        articles = enrich_articles(articles)
+    except Exception as e:
+        logger.warning(f"News rating enrichment failed: {e}")
+
     # Enrich with comment counts
     for a in articles:
         aid = a.get("id", "")
@@ -235,7 +250,7 @@ async def get_headlines(
 
 
 @router.get("/sources")
-async def get_news_sources() -> dict[str, list[dict]]:
+async def get_news_sources() -> dict[str, Any]:
     """Get all active news sources."""
     feed = await get_news_feed(limit=200, refresh=False)
     sources = {}

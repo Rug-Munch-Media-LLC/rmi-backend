@@ -183,8 +183,18 @@ async def fetch_rmi_scanner(svc: NewsService) -> list[dict[str, Any]]:
 
 async def fetch_rmi_alerts(svc: NewsService) -> list[dict[str, Any]]:
     try:
+        from app.config import settings
+
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{BACKEND_URL}/api/v1/rag/search?q=scam exploit hack rug drain alert&limit=5")
+            resp = await client.get(
+                "http://rmi-rag-api:8012/api/v1/search",
+                params={
+                    "q": "scam exploit hack rug drain alert",
+                    "collection": "scam_intel",
+                    "limit": 5,
+                },
+                headers={"X-API-Key": settings.rmi_rag_api_key},
+            )
             if resp.status_code != 200:
                 return []
             data = resp.json()

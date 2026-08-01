@@ -585,15 +585,18 @@ class DataBus:
             # ── RAG: semantic search our 17K+ scam docs ──
             if data_type in ("rag_search", "scanner", "wallet_labels") and (query or address):
                 try:
+                    from app.config import settings
+
                     search_query = query or address
                     async with httpx.AsyncClient(timeout=10) as c:
-                        r = await c.post(
-                            "http://localhost:8000/api/v1/rag/search",
-                            json={
-                                "query": search_query,
+                        r = await c.get(
+                            "http://rmi-rag-api:8012/api/v1/search",
+                            params={
+                                "q": search_query,
                                 "collection": "known_scams",
                                 "limit": 5,
                             },
+                            headers={"X-API-Key": settings.rmi_rag_api_key},
                         )
                         if r.status_code == 200:
                             data = r.json()

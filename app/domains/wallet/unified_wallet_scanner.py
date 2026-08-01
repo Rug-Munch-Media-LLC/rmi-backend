@@ -201,12 +201,19 @@ class UnifiedWalletScanner:
     # ═══════════════════════════════════════════════════════════════
     async def _rag_enrich(self, r) -> None:
         try:
-            rag_url = _validate_https_url(f"{BACKEND}/api/v1/rag/search?q={r.address} scam rug hack&limit=5")
+            from app.config import settings
+
             async with httpx.AsyncClient(timeout=8) as client:
                 resp = await client.get(
-                    rag_url,
-                    headers={"X-RMI-Key": INTERNAL_API_KEY},
+                    "http://rmi-rag-api:8012/api/v1/search",
+                    params={
+                        "q": f"{r.address} scam rug hack",
+                        "collection": "scam_intel",
+                        "limit": 5,
+                    },
+                    headers={"X-API-Key": settings.rmi_rag_api_key},
                 )
+                resp.raise_for_status()
             data = resp.json()
             r.rag_matches = data.get("results", [])
             if r.rag_matches:
