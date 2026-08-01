@@ -173,7 +173,11 @@ async def check_scam(
         httpx.HTTPError,
         httpx.TimeoutException,
     ) as e:
-        logger.debug("vector_search_failed", error=str(e))
+        # Loud, not debug: a silent fallback here means scam checks silently
+        # lose their strongest signal. Mark the result as degraded so callers
+        # can surface the loss of RAG coverage.
+        logger.warning("vector_search_failed", error=str(e))
+        result["degraded"] = True
 
     # ── Phase 2: Pattern matching on name/symbol ──
     if symbol or name:
