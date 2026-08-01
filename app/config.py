@@ -343,7 +343,6 @@ class Settings(BaseSettings):
     postmark_api_key: str = Field(default="", description="Postmark server token. Set POSTMARK_API_KEY.")
     mailgun_api_key: str = Field(default="", description="Mailgun API key. Set MAILGUN_API_KEY.")
     mailgun_domain: str = Field(default="", description="Mailgun sending domain. Set MAILGUN_DOMAIN.")
-    aws_ses_key: str = Field(default="", description="AWS SES API key. Set AWS_SES_KEY.")
     # Platform wallet (receives subscription payments)
     platform_wallet_address: str = Field(
         default="", description="Platform wallet for subscription fees. Set PLATFORM_WALLET_ADDRESS."
