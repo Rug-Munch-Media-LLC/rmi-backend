@@ -4,7 +4,7 @@ DataBus Cache Layer - Three-Tier Cache with SWR + Per-Type Stats
 
 L1: In-memory dict (sub-millisecond, 4096 keys, LRU eviction) + SWR stale buffer
 L2: Redis (sub-millisecond, shared across processes, TTL-managed)
-L3: Cloudflare R2 cold storage (RAG permanence, nightly snapshots)
+L3: Backblaze B2 cold storage (RAG permanence, nightly snapshots)  # Migrated from R2 to B2 2026-07-31
 
 Stale-While-Revalidate (SWR):
   - L1 stores both fresh and stale entries (stale = TTL * 2)
@@ -208,7 +208,7 @@ class CacheLayer:
     """
     Three-tier cache with Stale-While-Revalidate + per-type stats.
 
-    L1 (memory, SWR) → L2 (Redis) → L3 (R2, async, background)
+    L1 (memory, SWR) → L2 (Redis) → L3 (B2, async, background)
 
     Read path: L1 (fresh? → done. stale? → return stale + schedule refresh) → L2 → miss
     Write path: External API → L1 + L2 (L3 batched via RAG permanence cron)
@@ -391,7 +391,7 @@ class CacheLayer:
             "status": "ok",
             "l1_memory": l1,
             "l2_redis": l2,
-            "l3_r2": {"enabled": False, "note": "Deferred — use Qdrant snapshots via rmi-rag"},
+            "l3_b2": {"enabled": False, "note": "Deferred — use Qdrant snapshots via rmi-rag"},
             "combined_hit_rate": round(total_hits / total * 100, 1) if total > 0 else 0,
             "total_hits": total_hits,
             "total_misses": total_misses,

@@ -9,7 +9,7 @@ Architecture (request flow):
   Request → SecurityGate → CreditGate → CacheLayer → ProviderChain → Result
         ↓                      ↓             ↓              ↓            ↓
    admin check         free-first logic   L1→L2→L3      local-first!   RAG index
-   vault keys          auto-rotate      Redis+R2      OUR data 1st    WS broadcast
+   vault keys          auto-rotate      Redis+B2      OUR data 1st    WS broadcast
 
 What it REPLACES (do NOT use these anymore):
   - app/cache_manager.py (RMICache)          → databus.cache

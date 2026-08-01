@@ -5,7 +5,7 @@ Nightly indexing of ALL data sources into the RAG system.
 Feeds: news, CT rundown, market data, social metrics, on-chain data.
 
 Runs at 3AM UTC. Embeds via NVIDIA NIM (BGE-M3, 1024d, free).
-Redis-backed with permanence to R2.
+Redis-backed with permanence to B2.  # Migrated from R2 to B2 2026-07-31
 """
 
 from __future__ import annotations
@@ -239,7 +239,7 @@ async def rag_health_check(**kw) -> dict:
             "total_documents": total,
             "collections": stats,
             "embedder": "baai/bge-m3 (NVIDIA NIM, 1024d, free)",
-            "storage": "Redis + R2 permanence",
+            "storage": "Redis + B2 permanence",
             "nightly_cron": "3AM UTC",
             "checked_at": datetime.now(UTC).isoformat(),
             "source": "rag_health",

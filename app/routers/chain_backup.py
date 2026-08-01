@@ -9,9 +9,11 @@ Endpoints:
 
 Integration:
   - Reads last_backup.json written by chain-backup.sh
-  - Checks R2 connectivity via rclone
+  - Checks B2 connectivity via rclone
   - Reports disk usage in backup directory
   - Returns last backup timestamp and archive info
+
+Migrated from R2 to B2 2026-07-31
 
 Author: RMI DevOps
 Date: 2026-07-20
@@ -41,10 +43,10 @@ BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "/path/to/backups"))
 BACKUP_LOG = Path(os.getenv("BACKUP_LOG", "/var/log/rmi-chain-backup.log"))
 LAST_BACKUP_FILE = BACKUP_DIR / "last_backup.json"
 
-# R2 remote name (must match backup-config.sh)
-R2_REMOTE = os.getenv("R2_REMOTE", "r2-rmi-crypt")
-R2_BUCKET = os.getenv("R2_BUCKET", "rmi-backups")
-R2_PATH_PREFIX = os.getenv("R2_PATH_PREFIX", "chain-data")
+# B2 remote name (must match backup-config.sh)
+B2_REMOTE = os.getenv("B2_REMOTE", "b2-crypt")
+B2_BUCKET = os.getenv("B2_BUCKET", "rmi-backups")
+B2_PATH_PREFIX = os.getenv("B2_PATH_PREFIX", "chain-data")
 
 
 def _read_last_backup() -> dict[str, Any] | None:
@@ -102,13 +104,13 @@ def _get_backup_directory_stats() -> dict[str, Any]:
 
 
 def _check_rclone_connectivity() -> dict[str, Any]:
-    """Check that rclone can list the R2 backup remote."""
+    """Check that rclone can list the B2 backup remote."""
     try:
         start = time.monotonic()
         # S603/S607: rclone path is controlled by the system, not user input.
         # The bucket/path vars come from env or hardcoded defaults.
         result = subprocess.run(
-            ["rclone", "ls", f"{R2_REMOTE}:{R2_BUCKET}/{R2_PATH_PREFIX}/"],
+            ["rclone", "ls", f"{B2_REMOTE}:{B2_BUCKET}/{B2_PATH_PREFIX}/"],
             capture_output=True,
             text=True,
             timeout=15,
@@ -120,7 +122,7 @@ def _check_rclone_connectivity() -> dict[str, Any]:
                 "reachable": True,
                 "latency_ms": round(elapsed_ms, 1),
                 "object_count": len(obj_lines),
-                "remote": f"{R2_REMOTE}:{R2_BUCKET}/{R2_PATH_PREFIX}",
+                "remote": f"{B2_REMOTE}:{B2_BUCKET}/{B2_PATH_PREFIX}",
             }
         else:
             return {
@@ -192,14 +194,14 @@ async def backup_status() -> JSONResponse:
 
     Returns:
       - last_backup: timestamp and archive info from last run
-      - r2: R2 connectivity check
+      - b2: B2 connectivity check
       - directory: backup directory disk usage and file counts
       - recent_archives: last 5 local backup archives
       - log: recent log entries (completion/errors)
       - overall: healthy/degraded/unhealthy verdict
     """
     last = _read_last_backup()
-    r2 = _check_rclone_connectivity()
+    b2 = _check_rclone_connectivity()
     dir_stats = _get_backup_directory_stats()
     archives = _get_recent_archives()
     log_status = _check_last_backup_log()
@@ -211,8 +213,8 @@ async def backup_status() -> JSONResponse:
     elif last.get("status") != "success":
         issues.append("last_backup_failed")
 
-    if not r2.get("reachable"):
-        issues.append("r2_unreachable")
+    if not b2.get("reachable"):
+        issues.append("b2_unreachable")
 
     if dir_stats.get("exists") and dir_stats.get("disk"):
         disk = dir_stats["disk"]
@@ -231,7 +233,7 @@ async def backup_status() -> JSONResponse:
             "status": overall,
             "issues": issues,
             "last_backup": last,
-            "r2": r2,
+            "b2": b2,
             "directory": dir_stats,
             "recent_archives": archives,
             "log": log_status,

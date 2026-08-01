@@ -3,9 +3,11 @@
 Nightly Wallet Label Backup & Sync
 ====================================
 1. Validates clean label data integrity
-2. Backs up to R2 cloud storage (with rotation)
+2. Backs up to B2 cloud storage (with rotation)
 3. Syncs clean labels into running Redis/ClickHouse
 4. Logs freshness metrics
+
+Migrated from R2 to B2 2026-07-31
 """
 
 import csv
@@ -24,11 +26,11 @@ CLEAN_DIR = os.path.join(DATA_DIR, "wallet-labels-clean")
 BACKUP_DIR = os.path.join(DATA_DIR, "wallet-labels-backups")
 MANIFEST_PATH = os.path.join(CLEAN_DIR, "manifest.json")
 
-# R2 config
-R2_BUCKET = os.environ.get("R2_BUCKET", "rmi-backups")
-R2_ENDPOINT = os.environ.get("R2_ENDPOINT", "")
-R2_KEY = os.environ.get("R2_ACCESS_KEY", "")
-R2_SECRET = os.environ.get("R2_SECRET_KEY", "")
+# B2 config (S3-compatible API)
+B2_BUCKET = os.environ.get("B2_BUCKET", "rmi-backups")
+B2_ENDPOINT = os.environ.get("B2_ENDPOINT", "https://s3.us-west-004.backblazeb2.com")
+B2_KEY_ID = os.environ.get("B2_APPLICATION_KEY_ID", "")
+B2_APP_KEY = os.environ.get("B2_APPLICATION_KEY", "")
 
 MAX_BACKUPS = 30  # Keep 30 days of backups
 
@@ -140,10 +142,10 @@ def create_backup():
     return archive_path
 
 
-def upload_to_r2(archive_path: str) -> bool:
-    """Upload backup to R2 cloud storage."""
-    if not all([R2_ENDPOINT, R2_KEY, R2_SECRET]):
-        logger.warning("R2 not configured - skipping cloud upload")
+def upload_to_b2(archive_path: str) -> bool:
+    """Upload backup to B2 cloud storage (S3-compatible API)."""
+    if not all([B2_ENDPOINT, B2_KEY_ID, B2_APP_KEY]):
+        logger.warning("B2 not configured - skipping cloud upload")
         return False
 
     try:
@@ -151,24 +153,24 @@ def upload_to_r2(archive_path: str) -> bool:
 
         s3 = boto3.client(
             "s3",
-            endpoint_url=R2_ENDPOINT,
-            aws_access_key_id=R2_KEY,
-            aws_secret_access_key=R2_SECRET,
+            endpoint_url=B2_ENDPOINT,
+            aws_access_key_id=B2_KEY_ID,
+            aws_secret_access_key=B2_APP_KEY,
         )
 
         fname = os.path.basename(archive_path)
         s3.upload_file(
             archive_path,
-            R2_BUCKET,
+            B2_BUCKET,
             f"wallet-labels/{fname}",
         )
-        logger.info("Uploaded to R2: wallet-labels/%s", fname)
+        logger.info("Uploaded to B2: wallet-labels/%s", fname)
         return True
     except ImportError:
-        logger.warning("boto3 not installed - skipping R2 upload")
+        logger.warning("boto3 not installed - skipping B2 upload")
         return False
     except Exception as e:
-        logger.error("R2 upload failed: %s", e)
+        logger.error("B2 upload failed: %s", e)
         return False
 
 
@@ -235,7 +237,7 @@ def main():
     archive = create_backup()
 
     # 3. Upload to cloud
-    uploaded = upload_to_r2(archive)
+    uploaded = upload_to_b2(archive)
 
     # 4. Sync to Redis
     synced = sync_to_redis()
