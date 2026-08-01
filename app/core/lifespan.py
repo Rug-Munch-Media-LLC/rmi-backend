@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Keep strong references to background tasks so they are never garbage-collected.
+_background_tasks: list[Any] = []
+
 # Background task imports (lazy, at startup time)
 
 
@@ -29,6 +32,18 @@ async def lifespan(app: FastAPI) -> Any:
         raise RuntimeError(
             "CRITICAL: WALLET_VAULT_PASSWORD environment variable is missing or empty. "
             "The backend will not start without it to prevent silent wallet key loss."
+        )
+
+    # Fail startup loudly when the RAG API key is unset — otherwise the
+    # RAG scam-check integration silently degrades to pattern matching.
+    from app.config import settings
+
+    rag_api_key = (settings.rmi_rag_api_key or "").strip()
+    if not rag_api_key:
+        raise RuntimeError(
+            "CRITICAL: RMI_RAG_API_KEY is missing or empty. The RAG scam-check "
+            "integration cannot authenticate to rmi-rag-api; the backend will "
+            "not start to prevent silent degradation of scam checks."
         )
 
     app.state.http_client = httpx.AsyncClient(
@@ -58,10 +73,7 @@ async def _start_background_tasks(app: FastAPI) -> None:
         try:
             mod = __import__(module_path, fromlist=[func_name])
             fn = getattr(mod, func_name)
-            if name == "auto_sweep":
-                asyncio.create_task(fn())
-            else:
-                asyncio.create_task(fn())
+            _background_tasks.append(asyncio.create_task(fn()))
             logger.info("background_task_started", task=name, interval=interval)
         except Exception as e:
             logger.warning("background_task_failed", task=name, error=str(e))
@@ -70,7 +82,7 @@ async def _start_background_tasks(app: FastAPI) -> None:
     try:
         from app.databus.core import cache_warm_loop
 
-        asyncio.create_task(cache_warm_loop(app))
+        _background_tasks.append(asyncio.create_task(cache_warm_loop(app)))
         logger.info("background_task_started", task="databus_cache_warmer", interval="")
     except Exception as e:
         logger.warning("background_task_failed", task="databus_cache_warmer", error=str(e))
