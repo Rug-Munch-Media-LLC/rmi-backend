@@ -9,6 +9,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.rag.engine import (
     get_stats as engine_get_stats,
@@ -25,6 +27,16 @@ from app.rag.models import (
 )
 
 log = get_logger(__name__)
+
+
+def _record_rag_proxy(operation: str, status: str) -> None:
+    """Record a backend->RAG proxy call for the prometheus metrics module."""
+    try:
+        from app.core.metrics import RAG_BACKEND_PROXY
+
+        RAG_BACKEND_PROXY.labels(operation=operation, status=status).inc()
+    except Exception as e:  # pragma: no cover - metrics must never break search
+        log.warning("rag_proxy_metric_failed", error=str(e))
 
 
 class RAGService:
@@ -55,8 +67,10 @@ class RAGService:
                 min_similarity=req.min_similarity,
                 filters=req.filters or None,
             )
+            _record_rag_proxy("search", "success")
         except Exception as e:
             log.warning("rag_search_failed", error=str(e))
+            _record_rag_proxy("search", "failure")
             raw = []
         took_ms = int((time.monotonic() - start) * 1000)
         hits = [self._wrap_hit(h, req.collection) for h in (raw or [])]
