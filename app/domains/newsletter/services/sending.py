@@ -1,4 +1,4 @@
-"""Email sending — Postmark, SES, Mailgun providers + crypto payment verification."""
+"""Email sending — Postmark, Mailgun providers + crypto payment verification."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ async def send_email(
     sub_id: str,
     nl_id: str,
 ) -> None:
-    """Send an email via the configured provider (Postmark/SES/Mailgun)."""
+    """Send an email via the configured provider (Postmark/Mailgun)."""
     client = await get_http_client()
 
     if provider == "postmark":
@@ -42,29 +42,6 @@ async def send_email(
             headers={
                 "X-Postmark-Server-Token": api_key,
                 "Accept": "application/json",
-            },
-            timeout=15.0,
-        )
-    elif provider == "ses":
-        from_email = get_setting("newsletter_from_email", "newsletter@rugmunch.io")
-
-        await client.post(
-            "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
-            json={
-                "FromEmailAddress": from_email,
-                "Destination": {"ToAddresses": [to_email]},
-                "Content": {
-                    "Simple": {
-                        "Subject": {"Data": subject},
-                        "Body": {
-                            "Html": {"Data": html_body},
-                            "Text": {"Data": text_body},
-                        },
-                    },
-                },
-            },
-            headers={
-                "X-Api-Key": get_setting("aws_ses_key", ""),
             },
             timeout=15.0,
         )
@@ -96,14 +73,12 @@ async def send_email(
 async def get_email_provider() -> str | None:
     """Determine which email provider is configured.
 
-    Priority: Postmark > Mailgun > SES > None (email disabled).
+    Priority: Postmark > Mailgun > None (email disabled).
     """
     if get_setting("postmark_api_key", ""):
         return "postmark"
     if get_setting("mailgun_api_key", ""):
         return "mailgun"
-    if get_setting("aws_ses_key", ""):
-        return "ses"
     return None
 
 
