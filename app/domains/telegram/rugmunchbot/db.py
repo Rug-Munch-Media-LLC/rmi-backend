@@ -8,12 +8,38 @@ SQLite-based user tracking, subscriptions, scan counts, watchlists.
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import sqlite3
+import tempfile
 import time
 from datetime import UTC, datetime, timedelta
 
-DB_PATH = os.getenv("BOT_DB_PATH", os.path.join(os.path.dirname(__file__), "data", "bot_users.db"))
+logger = logging.getLogger(__name__)
+
+
+def _resolve_db_path() -> str:
+    """Resolve the bot SQLite path to a writable location.
+
+    Priority:
+      1. BOT_DB_PATH env override.
+      2. Package-local data dir (default) — used when writable.
+      3. Temp dir fallback for read-only containers (/app is read-only).
+    """
+    override = os.getenv("BOT_DB_PATH", "").strip()
+    if override:
+        return override
+    default = os.path.join(os.path.dirname(__file__), "data", "bot_users.db")
+    try:
+        os.makedirs(os.path.dirname(default), exist_ok=True)
+        return default
+    except OSError:
+        fallback_dir = os.path.join(tempfile.gettempdir(), "rmi", "telegram")
+        os.makedirs(fallback_dir, exist_ok=True)
+        return os.path.join(fallback_dir, "bot_users.db")
+
+
+DB_PATH = _resolve_db_path()
 
 
 def get_db() -> sqlite3.Connection:
@@ -494,4 +520,9 @@ def get_user_stats(user_id: int) -> dict:
 
 
 # Init on import
-init_db()
+try:
+    init_db()
+except Exception:
+    # Router must still mount if the DB is unavailable (e.g. read-only
+    # filesystem) — handlers degrade gracefully per-request.
+    logger.warning("bot_db_init_failed", exc_info=True)

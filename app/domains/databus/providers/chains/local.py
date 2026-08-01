@@ -216,11 +216,15 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
 
 
 async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict | None:
-    """RAG search against our vector store."""
+    """RAG search against the rmi-rag-api vector store."""
     try:
+        from app.config import settings
+
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(
-                f"http://localhost:8000/api/v1/rag/search?q={query}&collection={collection}",
+                "http://rmi-rag-api:8012/api/v1/search",
+                params={"q": query, "collection": collection, "limit": kw.get("limit", 5)},
+                headers={"X-API-Key": settings.rmi_rag_api_key},
             )
             if r.status_code == 200:
                 return r.json()

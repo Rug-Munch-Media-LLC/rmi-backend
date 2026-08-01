@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import tempfile
 import time
 import uuid
 from datetime import UTC, datetime
@@ -32,9 +33,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.errors import AuthorizationError, ExternalAPIError
+from app.core.logging import get_logger
 
 # ── AI Security Guard ──
 from app.security.ai_guard import AIGuard
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
@@ -51,8 +55,26 @@ if TYPE_CHECKING:
 
     import redis.asyncio as redis
 
+
 # ── DB path ──
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db")
+# The container runs read-only except /tmp and /dev/shm, so /app/data is not
+# writable at runtime. Allow override via CHAT_DB_PATH; fall back to the
+# repo data dir when writable, otherwise a per-app temp dir.
+def _resolve_db_path() -> str:
+    override = os.getenv("CHAT_DB_PATH", "").strip()
+    if override:
+        return override
+    repo_data = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db")
+    try:
+        os.makedirs(os.path.dirname(repo_data), exist_ok=True)
+        return repo_data
+    except OSError:
+        fallback_dir = os.path.join(tempfile.gettempdir(), "rmi")
+        os.makedirs(fallback_dir, exist_ok=True)
+        return os.path.join(fallback_dir, "chat.db")
+
+
+DB_PATH = _resolve_db_path()
 
 # ── Free API endpoints for market context ──
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -107,7 +129,12 @@ def _ensure_tables() -> None:
     conn.close()
 
 
-_ensure_tables()
+try:
+    _ensure_tables()
+except Exception:
+    # Router must mount even if the DB layer is unavailable (e.g. read-only
+    # filesystem) — the handlers degrade gracefully per-request.
+    logger.warning("chat_db_init_failed", exc_info=True)
 
 # ── System Prompt ──
 SYSTEM_PROMPT = """You are the RMI Terminal, Rug Munch Intelligence's flagship AI engine.
