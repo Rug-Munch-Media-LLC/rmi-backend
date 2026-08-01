@@ -569,11 +569,11 @@ async def save_report(catalog, report: ScanReport) -> bool:
         if catalog._health.minio:
             try:
                 # MinIO upload is complex; skip for v1, store markdown in Postgres instead
-                # Future: use boto3 or httpx PUT to minio with signed URL
+                # Future: use httpx PUT to minio with signed URL
                 pass
-            except httpx.HTTPError as e:
+            except Exception as e:
                 log.debug(f"minio_upload_skip: {e}")
         return True
-    except httpx.HTTPError as e:
+    except Exception as e:
         log.warning(f"save_report_fail: {e}")
         return False

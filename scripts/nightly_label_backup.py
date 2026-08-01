@@ -21,7 +21,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = os.environ.get("RMI_DATA_DIR", "/root/backend/data")
+DATA_DIR = os.environ.get("RMI_DATA_DIR", "/app/data")
 CLEAN_DIR = os.path.join(DATA_DIR, "wallet-labels-clean")
 BACKUP_DIR = os.path.join(DATA_DIR, "wallet-labels-backups")
 MANIFEST_PATH = os.path.join(CLEAN_DIR, "manifest.json")
@@ -143,31 +143,83 @@ def create_backup():
 
 
 def upload_to_b2(archive_path: str) -> bool:
-    """Upload backup to B2 cloud storage (S3-compatible API)."""
+    """Upload backup to B2 cloud storage (native B2 HTTP API via httpx)."""
     if not all([B2_ENDPOINT, B2_KEY_ID, B2_APP_KEY]):
         logger.warning("B2 not configured - skipping cloud upload")
         return False
 
     try:
-        import boto3
+        import base64
+        from urllib.parse import quote
 
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=B2_ENDPOINT,
-            aws_access_key_id=B2_KEY_ID,
-            aws_secret_access_key=B2_APP_KEY,
+        import httpx
+
+        # 1. Authorize account (native B2 API)
+        basic = base64.b64encode(f"{B2_KEY_ID}:{B2_APP_KEY}".encode()).decode()
+        auth_resp = httpx.post(
+            "https://api.backblazeb2.com/b2api/v3/b2_authorize_account",
+            headers={"Authorization": f"Basic {basic}"},
+            timeout=30,
         )
+        auth_resp.raise_for_status()
+        auth = auth_resp.json()
+        api_url = auth["apiUrl"]
+        auth_token = auth["authorizationToken"]
+        account_id = auth["accountId"]
 
+        auth_headers = {"Authorization": auth_token}
+
+        # 2. Resolve bucket ID by name
+        buckets_resp = httpx.post(
+            f"{api_url}/b2api/v3/b2_list_buckets",
+            json={"accountId": account_id, "bucketName": B2_BUCKET},
+            headers=auth_headers,
+            timeout=30,
+        )
+        buckets_resp.raise_for_status()
+        buckets = buckets_resp.json().get("buckets", [])
+        bucket_id = next((b["bucketId"] for b in buckets if b["bucketName"] == B2_BUCKET), None)
+        if not bucket_id:
+            logger.error("B2 bucket not found: %s", B2_BUCKET)
+            return False
+
+        # 3. Get upload URL + token
+        upload_resp = httpx.post(
+            f"{api_url}/b2api/v3/b2_get_upload_url",
+            json={"bucketId": bucket_id},
+            headers=auth_headers,
+            timeout=30,
+        )
+        upload_resp.raise_for_status()
+        upload = upload_resp.json()
+        upload_url = upload["uploadUrl"]
+        upload_token = upload["authorizationToken"]
+
+        # 4. Upload file
         fname = os.path.basename(archive_path)
-        s3.upload_file(
-            archive_path,
-            B2_BUCKET,
-            f"wallet-labels/{fname}",
-        )
+        # B2 API requires SHA-1 for content verification (X-Bz-Content-Sha1) — not used for security
+        sha1 = hashlib.sha1()  # noqa: S324
+        with open(archive_path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                sha1.update(chunk)
+
+        with open(archive_path, "rb") as f:
+            put_resp = httpx.post(
+                upload_url,
+                content=f,
+                headers={
+                    "Authorization": upload_token,
+                    "X-Bz-File-Name": quote(f"wallet-labels/{fname}"),
+                    "X-Bz-Content-Sha1": sha1.hexdigest(),
+                    "Content-Type": "application/octet-stream",
+                },
+                timeout=300,
+            )
+        put_resp.raise_for_status()
         logger.info("Uploaded to B2: wallet-labels/%s", fname)
         return True
     except ImportError:
-        logger.warning("boto3 not installed - skipping B2 upload")
+        logger.warning("httpx not installed - skipping B2 upload")
         return False
     except Exception as e:
         logger.error("B2 upload failed: %s", e)
