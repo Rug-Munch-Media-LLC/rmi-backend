@@ -126,10 +126,7 @@ async def process_block_deployers(
                     timestamp = ""
                     if block_data:
                         ts_raw = block_data.get("timestamp", "0x0")
-                        if isinstance(ts_raw, str):
-                            ts_val = int(ts_raw, 16)
-                        else:
-                            ts_val = int(ts_raw or 0)
+                        ts_val = int(ts_raw, 16) if isinstance(ts_raw, str) else int(ts_raw or 0)
                         if ts_val > 0:
                             from datetime import UTC, datetime
 
@@ -369,3 +366,103 @@ async def run_deployer_tracker(
     )
 
     return summary
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLI ENTRY POINT
+# ═══════════════════════════════════════════════════════════════════════════
+# Provides a schedulable entry point (systemd timer / cron):
+#   python3 -m app.domains.indexer.deployer_tracker --chains ethereum,base,bsc
+#   python3 -m app.domains.indexer.deployer_tracker --chain ethereum --from-block 25645000 --to-block 25646000
+#
+# The default is a periodic head sweep: each run scans (tip - 100) → tip for
+# contract creations and inserts them into wallet_memory.deployer_events.
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point for the deployer tracker sweep."""
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(
+        description="Deployer Tracker — detect contract deployments via tx receipts",
+    )
+    parser.add_argument(
+        "--chain",
+        default=None,
+        help="Single chain to sweep (e.g. ethereum). Overrides --chains.",
+    )
+    parser.add_argument(
+        "--chains",
+        default="ethereum",
+        help="Comma-separated chains to sweep (default: ethereum)",
+    )
+    parser.add_argument(
+        "--from-block",
+        type=int,
+        default=None,
+        help="Override starting block (None = tip - HEAD_BUFFER)",
+    )
+    parser.add_argument(
+        "--to-block",
+        type=int,
+        default=None,
+        help="Override ending block (None = chain tip)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=1000,
+        help="Max blocks per batch (default: 1000)",
+    )
+    parser.add_argument(
+        "--start-from-head",
+        action="store_true",
+        default=False,
+        help="Scan from chain tip instead of shared state (recommended for periodic sweeps)",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON summary instead of structured logs",
+    )
+    args = parser.parse_args(argv)
+
+    chains = [args.chain] if args.chain else [c.strip() for c in args.chains.split(",") if c.strip()]
+    # Periodic sweeps always start from the head — the shared indexer state
+    # file belongs to the main indexer and must not be consumed by this sweep.
+    start_from_head = args.start_from_head or (args.from_block is None and args.to_block is None)
+
+    results: list[dict[str, Any]] = []
+    exit_code = 0
+    for chain in chains:
+        try:
+            summary = asyncio.run(
+                run_deployer_tracker(
+                    chain,
+                    from_block=args.from_block,
+                    to_block=args.to_block,
+                    batch_size=args.batch_size,
+                    start_from_head=start_from_head,
+                )
+            )
+        except KeyboardInterrupt:
+            logger.info("deployer_tracker_interrupted")
+            return 130
+        except Exception as exc:
+            logger.error("deployer_tracker_failed", chain=chain, error=str(exc))
+            summary = {"chain": chain, "status": "error", "error": str(exc)}
+            exit_code = 1
+        results.append(summary)
+        if summary.get("status") not in ("ok", "no_events", "no_tx_hashes"):
+            exit_code = 1
+
+    if args.json:
+        print(json.dumps(results, default=str))
+    return exit_code
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

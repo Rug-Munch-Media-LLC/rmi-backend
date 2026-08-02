@@ -1,0 +1,15 @@
+[Unit]
+Description=Deployer Tracker sweep — every 15 minutes
+Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
+
+[Timer]
+# Sweep the last ~100 blocks on each EVM chain every 15 minutes.
+# The lite indexer already resolves DEX pair deployers (source='lite_indexer');
+# this catches ALL other contract creations (source='deployer_tracker').
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
