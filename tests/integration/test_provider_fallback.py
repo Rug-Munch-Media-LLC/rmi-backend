@@ -266,12 +266,14 @@ class TestRateLimiterBehavior:
     @pytest.mark.integration
     def test_scan_rate_limiter_tiers(self) -> None:
         """Scan rate limiter has tier constants."""
-        from app.scan_rate_limiter import FREE_DAILY_LIMIT, PRO_DAILY_LIMIT
+        from app.core.rate_limiter import TIER_LIMITS, Tier
 
-        assert isinstance(FREE_DAILY_LIMIT, int)
-        assert isinstance(PRO_DAILY_LIMIT, int)
-        assert FREE_DAILY_LIMIT > 0 or True  # Might be env-configured
-        assert PRO_DAILY_LIMIT >= FREE_DAILY_LIMIT or PRO_DAILY_LIMIT == 0
+        free_scans = TIER_LIMITS[Tier.FREE]["sentinel_scans_per_day"]
+        pro_scans = TIER_LIMITS[Tier.PRO]["sentinel_scans_per_day"]
+        assert isinstance(free_scans, int)
+        assert isinstance(pro_scans, int)
+        assert free_scans > 0
+        assert pro_scans >= free_scans
 
     @pytest.mark.integration
     def test_rate_tracker_provider_limits(self) -> None:

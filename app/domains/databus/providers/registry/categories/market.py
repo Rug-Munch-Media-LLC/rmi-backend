@@ -362,4 +362,123 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── Market movers (top gainers/losers) — local backend + trending feeds ──
+    chains["market_movers"] = ProviderChain(
+        data_type="market_movers",
+        description="Top market movers — local market overview → trending feeds",
+        providers=[
+            Provider(
+                "rmi_market_overview",
+                ProviderTier.LOCAL,
+                _g["_passthrough_market_overview"],
+                weight=10.0,
+            ),
+            Provider(
+                "rmi_trending",
+                ProviderTier.LOCAL,
+                _g["_passthrough_trending"],
+                weight=8.0,
+            ),
+            Provider(
+                "solana_tracker_trending",
+                ProviderTier.FREEMIUM,
+                _g["_solana_tracker_trending"],
+                weight=5.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="SOLANATRACKER_API_KEY",
+                monthly_quota=5000,
+            ),
+        ],
+    )
+
+    # ── DEX pool data (liquidity depth, volume, price impact) ──
+    chains["dex_data"] = ProviderChain(
+        data_type="dex_data",
+        description="DEX pool data — liquidity depth, volume, pairs (DexScreener → Birdeye)",
+        providers=[
+            Provider(
+                "dexscreener_meta",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_token_metadata"],
+                weight=10.0,
+                rate_limit_rps=3.0,
+            ),
+            Provider(
+                "dexscreener_price",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_price"],
+                weight=8.0,
+                rate_limit_rps=3.0,
+            ),
+            Provider(
+                "birdeye_overview_api",
+                ProviderTier.FREEMIUM,
+                _g["_birdeye_overview"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
+        ],
+    )
+
+    # ── DeFi protocol tracker (TVL, chains, categories, revenue) ──
+    chains["defi_protocols"] = ProviderChain(
+        data_type="defi_protocols",
+        description="DeFi protocol tracker — TVL, chains, categories (DeFiLlama free)",
+        providers=[
+            Provider(
+                "defillama_tvl_api",
+                ProviderTier.FREE_API,
+                _g["_defillama_tvl"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "defillama_chains_api",
+                ProviderTier.FREE_API,
+                _g["_defillama_chains"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+    # ── Rich token detail (market cap, volume, liquidity, holders, risk) ──
+    chains["token_detail"] = ProviderChain(
+        data_type="token_detail",
+        description="Full token intelligence — market cap, volume, liquidity, holders, risk flags",
+        providers=[
+            Provider(
+                "dexscreener_meta",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_token_metadata"],
+                weight=10.0,
+                rate_limit_rps=3.0,
+            ),
+            Provider(
+                "solana_tracker_token",
+                ProviderTier.FREEMIUM,
+                _g["_solana_tracker_token"],
+                weight=6.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="SOLANATRACKER_API_KEY",
+                monthly_quota=5000,
+            ),
+            Provider(
+                "birdeye_overview_api",
+                ProviderTier.FREEMIUM,
+                _g["_birdeye_overview"],
+                weight=4.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
+        ],
+    )
+
     return chains

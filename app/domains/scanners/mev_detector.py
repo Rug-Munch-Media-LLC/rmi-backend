@@ -22,6 +22,11 @@ from app.core.logging import get_logger
 
 logger = get_logger("mev_detector")
 
+# Solana RPC endpoint — configurable (defaults to Helius public endpoint).
+# Epoch-spanning JSON-RPC traffic should prefer the unified RpcRouter when
+# available; this constant is used for keyed Helius calls in this module.
+HELIUS_RPC_URL = os.getenv("HELIUS_RPC_URL", "https://mainnet.helius-rpc.com")
+
 # ─── Known MEV bot addresses ─────────────────────────────────────────
 
 # Solana Jito tip accounts (verified May 2026)
@@ -249,7 +254,7 @@ class MEVDetector:
     async def _fetch_sol_signatures(self, address: str, limit: int) -> list[dict]:
         """Fetch recent transaction signatures for a Solana token."""
         if not self.helius_key or not self.chain:
-            url = f"https://mainnet.helius-rpc.com/?api-key={self.helius_key}"
+            url = f"{HELIUS_RPC_URL}/?api-key={self.helius_key}"
             async with httpx.AsyncClient(timeout=15.0) as client:
                 try:
                     resp = await client.post(

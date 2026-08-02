@@ -138,7 +138,7 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             get_dev_reputation,
             get_enhanced_token_report,
             get_smart_money,
-            get_token_launches,
+            get_token_launches,  # noqa: F401  # availability probe for rugcharts_intel
             get_whale_alerts,
             track_cross_chain_entity,
         )
@@ -305,5 +305,125 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         )
     except ImportError:
         pass
+
+    # ── Threat intelligence check (known scams, malicious patterns, risk) ──
+    chains["threat_check"] = ProviderChain(
+        data_type="threat_check",
+        description="Threat intelligence check — scraped intel → SENTINEL scan → RAG known scams",
+        providers=[
+            Provider(
+                "scraped_intel_local",
+                ProviderTier.LOCAL,
+                _g["_scraped_intel_provider"],
+                weight=15.0,
+                is_local=True,
+                description="Scraped scam reports / threat intel from pryscraper Postgres",
+            ),
+            Provider(
+                "sentinel_scanner",
+                ProviderTier.LOCAL,
+                _g["_passthrough_scanner"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "local_rag",
+                ProviderTier.LOCAL,
+                _g["_passthrough_rag"],
+                weight=5.0,
+            ),
+        ],
+    )
+
+    # ── Smart contract deep scan (Slither + Mythril) ──
+    chains["contract_scan"] = ProviderChain(
+        data_type="contract_scan",
+        description="Deep contract audit — SENTINEL scan → scraped intel → RAG",
+        providers=[
+            Provider(
+                "sentinel_scanner",
+                ProviderTier.LOCAL,
+                _g["_passthrough_scanner"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "scraped_intel_local",
+                ProviderTier.LOCAL,
+                _g["_scraped_intel_provider"],
+                weight=8.0,
+                is_local=True,
+                description="Scraped scam reports / threat intel from pryscraper Postgres",
+            ),
+            Provider(
+                "local_rag",
+                ProviderTier.LOCAL,
+                _g["_passthrough_rag"],
+                weight=3.0,
+            ),
+        ],
+    )
+
+    # ── Deep SENTINEL scan + threat feeds + contract analysis ──
+    chains["sentinel_deep"] = ProviderChain(
+        data_type="sentinel_deep",
+        description="Full threat scan — SENTINEL deep scan → scraped intel → RAG known scams",
+        providers=[
+            Provider(
+                "sentinel_scanner",
+                ProviderTier.LOCAL,
+                _g["_passthrough_scanner"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "scraped_intel_local",
+                ProviderTier.LOCAL,
+                _g["_scraped_intel_provider"],
+                weight=8.0,
+                is_local=True,
+                description="Scraped scam reports / threat intel from pryscraper Postgres",
+            ),
+            Provider(
+                "local_rag",
+                ProviderTier.LOCAL,
+                _g["_passthrough_rag"],
+                weight=5.0,
+            ),
+        ],
+    )
+
+    # ── Holder concentration map (RugMap) ──
+    chains["rugmap"] = ProviderChain(
+        data_type="rugmap",
+        description="Holder concentration map — ClickHouse holders → DexScreener holders → Birdeye",
+        providers=[
+            Provider(
+                "chain_indexer_holders",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_holders"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers aggregation — holder distribution from transfer activity",
+            ),
+            Provider(
+                "dexscreener_holders",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_holders"],
+                weight=8.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "birdeye_overview_api",
+                ProviderTier.FREEMIUM,
+                _g["_birdeye_overview"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
+        ],
+    )
 
     return chains
