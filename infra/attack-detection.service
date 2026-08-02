@@ -1,0 +1,29 @@
+[Unit]
+Description=C6 Time-Based Attack Detection (sandwich / pump & dump / flash loan)
+Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /srv/work/repos/rmi-backend/scripts/run_attack_detection.py --chain all --hours-back 1
+WorkingDirectory=/srv/work/repos/rmi-backend
+User=root
+Group=root
+
+# Environment (override in /etc/conf.d/attack-detection or systemd override)
+Environment=PYTHONUNBUFFERED=1
+Environment=CLICKHOUSE_HOST=rmi-clickhouse
+Environment=REDIS_HOST=rmi-redis
+
+# Resource limits — attack detection scans 1h of dex_events, never long
+CPUQuota=100%
+MemoryMax=1536M
+TimeoutStartSec=180
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

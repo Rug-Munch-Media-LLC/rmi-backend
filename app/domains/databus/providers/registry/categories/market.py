@@ -40,6 +40,14 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         data_type="token_price",
         description="Token price across DEXs and CEXs",
         providers=[
+            Provider(
+                "token_price_local",
+                ProviderTier.LOCAL,
+                _g["token_price_local"],
+                weight=25.0,
+                is_local=True,
+                description="F2 price oracle — own dex_events + free APIs (Redis/ClickHouse cached)",
+            ),
             Provider("local_price", ProviderTier.LOCAL, _g["_local_token_price"], weight=10.0),
             Provider(
                 "solana_tracker",
@@ -67,6 +75,21 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 requires_key=True,
                 key_env="MORALIS_API_KEY",
                 monthly_quota=5000,
+            ),
+        ],
+    )
+
+    chains["token_meta"] = ProviderChain(
+        data_type="token_meta",
+        description="Token metadata — decimals, symbol, name, last known price",
+        providers=[
+            Provider(
+                "token_meta_local",
+                ProviderTier.LOCAL,
+                _g["token_meta_local"],
+                weight=10.0,
+                is_local=True,
+                description="F2 price oracle token_meta (ClickHouse token_meta + DexScreener decimals)",
             ),
         ],
     )

@@ -381,7 +381,7 @@ class CloneScanner:
             report.clone_score = self._compute_clone_score(report)
             report.risk_label = self._label_risk(report.clone_score)
 
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as e:
             logger.error(f"Clone scan error for {address}: {e}")
             report.errors.append(str(e))
             report.risk_label = "error"
@@ -563,7 +563,7 @@ class CloneScanner:
                             "telegram": info.get("telegram", ""),
                             "website": info.get("website", ""),
                         }
-        except Exception as e:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as e:
             logger.debug(f"DexScreener fetch failed for {address}: {e}")
 
         # Jupiter token list for Solana
@@ -579,7 +579,7 @@ class CloneScanner:
                             result.setdefault("name", token.get("name", ""))
                             result.setdefault("symbol", token.get("symbol", ""))
                             break
-            except Exception as e:
+            except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as e:
                 logger.debug(f"Jupiter fetch failed: {e}")
 
         # Birdeye fallback
@@ -596,7 +596,7 @@ class CloneScanner:
                         result.setdefault("name", data.get("name", ""))
                         result.setdefault("symbol", data.get("symbol", ""))
                         result.setdefault("price_usd", data.get("price", ""))
-            except Exception as e:
+            except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as e:
                 logger.debug(f"Birdeye fetch failed: {e}")
 
         return result
@@ -740,7 +740,7 @@ class CloneScanner:
                             )
                         )
 
-            except Exception as e:
+            except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as e:
                 logger.debug(f"Name search failed for '{query}': {e}")
 
         # Sort by similarity descending, take top 20

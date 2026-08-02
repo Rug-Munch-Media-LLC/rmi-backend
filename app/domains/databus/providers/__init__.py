@@ -126,6 +126,13 @@ def __getattr__(name: str) -> Any:
         "_chain_indexer_whale_detect": "chains.chain_indexer_own",
         "_chain_indexer_volume_authenticity": "chains.chain_indexer_own",
         "_chain_indexer_holder_age": "chains.chain_indexer_own",
+        # C6 — time-based attack detection (LOCAL tier, ClickHouse-only)
+        "_chain_indexer_attack_detection": "chains.chain_indexer_own",
+        # C7 — deployer behavioral fingerprint (LOCAL tier, ClickHouse-only)
+        "_chain_indexer_deployer_fingerprint": "chains.chain_indexer_own",
+        # F2 price/decimals oracle providers (LOCAL tier)
+        "token_price_local": "chains.price_oracle_provider",
+        "token_meta_local": "chains.price_oracle_provider",
     }
 
     module_path = _chain_map.get(name)
@@ -216,6 +223,10 @@ __all__ = [
     "_chain_indexer_whale_detect",
     "_chain_indexer_volume_authenticity",
     "_chain_indexer_holder_age",
+    "_chain_indexer_attack_detection",
+    "_chain_indexer_deployer_fingerprint",
+    "token_price_local",
+    "token_meta_local",
     "_scraped_intel_provider",
     "_spl_metadata_decoder_provider",
     "_virustotal_url_scan",

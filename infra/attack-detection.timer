@@ -1,0 +1,12 @@
+[Unit]
+Description=C6 Time-Based Attack Detection — every 5 minutes
+Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
+
+[Timer]
+# Run every 5 minutes (scans the last hour of blocks; Redis cache dedupes)
+OnCalendar=*:0/5
+Persistent=true
+RandomizedDelaySec=10
+
+[Install]
+WantedBy=timers.target
