@@ -2,7 +2,6 @@
 # This file is an AI EMBEDDING provider dispatcher — not a general API rate limiter.
 # The RateTracker/EmbeddingDispatcher here solves a different problem (load-balancing
 # across free embedding providers). For API request rate limiting, use UnifiedRateLimiter.
-from __future__ import annotations
 
 """
 Rate-Limit-Aware Multi-Provider System
@@ -22,8 +21,9 @@ Provider limits (verified June 2026):
 Auto-detects credit status and adjusts limits accordingly.
 """
 
+from __future__ import annotations
+
 import asyncio
-import contextlib
 import hashlib
 import os
 import time
@@ -104,19 +104,6 @@ def configure_providers(has_openrouter_credits: bool = True) -> None:
             rpd=1000,
             free=True,
             priority=105,
-        ),
-        # ── Tier 1d: Google Vertex AI (768d, Cloud credits - separate from AI Studio) ──
-        ProviderLimit(
-            id="vertex_ai",
-            name="Google Vertex AI",
-            model="text-embedding-004",
-            dims=768,
-            base_url="vertex",  # Special - handled by gcloud_manager
-            key_env="",
-            rpm=50,
-            rpd=5000,
-            free=True,
-            priority=102,
         ),
         # ── Tier 2: Mistral Embed (1024d, 1B free tokens/month) ──
         ProviderLimit(
@@ -484,9 +471,9 @@ class EmbeddingDispatcher:
 
         for p in sorted(self._providers, key=lambda x: -x.priority):
             # Tier filter: only use providers allowed for this task
-            if allowed and p.id not in allowed:
-                if p.id not in ("local_bge", "hash"):  # Local/hash always available as fallback
-                    continue
+            # Local/hash always available as fallback
+            if allowed and p.id not in allowed and p.id not in ("local_bge", "hash"):
+                continue
             # Dimension filter
             if p.dims < min_dims and p.id not in ("local_bge", "hash"):
                 continue
@@ -515,22 +502,6 @@ class EmbeddingDispatcher:
                 vectors = vecs
                 break
 
-            # ── Vertex AI (uses gcloud_manager, not direct API) ──
-            if p.id == "vertex_ai":
-                try:
-                    from app.gcloud_manager import get_gcloud
-
-                    gcloud = get_gcloud()
-                    vecs = await gcloud.embed_vertex(to_embed)
-                    if vecs:
-                        await self.tracker.record(p)
-                        provider_name = p.name
-                        vectors = vecs
-                        break
-                except Exception as e:
-                    logger.warning(f"Vertex AI: {e}")
-                continue
-
             # ── API providers ──
             key = os.environ.get(p.key_env, "") or os.environ.get(p.key_env.replace("_KEY", "_API_KEY"), "")
             if not key or len(key) < 10:
@@ -556,10 +527,6 @@ class EmbeddingDispatcher:
         for text, vec in zip(to_embed, texts, strict=False):
             self.cache.set(text, vec, provider_name)
 
-        # Stream usage to BigQuery (best-effort, non-blocking)
-        with contextlib.suppress(Exception):
-            asyncio.create_task(self._log_to_bigquery(provider_name, task, len(texts)))
-
         # Merge with cached
         result = []
         ci = 0
@@ -574,17 +541,6 @@ class EmbeddingDispatcher:
                 result.append([])
 
         return result, provider_name
-
-    async def _log_to_bigquery(self, provider: str, task: str, count: int) -> None:
-        """Log embedding usage to BigQuery (best-effort, fire-and-forget)."""
-        try:
-            from app.bigquery_pipeline import stream_embedding_usage
-            from app.rate_limiter import PROVIDERS
-
-            dims = next((p.dims for p in PROVIDERS if p.name == provider), 0)
-            await stream_embedding_usage(provider, task, dims, count)
-        except (AttributeError, ImportError):
-            pass
 
     async def _embed_api(self, p: ProviderLimit, key: str, texts: list[str]) -> list[list[float]] | None:
         import httpx
