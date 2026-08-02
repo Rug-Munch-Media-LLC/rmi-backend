@@ -57,6 +57,13 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from redis.exceptions import RedisError
+
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
@@ -174,7 +181,7 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
     # ── 3. Full ClickHouse computation ──
     try:
         result = await _compute_fingerprint(deployer_address, chain_norm)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("deployer_fingerprint_query_failed: %s", exc)
         result = _unavailable_result(deployer_address, chain_norm)
 
@@ -974,7 +981,7 @@ async def _redis_get(key: str) -> dict[str, Any] | None:
             return None
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else None
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("deployer_fingerprint_redis_get_failed: %s", exc)
         return None
 
@@ -989,7 +996,7 @@ async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
             return False
         await r.setex(key, ttl, json.dumps(value, default=str))
         return True
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("deployer_fingerprint_redis_set_failed: %s", exc)
         return False
 

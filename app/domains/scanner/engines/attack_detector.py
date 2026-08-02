@@ -54,6 +54,14 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+from redis.exceptions import RedisError
+
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines.own_dex_data.format import _normalize_amount
 from app.domains.scanner.engines.own_dex_data.query import get_token_price_simple
@@ -763,7 +771,7 @@ async def _estimate_usd(token_address: str, chain: str, raw_amount: float) -> fl
         if amt <= 0:
             return None
         return round(amt * price_usd, 2)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("attack_usd_estimate_failed: %s", exc)
         return None
 
@@ -838,7 +846,7 @@ async def run_attack_detection(
                 all_events.extend(pump_dump)
                 all_events.extend(flash_loan)
                 summary["chains_scanned"].append(chain_name)
-            except Exception as exc:
+            except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
                 logger.warning("attack detection failed for %s: %s", chain_name, exc)
                 continue
 
@@ -871,7 +879,7 @@ async def run_attack_detection(
 
         await _store_window_cache(chains, hours_back)
         summary["result"] = "scanned"
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError, RedisError) as exc:
         logger.warning("run_attack_detection failed: %s", exc)
         summary["result"] = "error"
         summary["error"] = str(exc)[:200]
@@ -947,7 +955,7 @@ async def _push_redis_alerts(events: list[dict[str, Any]]) -> int:
             await redis.ltrim(key, -50, -1)  # keep last 50 alerts per key
             pushed += 1
         return pushed
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.warning("attack redis push failed: %s", exc)
         return pushed
 
@@ -973,7 +981,7 @@ async def _send_telegram_alerts(events: list[dict[str, Any]]) -> int:
                 token_symbol=attack_label,
             )
             sent += 1
-        except Exception as exc:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
             logger.debug("attack telegram alert failed: %s", exc)
     return sent
 
@@ -1016,7 +1024,7 @@ async def _mark_attacker_whale(events: list[dict[str, Any]]) -> int:
     for chain_name, attackers in attackers_by_chain.items():
         try:
             marked += await _run_sync(_query, chain_name, list(attackers))
-        except Exception as exc:
+        except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
             logger.warning("whale marking async failed for %s: %s", chain_name, exc)
     return marked
 
@@ -1059,7 +1067,7 @@ async def _check_window_cache(chains: list[str], hours_back: int) -> bool:
             if not await redis.exists(key):
                 return False
         return True
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("window cache check failed: %s", exc)
         return False
 
@@ -1074,7 +1082,7 @@ async def _store_window_cache(chains: list[str], hours_back: int) -> None:
         for chain_name in chains:
             key = _cache_key(("attack_detect_window", chain_name, str(hours_back)))
             await redis.set(key, payload, ex=CACHE_TTL_SECONDS)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("window cache store failed: %s", exc)
 
 
@@ -1100,7 +1108,7 @@ async def _dedupe_new_events(events: list[dict[str, Any]]) -> list[dict[str, Any
             if created:
                 new_events.append(ev)
         return new_events
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("event dedup failed: %s", exc)
         return events
 

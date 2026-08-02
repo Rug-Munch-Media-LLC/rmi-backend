@@ -43,6 +43,14 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+from redis.exceptions import RedisError
+
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
@@ -134,7 +142,7 @@ async def compute_hype_score(
     # ── 3. Full computation ──
     try:
         result = await _compute_hype(token, chain_norm)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("hype_score_query_failed: %s", exc)
         result = _unavailable_result(token, chain_norm)
 
@@ -230,7 +238,7 @@ async def _social_velocity(token: str, chain: str) -> dict[str, Any]:
 
         trending = await asyncio.wait_for(get_trending_tokens(chain=chain, limit=50), timeout=_TRENDING_TIMEOUT)
         tokens = trending.get("tokens", []) if isinstance(trending, dict) else []
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, RuntimeError) as exc:
         logger.debug("hype_social_trending_failed: %s", exc)
         return {"score": 0.0, "trending_hit": False, "detail": "trending_feed_unavailable"}
 
@@ -273,7 +281,7 @@ async def _volume_growth(token: str, chain: str) -> dict[str, Any]:
     """Score volume growth: rolling 15m USD vs trailing-4h hourly baseline."""
     try:
         short_raw, long_raw = await _run_sync(_query_volume_raw, token, chain)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("hype_volume_query_failed: %s", exc)
         return {"score": 0.0, "detail": "volume_query_failed"}
 
@@ -312,7 +320,7 @@ async def _holder_growth(token: str, chain: str) -> dict[str, Any]:
     """Score holder growth: unique receivers today vs previous day."""
     try:
         today, prev = await _run_sync(_query_holder_growth, token, chain)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("hype_holder_query_failed: %s", exc)
         return {"score": 0.0, "detail": "holder_query_failed"}
 
@@ -345,7 +353,7 @@ async def _price_momentum(token: str, chain: str) -> dict[str, Any]:
         from app.domains.scanner.engines.price_oracle import get_token_price
 
         price = await asyncio.wait_for(get_token_price(token, chain), timeout=_PRICE_TIMEOUT)
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, RuntimeError) as exc:
         logger.debug("hype_price_oracle_failed: %s", exc)
         return {"score": 0.0, "detail": "price_oracle_unavailable"}
 
@@ -523,7 +531,7 @@ async def _raw_to_usd(token: str, chain: str, raw_amount: float) -> float | None
             decimals = 18
         human = raw_amount / (10**decimals)
         return human * price_usd
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, RuntimeError) as exc:
         logger.debug("hype_raw_to_usd_failed %s: %s", token[:16], exc)
         return None
 
@@ -551,7 +559,7 @@ async def _redis_get(key: str) -> dict[str, Any] | None:
             return None
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else None
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("hype_score_redis_get_failed: %s", exc)
         return None
 
@@ -566,7 +574,7 @@ async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
             return False
         await r.setex(key, ttl, json.dumps(value, default=str))
         return True
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("hype_score_redis_set_failed: %s", exc)
         return False
 

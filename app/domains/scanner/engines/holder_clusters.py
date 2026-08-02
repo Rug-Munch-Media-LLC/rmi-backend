@@ -63,6 +63,13 @@ import json
 import time
 from typing import Any, cast
 
+from redis.exceptions import RedisError
+
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
@@ -235,7 +242,7 @@ async def analyze_holder_clusters(
     # ── 3. Full ClickHouse computation ──
     try:
         result = await _compute_clusters(token_address, chain_norm)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("holder_clusters_query_failed: %s", exc)
         result = _unavailable_result(token_address, chain_norm, reason=str(exc)[:120])
 
@@ -862,7 +869,7 @@ async def _get_holder_analysis_gini(token_address: str, chain: str) -> float:
         result = await get_own_holder_analysis(token_address, chain)
         if result and result.get("source") == "own":
             return float(result.get("gini_coefficient") or 0.0)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("holder_analysis_gini_failed: %s", exc)
     return 0.0
 
@@ -875,7 +882,7 @@ async def _get_bundle_analysis(token_address: str, chain: str) -> dict[str, Any]
         result = await get_own_bundle_analysis(token_address, chain)
         if result and result.get("source") == "own":
             return result
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("bundle_analysis_failed: %s", exc)
     return None
 
@@ -927,7 +934,7 @@ async def _redis_get(key: str) -> dict[str, Any] | None:
             return None
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else None
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("holder_clusters_redis_get_failed: %s", exc)
         return None
 
@@ -942,7 +949,7 @@ async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
             return False
         await r.setex(key, ttl, json.dumps(value, default=str))
         return True
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("holder_clusters_redis_set_failed: %s", exc)
         return False
 
