@@ -456,13 +456,13 @@ class TestProviderChains:
 
     def test_build_provider_chains_is_callable(self):
         """build_provider_chains is a callable."""
-        from app.databus.provider_chains import build_provider_chains
+        from app.databus.providers import build_provider_chains
 
         assert callable(build_provider_chains)
 
     def test_build_provider_chains_returns_mapping(self):
         """build_provider_chains returns a non-empty dict."""
-        from app.databus.provider_chains import build_provider_chains
+        from app.databus.providers import build_provider_chains
 
         result = build_provider_chains()
         assert isinstance(result, dict)
@@ -470,7 +470,7 @@ class TestProviderChains:
 
     def test_build_provider_chains_has_major_chains(self):
         """build_provider_chains return contains solana and ethereum."""
-        from app.databus.provider_chains import build_provider_chains
+        from app.databus.providers import build_provider_chains
 
         result = build_provider_chains()
         chains_lower = {k.lower() for k in result}
@@ -478,7 +478,7 @@ class TestProviderChains:
 
     def test_build_provider_chains_values_have_providers(self):
         """All chain entries have a providers list with at least one entry."""
-        from app.databus.provider_chains import build_provider_chains
+        from app.databus.providers import build_provider_chains
 
         result = build_provider_chains()
         for chain, entry in result.items():

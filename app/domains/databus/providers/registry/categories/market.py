@@ -71,6 +71,69 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── market_price_free — free multi-tier fallback (Arkham-quality price replacement) ──
+    #   Tier 1: own ClickHouse DEX events (own TWAP, local)
+    #   Tier 2: DexScreener (free, 300 req/min)
+    #   Tier 3: CoinGecko (free, 10-30 req/min)
+    #   Tier 4: GeckoTerminal (free, no auth)
+    #   Tier 5: 1inch/ParaSwap quotes (ParaSwap free; 1inch freemium w/ key)
+    chains["market_price_free"] = ProviderChain(
+        data_type="market_price_free",
+        description="Free market price fallback: ClickHouse TWAP → DexScreener → CoinGecko → GeckoTerminal → DEX quotes",
+        providers=[
+            Provider(
+                "free_market_clickhouse_twap",
+                ProviderTier.LOCAL,
+                _g["_free_market_clickhouse_twap"],
+                weight=20.0,
+                is_local=True,
+                description="Own ClickHouse dex_events TWAP via own_price_oracle — zero cost",
+            ),
+            Provider(
+                "dexscreener_price_free",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_price"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+                description="DexScreener latest/dex/tokens — live pair price (free)",
+            ),
+            Provider(
+                "free_market_coingecko",
+                ProviderTier.FREE_API,
+                _g["_free_market_coingecko"],
+                weight=6.0,
+                rate_limit_rps=0.5,
+                description="CoinGecko simple/token_price — free tier 10-30 req/min",
+            ),
+            Provider(
+                "free_market_geckoterminal",
+                ProviderTier.FREE_API,
+                _g["_free_market_geckoterminal"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+                description="GeckoTerminal token price (free, no auth)",
+            ),
+            Provider(
+                "free_market_paraswap_quote",
+                ProviderTier.FREE_API,
+                _g["_free_market_paraswap_quote"],
+                weight=3.0,
+                rate_limit_rps=2.0,
+                description="ParaSwap prices — best-route DEX quote (free, no auth)",
+            ),
+            Provider(
+                "free_market_oneinch_quote",
+                ProviderTier.FREEMIUM,
+                _g["_free_market_oneinch_quote"],
+                weight=2.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="ONEINCH_API_KEY",
+                description="1inch swap quote — freemium (API key required as of 2026)",
+            ),
+        ],
+    )
+
     chains["market_overview"] = ProviderChain(
         data_type="market_overview",
         description="Global market cap, BTC/ETH/SOL prices, fear & greed",

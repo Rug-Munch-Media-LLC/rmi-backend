@@ -108,26 +108,76 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
     result["deployer_address"] = deployer_addr or "unknown"
 
     if deployer_addr and deployer_addr != "unknown":
-        # Score deployer reputation using existing engine
-        try:
-            from app.deployer_reputation import score_deployer_risk
+        # ── Score deployer reputation ──
+        # Tier 1: own ClickHouse deployer reputation (rugpull/honeypot proxies)
+        # Tier 2: behavioral fingerprint engine (existing behavior)
+        scored = False
+        if PREFER_OWN_DATA:
+            scored = await _try_own_deployer_reputation(result, deployer_addr, chain)
 
-            scoring_result = score_deployer_risk(
-                address=deployer_addr,
-                deployment_count=deployment_count,
-                source_verified=False,
-            )
-            result["reputation_score"] = scoring_result.get("risk_score", 50)
-            result["reputation_label"] = scoring_result.get("risk_label", "UNKNOWN")
-            result["signals"] = scoring_result.get("signals_found", [])
-            result["mitigations"] = scoring_result.get("mitigations", [])
-            result["fingerprint_match"] = scoring_result.get("fingerprint_match")
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            logger.debug("deployer_scoring_failed", error=str(e))
-            result["reputation_score"] = 50
-            result["reputation_label"] = "UNKNOWN"
+        if not scored:
+            try:
+                from app.deployer_reputation import score_deployer_risk
+
+                scoring_result = score_deployer_risk(
+                    address=deployer_addr,
+                    deployment_count=deployment_count,
+                    source_verified=False,
+                )
+                result["reputation_score"] = scoring_result.get("risk_score", 50)
+                result["reputation_label"] = scoring_result.get("risk_label", "UNKNOWN")
+                result["signals"] = scoring_result.get("signals_found", [])
+                result["mitigations"] = scoring_result.get("mitigations", [])
+                result["fingerprint_match"] = scoring_result.get("fingerprint_match")
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                logger.debug("deployer_scoring_failed", error=str(e))
+                result["reputation_score"] = 50
+                result["reputation_label"] = "UNKNOWN"
 
     return result
+
+
+async def _try_own_deployer_reputation(
+    result: dict[str, Any],
+    deployer_addr: str,
+    chain: str,
+) -> bool:
+    """Attempt own ClickHouse deployer reputation scoring; returns True on success."""
+    try:
+        from app.domains.scanner.engines.own_deployer_reputation import (
+            get_own_deployer_reputation,
+        )
+
+        own_rep = await get_own_deployer_reputation(deployer_addr, chain)
+        if own_rep.get("result") != "scanned" or own_rep.get("confidence", 0) <= 0:
+            return False
+
+        rep_score = own_rep.get("reputation_score", 50)
+        result["reputation_score"] = rep_score
+        result["reputation_label"] = own_rep.get("reputation_label", "UNKNOWN")
+        result["reputation_source"] = "own_clickhouse"
+        result["deployer_metrics"] = {
+            "total_tokens_deployed": own_rep.get("total_tokens_deployed", 0),
+            "rugpull_rate": own_rep.get("rugpull_rate", 0.0),
+            "honeypot_rate": own_rep.get("honeypot_rate", 0.0),
+            "avg_token_lifespan_hours": own_rep.get("avg_token_lifespan_hours"),
+            "deployment_velocity_per_day": own_rep.get("deployment_velocity_per_day", 0.0),
+        }
+        # Backward-compat risk mapping (higher = riskier)
+        result["risk_score"] = max(0, min(100, 100 - rep_score))
+        result["risk_label"] = own_rep.get("reputation_label", "UNKNOWN")
+        logger.info(
+            "Using own deployer reputation for %s (score: %s, confidence: %s)",
+            deployer_addr[:10],
+            rep_score,
+            own_rep.get("confidence"),
+        )
+        return True
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.debug("own_deployer_reputation_failed", error=str(e)[:80])
+    except Exception as exc:
+        logger.debug("own_deployer_reputation_failed", error=str(exc)[:80])
+    return False
 
 
 async def _query_deployer_from_ch(
