@@ -31,12 +31,10 @@ from app.domains.scanner.modules import (
     _get_price_consensus,
 )
 from app.domains.scanner.service.checks import _rag_scam_check
-from app.domains.scanner.service.scoring import _calculate_safety_score, _ingest_scan_to_rag
-from app.domains.scanner.service.stubs import (
-    _check_arkham,
-    _check_blowfish,
-    _check_dune,
-    _check_nansen,
+from app.domains.scanner.service.scoring import (
+    _calculate_safety_score,
+    _ingest_scan_to_rag,
+    _risk_level_from_safety,
 )
 
 logger = get_logger(__name__)
@@ -55,8 +53,7 @@ async def scan_token(
                                     blockscout, defiscanner, token_age, vol/liq ratio)
     PRO tier:     Tier 1 + deployer, holders, verification, liquidity, bundle,
                   lp_concentration, ownership_renounced, social_sentiment
-    ELITE tier:   Tier 1+2 + deep deployer, price consensus, RAG, nansen,
-                  blowfish, dune, arkham
+    ELITE tier:   Tier 1+2 + deep deployer, price consensus, RAG
     """
     if tiers is None:
         tiers = ["free"]
@@ -110,10 +107,6 @@ async def scan_token(
     if "elite" in tiers:
         tasks.append(run_module("price", _get_price_consensus, token_address, chain))
         tasks.append(run_module("rag", _rag_scam_check, token_address, chain))
-        tasks.append(run_module("nansen", _check_nansen, token_address, chain))
-        tasks.append(run_module("blowfish", _check_blowfish, token_address, chain))
-        tasks.append(run_module("dune", _check_dune, token_address, chain))
-        tasks.append(run_module("arkham", _check_arkham, token_address, chain))
 
     # ── Run all tasks ──
     await asyncio.gather(*tasks)
@@ -186,25 +179,36 @@ async def scan_token(
 
     result.risk_flags = risk_flags
 
-    # ── Calculate confidence based on how many modules returned data ──
-    # Improved formula: don't penalize for "unavailable" data (no data exists)
-    # Only penalize for actual failures (errors). Track own-data usage.
-    successful = sum(1 for m in result.modules_run if m.get("status") == "success")
+    # ── Push Telegram alert for high/critical risk (or severe red flags) ──
+    try:
+        from app.domains.telegram.alert_hooks import send_scanner_alert, should_send_scanner_alert
+
+        scan_risk_level = _risk_level_from_safety(float(result.safety_score)) or ""
+        if should_send_scanner_alert(scan_risk_level, list(risk_flags)):
+            await send_scanner_alert(
+                token_address=token_address,
+                chain=chain,
+                risk_score=100 - float(result.safety_score),
+                threats=list(risk_flags),
+                token_name=getattr(result, "name", "") or "Unknown",
+                token_symbol=getattr(result, "symbol", "") or "???",
+            )
+    except Exception as exc:
+        logger.debug("scanner_alert_failed", error=str(exc)[:100])
+
+    # ── Calculate confidence based on modules that actually ran and returned real data ──
+    # Modules returning "pending"/"unavailable" or that errored contribute nothing,
+    # so confidence reflects only modules with actionable results.
     total = len(result.modules_run) if result.modules_run else 1
-    errored = sum(1 for m in result.modules_run if m.get("status") == "error")
-    unavailable = sum(
+    real_count = sum(
         1
         for m in result.modules_run
-        if isinstance(m.get("result"), dict) and m["result"].get("result") in ("unavailable", "no_data")
+        if m.get("status") == "success"
+        and isinstance(m.get("result"), dict)
+        and m["result"].get("result") not in ("pending", "unavailable", "no_data")
     )
-    # Base: only penalize errors, not unavailable data
-    non_error_count = total - errored
-    base_confidence = min(100, int((non_error_count / total) * 100))
-    # Add bonus for modules with real data (not pending/unavailable)
-    pending_count = sum(
-        1 for m in result.modules_run if isinstance(m.get("result"), dict) and m["result"].get("result") == "pending"
-    )
-    real_count = successful - pending_count - unavailable
+    base_confidence = min(100, int((real_count / total) * 100))
+    # Small bonus per module that returned real data
     result.confidence = min(100, base_confidence + real_count * 5)
 
     # ── Record own-data coverage metrics ──

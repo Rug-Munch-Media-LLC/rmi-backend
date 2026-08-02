@@ -168,6 +168,12 @@ class Settings(BaseSettings):
     # ── Telegram ─────────────────────────────────────────────────────────
     telegram_bot_token: str = ""
     telegram_allowed_users: str = "7075336557"
+    scanner_alerts_enabled: bool = Field(
+        default=True,
+        description=(
+            "Master switch for scanner → Telegram alerts. Set SCANNER_ALERTS_ENABLED=false to disable alert noise."
+        ),
+    )
 
     # ── CORS ────────────────────────────────────────────────────────────
     cors_origins: list[str] = Field(
