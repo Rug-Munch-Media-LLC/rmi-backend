@@ -63,6 +63,11 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 from app.domains.scanner.engines.own_dex_data.format import _normalize_amount
 from app.domains.scanner.engines.own_dex_data.query import get_token_price_simple
 
@@ -197,11 +202,6 @@ async def _get_redis() -> Any | None:
         return None
 
 
-async def _run_sync(fn, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 # ── Schema ────────────────────────────────────────────────────────────────────
 ATTACK_TABLE_DDL = f"""
 CREATE TABLE IF NOT EXISTS {ATTACK_TABLE} (
@@ -322,7 +322,7 @@ async def detect_sandwiches(chain: str, hours_back: int = 1, force_fresh: bool =
             logger.debug("sandwich query failed for %s: %s", chain, exc)
             return []
 
-    rows = await _run_sync(_query)
+    rows = await run_sync(_query)
     for row in rows:
         try:
             attacker, block_number, buy_tx, victim_tx, sell_tx = row[0], row[1], row[2], row[3], row[4]
@@ -438,7 +438,7 @@ async def detect_pump_dumps(chain: str, lookback_hours: int = 24, force_fresh: b
             logger.debug("pump_dump pairs query failed for %s: %s", chain, exc)
             return []
 
-    pairs = await _run_sync(_query_pairs)
+    pairs = await run_sync(_query_pairs)
 
     for pair_row in pairs[:50]:
         try:
@@ -542,7 +542,7 @@ async def _query_pair_volume(client: Any, chain: str, pair_address: str) -> tupl
             logger.debug("pair volume query failed: %s", exc)
             return []
 
-    rows = await _run_sync(_query)
+    rows = await run_sync(_query)
     if not rows or not rows[0]:
         return 0.0, 0.0
     try:
@@ -586,7 +586,7 @@ async def _query_price_series(
             logger.debug("price series query failed: %s", exc)
             return []
 
-    rows = await _run_sync(_query)
+    rows = await run_sync(_query)
     prices: list[float] = []
     first_ts = ""
     last_ts = ""
@@ -677,7 +677,7 @@ async def detect_flash_loans(chain: str, hours_back: int = 1, force_fresh: bool 
             logger.debug("flash loan query failed for %s: %s", chain, exc)
             return []
 
-    rows = await _run_sync(_query)
+    rows = await run_sync(_query)
     for row in rows:
         try:
             tx_hash, pair_address, token0, _token1 = row[0], row[1], row[2], row[3]
@@ -879,7 +879,17 @@ async def run_attack_detection(
 
         await _store_window_cache(chains, hours_back)
         summary["result"] = "scanned"
-    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError, RedisError) as exc:
+    except (
+        httpx.HTTPError,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+        RedisError,
+    ) as exc:
         logger.warning("run_attack_detection failed: %s", exc)
         summary["result"] = "error"
         summary["error"] = str(exc)[:200]
@@ -1023,7 +1033,7 @@ async def _mark_attacker_whale(events: list[dict[str, Any]]) -> int:
     marked = 0
     for chain_name, attackers in attackers_by_chain.items():
         try:
-            marked += await _run_sync(_query, chain_name, list(attackers))
+            marked += await run_sync(_query, chain_name, list(attackers))
         except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
             logger.warning("whale marking async failed for %s: %s", chain_name, exc)
     return marked
@@ -1146,21 +1156,22 @@ async def run_periodic_detection(hours_back: int = 1, notify: bool = True) -> di
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache/connection stats for monitoring."""
-    return {
-        "cache_size": len(_RESULT_CACHE),
-        "cache_max": _RESULT_CACHE_MAX,
-        "cache_ttl_seconds": CACHE_TTL_SECONDS,
-        "usd_price_cache_size": len(_USD_PRICE_CACHE),
-        "clickhouse_connected": _ch_client is not None,
-        "redis_connected": _redis_client is not None,
-        "max_execution_time": MAX_EXECUTION_TIME,
-    }
+    return _common_get_cache_stats(
+        _RESULT_CACHE,
+        _RESULT_CACHE_MAX,
+        CACHE_TTL_SECONDS,
+        extra={
+            "usd_price_cache_size": len(_USD_PRICE_CACHE),
+            "clickhouse_connected": _ch_client is not None,
+            "redis_connected": _redis_client is not None,
+            "max_execution_time": MAX_EXECUTION_TIME,
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear in-process caches (for testing)."""
-    _RESULT_CACHE.clear()
-    _USD_PRICE_CACHE.clear()
+    _common_clear_cache(_RESULT_CACHE, _USD_PRICE_CACHE)
 
 
 async def main() -> None:

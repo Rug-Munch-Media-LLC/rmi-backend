@@ -12,11 +12,15 @@ Covered:
   - _classify_concentration — LOW/MEDIUM/HIGH/EXTREME thresholds
   - _compute_hhi — Herfindahl-Hirschman Index
   - _compute_gini — Gini coefficient
+  - _compute_clusters wiring — first_block reaches _classify_holder (sniper)
 """
 
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.domains.scanner.engines import holder_clusters as hc
 
@@ -199,6 +203,7 @@ def _holder(
     labels: list[dict[str, Any]] | None = None,
     funder: str | None = None,
     first_seen: float | None = None,
+    first_block: int | None = None,
 ) -> dict[str, Any]:
     return {
         "address": address,
@@ -206,6 +211,7 @@ def _holder(
         "labels": labels or [],
         "funder": funder,
         "first_seen": first_seen,
+        "first_block": first_block,
     }
 
 
@@ -241,6 +247,27 @@ class TestClassifyHolder:
         deploy = {"deployer": DEPLOYER, "deploy_block": 100, "deploy_ts": 5000.0}
         holder = _holder(first_seen=10000.0)
         assert hc._classify_holder(holder, deploy) == "normal"
+
+    def test_sniper_by_block_window(self) -> None:
+        """first_block within 2 blocks of deploy_block => sniper (block path)."""
+        deploy = {"deployer": DEPLOYER, "deploy_block": 100, "deploy_ts": 5000.0}
+        holder = _holder(first_seen=99999.0, first_block=101)  # far from ts, near block
+        assert hc._classify_holder(holder, deploy) == "sniper"
+
+    def test_not_sniper_outside_block_window(self) -> None:
+        deploy = {"deployer": DEPLOYER, "deploy_block": 100, "deploy_ts": 5000.0}
+        holder = _holder(first_seen=99999.0, first_block=500)
+        assert hc._classify_holder(holder, deploy) == "normal"
+
+    def test_arbitrum_label_is_not_bot(self) -> None:
+        """'arb' must not substring-match 'arbitrum' labels."""
+        labels = [{"label_category": "arbitrum", "label_subtype": "", "label_name": "Arbitrum One"}]
+        assert hc._classify_holder(_holder(labels=labels), None) == "normal"
+
+    def test_arb_bot_keyword_still_classifies_bot(self) -> None:
+        """The replacement keyword 'arb bot' still catches arbitrage bots."""
+        labels = [{"label_category": "bot", "label_subtype": "", "label_name": "Arb Bot"}]
+        assert hc._classify_holder(_holder(labels=labels), None) == "bot"
 
     def test_cex_label_beats_sniper_timing(self) -> None:
         """Institutional labels are never classified as snipers."""
@@ -320,3 +347,79 @@ class TestComputeGini:
 
     def test_empty_is_zero(self) -> None:
         assert hc._compute_gini([]) == 0.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# _compute_clusters wiring — first_block reaches holder classification
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class FakeClusterCHClient:
+    """Sync ClickHouse stand-in dispatching on holder_clusters SQL fragments."""
+
+    def __init__(
+        self,
+        balances: list[tuple] | None = None,
+        first_in: list[tuple] | None = None,
+        first_buy: list[tuple] | None = None,
+        deploy_info: list[tuple] | None = None,
+    ) -> None:
+        self.balances = balances or []
+        self.first_in = first_in or []
+        self.first_buy = first_buy or []
+        self.deploy_info = deploy_info or []
+
+    def execute(self, sql: str, params: dict | None = None, settings: dict | None = None) -> object:
+        if "GROUP BY addr" in sql:  # holder balances
+            return self.balances
+        if "argMin(from_address, block_timestamp) AS funder" in sql:  # first in-transfers
+            return self.first_in
+        if "if(recipient NOT IN" in sql:  # first buy blocks
+            return self.first_buy
+        if "FROM wallet_memory.deployer_events" in sql:  # deploy info
+            return self.deploy_info
+        # wallet_labels / dex_events / is_active all return nothing here
+        return []
+
+
+class TestComputeClustersWiring:
+    """Regression: _compute_clusters passes first_block into _classify_holder."""
+
+    @pytest.mark.asyncio
+    async def test_first_block_reaches_block_sniper_classification(self) -> None:
+        """A holder whose first in-transfer is within 2 blocks of deploy => sniper."""
+        fake = FakeClusterCHClient(
+            balances=[("0xa", 100.0), ("0xb", 5.0)],
+            first_in=[
+                ("0xa", FUNDER, "0xtx1", 100, None),  # block 100 == deploy block
+                ("0xb", FUNDER, "0xtx2", 500, None),  # far outside the window
+            ],
+            deploy_info=[(DEPLOYER, 100, "0xtx", None)],  # deploy block 100
+        )
+        with (
+            patch("app.domains.scanner.engines.holder_clusters._get_ch_client", return_value=fake),
+            # batch label / contract lookups were extracted into _common
+            patch("app.domains.scanner.engines._common._get_ch_client", return_value=fake),
+            patch(
+                "app.domains.scanner.engines.holder_clusters._get_holder_analysis_gini",
+                AsyncMock(return_value=0.0),
+            ),
+            patch(
+                "app.domains.scanner.engines.holder_clusters._get_bundle_analysis",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.domains.scanner.engines.holder_clusters._redis_get",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.domains.scanner.engines.holder_clusters._redis_set",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            out = await hc._compute_clusters(TOKEN, "ethereum")
+
+        assert out["result"] == "scanned"
+        labels = {h["address"]: h["label"] for h in out["holders"]}
+        assert labels["0xa"] == "sniper"  # first_block within 2 blocks of deploy
+        assert labels["0xb"] != "sniper"  # outside the window

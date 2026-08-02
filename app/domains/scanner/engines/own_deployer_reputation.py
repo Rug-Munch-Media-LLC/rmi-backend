@@ -47,6 +47,11 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 from app.domains.scanner.engines.own_dex_data.client import (
     _get_pools_for_token,
     _load_pair_cache,
@@ -123,11 +128,6 @@ def _get_ch_client() -> Any | None:
         return None
 
 
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -194,8 +194,8 @@ async def get_own_deployer_reputation(
 
     try:
         # ── 1. Deployer stats + per-token breakdown ──
-        stats_task = asyncio.create_task(_run_sync(_query_deployer_stats, deployer_address, chain_norm))
-        tokens_task = asyncio.create_task(_run_sync(_query_per_token_lifespan, deployer_address, chain_norm))
+        stats_task = asyncio.create_task(run_sync(_query_deployer_stats, deployer_address, chain_norm))
+        tokens_task = asyncio.create_task(run_sync(_query_per_token_lifespan, deployer_address, chain_norm))
         stats, per_token = await asyncio.gather(stats_task, tokens_task)
     except Exception as exc:
         logger.debug("deployer_reputation_query_failed: %s", exc)
@@ -236,7 +236,7 @@ async def get_own_deployer_reputation(
     if check_tokens > 0 and per_token:
         recent_tokens = per_token[: min(check_tokens, len(per_token))]
         checks = await asyncio.gather(
-            *[_run_sync(_query_token_health, t["token_address"], t.get("chain") or chain_norm) for t in recent_tokens],
+            *[run_sync(_query_token_health, t["token_address"], t.get("chain") or chain_norm) for t in recent_tokens],
             return_exceptions=True,
         )
         for health in checks:
@@ -535,14 +535,14 @@ def _cache_deployer(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_DEPLOYER_CACHE),
-        "cache_max": _DEPLOYER_CACHE_MAX,
-        "cache_ttl_seconds": _DEPLOYER_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _DEPLOYER_CACHE,
+        _DEPLOYER_CACHE_MAX,
+        _DEPLOYER_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _DEPLOYER_CACHE.clear()
+    _common_clear_cache(_DEPLOYER_CACHE)
