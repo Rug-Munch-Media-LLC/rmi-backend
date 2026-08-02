@@ -404,3 +404,47 @@ async def _chain_indexer_hype_score(**kwargs: Any) -> dict[str, Any] | None:
     except Exception as exc:
         logger.debug("chain_indexer_hype_score failed: %s", exc)
         return None
+
+
+async def _chain_indexer_holder_clusters(**kwargs: Any) -> dict[str, Any] | None:
+    """LOCAL provider — C2 BubbleMaps-style holder clustering.
+
+    Holder balances computed from evm_transfers deltas (electrs-inspired —
+    no separate balance table), three cluster passes (shared funder,
+    same-block buy, bundle), batch-labeled via wallet_labels.
+
+    Parameters (from DataBus fetch kwargs):
+      token_address: str — token contract address
+      address: str — alias for token_address
+      chain: str — chain name
+
+    Returns dict with holders/metrics/clusters/concentration or None.
+    """
+    if not PREFER_OWN_DATA:
+        return None
+
+    token_address = kwargs.get("token_address", kwargs.get("address", "")).lower()
+    chain = kwargs.get("chain", "")
+
+    if not token_address or not chain:
+        return None
+
+    try:
+        from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
+
+        result = await analyze_holder_clusters(
+            token_address=token_address,
+            chain=chain,
+        )
+        if not result or result.get("result") != "scanned" or not result.get("holders"):
+            return None
+
+        return {
+            "data": result,
+            "source": "chain_indexer (ClickHouse holder clustering)",
+            "tier": "local",
+            "is_local": True,
+        }
+    except Exception as exc:
+        logger.debug("chain_indexer_holder_clusters failed: %s", exc)
+        return None
