@@ -9,6 +9,7 @@ Covers:
 
 from __future__ import annotations
 
+from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -74,8 +75,18 @@ _COUNTERPARTY = "0x2222222222222222222222222222222222222222"
 _TOKEN = "0x3333333333333333333333333333333333333333"
 
 
+@contextmanager
 def _mock_ch(fake: FakeCHClient):
-    return patch("app.domains.scanner.engines.wallet_flow._get_ch_client", return_value=fake)
+    """Point every wallet_flow ClickHouse entry at the fake.
+
+    Batch label / contract lookups were extracted into ``_common``, which binds
+    ``_get_ch_client`` by name at import time — so that entry point is patched
+    too, otherwise the fake is bypassed and labels come back empty (EOA).
+    """
+    with ExitStack() as stack:
+        stack.enter_context(patch("app.domains.scanner.engines.wallet_flow._get_ch_client", return_value=fake))
+        stack.enter_context(patch("app.domains.scanner.engines._common._get_ch_client", return_value=fake))
+        yield
 
 
 def _mock_ch_radar(fake: FakeCHClient):

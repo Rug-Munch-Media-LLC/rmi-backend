@@ -35,7 +35,6 @@ the free APIs are unreachable.
 
 from __future__ import annotations
 
-import asyncio
 import math
 import os
 import time
@@ -53,6 +52,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 
 logger = get_logger(__name__)
 
@@ -248,11 +252,6 @@ def _get_ch_client() -> Any | None:
         return None
 
 
-async def _run_sync(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 async def ensure_token_meta_table() -> bool:
     """Create the ClickHouse token_meta table if it does not exist.
 
@@ -285,7 +284,7 @@ async def ensure_token_meta_table() -> bool:
             logger.debug("token_meta ensure failed: %s", exc)
             return False
 
-    return bool(await _run_sync(_ensure))
+    return bool(await run_sync(_ensure))
 
 
 async def _meta_upsert(
@@ -317,7 +316,7 @@ async def _meta_upsert(
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("token_meta upsert failed for %s: %s", token_address[:16], exc)
 
-    await _run_sync(_write)
+    await run_sync(_write)
 
 
 async def _meta_get(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -345,7 +344,7 @@ async def _meta_get(token_address: str, chain: str) -> dict[str, Any] | None:
             logger.debug("token_meta read failed for %s: %s", token_address[:16], exc)
             return []
 
-    rows = await _run_sync(_read)
+    rows = await run_sync(_read)
     if not rows:
         return None
     row = rows[0]
@@ -868,7 +867,7 @@ async def _own_price_argmax(token: str, chain: str) -> dict[str, Any] | None:
             return []
 
     for side in ("0", "1"):
-        rows = await _run_sync(_query, side)
+        rows = await run_sync(_query, side)
         if not rows or not rows[0]:
             continue
         ratio, paired, swaps, pools = rows[0]
@@ -1321,18 +1320,18 @@ async def _native_defillama(chain: str) -> float:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "price_cache_size": len(_price_mem),
-        "price_cache_max": _MEM_MAX,
-        "decimals_cache_size": len(_decimals_mem),
-        "native_cache_size": len(_native_mem),
-        "clickhouse_connected": _ch_client is not None,
-        "redis_connected": _redis_client is not None,
-    }
+    return _common_get_cache_stats(
+        extra={
+            "price_cache_size": len(_price_mem),
+            "price_cache_max": _MEM_MAX,
+            "decimals_cache_size": len(_decimals_mem),
+            "native_cache_size": len(_native_mem),
+            "clickhouse_connected": _ch_client is not None,
+            "redis_connected": _redis_client is not None,
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear all in-process caches (for testing / memory pressure)."""
-    _price_mem.clear()
-    _decimals_mem.clear()
-    _native_mem.clear()
+    _common_clear_cache(_price_mem, _decimals_mem, _native_mem)

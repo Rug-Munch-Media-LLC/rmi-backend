@@ -16,6 +16,7 @@ All external dependencies (ClickHouse, Redis, price oracle) are mocked.
 
 from __future__ import annotations
 
+from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -67,8 +68,18 @@ class FakeCHClient:
         return []
 
 
+@contextmanager
 def _mock_ch(fake: FakeCHClient):
-    return patch("app.domains.scanner.engines.wallet_flow._get_ch_client", return_value=fake)
+    """Point every ClickHouse client entry at the fake.
+
+    The engine imports ``_get_ch_client`` by name at module load from
+    chain_indexer (wallet_flow) and the shared ``_common`` module (batch label /
+    contract lookups were extracted there), so both patch targets are needed.
+    """
+    with ExitStack() as stack:
+        stack.enter_context(patch("app.domains.scanner.engines.wallet_flow._get_ch_client", return_value=fake))
+        stack.enter_context(patch("app.domains.scanner.engines._common._get_ch_client", return_value=fake))
+        yield
 
 
 def _mock_usd(value: float):
@@ -222,6 +233,60 @@ class TestBuildFlowGraph:
         assert out["node_count"] <= 5
         node_ids = [n["id"] for n in out["nodes"]]
         assert _WALLET in node_ids  # root wallet always included
+
+    @pytest.mark.asyncio
+    async def test_edges_only_reference_emitted_nodes_under_cap(self) -> None:
+        """When max_nodes truncates the node list, dangling edges are dropped."""
+        many_cps = [(f"0x{i:040d}",) for i in range(10)]
+        hop1 = [(_WALLET, addr, _TOKEN, 1000 + i, f"0xhash{i}") for i, (addr,) in enumerate(many_cps)]
+        fake = FakeCHClient(hop1=hop1)
+        with (
+            _mock_ch(fake),
+            _mock_usd(20000.0),
+            _no_redis_get(),
+            _no_redis_set(),
+        ):
+            out = await build_flow_graph(_WALLET, "ethereum", hops=1, max_nodes=5)
+
+        node_ids = {n["id"] for n in out["nodes"]}
+        assert len(out["edges"]) > 0
+        for e in out["edges"]:
+            assert e["from"] in node_ids
+            assert e["to"] in node_ids
+        # Counterparties beyond the cap must not appear in any edge
+        assert all(e["to"] in node_ids for e in out["edges"])
+        assert out["edge_count"] == len(out["edges"])
+
+    @pytest.mark.asyncio
+    async def test_multiple_tokens_all_normalized_in_parallel(self) -> None:
+        """Every unique token gets an oracle call (bounded concurrency path)."""
+        token_b = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        token_c = "0xcccccccccccccccccccccccccccccccccccccccc"
+        fake = FakeCHClient(
+            hop1=[
+                (_WALLET, _CP1, _TOKEN, 4000, "0xaaa"),
+                (_WALLET, _CP2, token_b, 2000, "0xbbb"),
+                (_WALLET, _CP3, token_c, 1000, "0xccc"),
+            ]
+        )
+        with (
+            _mock_ch(fake),
+            patch(
+                "app.domains.scanner.engines.wallet_flow._normalize_token_usd",
+                AsyncMock(side_effect=lambda token, chain, raw_total: raw_total),
+            ) as usd_mock,
+            _no_redis_get(),
+            _no_redis_set(),
+        ):
+            out = await build_flow_graph(_WALLET, "ethereum", hops=1)
+
+        assert out["result"] == "scanned"
+        assert usd_mock.await_count == 3  # one oracle call per unique token
+        edge_usd = {(e["from"], e["to"]): e["usd"] for e in out["edges"]}
+        # oracle returns raw_total for the whole token => per-edge USD == raw
+        assert edge_usd[(_WALLET, _CP1)] == pytest.approx(4000.0)
+        assert edge_usd[(_WALLET, _CP2)] == pytest.approx(2000.0)
+        assert edge_usd[(_WALLET, _CP3)] == pytest.approx(1000.0)
 
     @pytest.mark.asyncio
     async def test_empty_wallet_returns_unavailable(self) -> None:
