@@ -242,12 +242,6 @@ class Settings(BaseSettings):
         description="Public pricing page URL shown in upsell messages. Set PRICING_URL env var.",
     )
 
-    # ── GCloud ──────────────────────────────────────────────────────────
-    gcloud_sa_vault_path: str = Field(
-        default="[SECRETS_PATH]/google-sa-cryptorugmunch.json",
-        description="Path to Google service account JSON key in vault. Set GCLOUD_SA_VAULT_PATH.",
-    )
-
     # ── Prompts ├───────────────────────────────────────────────────────
     prompts_dir: str = Field(
         default="",

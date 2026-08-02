@@ -72,7 +72,6 @@ async def credit_burn() -> dict:
     rl = await d.tracker.stats()
 
     # Calculate cost estimates
-    # Vertex AI: $0.000025 per 1K chars (~$0.000025 per embedding call)
     # Gemini AI Studio: free up to 1,500/day per key
     # OpenRouter: free with credits
     # Mistral: free (1B tokens/month)
@@ -85,11 +84,7 @@ async def credit_burn() -> dict:
         total_calls_today += p["day_used"]
         total_free_limit += p["day_limit"] if p["free"] else 0
 
-        # Estimate cost (only Vertex AI burns credits from enterprise trial)
         cost_est = 0
-        if p["id"] == "vertex_ai":
-            # $0.000025 per embedding call (approximate)
-            cost_est = round(p["day_used"] * 0.000025, 6)
 
         if p["day_used"] > 0:
             provider_usage.append(
