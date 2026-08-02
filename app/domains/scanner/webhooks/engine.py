@@ -69,17 +69,27 @@ class WebhookEngine:
         self._running = True
 
         for provider_cls in PROVIDER_REGISTRY:
-            provider = provider_cls()
-            task = asyncio.create_task(
-                self._poll_loop(provider),
-                name=f"wh-poll-{provider.event_type.value}",
-            )
-            self._tasks.append(task)
-            log.info(
-                "webhook_poll_started",
-                event_type=provider.event_type.value,
-                interval=provider.poll_interval,
-            )
+            # A single failing provider must not prevent the engine (or the
+            # other providers) from starting — log and continue.
+            try:
+                provider = provider_cls()
+                task = asyncio.create_task(
+                    self._poll_loop(provider),
+                    name=f"wh-poll-{provider.event_type.value}",
+                )
+                self._tasks.append(task)
+                log.info(
+                    "webhook_poll_started",
+                    event_type=provider.event_type.value,
+                    interval=provider.poll_interval,
+                )
+            except Exception as exc:
+                log.warning(
+                    "webhook_provider_start_failed",
+                    provider=provider_cls.__name__,
+                    error=str(exc),
+                )
+                continue
 
         log.info("webhook_engine_started", provider_count=len(self._tasks))
 

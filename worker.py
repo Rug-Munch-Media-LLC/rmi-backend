@@ -30,6 +30,10 @@ SCAN_QUEUE = "token_scan_queue"
 NEWS_QUEUE = "news_queue"
 ALERT_QUEUE = "alert_queue"
 
+# Gradual rollout: use the UnifiedTokenScanner by default.  Set
+# USE_UNIFIED_SCANNER=false to roll back to the legacy tier-based scanner.
+USE_UNIFIED_SCANNER = os.getenv("USE_UNIFIED_SCANNER", "true").lower() in ("1", "true", "yes")
+
 
 async def connect_redis():
     """Connect to Redis/Dragonfly with retry logic"""
@@ -78,34 +82,43 @@ async def process_scan_job(r, job_data):
 
         # Use the real scanner engine with real modules
         try:
-            from app.domains.scanner.service import scan_token
+            if USE_UNIFIED_SCANNER:
+                from app.domains.scanner.unified.scanner import scan_token_unified
 
-            scan_result_obj = await scan_token(
-                token_address=token_address,
-                chain=chain,
-                tiers=tiers,
-                include_market_data=True,
-            )
+                scan_result = await scan_token_unified(
+                    token_address=token_address,
+                    chain=chain,
+                    tier="pro" if job_data.get("deep") else "free",
+                )
+            else:
+                from app.domains.scanner.service import scan_token
 
-            scan_result = {
-                "token_address": token_address,
-                "chain": chain,
-                "scanned_at": datetime.now(UTC).isoformat(),
-                "status": "completed",
-                "safety_score": scan_result_obj.safety_score,
-                "risk_score": 100 - scan_result_obj.safety_score,
-                "confidence": scan_result_obj.confidence,
-                "flags": scan_result_obj.risk_flags,
-                "modules_ran": len(scan_result_obj.modules_run),
-                "modules_successful": sum(1 for m in scan_result_obj.modules_run if m.get("status") == "success"),
-            }
+                scan_result_obj = await scan_token(
+                    token_address=token_address,
+                    chain=chain,
+                    tiers=tiers,
+                    include_market_data=True,
+                )
+
+                scan_result = {
+                    "token_address": token_address,
+                    "chain": chain,
+                    "scanned_at": datetime.now(UTC).isoformat(),
+                    "status": "completed",
+                    "safety_score": scan_result_obj.safety_score,
+                    "risk_score": 100 - scan_result_obj.safety_score,
+                    "confidence": scan_result_obj.confidence,
+                    "flags": scan_result_obj.risk_flags,
+                    "modules_ran": len(scan_result_obj.modules_run),
+                    "modules_successful": sum(1 for m in scan_result_obj.modules_run if m.get("status") == "success"),
+                }
 
             logger.info(
                 "token_scanned",
                 extra={
                     "token_address": token_address,
-                    "safety_score": scan_result_obj.safety_score,
-                    "risk_flags": scan_result_obj.risk_flags or [],
+                    "safety_score": scan_result.get("safety_score"),
+                    "risk_flags": scan_result.get("flags") or [],
                 },
             )
 

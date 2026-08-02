@@ -132,6 +132,22 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.info("certstream_start_failed err=%s", exc)
 
+    # 9. Webhook engine (poll-based webhook dispatch). Optional — disabled via
+    # WEBHOOK_ENGINE_ENABLED=false. Failure to start never breaks app startup.
+    webhook_engine = None
+    if os.getenv("WEBHOOK_ENGINE_ENABLED", "true").lower() not in ("false", "0", "no", "off"):
+        try:
+            from app.domains.scanner.webhooks.engine import WebhookEngine
+
+            webhook_engine = WebhookEngine()
+            await webhook_engine.start()
+            log.info("webhook_engine_started")
+        except Exception as exc:
+            webhook_engine = None
+            log.warning("webhook_engine_start_failed err=%s", exc)
+    else:
+        log.info("webhook_engine_disabled")
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -158,6 +174,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await stop_listener(certstream_task)
     except (AttributeError, ImportError):
         pass
+
+    # Webhook engine shutdown (only if it was started)
+    if webhook_engine is not None:
+        try:
+            await webhook_engine.stop()
+            log.info("webhook_engine_shutdown")
+        except Exception as exc:
+            log.warning("webhook_engine_stop_failed err=%s", exc)
+
     try:
         from app.core.langfuse import flush_langfuse
         from app.core.observability import flush_sentry
