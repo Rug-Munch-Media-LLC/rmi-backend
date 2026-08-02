@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Update
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -27,6 +28,7 @@ from app.domains.telegram.rugmunchbot.config import (
     TELEGRAM_CHANNEL,
     TIERS,
     TOP_UP_PACKS,
+    backend_headers,
     fmt_number,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
@@ -227,7 +229,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             TimeoutError,
             httpx.HTTPError,
             httpx.TimeoutException,
-            telegram.error.TelegramError,
+            TelegramError,
         ) as e:
             logger.warning(f"trending_refresh failed: {e}")
         await query.edit_message_text(
@@ -242,7 +244,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         source_label = "Backend"
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5")
+                r = await client.get(
+                    f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5",
+                    headers=backend_headers(),
+                )
                 if r.status_code == 200:
                     body = r.json()
                     articles = body.get("items", [])

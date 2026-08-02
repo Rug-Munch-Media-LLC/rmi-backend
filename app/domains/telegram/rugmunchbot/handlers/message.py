@@ -14,12 +14,14 @@ from typing import TYPE_CHECKING
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
+    backend_headers,
     fmt_chain,
     fmt_number,
     fmt_pct,
@@ -113,7 +115,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
             TimeoutError,
             httpx.HTTPError,
             httpx.TimeoutException,
-            telegram.error.TelegramError,
+            TelegramError,
         ) as e:
             logger.debug(f"handle_message $TOKEN lookup failed for {symbol}: {e}")
 
@@ -193,6 +195,7 @@ async def _try_rag_backend(query: str) -> str | None:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.post(
                 f"{BACKEND_URL}/api/v1/rag/v2/search",
+                headers=backend_headers(),
                 json={
                     "query": query,
                     "collection": "scam_intel",

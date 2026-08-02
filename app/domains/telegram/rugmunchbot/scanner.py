@@ -20,6 +20,7 @@ from app.domains.telegram.rugmunchbot.config import (
     GOPLUS,
     HONEYPOT,
     SOLANAFM_API,
+    backend_headers,
 )
 from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is_sol
 from app.domains.telegram.rugmunchbot.states import get_sol_price
@@ -180,7 +181,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
 
         # RMI Backend
         try:
-            r = await client.get(f"{BACKEND_URL}/api/v1/databus/token/{address}", timeout=10)
+            r = await client.get(f"{BACKEND_URL}/api/v1/databus/token/{address}", headers=backend_headers(), timeout=10)
             if r.status_code == 200:
                 rmi = r.json()
                 if rmi.get("bundle_detected"):
@@ -238,7 +239,9 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
     }
     async with httpx.AsyncClient(timeout=15) as client:
         try:
-            r = await client.get(f"{BACKEND_URL}/api/v1/databus/wallet/{address}", timeout=10)
+            r = await client.get(
+                f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens", headers=backend_headers(), timeout=10
+            )
             if r.status_code == 200:
                 data = r.json()
                 for k in [

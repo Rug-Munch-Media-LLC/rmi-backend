@@ -11,7 +11,6 @@ Combines 7 signals:
   - Price crash signal
 """
 
-from __future__ import annotations
 
 import asyncio
 import json

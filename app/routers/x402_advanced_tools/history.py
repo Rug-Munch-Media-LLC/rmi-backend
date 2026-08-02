@@ -5,7 +5,6 @@ Reads scanner snapshots from Redis and DexScreener, computes trends over
 a configurable lookback window.
 """
 
-from __future__ import annotations
 
 import json
 import os

@@ -18,6 +18,7 @@ from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
+    backend_headers,
     fmt_number,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
@@ -119,7 +120,8 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             # Fetch all available intelligence from backend
             try:
                 wallet_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}",
+                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
+                    headers=backend_headers(),
                     timeout=15,
                 )
                 if wallet_resp.status_code == 200:
@@ -131,11 +133,23 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             cross_chain: list = []
             try:
                 cc_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/cross_chain/{address}",
+                    f"{BACKEND_URL}/api/v1/cross-chain/{address}",
+                    params={"chain": chain},
+                    headers=backend_headers(),
                     timeout=10,
                 )
                 if cc_resp.status_code == 200:
-                    cross_chain = cc_resp.json().get("connections", [])
+                    profile = cc_resp.json()
+                    primary = profile.get("primary_chain", chain)
+                    cross_chain = [
+                        {
+                            "source_chain": primary,
+                            "dest_chain": m.get("chain", ""),
+                            "address": m.get("address", ""),
+                            "confidence": m.get("confidence", 0),
+                        }
+                        for m in profile.get("addresses", [])
+                    ]
             except (httpx.HTTPError, ConnectionError, TimeoutError):
                 pass
 

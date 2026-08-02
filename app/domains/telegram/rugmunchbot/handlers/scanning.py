@@ -319,6 +319,7 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
+    target = ctx.args[0]
     msg = await update.message.reply_text("\U0001f4ca <b>Running Technical Analysis...</b>", parse_mode=ParseMode.HTML)
     try:
         async with httpx.AsyncClient(timeout=15) as client:

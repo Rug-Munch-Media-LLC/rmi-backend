@@ -2,7 +2,6 @@
 x402 DataBus Tools - Payment verification and request models.
 """
 
-from __future__ import annotations
 
 import json
 import os

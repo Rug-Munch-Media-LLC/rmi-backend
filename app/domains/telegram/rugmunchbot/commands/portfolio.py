@@ -10,7 +10,7 @@ from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
-from app.domains.telegram.rugmunchbot.config import BACKEND_URL
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 
 logger = get_logger("rmi.portfolio")
 
@@ -29,7 +29,9 @@ async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> di
     }
     # Try backend first
     try:
-        r = await client.get(f"{BACKEND_URL}/api/v1/databus/wallet/{address}", timeout=10)
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens", headers=backend_headers(), timeout=10
+        )
         if r.status_code == 200:
             data = r.json()
             result["balance_usd"] = float(data.get("balance_usd", 0))
@@ -54,7 +56,9 @@ async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
         "error": None,
     }
     try:
-        r = await client.get(f"{BACKEND_URL}/api/v1/databus/wallet/{address}", timeout=10)
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens", headers=backend_headers(), timeout=10
+        )
         if r.status_code == 200:
             data = r.json()
             result["balance_usd"] = float(data.get("balance_usd", 0))

@@ -9,7 +9,7 @@ from __future__ import annotations
 import httpx
 
 from app.core.logging import get_logger
-from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER, backend_headers
 
 logger = get_logger("rmi.rugmap")
 
@@ -46,6 +46,7 @@ async def cmd_rugmap(update, ctx) -> None:
             try:
                 r = await client.get(
                     f"{BACKEND_URL}/api/v1/databus/token/{address}",
+                    headers=backend_headers(),
                     timeout=10,
                 )
                 if r.status_code == 200:

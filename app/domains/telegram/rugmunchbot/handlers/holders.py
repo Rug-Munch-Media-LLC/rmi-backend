@@ -19,6 +19,7 @@ from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
+    backend_headers,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
@@ -152,6 +153,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             try:
                 bh_resp = await client.get(
                     f"{BACKEND_URL}/api/v1/databus/token/{address}",
+                    headers=backend_headers(),
                     timeout=10,
                 )
                 if bh_resp.status_code == 200:

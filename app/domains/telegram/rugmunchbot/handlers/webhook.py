@@ -20,6 +20,7 @@ from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
+    backend_headers,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
@@ -52,6 +53,16 @@ WEBHOOK_EVENT_EMOJIS = {
     "liquidity_change": "💧",
     "first_swap": "🔄",
     "wallet_activity": "👛",
+}
+
+# Map bot event names to backend /api/v1/scanner/webhooks event types
+BACKEND_EVENT_MAP = {
+    "price_change": "token.price_change",
+    "whale_move": "token.whale_move",
+    "token_deployed": "token.deployed",
+    "liquidity_change": "token.liquidity_change",
+    "first_swap": "token.first_swap",
+    "wallet_activity": "wallet.activity",
 }
 
 
@@ -224,22 +235,26 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
 
     # Register webhook
     try:
-        # Register with backend
+        # Register with backend (POST /api/v1/scanner/webhooks)
+        event_types = (
+            [BACKEND_EVENT_MAP[event_type]] if event_type in BACKEND_EVENT_MAP else list(BACKEND_EVENT_MAP.values())
+        )
         webhook_data = {
             "url": url,
-            "event_type": event_type or "all",
-            "user_id": user_id,
+            "event_types": event_types,
+            "filters": None,
         }
 
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
-                f"{BACKEND_URL}/api/v1/scanner/webhooks/register",
+                f"{BACKEND_URL}/api/v1/scanner/webhooks",
                 json=webhook_data,
+                headers=backend_headers(),
                 timeout=10,
             )
             backend_id = None
-            if resp.status_code == 200:
-                backend_id = resp.json().get("id")
+            if resp.status_code in (200, 201):
+                backend_id = resp.json().get("subscription", {}).get("id")
 
         # Store locally
         conn.execute(
@@ -315,6 +330,7 @@ async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_i
             async with httpx.AsyncClient(timeout=5) as client:
                 await client.delete(
                     f"{BACKEND_URL}/api/v1/scanner/webhooks/{backend_id}",
+                    headers=backend_headers(),
                     timeout=5,
                 )
         except (httpx.HTTPError, ConnectionError, TimeoutError):
