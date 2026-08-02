@@ -38,13 +38,11 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from redis.exceptions import RedisError
 
 try:
     from clickhouse_driver.errors import Error as CHDriverError
@@ -56,6 +54,19 @@ from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    redis_get,
+    redis_set,
+    run_sync,
+)
+
+# Legacy module-local names kept so existing unit tests that patch
+# ``hype_score._redis_get`` / ``hype_score._redis_set`` keep intercepting the
+# shared implementation.
+_redis_get = redis_get
+_redis_set = redis_set
 
 logger = get_logger(__name__)
 
@@ -280,7 +291,7 @@ async def _social_velocity(token: str, chain: str) -> dict[str, Any]:
 async def _volume_growth(token: str, chain: str) -> dict[str, Any]:
     """Score volume growth: rolling 15m USD vs trailing-4h hourly baseline."""
     try:
-        short_raw, long_raw = await _run_sync(_query_volume_raw, token, chain)
+        short_raw, long_raw = await run_sync(_query_volume_raw, token, chain)
     except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("hype_volume_query_failed: %s", exc)
         return {"score": 0.0, "detail": "volume_query_failed"}
@@ -319,7 +330,7 @@ async def _volume_growth(token: str, chain: str) -> dict[str, Any]:
 async def _holder_growth(token: str, chain: str) -> dict[str, Any]:
     """Score holder growth: unique receivers today vs previous day."""
     try:
-        today, prev = await _run_sync(_query_holder_growth, token, chain)
+        today, prev = await run_sync(_query_holder_growth, token, chain)
     except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("hype_holder_query_failed: %s", exc)
         return {"score": 0.0, "detail": "holder_query_failed"}
@@ -486,7 +497,7 @@ def _query_last_activity(token: str, chain: str) -> Any:
 
 async def _inactivity_hours(token: str, chain: str) -> float | None:
     """Hours since the token's last observed activity (None when unknown)."""
-    last_ts = await _run_sync(_query_last_activity, token, chain)
+    last_ts = await run_sync(_query_last_activity, token, chain)
     if last_ts is None:
         return None
     try:
@@ -541,44 +552,6 @@ _PRICE_CACHE: dict[tuple[str, str], dict[str, Any] | None] = {}
 _DECIMALS_CACHE: dict[tuple[str, str], int | None] = {}
 
 
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
-async def _redis_get(key: str) -> dict[str, Any] | None:
-    """Fetch a cached hype score from Redis (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return None
-        raw = await r.get(key)
-        if not raw:
-            return None
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, dict) else None
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("hype_score_redis_get_failed: %s", exc)
-        return None
-
-
-async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
-    """Store a hype score in Redis with TTL (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return False
-        await r.setex(key, ttl, json.dumps(value, default=str))
-        return True
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("hype_score_redis_set_failed: %s", exc)
-        return False
-
-
 def _unavailable_result(token: str, chain_norm: str) -> dict[str, Any]:
     """Graceful degradation result."""
     return {
@@ -623,18 +596,18 @@ def _error_result(token: str, chain_norm: str, message: str) -> dict[str, Any]:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_HYPE_CACHE),
-        "cache_max": _HYPE_CACHE_MAX,
-        "cache_ttl_seconds": _HYPE_CACHE_TTL,
-        "redis_ttl_seconds": REDIS_TTL_SECONDS,
-        "price_cache_size": len(_PRICE_CACHE),
-        "clickhouse_connected": _get_ch_client() is not None,
-    }
+    return _common_get_cache_stats(
+        _HYPE_CACHE,
+        _HYPE_CACHE_MAX,
+        _HYPE_CACHE_TTL,
+        extra={
+            "redis_ttl_seconds": REDIS_TTL_SECONDS,
+            "price_cache_size": len(_PRICE_CACHE),
+            "clickhouse_connected": _get_ch_client() is not None,
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear in-process caches (for testing)."""
-    _HYPE_CACHE.clear()
-    _PRICE_CACHE.clear()
-    _DECIMALS_CACHE.clear()
+    _common_clear_cache(_HYPE_CACHE, _PRICE_CACHE, _DECIMALS_CACHE)

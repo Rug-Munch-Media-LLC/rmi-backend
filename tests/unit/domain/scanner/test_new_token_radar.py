@@ -202,6 +202,43 @@ class TestScanNewTokens:
         assert kwargs["chain"] == "ethereum"
         assert "honeypot" in kwargs["threats"]
         assert "low_liquidity" in kwargs["threats"]
+        # Symbol: no lookup result from the fake CH client -> address fallback
+        assert kwargs["token_symbol"] == _TOKEN[:8] + "..."
+
+    @pytest.mark.asyncio
+    async def test_alert_uses_looked_up_token_symbol_when_available(self) -> None:
+        """A symbol returned by _lookup_token_symbol is passed to Telegram."""
+        fake = FakeCHClient(deployers=[_deployment_row(_TOKEN)])
+        honeypot_side = AsyncMock(return_value={"result": "scanned", "is_honeypot": True, "risk_score": 95})
+        with (
+            _mock_ch_radar(fake),
+            _no_redis_get(),
+            _no_redis_set(),
+            _benign_fingerprint(),
+            patch("app.domains.scanner.modules.security._check_honeypot_is", honeypot_side),
+            _good_liquidity(),
+            patch(
+                "app.domains.scanner.engines.new_token_radar._was_alerted",
+                AsyncMock(return_value=False),
+            ),
+            patch(
+                "app.domains.scanner.engines.new_token_radar._mark_alerted",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.domains.scanner.engines.new_token_radar._lookup_token_symbol",
+                AsyncMock(return_value="HNY"),
+            ),
+            patch(
+                "app.domains.telegram.alert_hooks.send_scanner_alert",
+                AsyncMock(return_value={"ok": True}),
+            ) as send,
+        ):
+            out = await scan_new_tokens("ethereum", lookback_minutes=5, notify=True)
+
+        assert out[0]["level"] == "CRITICAL"
+        send.assert_awaited_once()
+        assert send.await_args.kwargs["token_symbol"] == "HNY"
 
     @pytest.mark.asyncio
     async def test_alert_dedup_skips_already_alerted(self) -> None:
