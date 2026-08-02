@@ -20,7 +20,8 @@ def _get_ch_client() -> Any | None:
     ch_host = _os.getenv("CH_HOST") or _os.getenv("CLICKHOUSE_HOST", "127.0.0.1")
     ch_port = int(_os.getenv("CH_PORT") or _os.getenv("CLICKHOUSE_PORT", "9000"))
     ch_user = _os.getenv("CH_USER") or _os.getenv("CLICKHOUSE_USER", "rmi")
-    ch_pass = _os.getenv("CH_PASSWORD") or _os.getenv("CLICKHOUSE_PASSWORD", "clickhouse_rmi_prod_2026")
+    # NOTE: set CLICKHOUSE_PASSWORD (or CH_PASSWORD) env var to the ClickHouse password — never hardcode.
+    ch_pass = _os.getenv("CH_PASSWORD") or _os.getenv("CLICKHOUSE_PASSWORD", "")
     ch_db = "wallet_memory"
 
     try:
