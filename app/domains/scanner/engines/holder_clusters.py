@@ -1,0 +1,1019 @@
+"""
+C2 — BubbleMaps-style Holder Clustering (v1)
+=============================================
+Phase 5 RugMunchScan capability — holder concentration + cluster map from
+our own ClickHouse data (BubbleMaps replacement).
+
+Builds a BubbleMaps-style visualization payload:
+  - ``holders``     — holder set with net balances, first-seen, labels, cluster ids
+  - ``metrics``     — top-10 share, Gini, HHI, risk class, total holders
+  - ``clusters``    — holder clusters from three detection passes
+  - ``concentration`` — LOW / MEDIUM / HIGH / EXTREME risk level
+
+Cluster detection passes (spec C2):
+  1. **Shared funder** — holders whose first in-transfer came from the same
+     funder address (``evm_transfers``). Groups >2 flagged. DEX pool contracts,
+     the token contract, and burn/mint addresses are excluded as funders.
+  2. **Same-block buy** — holders whose first DEX buy landed in the same block
+     (``dex_events`` first swap per address, grouped by block). Simultaneous
+     entries (>=3 buyers) flagged as bundle/sybil signals.
+  3. **Bundle** — bundle-buy groups surfaced from ``own_bundle_detect`` output
+     (atomic same-block buys), cross-referenced to actual holder addresses.
+
+Holder labeling:
+  - Batch query ``wallet_labels`` (label_category / label_subtype / label_name)
+  - Classify each holder: CEX, DEX, bridge, mixer, team, deployer, sniper,
+    bot, whale, normal (deployer-link + first-block timing used for team/sniper).
+
+Access path (electrs-inspired):
+  - Holder balances are computed from ``evm_transfers`` deltas — sum(in) minus
+    sum(out) per address — no separate balance table is stored.
+  - Results cached in Redis: 5 min TTL for active tokens (any transfer in the
+    last 24h), 1h TTL for inactive tokens. In-process dict mirror as fallback.
+
+Every ClickHouse query is bounded by ``max_execution_time`` (time-boxed — see
+Cross-Cutting Principles). Clusters carry evidence (funder tx hashes, block
+numbers, bundle tx hashes).
+
+Usage:
+    from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
+
+    result = await analyze_holder_clusters("0x...", "ethereum")
+    # result = {
+    #     "holders": [{"address", "balance", "balance_pct", "label",
+    #                  "cluster_id", "first_seen"}],
+    #     "metrics": {"top10_pct", "gini", "hhi", "class", "total_holders"},
+    #     "clusters": [{"id", "addresses", "funder", "first_block",
+    #                   "reason", "confidence"}],
+    #     "concentration": {"level": "LOW"|"MEDIUM"|"HIGH"|"EXTREME", ...},
+    # }
+
+Data Sources:
+  Primary: wallet_memory.evm_transfers (balances, first-seen, funders)
+  Primary: wallet_memory.dex_events (first-buy blocks, pool contracts)
+  Primary: wallet_memory.wallet_labels (39.4M entity labels)
+  Primary: wallet_memory.deployer_events (deployer + deploy block for
+           team/sniper classification)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import time
+from typing import Any, cast
+
+from app.core.logging import get_logger
+from app.domains.databus.providers.chains.chain_indexer import (
+    _get_ch_client,
+    _normalize_chain,
+)
+from app.domains.scanner.engines.wallet_flow import (
+    _query_batch_labels,
+    _query_contract_addresses,
+)
+
+logger = get_logger(__name__)
+
+# ── Cache ─────────────────────────────────────────────────────────────────
+REDIS_CACHE_PREFIX = "holder_clusters"
+REDIS_TTL_ACTIVE = 300  # 5 minutes — active tokens (transfers in last 24h)
+REDIS_TTL_INACTIVE = 3600  # 1 hour — inactive tokens
+_CLUSTER_CACHE: dict[str, dict[str, Any]] = {}
+_CLUSTER_CACHE_TTL = 120  # 2 minutes in-process mirror
+_CLUSTER_CACHE_MAX = 200
+
+# ── Query / analysis limits (time-boxing) ─────────────────────────────────
+_QUERY_TIMEOUT_SECONDS = 10
+_MAX_HOLDERS = 100  # balance query limit (top-N by net balance)
+_TOP_HOLDERS_OUTPUT = 50  # holders emitted in the payload
+_MAX_BUYERS = 500  # first-buy rows considered for same-block clustering
+
+# ── Cluster thresholds ────────────────────────────────────────────────────
+_FUNDER_CLUSTER_MIN = 3  # groups >2 holders from one funder are flagged
+_SAME_BLOCK_CLUSTER_MIN = 3  # >=3 simultaneous first buys flag a block
+_BUNDLE_CLUSTER_MIN = 2  # bundle block must map to >=2 holders
+
+# ── Classification thresholds ─────────────────────────────────────────────
+_SNIPER_WINDOW_SECONDS = 60  # first-seen within 60s of deploy => sniper
+_SNIPER_WINDOW_BLOCKS = 2  # ... or within 2 blocks of deploy block
+_WHALE_PCT_THRESHOLD = 5.0  # holder with >=5% tracked supply => whale
+
+_ZERO_ADDR = "0x0000000000000000000000000000000000000000"
+_DEAD_ADDR = "0x000000000000000000000000000000000000dead"
+
+# ── Label classification keywords (match category/subtype/name, lowercased)
+_CEX_KEYWORDS = (
+    "cex",
+    "exchange",
+    "binance",
+    "coinbase",
+    "kraken",
+    "okx",
+    "okex",
+    "bybit",
+    "huobi",
+    "kucoin",
+    "gate.io",
+    "gateio",
+    "mexc",
+    "bitget",
+    "upbit",
+    "bithumb",
+    "gemini",
+    "bitstamp",
+    "crypto.com",
+)
+_DEX_KEYWORDS = (
+    "dex",
+    "router",
+    "amm",
+    "aggregator",
+    "uniswap",
+    "pancake",
+    "sushiswap",
+    "curve",
+    "balancer",
+    "1inch",
+    "camelot",
+    "trader joe",
+    "spooky",
+    "quickswap",
+)
+_BRIDGE_KEYWORDS = (
+    "bridge",
+    "wormhole",
+    "axelar",
+    "layerzero",
+    "multichain",
+    "hop protocol",
+)
+_MIXER_KEYWORDS = (
+    "mixer",
+    "tornado",
+    "blender",
+    "coinjoin",
+    "wasabi",
+    "privacy",
+)
+_TEAM_KEYWORDS = (
+    "team",
+    "creator",
+    "founder",
+    "deployer",
+    "multisig",
+    "treasury",
+    "dev wallet",
+)
+_BOT_KEYWORDS = (
+    "bot",
+    "mev",
+    "arb",
+    "automated",
+    "flash",
+)
+
+_CONCENTRATION_DESCRIPTIONS = {
+    "LOW": "Distributed — top 10 holders control under 30% of tracked supply.",
+    "MEDIUM": "Moderately concentrated — top 10 holders control 30-50%.",
+    "HIGH": "Concentrated — top 10 holders control 50-80%.",
+    "EXTREME": "Extremely concentrated — top 10 holders control over 80%.",
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PUBLIC API
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def analyze_holder_clusters(
+    token_address: str,
+    chain: str,
+    force_fresh: bool = False,
+) -> dict[str, Any]:
+    """BubbleMaps-style holder clustering from own ClickHouse data.
+
+    Computes holder balances from ``evm_transfers`` deltas (electrs-inspired
+    access path — no separate balance table), runs the three cluster detection
+    passes, batch-labels holders via ``wallet_labels``, and emits a
+    BubbleMaps-style visualization payload.
+
+    Args:
+        token_address: Token contract address.
+        chain: Chain name (ethereum, bsc, arbitrum, ...).
+        force_fresh: Bypass all caches.
+
+    Returns:
+        {
+            "holders": [{address, balance, balance_pct, label, cluster_id, first_seen}],
+            "metrics": {top10_pct, gini, hhi, class, total_holders},
+            "clusters": [{id, addresses, funder, first_block, reason, confidence}],
+            "concentration": {level, top10_pct, top3_pct, hhi, description},
+        }
+    """
+    token_address = token_address.lower().strip()
+    chain_norm = _normalize_chain(chain)
+    _start = time.monotonic()
+
+    if not token_address or not chain_norm:
+        return _error_result(token_address, chain_norm, "token_address and chain are required")
+
+    # ── 1. Redis fast cache ──
+    cache_key = f"{REDIS_CACHE_PREFIX}:{chain_norm}:{token_address}"
+    if not force_fresh:
+        cached = await _redis_get(cache_key)
+        if cached is not None:
+            logger.debug("holder_clusters_redis_hit", key=cache_key)
+            return cached
+
+    # ── 2. In-process mirror cache ──
+    if not force_fresh and cache_key in _CLUSTER_CACHE:
+        entry = _CLUSTER_CACHE[cache_key]
+        if time.time() - entry.get("_cached_at", 0) < _CLUSTER_CACHE_TTL:
+            return {k: v for k, v in entry.items() if not k.startswith("_")}
+
+    # ── 3. Full ClickHouse computation ──
+    try:
+        result = await _compute_clusters(token_address, chain_norm)
+    except Exception as exc:
+        logger.debug("holder_clusters_query_failed: %s", exc)
+        result = _unavailable_result(token_address, chain_norm, reason=str(exc)[:120])
+
+    if result.get("result") == "scanned" and result.get("holders"):
+        ttl = REDIS_TTL_ACTIVE if result.get("active_24h") else REDIS_TTL_INACTIVE
+        await _redis_set(cache_key, result, ttl)
+        result["_cached_at"] = time.time()
+        _CLUSTER_CACHE[cache_key] = result
+        if len(_CLUSTER_CACHE) > _CLUSTER_CACHE_MAX:
+            _CLUSTER_CACHE.pop(next(iter(_CLUSTER_CACHE)), None)
+
+    _elapsed_ms = (time.monotonic() - _start) * 1000
+    metrics = result.get("metrics", {})
+    logger.info(
+        "holder_clusters_latency",
+        ms=round(_elapsed_ms, 1),
+        token=token_address[:16],
+        chain=chain_norm,
+        holders=metrics.get("total_holders", 0),
+        clusters=len(result.get("clusters", [])),
+    )
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COMPUTATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
+    """Run the balance / first-seen / first-buy queries and assemble the payload."""
+    # ── Batch 1: independent ClickHouse queries (parallel) ──
+    balances_task = asyncio.create_task(_run_sync(_query_holder_balances, token_address, chain))
+    first_in_task = asyncio.create_task(_run_sync(_query_first_in_transfers, token_address, chain))
+    first_buy_task = asyncio.create_task(_run_sync(_query_first_buy_blocks, token_address, chain))
+    deploy_task = asyncio.create_task(_run_sync(_query_deploy_info, token_address, chain))
+    active_task = asyncio.create_task(_run_sync(_query_is_active, token_address, chain))
+    holder_task = asyncio.create_task(_get_holder_analysis_gini(token_address, chain))
+
+    (balance_rows, first_in_rows, first_buy_rows, deploy_info, is_active, holder_gini) = await asyncio.gather(
+        balances_task,
+        first_in_task,
+        first_buy_task,
+        deploy_task,
+        active_task,
+        holder_task,
+    )
+
+    if not balance_rows:
+        return _unavailable_result(token_address, chain, reason="no holder balance data")
+
+    balances: dict[str, float] = {}
+    for row in balance_rows:
+        addr = str(row[0] or "").lower()
+        if addr:
+            balances[addr] = float(row[1] or 0)
+
+    if not balances:
+        return _unavailable_result(token_address, chain, reason="no positive holder balances")
+
+    total_tracked = sum(balances.values())
+
+    # ── First in-transfer map (funder + evidence) ──
+    first_in: dict[str, dict[str, Any]] = {}
+    for row in first_in_rows or []:
+        h_addr = str(row[0] or "").lower()
+        if not h_addr:
+            continue
+        first_in[h_addr] = {
+            "funder": str(row[1] or "").lower() or None,
+            "first_tx": str(row[2] or ""),
+            "first_block": row[3],
+            "first_seen": row[4],
+        }
+
+    # ── First-buy map (dex_events) ──
+    first_buy: dict[str, dict[str, Any]] = {}
+    for row in first_buy_rows or []:
+        buyer = str(row[0] or "").lower()
+        if not buyer:
+            continue
+        first_buy[buyer] = {
+            "first_block": row[1],
+            "first_tx": str(row[2] or ""),
+        }
+
+    deployer = (deploy_info or {}).get("deployer")
+    deploy_block = (deploy_info or {}).get("block_number")
+    deploy_ts = (deploy_info or {}).get("deploy_ts")
+
+    # ── Batch 2: pool-contract detection + labels (needs holder list) ──
+    holder_addrs = list(balances.keys())
+    pool_task = asyncio.create_task(_run_sync(_query_contract_addresses, holder_addrs, chain))
+    label_task = asyncio.create_task(_run_sync(_query_batch_labels, holder_addrs))
+    pool_rows: Any
+    label_rows: Any
+    pool_rows, label_rows = await asyncio.gather(pool_task, label_task, return_exceptions=True)
+
+    pool_addresses: set[str] = set()
+    if not isinstance(pool_rows, BaseException) and pool_rows:
+        pool_addresses = {str(r[0] or "").lower() for r in pool_rows if r and r[0]}
+
+    labels_map: dict[str, list[dict[str, Any]]] = {}
+    if not isinstance(label_rows, BaseException) and label_rows:
+        for row in label_rows:
+            addr = str(row[0] or "").lower()
+            if not addr:
+                continue
+            labels_map.setdefault(addr, []).append(
+                {
+                    "label_name": row[1],
+                    "label_category": row[2],
+                    "label_subtype": row[3],
+                    "source": row[4],
+                    "is_sanctioned": bool(row[5]) if len(row) > 5 else False,
+                }
+            )
+
+    # ── Holder output ──
+    holders_out: list[dict[str, Any]] = []
+    pct_by_addr: dict[str, float] = {}
+    sorted_balances = sorted(balances.items(), key=lambda kv: kv[1], reverse=True)
+    for addr, bal in sorted_balances[:_TOP_HOLDERS_OUTPUT]:
+        pct = (bal / total_tracked * 100) if total_tracked > 0 else 0.0
+        pct_by_addr[addr] = round(pct, 2)
+        info = first_in.get(addr, {})
+        first_seen = info.get("first_seen")
+        holders_out.append(
+            {
+                "address": addr,
+                "balance": bal,
+                "balance_pct": round(pct, 2),
+                "label": _classify_holder(
+                    {
+                        "address": addr,
+                        "balance_pct": pct,
+                        "labels": labels_map.get(addr, []),
+                        "funder": info.get("funder"),
+                        "first_seen": _to_epoch(first_seen),
+                    },
+                    {"deployer": deployer, "deploy_block": deploy_block, "deploy_ts": deploy_ts},
+                ),
+                "cluster_id": None,
+                "first_seen": _to_iso(first_seen),
+            }
+        )
+
+    # ── Cluster detection passes ──
+    clusters = _build_funder_clusters(first_in, deployer, pool_addresses, token_address)
+    clusters.extend(_build_same_block_clusters(first_buy))
+    bundle_result = await _get_bundle_analysis(token_address, chain)
+    clusters.extend(_build_bundle_clusters(bundle_result, first_in))
+
+    # Attach combined_pct from holder balances (addresses present in the top-N output).
+    for cluster in clusters:
+        cluster["combined_pct"] = round(sum(pct_by_addr.get(a, 0.0) for a in cluster.get("addresses", [])), 2)
+
+    # Assign the strongest cluster_id to each holder for display.
+    best_cluster: dict[str, dict[str, Any]] = {}
+    for cluster in clusters:
+        cid = str(cluster.get("id") or "")
+        conf = float(cluster.get("confidence") or 0)
+        for addr in cluster.get("addresses", []):
+            if addr not in best_cluster or conf > float(best_cluster[addr].get("confidence") or 0):
+                best_cluster[addr] = {"id": cid, "confidence": conf}
+    for holder_rec in holders_out:
+        match = best_cluster.get(str(holder_rec["address"]))
+        if match:
+            holder_rec["cluster_id"] = match["id"]
+
+    # ── Concentration metrics ──
+    top10_pct = sum(pct_by_addr.get(a, 0.0) for a, _ in sorted_balances[:10])
+    top3_pct = sum(pct_by_addr.get(a, 0.0) for a, _ in sorted_balances[:3])
+    top10_pct = round(top10_pct, 2)
+    top3_pct = round(top3_pct, 2)
+    level = _classify_concentration(top10_pct)
+    hhi = _compute_hhi(list(balances.values()))
+    gini = holder_gini if holder_gini and holder_gini > 0 else _compute_gini(list(balances.values()))
+    gini = round(gini, 4)
+
+    confidence = round(min(0.95, 0.45 + 0.02 * len(clusters) + (0.25 if len(balances) >= 10 else 0.0)), 2)
+
+    return {
+        "check": "holder_clusters",
+        "result": "scanned",
+        "source": "own",
+        "token_address": token_address,
+        "chain": chain,
+        "holders": holders_out,
+        "metrics": {
+            "top10_pct": top10_pct,
+            "gini": gini,
+            "hhi": hhi,
+            "class": level,
+            "total_holders": len(balances),
+        },
+        "clusters": clusters,
+        "concentration": {
+            "level": level,
+            "top10_pct": top10_pct,
+            "top3_pct": top3_pct,
+            "hhi": hhi,
+            "description": _CONCENTRATION_DESCRIPTIONS[level],
+        },
+        "confidence": confidence,
+        "deployer": deployer,
+        "active_24h": bool(is_active),
+        "note": "holder balances computed from evm_transfers deltas (sum in - sum out)",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLUSTER DETECTION PASSES (pure logic — unit-testable)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _build_funder_clusters(
+    first_in: dict[str, dict[str, Any]],
+    deployer: str | None,
+    pool_addresses: set[str],
+    token_address: str,
+) -> list[dict[str, Any]]:
+    """Pass 1 — group holders by shared first in-transfer funder (groups >2)."""
+    funder_groups: dict[str, list[str]] = {}
+    for holder, info in first_in.items():
+        funder = info.get("funder")
+        if not funder or funder in (_ZERO_ADDR, _DEAD_ADDR):
+            continue
+        if funder == token_address or funder in pool_addresses:
+            # Pool / token-contract sources cluster every buyer — not meaningful.
+            continue
+        funder_groups.setdefault(funder, []).append(holder)
+
+    clusters: list[dict[str, Any]] = []
+    for idx, (funder, addresses) in enumerate(funder_groups.items()):
+        if len(addresses) < _FUNDER_CLUSTER_MIN:
+            continue
+        is_deployer = bool(deployer) and funder == deployer
+        confidence = min(0.95, 0.55 + 0.1 * (len(addresses) - _FUNDER_CLUSTER_MIN) + (0.05 if is_deployer else 0.0))
+        blocks: list[int] = []
+        tx_hashes: list[str] = []
+        for a in addresses:
+            first_block = first_in[a].get("first_block")
+            if first_block is not None:
+                blocks.append(int(first_block))
+            first_tx = first_in[a].get("first_tx")
+            if first_tx:
+                tx_hashes.append(str(first_tx))
+        clusters.append(
+            {
+                "id": f"funder:{idx}",
+                "addresses": addresses,
+                "funder": funder,
+                "first_block": min(blocks) if blocks else None,
+                "reason": "deployer_funded" if is_deployer else "shared_funder",
+                "confidence": round(confidence, 2),
+                "combined_pct": 0.0,
+                "evidence": {
+                    "funder": funder,
+                    "funder_is_deployer": is_deployer,
+                    "first_tx_hashes": tx_hashes[:5],
+                },
+            }
+        )
+    return clusters
+
+
+def _build_same_block_clusters(first_buy: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Pass 2 — holders whose first DEX buy landed in the same block."""
+    block_groups: dict[int, list[str]] = {}
+    for buyer, info in first_buy.items():
+        block = info.get("first_block")
+        if block is not None:
+            block_groups.setdefault(block, []).append(buyer)
+
+    clusters: list[dict[str, Any]] = []
+    for idx, (block, addresses) in enumerate(sorted(block_groups.items())):
+        if len(addresses) < _SAME_BLOCK_CLUSTER_MIN:
+            continue
+        confidence = min(0.9, 0.45 + 0.08 * (len(addresses) - _SAME_BLOCK_CLUSTER_MIN))
+        tx_hashes = [first_buy[a].get("first_tx") for a in addresses if first_buy[a].get("first_tx")]
+        clusters.append(
+            {
+                "id": f"block:{idx}",
+                "addresses": addresses,
+                "funder": None,
+                "first_block": block,
+                "reason": "same_block_buy",
+                "confidence": round(confidence, 2),
+                "combined_pct": 0.0,
+                "evidence": {
+                    "block_number": block,
+                    "buyers": len(addresses),
+                    "first_tx_hashes": tx_hashes[:5],
+                },
+            }
+        )
+    return clusters
+
+
+def _build_bundle_clusters(
+    bundle_result: dict[str, Any] | None,
+    first_in: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Pass 3 — surface bundle-buy groups from own_bundle_detect output."""
+    if not bundle_result:
+        return []
+    bundle_conf = 0.4
+    try:
+        bundle_conf = max(0.4, float(bundle_result.get("confidence") or 0) / 100.0)
+    except (TypeError, ValueError):
+        bundle_conf = 0.4
+
+    clusters: list[dict[str, Any]] = []
+    for bb in bundle_result.get("bundle_blocks", []) or []:
+        block = bb.get("block_number")
+        if block is None:
+            continue
+        addresses = [h for h, info in first_in.items() if info.get("first_block") == block]
+        if len(addresses) < _BUNDLE_CLUSTER_MIN:
+            continue
+        clusters.append(
+            {
+                "id": f"bundle:{block}",
+                "addresses": addresses,
+                "funder": None,
+                "first_block": block,
+                "reason": "bundle",
+                "confidence": round(min(0.95, bundle_conf), 2),
+                "combined_pct": 0.0,
+                "evidence": {
+                    "block_number": block,
+                    "buyer_count": bb.get("buyer_count", len(addresses)),
+                    "total_buys": bb.get("total_buys", 0),
+                },
+            }
+        )
+    return clusters
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HOLDER LABELING (pure logic — unit-testable)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _classify_holder(
+    holder: dict[str, Any],
+    deploy: dict[str, Any] | None,
+) -> str:
+    """Classify a holder into CEX/DEX/bridge/mixer/team/deployer/sniper/bot/whale/normal.
+
+    Priority:
+      1. deployer — the token deployer itself
+      2. institutional labels — CEX / DEX / bridge / mixer (never snipers)
+      3. sniper — first-seen within the deploy window (first-block buy pattern)
+      4. team / bot label keywords
+      5. deployer-linked funding => team
+      6. whale — >=5% of tracked supply
+      7. normal — fallback
+    """
+    address = str(holder.get("address") or "").lower()
+    deployer = (deploy or {}).get("deployer")
+    if deployer and address == str(deployer).lower():
+        return "deployer"
+
+    labels: list[dict[str, Any]] = holder.get("labels") or []
+    text_parts = []
+    for lbl in labels:
+        text_parts.append(" ".join(str(lbl.get(k) or "") for k in ("label_category", "label_subtype", "label_name")))
+    text = " ".join(text_parts).lower()
+
+    if any(kw in text for kw in _CEX_KEYWORDS):
+        return "CEX"
+    if any(kw in text for kw in _DEX_KEYWORDS):
+        return "DEX"
+    if any(kw in text for kw in _BRIDGE_KEYWORDS):
+        return "bridge"
+    if any(kw in text for kw in _MIXER_KEYWORDS):
+        return "mixer"
+
+    first_seen = holder.get("first_seen")
+    deploy_ts = (deploy or {}).get("deploy_ts")
+    deploy_block = (deploy or {}).get("deploy_block")
+    if first_seen is not None and deploy_ts is not None:
+        diff = first_seen - deploy_ts
+        if 0 <= diff <= _SNIPER_WINDOW_SECONDS:
+            return "sniper"
+    first_block = holder.get("first_block")
+    if (
+        first_block is not None
+        and deploy_block is not None
+        and 0 <= (first_block - deploy_block) <= _SNIPER_WINDOW_BLOCKS
+    ):
+        return "sniper"
+
+    if any(kw in text for kw in _TEAM_KEYWORDS):
+        return "team"
+    if any(kw in text for kw in _BOT_KEYWORDS):
+        return "bot"
+
+    funder = holder.get("funder")
+    if deployer and funder and str(funder).lower() == str(deployer).lower():
+        return "team"
+
+    if float(holder.get("balance_pct") or 0) >= _WHALE_PCT_THRESHOLD:
+        return "whale"
+
+    return "normal"
+
+
+def _classify_concentration(top10_pct: float) -> str:
+    """Map top-10 holder share to LOW / MEDIUM / HIGH / EXTREME."""
+    if top10_pct >= 80:
+        return "EXTREME"
+    if top10_pct >= 50:
+        return "HIGH"
+    if top10_pct >= 30:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _compute_hhi(balances: list[float]) -> float:
+    """Herfindahl-Hirschman Index — 0 (distributed) to 10,000 (single holder)."""
+    total = sum(balances)
+    if total <= 0:
+        return 10000.0
+    return round(sum((b / total) ** 2 for b in balances) * 10000, 2)
+
+
+def _compute_gini(balances: list[float]) -> float:
+    """Gini coefficient (0 = equality, 1 = perfect inequality)."""
+    if len(balances) < 2:
+        return 0.0
+    total = sum(balances)
+    if total <= 0:
+        return 0.0
+    sorted_b = sorted(balances)
+    n = len(sorted_b)
+    weighted = sum((i + 1) * b for i, b in enumerate(sorted_b))
+    gini = (2 * weighted) / (n * total) - (n + 1) / n
+    return max(0.0, min(1.0, gini))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLICKHOUSE QUERIES (all sync, bounded by max_execution_time)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ...]] | None:
+    """Net balance per address from evm_transfers deltas (electrs-inspired)."""
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT
+                addr,
+                sum(balance) AS balance
+            FROM (
+                SELECT
+                    to_address AS addr,
+                    toFloat64OrZero(value) AS balance
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+                UNION ALL
+                SELECT
+                    from_address AS addr,
+                    -toFloat64OrZero(value) AS balance
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+            )
+            WHERE addr != ''
+            GROUP BY addr
+            HAVING sum(balance) > 0
+            ORDER BY sum(balance) DESC
+            LIMIT %(limit)s
+            """,
+            {"token": token_address, "chain": chain, "limit": _MAX_HOLDERS},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        return cast("list[tuple[Any, ...]] | None", rows)
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("holder_balances_query_failed: %s", exc)
+        return None
+
+
+def _query_first_in_transfers(token_address: str, chain: str) -> list[tuple[Any, ...]] | None:
+    """First in-transfer per holder — funder, evidence tx, block, timestamp."""
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT
+                to_address AS holder,
+                argMin(from_address, block_timestamp) AS funder,
+                argMin(tx_hash, block_timestamp) AS first_tx,
+                argMin(block_number, block_timestamp) AS first_block,
+                min(block_timestamp) AS first_seen
+            FROM wallet_memory.evm_transfers
+            WHERE token_address = %(token)s
+              AND chain = %(chain)s
+              AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
+              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                          '0x000000000000000000000000000000000000dead')
+            GROUP BY to_address
+            """,
+            {"token": token_address, "chain": chain},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        return cast("list[tuple[Any, ...]] | None", rows)
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("first_in_transfers_query_failed: %s", exc)
+        return None
+
+
+def _query_first_buy_blocks(token_address: str, chain: str) -> list[tuple[Any, ...]] | None:
+    """First DEX buy per address from dex_events (recipient preferred over sender)."""
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT
+                buyer,
+                min(block_number) AS first_block,
+                argMin(tx_hash, block_timestamp) AS first_tx
+            FROM (
+                SELECT
+                    if(recipient NOT IN ('', '0x0000000000000000000000000000000000000000'),
+                       recipient, sender) AS buyer,
+                    block_number,
+                    block_timestamp,
+                    tx_hash
+                FROM wallet_memory.dex_events
+                WHERE chain = %(chain)s
+                  AND (token0 = %(token)s OR token1 = %(token)s)
+                  AND type = 'swap'
+                  AND sender NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                        '0x000000000000000000000000000000000000dead')
+            )
+            WHERE buyer != ''
+            GROUP BY buyer
+            LIMIT %(limit)s
+            """,
+            {"token": token_address, "chain": chain, "limit": _MAX_BUYERS},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        return cast("list[tuple[Any, ...]] | None", rows)
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("first_buy_blocks_query_failed: %s", exc)
+        return None
+
+
+def _query_deploy_info(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Deployer + deploy block/ts from deployer_events (earliest row)."""
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT
+                argMin(deployer, block_timestamp) AS deployer,
+                argMin(block_number, block_timestamp) AS block_number,
+                argMin(tx_hash, block_timestamp) AS tx_hash,
+                min(block_timestamp) AS deploy_ts
+            FROM wallet_memory.deployer_events
+            WHERE token_address = %(token)s
+              AND chain = %(chain)s
+            """,
+            {"token": token_address, "chain": chain},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        if not rows or not rows[0] or not rows[0][0]:
+            return None
+        row = rows[0]
+        return {
+            "deployer": str(row[0] or "").lower(),
+            "block_number": row[1],
+            "tx_hash": str(row[2] or ""),
+            "deploy_ts": _to_epoch(row[3]),
+        }
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("deploy_info_query_failed: %s", exc)
+        return None
+
+
+def _query_is_active(token_address: str, chain: str) -> bool:
+    """True when the token had any transfer in the last 24h (drives Redis TTL)."""
+    client = _get_ch_client()
+    if client is None:
+        return False
+    try:
+        rows = client.execute(
+            """
+            SELECT count()
+            FROM wallet_memory.evm_transfers
+            WHERE token_address = %(token)s
+              AND chain = %(chain)s
+              AND block_timestamp >= now() - INTERVAL 24 HOUR
+            """,
+            {"token": token_address, "chain": chain},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        return bool(rows and rows[0] and rows[0][0] > 0)
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("is_active_query_failed: %s", exc)
+        return False
+
+
+async def _get_holder_analysis_gini(token_address: str, chain: str) -> float:
+    """Reuse own_holder_analysis for the Gini coefficient (spec C2)."""
+    try:
+        from app.domains.scanner.engines.own_holder_analysis import get_own_holder_analysis
+
+        result = await get_own_holder_analysis(token_address, chain)
+        if result and result.get("source") == "own":
+            return float(result.get("gini_coefficient") or 0.0)
+    except Exception as exc:
+        logger.debug("holder_analysis_gini_failed: %s", exc)
+    return 0.0
+
+
+async def _get_bundle_analysis(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Reuse own_bundle_detect output for the bundle pass."""
+    try:
+        from app.domains.scanner.engines.own_bundle_detect import get_own_bundle_analysis
+
+        result = await get_own_bundle_analysis(token_address, chain)
+        if result and result.get("source") == "own":
+            return result
+    except Exception as exc:
+        logger.debug("bundle_analysis_failed: %s", exc)
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
+def _to_epoch(value: Any) -> float | None:
+    """Convert a ClickHouse datetime (or anything with .timestamp()) to epoch seconds."""
+    if value is None:
+        return None
+    if hasattr(value, "timestamp"):
+        try:
+            return float(value.timestamp())
+        except (ValueError, OSError):
+            return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_iso(value: Any) -> str | None:
+    """Render a datetime as ISO-8601 (string passthrough otherwise)."""
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return str(value.isoformat())
+    return str(value)
+
+
+async def _redis_get(key: str) -> dict[str, Any] | None:
+    """Fetch a cached cluster payload from Redis (graceful on failure)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return None
+        raw = await r.get(key)
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception as exc:
+        logger.debug("holder_clusters_redis_get_failed: %s", exc)
+        return None
+
+
+async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
+    """Store a cluster payload in Redis with TTL (graceful on failure)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return False
+        await r.setex(key, ttl, json.dumps(value, default=str))
+        return True
+    except Exception as exc:
+        logger.debug("holder_clusters_redis_set_failed: %s", exc)
+        return False
+
+
+def _unavailable_result(token_address: str, chain_norm: str, reason: str = "clickhouse unavailable") -> dict[str, Any]:
+    """Graceful degradation result."""
+    return {
+        "check": "holder_clusters",
+        "result": "unavailable",
+        "source": "own",
+        "token_address": token_address,
+        "chain": chain_norm,
+        "holders": [],
+        "metrics": {"top10_pct": 0.0, "gini": 0.0, "hhi": 0.0, "class": "LOW", "total_holders": 0},
+        "clusters": [],
+        "concentration": {
+            "level": "LOW",
+            "top10_pct": 0.0,
+            "top3_pct": 0.0,
+            "hhi": 0.0,
+            "description": _CONCENTRATION_DESCRIPTIONS["LOW"],
+        },
+        "confidence": 0.0,
+        "deployer": None,
+        "active_24h": False,
+        "note": reason,
+    }
+
+
+def _error_result(token_address: str, chain_norm: str, message: str) -> dict[str, Any]:
+    """Invalid-input error result."""
+    return {
+        "check": "holder_clusters",
+        "result": "error",
+        "error": message,
+        "token_address": token_address,
+        "chain": chain_norm,
+        "holders": [],
+        "metrics": {"top10_pct": 0.0, "gini": 0.0, "hhi": 0.0, "class": "LOW", "total_holders": 0},
+        "clusters": [],
+        "concentration": {
+            "level": "LOW",
+            "top10_pct": 0.0,
+            "top3_pct": 0.0,
+            "hhi": 0.0,
+            "description": _CONCENTRATION_DESCRIPTIONS["LOW"],
+        },
+        "confidence": 0.0,
+        "deployer": None,
+        "active_24h": False,
+        "note": message,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MONITORING
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def get_cache_stats() -> dict[str, Any]:
+    """Return cache statistics for monitoring."""
+    return {
+        "cache_size": len(_CLUSTER_CACHE),
+        "cache_max": _CLUSTER_CACHE_MAX,
+        "cache_ttl_seconds": _CLUSTER_CACHE_TTL,
+        "redis_ttl_active_seconds": REDIS_TTL_ACTIVE,
+        "redis_ttl_inactive_seconds": REDIS_TTL_INACTIVE,
+        "clickhouse_connected": _get_ch_client() is not None,
+    }
+
+
+def clear_cache() -> None:
+    """Clear the in-process cache (for testing)."""
+    _CLUSTER_CACHE.clear()

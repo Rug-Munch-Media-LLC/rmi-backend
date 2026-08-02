@@ -16,11 +16,13 @@ Phase 4:
 
 Phase 5 (RugMunchScan capabilities):
   - wallet_flow.py — C1 wallet-to-wallet flow visualization (evm_transfers + wallet_labels)
+  - holder_clusters.py — C2 BubbleMaps-style holder clustering (evm_transfers + dex_events + wallet_labels)
   - new_token_radar.py — C3 new token discovery + early warning (deployer_events)
   - hype_score.py — C5 composite hype score (dex_events + evm_transfers + trending)
 """
 
 # Public API exports
+from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
 from app.domains.scanner.engines.own_deployer_reputation import get_own_deployer_reputation
 from app.domains.scanner.engines.own_dex_data import check_data_freshness, get_own_dex_data
 from app.domains.scanner.engines.own_holder_age import get_own_holder_age
@@ -45,4 +47,6 @@ __all__ = [
     "get_own_holder_age",
     "get_own_volume_authenticity",
     "get_own_whale_detection",
+    # Phase 5 — RugMunchScan capabilities
+    "analyze_holder_clusters",
 ]

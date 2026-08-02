@@ -421,6 +421,22 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── C2 — BubbleMaps-style holder clustering (LOCAL tier, ClickHouse-only) ──
+    chains["holder_clusters"] = ProviderChain(
+        "holder_clusters",
+        description="BubbleMaps-style holder clustering — balances from evm_transfers deltas, shared-funder / same-block-buy / bundle cluster passes, wallet_labels entity tags",
+        providers=[
+            Provider(
+                "chain_indexer_holder_clusters",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_holder_clusters"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers + dex_events + wallet_labels + deployer_events — holder concentration metrics and cluster map (C2)",
+            ),
+        ],
+    )
+
     # ── C6 — time-based attack detection (sandwich, pump & dump, flash loans) ──
     chains["attack_detection"] = ProviderChain(
         "attack_detection",
