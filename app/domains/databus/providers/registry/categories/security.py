@@ -129,6 +129,63 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── token_security_free — free multi-tier fallback (Arkham-quality replacement) ──
+    # Replaces paid/Goplus-only security checks with a stacked free API chain:
+    #   Tier 1: own ClickHouse (local, always first)
+    #   Tier 2: GoPlus API (free, no key)
+    #   Tier 3: Honeypot.is API (free, no key)
+    #   Tier 4: RugCheck.xyz (Solana only, free)
+    #   Tier 5: DexScreener pair heuristics (free, no key)
+    # Circuit breaker integration: ProviderChain.fetch() records failures per
+    # provider name and skips open breakers, so rate-limited/failed tiers fall
+    # through to the next automatically.
+    chains["token_security_free"] = ProviderChain(
+        "token_security_free",
+        description="Free token security fallback: ClickHouse → GoPlus → Honeypot.is → RugCheck → DexScreener heuristics",
+        providers=[
+            Provider(
+                "free_security_clickhouse",
+                ProviderTier.LOCAL,
+                _g["_free_security_clickhouse"],
+                weight=20.0,
+                is_local=True,
+                description="Own ClickHouse security analysis (evm_transfers + deployer_events) — zero cost",
+            ),
+            Provider(
+                "free_security_goplus",
+                ProviderTier.FREE_API,
+                _g["_free_security_goplus"],
+                weight=10.0,
+                rate_limit_rps=10.0,
+                description="GoPlus Security API — honeypot, mint, tax, owner checks (21+ chains, free)",
+            ),
+            Provider(
+                "free_security_honeypot_is",
+                ProviderTier.FREE_API,
+                _g["_free_security_honeypot_is"],
+                weight=8.0,
+                rate_limit_rps=2.0,
+                description="Honeypot.is — simulated buy/sell, honeypot flag (EVM chains, free)",
+            ),
+            Provider(
+                "free_security_rugcheck",
+                ProviderTier.FREE_API,
+                _g["_free_security_rugcheck"],
+                weight=6.0,
+                rate_limit_rps=2.0,
+                description="RugCheck.xyz — Solana token risk report (free)",
+            ),
+            Provider(
+                "free_security_dexscreener",
+                ProviderTier.FREE_API,
+                _g["_free_security_dexscreener"],
+                weight=4.0,
+                rate_limit_rps=2.0,
+                description="DexScreener pair heuristics — buy/sell asymmetry, liquidity depth (free)",
+            ),
+        ],
+    )
+
     try:
         from app.databus.rugcharts_intel import (
             analyze_liquidity_risk,
@@ -283,6 +340,67 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 weight=15.0,
                 is_local=True,
                 description="ClickHouse-powered pattern detection for deployer clusters, holder concentration, pump-and-dump, and mixer interactions",
+            ),
+        ],
+    )
+
+    # ── Own-data Phase 4 providers (ClickHouse, LOCAL tier, PREFER_OWN_DATA) ──
+    chains["deployer_reputation"] = ProviderChain(
+        "deployer_reputation",
+        description="Deployer reputation (0-100) from chain-indexer ClickHouse deployer_events (rugpull/honeypot proxies, lifespan, velocity)",
+        providers=[
+            Provider(
+                "chain_indexer_deployer_reputation",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_deployer_reputation"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse deployer_events — total tokens deployed, rugpull rate, honeypot rate, average token lifespan, velocity",
+            ),
+        ],
+    )
+
+    chains["whale_detection"] = ProviderChain(
+        "whale_detection",
+        description="Whale wallet detection from chain-indexer ClickHouse dex_events (large flows, accumulating vs dumping)",
+        providers=[
+            Provider(
+                "chain_indexer_whale_detect",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_whale_detect"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse dex_events — large transfers >$10K, whale wallets, concentration score, behavior flags",
+            ),
+        ],
+    )
+
+    chains["volume_authenticity"] = ProviderChain(
+        "volume_authenticity",
+        description="Wash-trading / volume authenticity from chain-indexer ClickHouse (dex_events vs evm_transfers)",
+        providers=[
+            Provider(
+                "chain_indexer_volume_authenticity",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_volume_authenticity"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse dex_events + evm_transfers — DEX vs transfer volume, wash patterns, authentic score",
+            ),
+        ],
+    )
+
+    chains["holder_age"] = ProviderChain(
+        "holder_age",
+        description="Holder age distribution from chain-indexer ClickHouse evm_transfers (fresh wallet farm / sudden influx / stable)",
+        providers=[
+            Provider(
+                "chain_indexer_holder_age",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_holder_age"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers — first-seen per holder, age buckets, fresh-wallet-farm detection",
             ),
         ],
     )

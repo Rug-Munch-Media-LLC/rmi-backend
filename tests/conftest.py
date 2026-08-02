@@ -18,7 +18,13 @@ Registers Hypothesis profiles:
   - `ci-quick`: derandomized, 50 examples, 2s deadline — fast CI smoke tests.
 """
 
+import os
+
 collect_ignore_glob = ["manual/*"]
+
+# Set safe defaults for test environment (avoids RuntimeError on jwt.py import
+# when JWT_ALGORITHM=RS256 but keys aren't configured)
+os.environ.setdefault("ENVIRONMENT", "dev")
 
 # ── Hypothesis profiles ───────────────────────────────────────────────
 from hypothesis import HealthCheck, settings

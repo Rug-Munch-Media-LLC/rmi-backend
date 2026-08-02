@@ -186,9 +186,12 @@ def _compute_composite(scores: dict[str, float]) -> tuple:
 
     composite = total / weight_used if weight_used > 0 else 0.0
 
+    # Bands align with send_scanner_alert's numeric threshold (risk_score >= 60):
+    # a token labeled "high" must actually trigger the alert. [50, 60) previously
+    # fell into "high" but was silently dropped by the >= 60 alert gate.
     if composite < 25:
         level = "low"
-    elif composite < 50:
+    elif composite < 60:
         level = "moderate"
     elif composite < 75:
         level = "high"
