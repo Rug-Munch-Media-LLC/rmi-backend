@@ -162,6 +162,7 @@ class HealthResponse(BaseModel):
     version: str
     uptime_seconds: float
     stores: dict[str, dict[str, Any]]
+    rag_pipeline: dict[str, Any] = {}
 
     model_config = {"extra": "allow"}
     config_issues: list[dict[str, str]] = []
@@ -407,6 +408,67 @@ def _get_degradation_section() -> dict[str, Any]:
         return {}
 
 
+async def _check_rag_pipeline() -> dict[str, Any]:
+    """RAG ingestion pipeline stats — scanner→RAG queue depth + ingested count.
+
+    The scanner publishes high/critical findings to the ``rmi:rag:ingest``
+    pub/sub channel and the ``rmi:rag:findings_queue`` LPUSH list. rmi-rag's
+    poller/subscriber consume those, embed with BGE-M3, and upsert into the
+    Qdrant ``threat_intel`` collection. This returns:
+
+    - ``queue_depth``: LLEN of ``rmi:rag:findings_queue`` (backlog waiting to
+      be embedded). 0 = poller is keeping up.
+    - ``ingested_count``: cumulative count reported by rmi-rag-api's
+      subscriber + poller (in-memory, resets on rmi-rag-api restart).
+    - ``poller_running`` / ``subscriber_running``: whether rmi-rag's
+      background consumers are alive.
+
+    Fail-open: any Redis/rmi-rag-api error is captured in ``error`` and the
+    endpoint still returns 200 (pipeline stats are observability, not a
+    liveness gate).
+    """
+    stats: dict[str, Any] = {
+        "queue_depth": 0,
+        "ingested_count": 0,
+        "poller_running": False,
+        "subscriber_running": False,
+    }
+
+    # ── Queue depth from Redis (rmi:rag:findings_queue) ──
+    try:
+        from app.core.redis import get_redis_async
+
+        client = get_redis_async()
+        if client is not None:
+            depth = await asyncio.wait_for(client.llen("rmi:rag:findings_queue"), timeout=2.0)
+            stats["queue_depth"] = int(depth or 0)
+    except Exception as exc:
+        stats["error"] = f"redis: {str(exc)[:120]}"
+
+    # ── Ingested count + consumer health from rmi-rag-api ──
+    try:
+        rag_api_url = os.getenv(
+            "RAG_API_URL",
+            "http://rmi-rag-api:8012" if not _IS_DEV else "http://127.0.0.1:8012",
+        ).rstrip("/")
+        client = await _get_http_client()
+        resp = await asyncio.wait_for(client.get(f"{rag_api_url}/health"), timeout=2.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            sub = data.get("subscriber_stats") or {}
+            poll = data.get("poller_stats") or {}
+            stats["ingested_count"] = int(sub.get("ingested_count", 0)) + int(poll.get("ingested_count", 0))
+            stats["poller_running"] = bool(poll.get("running", False))
+            stats["subscriber_running"] = bool(sub.get("running", False))
+            stats["rag_api_status"] = data.get("status", "unknown")
+        else:
+            stats["rag_api_status"] = f"http_{resp.status_code}"
+    except Exception as exc:
+        stats["error"] = f"{stats.get('error', '')} rag_api: {str(exc)[:120]}".strip()
+
+    return stats
+
+
 # ── Endpoints ───────────────────────────────────────────────────
 
 
@@ -453,6 +515,7 @@ async def health() -> HealthResponse:
         "minio": asyncio.wait_for(_check_store("minio", _check_minio()), timeout=5.0),
         "eth_rpc": asyncio.wait_for(_check_store("eth_rpc", _check_reth()), timeout=5.0),
         "degenfeed": asyncio.wait_for(_check_store("degenfeed", _check_degenfeed()), timeout=5.0),
+        "rag_pipeline": asyncio.wait_for(_check_rag_pipeline(), timeout=5.0),
     }
     results = await asyncio.gather(*store_checks.values(), return_exceptions=True)
     stores = {}
@@ -462,6 +525,16 @@ async def health() -> HealthResponse:
         if "latency_ms" not in ref:
             ref["latency_ms"] = int((time.monotonic() - started) * 1000)
         stores[name] = ref
+
+    # RAG pipeline stats are observability, not a liveness gate — pull out of
+    # the store checks so they don't influence critical/degraded status.
+    rag_pipeline = dict(stores.pop("rag_pipeline", {}))
+    rag_pipeline.pop("latency_ms", None)
+    rag_pipeline.setdefault(
+        "healthy", bool(rag_pipeline.get("poller_running") or rag_pipeline.get("subscriber_running"))
+    )
+    rag_pipeline.setdefault("queue_depth", 0)
+    rag_pipeline.setdefault("ingested_count", 0)
 
     # Sync health check results with degradation registry (Win #14)
     _sync_degradation_from_health(stores)
@@ -487,5 +560,6 @@ async def health() -> HealthResponse:
         version="2026.06.21",
         uptime_seconds=time.monotonic() - _START_TIME,
         stores=stores | degradation,
+        rag_pipeline=rag_pipeline,
         config_issues=config_issues,
     )
