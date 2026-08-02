@@ -11,8 +11,8 @@ ClickHouse data:
   - Whale concentration score (how much of large flow a few wallets control)
 
 Architecture:
-  - Reuses own_dex_data swap queries + price oracle (TWAP from dex_events)
-  - Converts raw on-chain amounts to USD using the token TWAP
+  - Reuses own_dex_data swap queries + the F2 price oracle (price_oracle.py)
+  - Converts raw on-chain amounts to USD via token decimals + USD price
   - Returns a whale concentration score and per-wallet flags
   - Falls back gracefully when data or price is insufficient
 
@@ -36,21 +36,19 @@ Usage:
 Data Sources:
   Primary: wallet_memory.dex_events (swap events)
   Primary: wallet_memory.evm_transfers (large transfer events, fallback)
-  Price:   own_dex_data TWAP oracle (dex_events)
+  Price:   F2 price oracle (own dex_events TWAP -> DexScreener -> CoinGecko ->
+           DeFiLlama -> GeckoTerminal -> ParaSwap/1inch)
 """
 
 from __future__ import annotations
 
+import math
 import os
 import time
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.scanner.engines.own_dex_data.format import _normalize_amount
-from app.domains.scanner.engines.own_dex_data.query import (
-    _query_dex_swaps,
-    get_token_price_simple,
-)
+from app.domains.scanner.engines.own_dex_data.query import _query_dex_swaps
 
 logger = get_logger(__name__)
 
@@ -179,11 +177,21 @@ async def get_own_whale_detection(
     }
 
     try:
-        # ── 1. Get TWAP price (USD per token) ──
-        price = await get_token_price_simple(token_address, chain, lookback_minutes=min(lookback_hours * 60, 1440))
-        price_usd = float(price.get("price_usd", 0) or 0)
+        # ── 1. Get USD price + decimals via the F2 price oracle ──
+        from app.domains.scanner.engines.price_oracle import (
+            get_token_decimals,
+            get_token_price,
+        )
+
+        price_result = await get_token_price(token_address, chain)
+        price_usd = float(price_result.get("price_usd", 0) or 0) if price_result else 0.0
+        price_confidence = float(price_result.get("confidence", 0) or 0) if price_result else 0.0
+        decimals = await get_token_decimals(token_address, chain)
+        if decimals is None:
+            decimals = 18
         result["price_usd"] = price_usd
-        result["price_confidence"] = float(price.get("confidence", 0) or 0)
+        result["price_confidence"] = price_confidence
+        result["price_source"] = price_result.get("source", "") if price_result else ""
 
         # ── 2. Fetch swap events ──
         swaps = await _query_dex_swaps(token_address, chain, hours_back=lookback_hours)
@@ -199,6 +207,18 @@ async def get_own_whale_detection(
 
     result["total_swaps_analyzed"] = len(swaps)
 
+    def _raw_to_usd(raw_amount: Any) -> float:
+        """Convert a raw on-chain amount to USD via decimals + oracle price."""
+        raw: float = 0.0
+        try:
+            raw = float(raw_amount or 0)
+        except (ValueError, TypeError):
+            return 0.0
+        if raw <= 0:
+            return 0.0
+        human = raw / math.pow(10, decimals)
+        return human * price_usd
+
     # ── 3. Convert swaps to USD flows and attribute to wallets ──
     wallet_flows: dict[str, dict[str, Any]] = {}
     large_flow_usd = 0.0
@@ -206,19 +226,18 @@ async def get_own_whale_detection(
         try:
             is_token0 = (swap.get("token0") or "").lower() == token_address
             if is_token0:
-                amt = _normalize_amount(swap.get("amount0_out") or 0, token_address, chain)
-                is_buy = amt > 0
+                usd = _raw_to_usd(swap.get("amount0_out") or 0)
+                is_buy = usd > 0
                 if not is_buy:
-                    amt = _normalize_amount(swap.get("amount0_in") or 0, token_address, chain)
+                    usd = _raw_to_usd(swap.get("amount0_in") or 0)
             else:
-                amt = _normalize_amount(swap.get("amount1_out") or 0, token_address, chain)
-                is_buy = amt > 0
+                usd = _raw_to_usd(swap.get("amount1_out") or 0)
+                is_buy = usd > 0
                 if not is_buy:
-                    amt = _normalize_amount(swap.get("amount1_in") or 0, token_address, chain)
+                    usd = _raw_to_usd(swap.get("amount1_in") or 0)
         except (ValueError, TypeError):
             continue
 
-        usd = amt * price_usd
         if usd < min_usd_threshold:
             continue
 
@@ -291,7 +310,7 @@ async def get_own_whale_detection(
     if any(w["behavior"] == "cycling" for w in whale_wallets) and len(whale_wallets) >= 2:
         result["flags"].append("possible_wash_cycling")
 
-    result["confidence"] = round(min(1.0, float(price.get("confidence", 0) or 0) + 0.2), 2)
+    result["confidence"] = round(min(1.0, price_confidence + 0.2), 2)
 
     _cache_whale(cache_key, result)
 

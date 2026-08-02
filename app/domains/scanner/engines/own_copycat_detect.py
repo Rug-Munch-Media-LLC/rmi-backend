@@ -52,6 +52,14 @@ _COPYCAT_CACHE_MAX = 200
 # ── Lazy ClickHouse client ────────────────────────────────────────────────
 _ch_client: Any = None
 
+# ── ClickHouse error types (narrowed broad excepts) ───────────────────────
+try:
+    import clickhouse_driver.errors as ch_errors
+
+    CH_ERRORS = (ch_errors.Error, ConnectionError, OSError, TimeoutError, ValueError)
+except ImportError:
+    CH_ERRORS = (ConnectionError, OSError, TimeoutError, ValueError)
+
 # ── Top token symbols (expanded from static list for similarity matching) ─
 _TOP_SYMBOLS: set[str] = {
     "ETH",
@@ -347,13 +355,13 @@ async def get_own_copycat_analysis(
             if rag_matches:
                 result["similar_tokens"].extend(rag_matches)
                 result["source"] = "own"
-        except Exception as exc:
+        except CH_ERRORS as exc:
             logger.debug("rag_copycat_search_failed: %s", exc)
 
         # ── Compute aggregate score ──
         _compute_copycat_score(result)
 
-    except Exception as exc:
+    except CH_ERRORS as exc:
         logger.debug("own_copycat_query_failed for %s: %s", token_address[:16], exc)
 
     # Cache
@@ -506,7 +514,7 @@ def _query_name_similarity(
 
         return None  # Requires token_metadata table for full functionality
 
-    except Exception as exc:
+    except CH_ERRORS as exc:
         logger.debug("name_similarity_query_failed: %s", exc)
         return None
 
@@ -566,7 +574,7 @@ def _query_deployer_similar_launches(
             for r in rows[:5]
         ]
 
-    except Exception as exc:
+    except CH_ERRORS as exc:
         logger.debug("deployer_similar_query_failed: %s", exc)
         return None
 
@@ -614,7 +622,7 @@ async def _rag_similarity_search(
     except ImportError:
         logger.debug("rag_scam_check not available for copycat detection")
         return None
-    except Exception as exc:
+    except CH_ERRORS as exc:
         logger.debug("rag_similarity_search_failed: %s", exc)
         return None
 
