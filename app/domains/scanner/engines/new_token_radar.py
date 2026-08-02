@@ -1,0 +1,516 @@
+"""
+C3 — New Token Radar (v1) — New Token Discovery + Early Warning
+================================================================
+Detects newly deployed tokens from our own ClickHouse ``deployer_events``
+within the last N minutes, runs a fast risk scan on each, scores it
+(CRITICAL / HIGH / WARNING / INFO), and pushes CRITICAL/HIGH alerts to
+Telegram — before the crowd arrives.
+
+Data sources (all LOCAL / free):
+  - ``wallet_memory.deployer_events`` — new deployments (polled)
+  - ``fingerprint_deployer`` (C7)     — deployer behavioral risk bucket
+  - honeypot / liquidity checks       — scanner modules + own DEX data
+  - ``alert_hooks.send_scanner_alert`` — Telegram alert rail
+
+NOTE — F0 dependency (per spec): F0 replaces the contract/factory-as-deployer
+with the real EOA deployer and adds ``pair_address`` / ``token0`` / ``token1``
+columns. Until F0 lands, the radar keys on ``token_address`` from
+``deployer_events`` (the pair/token contract) and treats it as the new token.
+Deployer-risk scoring is therefore approximate until F0 corrects the
+deployer attribution.
+
+Caching / dedup:
+  - Result cache: Redis ``new_token_radar:{chain}`` (TTL 60s) — the periodic
+    poller can read this instead of re-scanning.
+  - Alert dedup: Redis ``new_token_radar:alerted:{chain}`` set (TTL 24h) so a
+    CRITICAL/HIGH token is alerted once, not on every poll.
+  - In-process mirror cache consistent with the other own-data engines.
+
+Usage:
+    from app.domains.scanner.engines.new_token_radar import scan_new_tokens
+
+    results = await scan_new_tokens("ethereum", lookback_minutes=5)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import time
+from typing import Any
+
+from app.core.logging import get_logger
+from app.domains.databus.providers.chains.chain_indexer import (
+    _get_ch_client,
+    _normalize_chain,
+)
+
+logger = get_logger(__name__)
+
+# ── Cache / dedup ─────────────────────────────────────────────────────────
+REDIS_CACHE_TTL_SECONDS = 60  # result cache for the poller
+REDIS_ALERT_TTL_SECONDS = 86400  # alert dedup window (24h)
+REDIS_PREFIX = "new_token_radar"
+_RADAR_CACHE: dict[str, dict[str, Any]] = {}
+_RADAR_CACHE_TTL = 60
+_RADAR_CACHE_MAX = 100
+
+# ── Limits / time-boxing ───────────────────────────────────────────────────
+_QUERY_TIMEOUT_SECONDS = 10
+_MAX_NEW_TOKENS = 30
+_SCAN_PER_TOKEN_TIMEOUT = 12.0  # fast scan: honeypot + deployer + liquidity
+_MIN_LIQUIDITY_WARNING_USD = 5_000.0  # below this → liquidity risk
+_MIN_LIQUIDITY_HIGH_USD = 1_000.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PUBLIC API
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def scan_new_tokens(
+    chain: str = "ethereum",
+    lookback_minutes: int = 5,
+    notify: bool = True,
+    force_fresh: bool = False,
+) -> list[dict[str, Any]]:
+    """Scan for tokens deployed in the last N minutes and score each one.
+
+    Args:
+        chain: Chain to poll (ethereum, bsc, base, ...).
+        lookback_minutes: Window of recent deployments to consider.
+        notify: Push CRITICAL/HIGH alerts to Telegram (default True).
+        force_fresh: Bypass the result cache (re-scan).
+
+    Returns:
+        List of scored radar results (max ``_MAX_NEW_TOKENS``), each::
+
+            {
+                "token_address": "0x...",
+                "chain": "ethereum",
+                "deployer": "0x...",
+                "deploy_tx": "0x...",
+                "deployed_at": "iso",
+                "level": "CRITICAL" | "HIGH" | "WARNING" | "INFO",
+                "score": 0-100,
+                "signals": {deployer_risk, liquidity_usd, is_honeypot, ...},
+                "evidence": [...]
+            }
+
+        Returns an empty list (never raises) when ClickHouse is unreachable
+        or no new deployments exist in the window.
+    """
+    chain_norm = _normalize_chain(chain)
+    if not chain_norm:
+        logger.debug("new_token_radar: unknown chain %s", chain)
+        return []
+
+    # ── Result cache for the poller ──
+    cache_key = f"{REDIS_PREFIX}:{chain_norm}"
+    if not force_fresh:
+        cached = await _redis_get(cache_key)
+        if cached is not None:
+            return cached
+
+    # ── In-process mirror ──
+    if not force_fresh and cache_key in _RADAR_CACHE:
+        entry = _RADAR_CACHE[cache_key]
+        if time.time() - entry.get("_cached_at", 0) < _RADAR_CACHE_TTL:
+            return entry.get("results", [])
+
+    _start = time.monotonic()
+    try:
+        # ── 1. Poll deployer_events ──
+        deployments = await _run_sync(_query_new_deployments, chain_norm, lookback_minutes)
+        if not deployments:
+            results: list[dict[str, Any]] = []
+            await _redis_set(cache_key, results, REDIS_CACHE_TTL_SECONDS)
+            logger.info("new_token_radar_run", chain=chain_norm, new=0, ms=0.0)
+            return results
+
+        # Dedupe by token_address (keep earliest deployment)
+        seen: dict[str, dict[str, Any]] = {}
+        for dep in deployments:
+            token = str(dep.get("token_address") or "").lower()
+            if not token:
+                continue
+            if token not in seen or dep.get("block_timestamp", "") < seen[token].get("block_timestamp", ""):
+                seen[token] = dep
+
+        new_tokens = list(seen.values())[:_MAX_NEW_TOKENS]
+
+        # ── 2. Fast scan each new token (bounded, parallel) ──
+        tasks = [asyncio.create_task(_fast_scan_token(tok, chain_norm)) for tok in new_tokens]
+        scanned = await asyncio.gather(*tasks, return_exceptions=True)
+
+        results = []
+        for _tok, outcome in zip(new_tokens, scanned, strict=False):
+            if isinstance(outcome, BaseException) or outcome is None:
+                continue
+            results.append(outcome)
+
+        # ── 3. Sort by risk (CRITICAL first, then score desc) ──
+        level_order = {"CRITICAL": 0, "HIGH": 1, "WARNING": 2, "INFO": 3}
+        results.sort(key=lambda r: (level_order.get(r.get("level", "INFO"), 9), -float(r.get("score", 0))))
+
+        # ── 4. Alert CRITICAL/HIGH via Telegram (deduped) ──
+        if notify:
+            alerted = await _alert_high_risk(results, chain_norm)
+
+        await _redis_set(cache_key, results, REDIS_CACHE_TTL_SECONDS)
+        _RADAR_CACHE[cache_key] = {"results": results, "_cached_at": time.time()}
+        if len(_RADAR_CACHE) > _RADAR_CACHE_MAX:
+            _RADAR_CACHE.pop(next(iter(_RADAR_CACHE)), None)
+
+        _elapsed_ms = (time.monotonic() - _start) * 1000
+        logger.info(
+            "new_token_radar_run",
+            chain=chain_norm,
+            new=len(results),
+            alerts=len(alerted) if notify else 0,
+            ms=round(_elapsed_ms, 1),
+        )
+        return results
+
+    except Exception as exc:
+        logger.debug("new_token_radar_failed: %s", exc)
+        return []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FAST SCAN + SCORING
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, Any]:
+    """Run honeypot + deployer reputation + liquidity checks for one token.
+
+    Time-boxed so a slow external check cannot block the poll loop.
+    """
+    token_address = str(deployment.get("token_address") or "").lower()
+    deployer = str(deployment.get("deployer") or "").lower()
+    signals: dict[str, Any] = {}
+    evidence: list[dict[str, Any]] = []
+
+    try:
+        # ── Deployer reputation (C7 fingerprint — local, fast) ──
+        try:
+            from app.domains.scanner.engines.deployer_fingerprint import fingerprint_deployer
+
+            fp = await asyncio.wait_for(fingerprint_deployer(deployer, chain), timeout=6.0)
+            if fp and fp.get("result") == "scanned":
+                signals["deployer_bucket"] = fp.get("risk_bucket")
+                signals["deployer_risk_score"] = float(fp.get("risk_score", 50) or 50)
+                signals["deployer_deployments"] = int(fp.get("total_deployments", 0) or 0)
+                evidence.append(
+                    {
+                        "kind": "deployer_fingerprint",
+                        "deployer": deployer,
+                        "risk_bucket": fp.get("risk_bucket"),
+                        "risk_score": fp.get("risk_score"),
+                    }
+                )
+            else:
+                signals["deployer_bucket"] = "UNKNOWN"
+                signals["deployer_risk_score"] = 50.0
+        except Exception as exc:
+            logger.debug("radar_fingerprint_failed %s: %s", token_address[:16], exc)
+            signals["deployer_bucket"] = "UNKNOWN"
+            signals["deployer_risk_score"] = 50.0
+
+        # ── Honeypot check (scanner module — own data first) ──
+        try:
+            from app.domains.scanner.modules.security import _check_honeypot_is
+
+            hp = await asyncio.wait_for(_check_honeypot_is(token_address, chain), timeout=8.0)
+            if hp and hp.get("result") == "scanned":
+                signals["is_honeypot"] = bool(hp.get("is_honeypot", False))
+                signals["honeypot_risk_score"] = float(hp.get("risk_score", 0) or 0)
+                signals["buy_tax_pct"] = hp.get("buy_tax_pct")
+                signals["sell_tax_pct"] = hp.get("sell_tax_pct")
+                evidence.append(
+                    {
+                        "kind": "honeypot",
+                        "is_honeypot": hp.get("is_honeypot"),
+                        "risk_score": hp.get("risk_score"),
+                        "findings": (hp.get("findings") or [])[:3],
+                    }
+                )
+            else:
+                signals["is_honeypot"] = False
+                signals["honeypot_risk_score"] = 0.0
+        except Exception as exc:
+            logger.debug("radar_honeypot_failed %s: %s", token_address[:16], exc)
+            signals["is_honeypot"] = False
+            signals["honeypot_risk_score"] = 0.0
+
+        # ── Liquidity check (own DEX data first, DexScreener fallback) ──
+        signals["liquidity_usd"] = await _check_liquidity(token_address, chain)
+    except Exception as exc:
+        logger.debug("radar_fast_scan_failed %s: %s", token_address[:16], exc)
+
+    level, score = _score_new_token(signals)
+    evidence.append(
+        {
+            "kind": "deployment",
+            "deploy_tx": deployment.get("tx_hash"),
+            "deployed_at": deployment.get("block_timestamp"),
+            "token_address": token_address,
+        }
+    )
+
+    return {
+        "token_address": token_address,
+        "chain": chain,
+        "deployer": deployer or None,
+        "deploy_tx": deployment.get("tx_hash"),
+        "deployed_at": deployment.get("block_timestamp"),
+        "level": level,
+        "score": score,
+        "signals": signals,
+        "evidence": evidence[:6],
+    }
+
+
+async def _check_liquidity(token_address: str, chain: str) -> float:
+    """Return liquidity USD for a token (own data → DexScreener fallback)."""
+    try:
+        from app.domains.scanner.modules._core import _fetch_dexscreener
+
+        ds = await asyncio.wait_for(_fetch_dexscreener(token_address, chain), timeout=6.0)
+        if ds and ds.get("pairs"):
+            return float(ds["pairs"][0].get("liquidity", {}).get("usd", 0) or 0)
+    except Exception as exc:
+        logger.debug("radar_liquidity_failed %s: %s", token_address[:16], exc)
+    return 0.0
+
+
+def _score_new_token(signals: dict[str, Any]) -> tuple[str, int]:
+    """Score a new token and assign CRITICAL / HIGH / WARNING / INFO.
+
+    Heuristics (v1 — tuned on historical correlation per spec):
+      - Honeypot flag → CRITICAL (100)
+      - Deployer bucket REPEAT_RUG / FARM OR deployer risk >= 80 → CRITICAL
+      - Deployer risk >= 60 OR liquidity < $1K → HIGH
+      - Deployer NEW/UNKNOWN OR liquidity < $5K → WARNING
+      - Otherwise INFO
+    """
+    is_honeypot = bool(signals.get("is_honeypot", False))
+    deployer_risk = float(signals.get("deployer_risk_score", 50.0) or 50.0)
+    bucket = str(signals.get("deployer_bucket", "UNKNOWN"))
+    liquidity = float(signals.get("liquidity_usd", 0.0) or 0.0)
+
+    if is_honeypot:
+        return "CRITICAL", 100
+    if bucket in ("REPEAT_RUG", "FARM") or deployer_risk >= 80:
+        return "CRITICAL", min(95, int(deployer_risk))
+    if deployer_risk >= 60 or liquidity < _MIN_LIQUIDITY_HIGH_USD:
+        return "HIGH", max(60, min(89, int(deployer_risk)))
+    if bucket in ("NEW", "UNKNOWN") or liquidity < _MIN_LIQUIDITY_WARNING_USD:
+        return "WARNING", max(40, min(70, int(deployer_risk)))
+    return "INFO", min(39, int(deployer_risk) // 2)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ALERTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _alert_high_risk(results: list[dict[str, Any]], chain: str) -> list[str]:
+    """Push CRITICAL/HIGH tokens to Telegram once (dedup via Redis set)."""
+    high_risk = [r for r in results if r.get("level") in ("CRITICAL", "HIGH")]
+    if not high_risk:
+        return []
+
+    alerted: list[str] = []
+    for r in high_risk:
+        token = r.get("token_address", "")
+        if not token:
+            continue
+        if await _was_alerted(chain, token):
+            continue
+
+        try:
+            from app.domains.telegram.alert_hooks import send_scanner_alert
+
+            signals = r.get("signals", {})
+            threats = []
+            if signals.get("is_honeypot"):
+                threats.append("honeypot")
+            bucket = signals.get("deployer_bucket")
+            if bucket in ("REPEAT_RUG", "FARM"):
+                threats.append(f"high_risk_deployer:{bucket}")
+            if float(signals.get("liquidity_usd", 0) or 0) < _MIN_LIQUIDITY_WARNING_USD:
+                threats.append("low_liquidity")
+
+            await send_scanner_alert(
+                token_address=token,
+                chain=chain,
+                risk_score=float(r.get("score", 60) or 60),
+                threats=threats or ["new_token_radar"],
+                token_name=f"New {r.get('level', 'HIGH').title()} Token",
+                token_symbol=r.get("level", "HIGH"),
+            )
+            alerted.append(token)
+            await _mark_alerted(chain, token)
+        except Exception as exc:
+            logger.debug("radar_alert_failed %s: %s", token[:16], exc)
+
+    return alerted
+
+
+async def _was_alerted(chain: str, token: str) -> bool:
+    """Return True when this token was already alerted (Redis set)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return False
+        key = f"{REDIS_PREFIX}:alerted:{chain}:{token}"
+        return bool(await r.exists(key))
+    except Exception as exc:
+        logger.debug("radar_alert_dedup_check_failed: %s", exc)
+        return False
+
+
+async def _mark_alerted(chain: str, token: str) -> None:
+    """Mark a token as alerted for the dedup window."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return
+        key = f"{REDIS_PREFIX}:alerted:{chain}:{token}"
+        await r.setex(key, REDIS_ALERT_TTL_SECONDS, "1")
+    except Exception as exc:
+        logger.debug("radar_alert_dedup_set_failed: %s", exc)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLICKHOUSE QUERIES
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _query_new_deployments(chain: str, lookback_minutes: int) -> list[dict[str, Any]]:
+    """Return deployer_events rows deployed in the last N minutes."""
+    client = _get_ch_client()
+    if client is None:
+        return []
+
+    params: dict[str, Any] = {
+        "chain": chain,
+        "minutes": max(1, int(lookback_minutes)),
+        "limit": _MAX_NEW_TOKENS * 2,
+    }
+    try:
+        rows = client.execute(
+            """
+            SELECT deployer, token_address, chain, block_number,
+                   block_timestamp, tx_hash, type, factory
+            FROM wallet_memory.deployer_events
+            WHERE chain = %(chain)s
+              AND block_timestamp >= now() - INTERVAL %(minutes)s MINUTE
+            ORDER BY block_timestamp DESC
+            LIMIT %(limit)s
+            """,
+            params,
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("radar_deployer_query_failed: %s", exc)
+        return []
+
+    deployments = []
+    for row in rows:
+        deployments.append(
+            {
+                "deployer": row[0],
+                "token_address": row[1],
+                "chain": row[2],
+                "block_number": row[3],
+                "block_timestamp": _iso(row[4]),
+                "tx_hash": row[5],
+                "type": row[6],
+                "factory": row[7],
+            }
+        )
+    return deployments
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
+def _iso(value: Any) -> str | None:
+    """Convert a datetime to ISO string (or None)."""
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        try:
+            return str(value.isoformat())
+        except (ValueError, TypeError):
+            return str(value)
+    return str(value) if value else None
+
+
+async def _redis_get(key: str) -> list[dict[str, Any]] | None:
+    """Fetch a cached radar result list from Redis (graceful on failure)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return None
+        raw = await r.get(key)
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, list) else None
+    except Exception as exc:
+        logger.debug("new_token_radar_redis_get_failed: %s", exc)
+        return None
+
+
+async def _redis_set(key: str, value: list[dict[str, Any]], ttl: int) -> bool:
+    """Store a radar result list in Redis with TTL (graceful on failure)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return False
+        await r.setex(key, ttl, json.dumps(value, default=str))
+        return True
+    except Exception as exc:
+        logger.debug("new_token_radar_redis_set_failed: %s", exc)
+        return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MONITORING
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def get_cache_stats() -> dict[str, Any]:
+    """Return cache statistics for monitoring."""
+    return {
+        "cache_size": len(_RADAR_CACHE),
+        "cache_max": _RADAR_CACHE_MAX,
+        "cache_ttl_seconds": _RADAR_CACHE_TTL,
+        "redis_cache_ttl_seconds": REDIS_CACHE_TTL_SECONDS,
+        "alert_dedup_ttl_seconds": REDIS_ALERT_TTL_SECONDS,
+        "clickhouse_connected": _get_ch_client() is not None,
+    }
+
+
+def clear_cache() -> None:
+    """Clear the in-process cache (for testing)."""
+    _RADAR_CACHE.clear()

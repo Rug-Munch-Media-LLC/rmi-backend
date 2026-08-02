@@ -13,6 +13,11 @@ Phase 4:
   - own_whale_detect.py — whale wallets (dex_events + price oracle)
   - own_volume_authenticity.py — wash trading detection (dex_events + evm_transfers)
   - own_holder_age.py — holder vintage analysis (evm_transfers + deployer_events)
+
+Phase 5 (RugMunchScan capabilities):
+  - wallet_flow.py — C1 wallet-to-wallet flow visualization (evm_transfers + wallet_labels)
+  - new_token_radar.py — C3 new token discovery + early warning (deployer_events)
+  - hype_score.py — C5 composite hype score (dex_events + evm_transfers + trending)
 """
 
 # Public API exports

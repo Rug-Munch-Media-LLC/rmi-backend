@@ -219,6 +219,22 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── C1 — wallet-to-wallet flow visualization (Arkham replacement, LOCAL) ──
+    chains["wallet_flow"] = ProviderChain(
+        data_type="wallet_flow",
+        description="Wallet-to-wallet fund flow graph from ClickHouse evm_transfers — labeled nodes, USD edges (C1, Arkham replacement)",
+        providers=[
+            Provider(
+                "chain_indexer_wallet_flow",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_wallet_flow"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers + wallet_labels + dex_events — 1-2 hop labeled USD graph around any wallet",
+            ),
+        ],
+    )
+
     chains["token_holders"] = ProviderChain(
         data_type="token_holders",
         description="Token holder analysis from chain-indexer ClickHouse (transfer aggregation)",
