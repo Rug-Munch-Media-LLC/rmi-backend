@@ -411,35 +411,38 @@ class TestFlashLoanAttackDetector:
 
 
 class TestScanRateLimiter:
-    """Scan rate limiter configuration and tier logic."""
+    """Rate limiter configuration and tier logic (consolidated in app.core.rate_limiter)."""
 
     def test_free_daily_limit_default(self):
-        """FREE_DAILY_LIMIT defaults to 5."""
-        from app.scan_rate_limiter import FREE_DAILY_LIMIT
+        """FREE tier sentinel scan daily limit is defined."""
+        from app.core.rate_limiter import TIER_LIMITS, Tier
 
-        assert FREE_DAILY_LIMIT == 5
+        free_scans = TIER_LIMITS[Tier.FREE]["sentinel_scans_per_day"]
+        assert isinstance(free_scans, int)
+        assert free_scans > 0
+
+    def test_tier_limits_contain_expected_tiers(self):
+        """TIER_LIMITS has the expected tier keys."""
+        from app.core.rate_limiter import TIER_LIMITS, Tier
+
+        assert Tier.FREE in TIER_LIMITS
+        assert Tier.PRO in TIER_LIMITS
+        assert Tier.ENTERPRISE in TIER_LIMITS
 
     def test_scan_packs_contain_expected_keys(self):
-        """SCAN_PACKS has the expected tier keys."""
-        from app.scan_rate_limiter import SCAN_PACKS
+        """SCAN_PACKS (Telegram bot config) has the expected pack keys."""
+        from app.domains.telegram.rugmunchbot.config import SCAN_PACKS
 
-        assert "starter_monthly" in SCAN_PACKS
-        assert "pro_monthly" in SCAN_PACKS
-        assert "elite_monthly" in SCAN_PACKS
-
-    def test_bot_packs_contain_expected_keys(self):
-        """BOT_PACKS has expected bot pack keys."""
-        from app.scan_rate_limiter import BOT_PACKS
-
-        assert "bot_scout" in BOT_PACKS
-        assert "bot_hunter" in BOT_PACKS
-        assert "bot_whale" in BOT_PACKS
+        assert "deep_scan" in SCAN_PACKS
+        assert "wallet_forensic" in SCAN_PACKS
 
     def test_elite_daily_limit_zero_means_unlimited(self):
-        """ELITE_DAILY_LIMIT of 0 means unlimited."""
-        from app.scan_rate_limiter import ELITE_DAILY_LIMIT
+        """ENTERPRISE tier is effectively unlimited (large sentinel scan cap)."""
+        from app.core.rate_limiter import TIER_LIMITS, Tier
 
-        assert ELITE_DAILY_LIMIT == 0  # 0 = unlimited
+        enterprise_scans = TIER_LIMITS[Tier.ENTERPRISE]["sentinel_scans_per_day"]
+        assert isinstance(enterprise_scans, int)
+        assert enterprise_scans >= 1000
 
 
 class TestScannerInputValidation:

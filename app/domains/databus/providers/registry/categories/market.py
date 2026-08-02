@@ -71,6 +71,69 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── market_price_free — free multi-tier fallback (Arkham-quality price replacement) ──
+    #   Tier 1: own ClickHouse DEX events (own TWAP, local)
+    #   Tier 2: DexScreener (free, 300 req/min)
+    #   Tier 3: CoinGecko (free, 10-30 req/min)
+    #   Tier 4: GeckoTerminal (free, no auth)
+    #   Tier 5: 1inch/ParaSwap quotes (ParaSwap free; 1inch freemium w/ key)
+    chains["market_price_free"] = ProviderChain(
+        data_type="market_price_free",
+        description="Free market price fallback: ClickHouse TWAP → DexScreener → CoinGecko → GeckoTerminal → DEX quotes",
+        providers=[
+            Provider(
+                "free_market_clickhouse_twap",
+                ProviderTier.LOCAL,
+                _g["_free_market_clickhouse_twap"],
+                weight=20.0,
+                is_local=True,
+                description="Own ClickHouse dex_events TWAP via own_price_oracle — zero cost",
+            ),
+            Provider(
+                "dexscreener_price_free",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_price"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+                description="DexScreener latest/dex/tokens — live pair price (free)",
+            ),
+            Provider(
+                "free_market_coingecko",
+                ProviderTier.FREE_API,
+                _g["_free_market_coingecko"],
+                weight=6.0,
+                rate_limit_rps=0.5,
+                description="CoinGecko simple/token_price — free tier 10-30 req/min",
+            ),
+            Provider(
+                "free_market_geckoterminal",
+                ProviderTier.FREE_API,
+                _g["_free_market_geckoterminal"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+                description="GeckoTerminal token price (free, no auth)",
+            ),
+            Provider(
+                "free_market_paraswap_quote",
+                ProviderTier.FREE_API,
+                _g["_free_market_paraswap_quote"],
+                weight=3.0,
+                rate_limit_rps=2.0,
+                description="ParaSwap prices — best-route DEX quote (free, no auth)",
+            ),
+            Provider(
+                "free_market_oneinch_quote",
+                ProviderTier.FREEMIUM,
+                _g["_free_market_oneinch_quote"],
+                weight=2.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="ONEINCH_API_KEY",
+                description="1inch swap quote — freemium (API key required as of 2026)",
+            ),
+        ],
+    )
+
     chains["market_overview"] = ProviderChain(
         data_type="market_overview",
         description="Global market cap, BTC/ETH/SOL prices, fear & greed",
@@ -359,6 +422,125 @@ def build_market_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         description="RAG-based semantic search across intelligence data",
         providers=[
             Provider("local_rag", ProviderTier.LOCAL, _g["_passthrough_rag"], weight=10.0),
+        ],
+    )
+
+    # ── Market movers (top gainers/losers) — local backend + trending feeds ──
+    chains["market_movers"] = ProviderChain(
+        data_type="market_movers",
+        description="Top market movers — local market overview → trending feeds",
+        providers=[
+            Provider(
+                "rmi_market_overview",
+                ProviderTier.LOCAL,
+                _g["_passthrough_market_overview"],
+                weight=10.0,
+            ),
+            Provider(
+                "rmi_trending",
+                ProviderTier.LOCAL,
+                _g["_passthrough_trending"],
+                weight=8.0,
+            ),
+            Provider(
+                "solana_tracker_trending",
+                ProviderTier.FREEMIUM,
+                _g["_solana_tracker_trending"],
+                weight=5.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="SOLANATRACKER_API_KEY",
+                monthly_quota=5000,
+            ),
+        ],
+    )
+
+    # ── DEX pool data (liquidity depth, volume, price impact) ──
+    chains["dex_data"] = ProviderChain(
+        data_type="dex_data",
+        description="DEX pool data — liquidity depth, volume, pairs (DexScreener → Birdeye)",
+        providers=[
+            Provider(
+                "dexscreener_meta",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_token_metadata"],
+                weight=10.0,
+                rate_limit_rps=3.0,
+            ),
+            Provider(
+                "dexscreener_price",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_price"],
+                weight=8.0,
+                rate_limit_rps=3.0,
+            ),
+            Provider(
+                "birdeye_overview_api",
+                ProviderTier.FREEMIUM,
+                _g["_birdeye_overview"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
+        ],
+    )
+
+    # ── DeFi protocol tracker (TVL, chains, categories, revenue) ──
+    chains["defi_protocols"] = ProviderChain(
+        data_type="defi_protocols",
+        description="DeFi protocol tracker — TVL, chains, categories (DeFiLlama free)",
+        providers=[
+            Provider(
+                "defillama_tvl_api",
+                ProviderTier.FREE_API,
+                _g["_defillama_tvl"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "defillama_chains_api",
+                ProviderTier.FREE_API,
+                _g["_defillama_chains"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+            ),
+        ],
+    )
+
+    # ── Rich token detail (market cap, volume, liquidity, holders, risk) ──
+    chains["token_detail"] = ProviderChain(
+        data_type="token_detail",
+        description="Full token intelligence — market cap, volume, liquidity, holders, risk flags",
+        providers=[
+            Provider(
+                "dexscreener_meta",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_token_metadata"],
+                weight=10.0,
+                rate_limit_rps=3.0,
+            ),
+            Provider(
+                "solana_tracker_token",
+                ProviderTier.FREEMIUM,
+                _g["_solana_tracker_token"],
+                weight=6.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="SOLANATRACKER_API_KEY",
+                monthly_quota=5000,
+            ),
+            Provider(
+                "birdeye_overview_api",
+                ProviderTier.FREEMIUM,
+                _g["_birdeye_overview"],
+                weight=4.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
         ],
     )
 

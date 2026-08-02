@@ -40,6 +40,117 @@ from app.domains.scanner.service.scoring import (
 logger = get_logger(__name__)
 
 
+def _build_module_tasks(
+    token_address: str, chain: str, tiers: list[str]
+) -> list[tuple[str, Any, tuple[Any, ...], dict[str, Any]]]:
+    """Build the list of module scan tasks for the requested tiers.
+
+    FREE tier:    SENTINEL Tier 1  (market_data, honeypot, goplus, copycat, spam,
+                                    blockscout, defiscanner, token_age, vol/liq ratio)
+    PRO tier:     Tier 1 + deployer, holders, verification, liquidity, bundle,
+                  lp_concentration, ownership_renounced, social_sentiment
+    ELITE tier:   Tier 1+2 + price consensus, RAG
+
+    Args:
+        token_address: token to scan.
+        chain: chain name.
+        tiers: requested tiers (free/pro/elite).
+
+    Returns:
+        list of (module_name, func, args, kwargs) tuples.
+    """
+    tasks: list[tuple[str, Any, tuple[Any, ...], dict[str, Any]]] = []
+
+    # ── FREE tier (Tier 1) — core checks (no API keys needed) ──
+    if "free" in tiers or "pro" in tiers or "elite" in tiers:
+        tasks.append(("market_data", fetch_market_data, (token_address, chain), {}))
+        tasks.append(("honeypot", _check_honeypot_is, (token_address, chain), {}))
+        tasks.append(("goplus", _check_goplus_security, (token_address, chain), {}))
+        tasks.append(("copycat", _check_copycat, ("", "", token_address, chain), {}))
+        tasks.append(("spam", _check_spam, (token_address, chain), {}))
+        tasks.append(("blockscout", _check_blockscout, (token_address, chain), {}))
+        tasks.append(("defiscanner", _check_defi_scanner, (token_address, chain), {}))
+        # New FREE checks
+        tasks.append(("token_age", _check_token_age, (token_address, chain), {}))
+        tasks.append(("volume_liquidity_ratio", _check_volume_liquidity_ratio, (token_address, chain), {}))
+
+    # ── PRO tier (Tier 2) — advanced checks ──
+    if "pro" in tiers or "elite" in tiers:
+        tasks.append(("deployer", _get_deployer_info, (token_address, chain), {}))
+        tasks.append(("holders", _get_holder_data, (token_address, chain), {}))
+        tasks.append(("verification", _check_contract_verification, (token_address, chain), {}))
+        tasks.append(("liquidity", _check_liquidity_lock_multi, (token_address, chain), {}))
+        tasks.append(("bundle", _check_bundle, (token_address, chain), {}))
+        # New PRO checks
+        tasks.append(("lp_concentration", _check_lp_concentration, (token_address, chain), {}))
+        tasks.append(("ownership", _check_ownership_renounced, (token_address, chain), {}))
+        tasks.append(("social_sentiment", _check_social_sentiment, (token_address, chain), {}))
+
+    # ── ELITE tier (Tier 3) — deep analysis ──
+    if "elite" in tiers:
+        tasks.append(("price", _get_price_consensus, (token_address, chain), {}))
+        tasks.append(("rag", _rag_scam_check, (token_address, chain), {}))
+
+    return tasks
+
+
+async def _execute_module_tasks(
+    tasks: list[tuple[str, Any, tuple[Any, ...], dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Run module tasks in parallel, collecting per-module results.
+
+    Args:
+        tasks: task list from _build_module_tasks.
+
+    Returns:
+        list of {"module": name, "status": "success"|"error", ...} entries.
+    """
+    modules_run: list[dict[str, Any]] = []
+    last_error: str | None = None
+
+    async def run_module(name: str, func: Any, *args: Any, **kwargs: Any) -> Any:
+        nonlocal last_error
+        try:
+            r = await func(*args, **kwargs)
+            modules_run.append({"module": name, "status": "success", "result": r})
+            return r
+        except (ValueError, TypeError, KeyError, OSError, RuntimeError) as e:
+            logger.debug("run_module_error", exc_info=True)
+            logger.warning("module_failed", module=name, error=str(e))
+            last_error = str(e)
+            modules_run.append({"module": name, "status": "error", "error": str(e)})
+            return None
+
+    await asyncio.gather(*(run_module(name, func, *args, **kwargs) for name, func, args, kwargs in tasks))
+    return modules_run
+
+
+def _compute_scan_confidence(results: list[dict[str, Any]], tier: str) -> int:
+    """Calculate scan confidence based on modules that actually returned real data.
+
+    Modules returning "pending"/"unavailable" or that errored contribute nothing,
+    so confidence reflects only modules with actionable results.
+
+    Args:
+        results: modules_run list from the scan.
+        tier: requested tier ("free", "pro", "elite") — reserved for future tier weighting.
+
+    Returns:
+        confidence percentage 0-100.
+    """
+    total = len(results) if results else 1
+    real_count = sum(
+        1
+        for m in results
+        if m.get("status") == "success"
+        and isinstance(m.get("result"), dict)
+        and m["result"].get("result") not in ("pending", "unavailable", "no_data")
+    )
+    base_confidence = min(100, int((real_count / total) * 100))
+    # Small bonus per module that returned real data
+    return min(100, base_confidence + real_count * 5)
+
+
 async def scan_token(
     token_address: str,
     chain: str = "ethereum",
@@ -60,56 +171,9 @@ async def scan_token(
 
     result = ScanResult(token_address=token_address, chain=chain)
 
-    last_error: str | None = None
-
-    # Run modules in parallel
-    async def run_module(name: str, func: Any, *args: Any, **kwargs: Any) -> Any:
-        nonlocal last_error
-        try:
-            r = await func(*args, **kwargs)
-            result.modules_run.append({"module": name, "status": "success", "result": r})
-            return r
-        except (ValueError, TypeError, KeyError, OSError, RuntimeError) as e:
-            logger.debug("run_module_error", exc_info=True)
-            logger.warning("module_failed", module=name, error=str(e))
-            last_error = str(e)
-            result.modules_run.append({"module": name, "status": "error", "error": str(e)})
-            return None
-
-    tasks = []
-
-    # ── FREE tier (Tier 1) — core checks (no API keys needed) ──
-    if "free" in tiers or "pro" in tiers or "elite" in tiers:
-        tasks.append(run_module("market_data", fetch_market_data, token_address, chain))
-        tasks.append(run_module("honeypot", _check_honeypot_is, token_address, chain))
-        tasks.append(run_module("goplus", _check_goplus_security, token_address, chain))
-        tasks.append(run_module("copycat", _check_copycat, "", "", token_address, chain))
-        tasks.append(run_module("spam", _check_spam, token_address, chain))
-        tasks.append(run_module("blockscout", _check_blockscout, token_address, chain))
-        tasks.append(run_module("defiscanner", _check_defi_scanner, token_address, chain))
-        # New FREE checks
-        tasks.append(run_module("token_age", _check_token_age, token_address, chain))
-        tasks.append(run_module("volume_liquidity_ratio", _check_volume_liquidity_ratio, token_address, chain))
-
-    # ── PRO tier (Tier 2) — advanced checks ──
-    if "pro" in tiers or "elite" in tiers:
-        tasks.append(run_module("deployer", _get_deployer_info, token_address, chain))
-        tasks.append(run_module("holders", _get_holder_data, token_address, chain))
-        tasks.append(run_module("verification", _check_contract_verification, token_address, chain))
-        tasks.append(run_module("liquidity", _check_liquidity_lock_multi, token_address, chain))
-        tasks.append(run_module("bundle", _check_bundle, token_address, chain))
-        # New PRO checks
-        tasks.append(run_module("lp_concentration", _check_lp_concentration, token_address, chain))
-        tasks.append(run_module("ownership", _check_ownership_renounced, token_address, chain))
-        tasks.append(run_module("social_sentiment", _check_social_sentiment, token_address, chain))
-
-    # ── ELITE tier (Tier 3) — deep analysis ──
-    if "elite" in tiers:
-        tasks.append(run_module("price", _get_price_consensus, token_address, chain))
-        tasks.append(run_module("rag", _rag_scam_check, token_address, chain))
-
-    # ── Run all tasks ──
-    await asyncio.gather(*tasks)
+    # Build and run the module task list for the requested tiers
+    tasks = _build_module_tasks(token_address, chain, tiers)
+    result.modules_run = await _execute_module_tasks(tasks)
 
     # ── Calculate real safety score from module results ──
     result.safety_score = _calculate_safety_score(result.modules_run)
@@ -197,19 +261,7 @@ async def scan_token(
         logger.debug("scanner_alert_failed", error=str(exc)[:100])
 
     # ── Calculate confidence based on modules that actually ran and returned real data ──
-    # Modules returning "pending"/"unavailable" or that errored contribute nothing,
-    # so confidence reflects only modules with actionable results.
-    total = len(result.modules_run) if result.modules_run else 1
-    real_count = sum(
-        1
-        for m in result.modules_run
-        if m.get("status") == "success"
-        and isinstance(m.get("result"), dict)
-        and m["result"].get("result") not in ("pending", "unavailable", "no_data")
-    )
-    base_confidence = min(100, int((real_count / total) * 100))
-    # Small bonus per module that returned real data
-    result.confidence = min(100, base_confidence + real_count * 5)
+    result.confidence = _compute_scan_confidence(result.modules_run, tiers[0] if tiers else "free")
 
     # ── Record own-data coverage metrics ──
     try:

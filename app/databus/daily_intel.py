@@ -23,6 +23,7 @@ import subprocess
 from datetime import UTC, datetime
 
 import httpx
+from telegram.error import TelegramError
 
 from app.core.logging import get_logger
 
@@ -465,6 +466,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict:
         elif line.startswith("- ") and len(tg_text) < 3500:
             tg_text += f"{line}\n"
         elif "BOTTOM LINE" in line and i + 1 < len(lines):
+            next_line = lines[i + 1]
             tg_text += f"\n💡 *Bottom Line:* {next_line}\n"
             break
 
@@ -485,7 +487,7 @@ async def _publish_to_telegram(report: str, date_str: str) -> dict:
                 return {"status": "sent", "platform": "telegram"}
             else:
                 return {"status": "failed", "platform": "telegram", "error": r.text[:200]}
-    except (httpx.HTTPError, httpx.TimeoutException, telegram.error.TelegramError) as e:
+    except (httpx.HTTPError, httpx.TimeoutException, TelegramError) as e:
         return {"status": "error", "platform": "telegram", "error": str(e)[:200]}
 
 

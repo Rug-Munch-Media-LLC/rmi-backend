@@ -108,6 +108,16 @@ from app.routers.v1.api_index import router as api_index_router
 
 v1_router.include_router(api_index_router)
 
+# Frontend data endpoints — GET /api/v1/data/scan-history
+from app.routers.v1.data import router as data_v1_router
+
+v1_router.include_router(data_v1_router)
+
+# Scanner recent — GET /api/v1/scanner/recent (news service consumer)
+from app.routers.v1.scanner import router as scanner_recent_v1_router
+
+v1_router.include_router(scanner_recent_v1_router)
+
 log.info("v1_router_initialized domains=%d", len(v1_router.routes))
 
 # Export as `router` for mount.py auto-discovery

@@ -7,6 +7,26 @@ from __future__ import annotations
 from ...base import Provider, ProviderChain, ProviderTier
 
 
+async def _socialfi_resolve_not_implemented(**kwargs) -> dict:
+    """Stub provider — no ENS/Farcaster resolution source is wired yet.
+
+    Returns a clear not_implemented payload instead of the cryptic
+    ``unknown_data_type`` error so x402-paid callers get actionable
+    feedback instead of a silent failure.
+    """
+    return {
+        "status": "not_implemented",
+        "message": (
+            "socialfi_resolve (ENS/Farcaster social identity) has no provider "
+            "chain registered yet — use wallet_labels for entity labels."
+        ),
+        "data_type": "socialfi_resolve",
+        "source": "not_implemented_stub",
+        "tier": "local",
+        "is_local": True,
+    }
+
+
 def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     """Build social provider chains."""
     chains: dict[str, ProviderChain] = {}
@@ -14,18 +34,19 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     # ── Conditional imports for optional databus modules ──
     try:
         from app.databus.news_intel import (
+            add_comment,
             add_reaction,
             aggregate_all_news,
-            fetch_news_intel,
+            create_bb_post,
             get_academic_papers,
-            get_article_comments,
-            get_article_reactions,
+            get_reactions,
             get_social_feed,
             get_weekly_best,
-            post_bb_article,
         )
     except ImportError:
         get_weekly_best = get_academic_papers = get_social_feed = None
+        add_comment = add_reaction = aggregate_all_news = create_bb_post = None
+        get_reactions = None
     try:
         from app.databus.x_intel import fetch_ct_rundown, track_ct_accounts
     except ImportError:
@@ -36,16 +57,19 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         generate_daily_intel = None
     try:
         from app.databus.social_intel import (
-            detect_shill_patterns,
+            detect_shill_campaigns,
             get_kol_leaderboard,
             get_kol_profile,
+            get_shill_alerts,
             get_social_metrics,
-            monitor_scam_campaigns,
-            track_kol,
+            scan_scam_channels,
+            track_kol_call,
         )
     except ImportError:
         get_kol_profile = get_kol_leaderboard = None
         get_social_metrics = None
+        detect_shill_campaigns = get_shill_alerts = scan_scam_channels = None
+        track_kol_call = None
 
     chains["news"] = ProviderChain(
         data_type="news",
@@ -310,6 +334,21 @@ def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 weight=10.0,
                 rate_limit_rps=5.0,
             )
+        ],
+    )
+
+    chains["socialfi_resolve"] = ProviderChain(
+        data_type="socialfi_resolve",
+        description="Resolve social identity (ENS, Farcaster) — not implemented yet, clear error",
+        providers=[
+            Provider(
+                "socialfi_resolve_stub",
+                ProviderTier.LOCAL,
+                _socialfi_resolve_not_implemented,
+                weight=10.0,
+                is_local=True,
+                description="Stub — no ENS/Farcaster resolution provider wired",
+            ),
         ],
     )
 

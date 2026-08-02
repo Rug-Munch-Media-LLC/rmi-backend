@@ -43,6 +43,62 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── wallet_labels_free — free multi-tier fallback (Arkham entity-label replacement) ──
+    # Replaces Arkham's entity labeling with a stacked free API chain:
+    #   Tier 1: own ClickHouse wallet labels (39M+)
+    #   Tier 2: Blockscout address tags (free, no auth)
+    #   Tier 3: Etherscan labels via V2 API (free tier with key)
+    #   Tier 4: DexScreener top traders (free)
+    #   Tier 5: pattern-based heuristics (whale, bot, DEX router, CEX from own data)
+    chains["wallet_labels_free"] = ProviderChain(
+        data_type="wallet_labels_free",
+        description="Free wallet labeling: ClickHouse → Blockscout tags → Etherscan → DexScreener traders → heuristics",
+        providers=[
+            Provider(
+                "clickhouse_wallet_memory",
+                ProviderTier.LOCAL,
+                _g["_clickhouse_wallet_labels"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse wallet_labels table — 39.4M curated labels",
+            ),
+            Provider(
+                "free_blockscout_labels",
+                ProviderTier.FREE_API,
+                _g["_free_blockscout_labels"],
+                weight=8.0,
+                rate_limit_rps=5.0,
+                description="Blockscout address tags — contract name, public/private tags, ENS, scam flag (free)",
+            ),
+            Provider(
+                "free_etherscan_labels",
+                ProviderTier.FREEMIUM,
+                _g["_free_etherscan_labels"],
+                weight=5.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="ETHERSCAN_API_KEY",
+                description="Etherscan-family V2 — verified contract name labels (free tier with key)",
+            ),
+            Provider(
+                "dexscreener_top_traders",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_top_traders"],
+                weight=4.0,
+                rate_limit_rps=2.0,
+                description="DexScreener top traders — identify active DEX trader addresses (free)",
+            ),
+            Provider(
+                "free_wallet_pattern_heuristics",
+                ProviderTier.LOCAL,
+                _g["_free_wallet_pattern_heuristics"],
+                weight=3.0,
+                is_local=True,
+                description="Pattern heuristics — whale/bot/DEX router/CEX/mixer detection from known entities + transfer volume",
+            ),
+        ],
+    )
+
     chains["wallet_tokens"] = ProviderChain(
         data_type="wallet_tokens",
         description="Token balances for any address (Alchemy + Moralis)",
@@ -205,6 +261,108 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 rate_limit_rps=5.0,
                 requires_key=True,
                 key_env="MORALIS_API_KEY",
+            ),
+        ],
+    )
+
+    chains["wallet_balance"] = ProviderChain(
+        data_type="wallet_balance",
+        description="Token balances for any address (Alchemy → Moralis → Blockchair)",
+        providers=[
+            Provider(
+                "alchemy_balances",
+                ProviderTier.FREEMIUM,
+                _g["_alchemy_token_balances"],
+                weight=10.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="ALCHEMY_API_KEY",
+                monthly_quota=300000,
+            ),
+            Provider(
+                "moralis_tokens",
+                ProviderTier.FREEMIUM,
+                _g["_moralis_wallet_tokens"],
+                weight=5.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="MORALIS_API_KEY",
+            ),
+            Provider(
+                "blockchair_addr_api",
+                ProviderTier.FREE_API,
+                _g["_blockchair_address"],
+                weight=3.0,
+                rate_limit_rps=3.0,
+            ),
+        ],
+    )
+
+    chains["wallet_profile"] = ProviderChain(
+        data_type="wallet_profile",
+        description="Wallet profile: labels (local) → Arkham entity → Moralis holdings",
+        providers=[
+            Provider(
+                "clickhouse_wallet_memory",
+                ProviderTier.LOCAL,
+                _g["_clickhouse_wallet_labels"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse wallet_labels table — 39.4M curated labels",
+            ),
+            Provider(
+                "arkham_entity",
+                ProviderTier.FREEMIUM,
+                _g["_arkham_entity"],
+                weight=8.0,
+                rate_limit_rps=5.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
+            ),
+            Provider(
+                "moralis_tokens",
+                ProviderTier.FREEMIUM,
+                _g["_moralis_wallet_tokens"],
+                weight=5.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="MORALIS_API_KEY",
+            ),
+            Provider(
+                "moralis_net_worth",
+                ProviderTier.FREEMIUM,
+                _g["_moralis_wallet_net_worth"],
+                weight=3.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="MORALIS_API_KEY",
+            ),
+        ],
+    )
+
+    chains["wallet_pnl"] = ProviderChain(
+        data_type="wallet_pnl",
+        description="Wallet value baseline: net worth (Moralis) → portfolio holdings (Arkham)",
+        providers=[
+            Provider(
+                "moralis_net_worth",
+                ProviderTier.FREEMIUM,
+                _g["_moralis_wallet_net_worth"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="MORALIS_API_KEY",
+            ),
+            Provider(
+                "arkham_portfolio",
+                ProviderTier.FREEMIUM,
+                _g["_arkham_portfolio"],
+                weight=5.0,
+                rate_limit_rps=3.0,
+                requires_key=True,
+                key_env="ARKHAM_API_KEY",
+                monthly_quota=100000,
             ),
         ],
     )

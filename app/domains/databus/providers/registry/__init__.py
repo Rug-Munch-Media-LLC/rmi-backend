@@ -53,6 +53,12 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _chain_indexer_solana_balance_changes,
         _chain_indexer_token_transfers,
     )
+    from ..chains.chain_indexer_own import (
+        _chain_indexer_deployer_reputation,
+        _chain_indexer_holder_age,
+        _chain_indexer_volume_authenticity,
+        _chain_indexer_whale_detect,
+    )
     from ..chains.dexscreener import (
         _dexscreener_holders,
         _dexscreener_price,
@@ -67,6 +73,21 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _defillama_chains,
         _defillama_tvl,
         _etherscan_tx_trace,
+    )
+    from ..chains.free_security import (
+        _free_blockscout_labels,
+        _free_etherscan_labels,
+        _free_market_clickhouse_twap,
+        _free_market_coingecko,
+        _free_market_geckoterminal,
+        _free_market_oneinch_quote,
+        _free_market_paraswap_quote,
+        _free_security_clickhouse,
+        _free_security_dexscreener,
+        _free_security_goplus,
+        _free_security_honeypot_is,
+        _free_security_rugcheck,
+        _free_wallet_pattern_heuristics,
     )
     from ..chains.freemium_apis import (
         _birdeye_overview,

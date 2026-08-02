@@ -129,6 +129,63 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── token_security_free — free multi-tier fallback (Arkham-quality replacement) ──
+    # Replaces paid/Goplus-only security checks with a stacked free API chain:
+    #   Tier 1: own ClickHouse (local, always first)
+    #   Tier 2: GoPlus API (free, no key)
+    #   Tier 3: Honeypot.is API (free, no key)
+    #   Tier 4: RugCheck.xyz (Solana only, free)
+    #   Tier 5: DexScreener pair heuristics (free, no key)
+    # Circuit breaker integration: ProviderChain.fetch() records failures per
+    # provider name and skips open breakers, so rate-limited/failed tiers fall
+    # through to the next automatically.
+    chains["token_security_free"] = ProviderChain(
+        "token_security_free",
+        description="Free token security fallback: ClickHouse → GoPlus → Honeypot.is → RugCheck → DexScreener heuristics",
+        providers=[
+            Provider(
+                "free_security_clickhouse",
+                ProviderTier.LOCAL,
+                _g["_free_security_clickhouse"],
+                weight=20.0,
+                is_local=True,
+                description="Own ClickHouse security analysis (evm_transfers + deployer_events) — zero cost",
+            ),
+            Provider(
+                "free_security_goplus",
+                ProviderTier.FREE_API,
+                _g["_free_security_goplus"],
+                weight=10.0,
+                rate_limit_rps=10.0,
+                description="GoPlus Security API — honeypot, mint, tax, owner checks (21+ chains, free)",
+            ),
+            Provider(
+                "free_security_honeypot_is",
+                ProviderTier.FREE_API,
+                _g["_free_security_honeypot_is"],
+                weight=8.0,
+                rate_limit_rps=2.0,
+                description="Honeypot.is — simulated buy/sell, honeypot flag (EVM chains, free)",
+            ),
+            Provider(
+                "free_security_rugcheck",
+                ProviderTier.FREE_API,
+                _g["_free_security_rugcheck"],
+                weight=6.0,
+                rate_limit_rps=2.0,
+                description="RugCheck.xyz — Solana token risk report (free)",
+            ),
+            Provider(
+                "free_security_dexscreener",
+                ProviderTier.FREE_API,
+                _g["_free_security_dexscreener"],
+                weight=4.0,
+                rate_limit_rps=2.0,
+                description="DexScreener pair heuristics — buy/sell asymmetry, liquidity depth (free)",
+            ),
+        ],
+    )
+
     try:
         from app.databus.rugcharts_intel import (
             analyze_liquidity_risk,
@@ -138,7 +195,7 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             get_dev_reputation,
             get_enhanced_token_report,
             get_smart_money,
-            get_token_launches,
+            get_token_launches,  # noqa: F401  # availability probe for rugcharts_intel
             get_whale_alerts,
             track_cross_chain_entity,
         )
@@ -287,6 +344,67 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── Own-data Phase 4 providers (ClickHouse, LOCAL tier, PREFER_OWN_DATA) ──
+    chains["deployer_reputation"] = ProviderChain(
+        "deployer_reputation",
+        description="Deployer reputation (0-100) from chain-indexer ClickHouse deployer_events (rugpull/honeypot proxies, lifespan, velocity)",
+        providers=[
+            Provider(
+                "chain_indexer_deployer_reputation",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_deployer_reputation"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse deployer_events — total tokens deployed, rugpull rate, honeypot rate, average token lifespan, velocity",
+            ),
+        ],
+    )
+
+    chains["whale_detection"] = ProviderChain(
+        "whale_detection",
+        description="Whale wallet detection from chain-indexer ClickHouse dex_events (large flows, accumulating vs dumping)",
+        providers=[
+            Provider(
+                "chain_indexer_whale_detect",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_whale_detect"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse dex_events — large transfers >$10K, whale wallets, concentration score, behavior flags",
+            ),
+        ],
+    )
+
+    chains["volume_authenticity"] = ProviderChain(
+        "volume_authenticity",
+        description="Wash-trading / volume authenticity from chain-indexer ClickHouse (dex_events vs evm_transfers)",
+        providers=[
+            Provider(
+                "chain_indexer_volume_authenticity",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_volume_authenticity"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse dex_events + evm_transfers — DEX vs transfer volume, wash patterns, authentic score",
+            ),
+        ],
+    )
+
+    chains["holder_age"] = ProviderChain(
+        "holder_age",
+        description="Holder age distribution from chain-indexer ClickHouse evm_transfers (fresh wallet farm / sudden influx / stable)",
+        providers=[
+            Provider(
+                "chain_indexer_holder_age",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_holder_age"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers — first-seen per holder, age buckets, fresh-wallet-farm detection",
+            ),
+        ],
+    )
+
     try:
         from app.databus.data_quality import get_tier_comparison
 
@@ -305,5 +423,125 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         )
     except ImportError:
         pass
+
+    # ── Threat intelligence check (known scams, malicious patterns, risk) ──
+    chains["threat_check"] = ProviderChain(
+        data_type="threat_check",
+        description="Threat intelligence check — scraped intel → SENTINEL scan → RAG known scams",
+        providers=[
+            Provider(
+                "scraped_intel_local",
+                ProviderTier.LOCAL,
+                _g["_scraped_intel_provider"],
+                weight=15.0,
+                is_local=True,
+                description="Scraped scam reports / threat intel from pryscraper Postgres",
+            ),
+            Provider(
+                "sentinel_scanner",
+                ProviderTier.LOCAL,
+                _g["_passthrough_scanner"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "local_rag",
+                ProviderTier.LOCAL,
+                _g["_passthrough_rag"],
+                weight=5.0,
+            ),
+        ],
+    )
+
+    # ── Smart contract deep scan (Slither + Mythril) ──
+    chains["contract_scan"] = ProviderChain(
+        data_type="contract_scan",
+        description="Deep contract audit — SENTINEL scan → scraped intel → RAG",
+        providers=[
+            Provider(
+                "sentinel_scanner",
+                ProviderTier.LOCAL,
+                _g["_passthrough_scanner"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "scraped_intel_local",
+                ProviderTier.LOCAL,
+                _g["_scraped_intel_provider"],
+                weight=8.0,
+                is_local=True,
+                description="Scraped scam reports / threat intel from pryscraper Postgres",
+            ),
+            Provider(
+                "local_rag",
+                ProviderTier.LOCAL,
+                _g["_passthrough_rag"],
+                weight=3.0,
+            ),
+        ],
+    )
+
+    # ── Deep SENTINEL scan + threat feeds + contract analysis ──
+    chains["sentinel_deep"] = ProviderChain(
+        data_type="sentinel_deep",
+        description="Full threat scan — SENTINEL deep scan → scraped intel → RAG known scams",
+        providers=[
+            Provider(
+                "sentinel_scanner",
+                ProviderTier.LOCAL,
+                _g["_passthrough_scanner"],
+                weight=10.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "scraped_intel_local",
+                ProviderTier.LOCAL,
+                _g["_scraped_intel_provider"],
+                weight=8.0,
+                is_local=True,
+                description="Scraped scam reports / threat intel from pryscraper Postgres",
+            ),
+            Provider(
+                "local_rag",
+                ProviderTier.LOCAL,
+                _g["_passthrough_rag"],
+                weight=5.0,
+            ),
+        ],
+    )
+
+    # ── Holder concentration map (RugMap) ──
+    chains["rugmap"] = ProviderChain(
+        data_type="rugmap",
+        description="Holder concentration map — ClickHouse holders → DexScreener holders → Birdeye",
+        providers=[
+            Provider(
+                "chain_indexer_holders",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_holders"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse evm_transfers aggregation — holder distribution from transfer activity",
+            ),
+            Provider(
+                "dexscreener_holders",
+                ProviderTier.FREE_API,
+                _g["_dexscreener_holders"],
+                weight=8.0,
+                rate_limit_rps=2.0,
+            ),
+            Provider(
+                "birdeye_overview_api",
+                ProviderTier.FREEMIUM,
+                _g["_birdeye_overview"],
+                weight=5.0,
+                rate_limit_rps=2.0,
+                requires_key=True,
+                key_env="BIRDEYE_API_KEY",
+                monthly_quota=50000,
+            ),
+        ],
+    )
 
     return chains
