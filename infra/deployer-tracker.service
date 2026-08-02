@@ -1,0 +1,32 @@
+[Unit]
+Description=Deployer Tracker — detect contract deployments via tx receipts
+Documentation=https://git.rugmunch.io/RugMunchMedia/rmi-backend
+After=network-online.target clickhouse-server.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Scans (tip - 100) -> tip for each EVM chain and records contract
+# creations into wallet_memory.deployer_events (source='deployer_tracker').
+ExecStart=/usr/bin/python3 -m app.domains.indexer.deployer_tracker --chains ethereum,base,bsc,polygon,arbitrum,optimism,avalanche,linea,scroll,zksync,mantle,gnosis --json
+WorkingDirectory=/srv/work/repos/rmi-backend
+User=root
+Group=root
+
+# Environment — same ClickHouse credentials as the lite-indexer service
+Environment=PYTHONUNBUFFERED=1
+Environment=PREFER_OWN_DATA=true
+Environment=CLICKHOUSE_USER=rmi
+EnvironmentFile=/var/data/chain-indexer/lite-indexer.env
+
+# Resource limits — 12 EVM chains x ~100 blocks of receipt lookups
+CPUQuota=100%
+MemoryMax=1024M
+TimeoutStartSec=300
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
