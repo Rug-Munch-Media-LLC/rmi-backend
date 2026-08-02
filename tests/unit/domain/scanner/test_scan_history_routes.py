@@ -90,6 +90,17 @@ class TestScanHistoryRoute:
 
         def walk(routes) -> None:
             for route in routes:
+                if hasattr(route, "original_router"):  # FastAPI 0.141+ _IncludedRouter
+                    inc = getattr(route, "include_context", None)
+                    prefix = getattr(inc, "prefix", "") if inc is not None else ""
+                    for r in route.original_router.routes:
+                        sub_path = getattr(r, "path", "")
+                        if sub_path:
+                            paths.add(prefix + sub_path)
+                        sub = getattr(r, "routes", None)
+                        if sub:
+                            walk(sub)
+                    continue
                 p = getattr(route, "path", "")
                 if p:
                     paths.add(p)
@@ -152,6 +163,17 @@ class TestScannerRecentRoute:
 
         def walk(routes) -> None:
             for route in routes:
+                if hasattr(route, "original_router"):  # FastAPI 0.141+ _IncludedRouter
+                    inc = getattr(route, "include_context", None)
+                    prefix = getattr(inc, "prefix", "") if inc is not None else ""
+                    for r in route.original_router.routes:
+                        sub_path = getattr(r, "path", "")
+                        if sub_path:
+                            paths.add(prefix + sub_path)
+                        sub = getattr(r, "routes", None)
+                        if sub:
+                            walk(sub)
+                    continue
                 p = getattr(route, "path", "")
                 if p:
                     paths.add(p)
@@ -178,7 +200,7 @@ class TestScannerRecentRoute:
         chain, risk_score, is_honeypot, is_rug_pull, liquidity_locked,
         has_mint_authority, scanned_at."""
         with patch(
-            "app.routers.v1.data.fetch_recent_scans",
+            "app.routers.v1.scanner.fetch_recent_scans",
             new_callable=AsyncMock,
             return_value=[SAMPLE_SCAN],
         ):

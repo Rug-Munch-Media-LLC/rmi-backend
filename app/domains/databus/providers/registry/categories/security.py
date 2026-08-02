@@ -360,6 +360,22 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── C7 — deployer behavioral fingerprint (risk buckets, funding analysis) ──
+    chains["deployer_fingerprint"] = ProviderChain(
+        "deployer_fingerprint",
+        description="Deployer behavioral fingerprint (C7 v1) from chain-indexer ClickHouse — risk buckets (NEW/REPEAT_CLEAN/REPEAT_RUG/FARM/PROLIFIC), survival rate, median lifespan, funder analysis",
+        providers=[
+            Provider(
+                "chain_indexer_deployer_fingerprint",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_deployer_fingerprint"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse deployer_events + dex_events + evm_transfers + wallet_labels — deployment stats, 7-day survival rate, median lifespan, funder profile (CEX/fresh/multiple), evidence",
+            ),
+        ],
+    )
+
     chains["whale_detection"] = ProviderChain(
         "whale_detection",
         description="Whale wallet detection from chain-indexer ClickHouse dex_events (large flows, accumulating vs dumping)",
@@ -401,6 +417,22 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse evm_transfers — first-seen per holder, age buckets, fresh-wallet-farm detection",
+            ),
+        ],
+    )
+
+    # ── C6 — time-based attack detection (sandwich, pump & dump, flash loans) ──
+    chains["attack_detection"] = ProviderChain(
+        "attack_detection",
+        description="Time-based attack detection from chain-indexer ClickHouse dex_events — sandwich attacks, pump & dumps, and flash loans (zero external APIs)",
+        providers=[
+            Provider(
+                "chain_indexer_attack_detection",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_attack_detection"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse dex_events — same-block sandwich triads, 24h pump & dump volume/price patterns, same-tx flash-loan repay patterns",
             ),
         ],
     )

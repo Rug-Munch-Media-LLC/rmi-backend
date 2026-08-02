@@ -40,6 +40,17 @@ KNOWN_MIXERS: dict[str, list[str]] = {
 # ── Lazy ClickHouse client (same pattern as chain_indexer.py) ───────────
 _ch_client: Any = None
 
+# ── ClickHouse error types (narrowed broad excepts) ───────────────────────
+try:
+    import clickhouse_driver.errors as ch_errors
+
+    CH_ERRORS = (ch_errors.Error, ConnectionError, OSError, TimeoutError, ValueError)
+except ImportError:
+    CH_ERRORS = (ConnectionError, OSError, TimeoutError, ValueError)
+
+# Client init additionally raises ImportError (missing package) and RuntimeError
+CH_GET_CLIENT_ERRORS = (*CH_ERRORS, ImportError, RuntimeError)
+
 
 def _get_ch_client() -> Any | None:
     """Lazy-init ClickHouse native client for wallet_memory database."""
@@ -68,7 +79,7 @@ def _get_ch_client() -> Any | None:
         _ch_client.execute("SELECT 1")
         logger.info("Chain pattern detector ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
         return _ch_client
-    except Exception as e:
+    except CH_GET_CLIENT_ERRORS as e:
         logger.warning("Chain pattern detector ClickHouse unavailable: %s", e)
         _ch_client = None
         return None
@@ -165,7 +176,7 @@ async def detect_deployer_clusters(
             ]
             sql = " ".join(sql_parts)
             return client.execute(sql, params)
-        except Exception as e:
+        except CH_ERRORS as e:
             logger.debug("deployer_cluster_query failed: %s", e)
             return []
 
@@ -294,7 +305,7 @@ async def detect_holder_concentration(
                 "total_holders": total_holders,
                 "total_tx": total_tx,
             }
-        except Exception as e:
+        except CH_ERRORS as e:
             logger.debug("holder_concentration_query failed: %s", e)
             return {"holders": [], "total": 0}
 
@@ -393,7 +404,7 @@ async def detect_pump_and_dump(
                 """,
                 params,
             )
-        except Exception as e:
+        except CH_ERRORS as e:
             logger.debug("pump_dump_query failed: %s", e)
             return []
 
@@ -498,7 +509,7 @@ async def detect_mixer_interactions(address: str, chain: str) -> dict[str, Any]:
                 """,
                 {**params, "mixers": tuple(mixers)},
             )
-        except Exception as e:
+        except CH_ERRORS as e:
             logger.debug("mixer_query failed: %s", e)
             return []
 
