@@ -59,11 +59,8 @@ Data Sources:
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from typing import Any, cast
-
-from redis.exceptions import RedisError
 
 try:
     from clickhouse_driver.errors import Error as CHDriverError
@@ -75,10 +72,21 @@ from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
-from app.domains.scanner.engines.wallet_flow import (
+from app.domains.scanner.engines._common import (
     _query_batch_labels,
     _query_contract_addresses,
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    redis_get,
+    redis_set,
+    run_sync,
+    to_epoch,
+    to_iso,
 )
+
+# Legacy module-local names kept for consistency with the other engines.
+_redis_get = redis_get
+_redis_set = redis_set
 
 logger = get_logger(__name__)
 
@@ -175,7 +183,7 @@ _TEAM_KEYWORDS = (
 _BOT_KEYWORDS = (
     "bot",
     "mev",
-    "arb",
+    "arb bot",  # "arb" alone substring-matches "arbitrum" labels
     "automated",
     "flash",
 )
@@ -231,7 +239,7 @@ async def analyze_holder_clusters(
         cached = await _redis_get(cache_key)
         if cached is not None:
             logger.debug("holder_clusters_redis_hit", key=cache_key)
-            return cached
+            return cast("dict[str, Any]", cached)
 
     # ── 2. In-process mirror cache ──
     if not force_fresh and cache_key in _CLUSTER_CACHE:
@@ -275,11 +283,11 @@ async def analyze_holder_clusters(
 async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
     """Run the balance / first-seen / first-buy queries and assemble the payload."""
     # ── Batch 1: independent ClickHouse queries (parallel) ──
-    balances_task = asyncio.create_task(_run_sync(_query_holder_balances, token_address, chain))
-    first_in_task = asyncio.create_task(_run_sync(_query_first_in_transfers, token_address, chain))
-    first_buy_task = asyncio.create_task(_run_sync(_query_first_buy_blocks, token_address, chain))
-    deploy_task = asyncio.create_task(_run_sync(_query_deploy_info, token_address, chain))
-    active_task = asyncio.create_task(_run_sync(_query_is_active, token_address, chain))
+    balances_task = asyncio.create_task(run_sync(_query_holder_balances, token_address, chain))
+    first_in_task = asyncio.create_task(run_sync(_query_first_in_transfers, token_address, chain))
+    first_buy_task = asyncio.create_task(run_sync(_query_first_buy_blocks, token_address, chain))
+    deploy_task = asyncio.create_task(run_sync(_query_deploy_info, token_address, chain))
+    active_task = asyncio.create_task(run_sync(_query_is_active, token_address, chain))
     holder_task = asyncio.create_task(_get_holder_analysis_gini(token_address, chain))
 
     (balance_rows, first_in_rows, first_buy_rows, deploy_info, is_active, holder_gini) = await asyncio.gather(
@@ -335,8 +343,8 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
 
     # ── Batch 2: pool-contract detection + labels (needs holder list) ──
     holder_addrs = list(balances.keys())
-    pool_task = asyncio.create_task(_run_sync(_query_contract_addresses, holder_addrs, chain))
-    label_task = asyncio.create_task(_run_sync(_query_batch_labels, holder_addrs))
+    pool_task = asyncio.create_task(run_sync(_query_contract_addresses, holder_addrs, chain))
+    label_task = asyncio.create_task(run_sync(_query_batch_labels, holder_addrs))
     pool_rows: Any
     label_rows: Any
     pool_rows, label_rows = await asyncio.gather(pool_task, label_task, return_exceptions=True)
@@ -370,6 +378,14 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
         pct_by_addr[addr] = round(pct, 2)
         info = first_in.get(addr, {})
         first_seen = info.get("first_seen")
+        # Block-based sniper detection in _classify_holder needs first_block
+        # (within 2 blocks of deploy). Coerce to int for arithmetic safety.
+        first_block = info.get("first_block")
+        if first_block is not None:
+            try:
+                first_block = int(first_block)
+            except (TypeError, ValueError):
+                first_block = None
         holders_out.append(
             {
                 "address": addr,
@@ -381,12 +397,13 @@ async def _compute_clusters(token_address: str, chain: str) -> dict[str, Any]:
                         "balance_pct": pct,
                         "labels": labels_map.get(addr, []),
                         "funder": info.get("funder"),
-                        "first_seen": _to_epoch(first_seen),
+                        "first_seen": to_epoch(first_seen),
+                        "first_block": first_block,
                     },
                     {"deployer": deployer, "deploy_block": deploy_block, "deploy_ts": deploy_ts},
                 ),
                 "cluster_id": None,
-                "first_seen": _to_iso(first_seen),
+                "first_seen": to_iso(first_seen),
             }
         )
 
@@ -831,7 +848,7 @@ def _query_deploy_info(token_address: str, chain: str) -> dict[str, Any] | None:
             "deployer": str(row[0] or "").lower(),
             "block_number": row[1],
             "tx_hash": str(row[2] or ""),
-            "deploy_ts": _to_epoch(row[3]),
+            "deploy_ts": to_epoch(row[3]),
         }
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("deploy_info_query_failed: %s", exc)
@@ -892,68 +909,6 @@ async def _get_bundle_analysis(token_address: str, chain: str) -> dict[str, Any]
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
-def _to_epoch(value: Any) -> float | None:
-    """Convert a ClickHouse datetime (or anything with .timestamp()) to epoch seconds."""
-    if value is None:
-        return None
-    if hasattr(value, "timestamp"):
-        try:
-            return float(value.timestamp())
-        except (ValueError, OSError):
-            return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _to_iso(value: Any) -> str | None:
-    """Render a datetime as ISO-8601 (string passthrough otherwise)."""
-    if value is None:
-        return None
-    if hasattr(value, "isoformat"):
-        return str(value.isoformat())
-    return str(value)
-
-
-async def _redis_get(key: str) -> dict[str, Any] | None:
-    """Fetch a cached cluster payload from Redis (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return None
-        raw = await r.get(key)
-        if not raw:
-            return None
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, dict) else None
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("holder_clusters_redis_get_failed: %s", exc)
-        return None
-
-
-async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
-    """Store a cluster payload in Redis with TTL (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return False
-        await r.setex(key, ttl, json.dumps(value, default=str))
-        return True
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("holder_clusters_redis_set_failed: %s", exc)
-        return False
-
-
 def _unavailable_result(token_address: str, chain_norm: str, reason: str = "clickhouse unavailable") -> dict[str, Any]:
     """Graceful degradation result."""
     return {
@@ -1011,16 +966,18 @@ def _error_result(token_address: str, chain_norm: str, message: str) -> dict[str
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_CLUSTER_CACHE),
-        "cache_max": _CLUSTER_CACHE_MAX,
-        "cache_ttl_seconds": _CLUSTER_CACHE_TTL,
-        "redis_ttl_active_seconds": REDIS_TTL_ACTIVE,
-        "redis_ttl_inactive_seconds": REDIS_TTL_INACTIVE,
-        "clickhouse_connected": _get_ch_client() is not None,
-    }
+    return _common_get_cache_stats(
+        _CLUSTER_CACHE,
+        _CLUSTER_CACHE_MAX,
+        _CLUSTER_CACHE_TTL,
+        extra={
+            "redis_ttl_active_seconds": REDIS_TTL_ACTIVE,
+            "redis_ttl_inactive_seconds": REDIS_TTL_INACTIVE,
+            "clickhouse_connected": _get_ch_client() is not None,
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _CLUSTER_CACHE.clear()
+    _common_clear_cache(_CLUSTER_CACHE)

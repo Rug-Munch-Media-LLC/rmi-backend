@@ -52,12 +52,9 @@ Notes:
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
-
-from redis.exceptions import RedisError
 
 try:
     from clickhouse_driver.errors import Error as CHDriverError
@@ -69,6 +66,20 @@ from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    redis_get,
+    redis_set,
+    run_sync,
+    to_iso,
+)
+
+# Legacy module-local names kept so existing unit tests that patch
+# ``deployer_fingerprint._redis_get`` / ``deployer_fingerprint._redis_set``
+# keep intercepting the shared implementation.
+_redis_get = redis_get
+_redis_set = redis_set
 
 logger = get_logger(__name__)
 
@@ -215,9 +226,9 @@ async def _compute_fingerprint(deployer_address: str, chain_norm: str) -> dict[s
     now_naive = datetime.now(UTC).replace(tzinfo=None)
 
     # ── Round 1 (parallel, independent) ──
-    stats_task = asyncio.create_task(_run_sync(_query_deployer_stats, deployer_address, chain_norm))
-    tokens_task = asyncio.create_task(_run_sync(_query_per_token_deployments, deployer_address, chain_norm))
-    funder_task = asyncio.create_task(_run_sync(_query_funder, deployer_address, chain_norm))
+    stats_task = asyncio.create_task(run_sync(_query_deployer_stats, deployer_address, chain_norm))
+    tokens_task = asyncio.create_task(run_sync(_query_per_token_deployments, deployer_address, chain_norm))
+    funder_task = asyncio.create_task(run_sync(_query_funder, deployer_address, chain_norm))
     stats, tokens, funder = await asyncio.gather(stats_task, tokens_task, funder_task)
 
     if not stats or stats.get("tokens_deployed", 0) == 0:
@@ -229,7 +240,7 @@ async def _compute_fingerprint(deployer_address: str, chain_norm: str) -> dict[s
     chains_used = stats.get("chains_used", [])
 
     # ── Round 2: per-token DEX survival (needs token list) ──
-    dex_stats = await _run_sync(_query_token_dex_stats, tokens, chain_norm)
+    dex_stats = await run_sync(_query_token_dex_stats, tokens, chain_norm)
 
     # ── Round 3: funder profile (needs funder address) ──
     funder_profile = await _build_funder_profile(funder, chain_norm, deployer_address)
@@ -286,10 +297,10 @@ async def _compute_fingerprint(deployer_address: str, chain_norm: str) -> dict[s
             {
                 "token_address": tok["token_address"],
                 "chain": tok.get("chain") or chain_norm,
-                "deployed_at": _iso(tok.get("deployed_ts")),
+                "deployed_at": to_iso(tok.get("deployed_ts")),
                 "deploy_tx": tok.get("deploy_tx"),
-                "first_dex_ts": _iso(first_dex_ts),
-                "last_swap_ts": _iso(last_swap_ts),
+                "first_dex_ts": to_iso(first_dex_ts),
+                "last_swap_ts": to_iso(last_swap_ts),
                 "swap_count": swap_count,
                 "lifespan_hours": lifespan_hours,
                 "survived_7d": survived_7d,
@@ -370,8 +381,8 @@ async def _compute_fingerprint(deployer_address: str, chain_norm: str) -> dict[s
         "risk_score": risk_score,
         "total_deployments": total_deployments,
         "chains_used": chains_used,
-        "first_seen": _iso(first_seen),
-        "last_seen": _iso(last_seen),
+        "first_seen": to_iso(first_seen),
+        "last_seen": to_iso(last_seen),
         "deployments_per_week": deployments_per_week,
         "survived_7d": survived_count,
         "matured_tokens": matured_count,
@@ -517,14 +528,14 @@ async def _build_funder_profile(
 
     profile["funder_address"] = funder_addr
     profile["funding_tx"] = funder.get("first_tx")
-    profile["funding_ts"] = _iso(funder.get("first_ts"))
+    profile["funding_ts"] = to_iso(funder.get("first_ts"))
     profile["funding_token"] = funder.get("first_token")
     profile["funding_native"] = bool(funder.get("is_native"))
 
     # Parallel enrichment queries (all bounded, graceful on failure)
-    label_task = asyncio.create_task(_run_sync(_query_funder_label, funder_addr))
-    tx_count_task = asyncio.create_task(_run_sync(_query_funder_tx_count, funder_addr))
-    overlap_task = asyncio.create_task(_run_sync(_query_same_funder_deployers, funder_addr, chain_norm))
+    label_task = asyncio.create_task(run_sync(_query_funder_label, funder_addr))
+    tx_count_task = asyncio.create_task(run_sync(_query_funder_tx_count, funder_addr))
+    overlap_task = asyncio.create_task(run_sync(_query_same_funder_deployers, funder_addr, chain_norm))
     labels_result, tx_count_result, overlap_result = await asyncio.gather(
         label_task, tx_count_task, overlap_task, return_exceptions=True
     )
@@ -951,56 +962,6 @@ def _query_same_funder_deployers(funder_address: str, chain: str) -> int:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
-def _iso(value: Any) -> str | None:
-    """Convert a datetime to ISO string (or None)."""
-    if value is None:
-        return None
-    if hasattr(value, "isoformat"):
-        try:
-            return str(value.isoformat())
-        except (ValueError, TypeError):
-            return str(value)
-    return str(value) if value else None
-
-
-async def _redis_get(key: str) -> dict[str, Any] | None:
-    """Fetch a cached fingerprint from Redis (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return None
-        raw = await r.get(key)
-        if not raw:
-            return None
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, dict) else None
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("deployer_fingerprint_redis_get_failed: %s", exc)
-        return None
-
-
-async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
-    """Store a fingerprint in Redis with TTL (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return False
-        await r.setex(key, ttl, json.dumps(value, default=str))
-        return True
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("deployer_fingerprint_redis_set_failed: %s", exc)
-        return False
-
-
 def _unavailable_result(
     deployer_address: str,
     chain_norm: str,
@@ -1049,15 +1010,17 @@ def _error_result(message: str) -> dict[str, Any]:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_FINGERPRINT_CACHE),
-        "cache_max": _FINGERPRINT_CACHE_MAX,
-        "cache_ttl_seconds": _FINGERPRINT_CACHE_TTL,
-        "redis_ttl_seconds": REDIS_TTL_SECONDS,
-        "clickhouse_connected": _get_ch_client() is not None,
-    }
+    return _common_get_cache_stats(
+        _FINGERPRINT_CACHE,
+        _FINGERPRINT_CACHE_MAX,
+        _FINGERPRINT_CACHE_TTL,
+        extra={
+            "redis_ttl_seconds": REDIS_TTL_SECONDS,
+            "clickhouse_connected": _get_ch_client() is not None,
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _FINGERPRINT_CACHE.clear()
+    _common_clear_cache(_FINGERPRINT_CACHE)

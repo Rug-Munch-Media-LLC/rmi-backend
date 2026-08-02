@@ -39,6 +39,11 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 
 logger = get_logger(__name__)
 
@@ -111,13 +116,6 @@ def _get_ch_client() -> Any | None:
         return None
 
 
-async def _run_sync(fn, *args, **kwargs):
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    import asyncio
-
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -176,9 +174,9 @@ async def get_own_holder_analysis(
         # Run queries in parallel
         import asyncio
 
-        top_task = asyncio.create_task(_run_sync(_query_top_holders, token_address, chain))
-        new_task = asyncio.create_task(_run_sync(_query_new_holders, token_address, chain))
-        gini_task = asyncio.create_task(_run_sync(_query_gini_data, token_address, chain))
+        top_task = asyncio.create_task(run_sync(_query_top_holders, token_address, chain))
+        new_task = asyncio.create_task(run_sync(_query_new_holders, token_address, chain))
+        gini_task = asyncio.create_task(run_sync(_query_gini_data, token_address, chain))
 
         top_data, new_data, gini_data = await asyncio.gather(
             top_task,
@@ -469,15 +467,14 @@ def _cache_holders(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    now = time.time()
-    return {
-        "cache_size": len(_HOLDER_CACHE),
-        "cache_max": _HOLDER_CACHE_MAX,
-        "cache_ttl_seconds": _HOLDER_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _HOLDER_CACHE,
+        _HOLDER_CACHE_MAX,
+        _HOLDER_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _HOLDER_CACHE.clear()
+    _common_clear_cache(_HOLDER_CACHE)

@@ -35,9 +35,8 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import json
 import time
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from redis.exceptions import RedisError
@@ -52,6 +51,20 @@ from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    redis_get,
+    redis_set,
+    run_sync,
+    to_iso,
+)
+
+# Legacy module-local names kept so existing unit tests that patch
+# ``new_token_radar._redis_get`` / ``new_token_radar._redis_set`` keep
+# intercepting the shared implementation.
+_redis_get = redis_get
+_redis_set = redis_set
 
 logger = get_logger(__name__)
 
@@ -129,7 +142,7 @@ async def scan_new_tokens(
     _start = time.monotonic()
     try:
         # ── 1. Poll deployer_events ──
-        deployments = await _run_sync(_query_new_deployments, chain_norm, lookback_minutes)
+        deployments = await run_sync(_query_new_deployments, chain_norm, lookback_minutes)
         if not deployments:
             results: list[dict[str, Any]] = []
             await _redis_set(cache_key, results, REDIS_CACHE_TTL_SECONDS)
@@ -180,7 +193,17 @@ async def scan_new_tokens(
         )
         return results
 
-    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError, RedisError) as exc:
+    except (
+        httpx.HTTPError,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+        RedisError,
+    ) as exc:
         logger.debug("new_token_radar_failed: %s", exc)
         return []
 
@@ -293,6 +316,22 @@ async def _check_liquidity(token_address: str, chain: str) -> float:
     return 0.0
 
 
+async def _lookup_token_symbol(token_address: str, chain: str) -> str | None:
+    """Best-effort token symbol lookup from our own evm_transfers data.
+
+    deployer_events has no token_symbol column, so we read the most recent
+    non-empty symbol from local ClickHouse data (zero external cost).
+    Returns None when unavailable.
+    """
+    if not token_address or not chain:
+        return None
+    rows = await run_sync(_query_token_symbol, token_address, chain)
+    if rows and rows[0] and rows[0][0]:
+        symbol = str(rows[0][0]).strip()
+        return symbol or None
+    return None
+
+
 def _score_new_token(signals: dict[str, Any]) -> tuple[str, int]:
     """Score a new token and assign CRITICAL / HIGH / WARNING / INFO.
 
@@ -351,13 +390,14 @@ async def _alert_high_risk(results: list[dict[str, Any]], chain: str) -> list[st
             if float(signals.get("liquidity_usd", 0) or 0) < _MIN_LIQUIDITY_WARNING_USD:
                 threats.append("low_liquidity")
 
+            symbol = str(r.get("token_symbol") or "") or await _lookup_token_symbol(token, chain) or f"{token[:8]}..."
             await send_scanner_alert(
                 token_address=token,
                 chain=chain,
                 risk_score=float(r.get("score", 60) or 60),
                 threats=threats or ["new_token_radar"],
                 token_name=f"New {r.get('level', 'HIGH').title()} Token",
-                token_symbol=r.get("level", "HIGH"),
+                token_symbol=symbol,
             )
             alerted.append(token)
             await _mark_alerted(chain, token)
@@ -438,7 +478,7 @@ def _query_new_deployments(chain: str, lookback_minutes: int) -> list[dict[str, 
                 "token_address": row[1],
                 "chain": row[2],
                 "block_number": row[3],
-                "block_timestamp": _iso(row[4]),
+                "block_timestamp": to_iso(row[4]),
                 "tx_hash": row[5],
                 "type": row[6],
                 "factory": row[7],
@@ -447,59 +487,36 @@ def _query_new_deployments(chain: str, lookback_minutes: int) -> list[dict[str, 
     return deployments
 
 
+def _query_token_symbol(token_address: str, chain: str) -> list[tuple[Any, ...]]:
+    """Return the most recent non-empty token_symbol for a token (own data)."""
+    client = _get_ch_client()
+    if client is None:
+        return []
+    try:
+        return cast(
+            "list[tuple[Any, ...]]",
+            client.execute(
+                """
+                SELECT token_symbol
+                FROM wallet_memory.evm_transfers
+                WHERE chain = %(chain)s
+                  AND token_address = %(token)s
+                  AND token_symbol != ''
+                ORDER BY block_timestamp DESC
+                LIMIT 1
+                """,
+                {"token": token_address, "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("radar_token_symbol_query_failed %s: %s", token_address[:16], exc)
+        return []
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
-def _iso(value: Any) -> str | None:
-    """Convert a datetime to ISO string (or None)."""
-    if value is None:
-        return None
-    if hasattr(value, "isoformat"):
-        try:
-            return str(value.isoformat())
-        except (ValueError, TypeError):
-            return str(value)
-    return str(value) if value else None
-
-
-async def _redis_get(key: str) -> list[dict[str, Any]] | None:
-    """Fetch a cached radar result list from Redis (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return None
-        raw = await r.get(key)
-        if not raw:
-            return None
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, list) else None
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("new_token_radar_redis_get_failed: %s", exc)
-        return None
-
-
-async def _redis_set(key: str, value: list[dict[str, Any]], ttl: int) -> bool:
-    """Store a radar result list in Redis with TTL (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return False
-        await r.setex(key, ttl, json.dumps(value, default=str))
-        return True
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("new_token_radar_redis_set_failed: %s", exc)
-        return False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -509,16 +526,18 @@ async def _redis_set(key: str, value: list[dict[str, Any]], ttl: int) -> bool:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_RADAR_CACHE),
-        "cache_max": _RADAR_CACHE_MAX,
-        "cache_ttl_seconds": _RADAR_CACHE_TTL,
-        "redis_cache_ttl_seconds": REDIS_CACHE_TTL_SECONDS,
-        "alert_dedup_ttl_seconds": REDIS_ALERT_TTL_SECONDS,
-        "clickhouse_connected": _get_ch_client() is not None,
-    }
+    return _common_get_cache_stats(
+        _RADAR_CACHE,
+        _RADAR_CACHE_MAX,
+        _RADAR_CACHE_TTL,
+        extra={
+            "redis_cache_ttl_seconds": REDIS_CACHE_TTL_SECONDS,
+            "alert_dedup_ttl_seconds": REDIS_ALERT_TTL_SECONDS,
+            "clickhouse_connected": _get_ch_client() is not None,
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _RADAR_CACHE.clear()
+    _common_clear_cache(_RADAR_CACHE)

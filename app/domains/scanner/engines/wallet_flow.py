@@ -37,12 +37,10 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from typing import Any
 
 import httpx
-from redis.exceptions import RedisError
 
 try:
     from clickhouse_driver.errors import Error as CHDriverError
@@ -54,6 +52,21 @@ from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
+from app.domains.scanner.engines._common import (
+    _query_batch_labels,
+    _query_contract_addresses,
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    redis_get,
+    redis_set,
+    run_sync,
+)
+
+# Legacy module-local names kept so existing unit tests that patch
+# ``wallet_flow._redis_get`` / ``wallet_flow._redis_set`` keep intercepting the
+# shared implementation.
+_redis_get = redis_get
+_redis_set = redis_set
 
 logger = get_logger(__name__)
 
@@ -229,7 +242,7 @@ async def build_flow_graph(
 async def _compute_graph(wallet: str, chain: str, hops: int, max_nodes: int) -> dict[str, Any]:
     """Run the hop-1 / hop-2 queries and assemble the graph payload."""
     # ── Hop 1: transfers involving the root wallet ──
-    hop1_rows = await _run_sync(_query_wallet_transfers, wallet, chain, _HOP1_LIMIT)
+    hop1_rows = await run_sync(_query_wallet_transfers, wallet, chain, _HOP1_LIMIT)
     if not hop1_rows:
         return _unavailable_result(wallet, chain, hops, reason="no transfer history")
 
@@ -267,7 +280,7 @@ async def _compute_graph(wallet: str, chain: str, hops: int, max_nodes: int) -> 
     expanded_nodes: set[str] = {wallet}
     if hops >= 2 and top_cps:
         # Parallel, bounded per-counterparty queries
-        tasks = [_run_sync(_query_counterparty_transfers, cp, wallet, chain, _HOP2_LIMIT) for cp in top_cps]
+        tasks = [run_sync(_query_counterparty_transfers, cp, wallet, chain, _HOP2_LIMIT) for cp in top_cps]
         cp_rows_lists = await asyncio.gather(*tasks, return_exceptions=True)
         for cp, rows_result in zip(top_cps, cp_rows_lists, strict=False):
             if isinstance(rows_result, BaseException) or not rows_result:
@@ -284,10 +297,29 @@ async def _compute_graph(wallet: str, chain: str, hops: int, max_nodes: int) -> 
                 if len(expanded_nodes) >= max_nodes:
                     break
 
-    # ── USD conversion (one oracle call per unique token, linear allocation) ──
+    # ── USD conversion (bounded-concurrency oracle calls, 30s overall cap) ──
+    # Previously awaited serially per token: 10-30 unique tokens => 50-150s
+    # worst-case latency. Now bounded to 5 concurrent oracle calls.
     token_usd_total: dict[str, float] = {}
-    for token, raw_total in token_raw_total.items():
-        usd = await _normalize_token_usd(token, chain, raw_total)
+    usd_semaphore = asyncio.Semaphore(5)
+
+    async def _bounded_usd(token: str, raw_total: float) -> tuple[str, float | None]:
+        async with usd_semaphore:
+            return token, await _normalize_token_usd(token, chain, raw_total)
+
+    usd_tasks = [_bounded_usd(t, rt) for t, rt in token_raw_total.items()]
+    try:
+        usd_results = await asyncio.wait_for(
+            asyncio.gather(*usd_tasks, return_exceptions=True),
+            timeout=30.0,
+        )
+    except TimeoutError:
+        usd_results = []
+
+    for item in usd_results:
+        if isinstance(item, BaseException):
+            continue
+        token, usd = item
         if usd is not None:
             token_usd_total[token] = usd
 
@@ -321,6 +353,8 @@ async def _compute_graph(wallet: str, chain: str, hops: int, max_nodes: int) -> 
     # ── Nodes: collect all addresses, cap at max_nodes ──
     node_ids = list(dict.fromkeys([wallet, *node_net.keys()]))[:max_nodes]
     node_ids = [n for n in node_ids if n and n != _ZERO_ADDR]
+    # O(1) membership lookup for edge filtering below
+    node_id_set = set(node_ids)
 
     # ── Batch labels + contract detection ──
     labels_map, contract_addresses = await _enrich_nodes(node_ids, chain)
@@ -350,6 +384,10 @@ async def _compute_graph(wallet: str, chain: str, hops: int, max_nodes: int) -> 
                     dedup_edges[key]["tx_hashes"].append(h)
         else:
             dedup_edges[key] = e
+
+    # Drop dangling edges: nodes were capped at max_nodes, so edges referencing
+    # addresses outside the emitted node list are not representable in the graph.
+    dedup_edges = {key: e for key, e in dedup_edges.items() if e["from"] in node_id_set and e["to"] in node_id_set}
 
     return {
         "check": "wallet_flow",
@@ -409,8 +447,8 @@ async def _enrich_nodes(node_ids: list[str], chain: str) -> tuple[dict[str, list
     if not node_ids:
         return labels_map, contract_addresses
 
-    label_task = _run_sync(_query_batch_labels, node_ids)
-    contract_task = _run_sync(_query_contract_addresses, node_ids, chain)
+    label_task = run_sync(_query_batch_labels, node_ids)
+    contract_task = run_sync(_query_contract_addresses, node_ids, chain)
     labels_rows, contract_rows = await asyncio.gather(label_task, contract_task, return_exceptions=True)
 
     if not isinstance(labels_rows, BaseException) and labels_rows:
@@ -519,90 +557,9 @@ def _query_counterparty_transfers(cp: str, root_wallet: str, chain: str, limit: 
         return []
 
 
-def _query_batch_labels(addresses: list[str]) -> list[tuple[Any, ...]]:
-    """Batch wallet_labels lookup for a node list."""
-    client = _get_ch_client()
-    if client is None or not addresses:
-        return []
-    params: dict[str, Any] = {"addresses": tuple(addresses)}
-    try:
-        return client.execute(
-            """
-            SELECT address, label_name, label_category, label_subtype, source, is_sanctioned
-            FROM wallet_memory.wallet_labels
-            WHERE address IN %(addresses)s
-            """,
-            params,
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("wallet_flow_labels_failed: %s", exc)
-        return []
-
-
-def _query_contract_addresses(addresses: list[str], chain: str) -> list[tuple[Any, ...]]:
-    """Detect which node addresses appear as DEX contract addresses."""
-    client = _get_ch_client()
-    if client is None or not addresses:
-        return []
-    params: dict[str, Any] = {"addresses": tuple(addresses), "chain": chain}
-    try:
-        return client.execute(
-            """
-            SELECT DISTINCT contract_address
-            FROM wallet_memory.dex_events
-            WHERE chain = %(chain)s
-              AND contract_address IN %(addresses)s
-            """,
-            params,
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("wallet_flow_contract_detect_failed: %s", exc)
-        return []
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
-async def _redis_get(key: str) -> dict[str, Any] | None:
-    """Fetch a cached flow graph from Redis (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return None
-        raw = await r.get(key)
-        if not raw:
-            return None
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, dict) else None
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("wallet_flow_redis_get_failed: %s", exc)
-        return None
-
-
-async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
-    """Store a flow graph in Redis with TTL (graceful on failure)."""
-    try:
-        from app.core.redis import get_redis_async
-
-        r = get_redis_async()
-        if r is None:
-            return False
-        await r.setex(key, ttl, json.dumps(value, default=str))
-        return True
-    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
-        logger.debug("wallet_flow_redis_set_failed: %s", exc)
-        return False
 
 
 def _unavailable_result(
@@ -650,15 +607,17 @@ def _error_result(wallet: str, chain_norm: str, hops: int, message: str) -> dict
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_FLOW_CACHE),
-        "cache_max": _FLOW_CACHE_MAX,
-        "cache_ttl_seconds": _FLOW_CACHE_TTL,
-        "redis_ttl_seconds": REDIS_TTL_SECONDS,
-        "clickhouse_connected": _get_ch_client() is not None,
-    }
+    return _common_get_cache_stats(
+        _FLOW_CACHE,
+        _FLOW_CACHE_MAX,
+        _FLOW_CACHE_TTL,
+        extra={
+            "redis_ttl_seconds": REDIS_TTL_SECONDS,
+            "clickhouse_connected": _get_ch_client() is not None,
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _FLOW_CACHE.clear()
+    _common_clear_cache(_FLOW_CACHE)
