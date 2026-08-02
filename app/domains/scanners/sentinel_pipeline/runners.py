@@ -253,6 +253,20 @@ async def run_sentinel_scan(
         except httpx.HTTPError:
             logger.debug("wallet_memory_feedback_error", exc_info=True)
 
+    # ── Push Telegram alert for high/critical risk (or severe red flags) ──
+    try:
+        from app.domains.telegram.alert_hooks import send_scanner_alert, should_send_scanner_alert
+
+        if should_send_scanner_alert(report.risk_level, list(report.red_flags)):
+            await send_scanner_alert(
+                token_address=token_address,
+                chain=chain,
+                risk_score=float(report.composite_risk_score),
+                threats=list(report.red_flags),
+            )
+    except Exception as exc:
+        logger.debug("sentinel_alert_failed", error=str(exc)[:100])
+
     return report
 
 

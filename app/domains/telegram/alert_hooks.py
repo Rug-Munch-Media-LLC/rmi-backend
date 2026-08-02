@@ -34,6 +34,94 @@ _TELEGRAM_API = "https://api.telegram.org/bot"
 _ALERT_TARGETS_ENV = os.getenv("ALERT_TARGETS", "")
 _BOT_TOKEN_ENV_KEY = os.getenv("ALERT_BOT_TOKEN_KEY", "BOT_TOKEN")
 
+# Severe red flags that warrant a scanner alert even when the numeric risk
+# score is below the threshold (honeypot, rugpull indicators, liquidity
+# issues). Matched case-insensitively as substrings against risk flags.
+SCANNER_ALERT_SEVERE_FLAGS: tuple[str, ...] = (
+    "honeypot",
+    "rugpull",
+    "rug_pull",
+    "rug_pattern",
+    "rug_indicators",
+    "lp_lock",
+    "lp_removed",
+    "liquidity_removed",
+    "liquidity_low",
+    "low_liquidity",
+    "no_liquidity",
+    "volume_fake",
+    "wash_trad",
+    "bundled_launch",
+    "bundle_detect",
+    "pump_dump",
+    "dev_high_risk",
+    "malicious_deployer",
+    "high_risk_deployer",
+    "suspicious_deployer",
+    "concentrated_holders",
+    "concentrated_lp",
+    "extreme_lp",
+    "extreme_volume",
+    "new_token_under_1h",
+    "flagged_spam",
+    "sanctioned",
+    "copycat",
+    "active_proxy_owner",
+    "risk_level=high",
+    "risk_level=critical",
+)
+
+
+def scanner_alerts_enabled() -> bool:
+    """Master switch for scanner → Telegram alerts.
+
+    Reads ``SCANNER_ALERTS_ENABLED`` (default true) via ``app.config``.
+    Disabled alerts are skipped without touching Telegram. Fail-open to
+    enabled when the settings module cannot be loaded.
+    """
+    try:
+        from app.config import settings
+
+        return bool(settings.scanner_alerts_enabled)
+    except Exception:
+        return os.getenv("SCANNER_ALERTS_ENABLED", "true").lower() not in ("0", "false", "no", "off")
+
+
+def _is_severe_flag(flag: str) -> bool:
+    """Return True when a risk flag matches a known severe indicator."""
+    norm = str(flag).lower()
+    return any(kw in norm for kw in SCANNER_ALERT_SEVERE_FLAGS)
+
+
+def should_send_scanner_alert(risk_level: str, risk_flags: list[str]) -> bool:
+    """Trigger gate for scanner alerts.
+
+    Alerts fire when the token is ``high``/``critical`` risk OR when a
+    severe red flag (honeypot, rugpull indicator, liquidity issue) is
+    present. Honors the ``SCANNER_ALERTS_ENABLED`` config flag.
+    """
+    if not scanner_alerts_enabled():
+        return False
+    if risk_level in ("high", "critical"):
+        return True
+    return any(_is_severe_flag(flag) for flag in risk_flags)
+
+
+def _default_scanner_chat_id() -> str | None:
+    """Resolve the default scanner alert chat.
+
+    Prefers operator-configured ``ALERT_TARGETS`` (send_alert uses those);
+    falls back to the rugmunchbot ``CHANNELS['alerts']`` channel.
+    """
+    if _ALERT_TARGETS_ENV:
+        return None
+    try:
+        from app.domains.telegram.rugmunchbot.config import CHANNELS
+
+        return CHANNELS.get("alerts") or CHANNELS.get("scans")
+    except Exception:
+        return None
+
 
 def _get_alert_targets() -> list[dict[str, str]]:
     """Parse ALERT_TARGETS env var into structured targets."""
@@ -71,9 +159,9 @@ async def send_alert(
     Returns:
         dict with success status and Telegram API response.
     """
-    token = bot_token or os.getenv(_BOT_TOKEN_ENV_KEY, "")
+    token = bot_token or os.getenv(_BOT_TOKEN_ENV_KEY, "") or os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not token:
-        logger.error("alert_hooks.send_alert: no bot token configured")
+        logger.warning("alert_hooks.send_alert: no bot token configured (set BOT_TOKEN or TELEGRAM_BOT_TOKEN)")
         return {"ok": False, "error": "no_bot_token"}
 
     targets = _get_alert_targets() if chat_id is None else [{"chat_id": chat_id, "alert_type": "all"}]
@@ -133,7 +221,12 @@ async def send_scanner_alert(
     Returns:
         dict from send_alert().
     """
-    if risk_score < 60 or not threats:
+    if not scanner_alerts_enabled():
+        return {"ok": True, "skipped": "alerts_disabled"}
+
+    # Numeric threshold, but always send when a severe red flag is present
+    # (honeypot, rugpull indicator, liquidity issue) — see spec.
+    if not threats or (risk_score < 60 and not any(_is_severe_flag(t) for t in threats)):
         return {"ok": True, "skipped": "risk_below_threshold"}
 
     threat_list = "\n".join(f"🔴 {t}" for t in threats[:5])
@@ -146,7 +239,11 @@ async def send_scanner_alert(
         f"{threat_list}\n\n"
         f"🔍 Full report: https://rugmunch.io/scanner?token={token_address}&chain={chain}"
     )
-    return await send_alert(message=message, chat_id=chat_id, alert_type="scanner")
+    return await send_alert(
+        message=message,
+        chat_id=chat_id or _default_scanner_chat_id(),
+        alert_type="scanner",
+    )
 
 
 async def send_system_alert(
