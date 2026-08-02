@@ -437,6 +437,22 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── C3 — new token radar / early warning (LOCAL tier, ClickHouse-only) ──
+    chains["new_token_radar"] = ProviderChain(
+        "new_token_radar",
+        description="New token discovery + early warning from chain-indexer ClickHouse deployer_events — fast scan (honeypot + deployer fingerprint + liquidity), CRITICAL/HIGH/WARNING/INFO scoring, Telegram alerts",
+        providers=[
+            Provider(
+                "chain_indexer_new_token_radar",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_new_token_radar"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse deployer_events — poll new deployments, auto-scan each pair, score risk, alert CRITICAL/HIGH via alert_hooks",
+            ),
+        ],
+    )
+
     try:
         from app.databus.data_quality import get_tier_comparison
 

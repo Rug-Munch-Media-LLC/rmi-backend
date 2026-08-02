@@ -130,6 +130,12 @@ def __getattr__(name: str) -> Any:
         "_chain_indexer_attack_detection": "chains.chain_indexer_own",
         # C7 — deployer behavioral fingerprint (LOCAL tier, ClickHouse-only)
         "_chain_indexer_deployer_fingerprint": "chains.chain_indexer_own",
+        # C1 — wallet-to-wallet flow visualization (LOCAL tier, ClickHouse-only)
+        "_chain_indexer_wallet_flow": "chains.chain_indexer_own",
+        # C3 — new token radar / early warning (LOCAL tier, ClickHouse-only)
+        "_chain_indexer_new_token_radar": "chains.chain_indexer_own",
+        # C5 — hype score (LOCAL tier, ClickHouse + free trending)
+        "_chain_indexer_hype_score": "chains.chain_indexer_own",
         # F2 price/decimals oracle providers (LOCAL tier)
         "token_price_local": "chains.price_oracle_provider",
         "token_meta_local": "chains.price_oracle_provider",
@@ -225,6 +231,9 @@ __all__ = [
     "_chain_indexer_holder_age",
     "_chain_indexer_attack_detection",
     "_chain_indexer_deployer_fingerprint",
+    "_chain_indexer_wallet_flow",
+    "_chain_indexer_new_token_radar",
+    "_chain_indexer_hype_score",
     "token_price_local",
     "token_meta_local",
     "_scraped_intel_provider",

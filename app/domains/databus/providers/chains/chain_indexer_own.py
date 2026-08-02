@@ -274,3 +274,133 @@ async def _chain_indexer_attack_detection(**kwargs: Any) -> dict[str, Any] | Non
     except Exception as exc:
         logger.debug("chain_indexer_attack_detection failed: %s", exc)
         return None
+
+
+async def _chain_indexer_wallet_flow(**kwargs: Any) -> dict[str, Any] | None:
+    """LOCAL provider — C1 wallet-to-wallet flow visualization.
+
+    Builds a labeled, USD-denominated fund-flow graph around a wallet from
+    evm_transfers + wallet_labels + dex_events (all ClickHouse). Arkham
+    replacement — no external APIs.
+
+    Parameters (from DataBus fetch kwargs):
+      wallet: str — root wallet address (required)
+      address: str — alias for wallet
+      chain: str — chain name (required)
+      hops: int — traversal depth, 1 or 2 (default 2)
+      max_nodes: int — node cap (default 60)
+
+    Returns dict with nodes/edges graph or None.
+    """
+    if not PREFER_OWN_DATA:
+        return None
+
+    wallet = kwargs.get("wallet", kwargs.get("address", "")).lower()
+    chain = kwargs.get("chain", "")
+    hops = int(kwargs.get("hops", 2))
+    max_nodes = int(kwargs.get("max_nodes", 60))
+
+    if not wallet or not chain:
+        return None
+
+    try:
+        from app.domains.scanner.engines.wallet_flow import build_flow_graph
+
+        result = await build_flow_graph(wallet=wallet, chain=chain, hops=hops, max_nodes=max_nodes)
+        if not result or result.get("result") != "scanned" or result.get("edge_count", 0) == 0:
+            return None
+
+        return {
+            "data": result,
+            "source": "chain_indexer (ClickHouse evm_transfers wallet flow)",
+            "tier": "local",
+            "is_local": True,
+        }
+    except Exception as exc:
+        logger.debug("chain_indexer_wallet_flow failed: %s", exc)
+        return None
+
+
+async def _chain_indexer_new_token_radar(**kwargs: Any) -> dict[str, Any] | None:
+    """LOCAL provider — C3 new token radar (early warning).
+
+    Polls deployer_events for newly deployed tokens, fast-scans each
+    (honeypot + deployer fingerprint + liquidity), scores CRITICAL/HIGH/
+    WARNING/INFO, and pushes CRITICAL/HIGH alerts to Telegram.
+
+    Parameters (from DataBus fetch kwargs):
+      chain: str — chain name (default ethereum)
+      lookback_minutes: int — deployment window (default 5)
+      notify: bool — push Telegram alerts (default true)
+
+    Returns dict with radar results or None.
+    """
+    if not PREFER_OWN_DATA:
+        return None
+
+    chain = kwargs.get("chain", "ethereum")
+    lookback_minutes = int(kwargs.get("lookback_minutes", 5))
+    notify = str(kwargs.get("notify", "true")).lower() in ("1", "true", "yes")
+
+    try:
+        from app.domains.scanner.engines.new_token_radar import scan_new_tokens
+
+        result = await scan_new_tokens(chain=chain, lookback_minutes=lookback_minutes, notify=notify)
+        if not result:
+            return None
+
+        return {
+            "data": {
+                "results": result,
+                "count": len(result),
+                "chain": chain,
+                "lookback_minutes": lookback_minutes,
+            },
+            "source": "chain_indexer (ClickHouse deployer_events new token radar)",
+            "tier": "local",
+            "is_local": True,
+        }
+    except Exception as exc:
+        logger.debug("chain_indexer_new_token_radar failed: %s", exc)
+        return None
+
+
+async def _chain_indexer_hype_score(**kwargs: Any) -> dict[str, Any] | None:
+    """LOCAL provider — C5 hype score (composite token momentum).
+
+    Combines social velocity (CoinGecko + DexScreener via unified trending),
+    own dex_events volume growth, own evm_transfers holder growth, and the
+    F2 price oracle momentum into a 0-100 hype score with exponential decay.
+
+    Parameters (from DataBus fetch kwargs):
+      token_address: str — token contract address (required)
+      address: str — alias for token_address
+      chain: str — chain name (default ethereum)
+
+    Returns dict with hype score + signal breakdown or None.
+    """
+    if not PREFER_OWN_DATA:
+        return None
+
+    token_address = kwargs.get("token_address", kwargs.get("address", "")).lower()
+    chain = kwargs.get("chain", "ethereum")
+
+    if not token_address:
+        return None
+
+    try:
+        from app.domains.scanner.engines.hype_score import compute_hype_score
+
+        result = await compute_hype_score(token_address=token_address, chain=chain)
+        if not result or result.get("result") != "scanned":
+            return None
+
+        return {
+            "data": result,
+            "source": "chain_indexer (ClickHouse hype score)",
+            "tier": "local",
+            "is_local": True,
+        }
+    except Exception as exc:
+        logger.debug("chain_indexer_hype_score failed: %s", exc)
+        return None
