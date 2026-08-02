@@ -12,6 +12,8 @@ Combines 7 signals:
 """
 
 
+from __future__ import annotations
+
 import asyncio
 import json
 import time

@@ -13,7 +13,7 @@ Architecture:
 Migration status:
   - UnifiedRateLimiter (app.core.rate_limiter) → primary token-bucket implementation
   - slowapi (app.core.slowrate) → auth brute-force protection only
-  - Old files (app/middleware/rate_limit.py, app/scan_rate_limiter.py) → DEPRECATED
+  - Old files (app/middleware/rate_limit.py, app/scan_rate_limiter.py) → REMOVED
   - THIS MODULE → the config both implementations reference
 
 Usage:

@@ -9,7 +9,7 @@ Also contains: 3-tier pricing router (FREE/PRO/ENTERPRISE), PII-safe hash utilit
 
 Consolidates 7 separate rate limiter implementations into 1.
 The old files (app/middleware/rate_limit.py, app/caching_shield/rate_limiter.py,
-app/scan_rate_limiter.py, etc.) are deprecated — see each file's top comment.
+app/scan_rate_limiter.py, etc.) were removed — see each file's history.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from redis.exceptions import RedisError
 
 from app.core.logging import get_logger
 
@@ -104,7 +105,6 @@ PATH_CATEGORIES: dict[str, str] = {
     "/api/v1/_test": "admin",
 }
 
-
 def _resolve_rate_limit(path: str) -> tuple[float, float]:
     """Resolve (rate_per_sec, burst_size) for a request path."""
     for prefix, category in sorted(PATH_CATEGORIES.items(), key=lambda x: -len(x[0])):
@@ -116,17 +116,14 @@ def _resolve_rate_limit(path: str) -> tuple[float, float]:
     burst = max(1, int(rpm * burst_factor))
     return (rpm / 60.0, burst)
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Redis helpers
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 def _get_limiter_settings():
     """Load rate limiter config from settings, falling back to env vars."""
     try:
         from app.config import settings as _s
-
         host = _s.redis_host
         port = _s.redis_port
         password = _s.redis_password
@@ -140,7 +137,6 @@ def _get_limiter_settings():
         salt = os.getenv("RATE_LIMIT_SALT", "")
     return host, port, password, db, salt
 
-
 REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, RATE_LIMITER_REDIS_DB, _rate_salt = _get_limiter_settings()
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/3"
 RATE_LIMIT_SALT_SECRET = _rate_salt
@@ -150,7 +146,6 @@ RATE_LIMIT_SALT_SECRET = _rate_salt
 # ═══════════════════════════════════════════════════════════════════════════
 
 RATE_LIMIT_SALT_SECRET = os.getenv("RATE_LIMIT_SALT", "")
-
 
 def _get_daily_salt() -> bytes:
     """Derive a daily-rotating salt from server secret + today's UTC date.
@@ -164,7 +159,6 @@ def _get_daily_salt() -> bytes:
         # Fall back to JWT_SECRET as a unique-per-instance salt
         try:
             from app.config import settings
-
             jwt_part = (settings.jwt_secret or "").encode()
             if len(jwt_part) >= 16:
                 secret = jwt_part
@@ -173,16 +167,13 @@ def _get_daily_salt() -> bytes:
     if not secret:
         # Absolute last resort — instance-unique, not a hardcoded string
         import socket
-
         secret = socket.gethostname().encode() + b"rmi-rate-salt"
     return hmac.new(secret, date_str.encode(), hashlib.sha256).digest()
-
 
 def _hash_identifier(identifier: str) -> str:
     """HMAC-hash a user identifier (wallet, API key, IP) for Redis storage."""
     salt = _get_daily_salt()
     return hmac.new(salt, identifier.encode(), hashlib.sha256).hexdigest()[:32]
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Token Bucket Lua script — atomic Redis operation
@@ -222,7 +213,6 @@ end
 # ═══════════════════════════════════════════════════════════════════════════
 # Unified Rate Limiter
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 class UnifiedRateLimiter:
     """Token bucket rate limiter — Redis-backed with in-memory fallback.
@@ -279,14 +269,17 @@ class UnifiedRateLimiter:
                     if REDIS_PASSWORD
                     else f"redis://{REDIS_HOST}:{REDIS_PORT}/{RATE_LIMITER_REDIS_DB}"
                 )
-                self._redis = aioredis.from_url(url, socket_connect_timeout=2, decode_responses=False)
+                self._redis = aioredis.from_url(
+                    url, socket_connect_timeout=2, decode_responses=False
+                )
                 await self._redis.ping()
                 self._lua_sha = await self._redis.script_load(_TOKEN_BUCKET_LUA)
                 logger.info("UnifiedRateLimiter: Redis connected OK")
                 return self._redis
             except Exception as exc:
-                logger.warning("UnifiedRateLimiter: Redis unavailable (%s), using in-memory fallback", exc)
-                self._redis = None
+                logger.warning(
+                    "UnifiedRateLimiter: Redis unavailable (%s), using in-memory fallback", exc
+                )
                 self._redis_failed = True
                 self._redis_failed_at = _time.monotonic()
                 return None
@@ -313,7 +306,9 @@ class UnifiedRateLimiter:
             try:
                 return await self._acquire_redis(redis, key, rate, burst, tokens)
             except Exception as exc:
-                logger.warning("Redis acquire failed — rate limiter using in-memory fallback: %s", exc)
+                logger.warning(
+                    "Redis acquire failed — rate limiter using in-memory fallback: %s", exc
+                )
                 # Null the stale connection so _ensure_redis retries next time
                 self._redis = None
                 self._redis_failed = True
@@ -359,7 +354,9 @@ class UnifiedRateLimiter:
 
         return (allowed, headers)
 
-    async def _acquire_memory(self, key: str, rate: float, burst: float, tokens: float) -> tuple[bool, dict[str, int]]:
+    async def _acquire_memory(
+        self, key: str, rate: float, burst: float, tokens: float
+    ) -> tuple[bool, dict[str, int]]:
         async with self._mem_lock:
             now = _time.monotonic()
             bucket = self._mem_buckets.get(key)
@@ -464,13 +461,11 @@ class UnifiedRateLimiter:
                     result["buckets"][k] = round(tokens, 1)
         return result
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Singleton
 # ═══════════════════════════════════════════════════════════════════════════
 
 _limiter_singleton: UnifiedRateLimiter | None = None
-
 
 def get_rate_limiter() -> UnifiedRateLimiter:
     """Get the singleton unified rate limiter instance."""
@@ -478,7 +473,6 @@ def get_rate_limiter() -> UnifiedRateLimiter:
     if _limiter_singleton is None:
         _limiter_singleton = UnifiedRateLimiter()
     return _limiter_singleton
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # FastAPI Middleware
@@ -510,7 +504,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         for k, v in headers.items():
             response.headers[k] = str(v)
         return response
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # FastAPI Dependency
@@ -559,7 +552,6 @@ class RateLimitDependency:
         request.state.rate_limit_headers = headers
         return request
 
-
 def get_rate_limit_dependency(
     limit_key: str = "default",
     rate: float | None = None,
@@ -568,11 +560,9 @@ def get_rate_limit_dependency(
     """Create a FastAPI Depends() compatible rate limit dependency."""
     return RateLimitDependency(limit_key=limit_key, rate=rate, burst=burst)
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Client ID extraction
 # ═══════════════════════════════════════════════════════════════════════════
-
 
 def _extract_client_id(request: Request) -> str:
     """Extract client identifier: API key > X-Forwarded-For > remote IP."""
@@ -591,7 +581,6 @@ def _extract_client_id(request: Request) -> str:
         return request.client.host
     return "unknown"
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Tier / Pricing Router (preserved from old file)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -599,12 +588,10 @@ def _extract_client_id(request: Request) -> str:
 router = APIRouter(prefix="/api/v1/rate-limits", tags=["rate-limits"])
 X402_VERIFY = os.getenv("X402_VERIFY_URL", "http://localhost:8000/api/v1/x402/verify")
 
-
 class Tier(StrEnum):
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
-
 
 TIER_LIMITS: dict[Tier, dict[str, Any]] = {
     Tier.FREE: {
@@ -656,19 +643,16 @@ PAYMENT_OPTIONS = {
 
 _users: dict[str, dict[str, Any]] = {}
 
-
 class UpgradeRequest(BaseModel):
     user_id: str
     tier: Tier
     tx_signature: str = ""
     chain: str = "solana"
 
-
 def _get_tier_redis() -> Any:
     import redis
 
     return redis.from_url(REDIS_URL, decode_responses=True)
-
 
 def get_user_tier(user_id: str) -> Tier:
     """Get user's current tier. Defaults to FREE."""
@@ -679,10 +663,9 @@ def get_user_tier(user_id: str) -> Tier:
         tier = r.get(f"rmi:user_tier:{_hash_identifier(user_id)}")
         if tier:
             return Tier(tier)
-    except (ConnectionError, OSError):
+    except (ConnectionError, OSError, TimeoutError, RedisError):
         pass
     return Tier.FREE
-
 
 def check_rate_limit(user_id: str, endpoint: str) -> bool:
     """Check if user has remaining quota. Returns True if allowed."""
@@ -715,7 +698,6 @@ def check_rate_limit(user_id: str, endpoint: str) -> bool:
         logger.error("rate_limiter_error: %s — failing closed (rejecting request)", e)
         return False
 
-
 @router.get("/tiers")
 async def get_tiers() -> dict[str, Any]:
     """Get all pricing tiers and features."""
@@ -731,7 +713,6 @@ async def get_tiers() -> dict[str, Any]:
         "payment_methods": list(PAYMENT_OPTIONS.keys()),
         "note": "Crypto payments only. Solana USDC, Ethereum USDC, or x402 pay-per-call.",
     }
-
 
 @router.get("/my-tier")
 async def my_tier(x_api_key: str = Header(None)) -> dict[str, Any]:
@@ -763,7 +744,6 @@ async def my_tier(x_api_key: str = Header(None)) -> dict[str, Any]:
         "upgrade_url": "/api/v1/rate-limits/upgrade",
     }
 
-
 @router.post("/upgrade")
 async def upgrade_tier(req: UpgradeRequest) -> dict[str, Any]:
     """Upgrade user tier. Verify payment via tx signature or x402."""
@@ -785,7 +765,6 @@ async def upgrade_tier(req: UpgradeRequest) -> dict[str, Any]:
         "price_monthly_usd": TIER_LIMITS[req.tier]["price_monthly_usd"],
         "payment_verified": True,
     }
-
 
 @router.get("/upgrade-links")
 async def payment_links(tier: Tier = Tier.PRO) -> dict:
@@ -810,7 +789,6 @@ async def payment_links(tier: Tier = Tier.PRO) -> dict:
             "x402": {"note": "Pay per API call automatically. No upfront cost."},
         },
     }
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Competitive analysis

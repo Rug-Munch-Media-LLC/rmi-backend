@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 import httpx
@@ -83,8 +84,8 @@ async def _query_wallet_labels(address: str, chain: str) -> dict[str, Any]:
 
         return result
 
-    except Exception as e:
-        logger.debug(f"Wallet label query failed for {address}: {e}")
+    except (AttributeError, KeyError, TypeError) as e:
+        logger.warning(f"Wallet label query failed for {address}: {e}")
     return {}
 
 
@@ -136,8 +137,8 @@ async def _fetch_sentinel_labels(address: str, chain: str) -> dict[str, Any]:
                 "risk_score": getattr(result, "risk_score", 0),
                 "sources": getattr(result, "sources", []),
             }
-    except Exception as e:
-        logger.debug(f"SENTINEL labels failed for {address}: {e}")
+    except (AttributeError, ImportError, KeyError, TypeError) as e:
+        logger.warning(f"SENTINEL labels failed for {address}: {e}")
     return {}
 
 
@@ -157,8 +158,8 @@ async def _fetch_wallet_memory(address: str, chain: str) -> dict[str, Any]:
                 "deployer_history": intel.get("deployer_history"),
                 "cross_chain_presence": intel.get("cross_chain_presence"),
             }
-    except Exception as e:
-        logger.debug(f"Wallet Memory Bank failed for {address}: {e}")
+    except (AttributeError, KeyError, TypeError, ConnectionError, OSError, TimeoutError) as e:
+        logger.warning(f"Wallet Memory Bank failed for {address}: {e}")
     return {}
 
 
@@ -274,8 +275,8 @@ async def _check_hapi_risk(address: str, chain: str) -> dict[str, Any] | None:
                     "categories": data.get("categories", []),
                     "source": "hapi",
                 }
-    except Exception as e:
-        logger.debug(f"HAPI check failed: {e}")
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
+        logger.warning(f"HAPI check failed: {e}")
     return None
 
 
@@ -296,8 +297,8 @@ async def _check_misttrack_light(address: str, chain: str) -> dict[str, Any] | N
                     "related_addresses": data.get("related", [])[:5],
                     "source": "misttrack",
                 }
-    except Exception as e:
-        logger.debug(f"MistTrack check failed: {e}")
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
+        logger.warning(f"MistTrack check failed: {e}")
     return None
 
 
@@ -323,8 +324,8 @@ async def _check_honeydb_ip(ip_address: str) -> dict[str, Any] | None:
                     "events": data.get("events", []),
                     "source": "honeydb",
                 }
-    except Exception as e:
-        logger.debug(f"HoneyDB check failed: {e}")
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
+        logger.warning(f"HoneyDB check failed: {e}")
     return None
 
 
@@ -351,8 +352,8 @@ async def _check_trm_sanctions_wallet(address: str) -> dict[str, Any] | None:
             elif resp.status_code == 429:
                 logger.warning("TRM Labs rate limit hit")
                 return {"source": "trm_labs", "rate_limited": True, "is_sanctioned": False}
-    except Exception as e:
-        logger.debug(f"TRM sanctions check failed: {e}")
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
+        logger.warning(f"TRM sanctions check failed: {e}")
     return None
 
 
@@ -482,5 +483,5 @@ async def _close_data_flywheel(deployers: list) -> None:
                 score=100 - d["risk_score"],
             )
         logger.info(f"Data flywheel: flagged {len(deployers[:5])} deployers")
-    except Exception as e:
+    except (ConnectionError, OSError, TimeoutError, AttributeError, KeyError, TypeError) as e:
         logger.warning(f"Data flywheel failed: {e}")

@@ -45,6 +45,13 @@ PUBLIC_EXACT_PATHS = frozenset(
         "/openapi.json",
         "/favicon.ico",
         "/",
+        # Frontend dashboard data — cookie-auth browser calls these without
+        # X-API-Key (see src/services/rmi/api.ts). Scan results are public
+        # product data (token + risk) already shown on rugmunch.io/scanner.
+        "/api/v1/data/scan-history",
+        # Internal news service consumer — fetches recent scans with no
+        # auth header (app/domains/news/news_service/fetchers_api.py).
+        "/api/v1/scanner/recent",
     }
 )
 

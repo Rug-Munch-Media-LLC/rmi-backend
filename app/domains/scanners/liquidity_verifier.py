@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 """
 SENTINEL - Liquidity Lock Verification
@@ -22,12 +22,14 @@ Data sources (direct API calls - no self.api_base):
               Helius Enhanced Transactions (LP burn events)
 """
 
+import json
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 
 import httpx
+import requests
 
 from app.chain_registry import get_known_lockers, is_solana
 from app.core.logging import get_logger
@@ -58,8 +60,7 @@ ETHERSCAN_NETWORKS = {
 }
 
 MORALIS_DATA_URL = "https://deep-index.moralis.io/api/v2.2"
-HELIUS_RPC_URL = "https://mainnet.helius-rpc.com"
-HELIUS_API_URL = "https://mainnet.helius-rpc.com"
+HELIUS_RPC_URL = os.getenv("HELIUS_RPC_URL", "https://mainnet.helius-rpc.com")
 
 
 class LockStatus(Enum):
@@ -244,7 +245,7 @@ class LiquidityVerifier:
             return None
         try:
             resp = await self.client.post(
-                f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}",
+                f"{HELIUS_RPC_URL}/?api-key={HELIUS_API_KEY}",
                 json={
                     "jsonrpc": "2.0",
                     "id": "1",
@@ -341,6 +342,91 @@ class LiquidityVerifier:
             "0x0000000000000000000000000000000000000000".lower(),
         }
 
+    async def _verify_lock_onchain(
+        self, token_address: str, chain: str, lp_token: str = ""
+    ) -> tuple[bool, list[dict[str, Any]]]:
+        """Verify a liquidity lock on-chain.
+
+        Solana: Helius LP burn check (holder list returned empty).
+        EVM:    Moralis / Etherscan LP holder lookup.
+
+        Args:
+            token_address: token to verify.
+            chain: chain name.
+            lp_token: optional LP token address.
+
+        Returns:
+            (lp_burned, lp_holders) — lp_holders is empty for the Solana burn path.
+        """
+        if is_solana(chain):
+            lp_burned = await self._check_solana_lp_burn(token_address)
+            return lp_burned, []
+        lp_holders = await self._get_lp_holders(token_address, chain, lp_token)
+        return False, lp_holders
+
+    def _check_lock_platforms(
+        self, token_address: str, chain: str, lp_holders: list[dict[str, Any]]
+    ) -> tuple[list[LockDetail], float, bool, bool]:
+        """Classify LP holders against known locker platforms (UNCX, Team Finance, PinkLock, Mudra).
+
+        Known lockers are treated as legit; dead addresses count as LP burn;
+        "lock"-labeled holders that are not a known locker are flagged as fake/unverified.
+
+        Args:
+            token_address: token address (kept for signature parity with the spec).
+            chain: chain name.
+            lp_holders: holder dicts from on-chain verification.
+
+        Returns:
+            (lock_details, total_locked_pct, fake_lock, all_legit).
+        """
+        lock_details: list[LockDetail] = []
+        total_locked_pct = 0.0
+        fake_lock = False
+        all_legit = True
+
+        for holder in lp_holders:
+            locker = self.is_known_locker(holder.get("address", ""), chain)
+
+            if locker:
+                lock_details.append(
+                    LockDetail(
+                        locker_address=holder.get("address", ""),
+                        platform=locker,
+                        percentage_locked=holder.get("percentage", 0),
+                        is_legit=True,
+                    )
+                )
+                total_locked_pct += holder.get("percentage", 0)
+            elif self.is_dead_address(holder.get("address", ""), chain):
+                # LP burned
+                lock_details.append(
+                    LockDetail(
+                        locker_address=holder.get("address", ""),
+                        platform="Burn",
+                        percentage_locked=holder.get("percentage", 0),
+                        is_burned=True,
+                    )
+                )
+                total_locked_pct += holder.get("percentage", 0)
+            elif "lock" in holder.get("label", "").lower() and not self.is_known_locker(
+                holder.get("address", ""), chain
+            ):
+                # Unknown/unverified locker - potential fake
+                lock_details.append(
+                    LockDetail(
+                        locker_address=holder.get("address", ""),
+                        platform="Unknown (UNVERIFIED)",
+                        percentage_locked=holder.get("percentage", 0),
+                        is_legit=False,
+                    )
+                )
+                total_locked_pct += holder.get("percentage", 0)
+                fake_lock = True
+                all_legit = False
+
+        return lock_details, total_locked_pct, fake_lock, all_legit
+
     async def verify_lock(self, token_address: str, chain: str, lp_token: str = "", symbol: str = "") -> LockReport:
         """Full liquidity verification for a token.
 
@@ -380,81 +466,39 @@ class LiquidityVerifier:
                 warnings=["Stablecoin/wrapped token - LP lock check not applicable"],
             )
 
-        lock_details = []
-        upcoming_unlocks = []
-        total_locked_pct = 0.0
-        has_split_lock = False
-        fake_lock = False
-        all_legit = True
-
-        # For Solana, check LP burn (simplest and safest mechanism)
-        if is_solana(chain):
-            lp_burned = await self._check_solana_lp_burn(token_address)
-            if lp_burned:
-                return LockReport(
-                    token_address=token_address,
-                    chain=chain,
-                    status=LockStatus.BURNED,
-                    total_locked_percentage=100.0,
-                    lock_details=[
-                        LockDetail(
-                            locker_address="burn",
-                            platform="Solana Burn",
-                            percentage_locked=100.0,
-                            is_burned=True,
-                        )
-                    ],
-                    is_legitimate_locker=True,
-                    has_split_lock=False,
-                    upcoming_unlocks=[],
-                    fake_lock_detected=False,
-                    lp_burned=True,
-                    risk_score=0,
-                    risk_level="LOW",
-                    warnings=["LP tokens burned - safest mechanism"],
-                )
-
-        # For EVM chains, query LP holders and check lockers
-        lp_holders = await self._get_lp_holders(token_address, chain, lp_token)
-
-        for holder in lp_holders:
-            locker = self.is_known_locker(holder.get("address", ""), chain)
-
-            if locker:
-                lock_info = LockDetail(
-                    locker_address=holder.get("address", ""),
-                    platform=locker,
-                    percentage_locked=holder.get("percentage", 0),
-                    is_legit=True,
-                )
-                lock_details.append(lock_info)
-                total_locked_pct += holder.get("percentage", 0)
-            elif self.is_dead_address(holder.get("address", ""), chain):
-                # LP burned
-                lock_details.append(
+        # Verify the lock on-chain (Solana LP burn via Helius, or EVM holders via Moralis/Etherscan)
+        lp_burned, lp_holders = await self._verify_lock_onchain(token_address, chain, lp_token)
+        if lp_burned:
+            return LockReport(
+                token_address=token_address,
+                chain=chain,
+                status=LockStatus.BURNED,
+                total_locked_percentage=100.0,
+                lock_details=[
                     LockDetail(
-                        locker_address=holder.get("address", ""),
-                        platform="Burn",
-                        percentage_locked=holder.get("percentage", 0),
+                        locker_address="burn",
+                        platform="Solana Burn",
+                        percentage_locked=100.0,
                         is_burned=True,
                     )
-                )
-                total_locked_pct += holder.get("percentage", 0)
-            elif "lock" in holder.get("label", "").lower() and not self.is_known_locker(
-                holder.get("address", ""), chain
-            ):
-                # Unknown/unverified locker - potential fake
-                lock_details.append(
-                    LockDetail(
-                        locker_address=holder.get("address", ""),
-                        platform="Unknown (UNVERIFIED)",
-                        percentage_locked=holder.get("percentage", 0),
-                        is_legit=False,
-                    )
-                )
-                total_locked_pct += holder.get("percentage", 0)
-                fake_lock = True
-                all_legit = False
+                ],
+                is_legitimate_locker=True,
+                has_split_lock=False,
+                upcoming_unlocks=[],
+                fake_lock_detected=False,
+                lp_burned=True,
+                risk_score=0,
+                risk_level="LOW",
+                warnings=["LP tokens burned - safest mechanism"],
+            )
+
+        # Classify LP holders against known locker platforms (UNCX, Team Finance, PinkLock, Mudra)
+        lock_details, total_locked_pct, fake_lock, all_legit = self._check_lock_platforms(
+            token_address, chain, lp_holders
+        )
+
+        upcoming_unlocks: list[LockDetail] = []
+        has_split_lock = False
 
         # Check for approaching unlocks
         now = datetime.now(UTC)
