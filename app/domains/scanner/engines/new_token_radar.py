@@ -39,6 +39,14 @@ import json
 import time
 from typing import Any
 
+import httpx
+from redis.exceptions import RedisError
+
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
@@ -172,7 +180,7 @@ async def scan_new_tokens(
         )
         return results
 
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError, RedisError) as exc:
         logger.debug("new_token_radar_failed: %s", exc)
         return []
 
@@ -213,7 +221,7 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
             else:
                 signals["deployer_bucket"] = "UNKNOWN"
                 signals["deployer_risk_score"] = 50.0
-        except Exception as exc:
+        except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
             logger.debug("radar_fingerprint_failed %s: %s", token_address[:16], exc)
             signals["deployer_bucket"] = "UNKNOWN"
             signals["deployer_risk_score"] = 50.0
@@ -239,14 +247,14 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
             else:
                 signals["is_honeypot"] = False
                 signals["honeypot_risk_score"] = 0.0
-        except Exception as exc:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
             logger.debug("radar_honeypot_failed %s: %s", token_address[:16], exc)
             signals["is_honeypot"] = False
             signals["honeypot_risk_score"] = 0.0
 
         # ── Liquidity check (own DEX data first, DexScreener fallback) ──
         signals["liquidity_usd"] = await _check_liquidity(token_address, chain)
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("radar_fast_scan_failed %s: %s", token_address[:16], exc)
 
     level, score = _score_new_token(signals)
@@ -280,7 +288,7 @@ async def _check_liquidity(token_address: str, chain: str) -> float:
         ds = await asyncio.wait_for(_fetch_dexscreener(token_address, chain), timeout=6.0)
         if ds and ds.get("pairs"):
             return float(ds["pairs"][0].get("liquidity", {}).get("usd", 0) or 0)
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("radar_liquidity_failed %s: %s", token_address[:16], exc)
     return 0.0
 
@@ -353,7 +361,7 @@ async def _alert_high_risk(results: list[dict[str, Any]], chain: str) -> list[st
             )
             alerted.append(token)
             await _mark_alerted(chain, token)
-        except Exception as exc:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
             logger.debug("radar_alert_failed %s: %s", token[:16], exc)
 
     return alerted
@@ -369,7 +377,7 @@ async def _was_alerted(chain: str, token: str) -> bool:
             return False
         key = f"{REDIS_PREFIX}:alerted:{chain}:{token}"
         return bool(await r.exists(key))
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("radar_alert_dedup_check_failed: %s", exc)
         return False
 
@@ -384,7 +392,7 @@ async def _mark_alerted(chain: str, token: str) -> None:
             return
         key = f"{REDIS_PREFIX}:alerted:{chain}:{token}"
         await r.setex(key, REDIS_ALERT_TTL_SECONDS, "1")
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("radar_alert_dedup_set_failed: %s", exc)
 
 
@@ -474,7 +482,7 @@ async def _redis_get(key: str) -> list[dict[str, Any]] | None:
             return None
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, list) else None
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("new_token_radar_redis_get_failed: %s", exc)
         return None
 
@@ -489,7 +497,7 @@ async def _redis_set(key: str, value: list[dict[str, Any]], ttl: int) -> bool:
             return False
         await r.setex(key, ttl, json.dumps(value, default=str))
         return True
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("new_token_radar_redis_set_failed: %s", exc)
         return False
 
