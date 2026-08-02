@@ -19,6 +19,7 @@ from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     WEBSITE_URL,
+    backend_headers,
     fmt_number,
     fmt_pct,
     risk_bar,
@@ -155,7 +156,8 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             wallet_data: dict = {}
             try:
                 wallet_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}",
+                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
+                    headers=backend_headers(),
                     timeout=10,
                 )
                 if wallet_resp.status_code == 200:
@@ -169,7 +171,8 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             if dev_wallet:
                 try:
                     dev_resp = await client.get(
-                        f"{BACKEND_URL}/api/v1/databus/wallet/{dev_wallet}",
+                        f"{BACKEND_URL}/api/v1/databus/wallet/{dev_wallet}/tokens",
+                        headers=backend_headers(),
                         timeout=10,
                     )
                     if dev_resp.status_code == 200:
@@ -181,11 +184,23 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             cross_chain: list = []
             try:
                 cc_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/cross_chain/{address}",
+                    f"{BACKEND_URL}/api/v1/cross-chain/{address}",
+                    params={"chain": chain},
+                    headers=backend_headers(),
                     timeout=10,
                 )
                 if cc_resp.status_code == 200:
-                    cross_chain = cc_resp.json().get("connections", [])
+                    profile = cc_resp.json()
+                    primary = profile.get("primary_chain", chain)
+                    cross_chain = [
+                        {
+                            "source_chain": primary,
+                            "dest_chain": m.get("chain", ""),
+                            "address": m.get("address", ""),
+                            "confidence": m.get("confidence", 0),
+                        }
+                        for m in profile.get("addresses", [])
+                    ]
             except (httpx.HTTPError, ConnectionError, TimeoutError):
                 pass
 

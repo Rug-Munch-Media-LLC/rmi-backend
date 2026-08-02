@@ -21,6 +21,7 @@ from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     COINGECKO,
     WEBSITE_URL,
+    backend_headers,
     fmt_number,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
@@ -84,7 +85,11 @@ async def _fetch_market_overview() -> dict:
 
             # Try own backend sentiment data
             try:
-                own = await client.get(f"{BACKEND_URL}/api/v1/market/sentiment", timeout=5)
+                own = await client.get(
+                    f"{BACKEND_URL}/api/v1/market/sentiment",
+                    headers=backend_headers(),
+                    timeout=5,
+                )
                 if own.status_code == 200:
                     own_data = own.json()
                     if isinstance(own_data, dict):

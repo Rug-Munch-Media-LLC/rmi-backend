@@ -5,21 +5,20 @@ DeFi TVL, news, social feeds, DEX data, and prediction markets.
 All BASIC tier ($0.01-0.02/call).
 """
 
-from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from fastapi import Request  # noqa: TC002  # runtime: FastAPI dependency injection
 
 from app.core.logging import get_logger
 from app.databus import databus
 from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
+
+# Runtime import: FastAPI resolves these body models at schema generation time.
+from app.routers.x402_databus_tools.models import MintRequest, QueryRequest  # noqa: TC001
 from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
 from app.routers.x402_databus_tools.rate_limit import TRIAL_WINDOW_SECONDS, check_trial
 from app.routers.x402_databus_tools.router import router
-
-if TYPE_CHECKING:
-    from fastapi import Request
-
-    from app.routers.x402_databus_tools.models import MintRequest, QueryRequest
 
 logger = get_logger("x402_databus_tools")
 

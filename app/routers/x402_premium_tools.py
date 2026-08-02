@@ -8,7 +8,6 @@ These are the standout tools that make the RMI MCP server worth paying for:
 - webhook_register: Register callbacks for monitoring alerts
 """
 
-from __future__ import annotations
 
 import json
 import os

@@ -5,7 +5,6 @@ Aggregates CryptoPanic, Reddit, and news sentiment into a narrative summary
 with confidence scoring and shill detection.
 """
 
-from __future__ import annotations
 
 import json
 import time

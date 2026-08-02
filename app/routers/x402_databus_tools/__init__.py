@@ -33,7 +33,6 @@ Security:
 
 # ── Re-export all public symbols for backward compatibility ─────
 
-from __future__ import annotations
 
 # Import submodules to register routes on the router
 from app.routers.x402_databus_tools import (

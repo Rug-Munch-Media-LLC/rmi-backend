@@ -6,19 +6,18 @@ and elite institutional endpoints (Arkham, Nansen, portfolio).
 Mixed BASIC, PREMIUM, and ELITE tier pricing.
 """
 
-from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from fastapi import Request  # noqa: TC002  # runtime: FastAPI dependency injection
 
 from app.core.logging import get_logger
 from app.databus import databus
 from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
+
+# Runtime import: FastAPI resolves these body models at schema generation time.
+from app.routers.x402_databus_tools.models import AddressRequest, QueryRequest  # noqa: TC001
 from app.routers.x402_databus_tools.router import router
-
-if TYPE_CHECKING:
-    from fastapi import Request
-
-    from app.routers.x402_databus_tools.models import AddressRequest, QueryRequest
 
 logger = get_logger("x402_databus_tools")
 

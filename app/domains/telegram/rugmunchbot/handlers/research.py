@@ -21,6 +21,7 @@ from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     WEBSITE_URL,
+    backend_headers,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
@@ -71,6 +72,7 @@ async def _query_rag(query: str, collections: list[str] | None = None, top_k: in
             try:
                 r = await client.post(
                     f"{BACKEND_URL}/api/v1/rag/v2/search",
+                    headers=backend_headers(),
                     json={
                         "query": query,
                         "collection": collection,

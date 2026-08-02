@@ -10,6 +10,8 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
+from telegram.error import TelegramError
+
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
@@ -147,7 +149,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                     reply_markup=scan_result_kb(pending["address"], result["chain"]),
                     disable_web_page_preview=True,
                 )
-            except telegram.error.TelegramError as e:
+            except (TelegramError, ValueError, KeyError, TypeError) as e:
                 logger.error(f"Deep scan payment error: {e}")
                 await msg.edit_text(
                     f"\u274c Deep scan failed: {str(e)[:200]}\n\nContact support for help.",

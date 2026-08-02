@@ -11,7 +11,6 @@ Split from monolithic x402_advanced_tools.py into:
   - narrative.py   Layer 6: Narrative engine
 """
 
-from __future__ import annotations
 
 from datetime import UTC, datetime
 

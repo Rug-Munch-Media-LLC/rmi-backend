@@ -21,6 +21,7 @@ from app.domains.telegram.rugmunchbot.config import (
     DEXSCREENER,
     TELEGRAM_CHANNEL,
     WEBSITE_URL,
+    backend_headers,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
     fmt_number,
@@ -207,6 +208,7 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             r = await client.get(
                 f"{BACKEND_URL}/api/v1/internal/news-feed",
                 params={"channel": "news", "limit": 5, "min_score": 0},
+                headers=backend_headers(),
             )
             if r.status_code == 200:
                 body = r.json()
@@ -219,7 +221,10 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         source_label = "Trending"
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5")
+                r = await client.get(
+                    f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5",
+                    headers=backend_headers(),
+                )
                 if r.status_code == 200:
                     body = r.json()
                     articles = body.get("items", [])

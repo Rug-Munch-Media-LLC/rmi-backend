@@ -81,12 +81,47 @@ _IN_DOCKER = os.getenv("DOCKER_CONTAINER") or os.path.exists("/.dockerenv")
 BACKEND_HOST = "rmi-backend:8000" if _IN_DOCKER else "localhost:8000"
 BACKEND_URL = os.getenv("RMI_BACKEND_URL", f"http://{BACKEND_HOST}")
 
+# ══════════════════════════════════════════════
+# BACKEND AUTH (X-API-Key)
+# ══════════════════════════════════════════════
+# The backend AuthMiddleware requires `X-API-Key` == RMI_AUTH_TOKEN on every
+# non-public route (app/core/auth.py). The bot runs on the host (not in the
+# backend container), so it reads the same secret file the backend container
+# mounts as its Docker secret, falling back to the RMI_AUTH_TOKEN env var and
+# then gopass. Sending the header ALSO bypasses the backend CSRF middleware
+# (middleware_setup.py skips the check when X-API-Key is present).
+_RMI_AUTH_SECRET_FILES = (
+    "/srv/secrets/rmi_auth_token",  # Docker secret source — matches backend
+    "/run/secrets/rmi_auth_token",  # in-container fallback (bot in Docker)
+)
+
+
+def _get_api_key() -> str:
+    """Resolve the backend X-API-Key: secret file → env var → gopass."""
+    for secret_file in _RMI_AUTH_SECRET_FILES:
+        try:
+            with open(secret_file) as f:
+                key = f.read().strip()
+            if key:
+                return key
+        except (FileNotFoundError, OSError):
+            continue
+    return _get_token("rmi/backend/rmi_auth_token", ["RMI_AUTH_TOKEN"])
+
+
+API_KEY = _get_api_key()
+
+
+def backend_headers() -> dict[str, str]:
+    """Headers for bot→backend calls. X-API-Key authenticates AND bypasses CSRF."""
+    return {"X-API-Key": API_KEY} if API_KEY else {}
+
 
 async def check_backend_health() -> None:
     """Ping backend /health on startup. Logs WARNING if unreachable."""
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(f"{BACKEND_URL}/health")
+            r = await client.get(f"{BACKEND_URL}/health", headers=backend_headers())
             if r.status_code == 200:
                 from app.core.logging import get_logger
 
