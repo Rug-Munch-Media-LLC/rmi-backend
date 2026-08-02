@@ -141,21 +141,21 @@ class TestPryscraperBridgeModels:
         from app.routers.pryscraper_bridge import NewsSearchRequest
 
         req = NewsSearchRequest(query="bitcoin")
-        assert req.limit == 10
+        assert req.max_results == 10
 
     def test_news_search_request_limit_range(self):
         from app.routers.pryscraper_bridge import NewsSearchRequest
 
-        req = NewsSearchRequest(query="bitcoin", limit=50)
-        assert req.limit == 50
+        req = NewsSearchRequest(query="bitcoin", max_results=50)
+        assert req.max_results == 50
 
         # Too low
         with pytest.raises(ValidationError):
-            NewsSearchRequest(query="bitcoin", limit=0)
+            NewsSearchRequest(query="bitcoin", max_results=0)
 
         # Too high
         with pytest.raises(ValidationError):
-            NewsSearchRequest(query="bitcoin", limit=100)
+            NewsSearchRequest(query="bitcoin", max_results=100)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -552,14 +552,19 @@ class TestLPHealthModel:
         from app.routers.lp_health import LPHealthResult
 
         result = LPHealthResult(
-            token_address="0xabc",
+            lp_address="0xabc",
             chain="solana",
+            token_pair="SOL/USDC",
+            total_liquidity_usd=100000.0,
+            liquidity_change_24h=-5.0,
+            largest_holder_pct=25.0,
+            holder_count=42,
+            lp_locked_pct=85.0,
             health_score=75,
-            risk_level="MEDIUM",
-            locked_pct=85.0,
+            alerts=["Low liquidity"],
         )
         assert result.health_score == 75
-        assert result.risk_level == "MEDIUM"
+        assert result.lp_locked_pct == 85.0
 
 
 class TestProtectionResponseModel:
@@ -569,9 +574,8 @@ class TestProtectionResponseModel:
         from app.routers.protection import ProtectionResponse
 
         resp = ProtectionResponse(
-            risk_level="SAFE",
+            safe=True,
             risk_score=10,
-            checks_passed=5,
         )
-        assert resp.risk_level == "SAFE"
+        assert resp.safe is True
         assert resp.risk_score == 10

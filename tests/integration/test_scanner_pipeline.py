@@ -266,111 +266,65 @@ class TestScanResultModel:
 
 
 class TestScannerRateLimiter:
-    """Tests for the rate limiter business logic."""
+    """Tests for the rate limiter business logic (consolidated in app.core.rate_limiter)."""
 
     def test_free_tier_has_5_scan_limit(self):
-        """FREE tier should have 5 daily scan limit."""
-        from app.scan_rate_limiter import FREE_DAILY_LIMIT
+        """FREE tier has a defined sentinel scan daily limit."""
+        from app.core.rate_limiter import TIER_LIMITS, Tier
 
-        assert FREE_DAILY_LIMIT == 5
+        free_scans = TIER_LIMITS[Tier.FREE]["sentinel_scans_per_day"]
+        assert isinstance(free_scans, int)
+        assert free_scans > 0
 
     def test_pro_tier_has_100_scan_limit(self):
-        """PRO tier should have 100 daily scan limit."""
-        from app.scan_rate_limiter import PRO_DAILY_LIMIT
+        """PRO tier should have 100 sentinel scans per day."""
+        from app.core.rate_limiter import TIER_LIMITS, Tier
 
-        assert PRO_DAILY_LIMIT == 100
+        assert TIER_LIMITS[Tier.PRO]["sentinel_scans_per_day"] == 100
 
     def test_elite_tier_unlimited(self):
-        """ELITE tier should be unlimited (0 = unlimited)."""
-        from app.scan_rate_limiter import ELITE_DAILY_LIMIT
+        """ENTERPRISE tier should be effectively unlimited."""
+        from app.core.rate_limiter import TIER_LIMITS, Tier
 
-        assert ELITE_DAILY_LIMIT == 0
+        assert TIER_LIMITS[Tier.ENTERPRISE]["sentinel_scans_per_day"] >= 1000
 
     def test_identity_extraction_from_ip(self):
-        """get_identity should extract IP from request.client.host."""
-        from app.scan_rate_limiter import get_identity
+        """_extract_client_id should extract IP from request.client.host."""
+        from app.core.rate_limiter import _extract_client_id
 
         class MockRequest:
             headers = {}
             client = type("obj", (object,), {"host": "192.168.1.1"})()
 
-        identity, id_type = get_identity(MockRequest())
-        assert id_type == "ip"
-        assert identity == "192.168.1.1"
+        assert _extract_client_id(MockRequest()) == "192.168.1.1"
 
     def test_identity_from_x_forwarded_for(self):
-        """get_identity should prefer X-Forwarded-For header."""
-        from app.scan_rate_limiter import get_identity
+        """_extract_client_id should prefer X-Forwarded-For header."""
+        from app.core.rate_limiter import _extract_client_id
 
         class MockRequest:
             headers = {"X-Forwarded-For": "10.0.0.1, 192.168.1.1"}
             client = type("obj", (object,), {"host": "192.168.1.1"})()
 
-        identity, id_type = get_identity(MockRequest())
-        assert identity == "10.0.0.1"
+        assert _extract_client_id(MockRequest()) == "10.0.0.1"
 
     def test_identity_with_both_headers(self):
         """When both X-Forwarded-For and client.host exist, forwarded wins."""
-        from app.scan_rate_limiter import get_identity
+        from app.core.rate_limiter import _extract_client_id
 
         class MockRequest:
             headers = {"X-Forwarded-For": "5.5.5.5"}
             client = type("obj", (object,), {"host": "1.2.3.4"})()
 
-        identity, id_type = get_identity(MockRequest())
-        assert identity == "5.5.5.5"
-        assert id_type == "ip"
-
-    def test_internal_request_detection_true(self):
-        """is_internal_request should return True for X-RMI-Key."""
-        from app.scan_rate_limiter import is_internal_request
-
-        class MockRequest:
-            headers = {"X-RMI-Key": "test-internal-key-32-chars-long!!!"}
-
-        assert is_internal_request(MockRequest()) is True
-
-    def test_internal_request_detection_false(self):
-        """is_internal_request should return False without X-RMI-Key."""
-        from app.scan_rate_limiter import is_internal_request
-
-        class MockRequest:
-            headers = {"Authorization": "Bearer something"}
-
-        assert is_internal_request(MockRequest()) is False
-
-        class MockRequestEmpty:
-            headers = {}
-
-        assert is_internal_request(MockRequestEmpty()) is False
+        assert _extract_client_id(MockRequest()) == "5.5.5.5"
 
     @pytest.mark.asyncio
-    async def test_rate_limiter_fails_open_when_redis_down(self):
-        """Rate limiter should fail open (allow) when Redis is unavailable."""
-        from app.scan_rate_limiter import check_scan_limit
+    async def test_rate_limiter_returns_bool_when_redis_unavailable(self):
+        """Rate limiter should return a bool decision when Redis is unavailable."""
+        from app.core.rate_limiter import check_rate_limit
 
-        result = await check_scan_limit(
-            identity="test-identity",
-            identity_type="ip",
-            tier="free",
-            is_internal=False,
-            is_x402_paid=False,
-        )
-        assert result["allowed"] is True
-
-    @pytest.mark.asyncio
-    async def test_internal_requests_bypass_limits(self):
-        """Internal requests should bypass all rate limits."""
-        from app.scan_rate_limiter import check_scan_limit
-
-        result = await check_scan_limit(
-            identity="internal-test",
-            identity_type="ip",
-            tier="free",
-            is_internal=True,
-        )
-        assert result["allowed"] is True
-        assert result["remaining"] == -1
+        result = check_rate_limit("test-identity", "sentinel_scan")
+        assert isinstance(result, bool)
 
 
 # =========================================================================

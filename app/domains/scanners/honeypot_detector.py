@@ -16,30 +16,26 @@ Tax pattern detection:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 
 import httpx
 
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
+from app.domains.scanner.engines.rpc_router import get_rpc_router
 
 logger = get_logger("honeypot_detector")
 
-JUPITER_QUOTE_URL = "https://quote-api.jup.app/v6/quote"
-DEXSCREENER_URL = "https://api.dexscreener.com"
+JUPITER_QUOTE_URL = os.getenv("JUPITER_QUOTE_URL", "https://quote-api.jup.app/v6/quote")
+DEXSCREENER_URL = os.getenv("DEXSCREENER_URL", "https://api.dexscreener.com")
 SOL_MINT = "So11111111111111111111111111111111111111112"
 
-EVM_RPC_URLS: dict[str, str] = {
-    "ethereum": "https://eth.llamarpc.com",
-    "eth": "https://eth.llamarpc.com",
-    "bsc": "https://bsc-dataseed.bnbchain.org",
-    "polygon": "https://polygon-rpc.com",
-    "arbitrum": "https://arb1.arbitrum.io/rpc",
-    "optimism": "https://mainnet.optimism.io",
-    "base": "https://mainnet.base.org",
-    "avalanche": "https://api.avax.network/ext/bc/C/rpc",
-    "fantom": "https://rpc.ftm.tools",
-}
+# EVM RPC endpoints are NOT hardcoded here — all eth_call simulations route
+# through the unified RpcRouter (app/domains/scanner/engines/rpc_router.py),
+# which health-checks and fails over across 10+ public endpoints per chain.
+# Chain aliases map to canonical router keys.
+CHAIN_ALIASES = {"eth": "ethereum"}
 
 ERC20_TRANSFER_SEL = "0xa9059cbb"
 HIGH_TAX_PCT = 10.0
@@ -124,17 +120,7 @@ class HoneypotDetector:
                 if "error" in data:
                     continue
                 buy_results.append((sol_amt, int(data.get("outAmount", 0)) / TOKEN_DECIMALS_SOL))
-            except (
-                httpx.HTTPError,
-                requests.RequestException,
-                json.JSONDecodeError,
-                ValueError,
-                KeyError,
-                TypeError,
-                ConnectionError,
-                OSError,
-                TimeoutError,
-            ) as e:
+            except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
                 logger.debug("_detect_solana_error", exc_info=True)
                 logger.debug(f"Jupiter buy quote failed: {e}")
 
@@ -240,14 +226,14 @@ class HoneypotDetector:
         if sell_tax_ds > 0:
             report.sell_tax = sell_tax_ds
 
-        # Step 2: Simulate ERC-20 transfers
-        rpc_url = EVM_RPC_URLS.get(chain, EVM_RPC_URLS["ethereum"])
+        # Step 2: Simulate ERC-20 transfers via unified RpcRouter
+        rpc_chain = CHAIN_ALIASES.get(chain, chain)
         sim_addr = "0x0000000000000000000000000000000000000001"
         decimals = int((base_token or {}).get("decimals", 18) or 18)
         sim_amount = 10 ** max(decimals - 2, 1)
 
-        can_to_pair = await self._simulate_transfer(rpc_url, token_address, dex_pair or sim_addr, sim_amount)
-        can_generic = await self._simulate_transfer(rpc_url, token_address, sim_addr, sim_amount)
+        can_to_pair = await self._simulate_transfer(rpc_chain, token_address, dex_pair or sim_addr, sim_amount)
+        can_generic = await self._simulate_transfer(rpc_chain, token_address, sim_addr, sim_amount)
 
         if not can_to_pair and not can_generic:
             report.can_sell = False
@@ -296,55 +282,32 @@ class HoneypotDetector:
                         reverse=True,
                     )
                     return pairs[0]
-        except (
-            httpx.HTTPError,
-            requests.RequestException,
-            json.JSONDecodeError,
-            ValueError,
-            KeyError,
-            TypeError,
-            ConnectionError,
-            OSError,
-            TimeoutError,
-        ) as e:
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("_get_dexscreener_pair_error", exc_info=True)
             logger.debug(f"DexScreener lookup failed: {e}")
         return None
 
-    # ── ERC-20 transfer simulation ───────────────────────────
+    # ── ERC-20 transfer simulation (via unified RpcRouter) ─────────
 
-    async def _simulate_transfer(self, rpc_url: str, token: str, to: str, amount: int) -> bool:
+    async def _simulate_transfer(self, chain: str, token: str, to: str, amount: int) -> bool:
         padded_to = to.lower().replace("0x", "").zfill(64)
         padded_amt = hex(amount)[2:].zfill(64)
         data = ERC20_TRANSFER_SEL[2:] + padded_to + padded_amt
         sender = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "eth_call",
-            "params": [{"from": sender, "to": token, "data": f"0x{data}"}, "latest"],
-        }
         try:
-            resp = await self.client.post(rpc_url, json=payload, timeout=10.0)
-            if resp.status_code == 200:
-                result = resp.json()
-                if "error" in result:
-                    return False
-                rv = result.get("result", "")
-                if rv in ("0x", "", None):
-                    return False
-                return int(rv, 16) != 0
-        except (
-            httpx.HTTPError,
-            requests.RequestException,
-            json.JSONDecodeError,
-            ValueError,
-            KeyError,
-            TypeError,
-            ConnectionError,
-            OSError,
-            TimeoutError,
-        ) as e:
+            router = get_rpc_router()
+            resp = await router.call(
+                chain,
+                "eth_call",
+                [{"from": sender, "to": token, "data": f"0x{data}"}, "latest"],
+            )
+            if resp is None:
+                return False
+            rv = resp.get("result", "") if isinstance(resp, dict) else ""
+            if rv in ("0x", "", None):
+                return False
+            return int(rv, 16) != 0
+        except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("_simulate_transfer_error", exc_info=True)
             logger.debug(f"eth_call transfer sim failed: {e}")
         return False

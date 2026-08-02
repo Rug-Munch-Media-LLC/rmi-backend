@@ -23,6 +23,7 @@ Data sources:
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
@@ -495,7 +496,8 @@ class ContractAuthorityScanner:
             "0x000000000000000000000000000000000000dEaD",
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         }
-        return admin_address.lower() in BURNED_ADDRESSES
+        # Normalize both sides to lowercase so mixed-case dead addresses match.
+        return admin_address.lower() in {addr.lower() for addr in BURNED_ADDRESSES}
 
     def _add_evm_warnings(self, report: ContractAuthorityReport) -> None:
         """Add risk warnings based on EVM proxy configuration."""

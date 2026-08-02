@@ -45,7 +45,7 @@ class UnifiedTokenScanner:
         "chain_indexer_patterns",
     ]
 
-    # Phase 3: Premium - requires pro/elite tier
+    # Phase 3: Premium - requires elite tier (pro gets CORE + DEEP only)
     PREMIUM_CHAINS: ClassVar[list] = [
         "bundle_detect",
         "cluster_map",
@@ -101,8 +101,8 @@ class UnifiedTokenScanner:
             deep_results = await self._fetch_batch(self.DEEP_CHAINS, params, admin_key, timeout=30)
             self._merge_deep(result, deep_results)
 
-            # ── Phase 3: Premium (tier-gated) ──
-            if tier in ("pro", "elite", "admin"):
+            # ── Phase 3: Premium (tier-gated — elite/admin only) ──
+            if tier in ("elite", "admin"):
                 premium_results = await self._fetch_batch(self.PREMIUM_CHAINS, params, admin_key, timeout=30)
                 self._merge_premium(result, premium_results)
 
@@ -271,11 +271,11 @@ class UnifiedTokenScanner:
 
 # ── Backend-compat wrapper ───────────────────────────────────────────
 # Legacy tier → unified phase mapping.  ``UnifiedTokenScanner.scan`` gates
-# its PREMIUM phase on ``tier`` (pro/elite/admin); CORE + DEEP + INTEL are
+# its PREMIUM phase on ``tier`` (elite/admin); CORE + DEEP + INTEL are
 # always run as free enrichment, so the legacy tiers map onto the unified
 # phase set through the ``tier`` parameter:
 #   free  → CORE  (+ DEEP/INTEL free enrichment)
-#   pro   → CORE + DEEP + PREMIUM
+#   pro   → CORE + DEEP
 #   elite → CORE + DEEP + PREMIUM
 _LEGACY_TIER_ORDER: dict[str, int] = {"free": 0, "pro": 1, "elite": 2}
 

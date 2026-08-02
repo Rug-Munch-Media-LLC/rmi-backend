@@ -16,12 +16,14 @@ Solscan (holders), Helius (account metadata).
 
 from __future__ import annotations
 
+import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+import requests
 
 from app.birdeye_client import BirdeyeClient
 from app.chain_registry import is_solana

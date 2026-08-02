@@ -7,6 +7,9 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from redis.exceptions import RedisError
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.core.logging import get_logger
 from app.domains.scanner.unified.model import ScanResult
 
@@ -87,7 +90,7 @@ async def persist_result(result: ScanResult) -> None:
                 scan_id=str(scan_orm.id),
             )
 
-    except Exception:
+    except (SQLAlchemyError, ConnectionError, OSError, TimeoutError):
         logger.exception(
             "scan_persist_failed",
             chain=result.chain,
@@ -104,7 +107,7 @@ async def persist_result(result: ScanResult) -> None:
             cache_val = json.dumps(_to_persist_dict(result), default=str)
             await r.setex(cache_key, 3600, cache_val)
             logger.debug("scan_redis_cached", key=cache_key)
-    except Exception:
+    except (RedisError, ConnectionError, OSError, TimeoutError):
         logger.exception("scan_redis_cache_failed")
 
 
@@ -146,8 +149,8 @@ async def _maybe_upsert_token(session: Any, result: ScanResult) -> None:
                 address=result.token_address,
                 symbol=result.symbol,
             )
-    except Exception:
-        logger.info(
+    except (SQLAlchemyError, ConnectionError, OSError, TimeoutError, ValueError):
+        logger.warning(
             "token_upsert_skipped",
             chain=result.chain,
             address=result.token_address,
@@ -166,9 +169,9 @@ async def _get_async_session() -> Any | None:
             await conn.execute(text("SELECT 1"))
         return async_session_factory()
     except (ConnectionRefusedError, OSError, ConnectionError):
-        pass
-    except Exception:
-        pass
+        logger.debug("scan_persist_primary_engine_unreachable")
+    except (SQLAlchemyError, RuntimeError, TimeoutError):
+        logger.debug("scan_persist_primary_engine_error")
 
     import os
 
@@ -190,7 +193,7 @@ async def _get_async_session() -> Any | None:
         )
         logger.info("scan_persist_fallback_engine", host=host, db=db)
         return fallback_factory()
-    except Exception as exc:
+    except (SQLAlchemyError, ImportError, OSError, ConnectionError, TimeoutError) as exc:
         logger.warning("scan_persist_fallback_failed", host=host, error=str(exc)[:100])
         return None
 

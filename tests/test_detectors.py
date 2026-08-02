@@ -223,14 +223,17 @@ class TestPumpDumpDetector:
     @pytest.mark.asyncio
     async def test_analyze_token_handles_empty_address(self):
         """analyze_token() handles empty address without crash."""
+        from app.domains.detectors.pump_dump_detector_package.sources import fetch_pairs
+
         from app.domains.detectors.pump_dump_manipulation_detector import PumpDumpDetector
 
         detector = PumpDumpDetector()
-        # Mock internal data-fetching methods to avoid external calls
-        with patch.object(detector, "_fetch_pairs", AsyncMock(return_value=None)):
-            with patch.object(detector, "_fetch_trades", AsyncMock(return_value=None)):
-                with patch.object(detector, "_fetch_holders", AsyncMock(return_value=[])):
-                    result = await detector.analyze_token("", chain="ethereum")
+        # Mock fetch_pairs to simulate empty result (no trading pairs found)
+        with patch(
+            "app.domains.detectors.pump_dump_detector_package.detector.fetch_pairs",
+            AsyncMock(return_value=None),
+        ):
+            result = await detector.analyze_token("", chain="ethereum")
         assert result is not None
 
     def test_manipulation_type_enum(self):

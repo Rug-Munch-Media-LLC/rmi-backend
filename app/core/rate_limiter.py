@@ -9,7 +9,7 @@ Also contains: 3-tier pricing router (FREE/PRO/ENTERPRISE), PII-safe hash utilit
 
 Consolidates 7 separate rate limiter implementations into 1.
 The old files (app/middleware/rate_limit.py, app/caching_shield/rate_limiter.py,
-app/scan_rate_limiter.py, etc.) are deprecated — see each file's top comment.
+app/scan_rate_limiter.py, etc.) were removed — see each file's history.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from redis.exceptions import RedisError
 
 from app.core.logging import get_logger
 
@@ -679,7 +680,7 @@ def get_user_tier(user_id: str) -> Tier:
         tier = r.get(f"rmi:user_tier:{_hash_identifier(user_id)}")
         if tier:
             return Tier(tier)
-    except (ConnectionError, OSError):
+    except (ConnectionError, OSError, TimeoutError, RedisError):
         pass
     return Tier.FREE
 

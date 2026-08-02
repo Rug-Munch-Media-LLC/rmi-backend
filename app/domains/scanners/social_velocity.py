@@ -47,12 +47,12 @@ def _parse_timestamp(ts) -> float:
             dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             return dt.timestamp()
         except (ValueError, TypeError):
-            pass
+            logger.debug(f"ISO-8601 parse failed for {ts!r}, trying float fallback")
         try:
             # Fallback: parse as float
             return float(ts)
         except (ValueError, TypeError):
-            pass
+            logger.debug(f"Float parse failed for {ts!r}")
     logger.warning(f"Unparseable timestamp {ts!r}, using 0")
     return 0.0
 
@@ -100,9 +100,6 @@ class SocialVelocityAnalyzer:
     # Organic threshold: if the first 50 mentions are spread over this many
     # seconds (or more), it's likely organic
     ORGANIC_SPREAD_SEC = 300.0  # 5 minutes
-
-    def __init__(self) -> None:
-        pass
 
     async def analyze(self, mentions: list) -> SocialVelocityReport:
         """Analyze the velocity of social mentions.
