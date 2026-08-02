@@ -799,8 +799,7 @@ def _query_first_incoming(
                     from_address,
                     min(block_timestamp) AS first_ts,
                     argMin(tx_hash, block_timestamp) AS first_tx,
-                    argMin(token_address, block_timestamp) AS first_token,
-                    argMin(token_symbol, block_timestamp) AS first_symbol
+                    argMin(token_address, block_timestamp) AS first_token
                 FROM wallet_memory.evm_transfers
                 WHERE {where_clause}
                   AND lower(token_address) IN %(native_markers)s
@@ -818,8 +817,7 @@ def _query_first_incoming(
                     from_address,
                     min(block_timestamp) AS first_ts,
                     argMin(tx_hash, block_timestamp) AS first_tx,
-                    argMin(token_address, block_timestamp) AS first_token,
-                    argMin(token_symbol, block_timestamp) AS first_symbol
+                    argMin(token_address, block_timestamp) AS first_token
                 FROM wallet_memory.evm_transfers
                 WHERE {where_clause}
                 GROUP BY from_address
@@ -842,7 +840,6 @@ def _query_first_incoming(
         "first_ts": row[1],
         "first_tx": row[2],
         "first_token": (row[3] or "").lower() if row[3] else None,
-        "first_symbol": row[4],
         "is_native": native_only,
     }
 

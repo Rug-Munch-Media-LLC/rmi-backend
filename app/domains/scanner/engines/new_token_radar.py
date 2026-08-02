@@ -317,10 +317,11 @@ async def _check_liquidity(token_address: str, chain: str) -> float:
 
 
 async def _lookup_token_symbol(token_address: str, chain: str) -> str | None:
-    """Best-effort token symbol lookup from our own evm_transfers data.
+    """Best-effort token symbol lookup from the token_meta_ref table.
 
-    deployer_events has no token_symbol column, so we read the most recent
-    non-empty symbol from local ClickHouse data (zero external cost).
+    evm_transfers no longer carries token_symbol (enrichment moved to
+    wallet_memory.token_meta_ref — one row per token), so we read the
+    symbol from the reference table (zero external cost).
     Returns None when unavailable.
     """
     if not token_address or not chain:
@@ -488,7 +489,12 @@ def _query_new_deployments(chain: str, lookback_minutes: int) -> list[dict[str, 
 
 
 def _query_token_symbol(token_address: str, chain: str) -> list[tuple[Any, ...]]:
-    """Return the most recent non-empty token_symbol for a token (own data)."""
+    """Return the most recent non-empty symbol from the token_meta_ref table.
+
+    evm_transfers stores empty token_symbol on every row (enrichment lives
+    in wallet_memory.token_meta_ref), so the reference table is the only
+    source of truth for symbols.
+    """
     client = _get_ch_client()
     if client is None:
         return []
@@ -497,12 +503,12 @@ def _query_token_symbol(token_address: str, chain: str) -> list[tuple[Any, ...]]
             "list[tuple[Any, ...]]",
             client.execute(
                 """
-                SELECT token_symbol
-                FROM wallet_memory.evm_transfers
+                SELECT symbol
+                FROM wallet_memory.token_meta_ref
                 WHERE chain = %(chain)s
                   AND token_address = %(token)s
-                  AND token_symbol != ''
-                ORDER BY block_timestamp DESC
+                  AND symbol != ''
+                ORDER BY last_updated DESC
                 LIMIT 1
                 """,
                 {"token": token_address, "chain": chain},
