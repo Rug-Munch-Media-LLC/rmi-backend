@@ -5,7 +5,8 @@ Exposes the Phase 4 own-data scanner engines through the DataBus as
 LOCAL-tier providers. Used when PREFER_OWN_DATA=true (the default) so
 scanner/data pipelines can call:
 
-  DataBus fetch("deployer_reputation", ...) → own_deployer_reputation
+  DataBus fetch("deployer_reputation", ...)  → own_deployer_reputation
+  DataBus fetch("deployer_fingerprint", ...) → deployer_fingerprint (C7 v1)
   DataBus fetch("whale_detection", ...)     → own_whale_detect
   DataBus fetch("volume_authenticity", ...) → own_volume_authenticity
   DataBus fetch("holder_age", ...)          → own_holder_age
@@ -67,6 +68,45 @@ async def _chain_indexer_deployer_reputation(**kwargs: Any) -> dict[str, Any] | 
         }
     except Exception as exc:
         logger.debug("chain_indexer_deployer_reputation failed: %s", exc)
+        return None
+
+
+async def _chain_indexer_deployer_fingerprint(**kwargs: Any) -> dict[str, Any] | None:
+    """LOCAL provider — deployer behavioral fingerprint (C7 v1).
+
+    Parameters (from DataBus fetch kwargs):
+      deployer: str — deployer wallet address
+      address: str — alias for deployer
+      chain: str — optional chain filter (default ethereum)
+
+    Returns dict with risk bucket / risk score / evidence or None.
+    """
+    if not PREFER_OWN_DATA:
+        return None
+
+    deployer = kwargs.get("deployer", kwargs.get("address", "")).lower()
+    chain = kwargs.get("chain", "")
+
+    if not deployer:
+        return None
+
+    try:
+        from app.domains.scanner.engines.deployer_fingerprint import (
+            fingerprint_deployer,
+        )
+
+        result = await fingerprint_deployer(deployer_address=deployer, chain=chain)
+        if not result or result.get("result") != "scanned":
+            return None
+
+        return {
+            "data": result,
+            "source": "chain_indexer (ClickHouse deployer behavioral fingerprint)",
+            "tier": "local",
+            "is_local": True,
+        }
+    except Exception as exc:
+        logger.debug("chain_indexer_deployer_fingerprint failed: %s", exc)
         return None
 
 
@@ -195,4 +235,42 @@ async def _chain_indexer_holder_age(**kwargs: Any) -> dict[str, Any] | None:
         }
     except Exception as exc:
         logger.debug("chain_indexer_holder_age failed: %s", exc)
+        return None
+
+
+async def _chain_indexer_attack_detection(**kwargs: Any) -> dict[str, Any] | None:
+    """LOCAL provider — C6 time-based attack detection from ClickHouse dex_events.
+
+    Detects sandwich attacks, pump & dumps, and flash loans PURELY from our
+    own wallet_memory.dex_events (59M+ rows). No external APIs.
+
+    Parameters (from DataBus fetch kwargs):
+      chain: str — chain name or "all" (default "all")
+      hours_back: int — scan window in hours (default 1)
+      notify: bool — push Redis/Telegram/whale alerts (default true)
+
+    Returns dict with detected attack events + per-stage counts, or None.
+    """
+    if not PREFER_OWN_DATA:
+        return None
+
+    chain = kwargs.get("chain", "all")
+    hours_back = int(kwargs.get("hours_back", 1))
+    notify = str(kwargs.get("notify", "true")).lower() in ("1", "true", "yes")
+
+    try:
+        from app.domains.scanner.engines.attack_detector import run_attack_detection
+
+        result = await run_attack_detection(chain=chain, hours_back=hours_back, notify=notify)
+        if not result or result.get("result") != "scanned":
+            return None
+
+        return {
+            "data": result,
+            "source": "chain_indexer (ClickHouse dex_events attack detection)",
+            "tier": "local",
+            "is_local": True,
+        }
+    except Exception as exc:
+        logger.debug("chain_indexer_attack_detection failed: %s", exc)
         return None

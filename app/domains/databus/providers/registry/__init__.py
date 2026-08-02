@@ -54,11 +54,14 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _chain_indexer_token_transfers,
     )
     from ..chains.chain_indexer_own import (
+        _chain_indexer_attack_detection,
+        _chain_indexer_deployer_fingerprint,
         _chain_indexer_deployer_reputation,
         _chain_indexer_holder_age,
         _chain_indexer_volume_authenticity,
         _chain_indexer_whale_detect,
     )
+    from ..chains.price_oracle_provider import token_meta_local, token_price_local
     from ..chains.dexscreener import (
         _dexscreener_holders,
         _dexscreener_price,

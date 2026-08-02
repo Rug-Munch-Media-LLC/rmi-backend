@@ -29,7 +29,11 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
     Tier 2: Block explorer API (Etherscan, BscScan, etc.)
     Tier 3: DexScreener API (last resort)
 
-    Scores deployer using behavioral fingerprint matching from deployer_reputation.
+    Deployer risk scoring (C7 v1):
+      Tier 1: own_deployer_reputation — fast cache, Redis-backed (TTL 1h)
+      Tier 2: deployer_fingerprint — full behavioral fingerprint (primary deep
+              check; Redis cache `fingerprint:{chain}:{deployer}` TTL 1h)
+      Tier 3: legacy score_deployer_risk (last resort)
 
     Args:
         token_address: Token contract address
@@ -44,6 +48,7 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
         - Block explorer APIs (fallback)
         - DexScreener API (last resort)
         - app.deployer_reputation (behavioral fingerprint scoring)
+        - app.domains.scanner.engines.deployer_fingerprint (C7 v1)
     """
     result: dict[str, Any] = {"check": "deployer", "result": "scanned"}
     deployer_addr = ""
@@ -109,11 +114,17 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
 
     if deployer_addr and deployer_addr != "unknown":
         # ── Score deployer reputation ──
-        # Tier 1: own ClickHouse deployer reputation (rugpull/honeypot proxies)
-        # Tier 2: behavioral fingerprint engine (existing behavior)
+        # Tier 1: own_deployer_reputation — fast cache (in-process 10 min +
+        #         Redis 1h). Returns instantly for known deployers.
+        # Tier 2: deployer_fingerprint — full behavioral fingerprint (C7 v1,
+        #         primary deep check, Redis-cached 1h). Runs on cache miss.
+        # Tier 3: legacy score_deployer_risk — last resort.
         scored = False
         if PREFER_OWN_DATA:
             scored = await _try_own_deployer_reputation(result, deployer_addr, chain)
+
+            if not scored:
+                scored = await _try_deployer_fingerprint(result, deployer_addr, chain)
 
         if not scored:
             try:
@@ -142,7 +153,19 @@ async def _try_own_deployer_reputation(
     deployer_addr: str,
     chain: str,
 ) -> bool:
-    """Attempt own ClickHouse deployer reputation scoring; returns True on success."""
+    """Fast deployer scoring via own_deployer_reputation (Redis-backed 1h).
+
+    Acts as the fast cache layer for deployer scoring: reads the own-data
+    reputation from Redis (``fingerprint:fast:{chain}:{deployer}``, 1h TTL)
+    when present, otherwise computes it (own engine has a 10-min in-process
+    cache) and stores the result for the next hour. Returns True on success.
+    """
+    cache_key = f"fingerprint:fast:{chain or 'any'}:{deployer_addr.lower()}"
+
+    cached = await _redis_get_json(cache_key)
+    if cached is not None and cached.get("result") == "scanned":
+        return _merge_own_reputation(result, cached, deployer_addr)
+
     try:
         from app.domains.scanner.engines.own_deployer_reputation import (
             get_own_deployer_reputation,
@@ -152,32 +175,135 @@ async def _try_own_deployer_reputation(
         if own_rep.get("result") != "scanned" or own_rep.get("confidence", 0) <= 0:
             return False
 
-        rep_score = own_rep.get("reputation_score", 50)
-        result["reputation_score"] = rep_score
-        result["reputation_label"] = own_rep.get("reputation_label", "UNKNOWN")
-        result["reputation_source"] = "own_clickhouse"
-        result["deployer_metrics"] = {
-            "total_tokens_deployed": own_rep.get("total_tokens_deployed", 0),
-            "rugpull_rate": own_rep.get("rugpull_rate", 0.0),
-            "honeypot_rate": own_rep.get("honeypot_rate", 0.0),
-            "avg_token_lifespan_hours": own_rep.get("avg_token_lifespan_hours"),
-            "deployment_velocity_per_day": own_rep.get("deployment_velocity_per_day", 0.0),
-        }
-        # Backward-compat risk mapping (higher = riskier)
-        result["risk_score"] = max(0, min(100, 100 - rep_score))
-        result["risk_label"] = own_rep.get("reputation_label", "UNKNOWN")
-        logger.info(
-            "Using own deployer reputation for %s (score: %s, confidence: %s)",
-            deployer_addr[:10],
-            rep_score,
-            own_rep.get("confidence"),
-        )
-        return True
+        await _redis_set_json(cache_key, own_rep, 3600)
+        return _merge_own_reputation(result, own_rep, deployer_addr)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("own_deployer_reputation_failed", error=str(e)[:80])
     except Exception as exc:
         logger.debug("own_deployer_reputation_failed", error=str(exc)[:80])
     return False
+
+
+def _merge_own_reputation(
+    result: dict[str, Any],
+    own_rep: dict[str, Any],
+    deployer_addr: str,
+) -> bool:
+    """Merge an own_deployer_reputation payload into the scan result."""
+    rep_score = own_rep.get("reputation_score", 50)
+    result["reputation_score"] = rep_score
+    result["reputation_label"] = own_rep.get("reputation_label", "UNKNOWN")
+    result["reputation_source"] = "own_clickhouse"
+    result["deployer_metrics"] = {
+        "total_tokens_deployed": own_rep.get("total_tokens_deployed", 0),
+        "rugpull_rate": own_rep.get("rugpull_rate", 0.0),
+        "honeypot_rate": own_rep.get("honeypot_rate", 0.0),
+        "avg_token_lifespan_hours": own_rep.get("avg_token_lifespan_hours"),
+        "deployment_velocity_per_day": own_rep.get("deployment_velocity_per_day", 0.0),
+    }
+    # Backward-compat risk mapping (higher = riskier)
+    result["risk_score"] = max(0, min(100, 100 - rep_score))
+    result["risk_label"] = own_rep.get("reputation_label", "UNKNOWN")
+    logger.info(
+        "Using own deployer reputation for %s (score: %s, confidence: %s)",
+        deployer_addr[:10],
+        rep_score,
+        own_rep.get("confidence"),
+    )
+    return True
+
+
+async def _try_deployer_fingerprint(
+    result: dict[str, Any],
+    deployer_addr: str,
+    chain: str,
+) -> bool:
+    """Run the full deployer behavioral fingerprint (C7 v1) — primary deep check.
+
+    Called when the fast own-reputation cache misses. The fingerprint engine
+    itself is Redis-cached (``fingerprint:{chain}:{deployer}``, 1h TTL), so
+    repeated scans of the same deployer within an hour hit Redis, not
+    ClickHouse. Returns True on success.
+    """
+    try:
+        from app.domains.scanner.engines.deployer_fingerprint import (
+            fingerprint_deployer,
+        )
+
+        fp = await fingerprint_deployer(deployer_addr, chain)
+        if not fp or fp.get("result") != "scanned":
+            return False
+
+        risk_score = int(fp.get("risk_score", 50) or 50)
+        bucket = fp.get("risk_bucket", "NEW")
+
+        # Backward-compat: reputation_score is 0-100 where higher = trusted
+        result["reputation_score"] = max(0, min(100, 100 - risk_score))
+        result["reputation_label"] = bucket
+        result["risk_score"] = risk_score
+        result["risk_label"] = bucket
+        result["reputation_source"] = "deployer_fingerprint"
+        result["fingerprint"] = {
+            "bucket": bucket,
+            "total_deployments": fp.get("total_deployments", 0),
+            "success_rate": fp.get("success_rate"),
+            "median_lifespan_hours": fp.get("median_lifespan_hours"),
+            "deployments_per_week": fp.get("deployments_per_week", 0.0),
+            "chains_used": fp.get("chains_used", []),
+            "funder_profile": fp.get("funder_profile", {}),
+            "evidence": fp.get("evidence", []),
+            "confidence": fp.get("confidence", 0.0),
+        }
+        logger.info(
+            "Using deployer fingerprint for %s (bucket: %s, risk: %s, deployments: %s)",
+            deployer_addr[:10],
+            bucket,
+            risk_score,
+            fp.get("total_deployments"),
+        )
+        return True
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.debug("deployer_fingerprint_failed", error=str(e)[:80])
+    except Exception as exc:
+        logger.debug("deployer_fingerprint_failed", error=str(exc)[:80])
+    return False
+
+
+async def _redis_get_json(key: str) -> dict[str, Any] | None:
+    """Fetch a JSON payload from Redis (graceful on failure)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return None
+        import json
+
+        raw = await r.get(key)
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception as exc:
+        logger.debug("deployer_redis_get_failed", error=str(exc)[:80])
+        return None
+
+
+async def _redis_set_json(key: str, value: dict[str, Any], ttl: int) -> bool:
+    """Store a JSON payload in Redis with TTL (graceful on failure)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return False
+        import json
+
+        await r.setex(key, ttl, json.dumps(value, default=str))
+        return True
+    except Exception as exc:
+        logger.debug("deployer_redis_set_failed", error=str(exc)[:80])
+        return False
 
 
 async def _query_deployer_from_ch(
