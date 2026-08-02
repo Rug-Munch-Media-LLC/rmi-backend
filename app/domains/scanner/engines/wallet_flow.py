@@ -41,6 +41,14 @@ import json
 import time
 from typing import Any
 
+import httpx
+from redis.exceptions import RedisError
+
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
@@ -189,7 +197,7 @@ async def build_flow_graph(
     # ── 3. Full ClickHouse computation ──
     try:
         result = await _compute_graph(wallet, chain_norm, hops, max_nodes)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("wallet_flow_query_failed: %s", exc)
         result = _unavailable_result(wallet, chain_norm, hops, reason=str(exc)[:120])
 
@@ -389,7 +397,7 @@ async def _normalize_token_usd(token: str, chain: str, raw_total: float) -> floa
             normalize_amount(token, chain, raw_total),
             timeout=5.0,
         )
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("wallet_flow_usd_failed token=%s: %s", token[:16], exc)
         return None
 
@@ -577,7 +585,7 @@ async def _redis_get(key: str) -> dict[str, Any] | None:
             return None
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else None
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("wallet_flow_redis_get_failed: %s", exc)
         return None
 
@@ -592,7 +600,7 @@ async def _redis_set(key: str, value: dict[str, Any], ttl: int) -> bool:
             return False
         await r.setex(key, ttl, json.dumps(value, default=str))
         return True
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("wallet_flow_redis_set_failed: %s", exc)
         return False
 

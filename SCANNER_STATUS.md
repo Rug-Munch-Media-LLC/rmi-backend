@@ -4,13 +4,23 @@
 
 ## Architecture
 
-RugMunchScan has 4 scanner engines and 10 own-data engines:
+RugMunchScan has 4 core scanner engines, 6 capability engines (C1–C7), and 10 own-data engines:
 
 ### Scanner Engines
 - **Legacy tiered scanner** (`service/scan.py`) — free/pro/elite tiered token scans
 - **UnifiedTokenScanner** (`unified/scanner.py`) — DataBus-powered, own-data-first (now the primary engine)
 - **SENTINEL pipeline** (`scanners/sentinel_pipeline/`) — 17-core deep forensic modules
 - **DegenSecurityScanner** (`degen_security_scanner/`) — 7-phase Solana degen scanner
+
+### Capability Engines (C1–C7, from `docs/scan-capabilities-spec.md`)
+- **C1: Wallet-to-Wallet Flow Visualization** — `engines/wallet_flow.py` (evm_transfers + wallet_labels)
+- **C2: BubbleMaps-style Holder Clustering** — `engines/holder_clusters.py` (evm_transfers + dex_events + wallet_labels)
+- **C3: New Token Discovery + Early Warning** — `engines/new_token_radar.py` (deployer_events)
+- **C5: Hype Score** — `engines/hype_score.py` (dex_events + evm_transfers + trending)
+- **C6: Time-Based Attack Detection** — `engines/attack_detector.py` (sandwich/pump-dump/flash loan)
+- **C7: Deployer Behavioral Fingerprint** — `engines/deployer_fingerprint.py` (deployer_events + dex_events + evm_transfers + wallet_labels)
+- **F2: Price/Decimals Oracle (foundation)** — `engines/price_oracle.py` (7-tier USD resolution)
+- **C4: Cross-Chain Entity Resolution** — ❌ **Not started** (depends on foundations)
 
 ### Own-Data Engines (lite indexer powered)
 - `own_security_analysis` — ClickHouse security patterns
@@ -29,10 +39,11 @@ All 10 engines query ClickHouse directly (the lite indexer). Supporting files in
 `known_entities.py`, `intel_aggregation.py`, and `rpc_router.py`.
 
 ### DataBus Integration
-- ~119 provider chains registered across 6 categories (market, security, wallet,
-  intel, social, system) [REVIEW: audit reported 107; current registry scan counts 119]
+- 114 provider chains registered (6 categories: market, security, wallet,
+  intel, social, system), 175 total providers (live registry build, 2026-08-02)
+  [REVIEW: doc previously reported ~119; live `build_provider_chains()` counts 114]
 - 29 distinct API key env vars across the app [REVIEW: audit reported 25]
-- 3 free API fallback chains (token_security, wallet_labels, market_price)
+- 3 free API fallback chains (token_security_free, wallet_labels_free, market_price_free)
 - PREFER_OWN_DATA=true by default
 
 ## Entry Points
@@ -51,6 +62,13 @@ All 10 engines query ClickHouse directly (the lite indexer). Supporting files in
 
 | Capability | Status | Engine | Data Sources |
 |---|---|---|---|
+| C1: Wallet-to-Wallet Flow Visualization | 🟢 Working | wallet_flow | evm_transfers + wallet_labels |
+| C2: BubbleMaps-style Holder Clustering | 🟢 Working | holder_clusters | evm_transfers + dex_events + wallet_labels |
+| C3: New Token Discovery + Early Warning | 🟢 Working | new_token_radar | deployer_events + C7 fingerprint |
+| C4: Cross-Chain Entity Resolution | ❌ Not started | — | depends on F0/F1 foundations |
+| C5: Hype Score | 🟢 Working | hype_score | dex_events + evm_transfers + trending |
+| C6: Time-Based Attack Detection | 🟢 Working | attack_detector | dex_events (sandwich/pump-dump/flash loan) |
+| C7: Deployer Behavioral Fingerprint | 🟢 Working | deployer_fingerprint | deployer_events + dex_events + evm_transfers + wallet_labels |
 | Honeypot detection | Working | Multiple implementations | GoPlus + DexScreener + own data |
 | Rugpull prediction | Working | SENTINEL composite scoring | 16 weighted modules (holder, bundle, funding, liquidity, dev rep, wash, etc.) [REVIEW: audit says "5 modules"; verified weight table covers 16] |
 | LP lock/burn | Working | own ClickHouse + SENTINEL liquidity verifier | UNCX/TeamFinance/PinkLock/Mudra [REVIEW: specific locker providers not verified in code] |
@@ -89,10 +107,22 @@ All 10 engines query ClickHouse directly (the lite indexer). Supporting files in
 | `registry/categories/*.py` | All | Builds every fallback chain by data type (market, security, wallet, intel, social, system) |
 | `local.py` / `mcp_bridge.py` | Local | Wallet Memory Bank, ClickHouse, Redis RAG, MCP bridge |
 
+### 5-Tier Free API Fallback Chains (no keys required)
+- **token_security_free**: ClickHouse → GoPlus → Honeypot.is → RugCheck → DexScreener
+- **wallet_labels_free**: 39M labels → Blockscout → Etherscan → DexScreener → heuristics
+- **market_price_free**: own TWAP → DexScreener → CoinGecko → GeckoTerminal → ParaSwap
+
+Each tier is a verified-live free provider with circuit breaker + rate limiter;
+own-data (LOCAL tier) always wins when `PREFER_OWN_DATA=true`.
+
 All documented in the provider registry — LOCAL FIRST → FREE SECOND → PAID LAST → NEVER WASTE (pool rotation, rate limits, monthly quota tracking).
 
 ## Recent Changes (2026-08-02)
 
+- `4ad65480` feat(pryscan): C2 BubbleMaps-style holder clustering engine (1,019 lines, 38 tests)
+- `645f2c89` feat(pryscan): C1 wallet flow, C3 new token radar, C5 hype score (17 tests)
+- `cfe29dc8` feat(indexer): deployer tracker CLI entry point + systemd timer (15-min sweeps)
+- `7432c654` feat(pryscan): F2 price oracle, C7 deployer fingerprint, C6 attack detection, quality fixes (20 C6 tests)
 - `28fea95d` feat(pryscan): own-data engines, free API fallback, bug fixes, capabilities spec
 - `bc5e5263` feat(scanner): god function splits, 120 new tests, DataBus chains, dead code cleanup
 - `35c31599` feat(scanner): wire Telegram alerts, start WebhookEngine, fix credentials, unify scanner
@@ -100,33 +130,47 @@ All documented in the provider registry — LOCAL FIRST → FREE SECOND → PAID
 - `117994c4` security(gcp): nuke Google Cloud integration after $90 bill
 - `28c83130` fix(telegram,x402): authenticate bot→backend calls, fix OpenAPI 500, fix NameErrors
 
+### Lite Indexer v1.2.0 (2026-08-02, `lite-chain-indexer`)
+- **F0 Deployer EOA fix** — deployer events now resolve the real deployer EOA
+  (transaction `from` address via `eth_getTransactionByHash`) instead of the
+  factory address; batched with bounded semaphore, graceful fallback
+- Bloom pre-filtering (block header bloom cache → fewer RPC round trips)
+- Chunked indexing (50 EVM blocks / 500 Solana slots per `eth_getLogs` call)
+- Chain parallelism (CPU affinity, per-chain memory budgets + priorities)
+- Column TTL (30–50% storage cut) + Parquet cold tier (B2 upload, DuckDB query)
+
 ## In Progress / Planned
 
 Prioritized from `docs/scan-capabilities-spec.md`:
 
-### P0 — Foundations (F0–F2)
-- **F0: Deployer EOA Fix** — foundation for C3, C7, C4
-- **F1: Solana Owner Resolution** — foundation for C2, C4, C5
-- **F2: Price/Decimals Oracle** — foundation for C1, C2, C5, C6 (every USD-denominated output)
+### P0 — Foundations
+- **F0: Deployer EOA Fix** — ✅ DONE (lite indexer v1.2.0) — foundation for C3, C7, C4
+- **F1: Solana Owner Resolution** — foundation for C2, C4, C5 (pending)
+- **F2: Price/Decimals Oracle** — ✅ DONE (`engines/price_oracle.py`) — foundation for C1, C2, C5, C6
 
 ### P0 — Capabilities
-- **C1: Wallet-to-Wallet Flow Visualization** — flagship investigative feature
-- **C3: New Token Discovery + Early Warning** — core "early warning" spine
-- **C6: Time-Based Attack Detection** — core differentiator, pure own-data
-- **C7: Deployer Behavioral Fingerprint**
+- **C1: Wallet-to-Wallet Flow Visualization** — ✅ DONE — flagship investigative feature
+- **C3: New Token Discovery + Early Warning** — ✅ DONE — core "early warning" spine
+- **C6: Time-Based Attack Detection** — ✅ DONE — core differentiator, pure own-data
+- **C7: Deployer Behavioral Fingerprint** — ✅ DONE
 
 ### P1 — Capabilities
-- **C2: BubbleMaps-style Holder Clustering** — enrichment/differentiator
-- **C4: Cross-Chain Entity Resolution** — depends on foundations
-- **C5: Hype Score** — enrichment
+- **C2: BubbleMaps-style Holder Clustering** — ✅ DONE — enrichment/differentiator
+- **C4: Cross-Chain Entity Resolution** — ❌ NOT STARTED — depends on foundations
+- **C5: Hype Score** — ✅ DONE — enrichment
 
 Build order and sequencing documented in the spec (`docs/scan-capabilities-spec.md`).
 
 ## Quality Metrics
-- ~3,500 tests collected (`pytest --collect-only`, 2026-08-02)
-  [REVIEW: audit reported ~930; current collection is 3,536]
-- 0 bare excepts; 70 broad `except Exception` in scanner domain
-  [REVIEW: audit reported 62, down from 90]
+- 342 scanner tests (verified baseline); live collection 2026-08-02:
+  `tests/unit/domain/scanner/` = 380 tests (+38 C2 holder-cluster tests),
+  646 scanner-related across the full suite, 3,611 total
+- 0 bare excepts; 118 broad `except Exception` in scanner domain
+  [REVIEW: doc previously reported 70; new capability engines added
+  try/except-wrapped code. 0 remaining in clone_scanner,
+  own_copycat_detect, chain_pattern_detector after narrowing]
+- 7 F821 (undefined-name) bugs found in review — all fixed; `ruff --select F821`
+  on scanner domain now passes with 0 findings
 - 3 god functions split in the 2026-08-02 refactor
   [REVIEW: audit says "3 remaining >100 lines"; current AST scan of
   `app/domains/scanner/` finds 37 functions >100 lines domain-wide]
@@ -135,6 +179,11 @@ Build order and sequencing documented in the spec (`docs/scan-capabilities-spec.
 ## Repositories
 - Scanner: rmi-backend/app/domains/scanner/
 - Own-data engines: rmi-backend/app/domains/scanner/engines/own_*.py
+- Capability engines (C1–C7): rmi-backend/app/domains/scanner/engines/{wallet_flow,holder_clusters,new_token_radar,hype_score,attack_detector,deployer_fingerprint,price_oracle}.py
+- Lite indexer: lite-chain-indexer/ (v1.2.0) — re-exported via rmi-backend/app/domains/indexer/
 - DataBus: rmi-backend/app/domains/databus/
 - Telegram: rmi-backend/app/domains/telegram/rugmunchbot/
 - Spec: rmi-backend/docs/scan-capabilities-spec.md
+
+---
+Last updated: 2026-08-02

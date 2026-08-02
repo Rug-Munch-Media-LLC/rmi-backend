@@ -41,6 +41,14 @@ import os
 import time
 from typing import TYPE_CHECKING, Any
 
+import httpx
+from redis.exceptions import RedisError
+
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -398,7 +406,7 @@ async def _redis_get(key: str) -> dict[str, Any] | None:
             return None
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else None
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("price_oracle Redis get failed: %s", exc)
         return None
 
@@ -412,7 +420,7 @@ async def _redis_set(key: str, value: dict[str, Any], ttl: int = _PRICE_TTL) -> 
         if r is None:
             return
         await r.set(key, json.dumps(value), ex=ttl)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("price_oracle Redis set failed: %s", exc)
 
 
@@ -470,7 +478,16 @@ async def get_token_price(
     for source_name, fetcher in _TIERS:
         try:
             result = await fetcher(token, chain, _depth=_depth)
-        except Exception as exc:  # defensive: a provider must never crash the oracle
+        except (
+            httpx.HTTPError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+            CHDriverError,
+        ) as exc:  # defensive: a provider must never crash the oracle
             logger.debug("price_oracle tier %s failed for %s: %s", source_name, token[:16], exc)
             result = None
         if not result:
@@ -549,7 +566,7 @@ async def get_token_decimals(token_address: str, chain: str) -> int | None:
         if meta and meta.get("decimals") is not None:
             _decimals_mem[cache_key] = int(meta["decimals"])
             return int(meta["decimals"])
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("token_meta decimals read failed for %s: %s", token[:16], exc)
 
     # ── DexScreener pair response ──
@@ -572,7 +589,7 @@ async def get_token_decimals(token_address: str, chain: str) -> int | None:
         if known is not None:
             _decimals_mem[cache_key] = known
             return known
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("own_dex_data decimals lookup failed for %s: %s", token[:16], exc)
 
     # ── Default ──
@@ -609,7 +626,7 @@ async def get_native_price(chain: str) -> float:
                 price = float(price_result["price_usd"])
                 _native_mem[chain] = {"price_usd": price, "_cached_at": time.time()}
                 return price
-        except Exception as exc:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
             logger.debug("native price via wrapped token failed for %s: %s", chain, exc)
 
     # ── CoinGecko by native coin id ──
@@ -685,7 +702,7 @@ async def _get_cached_price(token: str, chain: str, depth: int) -> dict[str, Any
             redis_val["source"] = f"redis_cache:{redis_val.get('source', 'unknown')}"
             _price_mem[cache_key] = {**redis_val, "_cached_at": time.time()}
             return redis_val
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, RedisError) as exc:
         logger.debug("price_oracle Redis cache read failed: %s", exc)
 
     # ClickHouse token_meta (only when fresh within TTL)
@@ -708,7 +725,7 @@ async def _get_cached_price(token: str, chain: str, depth: int) -> dict[str, Any
                     payload["decimals"] = int(meta["decimals"])
                 _price_mem[cache_key] = {**payload, "_cached_at": time.time()}
                 return payload
-        except Exception as exc:
+        except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
             logger.debug("price_oracle token_meta cache read failed: %s", exc)
 
     return None
@@ -737,7 +754,7 @@ async def _cache_set_price(token: str, chain: str, payload: dict[str, Any]) -> N
             price_usd=float(payload.get("price_usd", 0) or 0),
             source=str(payload.get("source", "") or ""),
         )
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("price_oracle token_meta write-through failed: %s", exc)
 
 
@@ -873,7 +890,7 @@ async def _own_price_vwap(token: str, chain: str) -> dict[str, Any] | None:
         from app.domains.scanner.engines.own_dex_data.query import _query_dex_swaps
 
         swaps = await _query_dex_swaps(token, chain, hours_back=24)
-    except Exception as exc:
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("price_oracle vwap swap query failed: %s", exc)
         return None
     if len(swaps) < 2:
@@ -970,7 +987,7 @@ async def _anchor_to_usd(
             paired_price = await get_token_price(paired, chain, _depth=depth + 1)
             if paired_price and float(paired_price.get("price_usd", 0) or 0) > 0:
                 return norm_price * float(paired_price["price_usd"]), 0.6, "paired_token"
-        except Exception as exc:
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
             logger.debug("price_oracle paired anchor failed for %s: %s", paired[:16], exc)
 
     # Last resort: return the normalized ratio flagged as unanchored
@@ -1026,7 +1043,7 @@ async def _dexscreener_price(token: str, chain: str, *, _depth: int = 0) -> dict
         if isinstance(base, dict) and base.get("name"):
             result["name"] = str(base.get("name") or "")
         return result
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle DexScreener failed for %s: %s", token[:16], exc)
         return None
 
@@ -1093,7 +1110,7 @@ async def _coingecko_price(token: str, chain: str, *, _depth: int = 0) -> dict[s
         from app.domains.databus.providers.chains.free_security import _free_market_coingecko
 
         return await _free_market_coingecko(token_address=token, chain=chain, address=token)
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle CoinGecko failed for %s: %s", token[:16], exc)
         return None
 
@@ -1160,7 +1177,7 @@ async def _geckoterminal_price(token: str, chain: str, *, _depth: int = 0) -> di
         from app.domains.databus.providers.chains.free_security import _free_market_geckoterminal
 
         return await _free_market_geckoterminal(token_address=token, chain=chain, address=token)
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle GeckoTerminal failed for %s: %s", token[:16], exc)
         return None
 
@@ -1189,7 +1206,7 @@ async def _paraswap_price(token: str, chain: str, *, _depth: int = 0) -> dict[st
         # token_price_usd = (native_per_token) * native_usd
         token_price_usd = (src_amount / dest_amount) * native_price
         return {"price_usd": token_price_usd, "confidence": 0.55}
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle ParaSwap failed for %s: %s", token[:16], exc)
         return None
 
@@ -1219,7 +1236,7 @@ async def _oneinch_price(token: str, chain: str, *, _depth: int = 0) -> dict[str
             return None
         token_price_usd = (src_amount / dest_amount) * native_price
         return {"price_usd": token_price_usd, "confidence": 0.5}
-    except Exception as exc:
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("price_oracle 1inch failed for %s: %s", token[:16], exc)
         return None
 
