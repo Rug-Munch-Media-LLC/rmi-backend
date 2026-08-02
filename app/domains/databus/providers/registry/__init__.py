@@ -58,7 +58,10 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _chain_indexer_deployer_fingerprint,
         _chain_indexer_deployer_reputation,
         _chain_indexer_holder_age,
+        _chain_indexer_hype_score,
+        _chain_indexer_new_token_radar,
         _chain_indexer_volume_authenticity,
+        _chain_indexer_wallet_flow,
         _chain_indexer_whale_detect,
     )
     from ..chains.price_oracle_provider import token_meta_local, token_price_local
