@@ -1,10 +1,10 @@
 """
-C4 — Cross-Chain Entity Resolution (v1 stub)
-==============================================
+C4 — Cross-Chain Entity Resolution (v2)
+=========================================
 Phase 5 RugMunchScan capability — link the same actor across chains
 (``docs/scan-capabilities-spec.md`` section C4, P1).
 
-v1 implements two of the three evidence checks from the spec:
+v2 implements all three evidence checks from the spec:
 
   1. **Same deployer** — ``deployer_events`` rows keyed by deployer address.
      When the queried address deployed tokens on 2+ chains, emit links with
@@ -13,12 +13,15 @@ v1 implements two of the three evidence checks from the spec:
      source chain identifies a funder (``evm_transfers``); addresses on
      target chains funded by that same funder are candidate links, with the
      funding tx hash as evidence.
-  3. **Behavioral fingerprint similarity** — NOT implemented in v1; the
-     payload carries ``behavioral_fingerprint: "coming in v2"`` (Phase 3 of
-     ``docs/cross-chain-entity-tracking.md``).
+  3. **Behavioral fingerprint similarity** — v2 addition. When the deployer
+     check finds a candidate, compare the wallet's behavioral fingerprint
+     (``behavioral_fingerprint`` engine: tx frequency, DEX interaction,
+     temporal patterns, value distribution) on the source chain against the
+     candidate chain. A similarity >= ``BEHAVIORAL_MIN_SIMILARITY`` emits a
+     ``behavioral`` evidence link that *confirms* the deployer candidate.
 
 Entity classification (bridge vs launderer, spec C4 step 3) is a v2 item.
-v1 emits ``entity_type`` = ``"multi_chain_actor"`` when links exist and
+v2 emits ``entity_type`` = ``"multi_chain_actor"`` when links exist and
 ``"unknown"`` otherwise, plus a heuristic ``risk`` (low/medium/high).
 
 Confidence scoring follows ``docs/cross-chain-entity-tracking.md`` §6:
@@ -26,10 +29,11 @@ Confidence scoring follows ``docs/cross-chain-entity-tracking.md`` §6:
   - Mixed-chain deployer (EVM + non-EVM): 0.80
   - Non-EVM deployer only: 0.60
   - Same funder (fund-flow trace): 0.60
+  - Behavioral fingerprint: 0.70 (weighted by fingerprint similarity)
 
 Every ClickHouse query is bounded by ``max_execution_time`` (time-boxed — see
 Cross-Cutting Principles). Links carry evidence (deploy tx hash / funder tx
-hash).
+hash / behavioral similarity).
 
 Usage:
     from app.domains.scanner.engines.cross_chain_entity import (
@@ -49,12 +53,13 @@ Usage:
     #     ],
     #     "entity_type": "unknown" | "multi_chain_actor",
     #     "risk": "low" | "medium" | "high",
-    #     "behavioral_fingerprint": "coming in v2",
+    #     "behavioral_fingerprint": { ... } | None,
     # }
 
 Data Sources:
   Primary: wallet_memory.deployer_events (deployer + deploy tx evidence)
   Primary: wallet_memory.evm_transfers (first funder + funder tx evidence)
+  Primary: wallet_memory.evm_transfers + dex_events (behavioral fingerprint)
 """
 
 from __future__ import annotations
@@ -85,6 +90,13 @@ from app.domains.scanner.engines._common import (
     to_iso,
     unavailable_result,
 )
+from app.domains.scanner.engines.behavioral_fingerprint import (
+    BEHAVIORAL_MIN_SIMILARITY,
+    CONFIDENCE_BEHAVIORAL,
+    compare_fingerprints,
+    compute_behavioral_fingerprint,
+    matched_features,
+)
 
 # Legacy module-local names kept for consistency with the other engines.
 _redis_get = redis_get
@@ -102,6 +114,7 @@ _ENTITY_CACHE_MAX = 200
 # ── Query / analysis limits (time-boxing) ─────────────────────────────────
 _QUERY_TIMEOUT_SECONDS = 10
 _MAX_FUNDER_CANDIDATES = 10  # same-funder candidate links per resolution
+_MAX_BEHAVIORAL_CONFIRMATIONS = 5  # behavioral confirmations per resolution
 
 # ── Confidence thresholds (docs/cross-chain-entity-tracking.md §6) ────────
 _CONFIDENCE_DEPLOYER_EVM = 0.95
@@ -312,14 +325,17 @@ async def resolve_cross_chain_entity(
     target_chains: list[str] | None = None,
     force_fresh: bool = False,
 ) -> dict[str, Any]:
-    """C4 v1: cross-chain entity resolution.
+    """C4 v2: cross-chain entity resolution.
 
     Links the given wallet to addresses on other chains via:
       1. Same deployer — the address deployed tokens on 2+ chains
          (``deployer_events``, deploy tx hash evidence).
       2. Same funder — addresses on target chains funded by the same first
          funder (``evm_transfers``, funding tx hash evidence).
-      3. Behavioral fingerprint similarity — "coming in v2".
+      3. Behavioral fingerprint similarity — when the deployer check finds a
+         candidate, compute the behavioral fingerprint on the source and
+         candidate chains and emit a ``behavioral`` confirmation link when the
+         cosine similarity meets ``BEHAVIORAL_MIN_SIMILARITY``.
 
     Args:
         address: Wallet/deployer address on the source chain.
@@ -338,7 +354,7 @@ async def resolve_cross_chain_entity(
             ],
             "entity_type": "unknown" | "multi_chain_actor",
             "risk": "low" | "medium" | "high",
-            "behavioral_fingerprint": "coming in v2",
+            "behavioral_fingerprint": { ... } | None,
         }
     """
     addr = _norm_addr(address)
@@ -415,6 +431,51 @@ async def resolve_cross_chain_entity(
                 }
             )
 
+    # ── Check 3: behavioral fingerprint confirmation (v2) ──
+    # When the deployer check found candidate chains, compute the wallet's
+    # behavioral fingerprint on the source chain and on each candidate chain,
+    # and emit a `behavioral` link when the cosine similarity is high enough.
+    source_fp: dict[str, Any] | None = None
+    if other_chains:
+        try:
+            source_fp = await compute_behavioral_fingerprint(addr, chain_norm)
+            if source_fp.get("result") == "scanned":
+                for deploy in other_chains[:_MAX_BEHAVIORAL_CONFIRMATIONS]:
+                    target_fp = await compute_behavioral_fingerprint(addr, deploy["chain"])
+                    if target_fp.get("result") != "scanned":
+                        continue
+                    similarity = compare_fingerprints(source_fp, target_fp)
+                    if similarity < BEHAVIORAL_MIN_SIMILARITY:
+                        continue
+                    matches = matched_features(source_fp, target_fp)
+                    links.append(
+                        {
+                            "chain": deploy["chain"],
+                            "address": addr,
+                            "evidence_type": "behavioral",
+                            "confidence": round(CONFIDENCE_BEHAVIORAL * similarity, 2),
+                            "evidence": "",
+                            "details": {
+                                "similarity": similarity,
+                                "matched_features": matches,
+                                "source_fingerprint_confidence": source_fp.get("confidence"),
+                                "target_fingerprint_confidence": target_fp.get("confidence"),
+                            },
+                        }
+                    )
+        except (
+            ConnectionError,
+            OSError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+            RuntimeError,
+            CHDriverError,
+        ) as exc:
+            # Behavioral confirmation must never break resolution
+            logger.debug("cross_chain_entity_behavioral_failed: %s", exc)
+
     # ── Dedupe: same (chain, address, evidence_type) kept once ──
     seen: set[tuple[str, str, str]] = set()
     unique_links: list[dict[str, Any]] = []
@@ -437,7 +498,9 @@ async def resolve_cross_chain_entity(
         "addresses": links,
         "entity_type": entity_type,
         "risk": risk,
-        "behavioral_fingerprint": "coming in v2",
+        "behavioral_fingerprint": (
+            source_fp.get("fingerprint") if source_fp and source_fp.get("result") == "scanned" else None
+        ),
         "links_found": len(links),
         "elapsed_ms": round((time.monotonic() - _start) * 1000, 1),
     }

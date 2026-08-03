@@ -43,7 +43,7 @@ model below.
 |---|---|---|---|
 | **Security** | 35 | Honeypot, contract verification, mint authority, proxy, owner privileges, sell tax, rug-pattern matches | GoPlus / `token_security` (own ClickHouse, GoPlus, Honeypot.is), `rug_patterns` |
 | **Liquidity** | 25 | LP lock %, total liquidity | `liquidity_risk` (own `dex_events`, DexScreener, UNCX/TeamFinance) |
-| **Holders** | 15 | Top-10 concentration, Gini/HHI inequality, holder count | `holder_data` + `holder_health` (own `evm_transfers`) |
+| **Holders** | 15 | Top-10 concentration, Gini/HHI inequality, holder count, exchange funding, wallet freshness, mixer funding, holder overlap | `holder_data` + `holder_health` + `funding_analysis` + `wallet_freshness` + `holder_overlap` (own `evm_transfers`, clever-wallet analysis) |
 | **Deployer** | 15 | Reputation score, risk label, rug count, deployment history | `dev_reputation` (own `deployer_events`, chain-indexer) |
 | **Market** | 10 | Volume authenticity, premium detections (bundle/MEV/wash/sniper), chain-indexer patterns | `volume_authenticity`, `premium`, `chain_indexer_patterns` (own `dex_events`, DexScreener) |
 
@@ -61,6 +61,13 @@ model below.
 | Holder concentration | `top_10_pct > 80` | −15 | `HOLDER_CONCENTRATION_HIGH` |
 | Holder distribution | `top_10_pct < 30` | +5 | `HOLDER_DISTRIBUTED` |
 | Holder inequality | `gini > 0.8` | −10 | `HOLDER_GINI_HIGH` |
+| Exchange-funded (extreme) | `funding_analysis.exchange_funded_pct > 50` | −10 | `HIGH_EXCHANGE_FUNDED` |
+| Exchange-funded (elevated) | `funding_analysis.exchange_funded_pct > 30` | −5 | `EXCHANGE_FUNDED_ELEVATED` |
+| Fresh wallets (extreme) | `funding_analysis.fresh_wallet_pct > 40` or `wallet_freshness.fresh_wallet_pct > 50` | −8 / −10 | `HIGH_FRESH_WALLET_PCT` |
+| Fresh wallets (elevated) | `funding_analysis.fresh_wallet_pct > 20` or `wallet_freshness.fresh_wallet_pct > 30` | −4 / −5 | `FRESH_WALLET_ELEVATED` |
+| Mixer-funded holders | `funding_analysis.mixer_funded_pct > 5` | −6 | `MIXER_FUNDED_HOLDERS` |
+| Holder overlap (scam token) | `holder_overlap.worst_token_is_scam` and `max_overlap_pct > 30` | −10 | `HOLDER_OVERLAP_SCAM` |
+| Holder overlap (high) | `holder_overlap.max_overlap_pct > 30` | −5 | `HOLDER_OVERLAP_HIGH` |
 | LP lock low | `locked_pct < 50` | −20 | `LP_LOCK_LOW` |
 | LP locked | `locked_pct > 90` | +5 | `LP_LOCKED` |
 | Deployer high risk | `dev.risk_score > 70` | −25 | `DEV_HIGH_RISK` |
@@ -70,6 +77,21 @@ model below.
 | Authentic volume | `fake_volume_pct < 10` | +5 | `VOLUME_AUTHENTIC` |
 | Chain-indexer findings | Σ `risk_score` | −min(Σ, 40) | `ONCHAIN_<PATTERN>` (informational) |
 | Premium detection | feature risk `HIGH`/`CRITICAL` | −10 each | `PREMIUM_<FEATURE>` |
+
+> **Clever-wallet holder flags — what triggers them:** these seven flags come
+> from the funding-source / wallet-freshness / holder-overlap analysis
+> (`funding_analysis`, `wallet_freshness`, `holder_overlap`):
+> - `HIGH_EXCHANGE_FUNDED` — >50% of analyzed top holders were funded by CEX
+>   (exchange) wallets; `EXCHANGE_FUNDED_ELEVATED` — >30%.
+> - `HIGH_FRESH_WALLET_PCT` — >40% fresh wallets from `funding_analysis`, or
+>   >50% from `wallet_freshness`; `FRESH_WALLET_ELEVATED` — >20% / >30%
+>   respectively. The heavier penalty applies when the source with the higher
+>   threshold fires.
+> - `MIXER_FUNDED_HOLDERS` — >5% of analyzed holders were funded via a mixer /
+>   tumbler.
+> - `HOLDER_OVERLAP_SCAM` — `max_overlap_pct > 30` **and** the worst-overlap
+>   token is a known scam; `HOLDER_OVERLAP_HIGH` — `max_overlap_pct > 30`
+>   (without the scam-token condition).
 
 ### Risk levels
 
@@ -141,6 +163,13 @@ labels.
 |---|---|---|---|---|
 | `HOLDER_CONCENTRATION_HIGH` | holders | `holder_data.top_10_pct > 80` | −15 | The top 10 wallets hold more than 80% of supply — a few whales can dump on you. |
 | `HOLDER_GINI_HIGH` | holders | `holder_health.gini > 0.8` | −10 | Holder balances are extremely uneven — the distribution is top-heavy. |
+| `HIGH_EXCHANGE_FUNDED` | holders | `funding_analysis.exchange_funded_pct > 50` | −10 | More than half of analyzed top holders were funded by CEX wallets — coordinated exchange buy-in. |
+| `EXCHANGE_FUNDED_ELEVATED` | holders | `funding_analysis.exchange_funded_pct > 30` | −5 | Elevated share of top holders funded by exchange wallets. |
+| `HIGH_FRESH_WALLET_PCT` | holders | `funding_analysis.fresh_wallet_pct > 40` or `wallet_freshness.fresh_wallet_pct > 50` | −8 / −10 | Extreme share of brand-new wallets among top holders — classic airdrop-farming / short-lived setup. |
+| `FRESH_WALLET_ELEVATED` | holders | `funding_analysis.fresh_wallet_pct > 20` or `wallet_freshness.fresh_wallet_pct > 30` | −4 / −5 | Elevated share of fresh wallets among top holders. |
+| `MIXER_FUNDED_HOLDERS` | holders | `funding_analysis.mixer_funded_pct > 5` | −6 | Some top holders were funded via a mixer/tumbler — obfuscated source of funds. |
+| `HOLDER_OVERLAP_SCAM` | holders | `holder_overlap.worst_token_is_scam` and `max_overlap_pct > 30` | −10 | Top holders overlap heavily with a known scam token — likely the same cluster of wallets. |
+| `HOLDER_OVERLAP_HIGH` | holders | `holder_overlap.max_overlap_pct > 30` | −5 | Top holders overlap heavily with another token — wallets may be coordinated. |
 | `LP_LOCK_LOW` | liquidity | `liquidity_risk.locked_pct < 50` | −20 | The liquidity pool is not locked; the deployer can pull funds at any time. |
 | `DEV_HIGH_RISK` | deployer | `dev_reputation.risk_score > 70` | −25 | The deployer has a high-risk history (rugs, honeypots, short-lived tokens). |
 | `RUG_PATTERN_MATCH:N` | security | `rug_patterns.match_count = N` | −10 × N | The token matches N known rug-pull patterns (known pattern, liquidity removal, price crash…). |
@@ -376,6 +405,15 @@ confidence means the data available was thin — treat it accordingly.
 
 ### Change log
 
+- **2026-08-03** — Documented the 7 clever-wallet holder penalties that were
+  missing from the unified penalty table: `HIGH_EXCHANGE_FUNDED`,
+  `EXCHANGE_FUNDED_ELEVATED`, `HIGH_FRESH_WALLET_PCT`,
+  `FRESH_WALLET_ELEVATED`, `MIXER_FUNDED_HOLDERS`, `HOLDER_OVERLAP_SCAM`,
+  `HOLDER_OVERLAP_HIGH` (from `funding_analysis`, `wallet_freshness`,
+  `holder_overlap` in `compute_score()`). Added them to the unified penalty
+  table, the flag glossary, the holders dimension summary, and a trigger
+  note. Auto-fail count verified at 8 (CR01, CR03, CR05, HP01, HP02, LR01,
+  RP01, RP02) — already correct.
 - **2026-08-03** — `compute_score()` now returns an explainable
   `{score, risk_level, breakdown, evidence}` payload; `ScanResult` gains
   `breakdown` and `evidence`; `scan_token_unified()` includes both in the
