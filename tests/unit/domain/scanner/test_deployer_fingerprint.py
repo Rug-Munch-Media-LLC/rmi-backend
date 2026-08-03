@@ -385,6 +385,73 @@ class TestCachingAndDegradation:
         assert out["total_deployments"] == 0
 
 
+class TestLaunchpadFactoryResolution:
+    """Launchpad factories are resolved to the real creator before fingerprinting."""
+
+    _PUMP_FUN = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+    _REAL_CREATOR = "7GVW8rU9NqJhYzVpLf3kQxWmAbCdEfGhIjKlMnOpQrStU"
+
+    def setup_method(self) -> None:
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_factory_resolves_to_real_creator_before_fingerprint(self) -> None:
+        """The fingerprint is computed on the resolved creator, not the factory."""
+        fake = FakeCHClient(
+            stats=_stats_row(2, _naive_dt(days=30)),
+            tokens=[_token_row("0xcccccccccccccccccccccccccccccccccccccccc", _naive_dt(days=20))],
+        )
+        resolved = {
+            "real_deployer": self._REAL_CREATOR,
+            "launchpad": "pump.fun",
+            "confidence": 0.9,
+            "evidence_tx": "0xabc",
+        }
+        with (
+            _mock_ch(fake),
+            _no_redis_get(),
+            _no_redis_set(),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.resolve_launchpad_deployer",
+                AsyncMock(return_value=resolved),
+            ),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver._query_factory_latest_deploy_tx",
+                return_value="0xabc",
+            ),
+        ):
+            out = await fingerprint_deployer(self._PUMP_FUN, "solana")
+
+        assert out["result"] == "scanned"
+        assert out["launchpad"] == "pump.fun"
+        assert out["real_deployer"] == self._REAL_CREATOR
+        assert out["launchpad_resolved"] is True
+        assert out["deployer"] == self._REAL_CREATOR  # fingerprint of the real creator
+        assert out["risk_bucket"] == "REPEAT_CLEAN"  # from the creator's history
+
+    @pytest.mark.asyncio
+    async def test_factory_unresolved_returns_unavailable_not_factory_score(self) -> None:
+        """An unresolved factory never gets fingerprinted (aggregate score is misleading)."""
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.resolve_launchpad_deployer",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver._query_factory_latest_deploy_tx",
+                return_value=None,
+            ),
+        ):
+            out = await fingerprint_deployer(self._PUMP_FUN, "solana")
+
+        assert out["result"] == "unavailable"
+        assert out["launchpad"] == "pump.fun"
+        assert out["launchpad_resolved"] is False
+        assert "real creator" in (out.get("note") or "")
+
+
 class TestAssignRiskBucket:
     """Unit tests for the bucket-assignment precedence."""
 

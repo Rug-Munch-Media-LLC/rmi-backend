@@ -422,8 +422,10 @@ async def _check_rag_pipeline() -> dict[str, Any]:
       subscriber + poller (in-memory, resets on rmi-rag-api restart).
     - ``poller_running`` / ``subscriber_running``: whether rmi-rag's
       background consumers are alive.
-    - ``embedding_available``: whether Ollama has a usable embedding model
-      (bge-m3 / nomic-embed) installed.
+    - ``embedding_available``: whether Infinity has a usable embedding model
+      (BAAI/bge-m3) loaded.
+    - ``reranker_available``: whether Infinity has the reranker model
+      (BAAI/bge-reranker-v2-m3) loaded.
     - ``status``: ``"healthy"`` or ``"degraded"``. Degraded when the embedder
       is unavailable or when consumers run but nothing has ever been ingested.
     - ``issues``: list of degradation reasons (``embedder_unavailable``,
@@ -451,20 +453,31 @@ async def _check_rag_pipeline() -> dict[str, Any]:
     except Exception as exc:
         stats["error"] = f"redis: {str(exc)[:120]}"
 
-    # ── Embedder health (Ollama) ──
-    # Try to reach Ollama to verify the embedding model is available. Without
-    # an embed model, rmi-rag cannot index findings even if consumers run.
+    # ── Embedder health (Infinity) ──
+    # Try to reach Infinity and confirm both the embedding model (bge-m3)
+    # and the reranker model (bge-reranker-v2-m3) are loaded. Without an
+    # embed model, rmi-rag cannot index findings even if consumers run.
     try:
         import httpx
 
-        ollama_base_url = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+        infinity_base_url = _get_url(
+            "INFINITY_URL",
+            "http://infinity-rag:8001",
+            "http://127.0.0.1:8001",
+        ).rstrip("/")
         async with httpx.AsyncClient() as http_client:
-            resp = await http_client.get(f"{ollama_base_url}/api/tags", timeout=5)
-            models = [m["name"] for m in resp.json().get("models", [])]
-            embedding_available = any(m.startswith(("bge-m3", "nomic-embed")) for m in models)
+            hresp = await http_client.get(f"{infinity_base_url}/health", timeout=5)
+            if hresp.status_code != 200:
+                raise RuntimeError(f"infinity_health_http_{hresp.status_code}")
+            mresp = await http_client.get(f"{infinity_base_url}/v1/models", timeout=5)
+            model_ids = [m.get("id", "") for m in mresp.json().get("data", [])]
+            embedding_available = any("bge-m3" in mid for mid in model_ids)
+            reranker_available = any("bge-reranker" in mid for mid in model_ids)
     except Exception:
         embedding_available = False
+        reranker_available = False
     stats["embedding_available"] = embedding_available
+    stats["reranker_available"] = reranker_available
 
     # ── Ingested count + consumer health from rmi-rag-api ──
     ingested_count = 0

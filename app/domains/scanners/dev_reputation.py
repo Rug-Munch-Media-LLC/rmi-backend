@@ -20,12 +20,14 @@ Data sources (direct API calls - no self.api_base):
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 
 import httpx
+import requests
 
 from app.chain_registry import CHAINS
 from app.core.logging import get_logger

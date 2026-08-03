@@ -329,6 +329,82 @@ class TestScanNewTokens:
             out = await scan_new_tokens("ethereum", notify=False)
         assert out == []
 
+    @pytest.mark.asyncio
+    async def test_launchpad_factory_flags_pump_fun_and_uses_real_deployer(self) -> None:
+        """A pump.fun factory deployer is flagged and scored via the real creator.
+
+        The radar resolves the factory to the real deployer EOA, flags
+        ``launchpad: pump.fun``, and fingerprints the resolved creator.
+        """
+        pump_fun = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+        real_creator = "7GVW8rU9NqJhYzVpLf3kQxWmAbCdEfGhIjKlMnOpQrStU"
+        fake = FakeCHClient(
+            deployers=[(pump_fun, _TOKEN, "solana", 1, "2026-08-02 00:00:00", "0xabc", "token", pump_fun)]
+        )
+        resolved = {
+            "real_deployer": real_creator,
+            "launchpad": "pump.fun",
+            "confidence": 0.9,
+            "evidence_tx": "0xabc",
+        }
+        with (
+            _mock_ch_radar(fake),
+            _no_redis_get(),
+            _no_redis_set(),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.resolve_launchpad_deployer",
+                AsyncMock(return_value=resolved),
+            ),
+            patch(
+                "app.domains.scanner.engines.deployer_fingerprint.fingerprint_deployer",
+                AsyncMock(
+                    return_value={
+                        "result": "scanned",
+                        "risk_bucket": "REPEAT_CLEAN",
+                        "risk_score": 15,
+                        "total_deployments": 2,
+                    }
+                ),
+            ),
+            _benign_honeypot(),
+            _good_liquidity(),
+        ):
+            out = await scan_new_tokens("solana", lookback_minutes=5, notify=False)
+
+        assert len(out) == 1
+        item = out[0]
+        assert item["launchpad"] == "pump.fun"
+        assert item["launchpad_deployer"] == real_creator
+        assert item["signals"]["launchpad"] == "pump.fun"
+        assert item["level"] == "INFO"  # clean launchpad creator → not auto-high-risk
+
+    @pytest.mark.asyncio
+    async def test_launchpad_factory_unresolved_stays_neutral(self) -> None:
+        """When the factory cannot be resolved, the token is WARNING (not CRITICAL)."""
+        pump_fun = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+        fake = FakeCHClient(
+            deployers=[(pump_fun, _TOKEN, "solana", 1, "2026-08-02 00:00:00", "0xabc", "token", pump_fun)]
+        )
+        with (
+            _mock_ch_radar(fake),
+            _no_redis_get(),
+            _no_redis_set(),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.resolve_launchpad_deployer",
+                AsyncMock(return_value=None),
+            ),
+            _benign_fingerprint(),  # would fingerprint the factory if not guarded
+            _benign_honeypot(),
+            _good_liquidity(),
+        ):
+            out = await scan_new_tokens("solana", lookback_minutes=5, notify=False)
+
+        assert len(out) == 1
+        item = out[0]
+        assert item["launchpad"] == "pump.fun"  # still flagged as launchpad
+        assert item["launchpad_deployer"] is None
+        assert item["level"] in ("WARNING", "INFO")  # never auto-CRITICAL
+
 
 class TestScoreNewToken:
     """Unit tests for the CRITICAL / HIGH / WARNING / INFO scoring heuristic."""

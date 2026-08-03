@@ -217,6 +217,166 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     return result
 
 
+
+async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any] | None:
+    """v2 UnifiedTokenScanner — explainable multi-dimensional scoring.
+
+    POSTs to /api/v2/scanner/token/scan and returns the raw v2 payload
+    (safety_score, confidence, risk_level, risk_flags, green_flags,
+    breakdown, evidence, modules_run). Returns None on any failure so
+    callers can fall back to the legacy scanner.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            r = await client.post(
+                f"{BACKEND_URL}/api/v2/scanner/token/scan",
+                json={"address": address, "chain": chain or detect_chain(address)},
+                headers=backend_headers(),
+                timeout=45,
+            )
+            if r.status_code != 200:
+                logger.warning("scan_token_v2 status %s for %s", r.status_code, address)
+                return None
+            data = r.json()
+            if data.get("status") != "ok":
+                logger.warning("scan_token_v2 non-ok status for %s", address)
+                return None
+            return data
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("scan_token_v2 failed for %s: %s", address, e)
+        return None
+
+
+async def analyze_wallet_v2(address: str, chain: str | None = None) -> dict | None:
+    """v2 UnifiedWalletScanner — entity clustering, scam exposure, smart money.
+
+    POSTs to /api/v2/scanner/wallet/scan and returns the raw v2 payload
+    (entity_name, entity_type, persona, scam_exposure_pct,
+    smart_money_overlap, behavior_patterns, risk_forecast, risk_score,
+    risk_flags). Returns None on failure so callers can fall back to the
+    legacy wallet analyzer.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            r = await client.post(
+                f"{BACKEND_URL}/api/v2/scanner/wallet/scan",
+                json={"address": address, "chain": chain or detect_chain(address)},
+                headers=backend_headers(),
+                timeout=45,
+            )
+            if r.status_code != 200:
+                logger.warning("analyze_wallet_v2 status %s for %s", r.status_code, address)
+                return None
+            data = r.json()
+            if data.get("status") != "ok":
+                logger.warning("analyze_wallet_v2 non-ok status for %s", address)
+                return None
+            return data
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("analyze_wallet_v2 failed for %s: %s", address, e)
+        return None
+
+
+def v2_token_to_legacy(data: dict) -> dict[str, Any]:
+    """Convert a /api/v2/scanner/token/scan response into the legacy
+    report dict shape used by format_scan_report(), preserving the new
+    explainable-scoring fields (safety_score, confidence, risk_level,
+    green_flags, breakdown, evidence, modules_run)."""
+    evidence = data.get("evidence") or {}
+    holders = evidence.get("holders") or {}
+    liquidity = evidence.get("liquidity") or {}
+    security = evidence.get("security") or {}
+    checks = security.get("checks") or {}
+    dev = evidence.get("deployer") or {}
+    mkt = evidence.get("market") or {}
+    risks = list(data.get("risk_flags") or [])
+    green = list(data.get("green_flags") or [])
+    safety = float(data.get("safety_score") or 0)
+
+    return {
+        "address": data.get("token", ""),
+        "chain": data.get("chain", "solana"),
+        "name": data.get("name") or "Unknown",
+        "symbol": data.get("symbol") or "???",
+        "price": float(data.get("price_usd") or 0),
+        "mcap": float(data.get("market_cap_usd") or 0),
+        "fdv": float(data.get("market_cap_usd") or 0),
+        "volume_24h": float(data.get("volume_24h_usd") or 0),
+        "liquidity": float(data.get("liquidity_usd") or 0),
+        "price_change_1h": 0,
+        "price_change_24h": 0,
+        "price_change_7d": 0,
+        "holders": int(holders.get("holder_count") or 0),
+        "pair_address": "",
+        "dex": "",
+        "created_at": None,
+        "risk_score": round(100 - safety, 1),
+        "threats": risks,
+        "contract_verified": None,
+        "honeypot": None,
+        "buy_tax": None,
+        "sell_tax": None,
+        "lp_locked": float(liquidity.get("locked_pct") or 0) / 100 if liquidity.get("locked_pct") is not None else None,
+        "mintable": None,
+        "can_blacklist": None,
+        "owner_renounced": None,
+        "top_holders": [],
+        "bundle_detected": "bundle" in " ".join(risks).lower(),
+        "fresh_wallet_pct": 0,
+        "exchange_pct": 0,
+        "volume_real_ratio": float(mkt.get("fake_volume_pct") or 0) if mkt.get("fake_volume_pct") is not None else None,
+        "dev_wallet": dev.get("deployer_address") or dev.get("address") or None,
+        "dev_other_tokens": [],
+        "errors": [],
+        "socials": {},
+        # v2 explainable scoring
+        "safety_score": safety,
+        "confidence": float(data.get("confidence") or 0),
+        "risk_level": data.get("risk_level") or "unknown",
+        "green_flags": green,
+        "breakdown": data.get("breakdown"),
+        "evidence": evidence,
+        "modules_run": list(data.get("modules_run") or []),
+    }
+
+
+def v2_wallet_to_legacy(data: dict) -> dict:
+    """Convert a /api/v2/scanner/wallet/scan response into the legacy
+    report dict shape used by format_wallet_report(), preserving the new
+    v2 intel fields (entity_name, entity_type, persona, scam exposure,
+    smart money overlap, behavior patterns, risk forecast)."""
+    return {
+        "address": data.get("address", ""),
+        "chain": data.get("chain", "solana"),
+        "balance_usd": float(data.get("total_value_usd") or 0),
+        "tx_count": int(data.get("token_count") or 0),
+        "first_seen": None,
+        "wallet_age_days": 0,
+        "top_tokens": [],
+        "is_fresh": False,
+        "is_exchange": (data.get("entity_type") or "").lower() == "exchange",
+        "is_contract": (data.get("entity_type") or "").lower() == "contract",
+        "risk_score": float(data.get("risk_score") or 0),
+        "flags": list(data.get("risk_flags") or []),
+        "recent_txs": [],
+        "funding_source": None,
+        "connected_wallets": [],
+        "pnl_estimate": None,
+        "errors": [],
+        # v2 wallet intel
+        "labels": list(data.get("labels") or []),
+        "entity_name": data.get("entity_name") or "",
+        "entity_type": data.get("entity_type") or "",
+        "persona": data.get("persona") or "",
+        "persona_confidence": int(data.get("persona_confidence") or 0),
+        "scam_tokens_held": int(data.get("scam_tokens_held") or 0),
+        "scam_exposure_pct": float(data.get("scam_exposure_pct") or 0),
+        "smart_money_overlap": list(data.get("smart_money_overlap") or []),
+        "behavior_patterns": list(data.get("behavior_patterns") or []),
+        "risk_forecast": data.get("risk_forecast") or "",
+        "modules_run": list(data.get("modules_run") or []),
+    }
+
 async def analyze_wallet(address: str, chain: str | None = None) -> dict:
     result = {
         "address": address,

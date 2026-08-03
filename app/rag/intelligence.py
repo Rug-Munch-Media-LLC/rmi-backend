@@ -14,6 +14,15 @@ Every method wraps the existing ``HybridRetriever`` and ``ContextBuilder``
 from ``app.rag.retrieval``, which themselves call the M3 three-pillar
 search engine (ANN + keyword + metadata filters fused via RRF).
 
+Embedding path (since the Ollama → Infinity migration):
+    Retrieval embeds queries via Infinity ``/v1/embeddings``
+    (``app.rag.embedder.InfinityEmbedder``, model BAAI/bge-m3) and each
+    public method finishes with one cross-encoder rerank across the
+    cross-collection candidates via Infinity ``/v1/rerank``
+    (BAAI/bge-reranker-v2-m3, see ``app.rag.rerank``). Reranking is
+    fail-open: if Infinity is unreachable the candidates are returned in
+    pre-rerank order.
+
 Quality metrics are logged via structlog and exposed via the feedback loop
 (``app.rag.feedback``).
 """
@@ -63,6 +72,10 @@ SCAM_COLLECTIONS: list[str] = [
     "scams",  # Documented scam patterns (app.rag.ingestion.ingest_scam_pattern)
     "scanner",  # Past scan results (app.rag.ingestion.ingest_scan_result)
     "scam_intel",  # Legacy scam intelligence (app.rag.models COLLECTIONS)
+    "threat_intel",  # Unified scanner + SENTINEL high-risk findings published
+    #   via Redis channel ``rmi:rag:ingest`` (rmi-rag embeds into the Qdrant
+    #   ``threat_intel`` collection — see publish_rag_finding). Served by the
+    #   Qdrant fallback in app.rag.engine.three_pillar_search.
 ]
 
 WALLET_COLLECTIONS: list[str] = [
@@ -122,11 +135,14 @@ class RAGIntelligenceEnricher:
 
         for collection in SCAM_COLLECTIONS:
             try:
+                # Per-collection rerank is disabled here: the enricher runs a
+                # single cross-collection rerank below (cheaper, one API call).
                 hits = await self._retriever.retrieve(
                     query=query,
                     collection=collection,
                     top_k=self._top_k,
                     expand=True,
+                    rerank=False,
                 )
                 all_hits.extend(hits)
             except Exception as exc:
@@ -144,6 +160,9 @@ class RAGIntelligenceEnricher:
                 seen[key] = h
 
         sorted_hits = sorted(seen.values(), key=lambda h: -h.final_score)
+        # Cross-encoder rerank across the cross-collection candidates
+        # (Infinity /v1/rerank, BAAI/bge-reranker-v2-m3; fail-open).
+        sorted_hits = await self._rerank_aggregated(query, sorted_hits, self._top_k * 2)
         log.info(
             "find_similar_scams",
             token=token_address[:16],
@@ -172,11 +191,13 @@ class RAGIntelligenceEnricher:
         for collection in WALLET_COLLECTIONS:
             try:
                 # Try exact-address filter first, fall back to semantic
+                # (per-collection rerank disabled — aggregated rerank below).
                 hits = await self._retriever.retrieve(
                     query=query,
                     collection=collection,
                     top_k=self._top_k,
                     expand=False,
+                    rerank=False,
                 )
                 all_hits.extend(hits)
             except Exception as exc:
@@ -194,6 +215,9 @@ class RAGIntelligenceEnricher:
                 seen[key] = h
 
         sorted_hits = sorted(seen.values(), key=lambda h: -h.final_score)
+        # Cross-encoder rerank across the cross-collection candidates
+        # (Infinity /v1/rerank, BAAI/bge-reranker-v2-m3; fail-open).
+        sorted_hits = await self._rerank_aggregated(query, sorted_hits, self._top_k * 2)
         log.info(
             "get_wallet_context",
             wallet=wallet_address[:16],
@@ -223,11 +247,13 @@ class RAGIntelligenceEnricher:
 
         for collection in MARKET_COLLECTIONS:
             try:
+                # Per-collection rerank disabled — aggregated rerank below.
                 hits = await self._retriever.retrieve(
                     query=query,
                     collection=collection,
                     top_k=k,
                     expand=True,
+                    rerank=False,
                 )
                 all_hits.extend(hits)
             except Exception as exc:
@@ -245,6 +271,9 @@ class RAGIntelligenceEnricher:
                 seen[key] = h
 
         sorted_hits = sorted(seen.values(), key=lambda h: -h.final_score)
+        # Cross-encoder rerank across the cross-collection candidates
+        # (Infinity /v1/rerank, BAAI/bge-reranker-v2-m3; fail-open).
+        sorted_hits = await self._rerank_aggregated(query, sorted_hits, k)
         log.info(
             "get_market_context",
             query_len=len(query),
@@ -255,13 +284,18 @@ class RAGIntelligenceEnricher:
 
     async def enrich_scan_result(
         self,
-        scan_result: Any,  # app.domains.scanner.models.ScanResult
+        scan_result: Any,  # app.domains.scanner.models.ScanResult | app.domains.scanner.unified.model.ScanResult
     ) -> RAGContext:
         """Enrich a completed scan result with RAG context.
 
         Queries all relevant collections and produces a fused summary
         that captures what RAG knows about this token, its deployer,
         and similar scam patterns.
+
+        Accepts both the legacy ``app.domains.scanner.models.ScanResult``
+        (dict-style ``modules_run``) and the unified
+        ``app.domains.scanner.unified.model.ScanResult`` (string-style
+        ``modules_run``, deployer under ``dev_reputation``).
 
         Args:
             scan_result: A ScanResult dataclass instance (must have
@@ -272,11 +306,11 @@ class RAGIntelligenceEnricher:
         """
         start = time.monotonic()
 
-        token = getattr(scan_result, "token_address", "")
-        chain = getattr(scan_result, "chain", "")
-        symbol = getattr(scan_result, "symbol", "")
-        name = getattr(scan_result, "name", "")
-        risk_flags = getattr(scan_result, "risk_flags", [])
+        token = getattr(scan_result, "token_address", "") or ""
+        chain = getattr(scan_result, "chain", "") or ""
+        symbol = getattr(scan_result, "symbol", "") or ""
+        name = getattr(scan_result, "name", "") or ""
+        risk_flags = getattr(scan_result, "risk_flags", None) or []
 
         # Generate a query_id for feedback tracking
         query_id = f"enrich:{token[:16]}:{int(start * 1000)}"
@@ -297,13 +331,24 @@ class RAGIntelligenceEnricher:
             ctx.error = f"similar_scams: {exc!s}"
             log.warning("enrich_similar_scams_failed", token=token[:16], error=str(exc)[:100])
 
-        # 2. If the scan result has a deployer address, get wallet context
+        # 2. If the scan result has a deployer address, get wallet context.
+        #    The legacy ScanResult keeps module results in ``modules_run`` as
+        #    dicts (``{"module": ..., "result": {"deployer_address": ...}}``);
+        #    the unified ScanResult keeps them as module-name strings and
+        #    stores the deployer under ``dev_reputation`` instead.
         deployer_addr = ""
-        for mod_entry in getattr(scan_result, "modules_run", []):
+        for mod_entry in getattr(scan_result, "modules_run", None) or []:
+            if not isinstance(mod_entry, dict):
+                continue
             mod_result = mod_entry.get("result") or {}
             if isinstance(mod_result, dict) and mod_result.get("deployer_address"):
                 deployer_addr = mod_result["deployer_address"]
                 break
+
+        if not deployer_addr:
+            dev = getattr(scan_result, "dev_reputation", None)
+            if isinstance(dev, dict):
+                deployer_addr = dev.get("deployer_address") or dev.get("address", "") or ""
 
         if deployer_addr:
             try:
@@ -344,6 +389,35 @@ class RAGIntelligenceEnricher:
         return ctx
 
     # ── Internal helpers ──────────────────────────────────────────────────
+
+    async def _rerank_aggregated(
+        self,
+        query: str,
+        hits: list[ScoredHit],
+        top_n: int,
+    ) -> list[ScoredHit]:
+        """Rerank cross-collection candidates with the Infinity cross-encoder.
+
+        Uses the shared rerank path (``app.rag.rerank`` — Infinity
+        ``/v1/rerank`` with BAAI/bge-reranker-v2-m3): reorders hits by
+        relevance, updates ``final_score``, and truncates to *top_n*.
+        Fail-open: on any failure or empty response the hits are returned
+        in their pre-rerank order.
+        """
+        if len(hits) < 2:
+            return hits
+        try:
+            from app.rag.rerank import reorder_by_relevance, rerank_results
+
+            docs = [(h.content or "")[:2000] for h in hits]
+            reranked = await rerank_results(query, docs, top_n=len(hits))
+            if not reranked:
+                return hits
+            ordered = reorder_by_relevance(hits, reranked, top_n)
+            return ordered if ordered else hits
+        except Exception as exc:
+            log.debug("enricher_rerank_failed err=%s", exc)
+            return hits
 
     @staticmethod
     def _build_scam_query(

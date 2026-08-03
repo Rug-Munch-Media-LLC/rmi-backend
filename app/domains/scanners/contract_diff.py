@@ -16,9 +16,13 @@ Key features:
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any
+
+import httpx
+import requests
 
 from app.core.logging import get_logger
 
@@ -450,8 +454,6 @@ class ContractDiffAnalyzer:
 
         # Fallback: direct public RPC call
         try:
-            import httpx
-
             rpc_urls = {
                 1: "https://ethereum-rpc.publicnode.com",
                 56: "https://bsc-rpc.publicnode.com",

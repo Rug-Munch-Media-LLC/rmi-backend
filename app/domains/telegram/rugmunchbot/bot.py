@@ -78,7 +78,9 @@ from app.domains.telegram.rugmunchbot.handlers.price import cmd_dex, cmd_price
 from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
 from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_compare,
+    cmd_deployer,
     cmd_help,
+    cmd_hype,
     cmd_quick,
     cmd_scan,
     cmd_start,
@@ -117,6 +119,8 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("start", "Welcome & quick start guide"),
             BotCommand("help", "Full command reference"),
             BotCommand("scan", "Scan token for scams & risks"),
+            BotCommand("deployer", "Deployer fingerprint check"),
+            BotCommand("hype", "Quick 0-100 hype score"),
             BotCommand("wallet", "Wallet forensics & analysis"),
             BotCommand("ta", "Technical analysis & signals"),
             BotCommand("compare", "Compare two tokens side-by-side"),
@@ -191,6 +195,8 @@ def main() -> None:
     app.add_handler(CommandHandler("price", cmd_price))
     app.add_handler(CommandHandler("dex", cmd_dex))
     app.add_handler(CommandHandler("scan", cmd_scan))
+    app.add_handler(CommandHandler("deployer", cmd_deployer))
+    app.add_handler(CommandHandler("hype", cmd_hype))
     app.add_handler(CommandHandler("wallet", cmd_wallet))
     app.add_handler(CommandHandler("ta", cmd_ta))
     app.add_handler(CommandHandler("compare", cmd_compare))

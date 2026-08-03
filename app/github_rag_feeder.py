@@ -4,6 +4,13 @@ RAG GitHub Feeder v2 - Declarative, Config-Driven
 Add any GitHub repo as a RAG data source with minimal config.
 Auto-clones, extracts markdown/solidity/text, chunks, and ingests.
 
+DEPRECATED (v3): this standalone feeder targeted the legacy RAG ingest
+endpoint (``http://localhost:8000/api/v1/rag/ingest``) which was removed.
+The live facade is now ``/api/v1/rag/v2/ingest`` / ``/api/v1/rag/v2/bulk-ingest``
+(see ``app/api/v1/rag/search.py``), with a different payload shape. This
+module is not imported anywhere and is kept only as a historical reference;
+``ingest_repo`` is a no-op ``return`` guard so it never calls a dead endpoint.
+
 Config format (add to SOURCES list):
 {
     "repo": "owner/repo",
@@ -27,12 +34,11 @@ import re
 import subprocess
 from typing import Any
 
-import httpx
-
 logger = logging.getLogger(__name__)
 
+# DEPRECATED (v3): legacy RAG ingest endpoint removed — constant dropped.
+# DO NOT restore; use app/api/v1/rag/search.py (POST /api/v1/rag/v2/ingest).
 BACKEND = "http://localhost:8000"
-INGEST_URL = f"{BACKEND}/api/v1/rag/ingest"
 
 # ═══════════════════════════════════════════════════
 # DECLARATIVE SOURCE CONFIG - add repos here
@@ -186,31 +192,13 @@ def extract_from_repo(source: dict) -> list[dict]:
 
 
 async def ingest_repo(source: dict) -> Any | int:
-    """Clone, extract, and ingest a single repo."""
-    docs = extract_from_repo(source)
-    if not docs:
-        return 0
+    """Clone, extract, and ingest a single repo.
 
-    total = 0
-    async with httpx.AsyncClient(timeout=120) as c:
-        for i in range(0, len(docs), 30):
-            batch = docs[i : i + 30]
-            try:
-                r = await c.post(
-                    INGEST_URL,
-                    json={
-                        "collection": source["collection"],
-                        "documents": batch,
-                        "source": source["repo"],
-                        "chunking": "scam_report",
-                    },
-                )
-                if r.status_code == 200:
-                    n = r.json().get("ingested", 0)
-                    total += n
-            except (ConnectionError, OSError, TimeoutError):
-                pass
-    return total
+    DEPRECATED (v3): the legacy RAG ingest endpoint was removed. No-op
+    ``return`` guard — this feeder must not call a dead endpoint.
+    """
+    logger.warning("github_rag_feeder.ingest_repo deprecated (legacy RAG API removed in v3) — skipping")
+    return 0
 
 
 async def ingest_all() -> Any:

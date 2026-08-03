@@ -267,6 +267,37 @@ async def run_sentinel_scan(
     except Exception as exc:
         logger.debug("sentinel_alert_failed", error=str(exc)[:100])
 
+    # ── Publish high/critical findings to RAG threat-intel pipeline ──
+    # Same payload format as the unified scanner (publish_rag_finding →
+    # Redis channel ``rmi:rag:ingest`` + ``rmi:rag:findings_queue``).
+    # Gated by SCANNER_ALERTS_ENABLED exactly like the Telegram alert above.
+    if report.risk_level in ("high", "critical"):
+        try:
+            from app.domains.telegram.alert_hooks import scanner_alerts_enabled
+
+            if not scanner_alerts_enabled():
+                logger.debug("sentinel_rag_publish_skipped (SCANNER_ALERTS_ENABLED=false)")
+            else:
+                from app.domains.scanner.unified.model import ScanResult
+                from app.domains.scanner.unified.persistence import publish_rag_finding
+
+                meta = report.metadata_fingerprint or {}
+                await publish_rag_finding(
+                    ScanResult(
+                        token_address=token_address,
+                        chain=chain,
+                        scanned_at=report.scanned_at,
+                        name=str(meta.get("name") or "") if isinstance(meta, dict) else "",
+                        symbol=str(meta.get("symbol") or "") if isinstance(meta, dict) else "",
+                        safety_score=max(0.0, 100.0 - float(report.composite_risk_score or 0)),
+                        risk_level=report.risk_level,
+                        risk_flags=list(report.red_flags),
+                        modules_run=list(report.modules_run),
+                    )
+                )
+        except Exception as exc:
+            logger.debug("sentinel_rag_publish_failed", error=str(exc)[:100])
+
     return report
 
 

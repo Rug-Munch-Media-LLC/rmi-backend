@@ -3,6 +3,12 @@ RAG Firehose - Ingestion Pipeline
 ===================================
 Filters, deduplicates, enriches, and stores documents into RAG.
 Handles quality scoring, entity extraction, rate limiting, and batch ingest.
+
+DEPRECATED (v3): the legacy RAG HTTP facade this pipeline called was
+removed (``RAG_API = http://localhost:8000/api/v1/rag`` no longer exists).
+Scanner engines publish to Redis channel ``rmi:rag:ingest`` instead. This
+module is kept importable for backward compatibility; every ingest is a
+no-op ``return`` guard so no caller hits a dead endpoint.
 """
 
 from __future__ import annotations
@@ -18,7 +24,6 @@ from app.core.logging import get_logger
 from app.rag_firehose.models import (
     HASH_TTL,
     MIN_QUALITY_SCORE,
-    RAG_API,
     RATE_LIMITS,
 )
 
@@ -26,6 +31,9 @@ if TYPE_CHECKING:
     import httpx
 
 logger = get_logger("rag.firehose")
+
+# Legacy endpoint removed in v3 — empty means every pipeline call is a no-op.
+_RAG_API_URL: str = ""
 
 
 class IngestionPipeline:
@@ -53,9 +61,11 @@ class IngestionPipeline:
 
     async def is_duplicate(self, content_hash: str, collection: str) -> bool:
         """Check if content hash already exists in Redis dedup set."""
+        if not _RAG_API_URL:
+            return False  # DEPRECATED (v3): legacy RAG API removed — no-op guard
         try:
             resp = await self.client.get(
-                f"{RAG_API}/dedup-check",
+                f"{_RAG_API_URL}/dedup-check",
                 params={"hash": content_hash, "collection": collection},
                 timeout=5,
             )
@@ -170,7 +180,17 @@ class IngestionPipeline:
         return entities
 
     async def ingest(self, collection: str, content: str, metadata: dict, doc_id: str | None = None) -> dict[str, Any]:
-        """Run the full pipeline: dedup -> quality -> extract -> classify -> store."""
+        """Run the full pipeline: dedup -> quality -> extract -> classify -> store.
+
+        DEPRECATED (v3): the legacy RAG API was removed. Returns a no-op
+        ``deprecated`` status instead of calling a dead endpoint.
+        """
+        if not _RAG_API_URL:
+            return {
+                "status": "deprecated",
+                "reason": "legacy RAG API removed (v3)",
+                "hash": self.make_content_hash(content),
+            }
 
         # 1. Hash and dedup
         content_hash = self.make_content_hash(content)
@@ -203,7 +223,7 @@ class IngestionPipeline:
             if doc_id:
                 payload["doc_id"] = doc_id
 
-            resp = await self.client.post(f"{RAG_API}/ingest", json=payload, timeout=30)
+            resp = await self.client.post(f"{_RAG_API_URL}/ingest", json=payload, timeout=30)
             self._record_ingest(collection)
 
             if resp.status_code == 200:
@@ -222,10 +242,12 @@ class IngestionPipeline:
 
     async def _mark_ingested(self, content_hash: str, collection: str) -> None:
         """Mark content hash in Redis dedup set."""
+        if not _RAG_API_URL:
+            return  # DEPRECATED (v3): legacy RAG API removed — no-op guard
         try:
             ttl = HASH_TTL.get(collection, HASH_TTL["default"])
             await self.client.post(
-                f"{RAG_API}/dedup-mark",
+                f"{_RAG_API_URL}/dedup-mark",
                 json={"hash": content_hash, "collection": collection, "ttl": ttl},
                 timeout=5,
             )
@@ -246,9 +268,7 @@ class IngestionPipeline:
             status = result.get("status", "error")
             if status == "ingested":
                 stats["ingested"] += 1
-            elif status == "duplicate":
-                stats["duplicate"] += 1
-            elif status == "skipped":
+            elif status in ("duplicate", "deprecated", "skipped"):
                 stats["skipped"] += 1
             else:
                 stats["errors"] += 1

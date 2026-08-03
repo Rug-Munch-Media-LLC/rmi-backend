@@ -14,6 +14,7 @@ Uses direct API calls: DexScreener, Birdeye, Solscan, Helius.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from collections import defaultdict
@@ -21,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+import requests
 
 from app.chain_client import ChainClient
 from app.chain_registry import is_solana

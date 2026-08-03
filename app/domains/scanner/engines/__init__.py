@@ -20,10 +20,18 @@ Phase 5 (RugMunchScan capabilities):
   - new_token_radar.py — C3 new token discovery + early warning (deployer_events)
   - hype_score.py — C5 composite hype score (dex_events + evm_transfers + trending)
   - cross_chain_entity.py — C4 cross-chain entity resolution v1 (deployer_events + evm_transfers)
+  - funding_analysis.py — clever wallet analysis: exchange-funded %, wallet freshness,
+    holder overlap vs known scam tokens (evm_transfers + wallet_labels + deployer_history)
 """
 
 # Public API exports
 from app.domains.scanner.engines.cross_chain_entity import resolve_cross_chain_entity
+from app.domains.scanner.engines.funding_analysis import (
+    analyze_funding_sources,
+    analyze_scam_overlap,
+    compute_holder_overlap,
+    compute_wallet_freshness,
+)
 from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
 from app.domains.scanner.engines.own_deployer_reputation import get_own_deployer_reputation
 from app.domains.scanner.engines.own_dex_data import check_data_freshness, get_own_dex_data
@@ -52,4 +60,9 @@ __all__ = [
     # Phase 5 — RugMunchScan capabilities
     "analyze_holder_clusters",
     "resolve_cross_chain_entity",
+    # Clever wallet analysis
+    "analyze_funding_sources",
+    "compute_wallet_freshness",
+    "compute_holder_overlap",
+    "analyze_scam_overlap",
 ]

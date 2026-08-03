@@ -20,6 +20,7 @@ Scoring:
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -27,6 +28,7 @@ from html.parser import HTMLParser
 from typing import ClassVar
 
 import httpx
+import requests
 
 from app.core.logging import get_logger
 

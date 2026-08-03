@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+import requests
 
 from app.chain_registry import get_explorer_api_config, is_evm, is_solana
 from app.core.logging import get_logger

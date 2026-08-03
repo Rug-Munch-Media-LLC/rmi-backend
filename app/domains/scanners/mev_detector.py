@@ -12,10 +12,12 @@ Known MEV bot databases:
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 
 import httpx
+import requests
 
 from app.chain_registry import is_solana
 from app.core.logging import get_logger

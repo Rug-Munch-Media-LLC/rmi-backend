@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.rag.intelligence import RAGContext
 
 
 @dataclass
@@ -44,8 +48,18 @@ class ScanResult:
     launches: dict | None = None
     chain_indexer_patterns: dict | None = None
 
+    # Clever wallet analysis (own-data engines — funding_analysis.py)
+    funding_analysis: dict | None = None  # exchange-funded / fresh / mixer holder %
+    wallet_freshness: dict | None = None  # aggregate freshness of top holders
+    holder_overlap: dict | None = None  # holder overlap vs known scam tokens
+
+    # Explainability (populated by scoring.compute_score)
+    breakdown: dict[str, Any] | None = None  # per-dimension score breakdown
+    evidence: dict[str, Any] | None = None  # raw findings backing the score
+
     # Metadata
     modules_run: list[str] = field(default_factory=list)
     enrichment_sources: list[str] = field(default_factory=list)
     tier: str = "free"
     scan_duration_ms: float = 0.0
+    rag_context: RAGContext | None = None  # RAG enrichment context (from RAGIntelligenceEnricher)

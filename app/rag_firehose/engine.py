@@ -3,6 +3,12 @@ RAG Firehose - Engine
 ======================
 The central continuous ingestion engine. Orchestrates feed sources
 through the ingestion pipeline on configurable cadences.
+
+DEPRECATED (v3): the legacy RAG HTTP facade this engine wrote to was
+removed (``RAG_API = http://localhost:8000/api/v1/rag`` no longer exists).
+Scanner engines publish to Redis channel ``rmi:rag:ingest`` instead.
+``IngestionPipeline`` methods are no-op ``return`` guards, so even if this
+engine is started it never calls a dead endpoint.
 """
 
 from __future__ import annotations

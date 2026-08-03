@@ -4,6 +4,12 @@ RAG Firehose - Continuous Intelligence Ingestion Engine
 Self-feeding RAG pipeline that continuously pulls, filters, and ingests
 crypto intelligence from multiple sources at different cadences.
 
+DEPRECATED (v3): the legacy RAG HTTP facade (``RAG_API``) was removed.
+Scanner engines now publish findings to Redis channel ``rmi:rag:ingest``
++ list ``rmi:rag:findings_queue``. This package is kept importable for
+backward compatibility only; pipeline methods are no-op ``return`` guards.
+Use ``app.domains.scanner.unified.persistence.publish_rag_finding`` instead.
+
 Usage:
     from app.rag_firehose import get_firehose, FirehoseEngine
     from app.rag_firehose import IngestionPipeline, FeedSources
@@ -20,7 +26,6 @@ from app.rag_firehose.models import (
     COLLECTION_CAPS,
     HASH_TTL,
     MIN_QUALITY_SCORE,
-    RAG_API,
     RATE_LIMITS,
     FeedSource,
     FirehoseStats,
@@ -32,7 +37,6 @@ __all__ = [
     "COLLECTION_CAPS",
     "HASH_TTL",
     "MIN_QUALITY_SCORE",
-    "RAG_API",
     "RATE_LIMITS",
     "FeedSource",
     "FeedSources",

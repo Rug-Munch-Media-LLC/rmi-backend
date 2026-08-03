@@ -29,8 +29,24 @@ async def handle_inline(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             InlineQueryResultArticle(
                 id="scan_" + query[:10],
                 title=f"\U0001f50d Scan {short_addr(query)}",
-                description="Run a full security scan on this address",
+                description="Run a full security scan + scoring breakdown",
                 input_message_content=InputTextMessageContent(f"/scan {query}"),
+            )
+        )
+        results.append(
+            InlineQueryResultArticle(
+                id="dep_" + query[:10],
+                title=f"\U0001f468\u200d\U0001f4bb Deployer {short_addr(query)}",
+                description="Deployer fingerprint & reputation check",
+                input_message_content=InputTextMessageContent(f"/deployer {query}"),
+            )
+        )
+        results.append(
+            InlineQueryResultArticle(
+                id="hype_" + query[:10],
+                title=f"\U0001f525 Hype {short_addr(query)}",
+                description="Quick 0-100 hype score",
+                input_message_content=InputTextMessageContent(f"/hype {query}"),
             )
         )
     if len(query) >= 2 and len(query) <= 10 and query.isalpha():
