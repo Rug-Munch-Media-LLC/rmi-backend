@@ -382,6 +382,48 @@ async def _check_degenfeed() -> dict[str, Any]:
         }
 
 
+async def _check_phoenix() -> dict[str, Any]:
+    """Probe Phoenix (Arize) RAG observability health.
+
+    Returns ``healthy: True`` with ``status: "unavailable"`` when Phoenix
+    is not configured or not reachable, so the overall health endpoint
+    does not mark the system ``degraded`` just because an optional
+    observability backend is absent. Phoenix is observability — not a
+    liveness gate.
+    """
+    if os.getenv("PHOENIX_ENABLED", "false").lower() not in (
+        "true",
+        "1",
+        "yes",
+        "on",
+    ):
+        return {"healthy": True, "status": "skipped"}
+
+    base_url = _get_url(
+        "PHOENIX_UI_URL",
+        docker="http://phoenix:6006",
+        local="http://127.0.0.1:6006",
+    )
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{base_url.rstrip(chr(47))}/health")
+        return {
+            "healthy": resp.status_code == 200,
+            "details": {"status_code": resp.status_code, "ui_url": base_url},
+        }
+    except Exception as e:
+        return {
+            "healthy": True,
+            "status": "unavailable",
+            "details": {
+                "message": f"Phoenix not reachable at {base_url}",
+                "error": str(e)[:100],
+            },
+        }
+
+
 def _sync_degradation_from_health(stores: dict[str, dict[str, Any]]) -> None:
     """Win #14: Sync health check results to the degradation registry."""
     try:
@@ -573,6 +615,7 @@ async def health() -> HealthResponse:
         "minio": asyncio.wait_for(_check_store("minio", _check_minio()), timeout=5.0),
         "eth_rpc": asyncio.wait_for(_check_store("eth_rpc", _check_reth()), timeout=5.0),
         "degenfeed": asyncio.wait_for(_check_store("degenfeed", _check_degenfeed()), timeout=5.0),
+        "phoenix": asyncio.wait_for(_check_store("phoenix", _check_phoenix()), timeout=5.0),
         "rag_pipeline": asyncio.wait_for(_check_rag_pipeline(), timeout=5.0),
     }
     results = await asyncio.gather(*store_checks.values(), return_exceptions=True)

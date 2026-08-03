@@ -19,14 +19,16 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from app.core.logging import get_logger
 from app.rag.ann_index import Hit, get_index
-from app.rag.chunking import chunk_text, content_hash, is_duplicate, mark_ingested
+from app.rag.chunking import Chunk, chunk_text, content_hash, estimate_tokens, is_duplicate, mark_ingested
 from app.rag.embeddings import current_backend, get_embedding
+from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
 
@@ -115,47 +117,59 @@ async def three_pillar_search(
     """
     start = time.monotonic()
 
-    # Pillar 1: ANN vector search
-    qvec = await get_embedding(query)
-    idx = get_index(collection)
-    ann_hits = idx.search(qvec, top_k=top_k * 3, min_similarity=min_similarity)
+    with trace_span(
+        "rag.search.three_pillar",
+        {
+            "openinference.span.kind": "RETRIEVER",
+            "openinference.retriever.query": query,
+            "retrieval.collection": collection,
+            "retrieval.top_k": top_k,
+        },
+    ) as span:
+        # Pillar 1: ANN vector search
+        qvec = await get_embedding(query)
+        idx = get_index(collection)
+        ann_hits = idx.search(qvec, top_k=top_k * 3, min_similarity=min_similarity)
 
-    # Pillar 2: keyword (BM25-lite via Redis text scan on stored docs)
-    keyword_hits = await _keyword_search(query, collection, top_k * 3)
+        # Pillar 2: keyword (BM25-lite via Redis text scan on stored docs)
+        keyword_hits = await _keyword_search(query, collection, top_k * 3)
 
-    # Pillar 3: metadata filter (apply to ann+keyword results)
-    _apply_filters(ann_hits + keyword_hits, filters or {})
+        # Pillar 3: metadata filter (apply to ann+keyword results)
+        _apply_filters(ann_hits + keyword_hits, filters or {})
 
-    # RRF fusion
-    fused = _reciprocal_rank_fusion([ann_hits, keyword_hits], top_k=top_k)
+        # RRF fusion
+        fused = _reciprocal_rank_fusion([ann_hits, keyword_hits], top_k=top_k)
 
-    # Apply filters post-fusion
-    if filters:
-        fused = [h for h in fused if _matches_filters(h, filters)]
+        # Apply filters post-fusion
+        if filters:
+            fused = [h for h in fused if _matches_filters(h, filters)]
 
-    # Qdrant fallback: if the in-process index has no data for this
-    # collection, consult Qdrant (e.g. `news` seeded by news_to_rag.py).
-    # Strictly additive — collections with local data are untouched.
-    if not fused:
-        qdrant_hits = await _qdrant_search(qvec, collection, top_k, min_similarity)
-        if qdrant_hits:
-            fused = qdrant_hits[:top_k]
-            log.info(
-                "rag_search_qdrant_fallback collection=%s hits=%d",
-                collection,
-                len(fused),
-            )
+        # Qdrant fallback: if the in-process index has no data for this
+        # collection, consult Qdrant (e.g. `news` seeded by news_to_rag.py).
+        # Strictly additive — collections with local data are untouched.
+        if not fused:
+            qdrant_hits = await _qdrant_search(qvec, collection, top_k, min_similarity)
+            if qdrant_hits:
+                fused = qdrant_hits[:top_k]
+                log.info(
+                    "rag_search_qdrant_fallback collection=%s hits=%d",
+                    collection,
+                    len(fused),
+                )
 
-    took_ms = int((time.monotonic() - start) * 1000)
-    log.info(
-        "rag_search_done collection=%s ann=%d kw=%d fused=%d took_ms=%d backend=%s",
-        collection,
-        len(ann_hits),
-        len(keyword_hits),
-        len(fused),
-        took_ms,
-        current_backend(),
-    )
+        took_ms = int((time.monotonic() - start) * 1000)
+        log.info(
+            "rag_search_done collection=%s ann=%d kw=%d fused=%d took_ms=%d backend=%s",
+            collection,
+            len(ann_hits),
+            len(keyword_hits),
+            len(fused),
+            took_ms,
+            current_backend(),
+        )
+        span.set_attribute("openinference.retriever.documents", len(fused))
+        span.set_attribute("retrieval.result_count", len(fused))
+        span.set_attribute("retrieval.backend", current_backend())
     return [
         {
             "doc_id": h.doc_id,
@@ -371,56 +385,86 @@ async def ingest_document(
     content: str,
     metadata: dict[str, Any] | None = None,
     chunk: bool = True,
+    content_type: str = "general",
 ) -> dict:
     """Ingest a document into the RAG system.
 
-    - Chunks the content (recursive split, dedup)
+    - Chunks the content (content-type-aware strategies, dedup)
     - Embeds each chunk
     - Adds to the collection's ANN index
     - Marks each chunk's hash as ingested for dedup
+
+    ``content_type`` selects the chunking strategy (solidity, whitepaper,
+    audit, news, social, transaction, general). Defaults to "general".
     """
     if not content or not content.strip():
         return {"doc_id": doc_id, "collection": collection, "status": "empty", "chunks": 0}
 
     metadata = metadata or {}
-    idx = get_index(collection)
-    chunks = (
-        chunk_text(content)
-        if chunk
-        else [
+    with trace_span(
+        "rag.ingest.document",
+        {
+            "openinference.span.kind": "CHAIN",
+            "ingest.collection": collection,
+            "ingest.doc_id": doc_id,
+            "ingest.content_type": content_type,
+            "ingest.chunk": chunk,
+        },
+    ) as span:
+        idx = get_index(collection)
+        if chunk:
+            chunks = chunk_text(content, content_type=content_type)
+        else:
             # Single-chunk path: still dedup
-            __import__("app.rag.chunking", fromlist=["Chunk"]).Chunk(
-                text=content, content_hash=content_hash(content), index=0, quality=1.0
-            )
-        ]
-    )
+            chunks = [
+                Chunk(
+                    text=content,
+                    content_hash=content_hash(content),
+                    index=0,
+                    quality=1.0,
+                    content_type=content_type,
+                    source_url=metadata.get("source_url", ""),
+                    timestamp=datetime.now(UTC).isoformat(),
+                    token_count=estimate_tokens(content),
+                )
+            ]
 
-    # Dedup
-    new_chunks = [c for c in chunks if not is_duplicate(c.content_hash, collection)]
-    skipped = len(chunks) - len(new_chunks)
-    if not new_chunks:
-        return {
-            "doc_id": doc_id,
-            "collection": collection,
-            "status": "duplicate",
-            "chunks": 0,
-            "skipped": skipped,
-        }
+        # Dedup
+        new_chunks = [c for c in chunks if not is_duplicate(c.content_hash, collection)]
+        skipped = len(chunks) - len(new_chunks)
+        if not new_chunks:
+            span.set_attribute("ingest.status", "duplicate")
+            span.set_attribute("ingest.skipped", skipped)
+            return {
+                "doc_id": doc_id,
+                "collection": collection,
+                "status": "duplicate",
+                "chunks": 0,
+                "skipped": skipped,
+            }
 
-    # Embed + insert
-    added = 0
-    for c in new_chunks:
-        vec = await get_embedding(c.text)
-        chunk_doc_id = f"{doc_id}:{c.content_hash[:8]}:{c.index}"
-        chunk_meta = {
-            **metadata,
-            "chunk_index": c.index,
-            "content_hash": c.content_hash,
-            "quality": c.quality,
-        }
-        idx.add(chunk_doc_id, vec, chunk_meta, text=c.text)
-        mark_ingested(c.content_hash, collection)
-        added += 1
+        # Embed + insert
+        added = 0
+        for c in new_chunks:
+            vec = await get_embedding(c.text)
+            chunk_doc_id = f"{doc_id}:{c.content_hash[:8]}:{c.index}"
+            chunk_meta = {
+                **metadata,
+                "chunk_index": c.index,
+                "content_hash": c.content_hash,
+                "quality": c.quality,
+                "content_type": c.content_type,
+                "source_url": c.source_url,
+                "timestamp": c.timestamp,
+                "token_count": c.token_count,
+            }
+            idx.add(chunk_doc_id, vec, chunk_meta, text=c.text)
+            mark_ingested(c.content_hash, collection)
+            added += 1
+
+        span.set_attribute("ingest.status", "ok")
+        span.set_attribute("ingest.chunks_added", added)
+        span.set_attribute("ingest.skipped", skipped)
 
     return {
         "doc_id": doc_id,
@@ -473,11 +517,13 @@ async def bulk_ingest(
     counts = {"total": len(items), "ok": 0, "duplicate": 0, "empty": 0, "errors": 0}
     for it in items:
         try:
+            item_meta = it.get("metadata") or {}
             r = await ingest_document(
                 collection=collection,
                 doc_id=it.get("doc_id") or it.get("id", f"bulk:{int(time.time() * 1000)}"),
                 content=it.get("content") or it.get("text", ""),
-                metadata=it.get("metadata") or {},
+                metadata=item_meta,
+                content_type=(it.get("content_type") or item_meta.get("content_type") or "general"),
             )
             if r["status"] == "ok":
                 counts["ok"] += 1
