@@ -24,7 +24,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
-from app.rag.chunking import content_hash as _content_hash
+from app.rag.chunking import content_hash as _content_hash, map_source_type_to_content_type as _content_type_for
 from app.rag.config import (
     RAG_CHUNK_SIZE,
     RAG_INGESTION_BATCH_SIZE,
@@ -124,6 +124,7 @@ class BatchIngestor:
                     content=doc.content,
                     metadata=doc.metadata,
                     chunk=True,
+                    content_type=_content_type_for(doc.source_type),
                 )
                 if result["status"] == "ok":
                     accepted_count += 1

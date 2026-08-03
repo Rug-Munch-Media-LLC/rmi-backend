@@ -46,6 +46,16 @@ async def lifespan(app: FastAPI) -> Any:
             "not start to prevent silent degradation of scam checks."
         )
 
+    # Phoenix (Arize) RAG observability — fail-open, never blocks startup.
+    # Guarded by PHOENIX_ENABLED; setup_phoenix() itself never raises.
+    try:
+        from app.rag.tracing import setup_phoenix
+
+        if setup_phoenix():
+            logger.info("phoenix_tracing_started")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("phoenix_tracing_startup_failed err=%s", exc)
+
     app.state.http_client = httpx.AsyncClient(
         limits=httpx.Limits(max_connections=100, max_keepalive_connections=20), timeout=10.0
     )

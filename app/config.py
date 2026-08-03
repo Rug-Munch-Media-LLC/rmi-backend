@@ -220,6 +220,15 @@ class Settings(BaseSettings):
     otel_enabled: bool = False
     sentry_traces_sample_rate: float = 0.1
 
+    # ── Phoenix (Arize) — RAG observability ────────────────────────────
+    # OTLP gRPC endpoint of the self-hosted Phoenix instance. Inside the
+    # Docker network this is ``http://phoenix:4317``; the host port is
+    # 4319 (4317 belongs to the otel-collector). UI at http://phoenix:6006.
+    phoenix_enabled: bool = False
+    phoenix_endpoint: str = "http://phoenix:4317"
+    phoenix_project: str = "rugmunch-rag"
+    phoenix_ui_url: str = "http://phoenix:6006"
+
     # ── External APIs ───────────────────────────────────────────────────
     coingecko_api_key: str = ""
     etherscan_api_key: str = ""

@@ -30,6 +30,7 @@ from app.rag.config import (
     RAG_HYBRID_ALPHA,
 )
 from app.rag.rerank import reorder_by_relevance, rerank_results
+from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
 
@@ -245,37 +246,50 @@ class HybridRetriever:
         """
         start = time.monotonic()
 
-        # 1. Optionally expand the query
-        search_query = self._expander.expand(query) if expand else query
+        with trace_span(
+            "rag.retrieval.hybrid",
+            {
+                "openinference.span.kind": "RETRIEVER",
+                "openinference.retriever.query": query,
+                "retrieval.collection": collection,
+                "retrieval.top_k": top_k,
+                "retrieval.expand": expand,
+                "retrieval.rerank": rerank,
+            },
+        ) as span:
+            # 1. Optionally expand the query
+            search_query = self._expander.expand(query) if expand else query
 
-        # 2. Delegate to the M3 engine
-        from app.rag.engine import three_pillar_search
+            # 2. Delegate to the M3 engine
+            from app.rag.engine import three_pillar_search
 
-        raw = await three_pillar_search(
-            query=search_query,
-            collection=collection,
-            top_k=top_k,
-            min_similarity=min_similarity,
-            filters=filters,
-        )
+            raw = await three_pillar_search(
+                query=search_query,
+                collection=collection,
+                top_k=top_k,
+                min_similarity=min_similarity,
+                filters=filters,
+            )
 
-        # 3. Re-score and sort
-        scored = self._scorer.rescore(raw, query)
+            # 3. Re-score and sort
+            scored = self._scorer.rescore(raw, query)
 
-        # 4. Optional cross-encoder rerank via Infinity (fail-open)
-        if rerank and len(scored) > 1:
-            scored = await self._apply_rerank(query, scored, top_k)
+            # 4. Optional cross-encoder rerank via Infinity (fail-open)
+            if rerank and len(scored) > 1:
+                scored = await self._apply_rerank(query, scored, top_k)
 
-        took_ms = int((time.monotonic() - start) * 1000)
-        log.info(
-            "hybrid_retrieve",
-            collection=collection,
-            top_k=top_k,
-            results=len(scored),
-            took_ms=took_ms,
-            expanded=expand,
-            rerank=rerank,
-        )
+            took_ms = int((time.monotonic() - start) * 1000)
+            log.info(
+                "hybrid_retrieve",
+                collection=collection,
+                top_k=top_k,
+                results=len(scored),
+                took_ms=took_ms,
+                expanded=expand,
+                rerank=rerank,
+            )
+            span.set_attribute("openinference.retriever.documents", len(scored))
+            span.set_attribute("retrieval.result_count", len(scored))
 
         return scored
 

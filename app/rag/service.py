@@ -96,6 +96,7 @@ class RAGService:
                 doc_id=doc_id,
                 content=req.content,
                 metadata=req.metadata,
+                content_type=req.metadata.get("content_type", "general") if req.metadata else "general",
             )
             return IngestResult(
                 doc_id=doc_id,

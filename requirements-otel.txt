@@ -3,3 +3,10 @@ opentelemetry-api>=1.30.0
 opentelemetry-sdk>=1.30.0
 opentelemetry-exporter-otlp-proto-grpc>=1.30.0
 opentelemetry-instrumentation-fastapi>=0.51b0
+
+# Phoenix (Arize) — RAG observability. arize-phoenix-otel is the minimal
+# OTLP runtime (phoenix.otel.register); the full arize-phoenix UI package
+# runs in the phoenix container, NOT in the backend image. Instrumentation
+# is manual (app/rag/tracing.py) because the RAG path is custom httpx —
+# there is no LangChain/OpenAI-SDK call path to auto-instrument.
+arize-phoenix-otel>=0.4.0

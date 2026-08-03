@@ -26,6 +26,7 @@ import numpy as np
 
 from app.config import settings
 from app.core.logging import get_logger
+from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
 
@@ -158,9 +159,25 @@ class InfinityEmbedder(EmbedderProtocol):
         return f"infinity:{self._model}"
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
+        """Embed a batch of texts (Phoenix-traced wrapper)."""
         if not texts:
             return []
 
+        with trace_span(
+            "rag.embedding.infinity",
+            {
+                "openinference.span.kind": "EMBEDDING",
+                "openinference.embedding.model": self._model,
+                "embedder.batch_size": len(texts),
+            },
+        ) as span:
+            vectors = await self._embed_impl(texts)
+            span.set_attribute("openinference.embedding.embeddings", len(vectors))
+            span.set_attribute("embedder.result_count", len(vectors))
+            return vectors
+
+    async def _embed_impl(self, texts: list[str]) -> list[list[float]]:
+        """Actual Infinity embed with batching + retries (unwrapped)."""
         # Split large batches into chunks to avoid gateway timeouts.
         if len(texts) > self.MAX_BATCH_SIZE:
             return await self._embed_chunked(texts)
@@ -473,33 +490,45 @@ class CachedEmbedder(EmbedderProtocol):
         if not texts:
             return []
 
-        # Check memory cache for all texts
-        keys = [self._cache_key(t) for t in texts]
-        cached = [self._mem.get(k) for k in keys]
+        with trace_span(
+            "rag.embedding.cached",
+            {
+                "openinference.span.kind": "EMBEDDING",
+                "openinference.embedding.model": self._inner.name,
+                "embedder.batch_size": len(texts),
+            },
+        ) as span:
+            # Check memory cache for all texts
+            keys = [self._cache_key(t) for t in texts]
+            cached = [self._mem.get(k) for k in keys]
 
-        # Identify uncached indices
-        uncached_indices = [i for i, v in enumerate(cached) if v is None]
-        if not uncached_indices:
+            # Identify uncached indices
+            uncached_indices = [i for i, v in enumerate(cached) if v is None]
+            if not uncached_indices:
+                span.set_attribute("embedder.cache_hit", True)
+                span.set_attribute("openinference.embedding.embeddings", len(cached))
+                return cached  # type: ignore[return-value]
+
+            # Hit the inner embedder for uncached texts
+            uncached_texts = [texts[i] for i in uncached_indices]
+            try:
+                fresh = await self._inner.embed(uncached_texts)
+            except RuntimeError:
+                log.warning("cached_embedder_inner_failed uncached=%d", len(uncached_indices))
+                fresh = [[0.0] * self._inner.dim] * len(uncached_texts)
+
+            # Store in memory cache
+            for idx, vec in zip(uncached_indices, fresh, strict=False):
+                self._mem.set(keys[idx], vec, self._ttl)
+                cached[idx] = vec
+
+            # Fire-and-forget Redis write for uncached vectors
+            if self._redis_ok:
+                self._spawn_bg(self._redis_bulk_set(keys, fresh, uncached_indices))
+
+            span.set_attribute("embedder.cache_hit", False)
+            span.set_attribute("openinference.embedding.embeddings", len(cached))
             return cached  # type: ignore[return-value]
-
-        # Hit the inner embedder for uncached texts
-        uncached_texts = [texts[i] for i in uncached_indices]
-        try:
-            fresh = await self._inner.embed(uncached_texts)
-        except RuntimeError:
-            log.warning("cached_embedder_inner_failed uncached=%d", len(uncached_indices))
-            fresh = [[0.0] * self._inner.dim] * len(uncached_texts)
-
-        # Store in memory cache
-        for idx, vec in zip(uncached_indices, fresh, strict=False):
-            self._mem.set(keys[idx], vec, self._ttl)
-            cached[idx] = vec
-
-        # Fire-and-forget Redis write for uncached vectors
-        if self._redis_ok:
-            self._spawn_bg(self._redis_bulk_set(keys, fresh, uncached_indices))
-
-        return cached  # type: ignore[return-value]
 
     async def _redis_bulk_set(
         self,

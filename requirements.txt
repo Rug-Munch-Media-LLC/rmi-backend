@@ -15,6 +15,7 @@ gunicorn>=23.0.0
 requests>=2.32.0
 numpy>=1.26.0
 sentence-transformers>=3.0.0
+tiktoken>=0.7.0  # RAG chunking token counting (falls back to heuristic if absent)
 duckdb>=0.10.0
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.3.0
@@ -57,3 +58,8 @@ opentelemetry-instrumentation-httpx>=0.46b0
 opentelemetry-instrumentation-redis>=0.46b0
 opentelemetry-instrumentation-logging>=0.46b0
 opentelemetry-instrumentation-aiohttp-client>=0.46b0
+
+# Agentic RAG orchestration (app/rag/graph.py)
+langgraph>=1.0.0
+langchain>=1.0.0
+langchain-openai>=1.0.0
