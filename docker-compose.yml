@@ -164,7 +164,7 @@ services:
       - full
 
   # ════════════════════════════════════════════════════════════
-  # LAYER 2.5: AI — Ollama (LLM + embeddings)
+  # LAYER 2.5: AI — Ollama (LLM generation only; RAG embeddings/reranking use Infinity)
   # ════════════════════════════════════════════════════════════
   rmi-ollama:
     image: ollama/ollama:latest

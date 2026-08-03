@@ -31,7 +31,7 @@
 | **Historical Scraper** | `app/rag_historical.py` | ✅ Active | Weekly: Rekt DB, Chainabuse, SlowMist, TRM |
 | **Chunking** | `app/rag/chunking.py` + `app/rag_chunking.py` | ⚠️ DUAL | Two chunkers exist — M3 one (recursive) and standalone (strategy-based) |
 | **Observability** | `app/rag_observability.py` | ✅ Active | Langfuse + local metrics fallback |
-| **Evaluation** | `app/rag_evaluation.py` | ✅ Active | 50 golden test queries, RAGAS-style |
+| **Evaluation** | `app/rag/evaluation.py` | ✅ Active | 50 golden test queries, RAGAS-style |
 | **Permanence** | `app/rag_permanence.py` | ✅ Active | Cloudflare R2 cold storage |
 | **Feedback Loop** | `app/rag_feedback.py` | ✅ Active | Scanner verdict → weight adjustment |
 | **Agentic RAG** | `app/rag_agentic.py` | ✅ Active | LLM reranker + multi-hop + real-time monitor |
@@ -44,12 +44,12 @@
 
 | Model | Source | Dims | Cost | Status | Priority |
 |-------|--------|------|------|--------|----------|
-| `bge-m3` (via Ollama) | Local (Talos/Hydra) | 1024 | $0 | ✅ Primary | Tier 1 |
+| `BAAI/bge-m3` (via Infinity) | Self-hosted (Infinity) | 1024 | $0 | ✅ Primary | Tier 1 |
 | `nvidia/llama-nemotron-embed-vl-1b-v2:free` | OpenRouter | 2048 | $0 (free tier) | ✅ Fallback | Tier 2 |
 | `BAAI/bge-small-en-v1.5` | Local (sentence-transformers) | 384 | $0 (CPU) | ✅ Active | Tier 3 |
 | `BAAI/bge-m3` (via HuggingFace) | HF Inference API | 1024 | $0 (free tier) | ⚠️ Unreliable | Tier 4 |
 | `openai/text-embedding-3-large` | OpenAI API | 3072 | Paid | 🚫 Not wired | N/A |
-| `qwen3-embedding:4b` (target) | Local (Ollama) | 2048 | $0 | 🚧 Migration target | Target |
+| ~~qwen3-embedding:4b~~ (retired) | Local (Ollama) | 2048 | $0 | 🚫 De-ollama removed | N/A |
 
 ### 1.3 Vector Stores Connected
 
@@ -104,11 +104,11 @@
 
 | Model | Dims | Source | Cost | Quality (MTEB) | Crypto-specific | Latency | RAM/GPU |
 |-------|------|--------|------|----------------|-----------------|---------|---------|
-| **bge-m3** (Ollama) | 1024 | Ollama (local) | $0 | 64.0 | Good (general) | ~50ms | ~2GB RAM |
-| **qwen3-embedding:4b** (Ollama) | 2048 | Ollama (local) | $0 | ~66.0 | Better (Chinese crypto text) | ~80ms | ~3GB RAM |
-| **nomic-embed-text** (Ollama) | 768 | Ollama (local) | $0 | 62.4 | Average | ~30ms | ~1GB RAM |
-| **bge-large-en-v1.5** (Ollama) | 1024 | Ollama (local) | $0 | 63.8 | Good | ~100ms | ~5GB RAM |
-| **text2vec-large-chinese** | 1024 | Ollama (local) | $0 | N/A | Excellent (CN scams) | ~120ms | ~4GB RAM |
+| **BAAI/bge-m3** (Infinity) | 1024 | Infinity (self-hosted) | $0 | 64.0 | Good (general) | ~50ms | ~2GB RAM |
+| ~~qwen3-embedding:4b~~ (retired) | 2048 | Ollama (retired) | $0 | ~66.0 | Retired in de-ollama | — | — |
+| ~~nomic-embed-text~~ (retired) | 768 | Ollama (retired) | $0 | 62.4 | Retired in de-ollama | — | — |
+| BAAI/bge-large-en-v1.5 (unused) | 1024 | sentence-transformers | $0 | 63.8 | Not wired | — | — |
+| text2vec-large-chinese (unused) | 1024 | sentence-transformers | $0 | N/A | Not wired | — | — |
 | **all-MiniLM-L6-v2** | 384 | sentence-transformers | $0 | 61.0 | Poor (too small) | ~10ms | ~0.5GB |
 | **Nemotron** (OpenRouter) | 2048 | OR API (free) | $0 | ~65.0 | Good | ~200ms | N/A (API) |
 | **OpenAI text-embedding-3-large** | 3072 | OpenAI API | Paid | 65.9 | Best general | ~100ms | N/A (API) |
@@ -119,7 +119,7 @@
 
 **Rationale:**
 1. **Higher dimension** (2048 vs 1024) captures more nuance for crypto-specific terminology (scam patterns, contract bytecode features, wallet behaviors)
-2. **Ollama-native** — runs locally, zero API cost, same infrastructure as current bge-m3
+2. ~~Ollama-native~~ — retired in the de-ollama pass; embeddings now run on Infinity
 3. **Chinese + English bilingual** — critical for scam research (many scam write-ups are in Chinese on SlowMist, BlockSec, etc.)
 4. **4B parameters** is the sweet spot for quality/speed on CPU
 5. Already referenced in code as `rmi/qwen3-embedding:4b` in `DIMS` config — the migration infra exists in `app/rag/embedder.py`
@@ -132,7 +132,7 @@ EmbedderBackend.QWEN3_4B = "qwen3-embedding:4b"  # 2048d, target
 ```
 
 - `reindex_collection()` handles per-collection migration
-- Strategy: reindex one collection per night, verify with `rag_evaluation.py` before proceeding
+- Strategy: reindex one collection per night, verify with `rag/evaluation.py` before proceeding
 - If nDCG@10 < 8% improvement, fall back and investigate
 
 ### 2.3 Embedding Architecture (Multi-Head)
@@ -452,12 +452,12 @@ Scenario 1: Redis crashes (no persistence)
 Scenario 2: Full infrastructure loss
   1. Restore R2 snapshots → new Redis instance
   2. Rebuild ANN indexes from restored documents
-  3. Verify with rag_evaluation.py golden tests
+  3. Verify with rag/evaluation.py golden tests
 
 Scenario 3: Embedding model change
   1. Use snapshots tagged with old EMBEDDING_VERSION
   2. Re-embed all documents with new model
-  3. Verify quality with rag_evaluation.py before cutover
+  3. Verify quality with rag/evaluation.py before cutover
 ```
 
 ---
@@ -487,13 +487,13 @@ Collected by `app/rag_observability.py` + Langfuse:
 | Embedding latency | `trace_embedding()` | <100ms avg | >500ms |
 | Retrieval latency | `trace_retrieval()` | <200ms avg | >1s |
 | Cache hit rate | `_cache_hits / (_cache_hits + _cache_misses)` | >60% | <30% |
-| Evaluation score | `rag_evaluation.py` (50 tests) | >0.7 avg | <0.5 |
-| Pass rate | `rag_evaluation.py` | >80% | <60% |
+| Evaluation score | `rag/evaluation.py` (50 tests) | >0.7 avg | <0.5 |
+| Pass rate | `rag/evaluation.py` | >80% | <60% |
 | Ingest throughput | `trace_ingest()` | N/A | 0 for >24h |
 
 ### 7.3 Evaluation Golden Set
 
-`app/rag_evaluation.py` has 50 test queries across 13 collections. Each query checks:
+`app/rag/evaluation.py` has 50 test queries across 13 collections. Each query checks:
 1. **Context precision** (60% weight) — do expected terms appear in results?
 2. **Context recall** (40% weight) — did we get enough results?
 
@@ -596,7 +596,7 @@ app/crypto_embeddings/            # Multi-head crypto embedder
   ├── __init__.py                 # Re-exports
   ├── models.py                   # DIMS, HEAD_DEFAULTS, COLLECTIONS
   ├── features.py                 # Contract/tx/wallet feature extractors
-  ├── providers.py                # Ollama, OpenRouter, HF, Local BGE
+  ├── providers.py                # Infinity, OpenRouter, HF, Local BGE
   ├── embedder.py                 # CryptoEmbedder (multi-head)
   └── seed.py                     # KNOWN_SCAM_PATTERNS
 
@@ -610,7 +610,7 @@ app/rag_service/                  # Legacy (to be deprecated)
   └── stats.py                    # Statistics
 
 app/rag_chunking.py               # Content-type aware chunking (keep this)
-app/rag_evaluation.py             # 50 golden test queries
+app/rag/evaluation.py             # 50 golden test queries
 app/rag_observability.py          # Langfuse + local metrics
 app/rag_permanence.py             # R2 cold storage
 app/rag_agentic.py                # LLM reranker + multi-hop
@@ -652,8 +652,8 @@ scripts/
 1. **FAIL LOUD, not silently wrong** — Hash fallback is forbidden. When no embedding backend responds, return 503, not gibberish.
 2. **Security data is permanent** — Scam patterns, hack reports, audit findings never expire.
 3. **Temporal data self-cleans** — News (30d), token scans (90d), wallet profiles (365d) auto-expire via TTL.
-4. **Free first** — All embedding runs on local Ollama. OpenRouter is backup. Only use paid models when quality evaluation demands it.
-5. **Measure before migrating** — Every model change must pass `rag_evaluation.py` with <10% regression on the golden test set.
+4. **Free first** — All embedding runs on self-hosted Infinity. OpenRouter is backup. Only use paid models when quality evaluation demands it.
+5. **Measure before migrating** — Every model change must pass `rag/evaluation.py` with <10% regression on the golden test set.
 6. **Agents are the best feedback source** — The heaviest RAG consumers produce the richest quality signal. Harvest it.
 7. **Backup everything** — R2 nightly snapshots of all collections. Weekly pgvector dumps. Embedding version tagged.
 

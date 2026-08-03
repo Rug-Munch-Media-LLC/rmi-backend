@@ -77,6 +77,11 @@ _TOOLS_BY_TYPE: dict[str, list[str]] = {
     "general": ["get_news"],
 }
 
+# Marker prepended to ``sources`` when an answer has no backing citation.
+# Shared with ``app.routers.rag_v2`` so the router can surface low-confidence
+# responses without relying on a magic string.
+_UNVERIFIED_SENTINEL = "__unverified__"
+
 
 # ── classify ──────────────────────────────────────────────────────────
 
@@ -135,7 +140,7 @@ async def classify_query(state: ResearchState) -> dict[str, Any]:
     query = state.get("query", "")
     try:
         query_type = await _classify_with_llm(query)
-    except (ConnectionError, OSError, TimeoutError, ValueError, Exception):
+    except Exception:
         log.debug("classify_llm_failed_falling_back", query=query[:80])
         query_type = _classify_heuristic(query)
     log.info("rag_classify", query_type=query_type, query=query[:80])
@@ -177,7 +182,7 @@ async def _retrieve_for_type(query: str, collection: str) -> list[dict[str, Any]
             }
             for h in hits
         ]
-    except (ConnectionError, OSError, TimeoutError, ValueError, Exception) as exc:
+    except Exception as exc:
         log.debug("retrieve_failed", collection=collection, err=str(exc))
         return []
 
@@ -247,7 +252,7 @@ async def rerank_documents(state: ResearchState) -> dict[str, Any]:
                     }
                     for h in ordered
                 ]
-    except (ConnectionError, OSError, TimeoutError, ValueError, Exception) as exc:
+    except Exception as exc:
         log.debug("rerank_failed_keeping_order err=%s", exc)
 
     return {"documents": docs}
@@ -278,7 +283,7 @@ async def _call_tools(query_type: str, query: str) -> list[dict[str, Any]]:
         try:
             result = await fn(query)
             calls.append({"tool": name, "args": {"query": query}, "result": result})
-        except (ConnectionError, OSError, TimeoutError, ValueError, Exception) as exc:
+        except Exception as exc:
             calls.append({"tool": name, "args": {"query": query}, "error": str(exc)})
     return calls
 
@@ -344,7 +349,7 @@ async def synthesize_answer(state: ResearchState) -> dict[str, Any]:
 
     try:
         answer = await _synthesize_with_llm(query, query_type, context, tool_calls)
-    except (ConnectionError, OSError, TimeoutError, ValueError, Exception) as exc:
+    except Exception as exc:
         log.debug("synthesize_llm_failed_using_template err=%s", exc)
         answer = _template_answer(query, docs, tool_calls)
 
@@ -373,8 +378,8 @@ def _has_citations(answer: str, sources: list[str]) -> bool:
 async def verify_sources(state: ResearchState) -> dict[str, Any]:
     """Check claims have citations; annotate when they do not.
 
-    Never blocks the graph — it enriches ``sources`` with a
-    ``__unverified`` marker when the synthesized answer has no backing
+    Never blocks the graph — it enriches ``sources`` with the
+    ``_UNVERIFIED_SENTINEL`` marker when the synthesized answer has no backing
     document source, so callers can surface low-confidence responses.
     """
     sources = list(dict.fromkeys(state.get("sources", [])))
@@ -383,7 +388,7 @@ async def verify_sources(state: ResearchState) -> dict[str, Any]:
 
     verified = bool(_has_citations(answer, sources)) or bool(tool_calls)
     if not verified and answer:
-        sources = ["__unverified__", *sources]
+        sources = [_UNVERIFIED_SENTINEL, *sources]
 
     log.info("rag_verify", verified=verified, sources=len(sources), answer_len=len(answer))
     return {"sources": sources}

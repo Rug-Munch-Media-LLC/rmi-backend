@@ -41,6 +41,11 @@ import os
 import time
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -212,7 +217,16 @@ async def get_own_bundle_analysis(
         if result["atomic_block_score"] > 0 or result["common_funder_score"] > 0:
             result["source"] = "own"
 
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("own_bundle_query_failed for %s: %s", token_address[:16], exc)
         result["source"] = "unavailable"
 
@@ -286,7 +300,16 @@ def _query_atomic_blocks(
             }
             for r in rows
         ]
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("atomic_blocks_query_failed: %s", exc)
         return None
 
@@ -369,7 +392,16 @@ def _query_common_funders(
             for r in funder_rows
         ]
 
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("common_funders_query_failed: %s", exc)
         return None
 
@@ -445,7 +477,16 @@ def _query_holder_concentration(
             "holder_count": len(rows),
         }
 
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("holder_concentration_query_failed: %s", exc)
         return None
 

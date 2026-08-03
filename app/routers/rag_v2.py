@@ -14,12 +14,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.rag.graph import create_crypto_rag_graph
+from app.core.rate_limiter import get_rate_limit_dependency
+from app.rag.graph import _UNVERIFIED_SENTINEL, create_crypto_rag_graph
 
 router = APIRouter(prefix="/api/v1/rag/v2", tags=["rag"])
+
+# Compiled LangGraph is expensive to build; cache it at module level so every
+# /ask request reuses the same state machine instead of recompiling.
+_rag_graph: Any | None = None
+
+
+def get_rag_graph() -> Any:
+    """Return the cached compiled research graph (build once, reuse forever)."""
+    global _rag_graph
+    if _rag_graph is None:
+        _rag_graph = create_crypto_rag_graph()
+    return _rag_graph
 
 
 class AskRequest(BaseModel):
@@ -52,17 +65,20 @@ class EvaluateRequest(BaseModel):
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask_crypto_question(request: AskRequest) -> AskResponse:
+async def ask_crypto_question(
+    request: AskRequest,
+    _rl: None = Depends(get_rate_limit_dependency("ai")),
+) -> AskResponse:
     """Run the agentic research graph over a crypto question."""
-    graph = create_crypto_rag_graph()
+    graph = get_rag_graph()
     result = await graph.ainvoke({"query": request.query})
     sources = list(result.get("sources") or [])
     return AskResponse(
         answer=result.get("answer", ""),
         query_type=result.get("query_type", "general"),
-        sources=[s for s in sources if s != "__unverified__"],
+        sources=[s for s in sources if s != _UNVERIFIED_SENTINEL],
         tool_calls=result.get("tool_calls") or [],
-        verified="__unverified__" not in sources,
+        verified=_UNVERIFIED_SENTINEL not in sources,
     )
 
 
