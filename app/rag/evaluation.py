@@ -27,7 +27,10 @@ import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = logging.getLogger(__name__)
 
@@ -318,15 +321,10 @@ def _keyword_context_recall(question: str, context_chunks: list[str]) -> float:
 def _ragas_metrics_available() -> bool:
     """Return True if ragas is importable and metrics can be built."""
     try:
-        from ragas.metrics import (  # noqa: F401
-            answer_relevancy,
-            context_precision,
-            context_recall,
-            faithfulness,
-        )
+        import importlib.util
 
-        return True
-    except Exception:
+        return importlib.util.find_spec("ragas") is not None
+    except (ImportError, ValueError):
         return False
 
 
@@ -362,7 +360,11 @@ async def _evaluate_with_ragas(
 ) -> dict[str, float] | None:
     """Run ragas metrics. Returns aggregate scores or None on any failure."""
     try:
-        from ragas import evaluate as ragas_evaluate
+        # Lazy import: ragas is an optional dependency (not in the backend
+        # venv). Types are version-dependent, so cast to a loose callable.
+        from typing import cast
+
+        from ragas import evaluate as ragas_evaluate_raw  # pyright: ignore[reportUnknownVariableType]
         from ragas.metrics import (
             answer_relevancy,
             context_precision,
@@ -370,23 +372,22 @@ async def _evaluate_with_ragas(
             faithfulness,
         )
 
+        ragas_evaluate: Callable[..., Any] = cast("Callable[..., Any]", ragas_evaluate_raw)
+
         dataset = _build_ragas_dataset(test_cases, hits_by_query)
         if dataset is None or len(dataset.samples) == 0:
             return None
 
         # ragas 0.4.x `evaluate` is synchronous — run in a worker thread so
         # the event loop is not blocked during the LLM-judged metrics pass.
+        metrics: list[Any] = [
+            faithfulness,
+            answer_relevancy,
+            context_precision,
+            context_recall,
+        ]
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                ragas_evaluate,
-                dataset,
-                metrics=[
-                    faithfulness,
-                    answer_relevancy,
-                    context_precision,
-                    context_recall,
-                ],
-            ),
+            asyncio.to_thread(ragas_evaluate, dataset, metrics=metrics),
             timeout=max(EVAL_TIMEOUT_S * 5, 60.0),
         )
         return {
