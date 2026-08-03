@@ -193,15 +193,14 @@ class Settings(BaseSettings):
     )
 
     # ── AI providers ────────────────────────────────────────────────────
-    # Ollama base URL. RAG embeddings/reranking now default to Infinity
-    # (``infinity_url``); this setting remains for LLM generation
-    # (app.routers.ai_stream) and the RAG embed fallback chain.
+    # Ollama base URL. LLM-generation only (app.routers.ai_stream). RAG
+    # embeddings/reranking use Infinity exclusively (``infinity_url``).
     ollama_url: str = "http://localhost:11434"
     infinity_url: str = Field(
         default="http://infinity-rag:8001",
         description=(
             "Infinity (OpenAI-compatible embedding/rerank server) base URL for the "
-            "RAG pipeline: POST /v1/embeddings (BAAI/bge-m3) and POST /v1/rerank "
+            "RAG pipeline: POST /embeddings (BAAI/bge-m3) and POST /rerank "
             "(BAAI/bge-reranker-v2-m3). Set INFINITY_URL env var."
         ),
     )
@@ -365,29 +364,30 @@ class Settings(BaseSettings):
         description=(
             "DEPRECATED — legacy BGE-M3 container HTTP service (the old :8001 path, "
             "nothing listens there). BGE-M3 embeddings are served by Infinity "
-            "(``infinity_url``) since the Ollama → Infinity migration."
+            "(``infinity_url``)."
         ),
     )
     embedder_primary: str = Field(
         default="infinity",
         description=(
-            "Primary embedding backend: infinity | ollama | bge-m3 | openrouter. "
-            "Set EMBEDDER_PRIMARY. Default is Infinity (OpenAI-compatible /v1/embeddings)."
+            "Primary embedding backend: infinity | bge-m3 | openrouter. "
+            "Set EMBEDDER_PRIMARY. Default is Infinity (OpenAI-compatible /embeddings)."
         ),
     )
     embedder_primary_model: str = Field(
         default="BAAI/bge-m3",
         description=(
-            "Model used by the primary embedder when EMBEDDER_PRIMARY=infinity or "
-            "ollama (e.g. BAAI/bge-m3 = 1024-dim via Infinity /v1/embeddings). "
+            "Model used by the primary embedder when EMBEDDER_PRIMARY=infinity "
+            "(e.g. BAAI/bge-m3 = 1024-dim via Infinity /embeddings). "
             "Set EMBEDDER_PRIMARY_MODEL."
         ),
     )
     embedder_fallback: str = Field(
-        default="nomic-embed-text",
+        default="",
         description=(
-            "Fallback model name for Ollama when primary backend fails. "
-            "Set EMBEDDER_FALLBACK. Examples: nomic-embed-text, qwen3-embed:4b"
+            "DEPRECATED — Ollama fallback model name. RAG embedding now uses "
+            "Infinity exclusively; retained for config compat only. "
+            "Set EMBEDDER_FALLBACK."
         ),
     )
     embedder_cache_ttl: int = Field(

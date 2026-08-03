@@ -22,6 +22,7 @@ from app.domains.scanner.engines.launchpad_resolver import (
     clear_cache,
     get_launchpad_registry,
     lookup_launchpad,
+    resolve_deployer_universal,
     resolve_launchpad_deployer,
 )
 
@@ -285,6 +286,225 @@ class TestResolveLaunchpad:
             out = await resolve_launchpad_deployer(_TOKEN, "solana", _PUMP_FUN)
         assert out == cached
         rpc.assert_not_called()
+
+
+class TestResolveDeployerUniversal:
+    """Universal resolver — structural deployer detection for ANY platform.
+
+    Covers the fallback chain: registry factory → indexer deployer_eoa →
+    EVM creation tx → Solana fee payer → passthrough. NEVER returns None.
+    """
+
+    def setup_method(self) -> None:
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_pump_fun_returns_real_creator_not_program(self) -> None:
+        """A pump.fun token resolves to its creator EOA (fee payer), not the program."""
+        tx_payload = {
+            "result": {
+                "transaction": {
+                    "message": {
+                        "accountKeys": [
+                            {"pubkey": _CREATOR, "signer": True, "writable": True},
+                            {"pubkey": _PUMP_FUN, "signer": False, "writable": False},
+                        ]
+                    }
+                }
+            }
+        }
+        sigs_payload = {"result": [{"signature": _DEPLOY_TX, "slot": 5}]}
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch("app.domains.scanner.engines.launchpad_resolver._get_ch_client", return_value=None),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.rpc_call",
+                AsyncMock(side_effect=[sigs_payload, tx_payload]),
+            ),
+        ):
+            out = await resolve_deployer_universal(_TOKEN, "solana", _PUMP_FUN)
+
+        assert out is not None
+        assert out["real_deployer"] == _CREATOR
+        assert out["launchpad"] == "pump.fun"
+        assert out["method"] == "factory_trace"
+        assert out["resolved"] is True
+        assert out["confidence"] == 0.9
+
+    @pytest.mark.asyncio
+    async def test_normal_erc20_resolves_creation_tx_sender(self) -> None:
+        """A normal ERC-20 (deployer not in registry) resolves via creation tx."""
+        tx_payload = {"result": {"from": _EVM_DEPLOYER, "to": _EVM_FACTORY}}
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver._get_ch_client",
+                return_value=None,
+            ),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.rpc_call",
+                AsyncMock(return_value=tx_payload),
+            ) as rpc,
+        ):
+            out = await resolve_deployer_universal(_EVM_TOKEN, "ethereum", _EVM_FACTORY, deploy_tx=_EVM_DEPLOY_TX)
+
+        assert out is not None
+        assert out["real_deployer"] == _EVM_DEPLOYER.lower()
+        assert out["method"] in ("evm_contract", "evm_tx")
+        assert out["resolved"] is True
+        assert out["confidence"] == 1.0
+        rpc.assert_awaited_once_with("ethereum", "eth_getTransactionByHash", [_EVM_DEPLOY_TX], timeout=10)
+
+    @pytest.mark.asyncio
+    async def test_deployer_eoa_populated_used_directly(self) -> None:
+        """When the indexer already resolved deployer_eoa, use it without RPC."""
+
+        class FakeCH:
+            def execute(self, sql: str, params: dict | None = None, settings: dict | None = None) -> object:
+                if "deployer_eoa" in sql:
+                    return [(_EVM_DEPLOYER,)]
+                return []
+
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch("app.domains.scanner.engines.launchpad_resolver._get_ch_client", return_value=FakeCH()),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.rpc_call",
+                AsyncMock(return_value=None),
+            ) as rpc,
+        ):
+            out = await resolve_deployer_universal(_EVM_TOKEN, "ethereum", _EVM_FACTORY)
+
+        assert out is not None
+        assert out["real_deployer"] == _EVM_DEPLOYER.lower()
+        assert out["method"] == "deployer_eoa"
+        assert out["confidence"] == 1.0
+        rpc.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_deployer_eoa_by_deployer_without_token(self) -> None:
+        """Fingerprint-style callers (no token) resolve via deployer_eoa lookup."""
+
+        class FakeCH:
+            def execute(self, sql: str, params: dict | None = None, settings: dict | None = None) -> object:
+                if "lower(deployer)" in sql:
+                    return [(_EVM_DEPLOYER,)]
+                return []
+
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch("app.domains.scanner.engines.launchpad_resolver._get_ch_client", return_value=FakeCH()),
+        ):
+            out = await resolve_deployer_universal("", "ethereum", _EVM_FACTORY)
+
+        assert out is not None
+        assert out["real_deployer"] == _EVM_DEPLOYER.lower()
+        assert out["method"] == "deployer_eoa"
+        assert out["resolved"] is True
+
+    @pytest.mark.asyncio
+    async def test_never_returns_none_fallback_passthrough(self) -> None:
+        """No data anywhere → passthrough of the recorded deployer (never None)."""
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch("app.domains.scanner.engines.launchpad_resolver._get_ch_client", return_value=None),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.rpc_call",
+                AsyncMock(return_value=None),
+            ),
+        ):
+            out = await resolve_deployer_universal(_EVM_TOKEN, "ethereum", _EVM_FACTORY)
+
+        assert out is not None
+        assert out["real_deployer"] == _EVM_FACTORY
+        assert out["method"] == "passthrough"
+        assert out["resolved"] is False
+        assert out["confidence"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_solana_unknown_program_structural_fee_payer(self) -> None:
+        """An unknown Solana launchpad (not in registry) still resolves via fee payer."""
+        unknown_program = "5Q9jXJYzVpLf3kQxWmAbCdEfGhIjKlMnOpQrStUvWxYz12"
+        tx_payload = {
+            "result": {
+                "transaction": {
+                    "message": {
+                        "accountKeys": [
+                            {"pubkey": _CREATOR, "signer": True, "writable": True},
+                            {"pubkey": unknown_program, "signer": False, "writable": False},
+                        ]
+                    }
+                }
+            }
+        }
+        sigs_payload = {"result": [{"signature": _DEPLOY_TX, "slot": 5}]}
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch("app.domains.scanner.engines.launchpad_resolver._get_ch_client", return_value=None),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.rpc_call",
+                AsyncMock(side_effect=[sigs_payload, tx_payload]),
+            ),
+        ):
+            out = await resolve_deployer_universal(_TOKEN, "solana", unknown_program)
+
+        assert out is not None
+        assert out["real_deployer"] == _CREATOR
+        assert out["launchpad"] is None  # not in registry
+        assert out["method"] == "solana_fee_payer"
+        assert out["resolved"] is True
+
+    @pytest.mark.asyncio
+    async def test_solana_no_data_passthrough(self) -> None:
+        """Solana with no signatures → passthrough, still not None."""
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch("app.domains.scanner.engines.launchpad_resolver._get_ch_client", return_value=None),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.rpc_call",
+                AsyncMock(return_value={"result": []}),
+            ),
+        ):
+            out = await resolve_deployer_universal(_TOKEN, "solana", _PUMP_FUN)
+
+        assert out is not None
+        assert out["method"] == "passthrough"
+
+    @pytest.mark.asyncio
+    async def test_evm_clickhouse_deploy_tx_fallback(self) -> None:
+        """EVM without passed tx falls back to deployer_events lookup then RPC."""
+
+        class FakeCH:
+            def execute(self, sql: str, params: dict | None = None, settings: dict | None = None) -> object:
+                if "argMin(tx_hash" in sql:
+                    return [(_EVM_DEPLOY_TX,)]
+                if "deployer_eoa" in sql:
+                    return []
+                return []
+
+        tx_payload = {"result": {"from": _EVM_DEPLOYER, "to": None}}
+        with (
+            _no_redis_get(),
+            _no_redis_set(),
+            patch("app.domains.scanner.engines.launchpad_resolver._get_ch_client", return_value=FakeCH()),
+            patch(
+                "app.domains.scanner.engines.launchpad_resolver.rpc_call",
+                AsyncMock(return_value=tx_payload),
+            ),
+        ):
+            out = await resolve_deployer_universal(_EVM_TOKEN, "ethereum", _EVM_FACTORY)
+
+        assert out is not None
+        assert out["real_deployer"] == _EVM_DEPLOYER.lower()
+        assert out["method"] == "evm_tx"  # to=None → direct deployment, not factory
+        assert out["resolved"] is True
 
 
 if __name__ == "__main__":

@@ -28,8 +28,8 @@ from app.crypto_embeddings.models import (
 from app.crypto_embeddings.providers import (
     ContractCodeEmbedder,
     HuggingFaceEmbedder,
+    InfinityBGEEmbedder,
     LocalBGEEmbedder,
-    OllamaBGEEmbedder,
     OpenRouterEmbedder,
 )
 
@@ -45,7 +45,7 @@ class CryptoEmbedder:
 
     def __init__(self) -> None:
         self._local: LocalBGEEmbedder | None = None
-        self._ollama: OllamaBGEEmbedder | None = None
+        self._infinity: InfinityBGEEmbedder | None = None
         self._openrouter: OpenRouterEmbedder | None = None
         self._huggingface: HuggingFaceEmbedder | None = None
         self._redis = None
@@ -58,8 +58,8 @@ class CryptoEmbedder:
         or_key = os.environ.get("OPENROUTER_API_KEY", "") or OPENROUTER_KEY
         hf_token = os.environ.get("HUGGINGFACE_TOKEN", "") or HF_TOKEN
 
-        self._ollama = OllamaBGEEmbedder()
-        logger.info("CryptoEmbedder: Ollama bge-m3 ready (PRIMARY, 1024d)")
+        self._infinity = InfinityBGEEmbedder()
+        logger.info("CryptoEmbedder: Infinity bge-m3 ready (PRIMARY, 1024d)")
         self._local = LocalBGEEmbedder()
         logger.info("CryptoEmbedder: Local BGE-small ready (fallback, 384d)")
 
@@ -93,11 +93,11 @@ class CryptoEmbedder:
     async def _semantic_embed(self, texts: list[str], head: str = "semantic") -> list[list[float]]:
         if not texts:
             return []
-        if self._ollama:
+        if self._infinity:
             try:
-                return await self._ollama.embed(texts)
+                return await self._infinity.embed(texts)
             except Exception as e:
-                logger.warning(f"Ollama embedding failed: {e}")
+                logger.warning(f"Infinity embedding failed: {e}")
         if self._openrouter:
             try:
                 return await self._openrouter.embed(texts)
@@ -115,7 +115,7 @@ class CryptoEmbedder:
                 logger.warning(f"HuggingFace embedding failed: {e}")
         raise RuntimeError(
             "CryptoEmbedder: ALL embedding backends failed. No hash fallback available. "
-            "Check Ollama/OpenRouter/HuggingFace connectivity."
+            "Check Infinity/OpenRouter/HuggingFace connectivity."
         )
 
     async def _semantic_embed_one(self, text: str, head: str = "semantic") -> list[float]:

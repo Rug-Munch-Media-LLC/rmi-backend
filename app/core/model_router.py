@@ -40,7 +40,7 @@ ROUTING_TABLE = {
     ],
     TaskType.EMBED: [
         ("mistral-embed", "mistral", 0.1, 0.0),  # 100ms, 20M TPM free
-        ("bge-m3", "ollama", 2.0, 0.0),  # 2s, local
+        ("bge-m3", "infinity", 2.0, 0.0),  # 2s, local
     ],
     TaskType.CODE: [
         ("deepseek-v4-flash", "deepseek", 0.3, 0.14),  # 300ms, cheap

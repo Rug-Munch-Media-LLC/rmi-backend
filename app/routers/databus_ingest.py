@@ -1,5 +1,11 @@
 """DataBus Ingest Router — receive scraped intelligence from Pryscraper.
 
+DEPRECATED — NOT MOUNTED. This router is not included in
+``app.mount.ROUTER_MODULES`` and is not reachable at runtime. DataBus
+ingest is handled by the canonical ``app.databus.router`` (webhooks,
+cache, admin, convenience, premium). Kept in-tree only as a historical
+reference; do not wire it into the app.
+
 Endpoint:
   POST /api/v1/databus/ingest
 

@@ -14,11 +14,11 @@ Every method wraps the existing ``HybridRetriever`` and ``ContextBuilder``
 from ``app.rag.retrieval``, which themselves call the M3 three-pillar
 search engine (ANN + keyword + metadata filters fused via RRF).
 
-Embedding path (since the Ollama → Infinity migration):
-    Retrieval embeds queries via Infinity ``/v1/embeddings``
+Embedding path (Infinity):
+    Retrieval embeds queries via Infinity ``/embeddings``
     (``app.rag.embedder.InfinityEmbedder``, model BAAI/bge-m3) and each
     public method finishes with one cross-encoder rerank across the
-    cross-collection candidates via Infinity ``/v1/rerank``
+    cross-collection candidates via Infinity ``/rerank``
     (BAAI/bge-reranker-v2-m3, see ``app.rag.rerank``). Reranking is
     fail-open: if Infinity is unreachable the candidates are returned in
     pre-rerank order.
@@ -161,7 +161,7 @@ class RAGIntelligenceEnricher:
 
         sorted_hits = sorted(seen.values(), key=lambda h: -h.final_score)
         # Cross-encoder rerank across the cross-collection candidates
-        # (Infinity /v1/rerank, BAAI/bge-reranker-v2-m3; fail-open).
+        # (Infinity /rerank, BAAI/bge-reranker-v2-m3; fail-open).
         sorted_hits = await self._rerank_aggregated(query, sorted_hits, self._top_k * 2)
         log.info(
             "find_similar_scams",
@@ -216,7 +216,7 @@ class RAGIntelligenceEnricher:
 
         sorted_hits = sorted(seen.values(), key=lambda h: -h.final_score)
         # Cross-encoder rerank across the cross-collection candidates
-        # (Infinity /v1/rerank, BAAI/bge-reranker-v2-m3; fail-open).
+        # (Infinity /rerank, BAAI/bge-reranker-v2-m3; fail-open).
         sorted_hits = await self._rerank_aggregated(query, sorted_hits, self._top_k * 2)
         log.info(
             "get_wallet_context",
@@ -272,7 +272,7 @@ class RAGIntelligenceEnricher:
 
         sorted_hits = sorted(seen.values(), key=lambda h: -h.final_score)
         # Cross-encoder rerank across the cross-collection candidates
-        # (Infinity /v1/rerank, BAAI/bge-reranker-v2-m3; fail-open).
+        # (Infinity /rerank, BAAI/bge-reranker-v2-m3; fail-open).
         sorted_hits = await self._rerank_aggregated(query, sorted_hits, k)
         log.info(
             "get_market_context",
@@ -399,7 +399,7 @@ class RAGIntelligenceEnricher:
         """Rerank cross-collection candidates with the Infinity cross-encoder.
 
         Uses the shared rerank path (``app.rag.rerank`` — Infinity
-        ``/v1/rerank`` with BAAI/bge-reranker-v2-m3): reorders hits by
+        ``/rerank`` with BAAI/bge-reranker-v2-m3): reorders hits by
         relevance, updates ``final_score``, and truncates to *top_n*.
         Fail-open: on any failure or empty response the hits are returned
         in their pre-rerank order.

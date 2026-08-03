@@ -469,7 +469,7 @@ async def _check_rag_pipeline() -> dict[str, Any]:
             hresp = await http_client.get(f"{infinity_base_url}/health", timeout=5)
             if hresp.status_code != 200:
                 raise RuntimeError(f"infinity_health_http_{hresp.status_code}")
-            mresp = await http_client.get(f"{infinity_base_url}/v1/models", timeout=5)
+            mresp = await http_client.get(f"{infinity_base_url}/models", timeout=5)
             model_ids = [m.get("id", "") for m in mresp.json().get("data", [])]
             embedding_available = any("bge-m3" in mid for mid in model_ids)
             reranker_available = any("bge-reranker" in mid for mid in model_ids)
@@ -515,7 +515,9 @@ async def _check_rag_pipeline() -> dict[str, Any]:
         status = "degraded"
         issues.append("embedder_unavailable")
 
-    # If consumers are running but ingested_count == 0 for >1 hour, that's degraded
+    # If consumers are running but nothing has ever been ingested, the
+    # pipeline is degraded immediately (no grace period): zero ingestion
+    # means the subscribers/poller are alive yet nothing is being indexed.
     if poller_running and subscriber_running and ingested_count == 0:
         status = "degraded"
         issues.append("consumers_running_no_ingestion")
