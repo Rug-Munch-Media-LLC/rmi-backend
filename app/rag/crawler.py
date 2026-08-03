@@ -24,11 +24,13 @@ import asyncio
 import contextlib
 import email.utils
 import hashlib
+import html
 import json
 import os
 import re
 import socket
 from datetime import UTC, datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -245,6 +247,387 @@ _PAYWALL_MARKERS: tuple[str, ...] = (
     "registration required",
     "full story requires",
 )
+
+# ── News content quality gates ─────────────────────────────────────────────
+# Spam / clickbait, HTML boilerplate extraction, summarisation, title
+# cleaning, and language detection. These keep low-quality content out of
+# the news collection so ratings and search stay trustworthy.
+
+# Phrases that signal promotional clickbait — skip the article entirely.
+SPAM_INDICATORS: tuple[str, ...] = (
+    "price prediction",
+    "will explode",
+    "next 100x",
+    "don't miss",
+    "urgent",
+    "breaking: price",
+    "just in: price",
+    "you won't believe",
+    "guaranteed",
+    "risk free",
+    "secret method",
+)
+
+# Sources known for recycled / promotional content — never rate or ingest.
+LOW_QUALITY_DOMAINS: tuple[str, ...] = (
+    "zycrypto.com",
+    "coinpedia.org",
+    "bitcoinist.com",
+    "cryptopotato.com",
+    "coingape.com",
+)
+
+# Elements whose whole subtree is boilerplate — never part of the article body.
+_BOILERPLATE_TAGS: frozenset[str] = frozenset(
+    {
+        "script",
+        "style",
+        "noscript",
+        "iframe",
+        "svg",
+        "canvas",
+        "template",
+        "nav",
+        "header",
+        "footer",
+        "aside",
+        "form",
+        "button",
+        "dialog",
+        "select",
+        "input",
+        "textarea",
+    }
+)
+
+# Class/id fragments (case-insensitive substring) that mark boilerplate
+# containers: cookie banners, newsletter signups, related-article rails,
+# sidebars, share widgets, popups, and navigation.
+_BOILERPLATE_FRAGMENTS: tuple[str, ...] = (
+    "cookie",
+    "consent",
+    "newsletter",
+    "signup",
+    "subscribe",
+    "related",
+    "recommended",
+    "sidebar",
+    "advert",
+    "-ad",
+    "promo",
+    "share",
+    "social",
+    "breadcrumb",
+    "popup",
+    "modal",
+    "overlay",
+    "trending",
+    "most-read",
+    "comments",
+    "widget",
+    "menu",
+    "navigation",
+)
+
+# Class/id fragments that mark the primary article body container.
+_CONTENT_FRAGMENTS: tuple[str, ...] = (
+    "article-body",
+    "article_content",
+    "article-content",
+    "post-content",
+    "post_content",
+    "entry-content",
+    "entry_content",
+    "story-body",
+    "story_content",
+    "news-body",
+    "single-post",
+    "post-body",
+    "page-content",
+)
+
+# Block-level tags whose boundary implies a paragraph break in extracted text.
+_BLOCK_TAGS: frozenset[str] = frozenset(
+    {
+        "p",
+        "div",
+        "section",
+        "article",
+        "li",
+        "blockquote",
+        "figure",
+        "tr",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "br",
+        "hr",
+        "table",
+        "ul",
+        "ol",
+    }
+)
+
+_TAG_RE = re.compile(r"<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^<>]*?)?)(/?)>", re.DOTALL)
+
+# Language gate: a word counts as "ASCII" when every code point is < 128.
+# CJK text has no inter-word spaces, so the word count is naturally low —
+# 3 is enough to distinguish a real foreign-language paragraph.
+_ENGLISH_MIN_WORDS = 3
+_ENGLISH_ASCII_THRESHOLD = 0.8
+
+_SENTENCE_BOUNDARY_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _article_domain(url: str) -> str:
+    """Bare lowercase hostname for an article URL (``''`` when unparseable)."""
+    try:
+        return (urlparse(url).hostname or "").lower().removeprefix("www.")
+    except ValueError:
+        return ""
+
+
+def is_spam_or_clickbait(title: str, domain: str) -> bool:
+    """Filter out spam and clickbait articles."""
+    if domain in LOW_QUALITY_DOMAINS:
+        return True
+    title_lower = title.lower()
+    return any(indicator in title_lower for indicator in SPAM_INDICATORS)
+
+
+def filter_spam(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep only articles that pass the spam/clickbait gate."""
+    kept: list[dict[str, Any]] = []
+    for item in items:
+        domain = _article_domain(str(item.get("url") or ""))
+        if is_spam_or_clickbait(str(item.get("title") or ""), domain):
+            log.info("article_spam_filtered", url=item.get("url"), domain=domain)
+            continue
+        kept.append(item)
+    return kept
+
+
+def _find_content_end(html_text: str, open_tag: str, start: int) -> int:
+    """Index just past the matching close tag for *open_tag* at *start*.
+
+    Handles self-closing tags and nested same-tag elements. Returns
+    ``len(html_text)`` when the tree is unbalanced (caller falls back to
+    the whole document).
+    """
+    depth = 0
+    for match in _TAG_RE.finditer(html_text, start):
+        closing = match.group(1) or ""
+        tag = match.group(2) or ""
+        self_close = match.group(4) or ""
+        if tag.lower() != open_tag.lower():
+            continue
+        if self_close:
+            continue
+        if closing:
+            depth -= 1
+            if depth == 0:
+                return match.end()
+        else:
+            depth += 1
+    return len(html_text)
+
+
+def _extract_content_region(html_text: str) -> str:
+    """Isolate the primary article body container.
+
+    Prefers semantic containers (``<article>`` then ``<main>``), then
+    common content-div classes (``article-body``, ``post-content``, ...).
+    Returns the whole document when no content container is found — the
+    boilerplate stripper then drops sidebar/footer/cookie noise.
+    """
+    lower = html_text.lower()
+    for tag in ("article", "main"):
+        match = re.search(rf"<{tag}(?=[\s>])", lower)
+        if match:
+            start = match.start()
+            return html_text[start : _find_content_end(html_text, tag, start)]
+    for match in _TAG_RE.finditer(html_text):
+        closing = match.group(1) or ""
+        tag = match.group(2) or ""
+        self_close = match.group(4) or ""
+        if closing or self_close:
+            continue
+        if tag.lower() not in ("div", "section"):
+            continue
+        attrs = match.group(3) or ""
+        if any(frag in attrs.lower() for frag in _CONTENT_FRAGMENTS):
+            return html_text[match.start() : _find_content_end(html_text, tag, match.start())]
+    return html_text
+
+
+class _BoilerplateStripper(HTMLParser):
+    """HTMLParser that drops boilerplate subtrees and emits article text.
+
+    Uses ``convert_charrefs=True`` so HTML entities are unescaped on the
+    way out. Block-level tags become paragraph breaks; inline tags are
+    transparent.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._parts: list[str] = []
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if self._skip_depth:
+            self._skip_depth += 1
+            return
+        attr_text = " ".join(f"{k}={v}" for k, v in attrs if v is not None)
+        if tag in _BOILERPLATE_TAGS or any(frag in attr_text.lower() for frag in _BOILERPLATE_FRAGMENTS):
+            self._skip_depth = 1
+            return
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if self._skip_depth or tag in _BOILERPLATE_TAGS:
+            return
+        if tag in _BLOCK_TAGS:
+            self._parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._skip_depth:
+            self._skip_depth -= 1
+            return
+        if tag in _BLOCK_TAGS:
+            self._parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if not self._skip_depth and data.strip():
+            self._parts.append(data)
+
+    def text(self) -> str:
+        """Visible article text with block boundaries as newlines."""
+        return "".join(self._parts)
+
+
+def _normalise_whitespace(text: str) -> str:
+    """Collapse horizontal runs, drop blank lines, cap consecutive newlines.
+
+    Preserves paragraph breaks (double newline) so downstream scoring
+    (``score_article_quality``) and summarisation still see structure.
+    """
+    if not text:
+        return ""
+    lines = [re.sub(r"[ \t\f\v]+", " ", ln).strip() for ln in text.splitlines()]
+    lines = [ln for ln in lines if ln]
+    return "\n\n".join(lines).strip()
+
+
+def clean_article_html(html_text: str) -> str:
+    """Strip boilerplate and extract clean article text from raw HTML.
+
+    Pipeline:
+      1. Isolate the primary content container (``<article>``/``<main>``
+         or a content-div class) when the document has one.
+      2. Drop boilerplate subtrees (scripts, styles, nav, cookie banners,
+         newsletter signups, related-article rails, sidebars, popups).
+      3. Unescape entities and normalise whitespace, keeping paragraph
+         breaks.
+
+    Paywalled articles return whatever text is visible in the DOM — the
+    downstream quality gate (``score_article_quality``) rejects locked
+    teasers via ``_looks_paywalled``.
+    """
+    if not html_text or not html_text.strip():
+        return ""
+    region = _extract_content_region(html_text)
+    parser = _BoilerplateStripper()
+    try:
+        parser.feed(region)
+        parser.close()
+    except Exception:  # pragma: no cover - malformed HTML must never kill a crawl
+        # Last-resort tag strip: no paragraph structure, but text survives.
+        return _normalise_whitespace(re.sub(r"<[^>]+>", " ", region))
+    return _normalise_whitespace(parser.text())
+
+
+def generate_summary(text: str, max_chars: int = 300) -> str:
+    """Extract first 2-3 meaningful sentences as summary.
+
+    Used for articles whose RSS entry has no useful summary. Falls back to
+    a word-boundary-truncated prefix when the text has no sentence
+    boundaries (headlines, tickers, fragmented crawl output).
+    """
+    if not text:
+        return ""
+    text = _normalise_whitespace(text)
+    sentences = [s.strip() for s in _SENTENCE_BOUNDARY_RE.split(text) if s.strip()]
+    summary = ""
+    for sentence in sentences[:3]:
+        candidate = f"{summary} {sentence}".strip()
+        if summary and len(candidate) > max_chars:
+            break
+        summary = candidate
+        if len(summary) >= max_chars:
+            break
+    if not summary:
+        summary = text
+    if len(summary) > max_chars:
+        summary = summary[:max_chars].rsplit(" ", 1)[0]
+    return summary.strip()
+
+
+def clean_title(raw_title: str, source_name: str) -> str:
+    """Remove source name suffixes, HTML entities, excessive punctuation.
+
+    Handles the common crawler/RSS artifacts: ``"Headline | CoinDesk"``,
+    ``"Headline - CoinDesk"``, ``"Headline — CoinDesk"``, ``"CoinDesk:
+    Headline"``, double spaces, and runs of ``!``/``?``.
+    """
+    if not raw_title:
+        return ""
+    title = html.unescape(str(raw_title)).strip()
+    source = (source_name or "").strip().lower()
+    if source:
+        # Match the full source name and its bare domain part (coindesk.com →
+        # coindesk). Use whitespace-tolerant variants so display names work:
+        # "theblock" matches "The Block", "coindesk" matches "CoinDesk".
+        base_parts = [source]
+        if "." in source:
+            base_parts.append(source.split(".", 1)[0])
+        alternatives = "|".join(r"\s*".join(re.escape(ch) for ch in part) for part in base_parts)
+        # Trailing suffix: "Headline | source", " - source", " — source", " » source"
+        title = re.sub(
+            rf"\s*(?:\||-|—|::|»)\s*(?:{alternatives})\s*$",
+            "",
+            title,
+            flags=re.IGNORECASE,
+        ).strip()
+        # Leading prefix: "source: Headline", "source | Headline", "source » Headline"
+        title = re.sub(
+            rf"^\s*(?:{alternatives})\s*(?::|\||»)\s*",
+            "",
+            title,
+            flags=re.IGNORECASE,
+        ).strip()
+    title = re.sub(r"\s+", " ", title)
+    title = re.sub(r"([!?])\1+", r"\1", title)  # !!! → !, ??? → ?
+    title = re.sub(r"\s+([,.;:!?])", r"\1", title)  # "word ," → "word,"
+    return title.strip()
+
+
+def is_english(text: str) -> bool:
+    """Simple language detection — check if >80% of words are ASCII.
+
+    Words are 2+ letter sequences (unicode-aware). Fails open (returns
+    True) on empty or short (<5 word) text so the pipeline never drops
+    content it cannot judge.
+    """
+    if not text:
+        return True
+    words = re.findall(r"[^\W\d_]{2,}", text)
+    if len(words) < _ENGLISH_MIN_WORDS:
+        return True
+    ascii_words = sum(1 for word in words if all(ord(c) < 128 for c in word))
+    return ascii_words / len(words) >= _ENGLISH_ASCII_THRESHOLD
+
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -520,11 +903,18 @@ async def crawl_crypto_page(url: str) -> dict[str, Any]:
 
     content = _extract_markdown(result)
     if not content or not content.strip():
-        # Fall back to extracted content (non-markdown renderers).
-        content = str(getattr(result, "extracted_content", "") or "")
+        # Fall back to extracted content (non-markdown renderers). Crawl4AI
+        # returns HTML here — strip cookie/newsletter/sidebar boilerplate so
+        # only the article body is ingested.
+        content = clean_article_html(str(getattr(result, "extracted_content", "") or ""))
+    else:
+        # Markdown path: normalise whitespace, keep paragraph breaks.
+        content = _normalise_whitespace(content)
 
     meta = dict(getattr(result, "metadata", None) or {})
-    title = str(meta.get("title") or "")[:500]
+    # Crawl4AI titles often carry a site suffix ("Headline | CoinDesk").
+    raw_title = str(meta.get("title") or "")[:500]
+    title = clean_title(raw_title, _article_domain(url))[:500]
 
     return {
         "title": title,
@@ -619,6 +1009,10 @@ async def crawl_and_ingest(
     ingest_metadata = {**metadata, "group_id": group_id}
     if published_at:
         ingest_metadata.setdefault("published_at", published_at)
+    # RSS summaries are often empty or boilerplate — generate one from the
+    # extracted body so downstream consumers always have a useful blurb.
+    if not ingest_metadata.get("summary"):
+        ingest_metadata["summary"] = generate_summary(content)[:1000]
 
     # Multi-axis rating card (Ground News style) attached to metadata so
     # every ingested article carries factuality / source reputation /
@@ -706,7 +1100,8 @@ async def discover_crypto_news(sources: list[str] | None = None) -> list[dict[st
             items.append(
                 {
                     "url": link,
-                    "title": str(getattr(entry, "title", "") or "")[:500],
+                    # RSS titles frequently carry a site suffix (" | CoinDesk").
+                    "title": clean_title(str(getattr(entry, "title", "") or "")[:500], _article_domain(link)),
                     "published": str(getattr(entry, "published", "") or ""),
                     "source": feed_url,
                     "summary": str(getattr(entry, "summary", "") or "")[:1000],
@@ -780,21 +1175,29 @@ async def discover_and_ingest(
     failure does not abort the sweep.
 
     Quality pipeline per sweep:
-      1. Relevance gate (title + summary) — drop off-topic articles
+      1. Spam/clickbait gate — drop promotional domains and clickbait
+         titles (``is_spam_or_clickbait``) before anything else.
+      2. Relevance gate (title + summary) — drop off-topic articles
          (NFT drops, pure gaming, general tech) before crawling.
-      2. Freshness prioritisation — newest first; ``> max_age_hours``
+      3. Freshness prioritisation — newest first; ``> max_age_hours``
          old articles are skipped as stale.
-      3. Quality score on extracted content — articles scoring below
+      4. Language gate — non-English extracted content is skipped
+         (we cannot rate it properly).
+      5. Quality score on extracted content — articles scoring below
          ``min_quality`` are skipped.
     """
     _ensure_host_connectivity()
     discovered = await discover_crypto_news(sources)
-    relevant = filter_relevant(discovered)
+    pre_spam = len(discovered)
+    spam_kept = filter_spam(discovered)
+    spam_filtered = pre_spam - len(spam_kept)
+    relevant = filter_relevant(spam_kept)
     prioritized = prioritize_by_freshness(relevant)
 
     results: list[dict[str, Any]] = []
     errors: list[str] = []
     stale_skipped: list[str] = []
+    non_english_skipped: list[str] = []
     quality_rejected: list[dict[str, Any]] = []
 
     for item in prioritized[:max_urls]:
@@ -809,6 +1212,13 @@ async def discover_and_ingest(
         except Exception as e:
             errors.append(f"{url}: {e}")
             log.warning("sweep_item_failed", url=url, error=str(e))
+            continue
+
+        # Non-English articles are skipped — the ratings engine cannot rate
+        # them properly (vocabularies are English-only).
+        if not is_english(page["content"]):
+            non_english_skipped.append(url)
+            log.info("sweep_item_non_english", url=url)
             continue
 
         article: dict[str, Any] = {**item, "content": page["content"]}
@@ -846,6 +1256,7 @@ async def discover_and_ingest(
     summary = {
         "collection": collection,
         "discovered": len(discovered),
+        "spam_filtered": spam_filtered,
         "relevant": len(relevant),
         "freshness_tiers": tier_counts,
         "attempted": len(results) + len(errors),
@@ -853,6 +1264,7 @@ async def discover_and_ingest(
         "duplicates": sum(1 for r in results if r.get("status") == "duplicate"),
         **dup_levels,
         "stale_skipped": len(stale_skipped),
+        "non_english_skipped": len(non_english_skipped),
         "quality_rejected": len(quality_rejected),
         "failed": len(errors),
         "errors": errors[:20],

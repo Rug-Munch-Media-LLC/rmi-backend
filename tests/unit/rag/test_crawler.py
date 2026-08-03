@@ -29,14 +29,20 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.rag.crawler import (
+    clean_article_html,
+    clean_title,
     crawl_and_ingest,
     crawl_crypto_page,
     discover_and_ingest,
     discover_crypto_news,
     filter_relevant,
+    filter_spam,
     freshness_tier,
+    generate_summary,
+    is_english,
     is_fresh,
     is_relevant,
+    is_spam_or_clickbait,
     prioritize_by_freshness,
     score_article_quality,
 )
@@ -690,3 +696,263 @@ async def test_crawl_and_ingest_with_supplied_content(mock_crawler) -> None:
     assert kwargs["metadata"]["source_url"] == _URL
     assert kwargs["metadata"]["group_id"] == "grp:test"
     crawler.arun.assert_not_awaited()  # content supplied → no second crawl
+
+
+# ── Spam / clickbait filter ────────────────────────────────────────────────
+
+
+def test_is_spam_or_clickbait_clickbait_titles() -> None:
+    """Clickbait phrases trigger the filter regardless of domain."""
+    assert is_spam_or_clickbait("Bitcoin price prediction for August", "cointelegraph.com") is True
+    assert is_spam_or_clickbait("SOL will explode says analyst", "decrypt.co") is True
+    assert is_spam_or_clickbait("URGENT: Breaking price alert", "theblock.co") is True
+    assert is_spam_or_clickbait("You won't believe what happened next", "coindesk.com") is True
+
+
+def test_is_spam_or_clickbait_low_quality_domain() -> None:
+    """Articles from low-quality domains are filtered regardless of title."""
+    assert is_spam_or_clickbait("BTC rally continues", "zycrypto.com") is True
+    assert is_spam_or_clickbait("ETF decision today", "coinpedia.org") is True
+    assert is_spam_or_clickbait("", "cryptopotato.com") is True
+
+
+def test_is_spam_or_clickbait_clean() -> None:
+    """Normal news headlines from good domains pass the filter."""
+    assert is_spam_or_clickbait("SEC sues exchange over unregistered securities", "coindesk.com") is False
+    assert is_spam_or_clickbait("Ethereum completes Dencun upgrade", "theblock.co") is False
+    assert is_spam_or_clickbait("", "cointelegraph.com") is False
+
+
+def test_filter_spam_keeps_only_clean() -> None:
+    """filter_spam drops clickbait + low-quality-domain items."""
+    items = [
+        _article(url="https://coindesk.com/1", title="SEC sues exchange"),
+        _article(url="https://zycrypto.com/2", title="BTC rally"),
+        _article(url="https://cointelegraph.com/3", title="SOL price prediction for August"),
+    ]
+    kept = filter_spam(items)
+    assert [i["url"] for i in kept] == ["https://coindesk.com/1"]
+
+
+# ── HTML content extraction ────────────────────────────────────────────────
+
+
+def test_clean_article_html_strips_boilerplate() -> None:
+    """Scripts, cookie banners, newsletters, and related rails are removed."""
+    page = """
+    <html><head><script>var x = 1;</script></head><body>
+      <div class="cookie-banner">We use cookies. Accept?</div>
+      <div class="newsletter-signup">Subscribe to our newsletter!</div>
+      <article>
+        <p>Bitcoin exchange hacked.</p>
+        <p>Funds were stolen on-chain.</p>
+      </article>
+      <div class="related-articles"><a href="#">Related: Altcoin rally</a></div>
+    </body></html>
+    """
+    text = clean_article_html(page)
+    assert "Bitcoin exchange hacked." in text
+    assert "Funds were stolen on-chain." in text
+    assert "cookie" not in text.lower()
+    assert "newsletter" not in text.lower()
+    assert "Related: Altcoin rally" not in text
+    assert "var x" not in text
+
+
+def test_clean_article_html_extracts_article_body_not_sidebar() -> None:
+    """When an article/main container exists, sidebar/footer text is excluded."""
+    page = """
+    <div class="sidebar">Sponsored links and ads here</div>
+    <main>
+      <article>
+        <p>The real story about the exploit.</p>
+      </article>
+    </main>
+    <footer>Copyright 2026, all rights reserved</footer>
+    """
+    text = clean_article_html(page)
+    assert "real story" in text
+    assert "Sponsored links" not in text
+    assert "Copyright" not in text
+
+
+def test_clean_article_html_unescapes_entities() -> None:
+    """HTML entities are decoded into their characters."""
+    page = "<article><p>Bitcoin &amp; Ethereum both rallied.</p></article>"
+    assert clean_article_html(page) == "Bitcoin & Ethereum both rallied."
+
+
+def test_clean_article_html_paywalled_returns_visible() -> None:
+    """Paywalled pages return whatever text is visible (quality gate rejects)."""
+    page = """
+    <article>
+      <p>Sign in to read the full story. Bitcoin price analysis continues here.</p>
+    </article>
+    """
+    text = clean_article_html(page)
+    assert "Sign in to read the full story." in text
+
+
+def test_clean_article_html_empty() -> None:
+    assert clean_article_html("") == ""
+    assert clean_article_html("   ") == ""
+    assert clean_article_html(None) == ""  # type: ignore[arg-type]
+
+
+def test_clean_article_html_no_container_still_strips_boilerplate() -> None:
+    """No article/main container → boilerplate stripping still applies."""
+    page = """
+    <div class="post-content">
+      <script>bad()</script>
+      <p>Bitcoin is trading flat today.</p>
+    </div>
+    <div class="nav-menu"><a href="#">Home</a></div>
+    """
+    text = clean_article_html(page)
+    assert "Bitcoin is trading flat today." in text
+    assert "bad()" not in text
+    assert "Home" not in text
+
+
+# ── Summarisation ──────────────────────────────────────────────────────────
+
+
+def test_generate_summary_takes_first_sentences() -> None:
+    """Summary = first 2-3 sentences, capped at max_chars."""
+    body = (
+        "Bitcoin surged past $70,000 as spot ETF inflows hit a record high. "
+        "Analysts attribute the move to institutional accumulation. "
+        "Regulators are watching closely, though no action has been announced. "
+        "A fourth sentence that should be dropped from the summary."
+    )
+    summary = generate_summary(body)
+    assert summary.startswith("Bitcoin surged past $70,000")
+    assert len(summary) <= 300
+    assert "fourth sentence" not in summary
+    assert summary.endswith(".")
+
+
+def test_generate_summary_respects_max_chars() -> None:
+    body = " ".join(["Bitcoin is up today."] * 40)
+    summary = generate_summary(body, max_chars=50)
+    assert len(summary) <= 50
+    assert summary.endswith(("up today.", ".")) or len(summary.split()) >= 1
+
+
+def test_generate_summary_no_sentence_boundaries() -> None:
+    """Blob text without punctuation truncates at a word boundary."""
+    blob = "bitcoin ethereum solana altcoins rally defi yield farming " * 20
+    summary = generate_summary(blob, max_chars=60)
+    assert len(summary) <= 60
+    assert summary == blob[:60].rsplit(" ", 1)[0]
+
+
+def test_generate_summary_empty() -> None:
+    assert generate_summary("") == ""
+    assert generate_summary(None) == ""  # type: ignore[arg-type]
+
+
+# ── Title cleaning ──────────────────────────────────────────────────────────
+
+
+def test_clean_title_removes_source_suffix() -> None:
+    assert clean_title("Bitcoin tops $70k | CoinDesk", "coindesk.com") == "Bitcoin tops $70k"
+    assert clean_title("Solana surges 20% - The Block", "theblock.co") == "Solana surges 20%"
+    assert clean_title("Ethereum upgrade — CoinDesk", "coindesk.com") == "Ethereum upgrade"
+    assert clean_title("XRP lawsuit update » CoinDesk", "coindesk.com") == "XRP lawsuit update"
+
+
+def test_clean_title_removes_source_prefix() -> None:
+    assert clean_title("CoinDesk: Bitcoin tops $70k", "coindesk.com") == "Bitcoin tops $70k"
+    assert clean_title("The Block | Solana surges", "theblock.co") == "Solana surges"
+
+
+def test_clean_title_unescapes_and_dedupes_punctuation() -> None:
+    assert clean_title("OMG!!! SHIBA INU TO THE MOON???", "cointelegraph.com") == "OMG! SHIBA INU TO THE MOON?"
+    assert clean_title("Bitcoin &amp; Ethereum rally", "coindesk.com") == "Bitcoin & Ethereum rally"
+
+
+def test_clean_title_normalises_whitespace() -> None:
+    assert clean_title("  Multiple   spaces   here  ", "coindesk.com") == "Multiple spaces here"
+
+
+def test_clean_title_empty() -> None:
+    assert clean_title("", "coindesk.com") == ""
+    assert clean_title(None, "coindesk.com") == ""  # type: ignore[arg-type]
+
+
+# ── Language detection ─────────────────────────────────────────────────────
+
+
+def test_is_english_ascii() -> None:
+    assert is_english("Bitcoin exchange hacked, funds stolen. Regulators are investigating the incident.") is True
+
+
+def test_is_english_rejects_non_ascii() -> None:
+    assert is_english("Взлом биржи Bitcoin, украдены средства. Регуляторы расследуют инцидент.") is False
+    assert is_english("日本語の記事です。ビットコインが暴落しました。これはテストです。") is False
+
+
+def test_is_english_fails_open_on_short_or_empty() -> None:
+    assert is_english("") is True
+    assert is_english("Hola") is True  # too short to judge
+    assert is_english(None) is True  # type: ignore[arg-type]
+
+
+# ── Sweep wiring: spam + language gates ────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_sweep_filters_spam() -> None:
+    """Spam/clickbait articles are skipped before any crawl."""
+    published = (datetime.now(UTC) - timedelta(minutes=5)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    discovered = [
+        {
+            "url": "https://zycrypto.com/spam",
+            "title": "Bitcoin price prediction for August",
+            "published": published,
+            "source": "https://zycrypto.com/feed.xml",
+            "summary": "Price prediction content.",
+        }
+    ]
+    with (
+        patch("app.rag.crawler.discover_crypto_news", new=AsyncMock(return_value=discovered)),
+        patch("app.rag.crawler.crawl_crypto_page", new=AsyncMock()) as crawl_mock,
+    ):
+        summary = await discover_and_ingest()
+
+    crawl_mock.assert_not_awaited()
+    assert summary["spam_filtered"] == 1
+    assert summary["attempted"] == 0
+    assert summary["ingested"] == 0
+
+
+@pytest.mark.asyncio
+async def test_sweep_skips_non_english_content() -> None:
+    """Non-English extracted content is skipped (cannot be rated properly)."""
+    published = (datetime.now(UTC) - timedelta(minutes=5)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+    discovered = [
+        {
+            "url": "https://example.com/ru",
+            "title": "Bitcoin hack story",
+            "published": published,
+            "source": "https://example.com/feed.xml",
+            "summary": "Bitcoin hack story.",
+        }
+    ]
+    page = {
+        "title": "Bitcoin hack story",
+        "content": "Взлом биржи Bitcoin, украдены средства. Регуляторы расследуют инцидент. " * 40,
+        "metadata": {"source_url": "https://example.com/ru", "crawler": "crawl4ai", "title": "Bitcoin hack story"},
+    }
+    with (
+        patch("app.rag.crawler.discover_crypto_news", new=AsyncMock(return_value=discovered)),
+        patch("app.rag.crawler.crawl_crypto_page", new=AsyncMock(return_value=page)),
+        patch("app.rag.crawler.crawl_and_ingest", new=AsyncMock()) as ingest_mock,
+    ):
+        summary = await discover_and_ingest()
+
+    ingest_mock.assert_not_awaited()
+    assert summary["non_english_skipped"] == 1
+    assert summary["attempted"] == 0
+    assert summary["ingested"] == 0
