@@ -8,7 +8,7 @@ Mixed BASIC, PREMIUM, and ELITE tier pricing.
 
 from typing import Any
 
-from fastapi import Request  # noqa: TC002  # runtime: FastAPI dependency injection
+from fastapi import Request  # runtime: FastAPI dependency injection
 
 from app.core.errors import UpstreamError, ValidationError
 from app.core.logging import get_logger
@@ -16,7 +16,7 @@ from app.databus import databus
 from app.routers.x402_databus_tools.auth import _clean_response, verify_x402_payment
 
 # Runtime import: FastAPI resolves these body models at schema generation time.
-from app.routers.x402_databus_tools.models import (  # noqa: TC001
+from app.routers.x402_databus_tools.models import (
     AddressDepthRequest,
     AddressRequest,
     GenericDataRequest,

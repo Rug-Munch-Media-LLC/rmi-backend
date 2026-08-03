@@ -6,9 +6,7 @@ moved to the `app.domains.newsletter.services` package.
 
 from __future__ import annotations
 
-# ruff: noqa: F401, F403
-
-from app.domains.newsletter.services import (  # noqa: F401, F403
+from app.domains.newsletter.services import (
     PLATFORM_FEE_PCT,
     SUBSCRIPTION_TIERS,
     NewsletterService,

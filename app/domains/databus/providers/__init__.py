@@ -138,6 +138,8 @@ def __getattr__(name: str) -> Any:
         "_chain_indexer_hype_score": "chains.chain_indexer_own",
         # C2 — BubbleMaps-style holder clustering (LOCAL tier, ClickHouse-only)
         "_chain_indexer_holder_clusters": "chains.chain_indexer_own",
+        # C4 — cross-chain entity resolution v1 (LOCAL tier, ClickHouse-only)
+        "_chain_indexer_cross_chain_entity": "chains.chain_indexer_own",
         # F2 price/decimals oracle providers (LOCAL tier)
         "token_price_local": "chains.price_oracle_provider",
         "token_meta_local": "chains.price_oracle_provider",
@@ -237,6 +239,7 @@ __all__ = [
     "_chain_indexer_new_token_radar",
     "_chain_indexer_hype_score",
     "_chain_indexer_holder_clusters",
+    "_chain_indexer_cross_chain_entity",
     "token_price_local",
     "token_meta_local",
     "_scraped_intel_provider",

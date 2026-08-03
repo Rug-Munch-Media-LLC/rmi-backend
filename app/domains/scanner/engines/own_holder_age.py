@@ -47,6 +47,11 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 
 logger = get_logger(__name__)
 
@@ -119,11 +124,6 @@ def _get_ch_client() -> Any | None:
         return None
 
 
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -184,9 +184,9 @@ async def get_own_holder_age(
 
     try:
         # ── 1. Parallel: distribution buckets + token creation time ──
-        buckets_task = asyncio.create_task(_run_sync(_query_holder_age_buckets, token_address, chain))
-        token_age_task = asyncio.create_task(_run_sync(_query_token_age, token_address, chain))
-        recent_task = asyncio.create_task(_run_sync(_query_recent_holders, token_address, chain))
+        buckets_task = asyncio.create_task(run_sync(_query_holder_age_buckets, token_address, chain))
+        token_age_task = asyncio.create_task(run_sync(_query_token_age, token_address, chain))
+        recent_task = asyncio.create_task(run_sync(_query_recent_holders, token_address, chain))
 
         buckets, token_age, recent_holders = await asyncio.gather(
             buckets_task,
@@ -391,14 +391,14 @@ def _cache_holder_age(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_HOLDER_AGE_CACHE),
-        "cache_max": _HOLDER_AGE_CACHE_MAX,
-        "cache_ttl_seconds": _HOLDER_AGE_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _HOLDER_AGE_CACHE,
+        _HOLDER_AGE_CACHE_MAX,
+        _HOLDER_AGE_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _HOLDER_AGE_CACHE.clear()
+    _common_clear_cache(_HOLDER_AGE_CACHE)

@@ -41,6 +41,11 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 
 logger = get_logger(__name__)
 
@@ -238,12 +243,6 @@ def _get_ch_client() -> Any | None:
         return None
 
 
-async def _run_sync(fn, *args, **kwargs):
-    import asyncio
-
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -329,7 +328,7 @@ async def get_own_copycat_analysis(
 
         # ── Signal 2: Name similarity (from ClickHouse known tokens) ──
         if name:
-            name_matches = await _run_sync(_query_name_similarity, token_address, name, chain)
+            name_matches = await run_sync(_query_name_similarity, token_address, name, chain)
             if name_matches:
                 result["similar_tokens"].extend(name_matches)
                 result["name_similarity_found"] = True
@@ -343,7 +342,7 @@ async def get_own_copycat_analysis(
 
         # ── Signal 3: Deployer copy pattern ──
         if deployer_address:
-            deployer_matches = await _run_sync(_query_deployer_similar_launches, deployer_address, chain, symbol, name)
+            deployer_matches = await run_sync(_query_deployer_similar_launches, deployer_address, chain, symbol, name)
             if deployer_matches:
                 result["similar_tokens"].extend(deployer_matches)
                 result["deployer_copy_pattern"] = True
@@ -502,16 +501,9 @@ def _query_name_similarity(
         if not rows:
             return None
 
-        matches: list[dict[str, Any]] = []
-        name_upper = token_name.upper().strip()
-        name_len = len(name_upper) if name_upper else 0
-
-        for row in rows:
-            # We only have addresses, not names directly
-            # For name similarity, we'd need a token_metadata store
-            # This is a placeholder for future expansion
-            pass
-
+        # We only have addresses, not names directly
+        # For name similarity, we'd need a token_metadata store
+        # This is a placeholder for future expansion
         return None  # Requires token_metadata table for full functionality
 
     except CH_ERRORS as exc:
@@ -693,13 +685,13 @@ def _cache_copycat(key: str, data: dict[str, Any]) -> None:
 
 
 def get_cache_stats() -> dict[str, Any]:
-    return {
-        "cache_size": len(_COPYCAT_CACHE),
-        "cache_max": _COPYCAT_CACHE_MAX,
-        "cache_ttl_seconds": _COPYCAT_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _COPYCAT_CACHE,
+        _COPYCAT_CACHE_MAX,
+        _COPYCAT_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
-    _COPYCAT_CACHE.clear()
+    _common_clear_cache(_COPYCAT_CACHE)

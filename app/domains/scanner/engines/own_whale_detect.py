@@ -344,14 +344,14 @@ def _cache_whale(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_WHALE_CACHE),
-        "cache_max": _WHALE_CACHE_MAX,
-        "cache_ttl_seconds": _WHALE_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _WHALE_CACHE,
+        _WHALE_CACHE_MAX,
+        _WHALE_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _WHALE_CACHE.clear()
+    _common_clear_cache(_WHALE_CACHE)

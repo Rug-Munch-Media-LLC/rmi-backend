@@ -66,8 +66,6 @@ from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
 from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, cmd_trending
-from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
-from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment
 from app.domains.telegram.rugmunchbot.handlers.message import handle_message
 from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin_ban,
@@ -77,6 +75,7 @@ from app.domains.telegram.rugmunchbot.handlers.owner import (
 )
 from app.domains.telegram.rugmunchbot.handlers.payments import precheckout, successful_payment
 from app.domains.telegram.rugmunchbot.handlers.price import cmd_dex, cmd_price
+from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
 from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_compare,
     cmd_help,
@@ -86,6 +85,7 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_ta,
     cmd_wallet,
 )
+from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment
 from app.domains.telegram.rugmunchbot.handlers.trace import cmd_trace
 from app.domains.telegram.rugmunchbot.handlers.watchlist import (
     cmd_unwatch,

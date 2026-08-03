@@ -647,7 +647,7 @@ async def cmd_ragstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         for item in val[:20]:
                             lines.append(f"  • {item}")
             await msg.edit_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
-        except (json.JSONDecodeError, TypeError) as e:
+        except (json.JSONDecodeError, TypeError):
             await msg.edit_text(
                 f"🧠 *RAG Stats*\n\n```\n{result['output'][:3000]}\n```",
                 parse_mode=ParseMode.MARKDOWN,
@@ -730,14 +730,14 @@ async def cmd_scanstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 lines.append(f"  • Total checks: `{metrics.get('total_checks', 'N/A')}`")
 
             if "error" not in sufficiency:
-                lines.append(f"\n*Self-Sufficiency:*")
+                lines.append("\n*Self-Sufficiency:*")
                 lines.append(
                     f"  • Questions covered: `{sufficiency.get('own_data_questions', 0)}/{sufficiency.get('total_questions', 0)}`"
                 )
                 lines.append(f"  • Coverage: `{sufficiency.get('own_data_pct', 0)}%`")
                 dv = sufficiency.get("data_volume", {})
                 if dv:
-                    lines.append(f"\n*Data Volume (24h):*")
+                    lines.append("\n*Data Volume (24h):*")
                     lines.append(f"  • EVM Transfers: `{dv.get('evm_transfers_24h', 0):,}`")
                     lines.append(f"  • DEX Events: `{dv.get('dex_events_24h', 0):,}`")
                     lines.append(f"  • DEX Fill Rate: `{dv.get('dex_fill_rate_pct', 0)}%`")

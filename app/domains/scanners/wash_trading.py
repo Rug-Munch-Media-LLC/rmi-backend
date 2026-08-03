@@ -19,12 +19,14 @@ Data sources (direct API calls - no self.api_base):
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import ClassVar
 
 import httpx
+import requests
 
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
