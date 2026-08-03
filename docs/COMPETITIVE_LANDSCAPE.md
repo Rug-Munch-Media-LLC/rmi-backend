@@ -3,6 +3,25 @@
 > Living document. Last updated: 2026-08-03
 > Companion to `SCANNER_STATUS.md` and `docs/scan-capabilities-spec.md`.
 
+## Product Family
+
+RugMunchScan is part of the RugMunch Media OSS family. Its retrieval-augmented
+intelligence layer is **RugBrain** — the crypto-native RAG engine
+(`docs/RAG_ARCHITECTURE.md`, `docs/RUGBRAIN.md`):
+
+| Sibling | Role |
+|---|---|
+| **RugMunchScan** | Token/wallet scanning, risk scoring, own-data engines |
+| **RugBrain** | RAG engine: hybrid search (bge-m3 + BM25 + reranker), agentic Q&A (LangGraph), cited evidence over scanner findings + on-chain + news |
+| **lite-chain-indexer** | Own-data source of truth (ClickHouse, EVM + Solana) |
+| **pryscraper** | Web extraction (Crawl4AI 3-layer stack) feeding RugBrain ingestion |
+| **RugCharts / RugMaps** | Chart engine / token map visualization |
+
+RugBrain is the Q&A + threat-intel retrieval layer *over* RugMunchScan output:
+scanner findings flow into its `scanner`/`scam_intel` collections, and `/ask`
+can trigger re-scans via tool-use. No OSS competitor pairs a full token scanner
+with a purpose-built crypto RAG engine on own-indexed data.
+
 ## Summary
 
 **34+ open-source token scanners were identified and reviewed.** Every one of them is

@@ -30,6 +30,15 @@ from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
 
+
+class EmbeddingError(RuntimeError):
+    """Raised when an embedding backend fails to produce vectors.
+
+    Subclasses ``RuntimeError`` so existing fail-open chains (e.g.
+    ``FallbackEmbedder``) keep catching it unchanged.
+    """
+
+
 # ── Known embedding dimensions ─────────────────────────────────────────
 KNOWN_DIMS: dict[str, int] = {
     "bge-m3": 1024,
@@ -513,9 +522,16 @@ class CachedEmbedder(EmbedderProtocol):
             uncached_texts = [texts[i] for i in uncached_indices]
             try:
                 fresh = await self._inner.embed(uncached_texts)
-            except RuntimeError:
-                log.warning("cached_embedder_inner_failed uncached=%d", len(uncached_indices))
-                fresh = [[0.0] * self._inner.dim] * len(uncached_texts)
+            except RuntimeError as exc:
+                log.error(
+                    "cached_embedder_inner_failed uncached=%d error=%s",
+                    len(uncached_indices),
+                    exc,
+                )
+                # Never return zero vectors: they silently corrupt ANN search
+                # results AND poison the cache with garbage. Propagate the
+                # error so callers can retry or fail loudly.
+                raise EmbeddingError(f"Failed to embed batch of {len(uncached_texts)}: {exc}") from exc
 
             # Store in memory cache
             for idx, vec in zip(uncached_indices, fresh, strict=False):

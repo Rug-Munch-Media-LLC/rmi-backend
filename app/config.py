@@ -193,15 +193,15 @@ class Settings(BaseSettings):
     )
 
     # ── AI providers ────────────────────────────────────────────────────
-    # Ollama base URL. LLM-generation only (app.routers.ai_stream). RAG
+    # Ollama base URL. LLM-generation only (app.routers.ai_stream). RugBrain
     # embeddings/reranking use Infinity exclusively (``infinity_url``).
     ollama_url: str = "http://localhost:11434"
     infinity_url: str = Field(
         default="http://infinity-rag:8001",
         description=(
             "Infinity (OpenAI-compatible embedding/rerank server) base URL for the "
-            "RAG pipeline: POST /embeddings (BAAI/bge-m3) and POST /rerank "
-            "(BAAI/bge-reranker-v2-m3). Set INFINITY_URL env var."
+            "RugBrain (crypto-native RAG) pipeline: POST /embeddings (BAAI/bge-m3) "
+            "and POST /rerank (BAAI/bge-reranker-v2-m3). Set INFINITY_URL env var."
         ),
     )
     openrouter_api_key: str = ""
@@ -299,6 +299,9 @@ class Settings(BaseSettings):
     )
 
     # ── RMI-specific ────────────────────────────────────────────────────
+    # RugBrain (crypto-native RAG engine) default collections. Full taxonomy:
+    # 18 collections across security / code / market / news / shared domains
+    # (see docs/RAG_ARCHITECTURE.md).
     rag_collections: list[str] = [
         "scam_intel",
         "deployer_history",
@@ -321,7 +324,9 @@ class Settings(BaseSettings):
     )
     llama_rag_enabled: bool = Field(
         default=False,
-        description="Enable LlamaIndex-based RAG pipeline. Set LLAMA_RAG_ENABLED env var.",
+        description=(
+            "Enable LlamaIndex-based legacy RAG pipeline (superseded by RugBrain). Set LLAMA_RAG_ENABLED env var."
+        ),
     )
 
     # ── Newsletter System ───────────────────────────────────────────────
