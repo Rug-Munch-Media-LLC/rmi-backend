@@ -59,6 +59,9 @@ class ScanResult:
     # News-based sentiment (engines/news_sentiment.py — RugBrain news_v2)
     news_sentiment: dict | None = None  # {sentiment, confidence, article_count, trending_score, ...}
 
+    # Ground News-style news card (engines/news_sentiment.py — get_token_news_card)
+    news_card: dict[str, Any] | None = None  # {sentiment, trending_score, articles, corroboration}
+
     # Explainability (populated by scoring.compute_score)
     breakdown: dict[str, Any] | None = None  # per-dimension score breakdown
     evidence: dict[str, Any] | None = None  # raw findings backing the score

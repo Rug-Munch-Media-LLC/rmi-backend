@@ -22,6 +22,7 @@ from app.domains.scanner.engines.news_sentiment import (
     analyze_sentiment,
     analyze_token_news_sentiment,
     compute_trending_score,
+    get_token_news_card,
 )
 from app.rag.retrieval import ScoredHit
 
@@ -203,3 +204,162 @@ class TestAnalyzeTokenNewsSentiment:
         assert kwargs["query"] == "Pepe the Frog PEPE news"
         assert kwargs["collection"] == "news_v2"
         assert kwargs["top_k"] == 10
+
+
+class TestGetTokenNewsCard:
+    def _card_hit(
+        self,
+        title: str,
+        content: str,
+        published_at: str,
+        *,
+        source: str = "Test News",
+        url: str = "https://example.com/article",
+        group_id: str | None = None,
+    ) -> ScoredHit:
+        """Build a ScoredHit shaped like a news_v2 article with ratings fields."""
+        meta = {
+            "title": title,
+            "source_url": url,
+            "source_name": source,
+            "published_at": published_at,
+            "source": "news",
+        }
+        if group_id is not None:
+            meta["group_id"] = group_id
+        return ScoredHit(
+            content=f"Title: {title}\n\n{content}",
+            score=0.5,
+            final_score=0.6,
+            metadata=meta,
+            collection="news_v2",
+            doc_id=f"news:{title[:8]}",
+        )
+
+    @pytest.mark.asyncio
+    async def test_bearish_card_full_shape(self) -> None:
+        hits = [
+            self._card_hit(
+                "Bitcoin wallets drained after exploit",
+                "confirmed hack stolen breach vulnerability",
+                _iso(2),
+                source="CoinDesk",
+                url="https://www.coindesk.com/a1",
+                group_id="grp:abc123",
+            ),
+            self._card_hit(
+                "Coldcard exploit drains BTC wallets",
+                "hack attack drainer theft",
+                _iso(3),
+                source="The Block",
+                url="https://www.theblock.co/a2",
+                group_id="grp:abc123",
+            ),
+            self._card_hit(
+                "Bitcoin adoption surges to new high",
+                "adoption rally breakout",
+                _iso(50),
+                source="Cointelegraph",
+                url="https://cointelegraph.com/a3",
+                group_id="grp:def456",
+            ),
+        ]
+        fake = AsyncMock()
+        fake.retrieve.return_value = hits
+        with patch("app.rag.retrieval.HybridRetriever", return_value=fake):
+            card = await get_token_news_card("BTC", "Bitcoin", chain="ethereum")
+
+        assert card["result"] == "scanned"
+        assert card["check"] == "news_card"
+        assert card["sentiment"] == "BEARISH"  # 2 bearish vs 1 bullish
+        assert len(card["articles"]) == 3
+
+        first = card["articles"][0]
+        assert first["title"] == "Bitcoin wallets drained after exploit"
+        assert first["url"] == "https://www.coindesk.com/a1"
+        assert first["source"] == "CoinDesk"
+        assert first["factuality"] == "verified"  # "confirmed" + established source
+        assert first["source_reputation"] == "established"
+        assert first["market_impact"] == "medium"
+        assert first["sentiment"] == "BEARISH"
+        assert first["group_id"] == "grp:abc123"
+        assert set(first.keys()) >= {
+            "title",
+            "url",
+            "source",
+            "published_at",
+            "factuality",
+            "source_reputation",
+            "market_impact",
+            "sentiment",
+            "tokens_mentioned",
+            "group_id",
+        }
+
+        corr = card["corroboration"]
+        assert corr["total_sources"] == 3  # CoinDesk + The Block + Cointelegraph
+        assert corr["independent_count"] == 2  # grp:abc123 + grp:def456
+        assert corr["on_chain_evidence"] is True  # exploit/hack markers present
+
+    @pytest.mark.asyncio
+    async def test_group_id_derived_from_url_when_metadata_missing(self) -> None:
+        hits = [self._card_hit("Market recap", "quarterly review", _iso(30))]
+        fake = AsyncMock()
+        fake.retrieve.return_value = hits
+        with patch("app.rag.retrieval.HybridRetriever", return_value=fake):
+            card = await get_token_news_card("TOK", "Token")
+
+        group_id = card["articles"][0]["group_id"]
+        assert group_id.startswith("grp:")
+        assert group_id != "grp:untracked:0"
+
+    @pytest.mark.asyncio
+    async def test_limit_truncates_displayed_articles(self) -> None:
+        hits = [self._card_hit(f"Article {i}", "market review", _iso(1)) for i in range(6)]
+        fake = AsyncMock()
+        fake.retrieve.return_value = hits
+        with patch("app.rag.retrieval.HybridRetriever", return_value=fake):
+            card = await get_token_news_card("TOK", "Token", limit=2)
+
+        assert len(card["articles"]) == 2
+        # Sentiment/trending still computed over the full hit set
+        assert card["trending_score"] == 90  # 6 recent articles * 15
+
+    @pytest.mark.asyncio
+    async def test_on_chain_override_wins_over_markers(self) -> None:
+        hits = [self._card_hit("Token partnership announced", "partnership with major exchange", _iso(2))]
+        fake = AsyncMock()
+        fake.retrieve.return_value = hits
+        with patch("app.rag.retrieval.HybridRetriever", return_value=fake):
+            card = await get_token_news_card("TOK", "Token", on_chain_evidence=True)
+
+        assert card["corroboration"]["on_chain_evidence"] is True
+
+    @pytest.mark.asyncio
+    async def test_no_articles_returns_no_data_card(self) -> None:
+        fake = AsyncMock()
+        fake.retrieve.return_value = []
+        with patch("app.rag.retrieval.HybridRetriever", return_value=fake):
+            card = await get_token_news_card("UNKNOWN", "Unknown Token")
+
+        assert card["result"] == "no_data"
+        assert card["sentiment"] == "NO_DATA"
+        assert card["articles"] == []
+        assert card["corroboration"]["total_sources"] == 0
+        assert card["reason"] == "no_articles"
+
+    @pytest.mark.asyncio
+    async def test_retrieval_failure_returns_no_data_card(self) -> None:
+        fake = AsyncMock()
+        fake.retrieve.side_effect = RuntimeError("RAG down")
+        with patch("app.rag.retrieval.HybridRetriever", return_value=fake):
+            card = await get_token_news_card("ETH", "Ethereum")
+
+        assert card["result"] == "no_data"
+        assert card["reason"] == "retrieval_unavailable"
+
+    @pytest.mark.asyncio
+    async def test_no_identity_returns_no_data_card(self) -> None:
+        card = await get_token_news_card("", "")
+        assert card["result"] == "no_data"
+        assert card["reason"] == "no_token_identity"

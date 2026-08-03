@@ -50,6 +50,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from app.domains.scanner.unified.model import ScanResult
 
+from app.domains.scanner.engines.news_sentiment import HIGH_MEDIA_ATTENTION_THRESHOLD
+
 # Dimension weights — the maximum points each dimension can contribute
 # toward the safety score. 35 + 25 + 15 + 15 + 10 = 100.
 DIMENSION_WEIGHTS: dict[str, int] = {
@@ -62,6 +64,19 @@ DIMENSION_WEIGHTS: dict[str, int] = {
 
 # Neutral baseline: a token with no data at all scores exactly 50.
 _BASELINE = 50.0
+
+
+def _risk_level_from_score(score: float) -> str:
+    """Map a 0-100 safety score to the canonical risk level."""
+    if score >= 80:
+        return "safe"
+    if score >= 60:
+        return "low"
+    if score >= 40:
+        return "medium"
+    if score >= 20:
+        return "high"
+    return "critical"
 
 
 def _build_evidence(r: ScanResult) -> dict[str, Any]:
@@ -369,16 +384,7 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     r.confidence = min(confidence, 100.0)
 
     # ── Risk level ──
-    if r.safety_score >= 80:
-        r.risk_level = "safe"
-    elif r.safety_score >= 60:
-        r.risk_level = "low"
-    elif r.safety_score >= 40:
-        r.risk_level = "medium"
-    elif r.safety_score >= 20:
-        r.risk_level = "high"
-    else:
-        r.risk_level = "critical"
+    r.risk_level = _risk_level_from_score(r.safety_score)
 
     r.risk_flags = flags
     r.green_flags = green
@@ -404,3 +410,71 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
         "breakdown": breakdown,
         "evidence": evidence,
     }
+
+
+# ── News-driven risk adjustment (post-scoring enrichment) ─────────────
+
+
+def _apply_news_delta(r: ScanResult, delta: float, flag: str, *, risk: bool) -> None:
+    """Apply a news delta to the safety score, flags, and market dimension."""
+    r.safety_score = max(0.0, min(100.0, r.safety_score + delta))
+    if risk:
+        if flag not in r.risk_flags:
+            r.risk_flags.append(flag)
+    else:
+        if flag not in r.green_flags:
+            r.green_flags.append(flag)
+
+    bd = r.breakdown
+    if isinstance(bd, dict):
+        market = bd.get("market")
+        if isinstance(market, dict):
+            market["delta"] = round(float(market.get("delta", 0.0) or 0.0) + delta, 1)
+            max_points = float(market.get("max", DIMENSION_WEIGHTS["market"]))
+            market["score"] = round(max(0.0, min(max_points, max_points + market["delta"])), 1)
+            flags = market.setdefault("flags", [])
+            if flag not in flags:
+                flags.append(flag)
+
+
+def apply_news_scoring(r: ScanResult) -> None:
+    """Apply news-driven bonus/penalty after ``compute_score``.
+
+    ``compute_score`` runs before the news engines populate
+    ``news_sentiment``/``news_card``, so this post-pass adjusts the safety
+    score once the news data exists. The scanner calls it immediately after
+    the news engines, so the final score/level/flags are all consistent
+    before persistence and Telegram rendering.
+
+    Rules:
+      - High media attention (trending > 70) + BEARISH news → additional
+        risk (-5, ``NEWS_BEARISH_HIGH_ATTENTION`` red flag).
+      - High media attention + BULLISH news → reduced risk (+5,
+        ``NEWS_BULLISH_HIGH_ATTENTION`` green flag).
+      - Corroborated news (3+ distinct sources) with on-chain evidence →
+        increased confidence (+5).
+
+    Mutates ``r`` in place; no-op when there is no scanned news data.
+    """
+    ns = r.news_sentiment
+    if not isinstance(ns, dict) or ns.get("result") != "scanned":
+        return
+
+    sentiment = str(ns.get("sentiment") or "NO_DATA").upper()
+    trending = int(ns.get("trending_score", 0) or 0)
+    if trending <= HIGH_MEDIA_ATTENTION_THRESHOLD:
+        return
+
+    if sentiment == "BEARISH":
+        _apply_news_delta(r, -5.0, "NEWS_BEARISH_HIGH_ATTENTION", risk=True)
+    elif sentiment == "BULLISH":
+        _apply_news_delta(r, 5.0, "NEWS_BULLISH_HIGH_ATTENTION", risk=False)
+
+    card = r.news_card
+    if isinstance(card, dict):
+        corr = card.get("corroboration") or {}
+        total_sources = int(corr.get("total_sources", 0) or 0)
+        if total_sources >= 3 and corr.get("on_chain_evidence"):
+            r.confidence = min(100.0, r.confidence + 5)
+
+    r.risk_level = _risk_level_from_score(r.safety_score)
