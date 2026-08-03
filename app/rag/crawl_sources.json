@@ -1,0 +1,9 @@
+{
+	"news": [
+		"https://cointelegraph.com/rss",
+		"https://decrypt.co/feed",
+		"https://www.theblock.co/rss"
+	],
+	"security": ["https://rekt.news/rss", "https://blog.openzeppelin.com/feed"],
+	"research": ["https://a16zcrypto.com/feed", "https://paradigm.xyz/feed"]
+}
