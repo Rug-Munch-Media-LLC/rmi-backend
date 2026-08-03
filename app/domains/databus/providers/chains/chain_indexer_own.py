@@ -451,12 +451,13 @@ async def _chain_indexer_holder_clusters(**kwargs: Any) -> dict[str, Any] | None
 
 
 async def _chain_indexer_cross_chain_entity(**kwargs: Any) -> dict[str, Any] | None:
-    """LOCAL provider — C4 cross-chain entity resolution (v1 stub).
+    """LOCAL provider — C4 cross-chain entity resolution (v2).
 
     Links a wallet to addresses on other chains via ClickHouse evidence:
       1. same deployer (deployer_events) — deploy tx hash evidence
       2. same funder (evm_transfers) — funding tx hash evidence
-    Behavioral fingerprint similarity is a v2 item.
+      3. behavioral fingerprint (evm_transfers + dex_events) — cosine-similarity
+         confirmation of deployer candidates (behavioral_fingerprint engine)
 
     Parameters (from DataBus fetch kwargs):
       address: str — wallet/deployer address on the source chain

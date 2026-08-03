@@ -943,21 +943,26 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
         return None
     try:
         if chain == "solana":
-            return cast("list[tuple[Any, ...]] | None", client.execute(
-                """
-                SELECT token_account AS holder, sum(delta) AS balance
+            return cast(
+                "list[tuple[Any, ...]] | None",
+                client.execute(
+                    """
+                SELECT if(owner != '', owner, token_account) AS holder, sum(delta) AS balance
                 FROM wallet_memory.solana_spl_balance_changes
                 WHERE mint = %(token)s
-                GROUP BY token_account
+                GROUP BY holder
                 HAVING balance > 0
                 ORDER BY balance DESC
                 LIMIT %(limit)s
                 """,
-                {"token": token_address, "limit": limit},
-                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-            ))
-        return cast("list[tuple[Any, ...]] | None", client.execute(
-            """
+                    {"token": token_address, "limit": limit},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                ),
+            )
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
             SELECT addr, balance FROM (
                 SELECT
                     addr,
@@ -982,9 +987,10 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
             ORDER BY balance DESC
             LIMIT %(limit)s
             """,
-            {"token": token_address, "chain": chain, "limit": limit},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        ))
+                {"token": token_address, "chain": chain, "limit": limit},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("funding_top_holders_query_failed: %s", exc)
         return None
@@ -996,8 +1002,10 @@ def _query_first_funders(holders: list[str], chain: str) -> list[tuple[Any, ...]
     if client is None or not holders:
         return None
     try:
-        return cast("list[tuple[Any, ...]] | None", client.execute(
-            """
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
             SELECT
                 to_address AS holder,
                 argMin(from_address, block_timestamp) AS funder,
@@ -1010,9 +1018,10 @@ def _query_first_funders(holders: list[str], chain: str) -> list[tuple[Any, ...]
                                           '0x000000000000000000000000000000000000dead')
             GROUP BY to_address
             """,
-            {"holders": tuple(holders), "chain": chain},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        ))
+                {"holders": tuple(holders), "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("funding_first_funders_query_failed: %s", exc)
         return None
@@ -1024,8 +1033,10 @@ def _query_funder_tx_counts(funders: list[str], chain: str) -> list[tuple[Any, .
     if client is None or not funders:
         return None
     try:
-        return cast("list[tuple[Any, ...]] | None", client.execute(
-            """
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
             SELECT addr, sum(cnt) AS total
             FROM (
                 SELECT from_address AS addr, count() AS cnt
@@ -1040,9 +1051,10 @@ def _query_funder_tx_counts(funders: list[str], chain: str) -> list[tuple[Any, .
             )
             GROUP BY addr
             """,
-            {"funders": tuple(funders), "chain": chain},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        ))
+                {"funders": tuple(funders), "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("funding_funder_tx_counts_failed: %s", exc)
         return None
@@ -1054,8 +1066,10 @@ def _query_wallet_stats(address: str, chain: str) -> list[tuple[Any, ...]] | Non
     if client is None:
         return None
     try:
-        return cast("list[tuple[Any, ...]] | None", client.execute(
-            """
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
             SELECT min(block_timestamp) AS first_seen, count() AS total
             FROM wallet_memory.evm_transfers
             WHERE chain = %(chain)s
@@ -1063,9 +1077,10 @@ def _query_wallet_stats(address: str, chain: str) -> list[tuple[Any, ...]] | Non
               AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000')
               AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
             """,
-            {"addr": address, "chain": chain},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        ))
+                {"addr": address, "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("wallet_stats_query_failed: %s", exc)
         return None
@@ -1077,8 +1092,10 @@ def _query_wallet_first_funder(address: str, chain: str) -> list[tuple[Any, ...]
     if client is None:
         return None
     try:
-        return cast("list[tuple[Any, ...]] | None", client.execute(
-            """
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
             SELECT argMin(from_address, block_timestamp) AS funder
             FROM wallet_memory.evm_transfers
             WHERE chain = %(chain)s
@@ -1086,9 +1103,10 @@ def _query_wallet_first_funder(address: str, chain: str) -> list[tuple[Any, ...]
               AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
                                           '0x000000000000000000000000000000000000dead')
             """,
-            {"addr": address, "chain": chain},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        ))
+                {"addr": address, "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("wallet_first_funder_query_failed: %s", exc)
         return None
@@ -1101,19 +1119,24 @@ def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[
         return None
     try:
         if chain == "solana":
-            return cast("list[tuple[Any, ...]] | None", client.execute(
-                """
-                SELECT DISTINCT token_account AS holder
+            return cast(
+                "list[tuple[Any, ...]] | None",
+                client.execute(
+                    """
+                SELECT DISTINCT if(owner != '', owner, token_account) AS holder
                 FROM wallet_memory.solana_spl_balance_changes
                 WHERE mint = %(token)s
                   AND delta > 0
                 LIMIT %(limit)s
                 """,
-                {"token": token_address, "limit": limit},
-                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-            ))
-        return cast("list[tuple[Any, ...]] | None", client.execute(
-            """
+                    {"token": token_address, "limit": limit},
+                    settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+                ),
+            )
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
             SELECT DISTINCT to_address AS holder
             FROM wallet_memory.evm_transfers
             WHERE token_address = %(token)s
@@ -1121,9 +1144,10 @@ def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[
               AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000')
             LIMIT %(limit)s
             """,
-            {"token": token_address, "chain": chain, "limit": limit},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        ))
+                {"token": token_address, "chain": chain, "limit": limit},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("holder_set_query_failed: %s", exc)
         return None

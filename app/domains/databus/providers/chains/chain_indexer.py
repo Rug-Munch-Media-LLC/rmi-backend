@@ -473,7 +473,7 @@ async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict | None:
         try:
             return client.execute(
                 """
-                SELECT slot, block_timestamp, tx_hash, token_account, mint,
+                SELECT slot, block_timestamp, tx_hash, token_account, mint, owner,
                        pre_amount, post_amount, delta, decimals,
                        token_symbol, token_name
                 FROM wallet_memory.solana_spl_balance_changes
@@ -500,12 +500,13 @@ async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict | None:
                 "tx_hash": row[2],
                 "token_account": row[3],
                 "mint": row[4],
-                "pre_amount": row[5],
-                "post_amount": row[6],
-                "delta": row[7],
-                "decimals": row[8],
-                "token_symbol": row[9],
-                "token_name": row[10],
+                "owner": row[5],
+                "pre_amount": row[6],
+                "post_amount": row[7],
+                "delta": row[8],
+                "decimals": row[9],
+                "token_symbol": row[10],
+                "token_name": row[11],
             }
         )
 
