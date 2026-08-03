@@ -326,6 +326,49 @@ class KnowledgeGraph:
             "total_edges": len(edges),
         }
 
+    # ── Retrieval Integration ─────────────────────────────────────
+
+    async def extract_entities(self, query: str) -> list[dict[str, str]]:
+        """Extract crypto entities (addresses, symbols, chains) from *query*.
+
+        Delegates to the regex-based ``app.entity_extraction`` extractor.
+        Returns a list of ``{"type", "value"}`` dicts — empty when the query
+        contains no entity mentions (callers should skip graph enrichment).
+        """
+        if not query or not query.strip():
+            return []
+        try:
+            from app.entity_extraction import extract_entities as _extract
+
+            extraction = _extract(query)
+            return extraction.all_entities()
+        except Exception as exc:
+            logger.debug("kg_extract_entities_failed error=%s", exc)
+            return []
+
+    async def search_related(
+        self,
+        entities: list[dict[str, str]],
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Expand *entities* through the graph and return related results.
+
+        Reuses the entity-expansion traversal from ``ingestion`` (node
+        lookup + neighbor walk) and returns at most *limit* result dicts in
+        the RAG hit shape (``doc_id``, ``content``, ``score``). Best-effort:
+        returns ``[]`` when the graph is unreachable or nothing matches.
+        """
+        if not entities:
+            return []
+        try:
+            from app.knowledge_graph.ingestion import expand_query_entities
+
+            expanded = await expand_query_entities(self, entities, max_depth=2)
+            return expanded[:limit]
+        except Exception as exc:
+            logger.debug("kg_search_related_failed error=%s", exc)
+            return []
+
     # ── Maintenance ────────────────────────────────────────────────
 
     async def prune_orphaned_edges(self) -> int:

@@ -105,7 +105,7 @@ All 10 engines query ClickHouse directly (the lite indexer). Supporting files in
 | `chains/arkham.py` | Paid | Entity intel, labels, transfers, counterparties, portfolio |
 | `chains/moralis.py` | Paid | EVM wallet/token data |
 | `registry/categories/*.py` | All | Builds every fallback chain by data type (market, security, wallet, intel, social, system) |
-| `local.py` / `mcp_bridge.py` | Local | Wallet Memory Bank, ClickHouse, Redis RAG, MCP bridge |
+| `local.py` / `mcp_bridge.py` | Local | Wallet Memory Bank, ClickHouse, RugBrain (Redis RAG support store), MCP bridge |
 
 ### 5-Tier Free API Fallback Chains (no keys required)
 - **token_security_free**: ClickHouse → GoPlus → Honeypot.is → RugCheck → DexScreener
@@ -116,6 +116,34 @@ Each tier is a verified-live free provider with circuit breaker + rate limiter;
 own-data (LOCAL tier) always wins when `PREFER_OWN_DATA=true`.
 
 All documented in the provider registry — LOCAL FIRST → FREE SECOND → PAID LAST → NEVER WASTE (pool rotation, rate limits, monthly quota tracking).
+
+## RugBrain RAG
+
+> Brand: **RugBrain** — the crypto-native RAG engine. Full architecture in
+> `docs/RAG_ARCHITECTURE.md`; quick start in `docs/RUGBRAIN.md`.
+
+The RAG layer that backs scanner threat-intelligence matching is the RugBrain stack:
+
+- **Embedding + reranking** — Infinity (`infinity-rag:8001`): `BAAI/bge-m3`
+  (1024-dim dense) for embedding, `BAAI/bge-reranker-v2-m3` cross-encoder for
+  two-stage reranking (fail-open)
+- **Vector storage** — Qdrant (`rmi-qdrant:6333`): **18 collections**, **4,354+ points**
+  across security / code / market / news domains
+- **Orchestration** — LangGraph agentic graph (`app/routers/rag_v2.py`) for
+  `/api/v1/rag/v2/ask`: real-time vs historical routing, tool-use (indexer RPC,
+  RugMunchScan rescan, news/RSS fetch), grounded synthesis with citations
+- **News ingestion** — Crawl4AI + pryscraper bridge (3-layer extraction:
+  trafilatura → FlareSolverr → Chromium)
+- **Evaluation** — Ragas metrics on a crypto golden set (faithfulness, answer
+  relevance, context precision/recall) gated in CI on every RugBrain change
+- **Observability** — Phoenix (Arize) tracing via OpenInference
+  (`app/rag/tracing.py`), project `rugmunch-rag`
+- **Support stores** — Redis (`rag:hashes:*` dedup, embed cache, rate limits);
+  Postgres as the source of truth for envelopes (Qdrant is a projection)
+
+API surface: `POST /api/v1/rag/v2/search` · `/ingest` · `/feedback` ·
+`/bulk-ingest`, `GET /api/v1/rag/v2/stats`, `POST /api/v1/rag/v2/ask` (+SSE),
+`GET /api/v1/rag/metrics`.
 
 ## Recent Changes (2026-08-03)
 

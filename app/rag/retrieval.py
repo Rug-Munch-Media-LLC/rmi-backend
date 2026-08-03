@@ -198,6 +198,50 @@ class RelevanceScorer:
 # ── HybridRetriever ──────────────────────────────────────────────────
 
 
+def _merge_with_graph_results(
+    results: list[ScoredHit],
+    graph_results: list[dict[str, Any]],
+) -> list[ScoredHit]:
+    """Merge graph-enriched hits with vector hits using graph-boosted ranking.
+
+    Graph hits come from exact entity matches in the knowledge graph, so
+    they receive a boost that ranks them above weak similarity matches while
+    remaining below strong ones. Results are deduplicated by ``doc_id``
+    (higher score wins) and returned sorted by ``final_score`` descending.
+    """
+    by_doc: dict[str, ScoredHit] = {}
+    for h in results:
+        key = h.doc_id or f"vec:{id(h)}"
+        if key not in by_doc or h.final_score > by_doc[key].final_score:
+            by_doc[key] = h
+
+    for gr in graph_results:
+        content = gr.get("content", "")
+        if not content:
+            continue
+        doc_id = gr.get("doc_id") or gr.get("id") or ""
+        base = float(gr.get("score", 0.5))
+        # Exact entity matches get a boost over weak vector similarity.
+        boosted = min(1.0, base * 1.15 + 0.12)
+        hit = ScoredHit(
+            content=content,
+            score=base,
+            final_score=boosted,
+            metadata={
+                "relation": gr.get("relation", ""),
+                "node_type": gr.get("neighbor_type", ""),
+                "node_id": gr.get("neighbor_id", ""),
+            },
+            collection="graph",
+            doc_id=doc_id,
+        )
+        key = doc_id or f"kg:{len(by_doc)}"
+        if key not in by_doc or boosted > by_doc[key].final_score:
+            by_doc[key] = hit
+
+    return sorted(by_doc.values(), key=lambda s: -s.final_score)
+
+
 class HybridRetriever:
     """Weighted fusion of ANN vector search and BM25-lite keyword search.
 
@@ -273,6 +317,23 @@ class HybridRetriever:
 
             # 3. Re-score and sort
             scored = self._scorer.rescore(raw, query)
+
+            # 3b. Graph-enhanced retrieval (best-effort): if the knowledge
+            # graph is available and the query mentions entities, enrich
+            # vector results with entity-verified neighbors (graph boost).
+            try:
+                from app.knowledge_graph.graph import KnowledgeGraph
+
+                kg = KnowledgeGraph()
+                entities = await kg.extract_entities(query)
+                if entities:
+                    graph_results = await kg.search_related(entities, limit=5)
+                    if graph_results:
+                        scored = _merge_with_graph_results(scored, graph_results)
+                        span.set_attribute("retrieval.graph_results", len(graph_results))
+                        span.set_attribute("retrieval.graph_boosted", True)
+            except Exception as exc:
+                log.debug("graph_enrich_skipped err=%s", exc)
 
             # 4. Optional cross-encoder rerank via Infinity (fail-open)
             if rerank and len(scored) > 1:

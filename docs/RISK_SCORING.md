@@ -132,7 +132,7 @@ a **risk** score (higher = riskier) with bands: `< 25` low, `< 60` moderate,
 
 Every flag is a machine-readable string attached to a scan result
 (`risk_flags` for red, `green_flags` for green). The unified engine emits
-the flags below; consumers (API, RAG, Telegram alerts) treat them as opaque
+the flags below; consumers (API, RugBrain, Telegram alerts) treat them as opaque
 labels.
 
 ### 2.1 Unified composite flags
@@ -368,7 +368,7 @@ confidence means the data available was thin — treat it accordingly.
 | Canonical score + breakdown + evidence | `app/domains/scanner/unified/scoring.py` |
 | Scan orchestration (phases, tier gating) | `app/domains/scanner/unified/scanner.py` |
 | Result model (`ScanResult`) | `app/domains/scanner/unified/model.py` |
-| Persistence / RAG / Redis | `app/domains/scanner/unified/persistence.py` |
+| Persistence / RugBrain RAG / Redis | `app/domains/scanner/unified/persistence.py` |
 | Legacy module-results score | `app/domains/scanner/service/scoring.py` |
 | Legacy risk-flag generation | `app/domains/scanner/service/scan.py` |
 | Security check matrix (42 checks) | `app/databus/token_security.py` |
