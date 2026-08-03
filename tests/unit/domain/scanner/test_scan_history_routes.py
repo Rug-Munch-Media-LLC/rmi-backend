@@ -21,9 +21,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.routers.v1.data import _cache_to_scan, _row_to_scan, fetch_recent_scans
+from app.routers.v1.data import _cache_to_scan, _row_to_scan
 from app.routers.v1.scanner import router as scanner_recent_router
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────
 

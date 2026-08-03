@@ -19,9 +19,11 @@ Phase 5 (RugMunchScan capabilities):
   - holder_clusters.py — C2 BubbleMaps-style holder clustering (evm_transfers + dex_events + wallet_labels)
   - new_token_radar.py — C3 new token discovery + early warning (deployer_events)
   - hype_score.py — C5 composite hype score (dex_events + evm_transfers + trending)
+  - cross_chain_entity.py — C4 cross-chain entity resolution v1 (deployer_events + evm_transfers)
 """
 
 # Public API exports
+from app.domains.scanner.engines.cross_chain_entity import resolve_cross_chain_entity
 from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
 from app.domains.scanner.engines.own_deployer_reputation import get_own_deployer_reputation
 from app.domains.scanner.engines.own_dex_data import check_data_freshness, get_own_dex_data
@@ -49,4 +51,5 @@ __all__ = [
     "get_own_whale_detection",
     # Phase 5 — RugMunchScan capabilities
     "analyze_holder_clusters",
+    "resolve_cross_chain_entity",
 ]

@@ -42,6 +42,11 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 
 logger = get_logger(__name__)
 
@@ -111,13 +116,6 @@ def _get_ch_client() -> Any | None:
         logger.warning("Own bundle detect ClickHouse unavailable: %s", e)
         _ch_client = None
         return None
-
-
-async def _run_sync(fn, *args, **kwargs):
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    import asyncio
-
-    return await asyncio.to_thread(fn, *args, **kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -192,9 +190,9 @@ async def get_own_bundle_analysis(
         import asyncio
 
         # Run all queries in parallel
-        atomic_task = asyncio.create_task(_run_sync(_query_atomic_blocks, token_address, chain))
-        funder_task = asyncio.create_task(_run_sync(_query_common_funders, token_address, chain))
-        holder_task = asyncio.create_task(_run_sync(_query_holder_concentration, token_address, chain))
+        atomic_task = asyncio.create_task(run_sync(_query_atomic_blocks, token_address, chain))
+        funder_task = asyncio.create_task(run_sync(_query_common_funders, token_address, chain))
+        holder_task = asyncio.create_task(run_sync(_query_holder_concentration, token_address, chain))
 
         atomic_blocks, funders, holder_data = await asyncio.gather(atomic_task, funder_task, holder_task)
 
@@ -500,7 +498,6 @@ def _score_common_funders(
 
     # Max funded count
     max_funded = max(f.get("funded_count", 0) for f in funders)
-    total_funded = sum(f.get("funded_count", 0) for f in funders)
 
     # Score based on how many buyers share a funder
     if max_funded >= 10:
@@ -595,13 +592,13 @@ def _cache_bundle(key: str, data: dict[str, Any]) -> None:
 
 
 def get_cache_stats() -> dict[str, Any]:
-    return {
-        "cache_size": len(_BUNDLE_CACHE),
-        "cache_max": _BUNDLE_CACHE_MAX,
-        "cache_ttl_seconds": _BUNDLE_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _BUNDLE_CACHE,
+        _BUNDLE_CACHE_MAX,
+        _BUNDLE_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
-    _BUNDLE_CACHE.clear()
+    _common_clear_cache(_BUNDLE_CACHE)

@@ -461,7 +461,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                         )
                 except Exception:
                     await query.edit_message_text(
-                        f"📰 News feed unavailable.", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
+                        "📰 News feed unavailable.", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main")
                     )
             else:
                 await query.edit_message_text(
@@ -486,7 +486,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                         lines.append(f"  • DataBus: `{metrics.get('databus_pct', 'N/A')}%`")
                         lines.append(f"  • External: `{metrics.get('external_pct', 'N/A')}%`")
                     if "error" not in sufficiency:
-                        lines.append(f"\n*Sufficiency:*")
+                        lines.append("\n*Sufficiency:*")
                         lines.append(
                             f"  • Questions: `{sufficiency.get('own_data_questions', 0)}/{sufficiency.get('total_questions', 0)}`"
                         )
@@ -503,7 +503,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     )
                 except Exception:
                     await query.edit_message_text(
-                        f"🔍 Scanner stats unavailable.",
+                        "🔍 Scanner stats unavailable.",
                         parse_mode=ParseMode.MARKDOWN,
                         reply_markup=back_button("main"),
                     )

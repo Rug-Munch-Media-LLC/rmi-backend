@@ -223,7 +223,6 @@ class TestPumpDumpDetector:
     @pytest.mark.asyncio
     async def test_analyze_token_handles_empty_address(self):
         """analyze_token() handles empty address without crash."""
-        from app.domains.detectors.pump_dump_detector_package.sources import fetch_pairs
 
         from app.domains.detectors.pump_dump_manipulation_detector import PumpDumpDetector
 

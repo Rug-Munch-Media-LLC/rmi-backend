@@ -55,6 +55,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     )
     from ..chains.chain_indexer_own import (
         _chain_indexer_attack_detection,
+        _chain_indexer_cross_chain_entity,
         _chain_indexer_deployer_fingerprint,
         _chain_indexer_deployer_reputation,
         _chain_indexer_holder_age,
@@ -65,7 +66,6 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _chain_indexer_wallet_flow,
         _chain_indexer_whale_detect,
     )
-    from ..chains.price_oracle_provider import token_meta_local, token_price_local
     from ..chains.dexscreener import (
         _dexscreener_holders,
         _dexscreener_price,
@@ -135,6 +135,7 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _moralis_wallet_tokens,
         _moralis_wallet_transactions,
     )
+    from ..chains.price_oracle_provider import token_meta_local, token_price_local
 
     # ── Build chains by category ──
     _builders: list[tuple[str, str]] = [

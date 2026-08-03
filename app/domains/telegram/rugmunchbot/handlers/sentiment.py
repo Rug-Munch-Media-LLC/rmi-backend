@@ -20,7 +20,6 @@ from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     COINGECKO,
-    WEBSITE_URL,
     backend_headers,
     fmt_number,
 )
@@ -177,7 +176,7 @@ async def cmd_sentiment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         sent_arrow = _sentiment_arrow(overview["sentiment"])
 
         lines = [
-            f"\U0001f4c8 <b>Market Sentiment</b>",
+            "\U0001f4c8 <b>Market Sentiment</b>",
             s,
             f"{health_emoji} <b>Market Health:</b> {overview['market_health'].replace('_', ' ').title()}",
             f"{sent_arrow} <b>Sentiment:</b> {overview['sentiment'].title()}",

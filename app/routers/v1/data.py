@@ -123,7 +123,7 @@ async def _fetch_from_db(limit: int, address: str | None) -> list[dict[str, Any]
         if rows:
             logger.info("scan_history_db_hit", count=len(rows), limit=limit)
         return [_row_to_scan(r) for r in rows]
-    except Exception as exc:  # noqa: BLE001 — degrade, don't raise
+    except Exception as exc:
         logger.warning("scan_history_db_miss err=%s", exc)
         return []
 
@@ -155,7 +155,7 @@ async def _fetch_from_redis(limit: int, address: str | None) -> list[dict[str, A
         scans.sort(key=lambda s: s.get("scanned_at") or "", reverse=True)
         logger.info("scan_history_redis_hit", count=len(scans), limit=limit)
         return scans[:limit]
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("scan_history_redis_miss err=%s", exc)
         return []
 
