@@ -12,7 +12,6 @@ from pydantic import BaseModel, ConfigDict, Field
 class EmbeddingProvider(StrEnum):
     """Embedding provider options."""
 
-    OLLAMA_BGE_M3 = "ollama_bge_m3"
     OPENAI = "openai"
     OPENROUTER = "openrouter"
     HUGGINGFACE = "huggingface"

@@ -217,7 +217,6 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     return result
 
 
-
 async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any] | None:
     """v2 UnifiedTokenScanner — explainable multi-dimensional scoring.
 
@@ -244,6 +243,98 @@ async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any
             return data
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("scan_token_v2 failed for %s: %s", address, e)
+        return None
+
+
+async def fetch_hype_score(address: str, chain: str | None = None) -> dict | None:
+    """Fetch the C5 hype score from the backend DataBus ``hype_score`` provider.
+
+    GETs /api/v1/databus/fetch/hype_score and returns the inner ``data``
+    payload::
+
+        {
+            "hype_score": 0-100,
+            "signals": {
+                "social_velocity": {"score", "detail", ...},
+                "volume_growth": {"score", "detail", ...},
+                "holder_growth": {"score", "detail", ...},
+                "price_momentum": {"score", "detail", ...},
+            },
+            "decay_factor": ...,
+            "inactivity_hours": ...,
+        }
+
+    Returns None on any failure so callers can fall back to the local
+    DexScreener-based hype computation.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            params: dict[str, str] = {"address": address}
+            if chain:
+                params["chain"] = chain
+            r = await client.get(
+                f"{BACKEND_URL}/api/v1/databus/fetch/hype_score",
+                params=params,
+                headers=backend_headers(),
+                timeout=20,
+            )
+            if r.status_code != 200:
+                logger.warning("fetch_hype_score status %s for %s", r.status_code, address)
+                return None
+            payload = r.json()
+            data = payload.get("data") or payload
+            if not isinstance(data, dict) or data.get("result") != "scanned":
+                logger.warning("fetch_hype_score non-scanned result for %s", address)
+                return None
+            return data
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("fetch_hype_score failed for %s: %s", address, e)
+        return None
+
+
+async def fetch_deployer_fingerprint(deployer: str, chain: str | None = None) -> dict | None:
+    """Fetch the C7 deployer behavioral fingerprint from the backend DataBus.
+
+    GETs /api/v1/databus/fetch/deployer_fingerprint and returns the inner
+    ``data`` payload::
+
+        {
+            "deployer": "0x...",
+            "risk_bucket": "NEW" | "REPEAT_CLEAN" | "REPEAT_RUG" | "FARM" | "PROLIFIC",
+            "risk_score": 0-100,
+            "total_deployments": int,
+            "success_rate": float,
+            "median_lifespan_hours": float,
+            "funder_profile": {...},
+            "launchpad": "pump.fun" | ...,   # only when factory-resolved
+            "real_deployer": "0x...",        # only when factory-resolved
+        }
+
+    Returns None on any failure so callers can fall back to the token-scan
+    deployer evidence.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            params: dict[str, str] = {"deployer": deployer}
+            if chain:
+                params["chain"] = chain
+            r = await client.get(
+                f"{BACKEND_URL}/api/v1/databus/fetch/deployer_fingerprint",
+                params=params,
+                headers=backend_headers(),
+                timeout=20,
+            )
+            if r.status_code != 200:
+                logger.warning("fetch_deployer_fingerprint status %s for %s", r.status_code, deployer)
+                return None
+            payload = r.json()
+            data = payload.get("data") or payload
+            if not isinstance(data, dict) or data.get("result") != "scanned":
+                logger.warning("fetch_deployer_fingerprint non-scanned result for %s", deployer)
+                return None
+            return data
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("fetch_deployer_fingerprint failed for %s: %s", deployer, e)
         return None
 
 
@@ -289,6 +380,8 @@ def v2_token_to_legacy(data: dict) -> dict[str, Any]:
     checks = security.get("checks") or {}
     dev = evidence.get("deployer") or {}
     mkt = evidence.get("market") or {}
+    funding = evidence.get("funding_analysis") or {}
+    overlap = evidence.get("holder_overlap") or {}
     risks = list(data.get("risk_flags") or [])
     green = list(data.get("green_flags") or [])
     safety = float(data.get("safety_score") or 0)
@@ -337,6 +430,10 @@ def v2_token_to_legacy(data: dict) -> dict[str, Any]:
         "breakdown": data.get("breakdown"),
         "evidence": evidence,
         "modules_run": list(data.get("modules_run") or []),
+        # v2 funding analysis (exchange-funded / fresh wallets / scam overlap)
+        "exchange_funded_pct": float(funding.get("exchange_funded_pct") or 0),
+        "fresh_wallet_pct": float(funding.get("fresh_wallet_pct") or 0),
+        "holder_overlap_pct": float(overlap.get("max_overlap_pct") or 0),
     }
 
 
@@ -375,7 +472,14 @@ def v2_wallet_to_legacy(data: dict) -> dict:
         "behavior_patterns": list(data.get("behavior_patterns") or []),
         "risk_forecast": data.get("risk_forecast") or "",
         "modules_run": list(data.get("modules_run") or []),
+        # v2 funding analysis — the wallet's exposure to scams IS its
+        # holder-overlap-with-known-scams metric. Exchange/fresh percentages
+        # are carried through defensively when the backend provides them.
+        "exchange_funded_pct": data.get("exchange_funded_pct"),
+        "fresh_wallet_pct": data.get("fresh_wallet_pct"),
+        "holder_overlap_pct": float(data.get("scam_exposure_pct") or 0),
     }
+
 
 async def analyze_wallet(address: str, chain: str | None = None) -> dict:
     result = {
@@ -396,6 +500,10 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
         "connected_wallets": [],
         "pnl_estimate": None,
         "errors": [],
+        # funding analysis metrics (populated by v2 scanner when available)
+        "exchange_funded_pct": None,
+        "fresh_wallet_pct": None,
+        "holder_overlap_pct": None,
     }
     async with httpx.AsyncClient(timeout=15) as client:
         try:

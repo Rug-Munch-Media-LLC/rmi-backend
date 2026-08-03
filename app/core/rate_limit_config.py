@@ -53,7 +53,6 @@ PATH_CATEGORIES: dict[str, str] = {
     "/api/v1/wallet-clusters": "scan",
     "/api/v1/ai": "ai",
     "/api/v1/chat": "ai",
-    "/api/v1/rag": "ai",
     "/api/v1/market": "market",
     "/api/v1/news": "market",
     "/api/v1/bulletin": "market",

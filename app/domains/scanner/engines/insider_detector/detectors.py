@@ -279,7 +279,10 @@ async def _detect_pumpfun_graduation(
                 event_at=graduated_at,
                 lead_time_minutes=lead_time,
                 pnl_estimate=pnl,
-                evidence=f"Bought {total_bought:+.0f} USDT on pump.fun {lead_time:.0f}min before Raydium graduation, estimated ${pnl:,.0f} profit at peak",
+                evidence=(
+                    f"Bought {total_bought:+.0f} USDT on pump.fun {lead_time:.0f}min before "
+                    f"Raydium graduation, estimated ${pnl:,.0f} profit at peak"
+                ),
                 confidence=confidence,
             )
         )

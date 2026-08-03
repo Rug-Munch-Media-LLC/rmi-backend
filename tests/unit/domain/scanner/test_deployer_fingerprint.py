@@ -398,8 +398,13 @@ class TestLaunchpadFactoryResolution:
     async def test_factory_resolves_to_real_creator_before_fingerprint(self) -> None:
         """The fingerprint is computed on the resolved creator, not the factory."""
         fake = FakeCHClient(
-            stats=_stats_row(2, _naive_dt(days=30)),
-            tokens=[_token_row("0xcccccccccccccccccccccccccccccccccccccccc", _naive_dt(days=20))],
+            stats=_stats_row(2, _naive_dt(days_ago=30)),
+            tokens=[_token_row("0xcccccccccccccccccccccccccccccccccccccccc", _naive_dt(days_ago=20))],
+            dex=[
+                _dex_row(
+                    "0xcccccccccccccccccccccccccccccccccccccccc", _naive_dt(days_ago=19), _naive_dt(days_ago=5)
+                ),  # survived 7+ days
+            ],
         )
         resolved = {
             "real_deployer": self._REAL_CREATOR,

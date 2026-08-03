@@ -154,7 +154,6 @@ def _price_diff_pct(p1: float, p2: float) -> str:
     return f"{cheaper} {abs_diff:.2f}% cheaper"
 
 
-
 # --- Explainable scoring breakdown ---
 DIMENSION_LABELS = {
     "security": "\U0001f512 Contract Security",
@@ -195,6 +194,37 @@ def format_scoring_breakdown(breakdown: dict) -> str:
     return "\n".join(lines)
 
 
+def format_funding_analysis(r: dict) -> str:
+    """Render the funding analysis block (exchange-funded / fresh / scam overlap).
+
+    Reads the convenience keys populated by the scanner layer:
+    ``exchange_funded_pct``, ``fresh_wallet_pct``, ``holder_overlap_pct``.
+    Missing values render as N/A so the section is stable across v1/v2.
+    """
+    exchange = r.get("exchange_funded_pct")
+    fresh = r.get("fresh_wallet_pct")
+    overlap = r.get("holder_overlap_pct")
+    if exchange is None and fresh is None and overlap is None:
+        return ""
+    lines = ["", "\U0001f4b8 <b>Funding Analysis</b>", thin_sep()]
+    if exchange is not None:
+        emoji = "\U0001f534" if exchange > 50 else "\U0001f7e1" if exchange > 30 else "\U0001f7e2"
+        lines.append(f"{emoji} Exchange-Funded: <b>{exchange:.0f}%</b>")
+    else:
+        lines.append("\U0001f7e0 Exchange-Funded: <b>N/A</b>")
+    if fresh is not None:
+        emoji = "\U0001f534" if fresh > 40 else "\U0001f7e1" if fresh > 20 else "\U0001f7e2"
+        lines.append(f"{emoji} Fresh Wallets: <b>{fresh:.0f}%</b>")
+    else:
+        lines.append("\U0001f7e0 Fresh Wallets: <b>N/A</b>")
+    if overlap is not None:
+        emoji = "\U0001f534" if overlap > 30 else "\U0001f7e1" if overlap > 10 else "\U0001f7e2"
+        lines.append(f"{emoji} Holder Overlap w/ Scams: <b>{overlap:.0f}%</b>")
+    else:
+        lines.append("\U0001f7e0 Holder Overlap w/ Scams: <b>N/A</b>")
+    return "\n".join(lines)
+
+
 # --- Format scan report ---
 def format_scan_report(r: dict) -> str:
     s = sep()
@@ -231,12 +261,15 @@ def format_scan_report(r: dict) -> str:
         d,
         risk_bar(r["risk_score"]),
     ]
-    if r["threats"]:
-        lines.append("")
-        for t in r["threats"]:
-            lines.append(f"  \U0001f534 {t}")
-    else:
-        lines.append("  \u2705 No threats detected")
+    if r.get("safety_score") is None:
+        # Legacy scan: threats are listed here. v2 scans surface them as
+        # "Red Flags" in the Explainable Scoring block below.
+        if r["threats"]:
+            lines.append("")
+            for t in r["threats"]:
+                lines.append(f"  \U0001f534 {t}")
+        else:
+            lines.append("  \u2705 No threats detected")
     cl = []
     if r["honeypot"] is not None:
         cl.append(threat_indicator("Honeypot", r["honeypot"]))
@@ -285,7 +318,7 @@ def format_scan_report(r: dict) -> str:
                 soc_parts.append(f'<a href="{surl}">\U0001f310</a>')
         if soc_parts:
             lines.extend(["", f"\U0001f517 Socials: {' | '.join(soc_parts)}"])
-    # v2 explainable scoring: safety/confidence/risk-level + green flags
+    # v2 explainable scoring: safety/confidence/risk-level + green/red flags
     v2 = []
     if r.get("safety_score") is not None:
         emoji = "\U0001f7e2" if r["safety_score"] >= 80 else "\U0001f7e1" if r["safety_score"] >= 40 else "\U0001f534"
@@ -297,6 +330,9 @@ def format_scan_report(r: dict) -> str:
     if r.get("green_flags"):
         gfs = ", ".join(str(g) for g in r["green_flags"][:5])
         v2.append(f"\U0001f7e2 Green Flags: {gfs}")
+    if r.get("safety_score") is not None and r.get("threats"):
+        rfs = ", ".join(str(t) for t in r["threats"][:6])
+        v2.append(f"\U0001f534 Red Flags: {rfs}")
     if v2:
         lines.extend(["", "\U0001f9e9 <b>Explainable Scoring</b>", d])
         lines.extend(v2)
@@ -393,7 +429,13 @@ def format_wallet_report(r: dict) -> str:
         conf = f" ({r.get('persona_confidence', 0)}% conf)" if r.get("persona_confidence") else ""
         v2_lines.append(f"\U0001f9d0 Persona: {r['persona']}{conf}")
     if r.get("scam_exposure_pct"):
-        emoji = "\U0001f534" if r["scam_exposure_pct"] > 20 else "\U0001f7e1" if r["scam_exposure_pct"] > 5 else "\U0001f7e2"
+        emoji = (
+            "\U0001f534"
+            if r["scam_exposure_pct"] > 20
+            else "\U0001f7e1"
+            if r["scam_exposure_pct"] > 5
+            else "\U0001f7e2"
+        )
         v2_lines.append(
             f"{emoji} Scam Exposure: <b>{r['scam_exposure_pct']:.0f}%</b> "
             f"({r.get('scam_tokens_held', 0)} scam token(s) held)"
@@ -409,6 +451,10 @@ def format_wallet_report(r: dict) -> str:
     if v2_lines:
         lines.extend(["", "\U0001f9e9 <b>v2 Wallet Intel</b>", d])
         lines.extend(v2_lines)
+
+    funding_text = format_funding_analysis(r)
+    if funding_text:
+        lines.append(funding_text)
 
     lines.append(footer_links())
     return "\n".join(lines)

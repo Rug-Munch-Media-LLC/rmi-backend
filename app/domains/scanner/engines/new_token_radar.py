@@ -242,43 +242,57 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
     evidence: list[dict[str, Any]] = []
 
     try:
-        # ── Launchpad factory resolution (before deployer scoring) ──
+        # ── Launchpad / universal deployer resolution (before scoring) ──
         # If the deployer is a known launchpad factory, trace back to the real
-        # creator EOA. Resolution uses the deploy tx we already hold when
-        # available (the radar query returns tx_hash).
+        # creator EOA. For non-factory deployers, the UNIVERSAL resolver still
+        # runs: it uses the indexer-resolved deployer_eoa or the creation tx
+        # sender structurally (works for ANY platform/chain) and NEVER returns
+        # None, so scans get the best available deployer.
         launchpad: str | None = None
         real_deployer: str | None = None
         try:
             from app.domains.scanner.engines.launchpad_resolver import (
                 lookup_launchpad,
-                resolve_launchpad_deployer,
+                resolve_deployer_universal,
             )
 
             launchpad = lookup_launchpad(chain, deployer)
-            if launchpad is not None:
-                resolved = await asyncio.wait_for(
-                    resolve_launchpad_deployer(
-                        token_address,
-                        chain,
-                        deployer,
-                        deploy_tx=deployment.get("tx_hash"),
-                    ),
-                    timeout=6.0,
-                )
-                if resolved and resolved.get("real_deployer"):
-                    real_deployer = str(resolved["real_deployer"])
-                    signals["launchpad_deployer"] = real_deployer
-                    signals["launchpad_confidence"] = resolved.get("confidence")
-                    evidence.append(
-                        {
-                            "kind": "launchpad_resolution",
-                            "launchpad": launchpad,
-                            "factory": deployer,
-                            "real_deployer": real_deployer,
-                            "evidence_tx": resolved.get("evidence_tx"),
-                            "confidence": resolved.get("confidence"),
-                        }
+            resolved = await asyncio.wait_for(
+                resolve_deployer_universal(
+                    token_address,
+                    chain,
+                    deployer,
+                    deploy_tx=deployment.get("tx_hash"),
+                ),
+                timeout=6.0,
+            )
+            improved = bool(
+                resolved
+                and resolved.get("real_deployer")
+                and (
+                    resolved.get("resolved")
+                    or (
+                        resolved.get("real_deployer")
+                        and str(resolved["real_deployer"]).lower() != str(deployer).lower()
                     )
+                )
+            )
+            if resolved and resolved.get("real_deployer") and (launchpad is not None or improved):
+                real_deployer = str(resolved["real_deployer"])
+                signals["launchpad_deployer"] = real_deployer
+                signals["launchpad_confidence"] = resolved.get("confidence")
+                signals["deployer_resolve_method"] = resolved.get("method")
+                evidence.append(
+                    {
+                        "kind": "launchpad_resolution",
+                        "launchpad": launchpad,
+                        "factory": deployer,
+                        "real_deployer": real_deployer,
+                        "evidence_tx": resolved.get("evidence_tx"),
+                        "confidence": resolved.get("confidence"),
+                        "method": resolved.get("method"),
+                    }
+                )
         except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
             logger.debug("radar_launchpad_resolve_failed %s: %s", token_address[:16], exc)
 

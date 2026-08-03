@@ -15,7 +15,7 @@ _INGESTION_COUNTER_KEY = "rag:rate:ingestions"
 class RateLimiter:
     """Token-bucket rate limiter using Redis.
 
-    Prevents the embedding backend (Ollama / OpenRouter) from being
+    Prevents the embedding backend (Infinity / OpenRouter) from being
     overwhelmed during bulk backfills.  Tracks ingestions per minute.
     """
 

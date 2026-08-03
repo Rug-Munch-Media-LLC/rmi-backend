@@ -165,7 +165,8 @@ The `token_security` DataBus chain runs 42 checks (`SECURITY_CHECKS` in
 `app/databus/token_security.py`). In the unified engine each **fail** is −5,
 each **pass** +2; the check id becomes the flag. The underlying
 `TokenSecurityScorer` additionally computes a weighted 0–100 "Authentic
-Score" with auto-fail checks (CR01, CR03, CR05) forcing ≥ 85.
+Score" with 8 auto-fail checks (CR01, CR03, CR05, HP01, HP02, LR01, RP01,
+RP02) forcing ≥ 85.
 
 | ID | Check | Category | Auto-fail | Meaning |
 |---|---|---|---|---|
@@ -176,12 +177,12 @@ Score" with auto-fail checks (CR01, CR03, CR05) forcing ≥ 85.
 | `CR05` | Self-Destruct | contract_risks | ✅ | Contract contains `SELFDESTRUCT`. |
 | `CR06` | External Call Risk | contract_risks | | Contract makes risky external calls. |
 | `CR07` | Delegatecall Risk | contract_risks | | Contract uses `DELEGATECALL`. |
-| `HP01` | Honeypot (GoPlus) | honeypot | | GoPlus reports the token cannot be sold. |
-| `HP02` | Honeypot (Honeypot.is) | honeypot | | Honeypot.is simulation failed. |
+| `HP01` | Honeypot (GoPlus) | honeypot | ✅ | GoPlus reports the token cannot be sold. |
+| `HP02` | Honeypot (Honeypot.is) | honeypot | ✅ | Honeypot.is simulation failed. |
 | `HP03` | Sell Tax Anomaly | honeypot | | Sell tax > 10% (fail > 50%). |
 | `HP04` | Transfer Pausability | honeypot | | Transfers can be paused. |
 | `HP05` | Max Transaction Limit | honeypot | | Max transfer amount cap. |
-| `LR01` | Liquidity Locked | liquidity | | LP tokens are locked. |
+| `LR01` | Liquidity Locked | liquidity | ✅ | LP tokens are locked. |
 | `LR02` | Liquidity Amount | liquidity | | Pool has meaningful liquidity. |
 | `LR03` | LP Holder Concentration | liquidity | | A few wallets control most LP. |
 | `LR04` | Liquidity/Supply Ratio | liquidity | | Liquidity is small relative to supply. |
@@ -206,8 +207,8 @@ Score" with auto-fail checks (CR01, CR03, CR05) forcing ≥ 85.
 | `TE03` | Transfer Fee | taxes | | Fee on every transfer. |
 | `TE04` | Blacklist Function | taxes | | Contract can blacklist addresses. |
 | `TE05` | Max Wallet Cap | taxes | | Wallet balance cap. |
-| `RP01` | Rug Pull — Known Pattern | rug | | Matches a known rug pattern. |
-| `RP02` | Liquidity Removal | rug | | History of removing liquidity. |
+| `RP01` | Rug Pull — Known Pattern | rug | ✅ | Matches a known rug pattern. |
+| `RP02` | Liquidity Removal | rug | ✅ | History of removing liquidity. |
 | `RP03` | Price Crash | rug | | Historical price crash pattern. |
 | `RP04` | Duplicate Token | rug | | Copy of an existing token. |
 | `RP05` | Age Risk | rug | | Token is very young. |
@@ -315,7 +316,7 @@ concentrated holders, repeat-rug deployer and fake volume:
   "score": 0.0,
   "risk_level": "critical",
   "breakdown": {
-    "security":  {"score": 0.0, "max": 35, "delta": -38.0, "flags": ["HP01", "CR01", "CR03", "TA01", "RUG_PATTERN_MATCH:2"]},
+    "security":  {"score": 0.0, "max": 35, "delta": -40.0, "flags": ["HP01", "CR01", "CR03", "TA01", "RUG_PATTERN_MATCH:2"]},
     "liquidity": {"score": 5.0, "max": 25, "delta": -20.0, "flags": ["LP_LOCK_LOW"]},
     "holders":   {"score": 0.0, "max": 15, "delta": -25.0, "flags": ["HOLDER_CONCENTRATION_HIGH", "HOLDER_GINI_HIGH"]},
     "deployer":  {"score": 0.0, "max": 15, "delta": -25.0, "flags": ["DEV_HIGH_RISK"]},
@@ -323,7 +324,7 @@ concentrated holders, repeat-rug deployer and fake volume:
   },
   "evidence": {
     "security": {
-      "checks": {"HP01": {"status": "fail", "details": "GoPlus honeypot=YES"}, "CR01": {"status": "fail", "details": "Verified=NO"}, "CR03": {"status": "fail", "details": "Mintable=YES"}},
+      "checks": {"HP01": {"status": "fail", "details": "GoPlus honeypot=YES"}, "CR01": {"status": "fail", "details": "Verified=NO"}, "CR03": {"status": "fail", "details": "Mintable=YES"}, "TA01": {"status": "fail", "details": "Wash trading detected"}},
       "score": 92.5,
       "band": "DANGER",
       "rug_patterns": {"match_count": 2, "patterns": ["RP01 Rug Pull - Known Pattern", "RP02 Liquidity Removal"]}
@@ -338,10 +339,10 @@ concentrated holders, repeat-rug deployer and fake volume:
 ```
 
 **Reading it:** 4 failed security checks (−20) + 2 rug-pattern matches (−20)
-→ security −38; unlocked LP → liquidity −20; 92% top-10 + gini 0.91 → holders
+→ security −40; unlocked LP → liquidity −20; 92% top-10 + gini 0.91 → holders
 −25; deployer risk 88 → deployer −25; fake volume 81% (−20) + chain-indexer
 bundler finding risk 30 (−30) + bundle-detect premium (−10) + wash-trade
-premium (−10) → market −70. Total `50 − 178` clamps to **0** → `critical`.
+premium (−10) → market −70. Total `50 − 180` clamps to **0** → `critical`.
 
 ### How to trace any score
 

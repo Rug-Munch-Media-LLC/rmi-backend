@@ -52,6 +52,8 @@ from app.domains.telegram.rugmunchbot.keyboards import (
 from app.domains.telegram.rugmunchbot.scanner import (
     analyze_wallet,
     analyze_wallet_v2,
+    fetch_deployer_fingerprint,
+    fetch_hype_score,
     scan_token,
     scan_token_v2,
     v2_token_to_legacy,
@@ -137,8 +139,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"{s}\n\n"
         f"\U0001f50d <b>TOKEN ANALYSIS</b>\n{d}\n"
         f"/scan <code>address</code> - Full security scan + scoring breakdown\n"
-f"/deployer <code>address</code> - Deployer fingerprint check\n"
-f"/hype <code>address_or_symbol</code> - Quick 0-100 hype score\n"
+        f"/deployer <code>address</code> - Deployer fingerprint check\n"
+        f"/hype <code>address_or_symbol</code> - Quick 0-100 hype score\n"
         f"/ta <code>address</code> - Technical analysis & signals\n"
         f"/chart <code>address</code> - Price chart & trends\n"
         f"/simulate <code>address</code> [amount] - Buy/sell simulation\n"
@@ -537,6 +539,19 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 # ── /deployer — quick deployer fingerprint check ──
 
 
+_DEPLOYER_BUCKET_EMOJI = {
+    "NEW": "\U0001f195",  # 🆕
+    "REPEAT_CLEAN": "\U0001f7e2",  # 🟢
+    "REPEAT_RUG": "\U0001f534",  # 🔴
+    "FARM": "\U0001f331",  # 🌱
+    "PROLIFIC": "\U0001f4b0",  # 💰
+}
+
+
+def _bucket_emoji(bucket: str) -> str:
+    return _DEPLOYER_BUCKET_EMOJI.get(bucket.upper(), "\U0001f3f7\ufe0f")
+
+
 async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Quick deployer fingerprint: run a v2 scan and surface dev reputation."""
     user = update.effective_user
@@ -562,8 +577,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     target = ctx.args[0]
     chain = ctx.args[1] if len(ctx.args) > 1 else None
     msg = await update.message.reply_text(
-        "\U0001f468\u200d\U0001f4bb <b>Checking deployer fingerprint...</b>\n"
-        f"<code>{short_addr(target)}</code>",
+        f"\U0001f468\u200d\U0001f4bb <b>Checking deployer fingerprint...</b>\n<code>{short_addr(target)}</code>",
         parse_mode=ParseMode.HTML,
     )
     try:
@@ -591,21 +605,44 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         risk_score = dev.get("risk_score")
         risk_label = dev.get("risk_label") or dev.get("reputation_label") or "UNKNOWN"
         dev_addr = dev.get("deployer_address") or dev.get("address") or "unknown"
+        chain_norm = chain or detect_chain(target)
+
+        # Enrich with the C7 deployer behavioral fingerprint (risk bucket,
+        # success rate, launchpad) when the backend can compute it.
+        fingerprint = await fetch_deployer_fingerprint(dev_addr, chain_norm)
+        fp = fingerprint or {}
+
+        risk_bucket = fp.get("risk_bucket") or risk_label
+        total_deployments = fp.get("total_deployments")
+        if total_deployments is None:
+            total_deployments = dev.get("total_deployments") or dev.get("deployment_count")
+        success_rate = fp.get("success_rate")
+        launchpad = fp.get("launchpad")
         lines = [
             "\U0001f468\u200d\U0001f4bb <b>Deployer Fingerprint</b>",
             sep(),
             f"<code>{short_addr(dev_addr)}</code>\n",
-            "\U0001f3af <b>Reputation</b>",
+            "\U0001f3af <b>Risk Profile</b>",
             thin_sep(),
         ]
-        if risk_score is not None:
-            emoji = "\U0001f7e2" if risk_score < 30 else "\U0001f7e1" if risk_score < 60 else "\U0001f534"
-            lines.append(f"{emoji} Dev Risk Score: <b>{risk_score}/100</b>")
-        lines.append(f"\U0001f3f7\ufe0f Label: <b>{risk_label}</b>")
+        dev_risk = fp.get("risk_score")
+        if dev_risk is None:
+            dev_risk = risk_score
+        if dev_risk is not None:
+            emoji = "\U0001f7e2" if dev_risk < 30 else "\U0001f7e1" if dev_risk < 60 else "\U0001f534"
+            lines.append(f"{emoji} Dev Risk Score: <b>{dev_risk}/100</b>")
+        if risk_bucket:
+            lines.append(f"{_bucket_emoji(str(risk_bucket))} Risk Bucket: <b>{risk_bucket}</b>")
+        if total_deployments is not None:
+            lines.append(f"\U0001f4e6 Total Deployments: <b>{total_deployments}</b>")
+        if success_rate is not None:
+            lines.append(f"\U0001f4c8 Success Rate: <b>{success_rate * 100:.0f}%</b>")
+        if launchpad:
+            lines.append(f"\U0001f680 Known Launchpad: <b>{launchpad}</b>")
         if dev.get("rug_count") is not None:
             lines.append(f"\U0001f4a5 Rug Count: <b>{dev['rug_count']}</b>")
-        if dev.get("total_deployments") is not None:
-            lines.append(f"\U0001f4e6 Total Deployments: <b>{dev['total_deployments']}</b>")
+        if fp.get("median_lifespan_hours") is not None:
+            lines.append(f"\u231b Median Lifespan: <b>{fp['median_lifespan_hours']:.0f}h</b>")
         if evidence.get("holders"):
             h = evidence["holders"]
             lines.append(
@@ -622,10 +659,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             fails = sum(1 for c in checks.values() if c.get("status") == "fail")
             lines.append(f"\U0001f512 Failed Security Checks: <b>{fails}</b>")
         lines.append("")
-        lines.append(
-            f"\U0001f50d Full scan: /scan <code>{target}</code>"
-            f"{footer_links()}"
-        )
+        lines.append(f"\U0001f50d Full scan: /scan <code>{target}</code>{footer_links()}")
         db.increment_usage(user.id, scan=True)
         await msg.edit_text(
             "\n".join(lines),
@@ -728,7 +762,60 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 except (OSError, ValueError, TypeError):
                     pass
 
-        # ── Hype scoring ──
+        # ── C5 hype score from backend (preferred) ──
+        # Composite 0-100 with per-signal breakdown: social velocity, volume
+        # growth, holder growth, price momentum. Falls back to the local
+        # DexScreener computation below when unavailable.
+        c5 = await fetch_hype_score(address, chain)
+        if c5 is not None and c5.get("hype_score") is not None:
+            hype = float(c5["hype_score"])
+            signals = c5.get("signals") or {}
+            social = signals.get("social_velocity") or {}
+            volume = signals.get("volume_growth") or {}
+            holder = signals.get("holder_growth") or {}
+            price_sig = signals.get("price_momentum") or {}
+            emoji = "\U0001f525" if hype >= 70 else "\U0001f7e1" if hype >= 40 else "\U0001f7e2"
+            lines = [
+                f"{emoji} <b>Hype Score: {hype:.0f}/100</b>",
+                sep(),
+                f"<b>{name}</b> ({symbol}) {fmt_chain(chain)}",
+                f"<code>{address}</code>\n",
+                "\U0001f4ca <b>Components</b>",
+                thin_sep(),
+                f"\U0001f4e2 Social Velocity: <b>{float(social.get('score', 0) or 0):.0f}/100</b>",
+                f"\U0001f4c8 Volume Growth: <b>{float(volume.get('score', 0) or 0):.0f}/100</b>",
+                f"\U0001f465 Holder Growth: <b>{float(holder.get('score', 0) or 0):.0f}/100</b>",
+                f"\U0001f680 Price Momentum: <b>{float(price_sig.get('score', 0) or 0):.0f}/100</b>",
+            ]
+            if c5.get("inactivity_hours") is not None:
+                lines.append(f"\u23f3 Inactivity: {c5['inactivity_hours']:.0f}h (decay x{c5.get('decay_factor', 1.0)})")
+            details = []
+            for sig in (social, volume, holder, price_sig):
+                if isinstance(sig, dict) and sig.get("detail"):
+                    details.append(str(sig["detail"])[:60])
+            if details:
+                lines.append("")
+                lines.append("\U0001f4cb <i>" + " | ".join(details[:4]) + "</i>")
+            lines.append("")
+            lines.append(f"\U0001f4b0 Price: {fmt_number(price)}")
+            lines.append("")
+            lines.append(f"\U0001f50d Full scan: /scan <code>{address}</code>{footer_links()}")
+            kb = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("\U0001f50d Full Scan", callback_data=f"scan_{address}_{chain}")],
+                    [web_scan_button(address, chain)],
+                ]
+            )
+            db.increment_usage(user.id, scan=True)
+            await msg.edit_text(
+                "\n".join(lines),
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+                disable_web_page_preview=True,
+            )
+            return
+
+        # ── Hype scoring (local fallback) ──
         boost_score = min(boosts * 8, 40)  # 0-40 from boost count
         vol_score = 0
         if vol24 > 0:

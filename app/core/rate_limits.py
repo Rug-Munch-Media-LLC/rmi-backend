@@ -154,7 +154,6 @@ PATH_CATEGORIES: dict[str, str] = {
     # AI / chat
     "/api/v1/ai": "ai",
     "/api/v1/chat": "ai",
-    "/api/v1/rag": "ai",
     # Market / news
     "/api/v1/market": "market",
     "/api/v1/news": "market",

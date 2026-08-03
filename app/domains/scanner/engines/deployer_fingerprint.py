@@ -193,6 +193,13 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
     # ── 0. Launchpad factory → real deployer resolution ──
     # Only Solana base58 addresses are case-sensitive; EVM deployers are
     # lowercased above and compared against the (lowercased) registry keys.
+    #
+    # Universal detection (no factory list required): besides known registry
+    # launchpads, ANY deployer that the lite indexer already resolved to a
+    # different EOA (deployer_eoa column populated from tx `from` at ingest
+    # time) is treated as a factory/contract and traced to the real creator.
+    # This catches every launchpad/factory the indexer has ever seen, even
+    # when it is not in ``LAUNCHPAD_FACTORIES``.
     launchpad_ctx: dict[str, Any] | None = None
     if _is_known_launchpad_factory(deployer_address, chain_norm):
         launchpad_ctx = await _resolve_launchpad_context(deployer_address, chain_norm)
@@ -208,6 +215,15 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
             result["launchpad_resolved"] = False
             return result
         deployer_address = launchpad_ctx["real_deployer"]
+    else:
+        # Structural: indexer-resolved EOA (any factory/contract, registry
+        # or not). Only claim a resolution when the EOA differs from the
+        # recorded deployer — an EOA deployer with matching eoa is the
+        # deployer itself and needs no rewriting.
+        structurally_resolved = await _resolve_structural_eoa(deployer_address, chain_norm)
+        if structurally_resolved is not None:
+            launchpad_ctx = structurally_resolved
+            deployer_address = launchpad_ctx["real_deployer"]
 
     # ── 1. Redis fast cache (1h TTL) ──
     cache_key = f"{REDIS_CACHE_PREFIX}:{chain_norm or 'any'}:{deployer_address}"
@@ -237,7 +253,10 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
         result["evidence_tx"] = launchpad_ctx.get("evidence_tx")
         result["launchpad_confidence"] = launchpad_ctx.get("confidence")
         result["deployer"] = deployer_address  # fingerprint is of the real creator
-        result["note"] = "fingerprint computed for real deployer resolved from launchpad factory"
+        if launchpad_ctx.get("method") == "deployer_eoa":
+            result["note"] = "fingerprint computed for real deployer resolved from deployer_events deployer_eoa"
+        else:
+            result["note"] = "fingerprint computed for real deployer resolved from launchpad factory"
 
     # Only cache meaningful results (skip unavailable/error)
     if result.get("result") == "scanned":
@@ -285,6 +304,38 @@ async def _resolve_launchpad_context(deployer_address: str, chain_norm: str) -> 
         return await resolve_launchpad_deployer("", chain_norm, deployer_address, deploy_tx=deploy_tx)
     except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("deployer_fingerprint_launchpad_resolve_failed: %s", exc)
+        return None
+
+
+async def _resolve_structural_eoa(deployer_address: str, chain_norm: str) -> dict[str, Any] | None:
+    """Structurally resolve a factory/contract deployer to its real creator EOA.
+
+    No registry required: if the lite indexer already resolved ``deployer_eoa``
+    for any event under this deployer (``tx.from`` of the creation tx at ingest
+    time), that EOA is the real creator. Returns a launchpad-style context dict
+    or ``None`` when the deployer is a plain EOA (its eoa equals itself) or the
+    indexer has no data for it.
+    """
+    try:
+        from app.domains.scanner.engines.launchpad_resolver import (
+            _has_resolved_deployer_eoa,
+            _query_deployer_eoa_by_deployer,
+        )
+
+        if not await run_sync(_has_resolved_deployer_eoa, deployer_address, chain_norm):
+            return None
+        eoa = await run_sync(_query_deployer_eoa_by_deployer, deployer_address, chain_norm)
+        if not eoa or eoa.lower() == deployer_address.lower():
+            return None
+        return {
+            "real_deployer": eoa.lower(),
+            "launchpad": None,
+            "confidence": 1.0,
+            "evidence_tx": None,
+            "method": "deployer_eoa",
+        }
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
+        logger.debug("deployer_fingerprint_structural_resolve_failed: %s", exc)
         return None
 
 

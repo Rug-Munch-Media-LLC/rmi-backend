@@ -1,6 +1,6 @@
 """Infinity cross-encoder reranking for the RAG pipeline.
 
-Reranks retrieved candidates with Infinity's ``/v1/rerank`` endpoint
+Reranks retrieved candidates with Infinity's ``/rerank`` endpoint
 (model ``BAAI/bge-reranker-v2-m3``) before they are handed to the LLM.
 
 Fail-open: if Infinity is unreachable, callers keep the pre-rerank order
@@ -40,7 +40,7 @@ async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> li
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{settings.infinity_url.rstrip('/')}/v1/rerank",
+                f"{settings.infinity_url.rstrip('/')}/rerank",
                 json={
                     "model": INFINITY_RERANK_MODEL,
                     "query": query,

@@ -1,4 +1,4 @@
-"""Embedding providers: Local BGE, Ollama bge-m3, OpenRouter, HuggingFace."""
+"""Embedding providers: Local BGE, Infinity bge-m3, OpenRouter, HuggingFace."""
 
 from __future__ import annotations
 
@@ -44,32 +44,34 @@ class LocalBGEEmbedder:
         return results[0]
 
 
-class OllamaBGEEmbedder:
-    """Our own bge-m3 via Ollama. 1024d, zero cost."""
+class InfinityBGEEmbedder:
+    """BAAI/bge-m3 via the Infinity server (OpenAI-compatible /embeddings). 1024d, zero cost."""
 
-    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://172.19.0.1:11434")
-    MODEL = "bge-m3"
+    INFINITY_URL = os.getenv("INFINITY_URL", "http://infinity-rag:8001")
+    MODEL = "BAAI/bge-m3"
     DIMS = 1024
 
-    def __init__(self, ollama_url: str | None = None) -> None:
-        self.url = ollama_url or os.getenv("OLLAMA_URL", self.OLLAMA_URL)
+    def __init__(self, infinity_url: str | None = None) -> None:
+        self.url = infinity_url or os.getenv("INFINITY_URL", self.INFINITY_URL)
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import httpx
 
         results = []
-        async with httpx.AsyncClient(timeout=3) as client:
+        async with httpx.AsyncClient(timeout=120) as client:
             for text in texts:
                 try:
                     resp = await client.post(
-                        f"{self.url}/api/embeddings",
-                        json={"model": self.MODEL, "prompt": text[:500]},
+                        f"{self.url}/embeddings",
+                        json={"model": self.MODEL, "input": [text[:8000]]},
                     )
                     if resp.status_code == 200:
-                        vec = resp.json().get("embedding", [])
-                        if len(vec) == self.DIMS:
-                            results.append(vec)
-                            continue
+                        data = resp.json().get("data", [])
+                        if data:
+                            vec = data[0].get("embedding", [])
+                            if len(vec) == self.DIMS:
+                                results.append(vec)
+                                continue
                 except httpx.HTTPError:
                     pass
                 results.append([0.0] * self.DIMS)
