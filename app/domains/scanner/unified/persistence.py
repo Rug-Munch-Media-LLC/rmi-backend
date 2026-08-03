@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.logging import get_logger
-from app.domains.scanner.unified.model import ScanResult
+
+if TYPE_CHECKING:
+    from app.domains.scanner.unified.model import ScanResult
 
 logger = get_logger(__name__)
 
@@ -66,8 +68,8 @@ async def persist_result(result: ScanResult) -> None:
                 chain=result.chain,
                 symbol=result.symbol[:64] if result.symbol else "",
                 name=result.name[:256] if result.name else "",
-                safety_score=int(round(result.safety_score)),
-                risk_score=int(round(100 - result.safety_score)),
+                safety_score=round(result.safety_score),
+                risk_score=round(100 - result.safety_score),
                 risk_level=result.risk_level,
                 risk_flags=result.risk_flags[:50],
                 warnings=result.green_flags[:50],
@@ -75,7 +77,7 @@ async def persist_result(result: ScanResult) -> None:
                 extra={"raw": raw_json},
                 scanned_at=datetime.fromisoformat(result.scanned_at) if result.scanned_at else datetime.now(UTC),
                 tier_required=result.tier,
-                confidence=int(round(result.confidence)),
+                confidence=round(result.confidence),
             )
             session.add(scan_orm)
 
@@ -138,7 +140,7 @@ async def _maybe_upsert_token(session: Any, result: ScanResult) -> None:
                 circulating_supply=0.0,
                 holders=0,
                 verified=False,
-                risk_score=int(round(100 - result.safety_score)),
+                risk_score=round(100 - result.safety_score),
                 risk_level=result.risk_level,
                 extra={"first_scanned_at": result.scanned_at},
             )
@@ -206,6 +208,17 @@ async def publish_rag_finding(result: ScanResult) -> None:
     if r is None:
         logger.warning("Redis unavailable — skipping RAG finding publish")
         return
+
+    # Dedup: don't republish the same token within 24h
+    dedup_key = f"rag:dedup:{result.chain}:{result.token_address}"
+    if await r.exists(dedup_key):
+        logger.debug(
+            "rag_finding_duplicate_skipped",
+            chain=result.chain,
+            token=result.token_address,
+        )
+        return
+    await r.setex(dedup_key, 86400, "1")
 
     payload = {
         "token_address": result.token_address,

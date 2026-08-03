@@ -422,6 +422,12 @@ async def _check_rag_pipeline() -> dict[str, Any]:
       subscriber + poller (in-memory, resets on rmi-rag-api restart).
     - ``poller_running`` / ``subscriber_running``: whether rmi-rag's
       background consumers are alive.
+    - ``embedding_available``: whether Ollama has a usable embedding model
+      (bge-m3 / nomic-embed) installed.
+    - ``status``: ``"healthy"`` or ``"degraded"``. Degraded when the embedder
+      is unavailable or when consumers run but nothing has ever been ingested.
+    - ``issues``: list of degradation reasons (``embedder_unavailable``,
+      ``consumers_running_no_ingestion``).
 
     Fail-open: any Redis/rmi-rag-api error is captured in ``error`` and the
     endpoint still returns 200 (pipeline stats are observability, not a
@@ -438,34 +444,71 @@ async def _check_rag_pipeline() -> dict[str, Any]:
     try:
         from app.core.redis import get_redis_async
 
-        client = get_redis_async()
-        if client is not None:
-            depth = await asyncio.wait_for(client.llen("rmi:rag:findings_queue"), timeout=2.0)
+        redis_client = get_redis_async()
+        if redis_client is not None:
+            depth = await asyncio.wait_for(redis_client.llen("rmi:rag:findings_queue"), timeout=2.0)
             stats["queue_depth"] = int(depth or 0)
     except Exception as exc:
         stats["error"] = f"redis: {str(exc)[:120]}"
 
+    # ── Embedder health (Ollama) ──
+    # Try to reach Ollama to verify the embedding model is available. Without
+    # an embed model, rmi-rag cannot index findings even if consumers run.
+    try:
+        import httpx
+
+        ollama_base_url = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.get(f"{ollama_base_url}/api/tags", timeout=5)
+            models = [m["name"] for m in resp.json().get("models", [])]
+            embedding_available = any(m.startswith(("bge-m3", "nomic-embed")) for m in models)
+    except Exception:
+        embedding_available = False
+    stats["embedding_available"] = embedding_available
+
     # ── Ingested count + consumer health from rmi-rag-api ──
+    ingested_count = 0
+    poller_running = False
+    subscriber_running = False
     try:
         rag_api_url = os.getenv(
             "RAG_API_URL",
             "http://rmi-rag-api:8012" if not _IS_DEV else "http://127.0.0.1:8012",
         ).rstrip("/")
-        client = await _get_http_client()
-        resp = await asyncio.wait_for(client.get(f"{rag_api_url}/health"), timeout=2.0)
+        http_client = await _get_http_client()
+        resp = await asyncio.wait_for(http_client.get(f"{rag_api_url}/health"), timeout=2.0)
         if resp.status_code == 200:
             data = resp.json()
             sub = data.get("subscriber_stats") or {}
             poll = data.get("poller_stats") or {}
-            stats["ingested_count"] = int(sub.get("ingested_count", 0)) + int(poll.get("ingested_count", 0))
-            stats["poller_running"] = bool(poll.get("running", False))
-            stats["subscriber_running"] = bool(sub.get("running", False))
+            ingested_count = int(sub.get("ingested_count", 0)) + int(poll.get("ingested_count", 0))
+            poller_running = bool(poll.get("running", False))
+            subscriber_running = bool(sub.get("running", False))
+            stats["ingested_count"] = ingested_count
+            stats["poller_running"] = poller_running
+            stats["subscriber_running"] = subscriber_running
             stats["rag_api_status"] = data.get("status", "unknown")
         else:
             stats["rag_api_status"] = f"http_{resp.status_code}"
     except Exception as exc:
         stats["error"] = f"{stats.get('error', '')} rag_api: {str(exc)[:120]}".strip()
 
+    # ── Aggregated status ──
+    # Embed-aware: an unavailable embedder means the pipeline cannot index
+    # anything, so it is degraded even if the consumers are alive.
+    status = "healthy"
+    issues: list[str] = []
+    if not embedding_available:
+        status = "degraded"
+        issues.append("embedder_unavailable")
+
+    # If consumers are running but ingested_count == 0 for >1 hour, that's degraded
+    if poller_running and subscriber_running and ingested_count == 0:
+        status = "degraded"
+        issues.append("consumers_running_no_ingestion")
+
+    stats["status"] = status
+    stats["issues"] = issues
     return stats
 
 
@@ -530,9 +573,15 @@ async def health() -> HealthResponse:
     # the store checks so they don't influence critical/degraded status.
     rag_pipeline = dict(stores.pop("rag_pipeline", {}))
     rag_pipeline.pop("latency_ms", None)
-    rag_pipeline.setdefault(
-        "healthy", bool(rag_pipeline.get("poller_running") or rag_pipeline.get("subscriber_running"))
-    )
+    # Embed-aware: a degraded pipeline (embedder unavailable, or consumers
+    # running with no ingestion) must NOT report healthy just because the
+    # consumers are alive.
+    if rag_pipeline.get("status") == "degraded":
+        rag_pipeline["healthy"] = False
+    else:
+        rag_pipeline.setdefault(
+            "healthy", bool(rag_pipeline.get("poller_running") or rag_pipeline.get("subscriber_running"))
+        )
     rag_pipeline.setdefault("queue_depth", 0)
     rag_pipeline.setdefault("ingested_count", 0)
 
