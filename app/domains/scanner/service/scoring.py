@@ -57,6 +57,16 @@ async def _publish_scan_to_rag_queue(scan_result: Any) -> None:
         logger.warning("rag_queue_redis_unavailable — skipping RAG finding publish")
         return
 
+    chain = getattr(scan_result, "chain", "solana")
+    token_address = getattr(scan_result, "token_address", "unknown")
+
+    # Dedup: don't republish the same token within 24h
+    dedup_key = f"rag:dedup:{chain}:{token_address}"
+    if await r.exists(dedup_key):
+        logger.debug("rag_queue_duplicate_skipped", chain=chain, token=token_address)
+        return
+    await r.setex(dedup_key, 86400, "1")
+
     modules_run = []
     for m in getattr(scan_result, "modules_run", []) or []:
         if isinstance(m, dict):
@@ -65,8 +75,8 @@ async def _publish_scan_to_rag_queue(scan_result: Any) -> None:
                 modules_run.append(str(name))
 
     payload = {
-        "token_address": getattr(scan_result, "token_address", "unknown"),
-        "chain": getattr(scan_result, "chain", "solana"),
+        "token_address": token_address,
+        "chain": chain,
         "name": getattr(scan_result, "name", ""),
         "symbol": getattr(scan_result, "symbol", ""),
         "safety_score": safety,
