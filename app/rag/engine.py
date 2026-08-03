@@ -85,7 +85,7 @@ async def _qdrant_search(
     query_vec: list[float],
     collection: str,
     limit: int = 20,
-    score_threshold: float = 0.7,
+    score_threshold: float = 0.0,
 ) -> list[Hit]:
     """Vector search against Qdrant (fallback for Qdrant-backed collections).
 
@@ -94,6 +94,12 @@ async def _qdrant_search(
     ``dense`` vector is sent when required — a bare vector against a
     named-vector collection is rejected by Qdrant with "Not existing
     vector name", which previously made v2 data unreachable (0 results).
+
+    ``score_threshold`` defaults to 0.0 = no threshold, matching the
+    legacy behavior (three_pillar_search passes ``min_similarity`` and
+    only filters when it is > 0). v2 bge-m3 cosine scores for relevant
+    matches cluster around 0.45-0.70, so a high fixed default would make
+    the fallback return 0 results for typical queries.
 
     Returns Hit objects in the same shape as the local ANN index so the
     existing RRF fusion / response wrapping keeps working unchanged.
