@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from typing import Any
 
 from telegram import InlineKeyboardButton
 
@@ -338,14 +339,80 @@ def format_scan_report(r: dict) -> str:
         lines.extend(v2)
     if r.get("breakdown"):
         lines.append(format_scoring_breakdown(r["breakdown"]))
-    # ── News sentiment (RugBrain news_v2) ──
-    news_block = format_news_sentiment(r.get("news_sentiment"))
+    # ── News card (Ground News style), fall back to plain sentiment ──
+    news_block = format_news_card(r.get("news_card"))
+    if not news_block:
+        news_block = format_news_sentiment(r.get("news_sentiment"))
     if news_block:
         lines.extend(news_block)
 
     lines.extend(["", s, "\U0001f4b1 <b>Trade:</b>"])
     lines.append(footer_links())
     return "\n".join(lines)
+
+
+def format_news_card(nc: dict[str, Any] | None) -> list[str]:
+    """Format a Ground News-style news card into scan-report lines.
+
+    Accepts the engine payload from ``get_token_news_card``:
+
+    .. code-block:: text
+
+        📰 News Sentiment: BEARISH 🔴 (72 trending)
+        ────────────────────────
+        ├─ CoinDesk: "Coldcard exploit..." [VERIFIED] [HIGH IMPACT]
+        ├─ TheBlock: "Bitcoin wallets drained..." [REPORTED]
+        └─ 3 sources corroborate · on-chain evidence ✓
+
+    Returns an empty list when there is no usable data so callers can
+    skip the block entirely.
+    """
+    if not isinstance(nc, dict):
+        return []
+    articles = nc.get("articles")
+    if not isinstance(articles, list) or not articles:
+        return []
+
+    sentiment = str(nc.get("sentiment") or "NO_DATA").upper()
+    emoji = {
+        "BULLISH": "\U0001f7e2",
+        "BEARISH": "\U0001f534",
+        "NEUTRAL": "\U0001f7e1",
+        "NO_DATA": "\u26aa",
+    }.get(sentiment, "\u26aa")
+    trending = int(nc.get("trending_score") or 0)
+
+    lines = [
+        "",
+        f"\U0001f4f0 News Sentiment: <b>{sentiment}</b> {emoji} ({trending} trending)",
+        thin_sep(),
+    ]
+    for art in articles[:5]:
+        source = str(art.get("source") or "Unknown")
+        raw_title = str(art.get("title") or "").strip()
+        title = raw_title[:60] + ("..." if len(raw_title) > 60 else "")
+        factuality = str(art.get("factuality") or "").upper()
+        impact = str(art.get("market_impact") or "").upper()
+        tags = []
+        if factuality in ("VERIFIED", "REPORTED", "OPINION", "RUMOR"):
+            tags.append(f"[{factuality}]")
+        if impact:
+            tags.append(f"[{impact} IMPACT]")
+        line = f'\u251c\u2500 {source}: "{title}"'
+        if tags:
+            line += " " + " ".join(tags)
+        lines.append(line)
+
+    corr = nc.get("corroboration") or {}
+    if isinstance(corr, dict):
+        total = int(corr.get("total_sources") or 0)
+        on_chain = bool(corr.get("on_chain_evidence"))
+        if total >= 2 or on_chain:
+            corr_line = f"\u2514\u2500 {total} sources corroborate"
+            if on_chain:
+                corr_line += " \u00b7 on-chain evidence \u2713"
+            lines.append(corr_line)
+    return lines
 
 
 def format_news_sentiment(ns) -> list[str]:

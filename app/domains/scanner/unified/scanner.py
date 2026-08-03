@@ -171,6 +171,19 @@ class UnifiedTokenScanner:
             #    HIGH_MEDIA_ATTENTION flag survives compute_score) ──
             await self._run_news_sentiment(result, address, chain)
 
+            # ── Ground News-style news card (free enrichment) ──
+            await self._get_news_card(result, address, chain)
+
+            # ── News-driven risk adjustment (post-scoring — news engines
+            #    run after compute_score, so the bonus/penalty is applied
+            #    in a second pass that keeps score/flags/breakdown in sync) ──
+            try:
+                from app.domains.scanner.unified.scoring import apply_news_scoring
+
+                apply_news_scoring(result)
+            except Exception as exc:
+                logger.debug("news_scoring_failed", error=str(exc)[:120])
+
             # ── Enrich with RAG context (similar patterns from previous scans) ──
             try:
                 from app.rag.intelligence import RAGIntelligenceEnricher
@@ -433,6 +446,46 @@ class UnifiedTokenScanner:
         except Exception as exc:
             logger.debug("news_sentiment_failed", error=str(exc)[:120])
 
+    async def _get_news_card(self, r: ScanResult, address: str, chain: str) -> None:
+        """Build the Ground News-style news card for the scanned token.
+
+        Queries RugBrain RAG ``news_v2`` and rates each article across
+        factuality / source reputation / market impact / sentiment axes,
+        then stores the card on ``ScanResult.news_card``. On-chain
+        corroboration is passed through from ``event_correlation`` when the
+        scanner has its own on-chain evidence of the news event.
+
+        Runs AFTER ``_run_news_sentiment`` so both news enrichment fields
+        are available to Telegram/report rendering. Time-boxed so a slow
+        RAG backend can never stall the scan. Never raises — the news card
+        is best-effort enrichment, not a scan blocker.
+        """
+        try:
+            from app.domains.scanner.engines.news_sentiment import get_token_news_card
+
+            on_chain: bool | None = None
+            if isinstance(r.event_correlation, dict) and r.event_correlation.get("events"):
+                on_chain = True
+
+            card = await asyncio.wait_for(
+                get_token_news_card(
+                    token_symbol=r.symbol or "",
+                    token_name=r.name or "",
+                    chain=chain,
+                    limit=5,
+                    on_chain_evidence=on_chain,
+                ),
+                timeout=10,
+            )
+            if not isinstance(card, dict):
+                return
+            r.news_card = card
+            r.modules_run.append("news_card")
+            if card.get("result") == "scanned" and card.get("articles"):
+                r.enrichment_sources.append("news_card:rag")
+        except Exception as exc:
+            logger.debug("news_card_failed", error=str(exc)[:120])
+
     async def _run_event_correlation(self, r: ScanResult, address: str, chain: str) -> None:
         """Correlate recent news events with price moves for the scanned token.
 
@@ -516,6 +569,7 @@ def _to_legacy_dict(result: ScanResult) -> dict[str, Any]:
         "wallet_freshness": result.wallet_freshness,
         "holder_overlap": result.holder_overlap,
         "news_sentiment": result.news_sentiment,
+        "news_card": result.news_card,
         "event_correlation": result.event_correlation,
     }
 

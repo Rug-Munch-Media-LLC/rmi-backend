@@ -5,7 +5,7 @@ Handles: crypto news sites, project docs, whitepapers, audit reports.
 Pipeline (crawl → chunk → embed → ANN store):
   1. ``crawl_crypto_page``     — crawl a single page with Crawl4AI (JS-aware)
   2. ``crawl_and_ingest``      — crawl + ingest into the RAG engine
-  3. ``discover_crypto_news``  — RSS/sitemap discovery from crawl_sources.json
+  3. ``discover_crypto_news``  — RSS/sitemap discovery from unified_news_sources.json
   4. ``discover_and_ingest``   — periodic sweep: discover → crawl → ingest
 
 Run standalone (cron / manual):
@@ -51,7 +51,14 @@ log = get_logger(__name__)
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-_SOURCES_FILE = Path(__file__).parent / "crawl_sources.json"
+# Unified master source registry (all crypto news sources across the codebase).
+# Path: app/databus/unified_news_sources.json
+_SOURCES_FILE = Path(__file__).resolve().parents[1] / "databus" / "unified_news_sources.json"
+# Legacy per-repo crawl list — fallback for old deployments.
+_LEGACY_SOURCES_FILE = Path(__file__).parent / "crawl_sources.json"
+# Source types that yield article feeds the crawler can follow. Social streams
+# (reddit / nitter) are excluded: the crawler follows article links, not posts.
+_CRAWLABLE_TYPES = ("rss", "atom", "sitemap")
 DEFAULT_COLLECTION = "news_v2"
 DEFAULT_PAGE_TIMEOUT_MS = 45_000
 DEFAULT_MAX_URLS_PER_SWEEP = 25
@@ -286,17 +293,40 @@ def _doc_id(url: str) -> str:
 
 
 def load_sources() -> dict[str, list[str]]:
-    """Load crawl source URLs from ``crawl_sources.json``.
+    """Load crawl source feed URLs from ``unified_news_sources.json``.
 
-    Returns a mapping of category → list of feed/sitemap URLs.
-    Falls back to an empty mapping if the file is missing or invalid.
+    Returns a mapping of category → list of feed URLs for crawlable source
+    types (``rss``/``atom``/``sitemap``). Social sources (``reddit``,
+    ``nitter``) are excluded because the crawler follows article links,
+    not social streams.
+
+    Falls back to the legacy ``crawl_sources.json`` (category → URLs) when
+    the unified file is missing or malformed, so old deployments keep
+    working. Returns an empty mapping if both are unavailable.
     """
-    try:
-        data = json.loads(_SOURCES_FILE.read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            return {k: list(v) for k, v in data.items() if isinstance(v, list)}
-    except (OSError, json.JSONDecodeError) as e:
-        log.warning("crawl_sources_load_failed", path=str(_SOURCES_FILE), error=str(e))
+    for path in (_SOURCES_FILE, _LEGACY_SOURCES_FILE):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            log.warning("sources_load_failed", path=str(path), error=str(e))
+            continue
+        if not isinstance(data, dict):
+            continue
+        if "sources" in data:
+            # Unified format: [{id, name, url, category, type, ...}, ...]
+            grouped: dict[str, list[str]] = {}
+            for entry in data.get("sources", []):
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get("type") not in _CRAWLABLE_TYPES:
+                    continue
+                url = str(entry.get("url") or "")
+                if not url.startswith(("http://", "https://")):
+                    continue
+                grouped.setdefault(str(entry.get("category") or "crypto_news"), []).append(url)
+            return grouped
+        # Legacy format: {category: [url, ...]}
+        return {k: list(v) for k, v in data.items() if isinstance(v, list)}
     return {}
 
 
@@ -635,7 +665,7 @@ async def discover_crypto_news(sources: list[str] | None = None) -> list[dict[st
 
     Args:
         sources: Explicit feed URLs. Defaults to all feeds in
-            ``crawl_sources.json``.
+            ``unified_news_sources.json`` (rss/atom/sitemap types).
 
     Returns:
         A list of discovered items: ``{"url", "title", "published",

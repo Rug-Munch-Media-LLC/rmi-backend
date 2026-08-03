@@ -19,20 +19,29 @@ Fail-open: any retrieval failure or empty result set degrades to
 scan (news sentiment is best-effort enrichment, not a scan blocker).
 
 Usage:
-    from app.domains.scanner.engines.news_sentiment import analyze_token_news_sentiment
+    from app.domains.scanner.engines.news_sentiment import (
+        analyze_token_news_sentiment,
+        get_token_news_card,
+    )
 
     result = await analyze_token_news_sentiment("PEPE", "Pepe", chain="ethereum")
+    card = await get_token_news_card("BTC", "Bitcoin", chain="ethereum")
 """
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 import httpx
 
 from app.core.logging import get_logger
 from app.rag.embeddings import RAGUnavailableError
+
+if TYPE_CHECKING:
+    from app.rag.retrieval import ScoredHit
 
 logger = get_logger(__name__)
 
@@ -86,6 +95,38 @@ _TRENDING_RECENT = 15
 _TRENDING_OLDER = 5
 _TRENDING_OLD = 1
 _TRENDING_CAP = 100
+
+# ── News-card ratings (Ground News style) ────────────────────────────
+# Markers that indicate a story is about verifiable on-chain activity —
+# when present, the card reports ``on_chain_evidence: true`` (unless the
+# caller passes an explicit override from the scanner's own on-chain data).
+_ON_CHAIN_MARKERS = {
+    "hack",
+    "hacked",
+    "exploit",
+    "drained",
+    "drainer",
+    "stolen",
+    "theft",
+    "breach",
+    "vulnerability",
+    "attack",
+    "transaction",
+    "transactions",
+    "wallet",
+    "wallets",
+    "transfer",
+    "transfers",
+    "contract",
+    "contracts",
+    "audit",
+    "bridge",
+    "swap",
+    "withdraw",
+    "deposit",
+    "mint",
+    "burn",
+}
 
 
 def analyze_sentiment(text: str) -> tuple[str, float]:
@@ -213,6 +254,46 @@ def _no_data_result(token_symbol: str, token_name: str, chain: str, reason: str)
     }
 
 
+async def _retrieve_news_hits(token_symbol: str, token_name: str) -> list[ScoredHit] | None:
+    """Query RugBrain RAG ``news_v2`` for articles mentioning a token.
+
+    Shared by ``analyze_token_news_sentiment`` and ``get_token_news_card``
+    so both engines read the same underlying article set.
+
+    Returns:
+        List of hits, or ``None`` when retrieval is unavailable (callers
+        degrade to their NO_DATA envelope). An empty list means "no
+        articles found" (a successful retrieval with zero results).
+    """
+    query = f"{token_name} {token_symbol} news".strip()
+    try:
+        from app.rag.retrieval import HybridRetriever
+
+        retriever = HybridRetriever()
+        hits: list[ScoredHit] = await retriever.retrieve(
+            query=query,
+            collection=NEWS_COLLECTION,
+            top_k=MAX_ARTICLES,
+            rerank=False,
+        )
+        return hits
+    except (
+        RAGUnavailableError,
+        httpx.HTTPError,
+        httpx.TimeoutException,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        ImportError,
+    ) as exc:
+        logger.debug("news_retrieve_failed: %s", exc)
+        return None
+
+
 async def analyze_token_news_sentiment(
     token_symbol: str,
     token_name: str,
@@ -255,33 +336,9 @@ async def analyze_token_news_sentiment(
     if not token_symbol and not token_name:
         return _no_data_result(token_symbol, token_name, chain, reason="no_token_identity")
 
-    query = f"{token_name} {token_symbol} news".strip()
-    try:
-        from app.rag.retrieval import HybridRetriever
-
-        retriever = HybridRetriever()
-        hits = await retriever.retrieve(
-            query=query,
-            collection=NEWS_COLLECTION,
-            top_k=MAX_ARTICLES,
-            rerank=False,
-        )
-    except (
-        RAGUnavailableError,
-        httpx.HTTPError,
-        httpx.TimeoutException,
-        ConnectionError,
-        OSError,
-        TimeoutError,
-        RuntimeError,
-        ValueError,
-        KeyError,
-        TypeError,
-        ImportError,
-    ) as exc:
-        logger.debug("news_sentiment_retrieve_failed: %s", exc)
+    hits = await _retrieve_news_hits(token_symbol, token_name)
+    if hits is None:
         return _no_data_result(token_symbol, token_name, chain, reason="retrieval_unavailable")
-
     if not hits:
         return _no_data_result(token_symbol, token_name, chain, reason="no_articles")
 
@@ -338,3 +395,235 @@ async def analyze_token_news_sentiment(
         trending=trending,
     )
     return result
+
+
+# ── News card (Ground News style) ─────────────────────────────────────
+
+
+def _source_name_from_url(url: str) -> str:
+    """Derive a display source name from an article URL (e.g. CoinDesk)."""
+    if not url:
+        return ""
+    try:
+        domain = urlparse(url).hostname or ""
+    except ValueError:
+        return ""
+    domain = domain.lower()
+    if domain.startswith("www."):
+        domain = domain[4:]
+    parts = domain.split(".")
+    if len(parts) >= 2 and parts[-1] in {"com", "co", "io", "org", "net"}:
+        name = parts[-2]
+    else:
+        name = parts[0] if parts else domain
+    if not name:
+        return ""
+    return name[:1].upper() + name[1:]
+
+
+def _derive_group_id(meta: dict[str, Any], url: str, index: int) -> str:
+    """Story group id for an article.
+
+    Prefers the RAG crawler's ``group_id`` (CryptoPanic-style story
+    grouping — same story from different sources shares one group).
+    Falls back to a stable hash of the URL; last resort a per-index
+    placeholder for undated/URL-less items.
+    """
+    group = str(meta.get("group_id") or "").strip()
+    if group:
+        return group
+    if url:
+        digest = hashlib.sha256(url.encode("utf-8", errors="ignore")).hexdigest()[:12]
+        return f"grp:{digest}"
+    return f"grp:untracked:{index}"
+
+
+def _has_on_chain_markers(text: str) -> bool:
+    """True when article text references verifiable on-chain activity."""
+    if not text:
+        return False
+    lower = text.lower()
+    return any(marker in lower for marker in _ON_CHAIN_MARKERS)
+
+
+def _no_data_card(token_symbol: str, token_name: str, chain: str, reason: str) -> dict[str, Any]:
+    """Standard NO_DATA news-card envelope (fail-open degradation)."""
+    return {
+        "check": "news_card",
+        "result": "no_data",
+        "source": f"rag:{NEWS_COLLECTION}",
+        "token_symbol": token_symbol,
+        "token_name": token_name,
+        "chain": chain,
+        "sentiment": "NO_DATA",
+        "trending_score": 0,
+        "articles": [],
+        "corroboration": {
+            "total_sources": 0,
+            "independent_count": 0,
+            "on_chain_evidence": False,
+        },
+        "reason": reason,
+    }
+
+
+async def get_token_news_card(
+    token_symbol: str,
+    token_name: str,
+    chain: str = "ethereum",
+    limit: int = 5,
+    on_chain_evidence: bool | None = None,
+) -> dict[str, Any]:
+    """Get a complete news card for a token — Ground News style.
+
+    Queries the same RugBrain RAG ``news_v2`` article set as
+    ``analyze_token_news_sentiment``, then rates each article across the
+    Ground News-style axes (factuality / source reputation / market impact /
+    sentiment / tokens mentioned) via ``app.rag.ratings`` and aggregates
+    corroboration across story groups.
+
+    Args:
+        token_symbol: Token symbol (e.g. ``"BTC"``).
+        token_name: Token name (e.g. ``"Bitcoin"``).
+        chain: Chain identifier (informational — news is chain-agnostic).
+        limit: Max articles to include in the card (default 5).
+        on_chain_evidence: Optional override for on-chain corroboration.
+            ``True`` when the scanner has its own on-chain evidence (e.g.
+            news-event-to-price correlation); ``None`` (default) lets the
+            engine derive it from on-chain markers in the article text.
+
+    Returns:
+        Full news card::
+
+            {
+                "check": "news_card",
+                "result": "scanned" | "no_data",
+                "source": "rag:news_v2",
+                "token_symbol": "...",
+                "token_name": "...",
+                "chain": "ethereum",
+                "sentiment": "BULLISH" | "BEARISH" | "NEUTRAL" | "NO_DATA",
+                "trending_score": 0-100,
+                "articles": [
+                    {
+                        "title": "...",
+                        "url": "...",
+                        "source": "CoinDesk",
+                        "published_at": "...",
+                        "factuality": "verified",
+                        "source_reputation": "established",
+                        "market_impact": "high",
+                        "sentiment": "BEARISH",
+                        "tokens_mentioned": ["BTC", "ETH"],
+                        "group_id": "grp:abc123",
+                    }
+                ],
+                "corroboration": {
+                    "total_sources": 3,      # distinct reporting sources
+                    "independent_count": 2,  # distinct story groups
+                    "on_chain_evidence": True,
+                },
+            }
+
+    Fail-open: retrieval errors or empty results return a ``no_data`` card
+    with empty articles (never raises into the scan).
+    """
+    if not token_symbol and not token_name:
+        return _no_data_card(token_symbol, token_name, chain, reason="no_token_identity")
+
+    hits = await _retrieve_news_hits(token_symbol, token_name)
+    if hits is None:
+        return _no_data_card(token_symbol, token_name, chain, reason="retrieval_unavailable")
+    if not hits:
+        return _no_data_card(token_symbol, token_name, chain, reason="no_articles")
+
+    from app.rag.ratings import rate_article
+
+    articles: list[dict[str, Any]] = []
+    labels: list[tuple[str, float]] = []
+    sources: set[str] = set()
+    groups: set[str] = set()
+    marker_hit = False
+
+    for i, h in enumerate(hits[:MAX_ARTICLES]):
+        meta = h.metadata or {}
+        title = str(meta.get("title") or "") or _title_from_content(h.content or "")
+        url = str(meta.get("source_url") or "")
+        published_at = str(meta.get("published_at") or "")
+        text = f"{title} {h.content or ''}".strip()
+
+        rating = rate_article(
+            {
+                "title": title,
+                "content": h.content or "",
+                # Prefer the URL so the ratings tier map can resolve the bare
+                # domain (e.g. coindesk.com → established); fall back to the
+                # source name for display when no URL is present.
+                "source": url or str(meta.get("source_name") or ""),
+                "source_url": url,
+                "url": url,
+                "published_at": published_at,
+            }
+        )
+
+        display_source = str(meta.get("source_name") or "") or _source_name_from_url(url) or "Unknown"
+        group_id = _derive_group_id(meta, url, i)
+
+        labels.append((rating.sentiment, rating.confidence))
+        sources.add(display_source)
+        groups.add(group_id)
+        if _has_on_chain_markers(text):
+            marker_hit = True
+
+        articles.append(
+            {
+                "title": title[:160],
+                "url": url,
+                "source": display_source,
+                "published_at": published_at,
+                "factuality": str(rating.factuality.value),
+                "source_reputation": str(rating.source_reputation.value),
+                "market_impact": str(rating.market_impact.value),
+                "sentiment": rating.sentiment,
+                "tokens_mentioned": list(rating.tokens_mentioned)[:8],
+                "group_id": group_id,
+            }
+        )
+
+    sentiment, _confidence = _aggregate_sentiment(labels)
+    trending = compute_trending_score(articles)
+
+    if on_chain_evidence is None:
+        # Strong multi-source corroboration (2+ stories from 3+ sources)
+        # also counts as evidence the event is real and verifiable.
+        on_chain_evidence = marker_hit or (len(groups) >= 2 and len(sources) >= 3)
+
+    card: dict[str, Any] = {
+        "check": "news_card",
+        "result": "scanned",
+        "source": f"rag:{NEWS_COLLECTION}",
+        "token_symbol": token_symbol,
+        "token_name": token_name,
+        "chain": chain,
+        "sentiment": sentiment,
+        "trending_score": trending,
+        "articles": articles[:limit],
+        "corroboration": {
+            "total_sources": len(sources),
+            "independent_count": len(groups),
+            "on_chain_evidence": bool(on_chain_evidence),
+        },
+    }
+    if trending > HIGH_MEDIA_ATTENTION_THRESHOLD:
+        card["flags"] = ["HIGH_MEDIA_ATTENTION"]
+
+    logger.debug(
+        "news_card_computed",
+        token=f"{token_symbol or token_name}",
+        articles=len(articles),
+        sentiment=sentiment,
+        trending=trending,
+        sources=len(sources),
+        groups=len(groups),
+    )
+    return card

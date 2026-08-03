@@ -78,6 +78,7 @@ secret-rotation*
 *.zip
 !renovate.json
 !app/rag/crawl_sources.json
+!app/databus/unified_news_sources.json
 .env
 .env.backup-*
 .env.bak
