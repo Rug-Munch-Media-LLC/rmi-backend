@@ -41,55 +41,109 @@ EVAL_TOP_K = 5
 RUGBRAIN_GOLDEN_SET: list[dict[str, str]] = [
     {
         "question": "What are the most common reentrancy attack patterns in Solidity?",
-        "ground_truth": "Reentrancy attacks exploit external calls before state updates. Common patterns: single-function, cross-function, cross-contract, read-only reentrancy. Mitigation: Checks-Effects-Interactions pattern, ReentrancyGuard.",
+        "ground_truth": (
+            "Reentrancy attacks exploit external calls before state updates. "
+            "Common patterns: single-function, cross-function, cross-contract, read-only reentrancy. "
+            "Mitigation: Checks-Effects-Interactions pattern, ReentrancyGuard."
+        ),
     },
     {
         "question": "How does MEV sandwich attack work on Uniswap V2?",
-        "ground_truth": "Attacker observes pending swap in mempool, front-runs with buy (inflates price), victim swaps at inflated rate, attacker back-runs with sell. Profit = victim's slippage tolerance.",
+        "ground_truth": (
+            "Attacker observes pending swap in mempool, front-runs with buy (inflates price), "
+            "victim swaps at inflated rate, attacker back-runs with sell. "
+            "Profit = victim's slippage tolerance."
+        ),
     },
     {
         "question": "What is a honeypot token and how is it detected?",
-        "ground_truth": "A honeypot token allows buys but blocks sells. Detection: simulate sell transaction, check if transfer succeeds, verify tax rate doesn't exceed 99%, check if contract has hidden blacklist logic.",
+        "ground_truth": (
+            "A honeypot token allows buys but blocks sells. Detection: simulate sell transaction, "
+            "check if transfer succeeds, verify tax rate doesn't exceed 99%, "
+            "check if contract has hidden blacklist logic."
+        ),
     },
     {
         "question": "How do flash loan attacks work on DeFi protocols?",
-        "ground_truth": "Flash loans borrow uncollateralized funds that must be repaid in the same transaction. Attackers use them to manipulate oracles, drain liquidity pools, or buy enough governance tokens to take over a DAO vote.",
+        "ground_truth": (
+            "Flash loans borrow uncollateralized funds that must be repaid in the same transaction. "
+            "Attackers use them to manipulate oracles, drain liquidity pools, "
+            "or buy enough governance tokens to take over a DAO vote."
+        ),
     },
     {
         "question": "What is the Checks-Effects-Interactions pattern and why is it important?",
-        "ground_truth": "Checks-Effects-Interactions orders code as: validate conditions, update state, then make external calls. It prevents reentrancy by ensuring state is committed before the contract releases control to external callers.",
+        "ground_truth": (
+            "Checks-Effects-Interactions orders code as: validate conditions, update state, "
+            "then make external calls. It prevents reentrancy by ensuring state is committed "
+            "before the contract releases control to external callers."
+        ),
     },
     {
         "question": "How can oracle manipulation attacks drain a DeFi protocol?",
-        "ground_truth": "Oracle manipulation attacks corrupt the price feed a protocol trusts. Attackers use flash loans to move price on a low-liquidity pool, then borrow or trade against the manipulated price before it normalizes. TWAP oracles resist this.",
+        "ground_truth": (
+            "Oracle manipulation attacks corrupt the price feed a protocol trusts. "
+            "Attackers use flash loans to move price on a low-liquidity pool, "
+            "then borrow or trade against the manipulated price before it normalizes. "
+            "TWAP oracles resist this."
+        ),
     },
     {
         "question": "What is a proxy upgrade trap in token contracts?",
-        "ground_truth": "A proxy upgrade trap uses UUPS or TransparentUpgradeableProxy patterns so the admin can swap the implementation post-launch. Indicators: upgradeTo functions, admin change capability, no timelock on upgrades, storage collision between versions.",
+        "ground_truth": (
+            "A proxy upgrade trap uses UUPS or TransparentUpgradeableProxy patterns so the admin "
+            "can swap the implementation post-launch. Indicators: upgradeTo functions, "
+            "admin change capability, no timelock on upgrades, storage collision between versions."
+        ),
     },
     {
         "question": "How does cross-chain bridge hacking work?",
-        "ground_truth": "Bridge hacks exploit signature verification gaps, compromised validator keys, or message-passing flaws to mint tokens on the destination chain without real backing. Examples: Ronin, Wormhole, Poly Network. Prevention: multi-sig, timelocks, circuit breakers.",
+        "ground_truth": (
+            "Bridge hacks exploit signature verification gaps, compromised validator keys, "
+            "or message-passing flaws to mint tokens on the destination chain without real backing. "
+            "Examples: Ronin, Wormhole, Poly Network. Prevention: multi-sig, timelocks, circuit breakers."
+        ),
     },
     {
         "question": "What are common signs of a pump and dump scheme?",
-        "ground_truth": "Signs: coordinated social media hype, rapid price surge on thin liquidity, synchronized buying from a cluster of funded wallets, then mass sell-off. Holders are left with worthless tokens once promoters exit.",
+        "ground_truth": (
+            "Signs: coordinated social media hype, rapid price surge on thin liquidity, "
+            "synchronized buying from a cluster of funded wallets, then mass sell-off. "
+            "Holders are left with worthless tokens once promoters exit."
+        ),
     },
     {
         "question": "How do wallet drainer phishing sites steal funds?",
-        "ground_truth": "Wallet drainer sites impersonate legitimate dApps, airdrops, or NFT mints and request unlimited token approval. Once approved, transferFrom sweeps victim funds. They use urgent language and lookalike domains to pressure users.",
+        "ground_truth": (
+            "Wallet drainer sites impersonate legitimate dApps, airdrops, or NFT mints "
+            "and request unlimited token approval. Once approved, transferFrom sweeps victim funds. "
+            "They use urgent language and lookalike domains to pressure users."
+        ),
     },
     {
         "question": "What is a dusting attack and how can it be detected?",
-        "ground_truth": "A dusting attack sends tiny token amounts to many wallets to deanonymize them. Detection: micro-transactions below normal thresholds, unknown senders, many wallets receiving identical dust amounts at once. Response: avoid consolidating or spending dust.",
+        "ground_truth": (
+            "A dusting attack sends tiny token amounts to many wallets to deanonymize them. "
+            "Detection: micro-transactions below normal thresholds, unknown senders, "
+            "many wallets receiving identical dust amounts at once. "
+            "Response: avoid consolidating or spending dust."
+        ),
     },
     {
         "question": "How does fake volume wash trading distort exchange data?",
-        "ground_truth": "Wash trading inflates volume via circular trades between wallets of the same entity. Detection: volume/liquidity ratio above 10x, repetitive identical-size orders, price stability despite high volume, and low unique counterparty counts.",
+        "ground_truth": (
+            "Wash trading inflates volume via circular trades between wallets of the same entity. "
+            "Detection: volume/liquidity ratio above 10x, repetitive identical-size orders, "
+            "price stability despite high volume, and low unique counterparty counts."
+        ),
     },
     {
         "question": "What role do mixers play in crypto money laundering?",
-        "ground_truth": "Mixers (e.g. Tornado Cash) break the on-chain link between sender and receiver by pooling and redistributing funds. Launderers use chain-hopping, peel chains, and mixer deposits before cashing out via exchanges, complicating fund tracing.",
+        "ground_truth": (
+            "Mixers (e.g. Tornado Cash) break the on-chain link between sender and receiver "
+            "by pooling and redistributing funds. Launderers use chain-hopping, peel chains, "
+            "and mixer deposits before cashing out via exchanges, complicating fund tracing."
+        ),
     },
 ]
 
@@ -188,7 +242,6 @@ _STOP_WORDS: frozenset[str] = frozenset(
         "when",
         "where",
         "why",
-        "how",
         "all",
         "each",
         "every",
@@ -202,10 +255,6 @@ _STOP_WORDS: frozenset[str] = frozenset(
         "than",
         "too",
         "very",
-        "how",
-        "does",
-        "what",
-        "why",
     }
 )
 
@@ -277,11 +326,11 @@ def _ragas_metrics_available() -> bool:
         )
 
         return True
-    except Exception:  # noqa: BLE001 - any ragas import failure → fallback
+    except Exception:
         return False
 
 
-def _build_ragas_dataset(test_cases: list[dict], hits_by_query: dict[str, list[str]]) -> Any:
+def _build_ragas_dataset(test_cases: list[dict[str, Any]], hits_by_query: dict[str, list[str]]) -> Any:
     """Build a ragas EvaluationDataset from search hits.
 
     Returns ``None`` if ragas cannot be imported. ``hits_by_query`` maps
@@ -290,7 +339,7 @@ def _build_ragas_dataset(test_cases: list[dict], hits_by_query: dict[str, list[s
     try:
         from ragas import EvaluationDataset, SingleTurnSample
 
-        samples = []
+        samples: list[Any] = []  # ragas types vary by version — keep loose
         for tc in test_cases:
             question = tc.get("question", "")
             contexts = hits_by_query.get(question, [])
@@ -303,12 +352,14 @@ def _build_ragas_dataset(test_cases: list[dict], hits_by_query: dict[str, list[s
                 )
             )
         return EvaluationDataset(samples=samples)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         log.debug("ragas dataset build failed: %s", e)
         return None
 
 
-async def _evaluate_with_ragas(test_cases: list[dict], hits_by_query: dict[str, list[str]]) -> dict[str, float] | None:
+async def _evaluate_with_ragas(
+    test_cases: list[dict[str, Any]], hits_by_query: dict[str, list[str]]
+) -> dict[str, float] | None:
     """Run ragas metrics. Returns aggregate scores or None on any failure."""
     try:
         from ragas import evaluate as ragas_evaluate
@@ -344,7 +395,7 @@ async def _evaluate_with_ragas(test_cases: list[dict], hits_by_query: dict[str, 
             "context_precision": _safe_mean(result, "context_precision"),
             "context_recall": _safe_mean(result, "context_recall"),
         }
-    except Exception as e:  # noqa: BLE001 - ragas is best-effort
+    except Exception as e:
         log.warning("ragas_eval_failed_falling_back_to_heuristics error=%s", e)
         return None
 
@@ -392,7 +443,7 @@ async def _search_one(question: str, collection: str) -> dict[str, Any]:
     }
 
 
-async def _run_one(tc: dict, collection: str) -> dict[str, Any]:
+async def _run_one(tc: dict[str, Any], collection: str) -> dict[str, Any]:
     """Evaluate a single test case against the pipeline."""
     question = tc.get("question", "")
     ground_truth = tc.get("ground_truth", "")
@@ -404,7 +455,7 @@ async def _run_one(tc: dict, collection: str) -> dict[str, Any]:
             "error": f"timeout after {EVAL_TIMEOUT_S}s",
             "metrics": {},
         }
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"question": question, "error": str(e)[:200], "metrics": {}}
 
     chunks = search["context_chunks"]
@@ -426,7 +477,7 @@ async def _run_one(tc: dict, collection: str) -> dict[str, Any]:
 
 
 async def evaluate_rag_pipeline(
-    test_set: list[dict] | None = None,
+    test_set: list[dict[str, Any]] | None = None,
     collection: str = "threat_intel_v2",
 ) -> dict[str, Any]:
     """
@@ -449,7 +500,7 @@ async def evaluate_rag_pipeline(
 
     semaphore = asyncio.Semaphore(EVAL_MAX_CONCURRENCY)
 
-    async def _run_with_semaphore(tc: dict) -> dict[str, Any]:
+    async def _run_with_semaphore(tc: dict[str, Any]) -> dict[str, Any]:
         async with semaphore:
             return await _run_one(tc, collection)
 
@@ -486,7 +537,7 @@ async def evaluate_rag_pipeline(
     }
 
 
-async def evaluate_on_golden_set() -> dict:
+async def evaluate_on_golden_set() -> dict[str, Any]:
     """Evaluate using the RugBrain golden test set."""
     result = await evaluate_rag_pipeline(
         test_set=RUGBRAIN_GOLDEN_SET,
@@ -496,7 +547,7 @@ async def evaluate_on_golden_set() -> dict:
     return result
 
 
-def record_evaluation_results(results: dict) -> None:
+def record_evaluation_results(results: dict[str, Any]) -> None:
     """Append evaluation results to the history file for trending.
 
     Best-effort: never raises (a failed write must not break the API call).
@@ -516,11 +567,11 @@ def record_evaluation_results(results: dict) -> None:
         log.warning("rugbrain_eval_history_write_failed error=%s", e)
 
 
-def get_evaluation_history(limit: int = 10) -> list[dict]:
+def get_evaluation_history(limit: int = 10) -> list[dict[str, Any]]:
     """Get recent evaluation results for trend analysis."""
     if not HISTORY_PATH.exists():
         return []
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
     try:
         with HISTORY_PATH.open("r", encoding="utf-8") as f:
             for line in f:
@@ -538,10 +589,10 @@ def get_evaluation_history(limit: int = 10) -> list[dict]:
 
 
 __all__ = [
-    "RUGBRAIN_GOLDEN_SET",
     "HISTORY_PATH",
-    "evaluate_rag_pipeline",
+    "RUGBRAIN_GOLDEN_SET",
     "evaluate_on_golden_set",
-    "record_evaluation_results",
+    "evaluate_rag_pipeline",
     "get_evaluation_history",
+    "record_evaluation_results",
 ]
