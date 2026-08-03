@@ -10,7 +10,7 @@ from sqlalchemy import func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
-from app.domains.newsletter.models import NewsletterSub, NewsletterDelivery
+from app.domains.newsletter.models import NewsletterDelivery, NewsletterSub
 from app.domains.newsletter.services.constants import PLATFORM_FEE_PCT
 from app.domains.newsletter.services.subscribers import count_subscribers
 

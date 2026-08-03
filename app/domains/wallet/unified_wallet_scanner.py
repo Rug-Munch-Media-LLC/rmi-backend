@@ -31,7 +31,6 @@ from urllib.parse import urlparse
 import httpx
 
 # Import urllib.request only inside sync thread helpers
-from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)

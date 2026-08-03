@@ -383,4 +383,20 @@ def build_wallet_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── C4 — cross-chain entity resolution (LOCAL tier, ClickHouse-only) ──
+    chains["cross_chain_entity"] = ProviderChain(
+        data_type="cross_chain_entity",
+        description="Cross-chain entity resolution — same-deployer and same-funder links from ClickHouse deployer_events + evm_transfers (C4 v1, deploy tx / funder tx evidence)",
+        providers=[
+            Provider(
+                "chain_indexer_cross_chain_entity",
+                ProviderTier.LOCAL,
+                _g["_chain_indexer_cross_chain_entity"],
+                weight=20.0,
+                is_local=True,
+                description="ClickHouse deployer_events + evm_transfers — link a wallet to addresses on other chains with deployer/funder tx evidence (C4)",
+            ),
+        ],
+    )
+
     return chains

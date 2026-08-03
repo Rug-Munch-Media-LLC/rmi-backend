@@ -23,11 +23,43 @@ Every function returns dict | None following the DataBus provider contract.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.chain_indexer")
+
+# ── Lazy-indexing demand signaling ────────────────────────────────────────
+# The lite-chain-indexer gates DEX/deployer event indexing per chain on
+# scanner demand (lazy indexing). When this provider queries dex_events or
+# deployer_events for a chain, touch a lightweight signal file that the
+# indexer polls each sync cycle:
+#   {INDEXER_DEMAND_DIR}/{chain}/dex
+#   {INDEXER_DEMAND_DIR}/{chain}/deployer
+# A file touch avoids cross-service imports — no shared code, no RPC.
+_INDEXER_DEMAND_DIR = os.getenv("INDEXER_DEMAND_DIR", "/tmp/indexer-demand")  # noqa: S108 — intentional shared cross-service signal dir, not a security-sensitive temp file
+
+
+def _signal_indexer_demand(chain: str, event_type: str) -> None:
+    """Signal the lite-chain-indexer that this chain+event type is in demand.
+
+    Best-effort: touches ``{INDEXER_DEMAND_DIR}/{chain}/{event_type}``.
+    Failures are logged at debug level and never block the scanner query.
+
+    Args:
+        chain: Chain name (e.g. ``'scroll'``).
+        event_type: ``'dex'`` or ``'deployer'``.
+    """
+    if not chain or not event_type:
+        return
+    try:
+        path = Path(_INDEXER_DEMAND_DIR) / chain.lower() / event_type
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch(exist_ok=True)
+    except OSError as exc:
+        logger.debug("indexer demand signal failed: %s", exc)
+
 
 # ── Lazy ClickHouse client ────────────────────────────────────────────────
 _ch_client: Any = None
@@ -144,29 +176,35 @@ async def _chain_indexer_token_transfers(**kwargs: Any) -> dict | None:
             "limit": limit,
         }
 
-        where_parts = ["token_address = %(addr)s", "chain = %(chain)s"]
+        where_parts = ["et.token_address = %(addr)s", "et.chain = %(chain)s"]
         params["chain"] = chain
 
         if from_block > 0:
-            where_parts.append("block_number >= %(from_block)s")
+            where_parts.append("et.block_number >= %(from_block)s")
             params["from_block"] = from_block
         if to_block > 0:
-            where_parts.append("block_number <= %(to_block)s")
+            where_parts.append("et.block_number <= %(to_block)s")
             params["to_block"] = to_block
 
         where_clause = " AND ".join(where_parts)
 
         try:
+            # evm_transfers stores empty token_symbol/token_name (enrichment
+            # moved to wallet_memory.token_meta_ref — one row per token), so
+            # symbol/name come from a LEFT JOIN on the reference table.
             return client.execute(
                 f"""
-                SELECT chain, block_number, tx_hash, from_address, to_address,
-                       token_address, value, block_timestamp, log_index,
-                       token_symbol, token_name
-                FROM wallet_memory.evm_transfers
+                SELECT et.chain, et.block_number, et.tx_hash, et.from_address,
+                       et.to_address, et.token_address, et.value,
+                       et.block_timestamp, et.log_index,
+                       tm.symbol, tm.name
+                FROM wallet_memory.evm_transfers AS et
+                LEFT JOIN wallet_memory.token_meta_ref AS tm
+                    ON tm.chain = et.chain AND tm.token_address = et.token_address
                 WHERE {where_clause}
-                ORDER BY block_number DESC, log_index DESC
+                ORDER BY et.block_number DESC, et.log_index DESC
                 LIMIT %(limit)s
-                """,
+                """,  # noqa: S608 — where_clause built from code literals; values parameterized
                 params,
             )
         except (ValueError, RuntimeError, OSError) as exc:
@@ -224,6 +262,10 @@ async def _chain_indexer_dex_events(**kwargs: Any) -> dict | None:
 
     if not token_address or not chain:
         return None
+
+    # Signal lazy indexing: the scanner wants dex_events on this chain, so
+    # the indexer should enable DEX event fetching for it.
+    _signal_indexer_demand(chain, "dex")
 
     def _query() -> list[tuple]:
         client = _get_ch_client()
@@ -319,6 +361,12 @@ async def _chain_indexer_deployer_history(**kwargs: Any) -> dict | None:
     if not address:
         return None
 
+    # Signal lazy indexing: the scanner wants deployer_events on this chain.
+    # Only signal when a specific chain is requested — a chain-less query
+    # spans every chain and cannot be attributed to one demand signal.
+    if chain:
+        _signal_indexer_demand(chain, "deployer")
+
     def _query() -> list[tuple]:
         client = _get_ch_client()
         if client is None:
@@ -345,7 +393,7 @@ async def _chain_indexer_deployer_history(**kwargs: Any) -> dict | None:
                 WHERE {where_clause}
                 ORDER BY block_number DESC
                 LIMIT %(limit)s
-                """,
+                """,  # noqa: S608 — where_clause built from code literals; values parameterized
                 params,
             )
         except (ValueError, RuntimeError, OSError) as exc:

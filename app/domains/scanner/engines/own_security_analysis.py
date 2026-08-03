@@ -45,6 +45,11 @@ from pathlib import Path
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 
 logger = get_logger(__name__)
 
@@ -113,13 +118,6 @@ def _get_ch_client() -> Any | None:
         logger.warning("Own security ClickHouse unavailable: %s", e)
         _ch_client = None
         return None
-
-
-async def _run_sync(fn, *args, **kwargs):
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    import asyncio
-
-    return await asyncio.to_thread(fn, *args, **kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -192,9 +190,9 @@ async def get_own_security(
         import asyncio
 
         # Run sync ClickHouse queries in thread pool
-        deployer_task = asyncio.create_task(_run_sync(_query_deployer_data, token_address, chain))
-        transfer_task = asyncio.create_task(_run_sync(_query_transfer_stats, token_address, chain))
-        dex_task = asyncio.create_task(_run_sync(_query_dex_tax_data, token_address, chain))
+        deployer_task = asyncio.create_task(run_sync(_query_deployer_data, token_address, chain))
+        transfer_task = asyncio.create_task(run_sync(_query_transfer_stats, token_address, chain))
+        dex_task = asyncio.create_task(run_sync(_query_dex_tax_data, token_address, chain))
 
         d_data, t_stats, d_tax = await asyncio.gather(
             deployer_task,
@@ -537,14 +535,14 @@ def _cache_security(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_SECURITY_CACHE),
-        "cache_max": _SECURITY_CACHE_MAX,
-        "cache_ttl_seconds": _SECURITY_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _SECURITY_CACHE,
+        _SECURITY_CACHE_MAX,
+        _SECURITY_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _SECURITY_CACHE.clear()
+    _common_clear_cache(_SECURITY_CACHE)
