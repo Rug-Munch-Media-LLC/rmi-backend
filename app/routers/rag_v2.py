@@ -38,6 +38,19 @@ class AskResponse(BaseModel):
     verified: bool = True
 
 
+class EvaluateRequest(BaseModel):
+    """Ragas evaluation request for the RAG pipeline."""
+
+    test_set: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="Custom test set: [{question, ground_truth}]. Defaults to the RugBrain golden set.",
+    )
+    collection: str | None = Field(
+        default=None,
+        description="Collection to evaluate against (default: threat_intel_v2).",
+    )
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask_crypto_question(request: AskRequest) -> AskResponse:
     """Run the agentic research graph over a crypto question."""
@@ -53,4 +66,21 @@ async def ask_crypto_question(request: AskRequest) -> AskResponse:
     )
 
 
-__all__ = ["AskRequest", "AskResponse", "router"]
+@router.post("/evaluate")
+async def evaluate_rag(request: EvaluateRequest) -> dict[str, Any]:
+    """Run Ragas evaluation on the RAG pipeline.
+
+    Lazy-imports ``app.rag.evaluation`` so the router stays importable even
+    when ragas is not installed (evaluation falls back to heuristics).
+    """
+    from app.rag.evaluation import evaluate_rag_pipeline, record_evaluation_results
+
+    result = await evaluate_rag_pipeline(
+        test_set=request.test_set,
+        collection=request.collection or "threat_intel_v2",
+    )
+    record_evaluation_results(result)
+    return result
+
+
+__all__ = ["AskRequest", "AskResponse", "EvaluateRequest", "router"]
