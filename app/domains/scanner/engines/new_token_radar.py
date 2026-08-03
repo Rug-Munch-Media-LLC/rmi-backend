@@ -277,7 +277,11 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
                     )
                 )
             )
-            if resolved and resolved.get("real_deployer") and (launchpad is not None or improved):
+            # Only claim a resolved deployer when the resolver actually
+            # improved on the recorded deployer. A passthrough (resolved=False,
+            # real_deployer == the factory itself) means resolution FAILED —
+            # reporting the factory as launchpad_deployer would be misleading.
+            if resolved and resolved.get("real_deployer") and improved:
                 real_deployer = str(resolved["real_deployer"])
                 signals["launchpad_deployer"] = real_deployer
                 signals["launchpad_confidence"] = resolved.get("confidence")
@@ -293,7 +297,17 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
                         "method": resolved.get("method"),
                     }
                 )
-        except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+        except (
+            ConnectionError,
+            OSError,
+            TimeoutError,
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+            CHDriverError,
+        ) as exc:
             logger.debug("radar_launchpad_resolve_failed %s: %s", token_address[:16], exc)
 
         if launchpad is not None:

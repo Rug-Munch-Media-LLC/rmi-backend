@@ -98,6 +98,13 @@ class TestScanNewTokens:
 
     def setup_method(self) -> None:
         clear_cache()
+        # resolve_deployer_universal keeps its own in-process resolution cache
+        # keyed by token address; two launchpad tests share the same _TOKEN, so
+        # a warm cache from a previous test would leak a resolved creator into
+        # the "unresolved" test. Clear it for deterministic, order-independent runs.
+        from app.domains.scanner.engines.launchpad_resolver import clear_cache as clear_launchpad_cache
+
+        clear_launchpad_cache()
 
     @pytest.mark.asyncio
     async def test_empty_deployer_events_returns_empty(self) -> None:
