@@ -594,7 +594,7 @@ class RpcRouter:
                 logger.debug("rpc_call_connection_error", url=url, error=last_error)
                 continue
 
-            except Exception as exc:
+            except (httpx.HTTPError, ValueError, KeyError, TypeError, OSError) as exc:
                 health.record_failure()
                 last_error = str(exc)[:80]
                 logger.debug("rpc_call_unexpected_error", url=url, error=last_error)

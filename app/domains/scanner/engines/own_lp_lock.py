@@ -39,6 +39,11 @@ import os
 import time
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -245,7 +250,16 @@ async def get_own_lp_lock_status(
         if result["holder_count"] > 0 or result["locked_pct"] > 0:
             result["source"] = "own"
 
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("own_lp_lock_query_failed for %s: %s", token_address[:16], exc)
         result["source"] = "unavailable"
 
@@ -316,7 +330,16 @@ def _query_lp_holders(
         best_pool = pool_rows[0][0]
         return _query_holders_for_token(client, best_pool, chain, token_address)
 
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("lp_holders_query_failed: %s", exc)
         return None
 
@@ -387,7 +410,16 @@ def _query_holders_for_token(
             "holder_count": len(rows),
             "lp_token_address": lp_token_address,
         }
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("holders_for_token_query_failed: %s", exc)
         return None
 
@@ -447,7 +479,16 @@ def _query_lp_transfers_to_lock(
             )
         return transfers
 
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("lock_transfers_query_failed: %s", exc)
         return None
 

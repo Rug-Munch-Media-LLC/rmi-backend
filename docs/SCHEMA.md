@@ -645,10 +645,10 @@ In addition to Neo4j, there is a **Redis-backed Knowledge Graph** (`app/knowledg
 | Property | Value |
 |----------|-------|
 | **Engine** | NumPy cosine similarity + Redis persistence |
-| **Dimension** | 1024 (Ollama bge-m3) |
+| **Dimension** | 1024 (Infinity BAAI/bge-m3) |
 | **Distance** | Cosine (dot product on L2-normalized vectors) |
 | **Store** | In-process `numpy.ndarray` + Redis (HASH prefixed `rag:ann:{collection}:docs`) |
-| **Embedding backends** | Tier 1: Ollama bge-m3 (local, zero cost), Tier 2: OpenRouter Nemotron (free tier) |
+| **Embedding backends** | Tier 1: Infinity BAAI/bge-m3 (self-hosted, zero cost), Tier 2: OpenRouter Nemotron (free tier) |
 | **Fail behavior** | Fail LOUD (RAGUnavailableError) — no hash fallback per T04 |
 
 **Key pattern for ANN persistence:**
@@ -886,7 +886,7 @@ User Request
   │             ├── Entity resolution       → Neo4j (Cypher)
   │             ├── RAG similarity          → ANN Index (numpy + Redis)
   │             │                               ↓
-  │             │                          Embedding (Ollama bge-m3)
+  │             │                          Embedding (Infinity BAAI/bge-m3)
   │             ├── Wallet analytics        → ClickHouse (wallet_memory DB)
   │             └── Product analytics       → ClickHouse (rmi DB)
   └──→ Cache result in Redis → Return

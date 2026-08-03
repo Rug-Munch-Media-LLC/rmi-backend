@@ -63,6 +63,8 @@ import asyncio
 import time
 from typing import Any, cast
 
+from redis.exceptions import RedisError
+
 try:
     from clickhouse_driver.errors import Error as CHDriverError
 except ImportError:  # pragma: no cover
@@ -443,7 +445,7 @@ async def resolve_cross_chain_entity(
     # ── 4. Cache ──
     try:
         await _redis_set(cache_key, payload, ttl=REDIS_TTL_SECONDS)
-    except Exception:  # caching must never break resolution
+    except (ConnectionError, OSError, TimeoutError, RedisError):  # caching must never break resolution
         logger.debug("cross_chain_entity_redis_set_failed", key=cache_key)
 
     _ENTITY_CACHE[cache_key] = {**payload, "_cached_at": time.time()}

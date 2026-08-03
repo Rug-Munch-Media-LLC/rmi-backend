@@ -17,6 +17,11 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines.own_dex_data.client import (
     _get_ch_client,
@@ -170,7 +175,7 @@ def _get_token_decimals(token_address: str, chain: str) -> int:
         if estimated is not None:
             _decimals_cache[cache_key] = estimated
             return estimated
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, RuntimeError, ValueError, KeyError, TypeError, CHDriverError):
         logger.debug("decimals_estimation_failed", token=addr[:16], chain=chain)
 
     # Default to 18 (most common ERC-20 standard)
@@ -228,7 +233,7 @@ def _estimate_decimals_from_transfers(token_address: str, chain: str) -> int | N
                 return 6
             else:
                 return 18
-    except Exception:
+    except (ConnectionError, OSError, TimeoutError, RuntimeError, ValueError, KeyError, TypeError, CHDriverError):
         logger.debug("transfer_value_query_failed", token=token_address[:16], chain=chain)
 
     return None

@@ -44,6 +44,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -199,7 +204,16 @@ async def get_own_security(
             transfer_task,
             dex_task,
         )
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("own_security_query_failed: %s", exc)
         result["result"] = "unavailable"
         return result
@@ -348,7 +362,16 @@ def _query_deployer_data(
             "tx_hash": row[2],
             "block_number": row[3],
         }
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("deployer_data_query_failed: %s", exc)
         return None
 
@@ -407,7 +430,16 @@ def _query_transfer_stats(
             "total_in": float(row[0] or 0),
             "total_out": float(row[1] or 0),
         }
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("transfer_stats_query_failed: %s", exc)
         return None
 
@@ -474,7 +506,16 @@ def _query_dex_tax_data(
             "tax_risk": 0,
             "swaps_analyzed": n_swaps,
         }
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("dex_tax_query_failed: %s", exc)
         return None
 

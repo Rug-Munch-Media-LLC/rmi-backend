@@ -46,6 +46,11 @@ import os
 import time
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -193,7 +198,16 @@ async def get_own_holder_age(
             token_age_task,
             recent_task,
         )
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("holder_age_query_failed for %s: %s", token_address[:16], exc)
         result["result"] = "unavailable"
         return result

@@ -38,6 +38,11 @@ import os
 import time
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -183,7 +188,16 @@ async def get_own_holder_analysis(
             new_task,
             gini_task,
         )
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("holder_query_failed for %s: %s", token_address[:16], exc)
         result["result"] = "unavailable"
         result["source"] = "unavailable"
@@ -324,7 +338,16 @@ def _query_top_holders(
             "holder_count": len(rows),
             "total_balance": total_balance,
         }
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("top_holders_query_failed: %s", exc)
         return None
 
@@ -371,7 +394,16 @@ def _query_new_holders(
         if rows:
             return {"new_holders": rows[0][0]}
         return {"new_holders": 0}
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("new_holders_query_failed: %s", exc)
         return None
 
@@ -447,7 +479,16 @@ def _query_gini_data(
         gini = max(0.0, min(1.0, gini))
 
         return {"gini": round(gini, 4)}
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("gini_query_failed: %s", exc)
         return None
 

@@ -51,6 +51,11 @@ import os
 import time
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -194,7 +199,16 @@ async def get_own_volume_authenticity(
         dex_stats_task = asyncio.create_task(run_sync(_query_dex_wash_stats, token_address, chain, lookback_hours))
         transfer_task = asyncio.create_task(run_sync(_query_transfer_volume, token_address, chain, lookback_hours))
         dex_stats, transfer_stats = await asyncio.gather(dex_stats_task, transfer_task)
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("volume_auth_query_failed for %s: %s", token_address[:16], exc)
         result["result"] = "unavailable"
         return result

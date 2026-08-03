@@ -47,6 +47,11 @@ import os
 import time
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -199,7 +204,16 @@ async def get_own_whale_detection(
 
         # ── 2. Fetch swap events ──
         swaps = await _query_dex_swaps(token_address, chain, hours_back=lookback_hours)
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("whale_query_failed for %s: %s", token_address[:16], exc)
         result["result"] = "unavailable"
         return result

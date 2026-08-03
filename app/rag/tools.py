@@ -160,13 +160,15 @@ async def get_wallet_balance(query: str, chain: str | None = None) -> dict[str, 
     address = extract_address(query or "")
     if not address:
         return {"address": None, "error": "no_address_in_query"}
-    inferred = "solana" if len(address) > 42 else "ethereum"
+    # EVM addresses always start with 0x; Solana base58 is 32-44 chars
+    # (length alone cannot distinguish them).
+    inferred = "ethereum" if address.startswith("0x") else "solana"
     try:
         from app.services.web3_chat.balances import get_wallet_balance as _wb
 
         result = await _wb(address, chain or inferred)
         return {**result, "address": address, "chain": chain or inferred}
-    except (ConnectionError, OSError, TimeoutError, ValueError, Exception) as exc:
+    except Exception as exc:
         log.debug("tool_get_wallet_balance_failed err=%s", exc)
         return {"address": address, "chain": chain or inferred, "error": "unavailable"}
 
@@ -181,7 +183,9 @@ async def scan_token(query: str, chain: str = "ethereum") -> dict[str, Any]:
     address = extract_address(query or "")
     if not address:
         return {"address": None, "error": "no_address_in_query"}
-    inferred = "solana" if len(address) > 42 else chain
+    # Preserve an explicitly passed chain for EVM (0x) addresses; any other
+    # base58 address is a Solana one (32-44 chars, length alone is ambiguous).
+    inferred = "solana" if not address.startswith("0x") else chain
     try:
         from app.domains.scanner import scan_token as _scan
 
@@ -194,7 +198,7 @@ async def scan_token(query: str, chain: str = "ethereum") -> dict[str, Any]:
             "risk_flags": list(getattr(result, "risk_flags", []) or []),
             "source": "RugMunchScan v2",
         }
-    except (ConnectionError, OSError, TimeoutError, ValueError, Exception) as exc:
+    except Exception as exc:
         log.debug("tool_scan_token_failed err=%s", exc)
         return {"address": address, "chain": inferred, "error": "unavailable"}
 
@@ -224,7 +228,7 @@ async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
             for h in hits
         ]
         return {"query": query, "count": len(results), "results": results, "source": "RAG news_v2"}
-    except (ConnectionError, OSError, TimeoutError, ValueError, Exception) as exc:
+    except Exception as exc:
         log.debug("tool_get_news_failed err=%s", exc)
         return {"query": query, "count": 0, "results": [], "source": "RAG news_v2", "error": "unavailable"}
 

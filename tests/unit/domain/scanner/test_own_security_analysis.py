@@ -408,7 +408,11 @@ class TestGetOwnSecurity:
         """Risk score should never exceed 100."""
         clear_cache()
         mock_client = MagicMock()
-        mock_client.execute.side_effect = Exception("No data")
+        # Realistic driver failure: clickhouse_driver raises typed errors (or
+        # RuntimeError for connection/init failures), never a bare Exception.
+        # The scanner engines narrow their except clauses to those types, so a
+        # bare Exception mock would no longer be caught.
+        mock_client.execute.side_effect = RuntimeError("No data")
 
         with patch(
             "app.domains.scanner.engines.own_security_analysis._get_ch_client",

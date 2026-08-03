@@ -46,6 +46,11 @@ import os
 import time
 from typing import Any
 
+try:
+    from clickhouse_driver.errors import Error as CHDriverError
+except ImportError:  # pragma: no cover
+    CHDriverError = Exception
+
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import (
     clear_cache as _common_clear_cache,
@@ -197,7 +202,16 @@ async def get_own_deployer_reputation(
         stats_task = asyncio.create_task(run_sync(_query_deployer_stats, deployer_address, chain_norm))
         tokens_task = asyncio.create_task(run_sync(_query_per_token_lifespan, deployer_address, chain_norm))
         stats, per_token = await asyncio.gather(stats_task, tokens_task)
-    except Exception as exc:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
         logger.debug("deployer_reputation_query_failed: %s", exc)
         result["result"] = "unavailable"
         return result
