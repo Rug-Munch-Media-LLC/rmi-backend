@@ -79,23 +79,36 @@ def _get_ch_client() -> Any | None:
 
     try:
         from clickhouse_driver import Client as CHClient
+        from clickhouse_driver.errors import Error as CHDriverError
+    except ImportError:
+        logger.warning("clickhouse_driver not installed; Chain-indexer ClickHouse unavailable")
+        _ch_client = None
+        return None
 
-        _ch_client = CHClient(
+    # Build + verify on a LOCAL client first, then publish to the module
+    # global. Publishing before ``SELECT 1`` completes lets a concurrent
+    # caller (scan engines run parallel tasks via run_sync threads) grab the
+    # half-initialized client and issue a second query on the same in-flight
+    # connection -> clickhouse_driver PartiallyConsumedQueryError.
+    candidate: Any = None
+    try:
+        candidate = CHClient(
             host=ch_host,
             port=ch_port,
             user=ch_user,
-            password=ch_pass or None,
+            password=ch_pass or "",  # empty string, never None (driver crashes on None)
             database=ch_db,
             connect_timeout=3,
             send_receive_timeout=10,
         )
-        _ch_client.execute("SELECT 1")
-        logger.info("Chain-indexer ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
-        return _ch_client
-    except (ImportError, ConnectionError, TimeoutError, RuntimeError, OSError) as e:
-        logger.warning("Chain-indexer ClickHouse unavailable: %s", e)
+        candidate.execute("SELECT 1")
+    except (ConnectionError, TimeoutError, RuntimeError, OSError, AttributeError, CHDriverError) as e:
+        logger.warning("Chain-indexer ClickHouse unavailable: %s", str(e).splitlines()[0][:200])
         _ch_client = None
         return None
+    _ch_client = candidate
+    logger.info("Chain-indexer ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
+    return _ch_client
 
 
 # ── Async wrapper ─────────────────────────────────────────────────────────

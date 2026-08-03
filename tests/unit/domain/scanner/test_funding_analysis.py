@@ -233,7 +233,7 @@ class TestComputeOverlap:
                     side_effect=overlap_run_sync(
                         {
                             "0xaa": [("0x1",), ("0x2",), ("0x3",), ("0x4",)],
-                            "0xbb": [("0x9",)],
+                            "0xbb": [("0x1",)],  # 1/4 = 25% overlap
                         }
                     )
                 ),
@@ -388,7 +388,10 @@ def overlap_run_sync(rows_by_token: dict[str, list[tuple]]) -> Any:
     async def _side_effect(fn, *args, **kwargs):
         if getattr(fn, "__name__", "") == "_query_holder_set" and args:
             return rows_by_token.get(str(args[0]).lower(), [])
-        if getattr(fn, "__name__", "") == "_query_token_scam_status":
+        # Identity check first: the test also patches _query_token_scam_status
+        # with an AsyncMock whose __name__ is "AsyncMock", which the name
+        # check below would miss.
+        if fn is fa._query_token_scam_status or getattr(fn, "__name__", "") == "_query_token_scam_status":
             return True
         return []
 
