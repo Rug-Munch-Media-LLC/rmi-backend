@@ -14,11 +14,13 @@ Combines all label sources into a unified response with risk assessment.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+import requests
 
 from app.chain_registry import CHAINS, is_evm
 from app.core.logging import get_logger

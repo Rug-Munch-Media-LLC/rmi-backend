@@ -448,3 +448,52 @@ async def _chain_indexer_holder_clusters(**kwargs: Any) -> dict[str, Any] | None
     except Exception as exc:
         logger.debug("chain_indexer_holder_clusters failed: %s", exc)
         return None
+
+
+async def _chain_indexer_cross_chain_entity(**kwargs: Any) -> dict[str, Any] | None:
+    """LOCAL provider — C4 cross-chain entity resolution (v1 stub).
+
+    Links a wallet to addresses on other chains via ClickHouse evidence:
+      1. same deployer (deployer_events) — deploy tx hash evidence
+      2. same funder (evm_transfers) — funding tx hash evidence
+    Behavioral fingerprint similarity is a v2 item.
+
+    Parameters (from DataBus fetch kwargs):
+      address: str — wallet/deployer address on the source chain
+      chain: str — source chain name
+      target_chains: list[str] | None — optional target-chain whitelist
+
+    Returns dict with addresses/entity_type/risk or None.
+    """
+    if not PREFER_OWN_DATA:
+        return None
+
+    address = kwargs.get("address", "")
+    chain = kwargs.get("chain", "")
+    target_chains = kwargs.get("target_chains") or None
+
+    if not address or not chain:
+        return None
+
+    try:
+        from app.domains.scanner.engines.cross_chain_entity import (
+            resolve_cross_chain_entity,
+        )
+
+        result = await resolve_cross_chain_entity(
+            address=address,
+            source_chain=chain,
+            target_chains=target_chains,
+        )
+        if not result or result.get("result") != "scanned":
+            return None
+
+        return {
+            "data": result,
+            "source": "chain_indexer (ClickHouse cross-chain entity)",
+            "tier": "local",
+            "is_local": True,
+        }
+    except Exception as exc:
+        logger.debug("chain_indexer_cross_chain_entity failed: %s", exc)
+        return None

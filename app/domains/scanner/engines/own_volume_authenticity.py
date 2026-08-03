@@ -52,6 +52,11 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 from app.domains.scanner.engines.own_dex_data.client import (
     _get_pools_for_token,
     _load_pair_cache,
@@ -129,11 +134,6 @@ def _get_ch_client() -> Any | None:
         return None
 
 
-async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -191,8 +191,8 @@ async def get_own_volume_authenticity(
 
     try:
         # ── 1. Parallel: DEX swap stats + transfer volume ──
-        dex_stats_task = asyncio.create_task(_run_sync(_query_dex_wash_stats, token_address, chain, lookback_hours))
-        transfer_task = asyncio.create_task(_run_sync(_query_transfer_volume, token_address, chain, lookback_hours))
+        dex_stats_task = asyncio.create_task(run_sync(_query_dex_wash_stats, token_address, chain, lookback_hours))
+        transfer_task = asyncio.create_task(run_sync(_query_transfer_volume, token_address, chain, lookback_hours))
         dex_stats, transfer_stats = await asyncio.gather(dex_stats_task, transfer_task)
     except Exception as exc:
         logger.debug("volume_auth_query_failed for %s: %s", token_address[:16], exc)
@@ -525,14 +525,14 @@ def _cache_volume(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    return {
-        "cache_size": len(_VOLUME_CACHE),
-        "cache_max": _VOLUME_CACHE_MAX,
-        "cache_ttl_seconds": _VOLUME_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-    }
+    return _common_get_cache_stats(
+        _VOLUME_CACHE,
+        _VOLUME_CACHE_MAX,
+        _VOLUME_CACHE_TTL,
+        extra={"clickhouse_connected": _ch_client is not None},
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _VOLUME_CACHE.clear()
+    _common_clear_cache(_VOLUME_CACHE)

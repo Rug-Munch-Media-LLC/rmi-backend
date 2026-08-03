@@ -40,6 +40,11 @@ import time
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanner.engines._common import (
+    clear_cache as _common_clear_cache,
+    get_cache_stats as _common_get_cache_stats,
+    run_sync,
+)
 
 logger = get_logger(__name__)
 
@@ -163,13 +168,6 @@ def _get_ch_client() -> Any | None:
         return None
 
 
-async def _run_sync(fn, *args, **kwargs):
-    """Run a sync function in a thread pool (clickhouse_driver is sync)."""
-    import asyncio
-
-    return await asyncio.to_thread(fn, *args, **kwargs)
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -232,8 +230,8 @@ async def get_own_lp_lock_status(
         import asyncio
 
         # Query LP token holders (try pair_address first, then scan)
-        lp_task = asyncio.create_task(_run_sync(_query_lp_holders, token_address, chain, pair_address))
-        supply_task = asyncio.create_task(_run_sync(_query_lp_transfers_to_lock, token_address, chain, pair_address))
+        lp_task = asyncio.create_task(run_sync(_query_lp_holders, token_address, chain, pair_address))
+        supply_task = asyncio.create_task(run_sync(_query_lp_transfers_to_lock, token_address, chain, pair_address))
 
         lp_holders, lock_transfers = await asyncio.gather(lp_task, supply_task)
 
@@ -485,7 +483,6 @@ def _analyze_lp_holders(
     for holder in holders:
         addr = holder.get("address", "").lower()
         balance = holder.get("balance", 0)
-        pct = holder.get("percentage", 0)
 
         if addr in (
             "0x0000000000000000000000000000000000000000",
@@ -533,16 +530,19 @@ def _analyze_lock_transfers(
     lock_contracts = _get_lock_contracts(chain)
     for t in transfers:
         to_addr = t.get("to_address", "").lower()
-        if to_addr not in (
-            "0x0000000000000000000000000000000000000000",
-            "0x000000000000000000000000000000000000dead",
-            "0xdead000000000000000000000000000000000000",
+        if (
+            to_addr
+            not in (
+                "0x0000000000000000000000000000000000000000",
+                "0x000000000000000000000000000000000000dead",
+                "0xdead000000000000000000000000000000000000",
+            )
+            and to_addr in lock_contracts
         ):
-            if to_addr in lock_contracts:
-                result["lock_contract"] = to_addr
-                result["lock_contract_name"] = _get_lock_contract_name(to_addr, chain)
-                result["is_locked"] = True
-                break
+            result["lock_contract"] = to_addr
+            result["lock_contract_name"] = _get_lock_contract_name(to_addr, chain)
+            result["is_locked"] = True
+            break
 
     # Also check for burn events
     for t in transfers:
@@ -560,7 +560,7 @@ def _analyze_lock_transfers(
 def _get_lock_contract_name(address: str, chain: str) -> str:
     """Get a human-readable name for a known lock contract."""
     addr_lower = address.lower()
-    STATIC_NAMES: dict[str, str] = {
+    static_names: dict[str, str] = {
         "0x663a5c229c09b049e36dcc11a9b0d4a8eb9db214": "Unicrypt v1",
         "0xdba68f07d1b7ca219f78ae8582c213d3a39b8c1f": "Unicrypt v2",
         "0xa0dc4a2c4a7e1b6b9b5e3c3c1b6e9f0e4e3d2c1b": "Team Finance",
@@ -576,7 +576,7 @@ def _get_lock_contract_name(address: str, chain: str) -> str:
         if addr_lower == dead:
             return "Burned (Dead Address)"
 
-    return STATIC_NAMES.get(addr_lower, f"Lock Contract ({address[:10]}...)")
+    return static_names.get(addr_lower, f"Lock Contract ({address[:10]}...)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -594,20 +594,21 @@ def _cache_lp_lock(key: str, data: dict[str, Any]) -> None:
 
 def get_cache_stats() -> dict[str, Any]:
     """Return cache statistics for monitoring."""
-    now = time.time()
-    return {
-        "cache_size": len(_LP_LOCK_CACHE),
-        "cache_max": _LP_LOCK_CACHE_MAX,
-        "cache_ttl_seconds": _LP_LOCK_CACHE_TTL,
-        "clickhouse_connected": _ch_client is not None,
-        "known_lock_contracts": {chain: len(addrs) for chain, addrs in _KNOWN_LOCK_CONTRACTS.items()},
-        "auto_discovered_locks": {chain: len(addrs) for chain, addrs in _AUTO_DISCOVERED_LOCKS.items()},
-    }
+    return _common_get_cache_stats(
+        _LP_LOCK_CACHE,
+        _LP_LOCK_CACHE_MAX,
+        _LP_LOCK_CACHE_TTL,
+        extra={
+            "clickhouse_connected": _ch_client is not None,
+            "known_lock_contracts": {chain: len(addrs) for chain, addrs in _KNOWN_LOCK_CONTRACTS.items()},
+            "auto_discovered_locks": {chain: len(addrs) for chain, addrs in _AUTO_DISCOVERED_LOCKS.items()},
+        },
+    )
 
 
 def clear_cache() -> None:
     """Clear the in-process cache (for testing)."""
-    _LP_LOCK_CACHE.clear()
+    _common_clear_cache(_LP_LOCK_CACHE)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

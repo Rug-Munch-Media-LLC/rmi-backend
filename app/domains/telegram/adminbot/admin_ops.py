@@ -511,6 +511,7 @@ def rag_stats() -> dict[str, Any]:
     """Get RAG collection sizes and embedder status from the backend."""
     try:
         import httpx as sync_httpx
+
         from app.domains.telegram.adminbot.config import RMI_BACKEND_URL
 
         r = sync_httpx.get(
@@ -534,6 +535,7 @@ def news_feed(limit: int = 5) -> dict[str, Any]:
     """Get latest rated news articles from the backend news feed."""
     try:
         import httpx as sync_httpx
+
         from app.domains.telegram.adminbot.config import RMI_BACKEND_URL
 
         r = sync_httpx.get(
@@ -558,6 +560,7 @@ def scan_stats() -> dict[str, Any]:
     """Get scanner usage and own_data vs external breakdown."""
     try:
         import httpx as sync_httpx
+
         from app.domains.telegram.adminbot.config import RMI_BACKEND_URL
 
         metrics = sync_httpx.get(

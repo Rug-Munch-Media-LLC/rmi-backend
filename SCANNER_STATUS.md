@@ -4,7 +4,7 @@
 
 ## Architecture
 
-RugMunchScan has 4 core scanner engines, 6 capability engines (C1–C7), and 10 own-data engines:
+RugMunchScan has 4 core scanner engines, 7 capability engines (C1–C7, C4 v1 partial), and 10 own-data engines:
 
 ### Scanner Engines
 - **Legacy tiered scanner** (`service/scan.py`) — free/pro/elite tiered token scans
@@ -20,7 +20,7 @@ RugMunchScan has 4 core scanner engines, 6 capability engines (C1–C7), and 10 
 - **C6: Time-Based Attack Detection** — `engines/attack_detector.py` (sandwich/pump-dump/flash loan)
 - **C7: Deployer Behavioral Fingerprint** — `engines/deployer_fingerprint.py` (deployer_events + dex_events + evm_transfers + wallet_labels)
 - **F2: Price/Decimals Oracle (foundation)** — `engines/price_oracle.py` (7-tier USD resolution)
-- **C4: Cross-Chain Entity Resolution** — ❌ **Not started** (depends on foundations)
+- **C4: Cross-Chain Entity Resolution** — 🟡 Partial (`engines/cross_chain_entity.py` v1 stub: same-deployer + same-funder links from ClickHouse; behavioral fingerprint "coming in v2")
 
 ### Own-Data Engines (lite indexer powered)
 - `own_security_analysis` — ClickHouse security patterns
@@ -65,7 +65,7 @@ All 10 engines query ClickHouse directly (the lite indexer). Supporting files in
 | C1: Wallet-to-Wallet Flow Visualization | 🟢 Working | wallet_flow | evm_transfers + wallet_labels |
 | C2: BubbleMaps-style Holder Clustering | 🟢 Working | holder_clusters | evm_transfers + dex_events + wallet_labels |
 | C3: New Token Discovery + Early Warning | 🟢 Working | new_token_radar | deployer_events + C7 fingerprint |
-| C4: Cross-Chain Entity Resolution | ❌ Not started | — | depends on F0/F1 foundations |
+| C4: Cross-Chain Entity Resolution | 🟡 Partial (v1 stub) | cross_chain_entity | deployer_events + evm_transfers (same-deployer / same-funder links) |
 | C5: Hype Score | 🟢 Working | hype_score | dex_events + evm_transfers + trending |
 | C6: Time-Based Attack Detection | 🟢 Working | attack_detector | dex_events (sandwich/pump-dump/flash loan) |
 | C7: Deployer Behavioral Fingerprint | 🟢 Working | deployer_fingerprint | deployer_events + dex_events + evm_transfers + wallet_labels |
@@ -119,6 +119,7 @@ All documented in the provider registry — LOCAL FIRST → FREE SECOND → PAID
 
 ## Recent Changes (2026-08-02)
 
+- `feat(scanner)`: C4 cross-chain entity resolution v1 stub (`engines/cross_chain_entity.py`) + DataBus LOCAL provider `cross_chain_entity`; fixed 30 latent F821 NameErrors in `address_labeler.py`, `block_zero_sniper.py`, `wash_trading.py` (106 → 76 legacy findings)
 - `4ad65480` feat(pryscan): C2 BubbleMaps-style holder clustering engine (1,019 lines, 38 tests)
 - `645f2c89` feat(pryscan): C1 wallet flow, C3 new token radar, C5 hype score (17 tests)
 - `cfe29dc8` feat(indexer): deployer tracker CLI entry point + systemd timer (15-min sweeps)
@@ -156,7 +157,7 @@ Prioritized from `docs/scan-capabilities-spec.md`:
 
 ### P1 — Capabilities
 - **C2: BubbleMaps-style Holder Clustering** — ✅ DONE — enrichment/differentiator
-- **C4: Cross-Chain Entity Resolution** — ❌ NOT STARTED — depends on foundations
+- **C4: Cross-Chain Entity Resolution** — 🟡 PARTIAL (v1 stub) — same-deployer + same-funder links implemented (`cross_chain_entity.py`); behavioral fingerprint + bridge/launderer classification in v2
 - **C5: Hype Score** — ✅ DONE — enrichment
 
 Build order and sequencing documented in the spec (`docs/scan-capabilities-spec.md`).
@@ -171,6 +172,10 @@ Build order and sequencing documented in the spec (`docs/scan-capabilities-spec.
   own_copycat_detect, chain_pattern_detector after narrowing]
 - 7 F821 (undefined-name) bugs found in review — all fixed; `ruff --select F821`
   on scanner domain now passes with 0 findings
+- Legacy F821 cleanup in progress: `app/domains/scanners/` + `app/domains/databus/`
+  at **76 findings (was 106)** — 30 fixed in `address_labeler.py`, `block_zero_sniper.py`,
+  `wash_trading.py` (missing `requests`/`json` imports in except tuples); ~76 remaining
+  in legacy modules
 - 3 god functions split in the 2026-08-02 refactor
   [REVIEW: audit says "3 remaining >100 lines"; current AST scan of
   `app/domains/scanner/` finds 37 functions >100 lines domain-wide]
@@ -179,7 +184,7 @@ Build order and sequencing documented in the spec (`docs/scan-capabilities-spec.
 ## Repositories
 - Scanner: rmi-backend/app/domains/scanner/
 - Own-data engines: rmi-backend/app/domains/scanner/engines/own_*.py
-- Capability engines (C1–C7): rmi-backend/app/domains/scanner/engines/{wallet_flow,holder_clusters,new_token_radar,hype_score,attack_detector,deployer_fingerprint,price_oracle}.py
+- Capability engines (C1–C7): rmi-backend/app/domains/scanner/engines/{wallet_flow,holder_clusters,new_token_radar,hype_score,attack_detector,deployer_fingerprint,price_oracle,cross_chain_entity}.py
 - Lite indexer: lite-chain-indexer/ (v1.2.0) — re-exported via rmi-backend/app/domains/indexer/
 - DataBus: rmi-backend/app/domains/databus/
 - Telegram: rmi-backend/app/domains/telegram/rugmunchbot/
