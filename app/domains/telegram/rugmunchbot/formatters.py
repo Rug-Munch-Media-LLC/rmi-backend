@@ -154,6 +154,47 @@ def _price_diff_pct(p1: float, p2: float) -> str:
     return f"{cheaper} {abs_diff:.2f}% cheaper"
 
 
+
+# --- Explainable scoring breakdown ---
+DIMENSION_LABELS = {
+    "security": "\U0001f512 Contract Security",
+    "liquidity": "\U0001f4a7 Liquidity",
+    "holders": "\U0001f465 Holders",
+    "deployer": "\U0001f468\u200d\U0001f4bb Deployer",
+    "market": "\U0001f4ca Market",
+}
+
+
+def format_scoring_breakdown(breakdown: dict) -> str:
+    """Render the v2 explainable per-dimension scoring breakdown.
+
+    Each dimension carries score/max/delta/flags. Output is a compact
+    table with a filled bar so users can see WHY a token scored the way
+    it did at a glance.
+    """
+    if not breakdown:
+        return ""
+    lines = ["", "\U0001f9e9 <b>Scoring Breakdown</b>", thin_sep()]
+    for dim, weight in DIMENSION_LABELS.items():
+        entry = breakdown.get(dim)
+        if not isinstance(entry, dict):
+            continue
+        score = float(entry.get("score", 0) or 0)
+        maximum = float(entry.get("max", 0) or 0)
+        delta = float(entry.get("delta", 0) or 0)
+        bar_len = 10
+        filled = int(round((score / maximum) * bar_len)) if maximum else 0
+        filled = max(0, min(filled, bar_len))
+        bar = "\u2b1b" * filled + "\u2b1c" * (bar_len - filled)
+        marker = "\U0001f7e2" if delta >= 0 else "\U0001f534"
+        lines.append(f"  {marker} {weight}: {bar} {score:.0f}/{maximum:.0f}")
+        flags = entry.get("flags") or []
+        if flags:
+            for fl in flags[:2]:
+                lines.append(f"      \u26a0\ufe0f {fl}")
+    return "\n".join(lines)
+
+
 # --- Format scan report ---
 def format_scan_report(r: dict) -> str:
     s = sep()
@@ -244,6 +285,24 @@ def format_scan_report(r: dict) -> str:
                 soc_parts.append(f'<a href="{surl}">\U0001f310</a>')
         if soc_parts:
             lines.extend(["", f"\U0001f517 Socials: {' | '.join(soc_parts)}"])
+    # v2 explainable scoring: safety/confidence/risk-level + green flags
+    v2 = []
+    if r.get("safety_score") is not None:
+        emoji = "\U0001f7e2" if r["safety_score"] >= 80 else "\U0001f7e1" if r["safety_score"] >= 40 else "\U0001f534"
+        v2.append(f"{emoji} Safety Score: <b>{r['safety_score']:.0f}/100</b>")
+    if r.get("confidence") is not None:
+        v2.append(f"\U0001f50d Confidence: <b>{r['confidence']:.0f}%</b>")
+    if r.get("risk_level"):
+        v2.append(f"\U0001f6a8 Risk Level: <b>{r['risk_level'].upper()}</b>")
+    if r.get("green_flags"):
+        gfs = ", ".join(str(g) for g in r["green_flags"][:5])
+        v2.append(f"\U0001f7e2 Green Flags: {gfs}")
+    if v2:
+        lines.extend(["", "\U0001f9e9 <b>Explainable Scoring</b>", d])
+        lines.extend(v2)
+    if r.get("breakdown"):
+        lines.append(format_scoring_breakdown(r["breakdown"]))
+
     lines.extend(["", s, "\U0001f4b1 <b>Trade:</b>"])
     lines.append(footer_links())
     return "\n".join(lines)
@@ -325,5 +384,31 @@ def format_wallet_report(r: dict) -> str:
             lines.append(f"  \u2022 <code>{short_addr(w)}</code>")
     if r["risk_score"] > 0:
         lines.extend(["", risk_bar(r["risk_score"])])
+
+    # v2 wallet metrics: entity, scam exposure, smart money overlap
+    v2_lines = []
+    if r.get("entity_name"):
+        v2_lines.append(f"\U0001f3e6 Entity: <b>{r['entity_name']}</b> ({r.get('entity_type', 'unknown')})")
+    if r.get("persona"):
+        conf = f" ({r.get('persona_confidence', 0)}% conf)" if r.get("persona_confidence") else ""
+        v2_lines.append(f"\U0001f9d0 Persona: {r['persona']}{conf}")
+    if r.get("scam_exposure_pct"):
+        emoji = "\U0001f534" if r["scam_exposure_pct"] > 20 else "\U0001f7e1" if r["scam_exposure_pct"] > 5 else "\U0001f7e2"
+        v2_lines.append(
+            f"{emoji} Scam Exposure: <b>{r['scam_exposure_pct']:.0f}%</b> "
+            f"({r.get('scam_tokens_held', 0)} scam token(s) held)"
+        )
+    if r.get("smart_money_overlap"):
+        sm = ", ".join(str(s) for s in r["smart_money_overlap"][:5])
+        v2_lines.append(f"\U0001f4b0 Smart Money Overlap: {sm}")
+    if r.get("behavior_patterns"):
+        bp = ", ".join(str(b) for b in r["behavior_patterns"][:4])
+        v2_lines.append(f"\U0001f50e Behavior: {bp}")
+    if r.get("risk_forecast"):
+        v2_lines.append(f"\U0001f52e Forecast: {r['risk_forecast'][:120]}")
+    if v2_lines:
+        lines.extend(["", "\U0001f9e9 <b>v2 Wallet Intel</b>", d])
+        lines.extend(v2_lines)
+
     lines.append(footer_links())
     return "\n".join(lines)

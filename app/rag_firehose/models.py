@@ -11,7 +11,14 @@ from typing import Any
 
 # ── Configuration ──────────────────────────────────────────────
 
-RAG_API = "http://localhost:8000/api/v1/rag"
+# DEPRECATED (v3): the legacy RAG HTTP facade this package called was
+# removed — ``RAG_API = "http://localhost:8000/api/v1/rag"`` (and its
+# ``/ingest``, ``/dedup-check``, ``/dedup-mark``, ``/search`` routes) no
+# longer exists. Scanner engines now publish findings to Redis channel
+# ``rmi:rag:ingest`` + list ``rmi:rag:findings_queue`` (see
+# ``app.domains.scanner.unified.persistence.publish_rag_finding``).
+# This package is kept importable only for backward compatibility; every
+# pipeline method is a no-op ``return`` guard. Do NOT restore the HTTP URL.
 
 # Per-collection size caps (auto-evict oldest on overflow)
 COLLECTION_CAPS = {

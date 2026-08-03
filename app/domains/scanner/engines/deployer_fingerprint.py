@@ -147,8 +147,18 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
     funding-source analysis into a risk bucket (NEW / REPEAT_CLEAN / REPEAT_RUG /
     FARM / PROLIFIC) plus a 0-100 risk score (higher = riskier).
 
+    Launchpad awareness:
+      If the given deployer is a known launchpad factory (e.g. pump.fun /
+      bags.fm), the factory itself is NOT fingerprinted — that would score the
+      factory's aggregate history (10M+ deployments) instead of the real
+      creator. Instead we resolve the real deployer first (see
+      ``launchpad_resolver``) and fingerprint the creator EOA. When resolution
+      is unavailable, we return a degraded ``unavailable`` result rather than a
+      misleading factory score.
+
     Args:
-        deployer_address: Deployer wallet address (lowercased internally)
+        deployer_address: Deployer wallet address (lowercased internally).
+            May be a launchpad factory address — resolved to the real creator.
         chain: Chain to analyze (default ``ethereum``). Empty string or
                ``any`` means all chains.
 
@@ -163,7 +173,11 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
                 "success_rate": float,
                 "median_lifespan_hours": float,
                 "funder_profile": {...},
-                "evidence": [...]
+                "evidence": [...],
+                # launchpad context (only when the input was a factory):
+                "launchpad": "pump.fun" | ...,
+                "real_deployer": "0x...",       # resolved creator EOA
+                "launchpad_resolved": bool,
             }
 
         Returns an ``unavailable`` result (graceful degradation) when
@@ -175,6 +189,25 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
 
     if not deployer_address:
         return _error_result("No deployer address")
+
+    # ── 0. Launchpad factory → real deployer resolution ──
+    # Only Solana base58 addresses are case-sensitive; EVM deployers are
+    # lowercased above and compared against the (lowercased) registry keys.
+    launchpad_ctx: dict[str, Any] | None = None
+    if _is_known_launchpad_factory(deployer_address, chain_norm):
+        launchpad_ctx = await _resolve_launchpad_context(deployer_address, chain_norm)
+        if launchpad_ctx is None:
+            # Factory is known but we could not trace the real creator —
+            # do not fingerprint the factory itself.
+            result = _unavailable_result(
+                deployer_address,
+                chain_norm,
+                reason="launchpad factory deployer — real creator could not be resolved",
+            )
+            result["launchpad"] = _launchpad_name(deployer_address, chain_norm)
+            result["launchpad_resolved"] = False
+            return result
+        deployer_address = launchpad_ctx["real_deployer"]
 
     # ── 1. Redis fast cache (1h TTL) ──
     cache_key = f"{REDIS_CACHE_PREFIX}:{chain_norm or 'any'}:{deployer_address}"
@@ -195,6 +228,16 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
     except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
         logger.debug("deployer_fingerprint_query_failed: %s", exc)
         result = _unavailable_result(deployer_address, chain_norm)
+
+    # ── Stamp launchpad context (factory → real creator) ──
+    if launchpad_ctx is not None:
+        result["launchpad"] = launchpad_ctx.get("launchpad")
+        result["real_deployer"] = launchpad_ctx.get("real_deployer")
+        result["launchpad_resolved"] = True
+        result["evidence_tx"] = launchpad_ctx.get("evidence_tx")
+        result["launchpad_confidence"] = launchpad_ctx.get("confidence")
+        result["deployer"] = deployer_address  # fingerprint is of the real creator
+        result["note"] = "fingerprint computed for real deployer resolved from launchpad factory"
 
     # Only cache meaningful results (skip unavailable/error)
     if result.get("result") == "scanned":
@@ -219,6 +262,53 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
 # ═══════════════════════════════════════════════════════════════════════════
 # COMPUTATION
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _resolve_launchpad_context(deployer_address: str, chain_norm: str) -> dict[str, Any] | None:
+    """Resolve a known launchpad factory to its real creator EOA.
+
+    Delegates to ``launchpad_resolver.resolve_launchpad_deployer`` (lazy import
+    to keep this engine's import graph light). When the caller has no token
+    context, we anchor resolution on the factory's most recent recorded deploy
+    transaction from ``deployer_events``.
+
+    Returns ``None`` when the factory is not in the registry or the creator
+    cannot be traced.
+    """
+    try:
+        from app.domains.scanner.engines.launchpad_resolver import (
+            _query_factory_latest_deploy_tx,
+            resolve_launchpad_deployer,
+        )
+
+        deploy_tx = await run_sync(_query_factory_latest_deploy_tx, deployer_address, chain_norm)
+        return await resolve_launchpad_deployer("", chain_norm, deployer_address, deploy_tx=deploy_tx)
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
+        logger.debug("deployer_fingerprint_launchpad_resolve_failed: %s", exc)
+        return None
+
+
+def _is_known_launchpad_factory(deployer_address: str, chain_norm: str) -> bool:
+    """True when the deployer address is a registered launchpad factory.
+
+    Non-lazy import is avoided at module load; the lookup itself is cheap.
+    """
+    try:
+        from app.domains.scanner.engines.launchpad_resolver import lookup_launchpad
+
+        return lookup_launchpad(chain_norm or "ethereum", deployer_address) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _launchpad_name(deployer_address: str, chain_norm: str) -> str | None:
+    """Return the launchpad label for a factory address (or None)."""
+    try:
+        from app.domains.scanner.engines.launchpad_resolver import lookup_launchpad
+
+        return lookup_launchpad(chain_norm or "ethereum", deployer_address)
+    except (ImportError, ValueError):
+        return None
 
 
 async def _compute_fingerprint(deployer_address: str, chain_norm: str) -> dict[str, Any]:

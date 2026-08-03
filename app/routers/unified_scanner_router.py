@@ -45,6 +45,45 @@ def _get_admin_key(request: Request) -> Any | None:
     return request.headers.get("X-Admin-Key") or request.headers.get("X-RMI-Key")
 
 
+def _serialize_rag_context(rag_ctx: Any) -> dict[str, Any] | None:
+    """Best-effort serialize RAGContext for the API response.
+
+    Mirrors the compact shape the legacy scanner stores (see
+    ``app/domains/scanner/service/scan.py``). Never raises — RAG
+    enrichment is best-effort, so a broken RAG payload must not fail
+    the scan response.
+    """
+    if rag_ctx is None:
+        return None
+    try:
+        return {
+            "similar_scams": [
+                {
+                    "content": h.content[:200],
+                    "score": round(h.final_score or h.score, 4),
+                    "collection": h.collection,
+                    "doc_id": h.doc_id,
+                }
+                for h in rag_ctx.similar_scams[:5]
+            ],
+            "wallet_context": [
+                {
+                    "content": h.content[:200],
+                    "score": round(h.final_score or h.score, 4),
+                    "collection": h.collection,
+                }
+                for h in rag_ctx.wallet_context[:3]
+            ],
+            "market_signals": len(rag_ctx.market_context),
+            "fusion_summary": rag_ctx.fusion_summary,
+            "collections_searched": rag_ctx.collections_searched,
+            "took_ms": rag_ctx.took_ms,
+            "query_id": rag_ctx.query_id,
+        }
+    except Exception:
+        return None
+
+
 @router.post(
     "/token/scan",
     summary="Scan Token",
@@ -78,11 +117,17 @@ async def scan_token(
             "name": result.name,
             "symbol": result.symbol,
             "price_usd": result.price_usd,
+            "market_cap_usd": result.market_cap_usd,
+            "liquidity_usd": result.liquidity_usd,
+            "volume_24h_usd": result.volume_24h_usd,
+            "age_hours": result.age_hours,
             "safety_score": result.safety_score,
             "confidence": result.confidence,
             "risk_level": result.risk_level,
             "risk_flags": result.risk_flags,
             "green_flags": result.green_flags,
+            "breakdown": result.breakdown,
+            "evidence": result.evidence,
             "modules_run": result.modules_run,
             "scan_duration_ms": result.scan_duration_ms,
             "tier": result.tier,
@@ -95,6 +140,7 @@ async def scan_token(
                 "external_fallback_modules": fallback_modules,
                 "total_modules": len(result.modules_run),
             },
+            "rag_context": _serialize_rag_context(result.rag_context),
         }
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e

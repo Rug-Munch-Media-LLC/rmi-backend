@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+import requests
 
 from app.chain_client import ChainClient
 from app.chain_registry import CHAINS, is_evm, is_solana

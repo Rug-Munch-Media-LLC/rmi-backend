@@ -18,6 +18,7 @@ from .fetchers import _fetch_evm_wallets, _fetch_solana_wallets
 from .graph import _build_flow_graph
 from .models import (
     SVG_OUTPUT_DIR,
+    FundFlowEdge,
     FundFlowNode,
     FundFlowReport,
     _ensure_output_dir,

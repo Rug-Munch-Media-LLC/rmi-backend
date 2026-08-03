@@ -28,9 +28,13 @@ from app.rag.embedder import (
 log = get_logger(__name__)
 
 # ── Public constants ────────────────────────────────────────────────────
-# Primary dimension is driven by the primary embedder model (bge-m3=1024d
-# when EMBEDDER_PRIMARY=ollama + EMBEDDER_PRIMARY_MODEL=bge-m3).
-_PRIMARY_MODEL = settings.embedder_primary_model if settings.embedder_primary == "ollama" else settings.embedder_primary
+# Primary dimension is driven by the primary embedder model
+# (BAAI/bge-m3 = 1024d when EMBEDDER_PRIMARY=infinity + EMBEDDER_PRIMARY_MODEL=BAAI/bge-m3).
+_PRIMARY_MODEL = (
+    settings.embedder_primary_model
+    if settings.embedder_primary in ("ollama", "infinity")
+    else settings.embedder_primary
+)
 EMBEDDING_DIM: Final = lookup_dim(_PRIMARY_MODEL)
 
 # Re-export _resize for legacy code (rmi-rag/legacy_supabase.py)
@@ -59,7 +63,8 @@ def _get_embedder() -> EmbedderProtocol:
 async def get_embedding(text: str) -> list[float]:
     """Async embedding API. Returns ``EMBEDDING_DIM``-dimensional float list.
 
-    Uses the configured embedder chain (default: bge-m3 -> nomic-embed-text + cache).
+    Uses the configured embedder chain (default: Infinity BAAI/bge-m3 ->
+    Ollama nomic-embed-text fallback + cache).
     Raises ``RAGUnavailableError`` on total failure.
 
     Per T04: NO hash fallback. If all neural backends fail, the error
@@ -94,7 +99,7 @@ async def get_embeddings(texts: list[str]) -> list[list[float]]:
 
 
 def current_backend() -> str:
-    """Return the configured PRIMARY embedder backend (e.g. ``ollama:bge-m3``).
+    """Return the configured PRIMARY embedder backend (e.g. ``infinity:BAAI/bge-m3``).
 
     Unwraps the CachedEmbedder/FallbackEmbedder wrappers and reports the
     primary embedder so stats show what should be serving queries rather
@@ -121,7 +126,7 @@ def create_embedder(
     """Build a fully-wired embedder chain (convenience wrapper).
 
     Args:
-        primary: ``"bge-m3"`` or ``"ollama"`` (default from settings).
+        primary: ``"infinity"``, ``"bge-m3"`` or ``"ollama"`` (default from settings).
         fallback: Ollama model name for fallback (default from settings).
         enable_cache: Wrap in ``CachedEmbedder``.
 

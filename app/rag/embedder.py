@@ -2,8 +2,10 @@
 
 Provides a clean embedder abstraction with:
   - EmbedderProtocol ABC for all embedders
-  - BGE_M3_Embedder — HTTP client for the bge-m3 Docker container
-  - OllamaEmbedder — Ollama /api/embeddings client
+  - InfinityEmbedder — OpenAI-compatible /v1/embeddings client (PRIMARY since
+    the Ollama → Infinity migration; serves BAAI/bge-m3, 1024d)
+  - BGE_M3_Embedder — HTTP client for the legacy bge-m3 Docker container
+  - OllamaEmbedder — Ollama /api/embeddings client (fallback chain)
   - CachedEmbedder — in-memory LRU + optional Redis
   - FallbackEmbedder — primary → secondary with dimension normalization
   - get_embedder() — factory that wires everything from settings
@@ -97,6 +99,153 @@ class EmbedderProtocol(ABC):
         if not results:
             raise RuntimeError(f"{self.name} returned empty result for single text")
         return results[0]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Infinity  (OpenAI-compatible embeddings server — PRIMARY)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class InfinityEmbedder(EmbedderProtocol):
+    """Embedder backed by an Infinity server (OpenAI-compatible API).
+
+    Calls ``POST {url}/v1/embeddings`` with
+    ``{"model": "BAAI/bge-m3", "input": [...]}`` and reads
+    ``data[i].embedding`` — the same wire format as OpenAI, served locally
+    by michaelfeil/infinity.
+
+    PRIMARY RAG embedder since the Ollama → Infinity migration.
+    """
+
+    DEFAULT_MODEL: str = "BAAI/bge-m3"
+
+    # Max batch size — keep per-request latency predictable and avoid
+    # memory spikes on the Infinity server.
+    MAX_BATCH_SIZE: int = 64
+
+    def __init__(
+        self,
+        model: str = "",
+        url: str = "",
+        dim: int = 1024,
+        timeout: float = 60.0,
+        max_retries: int = 2,
+    ) -> None:
+        self._model = model or settings.embedder_primary_model or self.DEFAULT_MODEL
+        self._url = (url or settings.infinity_url).rstrip("/")
+        self._dim = dim
+        self._timeout = timeout
+        self._max_retries = max_retries
+        self._client: httpx.AsyncClient | None = None
+
+    # ── client lifecycle ──────────────────────────────────────────────────
+    @property
+    def _http(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self._timeout),
+                limits=httpx.Limits(max_keepalive_connections=4, max_connections=8),
+            )
+        return self._client
+
+    async def close(self) -> None:
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+
+    # ── EmbedderProtocol ──────────────────────────────────────────────────
+    @property
+    def dim(self) -> int:
+        return self._dim
+
+    @property
+    def name(self) -> str:
+        return f"infinity:{self._model}"
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        # Split large batches into chunks to avoid gateway timeouts.
+        if len(texts) > self.MAX_BATCH_SIZE:
+            return await self._embed_chunked(texts)
+
+        last_exc: Exception | None = None
+        for attempt in range(self._max_retries + 1):
+            try:
+                resp = await self._http.post(
+                    f"{self._url}/v1/embeddings",
+                    json={"model": self._model, "input": texts},
+                )
+                resp.raise_for_status()
+                items = resp.json().get("data") or []
+                if len(items) != len(texts):
+                    raise RuntimeError(f"Infinity returned {len(items)} embeddings for {len(texts)} texts")
+                vectors: list[list[float]] = [
+                    item["embedding"] for item in sorted(items, key=lambda i: i.get("index", 0))
+                ]
+                self._validate(vectors)
+                return vectors
+            except (httpx.HTTPError, OSError, RuntimeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+                last_exc = exc
+                log.warning("infinity_embed_attempt_failed attempt=%d error=%s", attempt, exc)
+                if attempt < self._max_retries:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+
+        raise RuntimeError(f"Infinity embed failed after {self._max_retries + 1} attempts") from last_exc
+
+    async def _embed_chunked(self, texts: list[str]) -> list[list[float]]:
+        """Split large batches into chunks and embed concurrently."""
+        chunks = [texts[i : i + self.MAX_BATCH_SIZE] for i in range(0, len(texts), self.MAX_BATCH_SIZE)]
+        sem = asyncio.Semaphore(2)  # max 2 concurrent chunk requests
+
+        async def _do(chunk: list[str]) -> list[list[float]]:
+            async with sem:
+                for attempt in range(self._max_retries + 1):
+                    try:
+                        resp = await self._http.post(
+                            f"{self._url}/v1/embeddings",
+                            json={"model": self._model, "input": chunk},
+                        )
+                        resp.raise_for_status()
+                        items = resp.json().get("data") or []
+                        if len(items) != len(chunk):
+                            raise RuntimeError(f"expected {len(chunk)} vectors, got {len(items)}")
+                        vecs: list[list[float]] = [
+                            item["embedding"] for item in sorted(items, key=lambda i: i.get("index", 0))
+                        ]
+                        self._validate(vecs)
+                        return vecs
+                    except (httpx.HTTPError, OSError, RuntimeError, json.JSONDecodeError, KeyError, TypeError):
+                        if attempt < self._max_retries:
+                            await asyncio.sleep(0.5 * (attempt + 1))
+                        else:
+                            raise
+
+        chunk_results = await asyncio.gather(*[_do(c) for c in chunks])
+
+        # Flatten
+        result: list[list[float]] = []
+        for cr in chunk_results:
+            result.extend(cr)
+        return result
+
+    def _validate(self, vectors: list[list[float]]) -> None:
+        for i, vec in enumerate(vectors):
+            actual = len(vec)
+            if actual != self._dim:
+                # First mismatch: auto-detect and update dimension so the
+                # caller's collections stay consistent with the server.
+                if actual > 0:
+                    log.info(
+                        "infinity_auto_dim model=%s expected=%d actual=%d",
+                        self._model,
+                        self._dim,
+                        actual,
+                    )
+                    self._dim = actual
+                    return
+                raise RuntimeError(f"Infinity returned {actual}d vector for text[{i}], expected {self._dim}d")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -694,6 +843,10 @@ def _create_bge_m3() -> BGE_M3_Embedder:
     return BGE_M3_Embedder(url=settings.bge_m3_url, dim=1024)
 
 
+def _create_infinity(model: str | None = None) -> InfinityEmbedder:
+    return InfinityEmbedder(model=model or settings.embedder_primary_model)
+
+
 def _create_ollama(model: str | None = None) -> OllamaEmbedder:
     return OllamaEmbedder(model=model or settings.embedder_fallback)
 
@@ -706,7 +859,7 @@ def get_embedder(
     """Build and return a fully-wired embedder chain.
 
     Args:
-        primary: Primary backend name (``"bge-m3"`` | ``"ollama"``).
+        primary: Primary backend name (``"infinity"`` | ``"ollama"`` | ``"bge-m3"``).
                  Defaults to ``settings.embedder_primary``.
         fallback: Fallback Ollama model name (e.g. ``"nomic-embed-text"``).
                   Defaults to ``settings.embedder_fallback``.
@@ -726,20 +879,23 @@ def get_embedder(
     fallback_model = fallback or settings.embedder_fallback
 
     # Build primary
-    if primary_name == "bge-m3":
-        primary_embedder: EmbedderProtocol = _create_bge_m3()
+    if primary_name == "infinity":
+        primary_embedder: EmbedderProtocol = _create_infinity()
+    elif primary_name == "bge-m3":
+        primary_embedder = _create_bge_m3()
     elif primary_name == "ollama":
         # Primary Ollama model is independent of the fallback model so the
         # chain is e.g. bge-m3 (1024d) primary -> nomic-embed-text fallback.
         primary_embedder = _create_ollama(model=settings.embedder_primary_model)
     else:
         log.warning(
-            "get_embedder_unknown_primary=%s falling_back_to_bge_m3",
+            "get_embedder_unknown_primary=%s falling_back_to_infinity",
             primary_name,
         )
-        primary_embedder = _create_bge_m3()
+        primary_embedder = _create_infinity()
 
-    # Build secondary (always Ollama with fallback model)
+    # Build secondary (Ollama with fallback model — resilience net when the
+    # primary Infinity backend is unreachable)
     secondary = _create_ollama(model=fallback_model)
 
     # Wire fallback chain

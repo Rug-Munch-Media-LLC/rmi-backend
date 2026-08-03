@@ -34,7 +34,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, investigate_kb, paywall_kb
-from app.domains.telegram.rugmunchbot.scanner import scan_token
+from app.domains.telegram.rugmunchbot.scanner import scan_token, scan_token_v2, v2_token_to_legacy
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -149,8 +149,14 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         # Phase 1-4: Run all analysis in parallel
         async with httpx.AsyncClient(timeout=45) as client:
-            # Security scan
-            scan_result = await scan_token(address, chain)
+            # Security scan — v2 explainable first, legacy fallback
+            scan_v2 = await scan_token_v2(address, chain)
+            if scan_v2 is not None:
+                scan_result = v2_token_to_legacy(scan_v2)
+                if chain:
+                    scan_result["chain"] = chain
+            else:
+                scan_result = await scan_token(address, chain)
 
             # Wallet data
             wallet_data: dict = {}
@@ -256,6 +262,19 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 lines.append(f"  🔴 {t}")
         else:
             lines.append("  ✅ No threats detected")
+        # v2 explainable scoring
+        if scan_result.get("safety_score") is not None:
+            safety = scan_result["safety_score"]
+            emoji = "🟢" if safety >= 80 else "🟡" if safety >= 40 else "🔴"
+            lines.append(
+                f"  {emoji} Safety Score: <b>{safety:.0f}/100</b> | "
+                f"Confidence: {scan_result.get('confidence', 0):.0f}% | "
+                f"Risk: <b>{scan_result.get('risk_level', 'unknown').upper()}</b>"
+            )
+            if scan_result.get("breakdown"):
+                from app.domains.telegram.rugmunchbot.formatters import format_scoring_breakdown
+
+                lines.append(format_scoring_breakdown(scan_result["breakdown"]))
         lines.append("")
 
         # Smart Contract Checks

@@ -29,10 +29,13 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.formatters import (
     _price_diff_pct,
     _risk_indicator,
+    detect_chain,
     footer_links,
     format_scan_report,
     format_wallet_report,
+    is_evm,
     is_owner,
+    is_sol,
     paywall_text,
     sep,
     short_addr,
@@ -46,7 +49,14 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     scan_result_kb,
     upgrade_nudge_kb,
 )
-from app.domains.telegram.rugmunchbot.scanner import analyze_wallet, scan_token
+from app.domains.telegram.rugmunchbot.scanner import (
+    analyze_wallet,
+    analyze_wallet_v2,
+    scan_token,
+    scan_token_v2,
+    v2_token_to_legacy,
+    v2_wallet_to_legacy,
+)
 from app.domains.telegram.rugmunchbot.states import check_spam
 
 if TYPE_CHECKING:
@@ -126,7 +136,9 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\U0001f4d6 <b>RugMunch Intelligence - Command Guide</b>\n"
         f"{s}\n\n"
         f"\U0001f50d <b>TOKEN ANALYSIS</b>\n{d}\n"
-        f"/scan <code>address</code> - Full security scan\n"
+        f"/scan <code>address</code> - Full security scan + scoring breakdown\n"
+f"/deployer <code>address</code> - Deployer fingerprint check\n"
+f"/hype <code>address_or_symbol</code> - Quick 0-100 hype score\n"
         f"/ta <code>address</code> - Technical analysis & signals\n"
         f"/chart <code>address</code> - Price chart & trends\n"
         f"/simulate <code>address</code> [amount] - Buy/sell simulation\n"
@@ -221,7 +233,12 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=ParseMode.HTML,
     )
     try:
-        result = await scan_token(target, chain)
+        result_v2 = await scan_token_v2(target, chain)
+        if result_v2 is not None:
+            result = v2_token_to_legacy(result_v2)
+        else:
+            # v2 unavailable → fall back to legacy multi-source scanner
+            result = await scan_token(target, chain)
         if result["name"] == "Unknown" and not result["errors"]:
             await msg.edit_text(
                 f"\u274c <b>Token Not Found</b>\n\n"
@@ -287,7 +304,13 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "\U0001f9db <b>Analyzing wallet...</b>\n\u23f3 Querying on-chain data...", parse_mode=ParseMode.HTML
     )
     try:
-        result = await analyze_wallet(addr, chain)
+        result_v2 = await analyze_wallet_v2(addr, chain)
+        if result_v2 is not None:
+            result = v2_wallet_to_legacy(result_v2)
+            if chain:
+                result["chain"] = chain
+        else:
+            result = await analyze_wallet(addr, chain)
         report = format_wallet_report(result)
         db.increment_usage(user.id, scan=True)
         await msg.edit_text(report, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True)
@@ -412,7 +435,11 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             return
     msg = await update.message.reply_text("\u2696\ufe0f <b>Comparing tokens...</b>", parse_mode=ParseMode.HTML)
     try:
-        r1, r2 = await asyncio.gather(scan_token(ctx.args[0]), scan_token(ctx.args[1]))
+        v2_1, v2_2 = await asyncio.gather(scan_token_v2(ctx.args[0]), scan_token_v2(ctx.args[1]))
+        if v2_1 is not None and v2_2 is not None:
+            r1, r2 = v2_token_to_legacy(v2_1), v2_token_to_legacy(v2_2)
+        else:
+            r1, r2 = await asyncio.gather(scan_token(ctx.args[0]), scan_token(ctx.args[1]))
         risk1 = r1["risk_score"]
         risk2 = r2["risk_score"]
         better = []
@@ -505,3 +532,271 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"cmd_quick DexScreener lookup failed for symbol {symbol}: {e}")
     await update.message.reply_text(f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML)
+
+
+# ── /deployer — quick deployer fingerprint check ──
+
+
+async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Quick deployer fingerprint: run a v2 scan and surface dev reputation."""
+    user = update.effective_user
+    if user is None:
+        return
+    if not ctx.args:
+        await update.message.reply_text(
+            "\U0001f468\u200d\U0001f4bb <b>Deployer Fingerprint</b>\n\n"
+            "Usage: /deployer <code>address</code>\n\n"
+            "Runs a v2 security scan and extracts the deployer reputation: "
+            "dev risk score, deployment history, rug count.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    if not is_owner(user.id):
+        allowed, _, _ = db.check_rate_limit(user.id, "scan")
+        if not allowed:
+            tier = db.get_user_tier(user.id)
+            await update.message.reply_text(
+                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
+            )
+            return
+    target = ctx.args[0]
+    chain = ctx.args[1] if len(ctx.args) > 1 else None
+    msg = await update.message.reply_text(
+        "\U0001f468\u200d\U0001f4bb <b>Checking deployer fingerprint...</b>\n"
+        f"<code>{short_addr(target)}</code>",
+        parse_mode=ParseMode.HTML,
+    )
+    try:
+        data = await scan_token_v2(target, chain)
+        if data is None:
+            await msg.edit_text(
+                "\u274c <b>Deployer Check Failed</b>\n\nv2 scanner unavailable. Please try again later.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
+        evidence = data.get("evidence") or {}
+        dev = evidence.get("deployer") or {}
+        if not dev:
+            await msg.edit_text(
+                f"\u26aa <b>No Deployer Data</b>\n\n"
+                f"<code>{short_addr(target)}</code>\n"
+                f"No deployer reputation data returned by the scanner.\n\n"
+                f"Safety: {data.get('safety_score', 'N/A')}/100 | "
+                f"Risk level: {data.get('risk_level', 'unknown')}",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
+        risk_score = dev.get("risk_score")
+        risk_label = dev.get("risk_label") or dev.get("reputation_label") or "UNKNOWN"
+        dev_addr = dev.get("deployer_address") or dev.get("address") or "unknown"
+        lines = [
+            "\U0001f468\u200d\U0001f4bb <b>Deployer Fingerprint</b>",
+            sep(),
+            f"<code>{short_addr(dev_addr)}</code>\n",
+            "\U0001f3af <b>Reputation</b>",
+            thin_sep(),
+        ]
+        if risk_score is not None:
+            emoji = "\U0001f7e2" if risk_score < 30 else "\U0001f7e1" if risk_score < 60 else "\U0001f534"
+            lines.append(f"{emoji} Dev Risk Score: <b>{risk_score}/100</b>")
+        lines.append(f"\U0001f3f7\ufe0f Label: <b>{risk_label}</b>")
+        if dev.get("rug_count") is not None:
+            lines.append(f"\U0001f4a5 Rug Count: <b>{dev['rug_count']}</b>")
+        if dev.get("total_deployments") is not None:
+            lines.append(f"\U0001f4e6 Total Deployments: <b>{dev['total_deployments']}</b>")
+        if evidence.get("holders"):
+            h = evidence["holders"]
+            lines.append(
+                f"\U0001f465 Top-10 Holders: <b>{h.get('top_10_pct', 'N/A')}%</b> "
+                f"| Holders: {h.get('holder_count', 'N/A')}"
+            )
+        if evidence.get("liquidity"):
+            liq = evidence["liquidity"]
+            locked = liq.get("locked_pct")
+            if locked is not None:
+                lines.append(f"\U0001f510 LP Locked: <b>{locked:.0f}%</b>")
+        if evidence.get("security", {}).get("checks"):
+            checks = evidence["security"]["checks"]
+            fails = sum(1 for c in checks.values() if c.get("status") == "fail")
+            lines.append(f"\U0001f512 Failed Security Checks: <b>{fails}</b>")
+        lines.append("")
+        lines.append(
+            f"\U0001f50d Full scan: /scan <code>{target}</code>"
+            f"{footer_links()}"
+        )
+        db.increment_usage(user.id, scan=True)
+        await msg.edit_text(
+            "\n".join(lines),
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+            disable_web_page_preview=True,
+        )
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
+        logger.debug("cmd_deployer_error", exc_info=True)
+        logger.error(f"cmd_deployer failed: {e}")
+        await msg.edit_text(
+            f"\u274c <b>Deployer Check Failed</b>\n\n{str(e)[:200]}",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+
+
+# ── /hype — quick hype score ──
+
+
+async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Quick hype score: boosts, volume, age, and price momentum."""
+    user = update.effective_user
+    if user is None:
+        return
+    if not ctx.args:
+        await update.message.reply_text(
+            "\U0001f525 <b>Hype Score</b>\n\n"
+            "Usage: /hype <code>address_or_symbol</code>\n\n"
+            "Returns a 0-100 hype score based on DexScreener boosts, "
+            "volume momentum, token age, and price action.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    if not is_owner(user.id):
+        allowed, _, _ = db.check_rate_limit(user.id, "scan")
+        if not allowed:
+            tier = db.get_user_tier(user.id)
+            await update.message.reply_text(
+                paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
+            )
+            return
+    target = ctx.args[0]
+    msg = await update.message.reply_text("\U0001f525 <b>Measuring hype...</b>", parse_mode=ParseMode.HTML)
+    try:
+        # Resolve address: if it looks like a symbol, search DexScreener
+        address = target
+        chain = ""
+        async with httpx.AsyncClient(timeout=15) as client:
+            if not (is_evm(target) or is_sol(target)):
+                r = await client.get(f"{DEXSCREENER}/search/?q={target}")
+                if r.status_code == 200:
+                    pairs = r.json().get("pairs", [])
+                    if pairs:
+                        address = pairs[0].get("baseToken", {}).get("address", "")
+                        chain = pairs[0].get("chainId", "")
+            if not address:
+                await msg.edit_text(f"\u274c Could not resolve token: <b>{target}</b>", parse_mode=ParseMode.HTML)
+                return
+
+            # Boosts (paid hype signal)
+            boosts = 0
+            try:
+                br = await client.get(f"{DEXSCREENER}/token-boosts/top/v1")
+                if br.status_code == 200:
+                    boost_list = br.json()
+                    if isinstance(boost_list, list):
+                        for b in boost_list:
+                            if b.get("tokenAddress", "").lower() == address.lower():
+                                boosts = int(b.get("boostCount", 0) or 0)
+                                break
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+                pass
+
+            # Pair data
+            tr = await client.get(f"{DEXSCREENER}/tokens/{address}")
+            if tr.status_code != 200:
+                await msg.edit_text("\u274c Token not found on DexScreener.", parse_mode=ParseMode.HTML)
+                return
+            pairs = tr.json().get("pairs", [])
+            if not pairs:
+                await msg.edit_text("\u274c No trading pairs found.", parse_mode=ParseMode.HTML)
+                return
+            p = pairs[0]
+            name = p.get("baseToken", {}).get("name", "???")
+            symbol = p.get("baseToken", {}).get("symbol", "???")
+            chain = chain or p.get("chainId", "")
+            price = float(p.get("priceUsd", 0))
+            h1 = float(p.get("priceChange", {}).get("h1") or 0)
+            h24 = float(p.get("priceChange", {}).get("h24") or 0)
+            vol24 = float(p.get("volume", {}).get("h24") or 0)
+            liq = float(p.get("liquidity", {}).get("usd") or 0)
+            created = p.get("pairCreatedAt")
+            from datetime import UTC, datetime as dt
+
+            age_hours = 0
+            if created:
+                try:
+                    age_hours = max(0, (dt.now(UTC) - dt.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600)
+                except (OSError, ValueError, TypeError):
+                    pass
+
+        # ── Hype scoring ──
+        boost_score = min(boosts * 8, 40)  # 0-40 from boost count
+        vol_score = 0
+        if vol24 > 0:
+            if vol24 >= 1_000_000:
+                vol_score = 20
+            elif vol24 >= 100_000:
+                vol_score = 14
+            elif vol24 >= 10_000:
+                vol_score = 8
+            elif vol24 > 0:
+                vol_score = 4
+        momentum = 0
+        if h1 > 20 and h24 > 30:
+            momentum = 20
+        elif h1 > 10 and h24 > 15:
+            momentum = 14
+        elif h24 > 5:
+            momentum = 8
+        elif h24 < -20:
+            momentum = 0
+        else:
+            momentum = 4
+        age_score = 0
+        if age_hours and age_hours < 24:
+            age_score = 10
+        elif age_hours and age_hours < 72:
+            age_score = 6
+        elif age_hours and age_hours < 168:
+            age_score = 3
+        liquidity_score = 10 if liq >= 100_000 else 5 if liq >= 10_000 else 0
+        hype = min(boost_score + vol_score + momentum + age_score + liquidity_score, 100)
+
+        emoji = "\U0001f525" if hype >= 70 else "\U0001f7e1" if hype >= 40 else "\U0001f7e2"
+        lines = [
+            f"{emoji} <b>Hype Score: {hype}/100</b>",
+            sep(),
+            f"<b>{name}</b> ({symbol}) {fmt_chain(chain)}",
+            f"<code>{address}</code>\n",
+            "\U0001f4ca <b>Components</b>",
+            thin_sep(),
+            f"\U0001f525 Boosts: {boosts} (x8, max 40) -> {boost_score}",
+            f"\U0001f4c8 Volume 24h: {fmt_number(vol24)} -> {vol_score}/20",
+            f"\U0001f504 Momentum (1h {fmt_pct(h1)} / 24h {fmt_pct(h24)}): -> {momentum}/20",
+            f"\u231b Age: {age_hours:.0f}h -> {age_score}/10",
+            f"\U0001f4a7 Liquidity: {fmt_number(liq)} -> {liquidity_score}/10",
+            "",
+            f"\U0001f4b0 Price: {fmt_number(price)}",
+        ]
+        lines.append("")
+        lines.append(f"\U0001f50d Full scan: /scan <code>{address}</code>{footer_links()}")
+        kb = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("\U0001f50d Full Scan", callback_data=f"scan_{address}_{chain}")],
+                [web_scan_button(address, chain)],
+            ]
+        )
+        db.increment_usage(user.id, scan=True)
+        await msg.edit_text(
+            "\n".join(lines),
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+            disable_web_page_preview=True,
+        )
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
+        logger.debug("cmd_hype_error", exc_info=True)
+        logger.error(f"cmd_hype failed: {e}")
+        await msg.edit_text(
+            f"\u274c <b>Hype Check Failed</b>\n\n{str(e)[:200]}",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )

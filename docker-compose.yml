@@ -261,6 +261,8 @@ services:
     environment:
       # Point PostgreSQL client to the Docker container instead of localhost
       POSTGRES_HOST: rmi-postgres
+      # RAG embeddings/reranking (Infinity OpenAI-compatible server)
+      INFINITY_URL: http://infinity-rag:8001
     depends_on:
       rmi-redis:
         condition: service_healthy
@@ -298,6 +300,8 @@ services:
     environment:
       # Point PostgreSQL client to the Docker container instead of localhost
       POSTGRES_HOST: rmi-postgres
+      # RAG embeddings/reranking (Infinity OpenAI-compatible server)
+      INFINITY_URL: http://infinity-rag:8001
     depends_on:
       rmi-redis:
         condition: service_healthy

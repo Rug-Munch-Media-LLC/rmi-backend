@@ -591,61 +591,74 @@ async def detect_all_patterns(
 
 
 async def ingest_patterns_into_rag(findings: list[dict[str, Any]]) -> int:
-    """Ingest detected patterns into RAG pipeline as 'known_scam_patterns'.
+    """Publish detected patterns into the RAG threat-intel pipeline via Redis.
 
-    Uses IngestionPipeline from the existing rag_firehose system to
-    convert findings into vector-searchable documents.
+    DEPRECATED (v3): the legacy RAG HTTP facade (``RAG_API =
+    http://localhost:8000/api/v1/rag``) was removed — ``/ingest`` and friends
+    no longer exist. Scanner engines now publish high-risk findings to the
+    ``rmi:rag:ingest`` pub/sub channel and the ``rmi:rag:findings_queue``
+    LPUSH list — the same channel used by
+    ``app.domains.scanner.unified.persistence.publish_rag_finding`` and
+    ``app.domains.scanner.service.scoring``. rmi-rag's subscriber embeds
+    these into the Qdrant ``threat_intel`` collection.
 
     Args:
         findings: List of pattern detection results from detect_all_patterns.
 
     Returns:
-        Number of documents successfully ingested.
+        Number of findings published (0 on Redis failure).
     """
     if not findings:
         return 0
 
-    from app.rag_firehose.pipeline import IngestionPipeline
-
     try:
-        import httpx
+        import json as _json
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            pipeline = IngestionPipeline(client)
-            docs = []
-            for finding in findings:
-                content = (
-                    f"Chain-indexer pattern: {finding.get('description', '')} "
-                    f"Pattern type: {finding.get('pattern', 'unknown')}. "
-                    f"Risk score: {finding.get('risk_score', 0)}/100."
-                )
-                metadata = {
-                    "source": "chain_indexer_pattern_detector",
-                    "pattern_type": finding.get("pattern", "unknown"),
-                    "risk_score": finding.get("risk_score", 0),
-                    "detected": finding.get("detected", False),
-                    "chain": finding.get("chain", "any"),
-                    "severity": "high" if finding.get("risk_score", 0) >= 40 else "medium",
-                    "category": "onchain_pattern",
-                }
-                docs.append(
-                    {
-                        "collection": "scam_patterns",
-                        "content": content[:3000],
-                        "metadata": metadata,
-                    }
-                )
+        from redis.exceptions import RedisError
 
-            stats = await pipeline.ingest_batch(docs)
-            logger.info(
-                "chain_patterns_ingested",
-                ingested=stats["ingested"],
-                skipped=stats["skipped"],
-                total=len(docs),
-            )
-            return stats["ingested"]
+        from app.core.redis import get_redis_async
 
-    except (ImportError, ConnectionError, OSError, TimeoutError) as e:
+        r = get_redis_async()
+        if r is None:
+            logger.warning("RAG Redis unavailable — skipping chain pattern publish")
+            return 0
+
+        published = 0
+        for finding in findings:
+            risk_score = int(finding.get("risk_score", 0) or 0)
+            risk_level = "critical" if risk_score >= 70 else ("high" if risk_score >= 40 else "medium")
+            payload = {
+                "token_address": finding.get("token_address", "") or finding.get("address", ""),
+                "chain": finding.get("chain", "any"),
+                "name": "",
+                "symbol": "",
+                "safety_score": max(0.0, 100.0 - float(risk_score)),
+                "confidence": 0.0,
+                "risk_level": risk_level,
+                "risk_flags": [str(finding.get("description", "") or finding.get("pattern", "unknown"))],
+                "green_flags": [],
+                "price_usd": None,
+                "liquidity_usd": None,
+                "age_hours": None,
+                "scanned_at": "",
+                "modules_run": ["chain_pattern_detector"],
+                "pattern_type": finding.get("pattern", "unknown"),
+                "category": "onchain_pattern",
+                "severity": "high" if risk_score >= 40 else "medium",
+            }
+            payload_json = _json.dumps(payload)
+            await r.publish("rmi:rag:ingest", payload_json)
+            await r.lpush("rmi:rag:findings_queue", payload_json)
+            published += 1
+
+        logger.info(
+            "chain_patterns_ingested",
+            published=published,
+            total=len(findings),
+        )
+        return published
+
+    except (RedisError, ConnectionError, OSError, TimeoutError, ImportError) as e:
         logger.warning("RAG ingestion unavailable for chain patterns: %s", e)
         return 0
 

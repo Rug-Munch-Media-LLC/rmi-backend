@@ -4,13 +4,17 @@ RAG Firehose - Feed Sources
 All data sources the firehose can pull from. Each method pulls from
 a different API/data source and returns formatted documents ready for
 the ingestion pipeline.
+
+DEPRECATED (v3): the legacy RAG HTTP facade this package called was
+removed (``RAG_API = http://localhost:8000/api/v1/rag`` no longer exists).
+Scanner engines publish to Redis channel ``rmi:rag:ingest`` instead.
+``extract_scam_patterns`` (the only RAG-search consumer) is a no-op guard.
 """
 
 from __future__ import annotations
 
 import csv
 import os
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
@@ -234,41 +238,11 @@ class FeedSources:
         return docs
 
     async def extract_scam_patterns(self) -> list[dict]:
-        """Extract common patterns from confirmed scam documents."""
-        docs = []
-        try:
-            resp = await self.client.get(
-                f"{RAG_API}/search",
-                params={
-                    "q": "rug pull honeypot scam confirmed",
-                    "collection": "known_scams",
-                    "limit": 50,
-                },
-                timeout=30,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                results = data.get("results", [])
-                if len(results) >= 10:
-                    content_parts = []
-                    for r in results[:20]:
-                        c = r.get("content", "")[:200]
-                        if c:
-                            content_parts.append(c)
+        """Extract common patterns from confirmed scam documents.
 
-                    combined = "Common scam patterns observed: " + " | ".join(content_parts)
-                    docs.append(
-                        {
-                            "collection": "scam_patterns",
-                            "content": combined[:5000],
-                            "metadata": {
-                                "source": "pattern_extraction",
-                                "pattern_count": len(results),
-                                "extracted_at": datetime.now(UTC).isoformat(),
-                            },
-                        }
-                    )
-        except Exception as e:
-            logger.warning(f"Pattern extraction failed: {e}")
-
-        return docs
+        DEPRECATED (v3): depended on the removed legacy RAG search endpoint
+        (``{RAG_API}/search``). No-op guard — returns empty so the firehose
+        engine never calls a dead endpoint.
+        """
+        logger.warning("extract_scam_patterns deprecated (legacy RAG API removed in v3) — skipping")
+        return []

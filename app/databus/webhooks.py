@@ -140,27 +140,12 @@ async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: b
         pass
 
     # ── 4. Index in RAG for intelligence ──
-    try:
-        async with httpx.AsyncClient(timeout=10) as c:
-            await c.post(
-                "http://localhost:8000/api/v1/rag/permanence/index",
-                json={
-                    "collection": f"webhooks_{service}",
-                    "documents": [
-                        {
-                            "id": f"{service}:{event_id}",
-                            "text": json.dumps(payload, default=str)[:2000],
-                            "metadata": {
-                                "service": service,
-                                "event_type": event_type,
-                                "received_at": datetime.now(UTC).isoformat(),
-                            },
-                        }
-                    ],
-                },
-            )
-    except (httpx.HTTPError, httpx.TimeoutException):
-        pass
+    # DEPRECATED (v3): the legacy RAG permanence endpoint
+    # (``http://localhost:8000/api/v1/rag/permanence/index``) was removed and
+    # has no replacement route. Webhook events are still persisted in Redis
+    # above; RAG ingestion now happens via Redis channel ``rmi:rag:ingest``.
+    # Original dead call removed — do not restore; errors were already swallowed.
+    logger.debug("webhook_rag_permanence_skipped (legacy /api/v1/rag/permanence/index removed in v3)")
 
     # ── 5. Trigger premium scanner based on event type ──
     scan_triggers = _get_scan_triggers(service, event_type, payload)

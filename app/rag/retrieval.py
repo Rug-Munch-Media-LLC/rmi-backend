@@ -29,6 +29,7 @@ from app.rag.config import (
     RAG_EXPANSION_TERMS,
     RAG_HYBRID_ALPHA,
 )
+from app.rag.rerank import reorder_by_relevance, rerank_results
 
 log = get_logger(__name__)
 
@@ -223,6 +224,7 @@ class HybridRetriever:
         min_similarity: float = 0.0,
         filters: dict[str, Any] | None = None,
         expand: bool = True,
+        rerank: bool = True,
     ) -> list[ScoredHit]:
         """Run hybrid retrieval with optional query expansion.
 
@@ -233,6 +235,10 @@ class HybridRetriever:
             min_similarity: Minimum similarity threshold (0-1).
             filters: Metadata filters (exact-match).
             expand: Whether to expand the query with synonyms.
+            rerank: Whether to rerank candidates with the Infinity
+                cross-encoder (BAAI/bge-reranker-v2-m3) before returning.
+                Fail-open: if the reranker is unreachable the pre-rerank
+                order is returned unchanged.
 
         Returns:
             List of ScoredHit, sorted by relevance.
@@ -256,6 +262,10 @@ class HybridRetriever:
         # 3. Re-score and sort
         scored = self._scorer.rescore(raw, query)
 
+        # 4. Optional cross-encoder rerank via Infinity (fail-open)
+        if rerank and len(scored) > 1:
+            scored = await self._apply_rerank(query, scored, top_k)
+
         took_ms = int((time.monotonic() - start) * 1000)
         log.info(
             "hybrid_retrieve",
@@ -264,9 +274,30 @@ class HybridRetriever:
             results=len(scored),
             took_ms=took_ms,
             expanded=expand,
+            rerank=rerank,
         )
 
         return scored
+
+    async def _apply_rerank(self, query: str, scored: list[ScoredHit], top_n: int) -> list[ScoredHit]:
+        """Rerank *scored* hits with the Infinity cross-encoder.
+
+        Reorders hits by Infinity relevance (updating ``final_score``) and
+        truncates to *top_n*. Fail-open: on any error or empty response the
+        original ordering is returned unchanged.
+        """
+        if len(scored) < 2:
+            return scored
+        try:
+            docs = [(h.content or "")[:2000] for h in scored]
+            reranked = await rerank_results(query, docs, top_n=len(scored))
+            if not reranked:
+                return scored
+            ordered = reorder_by_relevance(scored, reranked, top_n)
+            return ordered if ordered else scored
+        except Exception as exc:
+            log.debug("hybrid_rerank_failed err=%s", exc)
+            return scored
 
     async def retrieve_multi(
         self,

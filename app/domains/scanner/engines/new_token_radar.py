@@ -1,6 +1,6 @@
 """
 C3 — New Token Radar (v1) — New Token Discovery + Early Warning
-================================================================
+===============================================================
 Detects newly deployed tokens from our own ClickHouse ``deployer_events``
 within the last N minutes, runs a fast risk scan on each, scores it
 (CRITICAL / HIGH / WARNING / INFO), and pushes CRITICAL/HIGH alerts to
@@ -9,15 +9,24 @@ Telegram — before the crowd arrives.
 Data sources (all LOCAL / free):
   - ``wallet_memory.deployer_events`` — new deployments (polled)
   - ``fingerprint_deployer`` (C7)     — deployer behavioral risk bucket
+  - ``launchpad_resolver``            — factory → real creator resolution
   - honeypot / liquidity checks       — scanner modules + own DEX data
   - ``alert_hooks.send_scanner_alert`` — Telegram alert rail
+
+Launchpad awareness:
+  When ``deployer_events`` records a known launchpad factory (pump.fun,
+  bags.fm, ...) as the deployer, the radar resolves the real creator EOA via
+  ``launchpad_resolver`` before scoring. The result carries ``launchpad``
+  (e.g. ``"pump.fun"``) and ``launchpad_deployer`` (the resolved creator).
+  Launchpad tokens are not automatically high-risk — only a poor creator
+  history (REPEAT_RUG / FARM / high risk) or honeypot escalates them.
 
 NOTE — F0 dependency (per spec): F0 replaces the contract/factory-as-deployer
 with the real EOA deployer and adds ``pair_address`` / ``token0`` / ``token1``
 columns. Until F0 lands, the radar keys on ``token_address`` from
 ``deployer_events`` (the pair/token contract) and treats it as the new token.
 Deployer-risk scoring is therefore approximate until F0 corrects the
-deployer attribution.
+deployer attribution — launchpad resolution closes part of that gap today.
 
 Caching / dedup:
   - Result cache: Redis ``new_token_radar:{chain}`` (TTL 60s) — the periodic
@@ -109,12 +118,14 @@ async def scan_new_tokens(
             {
                 "token_address": "0x...",
                 "chain": "ethereum",
-                "deployer": "0x...",
+                "deployer": "0x...",              # real creator when resolved
+                "launchpad": "pump.fun" | None,   # launchpad flag
+                "launchpad_deployer": "0x...",    # resolved real creator EOA
                 "deploy_tx": "0x...",
                 "deployed_at": "iso",
                 "level": "CRITICAL" | "HIGH" | "WARNING" | "INFO",
                 "score": 0-100,
-                "signals": {deployer_risk, liquidity_usd, is_honeypot, ...},
+                "signals": {deployer_risk, liquidity_usd, is_honeypot, launchpad, ...},
                 "evidence": [...]
             }
 
@@ -217,6 +228,13 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
     """Run honeypot + deployer reputation + liquidity checks for one token.
 
     Time-boxed so a slow external check cannot block the poll loop.
+
+    Launchpad awareness:
+      When the recorded deployer is a known launchpad factory (pump.fun,
+      bags.fm, ...), we resolve the real creator EOA first and score the
+      fingerprint against the real deployer. Launchpad tokens are NOT
+      automatically high-risk — most legitimate projects launch this way — but
+      a real deployer with a poor history still escalates the risk level.
     """
     token_address = str(deployment.get("token_address") or "").lower()
     deployer = str(deployment.get("deployer") or "").lower()
@@ -224,6 +242,52 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
     evidence: list[dict[str, Any]] = []
 
     try:
+        # ── Launchpad factory resolution (before deployer scoring) ──
+        # If the deployer is a known launchpad factory, trace back to the real
+        # creator EOA. Resolution uses the deploy tx we already hold when
+        # available (the radar query returns tx_hash).
+        launchpad: str | None = None
+        real_deployer: str | None = None
+        try:
+            from app.domains.scanner.engines.launchpad_resolver import (
+                lookup_launchpad,
+                resolve_launchpad_deployer,
+            )
+
+            launchpad = lookup_launchpad(chain, deployer)
+            if launchpad is not None:
+                resolved = await asyncio.wait_for(
+                    resolve_launchpad_deployer(
+                        token_address,
+                        chain,
+                        deployer,
+                        deploy_tx=deployment.get("tx_hash"),
+                    ),
+                    timeout=6.0,
+                )
+                if resolved and resolved.get("real_deployer"):
+                    real_deployer = str(resolved["real_deployer"])
+                    signals["launchpad_deployer"] = real_deployer
+                    signals["launchpad_confidence"] = resolved.get("confidence")
+                    evidence.append(
+                        {
+                            "kind": "launchpad_resolution",
+                            "launchpad": launchpad,
+                            "factory": deployer,
+                            "real_deployer": real_deployer,
+                            "evidence_tx": resolved.get("evidence_tx"),
+                            "confidence": resolved.get("confidence"),
+                        }
+                    )
+        except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+            logger.debug("radar_launchpad_resolve_failed %s: %s", token_address[:16], exc)
+
+        if launchpad is not None:
+            signals["launchpad"] = launchpad
+            # Score against the REAL creator, not the factory.
+            if real_deployer:
+                deployer = real_deployer.lower() if chain != "solana" else real_deployer
+
         # ── Deployer reputation (C7 fingerprint — local, fast) ──
         try:
             from app.domains.scanner.engines.deployer_fingerprint import fingerprint_deployer
@@ -294,6 +358,8 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
         "token_address": token_address,
         "chain": chain,
         "deployer": deployer or None,
+        "launchpad": signals.get("launchpad"),
+        "launchpad_deployer": signals.get("launchpad_deployer"),
         "deploy_tx": deployment.get("tx_hash"),
         "deployed_at": deployment.get("block_timestamp"),
         "level": level,
@@ -342,11 +408,21 @@ def _score_new_token(signals: dict[str, Any]) -> tuple[str, int]:
       - Deployer risk >= 60 OR liquidity < $1K → HIGH
       - Deployer NEW/UNKNOWN OR liquidity < $5K → WARNING
       - Otherwise INFO
+
+    Launchpad adjustment (pump.fun / bags.fm / ...):
+      Launchpad tokens are NOT automatically high-risk — most legitimate
+      projects launch this way. The factory itself is never scored; the radar
+      resolves the real creator before this point. A launchpad token whose
+      creator resolved to a clean profile is downgraded one notch (INFO instead
+      of WARNING), while a creator with a poor history (REPEAT_RUG / FARM /
+      high risk) is still flagged CRITICAL/HIGH. When the creator could not be
+      resolved, we stay neutral (WARNING) rather than escalating.
     """
     is_honeypot = bool(signals.get("is_honeypot", False))
     deployer_risk = float(signals.get("deployer_risk_score", 50.0) or 50.0)
     bucket = str(signals.get("deployer_bucket", "UNKNOWN"))
     liquidity = float(signals.get("liquidity_usd", 0.0) or 0.0)
+    launchpad = signals.get("launchpad")
 
     if is_honeypot:
         return "CRITICAL", 100
@@ -355,6 +431,10 @@ def _score_new_token(signals: dict[str, Any]) -> tuple[str, int]:
     if deployer_risk >= 60 or liquidity < _MIN_LIQUIDITY_HIGH_USD:
         return "HIGH", max(60, min(89, int(deployer_risk)))
     if bucket in ("NEW", "UNKNOWN") or liquidity < _MIN_LIQUIDITY_WARNING_USD:
+        # Launchpad + fresh/clean creator (resolved) → INFO, not WARNING:
+        # launchpad launches are the normal path for legitimate projects.
+        if launchpad and signals.get("launchpad_deployer") and bucket != "UNKNOWN":
+            return "INFO", max(20, min(39, int(deployer_risk) // 2))
         return "WARNING", max(40, min(70, int(deployer_risk)))
     return "INFO", min(39, int(deployer_risk) // 2)
 
