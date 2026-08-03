@@ -45,6 +45,7 @@ from app.rag.dedup import (
     record_fp_group,
     record_group_membership,
 )
+from app.rag.ratings import rate_article
 
 log = get_logger(__name__)
 
@@ -588,6 +589,25 @@ async def crawl_and_ingest(
     ingest_metadata = {**metadata, "group_id": group_id}
     if published_at:
         ingest_metadata.setdefault("published_at", published_at)
+
+    # Multi-axis rating card (Ground News style) attached to metadata so
+    # every ingested article carries factuality / source reputation /
+    # market impact / sentiment / timeliness. Ratings never block
+    # ingestion — a failure degrades to metadata without the card.
+    try:
+        rating = rate_article(
+            {
+                "article_id": url,
+                "title": title,
+                "content": content,
+                "source": str(metadata.get("source_url") or url),
+                "published": published_at,
+            }
+        )
+        ingest_metadata["rating"] = rating.to_dict()
+        ingest_metadata["rating_confidence"] = rating.confidence
+    except Exception as e:  # pragma: no cover - defensive
+        log.debug("rating_failed url=%s err=%s", url, e)
 
     result_ingest = await ingest_document(
         collection=collection,
