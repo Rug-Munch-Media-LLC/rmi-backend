@@ -53,6 +53,12 @@ class ScanResult:
     wallet_freshness: dict | None = None  # aggregate freshness of top holders
     holder_overlap: dict | None = None  # holder overlap vs known scam tokens
 
+    # News-event-to-price correlation (own-data engine — event_correlation.py)
+    event_correlation: dict | None = None  # which news events moved the price
+
+    # News-based sentiment (engines/news_sentiment.py — RugBrain news_v2)
+    news_sentiment: dict | None = None  # {sentiment, confidence, article_count, trending_score, ...}
+
     # Explainability (populated by scoring.compute_score)
     breakdown: dict[str, Any] | None = None  # per-dimension score breakdown
     evidence: dict[str, Any] | None = None  # raw findings backing the score

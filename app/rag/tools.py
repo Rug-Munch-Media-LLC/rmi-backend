@@ -204,7 +204,7 @@ async def scan_token(query: str, chain: str = "ethereum") -> dict[str, Any]:
 
 
 async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
-    """Search the RAG ``news`` collection for recent articles.
+    """Search the RAG ``news_v2`` collection for recent articles.
 
     Uses the existing HybridRetriever so results are consistent with the
     main RAG search facade. Fails open to an empty result set.
@@ -214,7 +214,7 @@ async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
 
         hits = await HybridRetriever().retrieve(
             query=query,
-            collection="news",
+            collection="news_v2",
             top_k=top_k,
             rerank=False,
         )

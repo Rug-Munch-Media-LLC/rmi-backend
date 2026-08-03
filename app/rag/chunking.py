@@ -559,18 +559,35 @@ def _quality(text: str, max_chunk: int) -> float:
 
 # ── Dedup via Redis ─────────────────────────────────────────────────
 def is_duplicate(content_hash: str, collection: str) -> bool:
-    """Has this exact content already been ingested into the collection?"""
+    """Has this exact content already been ingested into the collection?
+
+    Fail-open: when Redis is unavailable (e.g. host-side cron without
+    credentials) the check is skipped and the document proceeds to ingest,
+    rather than crashing the whole sweep.
+    """
     try:
-        return bool(_get_redis().sismember(f"rag:hashes:{collection}", content_hash))
+        client = _get_redis()
+        if client is None:
+            log.warning("dedup_skipped_redis_unavailable collection=%s", collection)
+            return False
+        return bool(client.sismember(f"rag:hashes:{collection}", content_hash))
     except Exception as e:
         log.warning("dedup_check_failed: %s", e)
         return False
 
 
 def mark_ingested(content_hash: str, collection: str) -> None:
-    """Record that this content hash is now in the collection."""
+    """Record that this content hash is now in the collection.
+
+    Never raises: a missing Redis client (host-side run without auth) is
+    logged and skipped so ingestion is not aborted mid-document.
+    """
     try:
-        _get_redis().sadd(f"rag:hashes:{collection}", content_hash)
+        client = _get_redis()
+        if client is None:
+            log.warning("dedup_mark_skipped_redis_unavailable collection=%s", collection)
+            return
+        client.sadd(f"rag:hashes:{collection}", content_hash)
     except (ConnectionError, OSError, TimeoutError) as e:
         log.debug("dedup_mark_failed: %s", e)
 

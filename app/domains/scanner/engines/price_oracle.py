@@ -38,6 +38,7 @@ from __future__ import annotations
 import math
 import os
 import time
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -529,6 +530,250 @@ async def get_token_price(
         depth=_depth,
     )
     return None
+
+
+async def get_token_price_at_time(
+    token_address: str,
+    chain: str,
+    at_time: datetime,
+    *,
+    window_minutes: int = 30,
+    max_swaps: int = 200,
+) -> dict[str, Any] | None:
+    """Resolve a token's USD price near a specific historical timestamp.
+
+    Uses own ClickHouse ``dex_events`` when swaps exist in the window around
+    ``at_time``; falls back to the current price when no historical data is
+    available (the correlation engine treats a fallback with
+    ``source="current_fallback"`` as lower-confidence evidence).
+
+    Args:
+        token_address: Token contract address (EVM lowercased; Solana preserved)
+        chain: Chain name (ethereum, bsc, solana, ...)
+        at_time: Historical timestamp to resolve price around
+        window_minutes: Half-window; swaps within at_time ± window are used
+        max_swaps: Maximum number of swaps to consider for the VWAP
+
+    Returns:
+        {
+            "price_usd": float,
+            "source": str,       # own_dex_events_at_time | current_fallback
+            "timestamp": float,  # epoch seconds of the resolved price
+            "confidence": float, # 0-1
+            "swap_count": int,
+            "window_minutes": int,
+        }
+        or None when every tier fails.
+    """
+    token = _normalize_token(token_address, chain)
+    chain = _normalize_chain(chain)
+    if not token:
+        return None
+
+    # Normalize the requested timestamp to epoch seconds.
+    if isinstance(at_time, datetime):
+        try:
+            at_ts = at_time.timestamp()
+        except (OverflowError, OSError, ValueError):
+            at_ts = float(time.time())
+    else:
+        at_ts = float(at_time or time.time())
+
+    window_secs = max(1, int(window_minutes) * 60)
+    half = window_secs // 2
+    lo_ts = at_ts - half
+    hi_ts = at_ts + half
+
+    swaps = await _query_swaps_between(token, chain, lo_ts, hi_ts, max_swaps=max_swaps)
+    if len(swaps) >= 2:
+        price = await _vwap_price_from_swaps(token, chain, swaps)
+        if price is not None and price.get("price_usd", 0) > 0:
+            return {
+                "price_usd": float(price["price_usd"]),
+                "source": "own_dex_events_at_time",
+                "timestamp": float(at_ts),
+                "confidence": float(price.get("confidence", 0.5)),
+                "swap_count": len(swaps),
+                "window_minutes": int(window_minutes),
+            }
+
+    # Fallback: current price (best effort, flagged as low confidence)
+    try:
+        current = await get_token_price(token, chain)
+        if current and float(current.get("price_usd", 0) or 0) > 0:
+            return {
+                "price_usd": float(current["price_usd"]),
+                "source": "current_fallback",
+                "timestamp": float(at_ts),
+                "confidence": 0.3,
+                "swap_count": 0,
+                "window_minutes": int(window_minutes),
+            }
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
+        logger.debug("price_oracle at-time fallback failed for %s: %s", token[:16], exc)
+
+    return None
+
+
+async def _query_swaps_between(
+    token: str,
+    chain: str,
+    lo_ts: float,
+    hi_ts: float,
+    *,
+    max_swaps: int = 200,
+) -> list[dict[str, Any]]:
+    """Query dex_events swaps for a token within a historical time range."""
+
+    def _query() -> list[tuple]:
+        client = _get_ch_client()
+        if client is None:
+            return []
+        try:
+            return list(
+                client.execute(
+                    """
+                    SELECT
+                        contract_address, dex, version,
+                        token0, token1,
+                        amount0_in, amount1_in, amount0_out, amount1_out,
+                        block_timestamp, tx_hash
+                    FROM wallet_memory.dex_events
+                    WHERE chain = %(chain)s
+                      AND type = 'swap'
+                      AND block_timestamp >= toDateTime(%(lo)s)
+                      AND block_timestamp <= toDateTime(%(hi)s)
+                      AND (token0 = %(token)s OR token1 = %(token)s)
+                    ORDER BY block_timestamp ASC
+                    LIMIT %(limit)s
+                    """,
+                    {
+                        "chain": chain,
+                        "token": token,
+                        "lo": int(lo_ts),
+                        "hi": int(hi_ts),
+                        "limit": max_swaps,
+                    },
+                )
+            )
+        except (ValueError, RuntimeError, OSError) as exc:
+            logger.debug("price_oracle at-time swap query failed for %s: %s", token[:16], exc)
+            return []
+
+    rows = await run_sync(_query)
+    if not rows:
+        return []
+
+    swaps: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            swaps.append(
+                {
+                    "contract_address": row[0],
+                    "dex": row[1],
+                    "version": row[2],
+                    "token0": row[3],
+                    "token1": row[4],
+                    "amount0_in": float(row[5] or 0),
+                    "amount1_in": float(row[6] or 0),
+                    "amount0_out": float(row[7] or 0),
+                    "amount1_out": float(row[8] or 0),
+                    "block_timestamp": row[9],
+                    "tx_hash": row[10],
+                }
+            )
+        except (ValueError, TypeError, IndexError) as exc:
+            logger.debug("price_oracle at-time row parse failed: %s", exc)
+            continue
+    return swaps
+
+
+async def _vwap_price_from_swaps(
+    token: str,
+    chain: str,
+    swaps: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Compute a USD-anchored VWAP from a list of raw swap dicts.
+
+    Mirrors ``_own_price_vwap`` logic but operates on an explicit swap list
+    (already time-bounded by the caller) instead of re-querying ClickHouse.
+    """
+    if not swaps:
+        return None
+
+    prices_weighted: list[tuple[float, float]] = []
+    paired_counts: dict[str, int] = {}
+    token_lower = str(token).lower()
+
+    for swap in swaps:
+        t0 = str(swap.get("token0") or "").lower()
+        t1 = str(swap.get("token1") or "").lower()
+        if not t0 or not t1:
+            continue
+        is_token0 = t0 == token_lower
+        if not is_token0 and t1 != token_lower:
+            continue
+        paired = t1 if is_token0 else t0
+        if not paired:
+            continue
+        paired_counts[paired] = paired_counts.get(paired, 0) + 1
+
+        try:
+            if is_token0:
+                amt_in = float(swap.get("amount0_in") or 0)
+                amt_out = float(swap.get("amount0_out") or 0)
+                paired_in = float(swap.get("amount1_in") or 0)
+                paired_out = float(swap.get("amount1_out") or 0)
+            else:
+                amt_in = float(swap.get("amount1_in") or 0)
+                amt_out = float(swap.get("amount1_out") or 0)
+                paired_in = float(swap.get("amount0_in") or 0)
+                paired_out = float(swap.get("amount0_out") or 0)
+        except (ValueError, TypeError):
+            continue
+
+        weight = amt_in + amt_out
+        if weight <= 0:
+            continue
+        # buy: our token out, paired in; sell: our token in, paired out
+        if amt_out > 0 and paired_in > 0:
+            price = paired_in / amt_out
+        elif amt_in > 0 and paired_out > 0:
+            price = paired_out / amt_in
+        else:
+            continue
+        if 0 < price < 1_000_000_000:
+            prices_weighted.append((price, weight))
+
+    if not prices_weighted:
+        return None
+
+    total_weight = sum(w for _, w in prices_weighted)
+    vwap = sum(p * w for p, w in prices_weighted) / total_weight if total_weight > 0 else 0.0
+    paired_token = max(paired_counts, key=lambda k: paired_counts[k]) if paired_counts else ""
+    if vwap <= 0 or not paired_token:
+        return None
+
+    # Decimals-normalize: raw = paired_raw / our_raw
+    our_decimals = await get_token_decimals(token, chain)
+    paired_decimals = await get_token_decimals(paired_token, chain)
+    if our_decimals is None or paired_decimals is None:
+        return None
+    norm_price = vwap * math.pow(10, our_decimals) / math.pow(10, paired_decimals)
+
+    usd_price, confidence, anchor = await _anchor_to_usd(norm_price, paired_token, chain, 0)
+    if usd_price <= 0:
+        return None
+
+    evidence = min(1.0, len(prices_weighted) / 50)
+    confidence = max(0.05, min(1.0, confidence * (0.5 + 0.5 * evidence)))
+    return {
+        "price_usd": usd_price,
+        "confidence": round(confidence, 4),
+        "swap_count": len(prices_weighted),
+        "paired_token": paired_token,
+        "anchor": anchor,
+    }
 
 
 async def get_token_decimals(token_address: str, chain: str) -> int | None:

@@ -141,6 +141,7 @@ async def scan_token(
                 "total_modules": len(result.modules_run),
             },
             "rag_context": _serialize_rag_context(result.rag_context),
+            "news_sentiment": result.news_sentiment,
         }
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e

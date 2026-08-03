@@ -30,7 +30,7 @@ from langgraph.graph import END, StateGraph
 
 from app.core.logging import get_logger
 from app.rag.rerank import reorder_by_relevance, rerank_results
-from app.rag.retrieval import ContextBuilder, HybridRetriever, ScoredHit
+from app.rag.retrieval import ContextBuilder, HybridRetriever, ScoredHit, apply_news_boosts
 from app.rag.tools import get_gas_price, get_news, get_token_price, get_wallet_balance, scan_token
 
 log = get_logger(__name__)
@@ -58,11 +58,14 @@ TOOLS: dict[str, Any] = {
 }
 
 # Collection per query type (maps to RAG_COLLECTIONS).
+# News lives in the ``news_v2`` Qdrant collection (aliased as ``news``);
+# the explicit ``_v2`` name avoids relying on alias resolution in the
+# engine's Qdrant probe.
 _COLLECTION_BY_TYPE: dict[str, str] = {
     "security": "scams",
-    "market": "news",
+    "market": "news_v2",
     "code": "scanner",
-    "news": "news",
+    "news": "news_v2",
 }
 
 # Query types with a dedicated retrieval branch.
@@ -242,6 +245,11 @@ async def rerank_documents(state: ResearchState) -> dict[str, Any]:
             ]
             ordered = reorder_by_relevance(hits, reranked, top_n=len(docs))
             if ordered:
+                # Re-apply news boosts (freshness + entity overlap) after the
+                # cross-encoder, which overwrites final_score with its own
+                # relevance score. Keeps breaking/recent/entity-matched news
+                # on top of the final ranking.
+                ordered = apply_news_boosts(ordered, query)
                 docs = [
                     {
                         "content": h.content,

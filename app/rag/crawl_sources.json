@@ -1,9 +1,32 @@
 {
-	"news": [
-		"https://cointelegraph.com/rss",
-		"https://decrypt.co/feed",
-		"https://www.theblock.co/rss"
-	],
-	"security": ["https://rekt.news/rss", "https://blog.openzeppelin.com/feed"],
-	"research": ["https://a16zcrypto.com/feed", "https://paradigm.xyz/feed"]
+    "news": [
+        "https://cointelegraph.com/rss",
+        "https://decrypt.co/feed",
+        "https://www.theblock.co/rss.xml",
+        "https://cryptoslate.com/feed",
+        "https://cryptobriefing.com/feed",
+        "https://beincrypto.com/feed",
+        "https://news.bitcoin.com/feed",
+        "https://coindesk.com/arc/outboundfeeds/rss/",
+        "https://dailyhodl.com/feed",
+        "https://ambcrypto.com/feed",
+        "https://blockworks.co/feed",
+        "https://thedefiant.io/feed"
+    ],
+    "security": [
+        "https://medium.com/feed/@peckshield",
+        "https://blog.openzeppelin.com/rss.xml",
+        "https://slowmist.medium.com/feed",
+        "https://immunefi.com/blog/feed",
+        "https://blog.trailofbits.com/feed"
+    ],
+    "research": [
+        "https://messari.io/feed",
+        "https://blog.chainalysis.com/feed",
+        "https://dune.com/blog/rss"
+    ],
+    "onchain": [
+        "https://solana.com/news/feed",
+        "https://dune.com/blog/rss"
+    ]
 }

@@ -73,7 +73,7 @@ def analyze_article(title: str, content: str = "") -> dict:
             sentiment = "bearish"
         else:
             sentiment = "neutral"
-    except Exception as e:
+    except (OSError, TimeoutError, json.JSONDecodeError, KeyError, IndexError) as e:
         logger.warning(f"Sentiment failed: {e}")
 
     # Track trending topics

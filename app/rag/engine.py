@@ -44,7 +44,14 @@ _QDRANT_PROBED = False
 
 
 async def _qdrant_collection_exists(client: httpx.AsyncClient, collection: str) -> bool:
-    """Probe Qdrant once per process for a collection's existence."""
+    """Probe Qdrant once per process for a collection's existence.
+
+    Resolves both real collections and aliases (e.g. ``news`` → ``news_v2``)
+    so legacy collection names stay searchable. ``GET /collections`` does not
+    return alias names in Qdrant 1.18, so aliases are probed separately via
+    ``GET /aliases``; without this the Qdrant fallback returned 0 results for
+    every alias-named collection (news, scams, scanner, research, ...).
+    """
     global _QDRANT_PROBED
     if collection in _QDRANT_COLLECTIONS:
         return True
@@ -54,6 +61,10 @@ async def _qdrant_collection_exists(client: httpx.AsyncClient, collection: str) 
             if r.status_code == 200:
                 names = {c.get("name") for c in r.json().get("result", {}).get("collections", [])}
                 _QDRANT_COLLECTIONS.update(names)
+            a = await client.get("/aliases")
+            if a.status_code == 200:
+                alias_names = {c.get("alias_name") for c in a.json().get("result", {}).get("aliases", [])}
+                _QDRANT_COLLECTIONS.update(alias_names)
         except (httpx.HTTPError, httpx.TimeoutException) as e:
             log.debug("qdrant_probe_failed err=%s", e)
         _QDRANT_PROBED = True
@@ -522,7 +533,8 @@ def get_collection_stats(collection: str) -> dict:
     try:
         from app.core.redis import get_redis
 
-        hashes = get_redis().scard(f"rag:hashes:{collection}")
+        client = get_redis()
+        hashes = client.scard(f"rag:hashes:{collection}") if client is not None else 0
     except (ConnectionError, TimeoutError, OSError):
         hashes = 0
     return {

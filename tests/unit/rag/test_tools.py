@@ -194,10 +194,10 @@ async def test_scan_token() -> None:
 
 @pytest.mark.asyncio
 async def test_get_news() -> None:
-    """Queries HybridRetriever over the news collection and shapes hits."""
+    """Queries HybridRetriever over the news_v2 collection and shapes hits."""
     hits = [
         SimpleNamespace(
-            content="Bitcoin ETF inflows surge", final_score=0.85, score=0.8, collection="news", doc_id="news:1"
+            content="Bitcoin ETF inflows surge", final_score=0.85, score=0.8, collection="news_v2", doc_id="news:1"
         )
     ]
     retriever = AsyncMock()
@@ -211,7 +211,7 @@ async def test_get_news() -> None:
     assert result["results"][0]["doc_id"] == "news:1"
     assert result["source"] == "RAG news_v2"
     hr.assert_called_once_with()
-    retriever.retrieve.assert_awaited_once_with(query="bitcoin etf", collection="news", top_k=5, rerank=False)
+    retriever.retrieve.assert_awaited_once_with(query="bitcoin etf", collection="news_v2", top_k=5, rerank=False)
 
 
 # ── Fail-open ──────────────────────────────────────────────────────────
