@@ -33,6 +33,7 @@ from app.domains.scanner.engines.funding_analysis import (
     compute_wallet_freshness,
 )
 from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
+from app.domains.scanner.engines.news_sentiment import analyze_token_news_sentiment
 from app.domains.scanner.engines.own_deployer_reputation import get_own_deployer_reputation
 from app.domains.scanner.engines.own_dex_data import check_data_freshness, get_own_dex_data
 from app.domains.scanner.engines.own_holder_age import get_own_holder_age
@@ -60,6 +61,7 @@ __all__ = [
     # Phase 5 — RugMunchScan capabilities
     "analyze_holder_clusters",
     "resolve_cross_chain_entity",
+    "analyze_token_news_sentiment",
     # Clever wallet analysis
     "analyze_funding_sources",
     "compute_wallet_freshness",

@@ -65,6 +65,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
         "dev_other_tokens": [],
         "errors": [],
         "socials": {},
+        "news_sentiment": None,
     }
 
     async with httpx.AsyncClient(timeout=15) as client:
@@ -434,6 +435,8 @@ def v2_token_to_legacy(data: dict) -> dict[str, Any]:
         "exchange_funded_pct": float(funding.get("exchange_funded_pct") or 0),
         "fresh_wallet_pct": float(funding.get("fresh_wallet_pct") or 0),
         "holder_overlap_pct": float(overlap.get("max_overlap_pct") or 0),
+        # v2 news sentiment (RugBrain news_v2)
+        "news_sentiment": data.get("news_sentiment"),
     }
 
 

@@ -91,6 +91,9 @@ class TestUnifiedScannerRagEnrichment:
         with (
             patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
             patch.object(UnifiedTokenScanner, "_fetch_batch", new=AsyncMock(return_value={})),
+            patch.object(UnifiedTokenScanner, "_run_wallet_analysis", new=AsyncMock()),
+            patch.object(UnifiedTokenScanner, "_run_event_correlation", new=AsyncMock()),
+            patch.object(UnifiedTokenScanner, "_run_news_sentiment", new=AsyncMock()),
             patch("app.rag.intelligence.RAGIntelligenceEnricher", new=lambda *a, **k: fake),
         ):
             result = await UnifiedTokenScanner().scan("0xRAGTEST123", chain="ethereum", tier="free")
@@ -107,6 +110,9 @@ class TestUnifiedScannerRagEnrichment:
         with (
             patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
             patch.object(UnifiedTokenScanner, "_fetch_batch", new=AsyncMock(return_value={})),
+            patch.object(UnifiedTokenScanner, "_run_wallet_analysis", new=AsyncMock()),
+            patch.object(UnifiedTokenScanner, "_run_event_correlation", new=AsyncMock()),
+            patch.object(UnifiedTokenScanner, "_run_news_sentiment", new=AsyncMock()),
             patch("app.rag.intelligence.RAGIntelligenceEnricher", new=lambda *a, **k: _BoomEnricher()),
         ):
             result = await UnifiedTokenScanner().scan("0xRAGTEST123", chain="ethereum", tier="free")

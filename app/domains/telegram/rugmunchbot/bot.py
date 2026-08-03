@@ -29,6 +29,7 @@ from telegram.ext import (
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.commands import (
     cmd_chart,
+    cmd_events,
     cmd_portfolio,
     cmd_rugmap,
     cmd_simulate,
@@ -151,6 +152,7 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("webhook", "Custom webhooks management (Pro)"),
             BotCommand("api", "API access token (Pro)"),
             BotCommand("news", "Latest crypto news"),
+            BotCommand("events", "News events & their price impact"),
             BotCommand("mygroup", "Your creator coin group"),
             BotCommand("groupinfo", "Group stats (admin)"),
             BotCommand("voicechat", "Manage voice chat (admin)"),
@@ -234,6 +236,7 @@ def main() -> None:
     app.add_handler(CommandHandler("simulate", cmd_simulate))
     app.add_handler(CommandHandler("smartmoney", cmd_smartmoney))
     app.add_handler(CommandHandler("rugmap", cmd_rugmap))
+    app.add_handler(CommandHandler("events", cmd_events))
 
     # Owner commands
     app.add_handler(CommandHandler("admin_stats", cmd_admin_stats))

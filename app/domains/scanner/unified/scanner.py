@@ -159,10 +159,17 @@ class UnifiedTokenScanner:
             intel_results = await self._fetch_batch(self.INTEL_CHAINS, params, admin_key, timeout=20)
             self._merge_intel(result, intel_results)
 
+            # ── Phase 4b: News-event-to-price correlation (free, own data) ──
+            await self._run_event_correlation(result, address, chain)
+
             # ── Score ──
             scoring = compute_score(result)
             result.breakdown = scoring["breakdown"]
             result.evidence = scoring["evidence"]
+
+            # ── News sentiment (free enrichment, after scoring so the
+            #    HIGH_MEDIA_ATTENTION flag survives compute_score) ──
+            await self._run_news_sentiment(result, address, chain)
 
             # ── Enrich with RAG context (similar patterns from previous scans) ──
             try:
@@ -388,6 +395,66 @@ class UnifiedTokenScanner:
         except Exception as exc:
             logger.debug("wallet_analysis_failed", error=str(exc)[:120])
 
+    async def _run_news_sentiment(self, r: ScanResult, address: str, chain: str) -> None:
+        """Analyze news sentiment for the scanned token (best-effort).
+
+        Queries RugBrain RAG ``news_v2`` for articles mentioning the token,
+        computes BULLISH/BEARISH/NEUTRAL/NO_DATA sentiment plus a 0-100 media
+        attention (trending) score, and stores the result on
+        ``ScanResult.news_sentiment``. Adds the ``HIGH_MEDIA_ATTENTION``
+        green flag when trending_score > 70.
+
+        Runs AFTER ``compute_score`` so the appended flag is not overwritten
+        by scoring's ``green_flags`` assignment. Time-boxed so a slow RAG
+        backend can never stall the scan. Never raises — news sentiment is
+        best-effort enrichment, not a scan blocker.
+        """
+        try:
+            from app.domains.scanner.engines.news_sentiment import analyze_token_news_sentiment
+
+            sentiment = await asyncio.wait_for(
+                analyze_token_news_sentiment(
+                    token_symbol=r.symbol or "",
+                    token_name=r.name or "",
+                    chain=chain,
+                ),
+                timeout=10,
+            )
+            if not isinstance(sentiment, dict):
+                return
+            r.news_sentiment = sentiment
+            r.modules_run.append("news_sentiment")
+            if sentiment.get("result") == "scanned" and int(sentiment.get("article_count", 0) or 0) > 0:
+                r.enrichment_sources.append("news_sentiment:rag")
+            if int(sentiment.get("trending_score", 0) or 0) > 70:
+                flag = "HIGH_MEDIA_ATTENTION"
+                if flag not in r.green_flags:
+                    r.green_flags.append(flag)
+        except Exception as exc:
+            logger.debug("news_sentiment_failed", error=str(exc)[:120])
+
+    async def _run_event_correlation(self, r: ScanResult, address: str, chain: str) -> None:
+        """Correlate recent news events with price moves for the scanned token.
+
+        Best-effort: runs AFTER intel enrichment but BEFORE scoring so the
+        result is available to the report. Uses own ClickHouse dex_events
+        (price at news timestamp) plus the news catalog; degrades gracefully
+        to empty events when news/price data is unavailable.
+        """
+        try:
+            from app.domains.scanner.engines.event_correlation import correlate_news_with_price
+
+            correlation = await correlate_news_with_price(address, chain, lookback_hours=24)
+            if not isinstance(correlation, dict):
+                return
+            events = correlation.get("events") or []
+            if events:
+                r.event_correlation = correlation
+                r.modules_run.append("event_correlation")
+                r.enrichment_sources.append("event_correlation:own")
+        except Exception as exc:
+            logger.debug("event_correlation_failed", error=str(exc)[:120])
+
 
 # ── Backend-compat wrapper ───────────────────────────────────────────
 # Legacy tier → unified phase mapping.  ``UnifiedTokenScanner.scan`` gates
@@ -448,6 +515,8 @@ def _to_legacy_dict(result: ScanResult) -> dict[str, Any]:
         "funding_analysis": result.funding_analysis,
         "wallet_freshness": result.wallet_freshness,
         "holder_overlap": result.holder_overlap,
+        "news_sentiment": result.news_sentiment,
+        "event_correlation": result.event_correlation,
     }
 
 

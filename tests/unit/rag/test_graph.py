@@ -23,6 +23,7 @@ from app.rag.graph import (
     classify_query,
     create_crypto_rag_graph,
     rerank_documents,
+    retrieve_news,
     retrieve_security,
     route_query,
     synthesize_answer,
@@ -137,6 +138,20 @@ async def test_retrieve_fails_open_to_empty_documents() -> None:
     assert result["documents"] == []
 
 
+@pytest.mark.asyncio
+async def test_retrieve_news_uses_news_v2_collection() -> None:
+    """The news branch must search the ``news_v2`` collection (not ``news``)."""
+    retriever = AsyncMock()
+    retriever.retrieve.return_value = [_hit(content="Bitcoin ETF inflows", collection="news_v2")]
+    with patch("app.rag.graph.HybridRetriever", return_value=retriever):
+        result = await retrieve_news(_state(query="latest bitcoin news"))
+    assert result["documents"]
+    assert result["documents"][0]["collection"] == "news_v2"
+    kwargs = retriever.retrieve.await_args.kwargs
+    assert kwargs["collection"] == "news_v2"
+    assert kwargs["rerank"] is False  # graph's rerank node owns the cross-encoder pass
+
+
 # ── rerank ────────────────────────────────────────────────────────────
 
 
@@ -158,6 +173,47 @@ async def test_rerank_fails_open_keeps_order() -> None:
     with patch("app.rag.graph.rerank_results", new=AsyncMock(side_effect=ConnectionError("rerank down"))):
         result = await rerank_documents(_state(documents=docs, query="honeypot?"))
     assert [d["content"] for d in result["documents"]] == ["a", "b"]
+
+
+@pytest.mark.asyncio
+async def test_rerank_news_boost_survives_cross_encoder() -> None:
+    """Fresh news hits stay boosted after the graph's cross-encoder rerank.
+
+    The cross-encoder overwrites final_score, so ``rerank_documents`` must
+    re-apply the news freshness/entity boosts or they would be lost.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime.now(UTC)
+    docs = [
+        {
+            "content": "Bitcoin price tests $63K as ETF outflows hit $265M",
+            "collection": "news_v2",
+            "score": 0.7,
+            "metadata": {
+                "title": "Bitcoin price tests $63K",
+                "published_at": (now - timedelta(minutes=30)).isoformat(),
+            },
+        },
+        {
+            "content": "Stale Bitcoin analysis from months ago",
+            "collection": "news_v2",
+            "score": 0.9,
+            "metadata": {
+                "title": "Stale analysis",
+                "published_at": (now - timedelta(days=10)).isoformat(),
+            },
+        },
+    ]
+    # Cross-encoder ranks the stale doc higher (0.9 vs 0.6).
+    reranked = [{"index": 1, "relevance_score": 0.9}, {"index": 0, "relevance_score": 0.6}]
+    with patch("app.rag.graph.rerank_results", new=AsyncMock(return_value=reranked)):
+        result = await rerank_documents(_state(documents=docs, query="latest bitcoin news?"))
+    out = result["documents"]
+    assert len(out) == 2
+    # Fresh breaking-news doc: 0.6 * 1.5 * 1.1 = 0.99 > stale: 0.9 * 0.5 * 1.1 = 0.495
+    assert out[0]["content"].startswith("Bitcoin price tests")
+    assert out[0]["metadata"]["news_boost"] == 1.65
 
 
 # ── synthesize ────────────────────────────────────────────────────────
