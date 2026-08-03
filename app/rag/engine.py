@@ -60,25 +60,58 @@ async def _qdrant_collection_exists(client: httpx.AsyncClient, collection: str) 
     return collection in _QDRANT_COLLECTIONS
 
 
+async def _qdrant_uses_named_vectors(client: httpx.AsyncClient, collection: str) -> bool:
+    """Probe a collection's config to detect named-vector collections.
+
+    v2 collections (e.g. ``threat_intel_v2``, ``scanner_v2``) are created
+    with named vectors (``{"dense": ..., "bm25": ...}``) and reject a bare
+    vector with "Not existing vector name". Dense-only legacy collections
+    accept the bare vector format. Returns False on any probe failure
+    (missing collection, unreachable Qdrant) so the caller falls back to
+    the legacy request shape.
+    """
+    try:
+        r = await client.get(f"/collections/{collection}")
+        if r.status_code != 200:
+            return False
+        vectors = r.json().get("result", {}).get("config", {}).get("params", {}).get("vectors", {})
+        return isinstance(vectors, dict) and "dense" in vectors
+    except (httpx.HTTPError, httpx.TimeoutException, ValueError, KeyError) as e:
+        log.debug("qdrant_config_probe_failed collection=%s err=%s", collection, e)
+        return False
+
+
 async def _qdrant_search(
     query_vec: list[float],
     collection: str,
-    top_k: int,
-    min_similarity: float,
+    limit: int = 20,
+    score_threshold: float = 0.7,
 ) -> list[Hit]:
     """Vector search against Qdrant (fallback for Qdrant-backed collections).
 
+    Handles both legacy collections (bare vector) and v2 collections that
+    use named vectors. The collection config is probed first so the named
+    ``dense`` vector is sent when required — a bare vector against a
+    named-vector collection is rejected by Qdrant with "Not existing
+    vector name", which previously made v2 data unreachable (0 results).
+
     Returns Hit objects in the same shape as the local ANN index so the
     existing RRF fusion / response wrapping keeps working unchanged.
+    Returns [] when the collection is missing or Qdrant is unreachable.
     """
     try:
         async with httpx.AsyncClient(base_url=_QDRANT_URL, timeout=10.0) as client:
             if not await _qdrant_collection_exists(client, collection):
                 return []
+            # v2 collections carry named vectors — send the named dense
+            # vector instead of the bare vector format.
+            vector_field: Any = query_vec
+            if await _qdrant_uses_named_vectors(client, collection):
+                vector_field = {"name": "dense", "vector": query_vec}
             payload: dict[str, Any] = {
-                "vector": query_vec,
-                "limit": top_k,
-                "score_threshold": min_similarity if min_similarity > 0 else None,
+                "vector": vector_field,
+                "limit": limit,
+                "score_threshold": score_threshold if score_threshold > 0 else None,
                 "with_payload": True,
             }
             r = await client.post(f"/collections/{collection}/points/search", json=payload)
@@ -98,7 +131,7 @@ async def _qdrant_search(
                     )
                 )
             return hits
-    except (httpx.HTTPError, httpx.TimeoutException) as e:
+    except (httpx.HTTPError, httpx.TimeoutException, ValueError, KeyError) as e:
         log.debug("qdrant_search_error err=%s", e)
         return []
 
@@ -148,7 +181,7 @@ async def three_pillar_search(
         # collection, consult Qdrant (e.g. `news` seeded by news_to_rag.py).
         # Strictly additive — collections with local data are untouched.
         if not fused:
-            qdrant_hits = await _qdrant_search(qvec, collection, top_k, min_similarity)
+            qdrant_hits = await _qdrant_search(qvec, collection, limit=top_k, score_threshold=min_similarity)
             if qdrant_hits:
                 fused = qdrant_hits[:top_k]
                 log.info(
