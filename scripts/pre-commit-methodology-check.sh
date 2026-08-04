@@ -16,6 +16,11 @@ set -euo pipefail
 EXEMPT_FILES=(
   "scripts/pre-commit-methodology-check.sh"
   ".gitleaks.toml"
+  # AI chat guardrails: the detector itself + its redaction tests. These files
+  # MUST contain the internal hostname/IP/secret patterns so the guardrail can
+  # detect and redact them (same scanner-definition rationale as above).
+  "app/security/chat_guardrails.py"
+  "tests/test_chat_guardrails.py"
 )
 
 FORBIDDEN_PATTERNS=(

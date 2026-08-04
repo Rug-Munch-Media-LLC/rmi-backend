@@ -103,6 +103,7 @@ paths = [
   '''scripts/proprietary-firewall\.py''',
   # Test fixtures: internal IPs used intentionally
   '''tests/integration/test_scanner_pipeline\.py''',
+  '''tests/test_chat_guardrails\.py''',
 ]
 
 regexTarget = "line"
