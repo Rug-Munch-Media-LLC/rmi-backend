@@ -31,7 +31,6 @@ import requests
 
 from app.chain_registry import CHAINS
 from app.core.logging import get_logger
-
 from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("dev_reputation")

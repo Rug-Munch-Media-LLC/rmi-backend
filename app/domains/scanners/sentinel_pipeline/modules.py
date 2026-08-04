@@ -19,39 +19,39 @@ in ``sentinel_phase.py`` still work.  The registry is additive.
 from __future__ import annotations
 
 from app.core.logging import get_logger
+from app.domains.scanners._sentinel_registry import _SENTINEL_REGISTRY
 
 # Module scanner imports - all known scanners (kept for backward compat;
 # the import triggers ``@sentinel_module`` decorators to fire).
-from ..address_labeler import AddressLabeler  # noqa: F401
-from ..block_zero_sniper import BlockZeroSniperAnalyzer  # noqa: F401
-from ..bundle_detector import BundleDetector  # noqa: F401
-from ..bytecode_similarity import BytecodeSimilarityAnalyzer  # noqa: F401
-from ..contract_authority import ContractAuthorityScanner  # noqa: F401
-from ..contract_diff import ContractDiffAnalyzer  # noqa: F401
-from ..cross_chain_trace import CrossChainTraceAnalyzer  # noqa: F401
-from ..decompiler_analyzer import DecompilerAnalyzer  # noqa: F401
-from ..dev_reputation import DevReputationEngine  # noqa: F401
-from ..exchange_funder import ExchangeFunderDetector  # noqa: F401
-from ..flash_loan_detector import FlashLoanDetector  # noqa: F401
-from ..fund_flow_visualizer import FundFlowVisualizer  # noqa: F401
-from ..gas_trace import GasTraceAnalyzer  # noqa: F401
-from ..governance_attack import GovernanceAttackDetector  # noqa: F401
-from ..guilt_association import GuiltAssociationAnalyzer  # noqa: F401
-from ..holder_analyzer import HolderAnalyzer  # noqa: F401
-from ..honeypot_detector import HoneypotDetector  # noqa: F401
-from ..liquidity_verifier import LiquidityVerifier  # noqa: F401
-from ..metadata_fingerprint import MetadataFingerprinter  # noqa: F401
-from ..mev_detector import MEVDetector  # noqa: F401
-from ..oracle_manipulation import OracleManipulationDetector  # noqa: F401
-from ..proxy_detector import ProxyDetector  # noqa: F401
-from ..pump_dump_detector import PumpDumpDetector  # noqa: F401
-from ..pumpfun_analyzer import PumpFunAnalyzer  # noqa: F401
-from ..sentiment_analyzer import SentimentAnalyzer  # noqa: F401
-from ..sleep_cycle_scanner import SleepCycleAnalyzer  # noqa: F401
-from ..social_velocity import SocialVelocityAnalyzer  # noqa: F401
-from ..static_analyzer import StaticAnalyzer  # noqa: F401
-from ..wash_trading import WashTradingDetector  # noqa: F401
-from app.domains.scanners._sentinel_registry import _SENTINEL_REGISTRY
+from ..address_labeler import AddressLabeler
+from ..block_zero_sniper import BlockZeroSniperAnalyzer
+from ..bundle_detector import BundleDetector
+from ..bytecode_similarity import BytecodeSimilarityAnalyzer
+from ..contract_authority import ContractAuthorityScanner
+from ..contract_diff import ContractDiffAnalyzer
+from ..cross_chain_trace import CrossChainTraceAnalyzer
+from ..decompiler_analyzer import DecompilerAnalyzer
+from ..dev_reputation import DevReputationEngine
+from ..exchange_funder import ExchangeFunderDetector
+from ..flash_loan_detector import FlashLoanDetector
+from ..fund_flow_visualizer import FundFlowVisualizer
+from ..gas_trace import GasTraceAnalyzer
+from ..governance_attack import GovernanceAttackDetector
+from ..guilt_association import GuiltAssociationAnalyzer
+from ..holder_analyzer import HolderAnalyzer
+from ..honeypot_detector import HoneypotDetector
+from ..liquidity_verifier import LiquidityVerifier
+from ..metadata_fingerprint import MetadataFingerprinter
+from ..mev_detector import MEVDetector
+from ..oracle_manipulation import OracleManipulationDetector
+from ..proxy_detector import ProxyDetector
+from ..pump_dump_detector import PumpDumpDetector
+from ..pumpfun_analyzer import PumpFunAnalyzer
+from ..sentiment_analyzer import SentimentAnalyzer
+from ..sleep_cycle_scanner import SleepCycleAnalyzer
+from ..social_velocity import SocialVelocityAnalyzer
+from ..static_analyzer import StaticAnalyzer
+from ..wash_trading import WashTradingDetector
 from .config import SentinelConfig
 
 # Wallet Memory Bank integration — import doubles as an availability probe;

@@ -26,9 +26,8 @@ import requests
 from app.chain_client import ChainClient
 from app.chain_registry import get_cex_wallets, is_solana
 from app.core.logging import get_logger
-from app.free_solscan_client import FreeSolscanClient, is_known_exchange
-
 from app.domains.scanners._sentinel_registry import sentinel_module
+from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
 logger = get_logger("exchange_funder")
 

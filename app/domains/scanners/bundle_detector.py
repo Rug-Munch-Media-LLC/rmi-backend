@@ -30,9 +30,8 @@ import requests
 from app.chain_client import ChainClient
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
-from app.free_solscan_client import FreeSolscanClient
-
 from app.domains.scanners._sentinel_registry import sentinel_module
+from app.free_solscan_client import FreeSolscanClient
 
 logger = get_logger("bundle_detector")
 

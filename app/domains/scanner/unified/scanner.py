@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, ClassVar
+
+import httpx
 
 from app.core.logging import get_logger
 from app.domains.scanner.unified.model import ScanResult
@@ -17,6 +21,51 @@ from app.domains.scanner.unified.persistence import (
 from app.domains.scanner.unified.scoring import compute_score
 
 logger = get_logger(__name__)
+
+# RugBrain (rmi-rag) base URL — same convention as the rest of the backend.
+RUG_BRAIN_API_URL = os.getenv("RAG_API_URL", "http://rmi-rag-api:8012").rstrip("/")
+MARKET_CONTEXT_CACHE_TTL = int(os.getenv("MARKET_CONTEXT_CACHE_TTL", "300"))  # 5 min
+
+
+@dataclass
+class MarketContext:
+    """Market conditions that influence token risk"""
+
+    fear_index: float = 50.0  # 0-100 (0=fear, 100=greed)
+    recent_exploits: int = 0  # exploits in last 24h
+    chain_volume_24h: float = 0.0  # chain TVL change (percent)
+    social_velocity: float = 0.0  # mention velocity for this token (0-100)
+    deployer_freshness: str = "unknown"  # "new" / "established" / "unknown"
+    source: str = "unknown"
+    fetched_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "fear_index": self.fear_index,
+            "recent_exploits": self.recent_exploits,
+            "chain_volume_24h": self.chain_volume_24h,
+            "social_velocity": self.social_velocity,
+            "deployer_freshness": self.deployer_freshness,
+            "source": self.source,
+            "fetched_at": self.fetched_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> MarketContext | None:
+        if not isinstance(data, dict):
+            return None
+        try:
+            return cls(
+                fear_index=float(data.get("fear_index", 50) or 50),
+                recent_exploits=int(data.get("recent_exploits", 0) or 0),
+                chain_volume_24h=float(data.get("chain_volume_24h", 0) or 0),
+                social_velocity=float(data.get("social_velocity", 0) or 0),
+                deployer_freshness=str(data.get("deployer_freshness", "unknown") or "unknown"),
+                source=str(data.get("source", "unknown") or "unknown"),
+                fetched_at=str(data.get("fetched_at", "") or ""),
+            )
+        except (TypeError, ValueError):
+            return None
 
 
 async def _gather_freshness(tasks: list[Any]) -> dict[str, Any]:
@@ -141,6 +190,25 @@ class UnifiedTokenScanner:
             tier=tier,
         )
 
+        # ── Market context (before any phase — cached 5 min, best-effort) ──
+        # Market-aware scanning: fetch fear index + market mood + token
+        # social velocity from RugBrain so scoring can adjust risk when the
+        # market is fearful or recent exploits match this token's category.
+        try:
+            from app.domains.scanner.unified.market_context import fetch_market_context
+
+            market_context = await asyncio.wait_for(
+                fetch_market_context(address, chain),
+                timeout=8,
+            )
+            if market_context is not None:
+                result.market_context = market_context
+                result.modules_run.append("market_context")
+                if market_context.source != "unknown":
+                    result.enrichment_sources.append(f"market_context:{market_context.source}")
+        except Exception as exc:
+            logger.debug("market_context_fetch_failed", error=str(exc)[:120])
+
         try:
             # ── Phase 1: Core (sequential - needed for scoring) ──
             core_results = await self._fetch_batch(self.CORE_CHAINS, params, admin_key, timeout=15)
@@ -195,6 +263,16 @@ class UnifiedTokenScanner:
                 apply_news_scoring(result)
             except Exception as exc:
                 logger.debug("news_scoring_failed", error=str(exc)[:120])
+
+            # ── Market-aware risk adjustment (post-scoring — market context
+            #    is fetched before the phases, then applied here so the
+            #    score/flags/breakdown stay in sync) ──
+            try:
+                from app.domains.scanner.unified.scoring import apply_market_scoring
+
+                apply_market_scoring(result)
+            except Exception as exc:
+                logger.debug("market_scoring_failed", error=str(exc)[:120])
 
             # ── Enrich with RAG context (similar patterns from previous scans) ──
             try:
@@ -680,6 +758,7 @@ def _to_legacy_dict(result: ScanResult) -> dict[str, Any]:
         "event_correlation": result.event_correlation,
         "sentinel": result.sentinel,
         "sentinel_boost": result.sentinel_boost,
+        "market_context": result.market_context.to_dict() if result.market_context else None,
     }
 
 

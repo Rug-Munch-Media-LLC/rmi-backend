@@ -24,9 +24,8 @@ import requests
 
 from app.chain_registry import CHAINS, is_evm
 from app.core.logging import get_logger
-from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
-
 from app.domains.scanners._sentinel_registry import sentinel_module
+from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
 logger = get_logger("address_labeler")
 
