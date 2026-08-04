@@ -105,6 +105,9 @@ extend-exclude = [
 "app/domains/scanner/engines/event_correlation.py" = ["S608"]
 # Pre-existing: internal-constant f-string SQL in volume authenticity (sanitized, trusted internal traffic)
 "app/domains/scanner/engines/own_volume_authenticity.py" = ["S608"]
+# Pre-existing: try/except/pass (existing scanner code), fire-and-forget task,
+# and timeout parameter name conflict with asyncio.timeout (will be cleaned separately)
+"app/domains/scanner/unified/scanner.py" = ["S110", "RUF006", "ASYNC109"]
 # Pre-existing: variable naming conventions in middleware (will be cleaned separately)
 "app/middleware_setup.py" = ["N806", "SIM102"]
 

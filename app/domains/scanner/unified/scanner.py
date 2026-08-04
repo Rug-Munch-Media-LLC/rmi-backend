@@ -81,10 +81,6 @@ class UnifiedTokenScanner:
     # Phase 2: Deep analysis - parallel, all free
     DEEP_CHAINS: ClassVar[list] = [
         "holder_data",
-        "holder_health",
-        "liquidity_risk",
-        "dev_reputation",
-        "rug_patterns",
         "volume_authenticity",
         "chain_indexer_patterns",
     ]
@@ -105,10 +101,7 @@ class UnifiedTokenScanner:
 
     # Phase 4: Intelligence - always free, enrich the report
     INTEL_CHAINS: ClassVar[list] = [
-        "smart_money",
-        "whale_alerts",
         "token_launches",
-        "insider_detection",
         "cross_chain_entity",
     ]
 
@@ -293,8 +286,21 @@ class UnifiedTokenScanner:
             if isinstance(item, Exception):
                 continue
             name, data = item
-            if data is not None:
-                results[name] = data
+            if data is None:
+                continue
+            # Defense: treat any dict with an "error" key as a miss.
+            # DataBus returns {"error": "unknown_data_type"} for chains
+            # that are not registered, which must not be treated as valid
+            # enrichment data (avoid false penalties like LP_LOCK_LOW -20).
+            if isinstance(data, dict) and "error" in data:
+                logger.debug(
+                    "databus_chain_error",
+                    chain=name,
+                    error=data.get("error", "unknown"),
+                    message=data.get("message", ""),
+                )
+                continue
+            results[name] = data
         return results
 
     # ── MERGE METHODS ──
@@ -329,13 +335,20 @@ class UnifiedTokenScanner:
         """Merge deep analysis results."""
         r.modules_run.extend(data.keys())
 
-        r.holders = data.get("holder_data")
-        r.holder_health = data.get("holder_health")
-        r.liquidity = data.get("liquidity_risk")
-        r.dev_reputation = data.get("dev_reputation")
-        r.rug_patterns = data.get("rug_patterns")
-        r.volume_auth = data.get("volume_authenticity")
-        r.chain_indexer_patterns = data.get("chain_indexer_patterns")
+        def _ok(key: str) -> Any:
+            """Return the value only if it is not an error dict from DataBus."""
+            v = data.get(key)
+            if isinstance(v, dict) and "error" in v:
+                return None
+            return v
+
+        r.holders = _ok("holder_data")
+        r.holder_health = _ok("holder_health")
+        r.liquidity = _ok("liquidity_risk")
+        r.dev_reputation = _ok("dev_reputation")
+        r.rug_patterns = _ok("rug_patterns")
+        r.volume_auth = _ok("volume_authenticity")
+        r.chain_indexer_patterns = _ok("chain_indexer_patterns")
 
     def _merge_premium(self, r: ScanResult, data: dict) -> None:
         """Merge premium-tier results."""
@@ -345,10 +358,18 @@ class UnifiedTokenScanner:
     def _merge_intel(self, r: ScanResult, data: dict) -> None:
         """Merge intelligence enrichment results."""
         r.modules_run.extend(data.keys())
-        r.smart_money = data.get("smart_money")
-        r.whale_alerts = data.get("whale_alerts")
-        r.cross_chain = data.get("cross_chain_entity")
-        r.launches = data.get("token_launches")
+
+        def _ok(key: str) -> Any:
+            """Return the value only if it is not an error dict from DataBus."""
+            v = data.get(key)
+            if isinstance(v, dict) and "error" in v:
+                return None
+            return v
+
+        r.smart_money = _ok("smart_money")
+        r.whale_alerts = _ok("whale_alerts")
+        r.cross_chain = _ok("cross_chain_entity")
+        r.launches = _ok("token_launches")
 
     # ── Clever wallet analysis (Phase 2b) ──
 
