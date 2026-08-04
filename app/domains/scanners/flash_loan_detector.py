@@ -24,6 +24,8 @@ from app.chain_registry import is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("flash_loan_detector")
 
 # ── Dataclasses ──────────────────────────────────────────────────────
@@ -62,6 +64,7 @@ class FlashLoanReport:
 # ── Detector Class ──────────────────────────────────────────────────
 
 
+@sentinel_module(key="flash_loan_detection", tier="premium", description="Flash-loan funded manipulation patterns")
 class FlashLoanDetector:
     """Detects flash-loan sandwich / manipulation patterns.
 

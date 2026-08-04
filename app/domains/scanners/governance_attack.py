@@ -29,6 +29,8 @@ from app.chain_registry import is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("governance_attack")
 
 # ── Dataclasses ──────────────────────────────────────────────────────
@@ -79,6 +81,7 @@ class GovernanceAttackReport:
 # ── Detector Class ──────────────────────────────────────────────────
 
 
+@sentinel_module(key="governance_attack", tier="premium", description="Governance attack surface and vote manipulation")
 class GovernanceAttackDetector:
     """Detects governance concentration and attack risks.
 

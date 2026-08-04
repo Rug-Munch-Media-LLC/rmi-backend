@@ -17,13 +17,14 @@ Pure computation module - no external API calls needed.
 
 from __future__ import annotations
 
-from typing import ClassVar
-
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import ClassVar
 
 from app.core.logging import get_logger
+
+from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("sleep_cycle_scanner")
 
@@ -73,6 +74,12 @@ class SleepCycleReport:
     risk_label: str = "LOW"
 
 
+@sentinel_module(
+    key="sleep_cycle",
+    tier="premium",
+    description="Deployer sleep-cycle / activity-pattern analysis",
+    needs_deployer=True,
+)
 class SleepCycleAnalyzer:
     """Analyzes deployment timestamp patterns to detect abnormal sleep cycles.
 

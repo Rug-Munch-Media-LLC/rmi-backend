@@ -29,6 +29,8 @@ from app.chain_registry import is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("proxy_detector")
 
 # ── Constants ───────────────────────────────────────────────────────
@@ -98,6 +100,7 @@ class ProxyReport:
 # ── Detector Class ──────────────────────────────────────────────────
 
 
+@sentinel_module(key="proxy_detection", tier="free", description="Upgradeable proxy risk detection")
 class ProxyDetector:
     """Resolves proxy contracts and assesses upgrade risk.
 

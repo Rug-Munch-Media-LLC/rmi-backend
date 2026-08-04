@@ -33,6 +33,8 @@ import requests
 from app.chain_registry import is_evm, is_solana
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("block_zero_sniper")
 
 # ── API Keys ────────────────────────────────────────────────────────────────
@@ -99,6 +101,9 @@ class BlockZeroReport:
 # ── Analyzer ────────────────────────────────────────────────────────────────
 
 
+@sentinel_module(
+    key="block_zero_sniper", tier="premium", description="Block-zero sniper detection (dev/bot buys first block)"
+)
 class BlockZeroSniperAnalyzer:
     """Analyzes block-zero sniping and split patterns to detect team distribution farms.
 

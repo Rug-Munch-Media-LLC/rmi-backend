@@ -19,12 +19,14 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 import httpx
 import requests
 
 from app.core.logging import get_logger
+
+from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("contract_diff")
 
@@ -117,6 +119,7 @@ RUG_BYTECODE_PATTERNS = [
 ]
 
 
+@sentinel_module(key="contract_diff", tier="premium", description="Contract diff vs known scam templates")
 class ContractDiffAnalyzer:
     """Compare contract bytecode against known rug patterns and clone databases."""
 

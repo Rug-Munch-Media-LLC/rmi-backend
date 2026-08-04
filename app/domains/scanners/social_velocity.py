@@ -25,6 +25,8 @@ from datetime import datetime
 
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("social_velocity")
 
 
@@ -78,6 +80,12 @@ class SocialVelocityReport:
     warnings: list[str] = field(default_factory=list)
 
 
+@sentinel_module(
+    key="social_velocity",
+    tier="premium",
+    description="Social velocity & artificial-growth detection",
+    needs_deployer=True,
+)
 class SocialVelocityAnalyzer:
     """Analyzes social mention velocity to detect bot farms and coordinated campaigns.
 

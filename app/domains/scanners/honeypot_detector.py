@@ -25,6 +25,8 @@ from app.chain_registry import is_solana
 from app.core.logging import get_logger
 from app.domains.scanner.engines.rpc_router import get_rpc_router
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("honeypot_detector")
 
 JUPITER_QUOTE_URL = os.getenv("JUPITER_QUOTE_URL", "https://quote-api.jup.app/v6/quote")
@@ -76,6 +78,9 @@ class HoneypotReport:
     risk_level: str = "LOW"  # LOW / MEDIUM / HIGH / CRITICAL
 
 
+@sentinel_module(
+    key="honeypot_detection", tier="premium", description="Sell-side honeypot detection (can buy but not sell)"
+)
 class HoneypotDetector:
     """Detects honeypot tokens through buy/sell simulation and tax analysis."""
 

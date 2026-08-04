@@ -32,6 +32,8 @@ import requests
 
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("metadata_fingerprint")
 
 # ---------------------------------------------------------------------------
@@ -123,6 +125,12 @@ class FingerprintReport:
 # ---------------------------------------------------------------------------
 
 
+@sentinel_module(
+    key="metadata_fingerprint",
+    tier="free",
+    description="Metadata cloning & fingerprint similarity detection",
+    method="analyze_token_metadata",
+)
 class MetadataFingerprinter:
     """Fingerprints token metadata and detects near-duplicate / copycat tokens.
 

@@ -29,6 +29,8 @@ from app.chain_registry import is_solana
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("pump_dump_detector")
 
 # ── Dataclasses ──────────────────────────────────────────────────────
@@ -65,6 +67,9 @@ class PumpDumpReport:
 # ── Detector Class ──────────────────────────────────────────────────
 
 
+@sentinel_module(
+    key="pump_dump_detection", tier="premium", description="Pump-and-dump cycle detection from on-chain volume"
+)
 class PumpDumpDetector:
     """Detects pump-and-dump and coordinated shill campaigns.
 

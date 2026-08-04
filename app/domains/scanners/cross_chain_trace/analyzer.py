@@ -14,9 +14,14 @@ from .models import CrossChainEdge, CrossChainNode, CrossChainTraceReport
 from .queries import _fetch_labels, _fetch_transfers
 from .utils import _assign_role, _evm_address_portable
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("cross_chain_trace")
 
 
+@sentinel_module(
+    key="cross_chain_trace", tier="premium", description="Cross-chain trace of the deployer wallet", needs_deployer=True
+)
 class CrossChainTraceAnalyzer:
     """
     Tracks fund flow across chains for a given wallet address.

@@ -25,6 +25,8 @@ from .models import (
     shorten_address,
 )
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("fund_flow_visualizer")
 
 # Color scheme for node roles
@@ -257,6 +259,7 @@ def _generate_svg(
     return "\n".join(lines)
 
 
+@sentinel_module(key="fund_flow", tier="premium", description="Fund-flow visualization from deployer wallet")
 class FundFlowVisualizer:
     """Generate SVG fund flow visualization for a token."""
 

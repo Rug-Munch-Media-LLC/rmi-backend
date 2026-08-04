@@ -30,6 +30,8 @@ import requests
 from app.chain_registry import get_explorer_api_config, is_evm, is_solana
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("guilt_association")
 
 # ─── Known Mixer / Fixed-Float / Laundering Addresses ────────────────
@@ -240,6 +242,12 @@ class GuiltAssociationReport:
 # ─── Analyzer ────────────────────────────────────────────────────────
 
 
+@sentinel_module(
+    key="guilt_association",
+    tier="premium",
+    description="Guilt-by-association for the deployer wallet",
+    needs_deployer=True,
+)
 class GuiltAssociationAnalyzer:
     """Check a deployer wallet for associations with known mixing / laundering services.
 

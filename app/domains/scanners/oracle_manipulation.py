@@ -27,6 +27,8 @@ from app.chain_registry import is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("oracle_manipulation")
 
 # ── Constants ───────────────────────────────────────────────────────
@@ -89,6 +91,7 @@ class OracleManipulationReport:
 # ── Detector Class ──────────────────────────────────────────────────
 
 
+@sentinel_module(key="oracle_manipulation", tier="premium", description="Price-oracle manipulation susceptibility")
 class OracleManipulationDetector:
     """Detects oracle manipulation risks for a token.
 

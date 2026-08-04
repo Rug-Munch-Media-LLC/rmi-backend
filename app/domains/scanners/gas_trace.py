@@ -35,6 +35,8 @@ from app.chain_registry import (
 from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("gas_trace")
 
 # ── Etherscan Network Config (mirrors dev_reputation pattern) ─────────────
@@ -119,6 +121,9 @@ class GasTraceReport:
 # ── Gas Trace Analyzer ─────────────────────────────────────────────────────
 
 
+@sentinel_module(
+    key="gas_trace", tier="premium", description="Three-hop gas trace of deployer funding", needs_deployer=True
+)
 class GasTraceAnalyzer:
     """
     Traces deployer gas money up to 3 wallet hops deep.

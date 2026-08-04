@@ -31,6 +31,8 @@ from app.chain_registry import CHAINS, is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("static_analyzer")
 
 # ── Paths ────────────────────────────────────────────────────────────
@@ -127,6 +129,7 @@ class StaticAnalysisReport:
 # ── Analyzer class ────────────────────────────────────────────────────
 
 
+@sentinel_module(key="static_analysis", tier="premium", description="Static bytecode analysis for malicious patterns")
 class StaticAnalyzer:
     """Run Slither static analysis + Forta alerts + SmartCheck for EVM contracts."""
 

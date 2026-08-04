@@ -22,6 +22,8 @@ import requests
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("mev_detector")
 
 # Solana RPC endpoint — configurable (defaults to Helius public endpoint).
@@ -132,6 +134,7 @@ class MEVReport:
     scanned_tx_count: int = 0
 
 
+@sentinel_module(key="mev_detection", tier="premium", description="MEV exposure and sandwich-attack susceptibility")
 class MEVDetector:
     """Detects MEV/sandwich attacks on token trades."""
 
