@@ -303,6 +303,7 @@ async def run_deployer_tracker(
         "deployers_found": 0,
         "deployers_written": 0,
         "duration_seconds": 0,
+        "errors": [],
     }
 
     from lite_indexer import LiteIndexer
@@ -310,6 +311,10 @@ async def run_deployer_tracker(
     indexer = LiteIndexer(
         chain=chain, from_block=from_block, to_block=to_block, batch_size=batch_size, start_from_head=start_from_head
     )
+
+    # Belt-and-suspenders: ensure "errors" key exists before private
+    # API calls that may append to it (e.g. _determine_block_range).
+    summary.setdefault("errors", [])
 
     # Determine block range
     block_range = await indexer._determine_block_range(summary)
