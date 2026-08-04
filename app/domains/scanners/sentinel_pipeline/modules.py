@@ -40,9 +40,10 @@ from ..static_analyzer import StaticAnalyzer
 from ..wash_trading import WashTradingDetector
 from .config import SentinelConfig
 
-# Wallet Memory Bank integration
+# Wallet Memory Bank integration — import doubles as an availability probe;
+# the engine is intentionally unused here (only _WALLET_MEMORY_AVAILABLE matters).
 try:
-    from app.wallet_memory.engine import get_wallet_engine
+    from app.wallet_memory.engine import get_wallet_engine as _get_wallet_engine  # noqa: F401 — availability probe
 
     _WALLET_MEMORY_AVAILABLE = True
 except ImportError:

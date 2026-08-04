@@ -28,7 +28,8 @@ def _gmgn(args: list[str], timeout: int = 15) -> dict[str, Any]:
     """Call npx gmgn-cli and return parsed JSON."""
     cmd = ["npx", "gmgn-cli", *args]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=GMGN_ENV)
+        # Fixed command list, no shell=True; args are internal CLI flags (no user input)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=GMGN_ENV)  # noqa: S603
         if result.returncode != 0:
             logger.error(f"gmgn-cli failed: {result.stderr[:200]}")
             return {"error": result.stderr[:200]}
@@ -37,7 +38,7 @@ def _gmgn(args: list[str], timeout: int = 15) -> dict[str, Any]:
         return {"error": "gmgn-cli timed out"}
     except json.JSONDecodeError:
         return {"error": f"Invalid JSON: {result.stdout[:200]}"}
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
+    except (KeyError, TypeError) as e:
         logger.debug("_gmgn_error", exc_info=True)
         return {"error": str(e)}
 

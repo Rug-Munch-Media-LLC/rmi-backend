@@ -18,8 +18,8 @@ from .config import (
     PRE_KOL_WINDOW_MAX,
     PRE_TRENDING_WINDOW_MAX,
 )
+from .helpers import _ts_human
 from .models import Confidence, InsiderEvidence, InsiderType
-from .utils import _ts_human
 
 logger = get_logger(__name__)
 

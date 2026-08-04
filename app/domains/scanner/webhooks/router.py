@@ -39,7 +39,7 @@ EVENT_TYPE_CATALOG: list[WebhookEventTypeInfo] = [
     WebhookEventTypeInfo(
         event_type=WebhookEventType.TOKEN_FIRST_SWAP,
         description="First DEX swap detected for a token",
-        data_source="ClickHouse (wallet_memory.token_transfers × DEX router list)",
+        data_source="ClickHouse (wallet_memory.token_transfers x DEX router list)",
     ),
     WebhookEventTypeInfo(
         event_type=WebhookEventType.TOKEN_PRICE_CHANGE,

@@ -44,27 +44,27 @@ from app.domains.scanner.engines.own_volume_authenticity import get_own_volume_a
 from app.domains.scanner.engines.own_whale_detect import get_own_whale_detection
 
 __all__ = [
-    # Phase 1
-    "get_token_price",
-    "get_batch_prices",
-    "get_own_dex_data",
-    "check_data_freshness",
-    # Phase 2
-    "get_own_holder_analysis",
-    "get_holder_count",
-    "get_own_security",
-    # Phase 4
-    "get_own_deployer_reputation",
-    "get_own_holder_age",
-    "get_own_volume_authenticity",
-    "get_own_whale_detection",
-    # Phase 5 — RugMunchScan capabilities
-    "analyze_holder_clusters",
-    "resolve_cross_chain_entity",
-    "analyze_token_news_sentiment",
     # Clever wallet analysis
     "analyze_funding_sources",
-    "compute_wallet_freshness",
-    "compute_holder_overlap",
+    # Phase 5 — RugMunchScan capabilities
+    "analyze_holder_clusters",
     "analyze_scam_overlap",
+    "analyze_token_news_sentiment",
+    "check_data_freshness",
+    "compute_holder_overlap",
+    "compute_wallet_freshness",
+    "get_batch_prices",
+    "get_holder_count",
+    # Phase 4
+    "get_own_deployer_reputation",
+    "get_own_dex_data",
+    "get_own_holder_age",
+    # Phase 2
+    "get_own_holder_analysis",
+    "get_own_security",
+    "get_own_volume_authenticity",
+    "get_own_whale_detection",
+    # Phase 1
+    "get_token_price",
+    "resolve_cross_chain_entity",
 ]

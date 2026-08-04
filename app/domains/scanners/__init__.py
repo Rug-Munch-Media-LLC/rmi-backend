@@ -105,9 +105,118 @@ from .static_analyzer import StaticAnalysisReport, StaticAnalyzer
 from .wash_trading import WashTradingDetector
 
 __all__ = [
+    "AddressLabelReport",
+    # Address labeling
+    "AddressLabeler",
+    # Block-zero sniper
+    "BlockZeroReport",
+    "BlockZeroSniperAnalyzer",
+    # Bundles
+    "BundleDetector",
+    # Bytecode similarity
+    "BytecodeSimilarityAnalyzer",
+    "BytecodeSimilarityReport",
+    # Contract authority
+    "ContractAuthorityReport",
+    "ContractAuthorityScanner",
+    # Contract diff
     "ContractDiffAnalyzer",
     "ContractDiffReport",
+    # Cross-chain trace
+    "CrossChainTraceAnalyzer",
+    "CrossChainTraceReport",
+    # Decompiler
+    "DecompilerAnalyzer",
+    "DecompilerReport",
+    # Dev reputation
+    "DevReputationEngine",
+    # Exchange funding
+    "ExchangeFunderDetector",
+    # Flash loans
+    "FlashLoanDetector",
+    "FlashLoanReport",
+    # Fund flow
+    "FundFlowReport",
+    "FundFlowVisualizer",
+    # Gas trace
+    "GasTraceAnalyzer",
+    "GasTraceReport",
+    # Governance attacks
+    "GovernanceAttackDetector",
+    "GovernanceAttackReport",
+    # Guilt association
+    "GuiltAssociationAnalyzer",
+    "GuiltAssociationReport",
+    # Holders
+    "HolderAnalyzer",
+    # Honeypots
+    "HoneypotDetector",
+    "HoneypotReport",
+    # Liquidity
+    "LiquidityVerifier",
+    # MEV
+    "MEVBotActivity",
+    "MEVDetector",
+    "MEVReport",
+    # Metadata fingerprinting
+    "MetadataFingerprinter",
+    # Oracle manipulation
+    "OracleManipulationDetector",
+    "OracleManipulationReport",
+    # Proxies
+    "ProxyDetector",
+    "ProxyReport",
+    # Pump & dump
+    "PumpDumpDetector",
+    "PumpDumpReport",
+    # Pump.fun
+    "PumpFunAnalyzer",
+    "SandwichAttack",
+    # Sentiment
+    "SentimentAnalyzer",
+    # SENTINEL pipeline orchestrator
+    "SentinelReport",
+    # Sleep cycle
+    "SleepCycleAnalyzer",
+    "SleepCycleReport",
+    # Social velocity
+    "SocialVelocityAnalyzer",
+    "SocialVelocityReport",
+    # Static analysis
+    "StaticAnalysisReport",
+    "StaticAnalyzer",
+    # Wash trading
+    "WashTradingDetector",
+    # RAG citations
+    "build_citation_string",
+    "dataclass_to_dict",
+    "hash_bytecode",
+    "query_address_rag",
+    "query_rag_citations",
+    "run_address_labels",
+    "run_bundle_detection",
     "run_contract_authority",
+    "run_contract_authority_scan",
+    "run_cross_chain_trace",
+    "run_decompiler_analysis",
+    "run_dev_reputation",
+    "run_exchange_funding",
+    "run_flash_loan_detection",
+    "run_fund_flow",
+    "run_gas_trace_analysis",
+    "run_governance_attack",
+    "run_guilt_association",
+    "run_holder_analysis",
     "run_honeypot_detection",
+    "run_liquidity_verification",
+    "run_metadata_fingerprint",
     "run_mev_detection",
+    "run_oracle_manipulation",
+    "run_proxy_detection",
+    "run_pump_dump_detection",
+    "run_pumpfun_analysis",
+    "run_sentiment",
+    "run_sentinel_scan",
+    "run_static_analysis",
+    "run_wash_trading",
 ]

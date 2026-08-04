@@ -11,58 +11,6 @@ Package split into responsibility-focused modules:
 from __future__ import annotations
 
 from .config import SentinelConfig, SentinelReport, dataclass_to_dict
-from .modules import (
-    _address_labeler,
-    _block_zero_sniper,
-    _bundle_detector,
-    _bytecode_similarity,
-    _contract_authority,
-    _contract_diff,
-    _cross_chain_trace,
-    _decompiler_analyzer,
-    _default_config,
-    _dev_reputation,
-    _ensure_modules,
-    _exchange_funder,
-    _flash_loan_detector,
-    _fund_flow_visualizer,
-    _gas_trace,
-    _governance_attack,
-    _guilt_association,
-    _holder_analyzer,
-    _honeypot_detector,
-    _liquidity_verifier,
-    _metadata_fingerprinter,
-    _mev_detector,
-    _oracle_manipulation,
-    _proxy_detector,
-    _pump_dump_detector,
-    _pumpfun_analyzer,
-    _sentiment_analyzer,
-    _sleep_cycle,
-    _social_velocity,
-    _static_analyzer,
-    _wash_trading,
-)
-from .risk import (
-    _collect_red_flags,
-    _compute_composite,
-    _extract_risk_block_zero,
-    _extract_risk_bundle,
-    _extract_risk_bytecode_similarity,
-    _extract_risk_dev,
-    _extract_risk_exchange_fund,
-    _extract_risk_fingerprint,
-    _extract_risk_gas_trace,
-    _extract_risk_guilt_association,
-    _extract_risk_hhi,
-    _extract_risk_lock,
-    _extract_risk_pumpfun,
-    _extract_risk_sentiment,
-    _extract_risk_sleep_cycle,
-    _extract_risk_social_velocity,
-    _extract_risk_wash_trading,
-)
 from .runners import (
     run_address_labels,
     run_bundle_detection,
@@ -88,6 +36,13 @@ from .runners import (
     run_static_analysis,
     run_wash_trading,
 )
+
+# NOTE: module singletons (_holder_analyzer, ...) and risk helpers
+# (_collect_red_flags, _compute_composite, ...) are intentionally NOT
+# re-exported here. They are consumed via the submodules:
+#   from app.domains.scanners.sentinel_pipeline import modules as sm
+#   from app.domains.scanners.sentinel_pipeline import runners
+# See app/domains/scanner/unified/sentinel_phase.py for the consumer.
 
 __all__ = [
     "SentinelConfig",

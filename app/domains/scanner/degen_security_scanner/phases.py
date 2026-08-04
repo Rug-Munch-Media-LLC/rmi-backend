@@ -276,7 +276,7 @@ async def phase5_bundlers_snipers(scanner: DegenSecurityScanner, report: Securit
     if launch_time:
         report.created_at = datetime.fromtimestamp(launch_time).isoformat()
 
-    SNIPER_WINDOW_MS = 30000
+    sniper_window_ms = 30000
     sniper_candidates: list[SniperProfile] = []
     buyer_timestamps: dict[str, list[dict]] = {}
 
@@ -300,7 +300,7 @@ async def phase5_bundlers_snipers(scanner: DegenSecurityScanner, report: Securit
                 }
             )
 
-        if 0 <= time_after_launch_ms <= SNIPER_WINDOW_MS and buyer:
+        if 0 <= time_after_launch_ms <= sniper_window_ms and buyer:
             sniper = SniperProfile(
                 wallet=buyer,
                 buy_time_ms=round(time_after_launch_ms, 0),
@@ -445,7 +445,7 @@ async def _detect_insiders(scanner: DegenSecurityScanner, report: SecurityReport
         return
 
     launch_time = sorted_acts[0].get("block_time", 0)
-    INSIDER_WINDOW = 120
+    insider_window = 120
 
     insiders: list[str] = []
     for act in sorted_acts:
@@ -456,7 +456,7 @@ async def _detect_insiders(scanner: DegenSecurityScanner, report: SecurityReport
         block_time = act.get("block_time", 0)
         elapsed = block_time - launch_time
 
-        if 0 <= elapsed <= INSIDER_WINDOW:
+        if 0 <= elapsed <= insider_window:
             buyer = act.get("from_address") or act.get("address")
             if buyer and buyer not in insiders:
                 acct_info = scanner.solscan.account_info(buyer)

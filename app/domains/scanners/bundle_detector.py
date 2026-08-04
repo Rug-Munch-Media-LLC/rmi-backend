@@ -19,6 +19,8 @@ DexScreener (pairs/trades), Solscan (account transfers, transaction detail).
 
 from __future__ import annotations
 
+from dataclasses import dataclass as _dataclass
+
 import json
 import os
 from dataclasses import dataclass, field
@@ -477,9 +479,6 @@ class BundleDetector:
             warnings=warnings,
         )
 
-
-# Type alias for early buyer data placeholder
-from dataclasses import dataclass as _dataclass
 
 
 @_dataclass

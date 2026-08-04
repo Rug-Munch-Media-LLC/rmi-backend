@@ -296,3 +296,158 @@ class TestApplyNewsScoring:
         base2 = result2.confidence
         apply_news_scoring(result2)
         assert result2.confidence == base2
+
+
+class TestSentinelScoring:
+    """SENTINEL deep-forensic findings feed the unified score (Phase 5).
+
+    Covers ``compute_score``'s SENTINEL block:
+
+      1. Neutral token with no SENTINEL data keeps the baseline (no boost).
+      2. A single critical SENTINEL finding penalizes its dimension but
+         triggers no boost (corroboration needs 2+ independent signals).
+      3. Two+ critical SENTINEL findings apply the capped ``sentinel_boost``.
+      4. SENTINEL holder_analysis HHI feeds the holders dimension.
+      5. SENTINEL evidence is exposed in the evidence payload.
+    """
+
+    def _sentinel_result(self, sentinel: dict) -> ScanResult:
+        return _result(modules_run=["sentinel"], sentinel=sentinel)
+
+    def test_no_sentinel_data_keeps_baseline(self) -> None:
+        """No SENTINEL payload → baseline 50, zero boost, no SENTINEL flags."""
+        result = _result()
+        out = compute_score(result)
+        assert out["score"] == 50.0
+        assert result.sentinel_boost == 0.0
+        assert not [f for f in result.risk_flags if f.startswith("SENTINEL")]
+
+    def test_sentinel_payload_without_free_modules_is_noop(self) -> None:
+        """An empty/premium-only SENTINEL payload contributes nothing."""
+        result = self._sentinel_result({"free": {}, "premium": None})
+        out = compute_score(result)
+        assert out["score"] == 50.0
+        assert result.sentinel_boost == 0.0
+
+    def test_single_critical_finding_penalizes_no_boost(self) -> None:
+        """One critical deep-forensic signal moves its dimension; no boost."""
+        result = self._sentinel_result(
+            {
+                "free": {
+                    "holder_analysis": {
+                        "hhi": 8000,
+                        "risk_level": "critical",
+                        "fake_diversification_score": 80,
+                        "total_holders": 10,
+                    }
+                }
+            }
+        )
+        out = compute_score(result)
+        assert result.sentinel_boost == 0.0
+        assert "SENTINEL_HHI_CRITICAL" in out["breakdown"]["holders"]["flags"]
+        assert "SENTINEL_FAKE_DIVERSIFICATION" in out["breakdown"]["holders"]["flags"]
+        assert out["breakdown"]["holders"]["delta"] == -15.0
+        assert not [f for f in result.risk_flags if f.startswith("SENTINEL_CRITICAL_BOOST")]
+
+    def test_two_critical_findings_apply_boost(self) -> None:
+        """Two independent critical modules → sentinel_boost penalty, capped at 15."""
+        result = self._sentinel_result(
+            {
+                "free": {
+                    "holder_analysis": {"hhi": 8000, "risk_level": "critical", "total_holders": 10},
+                    "liquidity_verification": {
+                        "total_locked_percentage": 10,
+                        "risk_level": "CRITICAL",
+                        "fake_lock_detected": True,
+                        "warnings": ["fake lock"],
+                    },
+                }
+            }
+        )
+        out = compute_score(result)
+        assert result.sentinel_boost == 10.0  # 2 critical × 5
+        assert "SENTINEL_CRITICAL_BOOST:2" in out["breakdown"]["security"]["flags"]
+        assert out["breakdown"]["security"]["delta"] == -10.0
+
+    def test_boost_capped_at_fifteen(self) -> None:
+        """Four critical modules → boost capped at 15 (not 20)."""
+        result = self._sentinel_result(
+            {
+                "free": {
+                    "holder_analysis": {"hhi": 8000, "risk_level": "critical", "total_holders": 10},
+                    "liquidity_verification": {
+                        "total_locked_percentage": 10,
+                        "risk_level": "CRITICAL",
+                        "fake_lock_detected": True,
+                        "warnings": ["fake lock"],
+                    },
+                    "dev_reputation": {"reputation_score": 15, "dev_threat_index": 0.9, "total_launches": 5},
+                    "contract_authority": {"risk_score": 95, "risk_level": "CRITICAL"},
+                }
+            }
+        )
+        compute_score(result)
+        assert result.sentinel_boost == 15.0
+        assert "SENTINEL_CRITICAL_BOOST:4" in result.risk_flags
+
+    def test_liquidity_lock_and_dev_threat_penalize_their_dimensions(self) -> None:
+        """SENTINEL LP-lock + dev-threat findings land in liquidity/deployer."""
+        result = self._sentinel_result(
+            {
+                "free": {
+                    "liquidity_verification": {
+                        "total_locked_percentage": 20,
+                        "risk_level": "HIGH",
+                        "fake_lock_detected": False,
+                        "warnings": ["low lock"],
+                    },
+                    "dev_reputation": {"reputation_score": 20, "dev_threat_index": 0.6, "total_launches": 3},
+                }
+            }
+        )
+        out = compute_score(result)
+        assert "SENTINEL_LP_LOCK" in out["breakdown"]["liquidity"]["flags"]
+        assert "SENTINEL_DEV_THREAT" in out["breakdown"]["deployer"]["flags"]
+
+    def test_sentinel_evidence_exposed(self) -> None:
+        """Evidence carries SENTINEL module summaries and the boost."""
+        result = self._sentinel_result(
+            {
+                "free": {
+                    "holder_analysis": {"hhi": 8000, "risk_level": "critical", "total_holders": 10},
+                    "liquidity_verification": {
+                        "total_locked_percentage": 10,
+                        "risk_level": "CRITICAL",
+                        "fake_lock_detected": True,
+                        "warnings": ["fake lock"],
+                    },
+                }
+            }
+        )
+        out = compute_score(result)
+        ev_sentinel = out["evidence"]["sentinel"]
+        assert "holder_analysis" in ev_sentinel
+        assert ev_sentinel["holder_analysis"]["hhi"] == 8000
+        assert "liquidity_verification" in ev_sentinel
+        assert ev_sentinel["sentinel_boost"] == 10.0
+
+    def test_clean_sentinel_signals_are_green(self) -> None:
+        """Strong LP lock + clean dev reputation add small bonuses."""
+        result = self._sentinel_result(
+            {
+                "free": {
+                    "liquidity_verification": {
+                        "total_locked_percentage": 95,
+                        "risk_level": "LOW",
+                        "fake_lock_detected": False,
+                        "warnings": [],
+                    },
+                    "dev_reputation": {"reputation_score": 90, "dev_threat_index": 0.0, "total_launches": 8},
+                }
+            }
+        )
+        out = compute_score(result)
+        assert "SENTINEL_LP_LOCKED" in out["breakdown"]["liquidity"]["flags"]
+        assert "SENTINEL_DEV_CLEAN" in out["breakdown"]["deployer"]["flags"]
+        assert result.sentinel_boost == 0.0

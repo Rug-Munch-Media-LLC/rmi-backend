@@ -280,14 +280,14 @@ class ContractAuthorityScanner:
           46-78: freezeAuthority (32 bytes; all zeros = None)
         """
         try:
-            MINT_LEN = 82
+            mint_len = 82
             offset = 0
 
             # Token-2022 may have extra bytes; detect by length
-            if len(raw) > MINT_LEN + 4:
+            if len(raw) > mint_len + 4:
                 offset = 4  # skip TLV discriminator
 
-            if len(raw) < offset + MINT_LEN:
+            if len(raw) < offset + mint_len:
                 return None
 
             mint_auth_bytes = raw[offset : offset + 32]
@@ -295,12 +295,12 @@ class ContractAuthorityScanner:
 
             def pk_from_bytes(b: bytes) -> str:
                 # Base58 encode 32-byte pubkey
-                ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+                alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
                 n = int.from_bytes(b, "big")
                 result = ""
                 while n > 0:
                     n, r = divmod(n, 58)
-                    result = ALPHABET[r] + result
+                    result = alphabet[r] + result
                 # Pad with leading 1s for leading zero bytes
                 for byte in b:
                     if byte == 0:
@@ -398,11 +398,10 @@ class ContractAuthorityScanner:
                     proxy_info.proxy_type = "EIP-1822"
 
             # 4. Check for OZ Transparent proxy pattern via admin slot
-            if not proxy_info.is_proxy:
+            if not proxy_info.is_proxy and bytecode and self._is_minimal_proxy(bytecode):
                 # Try detection via minimal proxy (EIP-1167) bytecode pattern
-                if bytecode and self._is_minimal_proxy(bytecode):
-                    proxy_info.is_proxy = True
-                    proxy_info.proxy_type = "Minimal_EIP-1167"
+                proxy_info.is_proxy = True
+                proxy_info.proxy_type = "Minimal_EIP-1167"
 
             # 5. Check ownership and admin functions from ABI
             abi = await self._etherscan_get_abi(token_address, net)
@@ -491,13 +490,13 @@ class ContractAuthorityScanner:
 
     async def _check_evm_ownership_renounced(self, token_address: str, net: dict, admin_address: str) -> bool:
         """Check if the admin/owner is a zero address or the contract itself (renounced)."""
-        BURNED_ADDRESSES = {
+        burned_addresses = {
             "0x0000000000000000000000000000000000000000",
             "0x000000000000000000000000000000000000dEaD",
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         }
         # Normalize both sides to lowercase so mixed-case dead addresses match.
-        return admin_address.lower() in {addr.lower() for addr in BURNED_ADDRESSES}
+        return admin_address.lower() in {addr.lower() for addr in burned_addresses}
 
     def _add_evm_warnings(self, report: ContractAuthorityReport) -> None:
         """Add risk warnings based on EVM proxy configuration."""

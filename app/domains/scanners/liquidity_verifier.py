@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from typing import Any, ClassVar
-
 """
 SENTINEL - Liquidity Lock Verification
 ========================================
@@ -22,11 +18,14 @@ Data sources (direct API calls - no self.api_base):
               Helius Enhanced Transactions (LP burn events)
 """
 
+from __future__ import annotations
+
 import json
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any, ClassVar
 
 import httpx
 import requests

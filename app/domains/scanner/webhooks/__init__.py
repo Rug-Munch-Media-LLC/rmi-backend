@@ -30,7 +30,7 @@ Data Flow::
          │
          └── WebhookDeliveryService.deliver()
                ├── httpx POST to subscriber URL
-               ├── Retry × 3 (10s, 30s, 60s backoff)
+               ├── Retry x 3 (10s, 30s, 60s backoff)
                └── Log delivery outcome to Redis
 """
 

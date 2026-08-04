@@ -195,12 +195,12 @@ def _extract_selectors_from_bytecode(bytecode: str) -> list[str]:
             selector = "0x" + code[i + 2 : i + 10]
             # Verify it looks like a real selector (not random data)
             # Check if followed by EQ (14), or used in JUMPI context
-            if i + 10 < len(code):
-                next_byte = code[i + 10 : i + 12]
-                if next_byte in ("14", "80", "90"):  # EQ, DUP1, SWAP1
-                    # Skip common non-function selectors
-                    if selector not in ("0x00000000", "0xffffffff"):
-                        selectors.add(selector.lower())
+            if (
+                i + 10 < len(code)
+                and code[i + 10 : i + 12] in ("14", "80", "90")  # EQ, DUP1, SWAP1
+                and selector not in ("0x00000000", "0xffffffff")  # skip common non-function selectors
+            ):
+                selectors.add(selector.lower())
             i += 10
         else:
             i += 2

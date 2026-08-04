@@ -152,7 +152,7 @@ class ProxyDetector:
             logger.warning(f"eth_call failed for {to} data={data[:10]}: {e}")
         return None
 
-    async def _eth_getCode(self, address: str, chain: str) -> str | None:
+    async def _eth_get_code(self, address: str, chain: str) -> str | None:
         """Get contract bytecode via eth_getCode."""
         from app.chain_registry import CHAINS
 
@@ -183,7 +183,7 @@ class ProxyDetector:
             KeyError,
             TypeError,
         ) as e:
-            logger.debug("_eth_getCode_error", exc_info=True)
+            logger.debug("_eth_get_code_error", exc_info=True)
             logger.warning(f"eth_getCode failed for {address}: {e}")
         return None
 
@@ -440,7 +440,7 @@ class ProxyDetector:
                 report.has_timelock = timelock_seconds > 0
 
                 # 3. Check implementation bytecode for rug patterns
-                bytecode = await self._eth_getCode(impl_addr, chain)
+                bytecode = await self._eth_get_code(impl_addr, chain)
                 if bytecode:
                     is_rug, patterns, code_hash = self._check_impl_for_rug_patterns(impl_addr, bytecode)
                     report.is_known_rug_impl = is_rug

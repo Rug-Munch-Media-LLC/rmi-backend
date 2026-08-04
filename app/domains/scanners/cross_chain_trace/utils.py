@@ -5,10 +5,12 @@ Cross-Chain Trace — Utilities
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .constants import _EVM_CHAINS
-from .models import CrossChainTraceReport
+
+if TYPE_CHECKING:
+    from .models import CrossChainTraceReport
 
 
 def _assign_role(
