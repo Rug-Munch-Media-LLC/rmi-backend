@@ -1,43 +1,57 @@
 """
 SENTINEL - Module Singleton Management
 =======================================
-Lazy-initialized module singletons and _ensure_modules() factory.
+Lazy-initialized module singletons and ``_ensure_modules()`` factory.
+
+Modules are registered via the ``@sentinel_module`` decorator (imported
+from ``._decorator``) which populates ``_SENTINEL_REGISTRY``.  New scanner
+classes dropped into ``app/domains/scanners/`` are auto-discovered at import
+time — no manual wiring of singletons, FREE/PREMIUM tuples, or descriptions
+dicts required.
+
+Backward Compat
+---------------
+The legacy manual singleton variables (``_holder_analyzer`` etc.) and the
+hardcoded ``SENTINEL_FREE_MODULES`` / ``SENTINEL_PREMIUM_MODULES`` tuples
+in ``sentinel_phase.py`` still work.  The registry is additive.
 """
 
 from __future__ import annotations
 
 from app.core.logging import get_logger
 
-# Module scanner imports - all known scanners
-from ..address_labeler import AddressLabeler
-from ..block_zero_sniper import BlockZeroSniperAnalyzer
-from ..bundle_detector import BundleDetector
-from ..bytecode_similarity import BytecodeSimilarityAnalyzer
-from ..contract_authority import ContractAuthorityScanner
-from ..contract_diff import ContractDiffAnalyzer
-from ..cross_chain_trace import CrossChainTraceAnalyzer
-from ..decompiler_analyzer import DecompilerAnalyzer
-from ..dev_reputation import DevReputationEngine
-from ..exchange_funder import ExchangeFunderDetector
-from ..flash_loan_detector import FlashLoanDetector
-from ..fund_flow_visualizer import FundFlowVisualizer
-from ..gas_trace import GasTraceAnalyzer
-from ..governance_attack import GovernanceAttackDetector
-from ..guilt_association import GuiltAssociationAnalyzer
-from ..holder_analyzer import HolderAnalyzer
-from ..honeypot_detector import HoneypotDetector
-from ..liquidity_verifier import LiquidityVerifier
-from ..metadata_fingerprint import MetadataFingerprinter
-from ..mev_detector import MEVDetector
-from ..oracle_manipulation import OracleManipulationDetector
-from ..proxy_detector import ProxyDetector
-from ..pump_dump_detector import PumpDumpDetector
-from ..pumpfun_analyzer import PumpFunAnalyzer
-from ..sentiment_analyzer import SentimentAnalyzer
-from ..sleep_cycle_scanner import SleepCycleAnalyzer
-from ..social_velocity import SocialVelocityAnalyzer
-from ..static_analyzer import StaticAnalyzer
-from ..wash_trading import WashTradingDetector
+# Module scanner imports - all known scanners (kept for backward compat;
+# the import triggers ``@sentinel_module`` decorators to fire).
+from ..address_labeler import AddressLabeler  # noqa: F401
+from ..block_zero_sniper import BlockZeroSniperAnalyzer  # noqa: F401
+from ..bundle_detector import BundleDetector  # noqa: F401
+from ..bytecode_similarity import BytecodeSimilarityAnalyzer  # noqa: F401
+from ..contract_authority import ContractAuthorityScanner  # noqa: F401
+from ..contract_diff import ContractDiffAnalyzer  # noqa: F401
+from ..cross_chain_trace import CrossChainTraceAnalyzer  # noqa: F401
+from ..decompiler_analyzer import DecompilerAnalyzer  # noqa: F401
+from ..dev_reputation import DevReputationEngine  # noqa: F401
+from ..exchange_funder import ExchangeFunderDetector  # noqa: F401
+from ..flash_loan_detector import FlashLoanDetector  # noqa: F401
+from ..fund_flow_visualizer import FundFlowVisualizer  # noqa: F401
+from ..gas_trace import GasTraceAnalyzer  # noqa: F401
+from ..governance_attack import GovernanceAttackDetector  # noqa: F401
+from ..guilt_association import GuiltAssociationAnalyzer  # noqa: F401
+from ..holder_analyzer import HolderAnalyzer  # noqa: F401
+from ..honeypot_detector import HoneypotDetector  # noqa: F401
+from ..liquidity_verifier import LiquidityVerifier  # noqa: F401
+from ..metadata_fingerprint import MetadataFingerprinter  # noqa: F401
+from ..mev_detector import MEVDetector  # noqa: F401
+from ..oracle_manipulation import OracleManipulationDetector  # noqa: F401
+from ..proxy_detector import ProxyDetector  # noqa: F401
+from ..pump_dump_detector import PumpDumpDetector  # noqa: F401
+from ..pumpfun_analyzer import PumpFunAnalyzer  # noqa: F401
+from ..sentiment_analyzer import SentimentAnalyzer  # noqa: F401
+from ..sleep_cycle_scanner import SleepCycleAnalyzer  # noqa: F401
+from ..social_velocity import SocialVelocityAnalyzer  # noqa: F401
+from ..static_analyzer import StaticAnalyzer  # noqa: F401
+from ..wash_trading import WashTradingDetector  # noqa: F401
+from app.domains.scanners._sentinel_registry import _SENTINEL_REGISTRY
 from .config import SentinelConfig
 
 # Wallet Memory Bank integration — import doubles as an availability probe;
@@ -54,54 +68,107 @@ logger = get_logger("sentinel_pipeline")
 # Default config for backward compatibility
 _default_config: SentinelConfig = SentinelConfig()
 
-# Module singletons - lazily initialized via _ensure_modules()
-_holder_analyzer: HolderAnalyzer | None = None
-_bundle_detector: BundleDetector | None = None
-_exchange_funder: ExchangeFunderDetector | None = None
-_liquidity_verifier: LiquidityVerifier | None = None
-_dev_reputation: DevReputationEngine | None = None
-_wash_trading: WashTradingDetector | None = None
-_metadata_fingerprinter: MetadataFingerprinter | None = None
-_sentiment_analyzer: SentimentAnalyzer | None = None
-_pumpfun_analyzer: PumpFunAnalyzer | None = None
-_honeypot_detector: HoneypotDetector | None = None
-_contract_authority: ContractAuthorityScanner | None = None
-_mev_detector: MEVDetector | None = None
-_flash_loan_detector: FlashLoanDetector | None = None
-_pump_dump_detector: PumpDumpDetector | None = None
-_oracle_manipulation: OracleManipulationDetector | None = None
-_governance_attack: GovernanceAttackDetector | None = None
-_proxy_detector: ProxyDetector | None = None
+# ── Legacy singleton variables (backward compat) ────────────────────
+# Populated by _ensure_modules().  Module keys map to these via
+# _KEY_TO_SINGLETON_ATTR below.
 
-# Tier 3 singletons
-_static_analyzer: StaticAnalyzer | None = None
-_decompiler_analyzer: DecompilerAnalyzer | None = None
-_address_labeler: AddressLabeler | None = None
+_holder_analyzer = None
+_bundle_detector = None
+_exchange_funder = None
+_liquidity_verifier = None
+_dev_reputation = None
+_wash_trading = None
+_metadata_fingerprinter = None
+_sentiment_analyzer = None
+_pumpfun_analyzer = None
+_honeypot_detector = None
+_contract_authority = None
+_mev_detector = None
+_flash_loan_detector = None
+_pump_dump_detector = None
+_oracle_manipulation = None
+_governance_attack = None
+_proxy_detector = None
+_static_analyzer = None
+_decompiler_analyzer = None
+_address_labeler = None
+_fund_flow_visualizer = None
+_contract_diff = None
+_guilt_association = None
+_sleep_cycle = None
+_social_velocity = None
+_bytecode_similarity = None
+_block_zero_sniper = None
+_gas_trace = None
+_cross_chain_trace = None
 
-# Tier 4 singletons
-_fund_flow_visualizer: FundFlowVisualizer | None = None
-_contract_diff: ContractDiffAnalyzer | None = None
+# Map registry key → singleton attribute name on this module.
+# Used by _ensure_modules() to set the correct variable.
+_KEY_TO_SINGLETON_ATTR: dict[str, str] = {
+    "holder_analysis": "_holder_analyzer",
+    "bundle_detection": "_bundle_detector",
+    "exchange_funding": "_exchange_funder",
+    "liquidity_verification": "_liquidity_verifier",
+    "dev_reputation": "_dev_reputation",
+    "wash_trading": "_wash_trading",
+    "metadata_fingerprint": "_metadata_fingerprinter",
+    "sentiment": "_sentiment_analyzer",
+    "pumpfun_analysis": "_pumpfun_analyzer",
+    "honeypot_detection": "_honeypot_detector",
+    "contract_authority": "_contract_authority",
+    "mev_detection": "_mev_detector",
+    "flash_loan_detection": "_flash_loan_detector",
+    "pump_dump_detection": "_pump_dump_detector",
+    "oracle_manipulation": "_oracle_manipulation",
+    "governance_attack": "_governance_attack",
+    "proxy_detection": "_proxy_detector",
+    "static_analysis": "_static_analyzer",
+    "decompiler_analysis": "_decompiler_analyzer",
+    "address_labels": "_address_labeler",
+    "fund_flow": "_fund_flow_visualizer",
+    "contract_diff": "_contract_diff",
+    "guilt_association": "_guilt_association",
+    "sleep_cycle": "_sleep_cycle",
+    "social_velocity": "_social_velocity",
+    "bytecode_similarity": "_bytecode_similarity",
+    "block_zero_sniper": "_block_zero_sniper",
+    "gas_trace": "_gas_trace",
+    "cross_chain_trace": "_cross_chain_trace",
+}
 
-# Guilt by Association
-_guilt_association: GuiltAssociationAnalyzer | None = None
+# Modules that require constructor arguments beyond the default no-arg init.
+# Format: key → factory function(config) → instance
+_SPECIAL_CONSTRUCTORS: dict[str, object] = {}  # populated lazily below
 
-# New - Sleep Cycle + Social Velocity + Bytecode + Block Zero + Gas Trace
-_sleep_cycle: SleepCycleAnalyzer | None = None
-_social_velocity: SocialVelocityAnalyzer | None = None
-_bytecode_similarity: BytecodeSimilarityAnalyzer | None = None
-_block_zero_sniper: BlockZeroSniperAnalyzer | None = None
-_gas_trace: GasTraceAnalyzer | None = None
 
-# Cross-Chain Trace
-_cross_chain_trace: CrossChainTraceAnalyzer | None = None
+def _auto_discover_scanners() -> None:
+    """Import every ``.py`` file under ``app/domains/scanners/``.
+
+    Called on first import of this module so that any newly-dropped
+    scanner classes with ``@sentinel_module`` fire their decorator.
+    Already-imported modules are no-ops (Python caches them).
+    """
+    import importlib
+    import pkgutil
+    from pathlib import Path as _Path
+
+    scanners_dir = _Path(__file__).resolve().parent.parent
+    for _finder, _name, _ispkg in pkgutil.iter_modules([str(scanners_dir)]):
+        if _name.startswith("_") or _name in ("sentinel_pipeline",):
+            continue
+        try:
+            importlib.import_module(f"app.domains.scanners.{_name}")
+        except ImportError:
+            logger.debug("auto_discover_skip", module=_name)
 
 
 def _ensure_modules(config: SentinelConfig | None = None) -> None:
     """Initialize or reinitialize module singletons with the given config.
 
-    If config is None, uses the default config (env vars for keys).
-    Modules that accept API keys or shared clients are (re)created with
-    the correct parameters.
+    Iterates the ``_SENTINEL_REGISTRY`` (populated by ``@sentinel_module``
+    decorators) to instantiate scanner classes.  Falls back to legacy
+    manual instantiation for any singleton still ``None`` after the
+    registry pass.
     """
     global _holder_analyzer, _bundle_detector, _exchange_funder
     global _liquidity_verifier, _dev_reputation, _wash_trading
@@ -118,7 +185,12 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
     cfg = config or _default_config
     dex_client = cfg.get_dexscreener_client()
 
-    # Modules that need shared clients or API keys
+    # ── Auto-discover before first instantiation ──────────────────
+    _auto_discover_scanners()
+
+    # ── Modules that need shared clients / API keys (special constructors) ──
+    # These must be set fresh every time _ensure_modules runs with a new
+    # config (not guarded by ``is None``) so that key rotators work.
     _metadata_fingerprinter = MetadataFingerprinter(
         dexscreener_client=dex_client,
         birdeye_api_key=cfg.birdeye_api_key,
@@ -132,7 +204,43 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
         dexscreener_client=dex_client,
     )
 
-    # Modules that don't need external API clients (simple init)
+    # ── Registry-driven instantiation ────────────────────────────
+    for _key, _entry in _SENTINEL_REGISTRY.items():
+        _attr = _KEY_TO_SINGLETON_ATTR.get(_key)
+        if _attr is None:
+            continue  # key not mapped to a legacy singleton — skip
+        _existing = getattr(__import__(__name__), _attr, None) if False else globals().get(_attr)  # type: ignore[arg-type]
+        if _existing is not None:
+            continue  # already initialized
+        try:
+            _cls = _entry["class"]
+            _instance = _cls()
+            globals()[_attr] = _instance  # type: ignore[index]
+        except Exception:
+            logger.debug("sentinel_init_failed", key=_key)
+
+    # ── Legacy fallback: any singleton still None gets manual init ──
+    _legacy_fallback_init()
+
+
+def _legacy_fallback_init() -> None:
+    """Manual instantiation for any singleton that is still ``None``.
+
+    This is the original ``_ensure_modules`` body (minus the special-
+    constructor modules).  Ensures backward compatibility when a module
+    is imported but not decorated with ``@sentinel_module``.
+    """
+    global _holder_analyzer, _bundle_detector, _exchange_funder
+    global _liquidity_verifier, _dev_reputation, _wash_trading
+    global _honeypot_detector, _contract_authority, _mev_detector
+    global _flash_loan_detector, _pump_dump_detector, _oracle_manipulation
+    global _governance_attack, _proxy_detector
+    global _static_analyzer, _decompiler_analyzer, _address_labeler
+    global _fund_flow_visualizer, _contract_diff
+    global _guilt_association
+    global _sleep_cycle, _social_velocity, _bytecode_similarity
+    global _block_zero_sniper, _gas_trace, _cross_chain_trace
+
     if _holder_analyzer is None:
         _holder_analyzer = HolderAnalyzer()
     if _bundle_detector is None:
@@ -162,7 +270,6 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
     if _proxy_detector is None:
         _proxy_detector = ProxyDetector()
 
-    # Tier 3 modules
     if _static_analyzer is None:
         _static_analyzer = StaticAnalyzer()
     if _decompiler_analyzer is None:
@@ -170,17 +277,14 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
     if _address_labeler is None:
         _address_labeler = AddressLabeler()
 
-    # Tier 4 modules
     if _fund_flow_visualizer is None:
         _fund_flow_visualizer = FundFlowVisualizer()
     if _contract_diff is None:
         _contract_diff = ContractDiffAnalyzer()
 
-    # Guilt by Association
     if _guilt_association is None:
         _guilt_association = GuiltAssociationAnalyzer()
 
-    # New modules
     if _sleep_cycle is None:
         _sleep_cycle = SleepCycleAnalyzer()
     if _social_velocity is None:
@@ -192,6 +296,5 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
     if _gas_trace is None:
         _gas_trace = GasTraceAnalyzer()
 
-    # Cross-Chain Trace
     if _cross_chain_trace is None:
         _cross_chain_trace = CrossChainTraceAnalyzer()

@@ -712,3 +712,69 @@ async def test_api_router_returns_sentinel_field() -> None:
     assert body["sentinel"] is not None
     assert body["sentinel"]["free"]["holder_analysis"] == {"risk_score": 5}
     assert body["sentinel"]["premium_unlocked"] is False
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 6. Decorator registry
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_sentinel_module_decorator_registers_class() -> None:
+    """``@sentinel_module`` populates ``_SENTINEL_REGISTRY`` at import time."""
+    from app.domains.scanners._sentinel_registry import _SENTINEL_REGISTRY
+
+    assert len(_SENTINEL_REGISTRY) >= 28, f"Expected >=28 registered modules, got {len(_SENTINEL_REGISTRY)}"
+    # Verify a free-tier module
+    entry = _SENTINEL_REGISTRY.get("holder_analysis")
+    assert entry is not None, "holder_analysis not in registry"
+    assert entry["tier"] == "free"
+    assert entry["class"].__name__ == "HolderAnalyzer"
+    assert "HHI" in entry["description"]
+
+    # Verify a premium module
+    entry = _SENTINEL_REGISTRY.get("bundle_detection")
+    assert entry is not None, "bundle_detection not in registry"
+    assert entry["tier"] == "premium"
+    assert entry["class"].__name__ == "BundleDetector"
+    assert entry["method"] == "detect_bundles"
+
+    # Verify a needs_deployer module
+    entry = _SENTINEL_REGISTRY.get("dev_reputation")
+    assert entry is not None, "dev_reputation not in registry"
+    assert entry["needs_deployer"] is True
+
+    # Verify a chain-gated module
+    entry = _SENTINEL_REGISTRY.get("pumpfun_analysis")
+    assert entry is not None, "pumpfun_analysis not in registry"
+    assert entry["chain_gated"] == "solana"
+
+    # Verify free + premium = all
+    from app.domains.scanners._sentinel_registry import get_free_module_keys, get_premium_module_keys
+
+    free = set(get_free_module_keys())
+    premium = set(get_premium_module_keys())
+    assert free.isdisjoint(premium), "free and premium sets must be disjoint"
+    assert free | premium == set(_SENTINEL_REGISTRY), "free + premium must equal all registered modules"
+
+
+def test_sentinel_module_decorator_creates_registry_wired_to_pipeline() -> None:
+    """Modules instantiated via _ensure_modules match the registry."""
+    from app.domains.scanners._sentinel_registry import _SENTINEL_REGISTRY
+    from app.domains.scanners.sentinel_pipeline import modules as sm
+
+    sm._ensure_modules()
+
+    # Pick a few modules and verify the singleton is the right class
+    checks = {
+        "holder_analysis": sm._holder_analyzer,
+        "bundle_detection": sm._bundle_detector,
+        "wash_trading": sm._wash_trading,
+        "cross_chain_trace": sm._cross_chain_trace,
+    }
+    for key, singleton in checks.items():
+        entry = _SENTINEL_REGISTRY.get(key)
+        assert entry is not None, f"{key} missing from registry"
+        assert singleton is not None, f"{key} singleton not initialized"
+        assert singleton.__class__ is entry["class"], (
+            f"{key}: singleton class {singleton.__class__.__name__} != registry class {entry['class'].__name__}"
+        )

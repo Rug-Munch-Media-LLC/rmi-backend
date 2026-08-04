@@ -30,6 +30,8 @@ from app.chain_registry import is_solana
 from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("holder_analyzer")
 
 
@@ -69,6 +71,7 @@ class HHIReport:
     warnings: list[str] = field(default_factory=list)
 
 
+@sentinel_module(key="holder_analysis", tier="free", description="Holder distribution & HHI concentration analysis")
 class HolderAnalyzer:
     """Analyzes holder distribution, calculates HHI, detects fake diversification.
 

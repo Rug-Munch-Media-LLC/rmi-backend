@@ -32,6 +32,8 @@ import requests
 from app.chain_registry import CHAINS
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("dev_reputation")
 
 # ── API Keys ────────────────────────────────────────────────
@@ -127,6 +129,12 @@ class DevReputationReport:
     warnings: list[str] = field(default_factory=list)
 
 
+@sentinel_module(
+    key="dev_reputation",
+    tier="free",
+    description="Serial-rugger dev history & cross-chain tracking",
+    needs_deployer=True,
+)
 class DevReputationEngine:
     """Calculates developer reputation based on launch history and patterns.
 

@@ -34,6 +34,8 @@ from app.chain_client import ChainClient
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("contract_authority")
 
 # ── API Keys ────────────────────────────────────────────────
@@ -145,6 +147,7 @@ OZ_TRANSPARENT_ADMIN_SIG = "0xf3b7dead"  # changeAdmin
 OZ_UUPS_UPGRADE_SIG = "0x4f1ef286"  # upgradeToAndCall
 
 
+@sentinel_module(key="contract_authority", tier="free", description="Mint/freeze/renounce authority detection")
 class ContractAuthorityScanner:
     """Detects dangerous authority configurations on Solana and EVM chains.
 

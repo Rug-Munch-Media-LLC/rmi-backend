@@ -26,6 +26,8 @@ from app.chain_registry import CHAINS, is_evm
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("address_labeler")
 
 # ── RolodETH cache (avoid re-fetching on every call) ──────────────────
@@ -92,6 +94,7 @@ class AddressLabelReport:
 # ── Labeler class ────────────────────────────────────────────────────
 
 
+@sentinel_module(key="address_labels", tier="premium", description="Known-good / known-bad address labeling of holders")
 class AddressLabeler:
     """Resolve addresses to known labels from multiple sources in parallel."""
 

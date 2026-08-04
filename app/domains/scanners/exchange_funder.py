@@ -14,12 +14,11 @@ Helius (signatures, parsed transactions), Birdeye (token overview).
 
 from __future__ import annotations
 
-from typing import ClassVar
-
 import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 import httpx
 import requests
@@ -28,6 +27,8 @@ from app.chain_client import ChainClient
 from app.chain_registry import get_cex_wallets, is_solana
 from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient, is_known_exchange
+
+from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("exchange_funder")
 
@@ -72,6 +73,11 @@ class ExchangeFundReport:
     buyer_details: list[BuyerFundingInfo] = field(default_factory=list)
 
 
+@sentinel_module(
+    key="exchange_funding",
+    tier="premium",
+    description="CEX-funded wallet detection, withdrawal clustering, deposit-to-dump patterns",
+)
 class ExchangeFunderDetector:
     """Detects wallets funded from centralized exchanges.
 

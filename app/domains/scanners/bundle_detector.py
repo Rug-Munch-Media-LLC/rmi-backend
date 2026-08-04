@@ -19,11 +19,9 @@ DexScreener (pairs/trades), Solscan (account transfers, transaction detail).
 
 from __future__ import annotations
 
-from dataclasses import dataclass as _dataclass
-
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, dataclass as _dataclass, field
 from typing import ClassVar
 
 import httpx
@@ -33,6 +31,8 @@ from app.chain_client import ChainClient
 from app.chain_registry import is_solana
 from app.core.logging import get_logger
 from app.free_solscan_client import FreeSolscanClient
+
+from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("bundle_detector")
 
@@ -93,6 +93,12 @@ class BundleReport:
     warnings: list[str] = field(default_factory=list)
 
 
+@sentinel_module(
+    key="bundle_detection",
+    tier="premium",
+    description="Same-block bundle/sniper detection with funding-chain analysis",
+    method="detect_bundles",
+)
 class BundleDetector:
     """Enhanced bundle and sniper detection with funding chain analysis.
 
@@ -478,7 +484,6 @@ class BundleDetector:
             risk_level=risk_level,
             warnings=warnings,
         )
-
 
 
 @_dataclass

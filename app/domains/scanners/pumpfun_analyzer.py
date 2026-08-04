@@ -27,6 +27,8 @@ import requests
 
 from app.core.logging import get_logger
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("pumpfun_analyzer")
 
 # ---------------------------------------------------------------------------
@@ -109,6 +111,12 @@ class PumpFunReport:
 # ---------------------------------------------------------------------------
 
 
+@sentinel_module(
+    key="pumpfun_analysis",
+    tier="premium",
+    description="PumpFun bonding-curve progress, bot ratio, dev concentration",
+    chain_gated="solana",
+)
 class PumpFunAnalyzer:
     """Analyzes Pump.fun tokens for bonding curve progress, buyer quality,
     bot/organic ratio, and graduation/migration status.

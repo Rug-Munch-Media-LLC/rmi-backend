@@ -34,6 +34,8 @@ from app.chain_registry import CHAINS, is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners.rag_citations import build_citation_string, query_rag_citations
 
+from app.domains.scanners._sentinel_registry import sentinel_module
+
 logger = get_logger("decompiler_analyzer")
 
 # ── Paths ────────────────────────────────────────────────────────────
@@ -262,6 +264,9 @@ def _scan_decompiled_source(source: str) -> list[str]:
 # ── Analyzer class ────────────────────────────────────────────────────
 
 
+@sentinel_module(
+    key="decompiler_analysis", tier="premium", description="Decompiled contract review for hidden backdoors"
+)
 class DecompilerAnalyzer:
     """Decompile and analyze unverified contracts for dangerous patterns."""
 
