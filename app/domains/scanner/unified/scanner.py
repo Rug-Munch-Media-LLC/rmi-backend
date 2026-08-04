@@ -5,11 +5,9 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, ClassVar
-
-import httpx
 
 from app.core.logging import get_logger
 from app.domains.scanner.unified.model import ScanResult
