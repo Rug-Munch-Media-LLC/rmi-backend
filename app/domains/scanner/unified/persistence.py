@@ -42,6 +42,7 @@ def _to_persist_dict(result: ScanResult) -> dict[str, Any]:
         "modules_run": result.modules_run,
         "enrichment_sources": result.enrichment_sources,
         "event_correlation": result.event_correlation,
+        "sentinel": result.sentinel,
     }
 
 

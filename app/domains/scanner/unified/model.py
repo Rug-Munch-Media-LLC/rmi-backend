@@ -62,6 +62,11 @@ class ScanResult:
     # Ground News-style news card (engines/news_sentiment.py — get_token_news_card)
     news_card: dict[str, Any] | None = None  # {sentiment, trending_score, articles, corroboration}
 
+    # SENTINEL deep-forensic phase (Phase 5 — sentinel_phase.py).
+    # Always populated with free-tier module results; premium module results
+    # are gated behind elite/admin tier (or the x402 SENTINEL deep scan).
+    sentinel: dict[str, Any] | None = None  # {free, premium, premium_unlocked, premium_preview, ...}
+
     # Explainability (populated by scoring.compute_score)
     breakdown: dict[str, Any] | None = None  # per-dimension score breakdown
     evidence: dict[str, Any] | None = None  # raw findings backing the score

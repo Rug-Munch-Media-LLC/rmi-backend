@@ -105,6 +105,18 @@ class UnifiedTokenScanner:
         "cross_chain_entity",
     ]
 
+    # Phase 5: SENTINEL deep-forensic modules (direct, no DataBus hop).
+    # Free-tier modules always run; premium modules are gated on the same
+    # elite/admin tier gate as PREMIUM_CHAINS. See sentinel_phase.py.
+    SENTINEL_FREE_MODULES: ClassVar[tuple] = (
+        "holder_analysis",
+        "liquidity_verification",
+        "dev_reputation",
+        "metadata_fingerprint",
+        "contract_authority",
+        "proxy_detection",
+    )
+
     async def scan(
         self,
         address: str,
@@ -154,6 +166,13 @@ class UnifiedTokenScanner:
 
             # ── Phase 4b: News-event-to-price correlation (free, own data) ──
             await self._run_event_correlation(result, address, chain)
+
+            # ── Phase 5: SENTINEL deep-forensic modules (free + tier-gated) ──
+            # Free tier always runs the core rug-detection modules; the
+            # remaining deep-forensic modules unlock on elite/admin tier
+            # (or via the paid x402 SENTINEL deep scan). Best-effort:
+            # a failing module never fails the scan.
+            await self._run_sentinel_phase(result, address, chain, tier)
 
             # ── Score ──
             scoring = compute_score(result)
@@ -528,6 +547,56 @@ class UnifiedTokenScanner:
                 r.enrichment_sources.append("event_correlation:own")
         except Exception as exc:
             logger.debug("event_correlation_failed", error=str(exc)[:120])
+
+    async def _run_sentinel_phase(self, r: ScanResult, address: str, chain: str, tier: str) -> None:
+        """Run Phase 5 — SENTINEL deep-forensic modules (free + tier-gated).
+
+        Free-tier modules (holder HHI, LP lock, dev reputation, metadata
+        fingerprint, contract authority, proxy detection) always populate
+        ``r.sentinel["free"]``. Premium modules populate
+        ``r.sentinel["premium"]`` only when the tier is elite/admin; for
+        other tiers a ``premium_preview`` list advertises the locked modules
+        with an unlock prompt (paid path: x402 SENTINEL deep scan).
+
+        Best-effort: a broken module is recorded in ``sentinel.errors`` and
+        never fails the scan. Time-boxed so external API latency cannot
+        stall the overall scan.
+        """
+        try:
+            from app.domains.scanner.unified.sentinel_phase import (
+                extract_deployer_from_security,
+                run_sentinel_phase,
+            )
+
+            deployer = extract_deployer_from_security(r.security)
+            sentinel = await asyncio.wait_for(
+                run_sentinel_phase(address=address, chain=chain, tier=tier, deployer=deployer),
+                timeout=30,
+            )
+            if not isinstance(sentinel, dict):
+                return
+            r.sentinel = sentinel
+
+            # Surface free-tier module names in modules_run + enrichment so
+            # the SENTINEL phase is visible in metrics and the API report.
+            free_ran = [k for k in self.SENTINEL_FREE_MODULES if k in (sentinel.get("modules_run") or [])]
+            if free_ran:
+                r.modules_run.extend(free_ran)
+                r.enrichment_sources.append("sentinel:free")
+            if sentinel.get("premium_unlocked"):
+                r.enrichment_sources.append("sentinel:premium")
+        except Exception as exc:
+            logger.debug("sentinel_phase_failed", error=str(exc)[:160])
+            r.sentinel = {
+                "free": {},
+                "premium": None,
+                "premium_unlocked": False,
+                "premium_modules": list(self.SENTINEL_FREE_MODULES),
+                "premium_preview": [],
+                "errors": {"_phase": str(exc)[:200]},
+                "modules_run": [],
+                "deployer_resolved": False,
+            }
 
 
 # ── Backend-compat wrapper ───────────────────────────────────────────

@@ -204,7 +204,7 @@ def _compute_composite(scores: dict[str, float]) -> tuple:
 def _collect_red_flags(report_dict: dict | None, module_name: str) -> list[str]:
     """Pull top red-flag strings from each module's dict result."""
     flags: list[str] = []
-    if not report_dict:
+    if not isinstance(report_dict, dict) or not report_dict:
         return flags
 
     for key in ("red_flags", "warnings", "flags", "risks"):

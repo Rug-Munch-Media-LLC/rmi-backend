@@ -75,6 +75,61 @@ try:
 except ImportError:
     _WALLET_MEMORY_AVAILABLE_LOCAL = False
 
+
+def _refresh_singletons() -> None:
+    """Re-bind module singletons after ``_ensure_modules()``.
+
+    The ``from .modules import _holder_analyzer`` bindings at the top of
+    this module capture the singleton values at import time — which are
+    ``None`` until ``_ensure_modules()`` runs. Re-reading the current
+    values from the ``modules`` module fixes the stale bindings so
+    ``run_sentinel_scan`` (and the paid x402 SENTINEL endpoint) actually
+    see initialized analyzers instead of crashing with
+    ``AttributeError: 'NoneType' object has no attribute 'analyze'``.
+    """
+    global _address_labeler, _block_zero_sniper, _bundle_detector
+    global _bytecode_similarity, _contract_authority, _contract_diff
+    global _cross_chain_trace, _decompiler_analyzer, _dev_reputation
+    global _exchange_funder, _flash_loan_detector, _fund_flow_visualizer
+    global _gas_trace, _governance_attack, _guilt_association, _holder_analyzer
+    global _honeypot_detector, _liquidity_verifier, _metadata_fingerprinter
+    global _mev_detector, _oracle_manipulation, _proxy_detector
+    global _pump_dump_detector, _pumpfun_analyzer, _sentiment_analyzer
+    global _sleep_cycle, _social_velocity, _static_analyzer, _wash_trading
+
+    from . import modules as _modules
+
+    _address_labeler = _modules._address_labeler
+    _block_zero_sniper = _modules._block_zero_sniper
+    _bundle_detector = _modules._bundle_detector
+    _bytecode_similarity = _modules._bytecode_similarity
+    _contract_authority = _modules._contract_authority
+    _contract_diff = _modules._contract_diff
+    _cross_chain_trace = _modules._cross_chain_trace
+    _decompiler_analyzer = _modules._decompiler_analyzer
+    _dev_reputation = _modules._dev_reputation
+    _exchange_funder = _modules._exchange_funder
+    _flash_loan_detector = _modules._flash_loan_detector
+    _fund_flow_visualizer = _modules._fund_flow_visualizer
+    _gas_trace = _modules._gas_trace
+    _governance_attack = _modules._governance_attack
+    _guilt_association = _modules._guilt_association
+    _holder_analyzer = _modules._holder_analyzer
+    _honeypot_detector = _modules._honeypot_detector
+    _liquidity_verifier = _modules._liquidity_verifier
+    _metadata_fingerprinter = _modules._metadata_fingerprinter
+    _mev_detector = _modules._mev_detector
+    _oracle_manipulation = _modules._oracle_manipulation
+    _proxy_detector = _modules._proxy_detector
+    _pump_dump_detector = _modules._pump_dump_detector
+    _pumpfun_analyzer = _modules._pumpfun_analyzer
+    _sentiment_analyzer = _modules._sentiment_analyzer
+    _sleep_cycle = _modules._sleep_cycle
+    _social_velocity = _modules._social_velocity
+    _static_analyzer = _modules._static_analyzer
+    _wash_trading = _modules._wash_trading
+
+
 # ═══════════════════════════════════════════════════════════════════
 # MAIN PIPELINE
 # ═══════════════════════════════════════════════════════════════════
@@ -88,6 +143,7 @@ async def run_sentinel_scan(
 ) -> SentinelReport:
     """Run all SENTINEL modules concurrently with graceful degradation."""
     _ensure_modules(config)
+    _refresh_singletons()
 
     report = SentinelReport(token_address=token_address, chain=chain)
     coros: dict[str, Any] = {}
@@ -152,7 +208,12 @@ async def run_sentinel_scan(
     for k, task in tasks.items():
         try:
             results[k] = await task
-        except (httpx.HTTPError, KeyError, TypeError) as exc:
+        except (httpx.HTTPError, KeyError, TypeError, AttributeError, ValueError) as exc:
+            logger.debug("module_error", exc_info=True)
+            logger.warning(f"SENTINEL module {k} failed for {token_address}: {exc}")
+            results[k] = None
+            report.errors[k] = str(exc)[:200]
+        except Exception as exc:
             logger.debug("module_error", exc_info=True)
             logger.warning(f"SENTINEL module {k} failed for {token_address}: {exc}")
             results[k] = None
@@ -232,7 +293,7 @@ async def run_sentinel_scan(
         if raw_result is not None and module_name in extractors:
             try:
                 risk_scores[module_name] = extractors[module_name](raw_result)
-            except (httpx.HTTPError, KeyError, TypeError):
+            except (httpx.HTTPError, KeyError, TypeError, AttributeError, ValueError):
                 logger.debug("risk_extract_error", exc_info=True)
         report.red_flags.extend(_collect_red_flags(dict_result, module_name))
 
@@ -335,6 +396,7 @@ _RUNNER_SPEC = [
 def _get_analyzer_map() -> dict[str, Any]:
     """Build analyzer map lazily, ensuring modules are initialized first."""
     _ensure_modules()
+    _refresh_singletons()
     return {
         "holder_analysis": _holder_analyzer.analyze,
         "bundle_detection": _bundle_detector.detect_bundles,
@@ -366,17 +428,20 @@ async def run_dev_reputation(
     dev_wallet: str, chains: list[str] | None = None, config: SentinelConfig | None = None
 ) -> dict[str, Any]:
     _ensure_modules(config)
+    _refresh_singletons()
     return dataclass_to_dict(await _dev_reputation.analyze(dev_wallet, chains))
 
 
 async def run_pumpfun_analysis(token_address: str, config: SentinelConfig | None = None) -> dict[str, Any]:
     _ensure_modules(config)
+    _refresh_singletons()
     return dataclass_to_dict(await _pumpfun_analyzer.analyze(token_address))
 
 
 async def _run_standalone(module_key: str, token_address: str, chain: str, config=None) -> dict[str, Any]:
     """Execute a single module and return dict result."""
     _ensure_modules(config)
+    _refresh_singletons()
     fn = _get_analyzer_map()[module_key]
     result = await fn(token_address, chain)
     return dataclass_to_dict(result)
