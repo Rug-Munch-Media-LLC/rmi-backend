@@ -231,6 +231,7 @@ class TestUnifiedScanner:
     """UnifiedWalletScanner.scan() and helper methods."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not os.getenv("INTEGRATION"), reason="requires live infra (Redis/ClickHouse)")
     async def test_scan_with_empty_address_returns_error(self):
         """Empty address yields empty scan result, not crash."""
         from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
@@ -241,6 +242,7 @@ class TestUnifiedScanner:
         assert result.risk_score == 0.0
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not os.getenv("INTEGRATION"), reason="requires live infra (Redis/ClickHouse)")
     async def test_scan_invalid_address_handled(self):
         """Invalid address yields a handled response."""
         from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
@@ -251,6 +253,7 @@ class TestUnifiedScanner:
         assert result is not None
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not os.getenv("INTEGRATION"), reason="requires live infra (Redis/ClickHouse)")
     async def test_scan_unsupported_chain_does_not_crash(self):
         """An unsupported chain identifier is handled gracefully."""
         from app.domains.wallet.unified_wallet_scanner import UnifiedWalletScanner
@@ -450,7 +453,7 @@ class TestScannerInputValidation:
 
     def test_portfolio_address_re_evm_valid(self):
         """EVM address regex matches valid 0x addresses."""
-        from app.domains.portfolio.portfolio_risk_aggregator import (
+        from app.domains.portfolio.portfolio_risk_aggregator.config import (
             EVM_ADDRESS_RE,
         )
 
@@ -459,7 +462,7 @@ class TestScannerInputValidation:
 
     def test_portfolio_address_re_solana_valid(self):
         """Solana address regex matches valid base58."""
-        from app.domains.portfolio.portfolio_risk_aggregator import SOLANA_ADDRESS_RE
+        from app.domains.portfolio.portfolio_risk_aggregator.config import SOLANA_ADDRESS_RE
 
         # Valid solana base58 address (32-44 chars, no 0/O/I/l)
         assert SOLANA_ADDRESS_RE.match("FakeBase58Addr111111111111111111111111111111") is not None
@@ -494,6 +497,7 @@ class TestTokenScannerService:
     """scan_token() and quick_scan_text() from the scanner service."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not os.getenv("INTEGRATION"), reason="requires live infra (Redis/ClickHouse)")
     async def test_scan_token_handles_empty_address(self):
         """scan_token with empty address does not crash."""
         from app.domains.scanner import scan_token
@@ -503,6 +507,7 @@ class TestTokenScannerService:
         assert result is not None
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not os.getenv("INTEGRATION"), reason="requires live infra (Redis/ClickHouse)")
     async def test_quick_scan_text_handles_empty_text(self):
         """quick_scan_text with empty text does not crash."""
         from app.domains.scanner import quick_scan_text
