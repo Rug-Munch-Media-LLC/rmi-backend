@@ -9,8 +9,6 @@ All data is LOCAL — we OWN the ClickHouse tables. Zero external API calls.
 
 from __future__ import annotations
 
-from typing import Any
-
 # Compatibility wrappers
 from .analyze import analyze, analyze_wallet, get_analyzer
 

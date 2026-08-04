@@ -236,7 +236,8 @@ class StaticAnalyzer:
                 "-",
                 "--disable-color",
             ]
-            result = subprocess.run(
+            # Fixed command list, no shell=True; sol_path is a temp file written by us
+            result = subprocess.run(  # noqa: S603
                 cmd,
                 capture_output=True,
                 text=True,
@@ -273,7 +274,7 @@ class StaticAnalyzer:
         except json.JSONDecodeError:
             logger.warning(f"Slither output not valid JSON for {sol_path}")
             return []
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
+        except (httpx.HTTPError, KeyError, TypeError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Slither failed on {sol_path}: {e}")
             return []

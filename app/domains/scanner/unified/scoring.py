@@ -176,6 +176,47 @@ def _build_evidence(r: ScanResult) -> dict[str, Any]:
     if mkt:
         ev["market"] = mkt
 
+    # ── SENTINEL deep-forensic findings (Phase 5) ──
+    if r.sentinel and isinstance(r.sentinel, dict):
+        sfree = r.sentinel.get("free") or {}
+        sentinel_ev: dict[str, Any] = {}
+
+        ha = sfree.get("holder_analysis")
+        if isinstance(ha, dict) and ha.get("hhi") is not None:
+            sentinel_ev["holder_analysis"] = {
+                "hhi": ha.get("hhi"),
+                "risk_level": ha.get("risk_level"),
+                "fake_diversification_score": ha.get("fake_diversification_score"),
+                "total_holders": ha.get("total_holders"),
+            }
+        lv = sfree.get("liquidity_verification")
+        if isinstance(lv, dict) and lv.get("total_locked_percentage") is not None:
+            sentinel_ev["liquidity_verification"] = {
+                "total_locked_percentage": lv.get("total_locked_percentage"),
+                "risk_level": lv.get("risk_level"),
+                "fake_lock_detected": lv.get("fake_lock_detected"),
+                "lp_burned": lv.get("lp_burned"),
+            }
+        dr = sfree.get("dev_reputation")
+        if isinstance(dr, dict) and dr.get("reputation_score") is not None:
+            sentinel_ev["dev_reputation"] = {
+                "reputation_score": dr.get("reputation_score"),
+                "reputation_level": dr.get("reputation_level"),
+                "dev_threat_index": dr.get("dev_threat_index"),
+                "rug_rate": dr.get("rug_rate"),
+                "serial_patterns": dr.get("serial_patterns"),
+            }
+        ca = sfree.get("contract_authority")
+        if isinstance(ca, dict) and ca.get("risk_level"):
+            sentinel_ev["contract_authority"] = {
+                "risk_score": ca.get("risk_score"),
+                "risk_level": ca.get("risk_level"),
+            }
+        if sentinel_ev:
+            ev["sentinel"] = sentinel_ev
+        if r.sentinel_boost:
+            sentinel_ev["sentinel_boost"] = r.sentinel_boost
+
     return ev
 
 
@@ -378,6 +419,82 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
                     _apply("market", -10, f"PREMIUM_{feature.upper()}")
                     premium_flags += 1
         confidence += min(premium_flags * 5, 15)
+
+    # ── SENTINEL deep-forensic findings (Phase 5) ──
+    # SENTINEL free-tier modules report alongside the DataBus chains; their
+    # findings feed the SAME five dimensions so a critical deep-forensic
+    # signal moves the unified score (not just the SENTINEL report). A
+    # ``sentinel_boost`` is applied when two or more modules independently
+    # flag critical/high risk — correlated deep-forensic signals reinforce
+    # each other.
+    if r.sentinel and isinstance(r.sentinel, dict):
+        sentinel_free = r.sentinel.get("free") or {}
+        sentinel_critical: list[str] = []
+
+        # holder_analysis (HHIReport) → holders dimension
+        ha = sentinel_free.get("holder_analysis")
+        if isinstance(ha, dict) and ha.get("hhi") is not None:
+            hhi = float(ha.get("hhi", 0) or 0)
+            ha_risk = str(ha.get("risk_level", "")).lower()
+            if hhi > 5000 or ha_risk == "critical":
+                _apply("holders", -10, "SENTINEL_HHI_CRITICAL")
+                sentinel_critical.append("holder_analysis")
+            elif hhi > 3000 or ha_risk == "high":
+                _apply("holders", -5, "SENTINEL_HHI_HIGH")
+            fake_div = float(ha.get("fake_diversification_score", 0) or 0)
+            if fake_div > 40:
+                _apply("holders", -5, "SENTINEL_FAKE_DIVERSIFICATION")
+            if ha.get("total_holders") is not None:
+                confidence += 5
+
+        # liquidity_verification (LockReport) → liquidity dimension
+        lv = sentinel_free.get("liquidity_verification")
+        if isinstance(lv, dict) and lv.get("total_locked_percentage") is not None:
+            locked = float(lv.get("total_locked_percentage", 0) or 0)
+            lv_risk = str(lv.get("risk_level", "")).upper()
+            fake_lock = bool(lv.get("fake_lock_detected"))
+            if locked < 50 or lv_risk == "CRITICAL" or fake_lock:
+                _apply("liquidity", -10, "SENTINEL_LP_LOCK")
+                if lv_risk == "CRITICAL" or fake_lock:
+                    sentinel_critical.append("liquidity_verification")
+            elif locked > 90:
+                _apply("liquidity", 3, "SENTINEL_LP_LOCKED")
+            if lv.get("warnings"):
+                confidence += 3
+
+        # dev_reputation (DevReputationReport) → deployer dimension
+        dr = sentinel_free.get("dev_reputation")
+        if isinstance(dr, dict) and dr.get("reputation_score") is not None:
+            rep_score = float(dr.get("reputation_score", 50) or 50)
+            threat = float(dr.get("dev_threat_index", 0) or 0)
+            if rep_score < 30 or threat > 0.5:
+                _apply("deployer", -10, "SENTINEL_DEV_THREAT")
+                sentinel_critical.append("dev_reputation")
+            elif rep_score >= 80:
+                _apply("deployer", 3, "SENTINEL_DEV_CLEAN")
+            if dr.get("total_launches") is not None:
+                confidence += 5
+
+        # contract_authority / proxy_detection / metadata_fingerprint → security dimension
+        ca = sentinel_free.get("contract_authority")
+        if isinstance(ca, dict) and str(ca.get("risk_level", "")).upper() == "CRITICAL":
+            _apply("security", -5, "SENTINEL_CONTRACT_AUTHORITY")
+            sentinel_critical.append("contract_authority")
+        px = sentinel_free.get("proxy_detection")
+        if isinstance(px, dict) and (
+            str(px.get("risk_level", "")).upper() == "CRITICAL" or (px.get("can_upgrade") and px.get("is_proxy"))
+        ):
+            _apply("security", -5, "SENTINEL_PROXY_RISK")
+            sentinel_critical.append("proxy_detection")
+        mf = sentinel_free.get("metadata_fingerprint")
+        if isinstance(mf, dict) and len(mf.get("similar_tokens") or []) >= 3:
+            _apply("security", -5, "SENTINEL_METADATA_CLONE")
+
+        # sentinel_boost — correlated critical deep-forensic signals reinforce.
+        if len(sentinel_critical) >= 2:
+            boost = min(15.0, 5.0 * len(sentinel_critical))
+            _apply("security", -boost, f"SENTINEL_CRITICAL_BOOST:{len(sentinel_critical)}")
+            r.sentinel_boost = boost
 
     # ── Clamp ──
     r.safety_score = max(0.0, min(100.0, score))

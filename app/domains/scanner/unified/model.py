@@ -67,6 +67,12 @@ class ScanResult:
     # are gated behind elite/admin tier (or the x402 SENTINEL deep scan).
     sentinel: dict[str, Any] | None = None  # {free, premium, premium_unlocked, premium_preview, ...}
 
+    # SENTINEL critical-finding boost (set by scoring.compute_score). When
+    # two or more SENTINEL deep-forensic modules independently report
+    # critical/high findings, an additional capped penalty is applied to the
+    # safety score (0 = no boost, positive = extra risk).
+    sentinel_boost: float = 0.0
+
     # Explainability (populated by scoring.compute_score)
     breakdown: dict[str, Any] | None = None  # per-dimension score breakdown
     evidence: dict[str, Any] | None = None  # raw findings backing the score

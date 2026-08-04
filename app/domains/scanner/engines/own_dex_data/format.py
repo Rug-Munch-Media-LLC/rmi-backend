@@ -164,7 +164,7 @@ def _get_token_decimals(token_address: str, chain: str) -> int:
         return chain_map[addr]
 
     # Check known tokens across all chains (some are chain-agnostic)
-    for c, tokens in _KNOWN_DECIMALS.items():
+    for _c, tokens in _KNOWN_DECIMALS.items():
         if addr in tokens:
             _decimals_cache[cache_key] = tokens[addr]
             return tokens[addr]
@@ -352,10 +352,9 @@ def _build_pairs(
 
             # Determine buy/sell: if our token is token0 and amount0_out > 0,
             # someone is buying (our token leaves the pool = buy)
-            if is_token0:
-                is_buy = float(swap["amount0_out"] or 0) > 0
-            else:
-                is_buy = float(swap["amount1_out"] or 0) > 0
+            is_buy = (
+                float(swap["amount0_out"] or 0) > 0 if is_token0 else float(swap["amount1_out"] or 0) > 0
+            )
 
             if is_buy:
                 buy_count += 1

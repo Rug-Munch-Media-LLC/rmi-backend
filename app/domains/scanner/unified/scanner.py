@@ -577,6 +577,23 @@ class UnifiedTokenScanner:
                 return
             r.sentinel = sentinel
 
+            # ── Wire SENTINEL holder analysis into the unified holder phase ──
+            # The SENTINEL free-tier holder_analysis module computes HHI /
+            # concentration directly from DexScreener/Birdeye/Solscan. When
+            # the DataBus holder_health chain produced no HHI, promote the
+            # SENTINEL HHI so the unified holder phase (scoring + evidence)
+            # sees the deep-forensic concentration signal.
+            sentinel_free = sentinel.get("free") or {}
+            holder_analysis = sentinel_free.get("holder_analysis")
+            if isinstance(holder_analysis, dict) and holder_analysis.get("hhi") is not None:
+                hhi = holder_analysis.get("hhi")
+                if not isinstance(r.holder_health, dict) or r.holder_health.get("hhi") is None:
+                    merged = dict(r.holder_health) if isinstance(r.holder_health, dict) else {}
+                    merged["hhi"] = hhi
+                    merged.setdefault("gini", None)
+                    merged["hhi_source"] = "sentinel_holder_analysis"
+                    r.holder_health = merged
+
             # Surface free-tier module names in modules_run + enrichment so
             # the SENTINEL phase is visible in metrics and the API report.
             free_ran = [k for k in self.SENTINEL_FREE_MODULES if k in (sentinel.get("modules_run") or [])]
@@ -661,6 +678,8 @@ def _to_legacy_dict(result: ScanResult) -> dict[str, Any]:
         "news_sentiment": result.news_sentiment,
         "news_card": result.news_card,
         "event_correlation": result.event_correlation,
+        "sentinel": result.sentinel,
+        "sentinel_boost": result.sentinel_boost,
     }
 
 

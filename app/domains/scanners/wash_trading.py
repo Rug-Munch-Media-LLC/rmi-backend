@@ -446,7 +446,7 @@ class WashTradingDetector:
                                 from_address=from_addr,
                                 to_address=to_addr,
                                 amount=amount,
-                                token="SOL",
+                                token="SOL",  # noqa: S106 — literal asset ticker, not a credential
                                 timestamp=tx.get("timestamp", 0) * 1000,
                                 tx_hash=tx.get("signature", ""),
                                 dex="",
@@ -581,10 +581,10 @@ class WashTradingDetector:
         if not HAS_NETWORKX:
             raise ImportError("networkx required for wash trading detection")
 
-        G = nx.DiGraph()
+        graph = nx.DiGraph()
 
         for tx in transfers:
-            G.add_edge(
+            graph.add_edge(
                 tx.from_address,
                 tx.to_address,
                 weight=tx.amount,
@@ -594,7 +594,7 @@ class WashTradingDetector:
                 tx_hash=tx.tx_hash,
             )
 
-        return G
+        return graph
 
     def detect_cycles(self, transfers: list[TransferRecord], max_cycle_length: int = 6) -> list[WashCycle]:
         """Detect circular trading patterns in transfer data.
@@ -608,12 +608,12 @@ class WashTradingDetector:
         if not HAS_NETWORKX or not transfers:
             return []
 
-        G = self.build_transfer_graph(transfers)
+        graph = self.build_transfer_graph(transfers)
         cycles = []
 
         # Find simple cycles (A→B→A, A→B→C→A)
         try:
-            simple_cycles = list(nx.simple_cycles(G))
+            simple_cycles = list(nx.simple_cycles(graph))
         except nx.NetworkXError:
             return []
 
@@ -628,8 +628,8 @@ class WashTradingDetector:
 
             for i, wallet in enumerate(cycle):
                 next_wallet = cycle[(i + 1) % len(cycle)]
-                if G.has_edge(wallet, next_wallet):
-                    edge_data = G[wallet][next_wallet]
+                if graph.has_edge(wallet, next_wallet):
+                    edge_data = graph[wallet][next_wallet]
                     cycle_volume += edge_data.get("weight", 0)
                     time_stamps.append(edge_data.get("timestamp", 0))
                     if edge_data.get("dex"):

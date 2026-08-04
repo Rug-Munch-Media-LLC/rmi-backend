@@ -74,7 +74,7 @@ async def _check_fear_greed() -> dict[str, Any] | None:
             }
     except httpx.TimeoutException:
         logger.debug("fng_timeout")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.warning("fng_failed", error=str(e)[:100])
 
     return {"check": "fear_greed", "result": "unavailable", "error": "Fear & Greed API unavailable"}
@@ -106,7 +106,7 @@ async def _check_coingecko_trending() -> dict[str, Any] | None:
             }
     except ImportError:
         logger.debug("social_signals_module_not_available")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("coingecko_trending_failed", error=str(e)[:80])
 
     # Direct fallback if social_signals module is not available
@@ -152,7 +152,7 @@ async def _check_coingecko_trending() -> dict[str, Any] | None:
             }
     except httpx.TimeoutException:
         logger.debug("coingecko_trending_timeout")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.warning("coingecko_trending_failed", error=str(e)[:80])
 
     return {"check": "trending", "result": "unavailable", "error": "CoinGecko trending unavailable"}
@@ -247,7 +247,7 @@ async def _check_sourcify(token_address: str, chain: str) -> dict[str, Any] | No
 
     except httpx.TimeoutException:
         logger.debug("sourcify_timeout", chain=chain, token=token_address[:10])
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.debug("sourcify_failed", error=str(e)[:80])
 
     return {"check": "sourcify", "result": "unavailable", "error": "Sourcify API unavailable"}

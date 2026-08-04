@@ -14,6 +14,8 @@ Helius (signatures, parsed transactions), Birdeye (token overview).
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import json
 import os
 from collections import defaultdict
@@ -77,7 +79,7 @@ class ExchangeFunderDetector:
     """
 
     # Dead/burn addresses for renounce verification
-    DEAD_ADDRESSES = {
+    DEAD_ADDRESSES: ClassVar[dict[str, list[str]]] = {
         "ethereum": [
             "0x000000000000000000000000000000000000dEaD",
             "0x0000000000000000000000000000000000000000",

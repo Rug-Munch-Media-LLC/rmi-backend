@@ -472,7 +472,7 @@ class RpcRouter:
 
         if check_tasks:
             results = await asyncio.gather(*check_tasks, return_exceptions=True)
-            for url, is_healthy in zip(urls_to_check, results):
+            for url, is_healthy in zip(urls_to_check, results, strict=False):
                 if isinstance(is_healthy, Exception):
                     logger.debug("rpc_check_exception", url=url, error=str(is_healthy))
                     health = self._get_health(chain, url)

@@ -20,7 +20,7 @@ import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 import requests
@@ -76,7 +76,7 @@ class HolderAnalyzer:
     """
 
     # Known dead/burn addresses
-    DEAD_ADDRESSES = {
+    DEAD_ADDRESSES: ClassVar[dict[str, list[str]]] = {
         "solana": [
             "11111111111111111111111111111111",  # System program
             "1nc1nerator11111111111111111111111111111111",  # Incinerator
@@ -204,22 +204,21 @@ class HolderAnalyzer:
 
             # Supplement with Birdeye overview for total holder count + holder distribution
             birdeye_data = await self._fetch_birdeye_overview(token_address)
-            if birdeye_data and isinstance(birdeye_data, dict):
+            if birdeye_data and isinstance(birdeye_data, dict) and not holders:
                 # If we got no Solscan holders, try Birdeye's distribution
-                if not holders:
-                    dist = birdeye_data.get("holderDistribution") or []
-                    total_supply = float(birdeye_data.get("totalSupply", 1) or 1)
-                    for entry in dist:
-                        addr = entry.get("address", entry.get("owner", ""))
-                        balance = float(entry.get("amount", entry.get("balance", 0)))
-                        pct = (balance / total_supply * 100) if total_supply else 0
-                        holders.append(
-                            HolderInfo(
-                                address=addr,
-                                balance=balance,
-                                percentage=pct,
-                            )
+                dist = birdeye_data.get("holderDistribution") or []
+                total_supply = float(birdeye_data.get("totalSupply", 1) or 1)
+                for entry in dist:
+                    addr = entry.get("address", entry.get("owner", ""))
+                    balance = float(entry.get("amount", entry.get("balance", 0)))
+                    pct = (balance / total_supply * 100) if total_supply else 0
+                    holders.append(
+                        HolderInfo(
+                            address=addr,
+                            balance=balance,
+                            percentage=pct,
                         )
+                    )
 
         else:
             # EVM chains: DexScreener for pair info, Birdeye for overview
@@ -408,7 +407,7 @@ class HolderAnalyzer:
             if px != py:
                 parent[px] = py
 
-        for wallet, cluster_indices in wallet_to_clusters.items():
+        for _wallet, cluster_indices in wallet_to_clusters.items():
             if len(cluster_indices) > 1:
                 indices = list(cluster_indices)
                 for i in range(1, len(indices)):

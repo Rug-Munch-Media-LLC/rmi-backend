@@ -71,11 +71,8 @@ class NewBlockProvider:
                     # Individual RPC failure is non-fatal; continue polling others
 
         # Update cursor with latest block numbers
-        if events:
-            cursor_data = {"blocks": last_blocks}
-            # We'll persist this via the engine's cursor management
-            # Returning it in the event payload is enough because the engine
-            # calls save_cursor with the return value.
+        # Cursor persistence is handled by the engine's cursor management via
+        # the returned event payload; no local cursor bookkeeping is needed.
 
         return events
 

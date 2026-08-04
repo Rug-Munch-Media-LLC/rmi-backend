@@ -19,7 +19,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import ClassVar, Any
 
 import httpx
 import requests
@@ -383,7 +383,7 @@ class ContractDiffAnalyzer:
         return report
 
     # Chain name → chain ID mapping for EVM chains
-    CHAIN_TO_ID = {
+    CHAIN_TO_ID: ClassVar[dict[str, int]] = {
         "ethereum": 1,
         "eth": 1,
         "bsc": 56,

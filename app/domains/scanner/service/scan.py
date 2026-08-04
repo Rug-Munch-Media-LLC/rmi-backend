@@ -272,10 +272,8 @@ async def scan_token(
             for m in result.modules_run
         ]
         record_token_scan_coverage(data_sources, result.modules_run)
-    except ImportError:
-        pass
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("coverage_metrics_failed", error=str(exc)[:120])
 
     # ── Fuse token risk via DataFusion engine ──
     # Extract module results for the fusion engine to cross-reference

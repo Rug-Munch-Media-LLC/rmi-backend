@@ -1,6 +1,6 @@
 """Backward compatibility shim for app/token_scanner.py.
 
-The token scanner has been refactored to app/domain/scanner/*.py for
+The token scanner has been refactored to app/domains/scanner/*.py for
 better organization (per architecture standard: NO file > 500 lines).
 
 This file re-exports the main API from the new modules.
