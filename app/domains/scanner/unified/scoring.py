@@ -217,6 +217,10 @@ def _build_evidence(r: ScanResult) -> dict[str, Any]:
         if r.sentinel_boost:
             sentinel_ev["sentinel_boost"] = r.sentinel_boost
 
+    # ── Market context (Part 1 — market-aware scanning) ──
+    if r.market_context is not None:
+        ev["market_context"] = r.market_context.to_dict()
+
     return ev
 
 
@@ -593,5 +597,84 @@ def apply_news_scoring(r: ScanResult) -> None:
         total_sources = int(corr.get("total_sources", 0) or 0)
         if total_sources >= 3 and corr.get("on_chain_evidence"):
             r.confidence = min(100.0, r.confidence + 5)
+
+    r.risk_level = _risk_level_from_score(r.safety_score)
+
+
+# ── Market-aware risk adjustment (post-scoring enrichment) ────────────
+# Market context is fetched BEFORE the scan phases, so the penalty/bonus is
+# applied in a second pass (after compute_score) that keeps score/flags/
+# breakdown in sync — the same pattern as apply_news_scoring.
+
+
+def _apply_market_delta(r: ScanResult, delta: float, flag: str, *, risk: bool) -> None:
+    """Apply a market delta to the safety score, flags, and market dimension."""
+    r.safety_score = max(0.0, min(100.0, r.safety_score + delta))
+    if risk:
+        if flag not in r.risk_flags:
+            r.risk_flags.append(flag)
+    else:
+        if flag not in r.green_flags:
+            r.green_flags.append(flag)
+
+    bd = r.breakdown
+    if isinstance(bd, dict):
+        market = bd.get("market")
+        if isinstance(market, dict):
+            market["delta"] = round(float(market.get("delta", 0.0) or 0.0) + delta, 1)
+            max_points = float(market.get("max", DIMENSION_WEIGHTS["market"]))
+            market["score"] = round(max(0.0, min(max_points, max_points + market["delta"])), 1)
+            flags = market.setdefault("flags", [])
+            if flag not in flags:
+                flags.append(flag)
+
+
+def apply_market_scoring(r: ScanResult) -> None:
+    """Apply market-based risk adjustments after ``compute_score``.
+
+    Uses ``r.market_context`` (fetched from RugBrain before the scan):
+
+      - Fearful market (fear_index < 40) + new token (deployer freshness
+        "new" or age < 48h) → higher risk (``MARKET_FEAR_NEW_TOKEN`` -5).
+      - Recent exploits in the same category (recent_exploits > 0) →
+        higher risk (``MARKET_RECENT_EXPLOITS`` -5, capped -10).
+      - Rising chain volume (TVL change > +5%) is mildly constructive
+        (``MARKET_CHAIN_GROWTH`` +3); falling volume (< -5%) is a mild
+        risk (``MARKET_CHAIN_CONTRACTION`` -3).
+      - High social velocity (>= 60) on a *new* token is a mild red flag
+        (possible coordinated shill) (``MARKET_SOCIAL_PUMP`` -3).
+
+    Mutates ``r`` in place; no-op when there is no market context.
+    """
+    mc = r.market_context
+    if mc is None:
+        return
+
+    fear = float(mc.fear_index or 50)
+    exploits = int(mc.recent_exploits or 0)
+    chain_vol = float(mc.chain_volume_24h or 0)
+    social = float(mc.social_velocity or 0)
+    freshness = str(mc.deployer_freshness or "unknown")
+    age_hours = float(getattr(r, "age_hours", 0) or 0)
+    is_new = freshness == "new" or (0 < age_hours < 48)
+
+    # Fearful market + new token → higher risk.
+    if fear < 40 and is_new:
+        _apply_market_delta(r, -5.0, "MARKET_FEAR_NEW_TOKEN", risk=True)
+
+    # Recent exploits in the same category → higher risk (bounded).
+    if exploits > 0:
+        penalty = min(-5.0 * min(exploits, 2), -10.0)
+        _apply_market_delta(r, penalty, "MARKET_RECENT_EXPLOITS", risk=True)
+
+    # Chain volume (TVL) direction.
+    if chain_vol > 5:
+        _apply_market_delta(r, 3.0, "MARKET_CHAIN_GROWTH", risk=False)
+    elif chain_vol < -5:
+        _apply_market_delta(r, -3.0, "MARKET_CHAIN_CONTRACTION", risk=True)
+
+    # High social velocity on a new token — possible coordinated shill.
+    if social >= 60 and is_new:
+        _apply_market_delta(r, -3.0, "MARKET_SOCIAL_PUMP", risk=True)
 
     r.risk_level = _risk_level_from_score(r.safety_score)

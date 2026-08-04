@@ -8,13 +8,12 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.scanners._sentinel_registry import sentinel_module
 
 from .bridge import _infer_bridge_destination, _is_bridge_contract
 from .models import CrossChainEdge, CrossChainNode, CrossChainTraceReport
 from .queries import _fetch_labels, _fetch_transfers
 from .utils import _assign_role, _evm_address_portable
-
-from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("cross_chain_trace")
 

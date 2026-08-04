@@ -25,7 +25,6 @@ import httpx
 import requests
 
 from app.core.logging import get_logger
-
 from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("contract_diff")

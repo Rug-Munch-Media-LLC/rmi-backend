@@ -32,7 +32,6 @@ import requests
 
 from app.chain_registry import get_known_lockers, is_solana
 from app.core.logging import get_logger
-
 from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("liquidity_verifier")

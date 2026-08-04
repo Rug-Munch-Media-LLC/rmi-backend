@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from app.domains.scanner.unified.scanner import MarketContext
     from app.rag.intelligence import RAGContext
 
 
@@ -72,6 +73,11 @@ class ScanResult:
     # critical/high findings, an additional capped penalty is applied to the
     # safety score (0 = no boost, positive = extra risk).
     sentinel_boost: float = 0.0
+
+    # Market conditions that influenced this scan (Part 1 — market-aware
+    # scanning). Populated by the scanner before scoring from RugBrain's
+    # /api/v1/fear-index and /api/v1/market/mood endpoints (cached 5 min).
+    market_context: MarketContext | None = None
 
     # Explainability (populated by scoring.compute_score)
     breakdown: dict[str, Any] | None = None  # per-dimension score breakdown

@@ -13,6 +13,7 @@ import httpx
 
 from app.chain_registry import is_evm, is_solana
 from app.core.logging import get_logger
+from app.domains.scanners._sentinel_registry import sentinel_module
 
 from .fetchers import _fetch_evm_wallets, _fetch_solana_wallets
 from .graph import _build_flow_graph
@@ -24,8 +25,6 @@ from .models import (
     _ensure_output_dir,
     shorten_address,
 )
-
-from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("fund_flow_visualizer")
 
