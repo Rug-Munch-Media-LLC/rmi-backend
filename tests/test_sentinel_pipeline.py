@@ -516,6 +516,10 @@ async def test_pipeline_graceful_when_all_modules_fail() -> None:
     stack = contextlib.ExitStack()
     for patcher in [*patchers, *patchers2]:
         stack.enter_context(patcher)
+    # _ensure_modules() inside run_sentinel_scan recreates _metadata_fingerprinter,
+    # _sentiment_analyzer, and _pumpfun_analyzer unconditionally, which would discard
+    # instance-level patches.  Freeze the initialised state.
+    stack.enter_context(patch("app.domains.scanners.sentinel_pipeline.runners._ensure_modules"))
     stack.enter_context(
         patch("app.wallet_memory.engine.get_wallet_engine", return_value=AsyncMock(return_value={"risk_score": 0}))
     )
