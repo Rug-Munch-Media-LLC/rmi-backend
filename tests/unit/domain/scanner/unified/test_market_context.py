@@ -107,10 +107,12 @@ class TestFetchMarketContext:
             )
         )
 
+        real_async_client = httpx.AsyncClient  # capture before patching
+
         with (
             patch("app.domains.scanner.unified.market_context.redis_get", new_callable=AsyncMock, return_value=None),
             patch("app.domains.scanner.unified.market_context.redis_set", new_callable=AsyncMock, return_value=True),
-            patch("httpx.AsyncClient", return_value=httpx.AsyncClient(transport=mock_transport)),
+            patch("httpx.AsyncClient", side_effect=lambda: real_async_client(transport=mock_transport)),
         ):
             ctx = await fetch_market_context("0x" + "a" * 40, "ethereum")
 
@@ -139,8 +141,8 @@ class TestFetchMarketContext:
         ):
             ctx = await fetch_market_context("0x" + "b" * 40, "ethereum")
 
-        mock_client.assert_not_awaited()
-        redis_set.assert_awaited()
+        mock_client.assert_not_called()
+        redis_set.assert_not_called()
         assert ctx is not None
         assert ctx.fear_index == 10.0
         assert ctx.recent_exploits == 1
@@ -149,11 +151,12 @@ class TestFetchMarketContext:
     async def test_fail_open_on_rugbrain_outage(self) -> None:
         """RugBrain outage returns a neutral MarketContext, never raises."""
         mock_transport = httpx.MockTransport(handler=lambda request: httpx.Response(503, json={"error": "down"}))
+        real_async_client2 = httpx.AsyncClient  # capture before patching
 
         with (
             patch("app.domains.scanner.unified.market_context.redis_get", new_callable=AsyncMock, return_value=None),
             patch("app.domains.scanner.unified.market_context.redis_set", new_callable=AsyncMock),
-            patch("httpx.AsyncClient", return_value=httpx.AsyncClient(transport=mock_transport)),
+            patch("httpx.AsyncClient", side_effect=lambda: real_async_client2(transport=mock_transport)),
         ):
             ctx = await fetch_market_context("0x" + "c" * 40, "ethereum")
 

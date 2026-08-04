@@ -246,7 +246,7 @@ class TestAnalyze:
                 "_check_can_upgrade",
                 AsyncMock(return_value=(True, "0x" + "99" * 20, 0)),
             ),
-            patch.object(detector, "_eth_getCode", AsyncMock(return_value="0x6080604052")),
+            patch.object(detector, "_eth_get_code", AsyncMock(return_value="0x6080604052")),
             patch.object(detector, "_fetch_contract_source", AsyncMock(return_value=None)),
             patch("app.domains.scanners.proxy_detector.query_rag_citations", AsyncMock(return_value=[])),
         ):

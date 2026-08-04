@@ -30,7 +30,17 @@ class TestGetTokenPrice:
     @pytest.mark.asyncio
     async def test_returns_price_dict(self):
         """get_token_price should return a dict with price_usd."""
-        with _MOCK_DEX_SWAPS_EMPTY:
+        with (
+            _MOCK_DEX_SWAPS_EMPTY,
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_defillama_price",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_coingecko_price",
+                AsyncMock(return_value=None),
+            ),
+        ):
             result = await get_token_price(
                 "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
                 "ethereum",
@@ -49,7 +59,17 @@ class TestGetTokenPrice:
     @pytest.mark.asyncio
     async def test_handles_unknown_token(self):
         """Should gracefully handle tokens with no price data."""
-        with _MOCK_DEX_SWAPS_EMPTY:
+        with (
+            _MOCK_DEX_SWAPS_EMPTY,
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_defillama_price",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_coingecko_price",
+                AsyncMock(return_value=None),
+            ),
+        ):
             result = await get_token_price(
                 "0x0000000000000000000000000000000000000001",
                 "ethereum",
@@ -61,7 +81,17 @@ class TestGetTokenPrice:
     async def test_force_fresh_bypasses_cache(self):
         """force_fresh=True should bypass the cache."""
         clear_cache()
-        with _MOCK_DEX_SWAPS_EMPTY:
+        with (
+            _MOCK_DEX_SWAPS_EMPTY,
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_defillama_price",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.domains.scanner.engines.own_price_oracle._get_coingecko_price",
+                AsyncMock(return_value=None),
+            ),
+        ):
             result1 = await get_token_price(
                 "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
                 "ethereum",
@@ -153,6 +183,6 @@ class TestGetBatchPrices:
             ]
             results = await get_batch_prices(tokens)
         assert len(results) == 2
-        for key, data in results.items():
+        for _key, data in results.items():
             assert "price_usd" in data
             assert "source" in data
