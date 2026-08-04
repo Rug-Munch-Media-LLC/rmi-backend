@@ -28,15 +28,18 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.ai_router import router as ai_router
+from app.auth import get_current_user, require_auth
 from app.core.errors import AuthorizationError, ExternalAPIError
 from app.core.logging import get_logger
 
 # ── AI Security Guard ──
 from app.security.ai_guard import AIGuard
+from app.security.chat_guardrails import get_chat_rate_limiter
 
 logger = get_logger(__name__)
 
@@ -44,11 +47,6 @@ router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
 # Initialize guard
 ai_guard = AIGuard()
-
-# ── Auth ──
-# ── AI Router ──
-from app.ai_router import router as ai_router
-from app.auth import get_current_user, require_auth
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -135,6 +133,45 @@ except Exception:
     # Router must mount even if the DB layer is unavailable (e.g. read-only
     # filesystem) — the handlers degrade gracefully per-request.
     logger.warning("chat_db_init_failed", exc_info=True)
+
+
+# ── Chat rate limiting (Part 3: 30/min, 200/hour per IP) ──
+def _client_ip(request: Request) -> str:
+    """Best-effort client IP: first X-Forwarded-For hop, else peer IP."""
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
+async def chat_rate_limit(request: Request) -> None:
+    """Per-IP chat rate limit: 30 msgs/min, 200 msgs/hour. Returns 429 + Retry-After."""
+    limiter = get_chat_rate_limiter()
+    allowed, headers = await limiter.allow(_client_ip(request))
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Slow down and try again later.",
+            headers={k: str(v) for k, v in headers.items()},
+        )
+    request.state.chat_rate_limit_headers = headers
+
+
+def _apply_rate_limit_headers(response: Response, request: Request) -> None:
+    """Attach X-RateLimit-* headers from the dependency to the response."""
+    headers = getattr(request.state, "chat_rate_limit_headers", None)
+    if headers:
+        for k, v in headers.items():
+            response.headers[k] = str(v)
+
+
+DISCLAIMER = (
+    "This is security and market intelligence, not financial advice. "
+    "Always do your own research (DYOR) before making any investment decision."
+)
+
 
 # ── System Prompt ──
 SYSTEM_PROMPT = """You are the RMI Terminal, Rug Munch Intelligence's flagship AI engine.
@@ -278,7 +315,9 @@ def _save_message(user_id: str, role: str, content: str, metadata: dict | None =
 async def chat(
     req: ChatRequest,
     request: Request,
+    response: Response,
     user: dict | None = Depends(get_current_user),
+    _: None = Depends(chat_rate_limit),
 ) -> dict[str, str]:
     """Send a message and get an AI response (non-streaming)."""
     user_id = user.get("id", "anon") if user else "anon"
@@ -292,7 +331,9 @@ async def chat(
     # ── SECURITY LAYER 2: Attack vector scan ──
     scan = ai_guard.scan_input(req.message, session_id=user_id)
     if not scan.safe:
-        ai_guard.record_block(user_id)
+        ai_guard.record_block(
+            user_id, message=req.message, reason=scan.reason, category=scan.details.get("category", "")
+        )
         raise AuthorizationError(message=f"Security alert: {scan.reason}")
 
     # Get or create user context
@@ -323,6 +364,10 @@ async def chat(
 
     # ── SECURITY LAYER 3: Output sanitization ──
     response_content = ai_guard.sanitize_output(result.get("content", ""))
+    if scan.details.get("disclaimer") and DISCLAIMER not in response_content:
+        response_content += f"\n\n{DISCLAIMER}"
+
+    _apply_rate_limit_headers(response, request)
 
     # Save assistant response
     metadata = {
@@ -348,6 +393,7 @@ async def chat_stream(
     req: StreamRequest,
     request: Request,
     user: dict | None = Depends(get_current_user),
+    _: None = Depends(chat_rate_limit),
 ) -> Any | None:
     """Streaming chat endpoint using Server-Sent Events (SSE)."""
     user_id = user.get("id", "anon") if user else "anon"
@@ -361,7 +407,9 @@ async def chat_stream(
     # ── SECURITY LAYER 2: Attack vector scan ──
     scan = ai_guard.scan_input(req.message, session_id=user_id)
     if not scan.safe:
-        ai_guard.record_block(user_id)
+        ai_guard.record_block(
+            user_id, message=req.message, reason=scan.reason, category=scan.details.get("category", "")
+        )
         return StreamingResponse(
             iter([f"data: {json.dumps({'type': 'error', 'content': f'Security alert: {scan.reason}'})}\n\n"]),
             media_type="text/event-stream",
@@ -397,6 +445,10 @@ async def chat_stream(
 
         # ── SECURITY LAYER 3: Output sanitization ──
         safe_response = ai_guard.sanitize_output(full_response)
+        if scan.details.get("disclaimer") and DISCLAIMER not in safe_response:
+            disclaimer_note = f"\n\n{DISCLAIMER}"
+            safe_response += disclaimer_note
+            yield f"data: {json.dumps({'type': 'token', 'content': disclaimer_note})}\n\n"
 
         # Save full response (sanitized)
         latency_ms = (time.time() - start_time) * 1000
@@ -412,14 +464,19 @@ async def chat_stream(
 
         yield f"data: {json.dumps({'type': 'done', 'latency_ms': round(latency_ms, 1)})}\n\n"
 
+    stream_headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+    rl_headers = getattr(request.state, "chat_rate_limit_headers", None)
+    if rl_headers:
+        stream_headers.update({k: str(v) for k, v in rl_headers.items()})
+
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers=stream_headers,
     )
 
 
