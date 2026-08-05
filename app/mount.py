@@ -126,6 +126,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.api.v1.admin.alerts_webhook",  # /api/v1/admin/alerts/webhook
     "app.api.v1.admin.glitchtip_test",  # /api/v1/_test/* (T07)
     "app.api.v1.catalog",  # /api/v1/catalog/*
+    "app.api.v1.agent.analyze",  # /api/v1/agent/* (Pydantic AI agent fleet)
     "app.api.v1.mcp",  # /mcp/* (JSON-RPC + plain JSON)
     # Domain facades (per v4.0 T28-T34)
     "app.domains.news",  # /api/v1/news/*
