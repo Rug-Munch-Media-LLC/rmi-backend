@@ -38,7 +38,7 @@ from __future__ import annotations
 import math
 import os
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -233,7 +233,6 @@ def _get_ch_client() -> Any | None:
 
     try:
         from clickhouse_driver import Client as CHClient
-        from clickhouse_driver.errors import Error as CHDriverError
 
         _ch_client = CHClient(
             host=ch_host,
@@ -254,7 +253,12 @@ def _get_ch_client() -> Any | None:
 
 
 async def ensure_token_meta_table() -> bool:
-    """Create the ClickHouse token_meta table if it does not exist.
+    """Ensure the ClickHouse token_prices table exists.
+
+    ``wallet_memory.token_meta`` is now a VIEW over ``token_meta_ref`` +
+    ``token_prices`` (see the lite-chain-indexer migration), so the price
+    oracle persists into the underlying ``token_prices`` ReplacingMergeTree
+    table instead. This function creates it idempotently.
 
     Returns True when the table is guaranteed present (or already was),
     False when ClickHouse is unreachable.
@@ -267,14 +271,11 @@ async def ensure_token_meta_table() -> bool:
         try:
             client.execute(
                 """
-                CREATE TABLE IF NOT EXISTS wallet_memory.token_meta (
-                    token_address String,
+                CREATE TABLE IF NOT EXISTS wallet_memory.token_prices (
                     chain LowCardinality(String),
+                    token_address String,
                     symbol String DEFAULT '',
-                    name String DEFAULT '',
-                    decimals Nullable(UInt8),
-                    last_price_usd Nullable(Float64),
-                    last_price_source String DEFAULT '',
+                    price_usd Float64,
                     updated_at DateTime DEFAULT now()
                 ) ENGINE = ReplacingMergeTree()
                 ORDER BY (chain, token_address)
@@ -282,7 +283,7 @@ async def ensure_token_meta_table() -> bool:
             )
             return True
         except (ValueError, RuntimeError, OSError) as exc:
-            logger.debug("token_meta ensure failed: %s", exc)
+            logger.debug("token_prices ensure failed: %s", exc)
             return False
 
     return bool(await run_sync(_ensure))
@@ -292,13 +293,15 @@ async def _meta_upsert(
     token_address: str,
     chain: str,
     *,
-    decimals: int | None = None,
     symbol: str = "",
-    name: str = "",
     price_usd: float | None = None,
-    source: str = "",
 ) -> None:
-    """Upsert a token_meta row (ReplacingMergeTree replaces on merge)."""
+    """Upsert a token_prices row (ReplacingMergeTree replaces on merge).
+
+    Writes to ``wallet_memory.token_prices`` — ``token_meta`` is a VIEW
+    over token_meta_ref + token_prices and cannot accept INSERTs.
+    Name/decimals live in token_meta_ref; only price + symbol go here.
+    """
 
     def _write() -> None:
         client = _get_ch_client()
@@ -307,15 +310,14 @@ async def _meta_upsert(
         try:
             client.execute(
                 """
-                INSERT INTO wallet_memory.token_meta
-                    (token_address, chain, symbol, name, decimals,
-                     last_price_usd, last_price_source, updated_at)
+                INSERT INTO wallet_memory.token_prices
+                    (chain, token_address, symbol, price_usd, updated_at)
                 VALUES
                 """,
-                [(token_address, chain, symbol, name, decimals, price_usd, source, time.time())],
+                [(chain, token_address, symbol, price_usd, datetime.now(UTC))],
             )
         except (ValueError, RuntimeError, OSError) as exc:
-            logger.debug("token_meta upsert failed for %s: %s", token_address[:16], exc)
+            logger.debug("token_prices upsert failed for %s: %s", token_address[:16], exc)
 
     await run_sync(_write)
 
@@ -989,17 +991,16 @@ async def _cache_set_price(token: str, chain: str, payload: dict[str, Any]) -> N
         decimals = payload.get("decimals")
         if decimals is None and meta and meta.get("decimals") is not None:
             decimals = int(meta["decimals"])
+        if decimals is not None:
+            payload["decimals"] = decimals
         await _meta_upsert(
             token,
             chain,
-            decimals=decimals,
             symbol=str(payload.get("symbol", "") or ""),
-            name=str(payload.get("name", "") or ""),
             price_usd=float(payload.get("price_usd", 0) or 0),
-            source=str(payload.get("source", "") or ""),
         )
     except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
-        logger.debug("price_oracle token_meta write-through failed: %s", exc)
+        logger.debug("price_oracle token_prices write-through failed: %s", exc)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1255,10 +1256,15 @@ async def _dexscreener_price(token: str, chain: str, *, _depth: int = 0) -> dict
         if not pairs:
             return None
 
+        chain_map = _CHAIN_MAP.get(chain, chain)
         best_pair: dict[str, Any] | None = None
         best_liquidity = -1.0
         for pair in pairs:
             if not isinstance(pair, dict):
+                continue
+            # Skip pairs from wrong chains (e.g., USDC on pulsechain when querying ethereum)
+            pair_chain = (pair.get("chainId") or "").lower()
+            if pair_chain and pair_chain != chain_map.lower():
                 continue
             liq = float(pair.get("liquidity", {}).get("usd", 0) or 0)
             if liq > best_liquidity:
