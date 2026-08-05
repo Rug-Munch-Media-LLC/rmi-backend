@@ -248,6 +248,43 @@ def _sleep_pattern(sleep_cycle: dict[str, Any] | None) -> str:
     return "normal"
 
 
+def _extract_meta_identity(meta: dict[str, Any]) -> tuple[str, str]:
+    """Extract ``(name, symbol)`` from any token_metadata payload shape.
+
+    DataBus ``token_metadata`` providers return heterogeneous shapes:
+
+      * normalized   ``{"name": "...", "symbol": "...", ...}``
+      * DexScreener  ``{"pairs": [{"baseToken": {"name": .., "symbol": ..}, ...}]}``
+      * Alchemy RPC  ``{"result": {"name": .., "symbol": .., "decimals": ..}}``
+
+    Returns ``("", "")`` when none of the shapes carry identity so callers
+    can fall back to the price payload without raising.
+    """
+    if not isinstance(meta, dict):
+        return "", ""
+    name = meta.get("name", "")
+    symbol = meta.get("symbol", "")
+    if name or symbol:
+        return str(name or ""), str(symbol or "")
+
+    result = meta.get("result")
+    if isinstance(result, dict):
+        name = result.get("name", "")
+        symbol = result.get("symbol", "")
+        if name or symbol:
+            return str(name or ""), str(symbol or "")
+
+    pairs = meta.get("pairs")
+    if isinstance(pairs, list):
+        for pair in pairs:
+            if not isinstance(pair, dict):
+                continue
+            base = pair.get("baseToken")
+            if isinstance(base, dict) and (base.get("name") or base.get("symbol")):
+                return str(base.get("name", "") or ""), str(base.get("symbol", "") or "")
+    return "", ""
+
+
 class UnifiedTokenScanner:
     """THE single token scanner.
 
@@ -482,6 +519,10 @@ class UnifiedTokenScanner:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Scan failed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
+        except Exception as e:  # noqa: BLE001 — a scan must always return a result, never raise
+            logger.debug("scan_unexpected_error", exc_info=True)
+            logger.error(f"Scan crashed for {address}: {e}")
+            result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
 
         result.scan_duration_ms = (time.monotonic() - start) * 1000
         return result
@@ -554,6 +595,10 @@ class UnifiedTokenScanner:
                 logger.debug("_fetch_one_error", exc_info=True)
                 logger.warning(f"DataBus chain '{chain_name}' failed: {e}")
                 return chain_name, None
+            except Exception as e:  # noqa: BLE001 — one failing module must never fail the scan
+                logger.debug("_fetch_one_unexpected", exc_info=True)
+                logger.warning(f"DataBus chain '{chain_name}' raised unexpected error: {e}")
+                return chain_name, None
 
         tasks = [_fetch_one(c) for c in chains]
         gathered = await asyncio.gather(*tasks, return_exceptions=True)
@@ -577,6 +622,19 @@ class UnifiedTokenScanner:
                     message=data.get("message", ""),
                 )
                 continue
+            # Unwrap the DataBus envelope.  ``databus.fetch`` returns
+            # {"data": {...}, "source": ..., "tier": ..., "is_local": ...}
+            # but the merge methods below read raw payload keys
+            # (price_usd, name, symbol, findings, ...) directly, so we
+            # surface the payload as the chain result.  The envelope-level
+            # source is carried into the payload (when absent) so
+            # enrichment_sources still records where data came from.
+            if isinstance(data, dict) and isinstance(data.get("data"), dict):
+                payload = data["data"]
+                if isinstance(payload, dict) and "source" not in payload and data.get("source"):
+                    payload = dict(payload)
+                    payload["source"] = data["source"]
+                data = payload
             results[name] = data
         return results
 
@@ -590,16 +648,33 @@ class UnifiedTokenScanner:
         if isinstance(price_data, dict):
             r.price_usd = float(price_data.get("price_usd", 0) or 0)
             r.market_cap_usd = float(price_data.get("market_cap_usd", 0) or 0)
-            r.volume_24h_usd = float(price_data.get("volume_24h", 0) or 0)
+            # DataBus price payload uses ``volume_24h_usd``; accept the
+            # legacy ``volume_24h`` alias too so a renamed provider key
+            # never zeroes out the 24h volume.
+            r.volume_24h_usd = float(price_data.get("volume_24h_usd", price_data.get("volume_24h", 0)) or 0)
             r.liquidity_usd = float(price_data.get("liquidity_usd", 0) or 0)
             if price_data.get("source"):
                 r.enrichment_sources.append(f"price:{price_data['source']}")
 
         meta = data.get("token_metadata", {})
         if isinstance(meta, dict):
-            r.name = str(meta.get("name", "") or "")
-            r.symbol = str(meta.get("symbol", "") or "")
+            # token_metadata providers return raw external shapes (DexScreener
+            # ``{"pairs": [...]}`` or Alchemy JSON-RPC ``{"result": {...}}``)
+            # as well as the normalized ``{name, symbol, age_hours}`` form.
+            # Normalize all three defensively — a raw shape must not wipe out
+            # the fields populated by the price oracle.
+            meta_name, meta_symbol = _extract_meta_identity(meta)
+            r.name = str(meta_name or r.name or "")
+            r.symbol = str(meta_symbol or r.symbol or "")
             r.age_hours = float(meta.get("age_hours", 0) or 0)
+
+        # Fallback: when metadata is missing/empty, the price payload already
+        # carries name/symbol (the F2 price oracle enriches its payload with
+        # them).  Keep whatever non-empty value exists.
+        if not r.name and isinstance(price_data, dict):
+            r.name = str(price_data.get("name", "") or "")
+        if not r.symbol and isinstance(price_data, dict):
+            r.symbol = str(price_data.get("symbol", "") or "")
 
         security = data.get("token_security", {})
         if isinstance(security, dict):

@@ -188,16 +188,16 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
 
     try:
         from app.databus.rugcharts_intel import (
-            analyze_liquidity_risk,
-            check_holder_health,
-            detect_insiders,
-            detect_rug_patterns,
-            get_dev_reputation,
-            get_enhanced_token_report,
-            get_smart_money,
-            get_token_launches,  # noqa: F401  # availability probe for rugcharts_intel
-            get_whale_alerts,
-            track_cross_chain_entity,
+            cross_chain_entity as track_cross_chain_entity,
+            developer_reputation as get_dev_reputation,
+            holder_health_score as check_holder_health,
+            insider_pattern_detector as detect_insiders,
+            instant_token_report as get_enhanced_token_report,
+            liquidity_risk_monitor as analyze_liquidity_risk,
+            rug_pattern_matcher as detect_rug_patterns,
+            smart_money_feed as get_smart_money,
+            token_launch_scanner,  # noqa: F401  # availability probe for rugcharts_intel
+            whale_alert_stream as get_whale_alerts,
         )
 
         chains["smart_money"] = ProviderChain(

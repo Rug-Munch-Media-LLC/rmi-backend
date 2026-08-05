@@ -6,7 +6,9 @@ import os
 
 import httpx
 
-from sdks.python.x402_frameworks.autogen_adapter import logger
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 async def _local_token_price(**kwargs) -> dict | None:

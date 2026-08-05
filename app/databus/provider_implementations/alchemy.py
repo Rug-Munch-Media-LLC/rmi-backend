@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import httpx
 
-from sdks.python.x402_frameworks.autogen_adapter import logger
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet", **kw) -> dict | None:

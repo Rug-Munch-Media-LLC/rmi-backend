@@ -491,7 +491,18 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
             addr_lower = address.lower()
             r = await c.get(goplus_url, params={"contract_addresses": addr_lower})
             if r.status_code == 200:
-                goplus_data = r.json().get("result", {}).get(address.lower(), {})
+                try:
+                    _payload = r.json()
+                except (ValueError, TypeError):  # empty / non-JSON body
+                    _payload = {}
+                if not isinstance(_payload, dict):
+                    _payload = {}
+                goplus_data = _payload.get("result", {})
+                if not isinstance(goplus_data, dict):
+                    goplus_data = {}
+                goplus_data = goplus_data.get(address.lower(), {})
+                if not isinstance(goplus_data, dict):
+                    goplus_data = {}
 
                 # Parse GoPlus into our check format
                 is_honeypot = goplus_data.get("is_honeypot", "0")
@@ -588,7 +599,15 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
                     },
                 )
                 if r.status_code == 200:
-                    sigs = r.json().get("result", [])
+                    try:
+                        _sig_payload = r.json()
+                    except (ValueError, TypeError):
+                        _sig_payload = {}
+                    if not isinstance(_sig_payload, dict):
+                        _sig_payload = {}
+                    sigs = _sig_payload.get("result", [])
+                    if not isinstance(sigs, list):
+                        sigs = []
                     if sigs:
                         block_time = sigs[0].get("blockTime", 0)
                         age_seconds = int(time.time()) - block_time

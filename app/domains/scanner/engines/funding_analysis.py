@@ -947,7 +947,7 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
                 "list[tuple[Any, ...]] | None",
                 client.execute(
                     """
-                SELECT if(owner != '', owner, token_account) AS holder, sum(delta) AS balance
+                SELECT if(owner != '', owner, token_account) AS holder, sum(toFloat64OrZero(delta)) AS balance
                 FROM wallet_memory.solana_spl_balance_changes
                 WHERE mint = %(token)s
                 GROUP BY holder
