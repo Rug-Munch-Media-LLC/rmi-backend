@@ -27,6 +27,7 @@ dependencies = [
     "langgraph>=1.0.0",  # Agentic RAG orchestration (app/rag/graph.py)
     "langchain>=1.0.0",
     "langchain-openai>=1.0.0",
+    "pydantic-ai-slim>=2.0.0",  # Pydantic AI agent framework (app/agents)
 ]
 
 [project.optional-dependencies]

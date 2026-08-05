@@ -63,3 +63,4 @@ opentelemetry-instrumentation-aiohttp-client>=0.46b0
 langgraph>=1.0.0
 langchain>=1.0.0
 langchain-openai>=1.0.0
+pydantic-ai-slim>=2.0.0  # Pydantic AI agent framework (app/agents)

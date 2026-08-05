@@ -64,6 +64,10 @@ from app.api.v1.catalog import router as catalog_router
 
 api_v1_router.append(catalog_router)
 
+from app.api.v1.agent.analyze import router as agent_router  # noqa: E402 — strangle pattern
+
+api_v1_router.append(agent_router)
+
 
 def build_v1_router() -> APIRouter:
     """Construct the v1 aggregator with all migrated routes mounted."""
