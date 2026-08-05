@@ -8,7 +8,9 @@ import os
 
 import httpx
 
-from sdks.python.x402_frameworks.autogen_adapter import logger
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 async def _messari_news(limit: int = 20, **kw) -> dict | None:

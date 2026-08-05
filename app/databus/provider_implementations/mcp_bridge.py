@@ -7,7 +7,9 @@ import subprocess
 
 import httpx
 
-from sdks.python.x402_frameworks.autogen_adapter import logger
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:

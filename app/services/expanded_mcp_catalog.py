@@ -1,6 +1,5 @@
 """
 
-from sdks.python.x402_frameworks.autogen_adapter import logger  # noqa: F821  -- added by codemod
 Expanded MCP Catalog - Free Open-Source Tools from GitHub
 ============================================================
 Wires free, MIT/Apache-licensed MCPs we cloned from GitHub into the
@@ -20,6 +19,10 @@ free data into $0.01-0.40/call agent-callable endpoints.
 """
 
 from __future__ import annotations
+
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # ════════════════════════════════════════════════════════════
 # 1. Crypto Fear & Greed Index (kukapay/crypto-feargreed-mcp)
