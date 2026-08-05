@@ -140,6 +140,64 @@ _KEY_TO_SINGLETON_ATTR: dict[str, str] = {
 # Format: key → factory function(config) → instance
 _SPECIAL_CONSTRUCTORS: dict[str, object] = {}  # populated lazily below
 
+# ── Tiered module selection ──────────────────────────────────────────
+# Scan tiers for the unified scanner / SENTINEL pipeline.  The "quick" tier
+# runs only free modules (always available, fast, no premium gating); the
+# "deep" tier runs every SENTINEL module (free + premium deep-forensic).
+TIERS: dict[str, str] = {
+    "quick": (
+        "Free-tier SENTINEL modules only — fast baseline safety scan "
+        "(holder_analysis, contract_authority, liquidity_verification, "
+        "metadata_fingerprint, proxy_detection, dev_reputation)."
+    ),
+    "deep": (
+        "All SENTINEL modules — free + premium deep-forensic analysis "
+        "(bundles, exchange funding, wash trading, MEV, flash loans, "
+        "pump/dump, oracle manipulation, deployer forensics, sentiment)."
+    ),
+}
+
+# Canonical module keys for the "quick" (free-tier) scan.
+_QUICK_TIER_MODULES: tuple[str, ...] = (
+    "holder_analysis",
+    "contract_authority",
+    "liquidity_verification",
+    "metadata_fingerprint",
+    "proxy_detection",
+    "dev_reputation",
+)
+
+
+def get_modules_by_tier(tier: str) -> list[str]:
+    """Return the SENTINEL module keys to run for a scan tier.
+
+    * ``"quick"`` → free tier only (holder_analysis, contract_authority,
+      liquidity_verification, metadata_fingerprint, proxy_detection,
+      dev_reputation).
+    * ``"deep"``  → all modules (free + premium), free keys first.
+
+    Unknown/empty tiers fall back to the ``"quick"`` set so a scan never
+    accidentally runs premium modules.  ``"deep"`` resolves the full set
+    from the sentinel registry when populated, else falls back to every
+    known module key.
+    """
+    tier = (tier or "quick").strip().lower()
+    if tier == "deep":
+        from app.domains.scanners._sentinel_registry import (
+            get_free_module_keys,
+            get_premium_module_keys,
+        )
+
+        free = get_free_module_keys()
+        premium = get_premium_module_keys()
+        if free or premium:
+            return [*free, *premium]
+        # Registry not yet populated — fall back to quick modules + every
+        # other known registry key (premium set).
+        known_premium = [k for k in _KEY_TO_SINGLETON_ATTR if k not in _QUICK_TIER_MODULES]
+        return [*_QUICK_TIER_MODULES, *known_premium]
+    return list(_QUICK_TIER_MODULES)
+
 
 def _auto_discover_scanners() -> None:
     """Import every ``.py`` file under ``app/domains/scanners/``.
