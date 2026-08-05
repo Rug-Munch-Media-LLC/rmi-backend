@@ -72,6 +72,25 @@ def funding_overlap(funding_sources: list[str]) -> float:
     return shared / total
 
 
+def normalize_graph_fraud_score(raw: float | int | None) -> float:
+    """Normalize a graph fraud score into [0, 100].
+
+    Used to fold graph-based fraud analysis results (fan-out / cycles /
+    high in-degree / temporal clustering) into the composite bundler
+    score. Missing, non-numeric, or out-of-range inputs degrade to 0.0 so
+    the composite is never penalized by absent graph data.
+    """
+    if raw is None:
+        return 0.0
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(value):
+        return 0.0
+    return max(0.0, min(value, 100.0))
+
+
 def label_risk(score: float) -> str:
     """Convert numeric score to risk label."""
     if score >= 75:

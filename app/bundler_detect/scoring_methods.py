@@ -9,7 +9,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.bundler_detect.models import BUNDLER_SCORE_WEIGHTS, BundledBuy, BundlerReport, HolderCluster
+from app.bundler_detect.models import (
+    BUNDLER_SCORE_WEIGHTS,
+    CROSS_LAUNCH_SCORE_WEIGHT,
+    BundledBuy,
+    BundlerReport,
+    HolderCluster,
+)
 from app.bundler_detect.scoring import entropy, gini_coefficient
 
 
@@ -63,6 +69,13 @@ def score_sniper_clusters(clusters: list[HolderCluster], bundled_buys: list[Bund
     high_time = [c for c in clusters if c.buy_time_similarity > 0.7]
     if high_time:
         score += min(len(high_time) * 10, 25)
+
+    # Clusters matching on BOTH funding overlap AND buy timing are very high
+    # confidence coordinated groups (analogous to same_size + same_time in the
+    # sentinel bundle_detector) — bump the cluster contribution cap 25 → 35.
+    strong = [c for c in clusters if c.funding_overlap_score > 0.7 and c.buy_time_similarity > 0.7]
+    if strong:
+        score += min(len(strong) * 5, 10)
 
     return min(score, 100)
 
@@ -125,7 +138,15 @@ def score_fund_flow(
 
 
 def compute_bundler_score(report: BundlerReport) -> float:
-    """Weighted composite bundler score."""
+    """Weighted composite bundler score.
+
+    The four core signals are weighted (sum = 1.0). Two optional signals are
+    applied as capped additive boosts on top of the weighted sum:
+    ``cross_launch_score`` (repeat-bundler history) and ``graph_fraud_score``
+    (fan-out / cycles / in-degree / temporal graph analysis). When neither is
+    present (score 0) the composite is bit-for-bit unchanged, so existing
+    scans are unaffected.
+    """
     weights = BUNDLER_SCORE_WEIGHTS
 
     score = (
@@ -134,5 +155,10 @@ def compute_bundler_score(report: BundlerReport) -> float:
         + report.launch_timing_anomaly_score * weights["launch_timing_anomaly"]
         + report.fund_flow_risk_score * weights["fund_flow_risk"]
     )
+
+    score += report.cross_launch_score * CROSS_LAUNCH_SCORE_WEIGHT
+
+    # Bonus component from graph-based fraud detection (fan-out/cycles/in-degree/temporal)
+    score += min(report.graph_fraud_score, 100.0) * weights.get("graph_fraud", 0.0)
 
     return min(score, 100)

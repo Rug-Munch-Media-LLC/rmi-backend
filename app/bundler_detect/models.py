@@ -110,6 +110,8 @@ class BundlerReport:
     sniper_cluster_score: float = 0.0
     launch_timing_anomaly_score: float = 0.0
     fund_flow_risk_score: float = 0.0
+    graph_fraud_score: float = 0.0
+    cross_launch_score: float = 0.0  # repeat-bundler signal (0 = none/unknown)
 
     # Findings
     suspected_bundled_buys: list[BundledBuy] = field(default_factory=list)
@@ -138,6 +140,7 @@ class BundlerReport:
                 "sniper_cluster": round(self.sniper_cluster_score, 1),
                 "launch_timing_anomaly": round(self.launch_timing_anomaly_score, 1),
                 "fund_flow_risk": round(self.fund_flow_risk_score, 1),
+                "graph_fraud": round(self.graph_fraud_score, 1),
             },
             "suspected_bundled_buys": [b.to_dict() for b in self.suspected_bundled_buys[:50]],
             "holder_clusters": [c.to_dict() for c in self.holder_clusters[:10]],
@@ -173,9 +176,18 @@ class BundlerReport:
 
 # ── Scoring Weights ────────────────────────────────────────────
 
+# The four core weights sum to 1.0. ``graph_fraud`` is a BONUS component
+# (see scoring_methods.compute_bundler_score): it can only push the composite
+# up, never down, so reports without graph analysis score exactly as before.
 BUNDLER_SCORE_WEIGHTS: dict[str, float] = {
     "supply_concentration": 0.30,
     "sniper_cluster": 0.25,
     "launch_timing_anomaly": 0.20,
     "fund_flow_risk": 0.25,
+    "graph_fraud": 0.15,
 }
+
+# Cross-launch repeat-bundler signal is applied as a capped additive boost
+# (weight * cross_launch_score added after the weighted sum). When no
+# cross-launch history exists the score is 0 and the composite is unchanged.
+CROSS_LAUNCH_SCORE_WEIGHT: float = 0.15

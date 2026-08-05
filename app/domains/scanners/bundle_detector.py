@@ -21,16 +21,18 @@ from __future__ import annotations
 
 import json
 import os
+from collections import defaultdict
 from dataclasses import dataclass, dataclass as _dataclass, field
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import httpx
 import requests
 
 from app.chain_client import ChainClient
-from app.chain_registry import is_solana
+from app.chain_registry import get_explorer_api_config, is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners._sentinel_registry import sentinel_module
+from app.fraud_gnn import MIN_GRAPH_WALLETS, TransferEdge, get_fraud_graph
 from app.free_solscan_client import FreeSolscanClient
 
 logger = get_logger("bundle_detector")
@@ -69,7 +71,7 @@ class SameBlockSniper:
 @dataclass
 class BehaviorCluster:
     wallets: list[str]
-    pattern: str  # "same_size", "same_time", "same_dex"
+    pattern: str  # "same_size", "same_time", "same_dex", "mixed"
     combined_percentage: float
     confidence: float
 
@@ -89,7 +91,10 @@ class BundleReport:
     jito_bundles_detected: int = 0
     risk_score: int = 0  # 0-100
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
+    graph_fraud_score: int = 0  # 0-100, from graph-based fraud pattern analysis
+    graph_fraud_report: dict[str, object] | None = None
     warnings: list[str] = field(default_factory=list)
+    cross_launch_flags: dict[str, Any] = field(default_factory=dict)
 
 
 @sentinel_module(
@@ -116,6 +121,20 @@ class BundleDetector:
         "Smithii": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "PumpFun": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "LaunchLab": "LaunchLabzbP1j4R7KzEFmYSF3EXGnZ6tY7AZ8eg3P2qJ",
+    }
+
+    # Etherscan-family block explorer API URLs (fallback if chain registry unset)
+    EVM_EXPLORER_URLS: ClassVar[dict[str, str]] = {
+        "ethereum": "https://api.etherscan.io/api",
+        "base": "https://api.basescan.org/api",
+        "bsc": "https://api.bscscan.com/api",
+    }
+
+    # Env vars holding each chain's explorer API key (fallback if registry unset)
+    EVM_EXPLORER_KEY_ENVS: ClassVar[dict[str, str]] = {
+        "ethereum": "ETHERSCAN_API_KEY",
+        "base": "BASESCAN_API_KEY",
+        "bsc": "BSCSCAN_API_KEY",
     }
 
     def __init__(self) -> None:
@@ -264,7 +283,9 @@ class BundleDetector:
     ) -> list[FundingStep]:
         """Trace SOL/token transfers backward from a wallet to find funding source.
 
-        Uses Solscan top transfers + Helius RPC for on-chain data.
+        Uses Solscan top transfers + Helius RPC for Solana, and the
+        Etherscan-family block explorer APIs (Etherscan/Basescan/BscScan)
+        for EVM chains.
         """
         chain_result: list[FundingStep] = []
 
@@ -282,16 +303,322 @@ class BundleDetector:
                             tx_signature=src.get("tx_hash", ""),
                         )
                     )
+        elif is_evm(chain):
+            # Etherscan-family block explorer tracing (Ethereum, Base, BSC, ...)
+            chain_result = await self._trace_evm_funding(wallet, chain, max_depth=max_depth, before_time=before_time)
+
+        return chain_result
+
+    # ── EVM funding tracing (Etherscan-family explorers) ────────────────
+
+    def _get_explorer_url(self, chain: str) -> str:
+        """Return the block explorer API base URL for a chain.
+
+        Prefers the chain registry config (authoritative); falls back to
+        the hardcoded Etherscan-family map for ethereum/base/bsc.
+        """
+        api_url, _ = get_explorer_api_config(chain)
+        if api_url:
+            return api_url
+        return self.EVM_EXPLORER_URLS.get(chain.lower(), "")
+
+    def _get_explorer_api_key(self, chain: str) -> str:
+        """Return the block explorer API key for a chain.
+
+        Prefers the chain registry env mapping; falls back to the
+        hardcoded map (ETHERSCAN_API_KEY / BASESCAN_API_KEY / BSCSCAN_API_KEY).
+        """
+        _, api_key = get_explorer_api_config(chain)
+        if api_key:
+            return api_key
+        env_var = self.EVM_EXPLORER_KEY_ENVS.get(chain.lower(), "")
+        return os.getenv(env_var, "") if env_var else ""
+
+    async def _trace_evm_funding(
+        self, wallet: str, chain: str, max_depth: int = 5, before_time: int = 0
+    ) -> list[FundingStep]:
+        """Trace ERC-20 token transfers backward from an EVM wallet.
+
+        Uses the Etherscan-family ``tokentx`` endpoint (free tier,
+        ~5 req/s) to find transfers INTO the wallet — the senders are
+        the funding sources. Each hop captures address, amount, token,
+        timestamp (unix ms), and tx signature.
+
+        Works for any chain registered with an Etherscan-family explorer
+        API (Ethereum, Base, BSC, Arbitrum, Polygon, ...).
+        """
+        api_url = self._get_explorer_url(chain)
+        if not api_url:
+            logger.debug(f"no_explorer_api_for_chain chain={chain}")
+            return []
+
+        api_key = self._get_explorer_api_key(chain)
+        if not api_key:
+            logger.debug(f"no_explorer_api_key_for_chain chain={chain}")
+            return []
+
+        params: dict[str, str | int] = {
+            "module": "account",
+            "action": "tokentx",
+            "address": wallet,
+            "page": 1,
+            "offset": 100,
+            "sort": "desc",
+            "apikey": api_key,
+        }
+
+        try:
+            resp = await self._http.get(api_url, params=params)
+            if resp.status_code != 200:
+                logger.warning(f"Explorer API returned {resp.status_code} for {chain} {wallet}")
+                return []
+            data = resp.json()
+            if data.get("status") != "1":
+                # Etherscan returns status 0 with an error message on failures
+                logger.debug(f"Explorer API error: {data.get('message', '')} for {chain} {wallet}")
+                return []
+            transfers = data.get("result") or []
+        except (httpx.HTTPError, requests.RequestException, json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.debug("_trace_evm_funding_error", exc_info=True)
+            logger.warning(f"EVM funding trace failed for {wallet} on {chain}: {e}")
+            return []
+
+        wallet_lower = wallet.lower()
+        chain_result: list[FundingStep] = []
+
+        for tx in transfers:
+            # Only incoming transfers (funding INTO the wallet)
+            if str(tx.get("to", "")).lower() != wallet_lower:
+                continue
+            timestamp_sec = int(tx.get("timeStamp", 0) or 0)
+            timestamp_ms = timestamp_sec * 1000
+            # Skip transfers after the deployment/buy time
+            if before_time and timestamp_ms >= before_time:
+                continue
+
+            try:
+                decimals = int(tx.get("tokenDecimal", 18) or 18)
+                amount = float(tx.get("value", 0)) / (10**decimals)
+            except (ValueError, TypeError, ZeroDivisionError):
+                amount = 0.0
+
+            chain_result.append(
+                FundingStep(
+                    address=tx.get("from", ""),
+                    amount=round(amount, 8),
+                    token=tx.get("tokenSymbol", "ERC20") or "ERC20",
+                    timestamp=timestamp_ms,
+                    tx_signature=tx.get("hash", ""),
+                )
+            )
+            if len(chain_result) >= max_depth:
+                break
 
         return chain_result
 
     # ── Pure computation methods (unchanged) ──────────────────────────
 
     def _cluster_by_behavior(self, buyers: list) -> list[BehaviorCluster]:
-        """Cluster wallets by identical trading patterns."""
-        # Placeholder - requires transaction-level analysis
-        # Real implementation groups by: same DEX, same trade size, same slippage, same route
-        return []
+        """Cluster wallets by identical trading patterns.
+
+        Groups early buyers that share the same behavioral fingerprint across
+        four dimensions:
+
+        1. **Trade size** — identical buy amount within ±1% tolerance
+        2. **Timing** — first buy in the same block or 1-block adjacency
+        3. **DEX route** — identical routing venue (when transaction data
+           provides ``dex_route`` on the buyer)
+        4. **Compute budget / priority fee** — identical Solana compute pattern
+
+        Single-dimension groups are merged (union-find) so overlapping groups
+        combine into one cluster. Each cluster's ``pattern`` is one of
+        ``same_size``, ``same_time``, ``same_dex``, or ``mixed`` (multiple
+        dimensions coincide, e.g. identical size + identical timing).
+        ``combined_percentage`` is the cluster's share of the total observed
+        early-buy volume; ``confidence`` reflects pattern strength and size.
+        """
+        if not buyers or len(buyers) < 2:
+            return []
+
+        amounts = [float(getattr(b, "buy_amount", 0.0) or 0.0) for b in buyers]
+        blocks = [int(getattr(b, "first_buy_block", 0) or 0) for b in buyers]
+        dexes = [str(getattr(b, "dex_route", "") or "").strip().lower() for b in buyers]
+        compute_keys = [
+            (
+                int(getattr(b, "compute_units", 0) or 0),
+                round(float(getattr(b, "priority_fee", 0.0) or 0.0), 6),
+            )
+            for b in buyers
+        ]
+
+        # Candidate single-dimension groups (lists of buyer indices)
+        size_groups = self._behavior_size_groups(amounts)
+        time_groups = self._behavior_time_groups(blocks)
+        dex_groups = self._behavior_exact_groups(dexes)
+        compute_groups = self._behavior_exact_groups(
+            [f"{cu}:{pf}" if (cu > 0 or pf > 0) else "" for cu, pf in compute_keys]
+        )
+
+        groups = [g for g in (size_groups + time_groups + dex_groups + compute_groups) if len(g) >= 2]
+        if not groups:
+            return []
+
+        # Union-find: merge overlapping single-dimension groups into clusters
+        parent = list(range(len(buyers)))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def union(a: int, b: int) -> None:
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        for group in groups:
+            for member in group[1:]:
+                union(group[0], member)
+
+        merged: dict[int, list[int]] = defaultdict(list)
+        for i in range(len(buyers)):
+            merged[find(i)].append(i)
+
+        total_amount = sum(amounts) or 1.0
+        clusters: list[BehaviorCluster] = []
+        for indices in merged.values():
+            if len(indices) < 2:
+                continue
+            cluster = self._behavior_cluster_from_indices(buyers, indices, amounts, blocks, dexes, total_amount)
+            if cluster:
+                clusters.append(cluster)
+
+        clusters.sort(key=lambda c: c.combined_percentage, reverse=True)
+        return clusters
+
+    @staticmethod
+    def _behavior_size_groups(amounts: list[float]) -> list[list[int]]:
+        """Group buyer indices by buy amount within ±1% tolerance."""
+        if len(amounts) < 2:
+            return []
+        indexed = sorted(range(len(amounts)), key=lambda i: amounts[i])
+        groups: list[list[int]] = []
+        current: list[int] = []
+        anchor = 0.0
+        for idx in indexed:
+            amt = amounts[idx]
+            if amt <= 0:
+                continue
+            if not current:
+                current = [idx]
+                anchor = amt
+            elif amt <= anchor * 1.01:
+                current.append(idx)
+            else:
+                if len(current) >= 2:
+                    groups.append(current)
+                current = [idx]
+                anchor = amt
+        if len(current) >= 2:
+            groups.append(current)
+        return groups
+
+    @staticmethod
+    def _behavior_time_groups(blocks: list[int]) -> list[list[int]]:
+        """Group buyer indices by same block or 1-block adjacency."""
+        if len(blocks) < 2:
+            return []
+        indexed = sorted(range(len(blocks)), key=lambda i: blocks[i])
+        groups: list[list[int]] = []
+        current: list[int] = []
+        prev_block = 0
+        for idx in indexed:
+            blk = blocks[idx]
+            if blk <= 0:
+                continue
+            if not current or blk - prev_block <= 1:
+                current.append(idx)
+            else:
+                if len(current) >= 2:
+                    groups.append(current)
+                current = [idx]
+            prev_block = blk
+        if len(current) >= 2:
+            groups.append(current)
+        return groups
+
+    @staticmethod
+    def _behavior_exact_groups(values: list[Any]) -> list[list[int]]:
+        """Group buyer indices by identical non-empty value (dex / compute)."""
+        by_value: dict[Any, list[int]] = defaultdict(list)
+        for idx, val in enumerate(values):
+            if val:
+                by_value[val].append(idx)
+        return [g for g in by_value.values() if len(g) >= 2]
+
+    def _behavior_cluster_from_indices(
+        self,
+        buyers: list,
+        indices: list[int],
+        amounts: list[float],
+        blocks: list[int],
+        dexes: list[str],
+        total_amount: float,
+    ) -> BehaviorCluster | None:
+        """Build a BehaviorCluster from a merged set of buyer indices."""
+        wallets = [str(getattr(buyers[i], "address", "")) for i in indices]
+        wallets = [w for w in wallets if w]
+        if len(wallets) < 2:
+            return None
+
+        cluster_amounts = [amounts[i] for i in indices if amounts[i] > 0]
+        cluster_blocks = [blocks[i] for i in indices if blocks[i] > 0]
+        cluster_dexes = {dexes[i] for i in indices if dexes[i]}
+
+        signals: set[str] = set()
+        if cluster_amounts and (max(cluster_amounts) / min(cluster_amounts)) <= 1.01:
+            signals.add("same_size")
+        if cluster_blocks and (max(cluster_blocks) - min(cluster_blocks)) <= 1:
+            signals.add("same_time")
+        if len(cluster_dexes) == 1:
+            signals.add("same_dex")
+
+        if len(signals) >= 2:
+            pattern = "mixed"
+        elif signals:
+            pattern = next(iter(signals))
+        else:
+            # Cluster formed via compute-budget similarity or a chain of
+            # different signals — treat as a mixed-pattern coordination.
+            pattern = "mixed"
+
+        combined_amount = sum(amounts[i] for i in indices)
+        combined_pct = round(combined_amount / total_amount * 100, 2)
+        confidence = self._behavior_confidence(pattern, len(wallets), cluster_blocks)
+
+        return BehaviorCluster(
+            wallets=wallets,
+            pattern=pattern,
+            combined_percentage=combined_pct,
+            confidence=confidence,
+        )
+
+    @staticmethod
+    def _behavior_confidence(pattern: str, size: int, blocks: list[int]) -> float:
+        """Confidence heuristic: pattern strength + cluster size + exact block."""
+        base = {
+            "same_size": 0.6,
+            "same_time": 0.7,
+            "same_dex": 0.5,
+            "mixed": 0.85,
+        }[pattern]
+        # Larger lockstep groups are more suspicious
+        base = min(0.95, base + 0.05 * max(0, size - 2))
+        # Identical (not just adjacent) block is a stronger timing signal
+        if blocks and len(set(blocks)) == 1:
+            base = min(0.98, base + 0.05)
+        return round(base, 3)
 
     def _analyze_compute_budgets(self, buyers: list) -> tuple[dict[str, int], int]:
         """Analyze Solana compute budget patterns to identify bot networks.
@@ -333,10 +660,16 @@ class BundleDetector:
         behavior_clusters: list,
         jito_count: int,
         bundled_pct: float,
+        graph_score: int = 0,
     ) -> tuple[int, str, list[str]]:
         """Calculate overall bundle risk score and warnings."""
         score = 0
         warnings = []
+
+        # Graph-based fraud patterns (fan-out / cycles / in-degree / temporal)
+        if graph_score > 0:
+            score += min(20, graph_score // 5)
+            warnings.append(f"GRAPH_FRAUD: graph pattern score {graph_score}/100")
 
         # Deployer-funded wallets (strongest signal)
         if deployer_funded:
@@ -358,8 +691,24 @@ class BundleDetector:
 
         # Behavior clusters
         if behavior_clusters:
-            score += min(15, len(behavior_clusters) * 5)
-            warnings.append(f"BEHAVIOR_CLUSTER: {len(behavior_clusters)} coordinated wallet groups detected")
+            # Clusters combining multiple patterns (e.g. same_size + same_time)
+            # are very high confidence — raise the contribution cap 15 → 25.
+            strong = [
+                c
+                for c in behavior_clusters
+                if (c.pattern == "mixed" and c.confidence >= 0.8)
+                or (c.pattern in ("same_size", "same_time") and c.confidence >= 0.7)
+            ]
+            base_pts = min(15, len(behavior_clusters) * 5)
+            if strong:
+                score += min(25, base_pts + len(strong) * 5)
+                warnings.append(
+                    f"BEHAVIOR_CLUSTER: {len(behavior_clusters)} coordinated groups "
+                    f"({len(strong)} high-confidence size/timing clusters)"
+                )
+            else:
+                score += base_pts
+                warnings.append(f"BEHAVIOR_CLUSTER: {len(behavior_clusters)} coordinated wallet groups detected")
 
         # Bundled percentage
         if bundled_pct > 20:
@@ -418,8 +767,20 @@ class BundleDetector:
 
         # Trace funding chains
         deployer_funded = []
+        graph_transfers: list[TransferEdge] = []
         for buyer in early_buyers:
             chain_trace = await self._trace_funding_chain(buyer.address, chain, max_depth=5, before_time=deploy_ts)
+            # Every funding step is a transfer: funder -> buyer
+            graph_transfers.extend(
+                TransferEdge(
+                    from_addr=step.address,
+                    to_addr=buyer.address,
+                    amount=step.amount,
+                    timestamp=step.timestamp,
+                    token=step.token,
+                )
+                for step in chain_trace
+            )
             chain_addrs = [step.address for step in chain_trace]
             if deployer in chain_addrs:
                 deployer_funded.append(
@@ -457,6 +818,33 @@ class BundleDetector:
         if is_solana(chain):
             compute_patterns, jito_count = self._analyze_compute_budgets(early_buyers)
 
+        # Graph-based fraud pattern analysis (fan-out / cycles / in-degree / temporal)
+        # Only meaningful once we have enough distinct wallets in the transfer graph.
+        graph_fraud_score = 0
+        graph_fraud_report: dict[str, object] | None = None
+        if len(early_buyers) >= MIN_GRAPH_WALLETS and graph_transfers:
+            try:
+                graph_result = get_fraud_graph().analyze(
+                    transfers=graph_transfers,
+                    token_address=token_address,
+                    chain=chain,
+                    launch_timestamp=deploy_ts or None,
+                )
+                graph_fraud_score = round(graph_result.fraud_graph_score)
+                graph_fraud_report = graph_result.to_dict()
+                if graph_fraud_score >= 50:
+                    logger.warning(
+                        "graph_fraud_alert",
+                        token_address=token_address,
+                        graph_score=graph_fraud_score,
+                        nodes=graph_result.node_count,
+                        edges=graph_result.edge_count,
+                    )
+            except Exception as e:
+                # Graph analysis is best-effort; never fail the whole bundle scan
+                logger.debug("graph_fraud_analysis_error", exc_info=True)
+                logger.warning(f"Graph fraud analysis failed for {token_address}: {e}")
+
         # Calculate totals
         total_bundled_pct = sum(b.buy_amount for b in deployer_funded)
         total_supply = sum(b.buy_amount for b in early_buyers) or 1
@@ -464,8 +852,34 @@ class BundleDetector:
 
         # Risk score
         risk_score, risk_level, warnings = self._calculate_risk(
-            deployer_funded, same_block, behavior_clusters, jito_count, total_bundled_pct
+            deployer_funded, same_block, behavior_clusters, jito_count, total_bundled_pct, graph_fraud_score
         )
+
+        # Cross-launch wallet correlation — repeat bundler detection.
+        # Records this launch's early buyers and cross-references them against
+        # wallets seen as early buyers in previous launches. Never breaks the
+        # bundle scan: failures degrade to an error payload.
+        cross_launch_flags: dict[str, Any] = {}
+        if early_buyers:
+            try:
+                from app.domains.scanners.engines.cross_launch_correlation import analyze_cross_launch
+
+                cross_launch_flags = await analyze_cross_launch(
+                    early_buyers=early_buyers,
+                    chain=chain,
+                    deploy_block=deploy_block,
+                    token_address=token_address,
+                )
+            except Exception as exc:  # pragma: no cover - defensive, never break bundle detection
+                logger.debug("cross_launch_correlation_failed: %s", exc)
+                cross_launch_flags = {"result": "error", "error": str(exc)[:200]}
+
+            repeat_count = int(cross_launch_flags.get("repeat_count", 0))
+            if repeat_count > 0:
+                warnings.append(
+                    f"CROSS_LAUNCH_REPEAT: {repeat_count} wallets matched repeat-bundler profile "
+                    f"(max {int(cross_launch_flags.get('max_wallet_launches', 0))} launches)"
+                )
 
         return BundleReport(
             token_address=token_address,
@@ -481,7 +895,10 @@ class BundleDetector:
             jito_bundles_detected=jito_count,
             risk_score=risk_score,
             risk_level=risk_level,
+            graph_fraud_score=graph_fraud_score,
+            graph_fraud_report=graph_fraud_report,
             warnings=warnings,
+            cross_launch_flags=cross_launch_flags,
         )
 
 
@@ -494,3 +911,4 @@ class _EarlyBuyer:
     compute_units: int = 0
     priority_fee: float = 0.0
     is_jito: bool = False
+    dex_route: str = ""
