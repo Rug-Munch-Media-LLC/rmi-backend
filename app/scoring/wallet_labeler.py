@@ -32,7 +32,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 from app.core.logging import get_logger
-from app.core.redis import get_redis_async
+from app.core.redis import get_redis_async  # type: ignore[import-untyped]
 
 logger = get_logger(__name__)
 
@@ -127,7 +127,8 @@ def _labels_key(chain: str, address: str) -> str:
 
 
 def _profile_key(chain: str, address: str) -> str:
-    return f"wallet:profile:{chain}:{address}"
+    """Redis key for wallet profile (reserved for future use)."""
+    return f"wallet:profile:{chain}:{address}"  # pragma: no cover
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -189,8 +190,8 @@ async def get_wallet_labels(chain: str, address: str) -> list[WalletLabel]:
         try:
             cex_labels = await _check_cex_patterns(chain, address, r)
             labels.extend(cex_labels)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("cex_pattern_check_failed", error=str(exc)[:80])
 
     # ── 4. OFAC sanctions ──
     if r:
@@ -207,8 +208,8 @@ async def get_wallet_labels(chain: str, address: str) -> list[WalletLabel]:
                         evidence={"sanctions_data": json.loads(ofac_raw)},
                     )
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("ofac_check_failed", error=str(exc)[:80])
 
     # ── 5. CSV wallet labels from wallet_label_loader ──
     if r:
@@ -231,8 +232,8 @@ async def get_wallet_labels(chain: str, address: str) -> list[WalletLabel]:
                         )
                     )
                     break  # Found a label, stop searching
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("csv_label_check_failed", error=str(exc)[:80])
 
     # ── Deduplicate by category ──
     seen = set()
@@ -393,10 +394,29 @@ async def is_known_good(address: str) -> bool:
     if addr_lower in _KNOWN_GOOD:
         return True
 
-    r = await _get_redis()
-    if r:
-        return bool(await r.sismember("deployer:known_good", addr_lower))
+    try:
+        r = await _get_redis()
+        if r:
+            return bool(await r.sismember("deployer:known_good", addr_lower))
+    except Exception as exc:
+        logger.debug("known_good_redis_check_failed", error=str(exc)[:80])
     return False
+
+
+async def _safe_is_known_scammer(address: str) -> bool:
+    """Check scammer status gracefully (no raise on Redis down)."""
+    try:
+        return await is_known_scammer(address)
+    except Exception:
+        return address.lower() in _KNOWN_SCAMMERS
+
+
+async def _safe_is_known_good(address: str) -> bool:
+    """Check good-actor status gracefully (no raise on Redis down)."""
+    try:
+        return await is_known_good(address)
+    except Exception:
+        return address.lower() in _KNOWN_GOOD
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -470,23 +490,28 @@ class WalletLabeler:
         return await get_wallet_labels(chain, address)
 
     async def get_deployer_labels(self, chain: str, address: str) -> dict[str, Any]:
-        """Get deployer labels + profile combined."""
-        labels = await get_wallet_labels(chain, address)
+        """Get deployer labels + profile combined. Graceful on Redis failure."""
+        try:
+            labels = await get_wallet_labels(chain, address)
+        except Exception as exc:
+            logger.debug("wallet_labels_redis_unavailable", error=str(exc)[:80])
+            labels = []
 
         # Also try deployer profile
+        profile = None
         try:
             from app.scoring.deployer_tracker import get_deployer_profile
 
             profile = await get_deployer_profile(chain, address)
-        except ImportError:
-            profile = None
+        except (ImportError, Exception) as exc:
+            logger.debug("deployer_profile_unavailable", error=str(exc)[:80])
 
         return {
             "address": address,
             "chain": chain,
             "labels": [lbl.to_dict() for lbl in labels],
-            "is_scammer": await is_known_scammer(address),
-            "is_good_actor": await is_known_good(address),
+            "is_scammer": await _safe_is_known_scammer(address),
+            "is_good_actor": await _safe_is_known_good(address),
             "deployer_profile": profile.to_dict() if profile else None,
             "queried_at": datetime.now(UTC).isoformat(),
         }
