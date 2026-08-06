@@ -85,6 +85,7 @@ PUBLIC_PREFIXES = (
     "/api/v1/rag/",  # RAG search & ask — public product feature (rate-limited)
     "/api/v1/rugmaps/",  # RugMaps token graph & entity analysis — public product feature
     "/api/v1/rugcharts/",  # RugCharts trending, OHLCV, token intelligence — public product feature
+    "/api/v1/bot/",  # Telegram bot API — public scan, ask, pulse endpoints (cross-platform connectivity)
     "/ws/",
 )
 

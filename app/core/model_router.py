@@ -21,31 +21,31 @@ class TaskType(Enum):
 ROUTING_TABLE = {
     TaskType.FAST: [
         ("gpt-oss-120b", "cerebras", 0.009, 0.0),  # 9ms, free
-        ("llama-3.3-70b", "groq", 0.1, 0.0),  # 100ms, free
+        ("meta-llama/llama-3.3-70b-instruct", "groq", 0.1, 0.0),  # 100ms, free
     ],
     TaskType.CHEAP: [
         ("qwen2.5-coder:7b", "ollama", 2.0, 0.0),  # 2s, free
-        ("mistral-small-latest", "mistral", 0.2, 0.0),  # 200ms, free
+        ("mistralai/mistral-small", "openrouter", 0.2, 0.0),  # 200ms, free via OpenRouter
     ],
     TaskType.COMPLEX: [
-        ("deepseek-v4-pro", "deepseek", 0.5, 0.55),  # 500ms, $0.55/1M input
-        ("mistral-medium-latest", "mistral", 0.3, 0.0),  # 300ms, free
+        ("deepseek/deepseek-v4-pro", "openrouter", 0.5, 0.55),  # 500ms, $0.55/1M input
+        ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # 300ms, cheap (fallback)
     ],
     TaskType.BULK: [
-        ("mistral-small-latest", "mistral", 0.2, 0.0),  # 200ms, free, 2M TPM
-        ("deepseek-v4-flash", "deepseek", 0.3, 0.14),  # 300ms, cheap
+        ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # 300ms, cheap
+        ("mistralai/mistral-small", "openrouter", 0.2, 0.0),  # 200ms, free
     ],
     TaskType.VISION: [
-        ("gemini-2.5-flash", "gemini", 0.3, 0.0),  # 300ms, free tier
+        ("google/gemini-2.5-flash", "openrouter", 0.3, 0.0),  # 300ms, free tier via OR
     ],
     TaskType.EMBED: [
-        ("mistral-embed", "mistral", 0.1, 0.0),  # 100ms, 20M TPM free
+        ("mistralai/mistral-embed", "openrouter", 0.1, 0.0),  # 100ms, free
         ("bge-m3", "infinity", 2.0, 0.0),  # 2s, local
     ],
     TaskType.CODE: [
-        ("deepseek-v4-flash", "deepseek", 0.3, 0.14),  # 300ms, cheap
+        ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # 300ms, cheap
         ("qwen2.5-coder:7b", "ollama", 2.0, 0.0),  # 2s, free
-        ("mistral-small-latest", "mistral", 0.2, 0.0),  # 200ms, free
+        ("mistralai/mistral-small", "openrouter", 0.2, 0.0),  # 200ms, free
     ],
 }
 
@@ -101,19 +101,11 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
 
 
 async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict:
-    """Call a specific provider. Returns dict or None."""
+    """Call a specific provider. Returns dict or None. Gracefully degrades."""
+    import httpx
+
     try:
-        if provider == "cerebras":
-            from app.core.cerebras_provider import cerebras_chat
-
-            return await cerebras_chat(prompt, **kwargs)
-        elif provider == "mistral":
-            from app.core.mistral_provider import mistral_chat
-
-            return await mistral_chat(prompt, model=model, **kwargs)
-        elif provider == "ollama":
-            import httpx
-
+        if provider == "ollama":
             async with httpx.AsyncClient(timeout=60) as c:
                 r = await c.post(
                     "http://localhost:11434/api/generate",
@@ -121,7 +113,65 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> No
                 )
                 if r.status_code == 200:
                     return {"response": r.json()["response"], "model": model, "provider": "ollama"}
-        # DeepSeek, Groq, Gemini handled via existing DataBus providers
-    except (AttributeError, ImportError, httpx.HTTPError):
+        elif provider == "deepseek":
+            from app.ai_router import chat_completion
+
+            result = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model=model,
+                temperature=kwargs.get("temperature", 0.7),
+                max_tokens=kwargs.get("max_tokens", 2048),
+            )
+            if result and "content" in result:
+                return {"response": result["content"], "model": result.get("model", model), "provider": "deepseek"}
+        elif provider == "mistral":
+            # Mistral free tier via OpenRouter path
+            from app.ai_router import chat_completion
+
+            result = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model=model,
+                temperature=kwargs.get("temperature", 0.7),
+                max_tokens=kwargs.get("max_tokens", 2048),
+            )
+            if result and "content" in result:
+                return {"response": result["content"], "model": result.get("model", model), "provider": "mistral"}
+        elif provider == "gemini":
+            try:
+                from app.ai_router import chat_completion
+
+                result = await chat_completion(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="google/gemini-2.5-flash",
+                    temperature=kwargs.get("temperature", 0.7),
+                    max_tokens=kwargs.get("max_tokens", 2048),
+                )
+                if result and "content" in result:
+                    return {"response": result["content"], "model": "gemini-2.5-flash", "provider": "gemini"}
+            except Exception:
+                # Fallback to Ollama
+                async with httpx.AsyncClient(timeout=60) as c:
+                    r = await c.post(
+                        "http://localhost:11434/api/generate",
+                        json={"model": "qwen3:4b", "prompt": prompt, "stream": False},
+                    )
+                    if r.status_code == 200:
+                        return {"response": r.json()["response"], "model": "qwen3:4b", "provider": "ollama"}
+        elif provider in ("cerebras", "groq"):
+            # Groq/Cerebras: route through OpenRouter which proxies to these
+            try:
+                from app.ai_router import chat_completion
+
+                result = await chat_completion(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=model,
+                    temperature=kwargs.get("temperature", 0.7),
+                    max_tokens=kwargs.get("max_tokens", 2048),
+                )
+                if result and "content" in result:
+                    return {"response": result["content"], "model": model, "provider": provider}
+            except Exception:
+                pass
+    except Exception:
         pass
     return None

@@ -256,6 +256,9 @@ ROUTER_MODULES: Final[list[str]] = [
     # Scanner Webhooks — zero-dependency event-based webhook system — mounted 2026-07-30
     "app.domains.scanner.webhooks.router",  # /api/v1/scanner/webhooks/* (4 routes)
     #
+    # Bot API — shared endpoints for Telegram bot (cross-platform connectivity) — mounted 2026-08-06
+    "app.routers.bot_api",  # /api/v1/bot/* (scan, ask, pulse, health)
+    #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
     #     with app.api.v1.mcp (already mounted at /mcp). Needs reconciliation.
