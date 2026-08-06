@@ -33,40 +33,44 @@ router = APIRouter(prefix="/api/v1", tags=["v1"])
 # (FastAPI handles prefix-based routing) - first match wins, so the
 # legacy stays until we explicitly remove it.
 
-from app.api.v1.auth.alerts import router as alerts_router
+from app.api.v1.auth.alerts import router as alerts_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(alerts_router)
 
-from app.api.v1.public.wallet import router as wallet_router
+from app.api.v1.public.wallet import router as wallet_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(wallet_router)
 
-from app.api.v1.public.token import router as token_router
+from app.api.v1.public.token import router as token_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(token_router)
 
-from app.api.v1.public.scanner import router as scanner_router
+from app.api.v1.public.scanner import router as scanner_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(scanner_router)
 
 # x402 moved to app.domains.x402 (T34 v2)
 # Old app/api/v1/x402/payments.py removed to avoid model conflicts
 
-from app.api.v1.rag.search import router as rag_v2_router
+from app.api.v1.rag.search import router as rag_v2_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(rag_v2_router)
 
-from app.api.v1.admin.alerts_webhook import router as admin_alerts_webhook_router
+from app.api.v1.admin.alerts_webhook import router as admin_alerts_webhook_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(admin_alerts_webhook_router)
 
-from app.api.v1.catalog import router as catalog_router
+from app.api.v1.catalog import router as catalog_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(catalog_router)
 
-from app.api.v1.agent.analyze import router as agent_router  # noqa: E402 — strangle pattern
+from app.api.v1.agent.analyze import router as agent_router  # noqa: E402 — strangler fig pattern
 
 api_v1_router.append(agent_router)
+
+from app.api.v1.ai.chart_analysis import router as ai_chart_router  # noqa: E402 — strangler fig pattern
+
+api_v1_router.append(ai_chart_router)
 
 
 def build_v1_router() -> APIRouter:

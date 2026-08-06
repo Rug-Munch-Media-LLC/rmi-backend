@@ -127,6 +127,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.api.v1.admin.glitchtip_test",  # /api/v1/_test/* (T07)
     "app.api.v1.catalog",  # /api/v1/catalog/*
     "app.api.v1.agent.analyze",  # /api/v1/agent/* (Pydantic AI agent fleet)
+    "app.api.v1.ai.chart_analysis",  # /api/v1/ai/chart-analysis (AI TA analysis via Qwen)
     "app.api.v1.mcp",  # /mcp/* (JSON-RPC + plain JSON)
     # Domain facades (per v4.0 T28-T34)
     "app.domains.news",  # /api/v1/news/*
@@ -233,6 +234,9 @@ ROUTER_MODULES: Final[list[str]] = [
     #
     # Rug Pull Rehab — mounted 2026-08-06
     "app.routers.rehab",  # /api/v1/rehab/* (1-on-1 recovery booking)
+    #
+    # AI Contract Analysis — RugMaps enhanced — mounted 2026-08-06
+    "app.routers.ai_analysis",  # /api/v1/ai/* (contract analysis via Qwen)
     #
     # Live gamification — mounted 2026-07-25
     "app.routers.live",  # /api/v1/live/* (battles, XP, challenges, achievements, events)
