@@ -353,8 +353,8 @@ async def get_pricing() -> dict:
             "price_monthly": monthly,
             "price_six_month": round(monthly * 0.9, 2),  # 10% off
             "price_yearly": round(monthly * 0.8, 2),  # 20% off
-            "scans_per_month": tier_id == "ELITE" and 5000 or (tier_id == "PRO" and 2000 or 500),
-            "api_calls_per_day": tier_id == "ELITE" and 25000 or (tier_id == "PRO" and 10000 or 2500),
+            "scans_per_month": (tier_id == "ELITE" and 5000) or ((tier_id == "PRO" and 2000) or 500),
+            "api_calls_per_day": (tier_id == "ELITE" and 25000) or ((tier_id == "PRO" and 10000) or 2500),
             "features": {
                 "STARTER": ["Basic token scans", "Risk scoring", "10 alerts/day", "Community access"],
                 "PRO": [

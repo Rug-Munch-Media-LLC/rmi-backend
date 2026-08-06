@@ -149,46 +149,55 @@ async def _passthrough_trending(**kwargs) -> dict | None:
 
 
 async def _passthrough_news(**kwargs) -> dict | None:
-    """News from our own backend — 200+ sources, quality-scored."""
-    try:
-        limit = kwargs.get("limit", 20)
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get(f"http://localhost:8000/api/v1/news/feed?limit={limit}")
-            if r.status_code == 200:
-                return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
-        logger.warning("provider error")
+    """News from our own Redis-cached aggregator — top 50 sources, instant.
 
-    # Fallback: try the domain POST endpoint
+    Reads directly from the Redis-backed news_provider.get_full_news_feed()
+    (always instant, refreshed every 5 min). Falls back to the HTTP endpoint
+    only if the provider module isn't available.
+    """
+    limit = kwargs.get("limit", 20)
+
+    # Primary: direct call to Redis-backed provider (instant)
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.post(
-                "http://localhost:8000/api/v1/news",
-                json={"limit": kwargs.get("limit", 20)},
-            )
+        from app.databus.news_provider import get_full_news_feed
+
+        data = await get_full_news_feed(limit=limit)
+        if data and data.get("headlines"):
+            return data
+    except (ImportError, Exception) as e:
+        logger.debug(f"Direct news provider failed: {e}")
+
+    # Fallback: HTTP passthrough to /api/v1/news/headlines (fast, reads cache)
+    try:
+        async with httpx.AsyncClient(timeout=8) as c:
+            r = await c.get(f"http://localhost:8000/api/v1/news/headlines?count={limit}")
             if r.status_code == 200:
                 data = r.json()
-                items = data.get("items", [])
-                return {
-                    "articles": [
-                        {
-                            "id": a.get("news_id", ""),
-                            "title": a.get("title", ""),
-                            "url": a.get("url", ""),
-                            "source": a.get("source", "RMI News"),
-                            "published_at": str(a.get("published_at", "")),
-                            "description": a.get("summary", ""),
-                            "category": "news",
-                            "sentiment": "neutral",
-                        }
-                        for a in items
-                    ],
-                    "total": len(items),
-                    "source": "rmi_news_fallback",
-                    "free": True,
-                }
+                hls = data.get("headlines", [])
+                if hls:
+                    return {
+                        "headlines": {
+                            "articles": [
+                                {
+                                    "id": h.get("title", ""),
+                                    "title": h.get("title", ""),
+                                    "url": h.get("url", ""),
+                                    "source": h.get("source", ""),
+                                    "published_at": str(h.get("published_at", "")),
+                                    "category": h.get("category", ""),
+                                    "sentiment": h.get("sentiment", "neutral"),
+                                }
+                                for h in hls
+                            ],
+                            "total": len(hls),
+                            "source": "rmi_news_aggregator",
+                            "free": True,
+                        },
+                        "source": "full_news_feed",
+                    }
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
-        logger.warning("news fallback also failed")
+        logger.warning("news passthrough failed")
+
     return None
 
 
