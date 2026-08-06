@@ -75,11 +75,11 @@ class BubbleMapsPro:
         """Generate a professional bubble map."""
         map_id = f"bubble_{center_wallet[:12]}_{int(datetime.now().timestamp())}"
         bubble_map = BubbleMap(
-            id=map_id,
+            map_id=map_id,
             center_wallet=center_wallet,
             depth=depth,
+            min_strength=min_strength,
             created_at=datetime.now(),
-            generated_at=_format_timestamp(datetime.now()),
         )
 
         # Fetch transactions at each depth level
