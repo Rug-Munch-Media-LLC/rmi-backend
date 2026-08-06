@@ -34,7 +34,8 @@ from app.models.analytics import (
     EngagementEvent,
     ViewEvent,
 )
-from app.models.label import Label
+from app.models.kv_migration import Bookmark, ChatMessage, IdentityMapping  # noqa: E402 — see Base above
+from app.models.label import Label  # noqa: E402 — see Base above
 from app.models.live import (
     AchievementDef,
     BattleGift,
@@ -57,12 +58,15 @@ __all__ = [
     "AlertSubscription",
     "AudienceFollower",
     "Base",
+    "BattleGift",
+    "Bookmark",
+    "Challenge",
+    "ChatMessage",
     "ContentPost",
     "CreatorProfile",
-    "EngagementEvent",
-    "BattleGift",
-    "Challenge",
     "CreatorStreak",
+    "EngagementEvent",
+    "IdentityMapping",
     "Label",
     # Newsletter models: import directly from app.domains.newsletter.models
     "LiveBattle",

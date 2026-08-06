@@ -222,6 +222,12 @@ ROUTER_MODULES: Final[list[str]] = [
     # DegenFeed protocol proxy — mounted 2026-07-24
     "app.routers.degenfeed_proxy",  # /api/v1/degenfeed/* (proxy, cache, rate limits)
     "app.routers.degenfeed_health",  # /api/v1/degenfeed/status (protocol health)
+    # DegenFeed KV storage gateway — mounted 2026-08-06 (Phase 1 KV→selfhosted)
+    # /api/v1/degenfeed/storage/* (Redis CACHE + Postgres SUBSCRIPTIONS/BOOKMARKS/API_KEYS)
+    "app.routers.degenfeed_storage",  # /api/v1/degenfeed/storage/* (KV gateway)
+    # DegenFeed KV migration — mounted 2026-08-06 (Phase 2 KV→selfhosted)
+    # /api/v1/{rate-limits,queue,sessions,chat-history,identities,bookmarks}/*
+    "app.api.v1.kv_migration",  # /api/v1/* (Redis + Postgres KV replacement)
     #
     # Live gamification — mounted 2026-07-25
     "app.routers.live",  # /api/v1/live/* (battles, XP, challenges, achievements, events)
