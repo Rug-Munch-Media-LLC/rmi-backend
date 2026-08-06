@@ -6,6 +6,7 @@ Rate-limited to ~5 req/sec total. Heavy caching. Never blocks on a single API.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
@@ -342,6 +343,293 @@ class UnifiedProvider:
         result = {"name": mint[:8], "symbol": "???", "source": "fallback"}
         await cache.set("meta", result, mint, ttl=600)
         return result
+
+    # ── DEX Parity: Full Token Data ───────────────────────
+
+    async def get_token_full(self, mint: str, chain: str = "solana") -> dict:
+        """
+        Get comprehensive token data matching DexScreener/DexTools quality.
+
+        Cascading priority:
+          1. Scanner cache (fastest, most complete)
+          2. GMGN (holder analysis, smart money, trades)
+          3. Birdeye (price, overview, security)
+          4. DexScreener (price, liquidity, volume — always available)
+          5. GeckoTerminal (OHLCV, trending)
+          6. Jupiter (price — Solana only)
+
+        Returns standardized TokenData model.
+        """
+        cache = self._get_cache()
+        cached = await cache.get("full", mint)
+        if cached:
+            return cached
+
+        result = {
+            "address": mint,
+            "chain": chain,
+            "name": "",
+            "symbol": "",
+            "price_usd": None,
+            "liquidity_usd": None,
+            "volume_24h": None,
+            "market_cap": None,
+            "fdv": None,
+            "holders": None,
+            "price_change_1h": None,
+            "price_change_24h": None,
+            "price_change_7d": None,
+            "trades_24h": None,
+            "buy_24h": None,
+            "sell_24h": None,
+            "created_at": None,
+            "dex": None,
+            "pair_address": None,
+            "security": None,
+            "top_holders": [],
+            "smart_money": None,
+            "ohlcv": [],
+            "source_chain": [],
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+        # Phase 1: Get metadata and basic price in parallel
+        meta_task = None
+        price_task = None
+        dex_task = None
+
+        try:
+            import asyncio
+
+            # Check scanner cache first (Redis)
+            scanner_data = await self._get_scanner_cache(mint, chain)
+            if scanner_data:
+                result.update(scanner_data)
+                result["source_chain"].append("scanner_cache")
+
+            # Fire parallel fetches
+            async def _fetch_dex():
+                return await self._fetch_dexscreener_full(mint, chain)
+
+            tasks = []
+            tasks.append(asyncio.create_task(self.get_token_metadata(mint)))
+            tasks.append(asyncio.create_task(self.get_token_price(mint)))
+            tasks.append(asyncio.create_task(_fetch_dex()))
+
+            meta, price, dex_data = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Merge metadata
+            if isinstance(meta, dict) and not isinstance(meta, Exception):
+                result["name"] = meta.get("name", result["name"])
+                result["symbol"] = meta.get("symbol", result["symbol"])
+
+            # Merge price
+            if isinstance(price, (int, float)) and price:
+                result["price_usd"] = float(price)
+
+            # Merge DexScreener data (most complete free source)
+            if isinstance(dex_data, dict) and not isinstance(dex_data, Exception):
+                for key in [
+                    "price_usd",
+                    "liquidity_usd",
+                    "volume_24h",
+                    "fdv",
+                    "market_cap",
+                    "price_change_1h",
+                    "price_change_24h",
+                    "created_at",
+                    "dex",
+                    "pair_address",
+                ]:
+                    if dex_data.get(key) is not None and result.get(key) is None:
+                        result[key] = dex_data[key]
+                result["source_chain"].append("dexscreener")
+
+            # Phase 2: Enrich with premium sources
+            # GMGN (holder analysis, smart money, trades)
+            try:
+                gmgn_data = await self._fetch_gmgn_enrichment(mint, chain)
+                if gmgn_data:
+                    for key in ["holders", "buy_24h", "sell_24h", "top_holders", "smart_money"]:
+                        if gmgn_data.get(key) is not None and result.get(key) is None:
+                            result[key] = gmgn_data[key]
+                    result["source_chain"].append("gmgn")
+            except Exception:
+                pass
+
+            # Birdeye (holder count, security)
+            try:
+                birdeye_data = await self._fetch_birdeye_enrichment(mint)
+                if birdeye_data:
+                    if birdeye_data.get("holders") and not result.get("holders"):
+                        result["holders"] = birdeye_data["holders"]
+                    if birdeye_data.get("security"):
+                        result["security"] = birdeye_data["security"]
+                    result["source_chain"].append("birdeye")
+            except Exception:
+                pass
+
+            # Phase 3: OHLCV from GeckoTerminal (free)
+            if not result.get("ohlcv"):
+                try:
+                    ohlcv = await self._fetch_geckoterminal_ohlcv(mint, chain)
+                    if ohlcv:
+                        result["ohlcv"] = ohlcv
+                        result["source_chain"].append("geckoterminal")
+                except Exception:
+                    pass
+
+            # Cache full result for 60s
+            await cache.set("full", result, mint, ttl=60)
+
+        except Exception as e:
+            logger.warning("get_token_full failed: %s", e)
+
+        return result
+
+    async def _get_scanner_cache(self, mint: str, chain: str) -> dict | None:
+        """Try to get data from existing scanner Redis cache."""
+        try:
+            import json
+
+            from app.core.redis import get_redis_async
+
+            r = get_redis_async()
+            if r:
+                raw = await r.get(f"sentinelscan:{chain}:{mint}")
+                if raw:
+                    data = json.loads(raw)
+                    return {
+                        "risk_score": data.get("risk_score"),
+                        "liquidity_usd": data.get("liquidity_usd"),
+                        "holders": data.get("total_holders", data.get("holder_count")),
+                        "security": {
+                            "is_honeypot": data.get("is_honeypot", data.get("is_potential_honeypot")),
+                            "is_mintable": data.get("is_mintable"),
+                            "is_renounced": data.get("is_renounced", data.get("is_mint_revoked")),
+                            "scam_probability": data.get("scam_probability"),
+                            "risk_flags": data.get("risk_flags", []),
+                            "green_flags": data.get("green_flags", []),
+                        },
+                        "top_holders": (data.get("top_holders") or [])[:20],
+                    }
+        except Exception:
+            pass
+        return None
+
+    async def _fetch_dexscreener_full(self, mint: str, chain: str) -> dict | None:
+        """Fetch full token data from DexScreener (free, unlimited)."""
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
+                if resp.status_code == 200:
+                    pairs = resp.json().get("pairs", [])
+                    if pairs:
+                        p = pairs[0]
+                        return {
+                            "name": p.get("baseToken", {}).get("name", ""),
+                            "symbol": p.get("baseToken", {}).get("symbol", ""),
+                            "price_usd": float(p.get("priceUsd", 0)),
+                            "liquidity_usd": float(p.get("liquidity", {}).get("usd", 0)),
+                            "volume_24h": float(p.get("volume", {}).get("h24", 0)),
+                            "fdv": float(p.get("fdv", 0)),
+                            "market_cap": float(p.get("marketCap", 0)),
+                            "price_change_1h": float(p.get("priceChange", {}).get("h1", 0)),
+                            "price_change_24h": float(p.get("priceChange", {}).get("h24", 0)),
+                            "created_at": p.get("pairCreatedAt"),
+                            "dex": p.get("dexId", ""),
+                            "pair_address": p.get("pairAddress", ""),
+                            "chain": p.get("chainId", chain),
+                        }
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("DexScreener full fetch failed: %s", e)
+        return None
+
+    async def _fetch_gmgn_enrichment(self, mint: str, chain: str) -> dict | None:
+        """Enrich with GMGN data if available."""
+        try:
+            from app.databus.gmgn_provider import get_gmgn_provider
+
+            gmgn = get_gmgn_provider()
+            holder_data = await gmgn.get_holder_analysis(mint, chain)
+            smart_money = await gmgn.get_smart_money(mint, chain)
+
+            result = {}
+            if holder_data and "error" not in holder_data:
+                result["holders"] = holder_data.get("total_holders")
+                result["top_holders"] = holder_data.get("top_holders", [])[:20]
+            if smart_money and "error" not in smart_money:
+                result["smart_money"] = smart_money
+            return result if result else None
+        except Exception:
+            return None
+
+    async def _fetch_birdeye_enrichment(self, mint: str) -> dict | None:
+        """Enrich with Birdeye data (holder count, security)."""
+        try:
+            if not self.birdeye:
+                return None
+            overview = await self.birdeye.get_token_overview(mint)
+            d = overview.get("data", {}) if isinstance(overview, dict) else {}
+            security = d.get("security", {})
+            return {
+                "holders": d.get("holder"),
+                "security": {
+                    "risk_score": security.get("risk_score"),
+                    "risk_level": security.get("risk_level"),
+                    "flags": security.get("flags", []),
+                },
+            }
+        except Exception:
+            return None
+
+    async def _fetch_geckoterminal_ohlcv(self, mint: str, chain: str = "solana", limit: int = 24) -> list[dict] | None:
+        """Fetch OHLCV data from GeckoTerminal (free, no auth)."""
+        try:
+            import httpx
+
+            network = "solana" if chain == "solana" else "eth"
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Get pool address first
+                resp = await client.get(
+                    f"https://api.geckoterminal.com/api/v2/networks/{network}/tokens/{mint}/pools",
+                    params={"limit": 1},
+                )
+                if resp.status_code != 200:
+                    return None
+                pools = resp.json().get("data", [])
+                if not pools:
+                    return None
+                pool_addr = pools[0].get("id", "")
+                if not pool_addr:
+                    return None
+
+                # Get OHLCV
+                ohlcv_resp = await client.get(
+                    f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pool_addr}/ohlcv/hour",
+                    params={"limit": limit},
+                )
+                if ohlcv_resp.status_code == 200:
+                    data = ohlcv_resp.json().get("data", {})
+                    attrs = data.get("attributes", {})
+                    ohlcv_list = attrs.get("ohlcv_list", [])
+                    if ohlcv_list:
+                        return [
+                            {
+                                "timestamp": c[0],
+                                "open": c[1],
+                                "high": c[2],
+                                "low": c[3],
+                                "close": c[4],
+                                "volume": c[5],
+                            }
+                            for c in ohlcv_list
+                        ]
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("GeckoTerminal OHLCV failed: %s", e)
+        return None
 
     # ── Cache Helper ───────────────────────────────────────
 

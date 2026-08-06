@@ -259,6 +259,15 @@ ROUTER_MODULES: Final[list[str]] = [
     # Bot API — shared endpoints for Telegram bot (cross-platform connectivity) — mounted 2026-08-06
     "app.routers.bot_api",  # /api/v1/bot/* (scan, ask, pulse, health)
     #
+    # Multi-Factor Token Rating + Deployer Detection — mounted 2026-08-06
+    "app.routers.scoring_router",  # /api/v1/scoring/* (rate, deployer, wallet)
+    #
+    # Live Trades API — real-time trade data with whale detection — mounted 2026-08-06
+    "app.routers.live_trades",  # /api/v1/trades/* (feed, stats, per-token trades)
+    #
+    # Token Launch Detection — new token discovery + auto-scan — mounted 2026-08-06
+    "app.routers.token_launches",  # /api/v1/launches/* (feed, alerts, scans, stats)
+    #
     # NOT YET MOUNTED (deferred):
     #   "app.routers.mcp_server" — routes (.well-known, /mcp/*, /tools, /news/*) conflict
     #     with app.api.v1.mcp (already mounted at /mcp). Needs reconciliation.
