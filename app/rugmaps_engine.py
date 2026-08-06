@@ -2,4 +2,4 @@
 
 from __future__ import annotations
 
-from app.domains.scanner.rugmaps_engine import *
+from app.domains.scanner.rugmaps import *

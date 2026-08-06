@@ -103,6 +103,7 @@ async def detect_clusters(req: ClusterRequest) -> Any:
     )
 
     return envelope(
+        success=True,
         data={
             "total_wallets": len(req.wallets),
             "clusters_found": len(clusters),
@@ -110,8 +111,6 @@ async def detect_clusters(req: ClusterRequest) -> Any:
             "intel_brief": brief,
         },
         source="wallet-clustering-engine",
-        freshness=datetime.datetime.now(UTC).isoformat(),
-        cache_ttl=60,
         confidence=brief.get("confidence", 0.5),
     )
 
@@ -131,10 +130,9 @@ async def trace_funding_path(req: FundingPathRequest) -> Any:
         data["note"] = "No path found within max_depth"
 
     return envelope(
+        success=True,
         data=data,
         source="wallet-clustering-engine",
-        freshness=datetime.datetime.now(UTC).isoformat(),
-        cache_ttl=120,
         confidence=0.7 if data["path_found"] else 0.3,
     )
 
@@ -168,14 +166,13 @@ async def scan_all() -> Any:
     brief = fusion.generate_intelligence_brief(brief_data)
 
     return envelope(
+        success=True,
         data={
             "clusters": cluster_dicts,
             "total_clusters": len(clusters),
             "intel_brief": brief,
         },
         source="wallet-clustering-engine",
-        freshness=datetime.datetime.now(UTC).isoformat(),
-        cache_ttl=60,
         confidence=brief.get("confidence", 0.5),
     )
 
@@ -315,10 +312,9 @@ async def get_rugmap_data(req: RugMapRequest) -> Any:
     data["fusion_brief"] = brief
 
     return envelope(
+        success=True,
         data=data,
         source="wallet-clustering-engine",
-        freshness=now.isoformat(),
-        cache_ttl=120,
         confidence=0.6 if node_count > 0 else 0.2,
     )
 
@@ -404,10 +400,9 @@ Be direct and avoid fluff."""
     breakdown["fusion_brief"] = brief
 
     return envelope(
+        success=True,
         data=breakdown,
         source="wallet-clustering-engine+ai",
-        freshness=datetime.datetime.now(UTC).isoformat(),
-        cache_ttl=300,
         confidence=min(1.0, breakdown.get("total_wallets_analyzed", 0) / 200),
     )
 
@@ -555,9 +550,8 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
             logger.warning(f"Bundle detection failed: {e}")
 
     return envelope(
+        success=True,
         data=result,
         source="wallet-clustering-engine+provider",
-        freshness=datetime.datetime.now(UTC).isoformat(),
-        cache_ttl=300,
         confidence=0.7 if result.get("total_holders", 0) > 0 else 0.3,
     )
