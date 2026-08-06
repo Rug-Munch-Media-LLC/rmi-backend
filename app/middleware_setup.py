@@ -444,6 +444,7 @@ def _try_register_csrf(app: FastAPI) -> None:
             "/api/v1/databus/webhooks/",  # External webhooks (Helius, Moralis, etc.) — no cookies
             "/api/v1/agent/",  # Pydantic AI agent fleet — service-to-service, no cookies
             "/api/v1/public/",  # Public scanner/wallet APIs — called by walletpress, bots, etc.
+            "/api/v2/scanner/",  # Unified scanner v2 — token/wallet scan, core product, called by curl/bots/MCP
             "/mcp/x402",
             "/x402/sandbox/",
             "/.well-known/x402",

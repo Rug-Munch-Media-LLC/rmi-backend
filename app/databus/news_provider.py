@@ -279,9 +279,22 @@ async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict
 
 
 async def get_full_news_feed(limit: int = 15, **kw) -> dict | None:
-    """Complete news page data: headlines + prices + fear/greed + trending + polymarket."""
-    brief = await get_market_brief()
-    news = await get_aggregated_news(limit=limit)
+    """Complete news page data: headlines + prices + fear/greed + trending + polymarket.
+
+    Runs market_brief and aggregated_news in parallel. News aggregation
+    (170+ RSS feeds) is time-boxed to 4s so the market_brief always
+    arrives — the frontend gracefully handles missing headlines.
+    """
+    import asyncio as _asyncio
+
+    brief_task = _asyncio.ensure_future(get_market_brief())
+    news_task = _asyncio.ensure_future(_asyncio.wait_for(get_aggregated_news(limit=limit), timeout=4.0))
+
+    brief = await brief_task
+    try:
+        news = await news_task
+    except (TimeoutError, Exception):
+        news = None
 
     return {
         "market_brief": brief,
