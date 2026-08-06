@@ -72,3 +72,82 @@ async def list_providers() -> dict[str, list]:
 async def list_models() -> dict:
     """List available models by tier."""
     return {"tiers": MODEL_TIERS}
+
+
+# ── Direct chat completion (used by app.routers.chat) ──
+
+
+async def chat_completion(
+    messages: list[dict[str, str]],
+    model: str | None = None,
+    tier: str = "T2",
+    temperature: float = 0.7,
+    max_tokens: int = 2048,
+) -> dict[str, Any]:
+    """Call the LLM API and return a chat completion.
+
+    Uses DeepSeek (preferred) or OpenRouter as fallback.
+    The response includes 'choices' with message content.
+    """
+    import json
+
+    import httpx
+
+    primary = PROVIDERS["deepseek"]
+    api_key = os.getenv(primary["key_env"], "")
+
+    if api_key:
+        url = primary["url"]
+        provider_key = api_key
+        provider_model = model or primary["model"]
+    else:
+        # Fallback to OpenRouter
+        fallback = PROVIDERS["openrouter"]
+        url = fallback["url"]
+        provider_key = os.getenv(fallback["key_env"], "")
+        provider_model = model or os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v4-flash")
+
+    if not provider_key:
+        from app.core.errors import ExternalAPIError
+
+        raise ExternalAPIError(message="AI provider key not configured. Set LLM_API_KEY or OPENROUTER_API_KEY.")
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            url,
+            json={
+                "model": provider_model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+            headers={
+                "Authorization": f"Bearer {provider_key}",
+                "Content-Type": "application/json",
+            },
+        )
+        if resp.status_code != 200:
+            from app.core.errors import ExternalAPIError
+
+            try:
+                detail = resp.json()
+            except Exception:
+                detail = resp.text[:500]
+            raise ExternalAPIError(message=f"AI provider returned {resp.status_code}: {detail}")
+
+        data = resp.json()
+        choices = data.get("choices", [])
+        content = ""
+        if choices and "message" in choices[0]:
+            content = choices[0]["message"].get("content", "")
+        return {
+            "id": data.get("id", "chat-unknown"),
+            "content": content,
+            "choices": choices,
+            "model": data.get("model", provider_model),
+            "usage": data.get("usage", {}),
+            "_provider": "deepseek"
+            if api_key == getattr(os, "environ", {}).get(primary["key_env"], "")
+            else "openrouter",
+            "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
+        }

@@ -445,6 +445,9 @@ def _try_register_csrf(app: FastAPI) -> None:
             "/api/v1/agent/",  # Pydantic AI agent fleet — service-to-service, no cookies
             "/api/v1/public/",  # Public scanner/wallet APIs — called by walletpress, bots, etc.
             "/api/v2/scanner/",  # Unified scanner v2 — token/wallet scan, core product, called by curl/bots/MCP
+            "/api/v1/chat",  # AI chat — public (anon users don't have cookies; rate-limited per IP)
+            "/api/v1/community-forensics/",  # Community forensics — public report submission
+            "/api/v1/stripe/",  # Stripe webhooks + checkout — no cookies
             "/mcp/x402",
             "/x402/sandbox/",
             "/.well-known/x402",

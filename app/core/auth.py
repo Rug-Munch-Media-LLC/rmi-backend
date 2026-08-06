@@ -83,6 +83,7 @@ PUBLIC_PREFIXES = (
     "/api/v1/subscription",  # Subscription creation (frontend: PricingPage.tsx)
     "/api/v1/scam-school/",  # Scam School — public education content (no API key needed)
     "/api/v1/rag/",  # RAG search & ask — public product feature (rate-limited)
+    "/api/v1/rugmaps/",  # RugMaps token graph & entity analysis — public product feature
     "/ws/",
 )
 

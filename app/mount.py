@@ -145,7 +145,7 @@ ROUTER_MODULES: Final[list[str]] = [
     # all prefixes non-conflicting with existing mounts.
     #
     # Routers (24) - total ~140 routes added:
-    "app.routers.bulletin",  # /api/v1/bulletin/*  (21 routes, supabase)
+    # "app.routers.bulletin",  # DISABLED: Supabase not configured — using Redis bulletin_board router instead
     "app.routers.bulletin_board",  # /api/v1/bulletin-board/*  (22 routes, app/bulletin_board.py)
     "app.routers.intelligence_router",  # /api/v1/intelligence/*  (19 routes, n8n-fed)
     "app.routers.intelligence_panel",  # /api/v1/intelligence/*  (4 routes, /feed /latest /crypto-fear-index)
@@ -162,6 +162,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.rugmaps_router",  # /api/v1/rugmaps/*  (7 routes, RugMaps viz)
     "app.routers.mev_advisory",  # /api/v1/mev-advisory/*  (2 routes, MEV warning)
     "app.routers.impersonation_detector",  # /api/v1/impersonation/*  (1 route, forensics)
+    "app.routers.community_forensics_router",  # /api/v1/community-forensics/*  (7 routes, community forensics: reports, leaderboard, graph verify, cross-chain correlation)
     "app.routers.rug_recovery",  # /api/v1/rug-recovery/*  (2 routes, recovery indexer)
     "app.routers.laundry_matcher",  # /api/v1/laundry-matcher/*  (2 routes, copycat detect)
     "app.routers.death_clock",  # /api/v1/death-clock/*  (1 route, Token Death Clock)
