@@ -148,6 +148,29 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     else:
         log.info("webhook_engine_disabled")
 
+    # 10. Background news cache — seeds on startup, refreshes every 5 min.
+    #    This fixes the "headlines: null" issue by always serving from Redis.
+    news_refresh_task = None
+    try:
+        import asyncio as _asyncio
+
+        from app.databus.news_provider import refresh_news_cache
+
+        async def _news_cache_loop() -> None:
+            """Run news cache refresh immediately, then every 5 minutes."""
+            await _asyncio.sleep(5)  # Let app start first
+            while True:
+                try:
+                    await refresh_news_cache()
+                except Exception as exc:
+                    log.warning("news_cache_refresh_failed err=%s", exc)
+                await _asyncio.sleep(300)  # 5 minutes
+
+        news_refresh_task = _asyncio.create_task(_news_cache_loop())
+        log.info("news_cache_background_started")
+    except Exception as exc:
+        log.warning("news_cache_start_failed err=%s", exc)
+
     yield
 
     # -- Shutdown --------------------------------------------------------------
@@ -182,6 +205,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             log.info("webhook_engine_shutdown")
         except Exception as exc:
             log.warning("webhook_engine_stop_failed err=%s", exc)
+
+    # News cache background task shutdown
+    if news_refresh_task is not None:
+        try:
+            news_refresh_task.cancel()
+            log.info("news_cache_background_cancelled")
+        except Exception as exc:
+            log.debug("news_cache_cancel_failed err=%s", exc)
 
     try:
         from app.core.langfuse import flush_langfuse

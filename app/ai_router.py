@@ -89,7 +89,6 @@ async def chat_completion(
     Uses DeepSeek (preferred) or OpenRouter as fallback.
     The response includes 'choices' with message content.
     """
-    import json
 
     import httpx
 

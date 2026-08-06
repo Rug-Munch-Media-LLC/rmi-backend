@@ -128,9 +128,32 @@ def _make_comment_id(article_id: str, content: str) -> str:
 
 
 async def _refresh_cache(include_rss: bool, include_reddit: bool, include_internal: bool) -> None:
-    """Background cache refresh task."""
+    """Background cache refresh task — delegates to Redis-backed news_provider."""
     global _NEWS_CACHE, _CACHE_TS
     try:
+        from app.databus.news_provider import refresh_news_cache as redis_refresh, _redis_get, NEWS_CACHE_KEY
+
+        # Primary: use the Redis-backed refresh (populates Redis + returns data)
+        data = await redis_refresh()
+        if data and data.get("headlines"):
+            hls = data["headlines"]
+            articles = hls.get("articles", []) if isinstance(hls, dict) else []
+            if articles:
+                # Convert to the format expected by the router
+                _NEWS_CACHE = {
+                    "status": "success",
+                    "articles": articles,
+                    "total": len(articles),
+                    "sources": sorted({a.get("source", "") for a in articles}),
+                    "source_count": len({a.get("source", "") for a in articles}),
+                    "sentiment_summary": {},
+                    "tiers": sorted({a.get("tier", "news") for a in articles}),
+                }
+                _CACHE_TS = datetime.now(UTC)
+                logger.info(f"News cache refreshed via Redis: {len(articles)} articles")
+                return
+
+        # Fallback: try the old news_service path
         from app.domains.news.news_service import get_news_service
 
         svc = get_news_service()
@@ -143,7 +166,7 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
         _NEWS_CACHE = result
         _CACHE_TS = datetime.now(UTC)
         logger.info(
-            f"News cache refreshed: {result.get('total', 0)} articles from {result.get('source_count', 0)} sources"
+            f"News cache refreshed (legacy): {result.get('total', 0)} articles from {result.get('source_count', 0)} sources"
         )
     except Exception as e:
         logger.warning(f"Background news refresh failed: {e}")
@@ -599,14 +622,62 @@ async def get_headlines(
 ) -> dict[str, Any]:
     """Top headlines only - fast, lightweight.
 
-    Always serves from in-memory cache (never triggers a full fetch).
-    If cache is empty, returns an empty headline list immediately.
+    Reads from Redis cache first (populated by background task every 5 min),
+    falls back to in-memory cache, then triggers background refresh.
     """
     global _NEWS_CACHE, _CACHE_TS
 
+    # Check Redis cache first (cross-worker, always populated by lifespan)
+    redis_articles = None
+    try:
+        from app.databus.news_provider import _redis_get, NEWS_CACHE_KEY
+
+        redis_data = await _redis_get(NEWS_CACHE_KEY)
+        if redis_data and redis_data.get("headlines"):
+            hls = redis_data["headlines"]
+            redis_articles = hls.get("articles", []) if isinstance(hls, dict) else []
+    except Exception:
+        pass  # Redis unavailable, fall through
+
+    # Use Redis data if available (preferred over in-memory)
+    if redis_articles:
+        # Synchronize in-memory cache too
+        _NEWS_CACHE = {
+            "status": "success",
+            "articles": redis_articles,
+            "total": len(redis_articles),
+            "sources": sorted({a.get("source", "") for a in redis_articles}),
+            "source_count": len({a.get("source", "") for a in redis_articles}),
+            "sentiment_summary": {},
+            "tiers": sorted({a.get("tier", "news") for a in redis_articles}),
+        }
+        _CACHE_TS = datetime.now(UTC)
+
+        articles = redis_articles
+        if category:
+            articles = [a for a in articles if a.get("category", "").lower() == category.lower()]
+        articles = articles[:count]
+
+        return {
+            "headlines": [
+                {
+                    "title": a.get("title", ""),
+                    "url": a.get("url", ""),
+                    "source": a.get("source", ""),
+                    "published_at": a.get("published_at", ""),
+                    "category": a.get("category", ""),
+                    "sentiment": a.get("sentiment", ""),
+                    "kind": a.get("kind", ""),
+                }
+                for a in articles
+            ],
+            "count": len(articles),
+            "cached": True,
+            "source": "redis",
+        }
+
+    # Fallback to in-memory cache (legacy path)
     # Never trigger a full fetch from this endpoint — it's meant to be fast.
-    # If the cache exists, use it (even if stale). If not, return empty and
-    # trigger a background refresh so the cache is seeded for the next call.
     if _NEWS_CACHE:
         result = _NEWS_CACHE
         # Trigger background refresh if stale

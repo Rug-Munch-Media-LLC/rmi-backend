@@ -20,12 +20,11 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.core.errors import NotFoundError, ValidationError
+from app.core.errors import NotFoundError
 from app.core.logging import get_logger
 from app.workers.community_forensics_worker import CommunityForensicsWorker
 

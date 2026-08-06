@@ -185,6 +185,7 @@ ROUTER_MODULES: Final[list[str]] = [
     #
     # Wire-in Wave 3 — AUDIT-2026-Q3.md Phase 2.3 — mounted 2026-07-07.
     "app.routers.unified_scanner_router",  # /api/v2/scanner/{token,wallet}/scan  (2 routes, v2 scanner).
+    "app.routers.scanner_data_router",  # /api/v2/scanner/token/{price,holders,liquidity,risk,full}/{chain}/{address}  (5 routes, cached scanner data for RugCharts/RugMaps/Portfolio).
     #
     # DEFERRED Wave 3 (2):
     #   "app.routers.unified_wallet_scanner" — NO `router` APIRouter attribute.

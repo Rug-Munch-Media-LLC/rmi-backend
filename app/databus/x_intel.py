@@ -645,11 +645,67 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
             errors.append(f"search: {e}")
 
     if not all_posts:
+        # ── Fallback: return trending tokens + market sentiment ──
+        fallback_stories = []
+        try:
+            from app.databus.news_provider import get_trending_coins, get_fear_greed
+
+            trending = await get_trending_coins()
+            fear = await get_fear_greed()
+
+            if trending and trending.get("trending"):
+                for i, coin in enumerate(trending["trending"][:10]):
+                    fallback_stories.append(
+                        {
+                            "rank": i + 1,
+                            "text": f"Trending: {coin.get('name', '')} ({coin.get('symbol', '')}) — "
+                            f"Market Cap Rank #{coin.get('market_cap_rank', 'N/A')}, "
+                            f"CoinGecko score: {coin.get('score', 'N/A')}",
+                            "author_handle": "coingecko",
+                            "author_name": "CoinGecko Trending",
+                            "category": "market",
+                            "ct_score": 5.0,
+                            "engagement": {"likes": 0, "retweets": 0, "replies": 0},
+                            "url": "https://www.coingecko.com/",
+                            "time": datetime.now(UTC).isoformat(),
+                        }
+                    )
+
+            if fear:
+                fallback_stories.append(
+                    {
+                        "rank": len(fallback_stories) + 1,
+                        "text": f"Fear & Greed Index: {fear['value']}/100 — {fear['classification']}",
+                        "author_handle": "alternative_me",
+                        "author_name": "Crypto Fear & Greed Index",
+                        "category": "market",
+                        "ct_score": 4.0,
+                        "engagement": {"likes": 0, "retweets": 0, "replies": 0},
+                        "url": "https://alternative.me/crypto/fear-and-greed-index/",
+                        "time": datetime.now(UTC).isoformat(),
+                    }
+                )
+        except Exception:
+            pass
+
         return {
-            "error": "No posts retrieved from any method",
+            "rundown": fallback_stories,
+            "total_fetched": 0,
+            "total_selected": len(fallback_stories),
+            "ai_summary": (
+                "X/Twitter scraping is currently unavailable. Showing CoinGecko trending coins "
+                "and market sentiment instead."
+            )
+            if fallback_stories
+            else "No data available at this time.",
+            "source_method": "fallback_trending",
+            "categories_represented": ["market"],
+            "accounts_tracked": 0,
+            "generated_at": datetime.now(UTC).isoformat(),
+            "source": "ct_rundown",
+            "note": "X/Twitter unavailable — showing market data",
             "methods_tried": ["xurl_oauth", "cookie_scrape", "web_scrape", "xurl_search"],
             "errors": errors,
-            "source": "ct_rundown",
         }
 
     # ── Score posts ──
