@@ -51,6 +51,20 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
         ],
     )
 
+    # ── Scam Database Lookup ──
+    chains["scam_database"] = ProviderChain(
+        data_type="scam_database",
+        description="Known scam database lookup — RAG search against scam_intel + known_scams collections",
+        providers=[
+            Provider(
+                "local_rag_scam_db",
+                ProviderTier.LOCAL,
+                _g["_passthrough_rag"],
+                weight=10.0,
+            ),
+        ],
+    )
+
     chains["spl_token_metadata"] = ProviderChain(
         data_type="spl_token_metadata",
         description="Raw SPL token metadata decoder",
