@@ -513,6 +513,7 @@ async def rugcharts_trending(
         }
 
     return envelope(
+        success=True,
         data={
             "tokens": tokens[:limit],
             "count": len(tokens),
@@ -520,9 +521,6 @@ async def rugcharts_trending(
             "fallback_used": fallback_used,
         },
         source="dexscreener",
-        freshness=now.isoformat(),
-        cache_ttl=120,
-        fallback_used=fallback_used,
         confidence=0.5 if not fallback_used else 0.25,
     )
 
@@ -594,6 +592,7 @@ async def rugcharts_ohlcv(
     }
 
     return envelope(
+        success=True,
         data={
             "candles": candles,
             "summary": summary,
@@ -605,9 +604,6 @@ async def rugcharts_ohlcv(
             "fallback_used": not bool(candles),
         },
         source="geckoterminal+coingecko",
-        freshness=now.isoformat(),
-        cache_ttl=300,
-        fallback_used=not bool(candles),
         confidence=fused_price.get("confidence", 0.3),
     )
 
@@ -745,6 +741,7 @@ async def rugcharts_intel(
     intel_brief = fusion.generate_intelligence_brief(fused_risk)
 
     return envelope(
+        success=True,
         data={
             "pair_info": pair_info,
             "rug_score": rug_score,
@@ -757,8 +754,5 @@ async def rugcharts_intel(
             "fallback_used": not bool(pair_info),
         },
         source="geckoterminal+dexscreener+datafusion",
-        freshness=now.isoformat(),
-        cache_ttl=300,
-        fallback_used=not bool(pair_info),
         confidence=fused_risk.get("confidence", 0.3),
     )

@@ -28,9 +28,9 @@ class RugMapsRequest(BaseModel):
 
 def _get_rm() -> Any:
     try:
-        from app.domains.scanner.rugmaps_engine import get_rugmaps_engine
+        from app.domains.scanner.rugmaps import get_bubble_maps_pro
 
-        return get_rugmaps_engine()
+        return get_bubble_maps_pro()
     except ImportError as e:
         raise ServiceUnavailableError(f"Module unavailable: {e}") from e
 
