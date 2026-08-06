@@ -115,15 +115,17 @@ async def rate_token(req: RateTokenRequest) -> dict[str, Any]:
 
         # ── 2. Resolve real deployer ──
         deployer_info: dict[str, Any] | None = None
-        try:
-            tracker = DeployerTracker()
-            claimed_deployer = None
-            if req.token_data:
-                dev = req.token_data.get("dev_reputation", req.token_data.get("deployer", {}))
-                if isinstance(dev, dict):
-                    claimed_deployer = dev.get("deployer_address", dev.get("address"))
+        claimed_deployer: str | None = None
+        if req.token_data:
+            dev = req.token_data.get("dev_reputation", req.token_data.get("deployer", {}))
+            if isinstance(dev, dict):
+                val = dev.get("deployer_address", dev.get("address"))
+                if isinstance(val, str):
+                    claimed_deployer = val
 
-            if claimed_deployer:
+        if claimed_deployer:
+            try:
+                tracker = DeployerTracker()
                 resolved = await tracker.track(
                     token_address=req.address,
                     chain=req.chain,
@@ -136,9 +138,9 @@ async def rate_token(req: RateTokenRequest) -> dict[str, Any]:
                     "is_factory": resolved.is_factory,
                     "factory_name": resolved.factory_name,
                 }
-        except Exception as exc:
-            logger.warning("deployer_resolve_failed_in_rate", error=str(exc)[:100])
-            deployer_info = None
+            except Exception as exc:
+                logger.warning("deployer_resolve_failed_in_rate", error=str(exc)[:100])
+                deployer_info = None
 
         # ── 3. Get wallet labels ──
         wallet_labels: list[dict[str, Any]] | None = None
@@ -193,13 +195,18 @@ async def get_deployer(chain: str, address: str) -> dict[str, Any]:
         is_factory = resolved.get("is_factory", False)
         real_deployer = resolved.get("real_deployer") if is_factory else None
 
-        # Get profile
+        # Get profile (graceful on Redis failure)
         lookup_address = real_deployer if real_deployer and is_factory else address
-        profile = await get_deployer_profile(chain, lookup_address)
+        try:
+            profile = await get_deployer_profile(chain, lookup_address)
+            profile_dict = profile.to_dict() if profile else None
+        except Exception as exc:
+            logger.debug("deployer_profile_redis_unavailable", error=str(exc)[:80])
+            profile_dict = None
 
         return {
             "success": True,
-            "profile": profile.to_dict() if profile else None,
+            "profile": profile_dict,
             "is_factory": is_factory,
             "real_deployer": real_deployer,
         }
