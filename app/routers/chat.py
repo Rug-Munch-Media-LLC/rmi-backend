@@ -32,7 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.ai_router import router as ai_router
+from app.ai_router import chat_completion as do_chat_completion
 from app.auth import get_current_user, require_auth
 from app.core.errors import AuthorizationError, ExternalAPIError
 from app.core.logging import get_logger
@@ -318,7 +318,7 @@ async def chat(
     response: Response,
     user: dict | None = Depends(get_current_user),
     _: None = Depends(chat_rate_limit),
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Send a message and get an AI response (non-streaming)."""
     user_id = user.get("id", "anon") if user else "anon"
 
@@ -349,7 +349,7 @@ async def chat(
     _save_message(user_id, "user", req.message)
 
     try:
-        result = await ai_router.chat_completion(
+        result = await do_chat_completion(
             messages=messages,
             model=req.model,
             tier=req.tier,

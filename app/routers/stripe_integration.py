@@ -331,3 +331,144 @@ async def customer_portal(customer_id: str = "") -> dict | Any:
         return {"portal_url": session.url}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)[:200]})
+
+
+# ── Frontend compat endpoints (rmi-frontend/src/pages/PricingPage.tsx) ──
+
+
+@router.get("/pricing")
+async def get_pricing() -> dict:
+    """Pricing page data — frontend-compatible format.
+
+    Used by: rmi-frontend/src/pages/PricingPage.tsx
+    Expected format: { tiers: { ... }, discounts: { ... }, crypto_chains: [...], enterprise_contact: "..." }
+    """
+    tiers = {}
+    for k, v in SUBSCRIPTION_TIERS.items():
+        tier_id = k.replace("_monthly", "").upper()
+        monthly = v["price_usd"] / 100  # cents to dollars
+        tiers[tier_id] = {
+            "id": tier_id,
+            "name": v["label"].split(" - ")[0] if " - " in v["label"] else v["label"],
+            "price_monthly": monthly,
+            "price_six_month": round(monthly * 0.9, 2),  # 10% off
+            "price_yearly": round(monthly * 0.8, 2),  # 20% off
+            "scans_per_month": tier_id == "ELITE" and 5000 or (tier_id == "PRO" and 2000 or 500),
+            "api_calls_per_day": tier_id == "ELITE" and 25000 or (tier_id == "PRO" and 10000 or 2500),
+            "features": {
+                "STARTER": ["Basic token scans", "Risk scoring", "10 alerts/day", "Community access"],
+                "PRO": [
+                    "Everything in Starter",
+                    "Advanced forensics tools",
+                    "100 alerts/day",
+                    "Wallet clustering",
+                    "Whale alerts",
+                    "Priority support",
+                ],
+                "ELITE": [
+                    "Everything in Pro",
+                    "API access (25k/day)",
+                    "Unlimited alerts",
+                    "Cross-chain tracing",
+                    "Arkham + Nansen intel",
+                    "Enterprise support",
+                    "Custom integrations",
+                ],
+            }.get(tier_id, []),
+            "kind": "recurring",
+            "category": "subscription",
+        }
+
+    addon_bot = {
+        "TELEGRAM_BOT": {
+            "id": "TELEGRAM_BOT",
+            "name": "Telegram Bot Access",
+            "price_monthly": 9.99,
+            "price_six_month": 8.99,
+            "price_yearly": 7.99,
+            "features": ["Real-time alerts via @rugmunchbot", "Inline token scans", "Custom watchlists"],
+            "kind": "recurring",
+        }
+    }
+
+    return {
+        "tiers": tiers,
+        "addons": addon_bot,
+        "all_products": {**tiers, **addon_bot},
+        "discounts": {"six_month": 10, "yearly": 20},
+        "crypto_chains": [
+            {"id": "solana", "name": "Solana", "symbol": "SOL"},
+            {"id": "ethereum", "name": "Ethereum", "symbol": "ETH"},
+            {"id": "base", "name": "Base", "symbol": "ETH"},
+            {"id": "bsc", "name": "BNB Chain", "symbol": "BNB"},
+            {"id": "arbitrum", "name": "Arbitrum", "symbol": "ETH"},
+            {"id": "polygon", "name": "Polygon", "symbol": "MATIC"},
+        ],
+        "enterprise_contact": "admin@rugmunch.io",
+        "stripe_configured": STRIPE_ENABLED,
+        "publishable_key": STRIPE_PUBLISHABLE_KEY or "",
+    }
+
+
+class SubscriptionCreateRequest(BaseModel):
+    tier: str = "STARTER"
+    period: str = "monthly"
+    payment_method: str = "card"
+    crypto_chain: str = ""
+    email: str = ""
+    api_key: str = ""
+
+
+@router.post("/subscription/create")
+async def create_subscription(req: SubscriptionCreateRequest) -> dict:
+    """Create a subscription/checkout session — frontend-compatible.
+
+    Used by: rmi-frontend/src/pages/PricingPage.tsx
+    """
+    tier_key = f"{req.tier.lower()}_{req.period}" if req.period != "monthly" else f"{req.tier.lower()}_monthly"
+
+    if tier_key not in SUBSCRIPTION_TIERS:
+        # Fallback: try monthly tier
+        tier_key = f"{req.tier.lower()}_monthly"
+
+    if tier_key not in SUBSCRIPTION_TIERS:
+        raise HTTPException(status_code=400, detail=f"Unknown tier: {req.tier}/{req.period}")
+
+    tier_info = SUBSCRIPTION_TIERS[tier_key]
+
+    if not STRIPE_ENABLED:
+        return {
+            "status": "pending",
+            "message": "Stripe payments coming soon. Check back in a few days.",
+            "tier": req.tier,
+            "period": req.period,
+            "amount_usd": tier_info["price_usd"],
+        }
+
+    try:
+        import stripe
+
+        stripe.api_key = STRIPE_SECRET_KEY
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {"name": f"RMI {req.tier} - {req.period}"},
+                        "unit_amount": tier_info["price_usd"],
+                        "recurring": {"interval": "month"},
+                    },
+                    "quantity": 1,
+                }
+            ],
+            success_url="https://rugmunch.io/account?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://rugmunch.io/pricing",
+            customer_email=req.email or None,
+            metadata={"api_key": req.api_key, "tier": req.tier, "period": req.period},
+        )
+        return {"checkout_url": session.url, "status": "ok"}
+    except Exception as e:
+        logger.error(f"subscription_create_failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Stripe checkout failed: {e}")
