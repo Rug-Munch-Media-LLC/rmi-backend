@@ -231,6 +231,9 @@ ROUTER_MODULES: Final[list[str]] = [
     # /api/v1/{rate-limits,queue,sessions,chat-history,identities,bookmarks}/*
     "app.api.v1.kv_migration",  # /api/v1/* (Redis + Postgres KV replacement)
     #
+    # Rug Pull Rehab — mounted 2026-08-06
+    "app.routers.rehab",  # /api/v1/rehab/* (1-on-1 recovery booking)
+    #
     # Live gamification — mounted 2026-07-25
     "app.routers.live",  # /api/v1/live/* (battles, XP, challenges, achievements, events)
     #

@@ -67,7 +67,7 @@ def _r() -> Any:
     )
 
 
-async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]:
+async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list[dict], bool]:
     """Fetch trending tokens from DexScreener with real price data."""
     cache_key = f"rugcharts:trending:{chain}:{limit}"
     try:
@@ -75,7 +75,7 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> list[dict]
         cached = r.get(cache_key)
         if cached:
             r.close()
-            return json.loads(cached)
+            return json.loads(cached), False
         r.close()
     except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
         logger.debug(f"Redis cache read failed for {cache_key}: {e}")
@@ -619,7 +619,6 @@ async def rugcharts_intel(
     and TA predictions through the DataFusion engine for a consolidated
     intelligence brief with confidence scoring.
     """
-    now = datetime.datetime.now(datetime.UTC)
     pair_info = await _fetch_pair_info(pair_address, chain)
     candles = await _fetch_ohlcv_gecko(pair_address, chain, "1h", 48)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
