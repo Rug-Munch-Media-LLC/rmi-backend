@@ -438,7 +438,7 @@ def _try_register_csrf(app: FastAPI) -> None:
         _X402_CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
             "/api/v1/x402/",
             "/api/v1/x402-databus/",
-            "/api/v1/bulletin-board/x402/",
+            "/api/v1/bulletin-board/",  # Bulletin board — public REST API (auth via Bearer token header, not cookies)
             "/api/v1/developer/",
             "/api/v1/databus/fetch",  # DataBus universal fetch — used by frontend MCP + authenticated clients
             "/api/v1/databus/webhooks/",  # External webhooks (Helius, Moralis, etc.) — no cookies

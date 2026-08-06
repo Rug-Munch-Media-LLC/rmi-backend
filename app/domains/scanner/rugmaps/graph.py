@@ -49,6 +49,7 @@ async def add_or_update_node(
 
     node = BubbleNode(
         id=node_id,
+        address=node_id,
         label=label,
         type=node_type,
         layer=layer,
@@ -84,6 +85,7 @@ async def add_center_node(bubble_map: BubbleMap, address: str, transactions: lis
 
     node = BubbleNode(
         id=address,
+        address=address,
         label=f"{address[:8]}...{address[-4:]}",
         type=node_type,
         layer=0,
