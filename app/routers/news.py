@@ -337,21 +337,43 @@ async def get_news_feed(
         if _NEWS_CACHE and not refresh:
             result = _NEWS_CACHE
             # Background refresh
-            asyncio.create_task(_refresh_cache(include_rss, include_reddit, include_internal))
+            _ = asyncio.create_task(_refresh_cache(include_rss, include_reddit, include_internal))  # noqa: RUF006
         else:
-            # First load or forced refresh - fetch inline but with limits
+            # First load or forced refresh - fetch inline but with timeout
             try:
                 from app.domains.news.news_service import get_news_service
 
                 svc = get_news_service()
-                result = await svc.fetch_all(
-                    limit=200,
-                    include_rss=include_rss,
-                    include_reddit=include_reddit,
-                    include_internal=include_internal,
+                # Time-box the inline fetch so a slow external RSS feed
+                # (170+ sources) cannot stall the request. RSS/Reddit are
+                # the heaviest sources; if one of them hangs the gather
+                # blocks the entire request. 12s gives enough time for
+                # fast sources (CoinGecko, CryptoPanic, Ghost, scanner)
+                # while cutting off hung RSS fetches.
+                result = await asyncio.wait_for(
+                    svc.fetch_all(
+                        limit=200,
+                        include_rss=include_rss,
+                        include_reddit=include_reddit,
+                        include_internal=include_internal,
+                    ),
+                    timeout=12.0,
                 )
                 _NEWS_CACHE = result
                 _CACHE_TS = datetime.now(UTC)
+            except TimeoutError:
+                logger.warning("News fetch_all timed out after 12s — serving empty feed")
+                result = {
+                    "status": "success",
+                    "articles": [],
+                    "total": 0,
+                    "sources": [],
+                    "source_count": 0,
+                    "sentiment_summary": {},
+                    "tiers": [],
+                    "cached": False,
+                    "fetched_at": datetime.now(UTC).isoformat(),
+                }
             except Exception as e:
                 logger.error(f"News fetch failed: {e}")
                 if _NEWS_CACHE:
@@ -575,22 +597,43 @@ async def get_headlines(
     count: int = Query(10, ge=1, le=50),
     category: str | None = Query(None),
 ) -> dict[str, list[dict]]:
-    """Top headlines only - fast, lightweight."""
-    feed = await get_news_feed(limit=count, category=category, include_reddit=False)
+    """Top headlines only - fast, lightweight.
+
+    Always serves from in-memory cache (never triggers a full fetch).
+    If cache is empty, returns an empty headline list immediately.
+    """
+    global _NEWS_CACHE, _CACHE_TS
+
+    # Never trigger a full fetch from this endpoint — it's meant to be fast.
+    # If the cache exists, use it (even if stale). If not, return empty.
+    if _NEWS_CACHE:
+        result = _NEWS_CACHE
+        # Trigger background refresh if stale
+        if _CACHE_TS and (datetime.now(UTC) - _CACHE_TS) >= _CACHE_TTL:
+            _ = asyncio.create_task(_refresh_cache(True, False, True))  # noqa: RUF006
+    else:
+        return {"headlines": [], "count": 0, "cached": False}
+
+    articles = result.get("articles", [])
+    if category:
+        articles = [a for a in articles if a.get("category", "").lower() == category.lower()]
+    articles = articles[:count]
+
     return {
         "headlines": [
             {
-                "title": a.title,
-                "url": a.url,
-                "source": a.source,
-                "published_at": a.published_at,
-                "category": a.category,
-                "sentiment": a.sentiment,
-                "kind": a.kind,
+                "title": a.get("title", ""),
+                "url": a.get("url", ""),
+                "source": a.get("source", ""),
+                "published_at": a.get("published_at", ""),
+                "category": a.get("category", ""),
+                "sentiment": a.get("sentiment", ""),
+                "kind": a.get("kind", ""),
             }
-            for a in feed.articles[:count]
+            for a in articles
         ],
-        "count": len(feed.articles[:count]),
+        "count": len(articles),
+        "cached": bool(_CACHE_TS),
     }
 
 
