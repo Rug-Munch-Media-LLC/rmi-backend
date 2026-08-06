@@ -80,36 +80,65 @@ async def list_models() -> dict:
 async def chat_completion(
     messages: list[dict[str, str]],
     model: str | None = None,
-    tier: str = "T2",
+    tier: str | None = None,
     temperature: float = 0.7,
     max_tokens: int = 2048,
 ) -> dict[str, Any]:
     """Call the LLM API and return a chat completion.
 
-    Uses DeepSeek (preferred) or OpenRouter as fallback.
-    The response includes 'choices' with message content.
+    Uses OpenRouter (preferred) or local Ollama as fallback.
+    When model is specified, uses that model. Otherwise uses the configured default.
+    The 'tier' parameter is accepted for API compatibility but model routing is handled
+    by app.core.model_router when called separately.
     """
 
     import httpx
 
-    primary = PROVIDERS["deepseek"]
-    api_key = os.getenv(primary["key_env"], "")
+    # Try OpenRouter first (primary gateway for all models)
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
+    deepseek_key = os.getenv("LLM_API_KEY", "")
 
-    if api_key:
-        url = primary["url"]
-        provider_key = api_key
-        provider_model = model or primary["model"]
-    else:
-        # Fallback to OpenRouter
-        fallback = PROVIDERS["openrouter"]
-        url = fallback["url"]
-        provider_key = os.getenv(fallback["key_env"], "")
+    if openrouter_key:
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        provider_key = openrouter_key
         provider_model = model or os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v4-flash")
+        provider_name = "openrouter"
+    elif deepseek_key:
+        url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
+        provider_key = deepseek_key
+        provider_model = model or os.getenv("LLM_MODEL", "deepseek-v4-flash")
+        provider_name = "deepseek"
+    else:
+        # Try local Ollama as last resort
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                r = await client.post(
+                    "http://localhost:11434/api/generate",
+                    json={
+                        "model": model or "qwen3:4b",
+                        "prompt": messages[-1]["content"] if messages else "",
+                        "stream": False,
+                    },
+                )
+                if r.status_code == 200:
+                    resp_data = r.json()
+                    return {
+                        "id": "ollama-local",
+                        "content": resp_data.get("response", ""),
+                        "choices": [{"message": {"content": resp_data.get("response", "")}}],
+                        "model": model or "qwen3:4b",
+                        "usage": {},
+                        "_provider": "ollama",
+                        "_latency_ms": int(r.elapsed.total_seconds() * 1000),
+                    }
+        except Exception:
+            pass
 
-    if not provider_key:
         from app.core.errors import ExternalAPIError
 
-        raise ExternalAPIError(message="AI provider key not configured. Set LLM_API_KEY or OPENROUTER_API_KEY.")
+        raise ExternalAPIError(
+            message="No AI provider available. Set OPENROUTER_API_KEY, LLM_API_KEY, or run Ollama locally."
+        )
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
@@ -145,8 +174,6 @@ async def chat_completion(
             "choices": choices,
             "model": data.get("model", provider_model),
             "usage": data.get("usage", {}),
-            "_provider": "deepseek"
-            if api_key == getattr(os, "environ", {}).get(primary["key_env"], "")
-            else "openrouter",
+            "_provider": provider_name,
             "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
         }

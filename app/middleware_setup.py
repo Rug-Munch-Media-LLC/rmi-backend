@@ -448,6 +448,7 @@ def _try_register_csrf(app: FastAPI) -> None:
             "/api/v1/chat",  # AI chat — public (anon users don't have cookies; rate-limited per IP)
             "/api/v1/community-forensics/",  # Community forensics — public report submission
             "/api/v1/stripe/",  # Stripe webhooks + checkout — no cookies
+            "/api/v1/bot/",  # Telegram bot API — public endpoints for bot connectivity
             "/mcp/x402",
             "/x402/sandbox/",
             "/.well-known/x402",
