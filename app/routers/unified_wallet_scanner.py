@@ -366,13 +366,13 @@ class UnifiedWalletScanner:
                     "temperature": 0.2,
                 }
             ).encode()
+            headers = {"Content-Type": "application/json"}
+            if OLLAMA_KEY:
+                headers["Authorization"] = f"Bearer {OLLAMA_KEY}"
             req = Request(
                 OLLAMA_URL,
                 data=body,
-                headers={
-                    "Authorization": f"Bearer {OLLAMA_KEY}",
-                    "Content-Type": "application/json",
-                },
+                headers=headers,
             )
             resp = urlopen(req, timeout=5)
             r.risk_forecast = json.loads(resp.read())["choices"][0]["message"]["content"].strip()

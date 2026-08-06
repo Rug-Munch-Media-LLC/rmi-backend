@@ -22,6 +22,15 @@ def _format_timestamp(ts: int | float | datetime | None) -> str | None:
 
 
 @dataclass
+class EntityInfo:
+    """Entity information for wallet labeling."""
+
+    name: str
+    type: str
+    risk_score: float = 0.0
+
+
+@dataclass
 class BubbleNode:
     """A node in the bubble map."""
 
@@ -45,11 +54,14 @@ class BubbleNode:
     # Risk
     risk_score: float = 0.0
     risk_level: str = "unknown"
+    risk: str = ""  # legacy, kept for graph.py compatibility
+    layer: int = 0  # legacy, kept for graph.py compatibility
 
     # Connections
     connected_to: list[str] = field(default_factory=list)
 
     # Metadata
+    entity: EntityInfo | None = None  # legacy, kept for graph.py compatibility
     entity_name: str | None = None
     tags: list[str] = field(default_factory=list)
 

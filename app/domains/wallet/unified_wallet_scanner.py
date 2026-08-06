@@ -363,14 +363,14 @@ class UnifiedWalletScanner:
                 "max_tokens": 60,
                 "temperature": 0.2,
             }
+            headers = {"Content-Type": "application/json"}
+            if OLLAMA_KEY:
+                headers["Authorization"] = f"Bearer {OLLAMA_KEY}"
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.post(
                     OLLAMA_URL,
                     json=body,
-                    headers={
-                        "Authorization": f"Bearer {OLLAMA_KEY}",
-                        "Content-Type": "application/json",
-                    },
+                    headers=headers,
                 )
             r.risk_forecast = resp.json()["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")

@@ -44,9 +44,12 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
     if not address:
         return None
     try:
+        from app.config import settings
+
         async with httpx.AsyncClient(timeout=5) as c:
             r = await c.get(
                 f"http://localhost:8000/api/v1/wallet/labels/{address}",
+                headers={"X-API-Key": settings.rmi_auth_token},
             )
             if r.status_code == 200:
                 return r.json()
@@ -122,10 +125,10 @@ async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict | None:
 
 
 async def _passthrough_market_overview(**kwargs) -> dict | None:
-    """Market overview from our own backend."""
+    """Market overview from our own backend (DataBus market/brief)."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get("http://localhost:8000/api/v1/market/overview")
+            r = await c.get("http://localhost:8000/api/v1/databus/market/brief")
             if r.status_code == 200:
                 return r.json()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
@@ -134,10 +137,10 @@ async def _passthrough_market_overview(**kwargs) -> dict | None:
 
 
 async def _passthrough_trending(**kwargs) -> dict | None:
-    """Trending tokens from our own backend."""
+    """Trending tokens from our own backend (DataBus market/trending)."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get("http://localhost:8000/api/v1/market/trending")
+            r = await c.get("http://localhost:8000/api/v1/databus/market/trending")
             if r.status_code == 200:
                 return r.json()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
@@ -192,8 +195,13 @@ async def _passthrough_news(**kwargs) -> dict | None:
 async def _passthrough_alerts(**kwargs) -> dict | None:
     """Active alerts from our own backend."""
     try:
+        from app.config import settings
+
         async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get("http://localhost:8000/api/v1/alerts")
+            r = await c.get(
+                "http://localhost:8000/api/v1/alerts",
+                headers={"X-API-Key": settings.rmi_auth_token},
+            )
             if r.status_code == 200:
                 return r.json()
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
@@ -202,11 +210,12 @@ async def _passthrough_alerts(**kwargs) -> dict | None:
 
 
 async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict | None:
-    """Token security scan via our SENTINEL scanner."""
+    """Token security scan via our SENTINEL scanner (v2 endpoint)."""
     try:
         async with httpx.AsyncClient(timeout=30) as c:
-            r = await c.get(
-                f"http://localhost:8000/api/v1/scan/{chain}/{address}",
+            r = await c.post(
+                "http://localhost:8000/api/v2/scanner/token/scan",
+                json={"address": address, "chain": chain},
             )
             if r.status_code == 200:
                 return r.json()

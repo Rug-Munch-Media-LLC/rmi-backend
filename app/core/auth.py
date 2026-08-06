@@ -72,6 +72,17 @@ PUBLIC_PREFIXES = (
     "/api/v1/databus/news/",  # DataBus news endpoints (full_news, news_intel, market_brief, etc.)
     "/api/v1/databus/market/",  # DataBus market data (prices, trending, fear-greed)
     "/api/v2/scanner/",  # Scanner v2 — token/wallet scans are the core product
+    # Public community & analytics pages (read-only; CSRF protects POST endpoints)
+    "/api/v1/bulletin/",  # Bulletin board (public read: posts, badges, profiles)
+    "/api/v1/bulletin-board/",  # Bulletin board v2 (Redis-backed, public read)
+    "/api/v1/community-forensics/",  # Community forensics (public read: reports, leaderboard)
+    "/api/v1/chat",  # AI chat — public (rate-limited per IP; auth optional via cookie)
+    "/api/v1/market/",  # Market intel — public product data (overview, trending, prices)
+    "/api/v1/stripe/",  # Stripe pricing & checkout — public-facing billing page
+    "/api/v1/pricing",  # Pricing page data (frontend: PricingPage.tsx)
+    "/api/v1/subscription",  # Subscription creation (frontend: PricingPage.tsx)
+    "/api/v1/scam-school/",  # Scam School — public education content (no API key needed)
+    "/api/v1/rag/",  # RAG search & ask — public product feature (rate-limited)
     "/ws/",
 )
 
