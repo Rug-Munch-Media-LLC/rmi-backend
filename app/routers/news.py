@@ -596,7 +596,7 @@ async def get_sentiment() -> dict[str, Any]:
 async def get_headlines(
     count: int = Query(10, ge=1, le=50),
     category: str | None = Query(None),
-) -> dict[str, list[dict]]:
+) -> dict[str, Any]:
     """Top headlines only - fast, lightweight.
 
     Always serves from in-memory cache (never triggers a full fetch).
@@ -605,13 +605,16 @@ async def get_headlines(
     global _NEWS_CACHE, _CACHE_TS
 
     # Never trigger a full fetch from this endpoint — it's meant to be fast.
-    # If the cache exists, use it (even if stale). If not, return empty.
+    # If the cache exists, use it (even if stale). If not, return empty and
+    # trigger a background refresh so the cache is seeded for the next call.
     if _NEWS_CACHE:
         result = _NEWS_CACHE
         # Trigger background refresh if stale
         if _CACHE_TS and (datetime.now(UTC) - _CACHE_TS) >= _CACHE_TTL:
             _ = asyncio.create_task(_refresh_cache(True, False, True))  # noqa: RUF006
     else:
+        # First call — cache is empty. Trigger background seed and return empty.
+        _ = asyncio.create_task(_refresh_cache(True, False, True))  # noqa: RUF006
         return {"headlines": [], "count": 0, "cached": False}
 
     articles = result.get("articles", [])
