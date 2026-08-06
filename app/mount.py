@@ -161,6 +161,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.ai_stream",  # /api/v1/ai/*  (3 routes, SSE infra)
     "app.routers.rugcharts",  # /api/v1/rugcharts/*  (3 routes, RugCharts backend)
     "app.routers.rugmaps_router",  # /api/v1/rugmaps/*  (7 routes, RugMaps viz)
+    "app.routers.token_page",  # /api/v1/token/*  (1 route, unified token page)
     "app.routers.mev_advisory",  # /api/v1/mev-advisory/*  (2 routes, MEV warning)
     "app.routers.impersonation_detector",  # /api/v1/impersonation/*  (1 route, forensics)
     "app.routers.community_forensics_router",  # /api/v1/community-forensics/*  (7 routes, community forensics: reports, leaderboard, graph verify, cross-chain correlation)

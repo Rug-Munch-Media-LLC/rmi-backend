@@ -86,6 +86,212 @@ async def rugmaps_health() -> dict[str, str]:
     return {"status": "ok", "service": "rugmaps-engine"}
 
 
+async def _fetch_dexscreener_token_info(token_address: str, chain: str = "solana") -> dict | None:
+    """Fetch token info from DexScreener as fallback when holder graph is empty."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(f"https://api.dexscreener.com/tokens/v1/{chain}/{token_address}")
+            if resp.status_code == 200:
+                pairs = resp.json()
+                if isinstance(pairs, list) and len(pairs) > 0:
+                    return pairs[0]
+            # Also try latest/dex/tokens
+            resp2 = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            if resp2.status_code == 200:
+                data = resp2.json()
+                pairs2 = data.get("pairs", [])
+                if pairs2:
+                    return pairs2[0]
+    except Exception as e:
+        logger.debug(f"DexScreener fallback failed for {token_address}: {e}")
+    return None
+
+
+def _build_dexscreener_graph(pair_data: dict, token_address: str, chain: str) -> dict:
+    """Build a meaningful bubble map from DexScreener pair data when
+    on-chain transaction data is unavailable (contracts, not wallets)."""
+
+    nodes = []
+    links = []
+
+    # Center node — the token itself
+    token_name = pair_data.get("baseToken", {}).get("name", token_address[:8])
+    token_symbol = pair_data.get("baseToken", {}).get("symbol", "")
+    price_usd = float(pair_data.get("priceUsd") or 0)
+    liquidity_usd = float(pair_data.get("liquidity", {}).get("usd", 0))
+    volume_24h = float(pair_data.get("volume", {}).get("h24", 0))
+    txns_24h = pair_data.get("txns", {}).get("h24", {})
+    buys_24h = int(txns_24h.get("buys", 0))
+    sells_24h = int(txns_24h.get("sells", 0))
+    fdv = float(pair_data.get("fdv", 0))
+    pair_address = pair_data.get("pairAddress", "")
+    dex = pair_data.get("dexId", "unknown")
+
+    # Center node: the token
+    center_node = {
+        "id": token_address,
+        "address": token_address,
+        "type": "center",
+        "label": f"{token_symbol or token_address[:6]}...{token_address[-4:]}",
+        "x": 400.0,
+        "y": 300.0,
+        "radius": 40.0,
+        "color": "#ff6b6b",
+        "volume": volume_24h,
+        "transactions": buys_24h + sells_24h,
+        "risk_score": 0,
+        "risk_level": "unknown",
+        "explorer_url": _get_explorer_url(chain, token_address),
+        "metadata": {
+            "name": token_name,
+            "symbol": token_symbol,
+            "price_usd": price_usd,
+            "fdv": fdv,
+            "liquidity_usd": liquidity_usd,
+            "volume_24h": volume_24h,
+        },
+    }
+    nodes.append(center_node)
+
+    # Pair/dex node: the liquidity pool
+    if pair_address:
+        dex_node = {
+            "id": pair_address,
+            "address": pair_address,
+            "type": "exchange",
+            "label": f"{dex[:8]} Pool",
+            "x": 320.0,
+            "y": 240.0,
+            "radius": 30.0,
+            "color": "#4dabf7",
+            "volume": liquidity_usd,
+            "transactions": 0,
+            "risk_score": 0,
+            "risk_level": "safe",
+            "explorer_url": _get_explorer_url(chain, pair_address),
+            "metadata": {"dex": dex, "liquidity_usd": liquidity_usd},
+        }
+        nodes.append(dex_node)
+
+        # Link: token → pool
+        link_strength = min(liquidity_usd / 1_000_000, 1.0) if liquidity_usd > 0 else 0.3
+        links.append(
+            {
+                "source": token_address,
+                "target": pair_address,
+                "strength": round(link_strength, 3),
+                "width": max(1.0, link_strength * 5),
+                "color": "#4dabf7",
+                "volume": liquidity_usd,
+                "transactions": 1,
+            }
+        )
+
+    # Trading activity node: buy/sell volume
+    if buys_24h > 0 or sells_24h > 0:
+        tx_id = f"tx_{token_address[:8]}"
+        ratio = buys_24h / max(sells_24h, 1)
+        is_bullish = ratio > 1.2
+        tx_node = {
+            "id": tx_id,
+            "address": tx_id,
+            "type": "defi_trader",
+            "label": f"Buys: {buys_24h} / Sells: {sells_24h}",
+            "x": 480.0,
+            "y": 260.0,
+            "radius": 25.0,
+            "color": "#20c997" if is_bullish else "#ff8787",
+            "volume": volume_24h,
+            "transactions": buys_24h + sells_24h,
+            "risk_score": 0,
+            "risk_level": "low",
+            "explorer_url": "",
+            "metadata": {
+                "buys_24h": buys_24h,
+                "sells_24h": sells_24h,
+                "buy_sell_ratio": round(ratio, 2),
+            },
+        }
+        nodes.append(tx_node)
+
+        links.append(
+            {
+                "source": token_address,
+                "target": tx_id,
+                "strength": 0.6,
+                "width": 3.0,
+                "color": "#20c997" if is_bullish else "#ff8787",
+                "volume": volume_24h,
+                "transactions": buys_24h + sells_24h,
+            }
+        )
+
+    # Volume info node
+    if volume_24h > 0:
+        vol_id = f"vol_{token_address[:8]}"
+        vol_node = {
+            "id": vol_id,
+            "address": vol_id,
+            "type": "whale",
+            "label": f"Vol: ${_format_currency(volume_24h)}",
+            "x": 400.0,
+            "y": 360.0,
+            "radius": 22.0,
+            "color": "#ffd43b",
+            "volume": volume_24h,
+            "transactions": 0,
+            "risk_score": 0,
+            "risk_level": "low",
+            "explorer_url": "",
+            "metadata": {"volume_24h": volume_24h},
+        }
+        nodes.append(vol_node)
+
+        links.append(
+            {
+                "source": token_address,
+                "target": vol_id,
+                "strength": min(volume_24h / 5_000_000, 1.0) if volume_24h > 0 else 0.2,
+                "width": 2.0,
+                "color": "#ffd43b",
+                "volume": volume_24h,
+                "transactions": 0,
+            }
+        )
+
+    return {
+        "nodes": nodes,
+        "links": links,
+        "node_count": len(nodes),
+        "link_count": len(links),
+        "dex_data": {
+            "name": token_name,
+            "symbol": token_symbol,
+            "price_usd": price_usd,
+            "fdv": fdv,
+            "liquidity_usd": liquidity_usd,
+            "volume_24h": volume_24h,
+            "buys_24h": buys_24h,
+            "sells_24h": sells_24h,
+            "dex": dex,
+            "pair_address": pair_address,
+            "chain": chain,
+        },
+        "source": "dexscreener",
+    }
+
+
+def _format_currency(value: float) -> str:
+    """Format a number as a compact currency string."""
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K"
+    return f"{value:.2f}"
+
+
 @router.get("/token-graph")
 async def token_holder_graph(
     token_address: str = Query(...),
@@ -94,7 +300,8 @@ async def token_holder_graph(
     skip_cache: bool = Query(False),
 ) -> Any | dict:
     """Generate a token holder graph with AI analysis and RAG caching.
-    Uses DeepSeek Flash + our FAISS indexes + wallet labels + semantic cache."""
+    Uses DeepSeek Flash + our FAISS indexes + wallet labels + semantic cache.
+    Falls back to DexScreener pair data when on-chain holder graph is empty."""
     import asyncio
 
     from app.rugmaps_ai import (
@@ -117,14 +324,29 @@ async def token_holder_graph(
     rm = _get_rm()
 
     # Get the RugMap concurrently with other data fetches
+    d = {"nodes": [], "links": [], "stats": {}}
+    map_failed = False
     try:
         result = await rm.generate_map(center_wallet=token_address, depth=3, min_strength=0.05)
         d = result.to_dict()
     except Exception as e:
-        raise AppError(message=f"Graph generation failed: {str(e)[:200]}") from e
+        map_failed = True
+        logger.debug(f"Native graph generation failed for {token_address[:12]}, will try DexScreener: {e}")
 
     nodes = d.get("nodes", [])
     links = d.get("links", [])
+
+    # ── CRITICAL FIX: When native graph returns empty (token contract, not a wallet),
+    #     fall back to DexScreener pair data to build a meaningful visualization ──
+    dex_data = None
+    if not nodes or map_failed:
+        dex_pair = await _fetch_dexscreener_token_info(token_address, chain)
+        if dex_pair:
+            logger.info(f"Building DexScreener graph for {token_address[:12]} (native graph empty)")
+            dex_graph = _build_dexscreener_graph(dex_pair, token_address, chain)
+            nodes = dex_graph.get("nodes", [])
+            links = dex_graph.get("links", [])
+            dex_data = dex_graph.get("dex_data")
 
     # Enrich nodes concurrently
     enriched_nodes = []
@@ -133,7 +355,7 @@ async def token_holder_graph(
         addr = node.get("address") or node.get("id", "")
         addresses_for_labels.append(addr)
         enriched = dict(node)
-        enriched["explorer_url"] = _get_explorer_url(chain, addr)
+        enriched["explorer_url"] = enriched.get("explorer_url") or _get_explorer_url(chain, addr)
         enriched_nodes.append(enriched)
 
     # Fetch wallet labels and similar scams in parallel
@@ -196,6 +418,9 @@ async def token_holder_graph(
         "wallet_labels_count": len(labels),
         "from_cache": False,
     }
+    if dex_data:
+        response["dex_data"] = dex_data
+        response["source"] = "dexscreener_fallback"
 
     # Cache for future requests
     set_cached_analysis(token_address, chain, response)
