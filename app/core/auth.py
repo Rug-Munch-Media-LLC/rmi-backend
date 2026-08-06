@@ -67,6 +67,11 @@ PUBLIC_PREFIXES = (
     "/api/v1/chat-history",
     "/api/v1/identities",
     "/api/v1/bookmarks",
+    # Public read-only data endpoints (CSRF still protects POST endpoints)
+    "/api/v1/news/",  # News feed, headlines, articles, sentiment, sources — public product data
+    "/api/v1/databus/news/",  # DataBus news endpoints (full_news, news_intel, market_brief, etc.)
+    "/api/v1/databus/market/",  # DataBus market data (prices, trending, fear-greed)
+    "/api/v2/scanner/",  # Scanner v2 — token/wallet scans are the core product
     "/ws/",
 )
 
