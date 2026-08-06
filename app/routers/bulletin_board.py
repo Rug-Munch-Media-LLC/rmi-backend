@@ -46,6 +46,46 @@ router = APIRouter(prefix="/api/v1/bulletin-board", tags=["bulletin-board"])
 # ── Public Endpoints ──────────────────────────────────────────
 
 
+class PublicPostRequest(BaseModel):
+    """Lightweight model for public discussion posts (no auth required)."""
+
+    title: str = Field("", max_length=200)
+    content: str = Field(..., min_length=1, max_length=5000)
+    author_name: str = Field("Community Member", max_length=100)
+    tags: list[str] = Field(default_factory=list)
+
+
+@router.post(
+    "/posts/public",
+    summary="Public Create Post",
+    description="Create a public discussion post without authentication. For community token discussions. Posts are published immediately with community category.",
+)
+async def public_create_post(body: PublicPostRequest) -> dict:
+    """Create a public discussion post (no auth required)."""
+    import time
+
+    post = await BulletinBoardManager.create_post(
+        title=body.title or f"Discussion: {time.strftime('%b %d, %Y')}",
+        content=body.content,
+        category="community",
+        author_id=f"anon_{int(time.time())}",
+        author_email="anon@rugmunch.io",
+        author_name=body.author_name or "Community Member",
+        status="published",
+        tags=body.tags,
+        priority="normal",
+        target_audience="all",
+        allow_comments=True,
+    )
+
+    return {
+        "success": True,
+        "post_id": post.post_id,
+        "slug": post.slug,
+        "message": "Discussion post created successfully",
+    }
+
+
 @router.get(
     "/posts",
     summary="Public List Posts",
