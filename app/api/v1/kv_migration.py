@@ -7,8 +7,9 @@ higher-level data the degenfeed-api worker previously stored in KV:
 
   Ephemeral (Redis):
     POST   /api/v1/rate-limits/report     — cross-isolate rate limit report (TTL = window)
+    POST   /api/v1/rate-limits/batch      — batch rate limit sync from worker isolates
     GET    /api/v1/rate-limits/check      — rate limit status for an ip+path
-    POST   /api/v1/queue/enqueue          — enqueue a sync|offline|premium job
+    POST   /api/v1/queue/enqueue          — enqueue a sync|offline|premium|scheduled|bridgy:* job
     GET    /api/v1/queue/dequeue          — dequeue up to N jobs
     POST   /api/v1/sessions               — create/upsert a session (TTL)
     GET    /api/v1/sessions               — fetch a session by id
@@ -153,6 +154,24 @@ def _key_escape(value: str) -> str:
     return quote(value, safe="")
 
 
+async def _store_rate_limit(
+    redis: Any,
+    ip: str,
+    path: str,
+    count: int,
+    max_limit: int,
+    window_ms: int,
+) -> None:
+    """Write a single rate limit record to Redis with TTL = window_ms.
+
+    Extracted so both the single-report and batch-sync endpoints share
+    the same storage logic.
+    """
+    key = _RL_KEY.format(ip=_key_escape(ip), path=_key_escape(path))
+    ttl_secs = max(1, window_ms // 1000)
+    await redis.set(key, json.dumps({"count": count, "max": max_limit}), ex=ttl_secs)
+
+
 # ── Pydantic models ───────────────────────────────────────────────────
 
 
@@ -173,10 +192,34 @@ class RateLimitStatus(BaseModel):
     blocked: bool = False
 
 
+class RateLimitEntry(BaseModel):
+    """A single rate limit entry in a batch sync payload."""
+
+    ip: str = Field(..., min_length=1, max_length=64)
+    path: str = Field(..., min_length=1, max_length=512)
+    count: int = Field(..., ge=0)
+    max: int = Field(..., ge=1)
+    window_ms: int = Field(5000, ge=1, le=86_400_000)
+
+
+class RateLimitBatchRequest(BaseModel):
+    """Batch sync payload from worker isolates."""
+
+    source: str = Field("degenfeed-worker", min_length=1, max_length=128)
+    entries: list[RateLimitEntry]
+
+
+class BatchResponse(BaseModel):
+    """Response for batch sync operations."""
+
+    ok: bool = True
+    accepted: int
+
+
 class EnqueueRequest(BaseModel):
     """Body for POST /queue/enqueue."""
 
-    queue: Literal["sync", "offline", "premium"]
+    queue: Literal["sync", "offline", "premium", "scheduled", "bridgy:users", "bridgy:config"]
     key: str = Field(..., min_length=1, max_length=512)
     payload: dict[str, Any] = Field(default_factory=dict)
 
@@ -322,18 +365,49 @@ async def rate_limit_report(body: RateLimitReport) -> OkResponse:
     if redis is None:
         # Graceful degradation — KV semantics: a missing report is harmless
         return OkResponse()
-    key = _RL_KEY.format(ip=_key_escape(body.ip), path=_key_escape(body.path))
-    ttl_secs = max(1, body.window_ms // 1000)
     try:
-        await redis.set(
-            key,
-            json.dumps({"count": body.count, "max": body.max}),
-            ex=ttl_secs,
-        )
+        await _store_rate_limit(redis, body.ip, body.path, body.count, body.max, body.window_ms)
         return OkResponse()
     except Exception as exc:  # pragma: no cover - defensive
-        log.warning("rate_limit_report failed key=%s err=%s", key, exc)
+        log.warning("rate_limit_report failed ip=%s path=%s err=%s", body.ip, body.path, exc)
         return OkResponse()
+
+
+@router.post(
+    "/rate-limits/batch",
+    response_model=BatchResponse,
+    dependencies=[Depends(_auth_dependency)],
+)
+async def rate_limit_batch(body: RateLimitBatchRequest) -> BatchResponse:
+    """Batch-sync rate limit records from worker isolates.
+
+    Each entry is stored independently in Redis with the same TTL-based
+    expiration as individual reports.  Failures for individual entries
+    are logged but do not block the rest of the batch.
+    """
+    redis = await _redis()
+    if redis is None:
+        return BatchResponse(ok=True, accepted=0)
+    accepted = 0
+    for entry in body.entries:
+        try:
+            await _store_rate_limit(
+                redis,
+                entry.ip,
+                entry.path,
+                entry.count,
+                entry.max,
+                entry.window_ms,
+            )
+            accepted += 1
+        except Exception as exc:  # pragma: no cover - defensive
+            log.warning(
+                "rate_limit_batch failed ip=%s path=%s err=%s",
+                entry.ip,
+                entry.path,
+                exc,
+            )
+    return BatchResponse(ok=True, accepted=accepted)
 
 
 @router.get(
@@ -402,7 +476,7 @@ async def queue_enqueue(body: EnqueueRequest) -> EnqueueResponse:
     dependencies=[Depends(_auth_dependency)],
 )
 async def queue_dequeue(
-    queue: Literal["sync", "offline", "premium"] = Query(...),
+    queue: Literal["sync", "offline", "premium", "scheduled", "bridgy:users", "bridgy:config"] = Query(...),
     limit: int = Query(10, ge=1, le=100),
 ) -> DequeueResponse:
     """Dequeue up to N jobs from the front of a queue."""

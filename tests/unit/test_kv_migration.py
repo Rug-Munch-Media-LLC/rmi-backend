@@ -142,6 +142,59 @@ def test_rate_limit_check_missing_record(app: FastAPI, redis_client: Any) -> Non
         assert status.json() == {"count": 0, "blocked": False}
 
 
+def test_rate_limit_batch_sync_and_check(app: FastAPI, redis_client: Any) -> None:
+    """Batch endpoint stores entries; check reads them back individually."""
+    _redis_session(app, redis_client)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/v1/rate-limits/batch",
+            json={
+                "source": "degenfeed-worker",
+                "entries": [
+                    {"ip": "1.2.3.4", "path": "/api/feed", "count": 15, "max": 20, "window_ms": 5000},
+                    {"ip": "5.6.7.8", "path": "/api/stats", "count": 30, "max": 30, "window_ms": 10000},
+                ],
+            },
+            headers=AUTH,
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is True
+        assert body["accepted"] == 2
+
+        # Verify each entry is individually readable
+        s1 = client.get(
+            "/api/v1/rate-limits/check",
+            params={"ip": "1.2.3.4", "path": "/api/feed"},
+            headers=AUTH,
+        )
+        assert s1.json() == {"count": 15, "blocked": False}
+
+        s2 = client.get(
+            "/api/v1/rate-limits/check",
+            params={"ip": "5.6.7.8", "path": "/api/stats"},
+            headers=AUTH,
+        )
+        assert s2.json() == {"count": 30, "blocked": True}
+
+
+def test_rate_limit_batch_default_values(app: FastAPI, redis_client: Any) -> None:
+    """Batch accepts entries without explicit source/window_ms defaults."""
+    _redis_session(app, redis_client)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/v1/rate-limits/batch",
+            json={
+                "entries": [
+                    {"ip": "10.0.0.1", "path": "/api/x", "count": 1, "max": 5},
+                ],
+            },
+            headers=AUTH,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["accepted"] == 1
+
+
 # ── Queue operations ───────────────────────────────────────────────────
 
 
@@ -188,6 +241,30 @@ def test_queue_rejects_unknown_queue(app: FastAPI, redis_client: Any) -> None:
             headers=AUTH,
         )
         assert resp.status_code == 422
+
+
+def test_queue_accepts_new_queue_names(app: FastAPI, redis_client: Any) -> None:
+    """Enqueue accepts the expanded queue name set (scheduled, bridgy:*)."""
+    _redis_session(app, redis_client)
+    with TestClient(app) as client:
+        for queue in ("scheduled", "bridgy:users", "bridgy:config"):
+            resp = client.post(
+                "/api/v1/queue/enqueue",
+                json={"queue": queue, "key": "k", "payload": {"x": 1}},
+                headers=AUTH,
+            )
+            assert resp.status_code == 200, f"queue={queue} should be accepted"
+            assert resp.json()["ok"] is True
+            assert resp.json()["id"]
+
+            # Dequeue from the new queue should also work
+            deq = client.get(
+                "/api/v1/queue/dequeue",
+                params={"queue": queue, "limit": 1},
+                headers=AUTH,
+            )
+            assert deq.status_code == 200, f"dequeue {queue} should be accepted"
+            assert len(deq.json()["items"]) == 1
 
 
 # ── Sessions ───────────────────────────────────────────────────────────
