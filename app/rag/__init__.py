@@ -42,7 +42,7 @@ health_mod.register_health_check("rag", _health_check)
 # Public API
 # ── New pipeline exports ─────────────────────────────────────────────
 # Config
-from app.rag.config import (
+from app.rag.config import (  # noqa: E402 — module docstring precedes import block
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
     RAG_COLLECTIONS as PIPELINE_COLLECTIONS,
@@ -55,7 +55,7 @@ from app.rag.config import (
 )
 
 # Ingestion pipeline
-from app.rag.ingestion import (
+from app.rag.ingestion import (  # noqa: E402 — module docstring precedes import block
     BatchIngestor,
     DocumentProcessor,
     IngestionScheduler,
@@ -73,7 +73,7 @@ from app.rag.ingestion import (
     ingest_scan_result,
     ingest_wallet_profile,
 )
-from app.rag.models import (
+from app.rag.models import (  # noqa: E402 — module docstring precedes import block
     COLLECTIONS,
     EmbeddingProvider,
     FeedbackRecord,
@@ -85,7 +85,7 @@ from app.rag.models import (
 )
 
 # Retrieval
-from app.rag.retrieval import (
+from app.rag.retrieval import (  # noqa: E402 — module docstring precedes import block
     ContextBuilder,
     ContextWindow,
     HybridRetriever,
@@ -96,7 +96,7 @@ from app.rag.retrieval import (
     expand_query,
     search as hybrid_search,
 )
-from app.rag.service import RAGService, init_rag
+from app.rag.service import RAGService, init_rag  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "COLLECTIONS",

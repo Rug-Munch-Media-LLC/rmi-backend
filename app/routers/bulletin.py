@@ -75,7 +75,7 @@ from app.services.supabase_service import (
 
 logger = get_logger(__name__)
 
-import contextlib
+import contextlib  # noqa: E402 — imported after logger init; kept below module header for readability
 
 
 # Lazy auth dependency - avoids importing jose+bcrypt at module load

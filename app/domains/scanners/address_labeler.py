@@ -80,7 +80,7 @@ class AddressLabelReport:
     is_known_scam: bool = False
     is_defi_protocol: bool = False
     is_bridge: bool = False
-    isDeployer: bool = False  # noqa: N815 — legacy report field name (public API)
+    isDeployer: bool = False
 
     # Risk
     risk_score: float = 0.0

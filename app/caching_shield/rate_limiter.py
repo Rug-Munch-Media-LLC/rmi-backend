@@ -22,15 +22,15 @@ Strategy:
   - Falls back to in-memory if Redis unavailable
 """
 
-import asyncio
-import os
-import time
-from dataclasses import dataclass, field
-from typing import Any
+import asyncio  # noqa: E402 — module docstring precedes import block
+import os  # noqa: E402 — module docstring precedes import block
+import time  # noqa: E402 — module docstring precedes import block
+from dataclasses import dataclass, field  # noqa: E402 — module docstring precedes import block
+from typing import Any  # noqa: E402 — module docstring precedes import block
 
-import redis.asyncio as aioredis
+import redis.asyncio as aioredis  # noqa: E402 — module docstring precedes import block
 
-from app.core.logging import get_logger
+from app.core.logging import get_logger  # noqa: E402 — module docstring precedes import block
 
 logger = get_logger("rpc_rate_limiter")
 

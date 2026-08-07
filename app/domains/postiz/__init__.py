@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from app.core import health as health_mod
 from app.core.health import DomainHealth
-from app.domains.postiz.platforms import PLATFORMS, platform_summary  # noqa: F401  (re-exported for domain consumers)
+from app.domains.postiz.platforms import PLATFORMS, platform_summary
 
 
 async def _health_check() -> DomainHealth:
@@ -53,8 +53,8 @@ async def _health_check() -> DomainHealth:
 
 health_mod.register_health_check("postiz", _health_check)
 
-from app.domains.postiz.router import router  # noqa: E402  (deferred: avoids circular import at package init)
-from app.domains.postiz.service import get_store  # noqa: E402  (deferred: avoids circular import at package init)
+from app.domains.postiz.router import router  # noqa: E402 — optional dependency guarded by try/except
+from app.domains.postiz.service import get_store  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "get_store",

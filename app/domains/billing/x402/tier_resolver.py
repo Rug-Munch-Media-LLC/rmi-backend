@@ -92,8 +92,8 @@ def check_burst_limit(client_id: str, tool_id: str) -> dict[str, Any] | None:
 
     burst_key = f"x402:burst:{client_id}:{tool_id}"
     try:
-        BURST_LIMIT = int(os.getenv("X402_BURST_LIMIT", "5"))  # noqa: N806 — local rate-limit constants
-        BURST_WINDOW = int(os.getenv("X402_BURST_WINDOW", "60"))  # noqa: N806 — local rate-limit constants
+        BURST_LIMIT = int(os.getenv("X402_BURST_LIMIT", "5"))
+        BURST_WINDOW = int(os.getenv("X402_BURST_WINDOW", "60"))
         pipe = r.pipeline()
         pipe.incr(burst_key)
         if not r.exists(burst_key):

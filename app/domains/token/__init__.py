@@ -23,8 +23,8 @@ async def _health_check() -> DomainHealth:
 health_mod.register_health_check("token", _health_check)
 
 # Public API
-from app.domains.token.analyzer import TokenAnalyzer
-from app.domains.token.models import (
+from app.domains.token.analyzer import TokenAnalyzer  # noqa: E402 — module docstring precedes import block
+from app.domains.token.models import (  # noqa: E402 — module docstring precedes import block
     RiskLevel,
     Token,
     TokenDetail,
@@ -34,8 +34,8 @@ from app.domains.token.models import (
     TokenScanRequest,
     TokenScanResult,
 )
-from app.domains.token.repository import TokenRepository
-from app.domains.token.service import TokenService
+from app.domains.token.repository import TokenRepository  # noqa: E402 — module docstring precedes import block
+from app.domains.token.service import TokenService  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "RiskLevel",

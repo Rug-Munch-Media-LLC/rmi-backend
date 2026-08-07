@@ -30,8 +30,8 @@ warnings.warn(
     stacklevel=2,
 )
 
-from app.core.logging import get_logger  # noqa: E402
-from app.crypto_embeddings import (  # noqa: E402
+from app.core.logging import get_logger  # noqa: E402 — module docstring precedes import block
+from app.crypto_embeddings import (  # noqa: E402 — module docstring precedes import block
     COLLECTIONS,
     KNOWN_SCAM_PATTERNS,
     CryptoEmbedder,
@@ -49,19 +49,19 @@ _pattern_cache_loaded = False
 _redis_pool = None
 
 # Re-exports
-from app.rag_service.cache import _get_redis  # noqa: E402
-from app.rag_service.detection import (  # noqa: E402
+from app.rag_service.cache import _get_redis  # noqa: E402 — module docstring precedes import block
+from app.rag_service.detection import (  # noqa: E402 — module docstring precedes import block
     detect_scam_patterns,
     get_goplus_analysis,
 )
-from app.rag_service.indexing import (  # noqa: E402
+from app.rag_service.indexing import (  # noqa: E402 — module docstring precedes import block
     _embed_by_collection,
     _preembed_scam_patterns,
     ingest_document,
     ingest_forensic_report,
     seed_known_scams,
 )
-from app.rag_service.retrieval import (  # noqa: E402
+from app.rag_service.retrieval import (  # noqa: E402 — module docstring precedes import block
     _classify_query,
     _enrich_ann_results,
     _rrf_fuse,
@@ -71,7 +71,7 @@ from app.rag_service.retrieval import (  # noqa: E402
     search_with_transform,
     three_pillar_search,
 )
-from app.rag_service.stats import (  # noqa: E402
+from app.rag_service.stats import (  # noqa: E402 — module docstring precedes import block
     get_stats,
 )
 

@@ -11,9 +11,9 @@ See the individual modules for chain-specific configs.
 # Import constants and types first (no circular deps)
 # Import chain-specific modules to trigger register() calls
 from app.chain_registry import (
-    evm,  # noqa: F401  (triggers register)
-    solana,  # noqa: F401  (triggers register)
-    tron,  # noqa: F401  (triggers register)
+    evm,
+    solana,
+    tron,
 )
 from app.chain_registry.constants import (
     CHAINS,

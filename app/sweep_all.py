@@ -20,10 +20,10 @@ Environment:
   WALLET_VAULT_PASSWORD: required (auto-detected from env)
 """
 
-import argparse
-import os
-import sys
-from datetime import UTC, datetime
+import argparse  # noqa: E402 — module docstring precedes import block
+import os  # noqa: E402 — module docstring precedes import block
+import sys  # noqa: E402 — module docstring precedes import block
+from datetime import UTC, datetime  # noqa: E402 — module docstring precedes import block
 
 sys.path.insert(0, "/app")
 
@@ -36,9 +36,9 @@ parser.add_argument("--dry-run", action="store_true", help="Preview only, no tra
 parser.add_argument("--force", action="store_true", help="Skip threshold (sweeps everything)")
 args = parser.parse_args()
 
-from typing import Any
+from typing import Any  # noqa: E402 — module docstring precedes import block
 
-from app.wallet_manager_v2 import get_wallet_manager_v2
+from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402 — module docstring precedes import block
 
 mgr = get_wallet_manager_v2(os.environ.get("WALLET_VAULT_PASSWORD", ""))
 
@@ -60,7 +60,7 @@ for w in mgr._wallets.values():
         continue
     x402_wallets.append(w)
 
-logger.info("x402 wallets found: %d" % len(x402_wallets))  # noqa: UP031
+logger.info("x402 wallets found: %d" % len(x402_wallets))
 
 evm_chains = {
     "eth",
@@ -84,7 +84,7 @@ for w in x402_wallets:
         continue  # unsupported chain for sweep
 
     if not has_key:
-        logger.info("  SKIP %-6s %s (no key)" % (w.chain, w.address[:16]))  # noqa: UP031
+        logger.info("  SKIP %-6s %s (no key)" % (w.chain, w.address[:16]))
         continue
 
     if not args.force and balance < args.min:
@@ -92,7 +92,7 @@ for w in x402_wallets:
 
     sweepable.append(w)
 
-logger.info("Sweepable wallets: %d" % len(sweepable))  # noqa: UP031
+logger.info("Sweepable wallets: %d" % len(sweepable))
 logger.info()
 
 if not sweepable:
@@ -103,7 +103,7 @@ if not sweepable:
 total = 0.0
 for w in sweepable:
     balance = w.balance_usd or 0
-    logger.info("  %-6s %s...  \033[33m$%.2f\033[0m" % (w.chain, w.address[:24], balance))  # noqa: UP031
+    logger.info("  %-6s %s...  \033[33m$%.2f\033[0m" % (w.chain, w.address[:24], balance))
     total += balance
 
 logger.info()
@@ -116,7 +116,7 @@ if args.dry_run:
 # ── Confirm ──
 owner_fallback = args.to or "(default owner addresses)"
 logger.info(f"\nDestination: {owner_fallback}")
-logger.info("Type \033[1mYES\033[0m to broadcast %d transactions:" % len(sweepable))  # noqa: UP031
+logger.info("Type \033[1mYES\033[0m to broadcast %d transactions:" % len(sweepable))
 confirm = input("> ").strip()
 if confirm != "YES":
     logger.info("Aborted.")
@@ -251,14 +251,14 @@ for w in sweepable:
 
     except Exception as e:
         results["errors"].append({"chain": w.chain, "address": w.address, "error": str(e)})
-        logger.info("  \033[31mERR\033[0m %-6s %s: %s" % (w.chain, w.address[:12], str(e)[:80]))  # noqa: UP031
+        logger.info("  \033[31mERR\033[0m %-6s %s: %s" % (w.chain, w.address[:12], str(e)[:80]))
 
 # ── Summary ──
 logger.info()
 logger.info("=" * 60)
 logger.info("SWEEP COMPLETE")
-logger.info("  Swept:  %d transactions" % len(results["swept"]))  # noqa: UP031
-logger.info("  Errors: %d" % len(results["errors"]))  # noqa: UP031
+logger.info("  Swept:  %d transactions" % len(results["swept"]))
+logger.info("  Errors: %d" % len(results["errors"]))
 logger.info("  Total:  ${:.2f}".format(round(results["total_usd"], 2)))
 
 mgr._save_vault()

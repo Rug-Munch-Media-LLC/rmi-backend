@@ -754,7 +754,7 @@ async def ensure_x402_payments_table() -> bool:
 # Prevents cascading failures when Supabase is degraded.
 # Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
 
-from app.core.circuit_breaker import AsyncCircuitBreaker
+from app.core.circuit_breaker import AsyncCircuitBreaker  # noqa: E402 — module docstring precedes import block
 
 _supabase_cb = AsyncCircuitBreaker(
     name="supabase",

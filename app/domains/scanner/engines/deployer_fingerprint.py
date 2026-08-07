@@ -759,7 +759,7 @@ def _query_deployer_stats(deployer_address: str, chain: str) -> dict[str, Any] |
                 max(block_timestamp) AS last_ts
             FROM wallet_memory.deployer_events
             WHERE {where_clause}
-            """,  # noqa: S608
+            """,
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -806,7 +806,7 @@ def _query_per_token_deployments(deployer_address: str, chain: str) -> list[dict
             GROUP BY token_address
             ORDER BY deployed_ts DESC
             LIMIT %(limit)s
-            """,  # noqa: S608
+            """,
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -886,7 +886,7 @@ def _query_token_dex_stats(
             WHERE {where_clause}
               AND (token0 IN %(tokens)s OR token1 IN %(tokens)s{pool_clause})
             GROUP BY token_address
-            """,  # noqa: S608
+            """,
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -952,7 +952,7 @@ def _query_first_incoming(
                 GROUP BY from_address
                 ORDER BY first_ts ASC
                 LIMIT 1
-                """,  # noqa: S608
+                """,
                 {**params, "native_markers": tuple(_NATIVE_TOKEN_MARKERS)},
                 settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
             )
@@ -969,7 +969,7 @@ def _query_first_incoming(
                 GROUP BY from_address
                 ORDER BY first_ts ASC
                 LIMIT 1
-                """,  # noqa: S608
+                """,
                 params,
                 settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
             )
@@ -1067,7 +1067,7 @@ def _query_same_funder_deployers(funder_address: str, chain: str) -> int:
             FROM wallet_memory.deployer_events
             {chain_clause}
             LIMIT 5000
-            """.format(chain_clause="WHERE chain = %(chain)s" if chain else ""),  # noqa: S608  # where_clause/chain_clause built from code literals; values parameterized
+            """.format(chain_clause="WHERE chain = %(chain)s" if chain else ""),  # where_clause/chain_clause built from code literals; values parameterized
             {"chain": chain} if chain else {},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )

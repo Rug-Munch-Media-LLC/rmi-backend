@@ -15,8 +15,8 @@ from __future__ import annotations
 from app.core.logging import get_logger
 from app.domains.telegram.headless_client import HeadlessTelegramClient
 from app.domains.telegram.headless_credentials import (
-    get_api_credentials as _get_api_credentials,  # noqa: F401
-    get_session_path as _get_session_path,  # noqa: F401
+    get_api_credentials as _get_api_credentials,
+    get_session_path as _get_session_path,
 )
 from app.domains.telegram.headless_models import GroupConfig, GroupInfo, GroupType
 

@@ -15,15 +15,15 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.core.http import get_http_client
-from app.unified_scanner.cache import _cache_get, _cache_set
-from app.unified_scanner.helius import (
+from app.core.http import get_http_client  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.unified_scanner.cache import _cache_get, _cache_set  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.unified_scanner.helius import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _fetch_etherscan_wallet,
     _fetch_helius_wallet,
     _fetch_moralis_wallet,
 )
-from app.unified_scanner.models import WalletRiskFactors
-from app.unified_scanner.providers import (
+from app.unified_scanner.models import WalletRiskFactors  # noqa: E402 — module docstring precedes import block
+from app.unified_scanner.providers import (  # noqa: E402 — module docstring precedes import block
     _calculate_basic_pnl,
     _check_hapi_risk,
     _check_misttrack_light,

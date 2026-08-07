@@ -66,7 +66,7 @@ class TestProviderFallback:
 class TestDataBusSmoke:
     """Smoke tests for all 78 DataBus provider chains."""
 
-    CHAINS = [  # noqa: RUF012
+    CHAINS = [
         "token_price",
         "market_overview",
         "trending",

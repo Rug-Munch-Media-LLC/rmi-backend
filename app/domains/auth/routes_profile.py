@@ -9,12 +9,12 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.domains.auth.cookie import _clear_auth_cookie
-from app.domains.auth.deps import _extract_token
-from app.domains.auth.jwt import _verify_jwt
-from app.domains.auth.router import router
-from app.domains.auth.schemas import UserResponse
-from app.domains.auth.store import _get_user
+from app.domains.auth.cookie import _clear_auth_cookie  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.deps import _extract_token  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.jwt import _verify_jwt  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.router import router  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.schemas import UserResponse  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.store import _get_user  # noqa: E402 — module docstring precedes import block
 
 
 @router.get("/user/me", response_model=UserResponse)

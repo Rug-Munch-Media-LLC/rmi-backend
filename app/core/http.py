@@ -41,6 +41,6 @@ async def close_http_client() -> None:
 
 
 # Re-export for convenience
-from httpx import Limits, Response, Timeout
+from httpx import Limits, Response, Timeout  # noqa: E402 — module docstring precedes import block
 
 __all__ = ["Limits", "Response", "Timeout", "close_http_client", "get_http_client"]

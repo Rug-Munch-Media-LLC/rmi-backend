@@ -12,7 +12,7 @@ from app.databus.core import databus
 logger = get_logger("databus.router.core")
 router = APIRouter(tags=["databus"])
 
-from app.databus.router._shared import verify_admin as _verify_admin
+from app.databus.router._shared import verify_admin as _verify_admin  # noqa: E402 — imported after logger init; kept below module header for readability
 
 
 @router.post("/fetch")

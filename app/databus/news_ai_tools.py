@@ -10,6 +10,10 @@ RMI x402 NEWS AI TOOLS - 5 premium tools powered by local Ollama
 Pricing: $0.02-0.05 USDC. Free trials: 2-5 calls.
 All powered by local Ollama - no external API costs.
 """
+# NOTE: Dead code — module is not imported anywhere. Helper functions
+# (get_news_articles, ask_ollama) live in other modules; this standalone
+# tool set is retained for reference only.
+# type: ignore
 
 from __future__ import annotations
 

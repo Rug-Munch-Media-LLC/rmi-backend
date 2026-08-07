@@ -112,7 +112,7 @@ class CrossEncoderReranker:
             start = time.perf_counter()
             try:
                 import onnxruntime as ort
-                from optimum.onnxruntime import ORTModelForSequenceClassification  # noqa: F401 — availability check for optional optimum dep
+                from optimum.onnxruntime import ORTModelForSequenceClassification
                 from transformers import AutoTokenizer
 
                 # Use CPU execution provider

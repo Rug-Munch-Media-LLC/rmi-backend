@@ -13,11 +13,11 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING  # noqa: E402 — imported after logger init; kept below module header for readability
 
-from app.core.slowrate import limiter
-from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie
-from app.domains.auth.jwt import (
+from app.core.slowrate import limiter  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.jwt import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _JWT_PRIVATE_KEY,
     _JWT_PUBLIC_KEY,
     JWT_ALGORITHM,
@@ -25,9 +25,9 @@ from app.domains.auth.jwt import (
     _create_jwt,
     _derive_user_id,
 )
-from app.domains.auth.passwords import hash_password, verify_password
-from app.domains.auth.router import router
-from app.domains.auth.store import _get_user_by_email, _is_valid_email
+from app.domains.auth.passwords import hash_password, verify_password  # noqa: E402 — module docstring precedes import block
+from app.domains.auth.router import router  # noqa: E402 — module docstring precedes import block
+from app.domains.auth.store import _get_user_by_email, _is_valid_email  # noqa: E402 — module docstring precedes import block
 
 if TYPE_CHECKING:
     from app.domains.auth.schemas import EmailLoginRequest, EmailRegisterRequest

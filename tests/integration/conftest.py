@@ -24,7 +24,7 @@ os.environ.setdefault("REDIS_PASSWORD", "")
 os.environ.setdefault("REDIS_HOST", "localhost")
 os.environ.setdefault("REDIS_PORT", "6379")
 
-import pytest  # noqa: E402  (env vars must be set before app imports)
+import pytest  # noqa: E402 — module docstring precedes import block
 
 
 @pytest.fixture(scope="session")

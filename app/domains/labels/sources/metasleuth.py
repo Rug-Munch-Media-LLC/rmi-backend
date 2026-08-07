@@ -60,8 +60,8 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
         try:
             import subprocess
 
-            result = subprocess.run(  # noqa: ASYNC221 — best-effort gopass key fallback; runs only when env key missing
-                ["gopass", "show", "-o", "path/to/metasleuth_api_key"],  # noqa: S607 — gopass from PATH; intentional gopass lookup pattern
+            result = subprocess.run(
+                ["gopass", "show", "-o", "path/to/metasleuth_api_key"],
                 capture_output=True,
                 text=True,
                 timeout=2,

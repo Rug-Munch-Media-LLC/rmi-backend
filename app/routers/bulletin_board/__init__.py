@@ -36,7 +36,7 @@ Backward-compatible re-export layer. Mounted path unchanged
 # Import submodules to register routes on the shared router.
 # Order matters for path resolution: public → admin → social (matches the
 # original single-module registration order).
-from app.routers.bulletin_board import admin, public, social  # noqa: F401
+from app.routers.bulletin_board import admin, public, social
 
 # Re-export request models for backward compatibility
 from app.routers.bulletin_board.models import (

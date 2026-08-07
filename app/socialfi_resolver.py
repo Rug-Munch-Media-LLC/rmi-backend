@@ -21,7 +21,7 @@ ENS_RPC_URLS = [
 ]
 
 # Etherscan key from env
-import os as _os
+import os as _os  # noqa: E402 — module docstring precedes import block
 
 _ETHERSCAN_KEY = _os.getenv("ETHERSCAN_API_KEY", "")
 

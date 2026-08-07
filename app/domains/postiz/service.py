@@ -6,7 +6,7 @@ Import from there directly.
 
 from __future__ import annotations
 
-from app.domains.postiz.services import (  # noqa: F401
+from app.domains.postiz.services import (
     PostizStore,
     bulk_schedule,
     compose_preview,

@@ -20,11 +20,11 @@ Import from other services (walletpress, pryscraper):
 from __future__ import annotations
 
 from app.auth.jwt_validation import (
-    create_token,  # noqa: F401 — re-export
-    extract_token_from_request,  # noqa: F401 — re-export
-    get_current_user,  # noqa: F401 — re-export
-    get_jwks,  # noqa: F401 — re-export
-    require_auth,  # noqa: F401 — re-export
-    validate_token,  # noqa: F401 — re-export
+    create_token,
+    extract_token_from_request,
+    get_current_user,
+    get_jwks,
+    require_auth,
+    validate_token,
 )
-from app.domains.auth.deps import require_public_profile  # noqa: F401 — re-export
+from app.domains.auth.deps import require_public_profile

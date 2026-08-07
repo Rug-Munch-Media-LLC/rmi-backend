@@ -74,7 +74,7 @@ async def _load_etherscan_combined(storage) -> int:
     return count
 
 
-import os
+import os  # noqa: E402 — module docstring precedes import block
 
 
 async def _load_etherscan_phish_hack(storage) -> int:

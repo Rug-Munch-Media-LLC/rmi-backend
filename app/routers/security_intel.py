@@ -37,10 +37,10 @@ def _L(module_path) -> Any:
 
 
 # Lightweight imports (eager - these are fast)
-from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from fastapi import APIRouter  # noqa: E402 — module docstring precedes import block
+from pydantic import BaseModel, Field  # noqa: E402 — module docstring precedes import block
 
-from app.cross_chain_correlator import ChainFingerprint, CrossChainCorrelator
+from app.cross_chain_correlator import ChainFingerprint, CrossChainCorrelator  # noqa: E402 — module docstring precedes import block
 
 router = APIRouter(prefix="/api/v1/security", tags=["security"])
 

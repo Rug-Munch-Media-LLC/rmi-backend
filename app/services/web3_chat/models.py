@@ -3,7 +3,7 @@ Web3 Chat Models
 ================
 Constants, enums, and data models for Web3-native chat features.
 """
-# ruff: noqa: S105 — enum member names are not passwords
+
 
 from __future__ import annotations
 

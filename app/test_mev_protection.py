@@ -7,14 +7,14 @@ logger = logging.getLogger(__name__)
 Tests for mev_protection.py - MEV Shield Analysis
 """
 
-import asyncio
-import json
-import os
-import sys
+import asyncio  # noqa: E402 — module docstring precedes import block
+import json  # noqa: E402 — module docstring precedes import block
+import os  # noqa: E402 — module docstring precedes import block
+import sys  # noqa: E402 — module docstring precedes import block
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.mev_protection import (
+from app.mev_protection import (  # noqa: E402 — sys.path setup precedes app imports
     MevFactor,
     MevRiskLevel,
     MevShieldResult,

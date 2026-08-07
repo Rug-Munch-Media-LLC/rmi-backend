@@ -57,15 +57,15 @@ async def _health_check() -> DomainHealth:
 health_mod.register_health_check("alerts", _health_check)
 
 # Public API
-from app.domains.alerts.broadcaster import AlertBroadcaster
-from app.domains.alerts.models import (
+from app.domains.alerts.broadcaster import AlertBroadcaster  # noqa: E402 — module docstring precedes import block
+from app.domains.alerts.models import (  # noqa: E402 — module docstring precedes import block
     AlertEvent,
     AlertSubscription,
     AlertType,
     CreateAlertRequest,
 )
-from app.domains.alerts.repository import AlertRepository
-from app.domains.alerts.service import AlertService
+from app.domains.alerts.repository import AlertRepository  # noqa: E402 — module docstring precedes import block
+from app.domains.alerts.service import AlertService  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "AlertBroadcaster",

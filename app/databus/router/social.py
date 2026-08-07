@@ -12,7 +12,7 @@ from app.databus.core import databus
 logger = get_logger("databus.router.social")
 router = APIRouter(tags=["databus"])
 
-from app.databus.social import (
+from app.databus.social import (  # noqa: E402 — imported after logger init; kept below module header for readability
     X_DAILY_READ_BUDGET,
     X_FREE_MONTHLY_READ_LIMIT,
 )

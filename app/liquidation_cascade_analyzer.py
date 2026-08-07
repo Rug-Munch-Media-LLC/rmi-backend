@@ -13,7 +13,7 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.analysis.liquidation import *  # noqa: F403
+from app.domains.analysis.liquidation import *
 
 if __name__ == "__main__":
     from app.domains.analysis.liquidation_cascade_analyzer import main as _main

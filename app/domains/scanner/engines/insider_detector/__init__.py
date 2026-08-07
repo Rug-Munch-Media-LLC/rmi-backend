@@ -5,12 +5,12 @@ Re-exports all public API for backward compatibility.
 
 from app.core.logging import get_logger
 
-from .collectors import (  # noqa: F401  (re-export for backward compatibility)
+from .collectors import (
     _collect_token_meta,
     _gather_events,
     _get_token_traders,
 )
-from .config import (  # noqa: F401  (re-export for backward compatibility)
+from .config import (
     AVG_CEX_LISTING_PUMP,
     AVG_KOL_PUMP,
     AVG_PRE_TRENDING_PUMP,
@@ -22,7 +22,7 @@ from .config import (  # noqa: F401  (re-export for backward compatibility)
     INSIDER_WINDOW_MIN,
     MIN_INSIDER_BUY_USD,
 )
-from .detectors import (  # noqa: F401  (re-export for backward compatibility)
+from .detectors import (
     _detect_cex_frontrun,
     _detect_dev_insider,
     _detect_pre_kol,
@@ -30,13 +30,13 @@ from .detectors import (  # noqa: F401  (re-export for backward compatibility)
     _detect_pumpfun_graduation,
     _detect_snipers,
 )
-from .helpers import (  # noqa: F401  (re-export for backward compatibility)
+from .helpers import (
     _parse_timestamp,
     _ts_human,
 )
 from .models import Confidence, InsiderEvidence, InsiderReport, InsiderType
 from .scoring import detect_insiders, find_pre_pump_wallets, get_insider_score
-from .utils import (  # noqa: F401  (re-export for backward compatibility)
+from .utils import (
     _check_early_buy,
     _deduplicate_evidence,
     _generate_insights,

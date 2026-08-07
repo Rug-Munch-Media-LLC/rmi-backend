@@ -51,7 +51,7 @@ async def _get_redis() -> Any:
 
 # ── Embedder — re-export the active crypto embedder (not deprecated) ─────
 
-from app.crypto_embeddings import get_embedder  # noqa: E402
+from app.crypto_embeddings import get_embedder  # noqa: E402 — module docstring precedes import block
 
 # ── Search shims ───────────────────────────────────────────────────────────
 

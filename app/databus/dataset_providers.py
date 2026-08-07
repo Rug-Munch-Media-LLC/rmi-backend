@@ -29,7 +29,7 @@ logger = get_logger("databus.dataset_providers")
 # ═══════════════════════════════════════════════════════════════
 
 REAL_CATS_PATHS = [
-    "/tmp/Real-CATS",  # noqa: S108 — dataset dir path fallback (mounted volume)
+    "/tmp/Real-CATS",
     "/app/Real-CATS",
     os.path.expanduser("~/rmi/Real-CATS"),
     os.path.expanduser("~/rmi/datasets/Real-CATS"),
@@ -173,7 +173,7 @@ MBAL_PATHS = [
     os.path.expanduser("~/rmi/mbal"),
     "/app/mbal",
     os.path.expanduser("~/rmi/datasets/mbal"),
-    "/tmp/mbal",  # noqa: S108 — dataset dir path fallback (mounted volume)
+    "/tmp/mbal",
 ]
 
 MBAL_README = """
@@ -237,7 +237,7 @@ async def fetch_mbal(
 
     try:
         results = []
-        with open(main_file, encoding="utf-8") as f:  # noqa: ASYNC230 — blocking CSV read in async fetch; data is small local dataset
+        with open(main_file, encoding="utf-8") as f:
             reader = csv.DictReader(f)
 
             for row in reader:
