@@ -282,21 +282,21 @@ async def create_crm_multichain_airdrop(
         TokenSource(
             chain="base",
             token_address=crm_base_address,
-            token_symbol="CRM",
+            token_symbol="CRM",  # noqa: S106 — config default
             weight_multiplier=2.0,
             min_holdings="1000",
         ),
         TokenSource(
             chain="solana",
             token_address=crm_solana_address,
-            token_symbol="CRM",
+            token_symbol="CRM",  # noqa: S106 — config default
             weight_multiplier=1.5,
             min_holdings="1000",
         ),
         TokenSource(
             chain="solana",
             token_address=cryptorugmunch_solana_address,
-            token_symbol="CryptoRugMunch",
+            token_symbol="CryptoRugMunch",  # noqa: S106 — config default
             weight_multiplier=1.0,
             min_holdings="1",
         ),
@@ -382,14 +382,14 @@ async def create_crm_v2_airdrop_preset(
         TokenSource(
             chain="solana",
             token_address=crm_solana_address,
-            token_symbol="CRM",
+            token_symbol="CRM",  # noqa: S106 — config default
             weight_multiplier=1.0,  # 1:1
             min_holdings="1",
         ),
         TokenSource(
             chain="base",  # Zora is on Base
             token_address=cryptorugmunch_zora_address,
-            token_symbol="CryptoRugMunch",
+            token_symbol="CryptoRugMunch",  # noqa: S106 — config default
             weight_multiplier=1.0,  # 1:1
             min_holdings="1",
         ),

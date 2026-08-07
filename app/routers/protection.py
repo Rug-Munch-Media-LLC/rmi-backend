@@ -507,7 +507,7 @@ async def protection_health() -> Any:
         health_status["modules"]["unified_scanner"] = f"error: {e}"
 
     try:
-        health_status["modules"]["token_scanner"] = "ok"
+        health_status["modules"]["token_scanner"] = "ok"  # noqa: S105 — config default
     except Exception as e:
         health_status["modules"]["token_scanner"] = f"error: {e}"
 

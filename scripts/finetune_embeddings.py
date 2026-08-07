@@ -136,7 +136,7 @@ async def mine_hard_negatives(
 
     # Fall back to static hard negatives
     while len(negatives) < num_negatives:
-        neg = random.choice(HARD_NEGATIVES)
+        neg = random.choice(HARD_NEGATIVES)  # noqa: S311 — non-crypto randomness
         if neg not in negatives:
             negatives.append(neg)
 
@@ -176,9 +176,9 @@ async def build_training_data() -> list[tuple[str, str, str, float]]:
                     # Margin: how much better is the positive?
                     margin = pos_score - neg_score
                 except Exception:
-                    margin = random.uniform(1.5, 3.0)
+                    margin = random.uniform(1.5, 3.0)  # noqa: S311 — non-crypto randomness
             else:
-                margin = random.uniform(1.5, 3.0)
+                margin = random.uniform(1.5, 3.0)  # noqa: S311 — non-crypto randomness
 
             training_data.append((query, pos_doc, neg_doc, margin))
 

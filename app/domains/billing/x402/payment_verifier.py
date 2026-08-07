@@ -171,7 +171,7 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
     asset_address = accepted.get("asset", "")
 
     chain_key = None
-    token_symbol = "USDC"
+    token_symbol = "USDC"  # noqa: S105 — config default
 
     for ck, cfg in CHAIN_USDC.items():
         if cfg["network"] == network:

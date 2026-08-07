@@ -169,7 +169,7 @@ class RpcCacheClient:
     def get_ttl(method) -> int | float:
         base = TTL_TABLE.get(method, TTL_TABLE["_default"])
         base = max(MIN_TTL, min(MAX_TTL, base))
-        jitter = base * TTL_JITTER_PCT * (random.random() * 2 - 1)
+        jitter = base * TTL_JITTER_PCT * (random.random() * 2 - 1)  # noqa: S311 — non-crypto randomness
         return max(MIN_TTL, base + jitter)
 
     # ── Serialization ───────────────────────────────────────────────────

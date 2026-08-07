@@ -66,8 +66,8 @@ ETHERSCAN_NETWORKS = {
 
 # ── Solana Constants ────────────────────────────────────────
 
-SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-TOKEN_2022_PROGRAM_ID = "Tokenz4dSamgc6f5A2p5fdP8EjVq7MdY3F6UuF6nXK"
+SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"  # noqa: S105 — config default
+TOKEN_2022_PROGRAM_ID = "Tokenz4dSamgc6f5A2p5fdP8EjVq7MdY3F6UuF6nXK"  # noqa: S105 — config default
 SYSTEM_PROGRAM_ID = "11111111111111111111111111111111"
 
 # Renounced / burned addresses on Solana

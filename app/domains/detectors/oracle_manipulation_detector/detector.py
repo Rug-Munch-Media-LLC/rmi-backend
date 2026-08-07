@@ -321,9 +321,9 @@ class OracleManipulationDetector:
             noise = random.gauss(0, base_price * 0.001)
             price = base_price + noise
 
-            if random.random() < 0.05:
-                direction = 1 if random.random() > 0.5 else -1
-                manipulation_magnitude = random.uniform(0.03, 0.12)
+            if random.random() < 0.05:  # noqa: S311 — non-crypto randomness
+                direction = 1 if random.random() > 0.5 else -1  # noqa: S311 — non-crypto randomness
+                manipulation_magnitude = random.uniform(0.03, 0.12)  # noqa: S311 — non-crypto randomness
                 price += base_price * direction * manipulation_magnitude
 
             samples.append(
@@ -331,7 +331,7 @@ class OracleManipulationDetector:
                     timestamp=ts,
                     block_number=block_num,
                     price=round(price, 6),
-                    liquidity=random.uniform(1000000, 50000000),
+                    liquidity=random.uniform(1000000, 50000000),  # noqa: S311 — non-crypto randomness
                     source=f"{protocol}/{pair}/{fee}",
                     chain=self.chain,
                 )
@@ -380,7 +380,7 @@ class OracleManipulationDetector:
                     timestamp=ts,
                     block_number=block_num,
                     price=round(price, 6),
-                    liquidity=random.uniform(1000000, 50000000),
+                    liquidity=random.uniform(1000000, 50000000),  # noqa: S311 — non-crypto randomness
                     source=f"pool_{pool_address[:10]}",
                     chain=self.chain,
                 )
@@ -466,10 +466,10 @@ class OracleManipulationDetector:
     async def _fetch_chainlink_feed(self, feed_name: str, feed_info: dict) -> OracleRead | None:
         """Fetch and analyze a Chainlink price feed (simulated)."""
         now = time.time()
-        is_stale_sim = random.random() < 0.05
-        age = random.uniform(300, 3600)
+        is_stale_sim = random.random() < 0.05  # noqa: S311 — non-crypto randomness
+        age = random.uniform(300, 3600)  # noqa: S311 — non-crypto randomness
         if is_stale_sim:
-            age = random.uniform(7200, 43200)
+            age = random.uniform(7200, 43200)  # noqa: S311 — non-crypto randomness
 
         base_prices = {
             "ETH/USD": 3200.0,
@@ -490,7 +490,7 @@ class OracleManipulationDetector:
         reported_price = round(base_price * (1 + random.gauss(0, 0.001)), int(decimals / 2))
 
         return OracleRead(
-            tx_hash=f"0x{random.randrange(10**63, 10**64):064x}",
+            tx_hash=f"0x{random.randrange(10**63, 10**64):064x}",  # noqa: S311 — non-crypto randomness
             block_number=21000000,
             timestamp=now,
             oracle_address=feed_info["address"],
@@ -506,35 +506,35 @@ class OracleManipulationDetector:
         """Detect flash loan-backed price manipulation patterns (simulated)."""
         incidents: list[PriceManipulation] = []
         for _ in range(blocks_back // 10):
-            if random.random() < 0.05:
-                pair = random.choice(list(KNOWN_LP_POOLS.keys()))
+            if random.random() < 0.05:  # noqa: S311 — non-crypto randomness
+                pair = random.choice(list(KNOWN_LP_POOLS.keys()))  # noqa: S311 — non-crypto randomness
                 base_price = 3200.0 if "ETH" in pair else 100.0
-                manipulation_pct = random.uniform(0.03, 0.25)
+                manipulation_pct = random.uniform(0.03, 0.25)  # noqa: S311 — non-crypto randomness
                 manipulated_price = base_price * (1 + manipulation_pct)
 
                 incident = PriceManipulation(
                     manipulation_type=ManipulationType.FLASH_LOAN_SWAP,
                     severity=Severity.HIGH if manipulation_pct > 0.10 else Severity.MEDIUM,
                     chain=self.chain,
-                    block_number=random.randint(21000000 - blocks_back, 21000000),
-                    tx_hash=f"0x{random.randrange(10**63, 10**64):064x}",
-                    timestamp=time.time() - random.uniform(0, blocks_back * 12),
+                    block_number=random.randint(21000000 - blocks_back, 21000000),  # noqa: S311 — non-crypto randomness
+                    tx_hash=f"0x{random.randrange(10**63, 10**64):064x}",  # noqa: S311 — non-crypto randomness
+                    timestamp=time.time() - random.uniform(0, blocks_back * 12),  # noqa: S311 — non-crypto randomness
                     pool_address=KNOWN_LP_POOLS[pair][0]["address"],
                     pair=pair,
                     oracle_type=OracleType.UNISWAP_V3_TWAP,
                     observed_price=round(manipulated_price, 6),
                     expected_price=round(base_price, 6),
                     deviation_pct=manipulation_pct * 100,
-                    flash_loan_value_usd=random.uniform(500000, 15000000),
+                    flash_loan_value_usd=random.uniform(500000, 15000000),  # noqa: S311 — non-crypto randomness
                     description=f"Flash loan-backed price manipulation on {pair}: price moved {manipulation_pct:.2%}",
                     evidence=[
-                        f"flash_loan=${random.uniform(500000, 15000000):.0f}",
+                        f"flash_loan=${random.uniform(500000, 15000000):.0f}",  # noqa: S311 — non-crypto randomness
                         f"price_impact={manipulation_pct:.2%}",
-                        f"block={random.randint(21000000 - blocks_back, 21000000)}",
+                        f"block={random.randint(21000000 - blocks_back, 21000000)}",  # noqa: S311 — non-crypto randomness
                     ],
                     related_txns=[
-                        f"0x{random.randrange(10**63, 10**64):064x}",
-                        f"0x{random.randrange(10**63, 10**64):064x}",
+                        f"0x{random.randrange(10**63, 10**64):064x}",  # noqa: S311 — non-crypto randomness
+                        f"0x{random.randrange(10**63, 10**64):064x}",  # noqa: S311 — non-crypto randomness
                     ],
                 )
                 incidents.append(incident)
@@ -543,11 +543,11 @@ class OracleManipulationDetector:
 
     async def _analyze_tx_for_oracle_manipulation(self, tx_hash: str) -> PriceManipulation | None:
         """Analyze a single transaction for oracle manipulation patterns (simulated)."""
-        pair = random.choice(list(KNOWN_LP_POOLS.keys()))
+        pair = random.choice(list(KNOWN_LP_POOLS.keys()))  # noqa: S311 — non-crypto randomness
         base_price = 3200.0 if "ETH" in pair else 100.0
-        manipulation_pct = random.uniform(0.02, 0.15)
+        manipulation_pct = random.uniform(0.02, 0.15)  # noqa: S311 — non-crypto randomness
 
-        if random.random() < 0.3:
+        if random.random() < 0.3:  # noqa: S311 — non-crypto randomness
             return PriceManipulation(
                 manipulation_type=ManipulationType.FLASH_LOAN_SWAP,
                 severity=Severity.MEDIUM,

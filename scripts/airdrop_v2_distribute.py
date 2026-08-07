@@ -96,7 +96,7 @@ class AirdropV2Distributor:
                     address=addr,
                     chain="solana",
                     amount=amount,
-                    original_token="CRM",
+                    original_token="CRM",  # noqa: S106 — config default
                     percentage=float(holder.get("Percentage", 0)),
                     is_blacklisted=is_blacklisted,
                     blacklist_reason=reason,
@@ -119,7 +119,7 @@ class AirdropV2Distributor:
                     address=addr,
                     chain="base",
                     amount=amount,
-                    original_token="$cryptorugmunch",
+                    original_token="$cryptorugmunch",  # noqa: S106 — config default
                     percentage=0,  # Not provided in base CSV
                     is_blacklisted=is_blacklisted,
                     blacklist_reason=reason,

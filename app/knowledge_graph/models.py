@@ -21,7 +21,7 @@ class EdgeType:
 
 class NodeType:
     WALLET = "wallet"
-    TOKEN = "token"
+    TOKEN = "token"  # noqa: S105 — config default
     CONTRACT = "contract"
     SCAM = "scam"
     ENTITY = "entity"  # named entity (protocol, person, org)

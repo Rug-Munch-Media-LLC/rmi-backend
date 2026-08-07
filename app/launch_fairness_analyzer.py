@@ -648,17 +648,17 @@ async def analyze_launch_fairness(
         random.seed(hash(addr) % (2**31))
 
         # Generate holder distribution
-        num_holders = random.randint(50, 5000)
+        num_holders = random.randint(50, 5000)  # noqa: S311 — non-crypto randomness
         holders_data = []
         remaining = 1_000_000_000  # 1B supply
         for _i in range(min(num_holders, 100)):
-            pct = random.uniform(0.001, 15.0)
+            pct = random.uniform(0.001, 15.0)  # noqa: S311 — non-crypto randomness
             bal = int(remaining * pct / 100)
             if bal < 1:
                 bal = 1
             holders_data.append(
                 {
-                    "address": f"0x{random.randrange(16**40):040x}",
+                    "address": f"0x{random.randrange(16**40):040x}",  # noqa: S311 — non-crypto randomness
                     "balance": bal,
                     "pct": pct,
                 }
@@ -666,39 +666,39 @@ async def analyze_launch_fairness(
             remaining -= bal
 
         # Generate launch transactions
-        num_txs = random.randint(20, 200)
+        num_txs = random.randint(20, 200)  # noqa: S311 — non-crypto randomness
         simulated_txs = []
-        block = random.randint(20_000_000, 21_000_000)
+        block = random.randint(20_000_000, 21_000_000)  # noqa: S311 — non-crypto randomness
         for i in range(num_txs):
-            is_sniper = i < random.randint(3, 15)
+            is_sniper = i < random.randint(3, 15)  # noqa: S311 — non-crypto randomness
             tx = {
-                "from": f"0x{random.randrange(16**40):040x}",
+                "from": f"0x{random.randrange(16**40):040x}",  # noqa: S311 — non-crypto randomness
                 "to": addr,
                 "block_number": block + (i // 3),
                 "timestamp": 1_700_000_000 + i * 0.5,
-                "amount_usd": random.uniform(10, 50000),
-                "type": random.choice(["buy", "buy", "buy", "sell", "swap"]),
-                "gas_price_gwei": random.randint(10, 100),
+                "amount_usd": random.uniform(10, 50000),  # noqa: S311 — non-crypto randomness
+                "type": random.choice(["buy", "buy", "buy", "sell", "swap"]),  # noqa: S311 — non-crypto randomness
+                "gas_price_gwei": random.randint(10, 100),  # noqa: S311 — non-crypto randomness
             }
             if is_sniper:
-                tx["amount_usd"] = round(random.uniform(1000, 10000), 2)
-                tx["gas_price_gwei"] = random.randint(50, 150)
+                tx["amount_usd"] = round(random.uniform(1000, 10000), 2)  # noqa: S311 — non-crypto randomness
+                tx["gas_price_gwei"] = random.randint(50, 150)  # noqa: S311 — non-crypto randomness
             simulated_txs.append(tx)
 
         # LP data
         lp_data = {
-            "add_delay_blocks": random.randint(0, 500),
-            "lp_token_concentration": random.uniform(0.1, 0.9),
-            "single_sided": random.choice([True, False]),
-            "lp_removed": random.choice([True, False]),
+            "add_delay_blocks": random.randint(0, 500),  # noqa: S311 — non-crypto randomness
+            "lp_token_concentration": random.uniform(0.1, 0.9),  # noqa: S311 — non-crypto randomness
+            "single_sided": random.choice([True, False]),  # noqa: S311 — non-crypto randomness
+            "lp_removed": random.choice([True, False]),  # noqa: S311 — non-crypto randomness
         }
 
         # Presale data
         presale_data = {
-            "presale_allocation_pct": random.uniform(5, 60),
-            "participant_count": random.randint(10, 5000),
-            "insider_allocation_pct": random.uniform(0, 30),
-            "vc_allocation_pct": random.uniform(0, 20),
+            "presale_allocation_pct": random.uniform(5, 60),  # noqa: S311 — non-crypto randomness
+            "participant_count": random.randint(10, 5000),  # noqa: S311 — non-crypto randomness
+            "insider_allocation_pct": random.uniform(0, 30),  # noqa: S311 — non-crypto randomness
+            "vc_allocation_pct": random.uniform(0, 20),  # noqa: S311 — non-crypto randomness
         }
 
     # ── Run all signal detectors ──

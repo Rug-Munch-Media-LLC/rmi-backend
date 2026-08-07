@@ -15,11 +15,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class WebhookEventType(StrEnum):
     """The seven webhook event types — all sourced from free data."""
 
-    TOKEN_DEPLOYED = "token.deployed"
-    TOKEN_FIRST_SWAP = "token.first_swap"
-    TOKEN_PRICE_CHANGE = "token.price_change"
-    TOKEN_WHALE_MOVE = "token.whale_move"
-    TOKEN_LIQUIDITY_CHANGE = "token.liquidity_change"
+    TOKEN_DEPLOYED = "token.deployed"  # noqa: S105 — config default
+    TOKEN_FIRST_SWAP = "token.first_swap"  # noqa: S105 — config default
+    TOKEN_PRICE_CHANGE = "token.price_change"  # noqa: S105 — config default
+    TOKEN_WHALE_MOVE = "token.whale_move"  # noqa: S105 — config default
+    TOKEN_LIQUIDITY_CHANGE = "token.liquidity_change"  # noqa: S105 — config default
     WALLET_ACTIVITY = "wallet.activity"
     CHAIN_BLOCK = "chain.block"
 

@@ -440,7 +440,7 @@ def is_known_exchange(wallet_address: str) -> str | None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Test with a known token
-    token = "So11111111111111111111111111111111111111112"  # wSOL
+    token = "So11111111111111111111111111111111111111112"  # wSOL  # noqa: S105 — config default
     print("Testing Free Solscan Client...")
     data = FreeSolscanClient.token_data(token)
     print(f"Token: {data}")

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 DEXSCREENER_PROFILES = "https://api.dexscreener.com/token-profiles/latest/v1"
 DEXSCREENER_BOOSTS = "https://api.dexscreener.com/token-boosts/top/v1"
-DEXSCREENER_TOKEN = "https://api.dexscreener.com/latest/dex/tokens/{}"
+DEXSCREENER_TOKEN = "https://api.dexscreener.com/latest/dex/tokens/{}"  # noqa: S105 — config default
 DEXSCREENER_SEARCH = "https://api.dexscreener.com/latest/dex/search?q={}"
 
 # Estimated multipliers for PnL calculation

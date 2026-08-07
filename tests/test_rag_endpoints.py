@@ -23,7 +23,7 @@ os.environ["JWT_SECRET"] = "a" * 32
 os.environ["CERTSTREAM_ENABLED"] = "false"
 os.environ["WEBHOOK_ENGINE_ENABLED"] = "false"
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -129,7 +129,7 @@ class TestRagSearch:
 
 
 class TestRagStats:
-    def test_stats_shape(self, app, _allow_global_rate_limits, monkeypatch) -> None:
+    def test_stats_shape(self, app, monkeypatch) -> None:
         """GET /api/v1/rag/v2/stats → collection counts + embedder backend.
 
         The router calls ``engine_get_stats()`` synchronously (the engine
@@ -161,7 +161,7 @@ class TestRagStats:
 
 
 class TestRagIngest:
-    def test_ingest_requires_auth(self, app, mock_engine_search, _allow_global_rate_limits) -> None:
+    def test_ingest_requires_auth(self, app, mock_engine_search) -> None:
         """/ingest is a PROTECTED_SUBPATH — no key → 401."""
         client = TestClient(app)
         resp = client.post(
@@ -170,7 +170,7 @@ class TestRagIngest:
         )
         assert resp.status_code == 401, resp.text
 
-    def test_ingest_document(self, app, mock_engine_search, _allow_global_rate_limits, monkeypatch) -> None:
+    def test_ingest_document(self, app, mock_engine_search, monkeypatch) -> None:
         """Authenticated ingest returns doc_id + status + chunks."""
         import app.rag.service as service
 
@@ -193,7 +193,7 @@ class TestRagIngest:
 
 
 class TestRagFeedback:
-    def test_feedback_scam_ingest(self, app, mock_engine_search, _allow_global_rate_limits, monkeypatch) -> None:
+    def test_feedback_scam_ingest(self, app, mock_engine_search, monkeypatch) -> None:
         """Feedback records a known scam into the known_scams collection."""
         import app.rag.service as service
 

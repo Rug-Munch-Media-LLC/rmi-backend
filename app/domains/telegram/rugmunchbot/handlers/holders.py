@@ -135,8 +135,8 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         async with httpx.AsyncClient(timeout=20) as client:
             # Get token info + top pairs
             dex_resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
-            token_name = "Unknown"
-            token_symbol = "???"
+            token_name = "Unknown"  # noqa: S105 — config default
+            token_symbol = "???"  # noqa: S105 — config default
             dex_pairs = []
 
             if dex_resp.status_code == 200:

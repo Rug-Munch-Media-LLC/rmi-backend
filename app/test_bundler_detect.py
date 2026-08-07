@@ -113,7 +113,7 @@ class TestDataModels(unittest.TestCase):
 
     def test_bundler_report_to_dict(self) -> None:
         report = BundlerReport(
-            token_address="0x123",
+            token_address="0x123",  # noqa: S106 — test fixture
             chain="ethereum",
             name="TestToken",
             symbol="TST",
@@ -128,14 +128,14 @@ class TestDataModels(unittest.TestCase):
             risk_label="critical",
         )
         d = report.to_dict()
-        assert d["token_address"] == "0x123"
+        assert d["token_address"] == "0x123"  # noqa: S105 — test fixture
         assert d["risk_label"] == "critical"
         assert d["bundler_score"] == 85.0
         assert d["signals"]["supply_concentration"] == 90.0
 
     def test_bundler_report_summary(self) -> None:
         report = BundlerReport(
-            token_address="0x1234567890abcdef12345678",
+            token_address="0x1234567890abcdef12345678",  # noqa: S106 — test fixture
             chain="ethereum",
             name="TestToken",
             symbol="TST",
@@ -305,7 +305,7 @@ class TestBundlerDetector(unittest.TestCase):
 
     def test_compute_bundler_score_weights(self) -> None:
         report = BundlerReport(
-            token_address="0x123",
+            token_address="0x123",  # noqa: S106 — test fixture
             chain="ethereum",
             supply_concentration_score=100.0,
             sniper_cluster_score=100.0,
@@ -317,7 +317,7 @@ class TestBundlerDetector(unittest.TestCase):
 
     def test_compute_bundler_score_half(self) -> None:
         report = BundlerReport(
-            token_address="0x123",
+            token_address="0x123",  # noqa: S106 — test fixture
             chain="ethereum",
             supply_concentration_score=50.0,
             sniper_cluster_score=50.0,
@@ -390,7 +390,7 @@ class TestEdgeCases(unittest.TestCase):
     def test_bundler_report_no_clusters(self) -> None:
         """Report without clusters should not crash on summary."""
         report = BundlerReport(
-            token_address="0xabc",
+            token_address="0xabc",  # noqa: S106 — test fixture
             chain="solana",
         )
         s = report.summary()

@@ -297,7 +297,7 @@ async def ingest_rekt_hacks() -> dict[str, int]:
 
 async def ingest_solana_flagged_tokens() -> dict[str, int]:
     """Download Solana token list and ingest explicitly flagged scam tokens."""
-    token_list_url = "https://raw.githubusercontent.com/solana-labs/token-list/main/src/tokens/solana.tokenlist.json"
+    token_list_url = "https://raw.githubusercontent.com/solana-labs/token-list/main/src/tokens/solana.tokenlist.json"  # noqa: S105 — config default
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:

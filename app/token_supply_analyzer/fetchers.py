@@ -26,12 +26,12 @@ logger = get_logger("token_supply_analyzer")
 # API endpoints
 DEXSCREENER_TOKENS = "https://api.dexscreener.com/latest/dex/tokens/{token_addr}"
 DEXSCREENER_SEARCH = "https://api.dexscreener.com/latest/dex/search?q={}"
-BIRDEYE_TOKEN = "https://public-api.birdeye.so/defi/v3/token/overview?address={token_addr}"
+BIRDEYE_TOKEN = "https://public-api.birdeye.so/defi/v3/token/overview?address={token_addr}"  # noqa: S105 — config default
 BIRDEYE_HOLDERS = "https://public-api.birdeye.so/defi/v3/token/holder?address={token_addr}"
-SOLSCAN_TOKEN = "https://api.solscan.io/token/meta?token={token_addr}"
+SOLSCAN_TOKEN = "https://api.solscan.io/token/meta?token={token_addr}"  # noqa: S105 — config default
 SOLSCAN_HOLDERS = "https://api.solscan.io/token/holders?token={token_addr}&limit=10"
-ETHERSCAN_TOKEN = "https://api.etherscan.io/api?module=account&action=tokeninfo&contractaddress={token_addr}"
-BSCSCAN_TOKEN = "https://api.bscscan.com/api?module=account&action=tokeninfo&contractaddress={token_addr}"
+ETHERSCAN_TOKEN = "https://api.etherscan.io/api?module=account&action=tokeninfo&contractaddress={token_addr}"  # noqa: S105 — config default
+BSCSCAN_TOKEN = "https://api.bscscan.com/api?module=account&action=tokeninfo&contractaddress={token_addr}"  # noqa: S105 — config default
 
 _RATE_LIMITERS: dict[str, float] = {}
 _RATE_LIMIT_WINDOW = 0.5

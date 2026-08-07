@@ -94,7 +94,7 @@ CLONE_INDICATOR_KEYWORDS = [
 # ── APIs (free) ───────────────────────────────────────────────────
 DEXSCREENER_API = "https://api.dexscreener.com/latest/dex"
 BIRDEYE_PUBLIC = "https://public-api.birdeye.so"
-JUPITER_TOKEN_LIST = "https://tokens.jup.ag/all"
+JUPITER_TOKEN_LIST = "https://tokens.jup.ag/all"  # noqa: S105 — config default
 
 # Etherscan-like API bases
 ETHERSCAN_BASES: dict[str, str] = {

@@ -458,7 +458,7 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
                             from_address=h,
                             to_address="unknown",
                             amount=0,
-                            token="SOL",
+                            token="SOL",  # noqa: S106 — config default
                             program="system",
                         )
                     )

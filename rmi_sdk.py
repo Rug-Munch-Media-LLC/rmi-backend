@@ -215,7 +215,7 @@ def retry_with_backoff(
             # Add jitter
             import random
 
-            delay *= 0.5 + random.random()
+            delay *= 0.5 + random.random()  # noqa: S311 — non-crypto randomness
             time.sleep(delay)
     raise last_exception or RMIError("Retry failed")
 
@@ -779,7 +779,7 @@ class AsyncRMI:
             delay = min(self.retry_delay * (2**attempt), 30.0)
             import random
 
-            delay *= 0.5 + random.random()
+            delay *= 0.5 + random.random()  # noqa: S311 — non-crypto randomness
             await asyncio.sleep(delay)
 
         raise RMIError("All retries failed")

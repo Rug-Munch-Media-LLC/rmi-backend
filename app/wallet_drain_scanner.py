@@ -33,7 +33,7 @@ ETHERSCAN_API = "https://api.etherscan.io/api?module=account&action=txlist&addre
 BASESCAN_API = "https://api.basescan.org/api?module=account&action=txlist&address={}&sort=desc&limit=100"
 BSCSCAN_API = "https://api.bscscan.com/api?module=account&action=txlist&address={}&sort=desc&limit=100"
 SOLSCAN_API = "https://api.solscan.io/account/tokens?address={}"
-DEFILLAMA_TOKEN_APPROVALS = "https://coins.llama.fi/approvals/ethereum/{}"
+DEFILLAMA_TOKEN_APPROVALS = "https://coins.llama.fi/approvals/ethereum/{}"  # noqa: S105 — config default
 
 # Known drainer contract address patterns (simplified - real DB would be larger)
 KNOWN_DRAINER_SIGNATURES = {

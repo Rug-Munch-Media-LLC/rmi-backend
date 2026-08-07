@@ -77,7 +77,7 @@ class TestCloneReport(unittest.TestCase):
 
     def test_to_dict_structure(self) -> None:
         report = CloneReport(
-            token_address="0xabc123",
+            token_address="0xabc123",  # noqa: S106 — test fixture
             chain="ethereum",
             name="TestToken",
             symbol="TEST",
@@ -98,7 +98,7 @@ class TestCloneReport(unittest.TestCase):
             same_deployer_other_tokens=12,
         )
         d = report.to_dict()
-        assert d["token_address"] == "0xabc123"
+        assert d["token_address"] == "0xabc123"  # noqa: S105 — test fixture
         assert d["clone_score"] == 45.5
         assert d["risk_label"] == "medium"
         assert len(d["similar_tokens"]) == 1
@@ -114,7 +114,7 @@ class TestCloneReport(unittest.TestCase):
 
     def test_summary_format(self) -> None:
         report = CloneReport(
-            token_address="0xabc123def4567890123456789012345678901234",
+            token_address="0xabc123def4567890123456789012345678901234",  # noqa: S106 — test fixture
             chain="ethereum",
             name="ShadyToken",
             symbol="SHADY",
@@ -139,19 +139,19 @@ class TestCloneReport(unittest.TestCase):
         assert "1 similar tokens" in summary
 
     def test_risk_label_none(self) -> None:
-        report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=0.0)
+        report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=0.0)  # noqa: S106 — test fixture
         scanner = CloneScanner()
         report.risk_label = scanner._label_risk(0.0)
         assert report.risk_label == "none"
 
     def test_risk_label_critical(self) -> None:
-        report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=85.0)
+        report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=85.0)  # noqa: S106 — test fixture
         scanner = CloneScanner()
         report.risk_label = scanner._label_risk(85.0)
         assert report.risk_label == "critical"
 
     def test_risk_label_brackets(self) -> None:
-        report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=25.0)
+        report = CloneReport(token_address="0xaaa", chain="ethereum", clone_score=25.0)  # noqa: S106 — test fixture
         scanner = CloneScanner()
         report.risk_label = scanner._label_risk(25.0)
         assert report.risk_label == "medium"
@@ -261,7 +261,7 @@ class TestScannerScoring(unittest.TestCase):
 
     def test_compute_composite_score(self) -> None:
         report = CloneReport(
-            token_address="0x1",
+            token_address="0x1",  # noqa: S106 — test fixture
             chain="eth",
             bytecode_similarity_score=100,
             name_similarity_score=50,

@@ -203,7 +203,7 @@ class TruffleHogScanner:
                 source_type="stub",
                 source=path,
                 secret="",
-                secret_hash="stub",
+                secret_hash="stub",  # noqa: S106 — config default
                 raw="",
                 raw_v2="",
                 verified=False,

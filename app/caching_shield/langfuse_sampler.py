@@ -58,7 +58,7 @@ def should_send_to_cloud(
         return True
 
     # Sample normal background traces
-    if random.random() < SAMPLING_RATE:
+    if random.random() < SAMPLING_RATE:  # noqa: S311 — non-crypto randomness
         _counters["sampled"] += 1
         return True
 

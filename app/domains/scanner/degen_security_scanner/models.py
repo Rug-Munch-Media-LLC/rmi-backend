@@ -101,8 +101,8 @@ class SecurityReport:
 
     # Token Identity
     token_address: str
-    token_name: str = "Unknown"
-    token_symbol: str = "???"
+    token_name: str = "Unknown"  # noqa: S105 — config default
+    token_symbol: str = "???"  # noqa: S105 — config default
     decimals: int = 0
     total_supply: float = 0.0
     created_at: str | None = None

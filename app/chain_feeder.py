@@ -58,7 +58,7 @@ async def feed_wallet_transactions(wallet: str, limit: int = 50) -> int:
             from_address=wallet,
             to_address=sig_data.get("to", "unknown"),
             amount=float(sig_data.get("lamport", 0)) / 1e9 if sig_data.get("lamport") else 0,
-            token="SOL",
+            token="SOL",  # noqa: S106 — config default
             program="system",
         )
         engine.add_transaction(tx)

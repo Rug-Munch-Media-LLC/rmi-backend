@@ -61,7 +61,7 @@ def _build_accepts_list(tool_id: str, pricing: dict[str, Any]) -> list[dict[str,
         asset = cfg.get("usdc", "")
         if not asset and "tokens" in cfg:
             first_token = next(iter(cfg["tokens"].values()), "")
-            asset = first_token if first_token != "native" else ""
+            asset = first_token if first_token != "native" else ""  # noqa: S105 — config default
 
         extra: dict[str, Any] = {
             "name": cfg["name"],
