@@ -133,7 +133,7 @@ async def connect_platform_endpoint(
     try:
         return connect_platform(body.model_dump())
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post(
@@ -149,7 +149,7 @@ async def disconnect_platform_endpoint(
     try:
         return disconnect_platform(connection_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -171,7 +171,7 @@ async def schedule_post_endpoint(
     try:
         return schedule_post(body.model_dump())
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get(
@@ -233,7 +233,7 @@ async def create_recurring_endpoint(
     try:
         return svc_create_recurring(body.model_dump())
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get(
@@ -320,7 +320,7 @@ async def get_platform_analytics_endpoint(
     try:
         return get_platform_analytics(platform_id, period)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get(

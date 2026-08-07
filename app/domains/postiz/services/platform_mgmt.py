@@ -5,8 +5,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.postiz.platforms import PLATFORMS, get_decentralized_platforms, get_platform
+from app.domains.postiz.services.store import get_store
 
 logger = get_logger(__name__)
+
 
 def get_platform_list(user_id: str | None = None) -> dict[str, Any]:
     """Get all platforms with optional connection status for a user."""
@@ -94,5 +97,3 @@ def disconnect_platform(connection_id: str) -> dict[str, Any]:
 # ══════════════════════════════════════════════════════════════════════
 # 2. Scheduling Service
 # ══════════════════════════════════════════════════════════════════════
-
-

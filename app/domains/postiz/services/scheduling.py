@@ -5,8 +5,15 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.postiz.platforms import PLATFORMS, get_platform
+from app.domains.postiz.services.store import get_store
 
 logger = get_logger(__name__)
+
+# Auto-queue interval (restored from original service.py — lost during the
+# service package split).
+OPTIMAL_INTERVAL_MINUTES = 240  # 4 hours between auto-queue posts
+
 
 def schedule_post(request_data: dict[str, Any]) -> dict[str, Any]:
     """Schedule a post for publishing."""
@@ -210,5 +217,3 @@ def create_recurring(request_data: dict[str, Any]) -> dict[str, Any]:
     )
 
     return recurring
-
-

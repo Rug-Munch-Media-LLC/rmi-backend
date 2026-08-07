@@ -6,8 +6,17 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.postiz.platforms import get_platform
+from app.domains.postiz.services.best_times import DEFAULT_BEST_TIMES
+from app.domains.postiz.services.store import get_store
+from app.domains.postiz.services.templates import (
+    _generate_trend,
+    _parse_period,
+    _simulate_metric,
+)
 
 logger = get_logger(__name__)
+
 
 def get_analytics_dashboard(period: str = "30d") -> dict[str, Any]:
     """Get cross-platform analytics dashboard."""
@@ -20,7 +29,6 @@ def get_analytics_dashboard(period: str = "30d") -> dict[str, Any]:
     published = [p for p in all_posts if p.get("status") == "published"]
 
     # Platform breakdown
-    platforms_analytics = {}
     platform_totals: dict[str, dict[str, Any]] = defaultdict(
         lambda: {
             "posts": 0,
@@ -315,5 +323,3 @@ def export_analytics(
 # ══════════════════════════════════════════════════════════════════════
 # 4. Content Studio Service
 # ══════════════════════════════════════════════════════════════════════
-
-
