@@ -40,7 +40,7 @@ from typing import Any  # noqa: E402 — module docstring precedes import block
 
 from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402 — module docstring precedes import block
 
-mgr = get_wallet_manager_v2(os.environ.get("WALLET_VAULT_PASSWORD", ""))
+mgr = get_wallet_manager_v2(password=os.environ.get("WALLET_VAULT_PASSWORD", ""))
 
 logger.info("=" * 60)
 logger.info("RMI WALLET SWEEP TOOL")

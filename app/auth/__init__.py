@@ -27,4 +27,19 @@ from app.auth.jwt_validation import (
     require_auth,
     validate_token,
 )
+from app.core.dependencies import get_redis  # async Redis dependency (awaited by callers)
 from app.domains.auth.deps import require_public_profile
+from app.domains.auth.passwords import hash_password, verify_password
+
+__all__ = [
+    "create_token",
+    "extract_token_from_request",
+    "get_current_user",
+    "get_jwks",
+    "get_redis",
+    "hash_password",
+    "require_auth",
+    "require_public_profile",
+    "validate_token",
+    "verify_password",
+]

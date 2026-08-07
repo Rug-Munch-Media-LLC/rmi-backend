@@ -287,7 +287,7 @@ def _resolve_pay_to(chain: str) -> str:
     try:
         from app.wallet_manager_v2 import get_wallet_manager_v2
 
-        mgr = get_wallet_manager_v2(os.getenv("WALLET_VAULT_PASSWORD", ""))
+        mgr = get_wallet_manager_v2(password=os.getenv("WALLET_VAULT_PASSWORD", ""))
         # Map chain key to wallet manager chain key
         chain_map = {
             "base": "eth",

@@ -21,12 +21,40 @@ from app.core.logging import bind_request_id, get_logger
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from starlette.requests import Request
-    from starlette.responses import Response
+    from starlette.responses import JSONResponse, Response
 
 # ── CSRF-protected methods ───────────────────────────────────────────
 _CSRF_METHODS: tuple[str, ...] = ("POST", "PUT", "DELETE", "PATCH")
 
 log = get_logger(__name__)
+
+
+async def _safe_rate_limit_exceeded_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Return 429 without crashing when slowapi state is missing.
+
+    slowapi's stock handler reads ``request.state.view_rate_limit``, which
+    is only populated on routes decorated with ``@limiter.limit``. Any 429
+    raised by an undecorated route (e.g. a handler returning
+    ``HTTPException(429, ...)``) would otherwise raise AttributeError and
+    turn into a 500. This wrapper falls back gracefully and still injects
+    rate-limit headers when the state is available.
+    """
+    from starlette.responses import JSONResponse
+
+    detail = getattr(exc, "detail", None) or "Rate limit exceeded"
+    response = JSONResponse({"error": f"Rate limit exceeded: {detail}"}, status_code=429)
+    retry_after = getattr(exc, "retry_after", None)
+    if retry_after is not None:
+        response.headers["Retry-After"] = str(retry_after)
+    view_limit = getattr(request.state, "view_rate_limit", None)
+    if view_limit is not None and hasattr(request.app.state, "limiter"):
+        try:
+            inject_headers = getattr(request.app.state.limiter, "_inject_headers", None)
+            if inject_headers is not None:
+                response = inject_headers(response, view_limit)
+        except Exception as exc:
+            log.warning("slowapi_header_inject_failed err=%s", exc)
+    return response
 
 
 def register_middleware(app: FastAPI) -> None:
@@ -230,13 +258,14 @@ def _try_register_rate_limit_middleware(app: FastAPI) -> None:
 def _try_register_slowapi(app: FastAPI) -> None:
     """T28 - slowapi rate limiting per PATH_CATEGORIES + decorators."""
     try:
-        from slowapi import _rate_limit_exceeded_handler
+        from slowapi.errors import RateLimitExceeded
         from slowapi.middleware import SlowAPIMiddleware
 
         from app.core.slowrate import limiter
 
         app.state.limiter = limiter
-        app.add_exception_handler(429, _rate_limit_exceeded_handler)
+        app.add_exception_handler(RateLimitExceeded, _safe_rate_limit_exceeded_handler)
+        app.add_exception_handler(429, _safe_rate_limit_exceeded_handler)
         app.add_middleware(SlowAPIMiddleware)
         log.info("middleware_registered name=slowapi")
     except Exception as exc:

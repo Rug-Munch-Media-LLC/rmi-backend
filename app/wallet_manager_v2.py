@@ -20,7 +20,7 @@ from app.domains.wallet.labels import import_legacy_wallets
 from app.domains.wallet.manager import (
     WalletManagerFacade,
     WalletManagerV2,
-    _wallet_manager_instance,
+    _manager_instance,
     get_wallet_manager_v2,
     logger as _logger,
 )
@@ -57,7 +57,7 @@ __all__ = [
     "WalletTier",
     "ZKAddressVerifier",
     "_build_registry",
-    "_wallet_manager_instance",
+    "_manager_instance",
     "get_wallet_manager_v2",
     "import_legacy_wallets",
     "logger",

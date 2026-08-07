@@ -112,7 +112,7 @@ class CommentResponse(BaseModel):
 
 
 # ─── In-memory cache ──────────────────────────────────────────────
-_NEWS_CACHE = []
+_NEWS_CACHE: dict[str, Any] = {}
 _CACHE_TS: datetime | None = None
 _CACHE_TTL = timedelta(minutes=3)
 
