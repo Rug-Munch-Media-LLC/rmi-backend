@@ -471,4 +471,4 @@ async def create_subscription(req: SubscriptionCreateRequest) -> dict:
         return {"checkout_url": session.url, "status": "ok"}
     except Exception as e:
         logger.error(f"subscription_create_failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Stripe checkout failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Stripe checkout failed: {e}") from e

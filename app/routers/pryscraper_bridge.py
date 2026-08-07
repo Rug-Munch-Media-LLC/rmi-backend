@@ -111,7 +111,7 @@ async def scrape_url(
         )
     except Exception as exc:
         logger.error("pryscraper_scrape_failed", url=request.url[:60], exc_info=exc)
-        raise UpstreamError(str(exc)[:500])
+        raise UpstreamError(str(exc)[:500]) from exc
 
 
 @router.post("/extract")
@@ -137,7 +137,7 @@ async def extract_url(
         )
     except Exception as exc:
         logger.error("pryscraper_extract_failed", url=request.url[:60], exc_info=exc)
-        raise UpstreamError(str(exc)[:500])
+        raise UpstreamError(str(exc)[:500]) from exc
 
 
 @router.get("/news/search")
@@ -157,7 +157,7 @@ async def search_news(
         return results
     except Exception as exc:
         logger.error("pryscraper_news_search_failed", query=q[:60], exc_info=exc)
-        raise UpstreamError(str(exc)[:500])
+        raise UpstreamError(str(exc)[:500]) from exc
 
 
 @router.get("/pryscraper/health")

@@ -124,13 +124,13 @@ async def get_report(report_id: str) -> dict:
         r = await _get_redis()
         data = await r.get(f"community:forensics:report:{report_id}")
         if not data:
-            raise NotFoundError(message=f"Report {report_id} not found")
+            raise NotFoundError(message=f"Report {report_id} not found") from e
         return json.loads(data)
     except NotFoundError:
         raise
     except Exception as e:
         logger.warning(f"community_forensics_report_get_failed: {e}")
-        raise NotFoundError(message=f"Report {report_id} not found")
+        raise NotFoundError(message=f"Report {report_id} not found") from e
 
 
 @router.post("/reports", summary="Submit Community Report")
@@ -160,7 +160,7 @@ async def submit_report(req: ReportSubmit) -> dict:
         return {"status": "ok", "report_id": report_id, "report": report}
     except Exception as e:
         logger.error(f"community_forensics_report_submit_failed: {e}")
-        raise HTTPException(status_code=503, detail="Storage temporarily unavailable")
+        raise HTTPException(status_code=503, detail="Storage temporarily unavailable") from e
 
 
 @router.post("/verify-graph", summary="Verify Report Graph")
@@ -172,7 +172,7 @@ async def verify_graph(req: GraphVerifyRequest) -> dict:
         return {"status": "ok", **result}
     except Exception as e:
         logger.error(f"graph_verification_failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Graph verification failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Graph verification failed: {e}") from e
 
 
 @router.post("/correlate", summary="Cross-Chain Correlation")
@@ -184,7 +184,7 @@ async def correlate_addresses(req: CorrelationRequest) -> dict:
         return {"status": "ok", "results": results, "total": len(results)}
     except Exception as e:
         logger.error(f"cross_chain_correlation_failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Correlation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Correlation failed: {e}") from e
 
 
 @router.get("/leaderboard", summary="Community Leaderboard")

@@ -120,7 +120,7 @@ class NewsletterService(BaseService[Newsletter]):
         try:
             uid = uuid.UUID(newsletter_id)
         except ValueError:
-            raise NotFoundError(f"Invalid newsletter ID: {newsletter_id}")
+            raise NotFoundError(f"Invalid newsletter ID: {newsletter_id}") from None
 
         nl = await self.db.get(Newsletter, uid)
         if not nl:
@@ -333,7 +333,7 @@ class NewsletterService(BaseService[Newsletter]):
         try:
             nl_id = uuid.UUID(data.newsletter_id)
         except ValueError:
-            raise NotFoundError(f"Invalid newsletter ID: {data.newsletter_id}")
+            raise NotFoundError(f"Invalid newsletter ID: {data.newsletter_id}") from None
 
         nl = await self.db.get(Newsletter, nl_id)
         if not nl:
@@ -466,7 +466,7 @@ class NewsletterService(BaseService[Newsletter]):
         try:
             nl_id = uuid.UUID(newsletter_id)
         except ValueError:
-            raise NotFoundError(f"Invalid newsletter ID: {newsletter_id}")
+            raise NotFoundError(f"Invalid newsletter ID: {newsletter_id}") from None
 
         nl = await self.db.get(Newsletter, nl_id)
         if not nl:

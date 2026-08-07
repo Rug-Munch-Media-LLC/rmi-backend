@@ -130,10 +130,17 @@ class TestRagSearch:
 
 class TestRagStats:
     def test_stats_shape(self, app, _allow_global_rate_limits, monkeypatch) -> None:
-        """GET /api/v1/rag/v2/stats → collection counts + embedder backend."""
+        """GET /api/v1/rag/v2/stats → collection counts + embedder backend.
+
+        The router calls ``engine_get_stats()`` synchronously (the engine
+        function is sync — ``app/rag/engine.py::get_stats``), so the fake
+        must be a plain function, not a coroutine. Patching is done on the
+        router's own namespace (``app.api.v1.rag.search.engine_get_stats``)
+        because the router imports ``get_stats as engine_get_stats``.
+        """
         import app.api.v1.rag.search as rag_router
 
-        async def fake_stats():
+        def fake_stats(collections=None):
             return {
                 "total_docs": 1234,
                 "backend": "qdrant",

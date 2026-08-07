@@ -103,7 +103,7 @@ async def _ensure_kv_table() -> None:
         log.info("degenfeed_kv table ready")
     except Exception as exc:  # pragma: no cover - defensive
         log.error("degenfeed_kv table create failed: %s", exc)
-        raise HTTPException(status_code=503, detail="KV storage unavailable")
+        raise HTTPException(status_code=503, detail="KV storage unavailable") from exc
 
 
 async def _redis() -> Any | None:
@@ -223,7 +223,7 @@ async def kv_get(namespace: str, key: str) -> dict[str, str | None]:
         return {"value": value}
     except Exception as exc:  # pragma: no cover - defensive
         log.error("degenfeed kv GET failed ns=%s key=%s err=%s", namespace, key, exc)
-        raise HTTPException(status_code=503, detail="KV storage unavailable")
+        raise HTTPException(status_code=503, detail="KV storage unavailable") from exc
 
 
 @router.put("/kv/{namespace}/{key:path}", dependencies=[Depends(_auth_dependency)])

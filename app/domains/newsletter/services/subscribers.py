@@ -35,7 +35,7 @@ async def list_subscribers(
         try:
             query = query.where(NewsletterSub.newsletter_id == uuid.UUID(newsletter_id))
         except ValueError:
-            raise NotFoundError(f"Invalid newsletter ID: {newsletter_id}")
+            raise NotFoundError(f"Invalid newsletter ID: {newsletter_id}") from None
     if tier:
         query = query.where(NewsletterSub.tier == tier)
     if status:
