@@ -142,9 +142,8 @@ class TestBackends:
         with patch(
             "app.domains.databus.providers.chains.chain_indexer._get_ch_client",
             return_value=None,
-        ):
-            with pytest.raises(DataAccessUnavailable):
-                await clickhouse_token_history("0xabc", "ethereum")
+        ), pytest.raises(DataAccessUnavailable):
+            await clickhouse_token_history("0xabc", "ethereum")
 
     @pytest.mark.asyncio
     async def test_rpc_lookup_import_missing(self) -> None:
@@ -158,6 +157,5 @@ class TestBackends:
         with patch(
             "app.domains.scanner.data_access._rclone_copy",
             side_effect=DataAccessUnavailable("rclone_not_installed"),
-        ):
-            with pytest.raises(DataAccessUnavailable):
-                await b2_parquet_lookup("0xabc", "ethereum")
+        ), pytest.raises(DataAccessUnavailable):
+            await b2_parquet_lookup("0xabc", "ethereum")

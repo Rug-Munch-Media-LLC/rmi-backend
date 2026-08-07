@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.wallet.models import (
@@ -31,6 +32,18 @@ class WalletAnalysisMixin:
       - get_mnemonic(wallet_id) method
       - _save_vault() method
     """
+
+    # Declared on the host (WalletManagerV2) or sibling mixins; annotations
+    # keep mypy happy for mixin usage.
+    _wallets: dict[str, WalletRecord]
+    _payments: list[Any]
+
+    def _save_vault(self) -> None:
+        """Persist vault (provided by WalletDBMixin on the host class)."""
+
+    def get_mnemonic(self, wallet_id: str) -> str:
+        """Fetch mnemonic (provided by WalletDBMixin on the host class)."""
+        raise NotImplementedError
 
     # ── Statistics ───────────────────────────────────────────
 

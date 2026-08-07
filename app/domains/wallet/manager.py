@@ -15,6 +15,8 @@ All other functionality has been moved to focused modules:
 
 from __future__ import annotations
 
+import os
+
 from app.domains.wallet.analysis import WalletAnalysisMixin
 from app.domains.wallet.db import WalletDBMixin
 from app.domains.wallet.generation import WalletGenerationMixin
@@ -24,10 +26,14 @@ class WalletManagerV2(WalletDBMixin, WalletAnalysisMixin, WalletGenerationMixin)
     """Enterprise multi-chain wallet manager with HD support."""
 
     def __init__(self, vault_path: str | None = None, password: str | None = None):
-        self._vault_path = vault_path
-        self._password = password
-        self._wallets: dict = {}
-        self._payments: dict = {}
+        vault_dir = vault_path or os.path.join(os.getcwd(), "data", "wallets")
+        self.VAULT_PATH = os.path.join(vault_dir, "vault.json")
+        self.PAYMENTS_PATH = os.path.join(vault_dir, "payments.jsonl")
+        self.KEYSTORE_PATH = os.path.join(vault_dir, "keystore.json")
+        self.SHARES_PATH = os.path.join(vault_dir, "shares")
+        self.encryption_password = password or ""
+        self._wallets: dict[str, WalletRecord] = {}
+        self._payments: list[PaymentRecord] = []
         self._initialized = False
 
     async def initialize(self) -> None:

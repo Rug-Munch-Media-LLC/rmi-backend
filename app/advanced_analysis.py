@@ -404,6 +404,23 @@ class RugRiskReport:
     delegatecall_usage: bool = False
     selfdestruct_present: bool = False
 
+    # ── GoPlus contract factors (populated from GoPlus security API) ──
+    is_honeypot: bool = False
+    is_open_source: bool = False
+    is_mintable: bool = False
+    can_takeback_ownership: bool = False
+    is_blacklisted: bool = False
+    is_whitelisted: bool = False
+    has_transfer_pausable: bool = False
+    is_anti_whale: bool = False
+    has_trading_cooldown: bool = False
+    can_modify_tax: bool = False
+    transfer_pausable: bool = False
+    total_lp_holders: int = 0
+    lp_lock_pct: float = 0
+    lp_locked: bool = False
+    ownership_renounced: bool = False
+
     # ── Tokenomics Factors (25) ──
     total_supply: float = 0
     circulating_supply: float = 0

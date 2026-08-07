@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.core.logging import get_logger
 from app.databus.core import databus
+from app.databus.router._shared import verify_admin as _verify_admin
 
 logger = get_logger("databus.router.admin")
 router = APIRouter(tags=["databus"])

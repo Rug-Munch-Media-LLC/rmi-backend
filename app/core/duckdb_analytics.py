@@ -233,13 +233,6 @@ class DuckDBAnalytics:
         )
         return [r["table_name"] for r in rows]
 
-        # DuckDB's ATTACH syntax for Postgres: ATTACH 'postgres://...' AS pg (READ_ONLY)
-        # Use the SQL escaping: escape single quotes in URL by doubling them
-        escaped_url = pg_url.replace("'", "''")
-        self._conn.execute("ATTACH ? AS pg (READ_ONLY)", [escaped_url])
-        self._attached.add("pg")
-        log.info("duckdb_attached_postgres alias=pg")
-
     def close(self) -> None:
         """Close the DuckDB connection."""
         try:
