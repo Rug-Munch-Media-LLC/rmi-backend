@@ -32,7 +32,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.ai_router import chat_completion as do_chat_completion
+from app.ai_router import (
+    chat_completion as do_chat_completion,
+    stream_chat_completion as do_stream_chat_completion,
+)
 from app.auth import get_current_user, require_auth
 from app.core.errors import AuthorizationError, ExternalAPIError
 from app.core.logging import get_logger
@@ -426,7 +429,7 @@ async def chat_stream(
         start_time = time.time()
 
         try:
-            async for token in ai_router.stream_chat_completion(
+            async for token in do_stream_chat_completion(
                 messages=messages,
                 model=req.model,
                 tier=req.tier,
