@@ -163,3 +163,9 @@ class ScanResult:
     scan_tier: str = "quick"  # "quick" | "deep" — which SENTINEL module set ran
     scan_duration_ms: float = 0.0
     rag_context: RAGContext | None = None  # RAG enrichment context (from RAGIntelligenceEnricher)
+
+    # Background-phase status. The scanner returns a fast core+baseline result
+    # while deep/intel/SENTINEL/news phases continue in a background task.
+    # "complete" — every phase finished before the HTTP deadline;
+    # "running"  — background phases still in flight (poll the status endpoint).
+    background_status: str = "complete"

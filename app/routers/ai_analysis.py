@@ -64,6 +64,9 @@ OPENROUTER_KEY = (
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen/qwen-2.5-72b-instruct:free")
 
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://127.0.0.1:4000/v1")
+LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
+
 # Cache
 _analysis_cache: dict[str, dict] = {}
 CACHE_TTL = 3600
@@ -505,20 +508,58 @@ async def _run_ai_analysis(
     holder_data: dict | None,
     scanner_data: dict | None,
 ) -> tuple[dict | None, str]:
-    """Try AI analysis, falling through providers."""
+    """Try AI analysis, falling through providers: LiteLLM → Ollama → OpenRouter."""
     prompt = _build_analysis_prompt(chain, address, holder_data, scanner_data)
 
-    # Try Ollama first (local, fast, free)
+    # ── Primary: LiteLLM proxy (routes to deepseek-analysis via model_group_alias) ──
+    result = await _call_litellm(prompt)
+    if result:
+        return result, "litellm/deepseek-analysis"
+
+    # ── Fallback 1: Ollama direct local ──
     result = await _call_qwen_ollama(prompt)
     if result:
         return result, f"ollama/{OLLAMA_MODEL}"
 
-    # Fall back to OpenRouter
+    # ── Fallback 2: OpenRouter ──
     result = await _call_qwen_openrouter(prompt)
     if result:
         return result, f"openrouter/{QWEN_MODEL}"
 
     return None, ""
+
+
+async def _call_litellm(prompt: str) -> dict | None:
+    """Call analysis model via LiteLLM proxy (deepseek-analysis)."""
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                f"{LITELLM_BASE_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {LITELLM_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "analysis",  # LiteLLM model_group_alias → deepseek-analysis
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a blockchain forensic expert. Return ONLY valid JSON.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": 1500,
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                return _parse_ai_response(content)
+            logger.warning("litellm_non_200", status=resp.status_code, body=resp.text[:200])
+    except Exception as e:
+        logger.warning("litellm_call_failed", error=str(e))
+    return None
 
 
 # ── Endpoint ─────────────────────────────────────────────────────
@@ -669,10 +710,20 @@ def _build_rule_summary(risk_score: int, risk_level: str, anomalies: list[dict])
 
 @router.get("/ai-health")
 async def ai_analysis_health() -> dict:
-    """Check AI analysis availability."""
+    """Check AI analysis availability across all providers."""
     ollama_ok = False
     openrouter_ok = bool(OPENROUTER_KEY)
+    litellm_ok = False
 
+    # Check LiteLLM
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(f"{LITELLM_BASE_URL.replace('/v1', '')}/health")
+            litellm_ok = resp.status_code == 200
+    except Exception:
+        pass
+
+    # Check Ollama
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(
@@ -687,8 +738,12 @@ async def ai_analysis_health() -> dict:
     except Exception:
         pass
 
+    overall = "ok" if (litellm_ok or ollama_ok or openrouter_ok) else "degraded"
+
     return {
-        "status": "ok" if (ollama_ok or openrouter_ok) else "degraded",
+        "status": overall,
+        "litellm_available": litellm_ok,
+        "litellm_url": LITELLM_BASE_URL,
         "ollama_available": ollama_ok,
         "ollama_model": OLLAMA_MODEL,
         "openrouter_available": openrouter_ok,

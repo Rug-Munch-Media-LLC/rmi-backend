@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import time
 from dataclasses import asdict, dataclass
@@ -29,6 +30,79 @@ logger = get_logger(__name__)
 # RugBrain (rmi-rag) base URL — same convention as the rest of the backend.
 RUG_BRAIN_API_URL = os.getenv("RAG_API_URL", "http://rmi-rag-api:8012").rstrip("/")
 MARKET_CONTEXT_CACHE_TTL = int(os.getenv("MARKET_CONTEXT_CACHE_TTL", "300"))  # 5 min
+
+# ── Scan status / background-phase config ───────────────────────────────
+# Heavy phases (deep/intel/SENTINEL/news) run in a background task so the
+# HTTP scan response returns within SCAN_HARD_TIMEOUT_S instead of blocking
+# ~110s while HTTP clients (30-60s timeouts) drop the connection. Progress
+# plus the final result are published to Redis under
+# ``scanner:status:{chain}:{address}`` and polled by
+# ``GET /api/v2/scanner/token/scan/{chain}/{address}/status``.
+SCAN_HARD_TIMEOUT_S = float(os.getenv("SCAN_HARD_TIMEOUT_S", "25"))
+SCAN_STATUS_TTL = int(os.getenv("SCAN_STATUS_TTL", "900"))  # 15 min
+
+
+def _scan_status_key(chain: str, address: str) -> str:
+    return f"scanner:status:{chain}:{address}"
+
+
+async def _store_scan_status(chain: str, address: str, payload: dict[str, Any]) -> None:
+    """Best-effort publish of scan status to Redis (never raises)."""
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return
+        await r.setex(_scan_status_key(chain, address), SCAN_STATUS_TTL, json.dumps(payload, default=str))
+    except Exception as exc:  # noqa: BLE001 — status storage is best-effort
+        logger.debug("scan_status_store_failed", chain=chain, address=address[:12], error=str(exc)[:80])
+
+
+async def scan_status(chain: str, address: str) -> dict[str, Any] | None:
+    """Read the status of an in-flight scan (or a completed cached result).
+
+    Returns ``None`` when no status exists for the token. Falls back to the
+    1h result cache written by ``persist_result`` for completed scans.
+    """
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return None
+
+        raw = await r.get(_scan_status_key(chain, address))
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    return parsed
+            except (TypeError, ValueError):
+                return None
+
+        raw = await r.get(f"sentinelscan:{chain}:{address}")
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    return {"state": "complete", "source": "result_cache", "result": parsed}
+            except (TypeError, ValueError):
+                return None
+    except Exception as exc:  # noqa: BLE001 — status reads are best-effort
+        logger.debug("scan_status_read_failed", chain=chain, address=address[:12], error=str(exc)[:80])
+    return None
+
+
+def _status_result_dict(result: ScanResult, background_status: str = "running") -> dict[str, Any]:
+    """JSON-safe snapshot of a ScanResult for the status endpoint / Redis.
+
+    Reuses the legacy serializer (already JSON-safe) and adds the background
+    phase status so clients can tell whether deep/intel/news are still running.
+    """
+    data = _to_legacy_dict(result)
+    data["background_status"] = background_status
+    return data
 
 
 @dataclass
@@ -339,6 +413,10 @@ class UnifiedTokenScanner:
         "proxy_detection",
     )
 
+    # Strong references to in-flight background continuation tasks so they are
+    # never garbage-collected mid-run (shared singleton instance).
+    _background_tasks: ClassVar[set[asyncio.Task[Any]]] = set()
+
     async def scan(
         self,
         address: str,
@@ -348,11 +426,20 @@ class UnifiedTokenScanner:
     ) -> ScanResult:
         """Full token security scan.
 
-        Runs phases in dependency order:
-          1. Core (price, meta, security) - needed for scoring
-          2. Deep (holders, liquidity, dev, rug, volume)
-          3. Premium (bundle, cluster, sniper, MEV, wash - tier-gated)
-          4. Intel (smart money, whales, launches, cross-chain)
+        Fast path (hard-bounded to ``SCAN_HARD_TIMEOUT_S`` ≈ 25s total):
+          1. Market context (best-effort, cached 5 min)
+          2. Core identity (price, meta, security) — needed for baseline scoring
+          3. Baseline score from core data
+
+        Deep, premium, intel, SENTINEL, news, RAG, persistence and Telegram
+        phases continue in a background task so HTTP clients (30-60s timeouts)
+        are not blocked by ~110s scans. Progress + the final result are
+        published to Redis under ``scanner:status:{chain}:{address}`` and
+        polled via ``scan_status`` / the status endpoint.
+
+        The returned ``ScanResult.background_status`` is:
+          "complete" — every phase finished before the deadline
+          "running"  — background phases still in flight (check status endpoint)
         """
         start = time.monotonic()
         params = {"address": address, "chain": chain}
@@ -362,8 +449,9 @@ class UnifiedTokenScanner:
             scanned_at=datetime.now(UTC).isoformat(),
             tier=tier,
         )
+        result.background_status = "running"
 
-        # ── Market context (before any phase — cached 5 min, best-effort) ──
+        # ── Fast path: market context (cached 5 min, best-effort) ──
         # Market-aware scanning: fetch fear index + market mood + token
         # social velocity from RugBrain so scoring can adjust risk when the
         # market is fearful or recent exploits match this token's category.
@@ -386,8 +474,101 @@ class UnifiedTokenScanner:
             # ── Phase 1: Core (sequential - needed for scoring) ──
             core_results = await self._fetch_batch(self.CORE_CHAINS, params, admin_key, timeout=15)
             self._merge_core(result, core_results)
+        except (ValueError, TypeError, KeyError, OSError) as e:
+            logger.error(f"Scan core failed for {address}: {e}")
+            result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
+        except Exception as e:  # noqa: BLE001 — a scan must always return a result, never raise
+            logger.error(f"Scan core crashed for {address}: {e}")
+            result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
 
+        # ── Baseline score (fast, from core data) — the background task
+        #    recomputes the score once every module has finished ──
+        try:
+            scoring = compute_score(result)
+            result.breakdown = scoring["breakdown"]
+            result.evidence = scoring["evidence"]
+        except Exception as exc:
+            logger.debug("baseline_scoring_failed", error=str(exc)[:120])
+
+        # ── Store initial status so clients can poll progress ──
+        await _store_scan_status(
+            chain,
+            address,
+            {
+                "state": "running",
+                "phase": "core",
+                "started_at": result.scanned_at,
+                "updated_at": datetime.now(UTC).isoformat(),
+                "elapsed_ms": (time.monotonic() - start) * 1000,
+                "result": _status_result_dict(result),
+            },
+        )
+
+        # ── Background continuation: deep/intel/SENTINEL/news + persistence ──
+        # Heavy phases run as a background task so the HTTP response returns
+        # promptly. ``asyncio.shield`` keeps it alive if the 25s budget expires.
+        bg_task = asyncio.create_task(self._run_background_phases(result, address, chain, tier, admin_key))
+        self._track_background_task(bg_task)
+
+        # ── 25s hard wrapper: wait for the background up to the remaining
+        #    budget. If it does not finish, return the core+baseline result and
+        #    let the background task continue (results land in Redis). ──
+        elapsed = time.monotonic() - start
+        remaining = max(1.0, SCAN_HARD_TIMEOUT_S - elapsed)
+        try:
+            await asyncio.wait_for(asyncio.shield(bg_task), timeout=remaining)
+            result.background_status = "complete"
+        except TimeoutError:
+            logger.info(
+                "scan_background_deferred",
+                token=address[:16],
+                chain=chain,
+                elapsed_s=round(time.monotonic() - start, 1),
+            )
+            result.background_status = "running"
+
+        result.scan_duration_ms = (time.monotonic() - start) * 1000
+        return result
+
+    def _track_background_task(self, task: asyncio.Task[Any]) -> None:
+        """Keep a strong reference to a background scan task (avoids GC)."""
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
+    async def _run_background_phases(
+        self,
+        result: ScanResult,
+        address: str,
+        chain: str,
+        tier: str,
+        admin_key: str | None,
+    ) -> None:
+        """Continue deep/intel/SENTINEL/news phases in the background.
+
+        Runs after the fast path returns so HTTP clients are never blocked by
+        slow external modules. Publishes progress + the final result to Redis
+        (see ``scan_status``). Never raises — errors are captured into the
+        result and the status record.
+        """
+        start = time.monotonic()
+        params = {"address": address, "chain": chain}
+
+        async def _status(phase: str, state: str = "running", error: str | None = None) -> None:
+            payload: dict[str, Any] = {
+                "state": state,
+                "phase": phase,
+                "started_at": result.scanned_at,
+                "updated_at": datetime.now(UTC).isoformat(),
+                "elapsed_ms": (time.monotonic() - start) * 1000,
+                "result": _status_result_dict(result),
+            }
+            if error:
+                payload["error"] = error
+            await _store_scan_status(chain, address, payload)
+
+        try:
             # ── Phase 2: Deep (parallel) ──
+            await _status("deep")
             deep_results = await self._fetch_batch(self.DEEP_CHAINS, params, admin_key, timeout=30)
             self._merge_deep(result, deep_results)
 
@@ -402,6 +583,7 @@ class UnifiedTokenScanner:
                 self._merge_premium(result, premium_results)
 
             # ── Phase 4: Intel (free enrichment) ──
+            await _status("intel")
             intel_results = await self._fetch_batch(self.INTEL_CHAINS, params, admin_key, timeout=20)
             self._merge_intel(result, intel_results)
 
@@ -413,9 +595,10 @@ class UnifiedTokenScanner:
             # remaining deep-forensic modules unlock on elite/admin tier
             # (or via the paid x402 SENTINEL deep scan). Best-effort:
             # a failing module never fails the scan.
+            await _status("sentinel")
             await self._run_sentinel_phase(result, address, chain, tier)
 
-            # ── Score ──
+            # ── Score (recomputed with all modules) ──
             scoring = compute_score(result)
             result.breakdown = scoring["breakdown"]
             result.evidence = scoring["evidence"]
@@ -496,11 +679,60 @@ class UnifiedTokenScanner:
                 except Exception as e:
                     logger.debug("rag_finding_publish_failed", error=str(e)[:80])
 
-            # ── Push Telegram alert for high/critical risk (or severe red flags) ──
+            # ── Push Telegram alert (fire-and-forget — never block the scan) ──
+            alert_task = self._fire_telegram_alert(result)
             try:
-                from app.domains.telegram.alert_hooks import send_scanner_alert, should_send_scanner_alert
+                # Bounded, shielded grace period: lets the alert complete while
+                # the background phase is still winding down. On timeout the
+                # alert continues independently — it never delays the HTTP
+                # response past the 25s budget.
+                if alert_task is not None:
+                    await asyncio.wait_for(asyncio.shield(alert_task), timeout=5)
+            except TimeoutError:
+                pass
 
-                if should_send_scanner_alert(result.risk_level, list(result.risk_flags)):
+            # ── Auto-label high-risk deployer wallets (fire-and-forget) ──
+            try:
+                asyncio.create_task(auto_label_deployer(result))
+            except Exception as exc:
+                logger.debug("deployer_label_schedule_failed", error=str(exc)[:80])
+
+            result.background_status = "complete"
+            await _status("done", state="complete")
+            logger.info(
+                "scan_background_complete",
+                token=address[:16],
+                chain=chain,
+                safety_score=result.safety_score,
+                risk_flags=len(result.risk_flags),
+                elapsed_s=round(time.monotonic() - start, 1),
+            )
+
+        except (ValueError, TypeError, KeyError, OSError) as e:
+            logger.debug("unknown_error", exc_info=True)
+            logger.error(f"Scan background failed for {address}: {e}")
+            result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
+            await _status("error", state="error", error=str(e)[:200])
+        except Exception as e:  # noqa: BLE001 — a scan must always return a result, never raise
+            logger.debug("scan_unexpected_error", exc_info=True)
+            logger.error(f"Scan background crashed for {address}: {e}")
+            result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
+            await _status("error", state="error", error=str(e)[:200])
+
+    def _fire_telegram_alert(self, result: ScanResult) -> asyncio.Task[Any] | None:
+        """Schedule the Telegram scanner alert without blocking the scan.
+
+        Fire-and-forget: returns the background task (or ``None`` when the
+        alert is gated off); the caller awaits it with a bounded shield.
+        """
+        try:
+            from app.domains.telegram.alert_hooks import send_scanner_alert, should_send_scanner_alert
+
+            if not should_send_scanner_alert(result.risk_level, list(result.risk_flags)):
+                return None
+
+            async def _send() -> None:
+                try:
                     await send_scanner_alert(
                         token_address=result.token_address,
                         chain=result.chain,
@@ -509,23 +741,13 @@ class UnifiedTokenScanner:
                         token_name=result.name or "Unknown",
                         token_symbol=result.symbol or "???",
                     )
-            except Exception as e:
-                logger.debug("scanner_alert_failed", error=str(e)[:80])
+                except Exception as exc:
+                    logger.debug("scanner_alert_failed", error=str(exc)[:80])
 
-            # ── Auto-label high-risk deployer wallets ──
-            await auto_label_deployer(result)
-
-        except (ValueError, TypeError, KeyError, OSError) as e:
-            logger.debug("unknown_error", exc_info=True)
-            logger.error(f"Scan failed for {address}: {e}")
-            result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
-        except Exception as e:  # noqa: BLE001 — a scan must always return a result, never raise
-            logger.debug("scan_unexpected_error", exc_info=True)
-            logger.error(f"Scan crashed for {address}: {e}")
-            result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
-
-        result.scan_duration_ms = (time.monotonic() - start) * 1000
-        return result
+            return asyncio.create_task(_send())
+        except Exception as exc:
+            logger.debug("scanner_alert_schedule_failed", error=str(exc)[:80])
+            return None
 
     # ── Tiered SENTINEL scan entry points (quick vs deep) ──────────────
 

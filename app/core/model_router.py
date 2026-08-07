@@ -101,31 +101,52 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
 
 
 async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict:
-    """Call a specific provider. Returns dict or None. Gracefully degrades."""
+    """Call a specific provider — routes through LiteLLM when possible.
+    Returns dict or None. Gracefully degrades.
+
+    Provider routing:
+      - ollama → LiteLLM (qwen-chat on port 4000) or direct Ollama fallback
+      - deepseek/cerebras/groq/mistral/gemini → via ai_router.chat_completion
+    """
     import httpx
 
     try:
         if provider == "ollama":
+            # Route local inference through LiteLLM for unified routing
+            from app.ai_router import chat_completion
+
+            result = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                task_type="chat",  # LiteLLM routes chat → qwen-chat
+                temperature=kwargs.get("temperature", 0.7),
+                max_tokens=kwargs.get("max_tokens", 2048),
+            )
+            if result and "content" in result:
+                return {
+                    "response": result["content"],
+                    "model": result.get("model", model),
+                    "provider": result.get("_provider", "litellm"),
+                }
+            # LiteLLM down — try direct Ollama fallback
             async with httpx.AsyncClient(timeout=60) as c:
                 r = await c.post(
                     "http://localhost:11434/api/generate",
                     json={"model": model, "prompt": prompt, "stream": False},
                 )
                 if r.status_code == 200:
-                    return {"response": r.json()["response"], "model": model, "provider": "ollama"}
+                    return {"response": r.json()["response"], "model": model, "provider": "ollama-direct"}
         elif provider == "deepseek":
             from app.ai_router import chat_completion
 
             result = await chat_completion(
                 messages=[{"role": "user", "content": prompt}],
-                model=model,
+                task_type="complex",
                 temperature=kwargs.get("temperature", 0.7),
                 max_tokens=kwargs.get("max_tokens", 2048),
             )
             if result and "content" in result:
                 return {"response": result["content"], "model": result.get("model", model), "provider": "deepseek"}
         elif provider == "mistral":
-            # Mistral free tier via OpenRouter path
             from app.ai_router import chat_completion
 
             result = await chat_completion(
@@ -137,41 +158,36 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> No
             if result and "content" in result:
                 return {"response": result["content"], "model": result.get("model", model), "provider": "mistral"}
         elif provider == "gemini":
-            try:
-                from app.ai_router import chat_completion
+            from app.ai_router import chat_completion
 
-                result = await chat_completion(
-                    messages=[{"role": "user", "content": prompt}],
-                    model="google/gemini-2.5-flash",
-                    temperature=kwargs.get("temperature", 0.7),
-                    max_tokens=kwargs.get("max_tokens", 2048),
-                )
-                if result and "content" in result:
-                    return {"response": result["content"], "model": "gemini-2.5-flash", "provider": "gemini"}
-            except Exception:
-                # Fallback to Ollama
-                async with httpx.AsyncClient(timeout=60) as c:
-                    r = await c.post(
-                        "http://localhost:11434/api/generate",
-                        json={"model": "qwen3:4b", "prompt": prompt, "stream": False},
-                    )
-                    if r.status_code == 200:
-                        return {"response": r.json()["response"], "model": "qwen3:4b", "provider": "ollama"}
+            result = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model="google/gemini-2.5-flash",
+                temperature=kwargs.get("temperature", 0.7),
+                max_tokens=kwargs.get("max_tokens", 2048),
+            )
+            if result and "content" in result:
+                return {"response": result["content"], "model": "gemini-2.5-flash", "provider": "gemini"}
+            # Fallback to local via LiteLLM
+            result = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                task_type="chat",
+                temperature=kwargs.get("temperature", 0.7),
+                max_tokens=kwargs.get("max_tokens", 2048),
+            )
+            if result and "content" in result:
+                return {"response": result["content"], "model": "qwen-chat", "provider": "litellm-fallback"}
         elif provider in ("cerebras", "groq"):
-            # Groq/Cerebras: route through OpenRouter which proxies to these
-            try:
-                from app.ai_router import chat_completion
+            from app.ai_router import chat_completion
 
-                result = await chat_completion(
-                    messages=[{"role": "user", "content": prompt}],
-                    model=model,
-                    temperature=kwargs.get("temperature", 0.7),
-                    max_tokens=kwargs.get("max_tokens", 2048),
-                )
-                if result and "content" in result:
-                    return {"response": result["content"], "model": model, "provider": provider}
-            except Exception:
-                pass
+            result = await chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model=model,
+                temperature=kwargs.get("temperature", 0.7),
+                max_tokens=kwargs.get("max_tokens", 2048),
+            )
+            if result and "content" in result:
+                return {"response": result["content"], "model": model, "provider": provider}
     except Exception:
         pass
     return None
