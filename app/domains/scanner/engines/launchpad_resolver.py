@@ -71,6 +71,11 @@ Usage:
 
     result = await resolve_deployer_universal(token_address, "ethereum", deployer_from_event)
     # → {"real_deployer": "...", "launchpad": ..., "confidence": ..., "evidence_tx": ..., "method": ...}
+
+NOTE (degodding 2026-08-07): 838 lines. Split is deferred (per-launchpad resolvers
+share the on-chain client + cache plumbing). If splitting, move each launchpad resolver
+(pump.fun, bags.fm, moonshot, ...) into ``engines/launchpad_resolver/_resolvers.py``
+keyed by launchpad id.
 """
 
 from __future__ import annotations

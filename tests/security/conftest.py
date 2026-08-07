@@ -14,9 +14,12 @@ TEST_INTERNAL_KEY: str = "test-internal-key-32-chars-long!!!"
 TEST_JWT_SECRET: str = "test-jwt-secret-key-thats-32-chars-long!"
 
 # ── Required env vars for app factory boot ──────────────────────────────
-os.environ.setdefault("RMI_AUTH_TOKEN", TEST_RMI_AUTH_TOKEN)
-os.environ.setdefault("RMI_INTERNAL_KEY", TEST_INTERNAL_KEY)
-os.environ.setdefault("JWT_SECRET", TEST_JWT_SECRET)
+# Force-assign (not setdefault): a real RMI_AUTH_TOKEN in the developer's
+# shell leaks into pytest otherwise, and app.config caches whichever token
+# is active at first import — making auth tests order-dependent.
+os.environ["RMI_AUTH_TOKEN"] = TEST_RMI_AUTH_TOKEN
+os.environ["RMI_INTERNAL_KEY"] = TEST_INTERNAL_KEY
+os.environ["JWT_SECRET"] = TEST_JWT_SECRET
 import pytest
 
 

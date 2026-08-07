@@ -50,6 +50,11 @@ Usage:
     funding = await analyze_funding_sources("0x...", "ethereum", holders=[...])
     fresh   = await compute_wallet_freshness("0x...", "ethereum")
     overlap = await compute_holder_overlap("0xA...", "0xB...", "ethereum")
+
+NOTE (degodding 2026-08-07): 1,358 lines. Split is deferred (all three metrics share
+ClickHouse query plumbing and the per-token result model). If splitting, extract the
+three metric analyzers (funding sources / freshness / holder overlap) into
+``engines/funding_analysis/_analyzers.py`` keyed by a shared result-merge helper.
 """
 
 from __future__ import annotations

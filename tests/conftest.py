@@ -26,6 +26,14 @@ collect_ignore_glob = ["manual/*"]
 # when JWT_ALGORITHM=RS256 but keys aren't configured)
 os.environ.setdefault("ENVIRONMENT", "dev")
 
+# Force the test auth credentials (not setdefault): a real RMI_AUTH_TOKEN in
+# the developer's shell would otherwise leak into the app, and app.config
+# caches whichever token is active at first import — making auth-dependent
+# tests (contract, security, middleware) order/environment-dependent.
+os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
+os.environ["RMI_INTERNAL_KEY"] = "test-internal-key-32-chars-long!!!"
+os.environ["JWT_SECRET"] = "test-jwt-secret-key-thats-32-chars-long!"
+
 # ── Hypothesis profiles ───────────────────────────────────────────────
 from hypothesis import HealthCheck, settings
 

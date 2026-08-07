@@ -20,10 +20,12 @@ from app.domains.scanner.webhooks.models import WebhookEventType
 log = get_logger(__name__)
 
 # Free public RPC endpoints (no API key required)
+# NOTE: polygon-rpc.com began returning 401 Unauthorized (auth now required)
+# in Aug 2026 — replaced with publicnode's free Polygon RPC (verified working).
 FREE_RPCS: dict[str, str] = {
     "ethereum": "https://cloudflare-eth.com",
     "solana": "https://api.mainnet-beta.solana.com",
-    "polygon": "https://polygon-rpc.com",
+    "polygon": "https://polygon-bor-rpc.publicnode.com",
     "arbitrum": "https://arb1.arbitrum.io/rpc",
     "optimism": "https://mainnet.optimism.io",
     "bsc": "https://bsc-dataseed.binance.org",
@@ -66,9 +68,18 @@ class NewBlockProvider:
                             )
                             last_blocks[chain] = block_num
 
-                except (ValueError, ConnectionError, RuntimeError, httpx.RequestError) as exc:
+                except (
+                    ValueError,
+                    ConnectionError,
+                    RuntimeError,
+                    httpx.RequestError,
+                    httpx.HTTPStatusError,
+                ) as exc:
                     log.debug("new_block_poll_failed", chain=chain, error=str(exc))
-                    # Individual RPC failure is non-fatal; continue polling others
+                    # Individual RPC failure is non-fatal; continue polling others.
+                    # HTTPStatusError (4xx/5xx) must be caught too — it is NOT a
+                    # subclass of RequestError, so a single 401/429 would otherwise
+                    # propagate and kill the entire chain.block provider cycle.
 
         # Update cursor with latest block numbers
         # Cursor persistence is handled by the engine's cursor management via

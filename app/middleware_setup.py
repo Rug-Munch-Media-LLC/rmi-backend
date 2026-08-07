@@ -190,7 +190,7 @@ def _try_register_deprecation_header(app: FastAPI) -> None:
     try:
         from starlette.middleware.base import BaseHTTPMiddleware
 
-        _SUNSET_DATE: str = "Sat, 17 Oct 2026 00:00:00 GMT"
+        _SUNSET_DATE: str = "Thu, 15 Oct 2026 00:00:00 GMT"  # 90 days from 2026-07-17 (matches mount.py)
 
         class DeprecationHeaderMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next: Any) -> Response:

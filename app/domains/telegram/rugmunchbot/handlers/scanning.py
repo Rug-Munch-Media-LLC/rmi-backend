@@ -3,6 +3,11 @@
 RugMunchBot -- Core scanning command handlers.
 
 Commands: start, help, scan, wallet, ta, compare, quick, rugcheck
+
+NOTE (degodding 2026-08-07): 889 lines. Split is deferred (scan handlers share
+message-reply + inline-keyboard scaffolding). If splitting, extract the shared
+reply/keyboard helpers into ``handlers/_ui.py`` and keep per-command handlers.
+
 """
 
 from __future__ import annotations

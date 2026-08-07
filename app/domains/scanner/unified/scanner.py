@@ -1,4 +1,14 @@
-"""UnifiedTokenScanner — main scan orchestration."""
+"""UnifiedTokenScanner — main scan orchestration.
+NOTE (degodding 2026-08-07): 1,377 lines, mostly one class (UnifiedTokenScanner,
+lines ~320-1265). Split is deferred (deep interlock between scan orchestration,
+background phase scheduling, and result-shaping helpers). If splitting:
+  - move the defensive scalar-coercion + risk-mapping helpers (lines ~175-320)
+    into ``unified/_coercion.py``
+  - move the backend-compat wrappers (lines ~1266-1377) into
+    ``unified/_legacy.py``
+  Keep the public scan entry points (scan_token_unified, scan_status) in place.
+
+"""
 
 from __future__ import annotations
 

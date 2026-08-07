@@ -2,6 +2,11 @@
 Admin Bot - Command Handlers
 =============================
 All /command handler functions for the RMI Admin Bot.
+
+NOTE (degodding 2026-08-07): 936 lines. Split is deferred (all commands share the
+admin-bot callback/handler plumbing). If splitting, group by feature (health /
+docker / system / server) into ``commands/_groups.py``.
+
 """
 
 from __future__ import annotations

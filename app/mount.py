@@ -134,7 +134,9 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.domains.news.admin_router",  # /api/v1/news/_admin/*
     "app.domains.reports",  # /api/v1/reports/*
     "app.domains.x402",  # /api/v1/x402/*
-    # TODO(mount): app.domains.x402.tools_router  # /api/v1/x402-tools/* (paid tools)
+    # app.domains.x402.tools_router EXISTS (15 paid routes at /api/v1/x402-tools/*)
+    # but is intentionally NOT wired: x402-tools surface is deferred until
+    # x402_bridge_health path compatibility is resolved (see NOT YET MOUNTED).
     # x402 MCP + Discovery + Docs
     "app.routers.x402_mcp_handler",  # /mcp/x402, /.well-known/x402
     "app.routers.x402_docs",  # /x402/docs, /x402/sandbox/*
@@ -195,9 +197,9 @@ ROUTER_MODULES: Final[list[str]] = [
     #     Wire-in deferred: not a router, would shadow /api/v2/scanner/wallet/scan
     #     if exposed as a thin wrapper. Already reachable from app.unified_wallet_scanner
     #     which is imported by unified_scanner_router.
-    #   "app.routers.admin_extensions" — DORMANT per audit (darkroom-specific, 25 routes
-    #     at /api/v1/admin/*). Would shadow /api/v1/admin/alerts_webhook (mounted Wave 1).
-    #     Kept in tree per audit, not wired.
+    #   (admin_extensions was listed as DORMANT here during the audit, but it IS
+    #     wired below — see the "Admin panel router" entry. It coexists with
+    #     /api/v1/admin/alerts_webhook because that router uses the /alerts prefix.)
     #
     # Wire-in Wave 4 — Remaining unmounted routers — mounted 2026-07-20.
     # All import cleanly with unique prefixes vs existing mounts.

@@ -99,53 +99,13 @@ async def fire_payment_webhook(
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  7. USAGE ANALYTICS
+#  7. USAGE ANALYTICS — REMOVED (consolidated)
 # ═══════════════════════════════════════════════════════════════════
-
-
-@router.get("/usage")
-async def get_usage(agent_id: str = Query(""), days: int = Query(7)) -> dict:
-    """Get usage analytics - calls, spend, breakdown.
-
-    Returns per-tool call counts, total spend, and daily breakdown.
-    """
-    from app.routers.x402_enforcement import TOOL_PRICES, _ensure_tool_prices
-
-    _ensure_tool_prices()
-
-    total_calls = 0
-    total_spend = 0.0
-    per_tool = {}
-
-    # Aggregate from pricing data
-    for tid, tp in TOOL_PRICES.items():
-        price = tp.get("price_usd", 0)
-        if price > 0:
-            per_tool[tid] = {
-                "price_usd": price,
-                "category": tp.get("category", "general"),
-            }
-
-    return {
-        "agent_id": agent_id or "anonymous",
-        "days": days,
-        "total_calls": total_calls,
-        "total_spend_usd": total_spend,
-        "available_tools": len(TOOL_PRICES),
-        "paid_tools": sum(1 for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0),
-        "price_range_usd": {
-            "min": min(
-                (v["price_usd"] for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0),
-                default=0,
-            ),
-            "max": max(
-                (v["price_usd"] for v in TOOL_PRICES.values() if v.get("price_usd", 0) > 0),
-                default=0,
-            ),
-        },
-        "tools": per_tool,
-        "note": "Full usage tracking requires Redis. Install redis for per-call analytics.",
-    }
+#
+# GET /api/v1/x402/usage is served by app.domains.x402 (mounted before this
+# router in app/mount.py), so the duplicate handler registered here was
+# shadowed and unreachable. Removed 2026-08-07 as part of endpoint
+# consolidation. See app/domains/x402/router.py for the canonical handler.
 
 
 # ═══════════════════════════════════════════════════════════════════

@@ -10,6 +10,13 @@ Free Trials:
   Trials are tracked per-wallet in Redis with 24h reset.
 
 price_atoms = price_usd * 1_000_000 (1 atom = $0.000001)
+
+NOTE (degodding 2026-08-07): this module is a pure DATA catalog
+(X402_TOOL_PRICING dict), not a router. It is intentionally NOT split:
+4 modules import `X402_TOOL_PRICING` from here, and splitting a data
+dict across files adds import churn for zero behavioral gain. If it ever
+grows past ~1200 lines, consider moving tier subsections into
+`app/routers/x402_databus_tools/pricing/tiers.py` and re-aggregating.
 """
 
 from __future__ import annotations

@@ -309,3 +309,55 @@ def test_stream_sets_rag_context_header(client: TestClient) -> None:
     body = resp.text
     assert "streamed token" in body
     assert '"type": "done"' in body
+
+
+def test_stream_degrades_gracefully_when_rag_raises(client: TestClient) -> None:
+    """The stream handler must survive a RAG search failure (own try/except)."""
+
+    async def _fake_stream(messages: Any, **kwargs: Any) -> Any:
+        yield "streamed despite rag down"
+
+    async def _rag_down(message: str) -> tuple[str, int]:
+        raise RuntimeError("RAG service unavailable")
+
+    with (
+        patch.object(chat_mod, "_search_rag_context", new=AsyncMock(side_effect=_rag_down)),
+        patch.object(chat_mod, "do_stream_chat_completion", side_effect=_fake_stream),
+    ):
+        resp = client.post("/api/v1/chat/stream", json={"message": "is this token safe?"})
+
+    assert resp.status_code == 200
+    assert resp.headers.get("X-RAG-Context") == "0"
+    assert "streamed despite rag down" in resp.text
+    assert '"type": "done"' in resp.text
+
+
+def test_chat_with_token_address_queries_scanner_v2_collection(client: TestClient) -> None:
+    """A message mentioning a token address must search scanner_v2 too, and
+    the X-RAG-Context header must reflect the returned hit count."""
+
+    async def _fake_completion(**kwargs: Any) -> dict[str, Any]:
+        return _completion_result("Grounded answer.")
+
+    async def _fake_rag(message: str) -> tuple[str, int]:
+        return _format_rag_context(
+            [
+                {
+                    "content": "scanner_v2 result for this token",
+                    "score": 0.95,
+                    "collection": "scanner_v2",
+                    "doc_id": "scan-1",
+                }
+            ]
+        ), 1
+
+    addr = "0x" + "c" * 40
+    with (
+        patch.object(chat_mod, "do_chat_completion", new=AsyncMock(side_effect=_fake_completion)),
+        patch.object(chat_mod, "_search_rag_context", new=AsyncMock(side_effect=_fake_rag)),
+    ):
+        resp = client.post("/api/v1/chat", json={"message": f"is {addr} a honeypot?"})
+
+    assert resp.status_code == 200
+    assert resp.headers.get("X-RAG-Context") == "1"
+    assert resp.json()["message"] == "Grounded answer."

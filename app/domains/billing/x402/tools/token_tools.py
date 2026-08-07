@@ -13,6 +13,11 @@ Endpoints mounted on sub_router:
   POST /api/v1/x402-tools/liquidity_flow
   POST /api/v1/x402-tools/token_deep_dive
   POST /api/v1/x402-tools/token_comparison
+
+NOTE (degodding 2026-08-07): 831 lines. Split is deferred (all token tools share
+the same chain RPC + enrichment plumbing). If splitting, group by tool family
+(risk / audit / metadata) into ``tools/_groups.py``.
+
 """
 
 from __future__ import annotations

@@ -14,6 +14,11 @@ Verification (2026-08-02): all "free, no key" endpoints below were tested
 live and return HTTP 200 without an API key. The only exceptions:
   - 1inch now requires an API key (HTTP 401) → registered as FREEMIUM
   - Etherscan migrated to V2 (HTTP 401 without key) → registered as FREEMIUM
+
+NOTE (degodding 2026-08-07): 966 lines. Split is deferred (all security checks share
+the same provider-client + caching plumbing). If splitting, group checks by category
+(contract audit / token security / liquidity) into ``_checks.py`` modules.
+
 """
 
 from __future__ import annotations
