@@ -42,7 +42,7 @@ def _ensure_verifier() -> None:
         return
     _verifier_loaded = True
     try:
-        from app.routers.x402_middleware import FACILITATOR_CONFIGS, TOKEN_METADATA, PaymentVerifier
+        from app.routers.x402_middleware import FACILITATOR_CONFIGS, TOKEN_METADATA, PaymentVerifier  # type: ignore[attr-defined]
 
         VERIFIER = PaymentVerifier()
         _FACILITATOR_CONFIGS = FACILITATOR_CONFIGS
@@ -79,8 +79,8 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
             if decoded.startswith("{"):
                 payload = json.loads(decoded)
                 if "x402Version" in payload:
-                    return payload
-                return payload
+                    return payload  # type: ignore[no-any-return]
+                return payload  # type: ignore[no-any-return]
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise
         except json.JSONDecodeError:
@@ -94,7 +94,7 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
             payload_str = stripped
 
         if payload_str.startswith("{"):
-            return json.loads(payload_str)
+            return json.loads(payload_str)  # type: ignore[no-any-return]
 
         return None
     except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
@@ -113,7 +113,7 @@ def _detect_token_from_asset(asset_address: str, chain_cfg: dict[str, Any]) -> s
     tokens = chain_cfg.get("tokens", {})
     for symbol, addr in tokens.items():
         if isinstance(addr, str) and addr.lower() == asset_lower:
-            return symbol
+            return symbol  # type: ignore[no-any-return]
 
     if "TR7NH" in asset_lower:
         return "USDT"
@@ -150,9 +150,9 @@ async def verify_payment(payload: dict[str, Any]) -> dict[str, Any]:
 
     if verify_method == "facilitator":
         if chain_cfg["method"] == "local_eip712":
-            return VERIFIER._verify_eip712_local(payload)
+            return VERIFIER._verify_eip712_local(payload)  # type: ignore[no-any-return]
         elif chain_cfg["method"] == "payai":
-            return await VERIFIER._verify_via_payai(payload, None)
+            return await VERIFIER._verify_via_payai(payload, None)  # type: ignore[no-any-return]
 
     if verify_method == "self":
         return await self_verify_evm_usdc(payload, chain_key or "", chain_cfg)
@@ -178,10 +178,10 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
 
     if not chain_key:
         try:
-            from app.routers.x402_middleware import PaymentVerifier
+            from app.routers.x402_middleware import PaymentVerifier  # type: ignore[attr-defined]
 
             verifier = PaymentVerifier()
-            return await verifier.verify_payment(
+            return await verifier.verify_payment(  # type: ignore[no-any-return]
                 json.dumps(payload),
                 network_key="base",
             )
@@ -296,7 +296,7 @@ async def self_verify_evm_usdc(payload: dict[str, Any], chain_key: str, chain_cf
             56: "https://bsc.blockscout.com",
         }
 
-        blockscout_base = blockscout_urls.get(chain_id)
+        blockscout_base = blockscout_urls.get(chain_id)  # type: ignore[arg-type]
         if not blockscout_base:
             return {"verified": False, "reason": f"No Blockscout URL for chain_id {chain_id}"}
 

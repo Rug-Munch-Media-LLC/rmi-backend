@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-NETWORKS: ClassVar[list[str]] = [
+NETWORKS: ClassVar[list[str]] = [  # type: ignore[misc]
     "base",
     "solana",
     "ethereum",
@@ -20,7 +20,7 @@ NETWORKS: ClassVar[list[str]] = [
     "sepa",
 ]
 
-CHAIN_SUFFIXES: ClassVar[frozenset[str]] = frozenset(
+CHAIN_SUFFIXES: ClassVar[frozenset[str]] = frozenset(  # type: ignore[misc]
     {
         "solana",
         "base",

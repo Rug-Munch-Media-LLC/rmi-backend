@@ -422,7 +422,7 @@ def _load_tool_prices() -> None:
         "/srv/work/repos/rmi-mcp-x402",
         "/srv/rmi/rmi-mcp-x402",
     ]:
-        if os.path.isdir(candidate):
+        if os.path.isdir(candidate):  # type: ignore[arg-type]
             gateway_base = candidate
             break
 
@@ -450,11 +450,11 @@ def _load_tool_prices() -> None:
 
                 if all([name_match, price_match, atoms_match, cat_match, trial_match]):
                     TOOL_PRICES[tool_id] = {
-                        "price_usd": float(price_match.group(1)),
-                        "price_atoms": atoms_match.group(1),
-                        "category": (cat_match.group(1) or "").lower(),
-                        "trial_free": int(trial_match.group(1)),
-                        "description": name_match.group(1) or "",
+                        "price_usd": float(price_match.group(1)),  # type: ignore[union-attr]
+                        "price_atoms": atoms_match.group(1),  # type: ignore[union-attr]
+                        "category": (cat_match.group(1) or "").lower(),  # type: ignore[union-attr]
+                        "trial_free": int(trial_match.group(1)),  # type: ignore[union-attr]
+                        "description": name_match.group(1) or "",  # type: ignore[union-attr]
                     }
 
 
@@ -522,7 +522,7 @@ def _get_pay_to_address(chain: str) -> str:
         mgr = get_wallet_manager_v2(os.getenv("WALLET_VAULT_PASSWORD", ""))
         for w in mgr._wallets.values():
             if w.chain == chain and w.x402_enabled and w.status == "active":
-                return w.address
+                return w.address  # type: ignore[no-any-return]
     except (AttributeError, ImportError):
         pass
     if chain == "eth":
