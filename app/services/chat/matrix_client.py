@@ -117,9 +117,9 @@ class MatrixClient:
         try:
             response = await client.request(method, url, json=json_body, params=params, headers=headers)
         except httpx.TimeoutException:
-            raise MatrixError("Matrix request timed out", status_code=504)
+            raise MatrixError("Matrix request timed out", status_code=504) from None
         except httpx.HTTPError as e:
-            raise MatrixError(f"Matrix HTTP error: {e}", status_code=502)
+            raise MatrixError(f"Matrix HTTP error: {e}", status_code=502) from e
 
         # Handle Matrix error codes
         if response.status_code >= 400:

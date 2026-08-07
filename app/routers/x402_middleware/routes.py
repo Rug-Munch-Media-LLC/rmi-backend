@@ -356,7 +356,7 @@ async def store_receipt(request: Request) -> Any | dict[str, bool]:
         raise
     except Exception as e:
         _log.error(f"Receipt store error: {e}")
-        raise AppError(message=f"Receipt store error: {str(e)[:200]}", context={"error": "receipt_storage_failed"})
+        raise AppError(message=f"Receipt store error: {str(e)[:200]}", context={"error": "receipt_storage_failed"}) from e
 
 
 # ── Fallback System Status ─────────────────────────────────────

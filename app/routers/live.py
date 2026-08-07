@@ -142,7 +142,7 @@ async def _get_user(user_id: str) -> uuid.UUID:
     try:
         return uuid.UUID(user_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID")
+        raise HTTPException(status_code=400, detail="Invalid user ID") from None
 
 
 async def _get_current_user_id(current_user: dict[str, Any] = Depends(require_auth)) -> str:
@@ -470,7 +470,7 @@ async def post_create_event(
         if scheduled_at.tzinfo is None:
             scheduled_at = scheduled_at.replace(tzinfo=UTC)
     except (ValueError, TypeError):
-        raise HTTPException(400, "Invalid scheduled_at format. Use ISO 8601.")
+        raise HTTPException(400, "Invalid scheduled_at format. Use ISO 8601.") from None
 
     if scheduled_at <= datetime.now(UTC):
         raise HTTPException(400, "Scheduled time must be in the future")

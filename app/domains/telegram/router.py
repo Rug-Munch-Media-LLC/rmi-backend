@@ -119,7 +119,7 @@ async def api_create_voice_chat(req: CreateVoiceChatRequest):
             duration_seconds=session.duration_seconds,
         )
     except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/voice-chat/end")
@@ -132,7 +132,7 @@ async def api_end_voice_chat(req: EndVoiceChatRequest):
         success = await end_voice_chat(bot, req.chat_id)
         return {"success": success}
     except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/voice-chat/status/{chat_id}", response_model=VoiceChatStatusResponse)
@@ -155,7 +155,7 @@ async def api_voice_chat_status(chat_id: int):
             )
         return VoiceChatStatusResponse(active=False, chat_id=chat_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/voice-chat/list")
@@ -180,7 +180,7 @@ async def api_list_voice_chats():
             ],
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 # ── Headless Group Management Endpoints ────────────────────────────────
@@ -230,7 +230,7 @@ async def api_send_group_message(req: SendGroupMessageRequest):
         )
         return {"success": success}
     except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/group/ban")
@@ -247,7 +247,7 @@ async def api_ban_user(req: ModerationActionRequest):
         )
         return {"success": success}
     except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/group/unban")
@@ -260,7 +260,7 @@ async def api_unban_user(req: ModerationActionRequest):
         success = await client.unban_user(req.chat_id, req.user_id)
         return {"success": success}
     except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 # ── Health & Status ────────────────────────────────────────────────────
@@ -320,7 +320,7 @@ async def api_group_embed_info(chat_id: int):
                 raise HTTPException(
                     status_code=404,
                     detail=f"Group {chat_id} not found",
-                )
+                ) from None
 
         return {
             "chat_id": info.chat_id,
@@ -335,4 +335,4 @@ async def api_group_embed_info(chat_id: int):
         raise HTTPException(
             status_code=503,
             detail="Telethon not installed",
-        )
+        ) from None
