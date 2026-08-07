@@ -65,6 +65,43 @@ DIMENSION_WEIGHTS: dict[str, int] = {
 # Neutral baseline: a token with no data at all scores exactly 50.
 _BASELINE = 50.0
 
+# Blue-chip tokens (top-100 by market cap, or >100K holders) legitimately
+# carry signals the concentration/lock heuristics treat as risk: high HHI
+# (a single wrapping contract can dominate supply — WBTC, wstETH) and low
+# locked-LP% (liquidity sits in deep AMM pools, not locked LP positions).
+# Skipping those flags for bluechips removes false HIGH/critical labels on
+# tokens like WETH (Bug 1).
+BLUECHIP_MARKET_CAP_USD = 1_000_000_000  # ≈ top-100 by market cap
+BLUECHIP_HOLDER_COUNT = 100_000
+
+
+def _is_bluechip(r: ScanResult) -> bool:
+    """True for top-100 market-cap or >100K-holder tokens (WETH, WBTC, ...).
+
+    Uses the core price payload (``market_cap_usd``), the DataBus holder
+    data (``holder_count`` / ``total_holders``) and the SENTINEL free-tier
+    ``holder_analysis.total_holders`` as evidence. Defensive: missing or
+    malformed fields simply mean "not bluechip".
+    """
+    if float(r.market_cap_usd or 0) >= BLUECHIP_MARKET_CAP_USD:
+        return True
+    holders = r.holders if isinstance(r.holders, dict) else {}
+    for key in ("holder_count", "total_holders"):
+        try:
+            if int(holders.get(key) or 0) > BLUECHIP_HOLDER_COUNT:
+                return True
+        except (TypeError, ValueError):
+            continue
+    sentinel_free = (r.sentinel or {}).get("free") or {}
+    ha = sentinel_free.get("holder_analysis")
+    if isinstance(ha, dict):
+        try:
+            if int(ha.get("total_holders") or 0) > BLUECHIP_HOLDER_COUNT:
+                return True
+        except (TypeError, ValueError):
+            pass
+    return False
+
 
 def _risk_level_from_score(score: float) -> str:
     """Map a 0-100 safety score to the canonical risk level."""
@@ -251,6 +288,11 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     flags: list[str] = []
     green: list[str] = []
 
+    # Blue-chip guard: wrapped/blue-chip tokens (top-100 market cap or
+    # >100K holders) are not penalized for concentration/low-lock signals
+    # that are structurally normal for them (Bug 1).
+    bluechip = _is_bluechip(r)
+
     deltas: dict[str, float] = defaultdict(float)
     dim_flags: dict[str, list[str]] = defaultdict(list)
 
@@ -289,7 +331,7 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     if r.holders:
         h = r.holders
         top10 = float(h.get("top_10_pct", 0) or 0)
-        if top10 > 80:
+        if top10 > 80 and not bluechip:
             _apply("holders", -15, "HOLDER_CONCENTRATION_HIGH")
         elif top10 < 30:
             _apply("holders", 5)
@@ -303,7 +345,7 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     if r.holder_health:
         hh = r.holder_health
         gini = float(hh.get("gini", 0) or 0)
-        if gini > 0.8:
+        if gini > 0.8 and not bluechip:
             _apply("holders", -10, "HOLDER_GINI_HIGH")
         confidence += 5
     else:
@@ -353,7 +395,7 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     if r.liquidity:
         liq = r.liquidity
         locked = float(liq.get("locked_pct", 0) or 0)
-        if locked < 50:
+        if locked < 50 and not bluechip:
             _apply("liquidity", -20, "LP_LOCK_LOW")
         elif locked > 90:
             _apply("liquidity", 5)
@@ -440,10 +482,13 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
         if isinstance(ha, dict) and ha.get("hhi") is not None:
             hhi = float(ha.get("hhi", 0) or 0)
             ha_risk = str(ha.get("risk_level", "")).lower()
-            if hhi > 5000 or ha_risk == "critical":
+            # HHI > 5000 is normal for wrapped/blue-chip tokens (one
+            # wrapping contract dominates supply) — skip the SENTINEL HHI
+            # flags for bluechips (Bug 1).
+            if not bluechip and (hhi > 5000 or ha_risk == "critical"):
                 _apply("holders", -10, "SENTINEL_HHI_CRITICAL")
                 sentinel_critical.append("holder_analysis")
-            elif hhi > 3000 or ha_risk == "high":
+            elif not bluechip and (hhi > 3000 or ha_risk == "high"):
                 _apply("holders", -5, "SENTINEL_HHI_HIGH")
             fake_div = float(ha.get("fake_diversification_score", 0) or 0)
             if fake_div > 40:
@@ -457,7 +502,11 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
             locked = float(lv.get("total_locked_percentage", 0) or 0)
             lv_risk = str(lv.get("risk_level", "")).upper()
             fake_lock = bool(lv.get("fake_lock_detected"))
-            if locked < 50 or lv_risk == "CRITICAL" or fake_lock:
+            # LP lock < 50% is normal for wrapped/blue-chip tokens (deep
+            # AMM pools instead of locked LP positions) — skip the lock
+            # penalty for bluechips unless a real fake-lock/CRITICAL
+            # finding exists (Bug 1).
+            if (not bluechip and locked < 50) or lv_risk == "CRITICAL" or fake_lock:
                 _apply("liquidity", -10, "SENTINEL_LP_LOCK")
                 if lv_risk == "CRITICAL" or fake_lock:
                     sentinel_critical.append("liquidity_verification")

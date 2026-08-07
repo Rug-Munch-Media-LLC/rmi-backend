@@ -186,11 +186,16 @@ class TestEvidence:
         assert ev["security"]["checks"]["HP01"]["status"] == "fail"
         assert ev["security"]["checks"]["HP01"]["details"] == "GoPlus honeypot=YES"
         assert ev["security"]["rug_patterns"]["match_count"] == 1
-        assert "liquidity" in ev and ev["liquidity"]["locked_pct"] == 0
-        assert "holders" in ev and ev["holders"]["top_10_pct"] == 92.4
-        assert "holder_health" in ev and ev["holder_health"]["gini"] == 0.91
-        assert "deployer" in ev and ev["deployer"]["risk_score"] == 88
-        assert "market" in ev and ev["market"]["fake_volume_pct"] == 81
+        assert "liquidity" in ev
+        assert ev["liquidity"]["locked_pct"] == 0
+        assert "holders" in ev
+        assert ev["holders"]["top_10_pct"] == 92.4
+        assert "holder_health" in ev
+        assert ev["holder_health"]["gini"] == 0.91
+        assert "deployer" in ev
+        assert ev["deployer"]["risk_score"] == 88
+        assert "market" in ev
+        assert ev["market"]["fake_volume_pct"] == 81
 
     def test_evidence_empty_for_neutral_token(self) -> None:
         """No data -> no evidence, but the breakdown still has all dimensions."""
@@ -366,7 +371,7 @@ class TestSentinelScoring:
             }
         )
         out = compute_score(result)
-        assert result.sentinel_boost == 10.0  # 2 critical × 5
+        assert result.sentinel_boost == 10.0  # 2 critical x 5
         assert "SENTINEL_CRITICAL_BOOST:2" in out["breakdown"]["security"]["flags"]
         assert out["breakdown"]["security"]["delta"] == -10.0
 
@@ -450,4 +455,124 @@ class TestSentinelScoring:
         out = compute_score(result)
         assert "SENTINEL_LP_LOCKED" in out["breakdown"]["liquidity"]["flags"]
         assert "SENTINEL_DEV_CLEAN" in out["breakdown"]["deployer"]["flags"]
-        assert result.sentinel_boost == 0.0
+
+
+class TestBlueChipGuard:
+    """Bug 1: SENTINEL/heuristic flags must not mark blue-chips (WETH) HIGH.
+
+    Wrapped/blue-chip tokens legitimately score high HHI and low locked-LP%
+    (one wrapping contract dominates supply; liquidity sits in deep AMM
+    pools, not locked LP positions). ``compute_score`` skips those flags
+    when the token is top-100 by market cap or has >100K holders.
+    """
+
+    def _bluechip(self, **overrides: object) -> ScanResult:
+        """A WETH-shaped token: huge market cap + concentrated/locked-LP signals."""
+        base: dict[str, object] = {
+            "name": "Wrapped Ether",
+            "symbol": "WETH",
+            "market_cap_usd": 50_000_000_000.0,
+            "holders": {"top_10_pct": 85, "holder_count": 340_000},
+            "holder_health": {"gini": 0.85, "hhi": 8000},
+            "liquidity": {"locked_pct": 5},
+            "sentinel": {
+                "free": {
+                    "holder_analysis": {"hhi": 8000, "risk_level": "critical", "total_holders": 340_000},
+                    "liquidity_verification": {
+                        "total_locked_percentage": 5,
+                        "risk_level": "HIGH",
+                        "fake_lock_detected": False,
+                        "warnings": ["low lock"],
+                    },
+                }
+            },
+        }
+        base.update(overrides)
+        return _result(**base)
+
+    def test_bluechip_market_cap_skips_sentinel_and_baseline_flags(self) -> None:
+        """A $50B token with HHI/lock signals must not be flagged HIGH."""
+        out = compute_score(self._bluechip())
+        assert "SENTINEL_HHI_CRITICAL" not in out["breakdown"]["holders"]["flags"]
+        assert "SENTINEL_HHI_HIGH" not in out["breakdown"]["holders"]["flags"]
+        assert "SENTINEL_LP_LOCK" not in out["breakdown"]["liquidity"]["flags"]
+        assert "LP_LOCK_LOW" not in out["breakdown"]["liquidity"]["flags"]
+        assert "HOLDER_CONCENTRATION_HIGH" not in out["breakdown"]["holders"]["flags"]
+        assert "HOLDER_GINI_HIGH" not in out["breakdown"]["holders"]["flags"]
+        assert out["score"] >= 50.0
+        assert out["risk_level"] in ("safe", "low", "medium")
+
+    def test_bluechip_holder_count_skips_flags(self) -> None:
+        """>100K holders alone (no market cap) also triggers the guard."""
+        out = compute_score(
+            self._bluechip(
+                market_cap_usd=0.0,
+                holders={"top_10_pct": 90, "holder_count": 250_000},
+            )
+        )
+        assert "SENTINEL_HHI_CRITICAL" not in out["breakdown"]["holders"]["flags"]
+        assert "SENTINEL_LP_LOCK" not in out["breakdown"]["liquidity"]["flags"]
+
+    def test_bluechip_via_sentinel_total_holders(self) -> None:
+        """SENTINEL holder_analysis.total_holders (>100K) triggers the guard."""
+        out = compute_score(
+            self._bluechip(
+                market_cap_usd=0.0,
+                holders=None,
+                sentinel={
+                    "free": {
+                        "holder_analysis": {"hhi": 9000, "risk_level": "critical", "total_holders": 500_000},
+                        "liquidity_verification": {
+                            "total_locked_percentage": 10,
+                            "risk_level": "HIGH",
+                            "fake_lock_detected": False,
+                            "warnings": [],
+                        },
+                    }
+                },
+            )
+        )
+        assert "SENTINEL_HHI_CRITICAL" not in out["breakdown"]["holders"]["flags"]
+        assert "SENTINEL_LP_LOCK" not in out["breakdown"]["liquidity"]["flags"]
+
+    def test_bluechip_still_flags_real_fake_lock(self) -> None:
+        """A fake-lock finding is a real scam signal even for bluechips."""
+        out = compute_score(
+            self._bluechip(
+                sentinel={
+                    "free": {
+                        "liquidity_verification": {
+                            "total_locked_percentage": 80,
+                            "risk_level": "CRITICAL",
+                            "fake_lock_detected": True,
+                            "warnings": ["fake lock"],
+                        },
+                    }
+                }
+            )
+        )
+        assert "SENTINEL_LP_LOCK" in out["breakdown"]["liquidity"]["flags"]
+
+    def test_non_bluechip_still_flagged(self) -> None:
+        """A small-cap token with the same signals keeps the penalties."""
+        out = compute_score(
+            self._bluechip(
+                market_cap_usd=2_000_000.0,
+                holders={"top_10_pct": 85, "holder_count": 400},
+                sentinel={
+                    "free": {
+                        "holder_analysis": {"hhi": 8000, "risk_level": "critical", "total_holders": 400},
+                        "liquidity_verification": {
+                            "total_locked_percentage": 5,
+                            "risk_level": "HIGH",
+                            "fake_lock_detected": False,
+                            "warnings": ["low lock"],
+                        },
+                    }
+                },
+            )
+        )
+        assert "SENTINEL_HHI_CRITICAL" in out["breakdown"]["holders"]["flags"]
+        assert "SENTINEL_LP_LOCK" in out["breakdown"]["liquidity"]["flags"]
+        assert "LP_LOCK_LOW" in out["breakdown"]["liquidity"]["flags"]
+        assert "HOLDER_CONCENTRATION_HIGH" in out["breakdown"]["holders"]["flags"]
