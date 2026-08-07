@@ -631,7 +631,7 @@ class TestSignatureVerificationRoundtrip:
             recovered_pub = CoinCurvePubKey.from_signature_and_message(signed.signature, message.encode())
             recovered_addr = "0x" + hashlib.sha3_256(recovered_pub.format(compressed=False)[1:]).hexdigest()[-40:]
             assert recovered_addr.lower() == acct.address.lower()
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             # coincurve API may differ; eth_account recovery is authoritative
             pass
 

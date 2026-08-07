@@ -70,7 +70,7 @@ async def _fetch_market_overview() -> dict:
                         "value": int(fg_data.get("value", 50)),
                         "classification": fg_data.get("value_classification", "Neutral"),
                     }
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
             # ETH Gas (proxy for network activity)
@@ -79,7 +79,7 @@ async def _fetch_market_overview() -> dict:
                 if gas.status_code == 200:
                     gas_data = gas.json().get("result", {})
                     result["eth_gas"] = gas_data.get("ProposeGasPrice")
-            except Exception:
+            except Exception:  # noqa: S110 — best-effort rate limiting
                 pass
 
             # Try own backend sentiment data
@@ -94,7 +94,7 @@ async def _fetch_market_overview() -> dict:
                     if isinstance(own_data, dict):
                         result["sentiment"] = own_data.get("sentiment", result["sentiment"])
                         result["btc_dominance_change"] = own_data.get("btc_dominance_change")
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
     except (httpx.HTTPError, ConnectionError, TimeoutError) as e:

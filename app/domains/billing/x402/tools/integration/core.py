@@ -554,7 +554,7 @@ async def tool_alias_dispatcher(tool_id: str, request: Request) -> Any:
                 with contextlib.suppress(ImportError, Exception):
                     result = await enrich_response(tool_id, result, body, request)
                 return JSONResponse(content=result, status_code=200)
-        except (ImportError, Exception):
+        except (ImportError, Exception):  # noqa: S110 — optional dependency
             pass
         raise HTTPException(
             status_code=404,

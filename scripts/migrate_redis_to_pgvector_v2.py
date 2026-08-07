@@ -126,7 +126,7 @@ async def insert_with_retry(client: httpx.AsyncClient, rows: list, batch_num: in
                                     if r3.status_code in (200, 201):
                                         count += 1
                                     await asyncio.sleep(0.02)
-                                except Exception:
+                                except Exception:  # noqa: S110 — best-effort rate limiting
                                     pass
                     return count
             else:

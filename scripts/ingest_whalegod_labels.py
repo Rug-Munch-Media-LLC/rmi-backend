@@ -51,7 +51,7 @@ async def ingest():
                 )
                 if r.status_code == 200:
                     count += 1
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
         print(f"Ingested {count}/{len(eth_labels) + len(sol_labels)} WHALEGOD labels")

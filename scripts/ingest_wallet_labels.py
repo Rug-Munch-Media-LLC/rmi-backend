@@ -398,7 +398,7 @@ def _batch_insert_wallet_labels(
         result = _ch_select(ch, "SELECT DISTINCT source FROM wallet_labels")
         if result:
             seen_sources = {r[0] for r in result}
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
     for i in range(0, len(labels), batch_size):
@@ -948,7 +948,7 @@ async def ingest_chainabuse(ch: Any, redis: Any | None) -> dict[str, int]:
                             all_reports.extend(reports)
                             logger.info(f"  Got {len(reports)} from alt endpoint: {alt_url}")
                             break
-                except Exception:
+                except Exception:  # noqa: S110 — intentional best-effort
                     pass
 
     if not all_reports:
@@ -1150,7 +1150,7 @@ async def ingest_walletlabels_xyz(ch: Any, redis: Any | None, chain: str = "ethe
                 {"chain": chain},
             )
             addresses_to_check = [r[0] for r in rows[:50]]  # Batch of 50
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
     if not addresses_to_check:
@@ -1209,7 +1209,7 @@ async def ingest_walletlabels_xyz(ch: Any, redis: Any | None, chain: str = "ethe
                                     "is_sanctioned": False,
                                 }
                             )
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
             await asyncio.sleep(0.05)  # Rate limit
@@ -1279,7 +1279,7 @@ async def ingest_bluepages(ch: Any, redis: Any | None, chain: str = "ethereum") 
                                         "is_sanctioned": False,
                                     }
                                 )
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
             await asyncio.sleep(0.05)
@@ -1411,7 +1411,7 @@ async def ingest_open_labels(ch: Any, redis: Any | None) -> dict[str, int]:
                     data = resp.json()
                     logger.info(f"  Got data from {url}")
                     break
-            except Exception:
+            except Exception:  # noqa: S110 — best-effort rate limiting
                 pass
 
     if not data:

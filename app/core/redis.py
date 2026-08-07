@@ -29,7 +29,7 @@ def _get_redis_url() -> str:
 
         if _s.redis_url:
             return _s.redis_url
-    except Exception:
+    except Exception:  # noqa: S110 — optional dependency
         pass
     return os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

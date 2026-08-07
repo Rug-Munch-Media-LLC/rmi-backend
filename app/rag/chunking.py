@@ -102,7 +102,7 @@ def estimate_tokens(text: str) -> int:
     if enc is not None:
         try:
             return len(enc.encode(text))
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             pass
     # Word-count heuristic (~1.3 tokens/word avg for English); never 0.
     return max(1, len(text.split()))
@@ -123,7 +123,7 @@ def _enforce_token_limit(chunk: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> st
             if len(tokens) <= max_tokens:
                 return chunk
             return str(enc.decode(tokens[:max_tokens]))
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             pass
     words = chunk.split()
     if len(words) <= max_tokens:

@@ -143,7 +143,7 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     f"   Participants: {vc.participant_count}\n"
                     f"   Duration: {vc.duration_seconds:.0f}s"
                 )
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
     text = (

@@ -451,7 +451,7 @@ class UnifiedProvider:
                         if gmgn_data.get(key) is not None and result.get(key) is None:
                             result[key] = gmgn_data[key]
                     result["source_chain"].append("gmgn")
-            except Exception:
+            except Exception:  # noqa: S110 — best-effort rate limiting
                 pass
 
             # Birdeye (holder count, security)
@@ -463,7 +463,7 @@ class UnifiedProvider:
                     if birdeye_data.get("security"):
                         result["security"] = birdeye_data["security"]
                     result["source_chain"].append("birdeye")
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
             # Phase 3: OHLCV from GeckoTerminal (free)
@@ -473,7 +473,7 @@ class UnifiedProvider:
                     if ohlcv:
                         result["ohlcv"] = ohlcv
                         result["source_chain"].append("geckoterminal")
-                except Exception:
+                except Exception:  # noqa: S110 — best-effort rate limiting
                     pass
 
             # Cache full result for 60s
@@ -510,7 +510,7 @@ class UnifiedProvider:
                         },
                         "top_holders": (data.get("top_holders") or [])[:20],
                     }
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             pass
         return None
 

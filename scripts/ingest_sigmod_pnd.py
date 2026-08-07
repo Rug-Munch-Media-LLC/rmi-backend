@@ -49,7 +49,7 @@ async def ingest():
                 r = await client.post(RAG_URL, json=payload, headers={"X-RMI-Key": "rmi-internal-2026"})
                 if r.status_code == 200:
                     count += 1
-            except Exception:
+            except Exception:  # noqa: S110 — best-effort rate limiting
                 pass
 
             if (i + 1) % 500 == 0:

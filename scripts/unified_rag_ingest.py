@@ -143,7 +143,7 @@ def _check_redis_pressure() -> bool:
                     logger.warning(f"Redis memory {mb:.0f}MB > {MAX_REDIS_MEMORY_MB}MB - stopping")
                     return False
                 return True
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
     return True  # If check fails, proceed anyway
 
@@ -301,7 +301,7 @@ async def run_unified_ingest():
             capture_output=True,
             timeout=5,
         )
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
     if not _check_redis_pressure():

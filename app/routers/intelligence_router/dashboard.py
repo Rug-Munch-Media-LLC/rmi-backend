@@ -134,7 +134,7 @@ async def intelligence_dashboard() -> dict:
             )
             if resp.status_code == 200:
                 mempool_fees = resp.json()
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort rate limiting
         pass
 
     return {

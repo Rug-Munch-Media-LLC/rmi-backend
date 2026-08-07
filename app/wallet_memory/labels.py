@@ -179,7 +179,7 @@ class LabelService:
                         import json as _json
 
                         await redis.setex(cache_key, 3600, _json.dumps(label_dict))
-                except Exception:
+                except Exception:  # noqa: S110 — best-effort cache
                     pass
         except Exception as e:
             logger.debug(f"ClickHouse label lookup failed for {addr}: {e}")

@@ -145,7 +145,7 @@ async def run():
                     resp = await client.post(RAG_API, json=payload)
                     if resp.status_code == 200:
                         ok_wallet += len(batch)
-                except:  # noqa: E722
+                except:  # noqa: E722, S110
                     pass
                 if (i // batch_size + 1) % 20 == 0:
                     logger.info(f"  Wallets: {i + len(batch)}/{min(len(wallet_rows), 5000)} | ok={ok_wallet}")
@@ -185,7 +185,7 @@ async def run():
                     resp = await client.post(RAG_API, json=payload)
                     if resp.status_code == 200:
                         ok += 1
-                except:  # noqa: E722
+                except:  # noqa: E722, S110
                     pass
                 await asyncio.sleep(0.15)
             total_ingested += ok
@@ -217,7 +217,7 @@ async def run():
                     resp = await client.post(RAG_API, json=payload)
                     if resp.status_code == 200:
                         ok += 1
-                except:  # noqa: E722
+                except:  # noqa: E722, S110
                     pass
                 await asyncio.sleep(0.1)
             total_ingested += ok

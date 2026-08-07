@@ -289,7 +289,7 @@ async def _enrich_with_embeddings(
                         # Store embedding for MMR similarity computation
                         # Use first 128 dims for speed (cosine sim is preserved in high dims)
                         results[idx]["_embedding"] = embedding[:128]
-                except (json.JSONDecodeError, Exception):
+                except (json.JSONDecodeError, Exception):  # noqa: S110 — intentional best-effort
                     pass
 
     except Exception as e:

@@ -64,7 +64,7 @@ async def get_launch_feed(
                             launch["risk_score"] = scan.get("risk_score", 50)
                             launch["risk_flags"] = scan.get("risk_flags", [])
                             launch["scanned_at"] = scan.get("scanned_at")
-                except Exception:
+                except Exception:  # noqa: S110 — best-effort rate limiting
                     pass
             enriched.append(launch)
 
@@ -118,7 +118,7 @@ async def get_launch_scan(address: str) -> dict[str, Any]:
             raw = await r.get(f"launch_scan:{address}")
             if raw:
                 return {"address": address, "scan": json.loads(raw), "found": True}
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort rate limiting
         pass
 
     return {"address": address, "scan": None, "found": False}

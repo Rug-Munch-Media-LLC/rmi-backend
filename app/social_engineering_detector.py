@@ -551,7 +551,7 @@ async def detect_social_engineering(
                                         f"Creator has launched {creator_tokens}+ tokens - "
                                         "serial deployer pattern, high impersonation risk"
                                     )
-                except (TimeoutError, Exception):
+                except (TimeoutError, Exception):  # noqa: S110 — intentional best-effort
                     pass
     except (ConnectionError, OSError, TimeoutError):
         pass

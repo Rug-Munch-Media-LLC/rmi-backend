@@ -685,7 +685,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
                         "time": datetime.now(UTC).isoformat(),
                     }
                 )
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             pass
 
         return {

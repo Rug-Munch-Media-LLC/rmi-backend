@@ -22,7 +22,7 @@ if not KEY:
                 if line.startswith("MINIMAX_API_KEY="):
                     KEY = line.strip().split("=", 1)[1]
                     break
-    except:
+    except Exception:  # noqa: S110 — optional .env read
         pass
 URL = "https://api.minimax.io/v1/chat/completions"
 MODEL = "MiniMax-Text-01"
