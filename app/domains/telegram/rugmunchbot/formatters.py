@@ -114,6 +114,36 @@ def social_proof_text() -> str:
         return "\U0001f465 1,000+ users | \U0001f50d 50,000+ scans completed"
 
 
+def welcome_card_text() -> str:
+    """v5 welcome card — capability overview shown by /start and the main menu.
+
+    Concise enough to render fast while advertising the full capability set
+    (scanning, wallet intel, markets, AI chat, education).
+    """
+    proof = social_proof_text()
+    return (
+        f"\U0001f6e1\ufe0f <b>RugMunch Intelligence</b>\n"
+        f"<i>The Bloomberg Terminal of Shitcoins</i>\n\n"
+        f"{proof}\n\n"
+        f"<b>Capabilities:</b>\n"
+        f"\U0001f50d <b>Scan & Research</b> — multi-chain token audits\n"
+        f"  honeypots \u00b7 rug pulls \u00b7 bundles \u00b7 dev history\n"
+        f"\U0001f9db <b>Wallet Intel</b> — forensics \u00b7 smart money \u00b7 risk\n"
+        f"\U0001f4c8 <b>Market Data</b> — prices \u00b7 trending \u00b7 sentiment \u00b7 news\n"
+        f"\U0001f4b1 <b>DeFi Analysis</b> — liquidity \u00b7 volume \u00b7 wash trades\n"
+        f"\U0001f916 <b>AI Chat</b> — RAG-powered answers on crypto & code\n"
+        f"\U0001f4da <b>Scam School</b> — learn before you lose\n\n"
+        f"\U0001f4f3 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + "
+        f"{TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
+        f"\u2b50 <b>Premium from $29.99/mo</b> \u2014 unlock everything\n\n"
+        f"<b>Quick Start:</b>\n"
+        f"\U0001f4cc Paste any contract address \u2192 auto-scan\n"
+        f"\U0001f4cc Type <code>$TOKEN</code> \u2192 instant price\n"
+        f"\U0001f4cc /chat <code>your question</code> \u2192 talk to me\n"
+        f"\U0001f4cc Pick a category below \U0001f447"
+    )
+
+
 def paywall_text(user_id: int, action: str = "scan") -> str:
     tier = db.get_user_tier(user_id)
     scans, ai = db.get_weekly_usage(user_id)
@@ -183,7 +213,7 @@ def format_scoring_breakdown(breakdown: dict) -> str:
         maximum = float(entry.get("max", 0) or 0)
         delta = float(entry.get("delta", 0) or 0)
         bar_len = 10
-        filled = int(round((score / maximum) * bar_len)) if maximum else 0
+        filled = round((score / maximum) * bar_len) if maximum else 0
         filled = max(0, min(filled, bar_len))
         bar = "\u2b1b" * filled + "\u2b1c" * (bar_len - filled)
         marker = "\U0001f7e2" if delta >= 0 else "\U0001f534"

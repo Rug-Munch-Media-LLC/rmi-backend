@@ -73,7 +73,6 @@ from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
-from app.domains.scanner.engines.known_entities import label_wallet
 from app.domains.scanner.engines._common import (
     _query_batch_labels,
     clear_cache as _common_clear_cache,
@@ -84,6 +83,7 @@ from app.domains.scanner.engines._common import (
     to_epoch,
     to_iso,
 )
+from app.domains.scanner.engines.known_entities import label_wallet
 
 # Legacy module-local names kept for consistency with the other engines.
 _redis_get = redis_get

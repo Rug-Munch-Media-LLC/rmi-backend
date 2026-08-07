@@ -6,10 +6,12 @@ Canonical wire formats for cross-chain entity resolution results.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class DeployerEvent(BaseModel):

@@ -378,7 +378,7 @@ def v2_token_to_legacy(data: dict) -> dict[str, Any]:
     holders = evidence.get("holders") or {}
     liquidity = evidence.get("liquidity") or {}
     security = evidence.get("security") or {}
-    checks = security.get("checks") or {}
+    security.get("checks") or {}
     dev = evidence.get("deployer") or {}
     mkt = evidence.get("market") or {}
     funding = evidence.get("funding_analysis") or {}

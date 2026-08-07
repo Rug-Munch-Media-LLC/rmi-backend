@@ -20,6 +20,8 @@ from datetime import UTC, datetime
 from app.core.logging import get_logger
 from app.databus.cache import CacheLayer, get_cache
 
+
+import httpx
 logger = get_logger("databus.social_scraper")
 
 # Twitter handle for our account

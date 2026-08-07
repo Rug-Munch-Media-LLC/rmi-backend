@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis_async

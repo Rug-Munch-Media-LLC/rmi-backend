@@ -8,10 +8,10 @@ whale alerts, and smart money detection.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
 
 import httpx
-from telegram import Update
 from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
@@ -33,6 +33,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, holders_kb, paywall_kb
 
 if TYPE_CHECKING:
+    from telegram import Update
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot.holders")
@@ -171,13 +172,11 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 pair = dex_pairs[0]
                 pair_addr = pair.get("pairAddress", "")
                 # Get pair info for holder data
-                try:
-                    pi_resp = await client.get(
+                with contextlib.suppress(httpx.HTTPError, ConnectionError, TimeoutError):
+                    await client.get(
                         f"https://api.dexscreener.com/orders/v1/{chain}/{pair_addr}",
                         timeout=5,
                     )
-                except (httpx.HTTPError, ConnectionError, TimeoutError):
-                    pass
 
             # Build report
             s = sep()
@@ -192,7 +191,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             ]
 
             if top_holders:
-                total_pct = sum(h.get("pct", 0) for h in top_holders)
+                sum(h.get("pct", 0) for h in top_holders)
                 highest_pct = top_holders[0].get("pct", 0) if top_holders else 0
                 top10_sum = sum(h.get("pct", 0) for h in top_holders[:10])
                 total_holders = len(top_holders)

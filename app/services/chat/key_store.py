@@ -15,16 +15,18 @@ here is for development and may be backed by Redis+Postgres.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.services.chat.models import ChatUser
-from app.services.chat.signal_protocol import (
-    DoubleRatchetSession,
-    KeyBundle,
-    MegolmSession,
-    SafetyNumber,
-)
+
+if TYPE_CHECKING:
+    from app.services.chat.signal_protocol import (
+        DoubleRatchetSession,
+        KeyBundle,
+        MegolmSession,
+        SafetyNumber,
+    )
 
 logger = get_logger(__name__)
 

@@ -17,7 +17,6 @@ v3 M3 engine (``app.rag``).
 from __future__ import annotations
 
 import os
-import time
 from typing import Any
 
 from app.core.logging import get_logger
@@ -53,7 +52,6 @@ async def _get_redis() -> Any:
 # ── Embedder — re-export the active crypto embedder (not deprecated) ─────
 
 from app.crypto_embeddings import get_embedder  # noqa: E402
-
 
 # ── Search shims ───────────────────────────────────────────────────────────
 

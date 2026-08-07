@@ -12,6 +12,8 @@ import secrets
 import time
 from datetime import UTC, datetime
 
+import httpx
+
 from app.core.logging import get_logger
 from app.domains.wallet.models import (
     WalletPurpose,

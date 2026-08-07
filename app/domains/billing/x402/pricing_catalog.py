@@ -16,6 +16,9 @@ from typing import Any
 
 from app.core.logging import get_logger
 
+
+import httpx
+
 logger = get_logger("x402_enforcement")
 
 EVM_PAY_TO: str | None = None

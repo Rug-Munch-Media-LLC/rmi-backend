@@ -24,6 +24,8 @@ import redis
 
 from app.core.logging import get_logger
 
+
+import httpx
 logger = get_logger("volume_authenticity")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")

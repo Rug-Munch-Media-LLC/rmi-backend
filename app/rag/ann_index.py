@@ -29,6 +29,8 @@ import numpy as np
 from app.core.logging import get_logger
 from app.rag.embeddings import EMBEDDING_DIM
 
+
+import httpx
 log = get_logger(__name__)
 
 # Lazy import - Redis client is created on first use, after app.core.redis is ready

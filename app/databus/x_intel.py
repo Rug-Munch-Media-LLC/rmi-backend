@@ -648,7 +648,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
         # ── Fallback: return trending tokens + market sentiment ──
         fallback_stories = []
         try:
-            from app.databus.news_provider import get_trending_coins, get_fear_greed
+            from app.databus.news_provider import get_fear_greed, get_trending_coins
 
             trending = await get_trending_coins()
             fear = await get_fear_greed()

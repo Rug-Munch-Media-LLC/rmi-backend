@@ -6,12 +6,14 @@ Runs all cross-chain matching strategies and persists results.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 
 from .deployer_matcher import DeployerMatcher
-from .models import CrossChainProfile
+
+if TYPE_CHECKING:
+    from .models import CrossChainProfile
 
 logger = get_logger(__name__)
 

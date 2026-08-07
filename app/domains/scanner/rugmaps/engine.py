@@ -29,7 +29,7 @@ from app.domains.scanner.rugmaps.graph import (
     classify_wallet,
 )
 from app.domains.scanner.rugmaps.html_export import _generate_interactive_html, export_html
-from app.domains.scanner.rugmaps.models import BubbleMap, _format_timestamp
+from app.domains.scanner.rugmaps.models import BubbleMap
 
 logger = get_logger(__name__)
 

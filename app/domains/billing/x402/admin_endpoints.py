@@ -18,6 +18,8 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 

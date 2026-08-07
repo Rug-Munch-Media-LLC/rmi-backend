@@ -97,6 +97,11 @@ extend-exclude = [
 "app/legacy/**" = ["ALL"]
 # Telegram bot: pre-existing try/except/pass patterns, non-crypto random
 "app/domains/telegram/rugmunchbot/bot.py" = ["S110", "S311"]
+# Bot admin state: best-effort config fallbacks (Redis down / import guard) — fail open is intentional
+"app/domains/telegram/rugmunchbot/admin_state.py" = ["S110"]
+# Bot admin API: trusted internal SQL — where-clause fragments are fixed constants,
+# user input is always bound via parameters; temp fallback path mirrors bot runtime
+"app/routers/admin/bot_admin.py" = ["S608", "S108", "S110"]
 # Pre-existing: SQL injection warning in passthrough ClickHouse queries (sanitized, trusted internal traffic)
 "app/databus/provider_implementations/passthrough.py" = ["S608"]
 "app/domains/databus/providers/chains/local.py" = ["S608"]
@@ -111,6 +116,8 @@ extend-exclude = [
 "app/domains/scanner/unified/scanner.py" = ["S110", "RUF006", "ASYNC109"]
 # Pre-existing: variable naming conventions in middleware (will be cleaned separately)
 "app/middleware_setup.py" = ["N806", "SIM102"]
+# Postiz simulated analytics: random.random/randint for demo metrics, not crypto
+"app/domains/postiz/services/templates.py" = ["S311"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

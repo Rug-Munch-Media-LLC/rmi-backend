@@ -13,6 +13,11 @@ from app.domains.scanner.rugmaps.models import BubbleLink, BubbleMap, BubbleNode
 
 logger = get_logger(__name__)
 
+# Address allowlists used by phase-3 heuristics. Populated by label imports;
+# empty by default so classification degrades gracefully to "unknown".
+known_exchanges: set[str] = set()
+known_scammers: set[str] = set()
+
 
 def calculate_connection_strength(
     tx_count: int,
@@ -112,9 +117,7 @@ def add_or_update_link(
     transaction_hashes: list[str] | None = None,
 ) -> BubbleLink:
     """Add or update a link between two nodes."""
-    existing = next(
-        (lnk for lnk in bubble_map.links if lnk.source_id == source_id and lnk.target_id == target_id), None
-    )
+    existing = next((lnk for lnk in bubble_map.links if lnk.source == source_id and lnk.target == target_id), None)
     if existing:
         if transaction_hashes:
             existing.transaction_hashes = list(set(existing.transaction_hashes + transaction_hashes))
@@ -122,8 +125,8 @@ def add_or_update_link(
         return existing
 
     link = BubbleLink(
-        source_id=source_id,
-        target_id=target_id,
+        source=source_id,
+        target=target_id,
         strength=min(strength, 1.0),
         label=label,
         color=color or get_link_color(label),
@@ -177,8 +180,6 @@ async def classify_wallet(address: str, transactions: list | None = None) -> str
     if len(addr_lower) == 44 and addr_lower.startswith(("0x0000", "0xdead")):
         return "burn"
     if addr_lower.startswith("0x") and addr_lower[2:].isalnum():
-        from app.domains.scanner.rugmaps.models import known_exchanges, known_scammers
-
         if addr_lower in {s.lower() for s in known_scammers}:
             return "scammer"
         if addr_lower in {e.lower() for e in known_exchanges}:

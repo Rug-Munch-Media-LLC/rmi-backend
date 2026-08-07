@@ -44,7 +44,13 @@ def _generate_interactive_html(bubble_map: BubbleMap) -> str:
             for n in bubble_map.nodes
         ],
         "links": [
-            {"source": link.source_id, "target": link.target_id, "strength": link.strength, "label": link.label, "color": link.color}
+            {
+                "source": link.source,
+                "target": link.target,
+                "strength": link.strength,
+                "label": link.label,
+                "color": link.color,
+            }
             for link in bubble_map.links
         ],
         "stats": bubble_map.stats,

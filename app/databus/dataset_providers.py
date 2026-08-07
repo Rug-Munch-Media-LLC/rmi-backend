@@ -20,6 +20,8 @@ import os
 
 from app.core.logging import get_logger
 
+
+import httpx
 logger = get_logger("databus.dataset_providers")
 
 # ═══════════════════════════════════════════════════════════════

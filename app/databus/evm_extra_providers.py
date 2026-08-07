@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from app.core.logging import get_logger
 
+
+import httpx
 logger = get_logger("databus.evm_extra")
 
 

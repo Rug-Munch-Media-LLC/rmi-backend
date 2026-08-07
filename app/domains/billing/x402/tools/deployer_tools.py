@@ -18,6 +18,8 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException
 
 from app.domains.billing.x402.shared import (
+
+import httpx
     GenericRequest,
     InsiderRequest,
     fetch_with_fallback,

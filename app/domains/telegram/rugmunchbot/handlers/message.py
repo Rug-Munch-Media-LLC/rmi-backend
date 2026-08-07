@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """
-RugMunchBot -- Message handler + AI chat system.
+RugMunchBot -- Message handler + AI chat system (v5).
 
-Auto-detect contract addresses, $TOKEN lookups, and tiered AI chat
-(RAG + LLM synthesis -> local intent matching -> friendly redirect).
+Auto-detect contract addresses, $TOKEN lookups, and tiered AI chat:
+
+  Tier 1   RAG search -> LLM synthesis (grounded answer)
+  Tier 1b  LLM general synthesis (server auto-grounds; full-range answers)
+  Tier 2   Local intent matching (fast canned replies)
+  Tier 3   Friendly redirect (catch-all help)
+
+Free text that is not a command or an address becomes a chat message. The
+same pipeline powers /chat <question> (handlers/chat.py) via ai_chat_response.
 """
 
 from __future__ import annotations
@@ -18,6 +25,11 @@ from telegram.error import TelegramError
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
+from app.domains.telegram.rugmunchbot.admin_state import (
+    track_ai_query,
+    track_message,
+    track_tokens,
+)
 from app.domains.telegram.rugmunchbot.ai_chat import (
     chat_synthesis,
     format_rag_context,
@@ -39,7 +51,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_sol,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, main_menu_kb, paywall_kb
-from app.domains.telegram.rugmunchbot.states import check_spam
+from app.domains.telegram.rugmunchbot.states import check_spam, should_skip_llm
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -58,6 +70,25 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if u.get("is_banned"):
         return
     if check_spam(user.id):
+        return
+    db.record_activity(msg=True)
+
+    # Admin kill-switch: whole bot disabled (synced from the admin API).
+    if db.get_bot_state("bot_enabled", "on") != "on":
+        return
+
+    # Analytics: count every inbound message handled (Redis, for the admin API).
+    await track_message()
+
+    # AI chat can be toggled independently of the rest of the bot (admin).
+    if db.get_bot_state("chat_enabled", "on") != "on":
+        await update.message.reply_text(
+            "\U0001f4ac <b>AI Chat is temporarily disabled</b>\n\n"
+            "The chat feature is under maintenance. Commands like /scan, /wallet "
+            "and /price still work \u2014 just send a contract address!",
+            parse_mode=ParseMode.HTML,
+            reply_markup=main_menu_kb(),
+        )
         return
 
     # Auto-detect contract address (bare address)
@@ -139,7 +170,20 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         await cmd_scan(update, ctx)
         return
 
-    # AI Chat -- Tiered fallback (RAG+LLM -> local intent -> friendly redirect)
+    # Free text -> AI chat (tiered)
+    await ai_chat_response(update, ctx, text, user)
+
+
+async def ai_chat_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text: str, user) -> bool:
+    """Run the full AI chat tier pipeline. Returns True when a reply was sent.
+
+    Shared by the free-text handler and /chat <question>. Enforces the
+    weekly AI-message quota per tier and per-user flood limits.
+    """
+    if not text.strip():
+        return False
+
+    # Tier gate: weekly AI message quota (free: 15, scout: 75, hunter: 250, pro: 500)
     allowed, _used, _limit = db.check_rate_limit(user.id, "ai_msg")
     if not allowed:
         from app.domains.telegram.rugmunchbot.formatters import paywall_text
@@ -149,7 +193,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )
-        return
+        return True
 
     # Flood control: max 3 msgs/sec and 20 msgs/min per user on the AI chat
     # surface (see flood_control.py for the testable contract). /start and
@@ -164,65 +208,121 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
             f"Please wait {retry_after}s and try again.",
             parse_mode=ParseMode.HTML,
         )
-        return
+        return True
 
     await update.message.chat.send_action("typing")
+
+    # Conversation context (last 5 messages) for grounded follow-up questions.
+    history = db.get_chat_history(user.id, limit=db.CHAT_HISTORY_CONTEXT)
 
     # Tier 1: RMI RAG search -> LLM synthesis
     rag_hits = await search_rag(text, top_k=5)
     if rag_hits:
         rag_context = format_rag_context(rag_hits[:5])
-        ai_answer = await chat_synthesis(text, rag_context, user_id=user.id)
+        ai_answer = await chat_synthesis(text, rag_context, user_id=user.id, history=history)
         if ai_answer:
             logger.info("AI chat tier=1 (rag+llm) user=%s text=%.60s", user.id, text)
             db.increment_usage(user.id, ai_msg=True)
+            db.add_chat_message(user.id, "user", text)
+            db.add_chat_message(user.id, "assistant", ai_answer)
+            await track_ai_query()
+            await track_tokens(len(ai_answer) // 4)
             await update.message.reply_text(
                 ai_answer[:4000],
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
                 disable_web_page_preview=True,
             )
-            return
+            return True
         # LLM synthesis failed/timeout but RAG returned grounding — degrade
         # gracefully to the best raw hit so the user still gets an answer.
         best_hit = (rag_hits[0].get("content") or "").strip()
         if best_hit:
             logger.info("AI chat tier=1 (rag-raw fallback) user=%s text=%.60s", user.id, text)
             db.increment_usage(user.id, ai_msg=True)
+            db.add_chat_message(user.id, "user", text)
+            db.add_chat_message(user.id, "assistant", best_hit)
+            await track_ai_query()
+            await track_tokens(len(best_hit) // 4)
             await update.message.reply_text(best_hit[:4000], parse_mode=ParseMode.HTML, reply_markup=back_kb())
-            return
+            return True
+
+    # Tier 1b: LLM general synthesis (full-range assistant answers). Skipped
+    # for gibberish/super-short text and rate-limited per user (~1/10s) so a
+    # flood cannot hammer the LLM. The backend auto-grounds these calls with
+    # its own RAG search when no bot-side context was found.
+    if _looks_like_chat(text) and not should_skip_llm(user.id):
+        ai_answer = await chat_synthesis(text, None, user_id=user.id, history=history)
+        if ai_answer:
+            logger.info("AI chat tier=1b (llm general) user=%s text=%.60s", user.id, text)
+            db.increment_usage(user.id, ai_msg=True)
+            db.add_chat_message(user.id, "user", text)
+            db.add_chat_message(user.id, "assistant", ai_answer)
+            await track_ai_query()
+            await track_tokens(len(ai_answer) // 4)
+            await update.message.reply_text(
+                ai_answer[:4000],
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+                disable_web_page_preview=True,
+            )
+            return True
 
     # Tier 2: Local intent matching
     local_response = local_ai_response(text, user)
     if local_response:
         logger.info("AI chat tier=2 (local intent) user=%s text=%.60s", user.id, text)
         db.increment_usage(user.id, ai_msg=True)
+        await track_ai_query()
+        await track_tokens(len(local_response) // 4)
         await update.message.reply_text(
             local_response,
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
             disable_web_page_preview=True,
         )
-        return
+        return True
 
     # Tier 3: Friendly redirect (catch-all) — NOT counted against flood limits
     logger.info("AI chat tier=3 (redirect) user=%s text=%.60s", user.id, text)
     await refund_flood(user.id, flood_receipt)
     db.increment_usage(user.id, ai_msg=True)
+    await track_ai_query()
     await update.message.reply_text(
         "\U0001f916 <b>RugMunch AI</b>\n\n"
-        "I can help with token scans, wallet analysis, and market data. "
-        "Use <code>/scan &lt;address&gt;</code> or just paste a token address!\n\n"
-        "\U0001f4a1 <b>Quick tips:</b>\n"
-        "\u2022 <code>$TOKEN</code> \u2192 instant price lookup\n"
-        "\u2022 <code>/wallet &lt;addr&gt;</code> \u2192 wallet analysis\n"
-        "\u2022 <code>/trending</code> \u2192 hot tokens\n"
-        "\u2022 <code>/scamschool</code> \u2192 learn scam patterns"
+        "I can help with token scans, wallet analysis, market data, DeFi, "
+        "crypto news and even coding questions. Try:\n\n"
+        "\U0001f4ac <code>/chat &lt;question&gt;</code> \u2014 talk to me about anything\n"
+        "\U0001f50d <code>/scan &lt;address&gt;</code> \u2014 security audit\n"
+        "\U0001f4cc <code>$TOKEN</code> \u2014 instant price lookup\n"
+        "\U0001f9db <code>/wallet &lt;addr&gt;</code> \u2014 wallet analysis\n"
+        "\U0001f525 <code>/trending</code> \u2014 hot tokens\n"
+        "\U0001f4da <code>/scamschool</code> \u2014 learn scam patterns"
         f"{footer_links()}",
         parse_mode=ParseMode.HTML,
         reply_markup=main_menu_kb(),
         disable_web_page_preview=True,
     )
+    return True
+
+
+def _looks_like_chat(text: str) -> bool:
+    """Heuristic gate for the LLM general-synthesis tier (tier 1b).
+
+    Skips gibberish / one-liners that are not worth an LLM call, so a
+    spammy flood cannot burn LLM tokens on noise.
+    """
+    stripped = text.strip()
+    if len(stripped) < 4:
+        return False
+    words = re.findall(r"[A-Za-z]{3,}", stripped)
+    if not words:
+        return False
+    alpha = sum(1 for ch in stripped if ch.isalpha())
+    if len(stripped) > 0 and alpha / len(stripped) < 0.35:
+        return False
+    # Repeated single word / character spam: "asdfasdfasdf", "lllll"
+    return not (len(set(words)) == 1 and len(words) > 4)
 
 
 # --- Local intent matching (Tier 2) ---

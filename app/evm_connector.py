@@ -17,6 +17,8 @@ from typing import Any
 
 from app.core.logging import get_logger
 
+
+import httpx
 logger = get_logger(__name__)
 
 try:

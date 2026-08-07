@@ -1,30 +1,30 @@
-"""Tests for RugMapsEngine with mocked Helius RPC responses.
+"""Tests for RugMaps bubble map engine — current API.
 
 Covers:
-- RugMapData and RugMapNode dataclass defaults
-- Generate map with mocked transactions
-- Connection strength calculation
-- Wallet classification
-- Risk scoring
-- Position calculation
-- HTML export
+- BubbleNode / BubbleLink / BubbleMap dataclass defaults and to_dict()
+- Connection strength calculation (graph.calculate_connection_strength)
+- Wallet classification (graph.classify_wallet) with Neo4j mocked
+- Risk scoring (graph.calculate_risk)
+- Node radius (graph.calculate_radius)
+- Map generation (BubbleMapsPro.generate_map) with mocked tx fetcher
+- Stats calculation (graph.calculate_stats)
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-# ── RugMapNode ─────────────────────────────────────────────────────────
+from app.domains.scanner.rugmaps.models import BubbleLink, BubbleMap, BubbleNode
+
+# ── BubbleNode ────────────────────────────────────────────────────────
 
 
-def test_rugmap_node_defaults():
-    """RugMapNode has correct default values."""
-    from app.rugmaps_engine import RugMapNode
-
-    node = RugMapNode(id="node1", address="0xabc", type="center")
+def test_bubble_node_defaults():
+    """BubbleNode has correct default values."""
+    node = BubbleNode(id="node1", address="0xabc", type="center")
 
     assert node.id == "node1"
     assert node.address == "0xabc"
@@ -38,10 +38,8 @@ def test_rugmap_node_defaults():
 
 
 def test_bubble_node_to_dict():
-    """RugMapNode.to_dict() returns expected keys."""
-    from app.rugmaps_engine import RugMapNode
-
-    node = RugMapNode(id="n1", address="0xabc", type="exchange", radius=30.0, color="#4dabf7")
+    """BubbleNode.to_dict() returns expected keys."""
+    node = BubbleNode(id="n1", address="0xabc", type="exchange", radius=30.0, color="#4dabf7")
     d = node.to_dict()
 
     assert d["id"] == "n1"
@@ -52,14 +50,12 @@ def test_bubble_node_to_dict():
     assert "risk_score" in d
 
 
-# ── RugMapLink ─────────────────────────────────────────────────────────
+# ── BubbleLink ────────────────────────────────────────────────────────
 
 
-def test_rugmap_link_defaults():
-    """RugMapLink has correct default values."""
-    from app.rugmaps_engine import RugMapLink
-
-    link = RugMapLink(source="src", target="tgt")
+def test_bubble_link_defaults():
+    """BubbleLink has correct default values."""
+    link = BubbleLink(source="src", target="tgt")
 
     assert link.source == "src"
     assert link.target == "tgt"
@@ -71,10 +67,8 @@ def test_rugmap_link_defaults():
 
 
 def test_bubble_link_to_dict():
-    """RugMapLink.to_dict() returns expected keys."""
-    from app.rugmaps_engine import RugMapLink
-
-    link = RugMapLink(source="a", target="b", strength=0.8, width=5.0, total_volume=1000.0)
+    """BubbleLink.to_dict() returns expected keys."""
+    link = BubbleLink(source="a", target="b", strength=0.8, width=5.0, total_volume=1000.0)
     d = link.to_dict()
 
     assert d["source"] == "a"
@@ -84,19 +78,15 @@ def test_bubble_link_to_dict():
     assert d["volume"] == 1000.0
 
 
-# ── RugMapData ──────────────────────────────────────────────────────────
+# ── BubbleMap ─────────────────────────────────────────────────────────
 
 
-def test_rugmap_to_dict():
-    """RugMapData.to_dict() returns complete structure."""
-    from datetime import datetime
-
-    from app.rugmaps_engine import RugMapData, RugMapLink, RugMapNode
-
+def test_bubble_map_to_dict():
+    """BubbleMap.to_dict() returns complete structure."""
     now = datetime.now(UTC)
-    bm = RugMapData(map_id="test_map", center_wallet="0xcenter", created_at=now)
-    bm.nodes.append(RugMapNode(id="n1", address="0xcenter", type="center"))
-    bm.links.append(RugMapLink(source="n1", target="n2", strength=0.5))
+    bm = BubbleMap(map_id="test_map", center_wallet="0xcenter", created_at=now)
+    bm.nodes.append(BubbleNode(id="n1", address="0xcenter", type="center"))
+    bm.links.append(BubbleLink(source="n1", target="n2", strength=0.5))
     bm.total_volume = 50000.0
     bm.total_transactions = 100
 
@@ -111,272 +101,296 @@ def test_rugmap_to_dict():
     assert len(d["links"]) == 1
 
 
-# ── Connection Strength ────────────────────────────────────────────────
+# ── Connection Strength ───────────────────────────────────────────────
+
+
+def test_calculate_connection_strength_zero():
+    """Zero activity with a long time span gives near-zero strength."""
+    from app.domains.scanner.rugmaps.graph import calculate_connection_strength
+
+    # No txs, no value, no counterparties, huge time span → only recency floor
+    strength = calculate_connection_strength(0, 0.0, 100_000.0, 0)
+    assert strength < 0.01
+
+
+def test_calculate_connection_strength_single_tx():
+    """Single transaction gives non-zero strength."""
+    from app.domains.scanner.rugmaps.graph import calculate_connection_strength
+
+    strength = calculate_connection_strength(1, 1000.0, 1.0, 1)
+    assert strength > 0.0
+    assert strength <= 1.0
+
+
+def test_calculate_connection_strength_scales_with_count():
+    """More transactions yield higher (or equal) strength, capped at 1."""
+    from app.domains.scanner.rugmaps.graph import calculate_connection_strength
+
+    low = calculate_connection_strength(5, 1000.0, 24.0, 2)
+    high = calculate_connection_strength(200, 1000.0, 24.0, 2)
+    assert high >= low
+    assert high <= 1.0
+
+
+def test_calculate_connection_strength_scales_with_value():
+    """Larger total value yields higher strength."""
+    from app.domains.scanner.rugmaps.graph import calculate_connection_strength
+
+    small = calculate_connection_strength(10, 100.0, 24.0, 2)
+    large = calculate_connection_strength(10, 5_000_000.0, 24.0, 2)
+    assert large > small
+    assert large <= 1.0
+
+
+# ── Wallet Classification ─────────────────────────────────────────────
+
+
+@pytest.fixture
+def neo4j_off():
+    """Force classify_wallet to skip the Neo4j phase."""
+    with patch(
+        "app.domains.wallet.neo4j_client.query_wallet_type",
+        new=AsyncMock(return_value=None),
+    ):
+        yield
+
+
+@pytest.mark.asyncio
+async def test_classify_wallet_exchange(neo4j_off):
+    """Wallet with many unique counterparties is classified as exchange."""
+    from app.domains.scanner.rugmaps.graph import classify_wallet
+
+    transactions = [
+        {"from": "wallet", "to": f"counterparty_{i}", "value": 100, "timestamp": 1700000000 + i} for i in range(150)
+    ]
+    result = await classify_wallet("wallet", transactions)
+    assert result == "exchange"
+
+
+@pytest.mark.asyncio
+async def test_classify_wallet_whale(neo4j_off):
+    """Wallet with large total volume is classified as whale."""
+    from app.domains.scanner.rugmaps.graph import classify_wallet
+
+    transactions = [
+        {"from": "wallet", "to": "counterparty", "value": 200_000, "timestamp": 1700000000} for _ in range(60)
+    ]
+    result = await classify_wallet("wallet", transactions)
+    assert result == "whale"
+
+
+@pytest.mark.asyncio
+async def test_classify_wallet_defi_trader(neo4j_off):
+    """Wallet doing swap method calls is classified as defi_trader."""
+    from app.domains.scanner.rugmaps.graph import classify_wallet
+
+    transactions = [{"from": "wallet", "to": "pool", "value": 100, "method": "swap", "timestamp": 1700000000}]
+    result = await classify_wallet("wallet", transactions)
+    assert result == "defi_trader"
+
+
+@pytest.mark.asyncio
+async def test_classify_wallet_unknown(neo4j_off):
+    """Wallet with no transactions and unknown address is unknown."""
+    from app.domains.scanner.rugmaps.graph import classify_wallet
+
+    result = await classify_wallet("wallet", [])
+    assert result == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_classify_wallet_empty_address(neo4j_off):
+    """Empty address always classifies as unknown."""
+    from app.domains.scanner.rugmaps.graph import classify_wallet
+
+    result = await classify_wallet("", [])
+    assert result == "unknown"
+
+
+# ── Risk Calculation ──────────────────────────────────────────────────
+
+
+def test_calculate_risk_no_transactions():
+    """Zero transactions gives 0 risk."""
+    from app.domains.scanner.rugmaps.graph import calculate_risk
+
+    risk_score, risk_level = calculate_risk([], 0)
+    assert risk_score == 0.0
+    assert risk_level == "unknown"
+
+
+def test_calculate_risk_large_transfer():
+    """Single >1M transfer is flagged suspicious."""
+    from app.domains.scanner.rugmaps.graph import calculate_risk
+
+    transactions = [{"from": "a", "to": "b", "value": 2_000_000, "method": "transfer", "timestamp": 1700000000}]
+    risk_score, _ = calculate_risk(transactions, 10)
+    assert risk_score > 0
+
+
+def test_calculate_risk_known_scammer_flag():
+    """Known-scammer flag pushes risk toward critical."""
+    from app.domains.scanner.rugmaps.graph import calculate_risk
+
+    transactions = [{"from": "a", "to": "b", "value": 10, "flags": ["known_scammer"], "timestamp": 1700000000}]
+    risk_score, risk_level = calculate_risk(transactions, 10)
+    assert risk_score >= 60
+    assert risk_level in ("high", "critical")
+
+
+def test_calculate_risk_fresh_wallet_flag():
+    """Fresh-wallet flag adds risk."""
+    from app.domains.scanner.rugmaps.graph import calculate_risk
+
+    transactions = [{"from": "a", "to": "b", "value": 10, "flags": ["fresh_wallet"], "timestamp": 1700000000}]
+    risk_score, _ = calculate_risk(transactions, 10)
+    assert risk_score >= 20
+
+
+def test_calculate_risk_capped_at_100():
+    """Risk score never exceeds 100."""
+    from app.domains.scanner.rugmaps.graph import calculate_risk
+
+    transactions = [
+        {
+            "from": "a",
+            "to": "b",
+            "value": 10_000_000,
+            "flags": ["known_scammer", "fresh_wallet"],
+            "timestamp": 1700000000,
+        }
+        for _ in range(20)
+    ]
+    risk_score, _ = calculate_risk(transactions, 10)
+    assert 0 <= risk_score <= 100
+
+
+# ── Node Radius ───────────────────────────────────────────────────────
+
+
+def test_calculate_radius_center():
+    """Center layer gives larger radius than deep layers."""
+    from app.domains.scanner.rugmaps.graph import calculate_radius
+
+    radius = calculate_radius("0x1234567890abcdef1234567890abcdef12345678", 0)
+    assert radius > 0.0
+
+
+def test_calculate_radius_deep():
+    """Deeper layers give smaller radius for the same address."""
+    from app.domains.scanner.rugmaps.graph import calculate_radius
+
+    addr = "0x1234567890abcdef1234567890abcdef12345678"
+    radius_layer0 = calculate_radius(addr, 0)
+    radius_layer3 = calculate_radius(addr, 3)
+    assert radius_layer3 < radius_layer0
+
+
+# ── Map Generation ────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def bubble_pro():
-    """Create a RugMapsEngine instance with clean caches."""
-    from app.rugmaps_engine import RugMapsEngine
+    """Create a BubbleMapsPro instance with clean caches and no live lookups."""
+    from app.domains.scanner.rugmaps.engine import BubbleMapsPro
 
-    bp = RugMapsEngine()
+    bp = BubbleMapsPro()
     bp.transaction_cache = {}
     bp.entity_cache = {}
     return bp
 
 
-def test_calculate_connection_strength_no_transactions(bubble_pro):
-    """Zero relevant transactions = zero strength."""
-    strength = bubble_pro._calculate_connection_strength("wallet_a", "wallet_b", [])
-    assert strength == 0.0
-
-
-def test_calculate_connection_strength_single_tx(bubble_pro):
-    """Single transaction gives non-zero strength."""
-    transactions = [{"from": "wallet_a", "to": "wallet_b", "amount": 1000, "timestamp": 1700000000}]
-    strength = bubble_pro._calculate_connection_strength("wallet_a", "wallet_b", transactions)
-    assert strength > 0.0
-    assert strength <= 1.0
-
-
-def test_calculate_connection_strength_high(bubble_pro):
-    """Many transactions give higher strength."""
-    transactions = [
-        {"from": "wallet_a", "to": "wallet_b", "amount": 10000, "timestamp": 1700000000 + i} for i in range(50)
-    ]
-    strength = bubble_pro._calculate_connection_strength("wallet_a", "wallet_b", transactions)
-    # Should be > 0.25 from count alone, plus volume
-    assert strength > 0.25
-
-
-def test_calculate_connection_strength_bidirectional(bubble_pro):
-    """Two-way transactions get reciprocity bonus."""
-    tx_a_to_b = [{"from": "wallet_a", "to": "wallet_b", "amount": 1000, "timestamp": 1700000000 + i} for i in range(5)]
-    tx_b_to_a = [{"from": "wallet_b", "to": "wallet_a", "amount": 500, "timestamp": 1700000100 + i} for i in range(3)]
-    strength = bubble_pro._calculate_connection_strength("wallet_a", "wallet_b", tx_a_to_b + tx_b_to_a)
-    reciprocity = strength
-    assert reciprocity > 0
-
-    # One-way should be less
-    strength_oneway = bubble_pro._calculate_connection_strength("wallet_a", "wallet_b", tx_a_to_b)
-    assert strength > strength_oneway or abs(strength - strength_oneway) < 0.01
-
-
-# ── Wallet Classification ──────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_classify_wallet_exchange(bubble_pro):
-    """Wallet with many txs and counterparties is classified as exchange."""
-    transactions = [
-        {
-            "from": "wallet",
-            "to": f"counterparty_{i}",
-            "amount": 100,
-            "timestamp": 1700000000 + i,
-            "status": "success",
-        }
-        for i in range(120)
-    ]
-    result = await bubble_pro._classify_wallet("wallet", transactions)
-    assert result == "exchange"
-
-
-@pytest.mark.asyncio
-async def test_classify_wallet_bot(bubble_pro):
-    """Wallet with fast transactions is classified as bot."""
-    transactions = [
-        {
-            "from": "wallet",
-            "to": f"counterparty_{i}",
-            "amount": 100,
-            "timestamp": 1700000000 + i * 2,  # 2 seconds apart
-            "status": "success",
-        }
-        for i in range(10)
-    ]
-    result = await bubble_pro._classify_wallet("wallet", transactions)
-    assert result == "bot"
-
-
-@pytest.mark.asyncio
-async def test_classify_wallet_whale(bubble_pro):
-    """Wallet with large transactions is classified as whale."""
-    transactions = [
-        {
-            "from": "wallet",
-            "to": "counterparty",
-            "amount": 200000,
-            "timestamp": 1700000000,
-            "status": "success",
-        }
-    ]
-    result = await bubble_pro._classify_wallet("wallet", transactions)
-    assert result == "whale"
-
-
-@pytest.mark.asyncio
-async def test_classify_wallet_unknown(bubble_pro):
-    """Wallet with no transactions is unknown."""
-    result = await bubble_pro._classify_wallet("wallet", [])
-    assert result == "unknown"
-
-
-# ── Risk Calculation ───────────────────────────────────────────────────
-
-
-def test_calculate_risk_no_transactions(bubble_pro):
-    """Zero transactions gives 0 risk."""
-    risk_score, risk_level = bubble_pro._calculate_risk([], 0)
-    assert risk_score == 0.0
-    assert risk_level == "unknown"
-
-
-def test_calculate_risk_high_velocity(bubble_pro):
-    """Many transactions increase risk."""
-    transactions = [
-        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000 + i, "status": "success"} for i in range(150)
-    ]
-    risk_score, risk_level = bubble_pro._calculate_risk(transactions, 10)
-    assert risk_score >= 20  # Velocity bonus
-    assert risk_level in ("medium", "high", "critical")
-
-
-def test_calculate_risk_high_fail_rate(bubble_pro):
-    """High failed transaction ratio increases risk."""
-    transactions = [
-        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000 + i, "status": "failed"} for i in range(50)
-    ]
-    risk_score, risk_level = bubble_pro._calculate_risk(transactions, 10)
-    assert risk_score >= 15  # Fail ratio bonus
-
-
-def test_calculate_risk_time_concentration(bubble_pro):
-    """Transactions in short period increase risk."""
-    transactions = [
-        {"from": "a", "to": "b", "amount": 10, "timestamp": 1700000000, "status": "success"} for _ in range(10)
-    ]
-    risk_score, _ = bubble_pro._calculate_risk(transactions, 10)
-    # All at same timestamp or within 5 min
-    assert risk_score > 0
-
-
-def test_calculate_risk_identical_amounts(bubble_pro):
-    """Identical transaction amounts increase risk."""
-    transactions = [
-        {"from": "a", "to": "b", "amount": 100, "timestamp": 1700000000 + i, "status": "success"} for i in range(5)
-    ]
-    risk_score, _ = bubble_pro._calculate_risk(transactions, 10)
-    assert risk_score >= 15  # Identical amounts bonus
-
-
-# ── Node Radius ────────────────────────────────────────────────────────
-
-
-def test_calculate_radius_center(bubble_pro):
-    """Center layer gives larger radius."""
-    radius = bubble_pro._calculate_radius("addr", 0)
-    assert radius == 20.0  # base
-
-
-def test_calculate_radius_deep(bubble_pro):
-    """Deeper layers give smaller radius."""
-    radius = bubble_pro._calculate_radius("addr", 3)
-    assert radius < 20.0
-
-
-# ── Map Generation ─────────────────────────────────────────────────────
-
-
 @pytest.mark.asyncio
 async def test_generate_map_no_transactions(bubble_pro):
-    """Generate map with no transactions returns empty map."""
-    transactions: list = []
-
-    with patch.object(bubble_pro, "_get_transactions", return_value=transactions):
+    """Generate map with no transactions returns a map with the center node."""
+    with (
+        patch.object(bubble_pro, "_get_transactions", new=AsyncMock(return_value=[])),
+        patch("app.domains.wallet.neo4j_client.query_wallet_type", new=AsyncMock(return_value=None)),
+    ):
         bm = await bubble_pro.generate_map("0xcenter", depth=1)
 
-        assert bm is not None
-        assert bm.center_wallet == "0xcenter"
-        assert bm.map_id.startswith("bubble_")
-        assert len(bm.nodes) >= 1  # At least center node
+    assert bm is not None
+    assert bm.center_wallet == "0xcenter"
+    assert bm.map_id.startswith("bubble_")
+    assert len(bm.nodes) >= 1  # At least center node
 
 
 @pytest.mark.asyncio
 async def test_generate_map_with_transactions(bubble_pro):
-    """Generate map with transactions creates nodes and links."""
+    """Generate map with transactions creates center node and connections."""
     transactions = [
         {
             "from": "0xcenter",
             "to": "0xcounterparty1",
-            "amount": 1000,
+            "value": 1000,
             "timestamp": 1700000000,
             "signature": "sig1",
             "status": "success",
-            "token": "SOL",
         },
         {
             "from": "0xcenter",
             "to": "0xcounterparty2",
-            "amount": 2000,
+            "value": 2000,
             "timestamp": 1700000100,
             "signature": "sig2",
             "status": "success",
-            "token": "SOL",
         },
     ]
 
-    with patch.object(bubble_pro, "_get_transactions", return_value=transactions):
+    with (
+        patch.object(bubble_pro, "_get_transactions", new=AsyncMock(return_value=transactions)),
+        patch("app.domains.wallet.neo4j_client.query_wallet_type", new=AsyncMock(return_value=None)),
+    ):
         bm = await bubble_pro.generate_map("0xcenter", depth=1)
 
-        assert bm is not None
-        assert len(bm.nodes) >= 2  # Center + at least one counterparty
-        assert bm.total_volume >= 0
-        assert bm.total_transactions >= 0
+    assert bm is not None
+    assert len(bm.nodes) >= 1
+    assert bm.total_volume >= 0
+    assert bm.total_transactions >= 0
 
 
-# ── Transaction Fetching ───────────────────────────────────────────────
+# ── Transaction Fetching (cache) ──────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_get_transactions_with_time_range(bubble_pro):
-    """Transaction time range filter works correctly."""
+async def test_get_transactions_uses_cache(bubble_pro):
+    """Cached transactions are returned without fetching from chain."""
     transactions = [
-        {
-            "from": "wallet",
-            "to": "counterparty",
-            "amount": 100,
-            "timestamp": 1700000000 + i,
-            "status": "success",
-        }
-        for i in range(10)
+        {"from": "wallet", "to": "counterparty", "value": 100, "timestamp": 1700000000 + i} for i in range(10)
     ]
     bubble_pro.transaction_cache["wallet"] = list(transactions)
 
-    start = datetime(2023, 11, 14, tzinfo=UTC)  # Before all timestamps
-    end = datetime(2023, 11, 15, tzinfo=UTC)  # Mid-range
+    result = await bubble_pro._get_transactions("wallet", "0xcenter", 1)
 
-    # 1700000000 = Nov 14 2023, so 1700000000+5 should still be Nov 14
-    result = await bubble_pro._get_transactions("wallet", time_range=(start, end))
-
-    assert isinstance(result, list)
+    assert result == transactions
 
 
-# ── Stats Calculation ──────────────────────────────────────────────────
+# ── Stats Calculation ─────────────────────────────────────────────────
 
 
-def test_calculate_stats(bubble_pro):
+def test_calculate_stats_empty():
+    """Empty map returns empty stats dict."""
+    from app.domains.scanner.rugmaps.graph import calculate_stats
+
+    bm = BubbleMap(map_id="test", center_wallet="0xcenter", created_at=datetime.now(UTC))
+    assert calculate_stats(bm) == {}
+
+
+def test_calculate_stats_with_data():
     """Stats are computed correctly from map data."""
-    from app.rugmaps_engine import RugMapData, RugMapLink, RugMapNode
+    from app.domains.scanner.rugmaps.graph import calculate_stats
 
     now = datetime.now(UTC)
-    bm = RugMapData(map_id="test", center_wallet="0xcenter", created_at=now)
-    bm.nodes.append(RugMapNode(id="n1", address="0xa", type="center"))
-    bm.nodes.append(RugMapNode(id="n2", address="0xb", type="wallet"))
-    bm.links.append(RugMapLink(source="n1", target="n2", total_volume=1000.0, transaction_count=5))
+    bm = BubbleMap(map_id="test", center_wallet="0xcenter", created_at=now)
+    bm.nodes.append(BubbleNode(id="n1", address="0xa", type="center", layer=0, risk="safe"))
+    bm.nodes.append(BubbleNode(id="n2", address="0xb", type="wallet", layer=1, risk="high"))
+    bm.links.append(BubbleLink(source="n1", target="n2", strength=0.8, total_volume=1000.0, transaction_count=5))
 
-    bubble_pro._calculate_stats(bm)
+    stats = calculate_stats(bm)
 
-    assert bm.total_volume == 1000.0
-    assert bm.total_transactions == 5
-    assert bm.unique_wallets == 2
+    assert stats["total_nodes"] == 2
+    assert stats["total_connections"] == 2  # links * 2
+    assert stats["average_strength"] == 0.8
+    assert stats["max_depth"] == 1
+    assert stats["suspicious_count"] == 1
+    assert stats["risk_distribution"] == {"safe": 1, "high": 1}

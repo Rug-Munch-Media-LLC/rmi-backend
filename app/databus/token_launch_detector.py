@@ -16,6 +16,7 @@ Integrates with:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -60,10 +61,8 @@ class TokenLaunchDetector:
         self._running = False
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         logger.info("token_launch_detector stopped")
 
     async def _poll_loop(self) -> None:
@@ -192,7 +191,6 @@ class TokenLaunchDetector:
 
         risk_score = 50  # default neutral
         risk_flags: list[str] = []
-        high_risk = False
 
         # Quick checks from available data
         liquidity = float(launch.get("liquidity", 0))
@@ -201,7 +199,6 @@ class TokenLaunchDetector:
         if liquidity < 1000:
             risk_score += 30
             risk_flags.append("Extremely low liquidity (<$1K)")
-            high_risk = True
         elif liquidity < 5000:
             risk_score += 15
             risk_flags.append("Low liquidity (<$5K)")

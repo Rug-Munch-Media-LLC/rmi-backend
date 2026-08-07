@@ -6,6 +6,8 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.token.models import (
+
+import httpx
     TokenDetail,
     TokenHolder,
     TokenLiquidity,

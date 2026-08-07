@@ -67,6 +67,26 @@ def is_owner(uid: int) -> bool:
     return uid in OWNER_IDS
 
 
+# ── LLM general-synthesis cooldown (tier 1b chat) ──
+# Limits ungrounded LLM calls to ~1 per user per 10s so a flood of free-text
+# messages cannot hammer the backend LLM. Grounded RAG+LLM answers (tier 1)
+# are NOT gated here — they are rarer and more valuable.
+_llm_recent: TTLCache = TTLCache(maxsize=10000, ttl=10)
+
+
+def should_skip_llm(user_id: int) -> bool:
+    """Return True if this user called the general LLM within the cooldown.
+
+    Marks the user on first call; the TTL cache expires the mark after 10s.
+    """
+    if is_owner(user_id):
+        return False
+    if user_id in _llm_recent:
+        return True
+    _llm_recent[user_id] = True
+    return False
+
+
 # ── Alert rate limiter (max 1 DM per user per 5 min) ──
 _alert_last_sent: dict[int, float] = {}
 ALERT_RATE_LIMIT_SEC = 300

@@ -36,6 +36,8 @@ from fastapi import HTTPException, Request
 
 from app.core.logging import get_logger
 
+
+import httpx
 log = get_logger(__name__)
 
 # ── Pricing per v4.0 §T34 ───────────────────────────────────────────

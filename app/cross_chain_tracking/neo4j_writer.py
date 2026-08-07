@@ -249,7 +249,7 @@ async def create_deposited_on_edge(
 
         def _run() -> bool:
             with driver.session() as s:
-                result = s.run(
+                s.run(
                     """
                     MATCH (w:Wallet {wallet_id: $wallet_id})
                     SET w.chains_active = CASE

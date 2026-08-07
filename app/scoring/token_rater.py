@@ -298,10 +298,7 @@ def _score_liquidity_safety(token_data: dict[str, Any]) -> CategoryScore:
     # ── LP/MCap Ratio ──
     lp_usd = float(liq.get("liquidity_usd", liq.get("total_liquidity", liq.get("lp_usd", 0))) or 0)
     mcap = float(liq.get("market_cap", liq.get("fdv", token_data.get("fdv", 0))) or 0)
-    if mcap > 0:
-        lp_mcap_ratio = (lp_usd / mcap) * 100
-    else:
-        lp_mcap_ratio = 0.0
+    lp_mcap_ratio = lp_usd / mcap * 100 if mcap > 0 else 0.0
     details["lp_mcap_ratio"] = round(lp_mcap_ratio, 2)
     details["lp_usd"] = lp_usd
     details["market_cap_usd"] = mcap

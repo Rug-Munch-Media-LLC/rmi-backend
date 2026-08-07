@@ -22,10 +22,9 @@ Every endpoint follows RFC 7807 error handling and Stripe-style envelopes.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.logging import get_logger
@@ -49,6 +48,9 @@ from app.domains.newsletter.schemas import (
     SubscriberOut,
 )
 from app.domains.newsletter.service import NewsletterService
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 
@@ -277,7 +279,7 @@ async def subscribe(
     """
     if data.tier != "free":
         # Re-interpret as CryptoSubscribeRequest
-        crypto_data = CryptoSubscribeRequest(**data.model_dump())
+        CryptoSubscribeRequest(**data.model_dump())
         # We need chain/tx_hash/from_address/token for paid subs
         raise HTTPException(
             status_code=400,

@@ -31,6 +31,8 @@ from pathlib import Path
 
 from app.core.logging import get_logger
 
+
+import httpx
 logger = get_logger(__name__)
 
 # ── Brand patterns (loaded once at import) ──────────────────────────

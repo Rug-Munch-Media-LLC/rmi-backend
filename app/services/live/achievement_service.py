@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, func as sa_func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.models.live import AchievementDef, CreatorStreak, UserAchievement
+
+if TYPE_CHECKING:
+    import uuid
+
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 log = get_logger(__name__)
 

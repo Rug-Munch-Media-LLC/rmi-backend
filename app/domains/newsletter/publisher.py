@@ -281,7 +281,7 @@ async def _publish_to_medium(
         import re
 
         # Convert HTML to Medium's acceptable format (basic markdown-ish)
-        text_content = re.sub(r"<[^>]+>", "", content_html).strip()
+        re.sub(r"<[^>]+>", "", content_html).strip()
 
         payload = {
             "title": title,
@@ -708,7 +708,7 @@ async def publish_to_all(
         if not publisher:
             return PublishResult(platform, False, error_message=f"Unknown platform: {platform}")
 
-        extra = extras.get(platform, {})
+        extras.get(platform, {})
 
         if platform == "ghost":
             return await publisher(title, content_html, excerpt, tags, cover_image, slug)
@@ -733,7 +733,7 @@ async def publish_to_all(
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     final_results: list[PublishResult] = []
-    for platform, result in zip(targets, results):
+    for platform, result in zip(targets, results, strict=False):
         if isinstance(result, Exception):
             final_results.append(PublishResult(platform, False, error_message=str(result)))
         else:

@@ -29,17 +29,17 @@ from app.domains.indexer.deployer_tracker import (
 )
 
 __all__ = [
+    "BATCH_SIZE",
+    "CHAIN_POLL_INTERVALS",
+    "DISK_CAP_BYTES",
+    "GET_LOGS_ENDPOINTS",
     "LiteIndexer",
-    "main",
     "async_main",
+    "main",
     "main_daemon",
     "parse_args",
-    "GET_LOGS_ENDPOINTS",
-    "CHAIN_POLL_INTERVALS",
-    "BATCH_SIZE",
-    "DISK_CAP_BYTES",
     # Deployer tracker (Phase 2)
     "process_block_deployers",
-    "write_deployer_events",
     "run_deployer_tracker",
+    "write_deployer_events",
 ]

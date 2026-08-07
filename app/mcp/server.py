@@ -34,7 +34,6 @@ from app.mcp._catalog import (  # noqa: E402
 )
 
 
-
 # ── Tool implementations ──────────────────────────────────────────
 async def call_tool(name: str, arguments: dict) -> dict:
     """Dispatch a tool call to the appropriate backend."""

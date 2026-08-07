@@ -287,7 +287,7 @@ class DoubleRatchetSession:
 
         ciphertext = base64.b64decode(encrypted_msg["ciphertext"])
         iv = base64.b64decode(encrypted_msg["iv"])
-        mac = base64.b64decode(encrypted_msg["mac"])
+        base64.b64decode(encrypted_msg["mac"])
         msg_num = encrypted_msg["message_number"]
         their_ephemeral = base64.b64decode(encrypted_msg["sending_ephemeral"])
 
@@ -511,7 +511,7 @@ class SignalProtocol:
                 bundle.signed_pre_key,
             )
             if bundle.kyber_kem_key and self._kyber_priv:
-                kyber_ct, kyber_ss = _kyber_encapsulate(bundle.kyber_kem_key)
+                _kyber_ct, kyber_ss = _kyber_encapsulate(bundle.kyber_kem_key)
                 master_secret = _hkdf(
                     HKDF_INFO_SALT,
                     shared_secret + kyber_ss,

@@ -13,6 +13,7 @@ reply/keyboard helpers into ``handlers/_ui.py`` and keep per-command handlers.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import TYPE_CHECKING
 
 import httpx
@@ -23,10 +24,6 @@ from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     DEXSCREENER,
-    TELEGRAM_CHANNEL,
-    TELEGRAM_GROUP,
-    TIERS,
-    WEBSITE_URL,
     fmt_chain,
     fmt_number,
     fmt_pct,
@@ -44,15 +41,16 @@ from app.domains.telegram.rugmunchbot.formatters import (
     paywall_text,
     sep,
     short_addr,
-    social_proof_text,
     thin_sep,
     web_scan_button,
+    welcome_card_text,
 )
 from app.domains.telegram.rugmunchbot.keyboards import (
     back_kb,
     deep_scan_result_kb,
     scan_result_kb,
     upgrade_nudge_kb,
+    welcome_menu_kb,
 )
 from app.domains.telegram.rugmunchbot.scanner import (
     analyze_wallet,
@@ -96,43 +94,8 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 conn.commit()
             conn.close()
 
-    proof = social_proof_text()
-    text = (
-        f"\U0001f6e1\ufe0f <b>RugMunch Intelligence</b>\n"
-        f"<i>The Bloomberg Terminal of Shitcoins</i>\n\n"
-        f"{proof}\n\n"
-        f"<b>What I can do for you:</b>\n\n"
-        f"\U0001f50d <b>Token Scanning</b>\n"
-        f"  Honeypots, rug pulls, bundles, fake volume\n"
-        f"  across 77+ chains in seconds\n\n"
-        f"\U0001f9db <b>Wallet Forensics</b>\n"
-        f"  Track smart money, dev wallets, funding sources\n\n"
-        f"\U0001f4ca <b>Market Intelligence</b>\n"
-        f"  Technical analysis, trending tokens, alerts\n\n"
-        f"\U0001f916 <b>AI-Powered Risk Scoring</b>\n"
-        f"  Advanced detection that goes beyond surface-level\n\n"
-        f"<b>Quick Start:</b>\n"
-        f"  \U0001f4cc Paste any contract address \u2192 auto-scan\n"
-        f"  \U0001f4cc Type <code>$TOKEN</code> \u2192 quick price lookup\n"
-        f"  \U0001f4cc /scan <code>address</code> \u2192 full analysis\n"
-        f"  \U0001f4cc /help \u2192 see all commands\n\n"
-        f"\U0001f4f3 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + {TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
-        f"\u2b50 <b>Premium from $29.99/mo</b> - unlock everything"
-        f"{footer_links()}"
-    )
-    kb = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("\U0001f50d Scan a Token", callback_data="menu_scan")],
-            [
-                InlineKeyboardButton("\u2b50 View Premium Plans", callback_data="menu_pricing"),
-                InlineKeyboardButton("\U0001f4da Learn About Scams", callback_data="menu_scamschool"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-                InlineKeyboardButton("\U0001f4e2 Join Alerts", url=TELEGRAM_CHANNEL),
-            ],
-        ]
-    )
+    text = welcome_card_text()
+    kb = welcome_menu_kb()
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
 
 
@@ -190,15 +153,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\u2022 Use /refer to earn free scans"
         f"{footer_links()}"
     )
-    kb = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-                InlineKeyboardButton("\U0001f4ac Support", url=TELEGRAM_GROUP),
-            ],
-            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-        ]
-    )
+    kb = welcome_menu_kb()
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
 
 
@@ -223,7 +178,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     target = ctx.args[0]
     chain = ctx.args[1] if len(ctx.args) > 1 else None
     if not is_owner(user.id):
-        allowed, used, limit = db.check_rate_limit(user.id, "scan")
+        allowed, _used, _limit = db.check_rate_limit(user.id, "scan")
         if not allowed:
             # Show upgrade nudge when hitting limit
             tier = db.get_user_tier(user.id)
@@ -762,10 +717,8 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
             age_hours = 0
             if created:
-                try:
+                with contextlib.suppress(OSError, ValueError, TypeError):
                     age_hours = max(0, (dt.now(UTC) - dt.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600)
-                except (OSError, ValueError, TypeError):
-                    pass
 
         # ── C5 hype score from backend (preferred) ──
         # Composite 0-100 with per-signal breakdown: social velocity, volume

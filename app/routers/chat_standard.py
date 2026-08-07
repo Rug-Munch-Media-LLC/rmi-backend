@@ -169,7 +169,7 @@ async def create_group(
     user_id = user.get("id", "unknown")
 
     if user_id not in req.member_ids:
-        req.member_ids = [user_id] + req.member_ids
+        req.member_ids = [user_id, *req.member_ids]
 
     result = await orchestrator.create_group(
         creator_id=user_id,

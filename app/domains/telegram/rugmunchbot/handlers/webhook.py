@@ -13,7 +13,6 @@ import time
 from typing import TYPE_CHECKING
 
 import httpx
-from telegram import Update
 from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
@@ -30,6 +29,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb
 
 if TYPE_CHECKING:
+    from telegram import Update
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot.webhook")

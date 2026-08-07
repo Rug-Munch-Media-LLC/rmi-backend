@@ -16,6 +16,8 @@ import json
 import time
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.core.redis import get_redis
 from app.domains.billing.x402.pricing_catalog import (

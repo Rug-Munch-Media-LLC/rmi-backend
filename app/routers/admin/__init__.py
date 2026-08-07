@@ -31,6 +31,7 @@ async def verify_admin(request: Request) -> bool:
 
 
 def _include_sub_routers():
+    from .bot_admin import bot_admin_router
     from .cron import cron_router
     from .dify import dify_router
     from .ghost import ghost_router
@@ -39,6 +40,7 @@ def _include_sub_routers():
     from .telegram import telegram_router
 
     router.include_router(telegram_router)
+    router.include_router(bot_admin_router)
     router.include_router(ghost_router)
     router.include_router(cron_router)
     router.include_router(dify_router)

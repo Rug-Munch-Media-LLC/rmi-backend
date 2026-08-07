@@ -10,6 +10,8 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.portfolio.portfolio_risk_package.constants import (
+
+import httpx
     CHAIN_CONFIGS,
     COMMON_TOKENS,
     DEFAULT_TIMEOUT,

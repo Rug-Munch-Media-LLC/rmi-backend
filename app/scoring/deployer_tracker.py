@@ -509,12 +509,11 @@ async def update_deployer_profile(
         )
 
     # Increment token counts
-    if token_address:
-        if r:
-            was_new = await r.sadd(_tokens_key(chain, deployer_address), token_address)
-            if was_new:
-                profile.total_tokens_launched += 1
-                profile.active_tokens_count += 1
+    if token_address and r:
+        was_new = await r.sadd(_tokens_key(chain, deployer_address), token_address)
+        if was_new:
+            profile.total_tokens_launched += 1
+            profile.active_tokens_count += 1
 
     if token_rugged:
         if r:
