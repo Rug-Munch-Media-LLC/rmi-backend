@@ -6,7 +6,9 @@ API helpers for DexScreener, Birdeye, and Helius.
 
 from __future__ import annotations
 
+import json
 import os
+import requests
 
 import httpx
 

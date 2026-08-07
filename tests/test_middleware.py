@@ -50,14 +50,14 @@ class TestAuthMiddleware:
             assert resp.status_code in (200, 500, 503), f"{path} should be public"
 
     async def test_protected_path_requires_auth(self, client):
-        """Protected endpoint returns 401 without API key."""
-        resp = await client.get("/api/v1/market/overview")
+        """Protected endpoint (bot admin) returns 401 without API key."""
+        resp = await client.get("/api/v1/admin/bot/status")
         assert resp.status_code == 401
 
     async def test_protected_path_valid_auth(self, client):
         """Protected endpoint succeeds with valid X-API-Key."""
         resp = await client.get(
-            "/api/v1/market/overview",
+            "/api/v1/admin/bot/status",
             headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
         )
         # May be 404 or 200 depending on router registration — but not 401
@@ -66,7 +66,7 @@ class TestAuthMiddleware:
     async def test_protected_path_invalid_auth(self, client):
         """Protected endpoint returns 401 with invalid key."""
         resp = await client.get(
-            "/api/v1/market/overview",
+            "/api/v1/admin/bot/status",
             headers={"X-API-Key": "wrong-key"},
         )
         assert resp.status_code == 401
@@ -74,7 +74,7 @@ class TestAuthMiddleware:
     async def test_protected_path_empty_auth(self, client):
         """Protected endpoint returns 401 with empty key."""
         resp = await client.get(
-            "/api/v1/market/overview",
+            "/api/v1/admin/bot/status",
             headers={"X-API-Key": ""},
         )
         assert resp.status_code == 401
@@ -120,7 +120,7 @@ class TestRequestIDMiddleware:
 
     async def test_security_headers_on_error_response(self, client):
         """Error responses still carry security headers (outer middleware)."""
-        resp = await client.get("/api/v1/market/overview")
+        resp = await client.get("/api/v1/admin/bot/status")
         assert resp.status_code == 401
         # SecurityHeaders, CostTracking, RateLimit are outer to Auth
         assert resp.headers.get("X-Content-Type-Options") == "nosniff"
@@ -165,7 +165,7 @@ class TestSecurityHeadersMiddleware:
 
     async def test_security_headers_on_error(self, client):
         """Security headers present even on error responses."""
-        resp = await client.get("/api/v1/market/overview")
+        resp = await client.get("/api/v1/admin/bot/status")
         assert resp.status_code == 401
         assert resp.headers.get("X-Content-Type-Options") == "nosniff"
         hsts = resp.headers.get("Strict-Transport-Security", "")

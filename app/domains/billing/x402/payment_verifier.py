@@ -42,7 +42,11 @@ def _ensure_verifier() -> None:
         return
     _verifier_loaded = True
     try:
-        from app.routers.x402_middleware import FACILITATOR_CONFIGS, TOKEN_METADATA, PaymentVerifier  # type: ignore[attr-defined]
+        from app.routers.x402_middleware import (  # type: ignore[attr-defined]
+            FACILITATOR_CONFIGS,
+            TOKEN_METADATA,
+            PaymentVerifier,
+        )
 
         VERIFIER = PaymentVerifier()
         _FACILITATOR_CONFIGS = FACILITATOR_CONFIGS
@@ -167,7 +171,7 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
     asset_address = accepted.get("asset", "")
 
     chain_key = None
-    token_symbol = "USDC"
+    token_symbol = "USDC"  # noqa: S105 — token symbol constant, not a password
 
     for ck, cfg in CHAIN_USDC.items():
         if cfg["network"] == network:
@@ -256,7 +260,7 @@ async def self_verify_evm_usdc(payload: dict[str, Any], chain_key: str, chain_cf
     Checks transfer receipt via Blockscout API, validates USDC contract
     and amount, and prevents double-spend with Redis atomic lock.
     """
-    TRANSFER_EVENT_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    TRANSFER_EVENT_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"  # noqa: N806 — module-level constant topic hash
 
     try:
         accepted = payload.get("accepted", {})
@@ -411,7 +415,7 @@ async def self_verify_evm_usdc(payload: dict[str, Any], chain_key: str, chain_cf
 
             from app.routers.x402_dashboard import _persist_payment_to_supabase
 
-            asyncio.create_task(
+            asyncio.create_task(  # noqa: RUF006 — fire-and-forget persistence; failures logged inside task
                 _persist_payment_to_supabase(
                     tool=tool_name,
                     amount_atoms=str(actual_amount or amount_atoms or "0"),

@@ -20,7 +20,6 @@ import os
 from datetime import UTC, datetime
 
 import httpx
-
 from fastapi import APIRouter, HTTPException
 
 from app.domains.billing.x402.shared import (

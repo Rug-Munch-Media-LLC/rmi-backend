@@ -19,7 +19,6 @@ from datetime import UTC, datetime
 from urllib.parse import quote
 
 import httpx
-
 from fastapi import APIRouter, HTTPException
 
 from app.domains.billing.x402.shared import (
@@ -198,7 +197,7 @@ def _analyze_url(url: str) -> dict:  # type: ignore[type-arg]
                 indicators.append(f"brand_impersonation:{brand}")
 
     # Indicator 3: Homograph attacks (lookalike chars)
-    if any(c in domain for c in "а ο е ｒ ｎ"):  # Cyrillic lookalikes
+    if any(c in domain for c in "а ο е ｒ ｎ"):  # noqa: RUF001 — intentional Cyrillic/fullwidth homograph lookalikes
         risk_score += 30
         indicators.append("homograph_attack")
 

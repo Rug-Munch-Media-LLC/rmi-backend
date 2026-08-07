@@ -5,6 +5,8 @@ Play-money, open-source sentiment signals.
 
 from __future__ import annotations
 
+import json
+import requests
 from datetime import UTC, datetime
 from typing import Any
 

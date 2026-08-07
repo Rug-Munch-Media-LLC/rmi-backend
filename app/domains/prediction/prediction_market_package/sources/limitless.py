@@ -5,6 +5,8 @@ REST API /markets (Base chain, crypto-native).
 
 from __future__ import annotations
 
+import json
+import requests
 from datetime import UTC, datetime
 from typing import Any
 

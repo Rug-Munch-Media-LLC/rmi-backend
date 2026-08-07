@@ -109,6 +109,7 @@ def _status_result_dict(result: ScanResult, background_status: str = "running") 
     """
     data = _to_legacy_dict(result)
     data["background_status"] = background_status
+    return data
 
 
 async def _gather_freshness(tasks: list[Any]) -> dict[str, Any]:

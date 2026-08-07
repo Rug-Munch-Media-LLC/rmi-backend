@@ -112,7 +112,7 @@ class CrossEncoderReranker:
             start = time.perf_counter()
             try:
                 import onnxruntime as ort
-                from optimum.onnxruntime import ORTModelForSequenceClassification
+                from optimum.onnxruntime import ORTModelForSequenceClassification  # noqa: F401 — availability check for optional optimum dep
                 from transformers import AutoTokenizer
 
                 # Use CPU execution provider
@@ -299,7 +299,7 @@ class CrossEncoderReranker:
                 _INFERENCE_TIMEOUT_SECS,
                 query,
             )
-        except (ConnectionError, OSError, TimeoutError):
+        except (ConnectionError, OSError):
             logger.exception(
                 "Cross-encoder inference failed - falling back to vector-only ranking for query: %.80s",
                 query,
@@ -397,7 +397,7 @@ class CrossEncoderReranker:
                 _INFERENCE_TIMEOUT_SECS,
             )
             return texts[:top_k]
-        except (ConnectionError, OSError, TimeoutError):
+        except (ConnectionError, OSError):
             logger.exception(
                 "rerank_only: cross-encoder failed - returning texts in original order",
             )

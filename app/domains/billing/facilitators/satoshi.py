@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 import aiohttp
+import httpx
 
 from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
@@ -24,9 +25,6 @@ from app.domains.billing.facilitators.base import (
     VerificationResult,
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
-
-
-import httpx
 
 logger = get_logger("facilitator.satoshi")
 
@@ -141,7 +139,7 @@ class SatoshiFacilitator(Facilitator):
                     return self._format_error(f"Satoshi: {data.get('error', f'HTTP {resp.status}')}")
 
                 if data.get("isValid") or data.get("verified"):
-                    settlement_chain = data.get("settlementChain", "base" if not is_btc else "base")
+                    settlement_chain = data.get("settlementChain", "base")
                     return self._format_success(
                         tx_hash=data.get("txHash") or data.get("btcTxid"),
                         payer=data.get("payer") or data.get("btcAddress"),
@@ -160,7 +158,7 @@ class SatoshiFacilitator(Facilitator):
             return self._format_error("Satoshi verification timed out (BTC takes longer)")
         except aiohttp.ClientError as e:
             return self._format_error(f"Satoshi connection error: {e}")
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        except (ConnectionError, OSError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Satoshi verify error: {e}")
             return self._format_error(f"Satoshi internal error: {e}")
 

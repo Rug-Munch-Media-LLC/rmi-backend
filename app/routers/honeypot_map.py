@@ -11,6 +11,9 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.core.errors import UpstreamError
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/honeypot-map", tags=["honeypot-map"])
 

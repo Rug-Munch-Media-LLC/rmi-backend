@@ -6,6 +6,7 @@ Shows portfolio, active chains, protocol usage, risk score. Uses DataBus + eth-l
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from typing import Any
 
@@ -14,6 +15,9 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/address-profiler", tags=["address-profiler"])
 

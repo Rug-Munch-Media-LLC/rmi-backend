@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 
+from app.core.logging import get_logger
 from app.domains.billing.x402.shared import (
     GenericRequest,
     MultiTokenRequest,
@@ -36,8 +37,6 @@ from app.domains.billing.x402.shared import (
     record_x402_payment,
     rpc_call,
 )
-
-from app.core.logging import get_logger
 
 logger = get_logger("token.tools")
 

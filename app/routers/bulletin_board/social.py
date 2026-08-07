@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import Request
+from fastapi import Request  # noqa: TC002 — needed at runtime for FastAPI dependency/signature inspection
 
 from app.bulletin_board import (
     BulletinBoardManager,
@@ -13,7 +13,6 @@ from app.bulletin_board import (
 )
 from app.core.errors import AuthorizationError, ValidationError
 from app.routers.bulletin_board.router import router
-
 
 # ═══════════════════════════════════════════════════
 # BADGES & REPUTATION ENDPOINTS

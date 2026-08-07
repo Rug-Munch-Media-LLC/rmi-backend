@@ -5,6 +5,8 @@ Async fetch with retry and fallback across multiple URLs.
 
 from __future__ import annotations
 
+import json
+import requests
 from typing import Any
 
 from app.core.logging import get_logger

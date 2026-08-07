@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 import aiohttp
+import httpx
 
 from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
@@ -35,9 +36,6 @@ from app.domains.billing.facilitators.base import (
     VerificationResult,
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
-
-
-import httpx
 
 logger = get_logger("facilitator.tron_selfverify")
 
@@ -308,7 +306,7 @@ class TronSelfVerifyFacilitator(Facilitator):
                     payer=from_addr,
                     amount=amount_sun or amount_atoms or "0",
                     chain="tron",
-                    token="TRX",
+                    token="TRX",  # noqa: S106 — token symbol, not a credential
                     confirmations=1,
                 )
 

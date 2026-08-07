@@ -6,6 +6,7 @@ Uses Gamma API (search/discovery), CLOB API (prices), and Data API (trades).
 from __future__ import annotations
 
 import json
+import requests
 from datetime import UTC, datetime
 from typing import Any
 

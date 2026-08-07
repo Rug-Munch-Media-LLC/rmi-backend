@@ -29,10 +29,10 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
+
 from app.core.logging import get_logger
 
-
-import httpx
 logger = get_logger(__name__)
 
 # ── Brand patterns (loaded once at import) ──────────────────────────
@@ -287,7 +287,7 @@ async def start_listener() -> asyncio.Task | None:
         logger.info("certstream_disabled env=CERTSTREAM_ENABLED=0")
         return None
     try:
-        import websockets
+        import websockets  # noqa: F401 — availability check before starting listener
     except ImportError:
         logger.info("certstream_skipped err=websockets_not_installed")
         return None
@@ -332,7 +332,7 @@ def _cli() -> None:
                 await asyncio.sleep(args.duration)
                 stop.set()
 
-            asyncio.create_task(_trigger())
+            asyncio.create_task(_trigger())  # noqa: RUF006 — fire-and-forget reconnection probe
 
         await _run_listener(stop)
 

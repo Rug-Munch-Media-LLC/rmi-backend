@@ -6,6 +6,8 @@ import asyncio
 import os
 from typing import Any
 
+import numpy as np
+
 from app.core.logging import get_logger
 from app.crypto_embeddings.features import extract_contract_features
 from app.crypto_embeddings.models import (

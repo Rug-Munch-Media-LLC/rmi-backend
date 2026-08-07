@@ -239,6 +239,36 @@ def report_incident(service: str, severity: str, message: str, resolved: bool = 
         r.delete(f"rmi:status:current:{service}")
 
 
+# ── Service Registry ──────────────────────────────────────────────
+
+SERVICES: dict[str, dict[str, Any]] = {
+    "backend": {
+        "name": "RMI Backend API",
+        "check_type": "http",
+        "url": "http://localhost:8000/health",
+        "critical": True,
+    },
+    "redis": {
+        "name": "Redis Cache",
+        "check_type": "redis",
+        "url": "redis://rmi-redis:6379",
+        "critical": True,
+    },
+    "clickhouse": {
+        "name": "ClickHouse Analytics",
+        "check_type": "clickhouse",
+        "url": "",
+        "critical": False,
+    },
+    "qdrant": {
+        "name": "Qdrant Vector DB",
+        "check_type": "http",
+        "url": "http://rmi-qdrant:6333/health",
+        "critical": False,
+    },
+}
+
+
 def get_uptime_history(days: int = 30) -> dict[str, Any]:
     """Get uptime history for the past N days."""
     r = get_redis()

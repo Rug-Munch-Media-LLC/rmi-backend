@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 
-
-import httpx
 logger = get_logger(__name__)
 
 try:
@@ -27,7 +27,7 @@ try:
     try:
         from web3.middleware import geth_poa_middleware  # web3 < v7
     except ImportError:
-        from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware  # web3 v7+
+        from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware  # web3 v7+  # noqa: N813 — intentional alias for web3 v7 compat
     from web3.types import BlockNumber, FilterParams, TxParams, Wei
 
     WEB3_AVAILABLE = True
@@ -337,7 +337,7 @@ def get_evm_client(chain: str = "base", rpc_url: str | None = None, use_moralis:
 # Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
 # See app.core.circuit_breaker for the implementation.
 
-from app.core.circuit_breaker import AsyncCircuitBreaker
+from app.core.circuit_breaker import AsyncCircuitBreaker  # noqa: E402 — mid-file import to avoid circular import at module init
 
 _evm_rpc_cb = AsyncCircuitBreaker(
     name="evm_rpc",

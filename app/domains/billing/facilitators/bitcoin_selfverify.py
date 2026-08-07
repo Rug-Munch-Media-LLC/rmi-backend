@@ -26,6 +26,7 @@ from __future__ import annotations
 from typing import Any
 
 import aiohttp
+import httpx
 
 from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
@@ -37,9 +38,6 @@ from app.domains.billing.facilitators.base import (
     VerificationResult,
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
-
-
-import httpx
 
 logger = get_logger("facilitator.bitcoin_selfverify")
 
@@ -163,7 +161,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                         payer=payer,
                         amount=actual_amount or amount_atoms or "0",
                         chain="bitcoin",
-                        token="BTC",
+                        token="BTC",  # noqa: S106 — token symbol, not a credential
                         block_number=block_height or None,
                         confirmations=1 if confirmed else 0,
                     )
@@ -178,7 +176,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                 return await self._verify_fallback(tx_hash, amount_atoms)
             except aiohttp.ClientError:
                 return self._format_error(f"Bitcoin: API error: {e}")
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        except (ConnectionError, OSError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Bitcoin verify error: {e}")
             return self._format_error(f"Bitcoin: {e}")
 
@@ -211,7 +209,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                     payer=payer,
                     amount=value_sats or amount_atoms or "0",
                     chain="bitcoin",
-                    token="BTC",
+                    token="BTC",  # noqa: S106 — token symbol, not a credential
                     block_number=block_height,
                     confirmations=1 if confirmed else 0,
                 )

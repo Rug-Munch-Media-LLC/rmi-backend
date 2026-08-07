@@ -1,13 +1,11 @@
 """Shared ORM mixins and utilities."""
 
 from __future__ import annotations
-from datetime import datetime
 
-
+from datetime import datetime  # noqa: TC003 — needed at runtime for SQLAlchemy Mapped[datetime] resolution
 
 from sqlalchemy import DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
-
 
 
 class TimestampMixin:

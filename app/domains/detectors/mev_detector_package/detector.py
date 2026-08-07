@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import json
 import os
+import requests
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
 from app.core.logging import get_logger
 from app.domains.detectors.mev_detector_package.heuristics import (
     check_pool_vulnerability,
@@ -96,7 +98,6 @@ class MEVSandwichDetector:
             logger.debug("httpx not available, skipping DataBus query")
         except (
             httpx.HTTPError,
-            requests.RequestException,
             json.JSONDecodeError,
             KeyError,
             TypeError,

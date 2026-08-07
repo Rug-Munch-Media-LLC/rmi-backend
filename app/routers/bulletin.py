@@ -180,7 +180,7 @@ async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public
         raise AppError("Failed to create post")
     if post.is_bot and result.get("id"):
         with contextlib.suppress(Exception):
-            await _sb_patch("bulletin_posts", {"is_bot": True, "bot_id": bot_id}, {"id": result["id"]})
+            await _sb_patch("bulletin_posts", {"is_bot": True, "bot_id": post.bot_id}, {"id": result["id"]})
         return result
 
 

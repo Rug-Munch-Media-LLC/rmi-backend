@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 import aiohttp
+import httpx
 
 from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
@@ -23,9 +24,6 @@ from app.domains.billing.facilitators.base import (
     VerificationResult,
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
-
-
-import httpx
 
 logger = get_logger("facilitator.cloudflare_x402")
 
@@ -117,7 +115,7 @@ class CloudflareX402Facilitator(Facilitator):
                             payer=data.get("payer") or data.get("from"),
                             amount=accepted.get("amount"),
                             chain=data.get("chain") or accepted.get("network", "").split(":")[-1],
-                            token="USDC",
+                            token="USDC",  # noqa: S106 — token symbol, not a credential
                             settlement_id=data.get("settlementId") or data.get("id"),
                         )
 
@@ -132,7 +130,7 @@ class CloudflareX402Facilitator(Facilitator):
         except aiohttp.ClientError as e:
             logger.error(f"Cloudflare x402 HTTP error: {e}")
             return self._format_error(f"Cloudflare x402 connection error: {e}")
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        except (ConnectionError, OSError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Unexpected error in Cloudflare x402 verify: {e}")
             return self._format_error(f"Cloudflare x402 internal error: {e}")
 
@@ -196,7 +194,7 @@ class CloudflareX402Facilitator(Facilitator):
                 reason="Cloudflare x402 settlement timed out",
                 facilitator=self.name,
             )
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        except (ConnectionError, OSError, httpx.HTTPError, httpx.TimeoutException) as e:
             return SettlementResult(
                 settled=False,
                 reason=f"Cloudflare x402 settlement error: {e}",

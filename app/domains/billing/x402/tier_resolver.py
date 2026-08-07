@@ -11,11 +11,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 from app.core.redis import get_redis
-
-
-import httpx
 
 logger = get_logger("x402_enforcement")
 
@@ -93,8 +92,8 @@ def check_burst_limit(client_id: str, tool_id: str) -> dict[str, Any] | None:
 
     burst_key = f"x402:burst:{client_id}:{tool_id}"
     try:
-        BURST_LIMIT = int(os.getenv("X402_BURST_LIMIT", "5"))
-        BURST_WINDOW = int(os.getenv("X402_BURST_WINDOW", "60"))
+        BURST_LIMIT = int(os.getenv("X402_BURST_LIMIT", "5"))  # noqa: N806 — local rate-limit constants
+        BURST_WINDOW = int(os.getenv("X402_BURST_WINDOW", "60"))  # noqa: N806 — local rate-limit constants
         pipe = r.pipeline()
         pipe.incr(burst_key)
         if not r.exists(burst_key):
