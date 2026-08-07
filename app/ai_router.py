@@ -9,8 +9,16 @@ For now, a minimal stub that delegates to OpenRouter.
 from __future__ import annotations
 
 import base64
+import json
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    import httpx
 
 from fastapi import APIRouter
 
@@ -273,8 +281,11 @@ async def chat_completion(
                         "_provider": "openrouter-fallback",
                         "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger("ai_router")
+            logger.warning("openrouter_fallback_unreachable", error=str(e))
 
     # ── Fallback 2: Try DeepSeek direct if configured ──
     deepseek_key = os.getenv("LLM_API_KEY", "")
@@ -313,8 +324,11 @@ async def chat_completion(
                         "_provider": "deepseek-fallback",
                         "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger("ai_router")
+            logger.warning("deepseek_fallback_unreachable", error=str(e))
 
     # ── Fallback 3: Try local Ollama as last resort ──
     try:
@@ -341,12 +355,236 @@ async def chat_completion(
                     "_provider": "ollama-fallback",
                     "_latency_ms": int(r.elapsed.total_seconds() * 1000),
                 }
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger("ai_router")
+        logger.warning("ollama_fallback_unreachable", error=str(e))
 
     from app.core.errors import ExternalAPIError
 
     raise ExternalAPIError(
         message="No AI provider available. Ensure LiteLLM is running on port 4000, "
         "or set OPENROUTER_API_KEY / LLM_API_KEY as fallback."
+    )
+
+
+# ── Streaming chat completion (used by app.routers.chat /api/v1/chat/stream) ──
+
+
+async def _parse_openai_sse(resp: httpx.Response) -> AsyncGenerator[str, None]:
+    """Yield content deltas from an OpenAI-compatible SSE stream.
+
+    Handles the ``data: `` framing used by LiteLLM, OpenRouter, and DeepSeek.
+    Skips keep-alive/``[DONE]`` lines, malformed JSON, and reasoning-only
+    deltas (e.g. DeepSeek R1 / Qwen3 think tags) so only final content
+    tokens reach the caller.
+    """
+    async for line in resp.aiter_lines():
+        if not line.startswith("data:"):
+            continue
+        payload = line[len("data:") :].strip()
+        if not payload or payload == "[DONE]":
+            continue
+        try:
+            chunk = json.loads(payload)
+        except json.JSONDecodeError:
+            continue
+        choices = chunk.get("choices") or []
+        if not choices:
+            continue
+        delta = choices[0].get("delta") or {}
+        token = delta.get("content")
+        if token:
+            yield token
+
+
+async def stream_chat_completion(
+    messages: list[dict[str, str]],
+    model: str | None = None,
+    task_type: str | None = None,
+    tier: str | None = None,
+    temperature: float = 0.7,
+    max_tokens: int = 2048,
+) -> AsyncGenerator[str, None]:
+    """Stream an LLM response token-by-token (SSE-compatible).
+
+    Mirrors :func:`chat_completion`'s routing and fallback chain — LiteLLM →
+    OpenRouter → DeepSeek → Ollama — but yields raw token strings as they
+    arrive instead of a single blocking result dict. Callers such as
+    ``app.routers.chat`` wrap this in an SSE ``StreamingResponse``.
+
+    Security: the last user message is run through the same guardrail
+    sanitizer as :func:`chat_completion` before being sent to any provider.
+    Output sanitization is intentionally left to the caller so multi-token
+    patterns (e.g. secrets spanning chunk boundaries) are redacted on the
+    assembled response by the caller's AIGuard pipeline.
+
+    Args:
+        messages: Chat messages in OpenAI format.
+        model: Explicit model name (overrides task_type routing).
+        task_type: Task category for auto-routing (chat/analysis/simple/complex/code/bulk).
+        tier: Deprecated, kept for API compatibility.
+        temperature: Sampling temperature (0.0-2.0).
+        max_tokens: Maximum tokens in response.
+
+    Yields:
+        str: Raw token chunks from the active provider. A token prefixed with
+            ``[ERROR`` signals a provider failure and is terminal.
+    """
+    import httpx
+
+    # Resolve model: explicit model > task_type routing > default
+    if model:
+        resolved_model = model
+    elif task_type and task_type in TASK_MODEL_MAP:
+        resolved_model = TASK_MODEL_MAP[task_type]
+    else:
+        resolved_model = "chat"
+
+    logger = get_logger("ai_router")
+
+    # ── GUARDRAILS: Sanitize last user message before sending ──
+    from app.core.ai_guardrails import sanitize_input as _guard_input
+
+    messages_safe = list(messages)
+    for i in range(len(messages_safe) - 1, -1, -1):
+        if messages_safe[i].get("role") == "user":
+            original = messages_safe[i].get("content", "")
+            cleaned = _guard_input(original)
+            if cleaned.startswith("[BLOCKED"):
+                yield f"[ERROR guardrails_blocked: {cleaned}]"
+                return
+            messages_safe[i]["content"] = cleaned
+            break
+
+    # ── Primary: LiteLLM proxy (streaming) ──
+    litellm_url = f"{LITELLM_BASE_URL}/chat/completions"
+    try:
+        async with (
+            httpx.AsyncClient(timeout=120.0) as client,
+            client.stream(
+                "POST",
+                litellm_url,
+                json={
+                    "model": resolved_model,
+                    "messages": messages_safe,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stream": True,
+                },
+                headers={
+                    "Authorization": f"Bearer {LITELLM_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+            ) as resp,
+        ):
+            if resp.status_code == 200:
+                async for chunk in _parse_openai_sse(resp):
+                    yield chunk
+                return
+            logger.warning(
+                "litellm_stream_non_200",
+                status=resp.status_code,
+                body=(await resp.aread())[:300],
+                model=resolved_model,
+            )
+    except Exception as e:
+        logger.warning("litellm_stream_unreachable", error=str(e))
+
+    # ── Fallback 1: OpenRouter (streaming) ──
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
+    if openrouter_key:
+        try:
+            async with (
+                httpx.AsyncClient(timeout=120.0) as client,
+                client.stream(
+                    "POST",
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    json={
+                        "model": "deepseek/deepseek-v4-flash",
+                        "messages": messages_safe,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "stream": True,
+                    },
+                    headers={
+                        "Authorization": f"Bearer {openrouter_key}",
+                        "Content-Type": "application/json",
+                    },
+                ) as resp,
+            ):
+                if resp.status_code == 200:
+                    async for chunk in _parse_openai_sse(resp):
+                        yield chunk
+                    return
+        except Exception as e:
+            logger.warning("openrouter_stream_unreachable", error=str(e))
+
+    # ── Fallback 2: DeepSeek direct (streaming) ──
+    deepseek_key = os.getenv("LLM_API_KEY", "")
+    if deepseek_key:
+        try:
+            url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
+            ds_model = os.getenv("LLM_MODEL", "deepseek-v4-flash")
+            async with (
+                httpx.AsyncClient(timeout=120.0) as client,
+                client.stream(
+                    "POST",
+                    url,
+                    json={
+                        "model": ds_model,
+                        "messages": messages_safe,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "stream": True,
+                    },
+                    headers={
+                        "Authorization": f"Bearer {deepseek_key}",
+                        "Content-Type": "application/json",
+                    },
+                ) as resp,
+            ):
+                if resp.status_code == 200:
+                    async for chunk in _parse_openai_sse(resp):
+                        yield chunk
+                    return
+        except Exception as e:
+            logger.warning("deepseek_stream_unreachable", error=str(e))
+
+    # ── Fallback 3: local Ollama as last resort ──
+    try:
+        async with (
+            httpx.AsyncClient(timeout=120.0) as client,
+            client.stream(
+                "POST",
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": "qwen3:4b",
+                    "prompt": messages_safe[-1]["content"] if messages_safe else "",
+                    "stream": True,
+                },
+            ) as r,
+        ):
+            if r.status_code == 200:
+                async for line in r.aiter_lines():
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if chunk.get("done"):
+                        break
+                    token = chunk.get("response")
+                    if token:
+                        yield token
+                return
+    except Exception as e:
+        logger.warning("ollama_stream_unreachable", error=str(e))
+
+    # ── All providers failed ──
+    yield (
+        "[ERROR No AI provider available for streaming. Ensure LiteLLM is running "
+        "on port 4000, or set OPENROUTER_API_KEY / LLM_API_KEY as fallback.]"
     )

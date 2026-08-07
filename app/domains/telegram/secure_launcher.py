@@ -32,16 +32,19 @@ suppress_httpx_urls()
 GOPASS_PATHS = {
     "rugmunchbot": "rmi/rugmunchbot/bot_token",
     "adminbot": "rmi/rugmunchbot/admin_bot_token",
+    "rmiadminbot": "rmi/rmiadminbot/bot_token",
 }
 
 ENV_KEYS = {
     "rugmunchbot": ["BOT_TOKEN"],
     "adminbot": ["ADMIN_BOT_TOKEN"],
+    "rmiadminbot": ["ADMIN_BOT_TOKEN"],
 }
 
 MODULES = {
     "rugmunchbot": "app.domains.telegram.rugmunchbot.bot",
     "adminbot": "app.domains.telegram.adminbot.bot",
+    "rmiadminbot": "app.domains.telegram.adminbot.bot",
 }
 
 
@@ -49,8 +52,8 @@ def _fetch_from_gopass(gopass_path: str) -> str:
     """Fetch token from gopass. Returns empty string on failure."""
     try:
         token = (
-            subprocess.check_output(
-                ["gopass", "show", gopass_path],
+            subprocess.check_output(  # noqa: S603 — fixed internal secret-manager, no untrusted input
+                ["gopass", "show", gopass_path],  # noqa: S607 — gopass resolved from PATH by design
                 stderr=subprocess.DEVNULL,
                 timeout=10,
             )
