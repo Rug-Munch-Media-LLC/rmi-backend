@@ -99,15 +99,23 @@ async def fetch_recent_scans(limit: int = 20, address: str | None = None) -> lis
     Prefers Postgres ``scan_results``; falls back to Redis caches; returns
     an empty list when both are unavailable. ``address`` optionally filters
     to a single token address (case-insensitive).
+
+    Postgres is authoritative: when it is reachable we return its result
+    even if empty (no expensive Redis keyspace scan for an empty table).
+    The Redis fallback only runs when Postgres is genuinely unavailable.
     """
     rows = await _fetch_from_db(limit=limit, address=address)
-    if rows:
+    if rows is not None:
         return rows
     return await _fetch_from_redis(limit=limit, address=address)
 
 
-async def _fetch_from_db(limit: int, address: str | None) -> list[dict[str, Any]]:
-    """Query the scan_results table via the app async session factory."""
+async def _fetch_from_db(limit: int, address: str | None) -> list[dict[str, Any]] | None:
+    """Query the scan_results table via the app async session factory.
+
+    Returns ``None`` when Postgres is unreachable (caller falls back to
+    Redis), or a (possibly empty) list when the query succeeded.
+    """
     try:
         from sqlalchemy import select
 
@@ -125,7 +133,7 @@ async def _fetch_from_db(limit: int, address: str | None) -> list[dict[str, Any]
         return [_row_to_scan(r) for r in rows]
     except Exception as exc:
         logger.warning("scan_history_db_miss err=%s", exc)
-        return []
+        return None
 
 
 async def _fetch_from_redis(limit: int, address: str | None) -> list[dict[str, Any]]:

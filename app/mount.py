@@ -233,9 +233,6 @@ ROUTER_MODULES: Final[list[str]] = [
     # /api/v1/{rate-limits,queue,sessions,chat-history,identities,bookmarks}/*
     "app.api.v1.kv_migration",  # /api/v1/* (Redis + Postgres KV replacement)
     #
-    # Rug Pull Rehab — mounted 2026-08-06
-    "app.routers.rehab",  # /api/v1/rehab/* (1-on-1 recovery booking)
-    #
     # AI Contract Analysis — RugMaps enhanced — mounted 2026-08-06
     "app.routers.ai_analysis",  # /api/v1/ai/* (contract analysis via Qwen)
     #
