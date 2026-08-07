@@ -45,7 +45,7 @@ ENDPOINTS = {
 
 def _load_api_key() -> str:
     """Load Nansen API key from secrets file or environment."""
-    secret_path = "/root/.secrets/nansen_api_key"
+    secret_path = "/root/.secrets/nansen_api_key"  # noqa: S105 — config default
     if os.path.isfile(secret_path):
         try:
             with open(secret_path) as f:

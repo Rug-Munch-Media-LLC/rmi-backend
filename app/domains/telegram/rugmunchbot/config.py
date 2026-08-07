@@ -141,7 +141,7 @@ ALERT_CHECK_INTERVAL = 300  # seconds between alert checks (5 min)
 
 # External APIs
 DEXSCREENER = "https://api.dexscreener.com/latest/dex"
-DEXSCREENER_TOKEN_BOOSTS = "https://api.dexscreener.com/token-boosts/top/v1"
+DEXSCREENER_TOKEN_BOOSTS = "https://api.dexscreener.com/token-boosts/top/v1"  # noqa: S105 — config default
 SOLANAFM_API = "https://api.solana.fm/v0"
 COINGECKO = "https://api.coingecko.com/api/v3"  # price history & trending
 GOPLUS = "https://api.gopluslabs.com/api/v1"  # EVM token security scanner

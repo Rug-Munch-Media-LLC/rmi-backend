@@ -53,8 +53,8 @@ class DataSource:
 
 
 class DataQueryType(Enum):
-    TOKEN_PRICE = "token_price"
-    TOKEN_META = "token_metadata"
+    TOKEN_PRICE = "token_price"  # noqa: S105 — config default
+    TOKEN_META = "token_metadata"  # noqa: S105 — config default
     WALLET_BALANCE = "wallet_balance"
     TX_HISTORY = "tx_history"
     HOLDER_DATA = "holder_data"

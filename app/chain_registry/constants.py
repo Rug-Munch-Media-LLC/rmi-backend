@@ -40,7 +40,7 @@ class ChainConfig:
     explorer_api_key_env: str = ""  # Env var for API key
 
     # Native token
-    native_token_symbol: str = "ETH"
+    native_token_symbol: str = "ETH"  # noqa: S105 — config default
     native_token_decimals: int = 18
 
     # DEX data sources (DexScreener supports all)

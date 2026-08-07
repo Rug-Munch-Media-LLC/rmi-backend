@@ -28,7 +28,7 @@ logger = get_logger("mcp_sources")
 
 # Smithery MCP endpoints (HTTP transport)
 BOAR_URL = "https://server.smithery.ai/@boar-network/blockchain-advanced/mcp"
-SOLANA_TOKEN_URL = "https://server.smithery.ai/@insomniactools/solana-agentkit-mcp/mcp"
+SOLANA_TOKEN_URL = "https://server.smithery.ai/@insomniactools/solana-agentkit-mcp/mcp"  # noqa: S105 — config default
 AUTONSOL_URL = "https://server.smithery.ai/..."  # placeholder - need exact URL
 
 # Cache

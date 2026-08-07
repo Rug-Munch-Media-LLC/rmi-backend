@@ -47,7 +47,7 @@ class WalletAnalysisMixin:
 
     # ── Statistics ───────────────────────────────────────────
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get comprehensive wallet statistics."""
         total_balance_usd = sum(w.balance_usd for w in self._wallets.values())
 
@@ -91,7 +91,7 @@ class WalletAnalysisMixin:
 
     # ── Alerts ────────────────────────────────────────────────
 
-    def check_alerts(self) -> list[dict]:
+    def check_alerts(self) -> list[dict[str, Any]]:
         """Check all wallets for alert conditions."""
         alerts = []
 
@@ -146,7 +146,7 @@ class WalletAnalysisMixin:
 
     # ── Export / Import ───────────────────────────────────────
 
-    def export_safe(self) -> dict:
+    def export_safe(self) -> dict[str, Any]:
         """Export wallet data without keys."""
         return {
             "version": "3.0",
@@ -155,13 +155,13 @@ class WalletAnalysisMixin:
             "chain_registry": {k: {"name": v.name, "symbol": v.native_symbol} for k, v in CHAIN_REGISTRY.items()},
         }
 
-    def export_for_chain(self, chain: str) -> list[dict]:
+    def export_for_chain(self, chain: str) -> list[dict[str, Any]]:
         """Export wallets for a specific chain."""
         return [w.to_safe_dict() for w in self._wallets.values() if w.chain == chain]
 
     # ── Auto-Sweep ───────────────────────────────────────────────
 
-    async def sweep_to_owner(self, chain: str = "", min_usd_threshold: float = 5.0) -> dict:
+    async def sweep_to_owner(self, chain: str = "", min_usd_threshold: float = 5.0) -> dict[str, Any]:
         """
         Sweep USDC balances above threshold from x402 receiving wallets to owner wallets.
 
@@ -184,7 +184,7 @@ class WalletAnalysisMixin:
             "gnosis",
         }
 
-        result = {
+        result: dict[str, Any] = {
             "timestamp": datetime.now(UTC).isoformat(),
             "chain_filter": chain or "all",
             "threshold_usd": min_usd_threshold,
@@ -252,7 +252,7 @@ class WalletAnalysisMixin:
         )
         return result
 
-    async def _sweep_evm(self, wallet: WalletRecord, owner: str, result: dict) -> None:
+    async def _sweep_evm(self, wallet: WalletRecord, owner: str, result: dict[str, Any]) -> None:
         """Sweep native token from an EVM wallet to the owner address."""
         rpc_url = (
             os.getenv("BASE_RPC_URL", "https://mainnet.base.org")
@@ -319,7 +319,7 @@ class WalletAnalysisMixin:
         )
         result["total_swept_usd"] += float(w3.from_wei(sweep_amount_wei, "ether")) * 2500.0
 
-    async def _sweep_solana(self, wallet: WalletRecord, owner: str, result: dict) -> None:
+    async def _sweep_solana(self, wallet: WalletRecord, owner: str, result: dict[str, Any]) -> None:
         """Sweep SOL from a Solana wallet to the owner address."""
         rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
 
@@ -395,7 +395,7 @@ class WalletAnalysisMixin:
 
     # ── Balance Monitoring ─────────────────────────────────────
 
-    async def check_all_balances(self) -> list[dict]:
+    async def check_all_balances(self) -> dict[str, Any]:
         """Check balances on all x402-enabled wallets."""
         alerts = []
         checked = 0
@@ -447,7 +447,7 @@ class WalletAnalysisMixin:
         logger.info(f"check_all_balances: checked {checked} x402 wallets, {below_threshold} below threshold")
         return summary
 
-    async def get_revenue_wallet_status(self) -> dict:
+    async def get_revenue_wallet_status(self) -> dict[str, Any]:
         """Return summary of all x402 receiving wallets with current balances."""
         wallets = []
         total_balance_usd = 0.0

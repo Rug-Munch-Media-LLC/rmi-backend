@@ -7,7 +7,7 @@ sys.path.insert(0, "/root/backend")
 
 from app.scanners import SentinelReport
 
-sr = SentinelReport(token_address="0xtest", chain="ethereum")
+sr = SentinelReport(token_address="0xtest", chain="ethereum")  # noqa: S106 — test fixture
 fields = list(sr.__dataclass_fields__.keys())
 print(f"{len(fields)} fields on SentinelReport")
 

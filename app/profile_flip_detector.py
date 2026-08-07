@@ -38,7 +38,7 @@ DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/search?q={}"
 TWITTER_PUBLIC_API = "https://api.twitter.com/2/users/by?usernames={}"
 COINGECKO_API = "https://api.coingecko.com/api/v3/coins/{}"
 DEFILLAMA_PROTOCOL = "https://api.llama.fi/protocol/{}"
-DEFILLAMA_TOKEN = "https://api.llama.fi/token/{}"
+DEFILLAMA_TOKEN = "https://api.llama.fi/token/{}"  # noqa: S105 — config default
 GMGN_API = "https://gmgn.ai/defi/quotation/v1/tokens/{}"
 # ── Compiled patterns ────────────────────────────────────────────
 from app.core.shared_utils import EVM_ADDRESS_RE as _RE_EVM_ADDR, SOLANA_ADDRESS_RE as _RE_SOLANA_ADDR  # noqa: E402 — module docstring precedes import block

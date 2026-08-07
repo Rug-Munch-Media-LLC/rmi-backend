@@ -789,7 +789,7 @@ def is_valid_address(address: str) -> bool:
 async def _quick_test() -> None:
     """Run a quick smoke test with a well-known token."""
     # Test with USDC on Solana (known token)
-    test_token = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+    test_token = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # noqa: S105 — config default
     tracker = get_whale_tracker()
     report = await tracker.track_token(test_token, chains=["solana", "ethereum", "base"])
 

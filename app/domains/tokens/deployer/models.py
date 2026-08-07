@@ -61,7 +61,7 @@ class DeployParams:
     metadata_uri: str | None = None
     evm_version: str = "paris"
     freeze_authority: str | None = None
-    token_type: str = "trc20"
+    token_type: str = "trc20"  # noqa: S105 — config default
     tax_rate: float | None = None
     tax_recipient: str | None = None
     deflationary: bool = False

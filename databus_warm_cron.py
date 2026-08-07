@@ -9,7 +9,7 @@ import asyncio
 import os
 import sys
 
-os.environ["REDIS_PASSWORD"] = "test"
+os.environ["REDIS_PASSWORD"] = "test"  # noqa: S105 — config default
 os.environ["REDIS_HOST"] = "localhost"
 os.environ["REDIS_PORT"] = "6379"
 

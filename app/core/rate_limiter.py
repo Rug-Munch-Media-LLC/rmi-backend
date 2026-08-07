@@ -217,7 +217,7 @@ else
     local wait   = math.ceil((needed / rate) * 100) / 100
     return {0, available, burst, wait}
 end
-"""
+"""  # noqa: S105 — config default
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Unified Rate Limiter

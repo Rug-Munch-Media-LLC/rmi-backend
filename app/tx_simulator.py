@@ -75,7 +75,7 @@ async def simulate_solana(token_address: str) -> SimulationResult:
             if sell_quote:
                 result.can_sell = True
                 result.expected_output = float(sell_quote.get("outAmount", 0)) / 1e9
-                result.expected_output_token = "SOL"
+                result.expected_output_token = "SOL"  # noqa: S105 — config default
 
                 # Calculate tax from price impact + slippage
                 price_impact = float(sell_quote.get("priceImpactPct", 0))
@@ -189,7 +189,7 @@ async def simulate_evm(token_address: str, chain: str = "ethereum") -> Simulatio
             if sell_result.get("success"):
                 result.can_sell = True
                 result.expected_output = sell_result.get("output_amount")
-                result.expected_output_token = "ETH"
+                result.expected_output_token = "ETH"  # noqa: S105 — config default
 
             result.simulation_success = True
 

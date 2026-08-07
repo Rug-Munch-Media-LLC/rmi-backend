@@ -161,7 +161,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                         payer=payer,
                         amount=actual_amount or amount_atoms or "0",
                         chain="bitcoin",
-                        token="BTC",
+                        token="BTC",  # noqa: S106 — config default
                         block_number=block_height or None,
                         confirmations=1 if confirmed else 0,
                     )
@@ -209,7 +209,7 @@ class BitcoinSelfVerifyFacilitator(Facilitator):
                     payer=payer,
                     amount=value_sats or amount_atoms or "0",
                     chain="bitcoin",
-                    token="BTC",
+                    token="BTC",  # noqa: S106 — config default
                     block_number=block_height,
                     confirmations=1 if confirmed else 0,
                 )

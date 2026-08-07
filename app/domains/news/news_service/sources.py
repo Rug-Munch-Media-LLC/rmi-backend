@@ -40,7 +40,7 @@ PROXY_REQUIRED_FEEDS = {
 
 
 def _get_proxy() -> str | None:
-    return random.choice(PROXY_LIST) if PROXY_LIST else None
+    return random.choice(PROXY_LIST) if PROXY_LIST else None  # noqa: S311 — non-crypto randomness
 
 
 # ─── CONFIG ───────────────────────────────────────────────────────

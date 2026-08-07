@@ -103,7 +103,7 @@ class WatchAlert:
 class TokenWatchService:
     """Manages token watches and periodic monitoring."""
 
-    DEXSCREENER_TOKEN_URL = "https://api.dexscreener.com/latest/dex/tokens/{address}"
+    DEXSCREENER_TOKEN_URL = "https://api.dexscreener.com/latest/dex/tokens/{address}"  # noqa: S105 — config default
     DEXSCREENER_SEARCH_URL = "https://api.dexscreener.com/latest/dex/search?q={address}"
 
     # Chain name mapping for Dexscreener

@@ -75,7 +75,7 @@ class PaymentStatus(StrEnum):
 
 
 class GateType(StrEnum):
-    TOKEN = "token"
+    TOKEN = "token"  # noqa: S105 — config default
     NFT = "nft"
     MIN_VALUE = "min_value"
     ANY_NFT = "any_nft"

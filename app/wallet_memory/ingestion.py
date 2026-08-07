@@ -432,8 +432,8 @@ class WalletIngestionPipeline:
                             programs_involved.add(ip)
 
                 # Detect token deployments: create/mint instructions
-                spl_token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-                token_metadata_program = "metaqbxxU9dKaqAta4M99M7C5pWm7adgGpSxq9BDpL4"
+                spl_token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"  # noqa: S105 — config default
+                token_metadata_program = "metaqbxxU9dKaqAta4M99M7C5pWm7adgGpSxq9BDpL4"  # noqa: S105 — config default
                 token_deploy_programs = {spl_token_program, token_metadata_program}
                 if token_deploy_programs & programs_involved:
                     is_deploy = True

@@ -151,7 +151,7 @@ def format_report(report: SecurityReport) -> str:
 
 if __name__ == "__main__":
     # Test scan on a known token
-    test_token = "So11111111111111111111111111111111111111112"  # Wrapped SOL
+    test_token = "So11111111111111111111111111111111111111112"  # Wrapped SOL  # noqa: S105 — config default
     if len(sys.argv) > 1:
         test_token = sys.argv[1]
 

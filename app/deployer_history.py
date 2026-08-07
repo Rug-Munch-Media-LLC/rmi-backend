@@ -34,8 +34,8 @@ logger = get_logger("deployer_history")
 
 # ── Free API sources ─────────────────────────────────────────────
 DEXSCREENER_SEARCH = "https://api.dexscreener.com/latest/dex/search?q={}"
-DEXSCREENER_PAIRS_BY_TOKEN = "https://api.dexscreener.com/latest/dex/tokens/{}"
-SOLSCAN_TOKEN_ACCOUNTS = "https://api.solscan.io/account/tokens?address={}&pageSize=100"
+DEXSCREENER_PAIRS_BY_TOKEN = "https://api.dexscreener.com/latest/dex/tokens/{}"  # noqa: S105 — config default
+SOLSCAN_TOKEN_ACCOUNTS = "https://api.solscan.io/account/tokens?address={}&pageSize=100"  # noqa: S105 — config default
 SOLSCAN_ACCOUNT_TXS = "https://api.solscan.io/account/transactions?address={}&pageSize=50"
 ETHERSCAN_TXLIST = "https://api.etherscan.io/api?module=account&action=txlist&address={}&sort=desc&limit=100"
 BASESCAN_TXLIST = "https://api.basescan.org/api?module=account&action=txlist&address={}&sort=desc&limit=100"

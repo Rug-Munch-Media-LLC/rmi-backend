@@ -450,7 +450,7 @@ class WashTradingDetector:
                                 from_address=from_addr,
                                 to_address=to_addr,
                                 amount=amount,
-                                token="SOL",
+                                token="SOL",  # noqa: S106 — config default
                                 timestamp=tx.get("timestamp", 0) * 1000,
                                 tx_hash=tx.get("signature", ""),
                                 dex="",

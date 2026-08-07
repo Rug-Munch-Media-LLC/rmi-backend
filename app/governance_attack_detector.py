@@ -40,7 +40,7 @@ CRITICAL_VOTE_DIFFERENTIAL_PCT = 5.0  # If votes swing >5% in block, suspicious
 
 # ── Free API endpoints ──────────────────────────────────────────
 DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/tokens/{}"
-SOLSCAN_TOKEN_HOLDERS = "https://api.solscan.io/v2/token/holders?token={}&limit=20"
+SOLSCAN_TOKEN_HOLDERS = "https://api.solscan.io/v2/token/holders?token={}&limit=20"  # noqa: S105 — config default
 BIRDEYE_HOLDER = "https://public-api.birdeye.so/defi/v3/token/holder?address={}"
 HELIUS_WEBHOOK = "https://mainnet.helius-rpc.com/v0/token-metadata?mintAddress={}"
 
