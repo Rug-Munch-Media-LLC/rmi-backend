@@ -12,9 +12,36 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.detectors.smart_contract_honeypot_detector import *
+from app.domains.detectors.smart_contract_honeypot_detector import (
+    BENIGN_SELECTORS,
+    EVM_CHAINS,
+    HONEYPOT_THRESHOLDS,
+    KNOWN_MALICIOUS_SELECTORS,
+    FindingSeverity,
+    HoneypotAnalysisResult,
+    HoneypotDetector,
+    HoneypotType,
+    SecurityFinding,
+    TokenInfo,
+    fetch_with_fallback,
+)
 
 if __name__ == "__main__":
     from app.domains.detectors.smart_contract_honeypot_detector import main as _main
 
     _main()
+
+
+__all__ = [
+    "BENIGN_SELECTORS",
+    "EVM_CHAINS",
+    "HONEYPOT_THRESHOLDS",
+    "KNOWN_MALICIOUS_SELECTORS",
+    "FindingSeverity",
+    "HoneypotAnalysisResult",
+    "HoneypotDetector",
+    "HoneypotType",
+    "SecurityFinding",
+    "TokenInfo",
+    "fetch_with_fallback",
+]

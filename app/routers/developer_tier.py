@@ -17,7 +17,7 @@ Date: 2026-06-05
 
 from __future__ import annotations
 
-import email
+import hashlib
 import json
 import time
 from datetime import UTC, datetime, timedelta
@@ -28,6 +28,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
+from app.core.redis import get_redis
 from app.databus_gateway import generate_api_key
 from app.routers.dev_portal import create_api_key
 

@@ -1,6 +1,48 @@
 #!/usr/bin/env python3
 """
-Bulletin Board & Badge API Router
+Bulletin Board & Badge API Router — DISABLED.
+
+This router is NOT mounted in production. ``app/mount.py`` leaves
+``"app.routers.bulletin"`` commented out with the note:
+
+    # "app.routers.bulletin",  # DISABLED: Supabase not configured —
+                               # using Redis bulletin_board router instead
+
+Why disabled
+------------
+Every endpoint in this module talks to Supabase (profiles, bulletin
+posts, bot registrations, alerts, badges) through
+``app.services.supabase_service`` / the direct REST helpers in this file.
+The service expects a Supabase project to be configured; none is wired
+into the fleet, so mounting this router would 404/error on every call
+and add dead surface to the API.
+
+What is needed to enable it
+---------------------------
+1. Set the environment variables:
+   - ``SUPABASE_URL`` (e.g. ``https://<project-ref>.supabase.co``)
+   - ``SUPABASE_SERVICE_KEY`` (or ``SUPABASE_SERVICE_ROLE_KEY``) — the
+     service_role key used for full CRUD. Resolved via
+     ``app.core.secrets.get_secret_or_none`` so it can come from the
+     secrets manager as well as the environment.
+2. Provision the Supabase tables this router depends on: ``profiles``,
+   ``bulletin_posts``, ``bot_registrations``, ``alerts``, ``badges``,
+   ``user_badges`` (and any moderation tables referenced by the
+   admin/moderation routes).
+3. Uncomment the ``"app.routers.bulletin"`` entry in
+   ``app/mount.py`` (it registers ``/api/v1/bulletin/*`` routes).
+
+Active alternative
+------------------
+A Redis-backed bulletin board is the live implementation:
+``app.routers.bulletin_board`` is mounted in ``app/mount.py`` at
+``/api/v1/bulletin-board/*`` (22 routes, defined in
+``app/routers/bulletin_board.py`` + the ``app/routers/bulletin_board/``
+package, with state managed by ``app/bulletin_board/manager.py``). Use
+that router for bulletin-board functionality today; this Supabase router
+should only be re-enabled if a Supabase deployment becomes the chosen
+data layer.
+
 Refactored to use supabase_service for clean, typed database access.
 Includes bot registration, fee tracking, and bot-specific endpoints.
 Uses direct Supabase REST API via httpx (no supabase-py dependency issues).

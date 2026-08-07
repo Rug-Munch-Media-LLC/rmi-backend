@@ -7,7 +7,19 @@ This stub re-exports everything for backward compatibility.
 
 from __future__ import annotations
 
-from app.domains.wallet.monitor import *
+from app.domains.wallet.monitor import (
+    AlertChannel,
+    AlertEngine,
+    AutoLabeler,
+    BurstDetector,
+    BurstSignal,
+    LabelSuggestion,
+    WalletAlert,
+    WalletMonitor,
+    WalletMonitorManager,
+    WalletTx,
+    WatchlistManager,
+)
 
 __all__ = [
     "AlertChannel",

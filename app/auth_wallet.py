@@ -6,4 +6,37 @@ This shim re-exports the public surface for legacy callers.
 
 from __future__ import annotations
 
-from app.domains.auth.wallet import *
+from app.domains.auth.wallet import (
+    annotations,
+    base64,
+    os,
+    UTC,
+    datetime,
+    timedelta,
+    Any,
+    base58,
+    get_logger,
+    logger,
+    verify_wallet_signature,
+    decode_signature,
+    get_or_create_wallet_user,
+    verify_auth_token,
+)
+
+
+__all__ = [
+    "annotations",
+    "base64",
+    "os",
+    "UTC",
+    "datetime",
+    "timedelta",
+    "Any",
+    "base58",
+    "get_logger",
+    "logger",
+    "verify_wallet_signature",
+    "decode_signature",
+    "get_or_create_wallet_user",
+    "verify_auth_token",
+]

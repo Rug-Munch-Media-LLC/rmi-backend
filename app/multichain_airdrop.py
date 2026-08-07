@@ -9,4 +9,35 @@ Backward-compatibility shim: this module now lives in ``app.domains.airdrop.mult
 
 from __future__ import annotations
 
-from app.domains.airdrop.multichain import *
+from app.domains.airdrop.multichain import (
+    AirdropTier,
+    AntiGamingFilter,
+    CrossChainHolder,
+    CrossChainIdentityResolver,
+    CustomSnapshotLoader,
+    MultiChainAirdropCampaign,
+    MultiChainAirdropManager,
+    MultiChainSnapshotEngine,
+    TokenSource,
+    WeightedAirdropCalculator,
+    create_crm_multichain_airdrop,
+    create_crm_v2_airdrop_preset,
+    create_one_to_one_airdrop,
+)
+
+
+__all__ = [
+    "AirdropTier",
+    "AntiGamingFilter",
+    "CrossChainHolder",
+    "CrossChainIdentityResolver",
+    "CustomSnapshotLoader",
+    "MultiChainAirdropCampaign",
+    "MultiChainAirdropManager",
+    "MultiChainSnapshotEngine",
+    "TokenSource",
+    "WeightedAirdropCalculator",
+    "create_crm_multichain_airdrop",
+    "create_crm_v2_airdrop_preset",
+    "create_one_to_one_airdrop",
+]
