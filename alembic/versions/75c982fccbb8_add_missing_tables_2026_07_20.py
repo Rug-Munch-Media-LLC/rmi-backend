@@ -262,8 +262,8 @@ def upgrade() -> None:
             ["wallet_address"],
             unique=True,
         )
-    
-    
+
+
     def downgrade() -> None:
         """Drop the 5 tables that this migration created."""
         op.drop_index(op.f("ix_users_wallet_address"), table_name="users")
