@@ -687,10 +687,8 @@ async def rugcharts_ohlcv(
     """
     now = datetime.datetime.now(datetime.UTC)
     candles = await _fetch_ohlcv_clickhouse(pair_address, chain, timeframe, limit)
-    source = "clickhouse"
     if not candles:
         candles = await _fetch_ohlcv_gecko(pair_address, chain, timeframe, limit)
-        source = "geckoterminal"
     pair_info = await _fetch_pair_info(pair_address, chain)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
 
@@ -878,7 +876,7 @@ async def rugcharts_intel(
             {
                 "source": "rugcharts",
                 "risk_score": rug_score["score"],
-                "risk_factors": [f["factor"] for f in rug_score["factors"]],
+                "risk_factors": [f["factor"] if isinstance(f, dict) else f for f in rug_score["factors"]],
                 "confidence": 0.6 if rug_score["score"] > 0 else 0.2,
             },
             {
