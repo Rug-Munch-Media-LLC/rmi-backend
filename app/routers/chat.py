@@ -219,7 +219,18 @@ class ChatRequest(BaseModel):
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$", description="AI model tier")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=64, le=8192)
-    context_override: dict[str, Any] | None = Field(default=None, description="Custom context injection")
+    context_override: dict[str, Any] | None = Field(
+        default=None, description="Custom context injection. `system_context` (str) is appended to the system prompt."
+    )
+    history: list[dict[str, str]] | None = Field(
+        default=None,
+        description=(
+            "Explicit conversation history (user/assistant messages). "
+            "When provided it OVERRIDES the DB-loaded history for this request "
+            "(used by trusted server-side callers such as the Telegram bot, "
+            "which must not read the shared anonymous history bucket)."
+        ),
+    )
 
 
 class StreamRequest(BaseModel):
@@ -259,26 +270,48 @@ async def _fetch_market_context() -> dict[str, Any]:
     return {}
 
 
-async def _build_messages(user_id: str, message: str, system_context: str | None = None) -> list[dict]:
-    """Build message list with conversation history + market context + security hardening."""
-    # Fetch recent conversation history
-    conn = _get_db()
-    rows = conn.execute(
-        "SELECT role, content FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
-        (user_id, CONTEXT_MAX_MESSAGES),
-    ).fetchall()
-    conn.close()
+def _sanitize_history(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Whitelist roles (user/assistant only) + truncate content.
 
-    # Build history with validation (block system role from history)
-    history = []
-    for r in reversed(rows):
-        role = r["role"]
-        content = r["content"]
+    Input is expected in chronological order (oldest → newest). Used for both
+    DB-loaded history and explicit history passed by trusted callers.
+    """
+    history: list[dict[str, str]] = []
+    for r in items:
+        role = r.get("role", "")
+        content = r.get("content", "")
         if role not in ("user", "assistant"):
             continue
         if len(content) > 4000:
             content = content[:4000]
         history.append({"role": role, "content": content})
+    return history
+
+
+async def _build_messages(
+    user_id: str,
+    message: str,
+    system_context: str | None = None,
+    history: list[dict[str, str]] | None = None,
+) -> list[dict]:
+    """Build message list with conversation history + market context + security hardening.
+
+    ``history`` (explicit, chronological) OVERRIDES the DB-loaded history when
+    provided — used by trusted server-side callers (e.g. the Telegram bot)
+    that must not read the shared anonymous history bucket.
+    """
+    if history is None:
+        # Fetch recent conversation history (newest-first → reverse to chronological)
+        conn = _get_db()
+        rows = conn.execute(
+            "SELECT role, content FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, CONTEXT_MAX_MESSAGES),
+        ).fetchall()
+        conn.close()
+        history_items = _sanitize_history([{"role": r["role"], "content": r["content"]} for r in reversed(rows)])
+    else:
+        # Trusted explicit history → keep caller order, cap at context window.
+        history_items = _sanitize_history(list(history)[-CONTEXT_MAX_MESSAGES:])
 
     # Build system prompt with hardening
     date_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
@@ -291,7 +324,7 @@ async def _build_messages(user_id: str, message: str, system_context: str | None
     # Use security-hardened message builder
     messages = ai_guard.build_safe_messages(
         system_prompt=system,
-        history=history,
+        history=history_items,
         user_message=message,
         max_history=CONTEXT_MAX_MESSAGES,
     )
@@ -346,7 +379,16 @@ async def chat(
         display = user.get("display_name", user.get("email", "detective"))
         user_context = f"User: {display} (tier: {tier})"
 
-    messages = await _build_messages(user_id, req.message, user_context)
+    # Merge RAG/system context override — used by the Telegram bot to ground
+    # the LLM with RAG search results (context_override.system_context).
+    system_context = user_context
+    if req.context_override:
+        rag = req.context_override.get("system_context") if isinstance(req.context_override, dict) else None
+        if isinstance(rag, str) and rag.strip():
+            extra = f"RAG Context:\n{rag.strip()}"
+            system_context = f"{system_context}\n\n{extra}" if system_context else extra
+
+    messages = await _build_messages(user_id, req.message, system_context, req.history)
 
     # Save user message (sanitized)
     _save_message(user_id, "user", req.message)
