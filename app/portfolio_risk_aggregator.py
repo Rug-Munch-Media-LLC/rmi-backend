@@ -12,9 +12,40 @@ Usage:
 
 from __future__ import annotations
 
-from app.domains.portfolio.portfolio_risk_aggregator import *
+from app.domains.portfolio.portfolio_risk_aggregator import (
+    CHAIN_CONFIGS,
+    COMMON_TOKENS,
+    ChainConnector,
+    ChainPortfolio,
+    EVMConnector,
+    PortfolioRiskAggregator,
+    PortfolioRiskProfile,
+    PriceOracle,
+    RiskLevel,
+    SolanaConnector,
+    TokenHolding,
+    TokenRiskScorer,
+    validate_wallet_address,
+)
 
 if __name__ == "__main__":
     from app.domains.portfolio.portfolio_risk_aggregator import main as _main
 
     _main()
+
+
+__all__ = [
+    "CHAIN_CONFIGS",
+    "COMMON_TOKENS",
+    "ChainConnector",
+    "ChainPortfolio",
+    "EVMConnector",
+    "PortfolioRiskAggregator",
+    "PortfolioRiskProfile",
+    "PriceOracle",
+    "RiskLevel",
+    "SolanaConnector",
+    "TokenHolding",
+    "TokenRiskScorer",
+    "validate_wallet_address",
+]

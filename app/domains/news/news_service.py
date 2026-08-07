@@ -8,7 +8,15 @@ This stub re-exports everything for backward compatibility.
 
 from __future__ import annotations
 
-from app.domains.news.news_service import *
+from app.domains.news.news_service import (
+    BEARISH_WORDS,
+    BULLISH_WORDS,
+    CATEGORY_KEYWORDS,
+    REDDIT_SUBREDDITS,
+    RSS_FEEDS,
+    NewsService,
+    get_news_service,
+)
 
 __all__ = [
     "BEARISH_WORDS",
