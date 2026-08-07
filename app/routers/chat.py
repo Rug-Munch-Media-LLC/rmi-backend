@@ -18,8 +18,10 @@ Routes:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import re
 import sqlite3
 import tempfile
 import time
@@ -270,6 +272,172 @@ async def _fetch_market_context() -> dict[str, Any]:
     return {}
 
 
+# ── RAG context grounding ───────────────────────────────────────────────
+# Web chat grounds the LLM with relevant RAG knowledge using the same
+# pattern as the Telegram bot's RAG+LLM synthesis
+# (app/domains/telegram/rugmunchbot/ai_chat.py): search RAG before the LLM
+# call, format the top hits, and inject them into the system prompt via the
+# ``context_override.system_context`` mechanism (see ``_build_messages``).
+#
+# Collections searched for every message; ``scanner_v2`` is added when the
+# message mentions a token address. Search is best-effort: any failure or
+# timeout returns empty context and chat proceeds without RAG (graceful
+# degradation — RAG is an enhancement, never a gate).
+RAG_COLLECTIONS = ["threat_intel", "scam_intel", "news_v2"]
+RAG_TOKEN_COLLECTIONS = ["scanner_v2"]
+RAG_TOP_K = 5
+RAG_SEARCH_TIMEOUT = 5.0  # overall budget (seconds) — web chat stays snappy
+RAG_CONTEXT_MAX_CHARS = 1800  # keeps the combined system context under the 2000-char cap
+RAG_HIT_MAX_CHARS = 700  # per-hit snippet
+
+# Token hints for targeted RAG queries: EVM addresses, Solana base58
+# addresses (no 0/O/I/l chars), and $SYMBOL mentions.
+_EVM_ADDRESS_RE = re.compile(r"\b0x[a-fA-F0-9]{40}\b")
+_SOLANA_ADDRESS_RE = re.compile(r"\b[1-9A-HJ-NP-Za-km-z]{32,44}\b")
+_SYMBOL_RE = re.compile(r"\$([A-Za-z][A-Za-z0-9]{1,10})\b")
+_MAX_TOKEN_HINTS = 3
+
+
+def _extract_token_hints(message: str) -> tuple[list[str], list[str]]:
+    """Return (addresses, symbols) mentioned in the user message.
+
+    Addresses are EVM ``0x...`` (40 hex) or Solana base58 (32-44 chars).
+    Symbols are ``$TICKER`` mentions. Both are capped to ``_MAX_TOKEN_HINTS``
+    so a single message cannot bloat the RAG query.
+    """
+    addresses: list[str] = []
+    for m in _EVM_ADDRESS_RE.finditer(message):
+        addresses.append(m.group(0))
+        if len(addresses) >= _MAX_TOKEN_HINTS:
+            break
+    if len(addresses) < _MAX_TOKEN_HINTS:
+        for m in _SOLANA_ADDRESS_RE.finditer(message):
+            addr = m.group(0)
+            if addr not in addresses:
+                addresses.append(addr)
+            if len(addresses) >= _MAX_TOKEN_HINTS:
+                break
+    symbols: list[str] = []
+    for m in _SYMBOL_RE.finditer(message):
+        sym = m.group(1)
+        if sym not in symbols:
+            symbols.append(sym)
+        if len(symbols) >= _MAX_TOKEN_HINTS:
+            break
+    return addresses, symbols
+
+
+def _build_rag_query(message: str, addresses: list[str], symbols: list[str]) -> str:
+    """Build the RAG search query: the raw message plus explicit token hints."""
+    query = message.strip()[:500]
+    hints: list[str] = []
+    if addresses:
+        hints.append(f"token address {' '.join(addresses)}")
+    if symbols:
+        hints.append("token " + " ".join(f"${s}" for s in symbols))
+    if hints:
+        query = f"{query}\n{'; '.join(hints)}"
+    return query[:600]
+
+
+async def _rag_search_collection(query: str, collection: str, top_k: int = RAG_TOP_K) -> list[dict[str, Any]]:
+    """Search a single RAG collection (in-process facade — same engine as POST /api/v1/rag/v2/search).
+
+    Returns hits as dicts with keys ``content``/``score``/``metadata``/
+    ``collection``/``doc_id``. Returns ``[]`` on any failure so callers fall
+    through without RAG context. The import is lazy so the chat router still
+    mounts if the RAG stack fails to import.
+    """
+    try:
+        from app.rag import RAGService, SearchRequest
+
+        resp = await RAGService().search(SearchRequest(query=query, collection=collection, top_k=top_k))
+        return [
+            {
+                "content": h.content,
+                "score": h.score,
+                "metadata": h.metadata,
+                "collection": h.collection or collection,
+                "doc_id": h.doc_id,
+            }
+            for h in resp.hits
+        ]
+    except Exception as e:  # RAG is best-effort — never break chat on search failure
+        logger.debug("RAG search failed for collection=%s: %s", collection, e)
+        return []
+
+
+def _format_rag_context(hits: list[dict[str, Any]], max_chars: int = RAG_CONTEXT_MAX_CHARS) -> str:
+    """Render top RAG hits as a compact, LLM-friendly context block.
+
+    Each hit is labeled with its collection + score so the LLM can weigh
+    source quality. Truncates to ``max_chars`` total.
+    """
+    parts: list[str] = []
+    total = 0
+    for i, h in enumerate(hits, 1):
+        content = (h.get("content") or "").strip()
+        if not content:
+            continue
+        snippet = content[:RAG_HIT_MAX_CHARS]
+        col = h.get("collection") or "unknown"
+        score = float(h.get("score") or 0.0)
+        block = f"[{i}] Source: {col} (score: {score:.3f})\n{snippet}"
+        if total + len(block) > max_chars:
+            break
+        parts.append(block)
+        total += len(block)
+    return "\n\n".join(parts)
+
+
+async def _search_rag_context(message: str) -> tuple[str, int]:
+    """Search RAG collections for context relevant to ``message``.
+
+    Returns ``(formatted_context, hit_count)``. Never raises: on any failure
+    or timeout it returns ``("", 0)`` so chat proceeds without RAG context.
+
+    Smart search:
+    - Extracts token addresses / ``$SYMBOL`` mentions from the message.
+    - Searches ``RAG_COLLECTIONS`` for every message; adds
+      ``RAG_TOKEN_COLLECTIONS`` (scanner_v2) when a token address is present.
+    - Parallel per-collection search, deduped by content, top ``RAG_TOP_K``.
+    """
+    addresses, symbols = _extract_token_hints(message)
+    collections = list(RAG_COLLECTIONS)
+    if addresses:
+        collections.extend(RAG_TOKEN_COLLECTIONS)
+    query = _build_rag_query(message, addresses, symbols)
+
+    async def _search_all() -> list[dict[str, Any]]:
+        results = await asyncio.gather(
+            *(_rag_search_collection(query, c) for c in collections),
+            return_exceptions=True,
+        )
+        hits: list[dict[str, Any]] = []
+        for res in results:
+            if isinstance(res, list):
+                hits.extend(res)
+        return hits
+
+    try:
+        hits = await asyncio.wait_for(_search_all(), timeout=RAG_SEARCH_TIMEOUT)
+    except Exception as e:  # RAG is best-effort — never break chat on timeout/failure
+        logger.debug("RAG context search failed/timed out (query=%.60s): %s", message, e)
+        return "", 0
+
+    deduped: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for h in sorted(hits, key=lambda x: float(x.get("score") or 0.0), reverse=True):
+        content = (h.get("content") or "").strip()[:100]
+        if content and content not in seen:
+            seen.add(content)
+            deduped.append(h)
+    deduped = deduped[:RAG_TOP_K]
+    if not deduped:
+        return "", 0
+    return _format_rag_context(deduped), len(deduped)
+
+
 def _sanitize_history(items: list[dict[str, str]]) -> list[dict[str, str]]:
     """Whitelist roles (user/assistant only) + truncate content.
 
@@ -379,14 +547,38 @@ async def chat(
         display = user.get("display_name", user.get("email", "detective"))
         user_context = f"User: {display} (tier: {tier})"
 
-    # Merge RAG/system context override — used by the Telegram bot to ground
-    # the LLM with RAG search results (context_override.system_context).
+    # ── RAG grounding (non-blocking) ──
+    # Direct web chat callers get automatic RAG grounding: search the RAG
+    # collections for context relevant to the message and inject the top
+    # hits into the system prompt before the LLM call. If the caller already
+    # supplied explicit system context (e.g. the Telegram bot sends its own
+    # RAG search via context_override.system_context), respect that instead —
+    # no double-grounding. RAG search is best-effort: on failure/timeout it
+    # returns empty and chat proceeds without context (never blocks chat).
+    client_system_context: str | None = None
+    if req.context_override and isinstance(req.context_override, dict):
+        cs = req.context_override.get("system_context")
+        if isinstance(cs, str) and cs.strip():
+            client_system_context = cs
+
+    rag_context, rag_count = "", 0
+    if not client_system_context:
+        try:
+            rag_context, rag_count = await _search_rag_context(req.message)
+        except Exception as e:  # defensive: never let RAG break chat
+            logger.debug("RAG context search raised in chat handler: %s", e)
+            rag_context, rag_count = "", 0
+
+    # Merge RAG/system context — server-side RAG search first, then any
+    # caller-supplied context_override (used by the Telegram bot to ground
+    # the LLM with its own RAG search results).
     system_context = user_context
-    if req.context_override:
-        rag = req.context_override.get("system_context") if isinstance(req.context_override, dict) else None
-        if isinstance(rag, str) and rag.strip():
-            extra = f"RAG Context:\n{rag.strip()}"
-            system_context = f"{system_context}\n\n{extra}" if system_context else extra
+    if rag_context:
+        extra = f"RAG Context:\n{rag_context.strip()}"
+        system_context = f"{system_context}\n\n{extra}" if system_context else extra
+    if client_system_context:
+        extra = f"RAG Context:\n{client_system_context.strip()}"
+        system_context = f"{system_context}\n\n{extra}" if system_context else extra
 
     messages = await _build_messages(user_id, req.message, system_context, req.history)
 
@@ -415,12 +607,17 @@ async def chat(
 
     _apply_rate_limit_headers(response, request)
 
+    # Expose how many RAG hits grounded this answer (0 = RAG unavailable or
+    # no relevant context) so the frontend can show "Powered by RAG".
+    response.headers["X-RAG-Context"] = str(rag_count)
+
     # Save assistant response
     metadata = {
         "model": result.get("model", ""),
         "provider": result.get("_provider", ""),
         "latency_ms": result.get("_latency_ms", 0),
         "security_scanned": True,
+        "rag_context_count": rag_count,
     }
     _save_message(user_id, "assistant", response_content, metadata)
 
@@ -464,7 +661,18 @@ async def chat_stream(
     # Save user message (sanitized)
     _save_message(user_id, "user", req.message)
 
-    messages = await _build_messages(user_id, req.message)
+    # ── RAG grounding (non-blocking) ──
+    # Same best-effort RAG context injection as the non-streaming endpoint;
+    # on failure/timeout this returns empty and the stream proceeds without
+    # RAG context.
+    try:
+        rag_context, rag_count = await _search_rag_context(req.message)
+    except Exception as e:  # defensive: never let RAG break chat
+        logger.debug("RAG context search raised in stream handler: %s", e)
+        rag_context, rag_count = "", 0
+    system_context = f"RAG Context:\n{rag_context.strip()}" if rag_context else None
+
+    messages = await _build_messages(user_id, req.message, system_context)
 
     async def event_generator() -> AsyncGenerator[str, None]:
         full_response = ""
@@ -505,6 +713,7 @@ async def chat_stream(
             {
                 "latency_ms": round(latency_ms, 1),
                 "security_scanned": True,
+                "rag_context_count": rag_count,
             },
         )
 
@@ -514,6 +723,8 @@ async def chat_stream(
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
+        # Expose how many RAG hits grounded this stream (0 = none).
+        "X-RAG-Context": str(rag_count),
     }
     rl_headers = getattr(request.state, "chat_rate_limit_headers", None)
     if rl_headers:
