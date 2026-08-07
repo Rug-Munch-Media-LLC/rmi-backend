@@ -30,7 +30,7 @@ class TokenScanRequest(BaseModel):
 
 class WalletScanRequest(BaseModel):
     address: str
-    chain: str = "solana"
+    chain: str = ""  # empty = auto-detect from address format (0x → ethereum, base58 → solana)
 
 
 def _get_tier(request: Request) -> str:
@@ -43,6 +43,17 @@ def _get_tier(request: Request) -> str:
 
 def _get_admin_key(request: Request) -> Any | None:
     return request.headers.get("X-Admin-Key") or request.headers.get("X-RMI-Key")
+
+
+def _detect_chain(address: str) -> str:
+    """Detect the blockchain from the address format.
+
+    0x prefix = EVM address → ethereum. Anything else (base58) → solana.
+    """
+    addr = (address or "").strip()
+    if addr.startswith(("0x", "0X")):
+        return "ethereum"
+    return "solana"
 
 
 def _serialize_rag_context(rag_ctx: Any) -> dict[str, Any] | None:
@@ -132,6 +143,7 @@ async def scan_token(
             "scan_duration_ms": result.scan_duration_ms,
             "tier": result.tier,
             "scanned_at": result.scanned_at,
+            "background_status": result.background_status,
             "data_source": "databus",
             "freshness": result.scanned_at,
             "fallback_used": fallback_used,
@@ -149,6 +161,26 @@ async def scan_token(
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
 
 
+@router.get(
+    "/token/scan/{chain}/{address}/status",
+    summary="Token Scan Status",
+    description=(
+        "Get the status of an in-flight token scan (or a completed cached result). "
+        "The scan endpoint returns within ~25s while deep/intel/SENTINEL/news "
+        "phases continue in the background; poll this endpoint for progress and "
+        "the final full result."
+    ),
+)
+async def get_token_scan_status(chain: str, address: str) -> dict[str, Any]:
+    """Get status/progress of an in-flight scan (or a completed cached result)."""
+    from app.domains.scanner.unified.scanner import scan_status
+
+    status = await scan_status(chain, address)
+    if status is None:
+        raise HTTPException(404, f"No scan status found for {chain}:{address}")
+    return status
+
+
 @router.post(
     "/wallet/scan",
     summary="Scan Wallet",
@@ -161,8 +193,29 @@ async def scan_wallet(
 ) -> dict[str, Any]:
     tier = _get_tier(request)
     admin_key = _get_admin_key(request)
+
+    # P0-5: wallet data is tier-gated (PUBLIC_WEB denied in the access matrix).
+    # Never return a false-success 200 with zero-filled wallet fields — tell the
+    # caller to sign up instead.
+    if tier == "free":
+        return {
+            "data_gated": "requires_auth",
+            "message": "Sign up for free beta to unlock wallet data",
+        }
+
+    # Auto-detect chain from address format when not explicitly provided
+    # (default was "solana", which misrouted 0x EVM addresses).
+    chain = body.chain or _detect_chain(body.address)
+
     try:
-        result = await scanner.scan(address=body.address, chain=body.chain, tier=tier, admin_key=admin_key)
+        result = await scanner.scan(address=body.address, chain=chain, tier=tier, admin_key=admin_key)
+        # Defense in depth: if a databus fetch still came back denied (e.g. bad
+        # admin key), surface the gate instead of the zero-filled scan result.
+        if result.data_gated:
+            return {
+                "data_gated": result.data_gated,
+                "message": "Sign up for free beta to unlock wallet data",
+            }
         return {
             "status": "ok",
             "address": result.address,
