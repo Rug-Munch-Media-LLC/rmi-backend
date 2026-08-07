@@ -20,12 +20,11 @@ Returns real, deduplicated metrics. No "X-style" inflation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db
 from app.core.logging import get_logger
@@ -44,6 +43,9 @@ from app.domains.analytics.service import (
     CreatorAnalyticsEngine,
     get_analytics_engine,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 

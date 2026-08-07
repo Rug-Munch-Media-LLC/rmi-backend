@@ -7,10 +7,14 @@ Exports:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rapidfuzz import fuzz
 
 from app.feed_quality_pipeline.cache import DEDUP_SIMILARITY_THRESHOLD
-from app.feed_quality_pipeline.models import FeedPost
+
+if TYPE_CHECKING:
+    from app.feed_quality_pipeline.models import FeedPost
 
 
 class ContentDeduplicator:
@@ -57,7 +61,7 @@ class ContentDeduplicator:
 
         # 3. Near-duplicate: RapidFuzz Levenshtein ratio on title+content
         normalized = post.normalized_text()
-        for prev_text, prev_source, prev_id in self._recent_titles:
+        for prev_text, prev_source, _prev_id in self._recent_titles:
             # Don't cross-merge translated content (language heuristics)
             if self._is_different_language(normalized, prev_text):
                 continue
@@ -92,9 +96,7 @@ class ContentDeduplicator:
         ratio_a = non_ascii_a / max(len(text_a), 1)
         ratio_b = non_ascii_b / max(len(text_b), 1)
         # If one has significantly more non-ASCII, they're different scripts
-        if abs(ratio_a - ratio_b) > 0.3:
-            return True
-        return False
+        return abs(ratio_a - ratio_b) > 0.3
 
 
 __all__ = ["ContentDeduplicator"]

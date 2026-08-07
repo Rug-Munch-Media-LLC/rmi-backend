@@ -10,10 +10,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.feed_quality_pipeline.cache import (
@@ -30,6 +29,9 @@ from app.feed_quality_pipeline.health import ProviderHealthMonitor
 from app.feed_quality_pipeline.models import FeedPost, ProviderStatus, QualityMetrics
 from app.feed_quality_pipeline.scorer import FeedScorer
 from app.feed_quality_pipeline.validator import ContentValidator
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__)
 
@@ -302,7 +304,6 @@ class FeedQualityPipeline:
         # Phase 4: Cross-provider dedup
         deduped_posts: list[FeedPost] = []
         dedup_removed = 0
-        new_count = 0
         for post in valid_posts:
             # Check if already seen in this cycle (cross-provider)
             if self._dedup.is_duplicate(post):

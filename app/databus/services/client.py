@@ -15,6 +15,7 @@ Improvements over v1:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 
@@ -178,21 +179,13 @@ class DataBus:
         while self._warm_running:
             try:
                 for item in self._warm_types:
-                    try:
+                    with contextlib.suppress(ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                         await self.fetch(
                             data_type=item["data_type"],
                             force_fresh=True,
                             consumer_type="authenticated",
                             **item.get("kwargs", {}),
                         )
-                    except (
-                        ConnectionError,
-                        OSError,
-                        TimeoutError,
-                        httpx.HTTPError,
-                        httpx.TimeoutException,
-                    ):
-                        pass
                 await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 break

@@ -30,6 +30,15 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
 CACHE_TTL = 120  # 2 minutes for trending, 5 minutes for OHLCV
 OHLCV_TTL = 300
+CH_OHLCV_TTL = 120  # 2 minutes for ClickHouse-backed candles
+
+# ClickHouse (chain-indexer OHLCV materialized view) config — same env
+# contract as the rest of the backend (scanner own-data engines).
+CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "rmi-clickhouse")
+CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "9000"))
+CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "rmi")
+CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "") or ""
+CLICKHOUSE_DB = os.getenv("CLICKHOUSE_DATABASE", "wallet_memory")
 
 # GeckoTerminal network mapping
 GECKO_NETWORKS = {
@@ -252,6 +261,142 @@ async def _fetch_ohlcv_gecko(pair_address: str, chain: str, timeframe: str = "1h
             r.close()
         except (ConnectionError, TimeoutError, OSError) as e:
             logger.debug(f"Redis OHLCV cache write failed: {e}")
+
+    return candles
+
+
+def _timeframe_to_ch_params(timeframe: str) -> tuple[int, int]:
+    """Convert rugcharts timeframe to (interval_minutes, lookback_hours).
+
+    Used by the ClickHouse OHLCV path. The materialized view is hourly, so
+    sub-hourly timeframes return an interval below 60 (handled by falling
+    back to GeckoTerminal in the caller).
+    """
+    mapping = {
+        "1m": (1, 6),
+        "5m": (5, 24),
+        "15m": (15, 48),
+        "1h": (60, 168),
+        "4h": (240, 672),
+        "1d": (1440, 2160),
+        "7d": (1440, 2160),
+        "30d": (1440, 4320),
+    }
+    return mapping.get(timeframe, (60, 168))
+
+
+async def _fetch_ohlcv_clickhouse(
+    pair_address: str,
+    chain: str,
+    timeframe: str = "1h",
+    limit: int = 100,
+) -> list[dict]:
+    """Fetch OHLCV candles from the chain-indexer ClickHouse materialized view.
+
+    Queries ``wallet_memory.dex_ohlcv_hourly`` (pre-computed 1h candles from
+    raw swap events). For sub-hourly timeframes returns an empty list so the
+    caller can fall back to GeckoTerminal. Uses the native ``clickhouse_driver``
+    (port 9000) — the same client the scanner own-data engines use.
+    """
+    cache_key = f"rugcharts:ohlcv_ch:{chain}:{pair_address}:{timeframe}:{limit}"
+    try:
+        r = _r()
+        cached = r.get(cache_key)
+        if cached:
+            r.close()
+            return json.loads(cached)
+        r.close()
+    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+        logger.debug(f"Redis CH OHLCV cache read failed: {e}")
+
+    interval_min, lookback_hours = _timeframe_to_ch_params(timeframe)
+    # Sub-hourly not available from the hourly materialized view — fall back.
+    if interval_min < 60:
+        return []
+
+    try:
+        from clickhouse_driver import Client as CHClient
+    except ImportError:
+        logger.debug("clickhouse_driver not installed — CH OHLCV unavailable")
+        return []
+
+    candles: list[dict] = []
+    try:
+        client = CHClient(
+            host=CLICKHOUSE_HOST,
+            port=CLICKHOUSE_PORT,
+            user=CLICKHOUSE_USER,
+            password=CLICKHOUSE_PASSWORD,
+            database=CLICKHOUSE_DB,
+            connect_timeout=3,
+            send_receive_timeout=10,
+        )
+        try:
+            if interval_min == 60:
+                rows = client.execute(
+                    "SELECT toUnixTimestamp(timestamp), open, high, low, close, volume, trades "
+                    "FROM dex_ohlcv_hourly "
+                    "WHERE chain = %(chain)s AND pair_address = %(pair)s "
+                    "AND timestamp >= now() - INTERVAL %(lookback)s HOUR "
+                    "ORDER BY timestamp ASC LIMIT %(limit)s",
+                    {
+                        "chain": chain,
+                        "pair": pair_address,
+                        "lookback": lookback_hours,
+                        "limit": int(limit),
+                    },
+                )
+                for row in rows:
+                    candles.append(
+                        {
+                            "time": int(row[0]),
+                            "open": float(row[1]),
+                            "high": float(row[2]),
+                            "low": float(row[3]),
+                            "close": float(row[4]),
+                            "volume": float(row[5]),
+                        }
+                    )
+            else:
+                # Resample hourly → 4h/1d/7d/30d via toStartOfInterval
+                rows = client.execute(
+                    "SELECT toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL %(interval)s MINUTE)) AS time, "
+                    "argMin(open, timestamp), max(high), min(low), argMax(close, timestamp), sum(volume), sum(trades) "
+                    "FROM dex_ohlcv_hourly "
+                    "WHERE chain = %(chain)s AND pair_address = %(pair)s "
+                    "AND timestamp >= now() - INTERVAL %(lookback)s HOUR "
+                    "GROUP BY time ORDER BY time ASC LIMIT %(limit)s",
+                    {
+                        "chain": chain,
+                        "pair": pair_address,
+                        "interval": interval_min,
+                        "lookback": lookback_hours,
+                        "limit": int(limit),
+                    },
+                )
+                for row in rows:
+                    candles.append(
+                        {
+                            "time": int(row[0]),
+                            "open": float(row[1]),
+                            "high": float(row[2]),
+                            "low": float(row[3]),
+                            "close": float(row[4]),
+                            "volume": float(row[5]),
+                        }
+                    )
+        finally:
+            client.disconnect()
+    except (ImportError, ConnectionError, TimeoutError, OSError, RuntimeError) as e:
+        logger.debug(f"ClickHouse OHLCV unavailable for {pair_address}: {str(e)[:120]}")
+
+    if candles:
+        try:
+            r = _r()
+            r.setex(cache_key, CH_OHLCV_TTL, json.dumps(candles))
+            r.close()
+        except (ConnectionError, TimeoutError, OSError) as e:
+            logger.debug(f"Redis CH OHLCV cache write failed: {e}")
 
     return candles
 
@@ -534,11 +679,18 @@ async def rugcharts_ohlcv(
 ) -> Any:
     """Get OHLCV candle data for a specific pair.
 
-    Fuses GeckoTerminal OHLCV data with DexScreener pair info via DataFusion
-    for cross-referenced price confidence and volume authenticity scoring.
+    Tries the chain-indexer ClickHouse materialized view first (freshest
+    on-chain data, own-data), falls back to GeckoTerminal when unavailable
+    or for sub-hourly timeframes. Fuses the result with DexScreener pair
+    info via DataFusion for cross-referenced price confidence and volume
+    authenticity scoring.
     """
     now = datetime.datetime.now(datetime.UTC)
-    candles = await _fetch_ohlcv_gecko(pair_address, chain, timeframe, limit)
+    candles = await _fetch_ohlcv_clickhouse(pair_address, chain, timeframe, limit)
+    source = "clickhouse"
+    if not candles:
+        candles = await _fetch_ohlcv_gecko(pair_address, chain, timeframe, limit)
+        source = "geckoterminal"
     pair_info = await _fetch_pair_info(pair_address, chain)
     vol_auth = _compute_volume_authenticity(pair_info, candles)
 

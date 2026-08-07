@@ -399,7 +399,7 @@ async def meme_vibe_score(req: MemeVibeRequest) -> Any:
         )
 
         # Re-fetch launch via GET with query params
-# httpx available at module level
+        # httpx available at module level
 
         async with httpx.AsyncClient(timeout=10.0) as c:
             r = await c.get(f"{BASE}/launch", params={"address": req.token, "chain": req.chain})

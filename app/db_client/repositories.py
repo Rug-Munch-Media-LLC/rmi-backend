@@ -7,21 +7,23 @@ Data access layer with CRUD operations for each entity type.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
-
-from pydantic import BaseModel
+from typing import TYPE_CHECKING, Any
 
 from .cache import _async_retry
-from .client import SupabaseClient
-from .models import (
-    Alert,
-    ContractAudit,
-    GamificationProfile,
-    InvestigationCase,
-    TrenchesPost,
-    User,
-    WalletScan,
-)
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+
+    from .client import SupabaseClient
+    from .models import (
+        Alert,
+        ContractAudit,
+        GamificationProfile,
+        InvestigationCase,
+        TrenchesPost,
+        User,
+        WalletScan,
+    )
 
 
 class _BaseRepo:

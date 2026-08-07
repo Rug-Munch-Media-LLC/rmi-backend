@@ -59,9 +59,7 @@ def _authorized(request: Request) -> bool:
     if token in _AUTH_TOKENS:
         return True
     # Dev bypass — explicitly opt-in, never in prod
-    if getattr(settings, "dev_bypass_auth", False):
-        return True
-    return False
+    return bool(getattr(settings, "dev_bypass_auth", False))
 
 
 def _auth_dependency(request: Request) -> None:

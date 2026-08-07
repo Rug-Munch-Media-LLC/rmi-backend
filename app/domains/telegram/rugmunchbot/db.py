@@ -129,6 +129,41 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_scan_user ON scan_history(user_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_webhooks_user ON webhooks(user_id, is_active);
         CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id, is_active);
+
+        -- v5: bot-wide feature toggles (e.g. bot_enabled, chat_enabled)
+        CREATE TABLE IF NOT EXISTS bot_state (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        -- v5: admin action audit log
+        CREATE TABLE IF NOT EXISTS admin_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            details TEXT,
+            created_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_admin_logs_ts ON admin_logs(created_at);
+
+        -- v5: daily activity counters (messages, commands, RAG queries, AI tokens)
+        CREATE TABLE IF NOT EXISTS daily_stats (
+            date TEXT PRIMARY KEY,
+            messages INTEGER DEFAULT 0,
+            commands INTEGER DEFAULT 0,
+            rag_queries INTEGER DEFAULT 0,
+            ai_tokens INTEGER DEFAULT 0
+        );
+
+        -- v5: per-user AI chat history (conversation context, last N messages)
+        CREATE TABLE IF NOT EXISTS chat_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_history_user ON chat_history(user_id, created_at);
     """)
     # Migration: add bonus columns if they don't exist (SQLite safe)
     with contextlib.suppress(sqlite3.OperationalError):
@@ -517,6 +552,167 @@ def get_user_stats(user_id: int) -> dict:
         "scans_this_week": scans_used,
         "ai_msgs_this_week": ai_used,
     }
+
+
+# ── Bot state toggles (v5) ──
+
+
+def set_bot_state(key: str, value: str) -> None:
+    """Persist a bot-wide toggle (e.g. bot_enabled=on|off, chat_enabled=on|off)."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO bot_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_bot_state(key: str, default: str = "on") -> str:
+    """Read a bot-wide toggle, returning ``default`` when unset."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT value FROM bot_state WHERE key = ?", (key,)).fetchone()
+    finally:
+        conn.close()
+    return row["value"] if row else default
+
+
+# ── Admin action audit log (v5) ──
+
+
+def log_admin_action(admin_id: int, action: str, details: str = "") -> None:
+    """Append an entry to the admin audit log (every admin command logs here)."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO admin_logs (admin_id, action, details, created_at) VALUES (?, ?, ?, ?)",
+        (admin_id, action, details[:500], int(time.time())),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_admin_logs(limit: int = 20) -> list[dict]:
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Daily activity stats (v5) ──
+
+
+def _today_str() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%d")
+
+
+def record_activity(
+    msg: bool = False,
+    cmd: bool = False,
+    rag: bool = False,
+    tokens: int = 0,
+) -> None:
+    """Increment daily counters (messages / commands / RAG queries / AI tokens)."""
+    date = _today_str()
+    conn = get_db()
+    conn.execute(
+        """
+        INSERT INTO daily_stats (date, messages, commands, rag_queries, ai_tokens)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(date) DO UPDATE SET
+            messages = messages + excluded.messages,
+            commands = commands + excluded.commands,
+            rag_queries = rag_queries + excluded.rag_queries,
+            ai_tokens = ai_tokens + excluded.ai_tokens
+        """,
+        (date, 1 if msg else 0, 1 if cmd else 0, 1 if rag else 0, tokens),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_daily_stats(date: str | None = None) -> dict:
+    """Return daily counters for ``date`` (default: today) as a dict with 0 defaults."""
+    date = date or _today_str()
+    conn = get_db()
+    row = conn.execute("SELECT * FROM daily_stats WHERE date = ?", (date,)).fetchone()
+    conn.close()
+    if not row:
+        return {"date": date, "messages": 0, "commands": 0, "rag_queries": 0, "ai_tokens": 0}
+    return dict(row)
+
+
+def count_active_today() -> int:
+    """Number of users active since the start of today (UTC)."""
+    start_of_day = int(datetime.combine(datetime.now(UTC).date(), datetime.min.time(), tzinfo=UTC).timestamp())
+    conn = get_db()
+    c = conn.execute("SELECT COUNT(*) as c FROM users WHERE last_active >= ?", (start_of_day,)).fetchone()["c"]
+    conn.close()
+    return c
+
+
+# ── AI chat history / conversation context (v5) ──
+
+CHAT_HISTORY_KEEP = 50  # max stored rows per user (prune older)
+CHAT_HISTORY_CONTEXT = 5  # last N messages injected into the LLM
+
+
+def add_chat_message(user_id: int, role: str, content: str) -> None:
+    """Store one user/assistant message for conversation context."""
+    if not content or not content.strip():
+        return
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO chat_history (user_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+        (user_id, role, content.strip()[:2000], int(time.time())),
+    )
+    # Keep only the most recent CHAT_HISTORY_KEEP rows per user.
+    conn.execute(
+        "DELETE FROM chat_history WHERE user_id = ? AND id NOT IN "
+        "(SELECT id FROM chat_history WHERE user_id = ? ORDER BY id DESC LIMIT ?)",
+        (user_id, user_id, CHAT_HISTORY_KEEP),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_chat_history(user_id: int, limit: int = CHAT_HISTORY_CONTEXT) -> list[dict]:
+    """Return the last ``limit`` (role, content) pairs, oldest-first."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT role, content FROM chat_history WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+        (user_id, limit),
+    ).fetchall()
+    conn.close()
+    return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+
+
+def clear_chat_history(user_id: int) -> None:
+    conn = get_db()
+    conn.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── Admin user lookup (v5) ──
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    """Return a full user row (or None) — used by /admin_user."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def set_banned(user_id: int, banned: bool) -> bool:
+    """Ban/unban a user. Returns True when the user exists."""
+    conn = get_db()
+    cur = conn.execute("UPDATE users SET is_banned = ? WHERE user_id = ?", (1 if banned else 0, user_id))
+    conn.commit()
+    ok = cur.rowcount > 0
+    conn.close()
+    return ok
 
 
 # Init on import

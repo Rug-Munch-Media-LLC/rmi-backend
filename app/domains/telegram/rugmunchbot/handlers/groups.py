@@ -46,7 +46,7 @@ async def cmd_mygroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             from app.domains.telegram.headless import _client_instance
 
             if _client_instance and hasattr(_client_instance, "_managed_groups"):
-                for key, group in _client_instance._managed_groups.items():
+                for _key, group in _client_instance._managed_groups.items():
                     if hasattr(group, "metadata") and group.metadata.get("creator_user_id") == user.id:
                         chat_id = group.chat_id
                         _USER_GROUPS[user.id] = chat_id

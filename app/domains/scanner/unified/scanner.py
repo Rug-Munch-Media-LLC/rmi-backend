@@ -16,7 +16,7 @@ import asyncio
 import json
 import os
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
@@ -25,9 +25,6 @@ from app.domains.scanner.unified.model import (
     BundleProfile,
     DeepScanProfile,
     DeployerProfile,
-    MARKET_CONTEXT_CACHE_TTL,
-    MarketContext,
-    RUG_BRAIN_API_URL,
     ScanResult,
     WalletBreakdown,
 )

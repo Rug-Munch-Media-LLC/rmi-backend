@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import sys
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -73,13 +73,16 @@ def mock_crawler():
     """Patch the three Crawl4AI classes and hand back the fake crawler.
 
     The production code does ``from crawl4ai import AsyncWebCrawler,
-    BrowserConfig, CrawlerRunConfig`` *inside* the function, so patching
-    the ``crawl4ai`` module attributes intercepts the lazy import.
+    BrowserConfig, CrawlerRunConfig`` *inside* the function, so injecting a
+    stub ``crawl4ai`` module into ``sys.modules`` intercepts the lazy import
+    even when the real package is not installed in the test env.
     """
+    stub = types.ModuleType("crawl4ai")
     with (
-        patch("crawl4ai.AsyncWebCrawler") as crawler_cls,
-        patch("crawl4ai.BrowserConfig") as browser_cfg,
-        patch("crawl4ai.CrawlerRunConfig") as run_cfg,
+        patch.dict(sys.modules, {"crawl4ai": stub}),
+        patch.object(stub, "AsyncWebCrawler") as crawler_cls,
+        patch.object(stub, "BrowserConfig") as browser_cfg,
+        patch.object(stub, "CrawlerRunConfig") as run_cfg,
     ):
         crawler = AsyncMock()
         crawler_cls.return_value.__aenter__.return_value = crawler

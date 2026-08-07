@@ -95,6 +95,7 @@ class BubbleLink:
     strength: float = 0.5
     width: float = 2.0
     color: str = "#00d4ff"
+    label: str = ""
 
     # Data
     total_volume: float = 0.0
@@ -104,6 +105,7 @@ class BubbleLink:
 
     # Transaction details (for tooltip)
     transactions: list[dict] = field(default_factory=list)
+    transaction_hashes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {

@@ -37,11 +37,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user, require_auth
 from app.core.dependencies import get_db
@@ -83,6 +82,9 @@ from app.services.live.xp_service import (
     get_user_xp_info,
     get_xp_leaderboard,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 log = get_logger(__name__)
 

@@ -6,10 +6,12 @@ consistent with app.domains.news.router patterns.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 # ── Newsletter (Campaign) ───────────────────────────────────────────
 

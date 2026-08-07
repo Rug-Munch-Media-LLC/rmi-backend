@@ -239,7 +239,7 @@ async def get_rugmap_data(req: RugMapRequest) -> Any:
     Responses are wrapped with DataFusion intelligence brief for
     cross-referenced risk assessment.
     """
-    now = datetime.datetime.now(UTC)
+    datetime.datetime.now(UTC)
     engine = _get_engine()
     depth = min(req.depth, 10)
     data = engine.generate_rugmap_data(

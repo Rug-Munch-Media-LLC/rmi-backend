@@ -6,6 +6,8 @@ from app.core.logging import get_logger
 from app.domains.tokens.deployer.base import ChainDeployer
 from app.domains.tokens.deployer.models import DeployParams, TokenDeployment
 
+
+import httpx
 logger = get_logger("darkroom_token_deployer.solana")
 
 

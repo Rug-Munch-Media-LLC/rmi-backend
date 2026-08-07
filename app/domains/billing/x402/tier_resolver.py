@@ -14,6 +14,9 @@ from typing import Any
 from app.core.logging import get_logger
 from app.core.redis import get_redis
 
+
+import httpx
+
 logger = get_logger("x402_enforcement")
 
 

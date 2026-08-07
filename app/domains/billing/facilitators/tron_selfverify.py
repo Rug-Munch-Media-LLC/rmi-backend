@@ -36,6 +36,9 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
+
+import httpx
+
 logger = get_logger("facilitator.tron_selfverify")
 
 # TRC20 token contracts on TRON mainnet

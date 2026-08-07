@@ -26,8 +26,7 @@ import pytest
 from app.domains.scanner.unified.market_context import (
     fetch_market_context,
 )
-from app.domains.scanner.unified.model import ScanResult
-from app.domains.scanner.unified.scanner import MarketContext
+from app.domains.scanner.unified.model import MarketContext, ScanResult
 from app.domains.scanner.unified.scoring import (
     apply_market_scoring,
     compute_score,

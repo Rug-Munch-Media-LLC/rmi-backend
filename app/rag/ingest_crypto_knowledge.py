@@ -622,7 +622,7 @@ def main() -> None:
     parser.add_argument(
         "--collection",
         nargs="*",
-        choices=list(KNOWLEDGE_BASES.keys()) + ["all"],
+        choices=[*list(KNOWLEDGE_BASES.keys()), "all"],
         default=["all"],
         help="Collections to populate (default: all)",
     )

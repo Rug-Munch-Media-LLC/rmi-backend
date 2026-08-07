@@ -27,6 +27,8 @@ from app.domains.detectors.mev_detector_package.models import (
     SandwichAttack,
 )
 from app.domains.detectors.mev_detector_package.registry import (
+
+import httpx
     KNOWN_MEV_BOTS,
     build_bot_profile,
 )

@@ -131,7 +131,7 @@ class ChatOrchestrator:
             "user_registered user=%s matrix=%s protocols=%s",
             user_id,
             matrix_id,
-            [p.value for p in user.identities.keys()] if extra_protocols else "matrix-only",
+            [p.value for p in user.identities] if extra_protocols else "matrix-only",
         )
 
         return user
@@ -273,7 +273,7 @@ class ChatOrchestrator:
                 name=name,
                 room_type=RoomType.GROUP,
                 topic=topic,
-                invitees=[creator.matrix_id] + matrix_ids,
+                invitees=[creator.matrix_id, *matrix_ids],
                 is_encrypted=True,
             )
             room_id = matrix_result.get("room_id", room_id)
@@ -286,7 +286,7 @@ class ChatOrchestrator:
             topic=topic,
             room_type=RoomType.GROUP,
             encryption=EncryptionType.MEGOLM,
-            members=[creator_id] + member_ids,
+            members=[creator_id, *member_ids],
             created_by=creator_id,
             protocols=[Protocol.MATRIX],
         )
@@ -314,7 +314,7 @@ class ChatOrchestrator:
             "room_type": "group",
             "encryption": "megolm",
             "member_count": len(member_ids) + 1,
-            "members": [creator_id] + member_ids,
+            "members": [creator_id, *member_ids],
             "matrix_room_id": room_id,
             "status": "created",
         }
@@ -345,7 +345,7 @@ class ChatOrchestrator:
 
         if room.room_type == RoomType.DM:
             # Double Ratchet encryption (1-on-1)
-            recipient_id = [m for m in room.members if m != sender_id][0]
+            recipient_id = next(m for m in room.members if m != sender_id)
             sender_signal = self._signal_instances.get(sender_id)
 
             if sender_signal and sender_signal.has_session(recipient_id):
@@ -387,7 +387,7 @@ class ChatOrchestrator:
 
             # Route to all bridged protocols
             if room.bridged_to:
-                bridge_result = await self.bridge_manager.route_message(
+                await self.bridge_manager.route_message(
                     message=message,
                     source_protocol=Protocol.MATRIX,
                     target_protocols=list(room.bridged_to.keys()),

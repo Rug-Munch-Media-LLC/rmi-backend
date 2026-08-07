@@ -202,7 +202,7 @@ class MarketContext:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any] | None) -> "MarketContext | None":
+    def from_dict(cls, data: dict[str, Any] | None) -> MarketContext | None:
         if not isinstance(data, dict):
             return None
         try:

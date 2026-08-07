@@ -5,6 +5,10 @@ CryptoRugMunch Bot v6 - Module-based architecture
 Initialization, profile setup, scheduled jobs, and main entry point.
 Command handlers and business logic live in handlers/ and supporting modules.
 
+v5: world-class menu (/start categories), freestyle AI chat (/chat), and the
+admin control panel (/admin, /admin_stats, /admin_toggle*, /admin_user,
+/admin_set_tier, /admin_ban, /admin_unban, /admin_broadcast, /admin_logs).
+
 Run: cd /root/backend && python3 -m app.domains.telegram.rugmunchbot.bot
 """
 
@@ -13,8 +17,9 @@ from __future__ import annotations
 import random
 import sys
 from datetime import UTC, time as dtime
+from functools import wraps
 
-from telegram import BotCommand
+from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -27,6 +32,9 @@ from telegram.ext import (
 )
 
 from app.core.logging import get_logger
+from app.domains.telegram.rugmunchbot import db
+from app.domains.telegram.rugmunchbot.admin_state import track_command
+from app.domains.telegram.rugmunchbot.broadcast_worker import deliver_pending_broadcasts
 from app.domains.telegram.rugmunchbot.commands import (
     cmd_chart,
     cmd_events,
@@ -57,6 +65,7 @@ from app.domains.telegram.rugmunchbot.handlers.alerts import check_alerts, cmd_a
 from app.domains.telegram.rugmunchbot.handlers.api_access import cmd_api
 from app.domains.telegram.rugmunchbot.handlers.ask import cmd_ask
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
+from app.domains.telegram.rugmunchbot.handlers.chat import cmd_chat
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.groups import (
     cmd_banuser,
@@ -70,10 +79,16 @@ from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigat
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, cmd_trending
 from app.domains.telegram.rugmunchbot.handlers.message import handle_message
 from app.domains.telegram.rugmunchbot.handlers.owner import (
+    cmd_admin,
     cmd_admin_ban,
     cmd_admin_broadcast,
+    cmd_admin_logs,
     cmd_admin_set_tier,
     cmd_admin_stats,
+    cmd_admin_toggle,
+    cmd_admin_toggle_chat,
+    cmd_admin_unban,
+    cmd_admin_user,
 )
 from app.domains.telegram.rugmunchbot.handlers.payments import precheckout, successful_payment
 from app.domains.telegram.rugmunchbot.handlers.price import cmd_dex, cmd_price
@@ -97,8 +112,71 @@ from app.domains.telegram.rugmunchbot.handlers.watchlist import (
     cmd_watchlist,
 )
 from app.domains.telegram.rugmunchbot.handlers.webhook import cmd_webhook
+from app.domains.telegram.rugmunchbot.states import is_owner
 
 logger = get_logger("rmi_bot")
+
+
+def _reg(app: Application, name: str, handler) -> None:
+    """Register a command with per-command activity tracking (for /admin_stats).
+
+    Tracks into the Redis-backed fleet analytics (admin_state.track_command,
+    shared with the backend admin API) AND the local SQLite daily stats.
+    """
+
+    @wraps(handler)
+    async def tracked(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        db.record_activity(cmd=True)
+        try:
+            await track_command(name)
+        except Exception:
+            logger.debug("admin_state track_command failed", exc_info=True)
+        await handler(update, ctx)
+
+    app.add_handler(CommandHandler(name, tracked))
+
+
+def install_maintenance_gate(app: Application) -> None:
+    """Globally disable the bot via /admin_toggle (maintenance mode).
+
+    Wraps ``Application.process_update`` so every non-owner update is dropped
+    (with a maintenance notice) while the bot is disabled. Reads the Redis
+    shared state (admin_state.is_bot_enabled) so the backend admin API and
+    the bot agree; fails open (bot enabled) when Redis is down.
+    Owner updates always pass through.
+    """
+    from app.domains.telegram.rugmunchbot import admin_state
+
+    async def guarded(update: object) -> None:
+        effective_user = getattr(update, "effective_user", None)
+        if effective_user is not None and not is_owner(effective_user.id):
+            try:
+                enabled = await admin_state.is_bot_enabled()
+            except Exception:
+                enabled = True
+            if not enabled:
+                effective_message = getattr(update, "effective_message", None)
+                callback_query = getattr(update, "callback_query", None)
+                if effective_message is not None:
+                    try:
+                        await effective_message.reply_text(
+                            "\U0001f527 <b>RugMunch is under maintenance</b>\n\n"
+                            "We're upgrading the intelligence pipeline \u2014 check back soon!\n"
+                            "\U0001f6e1\ufe0f rugmunch.io",
+                            parse_mode="HTML",
+                        )
+                    except Exception:
+                        logger.debug("maintenance notice send failed", exc_info=True)
+                elif callback_query is not None:
+                    try:
+                        await callback_query.answer("Bot is in maintenance mode.", show_alert=True)
+                    except Exception:
+                        logger.debug("maintenance callback answer failed", exc_info=True)
+                return
+        await original_process_update(update)
+
+    original_process_update = app.process_update
+    app.process_update = guarded
 
 
 async def setup_bot_profile(app: Application) -> None:
@@ -135,6 +213,7 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("sentiment", "Market sentiment & fear/greed index"),
             BotCommand("research", "RAG-powered deep research (Hunter+)"),
             BotCommand("ask", "Deep AI answers from RAG + LLM"),
+            BotCommand("chat", "Freestyle AI chat — crypto, DeFi & code"),
             BotCommand("account", "Your dashboard & usage"),
             BotCommand("pricing", "Subscription plans"),
             BotCommand("topup", "Buy extra scans (no expiry)"),
@@ -194,71 +273,78 @@ def main() -> None:
     app = Application.builder().token(BOT_TOKEN).build()
 
     # Core commands
-    app.add_handler(CommandHandler("start", cmd_start))
-    app.add_handler(CommandHandler("help", cmd_help))
-    app.add_handler(CommandHandler("price", cmd_price))
-    app.add_handler(CommandHandler("dex", cmd_dex))
-    app.add_handler(CommandHandler("scan", cmd_scan))
-    app.add_handler(CommandHandler("deployer", cmd_deployer))
-    app.add_handler(CommandHandler("hype", cmd_hype))
-    app.add_handler(CommandHandler("wallet", cmd_wallet))
-    app.add_handler(CommandHandler("ta", cmd_ta))
-    app.add_handler(CommandHandler("compare", cmd_compare))
-    app.add_handler(CommandHandler("quick", cmd_quick))
-    app.add_handler(CommandHandler("rugcheck", cmd_rugcheck))
+    _reg(app, "start", cmd_start)
+    _reg(app, "help", cmd_help)
+    _reg(app, "price", cmd_price)
+    _reg(app, "dex", cmd_dex)
+    _reg(app, "scan", cmd_scan)
+    _reg(app, "deployer", cmd_deployer)
+    _reg(app, "hype", cmd_hype)
+    _reg(app, "wallet", cmd_wallet)
+    _reg(app, "ta", cmd_ta)
+    _reg(app, "compare", cmd_compare)
+    _reg(app, "quick", cmd_quick)
+    _reg(app, "rugcheck", cmd_rugcheck)
 
     # Market commands
-    app.add_handler(CommandHandler("trending", cmd_trending))
-    app.add_handler(CommandHandler("news", cmd_news))
-    app.add_handler(CommandHandler("sentiment", cmd_sentiment))
+    _reg(app, "trending", cmd_trending)
+    _reg(app, "news", cmd_news)
+    _reg(app, "sentiment", cmd_sentiment)
 
-    # Research / RAG
-    app.add_handler(CommandHandler("research", cmd_research))
-    app.add_handler(CommandHandler("ask", cmd_ask))
+    # Research / RAG / freestyle chat
+    _reg(app, "research", cmd_research)
+    _reg(app, "ask", cmd_ask)
+    _reg(app, "chat", cmd_chat)
 
     # Account / billing
-    app.add_handler(CommandHandler("account", cmd_account))
-    app.add_handler(CommandHandler("pricing", cmd_pricing))
-    app.add_handler(CommandHandler("topup", cmd_topup))
-    app.add_handler(CommandHandler("buystars", cmd_buystars))
-    app.add_handler(CommandHandler("scamschool", cmd_scamschool))
-    app.add_handler(CommandHandler("refer", cmd_refer))
+    _reg(app, "account", cmd_account)
+    _reg(app, "pricing", cmd_pricing)
+    _reg(app, "topup", cmd_topup)
+    _reg(app, "buystars", cmd_buystars)
+    _reg(app, "scamschool", cmd_scamschool)
+    _reg(app, "refer", cmd_refer)
 
     # Watchlist
-    app.add_handler(CommandHandler("watchlist", cmd_watchlist))
-    app.add_handler(CommandHandler("watch", cmd_watch))
-    app.add_handler(CommandHandler("unwatch", cmd_unwatch))
+    _reg(app, "watchlist", cmd_watchlist)
+    _reg(app, "watch", cmd_watch)
+    _reg(app, "unwatch", cmd_unwatch)
 
     # Alerts
-    app.add_handler(CommandHandler("alerts", cmd_alerts))
-    app.add_handler(CommandHandler("alert", cmd_alert))
+    _reg(app, "alerts", cmd_alerts)
+    _reg(app, "alert", cmd_alert)
 
     # External command modules
-    app.add_handler(CommandHandler("chart", cmd_chart))
-    app.add_handler(CommandHandler("portfolio", cmd_portfolio))
-    app.add_handler(CommandHandler("simulate", cmd_simulate))
-    app.add_handler(CommandHandler("smartmoney", cmd_smartmoney))
-    app.add_handler(CommandHandler("rugmap", cmd_rugmap))
-    app.add_handler(CommandHandler("events", cmd_events))
+    _reg(app, "chart", cmd_chart)
+    _reg(app, "portfolio", cmd_portfolio)
+    _reg(app, "simulate", cmd_simulate)
+    _reg(app, "smartmoney", cmd_smartmoney)
+    _reg(app, "rugmap", cmd_rugmap)
+    _reg(app, "events", cmd_events)
 
-    # Owner commands
-    app.add_handler(CommandHandler("admin_stats", cmd_admin_stats))
-    app.add_handler(CommandHandler("admin_set_tier", cmd_admin_set_tier))
-    app.add_handler(CommandHandler("admin_broadcast", cmd_admin_broadcast))
-    app.add_handler(CommandHandler("admin_ban", cmd_admin_ban))
+    # Owner / admin panel (owner-only — hidden from BotFather list)
+    _reg(app, "admin", cmd_admin)
+    _reg(app, "admin_stats", cmd_admin_stats)
+    _reg(app, "admin_set_tier", cmd_admin_set_tier)
+    _reg(app, "admin_broadcast", cmd_admin_broadcast)
+    _reg(app, "admin_toggle", cmd_admin_toggle)
+    _reg(app, "admin_toggle_chat", cmd_admin_toggle_chat)
+    _reg(app, "admin_user", cmd_admin_user)
+    _reg(app, "admin_ban", cmd_admin_ban)
+    _reg(app, "admin_unban", cmd_admin_unban)
+    _reg(app, "admin_logs", cmd_admin_logs)
 
     # Premium commands
-    app.add_handler(CommandHandler("holders", cmd_holders))
-    app.add_handler(CommandHandler("trace", cmd_trace))
-    app.add_handler(CommandHandler("investigate", cmd_investigate))
-    app.add_handler(CommandHandler("webhook", cmd_webhook))
-    app.add_handler(CommandHandler("api", cmd_api))
+    _reg(app, "holders", cmd_holders)
+    _reg(app, "trace", cmd_trace)
+    _reg(app, "investigate", cmd_investigate)
+    _reg(app, "webhook", cmd_webhook)
+    _reg(app, "api", cmd_api)
 
     # Group management commands
-    app.add_handler(CommandHandler("mygroup", cmd_mygroup))
-    app.add_handler(CommandHandler("groupinfo", cmd_groupinfo))
-    app.add_handler(CommandHandler("voicechat", cmd_voicechat))
-    app.add_handler(CommandHandler("banuser", cmd_banuser))
+    _reg(app, "mygroup", cmd_mygroup)
+    _reg(app, "groupinfo", cmd_groupinfo)
+    _reg(app, "voicechat", cmd_voicechat)
+    _reg(app, "banuser", cmd_banuser)
 
     # Inline, callbacks, messages
     app.add_handler(InlineQueryHandler(handle_inline))
@@ -272,11 +358,16 @@ def main() -> None:
     # Error handler
     app.add_error_handler(error_handler)
 
+    # Global maintenance gate (/admin_toggle off)
+    install_maintenance_gate(app)
+
     # Scheduled jobs
     job_queue = app.job_queue
     if job_queue:
         job_queue.run_daily(daily_scam_tip, dtime(hour=14, minute=0, tzinfo=UTC))
         job_queue.run_repeating(check_alerts, interval=ALERT_CHECK_INTERVAL, first=10)
+        # Admin-panel broadcasts (queued in Redis by the backend API)
+        job_queue.run_repeating(deliver_pending_broadcasts, interval=30, first=15)
 
     # Startup
     async def startup(app: Application) -> None:

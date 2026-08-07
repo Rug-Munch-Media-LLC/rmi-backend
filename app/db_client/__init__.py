@@ -76,34 +76,34 @@ def get_db() -> RmiDatabase:
 
 
 __all__ = [
-    # Models
-    "User",
-    "InvestigationCase",
-    "WalletScan",
-    "ContractAudit",
-    "TrenchesPost",
-    "Alert",
-    "GamificationProfile",
-    # Client
-    "SupabaseClient",
     "ENSURE_TABLES_SQL",
-    # Repositories
-    "UserRepository",
-    "InvestigationCaseRepository",
-    "WalletScanRepository",
-    "ContractAuditRepository",
-    "TrenchesPostRepository",
+    "Alert",
     "AlertRepository",
+    "ContractAudit",
+    "ContractAuditRepository",
+    "GamificationProfile",
     "GamificationProfileRepository",
-    # Cache
-    "_async_retry",
-    "cache_set",
-    "cache_get",
-    "cache_delete",
-    "cache_hash_set",
-    "cache_hash_get_all",
-    "sync_redis_to_supabase",
+    "InvestigationCase",
+    "InvestigationCaseRepository",
     # Unified interface
     "RmiDatabase",
+    # Client
+    "SupabaseClient",
+    "TrenchesPost",
+    "TrenchesPostRepository",
+    # Models
+    "User",
+    # Repositories
+    "UserRepository",
+    "WalletScan",
+    "WalletScanRepository",
+    # Cache
+    "_async_retry",
+    "cache_delete",
+    "cache_get",
+    "cache_hash_get_all",
+    "cache_hash_set",
+    "cache_set",
     "get_db",
+    "sync_redis_to_supabase",
 ]

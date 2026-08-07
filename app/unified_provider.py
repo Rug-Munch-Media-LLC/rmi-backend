@@ -394,9 +394,6 @@ class UnifiedProvider:
         }
 
         # Phase 1: Get metadata and basic price in parallel
-        meta_task = None
-        price_task = None
-        dex_task = None
 
         try:
             import asyncio

@@ -202,92 +202,91 @@ def _detect_anomalies_rule_based(
     risk_score = 0
 
     # ── Scanner-based checks ──
-    if scanner_data:
-        if isinstance(scanner_data, dict):
-            # Risk flags
-            risk_flags = scanner_data.get("risk_flags", [])
-            if risk_flags and isinstance(risk_flags, list) and len(risk_flags) > 0:
-                risk_score += min(len(risk_flags) * 10, 40)
-                for flag in risk_flags[:8]:
-                    anomalies.append(
-                        {
-                            "pattern": "Scanner Risk Flag",
-                            "severity": "high",
-                            "description": str(flag),
-                            "affected_wallets": [],
-                            "confidence": 80.0,
-                        }
-                    )
-
-            # Safety score
-            safety = scanner_data.get("safety_score", 50)
-            if isinstance(safety, (int, float)) and safety < 30:
-                risk_score += 30
+    if scanner_data and isinstance(scanner_data, dict):
+        # Risk flags
+        risk_flags = scanner_data.get("risk_flags", [])
+        if risk_flags and isinstance(risk_flags, list) and len(risk_flags) > 0:
+            risk_score += min(len(risk_flags) * 10, 40)
+            for flag in risk_flags[:8]:
                 anomalies.append(
                     {
-                        "pattern": "Low Safety Score",
-                        "severity": "critical" if safety < 15 else "high",
-                        "description": f"Token safety score is {safety}/100 - indicates serious risks",
-                        "affected_wallets": [],
-                        "confidence": 90.0,
-                    }
-                )
-
-            # Liquidity
-            lp = scanner_data.get("liquidity_usd", scanner_data.get("liquidity", 0))
-            if isinstance(lp, (int, float)) and lp < 5000 and lp > 0:
-                risk_score += 15
-                anomalies.append(
-                    {
-                        "pattern": "Low Liquidity",
+                        "pattern": "Scanner Risk Flag",
                         "severity": "high",
-                        "description": f"Liquidity is only ${lp:,.0f} - easy to manipulate price",
+                        "description": str(flag),
                         "affected_wallets": [],
-                        "confidence": 85.0,
+                        "confidence": 80.0,
                     }
                 )
 
-            # Contract verification
-            verified = scanner_data.get("contract_verified", scanner_data.get("verified", None))
-            if verified is False:
-                risk_score += 20
-                anomalies.append(
-                    {
-                        "pattern": "Unverified Contract",
-                        "severity": "high",
-                        "description": "Contract source code is not verified - cannot audit functionality",
-                        "affected_wallets": [],
-                        "confidence": 95.0,
-                    }
-                )
+        # Safety score
+        safety = scanner_data.get("safety_score", 50)
+        if isinstance(safety, (int, float)) and safety < 30:
+            risk_score += 30
+            anomalies.append(
+                {
+                    "pattern": "Low Safety Score",
+                    "severity": "critical" if safety < 15 else "high",
+                    "description": f"Token safety score is {safety}/100 - indicates serious risks",
+                    "affected_wallets": [],
+                    "confidence": 90.0,
+                }
+            )
 
-            # Honeypot indicators
-            honeypot = scanner_data.get("honeypot_indicators", scanner_data.get("honeypot", []))
-            if honeypot and isinstance(honeypot, list) and len(honeypot) > 0:
-                risk_score += 25
-                anomalies.append(
-                    {
-                        "pattern": "Honeypot Indicators",
-                        "severity": "critical",
-                        "description": f"Honeypot signs detected: {', '.join(str(h) for h in honeypot)}",
-                        "affected_wallets": [],
-                        "confidence": 90.0,
-                    }
-                )
+        # Liquidity
+        lp = scanner_data.get("liquidity_usd", scanner_data.get("liquidity", 0))
+        if isinstance(lp, (int, float)) and lp < 5000 and lp > 0:
+            risk_score += 15
+            anomalies.append(
+                {
+                    "pattern": "Low Liquidity",
+                    "severity": "high",
+                    "description": f"Liquidity is only ${lp:,.0f} - easy to manipulate price",
+                    "affected_wallets": [],
+                    "confidence": 85.0,
+                }
+            )
 
-            # Tax analysis
-            sell_tax = scanner_data.get("tax_sell", scanner_data.get("sell_tax", 0))
-            if isinstance(sell_tax, (int, float)) and sell_tax > 10:
-                risk_score += min(int(sell_tax), 30)
-                anomalies.append(
-                    {
-                        "pattern": "High Sell Tax",
-                        "severity": "critical" if sell_tax > 50 else "high",
-                        "description": f"Sell tax is {sell_tax}% - may prevent selling",
-                        "affected_wallets": [],
-                        "confidence": 90.0,
-                    }
-                )
+        # Contract verification
+        verified = scanner_data.get("contract_verified", scanner_data.get("verified", None))
+        if verified is False:
+            risk_score += 20
+            anomalies.append(
+                {
+                    "pattern": "Unverified Contract",
+                    "severity": "high",
+                    "description": "Contract source code is not verified - cannot audit functionality",
+                    "affected_wallets": [],
+                    "confidence": 95.0,
+                }
+            )
+
+        # Honeypot indicators
+        honeypot = scanner_data.get("honeypot_indicators", scanner_data.get("honeypot", []))
+        if honeypot and isinstance(honeypot, list) and len(honeypot) > 0:
+            risk_score += 25
+            anomalies.append(
+                {
+                    "pattern": "Honeypot Indicators",
+                    "severity": "critical",
+                    "description": f"Honeypot signs detected: {', '.join(str(h) for h in honeypot)}",
+                    "affected_wallets": [],
+                    "confidence": 90.0,
+                }
+            )
+
+        # Tax analysis
+        sell_tax = scanner_data.get("tax_sell", scanner_data.get("sell_tax", 0))
+        if isinstance(sell_tax, (int, float)) and sell_tax > 10:
+            risk_score += min(int(sell_tax), 30)
+            anomalies.append(
+                {
+                    "pattern": "High Sell Tax",
+                    "severity": "critical" if sell_tax > 50 else "high",
+                    "description": f"Sell tax is {sell_tax}% - may prevent selling",
+                    "affected_wallets": [],
+                    "confidence": 90.0,
+                }
+            )
 
     # ── Holder-based checks ──
     if holder_data and isinstance(holder_data, dict):

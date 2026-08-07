@@ -217,7 +217,7 @@ def detect_patterns(candles: list[dict[str, float]]) -> list[str]:
     if len(candles) < 10:
         return patterns
 
-    closes = [c["close"] for c in candles]
+    [c["close"] for c in candles]
     highs = [c["high"] for c in candles]
     lows = [c["low"] for c in candles]
     vols = [c.get("volume", 0) for c in candles]

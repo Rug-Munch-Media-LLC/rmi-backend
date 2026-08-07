@@ -54,6 +54,150 @@ def main_menu_kb() -> InlineKeyboardMarkup:
     )
 
 
+# ══════════════════════════════════════════════
+# v5 — WORLD-CLASS MENU SYSTEM
+# Categorized welcome menu + per-category submenus.
+# Every submenu has a back button to menu_main.
+# ══════════════════════════════════════════════
+
+
+def welcome_menu_kb() -> InlineKeyboardMarkup:
+    """Main welcome menu — six capability categories."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("\U0001f50d Scan & Research", callback_data="menu_cat_scan")],
+            [InlineKeyboardButton("\U0001f4c8 Market Intel", callback_data="menu_cat_market")],
+            [InlineKeyboardButton("\U0001f916 AI Chat", callback_data="menu_cat_ai")],
+            [InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="menu_cat_portfolio")],
+            [InlineKeyboardButton("\U0001f464 Account", callback_data="menu_cat_account")],
+            [InlineKeyboardButton("\u2139\ufe0f Help & About", callback_data="menu_cat_help")],
+            [
+                InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
+                InlineKeyboardButton("\U0001f4e2 Alerts", url=TELEGRAM_CHANNEL),
+            ],
+        ]
+    )
+
+
+def _menu_row(label: str, cb: str) -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(label, callback_data=cb)]
+
+
+def category_scan_kb() -> InlineKeyboardMarkup:
+    """🔍 Scan & Research submenu."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f6e1\ufe0f /scan — Full security audit", "run_scan"),
+            _menu_row("\U0001f9db /wallet — Wallet forensics", "run_wallet"),
+            _menu_row("\U0001f575\ufe0f /deployer — Dev fingerprint", "run_deployer"),
+            _menu_row("\U0001f525 /hype — 0-100 hype score", "run_hype"),
+            _menu_row("\U0001f6a8 /rugcheck — Red flag checklist", "run_rugcheck"),
+            _menu_row("\U0001f50e /investigate — Deep report (Pro)", "run_investigate"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_market_kb() -> InlineKeyboardMarkup:
+    """📊 Market Intel submenu."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f4c8 /trending — Hot tokens now", "run_trending"),
+            _menu_row("\U0001f4b0 /price — Token price", "run_price"),
+            _menu_row("\U0001f4c9 /chart — Price chart & TA", "run_chart"),
+            _menu_row("\U0001f4c8 /sentiment — Fear & greed", "run_sentiment"),
+            _menu_row("\U0001f4f0 /news — Crypto headlines", "run_news"),
+            _menu_row("\U0001f4e6 /dex — DEX pairs & liquidity", "run_dex"),
+            _menu_row("\U0001f465 /holders — Top holders (Scout+)", "run_holders"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_ai_kb() -> InlineKeyboardMarkup:
+    """💬 AI Chat submenu."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f4ac /chat — Freestyle AI chat", "run_chat"),
+            _menu_row("\U0001f50d /ask — Deep RAG answer", "run_ask"),
+            _menu_row("\U0001f9e0 /research — RAG deep research (Hunter+)", "run_research"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_portfolio_kb() -> InlineKeyboardMarkup:
+    """📋 Portfolio submenu."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f4c1 /portfolio — Wallet holdings", "run_portfolio"),
+            _menu_row("\U0001f440 /watchlist — Tracked tokens", "run_watchlist"),
+            _menu_row("\U0001f514 /alerts — Price alerts", "run_alerts"),
+            _menu_row("\U0001f4b5 /simulate — Simulate a trade", "run_simulate"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_account_kb() -> InlineKeyboardMarkup:
+    """👤 Account submenu."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f4cb /account — Your dashboard", "run_account"),
+            _menu_row("\u2b50 /pricing — Upgrade tier", "run_pricing"),
+            _menu_row("\U0001f91d /refer — Earn bonus scans", "run_refer"),
+            _menu_row("\U0001f4da /scamschool — Learn scam patterns", "run_scamschool"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_help_kb() -> InlineKeyboardMarkup:
+    """Help & About submenu."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f4d6 /help — Full command reference", "run_help"),
+            _menu_row("\U0001f4f1 Telegram Channel", "open_channel"),
+            _menu_row("\U0001f4ac Community Chat", "open_group"),
+            _menu_row("\U0001f310 Website", "open_website"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def admin_kb() -> InlineKeyboardMarkup:
+    """Owner admin dashboard keyboard."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f4ca Stats", callback_data="admin_stats"),
+                InlineKeyboardButton("\U0001f465 User Lookup", callback_data="admin_user_prompt"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4e2 Broadcast", callback_data="admin_broadcast_prompt"),
+                InlineKeyboardButton("\U0001f4dd Logs", callback_data="admin_logs"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f6e1\ufe0f Bot ON/OFF", callback_data="admin_toggle_bot"),
+                InlineKeyboardButton("\U0001f4ac Chat ON/OFF", callback_data="admin_toggle_chat"),
+            ],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
+        ]
+    )
+
+
+def admin_confirm_kb(action: str, payload: str = "") -> InlineKeyboardMarkup:
+    """Generic confirm/cancel keyboard for destructive admin actions."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\u2705 Confirm", callback_data=f"admin_confirm_{action}"),
+                InlineKeyboardButton("\u274c Cancel", callback_data="admin_cancel"),
+            ]
+        ]
+    )
+
+
 def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
     rows = [
         [web_scan_button(address, chain)],

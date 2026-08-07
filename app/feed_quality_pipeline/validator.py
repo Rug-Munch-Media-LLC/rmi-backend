@@ -8,9 +8,12 @@ Exports:
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from app.feed_quality_pipeline.cache import MAX_POST_LENGTH, MAX_TITLE_LENGTH, MIN_POST_LENGTH
-from app.feed_quality_pipeline.models import FeedPost
+
+if TYPE_CHECKING:
+    from app.feed_quality_pipeline.models import FeedPost
 
 
 class ContentValidator:

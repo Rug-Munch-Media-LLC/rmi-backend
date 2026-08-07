@@ -180,7 +180,7 @@ def compute_protocol_peak_times(
     """Find the peak activity hour for each protocol."""
     proto_hours: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
 
-    for post_id, views in views_by_post.items():
+    for _post_id, views in views_by_post.items():
         for v in views:
             created = v.get("created_at", "")
             if not created:

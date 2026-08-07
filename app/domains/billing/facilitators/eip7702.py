@@ -39,6 +39,9 @@ from app.domains.billing.facilitators.base import (
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
 
+
+import httpx
+
 logger = get_logger("facilitator.eip7702")
 
 # ERC-20 Transfer event signature

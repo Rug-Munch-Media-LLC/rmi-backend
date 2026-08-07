@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import httpx
-from telegram import Update
 from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
@@ -37,6 +36,7 @@ from app.domains.telegram.rugmunchbot.keyboards import back_kb, investigate_kb, 
 from app.domains.telegram.rugmunchbot.scanner import scan_token, scan_token_v2, v2_token_to_legacy
 
 if TYPE_CHECKING:
+    from telegram import Update
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot.investigate")

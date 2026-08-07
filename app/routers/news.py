@@ -131,7 +131,7 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
     """Background cache refresh task — delegates to Redis-backed news_provider."""
     global _NEWS_CACHE, _CACHE_TS
     try:
-        from app.databus.news_provider import refresh_news_cache as redis_refresh, _redis_get, NEWS_CACHE_KEY
+        from app.databus.news_provider import refresh_news_cache as redis_refresh
 
         # Primary: use the Redis-backed refresh (populates Redis + returns data)
         data = await redis_refresh()
@@ -482,7 +482,7 @@ async def get_headlines(
     # Check Redis cache first (cross-worker, always populated by lifespan)
     redis_articles = None
     try:
-        from app.databus.news_provider import _redis_get, NEWS_CACHE_KEY
+        from app.databus.news_provider import NEWS_CACHE_KEY, _redis_get
 
         redis_data = await _redis_get(NEWS_CACHE_KEY)
         if redis_data and redis_data.get("headlines"):

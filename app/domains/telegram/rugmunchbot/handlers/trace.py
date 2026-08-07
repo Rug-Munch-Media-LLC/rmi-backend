@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import httpx
-from telegram import Update
 from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
@@ -33,6 +32,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, trace_kb
 
 if TYPE_CHECKING:
+    from telegram import Update
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot.trace")
@@ -204,7 +204,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         d,
                     ]
                 )
-                for i, w in enumerate(connected[:8], 1):
+                for _i, w in enumerate(connected[:8], 1):
                     label = ""
                     if isinstance(w, dict):
                         addr_w = w.get("address", str(w))

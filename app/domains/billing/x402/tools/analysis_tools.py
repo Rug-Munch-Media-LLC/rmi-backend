@@ -18,6 +18,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from urllib.parse import quote
 
+import httpx
+
 from fastapi import APIRouter, HTTPException
 
 from app.domains.billing.x402.shared import (

@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func as sa_func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_service import BaseService
 from app.core.errors import NotFoundError, ValidationError
@@ -51,6 +50,9 @@ from app.domains.newsletter.services.subscribers import (
     import_subscribers_batch,
     list_subscribers,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 
@@ -583,5 +585,5 @@ class NewsletterService(BaseService[Newsletter]):
             return info
 
         # Aggregate across all newsletters for this creator
-        newsletters, total = await self.list_newsletters(creator_id=creator_id)
+        newsletters, _total = await self.list_newsletters(creator_id=creator_id)
         return await compute_creator_analytics(self.db, newsletters)

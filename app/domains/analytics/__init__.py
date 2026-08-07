@@ -27,7 +27,7 @@ async def _health_check() -> DomainHealth:
     try:
         from app.domains.analytics.service import get_analytics_engine
 
-        engine = get_analytics_engine()
+        get_analytics_engine()
         return DomainHealth(
             name="analytics",
             healthy=True,

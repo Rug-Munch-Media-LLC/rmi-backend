@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from app.core.logging import get_logger
+from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 
 if TYPE_CHECKING:
@@ -104,7 +105,10 @@ async def search_rag(query: str, collections: Iterable[str] | None = None, top_k
         if content and content not in seen:
             seen.add(content)
             deduped.append(h)
-    return deduped[:top_k]
+    result = deduped[:top_k]
+    if result:
+        db.record_activity(rag=True)
+    return result
 
 
 def format_rag_context(hits: list[dict[str, Any]], max_chars: int = CONTEXT_MAX_CHARS) -> str:
@@ -134,6 +138,7 @@ async def chat_synthesis(
     rag_context: str | None = None,
     user_id: int | None = None,
     timeout_secs: float = LLM_SYNTHESIS_TIMEOUT,
+    history: Iterable[dict[str, str]] | None = None,
 ) -> str | None:
     """POST /api/v1/chat with the user's message + RAG context as system context.
 
@@ -141,15 +146,16 @@ async def chat_synthesis(
 
     - ``rag_context`` is injected via ``context_override.system_context``,
       which the backend appends to the system prompt (see app/routers/chat.py).
-    - ``history`` is sent as ``[]`` so backend DB history (shared "anon"
-      bucket for non-JWT callers) never contaminates bot responses.
+    - ``history`` (optional, chronological user/assistant pairs) OVERRIDES the
+      backend DB history so the shared "anon" bucket never contaminates bot
+      responses. Without it, ``[]`` is sent (existing behavior).
     - ``user_id`` (when known) is forwarded as ``X-Forwarded-For`` so the
       backend per-IP chat rate limiter keys per Telegram user instead of
       collapsing all bot traffic onto the host IP.
     """
     payload: dict[str, Any] = {
         "message": message[:2000],
-        "history": [],
+        "history": list(history) if history else [],
         "tier": "T2",
         "max_tokens": 1024,
     }
@@ -164,8 +170,14 @@ async def chat_synthesis(
         async with httpx.AsyncClient(timeout=timeout_secs) as client:
             r = await client.post(f"{BACKEND_URL}/api/v1/chat", headers=headers, json=payload)
             if r.status_code == 200:
-                text = (r.json().get("message") or "").strip()
+                body = r.json()
+                text = (body.get("message") or "").strip()
                 if text:
+                    # Track AI token spend for /admin_stats (best effort).
+                    usage = body.get("usage") or {}
+                    tokens = int(usage.get("total_tokens") or usage.get("totalTokens") or 0)
+                    if tokens:
+                        db.record_activity(tokens=tokens)
                     return text
             logger.debug("chat synthesis HTTP %d (user=%s)", r.status_code, user_id)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
