@@ -1,5 +1,5 @@
 """
-RugMaps AI Analysis - DeepSeek Flash powered token investigation.
+RugMaps AI Analysis — LiteLLM-routed token investigation via DeepSeek 8B.
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
 """
 
@@ -10,14 +10,20 @@ import json
 import os
 import time
 
+import httpx
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# LLM config - DeepSeek Flash for fast, cheap analysis
+# ── LiteLLM proxy config (same pattern as ai_analysis.py) ──
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://127.0.0.1:4000/v1")
+LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
+AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "analysis")  # LiteLLM group → deepseek-analysis
+
+# Legacy direct DeepSeek fallback (used only if LiteLLM is unreachable)
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")
 DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
-AI_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")  # Flash by default
 
 # Analysis cache (in-memory + Redis if available)
 _analysis_cache: dict[str, dict] = {}
@@ -31,7 +37,6 @@ def _cache_key(token: str, chain: str) -> str:
 async def get_cached_analysis(token: str, chain: str) -> dict | None:
     """Check if we have a cached analysis for this token."""
     key = _cache_key(token, chain)
-    # In-memory cache
     if key in _analysis_cache:
         entry = _analysis_cache[key]
         if time.time() - entry.get("_ts", 0) < CACHE_TTL:
@@ -46,7 +51,6 @@ def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
     analysis["_ts"] = time.time()
     analysis["_cached"] = True
     _analysis_cache[key] = analysis
-    # Prune old entries if memory grows
     if len(_analysis_cache) > 500:
         oldest = sorted(_analysis_cache.items(), key=lambda x: x[1].get("_ts", 0))[:100]
         for k, _ in oldest:
@@ -56,7 +60,9 @@ def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
 async def get_token_holders(token_address: str, chain: str) -> list[dict]:
     """Get token holders from our data sources."""
     try:
-        bm = get_rugmaps_engine()
+        from app.domains.scanner.rugmaps import get_bubble_maps_pro
+
+        bm = get_bubble_maps_pro()
         result = await bm.generate_map(center_wallet=token_address, depth=2, min_strength=0.1)
         d = result.to_dict()
         return d.get("nodes", [])
@@ -69,7 +75,9 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
     """Get wallet labels from our ClickHouse/FAISS database."""
     labels = {}
     try:
-        bm = get_rugmaps_engine()
+        from app.domains.scanner.rugmaps import get_bubble_maps_pro
+
+        bm = get_bubble_maps_pro()
         for addr in addresses[:50]:
             try:
                 info = await bm._get_entity_info(addr)
@@ -97,11 +105,9 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
         ann = get_ann_index()
         embedder = CryptoEmbedder()
 
-        # Embed token info
         query_text = f"token {token_address} on {chain} rug pull scam honeypot"
         embedding = await embedder.embed_query(query_text)
 
-        # Search scam patterns index
         if "scam_patterns" in ann.indexes:
             results = ann.search("scam_patterns", embedding, k=5)
             for r in results:
@@ -113,7 +119,6 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
                     }
                 )
 
-        # Search known scams
         if "known_scams" in ann.indexes:
             results = ann.search("known_scams", embedding, k=5)
             for r in results:
@@ -125,7 +130,6 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
                     }
                 )
 
-        # Search wallet profiles
         if "wallet_profiles" in ann.indexes:
             results = ann.search("wallet_profiles", embedding, k=5)
             for r in results:
@@ -136,11 +140,9 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
                         "similarity": float(r.get("score", 0)),
                     }
                 )
-
     except Exception as e:
         logger.warning(f"FAISS search failed: {e}")
 
-    # Deduplicate and sort by similarity
     seen = set()
     unique = []
     for s in sorted(similar, key=lambda x: x.get("similarity", 0), reverse=True):
@@ -148,8 +150,410 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
         if desc and desc not in seen:
             seen.add(desc)
             unique.append(s)
-
     return unique[:10]
+
+
+# ── Core LiteLLM caller for RugMaps AI ─────────────────────────
+
+
+async def _call_litellm_for_rugmaps(prompt: str, task_type: str = "analysis", max_tokens: int = 800) -> str | None:
+    """Call LiteLLM proxy for RugMaps AI analysis.
+
+    Args:
+        prompt: The full analysis prompt with token data.
+        task_type: "analysis" → deepseek-analysis (deep reasoning), "chat" → qwen-chat (fast).
+        max_tokens: Max response tokens.
+
+    Returns:
+        Raw response text, or None on failure.
+    """
+    model = AI_MODEL if task_type == "analysis" else "chat"
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                f"{LITELLM_BASE_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {LITELLM_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a blockchain forensic expert. Return ONLY valid JSON, no markdown, no code blocks.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": max_tokens,
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                return content.strip()
+            logger.warning("litellm_non_200", status=resp.status_code, body=resp.text[:200])
+    except Exception as e:
+        logger.warning("litellm_rugmaps_call_failed", error=str(e))
+    return None
+
+
+async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | None:
+    """Fallback: call DeepSeek API directly if LiteLLM is unreachable."""
+    if not DEEPSEEK_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                DEEPSEEK_URL,
+                headers={
+                    "Authorization": f"Bearer {DEEPSEEK_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a blockchain forensic expert. Return ONLY valid JSON.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": max_tokens,
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                return content.strip()
+    except Exception as e:
+        logger.debug("deepseek_fallback_failed", error=str(e))
+    return None
+
+
+def _parse_ai_json(content: str) -> dict | None:
+    """Parse JSON from AI response, stripping markdown code blocks."""
+    if not content:
+        return None
+    try:
+        cleaned = content.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            cleaned = "\n".join(lines)
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        import re
+
+        match = re.search(r"\{[\s\S]*\}", content)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                pass
+    return None
+
+
+# ── Holder Cluster Analysis (NEW — wired to LiteLLM) ──────────
+
+
+async def analyze_holder_clusters(
+    token_address: str,
+    chain: str,
+    holders: list[dict],
+    labels: dict[str, dict],
+) -> dict:
+    """AI-powered wallet cluster analysis for suspicious patterns.
+
+    Analyzes holder clusters for bundling, sniper coordination, wash trading,
+    insider rings, and dev-linked wallet networks.
+    """
+    if not holders:
+        return {"clusters": [], "suspicious_count": 0, "verdict": "UNKNOWN", "summary": "No holder data available."}
+
+    holder_text = []
+    for h in holders[:15]:
+        addr = h.get("address", "")[:12]
+        pct = h.get("supply_pct", h.get("pct", "?"))
+        label = labels.get(h.get("address", ""), {}).get("entity", {}).get("name", "")
+        risk = labels.get(h.get("address", ""), {}).get("risk_score", "?")
+        holder_text.append(f"  {addr}... — {pct}% supply — label: {label or 'unknown'} — risk: {risk}/100")
+
+    prompt = f"""You are RugMunch Intelligence's wallet cluster forensic analyst.
+
+TOKEN: {token_address} on {chain}
+
+WALLET CLUSTER DATA:
+{chr(10).join(holder_text) if holder_text else "No holder data available"}
+
+SUSPICIOUS PATTERNS TO IDENTIFY:
+1. Bundled launches: multiple wallets funded from same source address
+2. Sniper clusters: wallets buying in the same block with elevated gas
+3. Wash trading rings: wallets trading tokens back and forth to fake volume
+4. Insider coordination: wallets with identical buy/sell timing patterns
+5. Dev-linked wallets: wallets showing funding linkage to deployer
+6. Dormant activation: old wallets suddenly activated to trade this token
+
+Return ONLY valid JSON with these fields:
+{{
+  "clusters": [
+    {{
+      "cluster_type": "<bundled|sniper|wash_trade|insider|dev_linked|dormant>",
+      "wallet_count": <estimated number of wallets in cluster>,
+      "supply_percentage": <estimated supply % controlled by cluster>,
+      "confidence": <0-100>,
+      "description": "<brief description of the suspicious pattern>"
+    }}
+  ],
+  "suspicious_count": <number of clusters detected>,
+  "verdict": "<CLEAN|MINOR_CONCERN|SUSPICIOUS|HIGHLY_COORDINATED>",
+  "summary": "<2-3 sentence concise analysis of the cluster findings>"
+}}"""
+
+    content = await _call_litellm_for_rugmaps(prompt, task_type="analysis", max_tokens=600)
+    if not content:
+        content = await _call_deepseek_fallback(prompt, max_tokens=600)
+
+    if content:
+        parsed = _parse_ai_json(content)
+        if parsed:
+            return parsed
+
+    # Fallback: simple heuristic clustering
+    return _fallback_cluster_analysis(holders, labels)
+
+
+def _fallback_cluster_analysis(holders: list[dict], labels: dict[str, dict]) -> dict:
+    """Rule-based cluster analysis when AI is unavailable."""
+    clusters = []
+    high_risk_addrs = [a for a, lb in labels.items() if lb.get("risk_score", 0) >= 70]
+    bundled = [h for h in holders if h.get("bundled", False)]
+
+    if bundled:
+        clusters.append(
+            {
+                "cluster_type": "bundled",
+                "wallet_count": len(bundled),
+                "supply_percentage": sum(h.get("supply_pct", h.get("pct", 0)) for h in bundled),
+                "confidence": 80,
+                "description": f"{len(bundled)} wallets share funding source characteristics",
+            }
+        )
+    if high_risk_addrs:
+        clusters.append(
+            {
+                "cluster_type": "high_risk",
+                "wallet_count": len(high_risk_addrs),
+                "supply_percentage": sum(
+                    next((h.get("supply_pct", h.get("pct", 0)) for h in holders if h.get("address", "") == a), 0)
+                    for a in high_risk_addrs
+                ),
+                "confidence": 70,
+                "description": f"{len(high_risk_addrs)} wallets flagged as high risk by our label system",
+            }
+        )
+
+    suspicious_count = len(clusters)
+    top_pct = sum(h.get("supply_pct", h.get("pct", 0)) for h in holders[:3])
+
+    return {
+        "clusters": clusters,
+        "suspicious_count": suspicious_count,
+        "verdict": "HIGHLY_COORDINATED"
+        if suspicious_count >= 3
+        else "SUSPICIOUS"
+        if suspicious_count >= 1
+        else "CLEAN",
+        "summary": (
+            f"Found {suspicious_count} suspicious wallet cluster(s). "
+            f"Top 3 holders control {top_pct:.0f}% of supply. "
+            + (
+                "Extreme concentration — possible coordinated activity."
+                if top_pct > 50
+                else "Distribution appears normal."
+            )
+        ),
+    }
+
+
+# ── Contract Anomaly Detection (NEW — wired to LiteLLM) ───────
+
+
+async def detect_contract_anomalies(
+    token_address: str,
+    chain: str,
+    holder_data: dict,
+    scanner_data: dict | None = None,
+) -> dict:
+    """AI-powered contract anomaly detection for rug pull indicators.
+
+    Reviews token holder distribution, contract behavior, and on-chain patterns
+    to identify rug pull indicators, honeypots, and manipulation.
+    """
+    holder_summary = []
+    holders_list = holder_data.get("holders", holder_data.get("nodes", []))
+    for h in holders_list[:10] if isinstance(holders_list, list) else []:
+        addr = h.get("address", h.get("id", "?"))[:12]
+        pct = h.get("pct", h.get("supply_pct", "?"))
+        label = h.get("label", h.get("entity", "unknown"))
+        holder_summary.append(f"  {addr}... — {pct}% — {label}")
+
+    scanner_summary = ""
+    if scanner_data and isinstance(scanner_data, dict):
+        risk_score = scanner_data.get("risk_score", scanner_data.get("safety_score", "?"))
+        risk_level = scanner_data.get("risk_level", "?")
+        flags = scanner_data.get("risk_flags", [])
+        lp = scanner_data.get("liquidity_usd", scanner_data.get("liquidity", "?"))
+        sell_tax = scanner_data.get("tax_sell", scanner_data.get("sell_tax", 0))
+        scanner_summary = f"""
+SCANNER RESULTS:
+- Risk score: {risk_score}/100 ({risk_level})
+- Liquidity: ${lp}
+- Sell tax: {sell_tax}%
+- Risk flags: {json.dumps(flags) if flags else "None"}
+"""
+
+    prompt = f"""You are RugMunch Intelligence's smart-contract anomaly detection specialist.
+
+TOKEN: {token_address} on {chain}
+
+HOLDER DISTRIBUTION:
+{chr(10).join(holder_summary) if holder_summary else "No holder data available"}
+
+{scanner_summary}
+
+RUG PULL INDICATORS TO CHECK:
+1. Concentration risk: top holders controlling excessive supply (>50%)
+2. Honeypot patterns: buy enabled but sell restricted
+3. High sell tax: taxes that prevent profitable exits (>10%)
+4. Unverified contract: source code hidden — cannot audit
+5. Unlocked liquidity: LP tokens not burned or locked
+6. Fresh wallet clusters: wallets created same day as token launch
+7. Ownership retention: deployer retains mint/pause/blacklist privileges
+8. Hidden mint functions: ability to create unlimited new tokens
+9. Transfer pausability: owner can freeze all transfers
+10. Wallet blacklisting: owner can block specific addresses from selling
+
+Return ONLY valid JSON with these fields:
+{{
+  "anomalies": [
+    {{
+      "type": "<string label of the anomaly>",
+      "severity": "<CRITICAL|HIGH|MEDIUM|LOW>",
+      "description": "<detailed explanation of the finding>",
+      "confidence": <0-100>
+    }}
+  ],
+  "rug_pull_probability": <0-100>,
+  "honeypot_likelihood": <0-100>,
+  "verdict": "<SAFE|SUSPICIOUS|HIGH_RISK|LIKELY_RUG_PULL>",
+  "summary": "<2-3 sentence concise analysis>",
+  "recommendation": "<one sentence action recommendation>"
+}}"""
+
+    content = await _call_litellm_for_rugmaps(prompt, task_type="analysis", max_tokens=800)
+    if not content:
+        content = await _call_deepseek_fallback(prompt, max_tokens=800)
+
+    if content:
+        parsed = _parse_ai_json(content)
+        if parsed:
+            return parsed
+
+    return _fallback_anomaly_detection(holder_data, scanner_data)
+
+
+def _fallback_anomaly_detection(holder_data: dict, scanner_data: dict | None) -> dict:
+    """Rule-based anomaly detection when AI is unavailable."""
+    anomalies = []
+    rug_prob = 0
+    honeypot_prob = 0
+
+    holders_list = holder_data.get("holders", holder_data.get("nodes", []))
+    if not isinstance(holders_list, list):
+        holders_list = []
+
+    top_pct = sum(h.get("pct", h.get("supply_pct", 0)) for h in holders_list[:3])
+    if top_pct > 50:
+        anomalies.append(
+            {
+                "type": "Concentration Risk",
+                "severity": "CRITICAL" if top_pct > 80 else "HIGH",
+                "description": f"Top 3 holders control {top_pct:.0f}% of supply",
+                "confidence": 95,
+            }
+        )
+        rug_prob += 30
+
+    if scanner_data and isinstance(scanner_data, dict):
+        sell_tax = scanner_data.get("tax_sell", scanner_data.get("sell_tax", 0))
+        if isinstance(sell_tax, (int, float)) and sell_tax > 50:
+            anomalies.append(
+                {
+                    "type": "High Sell Tax",
+                    "severity": "CRITICAL",
+                    "description": f"{sell_tax}% sell tax — effectively prevents selling",
+                    "confidence": 95,
+                }
+            )
+            rug_prob += 40
+            honeypot_prob += 50
+        elif isinstance(sell_tax, (int, float)) and sell_tax > 10:
+            anomalies.append(
+                {
+                    "type": "Elevated Sell Tax",
+                    "severity": "HIGH",
+                    "description": f"{sell_tax}% sell tax — significantly above normal",
+                    "confidence": 85,
+                }
+            )
+            rug_prob += 15
+
+        verif = scanner_data.get("contract_verified", scanner_data.get("verified", None))
+        if verif is False:
+            anomalies.append(
+                {
+                    "type": "Unverified Contract",
+                    "severity": "HIGH",
+                    "description": "Contract source code is not verified — hidden functionality possible",
+                    "confidence": 95,
+                }
+            )
+            rug_prob += 20
+
+    return {
+        "anomalies": anomalies,
+        "rug_pull_probability": min(100, rug_prob),
+        "honeypot_likelihood": min(100, honeypot_prob),
+        "verdict": (
+            "LIKELY_RUG_PULL"
+            if rug_prob >= 70
+            else "HIGH_RISK"
+            if rug_prob >= 40
+            else "SUSPICIOUS"
+            if anomalies
+            else "SAFE"
+        ),
+        "summary": f"Found {len(anomalies)} anomaly(s). "
+        + (anomalies[0]["description"] if anomalies else "No concerning patterns detected."),
+        "recommendation": (
+            "DO NOT INVEST — strong rug pull indicators"
+            if rug_prob >= 70
+            else "Extreme caution — multiple red flags"
+            if rug_prob >= 40
+            else "Proceed with caution"
+            if anomalies
+            else "No action needed"
+        ),
+    }
+
+
+# ── Unified Token Graph Analysis (existing — rewired to LiteLLM) ─
 
 
 async def generate_ai_analysis(
@@ -160,24 +564,19 @@ async def generate_ai_analysis(
     labels: dict[str, dict],
     similar_scams: list[dict],
 ) -> dict:
-    """Generate AI analysis using DeepSeek Flash with our own data."""
-    import httpx
-
-    # Build a data-rich prompt from our own systems
+    """Generate AI analysis via LiteLLM with fallback to rule-based engine."""
     holder_summary = []
     for h in holders[:10]:
         addr = h.get("address", "")[:12]
         pct = h.get("supply_pct", h.get("pct", "?"))
         label = labels.get(h.get("address", ""), {}).get("entity", {}).get("name", "")
         risk = labels.get(h.get("address", ""), {}).get("risk_score", "?")
-        holder_summary.append(f"  {addr}... - {pct}% supply - label: {label or 'unknown'} - risk: {risk}/100")
+        holder_summary.append(f"  {addr}... — {pct}% supply — label: {label or 'unknown'} — risk: {risk}/100")
 
     similar_summary = (
         "\n".join(
-            [
-                f"  - {s.get('description', '')[:100]} (similarity: {s.get('similarity', 0):.2f})"
-                for s in similar_scams[:5]
-            ]
+            f"  - {s.get('description', '')[:100]} (similarity: {s.get('similarity', 0):.2f})"
+            for s in similar_scams[:5]
         )
         or "No similar scam patterns found in our database."
     )
@@ -204,7 +603,7 @@ SIMILAR SCAM PATTERNS (from our FAISS vector database):
 {similar_summary}
 
 WALLET LABELS (from our 393K-label database):
-{json.dumps({a[:12]: line.get("entity", {}).get("name") or line.get("entity", {}).get("label") for a, line in list(labels.items())[:10]})}
+{json.dumps({a[:12]: lb.get("entity", {}).get("name") or lb.get("entity", {}).get("label") for a, lb in list(labels.items())[:10]})}
 
 Based on our data, provide a JSON analysis with these fields:
 - "verdict": (SAFE / SUSPICIOUS / HIGH_RISK / SCAM)
@@ -219,58 +618,29 @@ Based on our data, provide a JSON analysis with these fields:
 
 Return ONLY valid JSON, no markdown, no code blocks."""
 
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                DEEPSEEK_URL,
-                headers={
-                    "Authorization": f"Bearer {DEEPSEEK_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": AI_MODEL,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a crypto security expert. Return only valid JSON.",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.3,
-                    "max_tokens": 800,
-                },
-            )
+    # Try LiteLLM first, then DeepSeek fallback
+    content = await _call_litellm_for_rugmaps(prompt, task_type="analysis", max_tokens=800)
+    if not content:
+        content = await _call_deepseek_fallback(prompt, max_tokens=800)
 
-            if resp.status_code == 200:
-                data = resp.json()
-                content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+    if content:
+        parsed = _parse_ai_json(content)
+        if parsed:
+            return parsed
+        # Partial parse: use raw text as summary
+        return {
+            "verdict": "UNKNOWN",
+            "risk_score": risk_score,
+            "summary": content[:300],
+            "red_flags": [],
+            "green_flags": [],
+            "dev_wallets": [],
+            "bundle_wallets": [],
+            "recommendation": "Manual review recommended — AI response was malformed.",
+            "confidence": 30,
+        }
 
-                # Try to parse the JSON response
-                try:
-                    # Strip any markdown code blocks
-                    if "```" in content:
-                        content = content.split("```")[1]
-                        if content.startswith("json"):
-                            content = content[4:]
-                    analysis = json.loads(content.strip())
-                    return analysis
-                except json.JSONDecodeError:
-                    # Fallback: return raw text as summary
-                    return {
-                        "verdict": "UNKNOWN",
-                        "risk_score": risk_score,
-                        "summary": content[:300],
-                        "red_flags": [],
-                        "green_flags": [],
-                        "recommendation": "Manual review recommended - AI response was malformed.",
-                        "confidence": 30,
-                    }
-
-            logger.warning(f"DeepSeek API returned {resp.status_code}: {resp.text[:200]}")
-    except Exception as e:
-        logger.error(f"AI analysis failed: {e}")
-
-    # Fallback analysis from our own data (no AI needed)
+    logger.warning("AI analysis unavailable — using fallback engine")
     return generate_fallback_analysis(risk_score, holders, labels, similar_scams, node_count, link_count)
 
 
@@ -289,14 +659,12 @@ def generate_fallback_analysis(
     dev_wallets = []
     bundle_wallets = []
 
-    # Check for high concentration
     top_holder_pct = sum(h.get("supply_pct", h.get("pct", 0)) for h in holders[:3])
     if top_holder_pct > 50:
-        red_flags.append(f"Top 3 holders control {top_holder_pct:.0f}% of supply - extreme concentration risk")
+        red_flags.append(f"Top 3 holders control {top_holder_pct:.0f}% of supply — extreme concentration risk")
     elif top_holder_pct < 20:
         green_flags.append(f"Well distributed: top 3 holders only control {top_holder_pct:.0f}%")
 
-    # Check labels
     high_risk_count = 0
     for addr, label_data in labels.items():
         entity = label_data.get("entity", {})
@@ -314,7 +682,6 @@ def generate_fallback_analysis(
         if entity.get("type") == "exchange":
             green_flags.append(f"Exchange wallet detected: {entity.get('name', addr[:12])}")
 
-    # Similar scam patterns
     if similar_scams:
         top_match = similar_scams[0]
         if top_match.get("similarity", 0) > 0.7:
@@ -322,7 +689,6 @@ def generate_fallback_analysis(
     else:
         green_flags.append("No matches in our scam pattern database")
 
-    # Risk assessment
     if risk_score >= 80 or high_risk_count >= 3:
         verdict = "SCAM"
     elif risk_score >= 50 or high_risk_count >= 1:
@@ -345,14 +711,14 @@ def generate_fallback_analysis(
         "dev_wallets": dev_wallets[:5],
         "bundle_wallets": bundle_wallets[:5],
         "recommendation": (
-            "DO NOT INVEST - clear scam indicators"
+            "DO NOT INVEST — clear scam indicators"
             if verdict == "SCAM"
-            else "Extreme caution - multiple high-risk signals"
+            else "Extreme caution — multiple high-risk signals"
             if verdict == "HIGH_RISK"
-            else "Proceed with caution - some suspicious patterns"
+            else "Proceed with caution — some suspicious patterns"
             if verdict == "SUSPICIOUS"
             else "No major concerns detected from our analysis"
         ),
         "confidence": confidence,
-        "source": "rmi_data_engine",  # Indicates this came from our own data
+        "source": "rmi_data_engine",
     }

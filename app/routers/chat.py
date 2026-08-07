@@ -352,6 +352,7 @@ async def chat(
         result = await do_chat_completion(
             messages=messages,
             model=req.model,
+            task_type="chat",  # LiteLLM routing: fast creative model
             tier=req.tier,
             temperature=req.temperature,
             max_tokens=req.max_tokens,
