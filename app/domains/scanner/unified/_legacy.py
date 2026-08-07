@@ -9,10 +9,12 @@ working unchanged. Public entry point: ``scan_token_unified``.
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
-from app.domains.scanner.unified.model import DeepScanProfile, ScanResult
+
+if TYPE_CHECKING:
+    from app.domains.scanner.unified.model import DeepScanProfile, ScanResult
 
 logger = get_logger(__name__)
 
