@@ -124,7 +124,7 @@ async def get_report(report_id: str) -> dict:
         r = await _get_redis()
         data = await r.get(f"community:forensics:report:{report_id}")
         if not data:
-            raise NotFoundError(message=f"Report {report_id} not found") from e
+            raise NotFoundError(message=f"Report {report_id} not found")
         return json.loads(data)
     except NotFoundError:
         raise

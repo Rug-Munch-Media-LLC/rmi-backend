@@ -28,6 +28,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
+from app.core.redis import get_redis
 from app.routers.dev_portal import CreateKeyRequest, create_api_key
 
 logger = get_logger("developer_tier")
@@ -63,8 +64,6 @@ def verify_solana_signature(address: str, message: str, signature: str) -> bool:
         import base64
 
         from nacl.signing import VerifyKey
-
-        from app.core.redis import get_redis
 
         pubkey = VerifyKey(base64.b58decode(address))
         msg_bytes = message.encode("utf-8")
