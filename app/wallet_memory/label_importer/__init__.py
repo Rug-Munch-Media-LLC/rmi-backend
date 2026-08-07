@@ -100,7 +100,6 @@ async def load_all_static_labels() -> dict[str, int]:
     counts: dict[str, int] = {}
 
     try:
-        from . import loaders as _loaders
         from .storage import get_storage
 
         storage = get_storage()
@@ -184,6 +183,33 @@ async def load_all_static_labels() -> dict[str, int]:
 import os  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
+    "DATA_DIR",
+    "ETH_CSV_SPECS",
+    "ETHERSCAN_COMBINED",
+    "ETHERSCAN_PHISH_HACK",
+    "LABELS_DIR",
+    "SOLANA_CSV_SPECS",
+    "SOLANA_LABELS_REPO",
+    "_download_file",
+    "_download_json",
+    "_ensure_bsc_labels",
+    "_ensure_contract_name_labels",
+    "_ensure_eth_scam_labels",
+    "_ensure_exchange_cluster_labels",
+    "_ensure_exchange_wallet_labels",
+    "_ensure_solana_labels",
+    "_ensure_wallet_labels_table",
+    "_flush_batch",
+    "_get_http",
+    "_load_bsc_detail",
+    "_load_contract_names",
+    "_load_csv_labels",
+    "_load_etherscan_combined",
+    "_load_etherscan_phish_hack",
+    "_load_exchange_clusters",
+    "_load_exchange_wallets",
+    "_load_ofac_sanctions",
+    "_normalize_chain",
     "get_last_load_counts",
     "is_loading",
     "load_all_static_labels",

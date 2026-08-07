@@ -8,6 +8,7 @@ Run: PACT_BROKER_URL=http://localhost:9292 python -m pytest tests/contract/ -v -
 """
 
 import os
+import shutil
 import subprocess
 
 import pytest
@@ -17,6 +18,9 @@ import pytest
 def test_verify_pacts_against_provider():
     """Verify that rmi-backend satisfies all consumer contracts from the Pact Broker."""
     broker_url = os.environ.get("PACT_BROKER_URL", "http://localhost:9292")
+
+    if shutil.which("pact-verifier") is None:
+        pytest.skip("pact-verifier binary not installed — Pact verification skipped")
 
     # This runs the pact verifier which:
     # 1. Fetches all contracts for rmi-backend from the broker

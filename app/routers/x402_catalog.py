@@ -347,7 +347,7 @@ def get_catalog() -> Any:
 
     # ── Primary source: TOOL_PRICES + DATABUS_TOOLS (170 total, single source of truth) ──
     try:
-        from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES
+        from app.routers.x402_enforcement import TOOL_PRICES
 
         all_tools = {}
         services = set()

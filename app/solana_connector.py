@@ -17,7 +17,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 try:
-    from solana.rpc.api import Client, Pubkey, Signature, Transaction
+    from solana.rpc.api import Client, Pubkey, Signature
 
     SOLANA_AVAILABLE = True
     logger.info("solana-py SDK imported successfully")

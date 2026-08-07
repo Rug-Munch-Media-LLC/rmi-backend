@@ -243,3 +243,20 @@ from app.routers.x402_enrichment.utils import (  # noqa: E402 — module docstri
     preload_enrichment_cache,
     propagate_labels_cross_chain,
 )
+
+__all__ = [
+    "ENRICH_CACHE_TTL",
+    "WalletLabel",
+    "_fire_enrichment_alert",
+    "_load_recent_intel",
+    "_redis",
+    "_synthesize_enrichment",
+    "build_risk_summary",
+    "enrich_tool_response",
+    "extract_addresses",
+    "get_cached_enrichment",
+    "lookup_contract_names",
+    "lookup_labels",
+    "preload_enrichment_cache",
+    "propagate_labels_cross_chain",
+]

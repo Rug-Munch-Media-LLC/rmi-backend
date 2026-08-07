@@ -112,8 +112,6 @@ def build_premium_chains(chains: dict[str, ProviderChain]) -> None:
     try:
         from app.databus.webhooks import (
             handle_webhook,
-            list_webhooks,
-            setup_webhook,
         )
 
         chains["webhook_handler"] = ProviderChain(

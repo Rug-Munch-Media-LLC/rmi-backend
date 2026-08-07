@@ -102,6 +102,12 @@ class TestHealthEndpointBenchmarks:
             for m in (mock_r, mock_p, mock_n, mock_q, mock_c, mock_m, mock_e):
                 m.return_value = {"healthy": True, "latency_ms": 0}
 
+            # Warm up the exact endpoint under test: the shared fixture only
+            # warms /live, but /health triggers lazy one-time init (health
+            # store checks, rate limiter state) that would otherwise be
+            # measured as cold-start cost and flake on shared hosts.
+            _time_request(benchmark_client, "GET", "/health")
+
             elapsed_ms, resp = _time_request(benchmark_client, "GET", "/health")
 
         assert resp.status_code == 200, f"/health returned {resp.status_code}"
@@ -122,6 +128,9 @@ class TestHealthEndpointBenchmarks:
     @pytest.mark.benchmark
     def test_ready_endpoint_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
         """GET /ready should respond in < 50ms (quick store checks)."""
+        # Warm up the exact endpoint under test (see test_health_endpoint_response_time).
+        _time_request(benchmark_client, "GET", "/ready")
+
         elapsed_ms, resp = _time_request(benchmark_client, "GET", "/ready")
 
         assert resp.status_code == 200

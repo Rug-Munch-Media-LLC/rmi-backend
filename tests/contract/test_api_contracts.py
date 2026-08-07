@@ -815,12 +815,18 @@ class TestOpenAPIContract:
         assert wallet_scan in paths, f"Missing route: {wallet_scan}"
 
     def test_openapi_has_bulletin_route(self, client, auth_headers):
-        """OpenAPI must declare GET /api/v1/bulletin/latest."""
+        """OpenAPI must NOT declare GET /api/v1/bulletin/latest.
+
+        The bulletin router is deliberately disabled (Supabase not
+        configured — see app/routers/bulletin.py docstring). The contract
+        asserts the route stays absent so re-enabling it requires an
+        intentional change here too.
+        """
         resp = client.get("/openapi.json", headers=auth_headers)
         data = resp.json()
         paths = data["paths"]
         bulletin_path = "/api/v1/bulletin/latest"
-        assert bulletin_path in paths, f"Missing route: {bulletin_path}"
+        assert bulletin_path not in paths, f"Bulletin route should be disabled: {bulletin_path}"
 
 
 # ═════════════════════════════════════════════════════════════════════════

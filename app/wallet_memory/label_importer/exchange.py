@@ -166,8 +166,8 @@ async def _load_exchange_wallets(storage) -> int:
                         count += 1
             else:
                 with open(path, newline="", encoding="utf-8-sig") as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
+                    dict_reader = csv.DictReader(f)
+                    for row in dict_reader:
                         addr = row.get("address", "") or row.get("from_address", "")
                         addr = addr.strip().lower()
                         if not addr or len(addr) < 10:

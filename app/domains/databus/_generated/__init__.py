@@ -11,3 +11,5 @@ into focused sub-modules under _generated/chains/ for maintainability.
 from __future__ import annotations
 
 from app.domains.databus._generated.chains import build_provider_chains
+
+__all__ = ["build_provider_chains"]

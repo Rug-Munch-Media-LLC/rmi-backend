@@ -57,6 +57,7 @@ from app.domains.postiz.router import router  # noqa: E402 — optional dependen
 from app.domains.postiz.service import get_store  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
+    "PLATFORMS",
     "get_store",
     "router",
 ]

@@ -241,7 +241,7 @@ async def _process_message(msg: dict) -> int:
 async def _run_listener(stop_event: asyncio.Event) -> None:
     """Connect to CertStream and consume messages until stop_event."""
     try:
-        import websockets
+        import websockets  # noqa: F401 — availability probe
     except ImportError:
         logger.warning("certstream_skipped err=websockets_not_installed")
         return
@@ -287,7 +287,7 @@ async def start_listener() -> asyncio.Task | None:
         logger.info("certstream_disabled env=CERTSTREAM_ENABLED=0")
         return None
     try:
-        import websockets
+        import websockets  # noqa: F401 — availability probe
     except ImportError:
         logger.info("certstream_skipped err=websockets_not_installed")
         return None

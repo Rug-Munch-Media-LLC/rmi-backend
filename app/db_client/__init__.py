@@ -8,8 +8,6 @@ Read-through: Redis first, Supabase on miss.
 
 from __future__ import annotations
 
-from typing import Any
-
 from .cache import (
     _async_retry,
     cache_delete,

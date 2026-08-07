@@ -15,29 +15,29 @@ logger = get_logger("wallet_factory")
 
 # ── Crypto library availability flags ────────────────────────────
 try:
-    from coincurve import PrivateKey as CoinCurveKey
+    from coincurve import PrivateKey as CoinCurveKey  # noqa: F401 — availability probe
 
     _HAS_COINCURVE = True
 except ImportError:
     _HAS_COINCURVE = False
 
 try:
-    from ecdsa import NIST256p, NIST384p, NIST521p, SECP256k1, SigningKey
+    from ecdsa import NIST256p, NIST384p, NIST521p, SECP256k1, SigningKey  # noqa: F401 — availability probe
 
     _HAS_ECDSA = True
 except ImportError:
     _HAS_ECDSA = False
 
 try:
-    import base58
+    import base58  # noqa: F401 — availability probe
 
     _HAS_BASE58 = True
 except ImportError:
     _HAS_BASE58 = False
 
 try:
-    from nacl.encoding import RawEncoder
-    from nacl.signing import SigningKey as NaClSigningKey
+    from nacl.encoding import RawEncoder  # noqa: F401 — availability probe
+    from nacl.signing import SigningKey as NaClSigningKey  # noqa: F401 — availability probe
 
     _HAS_NACL = True
 except ImportError:

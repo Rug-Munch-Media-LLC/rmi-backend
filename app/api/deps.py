@@ -31,4 +31,3 @@ except ImportError:
     get_optional_user = None  # type: ignore[assignment]
 
 with contextlib.suppress(ImportError):
-    from app.core.config import settings  # fallback until core.config lands

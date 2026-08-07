@@ -6,12 +6,15 @@ Canonical wire formats for cross-chain entity resolution results.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
-if TYPE_CHECKING:
-    from datetime import datetime
+# NOTE: ``datetime`` is imported at runtime (not TYPE_CHECKING-only) because
+# Pydantic v2 must resolve the annotation when building JSON/OpenAPI schemas
+# for models with ``first_deploy``/``last_seen`` fields (model_json_schema()
+# raises PydanticUserError otherwise).
 
 
 class DeployerEvent(BaseModel):

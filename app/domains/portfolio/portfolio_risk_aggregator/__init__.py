@@ -40,5 +40,6 @@ __all__ = [
     "SolanaConnector",
     "TokenHolding",
     "TokenRiskScorer",
+    "ERC20_ABI",
     "validate_wallet_address",
 ]

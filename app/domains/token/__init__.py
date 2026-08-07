@@ -9,7 +9,7 @@ from app.core.health import DomainHealth
 async def _health_check() -> DomainHealth:
     """Token health: DataBus is importable."""
     try:
-        import app.databus
+        import app.databus  # noqa: F401 — availability probe
 
         return DomainHealth(
             name="token",

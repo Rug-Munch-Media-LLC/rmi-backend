@@ -402,10 +402,10 @@ class WalletClusteringEngine:
         """
         if gas_payer_map is None:
             # Infer from existing data: from_address paid for to_address
-            gas_payer_map = defaultdict(set)
+            gas_payer_map = defaultdict(list)
             for addr, profile in self.wallets.items():
                 for cp in profile.unique_counterparties:
-                    gas_payer_map[addr].add(cp)
+                    gas_payer_map[addr].append(cp)
 
         clusters = []
         for payer, recipients in gas_payer_map.items():

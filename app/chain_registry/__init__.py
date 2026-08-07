@@ -49,4 +49,7 @@ __all__ = [
     "is_solana",
     "list_chains",
     "resolve_chain_id",
+    "evm",
+    "solana",
+    "tron",
 ]

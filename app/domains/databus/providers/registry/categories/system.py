@@ -13,7 +13,7 @@ def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
     _g = locals_dict
     # ── Conditional imports for optional databus modules ──
     try:
-        from app.databus.webhooks import handle_webhook, list_webhooks, setup_webhook
+        from app.databus.webhooks import handle_webhook
     except ImportError:
         handle_webhook = None
     try:

@@ -35,7 +35,7 @@ Security:
 
 
 # Import submodules to register routes on the router
-from app.routers.x402_databus_tools import (
+from app.routers.x402_databus_tools import (  # noqa: F401 — imported to register routes
     analysis_tools,
     market_tools,
     wallet_tools,
