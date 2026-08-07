@@ -91,7 +91,7 @@ async def _fetch_dexscreener_token_info(token_address: str, chain: str = "solana
     import httpx
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(f"https://api.dexscreener.com/tokens/v1/{chain}/{token_address}")
             if resp.status_code == 200:
                 pairs = resp.json()
@@ -323,11 +323,17 @@ async def token_holder_graph(
 
     rm = _get_rm()
 
-    # Get the RugMap concurrently with other data fetches
+    # Get the RugMap concurrently with other data fetches.
+    # Bound the native graph build (deep BFS with per-wallet chain fetches
+    # can exceed gunicorn's 120s worker timeout) so we fail fast and fall
+    # back to DexScreener instead of hanging the request.
     d = {"nodes": [], "links": [], "stats": {}}
     map_failed = False
     try:
-        result = await rm.generate_map(center_wallet=token_address, depth=3, min_strength=0.05)
+        result = await asyncio.wait_for(
+            rm.generate_map(center_wallet=token_address, depth=3, min_strength=0.05),
+            timeout=8,
+        )
         d = result.to_dict()
     except Exception as e:
         map_failed = True
@@ -358,13 +364,22 @@ async def token_holder_graph(
         enriched["explorer_url"] = enriched.get("explorer_url") or _get_explorer_url(chain, addr)
         enriched_nodes.append(enriched)
 
-    # Fetch wallet labels and similar scams in parallel
-    labels, similar_scams, holders = await asyncio.gather(
-        get_wallet_labels(addresses_for_labels),
-        search_similar_scams(token_address, chain),
-        get_token_holders(token_address, chain),
-        return_exceptions=True,
-    )
+    # Fetch wallet labels and similar scams in parallel.
+    # Bound the whole gather: get_wallet_labels() fetches per-address chain
+    # transactions (up to 50 x 15s) which alone can exceed the worker timeout.
+    try:
+        labels, similar_scams, holders = await asyncio.wait_for(
+            asyncio.gather(
+                get_wallet_labels(addresses_for_labels),
+                search_similar_scams(token_address, chain),
+                get_token_holders(token_address, chain),
+                return_exceptions=True,
+            ),
+            timeout=15,
+        )
+    except TimeoutError:
+        logger.warning(f"RugMaps enrichment gather timed out for {token_address[:12]}, using empty defaults")
+        labels, similar_scams, holders = {}, [], []
 
     if isinstance(labels, Exception):
         labels = {}
@@ -487,8 +502,13 @@ async def auto_label_wallet(request: dict) -> dict[str, str]:
 
 
 @router.get("/auto-label/stats")
-async def auto_label_stats() -> dict[str, str]:
-    """Get auto-labeler statistics."""
+async def auto_label_stats() -> dict[str, Any]:
+    """Get auto-labeler statistics.
+
+    Values are intentionally heterogeneous (ints, dicts, None) — the
+    annotation is ``dict[str, Any]`` so FastAPI does not coerce/validate
+    them as strings (previously caused ResponseValidationError 500).
+    """
     try:
         from app.auto_labeler import get_auto_labeler
 

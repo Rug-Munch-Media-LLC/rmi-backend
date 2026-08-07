@@ -14,6 +14,7 @@ All powered by local Ollama - no external API costs.
 # (get_news_articles, ask_ollama) live in other modules; this standalone
 # tool set is retained for reference only.
 # mypy: ignore-errors
+# ruff: noqa: F821 — dead-code reference module; helpers do not exist in repo
 
 from __future__ import annotations
 

@@ -25,8 +25,10 @@ from app.domains.scanner.rugmaps.graph import (
     add_or_update_node,
     calculate_connection_strength,
     calculate_positions,
+    calculate_risk,
     calculate_stats,
     classify_wallet,
+    get_entity_info,
 )
 from app.domains.scanner.rugmaps.html_export import _generate_interactive_html, export_html
 from app.domains.scanner.rugmaps.models import BubbleMap
@@ -122,11 +124,27 @@ class BubbleMapsPro:
         bubble_map.stats = calculate_stats(bubble_map)
         return bubble_map
 
+    async def _get_entity_info(self, address: str) -> dict[str, Any] | None:
+        """Get entity info for a wallet (label graph → on-chain clustering).
+
+        Restored thin wrapper over ``graph.get_entity_info`` so callers
+        (``rugmaps_router`` /entity, ``rugmaps_ai.get_wallet_labels``) have
+        a stable method on the engine instead of a dead reference.
+        """
+        return await get_entity_info(address)
+
+    def _calculate_risk(self, transactions: list[dict[str, Any]], node_count: int = 1) -> tuple[float, str]:
+        """Calculate risk score and level for a wallet's transactions.
+
+        Restored thin wrapper over ``graph.calculate_risk``.
+        """
+        return calculate_risk(transactions, node_count)
+
     async def _get_transactions(
         self,
         address: str,
-        center_address: str,
-        depth: int,
+        center_address: str | None = None,
+        depth: int = 1,
     ) -> list[dict[str, Any]]:
         """Fetch transactions for a wallet address."""
         if address in self.transaction_cache:
