@@ -4,8 +4,16 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.postiz.platforms import get_platform
+from app.domains.postiz.services.store import get_store
 
 logger = get_logger(__name__)
+
+# Gap-analysis thresholds (restored from original service.py — lost during the
+# service package split).
+GAP_WARNING_DAYS = 2
+GAP_CRITICAL_DAYS = 5
+
 
 def get_gap_analysis() -> dict[str, Any]:
     """Analyze posting gaps across all connected platforms."""
@@ -110,5 +118,3 @@ def _generate_gap_recommendations(gaps: list[dict[str, Any]]) -> list[str]:
         recs.append("💡 Try cross-posting content across multiple platforms to maximize reach")
 
     return recs
-
-

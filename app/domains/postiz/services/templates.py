@@ -5,8 +5,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.postiz.services.store import get_store
 
 logger = get_logger(__name__)
+
 
 def create_template(request_data: dict[str, Any]) -> dict[str, Any]:
     """Create a post template."""
@@ -31,7 +33,7 @@ def get_templates() -> dict[str, Any]:
     """Get all post templates."""
     store = get_store()
     templates = store.get_all_templates()
-    categories = list(set(t.get("content_category", "general") for t in templates))
+    categories = list({t.get("content_category", "general") for t in templates})
     categories.sort()
 
     return {
@@ -103,4 +105,3 @@ def _generate_trend(days: int) -> list[dict[str, Any]]:
         base += random.randint(-20, 30)
         trend.append({"date": day, "value": max(0, base), "label": day})
     return trend
-

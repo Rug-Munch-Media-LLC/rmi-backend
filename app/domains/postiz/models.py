@@ -9,7 +9,7 @@ Full model definitions for:
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, field_validator
 # ══════════════════════════════════════════════════════════════════════
 
 
-class PostStatus(str, Enum):
+class PostStatus(StrEnum):
     draft = "draft"
     scheduled = "scheduled"
     queued = "queued"
@@ -29,14 +29,14 @@ class PostStatus(str, Enum):
     cancelled = "cancelled"
 
 
-class RecurrencePattern(str, Enum):
+class RecurrencePattern(StrEnum):
     daily = "daily"
     weekly = "weekly"
     monthly = "monthly"
     custom_cron = "custom_cron"
 
 
-class ContentCategoryEnum(str, Enum):
+class ContentCategoryEnum(StrEnum):
     educational = "educational"
     promotional = "promotional"
     engagement = "engagement"
