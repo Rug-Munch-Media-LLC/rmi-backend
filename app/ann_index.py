@@ -34,6 +34,10 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
 FAISS_DATA_DIR = os.getenv("FAISS_DATA_DIR", "/app/data/faiss")
 
+# Qdrant fallback collection for the dual-backend search. Wallet
+# embeddings migrated from FAISS live in this collection.
+WALLET_COLLECTION = os.getenv("WALLET_EMBEDDINGS_COLLECTION", "wallet_embeddings")
+
 # HNSW defaults
 HNSW_M = 16
 HNSW_EF_CONSTRUCTION = 200
@@ -417,3 +421,86 @@ def get_ann_index() -> ANNIndex:
     if _ann_index is None:
         _ann_index = ANNIndex()
     return _ann_index
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Dual-backend search: Qdrant primary, FAISS fallback
+#
+# RugMaps FAISS → Qdrant migration (tactical step). The module-level
+# ``search()`` mirrors the FAISS search shape but routes through Qdrant
+# first. Any Qdrant failure (unreachable, missing collection, reject)
+# falls back to the legacy in-process FAISS index so callers never
+# observe a hard error during the migration window.
+# ══════════════════════════════════════════════════════════════════════
+
+
+async def _qdrant_search(
+    query_vector: list[float],
+    k: int = 10,
+    collection: str = WALLET_COLLECTION,
+    min_similarity: float = 0.0,
+) -> list[dict[str, Any]]:
+    """Search via the Qdrant ANN backend (app.qdrant_ann)."""
+    from app.qdrant_ann import search as qdrant_search
+
+    return await qdrant_search(
+        query_vector=query_vector,
+        k=k,
+        collection=collection,
+        min_similarity=min_similarity,
+    )
+
+
+async def _faiss_search(
+    query_vector: list[float],
+    k: int = 10,
+    collection: str = WALLET_COLLECTION,
+    min_similarity: float = 0.0,
+) -> list[dict[str, Any]]:
+    """Search via the legacy in-process FAISS index."""
+    ann = get_ann_index()
+    if not ann.is_built(collection):
+        await ann.build_index(collection)
+    if not ann.is_built(collection):
+        return []
+    return await ann.search(
+        query_embedding=query_vector,
+        collection=collection,
+        limit=k,
+        min_similarity=min_similarity,
+    )
+
+
+async def search(
+    query_vector: list[float],
+    k: int = 10,
+    collection: str = WALLET_COLLECTION,
+    min_similarity: float = 0.0,
+) -> list[dict[str, Any]]:
+    """Dual-backend search: try Qdrant first, fall back to FAISS.
+
+    Returns the FAISS result shape ``[{id, similarity, rank, content,
+    metadata, source, severity}, ...]`` regardless of which backend
+    served the request.
+    """
+    try:
+        results = await _qdrant_search(
+            query_vector=query_vector,
+            k=k,
+            collection=collection,
+            min_similarity=min_similarity,
+        )
+        if results:
+            return results
+    except Exception as e:
+        logger.warning("qdrant_backend_search_failed collection=%s err=%s", collection, e)
+    try:
+        return await _faiss_search(
+            query_vector=query_vector,
+            k=k,
+            collection=collection,
+            min_similarity=min_similarity,
+        )
+    except Exception as e:
+        logger.warning("faiss_backend_search_failed collection=%s err=%s", collection, e)
+        return []

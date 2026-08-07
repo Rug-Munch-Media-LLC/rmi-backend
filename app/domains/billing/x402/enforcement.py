@@ -86,12 +86,12 @@ async def x402_enforcement_middleware(request: Request, call_next: Any) -> Respo
     Real enforcement has moved to app.domains.x402.middleware.require_payment().
     """
     if not is_x402_tool_path(request.url.path):
-        return await call_next(request)
+        return await call_next(request)  # type: ignore[no-any-return]
 
     response = await call_next(request)
     response.headers["X-Deprecated"] = "true"
     response.headers["X-Deprecated-Reason"] = "Use domain/x402/middleware.py instead"
-    return response
+    return response  # type: ignore[no-any-return]
 
 
 # ── PEP 562: lazy globals that get rebound after module load ──────

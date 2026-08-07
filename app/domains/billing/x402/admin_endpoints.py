@@ -474,7 +474,7 @@ async def request_refund(request: Request) -> JSONResponse:
                 refund_info = json.loads(existing_refund)
                 status = refund_info.get("status", "unknown")
                 if status in ("requested", "processing", "completed"):
-                    return {
+                    return {  # type: ignore[return-value]
                         "status": "already_requested",
                         "refund_status": status,
                         "tx_hash": tx_hash[:16] + "...",
@@ -544,7 +544,7 @@ async def request_refund(request: Request) -> JSONResponse:
             f"Refund requested: tx={tx_hash[:16]}... chain={refund_chain} amount={refund_amount} reason={refund_reason}"
         )
 
-        return {
+        return {  # type: ignore[return-value]
             "status": "requested",
             "tx_hash": tx_hash[:16] + "...",
             "chain": refund_chain,

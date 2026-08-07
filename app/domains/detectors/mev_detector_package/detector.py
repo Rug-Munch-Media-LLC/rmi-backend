@@ -10,6 +10,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from app.core.logging import get_logger
 from app.domains.detectors.mev_detector_package.heuristics import (
     check_pool_vulnerability,
@@ -27,8 +28,6 @@ from app.domains.detectors.mev_detector_package.models import (
     SandwichAttack,
 )
 from app.domains.detectors.mev_detector_package.registry import (
-
-import httpx
     KNOWN_MEV_BOTS,
     build_bot_profile,
 )

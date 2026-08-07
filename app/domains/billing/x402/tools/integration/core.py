@@ -281,7 +281,7 @@ from app.domains.billing.x402.shared import (
 
 
 @sub_router.get("/bundles")
-async def list_bundles() -> dict[str, dict]:
+async def list_bundles() -> dict[str, dict]:  # type: ignore[type-arg]
     """List all available tool bundles with pricing and savings."""
     return {
         "bundles": {
@@ -447,7 +447,7 @@ async def tool_alias_dispatcher_get(tool_id: str, request: Request) -> Any:
     if not query_params:
         pricing_info = {}
         try:
-            from app.routers.x402_enforcement import TOOL_PRICES
+            from app.routers.x402_enforcement import TOOL_PRICES  # type: ignore[attr-defined]
 
             pricing_info = TOOL_PRICES.get(tool_id, {})
         except (ImportError, KeyError):

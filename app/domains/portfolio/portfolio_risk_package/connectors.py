@@ -8,10 +8,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import httpx
 from app.core.logging import get_logger
 from app.domains.portfolio.portfolio_risk_package.constants import (
-
-import httpx
     CHAIN_CONFIGS,
     COMMON_TOKENS,
     DEFAULT_TIMEOUT,

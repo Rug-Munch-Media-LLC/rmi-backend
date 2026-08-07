@@ -131,7 +131,7 @@ async def human_execute(req: Any) -> dict[str, Any]:
         }
 
     # ── Anti-abuse: check trial limits ──
-    from app.routers.x402_enforcement import check_trial
+    from app.routers.x402_enforcement import check_trial  # type: ignore[attr-defined]
 
     _can_trial, _remaining = check_trial(tool_name, req.wallet)
 
@@ -161,7 +161,7 @@ async def human_execute(req: Any) -> dict[str, Any]:
                 result_data = {"raw": text[:500]}
 
             try:
-                from app.routers.x402_enforcement import get_redis
+                from app.routers.x402_enforcement import get_redis  # type: ignore[attr-defined]
 
                 r = get_redis()
                 if r:

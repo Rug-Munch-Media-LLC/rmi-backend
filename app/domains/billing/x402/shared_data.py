@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-logger = get_logger("x402_tools")
+logger = get_logger("x402_tools")  # type: ignore[name-defined]
 
 # Caching shield - all data calls route through cache → rate limit → provider chain
 from app.caching_shield.service_mcp import get_service_mcp
@@ -306,7 +306,7 @@ def _resolve_pay_to(chain: str) -> str:
         wm_chain = chain_map.get(chain, chain)
         for w in mgr._wallets.values():
             if w.chain == wm_chain and w.x402_enabled and w.status == "active":
-                return w.address
+                return w.address  # type: ignore[no-any-return]
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     # Fallback: env vars

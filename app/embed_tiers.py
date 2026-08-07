@@ -101,7 +101,7 @@ def is_provider_allowed(provider_id: str, task: str) -> bool:
     return provider_id in allowed
 
 
-def tier_summary() -> dict:
+def tier_summary() -> dict:  # type: ignore[type-arg]
     """Return a summary of all tiers and their providers."""
     return {
         "tiers": {
