@@ -25,7 +25,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 from urllib.parse import urlparse
 
 import httpx
@@ -91,14 +91,15 @@ class WalletScanResult:
     enrichment_sources: list[str] = field(default_factory=list)
     tier: str = "free"
     scan_duration_ms: float = 0.0
+    data_gated: str | None = None  # set when a databus fetch was tier-denied (e.g. "requires_auth")
 
 
 class UnifiedWalletScanner:
     """THE wallet scanner. Beats anything on the market."""
 
-    CORE = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]
-    DEEP = ["wallet_transactions", "entity_intel", "cross_chain_entity"]
-    PREMIUM = ["arkham_counterparties", "arkham_portfolio"]
+    CORE: ClassVar[list[str]] = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]
+    DEEP: ClassVar[list[str]] = ["wallet_transactions", "entity_intel", "cross_chain_entity"]
+    PREMIUM: ClassVar[list[str]] = ["arkham_counterparties", "arkham_portfolio"]
 
     async def scan(
         self, address: str, chain: str = "solana", tier: str = "free", admin_key: str | None = None
@@ -157,12 +158,14 @@ class UnifiedWalletScanner:
         r.scan_duration_ms = (time.monotonic() - start) * 1000
         return r
 
-    async def _fetch_batch(self, chains, params, admin_key, timeout=30) -> dict | tuple[Any, Any] | tuple[Any, None]:
+    async def _fetch_batch(
+        self, chains, params, admin_key, timeout_secs=30
+    ) -> dict | tuple[Any, Any] | tuple[Any, None]:
         from app.databus import databus
 
         async def _one(c) -> tuple[Any, Any] | tuple[Any, None]:
             try:
-                return c, await asyncio.wait_for(databus.fetch(c, admin_key=admin_key, **params), timeout)
+                return c, await asyncio.wait_for(databus.fetch(c, admin_key=admin_key, **params), timeout_secs)
             except (AttributeError, ImportError):
                 return c, None
 
@@ -178,6 +181,14 @@ class UnifiedWalletScanner:
             r.entity_type = labels.get("entity_type", "unknown")
         tokens = d.get("wallet_tokens", {})
         if isinstance(tokens, dict):
+            # P0-5: never fabricate a zero-filled holdings result from a
+            # tier-denied payload — surface the gate instead.
+            tokens_inner = tokens.get("data", tokens)
+            if tokens.get("packaging") == "denied" or (
+                isinstance(tokens_inner, dict) and tokens_inner.get("error") == "access_denied"
+            ):
+                r.data_gated = "requires_auth"
+                return
             r.holdings = tokens.get("tokens", [])
             r.token_count = len(r.holdings)
             r.total_value_usd = float(tokens.get("total_value_usd", 0) or 0)

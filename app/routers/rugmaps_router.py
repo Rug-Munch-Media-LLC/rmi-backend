@@ -339,7 +339,7 @@ async def token_holder_graph(
     # ── CRITICAL FIX: When native graph returns empty (token contract, not a wallet),
     #     fall back to DexScreener pair data to build a meaningful visualization ──
     dex_data = None
-    if not nodes or map_failed:
+    if len(nodes) <= 1 or not links or map_failed:
         dex_pair = await _fetch_dexscreener_token_info(token_address, chain)
         if dex_pair:
             logger.info(f"Building DexScreener graph for {token_address[:12]} (native graph empty)")
@@ -496,3 +496,105 @@ async def auto_label_stats() -> dict[str, str]:
         return {"status": "ok", **labeler.get_stats()}
     except Exception as e:
         raise AppError(message=str(e)[:200]) from e
+
+
+# ── AI-Powered Analysis Endpoints (wired to LiteLLM deepseek-analysis) ──
+
+
+class HolderClusterRequest(BaseModel):
+    token_address: str
+    chain: str = "solana"
+    holders: list[dict] | None = None
+
+
+@router.post("/cluster-analysis")
+async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict:
+    """AI-powered wallet cluster analysis for suspicious patterns.
+
+    Uses LiteLLM → deepseek-analysis to identify bundled launches, sniper
+    coordination, wash trading rings, insider clusters, and dev-linked wallets.
+    """
+
+    holders = req.holders or []
+
+    # Fetch holders from graph engine if not provided
+    if not holders:
+        try:
+            rm = _get_rm()
+            result = await rm.generate_map(center_wallet=req.token_address, depth=2, min_strength=0.1)
+            d = result.to_dict()
+            holders = d.get("nodes", [])
+        except Exception as e:
+            logger.debug(f"Holder fetch for cluster analysis failed: {e}")
+
+    # Get labels for holders
+    addresses = [h.get("address") or h.get("id", "") for h in holders[:30]]
+    from app.rugmaps_ai import analyze_holder_clusters, get_wallet_labels as _labels
+
+    labels = await _labels(addresses)
+
+    result = await analyze_holder_clusters(req.token_address, req.chain, holders, labels)
+    return {
+        "token_address": req.token_address,
+        "chain": req.chain,
+        "holder_count": len(holders),
+        **result,
+        "ai_model": "litellm/deepseek-analysis",
+    }
+
+
+class ContractAnomalyRequest(BaseModel):
+    chain: str
+    address: str
+    holder_data: dict | None = None
+    scanner_data: dict | None = None
+
+
+@router.post("/anomaly-detection")
+async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict:
+    """AI-powered contract anomaly detection for rug pull indicators.
+
+    Uses LiteLLM → deepseek-analysis to review token holder distribution,
+    contract behavior, and on-chain patterns for honeypots, rug pulls, and
+    manipulation indicators.
+    """
+    from app.rugmaps_ai import detect_contract_anomalies
+
+    holder_data = req.holder_data or {}
+    scanner_data = req.scanner_data or {}
+
+    result = await detect_contract_anomalies(req.address, req.chain, holder_data, scanner_data)
+    return {
+        "token_address": req.address,
+        "chain": req.chain,
+        **result,
+        "ai_model": "litellm/deepseek-analysis",
+    }
+
+
+@router.get("/ai-health")
+async def ai_health_check() -> dict:
+    """Check RugMaps AI analysis availability."""
+    import httpx
+
+    from app.rugmaps_ai import LITELLM_API_KEY, LITELLM_BASE_URL
+
+    litellm_ok = False
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                LITELLM_BASE_URL.replace("/v1", "/health") + "/readiness",
+                headers={"Authorization": f"Bearer {LITELLM_API_KEY}"},
+            )
+            litellm_ok = resp.status_code in (200, 202)
+    except Exception as e:
+        logger.debug(f"LiteLLM health probe failed: {e}")
+
+    return {
+        "status": "ok" if litellm_ok else "degraded",
+        "service": "rugmaps-ai",
+        "litellm_available": litellm_ok,
+        "litellm_url": LITELLM_BASE_URL,
+        "model": "deepseek-analysis",
+        "fallback": "deepseek-direct + rule-based",
+    }
