@@ -278,7 +278,7 @@ class SupabaseVectorStore:
         if not self._table_ready:
             # Fallback to Redis
             try:
-                from app.rag_service import _get_redis
+                from app.rag.compat import _get_redis
 
                 r = await _get_redis()
                 doc = {
@@ -358,7 +358,7 @@ class SupabaseVectorStore:
         if not self._table_ready:
             try:
                 from app.crypto_embeddings import get_embedder
-                from app.rag_service import _get_redis
+                from app.rag.compat import _get_redis
 
                 r = await _get_redis()
                 doc_ids = await r.smembers(f"rag:idx:{collection or 'known_scams'}")

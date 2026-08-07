@@ -121,7 +121,7 @@ async def _run_watch_scans(watch_id: str) -> None:
 
         # 2. RAG search for known scam patterns
         try:
-            from app.rag_service import three_pillar_search
+            from app.rag.compat import three_pillar_search
 
             rag_results = await three_pillar_search(
                 query=f"{token_address} scam detection",

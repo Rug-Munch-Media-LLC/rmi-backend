@@ -416,7 +416,7 @@ class IntelPipeline:
     async def run_cycle(self) -> dict[str, Any]:
         """Run one full ingestion cycle across all sources."""
         from app.crypto_embeddings import get_embedder
-        from app.rag_service import _get_redis
+        from app.rag.compat import _get_redis
 
         embedder = await get_embedder()
         r = await _get_redis()
@@ -569,7 +569,7 @@ class IntelPipeline:
 
     async def get_latest_intel(self, limit: int = 20) -> list[dict[str, Any]]:
         """Get latest threat intelligence for frontend display."""
-        from app.rag_service import _get_redis
+        from app.rag.compat import _get_redis
 
         r = await _get_redis()
 

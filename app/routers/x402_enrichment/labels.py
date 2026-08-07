@@ -136,7 +136,7 @@ def search_similar_patterns(
     patterns = []
 
     try:
-        from app.rag_service import get_embedder, search_multi_collection
+        from app.rag.compat import get_embedder, search_multi_collection
 
         embedder = get_embedder()
         if not embedder:

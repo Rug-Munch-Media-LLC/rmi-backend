@@ -96,7 +96,18 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
 
 
 async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
-    """Search FAISS indexes for similar scam patterns."""
+    """Search FAISS indexes for similar scam patterns.
+
+    DEPRECATED (FAISS → Qdrant): the app.rag v3 engine searches the Qdrant
+    ``scams`` / ``scam_intel`` / ``threat_intel`` collections instead. To
+    migrate, replace the body with::
+
+        from app.rag.intelligence import RAGIntelligenceEnricher
+        enricher = RAGIntelligenceEnricher(top_k=5)
+        hits = await enricher.find_similar_scams(token_address, chain)
+
+    Kept functional via the legacy in-process FAISS index for now.
+    """
     similar = []
     try:
         from app.ann_index import get_ann_index

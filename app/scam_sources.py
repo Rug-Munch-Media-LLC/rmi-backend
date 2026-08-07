@@ -367,7 +367,7 @@ class ScamIngestionPipeline:
                 docs = await ingest_fn(embedder)
                 if docs:
                     # Ingest via Redis + FAISS (pgvector removed)
-                    from app.rag_service import ingest_document
+                    from app.rag.compat import ingest_document
 
                     count = 0
                     for doc in docs:

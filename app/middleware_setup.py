@@ -457,6 +457,8 @@ def _try_register_csrf(app: FastAPI) -> None:
             "/api/v1/community-forensics/",  # Community forensics — public report submission
             "/api/v1/stripe/",  # Stripe webhooks + checkout — no cookies
             "/api/v1/bot/",  # Telegram bot API — public endpoints for bot connectivity
+            "/api/v1/news/_admin/",  # News admin ingest — internal service-to-service (X-RMI-Key), no cookies
+            "/api/v1/news/internal/",  # News internal endpoints — internal service-to-service (X-RMI-Key), no cookies
             "/mcp/x402",
             "/x402/sandbox/",
             "/.well-known/x402",
@@ -481,6 +483,12 @@ def _try_register_csrf(app: FastAPI) -> None:
                 # Skip if X-API-Key header is present (service-to-service auth)
                 api_key = request.headers.get("X-API-Key", "")
                 if api_key:
+                    return cast("Response", await call_next(request))
+
+                # Skip if X-RMI-Key header is present (internal service-to-service
+                # auth — same dual-token model as X-API-Key)
+                rmi_key = request.headers.get("X-RMI-Key", "")
+                if rmi_key:
                     return cast("Response", await call_next(request))
 
                 # Validate CSRF token from header against cookie

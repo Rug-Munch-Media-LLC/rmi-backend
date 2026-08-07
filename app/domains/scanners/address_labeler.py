@@ -305,19 +305,18 @@ class AddressLabeler:
         """Query internal RAG service for known scam and wallet profile data."""
         entries = []
         try:
-            from app.rag_service import RAGService
-
-            rag = RAGService()
+            from app.rag.compat import search_similar
 
             # Query known_scams collection
-            results = await rag.query(
+            results = await search_similar(
                 f"address:{address} chain:{chain}",
                 collection="known_scams",
                 limit=5,
             )
             if results:
                 for r in results:
-                    label = r.get("label", r.get("name", r.get("project", "")))
+                    meta = r.get("metadata", {}) or {}
+                    label = r.get("label", meta.get("label", meta.get("name", meta.get("project", ""))))
                     if label:
                         entries.append(
                             LabelEntry(
@@ -328,20 +327,21 @@ class AddressLabeler:
                         )
 
             # Query wallet_profiles collection
-            results = await rag.query(
+            results = await search_similar(
                 f"address:{address}",
                 collection="wallet_profiles",
                 limit=5,
             )
             if results:
                 for r in results:
-                    label = r.get("label", r.get("name", r.get("alias", "")))
+                    meta = r.get("metadata", {}) or {}
+                    label = r.get("label", meta.get("label", meta.get("name", meta.get("alias", ""))))
                     if label:
                         entries.append(
                             LabelEntry(
                                 source="rag_wallet_profiles",
                                 label=label,
-                                category=r.get("category", "wallet"),
+                                category=meta.get("category", "wallet"),
                             )
                         )
         except ImportError:

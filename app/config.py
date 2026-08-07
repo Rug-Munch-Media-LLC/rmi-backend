@@ -147,6 +147,14 @@ class Settings(BaseSettings):
         default="",
         description="Internal service-to-service API key. Set RMI_INTERNAL_KEY env var.",
     )
+    rmi_consumer_keys: dict[str, str] = Field(
+        default={},
+        description=(
+            "Consumer ID -> API key mapping for per-consumer authentication "
+            "(X-Consumer-ID header). Set RMI_CONSUMER_KEYS env var as JSON, "
+            'e.g. {"dex-parity": "<key>"}.'
+        ),
+    )
     rmi_rag_api_key: str = Field(
         default="",
         description="API key for rmi-rag-api (X-API-Key header). Set RMI_RAG_API_KEY env var.",

@@ -379,11 +379,15 @@ async def fetch_databus_context(chains: list[str]) -> str:
     try:
         import httpx
 
+        from app.core.internal_key import INTERNAL_API_KEY
+
+        headers = {"X-RMI-Key": INTERNAL_API_KEY}
+
         for chain in chains:
             try:
                 url = "http://localhost:8000/api/v1/databus/fetch"
                 async with httpx.AsyncClient(timeout=8) as c:
-                    r = await c.post(url, json={"data_type": chain, "limit": 5})
+                    r = await c.post(url, json={"data_type": chain, "limit": 5}, headers=headers)
                     if r.status_code == 200:
                         data = r.json()
                         # Extract the actual data payload

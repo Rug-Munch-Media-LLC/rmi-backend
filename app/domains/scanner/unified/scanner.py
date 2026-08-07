@@ -15,6 +15,9 @@ from app.domains.scanner.unified.model import (
     BundleProfile,
     DeepScanProfile,
     DeployerProfile,
+    MARKET_CONTEXT_CACHE_TTL,
+    MarketContext,
+    RUG_BRAIN_API_URL,
     ScanResult,
     WalletBreakdown,
 )
@@ -27,9 +30,6 @@ from app.domains.scanner.unified.scoring import compute_score
 
 logger = get_logger(__name__)
 
-# RugBrain (rmi-rag) base URL — same convention as the rest of the backend.
-RUG_BRAIN_API_URL = os.getenv("RAG_API_URL", "http://rmi-rag-api:8012").rstrip("/")
-MARKET_CONTEXT_CACHE_TTL = int(os.getenv("MARKET_CONTEXT_CACHE_TTL", "300"))  # 5 min
 
 # ── Scan status / background-phase config ───────────────────────────────
 # Heavy phases (deep/intel/SENTINEL/news) run in a background task so the
@@ -102,48 +102,6 @@ def _status_result_dict(result: ScanResult, background_status: str = "running") 
     """
     data = _to_legacy_dict(result)
     data["background_status"] = background_status
-    return data
-
-
-@dataclass
-class MarketContext:
-    """Market conditions that influence token risk"""
-
-    fear_index: float = 50.0  # 0-100 (0=fear, 100=greed)
-    recent_exploits: int = 0  # exploits in last 24h
-    chain_volume_24h: float = 0.0  # chain TVL change (percent)
-    social_velocity: float = 0.0  # mention velocity for this token (0-100)
-    deployer_freshness: str = "unknown"  # "new" / "established" / "unknown"
-    source: str = "unknown"
-    fetched_at: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "fear_index": self.fear_index,
-            "recent_exploits": self.recent_exploits,
-            "chain_volume_24h": self.chain_volume_24h,
-            "social_velocity": self.social_velocity,
-            "deployer_freshness": self.deployer_freshness,
-            "source": self.source,
-            "fetched_at": self.fetched_at,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any] | None) -> MarketContext | None:
-        if not isinstance(data, dict):
-            return None
-        try:
-            return cls(
-                fear_index=float(data.get("fear_index", 50) or 50),
-                recent_exploits=int(data.get("recent_exploits", 0) or 0),
-                chain_volume_24h=float(data.get("chain_volume_24h", 0) or 0),
-                social_velocity=float(data.get("social_velocity", 0) or 0),
-                deployer_freshness=str(data.get("deployer_freshness", "unknown") or "unknown"),
-                source=str(data.get("source", "unknown") or "unknown"),
-                fetched_at=str(data.get("fetched_at", "") or ""),
-            )
-        except (TypeError, ValueError):
-            return None
 
 
 async def _gather_freshness(tasks: list[Any]) -> dict[str, Any]:

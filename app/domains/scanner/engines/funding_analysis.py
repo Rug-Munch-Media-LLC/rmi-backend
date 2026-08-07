@@ -68,7 +68,7 @@ from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
-from app.domains.scanner.engines import known_entities
+from app.domains.scanner.engines.known_entities import label_wallet
 from app.domains.scanner.engines._common import (
     _query_batch_labels,
     clear_cache as _common_clear_cache,
@@ -819,7 +819,7 @@ def _classify_funder(
       4. other — unlabeled established wallet
     """
     # ── 1. Static known_entities (authoritative CEX/mixer addresses) ──
-    static = known_entities.label_wallet(funder, chain)
+    static = label_wallet(funder, chain)
     if static and static.get("type", "").startswith("cex_"):
         return "exchange_funded", static.get("name") or None
     if static and static.get("type") == "mixer":
@@ -921,7 +921,7 @@ def _funder_display_label(
     chain: str,
 ) -> str | None:
     """Best display label for a funder (static known_entities first, then wallet_labels)."""
-    static = known_entities.label_wallet(funder, chain)
+    static = label_wallet(funder, chain)
     if static and static.get("confidence") == "HIGH":
         return static.get("name") or None
     for lbl in labels:
