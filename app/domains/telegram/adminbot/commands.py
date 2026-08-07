@@ -12,13 +12,15 @@ from typing import TYPE_CHECKING
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
-from app.domains.telegram.adminbot import admin_ops
+from app.domains.telegram.adminbot import admin_docker, admin_health, admin_ops, admin_server
 from app.domains.telegram.adminbot.helpers import (
     back_button,
+    confirm_keyboard,
     docker_menu,
     logs_menu,
     main_menu_keyboard,
     owner_only,
+    refresh_keyboard,
     service_action_keyboard,
 )
 
@@ -38,39 +40,10 @@ except ImportError:
 
 @owner_only
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    qs = admin_health.quick_status()
+    card = admin_health.format_quick_status(qs)
     await update.message.reply_text(
-        "🛡️ *RMI Admin Bot v3*\n\n"
-        "Server management for the Rug Munch fleet.\n"
-        "All commands are owner-only and logged.\n\n"
-        "*Server Commands:*\n"
-        "/status — System dashboard\n"
-        "/disk — Disk usage report\n"
-        "/mem — Memory & CPU report\n"
-        "/docker — Container management\n"
-        "/sh — Shell execution\n"
-        "/term — Terminal mode\n\n"
-        "*Service Commands:*\n"
-        "/service — Service control\n"
-        "/logs — View logs\n"
-        "/health — Health checks\n\n"
-        "*DevOps Commands:*\n"
-        "/git — Git status for a repo\n"
-        "/push — Push all repos\n"
-        "/deploy — Deploy services\n"
-        "/backup — Backup triggers\n\n"
-        "*AI Commands:*\n"
-        "/oc — OpenCode AI prompt\n"
-        "/ai — AI model gateway\n\n"
-        "*Intelligence Commands:*\n"
-        "/ragstats — RAG collection sizes & embedder\n"
-        "/news — Rated news articles\n"
-        "/scanstats — Scanner own_data vs external\n"
-        "/indexer — Chain indexer status\n\n"
-        "*Misc:*\n"
-        "/chain — Chain indexer status\n"
-        "/alert — Send alert message\n"
-        "/quick — Common ops\n"
-        "/help — This message",
+        f"🛡️ *RMI Admin Bot v4* — Fleet ChatOps\n\n{card}\n\n_Owner-only · all commands logged · pick a section below:_",
         reply_markup=main_menu_keyboard(),
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -79,6 +52,16 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 @owner_only
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await cmd_start(update, ctx)
+
+
+@owner_only
+async def cmd_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the categorized main menu."""
+    await update.message.reply_text(
+        "🛡️ *RMI Admin Bot* — Select a section:",
+        reply_markup=main_menu_keyboard(),
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -230,8 +213,185 @@ async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.edit_text(
             f"❌ {result['error']}",
             parse_mode=ParseMode.MARKDOWN,
-            reply_markup=back_button("services"),
+            reply_markup=back_button("main"),
         )
+
+
+# ═══════════════════════════════════════════════
+# NEW v4 — SERVER MANAGEMENT
+# ═══════════════════════════════════════════════
+
+
+@owner_only
+async def cmd_top(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Top 10 processes by CPU (or by memory with /top mem)."""
+    sort_by = ctx.args[0].lower() if ctx.args and ctx.args[0].lower() in ("mem", "memory", "cpu") else "cpu"
+    msg = await update.message.reply_text("⏳ Gathering processes...")
+    result = admin_server.top_processes(limit=10, sort_by=sort_by)
+    await msg.edit_text(
+        admin_server.format_top(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("top", extra=[("🧠 By Mem", "top_mem")]),
+    )
+
+
+@owner_only
+async def cmd_uptime(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """System uptime + load averages."""
+    msg = await update.message.reply_text("⏳ Checking uptime...")
+    result = admin_server.uptime_report()
+    await msg.edit_text(
+        admin_server.format_uptime(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("uptime"),
+    )
+
+
+@owner_only
+async def cmd_net(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Network interfaces + listening ports summary."""
+    msg = await update.message.reply_text("⏳ Scanning network...")
+    result = admin_server.network_report()
+    await msg.edit_text(
+        admin_server.format_network(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("net"),
+    )
+
+
+@owner_only
+async def cmd_certs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """SSL certificate expiry dates (certbot + acme.sh)."""
+    msg = await update.message.reply_text("⏳ Checking certificates...")
+    result = admin_server.cert_expiry()
+    await msg.edit_text(
+        admin_server.format_certs(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("certs"),
+    )
+
+
+@owner_only
+async def cmd_services(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """List systemd services, optionally filtered (e.g. /services rag)."""
+    filter_str = ctx.args[0] if ctx.args else ""
+    msg = await update.message.reply_text("⏳ Listing services...")
+    result = admin_server.services_report(filter_str=filter_str)
+    extra = [("🔄 All", "services")] if filter_str else None
+    await msg.edit_text(
+        admin_server.format_services(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("services", extra=extra),
+    )
+
+
+@owner_only
+async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Restart a systemd service — requires confirmation."""
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "🔄 *Restart Service*\n\n"
+            "Usage: `/restart <service>`\n\n"
+            "Examples:\n"
+            "`/restart rmi-backend`\n"
+            "`/restart rmiadminbot`\n\n"
+            "⚠️ You will be asked to confirm before the restart executes.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+    name = args[0]
+    if not all(c.isalnum() or c in "-_" for c in name):
+        await update.message.reply_text(f"❌ Invalid service name: `{name}`", parse_mode=ParseMode.MARKDOWN)
+        return
+    await update.message.reply_text(
+        f"⚠️ *Confirm restart*\n\nRestart systemd service `{name}`?",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=confirm_keyboard("restart", payload=name),
+    )
+
+
+# ═══════════════════════════════════════════════
+# NEW v4 — DOCKER MANAGEMENT
+# ═══════════════════════════════════════════════
+
+
+@owner_only
+async def cmd_dps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Formatted docker ps table (name, status, uptime, ports)."""
+    msg = await update.message.reply_text("⏳ Listing containers...")
+    result = admin_docker.docker_ps_table()
+    await msg.edit_text(
+        admin_docker.format_docker_ps(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("dps", extra=[("📊 Stats", "dstats")]),
+    )
+
+
+@owner_only
+async def cmd_dlogs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Tail docker logs for a container: /dlogs <container> [lines]."""
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "📜 *Docker Logs*\n\n"
+            "Usage: `/dlogs <container> [lines]`\n\n"
+            "Examples:\n"
+            "`/dlogs rmi-backend`\n"
+            "`/dlogs infinity-rag 100`\n\n"
+            "Default: 50 lines. Max: 500.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+    container = args[0]
+    lines = int(args[1]) if len(args) > 1 and args[1].isdigit() else 50
+    msg = await update.message.reply_text(f"⏳ Fetching logs for `{container}`...", parse_mode=ParseMode.MARKDOWN)
+    result = admin_docker.docker_logs_tail(container, lines)
+    if result["ok"] and result["output"]:
+        await msg.edit_text(
+            f"📜 `{container}` (last {lines} lines):\n\n```\n{result['output'][:3000]}\n```",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("logs_menu"),
+        )
+    else:
+        j_result = admin_ops.run_shell(f"journalctl -u {container}.service --no-pager -n {lines} 2>&1", timeout=10)
+        await msg.edit_text(
+            f"📜 `{container}` (systemd fallback, last {lines} lines):\n\n```\n{j_result['output'][:3000]}\n```",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("logs_menu"),
+        )
+
+
+@owner_only
+async def cmd_dstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Docker stats snapshot — top 10 by memory."""
+    msg = await update.message.reply_text("⏳ Sampling container stats...")
+    result = admin_docker.docker_stats_top(limit=10)
+    await msg.edit_text(
+        admin_docker.format_docker_stats(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("dstats", extra=[("📋 PS", "dps")]),
+    )
+
+
+@owner_only
+async def cmd_dprune(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show docker reclaimable space with prune option."""
+    msg = await update.message.reply_text("⏳ Checking docker disk usage...")
+    result = admin_docker.docker_disk_usage()
+    await msg.edit_text(
+        admin_docker.format_docker_df(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("🧹 Prune Now", callback_data="dprune"),
+                    InlineKeyboardButton("📊 Stats", callback_data="dstats"),
+                ],
+                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+            ]
+        ),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -358,19 +518,14 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 @owner_only
 async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text("⏳ Running health checks...")
-    checks = admin_ops.health_check()
-    text = admin_ops.format_health(checks)
+    data = admin_health.health_dashboard()
+    text = admin_health.format_health_dashboard(data)
     await msg.edit_text(
         text,
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("🔄 Refresh", callback_data="alerts"),
-                    InlineKeyboardButton("🖥️ Full Status", callback_data="status"),
-                ],
-                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
-            ]
+        reply_markup=refresh_keyboard(
+            "health",
+            extra=[("🖥️ Status", "status"), ("📊 Quick", "quick_status")],
         ),
     )
 
@@ -442,7 +597,6 @@ async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     action = args[0].lower()
-    user_id = update.effective_user.id
 
     if action == "model":
         await update.message.reply_text(
@@ -686,7 +840,7 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 bias = a.get("bias", "center")
                 factual = a.get("factual_rating", "N/A")
                 url = a.get("url", "")
-                sent_emoji = "🔥" if sentiment > 30 else "🧊" if sentiment < -30 else "➖"
+                sent_emoji = "🔥" if sentiment > 30 else "🧊" if sentiment < -30 else "▫️"
                 bias_e = bias_emoji.get(bias, "⚪")
                 tier_str = "★" * max(1, 6 - source_tier)
                 lines.append(

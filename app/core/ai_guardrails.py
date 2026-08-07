@@ -166,7 +166,7 @@ def sanitize_output(text: str) -> str:
 # ═════════════════════════════════════════════════════════════════════════════
 try:
     from guardrails import Guard
-    from guardrails.hub import ToxicLanguage, CompetitorCheck
+    from guardrails.hub import CompetitorCheck, ToxicLanguage
 
     _toxic_guard = Guard().use(ToxicLanguage(on_fail="fix"))
     _competitor_guard = Guard().use(CompetitorCheck(on_fail="fix"))

@@ -85,44 +85,116 @@ async def edit_or_reply(
 
 
 def main_menu_keyboard() -> Any:
-    """Main menu inline keyboard."""
+    """Categorized main menu — each section expands to a sub-menu."""
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("🐳 Docker", callback_data="docker"),
-                InlineKeyboardButton("🖥️ Status", callback_data="status"),
+                InlineKeyboardButton("📊 System", callback_data="menu_system"),
+                InlineKeyboardButton("🐳 Docker", callback_data="menu_docker"),
+                InlineKeyboardButton("🗄️ Data", callback_data="menu_data"),
             ],
             [
-                InlineKeyboardButton("💻 Shell", callback_data="shell_help"),
-                InlineKeyboardButton("🔧 Services", callback_data="services"),
+                InlineKeyboardButton("🤖 AI", callback_data="menu_ai"),
+                InlineKeyboardButton("🔧 Tools", callback_data="menu_tools"),
+                InlineKeyboardButton("⚙️ Ops", callback_data="menu_ops"),
             ],
             [
-                InlineKeyboardButton("💾 Disk", callback_data="disk"),
-                InlineKeyboardButton("🧠 Memory", callback_data="mem"),
-            ],
-            [
-                InlineKeyboardButton("📦 Backup", callback_data="backup"),
-                InlineKeyboardButton("🚀 Deploy", callback_data="deploy"),
-            ],
-            [
-                InlineKeyboardButton("📊 Health", callback_data="alerts"),
-                InlineKeyboardButton("📋 Logs", callback_data="logs_menu"),
-            ],
-            [
-                InlineKeyboardButton("📁 Git", callback_data="git_menu"),
-                InlineKeyboardButton("📡 Chain", callback_data="chain"),
-            ],
-            [
-                InlineKeyboardButton("🧠 RAG Stats", callback_data="ragstats"),
-                InlineKeyboardButton("📰 News", callback_data="news"),
-            ],
-            [
-                InlineKeyboardButton("🔍 Scan Stats", callback_data="scanstats"),
-                InlineKeyboardButton("📡 Indexer", callback_data="indexer"),
+                InlineKeyboardButton("🔄 Quick Status", callback_data="quick_status"),
+                InlineKeyboardButton("🚨 Alerts", callback_data="health"),
             ],
             [InlineKeyboardButton("⚡ Quick Ops", callback_data="quick")],
         ]
     )
+
+
+# ── Section sub-menus ────────────────────────────────────────────────
+_SYSTEM_MENU: list[tuple[str, str]] = [
+    ("🖥️ Status", "status"),
+    ("🚨 Health Dashboard", "health"),
+    ("💾 Disk", "disk"),
+    ("🧠 Memory", "mem"),
+    ("⏱️ Uptime", "uptime"),
+    ("🔝 Top CPU", "top"),
+    ("🌐 Network", "net"),
+]
+
+_DOCKER_MENU: list[tuple[str, str]] = [
+    ("📋 Docker PS", "dps"),
+    ("📊 Stats Top", "dstats"),
+    ("📜 Container Logs", "logs_menu"),
+    ("🧹 Disk Usage", "dprune"),
+    ("⚙️ Manage", "docker"),
+]
+
+_DATA_MENU: list[tuple[str, str]] = [
+    ("📦 Backup", "backup"),
+    ("📁 Git Status", "git_menu"),
+    ("📡 Chain", "chain"),
+    ("📡 Indexer", "indexer"),
+    ("🔍 Scan Stats", "scanstats"),
+]
+
+_AI_MENU: list[tuple[str, str]] = [
+    ("🤖 OpenCode", "oc_help"),
+    ("🧠 Models", "ai_menu"),
+    ("🧠 RAG Stats", "ragstats"),
+    ("📰 News", "news"),
+]
+
+_TOOLS_MENU: list[tuple[str, str]] = [
+    ("💻 Shell", "shell_help"),
+    ("💻 Terminal", "term_enter"),
+    ("🔒 SSL Certs", "certs"),
+    ("📜 Service Logs", "logs_menu"),
+    ("⚡ Quick Ops", "quick"),
+]
+
+_OPS_MENU: list[tuple[str, str]] = [
+    ("🔧 Services", "services"),
+    ("🚀 Deploy", "deploy"),
+    ("📜 Logs", "logs_menu"),
+    ("📤 Push All", "push_all"),
+    ("🔔 Alert", "alert_help"),
+]
+
+SECTION_MENUS: dict[str, list[tuple[str, str]]] = {
+    "system": _SYSTEM_MENU,
+    "docker": _DOCKER_MENU,
+    "data": _DATA_MENU,
+    "ai": _AI_MENU,
+    "tools": _TOOLS_MENU,
+    "ops": _OPS_MENU,
+}
+
+_SECTION_TITLES: dict[str, str] = {
+    "system": "📊 *System*",
+    "docker": "🐳 *Docker*",
+    "data": "🗄️ *Data & Intelligence*",
+    "ai": "🤖 *AI*",
+    "tools": "🔧 *Tools*",
+    "ops": "⚙️ *Operations*",
+}
+
+
+def section_menu_keyboard(section: str) -> Any:
+    """Build a sub-menu keyboard for a category section."""
+    rows = SECTION_MENUS.get(section, [])
+    buttons = []
+    row: list[InlineKeyboardButton] = []
+    for label, data in rows:
+        row.append(InlineKeyboardButton(label, callback_data=data))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton("⬅️ Main Menu", callback_data="main")])
+    return InlineKeyboardMarkup(buttons)
+
+
+def section_title(section: str) -> str:
+    """Title text for a category section menu."""
+    return _SECTION_TITLES.get(section, "📊 Menu")
 
 
 def back_button(data: str = "main") -> Any:
@@ -131,24 +203,8 @@ def back_button(data: str = "main") -> Any:
 
 
 def docker_menu() -> Any:
-    """Docker management keyboard."""
-    return InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("📋 List Containers", callback_data="docker_ps"),
-                InlineKeyboardButton("📊 Stats", callback_data="docker_stats"),
-            ],
-            [
-                InlineKeyboardButton("🔄 Restart Backend", callback_data="docker_restart_rmi-backend"),
-                InlineKeyboardButton("🔄 Restart Postgres", callback_data="docker_restart_rmi-postgres"),
-            ],
-            [
-                InlineKeyboardButton("📋 Compose PS", callback_data="compose_ps"),
-                InlineKeyboardButton("🔄 Compose Restart", callback_data="compose_restart"),
-            ],
-            [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
-        ]
-    )
+    """Docker management keyboard (legacy alias for the Docker section menu)."""
+    return section_menu_keyboard("docker")
 
 
 def service_action_keyboard(svc: str = "") -> Any:
@@ -218,3 +274,30 @@ def git_chain_keyboard() -> Any:
             [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
         ]
     )
+
+
+def confirm_keyboard(action: str, payload: str = "") -> Any:
+    """Confirmation keyboard for destructive actions.
+
+    ``action`` is the callback prefix (e.g. ``restart``, ``dprune``);
+    ``payload`` is embedded in the confirm callback (e.g. service name).
+    """
+    confirm_data = f"{action}_confirm_{payload}" if payload else f"{action}_confirm"
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Confirm", callback_data=confirm_data),
+                InlineKeyboardButton("❌ Cancel", callback_data=f"{action}_cancel"),
+            ]
+        ]
+    )
+
+
+def refresh_keyboard(callback: str, extra: list[tuple[str, str]] | None = None) -> Any:
+    """Refresh + back keyboard used on data views."""
+    row = [InlineKeyboardButton("🔄 Refresh", callback_data=callback)]
+    if extra:
+        for label, data in extra:
+            row.append(InlineKeyboardButton(label, callback_data=data))
+    rows = [row, [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")]]
+    return InlineKeyboardMarkup(rows)

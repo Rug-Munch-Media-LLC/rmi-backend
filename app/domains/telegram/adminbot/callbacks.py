@@ -14,13 +14,16 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
-from app.domains.telegram.adminbot import admin_ops, admin_terminal
+from app.domains.telegram.adminbot import admin_docker, admin_health, admin_ops, admin_server, admin_terminal
 from app.domains.telegram.adminbot.helpers import (
     back_button,
     docker_menu,
     is_owner,
     logs_menu,
     main_menu_keyboard,
+    refresh_keyboard,
+    section_menu_keyboard,
+    section_title,
     service_action_keyboard,
 )
 
@@ -49,10 +52,213 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         # ── Main navigation ──
         if data == "main":
+            qs = admin_health.quick_status()
+            card = admin_health.format_quick_status(qs)
             await query.edit_message_text(
-                "🛡️ *RMI Admin Bot v3* — Select an option:",
+                f"🛡️ *RMI Admin Bot v4* — Fleet ChatOps\n\n{card}\n\n_Select a section:_",
                 reply_markup=main_menu_keyboard(),
                 parse_mode=ParseMode.MARKDOWN,
+            )
+
+        # ── Section sub-menus ──
+        elif data.startswith("menu_"):
+            section = data.replace("menu_", "")
+            await query.edit_message_text(
+                f"{section_title(section)} — select an action:",
+                reply_markup=section_menu_keyboard(section),
+                parse_mode=ParseMode.MARKDOWN,
+            )
+
+        # ── Quick status card ──
+        elif data == "quick_status":
+            qs = admin_health.quick_status()
+            text = admin_health.format_quick_status(qs)
+            await query.edit_message_text(
+                text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard(
+                    "quick_status",
+                    extra=[("🚨 Full Health", "health"), ("🖥️ Status", "status")],
+                ),
+            )
+
+        # ── Health dashboard ──
+        elif data == "health":
+            await query.edit_message_text("⏳ Running health checks...")
+            data_dict = admin_health.health_dashboard()
+            text = admin_health.format_health_dashboard(data_dict)
+            await query.edit_message_text(
+                text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard(
+                    "health",
+                    extra=[("🖥️ Status", "status"), ("📊 Quick", "quick_status")],
+                ),
+            )
+
+        # ── v4: Top processes ──
+        elif data == "top":
+            await query.edit_message_text("⏳ Gathering processes...")
+            result = admin_server.top_processes(limit=10, sort_by="cpu")
+            await query.edit_message_text(
+                admin_server.format_top(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("top", extra=[("🧠 By Mem", "top_mem")]),
+            )
+        elif data == "top_mem":
+            await query.edit_message_text("⏳ Gathering processes...")
+            result = admin_server.top_processes(limit=10, sort_by="mem")
+            await query.edit_message_text(
+                admin_server.format_top(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("top_mem", extra=[("🔥 By CPU", "top")]),
+            )
+
+        # ── v4: Uptime ──
+        elif data == "uptime":
+            await query.edit_message_text("⏳ Checking uptime...")
+            result = admin_server.uptime_report()
+            await query.edit_message_text(
+                admin_server.format_uptime(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("uptime"),
+            )
+
+        # ── v4: Network ──
+        elif data == "net":
+            await query.edit_message_text("⏳ Scanning network...")
+            result = admin_server.network_report()
+            await query.edit_message_text(
+                admin_server.format_network(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("net"),
+            )
+
+        # ── v4: SSL certs ──
+        elif data == "certs":
+            await query.edit_message_text("⏳ Checking certificates...")
+            result = admin_server.cert_expiry()
+            await query.edit_message_text(
+                admin_server.format_certs(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("certs"),
+            )
+
+        # ── v4: Services ──
+        elif data == "services":
+            await query.edit_message_text("⏳ Listing services...")
+            result = admin_server.services_report(filter_str="")
+            await query.edit_message_text(
+                admin_server.format_services(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("services"),
+            )
+
+        # ── v4: Restart service (confirmation flow) ──
+        elif data.startswith("restart_confirm_"):
+            svc = data.replace("restart_confirm_", "")
+            result = admin_server.restart_service(svc)
+            status_emoji = "✅" if result["ok"] else "❌"
+            await query.edit_message_text(
+                f"{status_emoji} Restarted `{svc}`\n\n```\n{result.get('output', result.get('error', ''))[:2000]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("services", extra=[("🔧 Services", "services")]),
+            )
+        elif data.startswith("restart_cancel"):
+            await query.edit_message_text("❌ Restart cancelled.", parse_mode=ParseMode.MARKDOWN)
+
+        # ── v4: Docker PS ──
+        elif data == "dps":
+            await query.edit_message_text("⏳ Listing containers...")
+            result = admin_docker.docker_ps_table()
+            await query.edit_message_text(
+                admin_docker.format_docker_ps(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("dps", extra=[("📊 Stats", "dstats")]),
+            )
+
+        # ── v4: Docker stats ──
+        elif data == "dstats":
+            await query.edit_message_text("⏳ Sampling container stats...")
+            result = admin_docker.docker_stats_top(limit=10)
+            await query.edit_message_text(
+                admin_docker.format_docker_stats(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("dstats", extra=[("📋 PS", "dps")]),
+            )
+
+        # ── v4: Docker disk usage / prune (confirmation flow) ──
+        elif data == "dprune":
+            result = admin_docker.docker_disk_usage()
+            await query.edit_message_text(
+                admin_docker.format_docker_df(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton("🧹 Prune Now", callback_data="dprune_confirm"),
+                            InlineKeyboardButton("❌ Cancel", callback_data="dprune_cancel"),
+                        ]
+                    ]
+                ),
+            )
+        elif data == "dprune_confirm":
+            await query.edit_message_text(
+                "⚠️ *FINAL CONFIRMATION*\n\n"
+                "This runs `docker system prune -af --volumes`.\n"
+                "It removes ALL unused images, containers, volumes and build cache.\n\n"
+                "Proceed?",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton("✅ Yes, Prune", callback_data="dprune_run"),
+                            InlineKeyboardButton("❌ Cancel", callback_data="dprune_cancel"),
+                        ]
+                    ]
+                ),
+            )
+        elif data == "dprune_run":
+            await query.edit_message_text("🧹 Pruning docker...")
+            result = admin_docker.docker_prune()
+            await query.edit_message_text(
+                f"{'✅' if result['ok'] else '❌'} Prune complete\n\n```\n{result.get('output', result.get('error', ''))[:2500]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("dprune"),
+            )
+        elif data.startswith("dprune_cancel"):
+            await query.edit_message_text("❌ Prune cancelled.", parse_mode=ParseMode.MARKDOWN)
+
+        # ── v4: AI section helpers ──
+        elif data == "oc_help":
+            from app.domains.telegram.adminbot import admin_ai as _admin_ai
+
+            kb = _admin_ai.model_keyboard() if _admin_ai and hasattr(_admin_ai, "model_keyboard") else None
+            await query.edit_message_text(
+                "🤖 *OpenCode Integration*\n\n"
+                "`/oc <prompt>` — Run any prompt through OpenCode\n"
+                "`/oc task <task>` — Quick admin task\n"
+                "`/oc model` — View/switch model",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=kb,
+            )
+        elif data == "ai_menu":
+            if admin_ai is None:
+                await query.edit_message_text("⚠️ AI module not available.", parse_mode=ParseMode.MARKDOWN)
+            else:
+                await query.edit_message_text(
+                    admin_ai.list_models(),
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=admin_ai.model_keyboard(),
+                )
+        elif data == "alert_help":
+            await query.edit_message_text(
+                "🔔 *Send Alert*\n\n"
+                "Usage: `/alert <message>`\n"
+                "Usage: `/alert critical <message>`\n\n"
+                "Levels: `info` (default), `warning`, `critical`",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=back_button("menu_ops"),
             )
 
         # ── Status ──
@@ -253,10 +459,6 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
 
         # ── Services ──
-        elif data == "services":
-            text = admin_ops.service_list()
-            await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("main"))
-
         elif data.startswith("svc_"):
             parts = data.split("_", 2)
             if len(parts) >= 3:
@@ -353,19 +555,14 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         # ── Alerts / Health ──
         elif data == "alerts":
-            checks = admin_ops.health_check()
-            text = admin_ops.format_health(checks)
+            data_dict = admin_health.health_dashboard()
+            text = admin_health.format_health_dashboard(data_dict)
             await query.edit_message_text(
                 text,
                 parse_mode=ParseMode.MARKDOWN,
-                reply_markup=InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton("🔄 Refresh", callback_data="alerts"),
-                            InlineKeyboardButton("🖥️ Status", callback_data="status"),
-                        ],
-                        [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
-                    ]
+                reply_markup=refresh_keyboard(
+                    "health",
+                    extra=[("🖥️ Status", "status"), ("📊 Quick", "quick_status")],
                 ),
             )
 
@@ -443,7 +640,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                             bias = a.get("bias", "center")
                             factual = a.get("factual_rating", "N/A")
                             url = a.get("url", "")
-                            sent_emoji = "🔥" if sentiment > 30 else "🧊" if sentiment < -30 else "➖"
+                            sent_emoji = "🔥" if sentiment > 30 else "🧊" if sentiment < -30 else "▫️"
                             bias_e = bias_emoji.get(bias, "⚪")
                             lines.append(
                                 f"{sent_emoji} {bias_e} *{title}*\n  📰 {source} · Factuality: {factual}\n  🔗 {url}"
