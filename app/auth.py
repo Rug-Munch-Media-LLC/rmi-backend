@@ -7,6 +7,8 @@ This shim re-exports the public surface for legacy callers.
 from __future__ import annotations
 
 from app.domains.auth import (
+    _JWT_PRIVATE_KEY,
+    _JWT_PUBLIC_KEY,
     JWT_ALGORITHM,
     JWT_EXPIRY_DAYS,
     JWT_SECRET,
@@ -15,8 +17,6 @@ from app.domains.auth import (
     TOTP_INTERVAL,
     TOTP_ISSUER,
     TOTP_WINDOW,
-    _JWT_PRIVATE_KEY,
-    _JWT_PUBLIC_KEY,
     EmailLoginRequest,
     EmailRegisterRequest,
     GoogleAuthResponse,
@@ -81,7 +81,6 @@ from app.domains.auth import (
     x_auth_url,
     x_callback,
 )
-
 
 __all__ = [
     "JWT_ALGORITHM",

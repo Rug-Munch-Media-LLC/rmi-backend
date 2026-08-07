@@ -25,7 +25,6 @@ from app.domains.admin.admin_backend import (
     require_admin,
 )
 
-
 __all__ = [
     "PERMISSIONS",
     "AdminRole",

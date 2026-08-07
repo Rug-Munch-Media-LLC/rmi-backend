@@ -23,7 +23,6 @@ from app.domains.news.news_service import (
     get_news_service,
 )
 
-
 __all__ = [
     "BEARISH_WORDS",
     "BULLISH_WORDS",

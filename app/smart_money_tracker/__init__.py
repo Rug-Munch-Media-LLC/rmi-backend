@@ -20,7 +20,9 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.smart_money_tracker.tracker import SmartMoneyTracker  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.smart_money_tracker.tracker import (
+    SmartMoneyTracker,
+)
 from app.smart_money_tracker.types import (  # noqa: E402 — imported after logger init; kept below module header for readability
     DetectedMove,
     FlowReport,
@@ -31,11 +33,11 @@ from app.smart_money_tracker.types import (  # noqa: E402 — imported after log
 )
 
 __all__ = [
-    "SmartMoneyTracker",
     "DetectedMove",
     "FlowReport",
     "ImpactLevel",
     "MoveDirection",
+    "SmartMoneyTracker",
     "SmartWallet",
     "WalletCategory",
     "run_smart_money_scan",

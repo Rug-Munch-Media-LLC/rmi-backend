@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from app.domains.tokens.deployer import (
     ChainDeployer,
-    DeployParams,
     DeploymentStorage,
+    DeployParams,
     EVMDeployer,
     SolanaDeployer,
     TokenDeployerFactory,

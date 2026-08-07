@@ -228,7 +228,6 @@ def enrich_tool_response(
 
 # ── Re-exports for legacy import compatibility ─────────────────────
 
-from app.routers.x402_enrichment.labels import build_risk_summary, extract_addresses, lookup_labels  # noqa: E402 — module docstring precedes import block
 from app.routers.x402_enrichment.models import (  # noqa: E402 — module docstring precedes import block
     ENRICH_CACHE_TTL,
     WalletLabel,

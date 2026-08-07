@@ -15,8 +15,13 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.core.http import get_http_client  # noqa: E402 — imported after logger init; kept below module header for readability
-from app.unified_scanner.cache import _cache_get, _cache_set  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.core.http import (
+    get_http_client,
+)
+from app.unified_scanner.cache import (  # noqa: E402 — imported after logger init; kept below module header for readability
+    _cache_get,
+    _cache_set,
+)
 from app.unified_scanner.helius import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _fetch_etherscan_wallet,
     _fetch_helius_wallet,

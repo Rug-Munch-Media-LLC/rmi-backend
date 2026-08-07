@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from app.domains.tokens.deployer import (
     ChainDeployer,
-    DeployParams,
     DeploymentStorage,
+    DeployParams,
     EVMDeployer,
     SolanaDeployer,
     TokenDeployerFactory,
@@ -17,7 +17,6 @@ from app.domains.tokens.deployer import (
     TronDeployer,
     get_storage,
 )
-
 
 __all__ = [
     "ChainDeployer",

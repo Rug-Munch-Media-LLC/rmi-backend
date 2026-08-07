@@ -24,7 +24,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 

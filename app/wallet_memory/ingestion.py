@@ -35,7 +35,9 @@ from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 logger = get_logger("wallet_memory.ingestion")
 
 
-from .models import NormalizedTransaction  # noqa: E402 — imported after logger init; kept below module header for readability
+from .models import (
+    NormalizedTransaction,
+)
 
 # ── Token-bucket rate limiter (uses UnifiedRateLimiter) ──────────────
 

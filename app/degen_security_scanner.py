@@ -26,7 +26,6 @@ from app.domains.scanner.degen_security_scanner import (
     scan_token,
 )
 
-
 __all__ = [
     "BUNDLER_PROGRAMS",
     "MIXER_PROGRAMS",

@@ -18,7 +18,11 @@ logger = get_logger("databus.providers")
 
 # Re-export from registry
 # Re-export from base
-from app.domains.databus.providers.base import Provider, ProviderChain, ProviderTier  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.databus.providers.base import (  # noqa: E402 — imported after logger init; kept below module header for readability
+    Provider,
+    ProviderChain,
+    ProviderTier,
+)
 
 # Re-export from circuit_breaker
 from app.domains.databus.providers.circuit_breaker import (  # noqa: E402 — module docstring precedes import block
@@ -27,7 +31,9 @@ from app.domains.databus.providers.circuit_breaker import (  # noqa: E402 — mo
     _rate_limiters,
     _RateLimiter,
 )
-from app.domains.databus.providers.registry import build_provider_chains  # noqa: E402 — module docstring precedes import block
+from app.domains.databus.providers.registry import (
+    build_provider_chains,
+)
 
 # Lazy-import provider functions on demand
 _imported_names = {}

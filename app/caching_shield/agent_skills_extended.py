@@ -376,7 +376,10 @@ AGENT_SKILLS_EXTENDED = {
 }
 
 # Merge with existing skills
-from app.caching_shield.agent_skills import AGENT_SKILLS, get_agent_skills  # noqa: E402 — module docstring precedes import block
+from app.caching_shield.agent_skills import (  # noqa: E402 — module docstring precedes import block
+    AGENT_SKILLS,
+    get_agent_skills,
+)
 
 ALL_AGENT_SKILLS = {**AGENT_SKILLS, **AGENT_SKILLS_EXTENDED}
 

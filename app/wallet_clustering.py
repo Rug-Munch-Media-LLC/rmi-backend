@@ -13,7 +13,6 @@ from app.domains.wallet.clustering import (
     get_wallet_entity,
 )
 
-
 __all__ = [
     "Cluster",
     "Connection",

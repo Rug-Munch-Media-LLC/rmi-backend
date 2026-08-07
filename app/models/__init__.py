@@ -34,7 +34,11 @@ from app.models.analytics import (  # noqa: E402 — module docstring precedes i
     EngagementEvent,
     ViewEvent,
 )
-from app.models.kv_migration import Bookmark, ChatMessage, IdentityMapping  # noqa: E402 — module docstring precedes import block
+from app.models.kv_migration import (  # noqa: E402 — module docstring precedes import block
+    Bookmark,
+    ChatMessage,
+    IdentityMapping,
+)
 from app.models.label import Label  # noqa: E402 — module docstring precedes import block
 from app.models.live import (  # noqa: E402 — module docstring precedes import block
     AchievementDef,
