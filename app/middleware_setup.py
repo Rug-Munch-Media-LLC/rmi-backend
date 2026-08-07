@@ -446,6 +446,14 @@ def _try_register_csrf(app: FastAPI) -> None:
             "/api/v1/public/",  # Public scanner/wallet APIs — called by walletpress, bots, etc.
             "/api/v2/scanner/",  # Unified scanner v2 — token/wallet scan, core product, called by curl/bots/MCP
             "/api/v1/chat",  # AI chat — public (anon users don't have cookies; rate-limited per IP)
+            "/api/v1/rag/",  # RAG search & ask — public product feature (rate-limited, no cookies)
+            "/api/v1/ai/",  # AI endpoints (chat, stream, ai/ai/*) — public, no cookies
+            "/api/v1/newsletter/",  # Newsletter — public signup & content, no cookies
+            "/api/v1/scam-school/",  # Scam School — public education content, no cookies
+            "/api/v1/token/",  # Token page — public token data, no cookies
+            "/api/v1/auth/",  # Auth endpoints (login/register) — cookie-free bearer auth
+            "/api/v1/bulletin-board/posts/public",  # Bulletin board public posts — no cookies
+            "/api/v1/rugmaps/",  # RugMaps token graph & entity analysis — public product feature
             "/api/v1/community-forensics/",  # Community forensics — public report submission
             "/api/v1/stripe/",  # Stripe webhooks + checkout — no cookies
             "/api/v1/bot/",  # Telegram bot API — public endpoints for bot connectivity

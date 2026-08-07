@@ -81,6 +81,11 @@ PUBLIC_PREFIXES = (
     "/api/v1/stripe/",  # Stripe pricing & checkout — public-facing billing page
     "/api/v1/pricing",  # Pricing page data (frontend: PricingPage.tsx)
     "/api/v1/subscription",  # Subscription creation (frontend: PricingPage.tsx)
+    "/api/v1/newsletter/",  # Newsletter — public signup & content (no API key needed)
+    "/api/v1/token/",  # Token page — public token data (frontend: TokenPage.tsx, no API key needed)
+    "/api/v1/databus/fetch",  # DataBus universal fetch — public product feature (frontend MCP + web)
+    "/api/v1/ai/ai/",  # AI chat routes (ai/ai/*) — public (rate-limited per IP)
+    "/api/v1/ai/stream",  # AI streaming responses — public (rate-limited per IP)
     "/api/v1/scam-school/",  # Scam School — public education content (no API key needed)
     "/api/v1/rag/",  # RAG search & ask — public product feature (rate-limited)
     "/api/v1/rugmaps/",  # RugMaps token graph & entity analysis — public product feature
