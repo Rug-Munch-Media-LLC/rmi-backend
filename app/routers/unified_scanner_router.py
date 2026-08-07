@@ -144,6 +144,8 @@ async def scan_token(
             "tier": result.tier,
             "scanned_at": result.scanned_at,
             "background_status": result.background_status,
+            "cached": result.cached,
+            "stability": result.stability,
             "data_source": "databus",
             "freshness": result.scanned_at,
             "fallback_used": fallback_used,

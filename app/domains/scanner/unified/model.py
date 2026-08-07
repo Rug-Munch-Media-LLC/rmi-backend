@@ -177,6 +177,14 @@ class ScanResult:
     # "running"  — background phases still in flight (poll the status endpoint).
     background_status: str = "complete"
 
+    # Result cache / stability metadata (score-stability work 2026-08-07).
+    # ``cached`` is True when this result was served from the 1h Redis result
+    # cache instead of a fresh scan; ``stability`` reports how many of the
+    # recent scans for this token agree on the risk level
+    # (``{"scans": N, "agreeing": M, "level": "medium", "agree_pct": 80}``).
+    cached: bool = False
+    stability: dict[str, Any] | None = None
+
 
 @dataclass
 class MarketContext:
@@ -217,4 +225,3 @@ class MarketContext:
             )
         except (TypeError, ValueError):
             return None
-

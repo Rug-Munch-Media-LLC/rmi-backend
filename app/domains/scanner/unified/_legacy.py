@@ -85,7 +85,96 @@ def _to_legacy_dict(result: ScanResult) -> dict[str, Any]:
         "sentinel": result.sentinel,
         "sentinel_boost": result.sentinel_boost,
         "market_context": result.market_context.to_dict() if result.market_context else None,
+        "cached": result.cached,
+        "stability": result.stability,
     }
+
+
+def _from_legacy_dict(data: dict[str, Any]) -> ScanResult | None:
+    """Rebuild a ``ScanResult`` from a legacy dict (best-effort, never raises).
+
+    Used to hydrate the 1h Redis result cache back into a full ``ScanResult``
+    so repeated scans within the TTL are served deterministically instead of
+    re-scoring with drifting external data. Defensive: missing/None fields
+    fall back to ``ScanResult`` defaults.
+    """
+    if not isinstance(data, dict):
+        return None
+    try:
+        from app.domains.scanner.unified.model import MarketContext, ScanResult
+
+        token_address = str(data.get("token_address") or data.get("address") or "")
+        if not token_address:
+            return None
+
+        modules_run: list[str] = []
+        raw_modules = data.get("modules_run") or []
+        for m in raw_modules:
+            if isinstance(m, str):
+                modules_run.append(m)
+            elif isinstance(m, dict) and m.get("module"):
+                modules_run.append(str(m["module"]))
+
+        mc = (
+            MarketContext.from_dict(data.get("market_context"))
+            if isinstance(data.get("market_context"), dict)
+            else None
+        )
+
+        result = ScanResult(
+            token_address=token_address,
+            chain=str(data.get("chain") or "solana"),
+            scanned_at=str(data.get("scanned_at") or ""),
+            name=str(data.get("name") or ""),
+            symbol=str(data.get("symbol") or ""),
+            price_usd=float(data.get("price_usd") or 0),
+            market_cap_usd=float(data.get("market_cap_usd") or 0),
+            liquidity_usd=float(data.get("liquidity_usd") or 0),
+            volume_24h_usd=float(data.get("volume_24h_usd") or 0),
+            age_hours=float(data.get("age_hours") or 0),
+            safety_score=float(data.get("safety_score") or 50),
+            confidence=float(data.get("confidence") or 0),
+            risk_level=str(data.get("risk_level") or "unknown"),
+            risk_flags=list(data.get("flags") or data.get("risk_flags") or []),
+            green_flags=list(data.get("green_flags") or []),
+            security=None,
+            holders=None,
+            holder_health=None,
+            liquidity=None,
+            volume_auth=None,
+            dev_reputation=None,
+            rug_patterns=None,
+            premium=None,
+            smart_money=None,
+            whale_alerts=None,
+            cross_chain=None,
+            launches=None,
+            chain_indexer_patterns=None,
+            funding_analysis=data.get("funding_analysis"),
+            wallet_freshness=data.get("wallet_freshness"),
+            holder_overlap=data.get("holder_overlap"),
+            event_correlation=data.get("event_correlation"),
+            news_sentiment=data.get("news_sentiment"),
+            news_card=data.get("news_card"),
+            sentinel=data.get("sentinel"),
+            sentinel_boost=float(data.get("sentinel_boost") or 0),
+            deep_profile=None,
+            market_context=mc,
+            breakdown=data.get("breakdown"),
+            evidence=data.get("evidence"),
+            modules_run=modules_run,
+            enrichment_sources=list(data.get("enrichment_sources") or []),
+            tier=str(data.get("tier") or "free"),
+            scan_tier=str(data.get("scan_tier") or "quick"),
+            scan_duration_ms=float(data.get("scan_duration_ms") or 0),
+            rag_context=None,
+            background_status=str(data.get("background_status") or "complete"),
+            cached=bool(data.get("cached")),
+            stability=data.get("stability"),
+        )
+        return result
+    except (TypeError, ValueError, KeyError):
+        return None
 
 
 def _deep_profile_to_dict(profile: DeepScanProfile | None) -> dict[str, Any] | None:

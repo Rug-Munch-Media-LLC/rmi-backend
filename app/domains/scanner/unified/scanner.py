@@ -28,7 +28,7 @@ from app.domains.scanner.unified._coercion import (
     _sleep_pattern,
     _social_velocity,
 )
-from app.domains.scanner.unified._legacy import _to_legacy_dict, scan_token_unified
+from app.domains.scanner.unified._legacy import _from_legacy_dict, _to_legacy_dict, scan_token_unified
 from app.domains.scanner.unified.model import (
     BundleProfile,
     DeepScanProfile,
@@ -40,6 +40,7 @@ from app.domains.scanner.unified.persistence import (
     auto_label_deployer,
     persist_result,
     publish_rag_finding,
+    read_stability,
 )
 from app.domains.scanner.unified.scoring import compute_score
 
@@ -228,6 +229,56 @@ class UnifiedTokenScanner:
     # never garbage-collected mid-run (shared singleton instance).
     _background_tasks: ClassVar[set[asyncio.Task[Any]]] = set()
 
+    # ── Result caching (score stability) ──────────────────────────────
+    # Tokens scanned within the last hour are served from the Redis result
+    # cache written by ``persist_result`` (key ``sentinelscan:{chain}:{addr}``,
+    # TTL 3600). This makes repeated scans deterministic: the same token in
+    # the same hour returns the same score instead of re-scoring with drifting
+    # external data (the WETH 23→28→38→43 drift bug).
+    CACHE_TTL_S = 3600
+
+    async def _load_cached_result(self, address: str, chain: str) -> ScanResult | None:
+        """Return a fresh cached scan result for the token, or ``None``.
+
+        Best-effort: Redis outage / missing key / malformed payload all yield
+        ``None`` so the fast path always falls through to a real scan.
+        """
+        try:
+            from app.core.redis import get_redis_async
+
+            r = get_redis_async()
+            if r is None:
+                return None
+            raw = await r.get(f"sentinelscan:{chain}:{address}")
+            if not raw:
+                return None
+            payload = json.loads(raw)
+            if not isinstance(payload, dict):
+                return None
+            cached = _from_legacy_dict(payload)
+            if cached is None:
+                return None
+            cached.cached = True
+            cached.background_status = "complete"
+            cached.scan_duration_ms = 0.0
+            # Attach the stability summary for this token (how many recent
+            # scans agree on the risk level) — cheap Redis read, best-effort.
+            cached.stability = await read_stability(chain, address)
+            logger.info(
+                "scan_cache_hit",
+                token=address[:16],
+                chain=chain,
+                safety_score=cached.safety_score,
+                risk_level=cached.risk_level,
+            )
+            return cached
+        except (ValueError, TypeError, KeyError, OSError) as exc:
+            logger.debug("scan_cache_read_failed", token=address[:16], error=str(exc)[:100])
+            return None
+        except Exception as exc:
+            logger.debug("scan_cache_read_unexpected", token=address[:16], error=str(exc)[:100])
+            return None
+
     async def scan(
         self,
         address: str,
@@ -251,7 +302,21 @@ class UnifiedTokenScanner:
         The returned ``ScanResult.background_status`` is:
           "complete" — every phase finished before the deadline
           "running"  — background phases still in flight (check status endpoint)
+
+        Score stability: if this token was scanned within the last hour
+        (Redis result cache written by ``persist_result``), the cached result
+        is returned with ``cached=True`` instead of re-scoring with drifting
+        external data.
         """
+        # ── Cache fast path: serve the 1h cached result when present ──
+        # Elite/admin (premium SENTINEL deep scans) always run fresh — the
+        # cache stores the last completed result which may be a quick-tier
+        # scan without premium modules.
+        if (tier or "").lower() not in ("elite", "admin"):
+            cached = await self._load_cached_result(address, chain)
+            if cached is not None:
+                return cached
+
         start = time.monotonic()
         params = {"address": address, "chain": chain}
         result = ScanResult(

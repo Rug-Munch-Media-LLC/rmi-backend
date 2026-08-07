@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib as _hl
+import json
 import os
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import httpx
+import requests
 
 from .models import CHAIN_SUFFIXES, NETWORKS
 

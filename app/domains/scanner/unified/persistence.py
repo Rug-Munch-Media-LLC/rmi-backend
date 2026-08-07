@@ -17,6 +17,14 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Stability window — how many recent risk levels we track per token (Redis).
+STABILITY_MAX_SCANS = 10
+STABILITY_TTL = 4 * 3600  # 4h — long enough to see repeated scans drift
+
+
+def _stability_key(chain: str, address: str) -> str:
+    return f"scanner:stability:{chain}:{address}"
+
 
 def _to_persist_dict(result: ScanResult) -> dict[str, Any]:
     """Convert ScanResult to a plain dict suitable for JSON storage."""
@@ -101,18 +109,88 @@ async def persist_result(result: ScanResult) -> None:
             address=result.token_address,
         )
 
-    # ── 3. Redis cache (independent of Postgres) ──
+    # ── 3. Redis cache (independent of Postgres) — full legacy dict so a
+    #    cache hit can be served as a complete ScanResult ──
     try:
         from app.core.redis import get_redis_async
+        from app.domains.scanner.unified._legacy import _to_legacy_dict
 
         r = get_redis_async()
         if r is not None:
             cache_key = f"sentinelscan:{result.chain}:{result.token_address}"
-            cache_val = json.dumps(_to_persist_dict(result), default=str)
+            cache_val = json.dumps(_to_legacy_dict(result), default=str)
             await r.setex(cache_key, 3600, cache_val)
             logger.debug("scan_redis_cached", key=cache_key)
-    except (RedisError, ConnectionError, OSError, TimeoutError):
+    except (RedisError, ConnectionError, OSError, TimeoutError, ImportError):
         logger.exception("scan_redis_cache_failed")
+
+    # ── 4. Stability tracking (best-effort) — record the risk level exactly
+    #    once per completed scan run (the shared-result flag prevents the same
+    #    run being counted twice when both persists fire). ──
+    if result.background_status == "complete" and not getattr(result, "_stability_recorded", False):
+        try:
+            from app.core.redis import get_redis_async
+
+            r = get_redis_async()
+            if r is not None:
+                await _record_stability(r, result.chain, result.token_address, result.risk_level)
+            result._stability_recorded = True
+        except (RedisError, ConnectionError, OSError, TimeoutError):
+            logger.debug("scan_stability_record_failed")
+
+
+async def _record_stability(r: Any, chain: str, address: str, risk_level: str) -> None:
+    """Append this scan's risk level to the token's recent-history window."""
+    if not risk_level:
+        return
+    key = _stability_key(chain, address)
+    try:
+        raw = await r.get(key)
+        levels = json.loads(raw) if raw else []
+        if not isinstance(levels, list):
+            levels = []
+        levels = [str(x) for x in levels if isinstance(x, str)]
+        levels.append(risk_level)
+        levels = levels[-STABILITY_MAX_SCANS:]
+        await r.setex(key, STABILITY_TTL, json.dumps(levels))
+    except (RedisError, TypeError, ValueError):
+        logger.debug("scan_stability_write_failed")
+
+
+async def read_stability(chain: str, address: str) -> dict[str, Any] | None:
+    """Read the stability summary for a token: how many recent scans agree.
+
+    Returns ``{"scans": N, "agreeing": M, "level": "medium", "agree_pct": 80}``
+    or ``None`` when there is no recorded history. ``level`` is the most
+    frequent recent risk level and ``agreeing`` counts scans matching it.
+    """
+    try:
+        from app.core.redis import get_redis_async
+
+        r = get_redis_async()
+        if r is None:
+            return None
+        raw = await r.get(_stability_key(chain, address))
+        if not raw:
+            return None
+        levels = json.loads(raw)
+        if not isinstance(levels, list) or not levels:
+            return None
+        levels = [str(x) for x in levels if isinstance(x, str)]
+        if not levels:
+            return None
+        from collections import Counter
+
+        counter = Counter(levels)
+        level, agreeing = counter.most_common(1)[0]
+        return {
+            "scans": len(levels),
+            "agreeing": agreeing,
+            "level": level,
+            "agree_pct": round(agreeing / len(levels) * 100),
+        }
+    except (RedisError, TypeError, ValueError, ConnectionError, OSError):
+        return None
 
 
 async def _maybe_upsert_token(session: Any, result: ScanResult) -> None:
