@@ -21,9 +21,11 @@ The legacy 0-100 score is derived deterministically from probability:
 
 from __future__ import annotations
 
+import json
 import math
 
 from app.catalog.models import Deployer, utcnow
+from app.catalog.service import CatalogService
 from app.core.logging import get_logger
 
 log = get_logger(__name__)

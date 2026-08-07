@@ -87,7 +87,7 @@ def clean_test_collection() -> str:
         yield name
     finally:
         # Always drop, even on test failure
-        try:  # noqa: SIM105
+        try:
             httpx.delete(f"{QDRANT_URL}/collections/{name}", timeout=5.0)
         except Exception:
             pass  # best-effort cleanup

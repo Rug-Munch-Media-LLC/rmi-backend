@@ -29,6 +29,16 @@ class WalletDBMixin:
       - _payments (list[PaymentRecord])
     """
 
+    # Declared on the host (WalletManagerV2); annotations keep mypy happy
+    # for mixin usage. Instantiated via the host __init__.
+    VAULT_PATH: str
+    KEYSTORE_PATH: str
+    PAYMENTS_PATH: str
+    SHARES_PATH: str
+    encryption_password: str
+    _wallets: dict[str, WalletRecord]
+    _payments: list[Any]
+
     # ── Vault Persistence ────────────────────────────────────
 
     def _load_vault(self) -> None:

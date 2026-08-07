@@ -18,6 +18,7 @@ import threading
 from typing import Any
 
 from app.core.logging import get_logger
+from app.entity_extraction.models import EntityExtractionResult
 
 logger = get_logger(__name__)
 

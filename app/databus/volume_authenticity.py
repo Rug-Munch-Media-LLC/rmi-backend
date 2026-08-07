@@ -16,6 +16,7 @@ import json
 import math
 import os
 from collections import defaultdict
+from dataclasses import field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -58,6 +59,21 @@ class DetectionSignal:
 
 class AuthenticityResult:
     """Complete volume authenticity analysis."""
+
+    # Annotated for mypy (mirrors __slots__): all attributes are set
+    # dynamically during scoring; defaults are provided for safety.
+    authentic_score: float = 0.0
+    ci_lower: float = 0.0
+    ci_upper: float = 0.0
+    component_breakdown: dict[str, Any] = field(default_factory=dict)
+    confidence: float = 0.0
+    data_quality: dict[str, Any] = field(default_factory=dict)
+    fake_volume_pct: float = 0.0
+    method_count: int = 0
+    risk_level: str = "unknown"
+    scan_timestamp: str = ""
+    signals: list[str] = field(default_factory=list)
+    source: str = "volume_authenticity_scorer"
 
     __slots__ = (
         "authentic_score",

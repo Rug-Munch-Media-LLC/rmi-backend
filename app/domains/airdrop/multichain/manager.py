@@ -16,6 +16,7 @@ from app.domains.airdrop.multichain.models import (
     TokenSource,
 )
 from app.domains.airdrop.multichain.snapshot import MultiChainSnapshotEngine
+from app.domains.tokens.deployer import TokenDeployerFactory
 
 logger = get_logger("darkroom_multichain_airdrop")
 

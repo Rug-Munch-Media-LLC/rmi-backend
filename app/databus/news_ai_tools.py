@@ -13,7 +13,7 @@ All powered by local Ollama - no external API costs.
 # NOTE: Dead code — module is not imported anywhere. Helper functions
 # (get_news_articles, ask_ollama) live in other modules; this standalone
 # tool set is retained for reference only.
-# type: ignore
+# mypy: ignore-errors
 
 from __future__ import annotations
 

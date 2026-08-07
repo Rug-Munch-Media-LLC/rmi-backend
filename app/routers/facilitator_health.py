@@ -17,8 +17,13 @@ Date: 2026-06-05
 
 from __future__ import annotations
 
+import asyncio
+import json
+import time
 from datetime import UTC, datetime
 from typing import Any
+
+import httpx
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -131,6 +136,154 @@ FACILITATORS = {
 }
 
 # ── Redis Helper ─────────────────────────────────────────────────
+
+
+def _health_redis_key(name: str) -> str:
+    return f"rmi:facilitator:health:{name}"
+
+
+def _status_override(name: str) -> str | None:
+    """Return status_override if the facilitator is pinned offline."""
+    return FACILITATORS.get(name, {}).get("status_override")
+
+
+def get_facilitator_health(name: str) -> dict[str, Any]:
+    """Read the most recently recorded health snapshot for a facilitator.
+
+    Returns a dict with status (healthy/degraded/dead/unknown), latency,
+    success rate and last-seen timestamp. Facilitators pinned with
+    ``status_override=dead`` always report dead.
+    """
+    override = _status_override(name)
+    if override:
+        return {
+            "name": name,
+            "status": override,
+            "latency_ms": None,
+            "success_rate": None,
+            "last_seen": None,
+            "checked_at": datetime.now(UTC).isoformat(),
+            "note": "pinned offline",
+        }
+
+    r = get_redis()
+    if not r:
+        return {
+            "name": name,
+            "status": "unknown",
+            "latency_ms": None,
+            "success_rate": None,
+            "last_seen": None,
+            "checked_at": datetime.now(UTC).isoformat(),
+        }
+
+    raw = r.get(_health_redis_key(name))
+    if not raw:
+        return {
+            "name": name,
+            "status": "unknown",
+            "latency_ms": None,
+            "success_rate": None,
+            "last_seen": None,
+            "checked_at": datetime.now(UTC).isoformat(),
+        }
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {
+            "name": name,
+            "status": "unknown",
+            "latency_ms": None,
+            "success_rate": None,
+            "last_seen": None,
+            "checked_at": datetime.now(UTC).isoformat(),
+        }
+
+
+def get_healthy_facilitators_for_chain(chain: str) -> list[str]:
+    """List facilitator names that currently support a chain and are healthy."""
+    healthy = []
+    for name, config in FACILITATORS.items():
+        if chain not in config.get("chains", []):
+            continue
+        health = get_facilitator_health(name)
+        if health.get("status") == "healthy":
+            healthy.append(name)
+    return sorted(healthy, key=lambda n: FACILITATORS[n].get("priority", 99))
+
+
+async def ping_facilitator(name: str, config: dict[str, Any]) -> dict[str, Any]:
+    """Ping a facilitator's health endpoint and measure latency."""
+    health_url = config.get("health_url")
+    if not health_url:
+        return {
+            "name": name,
+            "status": "unknown",
+            "latency_ms": None,
+            "success_rate": None,
+            "last_seen": None,
+            "checked_at": datetime.now(UTC).isoformat(),
+            "note": "no public health endpoint",
+        }
+
+    timeout_ms = config.get("timeout_ms", 5000)
+    started = time.monotonic()
+    try:
+        async with httpx.AsyncClient(timeout=timeout_ms / 1000) as client:
+            resp = await client.get(health_url)
+        latency_ms = round((time.monotonic() - started) * 1000, 2)
+        status = "healthy" if resp.status_code == 200 else "degraded"
+        if resp.status_code >= 500:
+            status = "dead"
+        return {
+            "name": name,
+            "status": status,
+            "latency_ms": latency_ms,
+            "success_rate": None,
+            "last_seen": datetime.now(UTC).isoformat(),
+            "checked_at": datetime.now(UTC).isoformat(),
+        }
+    except (httpx.HTTPError, OSError) as exc:
+        return {
+            "name": name,
+            "status": "dead",
+            "latency_ms": None,
+            "success_rate": None,
+            "last_seen": None,
+            "checked_at": datetime.now(UTC).isoformat(),
+            "error": str(exc)[:200],
+        }
+
+
+def record_health(name: str, result: dict[str, Any]) -> None:
+    """Persist a health snapshot to Redis and refresh the summary key."""
+    r = get_redis()
+    if not r:
+        return
+    try:
+        r.set(_health_redis_key(name), json.dumps(result), ex=86400)
+        summary: dict[str, Any] = {}
+        for n in FACILITATORS:
+            summary[n] = get_facilitator_health(n)
+        r.set("rmi:facilitator:summary", json.dumps(summary), ex=300)
+    except (ConnectionError, OSError, TypeError) as exc:
+        logger.warning("record_health_failed name=%s err=%s", name, exc)
+
+
+async def health_check_loop() -> None:
+    """Background loop: ping every facilitator every 60s and persist health."""
+    logger.info("facilitator_health_loop_started")
+    while True:
+        for name, config in FACILITATORS.items():
+            if config.get("status_override"):
+                continue
+            try:
+                result = await ping_facilitator(name, config)
+                record_health(name, result)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("facilitator_health_ping_failed name=%s err=%s", name, exc)
+        await asyncio.sleep(60)
 
 
 async def get_all_health() -> Any:

@@ -25,6 +25,7 @@ torch>=2.3.0             # Deep learning framework
 numpy>=1.26.0            # Numerical computing
 sentence-transformers>=3.0.0  # Embedding models
 faiss-cpu>=1.8.0         # Vector similarity search
+qdrant-client>=1.18.0    # Official Qdrant client (app/domains/rugmaps, RAG)
 pandas>=2.2.0            # Data analysis
 
 # ═══════════════════════════════════════════════

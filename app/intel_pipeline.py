@@ -21,6 +21,7 @@ logger = get_logger(__name__)
 
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_API = "https://api-inference.huggingface.co/models"
+EMBEDDING_MODEL = "BAAI/bge-m3"
 
 
 def _get_url() -> Any:
