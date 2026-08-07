@@ -273,7 +273,7 @@ async def api_telegram_health():
 
     headless_available = False
     try:
-        import telethon
+        import telethon  # noqa: F401 — availability probe
 
         headless_available = True
     except ImportError:
@@ -303,7 +303,6 @@ async def api_group_embed_info(chat_id: int):
         from app.domains.telegram.headless import get_headless_client
 
         client = await get_headless_client()
-        from app.domains.telegram.headless import GroupInfo
 
         # Get group info from telegram
         try:

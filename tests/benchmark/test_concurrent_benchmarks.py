@@ -238,6 +238,21 @@ class TestConcurrentScannerBenchmarks:
             "app.domains.wallet.unified_wallet_scanner.UnifiedWalletScanner.scan",
             new_callable=lambda: _MockAsyncScan(mock_result),
         ):
+            # Warm up the exact endpoint under test: the shared async client is
+            # created lazily and the scanner/rate-limiter paths do one-time
+            # init, so a cold first batch would measure startup cost rather
+            # than concurrency behavior and flake on shared hosts.
+            await _request(
+                benchmark_app,
+                "POST",
+                "/api/v2/scanner/wallet/scan",
+                headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+                json_body={
+                    "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18",
+                    "chain": "ethereum",
+                },
+            )
+
             results = await _concurrent_requests(
                 benchmark_app,
                 "POST",

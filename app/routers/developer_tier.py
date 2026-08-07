@@ -28,7 +28,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
-from app.core.redis import get_redis
 from app.routers.dev_portal import CreateKeyRequest, create_api_key
 
 logger = get_logger("developer_tier")

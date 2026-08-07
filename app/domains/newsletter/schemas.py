@@ -6,12 +6,15 @@ consistent with app.domains.news.router patterns.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-if TYPE_CHECKING:
-    from datetime import datetime
+# NOTE: ``datetime`` is imported at runtime (not TYPE_CHECKING-only) because
+# Pydantic v2 must resolve the annotation when building JSON/OpenAPI schemas
+# for models with ``publish_at``/``created_at`` fields (model_json_schema()
+# raises PydanticUserError otherwise).
 
 # ── Newsletter (Campaign) ───────────────────────────────────────────
 

@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import app.domains.scanner.service
+import app.domains.scanner.service  # noqa: F401 — module side-effect import
 from app.domains.scanner.models import ScanResult
 
 

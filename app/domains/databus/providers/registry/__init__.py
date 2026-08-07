@@ -13,14 +13,12 @@ Split from registry.py into categories/: market, security, wallet, intel, social
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import httpx
 
 from app.core.circuit_breaker import SimpleCircuitBreaker
 from app.core.logging import get_logger
 
-from ..base import Provider, ProviderTier
 from ..circuit_breaker import _circuit_breakers, _rate_limiters, _RateLimiter
 
 if TYPE_CHECKING:
@@ -34,108 +32,108 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     chains: dict[str, ProviderChain] = {}
 
     # ── Import all provider functions ──
-    from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider
+    from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider  # noqa: F401 — consumed by category builders via locals()
 
-    from ..chains.alchemy import _alchemy_token_balances, _alchemy_token_metadata
+    from ..chains.alchemy import _alchemy_token_balances, _alchemy_token_metadata  # noqa: F401 — consumed by category builders via locals()
     from ..chains.arkham import (
-        _arkham_counterparties,
-        _arkham_entity,
-        _arkham_intel_search,
-        _arkham_labels,
-        _arkham_portfolio,
-        _arkham_transfers,
+        _arkham_counterparties,  # noqa: F401 — consumed by category builders via locals()
+        _arkham_entity,  # noqa: F401 — consumed by category builders via locals()
+        _arkham_intel_search,  # noqa: F401 — consumed by category builders via locals()
+        _arkham_labels,  # noqa: F401 — consumed by category builders via locals()
+        _arkham_portfolio,  # noqa: F401 — consumed by category builders via locals()
+        _arkham_transfers,  # noqa: F401 — consumed by category builders via locals()
     )
     from ..chains.chain_indexer import (
-        _chain_indexer_deployer_history,
-        _chain_indexer_dex_events,
-        _chain_indexer_holders,
-        _chain_indexer_pattern_search,
-        _chain_indexer_solana_balance_changes,
-        _chain_indexer_token_transfers,
+        _chain_indexer_deployer_history,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_dex_events,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_holders,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_pattern_search,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_solana_balance_changes,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_token_transfers,  # noqa: F401 — consumed by category builders via locals()
     )
     from ..chains.chain_indexer_own import (
-        _chain_indexer_attack_detection,
-        _chain_indexer_cross_chain_entity,
-        _chain_indexer_deployer_fingerprint,
-        _chain_indexer_deployer_reputation,
-        _chain_indexer_holder_age,
-        _chain_indexer_holder_clusters,
-        _chain_indexer_hype_score,
-        _chain_indexer_new_token_radar,
-        _chain_indexer_volume_authenticity,
-        _chain_indexer_wallet_flow,
-        _chain_indexer_whale_detect,
+        _chain_indexer_attack_detection,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_cross_chain_entity,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_deployer_fingerprint,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_deployer_reputation,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_holder_age,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_holder_clusters,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_hype_score,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_new_token_radar,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_volume_authenticity,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_wallet_flow,  # noqa: F401 — consumed by category builders via locals()
+        _chain_indexer_whale_detect,  # noqa: F401 — consumed by category builders via locals()
     )
     from ..chains.dexscreener import (
-        _dexscreener_holders,
-        _dexscreener_price,
-        _dexscreener_token_metadata,
-        _dexscreener_top_traders,
-        _dexscreener_trades,
+        _dexscreener_holders,  # noqa: F401 — consumed by category builders via locals()
+        _dexscreener_price,  # noqa: F401 — consumed by category builders via locals()
+        _dexscreener_token_metadata,  # noqa: F401 — consumed by category builders via locals()
+        _dexscreener_top_traders,  # noqa: F401 — consumed by category builders via locals()
+        _dexscreener_trades,  # noqa: F401 — consumed by category builders via locals()
     )
     from ..chains.free_apis import (
-        _blockchair_address,
-        _blockchair_stats,
-        _coingecko_price,
-        _defillama_chains,
-        _defillama_tvl,
-        _etherscan_tx_trace,
+        _blockchair_address,  # noqa: F401 — consumed by category builders via locals()
+        _blockchair_stats,  # noqa: F401 — consumed by category builders via locals()
+        _coingecko_price,  # noqa: F401 — consumed by category builders via locals()
+        _defillama_chains,  # noqa: F401 — consumed by category builders via locals()
+        _defillama_tvl,  # noqa: F401 — consumed by category builders via locals()
+        _etherscan_tx_trace,  # noqa: F401 — consumed by category builders via locals()
     )
     from ..chains.free_security import (
-        _free_blockscout_labels,
-        _free_etherscan_labels,
-        _free_market_clickhouse_twap,
-        _free_market_coingecko,
-        _free_market_geckoterminal,
-        _free_market_oneinch_quote,
-        _free_market_paraswap_quote,
-        _free_security_clickhouse,
-        _free_security_dexscreener,
-        _free_security_goplus,
-        _free_security_honeypot_is,
-        _free_security_rugcheck,
-        _free_wallet_pattern_heuristics,
+        _free_blockscout_labels,  # noqa: F401 — consumed by category builders via locals()
+        _free_etherscan_labels,  # noqa: F401 — consumed by category builders via locals()
+        _free_market_clickhouse_twap,  # noqa: F401 — consumed by category builders via locals()
+        _free_market_coingecko,  # noqa: F401 — consumed by category builders via locals()
+        _free_market_geckoterminal,  # noqa: F401 — consumed by category builders via locals()
+        _free_market_oneinch_quote,  # noqa: F401 — consumed by category builders via locals()
+        _free_market_paraswap_quote,  # noqa: F401 — consumed by category builders via locals()
+        _free_security_clickhouse,  # noqa: F401 — consumed by category builders via locals()
+        _free_security_dexscreener,  # noqa: F401 — consumed by category builders via locals()
+        _free_security_goplus,  # noqa: F401 — consumed by category builders via locals()
+        _free_security_honeypot_is,  # noqa: F401 — consumed by category builders via locals()
+        _free_security_rugcheck,  # noqa: F401 — consumed by category builders via locals()
+        _free_wallet_pattern_heuristics,  # noqa: F401 — consumed by category builders via locals()
     )
     from ..chains.freemium_apis import (
-        _birdeye_overview,
-        _birdeye_price,
-        _coindesk_news,
-        _dune_early_buyers,
-        _messari_news,
-        _santiment_dev_activity,
-        _solana_tracker_price,
-        _solana_tracker_token,
-        _solana_tracker_trending,
-        _virustotal_url_scan,
+        _birdeye_overview,  # noqa: F401 — consumed by category builders via locals()
+        _birdeye_price,  # noqa: F401 — consumed by category builders via locals()
+        _coindesk_news,  # noqa: F401 — consumed by category builders via locals()
+        _dune_early_buyers,  # noqa: F401 — consumed by category builders via locals()
+        _messari_news,  # noqa: F401 — consumed by category builders via locals()
+        _santiment_dev_activity,  # noqa: F401 — consumed by category builders via locals()
+        _solana_tracker_price,  # noqa: F401 — consumed by category builders via locals()
+        _solana_tracker_token,  # noqa: F401 — consumed by category builders via locals()
+        _solana_tracker_trending,  # noqa: F401 — consumed by category builders via locals()
+        _virustotal_url_scan,  # noqa: F401 — consumed by category builders via locals()
     )
-    from ..chains.intel_provider import _scraped_intel_provider
+    from ..chains.intel_provider import _scraped_intel_provider  # noqa: F401 — consumed by category builders via locals()
     from ..chains.local import (
-        _clickhouse_wallet_labels,
-        _local_token_price,
-        _local_wallet_labels,
-        _passthrough_alerts,
-        _passthrough_hyperliquid,
-        _passthrough_hyperliquid_action,
-        _passthrough_insider_wallets,
-        _passthrough_market_overview,
-        _passthrough_news,
-        _passthrough_prediction_signals,
-        _passthrough_rag,
-        _passthrough_scanner,
-        _passthrough_trending,
+        _clickhouse_wallet_labels,  # noqa: F401 — consumed by category builders via locals()
+        _local_token_price,  # noqa: F401 — consumed by category builders via locals()
+        _local_wallet_labels,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_alerts,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_hyperliquid,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_hyperliquid_action,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_insider_wallets,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_market_overview,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_news,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_prediction_signals,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_rag,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_scanner,  # noqa: F401 — consumed by category builders via locals()
+        _passthrough_trending,  # noqa: F401 — consumed by category builders via locals()
     )
-    from ..chains.mcp_bridge import _mcp_bridge
+    from ..chains.mcp_bridge import _mcp_bridge  # noqa: F401 — consumed by category builders via locals()
     from ..chains.moralis import (
-        _moralis_price,
-        _moralis_search_tokens,
-        _moralis_token_metadata,
-        _moralis_token_price,
-        _moralis_wallet_net_worth,
-        _moralis_wallet_nfts,
-        _moralis_wallet_tokens,
-        _moralis_wallet_transactions,
+        _moralis_price,  # noqa: F401 — consumed by category builders via locals()
+        _moralis_search_tokens,  # noqa: F401 — consumed by category builders via locals()
+        _moralis_token_metadata,  # noqa: F401 — consumed by category builders via locals()
+        _moralis_token_price,  # noqa: F401 — consumed by category builders via locals()
+        _moralis_wallet_net_worth,  # noqa: F401 — consumed by category builders via locals()
+        _moralis_wallet_nfts,  # noqa: F401 — consumed by category builders via locals()
+        _moralis_wallet_tokens,  # noqa: F401 — consumed by category builders via locals()
+        _moralis_wallet_transactions,  # noqa: F401 — consumed by category builders via locals()
     )
-    from ..chains.price_oracle_provider import token_meta_local, token_price_local
+    from ..chains.price_oracle_provider import token_meta_local, token_price_local  # noqa: F401 — consumed by category builders via locals()
 
     # ── Build chains by category ──
     _builders: list[tuple[str, str]] = [

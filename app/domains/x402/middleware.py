@@ -339,15 +339,18 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
     if not tx_hash:
         return False
 
-    # Route to the production x402 enforcement system
+    # Route to the production x402 enforcement system. The full x402
+    # verifier requires a signed payment payload (not a bare tx_hash), so
+    # on-chain verification falls through to the local RPC path below.
     try:
-        from app.routers.x402_enforcement import verify_self_payment
+        from app.routers.x402_enforcement import verify_payment
 
-        result = await verify_self_payment(tx_hash, expected_amount_usd)
-        return result.get("verified", False)
+        result = await verify_payment({"txHash": tx_hash, "accepted": {"network": "base"}})
+        if result.get("verified", False):
+            return True
     except ImportError:
         pass
-    except (httpx.HTTPError, KeyError, TypeError) as e:
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
         get_logger("wp.x402").error(f"verify_payment_on_chain error: {e}")
 
     # Local verification for Base USDC via public RPC

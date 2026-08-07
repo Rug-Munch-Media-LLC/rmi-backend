@@ -29,7 +29,6 @@ log = get_logger(__name__)
 from app.core.observability import (  # noqa: E402 — imported after logger init; kept below module header for readability
     capture_exception as capture_exception,
     capture_message as capture_message,
-    flush_sentry as flush,
 )
 
 

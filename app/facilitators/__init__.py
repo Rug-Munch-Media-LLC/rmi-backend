@@ -44,3 +44,12 @@ for _name in (
     "x402_rs",
 ):
     _sys.modules[f"app.facilitators.{_name}"] = _importlib.import_module(f"app.domains.billing.facilitators.{_name}")
+
+__all__ = [
+    "Facilitator",
+    "FacilitatorRegistry",
+    "FacilitatorRouter",
+    "SettlementResult",
+    "VerificationResult",
+    "get_facilitator_router",
+]

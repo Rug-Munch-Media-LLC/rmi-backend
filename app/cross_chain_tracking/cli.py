@@ -71,7 +71,6 @@ async def cmd_run(args: argparse.Namespace) -> int:
 async def cmd_stats(args: argparse.Namespace) -> int:
     """Show statistics about cross-chain data."""
     from .clickhouse_reader import fetch_chains_with_data, fetch_deployment_counts_by_chain
-    from .neo4j_writer import get_cross_chain_edges_for_wallet
 
     chains = await fetch_chains_with_data()
     counts = await fetch_deployment_counts_by_chain(limit=30)

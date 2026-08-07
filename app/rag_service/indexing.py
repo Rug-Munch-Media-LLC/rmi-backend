@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from app.core.logging import get_logger
 from app.crypto_embeddings import EmbeddingResult, get_embedder
 from app.rag_service.cache import _get_redis
-from app.rag_service.state import _pattern_cache, _pattern_cache_loaded, _seeded
+from app.rag_service.state import _pattern_cache, _seeded
 
 logger = get_logger(__name__)
 

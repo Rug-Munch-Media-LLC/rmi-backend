@@ -27,8 +27,8 @@ except ImportError:
     logger.warning("cryptography not installed - encryption disabled")
 
 try:
-    from nacl.bindings import crypto_sign_ed25519_sk_to_seed
-    from nacl.signing import SigningKey as NaClSigningKey
+    from nacl.bindings import crypto_sign_ed25519_sk_to_seed  # noqa: F401 — availability probe
+    from nacl.signing import SigningKey as NaClSigningKey  # noqa: F401 — availability probe
 
     _HAS_NACL = True
 except ImportError:

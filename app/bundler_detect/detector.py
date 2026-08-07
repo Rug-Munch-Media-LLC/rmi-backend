@@ -25,6 +25,7 @@ from app.bundler_detect.scoring import gini_coefficient, label_risk
 from app.bundler_detect.scoring_methods import (
     compute_bundler_score,
     score_fund_flow,
+    score_launch_timing,
     score_sniper_clusters,
     score_supply_concentration,
 )

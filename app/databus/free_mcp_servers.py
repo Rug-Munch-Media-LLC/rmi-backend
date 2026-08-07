@@ -18,9 +18,9 @@ from app.routers.x402_databus_tools import check_trial
 # ═══════════════════════════════════════════════════
 # MCP #1: CRYPTO NEWS - 500+ sources, sentiment-scored
 # ═══════════════════════════════════════════════════
-def search_news(query: str, limit: int = 10, fingerprint: str = "anon") -> dict:
+async def search_news(query: str, limit: int = 10, fingerprint: str = "anon") -> dict:
     """Search 500+ crypto news sources. 20 free calls/day."""
-    auth = check_trial(fingerprint, "news", 20)
+    auth = await check_trial(fingerprint, "news", 20)
     if auth.get("tier") == "free_exhausted":
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     r = get_redis()
@@ -57,9 +57,9 @@ def search_news(query: str, limit: int = 10, fingerprint: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #2: WALLET INTELLIGENCE - 10M+ labels, 13 chains
 # ═══════════════════════════════════════════════════
-def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
+async def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
     """Resolve any crypto address across 13 chains. 15 free/day."""
-    auth = check_trial(fingerprint, "wallet", 15)
+    auth = await check_trial(fingerprint, "wallet", 15)
     if auth.get("tier") == "free_exhausted":
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     r = get_redis()
@@ -108,9 +108,9 @@ def resolve_wallet(address: str, fingerprint: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #3: TOKEN SECURITY - Rug pull, honeypot, scam
 # ═══════════════════════════════════════════════════
-def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "anon") -> dict:
+async def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "anon") -> dict:
     """Security scan any token. 10 free/day. Premium: $0.02/call."""
-    auth = check_trial(fingerprint, "security", 10)
+    auth = await check_trial(fingerprint, "security", 10)
     if auth.get("tier") == "free_exhausted":
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     import httpx as req
@@ -147,9 +147,9 @@ def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "anon")
 # ═══════════════════════════════════════════════════
 # MCP #4: CROSS-CHAIN BRIDGE MONITOR
 # ═══════════════════════════════════════════════════
-def check_bridge_transfers(address: str = "", bridge: str = "wormhole", fingerprint: str = "anon") -> dict:
+async def check_bridge_transfers(address: str = "", bridge: str = "wormhole", fingerprint: str = "anon") -> dict:
     """Check cross-chain bridge activity. 10 free/day."""
-    auth = check_trial(fingerprint, "bridge", 10)
+    auth = await check_trial(fingerprint, "bridge", 10)
     if auth.get("tier") == "free_exhausted":
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     import httpx as req
@@ -175,9 +175,9 @@ def check_bridge_transfers(address: str = "", bridge: str = "wormhole", fingerpr
 # ═══════════════════════════════════════════════════
 # MCP #5: DEFI ANALYTICS - TVL, yields, protocols
 # ═══════════════════════════════════════════════════
-def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str = "anon") -> dict:
+async def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str = "anon") -> dict:
     """DeFi TVL, yields, protocol health. 20 free/day. Premium: $0.01/call."""
-    auth = check_trial(fingerprint, "defi", 20)
+    auth = await check_trial(fingerprint, "defi", 20)
     if auth.get("tier") == "free_exhausted":
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     import httpx as req

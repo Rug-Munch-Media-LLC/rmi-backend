@@ -138,7 +138,7 @@ def search_similar_patterns(
     try:
         from app.rag.compat import get_embedder, search_multi_collection
 
-        embedder = get_embedder()
+        embedder = await get_embedder()
         if not embedder:
             return [], 0
 
@@ -151,7 +151,7 @@ def search_similar_patterns(
                     continue
 
             try:
-                emb = embedder.embed(addr)
+                emb = await embedder.embed_wallet(addr)
                 if not emb or not emb.vector:
                     continue
 

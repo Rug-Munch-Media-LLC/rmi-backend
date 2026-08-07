@@ -9,12 +9,13 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.auth import require_auth
 from app.core.logging import get_logger
+from app.routers.web3_chat.models import PayRequest, RequestPayment, SplitRequest, TipRequest
 from app.services.web3_chat import (
     PaymentRequest,
     PaymentStatus,
@@ -27,9 +28,6 @@ from app.services.web3_chat import (
     simulate_payment,
     validate_address,
 )
-
-if TYPE_CHECKING:
-    from app.routers.web3_chat.models import PayRequest, RequestPayment, SplitRequest, TipRequest
 
 logger = get_logger("web3_chat_router")
 

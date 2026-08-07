@@ -25,3 +25,9 @@ from app.domains.billing.x402 import (
 # Alias submodules so `from app.billing.x402.router import router` works
 _sys.modules["app.billing.x402"] = _x402
 _sys.modules["app.billing.x402.router"] = _router
+
+__all__ = [
+    "CHAIN_USDC",
+    "TOOL_PRICES",
+    "X402Enforcer",
+]

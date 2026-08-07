@@ -40,6 +40,9 @@ from app.domains.telegram.rugmunchbot.scanner import analyze_wallet, scan_token
 from app.domains.telegram.rugmunchbot.states import check_spam, get_sol_price, is_owner
 
 __all__ = [
+    "EVM_RE",
+    "SOL_RE",
+    "TOKEN_RE",
     "analyze_wallet",
     "back_kb",
     "buy_stars_kb",

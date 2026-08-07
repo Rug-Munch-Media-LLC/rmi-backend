@@ -119,8 +119,8 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
         query_text = f"token {token_address} on {chain} rug pull scam honeypot"
         embedding = await embedder.embed_query(query_text)
 
-        if "scam_patterns" in ann.indexes:
-            results = ann.search("scam_patterns", embedding, k=5)
+        if "scam_patterns" in ann._indexes:
+            results = await ann.search(embedding, "scam_patterns", limit=5)
             for r in results:
                 similar.append(
                     {
@@ -130,8 +130,8 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
                     }
                 )
 
-        if "known_scams" in ann.indexes:
-            results = ann.search("known_scams", embedding, k=5)
+        if "known_scams" in ann._indexes:
+            results = await ann.search(embedding, "known_scams", limit=5)
             for r in results:
                 similar.append(
                     {
@@ -141,8 +141,8 @@ async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
                     }
                 )
 
-        if "wallet_profiles" in ann.indexes:
-            results = ann.search("wallet_profiles", embedding, k=5)
+        if "wallet_profiles" in ann._indexes:
+            results = await ann.search(embedding, "wallet_profiles", limit=5)
             for r in results:
                 similar.append(
                     {

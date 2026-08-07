@@ -37,3 +37,20 @@ from app.routers.web3_chat.models import (  # isort:skip  # noqa: E402 — modul
     TokenGateRequest,
     VerifyGateRequest,
 )
+
+__all__ = [
+    "ConnectWalletRequest",
+    "NFTGateRequest",
+    "PayRequest",
+    "RequestPayment",
+    "SplitRequest",
+    "SwapQuoteRequest",
+    "TipRequest",
+    "TokenGateRequest",
+    "VerifyGateRequest",
+    "gates",
+    "misc",
+    "payments",
+    "router",
+    "wallet",
+]

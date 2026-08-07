@@ -48,7 +48,6 @@ async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
 async def cache_stats() -> dict[str, int] | dict[str, str]:
     """Get cache hit/miss statistics."""
     try:
-        import json
 
         from app.routers.x402_advanced_tools.cache import _redis_conn
 
