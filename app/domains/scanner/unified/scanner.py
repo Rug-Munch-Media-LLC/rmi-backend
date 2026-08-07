@@ -55,7 +55,7 @@ async def _store_scan_status(chain: str, address: str, payload: dict[str, Any]) 
         if r is None:
             return
         await r.setex(_scan_status_key(chain, address), SCAN_STATUS_TTL, json.dumps(payload, default=str))
-    except Exception as exc:  # noqa: BLE001 — status storage is best-effort
+    except Exception as exc:
         logger.debug("scan_status_store_failed", chain=chain, address=address[:12], error=str(exc)[:80])
 
 
@@ -89,7 +89,7 @@ async def scan_status(chain: str, address: str) -> dict[str, Any] | None:
                     return {"state": "complete", "source": "result_cache", "result": parsed}
             except (TypeError, ValueError):
                 return None
-    except Exception as exc:  # noqa: BLE001 — status reads are best-effort
+    except Exception as exc:
         logger.debug("scan_status_read_failed", chain=chain, address=address[:12], error=str(exc)[:80])
     return None
 
@@ -477,7 +477,7 @@ class UnifiedTokenScanner:
         except (ValueError, TypeError, KeyError, OSError) as e:
             logger.error(f"Scan core failed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
-        except Exception as e:  # noqa: BLE001 — a scan must always return a result, never raise
+        except Exception as e:
             logger.error(f"Scan core crashed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
 
@@ -713,7 +713,7 @@ class UnifiedTokenScanner:
             logger.error(f"Scan background failed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
             await _status("error", state="error", error=str(e)[:200])
-        except Exception as e:  # noqa: BLE001 — a scan must always return a result, never raise
+        except Exception as e:
             logger.debug("scan_unexpected_error", exc_info=True)
             logger.error(f"Scan background crashed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
@@ -817,7 +817,7 @@ class UnifiedTokenScanner:
                 logger.debug("_fetch_one_error", exc_info=True)
                 logger.warning(f"DataBus chain '{chain_name}' failed: {e}")
                 return chain_name, None
-            except Exception as e:  # noqa: BLE001 — one failing module must never fail the scan
+            except Exception as e:
                 logger.debug("_fetch_one_unexpected", exc_info=True)
                 logger.warning(f"DataBus chain '{chain_name}' raised unexpected error: {e}")
                 return chain_name, None

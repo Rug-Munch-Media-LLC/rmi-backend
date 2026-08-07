@@ -19,6 +19,7 @@ from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
 )
@@ -29,25 +30,36 @@ from app.domains.telegram.adminbot.commands import (
     cmd_alert,
     cmd_alerts,
     cmd_backup,
+    cmd_certs,
     cmd_chain,
     cmd_deploy,
     cmd_disk,
+    cmd_dlogs,
     cmd_docker,
+    cmd_dprune,
+    cmd_dps,
+    cmd_dstats,
     cmd_git,
     cmd_help,
     cmd_indexer,
     cmd_logs,
     cmd_mem,
+    cmd_menu,
+    cmd_net,
     cmd_news,
     cmd_oc,
     cmd_push,
     cmd_quick,
     cmd_ragstats,
+    cmd_restart,
     cmd_scanstats,
     cmd_service,
+    cmd_services,
     cmd_shell,
     cmd_start,
     cmd_status,
+    cmd_top,
+    cmd_uptime,
 )
 from app.domains.telegram.adminbot.config import ADMIN_BOT_TOKEN
 from app.domains.telegram.adminbot.terminal import cmd_terminal, handle_terminal_message
@@ -55,6 +67,9 @@ from app.domains.telegram.adminbot.terminal import cmd_terminal, handle_terminal
 # ── Setup ──────────────────────────────────────────────────────────
 logging.basicConfig(format="%(asctime)s [%(levelname)s] admin_bot: %(message)s", level=logging.INFO)
 logger = logging.getLogger("admin_bot")
+
+# Background asyncio tasks started in _post_init (kept referenced to avoid GC).
+_listener_tasks: list[asyncio.Task] = []
 
 # ═══════════════════════════════════════════════════════════════════
 # ERROR HANDLER
@@ -81,9 +96,11 @@ async def _post_init(app: Application) -> None:
 
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            loop.create_task(start_redis_listener(app.bot))
+            task = loop.create_task(start_redis_listener(app.bot))
         else:
-            app.create_task(start_redis_listener(app.bot))
+            task = app.create_task(start_redis_listener(app.bot))
+        # Keep a reference so the background listener is not garbage collected.
+        _listener_tasks.append(task)
     except Exception as exc:
         logger.warning("Redis listener setup failed (non-critical): %s", exc)
 
@@ -123,6 +140,19 @@ def main() -> None:
     app.add_handler(CommandHandler("news", cmd_news))
     app.add_handler(CommandHandler("scanstats", cmd_scanstats))
     app.add_handler(CommandHandler("indexer", cmd_indexer))
+
+    # ── NEW Commands v4 (Server + Docker management) ──
+    app.add_handler(CommandHandler("menu", cmd_menu))
+    app.add_handler(CommandHandler("top", cmd_top))
+    app.add_handler(CommandHandler("uptime", cmd_uptime))
+    app.add_handler(CommandHandler("net", cmd_net))
+    app.add_handler(CommandHandler("certs", cmd_certs))
+    app.add_handler(CommandHandler("services", cmd_services))
+    app.add_handler(CommandHandler("restart", cmd_restart))
+    app.add_handler(CommandHandler("dps", cmd_dps))
+    app.add_handler(CommandHandler("dlogs", cmd_dlogs))
+    app.add_handler(CommandHandler("dstats", cmd_dstats))
+    app.add_handler(CommandHandler("dprune", cmd_dprune))
 
     # Terminal mode — catch ALL text messages when in terminal
     app.add_handler(
