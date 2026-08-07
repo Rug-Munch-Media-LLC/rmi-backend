@@ -31,6 +31,13 @@ Public API:
 All functions are defensive: type-hinted, docstringed, wrapped in
 try/except, and fail gracefully (return None / 0.0) when ClickHouse or
 the free APIs are unreachable.
+
+NOTE (degodding 2026-08-07): 1,588 lines. Split is deferred (high coupling risk —
+every scanner capability imports this module). If splitting, move the chain-config
+tables (chain normalization, native wrapped tokens, CoinGecko IDs, stablecoins,
+decimals) into ``engines/price_oracle/_tables.py`` and the ClickHouse query builders
+into ``engines/price_oracle/_queries.py``. Keep the public API (get_token_price,
+get_native_price, normalize_amount) in place to avoid breaking ~10 callers.
 """
 
 from __future__ import annotations

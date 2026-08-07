@@ -15,6 +15,12 @@ Detection heuristics:
 
 Uses direct API calls: Helius (transaction/signature data),
 DexScreener (pairs/trades), Solscan (account transfers, transaction detail).
+
+NOTE (degodding 2026-08-07): 914 lines. Split is deferred (all confidence signals
+share the same Helius/DexScreener/Solscan call plumbing). If splitting, extract
+each signal group (same-block, funding-chain, coordinated-timing, shared-endpoint)
+into ``bundle_detector/_signals.py`` with a shared client helper.
+
 """
 
 from __future__ import annotations

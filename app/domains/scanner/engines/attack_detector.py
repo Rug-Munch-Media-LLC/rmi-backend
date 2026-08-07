@@ -43,6 +43,11 @@ Usage:
     #   "whale_marked": 1,
     #   ...
     # }
+
+NOTE (degodding 2026-08-07): 1,202 lines. Split is deferred (all detectors share the
+same window-query scaffolding over wallet_memory.dex_events). If splitting, move each
+detector (sandwich / pump-dump / flash loan) into
+``engines/attack_detector/_detectors.py`` with a common window-query helper.
 """
 
 from __future__ import annotations

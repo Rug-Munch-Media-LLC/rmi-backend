@@ -21,6 +21,13 @@ Admin endpoints (require admin session):
   GET /admin/bulletin/scheduled       - List scheduled posts
   POST /admin/bulletin/process-scheduled - Process scheduled posts
   POST /admin/bulletin/process-expired - Archive expired posts
+
+TODO(refactor): split into app/routers/bulletin_board/ package:
+  - routes/public.py    — PublicPostRequest + public_* handlers (lines ~49-205)
+  - routes/admin.py     — CreatePostRequest/UpdatePostRequest/CommentRequest
+                         + admin_* handlers + comments moderation (lines ~209-654)
+  - routes/social.py    — badges, leaderboard, x402 bot endpoints (lines ~655-750)
+  Models shared via routes/models.py. Mounted path unchanged (/api/v1/bulletin-board).
 """
 
 from __future__ import annotations

@@ -47,6 +47,11 @@ Notes:
     visible in ``total_deployments`` so callers can distinguish).
   - success_rate uses *matured* tokens (deployed >= 7 days ago) as the
     denominator; tokens too young to judge never count against the deployer.
+
+NOTE (degodding 2026-08-07): 1,164 lines. Split is deferred (behavioral buckets and
+scoring share the deployer-event query + label pipeline). If splitting, move the
+label/behavioral-classifier helpers into ``engines/deployer_fingerprint/_classifier.py``;
+keep the public fingerprint endpoint function in this module.
 """
 
 from __future__ import annotations

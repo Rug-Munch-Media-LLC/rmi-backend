@@ -322,6 +322,10 @@ def test_confidence_composition() -> None:
 
 def test_rate_article_full_card() -> None:
     """rate_article produces a fully populated rating card."""
+    # Published a few hours ago (relative to now) so the article stays in the
+    # RECENT timeliness window forever — a hardcoded date would age out of
+    # RECENT and make this test flaky over time.
+    published = (datetime.now(UTC) - timedelta(hours=4)).isoformat()
     rating = rate_article(
         {
             "article_id": "abc123",
@@ -329,7 +333,7 @@ def test_rate_article_full_card() -> None:
             "content": "The SEC confirmed the approval today. BTC surged to a record high. "
             "Vitalik Buterin commented on the news.",
             "source": "https://www.coindesk.com/markets/2026/08/03/sec-approves-etf/",
-            "published": "2026-08-03T12:00:00Z",
+            "published": published,
             "corroborating_sources": 2,
             "on_chain_evidence": True,
         }

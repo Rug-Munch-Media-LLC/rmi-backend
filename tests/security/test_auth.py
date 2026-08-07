@@ -534,6 +534,8 @@ class TestAuthMiddlewareConfig:
         # Our test env is "dev" so this tests the dev path
         # Still should return 401
         resp = client.get("/api/v1/version")
-        # This may be public - use a definitely protected route
-        resp = client.get("/api/v1/token/SOL123")
         assert resp.status_code == 401, f"Protected route should 401 without API key, got {resp.status_code}"
+        # News admin ingest is a PROTECTED_SUBPATH (auth hardening): it must
+        # 401 without a key, even though /api/v1/news/* is a public prefix.
+        resp = client.post("/api/v1/news/_admin/ingest")
+        assert resp.status_code == 401, f"Protected subpath should 401 without API key, got {resp.status_code}"

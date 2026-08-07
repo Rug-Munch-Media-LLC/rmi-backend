@@ -15,6 +15,12 @@ Run standalone (cron / manual):
 Crawl4AI is imported lazily so importing this module never requires the
 optional dependency (the RAG engine works without it; only the crawler
 path needs ``pip install crawl4ai`` + Playwright browsers).
+
+NOTE (degodding 2026-08-07): 1,326 lines. Split is deferred (crawl lifecycle shares
+the ingest/persistence pipeline). If splitting: extract RSS/sitemap discovery into
+``rag/crawler/_discovery.py`` and content extraction into ``rag/crawler/_extract.py``.
+Keep the public entry points (discover_crypto_news, discover_and_ingest) in place.
+
 """
 
 from __future__ import annotations

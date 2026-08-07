@@ -54,6 +54,10 @@ Data Sources:
   Primary: wallet_memory.wallet_labels (39.4M entity labels)
   Primary: wallet_memory.deployer_events (deployer + deploy block for
            team/sniper classification)
+
+NOTE (degodding 2026-08-07): 983 lines. Split is deferred (clustering passes share
+holder-set loading and metric computation). If splitting, extract the three detection
+passes into ``engines/holder_clusters/_passes.py`` with a shared holder-loader helper.
 """
 
 from __future__ import annotations
