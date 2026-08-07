@@ -5,14 +5,11 @@ Reads scanner snapshots from Redis and DexScreener, computes trends over
 a configurable lookback window.
 """
 
-
-from __future__ import annotations
-
 import json
 import os
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import aiohttp
 
@@ -21,8 +18,8 @@ from app.core.logging import get_logger
 from app.routers.x402_advanced_tools.cache import get_cached, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
 
-if TYPE_CHECKING:
-    from app.routers.x402_advanced_tools.models import HistoryRequest
+# Runtime import: FastAPI resolves this body model at OpenAPI schema generation time.
+from app.routers.x402_advanced_tools.models import HistoryRequest
 
 logger = get_logger("x402.history")
 
