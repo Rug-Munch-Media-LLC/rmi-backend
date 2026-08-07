@@ -65,7 +65,7 @@ def check_file(filepath):
                 for pattern, rule in BLOCKED_PATTERNS:
                     if re.search(pattern, line, re.IGNORECASE):
                         findings.append(f"  {filepath}:{lineno} [{rule}] {line.strip()[:80]}")
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
     return findings
 

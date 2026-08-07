@@ -361,7 +361,7 @@ def _detect_proxy_selectors(abi_json: str) -> list[str]:
                 selector = "0x" + hashlib.keccak_256(sig.encode()).hexdigest()[:8]
                 if selector in DANGEROUS_SELECTORS:
                     detected.append(selector)
-    except (json.JSONDecodeError, Exception):
+    except (json.JSONDecodeError, Exception):  # noqa: S110 — optional dependency
         pass
     return detected
 

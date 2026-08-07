@@ -178,7 +178,7 @@ class TokenLaunchDetector:
                                 "source": "geckoterminal",
                             }
                         )
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             pass
 
         return launches
@@ -287,7 +287,7 @@ class TokenLaunchDetector:
             if r:
                 members = await r.smembers(LAUNCH_STATE_KEY)
                 return {m.decode() if isinstance(m, bytes) else str(m) for m in members}
-        except Exception:
+        except Exception:  # noqa: S110 — optional dependency
             pass
         return set()
 
@@ -302,7 +302,7 @@ class TokenLaunchDetector:
             if r:
                 await r.sadd(LAUNCH_STATE_KEY, *addresses)
                 await r.expire(LAUNCH_STATE_KEY, STATE_TTL)
-        except Exception:
+        except Exception:  # noqa: S110 — optional dependency
             pass
 
     async def _store_launches(self, launches: list[dict[str, Any]]) -> None:
@@ -340,7 +340,7 @@ class TokenLaunchDetector:
                     except (json.JSONDecodeError, TypeError):
                         continue
                 return launches
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             pass
         return []
 
@@ -360,7 +360,7 @@ class TokenLaunchDetector:
                     except (json.JSONDecodeError, TypeError):
                         continue
                 return alerts
-        except Exception:
+        except Exception:  # noqa: S110 — intentional best-effort
             pass
         return []
 

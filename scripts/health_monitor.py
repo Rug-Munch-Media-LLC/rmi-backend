@@ -58,7 +58,7 @@ def _load_cooldown_state():
         if os.path.exists(state_file):
             with open(state_file) as f:
                 return json.load(f)
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
     return {}
 
@@ -69,7 +69,7 @@ def _save_cooldown_state(state: dict):
         state_file = "/tmp/rmi_health_cooldown.json"
         with open(state_file, "w") as f:
             json.dump(state, f)
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
 
@@ -268,7 +268,7 @@ def _load_prev_state():
         if os.path.exists(state_file):
             with open(state_file) as f:
                 return json.load(f)
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
     return {}
 
@@ -279,7 +279,7 @@ def _save_prev_state(state: dict):
         state_file = "/tmp/rmi_health_state.json"
         with open(state_file, "w") as f:
             json.dump(state, f)
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
 

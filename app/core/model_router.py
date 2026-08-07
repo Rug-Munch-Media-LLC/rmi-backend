@@ -188,6 +188,6 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> No
             )
             if result and "content" in result:
                 return {"response": result["content"], "model": model, "provider": provider}
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
     return None

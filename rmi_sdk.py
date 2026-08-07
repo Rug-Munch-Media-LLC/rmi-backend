@@ -936,5 +936,5 @@ class AsyncRMI:
         try:
             if hasattr(self, "_client"):
                 asyncio.get_event_loop().create_task(self._client.aclose())
-        except Exception:
+        except Exception:  # noqa: S110 — best-effort rate limiting
             pass

@@ -721,7 +721,7 @@ class TokenRater:
                     )
                     evidence["_reranker_context"] = desc
                     evidence["_reranker_note"] = "Score refined via cross-encoder reranker"
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
         result = TokenRatingResult(

@@ -131,7 +131,7 @@ async def mine_hard_negatives(
             content = r.get("content", "")
             if content and len(content) > 50:
                 negatives.append(content[:500])
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
     # Fall back to static hard negatives

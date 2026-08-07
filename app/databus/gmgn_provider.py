@@ -455,7 +455,7 @@ class GMGNProvider:
                 cached = await r.get(f"gmgn:{cache_key}")
                 if cached:
                     return json.loads(cached)
-        except Exception:
+        except Exception:  # noqa: S110 — best-effort cache
             pass
 
         # Fetch
@@ -470,7 +470,7 @@ class GMGNProvider:
                     import json
 
                     await r.setex(f"gmgn:{cache_key}", ttl, json.dumps(result))
-            except Exception:
+            except Exception:  # noqa: S110 — best-effort cache
                 pass
 
         return result

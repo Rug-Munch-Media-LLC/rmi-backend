@@ -225,7 +225,7 @@ async def get_token_trades(
                     "source": trades[0].get("source", "cache") if trades else "cache",
                     "updated_at": datetime.now(UTC).isoformat(),
                 }
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     # Fetch from sources
@@ -237,7 +237,7 @@ async def get_token_trades(
         r = get_redis_async()
         if r:
             await r.setex(cache_key, TRADE_CACHE_TTL, json.dumps(trades))
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     # Apply filters
@@ -279,7 +279,7 @@ async def get_trade_stats(
                     "cached": True,
                     "updated_at": datetime.now(UTC).isoformat(),
                 }
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     trades = await _fetch_trades_from_sources(address, chain, 50)
@@ -289,7 +289,7 @@ async def get_trade_stats(
         r = get_redis_async()
         if r:
             await r.setex(cache_key, TRADE_CACHE_TTL, json.dumps(trades))
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     return {
@@ -326,7 +326,7 @@ async def get_trade_feed(
                     "chain": chain,
                     "updated_at": datetime.now(UTC).isoformat(),
                 }
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     # Get active/trending tokens from DexScreener (pair data)
@@ -387,7 +387,7 @@ async def get_trade_feed(
         r = get_redis_async()
         if r:
             await r.setex(cache_key, FEED_CACHE_TTL, json.dumps(trades_feed))
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     return {

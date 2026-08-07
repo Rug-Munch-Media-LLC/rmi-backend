@@ -81,7 +81,7 @@ Keep under 500 words. Professional tone. Include data where available."""
             )
             if r.status_code == 200:
                 return r.json().get("response", "")
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
 
     # Fallback: basic report from data

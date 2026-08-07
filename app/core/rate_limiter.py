@@ -168,7 +168,7 @@ def _get_daily_salt() -> bytes:
             jwt_part = (settings.jwt_secret or "").encode()
             if len(jwt_part) >= 16:
                 secret = jwt_part
-        except Exception:
+        except Exception:  # noqa: S110 — optional dependency
             pass
     if not secret:
         # Absolute last resort — instance-unique, not a hardcoded string

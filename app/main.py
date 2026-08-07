@@ -16,7 +16,7 @@ try:
     from app.observability.tracing import init_tracing
 
     init_tracing(service_name="rmi-backend")
-except Exception:
+except Exception:  # noqa: S110 — optional dependency
     pass  # Tracing is non-critical
 
 # Initialize GlitchTip / Sentry-compatible error tracking
@@ -24,7 +24,7 @@ try:
     from app.observability.error_tracking import init_error_tracking
 
     init_error_tracking()
-except Exception:
+except Exception:  # noqa: S110 — optional dependency
     pass  # Error tracking is non-critical
 
 app = create_app()

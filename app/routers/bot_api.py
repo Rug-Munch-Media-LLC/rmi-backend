@@ -84,7 +84,7 @@ async def _quick_scan_fallback(chain: str, address: str) -> dict[str, Any]:
                         "is_mintable": False,
                         "is_honeypot": False,
                     }
-    except Exception:
+    except Exception:  # noqa: S110 — intentional best-effort
         pass
     return {"risk_score": 0, "error": "No data available for this token"}
 
@@ -151,7 +151,7 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
                 cached_data = json.loads(cached)
                 cached_data["provider"] = "cache"
                 return cached_data
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     # Try local Ollama Qwen first (fastest, free)
@@ -185,7 +185,7 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
                         r2 = get_redis_async()
                         if r2:
                             await r2.setex(cache_key, 300, json.dumps(result))
-                    except Exception:
+                    except Exception:  # noqa: S110 — best-effort cache
                         pass
                     return result
     except Exception as e:
@@ -246,7 +246,7 @@ async def bot_pulse(refresh: bool = Query(default=False)) -> dict[str, Any]:
                 cached = await r.get("bot:pulse:v1")
                 if cached:
                     return json.loads(cached)
-        except Exception:
+        except Exception:  # noqa: S110 — best-effort cache
             pass
 
     data: dict[str, Any] = {"btc": {}, "eth": {}, "sol": {}, "fear_greed": {}, "top_movers": [], "updated_at": ""}
@@ -324,7 +324,7 @@ async def bot_pulse(refresh: bool = Query(default=False)) -> dict[str, Any]:
         r = get_redis_async()
         if r:
             await r.setex("bot:pulse:v1", BOT_CACHE_TTL, json.dumps(data))
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass
 
     return data

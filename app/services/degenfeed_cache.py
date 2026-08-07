@@ -261,7 +261,7 @@ async def health_check() -> dict[str, Any]:
         try:
             await redis.ping()
             healthy = True
-        except Exception:
+        except Exception:  # noqa: S110 — best-effort cache
             pass
 
     return {

@@ -13,7 +13,7 @@ try:
 
     _redis_cache_url = _s.redis_cache_url
     _cache_ttl = _s.llm_cache_ttl
-except Exception:
+except Exception:  # noqa: S110 — best-effort cache
     pass
 REDIS_URL = _redis_cache_url or os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
 CACHE_TTL = _cache_ttl or int(os.getenv("LLM_CACHE_TTL", "3600"))

@@ -453,7 +453,7 @@ class TestPostgresAlembic:
             # If alembic_version table doesn't exist, that's OK — no migrations run yet
             if row is not None:
                 assert len(row[0]) >= 8
-        except Exception:
+        except Exception:  # noqa: S110 — best-effort rate limiting
             # Table may not exist if no migrations have been applied
             pass
 

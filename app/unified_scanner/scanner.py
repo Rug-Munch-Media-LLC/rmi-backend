@@ -535,7 +535,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         record_token_scan_coverage(data_sources, modules_run)
     except ImportError:
         pass
-    except Exception:
+    except Exception:  # noqa: S110 — optional dependency
         pass
 
     attempted_modules = [

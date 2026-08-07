@@ -61,7 +61,7 @@ class AirdropV2Distributor:
                         for pattern in self.blacklist_patterns:
                             if pattern in value_str:
                                 return True, f"Redis label: {key}={value}"
-            except:  # noqa: E722
+            except:  # noqa: E722, S110
                 pass
 
         # Check local scam lists
@@ -72,7 +72,7 @@ class AirdropV2Distributor:
                     data = json.load(open(f))  # noqa: SIM115
                     if address in str(data):
                         return True, f"Found in {f.name}"
-                except:  # noqa: E722
+                except:  # noqa: E722, S110
                     pass
 
         return False, None

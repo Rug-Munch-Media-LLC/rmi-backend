@@ -488,7 +488,7 @@ async def get_headlines(
         if redis_data and redis_data.get("headlines"):
             hls = redis_data["headlines"]
             redis_articles = hls.get("articles", []) if isinstance(hls, dict) else []
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort cache
         pass  # Redis unavailable, fall through
 
     # Use Redis data if available (preferred over in-memory)

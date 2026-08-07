@@ -82,7 +82,7 @@ async def main():
                             all_reports.extend(reports)
                             logger.info(f"Got {len(reports)} reports from alt endpoint")
                             break
-            except Exception:
+            except Exception:  # noqa: S110 — intentional best-effort
                 pass
 
     if not all_reports:
