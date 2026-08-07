@@ -46,9 +46,12 @@ class AntiGamingFilter:
                 pass
 
             # Skip young wallets
-            if min_wallet_age_days and holder.wallet_age_days is not None:
-                if holder.wallet_age_days < min_wallet_age_days:
-                    continue
+            if (
+                min_wallet_age_days
+                and holder.wallet_age_days is not None
+                and holder.wallet_age_days < min_wallet_age_days
+            ):
+                continue
 
             # Skip low-activity wallets
             if min_tx_count and holder.tx_count_30d < min_tx_count:

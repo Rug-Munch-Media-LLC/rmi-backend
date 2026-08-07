@@ -139,23 +139,31 @@ class TestLookupHistorical:
 class TestBackends:
     @pytest.mark.asyncio
     async def test_clickhouse_token_history_no_client(self) -> None:
-        with patch(
-            "app.domains.databus.providers.chains.chain_indexer._get_ch_client",
-            return_value=None,
-        ), pytest.raises(DataAccessUnavailable):
+        with (
+            patch(
+                "app.domains.databus.providers.chains.chain_indexer._get_ch_client",
+                return_value=None,
+            ),
+            pytest.raises(DataAccessUnavailable),
+        ):
             await clickhouse_token_history("0xabc", "ethereum")
 
     @pytest.mark.asyncio
     async def test_rpc_lookup_import_missing(self) -> None:
-        with patch.dict("sys.modules", {"app.domains.scanner.engines.rpc_router": None}):
-            with pytest.raises(DataAccessUnavailable):
-                await rpc_lookup("0xabc", "ethereum", "eth_getCode")
+        with (
+            patch.dict("sys.modules", {"app.domains.scanner.engines.rpc_router": None}),
+            pytest.raises(DataAccessUnavailable),
+        ):
+            await rpc_lookup("0xabc", "ethereum", "eth_getCode")
 
     @pytest.mark.asyncio
     async def test_b2_parquet_lookup_no_rclone(self) -> None:
         """Without the rclone binary the B2 lookup fails open."""
-        with patch(
-            "app.domains.scanner.data_access._rclone_copy",
-            side_effect=DataAccessUnavailable("rclone_not_installed"),
-        ), pytest.raises(DataAccessUnavailable):
+        with (
+            patch(
+                "app.domains.scanner.data_access._rclone_copy",
+                side_effect=DataAccessUnavailable("rclone_not_installed"),
+            ),
+            pytest.raises(DataAccessUnavailable),
+        ):
             await b2_parquet_lookup("0xabc", "ethereum")

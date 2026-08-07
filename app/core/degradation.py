@@ -243,10 +243,9 @@ class DegradationRegistry:
         store = self._stores.get(store_name)
         if store:
             store.total_successes += 1
-            if store.health == StoreHealth.DOWN:
-                if time.monotonic() - store.last_failure_time > self._cooldown_seconds:
-                    self.mark_healthy(store_name)
-                    logger.info(f"Store recovered: {store_name} -> HEALTHY")
+            if store.health == StoreHealth.DOWN and time.monotonic() - store.last_failure_time > self._cooldown_seconds:
+                self.mark_healthy(store_name)
+                logger.info(f"Store recovered: {store_name} -> HEALTHY")
 
     def should_attempt(self, store_name: str) -> bool:
         """Check if store should even be attempted based on health/cooldown."""

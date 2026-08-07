@@ -42,11 +42,13 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
     import aiohttp
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
-                if resp.status == 200:
-                    return await resp.json()
-                logger.debug(f"Non-200 from {url}: {resp.status}")
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp,
+        ):
+            if resp.status == 200:
+                return await resp.json()
+            logger.debug(f"Non-200 from {url}: {resp.status}")
     except (TimeoutError, aiohttp.ClientError) as e:
         logger.debug(f"Fetch failed: {url[:60]} - {e}")
     except Exception as e:

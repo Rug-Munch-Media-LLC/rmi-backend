@@ -25,23 +25,25 @@ async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) 
 
     url = apis.get(action, apis["balance"])
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("status") == "1":
-                        return {
-                            "chain": "bsc",
-                            "address": address,
-                            "data": data.get("result"),
-                            "source": "BscScan (free, no API key)",
-                        }
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp,
+        ):
+            if resp.status == 200:
+                data = await resp.json()
+                if data.get("status") == "1":
                     return {
                         "chain": "bsc",
                         "address": address,
-                        "error": data.get("message", "No data"),
-                        "source": "BscScan",
+                        "data": data.get("result"),
+                        "source": "BscScan (free, no API key)",
                     }
+                return {
+                    "chain": "bsc",
+                    "address": address,
+                    "error": data.get("message", "No data"),
+                    "source": "BscScan",
+                }
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"BSC fetch failed: {e}")
     return None
@@ -59,23 +61,25 @@ async def _fetch_polygon_data(address: str = "", action: str = "balance", **kwar
 
     url = apis.get(action, apis["balance"])
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get("status") == "1":
-                        return {
-                            "chain": "polygon",
-                            "address": address,
-                            "data": data.get("result"),
-                            "source": "PolygonScan (free, no API key)",
-                        }
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp,
+        ):
+            if resp.status == 200:
+                data = await resp.json()
+                if data.get("status") == "1":
                     return {
                         "chain": "polygon",
                         "address": address,
-                        "error": data.get("message", "No data"),
-                        "source": "PolygonScan",
+                        "data": data.get("result"),
+                        "source": "PolygonScan (free, no API key)",
                     }
+                return {
+                    "chain": "polygon",
+                    "address": address,
+                    "error": data.get("message", "No data"),
+                    "source": "PolygonScan",
+                }
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Polygon fetch failed: {e}")
     return None

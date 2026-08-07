@@ -258,15 +258,16 @@ class ConsensusRpcClient:
                 ep.failure_calls += 1
                 ep.last_error = error
                 # Check for consecutive failures to disable
-                if ep.failure_calls >= self.MAX_CONSECUTIVE_FAILURES:
-                    # Only disable if success rate recently is 0
-                    if ep.success_calls == 0 or (ep.total_calls >= 5 and ep.success_rate < 0.2):
-                        ep.is_disabled = True
-                        self._disabled_until[name] = time.monotonic() + self.DISABLE_DURATION
-                        logger.warning(
-                            f"RPC {name} disabled for {self.DISABLE_DURATION}s "
-                            f"(failures={ep.failure_calls}, rate={ep.success_rate:.0%})"
-                        )
+                # Only disable if success rate recently is 0
+                if ep.failure_calls >= self.MAX_CONSECUTIVE_FAILURES and (
+                    ep.success_calls == 0 or (ep.total_calls >= 5 and ep.success_rate < 0.2)
+                ):
+                    ep.is_disabled = True
+                    self._disabled_until[name] = time.monotonic() + self.DISABLE_DURATION
+                    logger.warning(
+                        f"RPC {name} disabled for {self.DISABLE_DURATION}s "
+                        f"(failures={ep.failure_calls}, rate={ep.success_rate:.0%})"
+                    )
 
     async def _maybe_reenable(self, name: str) -> None:
         """Re-enable an endpoint after its disable duration expires."""

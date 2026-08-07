@@ -66,24 +66,26 @@ async def check_http_service(url: str, timeout: float = 5.0) -> dict[str, Any]:
 
     start = time.monotonic()
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
-            async with session.get(url) as resp:
-                latency_ms = (time.monotonic() - start) * 1000
-                if resp.status == 200:
-                    return {
-                        "status": "operational",
-                        "latency_ms": round(latency_ms, 1),
-                        "http_status": resp.status,
-                        "last_check": datetime.now(UTC).isoformat(),
-                    }
-                else:
-                    return {
-                        "status": "degraded",
-                        "latency_ms": round(latency_ms, 1),
-                        "http_status": resp.status,
-                        "error": f"HTTP {resp.status}",
-                        "last_check": datetime.now(UTC).isoformat(),
-                    }
+        async with (
+            aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session,
+            session.get(url) as resp,
+        ):
+            latency_ms = (time.monotonic() - start) * 1000
+            if resp.status == 200:
+                return {
+                    "status": "operational",
+                    "latency_ms": round(latency_ms, 1),
+                    "http_status": resp.status,
+                    "last_check": datetime.now(UTC).isoformat(),
+                }
+            else:
+                return {
+                    "status": "degraded",
+                    "latency_ms": round(latency_ms, 1),
+                    "http_status": resp.status,
+                    "error": f"HTTP {resp.status}",
+                    "last_check": datetime.now(UTC).isoformat(),
+                }
     except Exception as e:
         latency_ms = (time.monotonic() - start) * 1000
         return {

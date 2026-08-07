@@ -94,9 +94,8 @@ class TestSettingsValidation:
         """Short jwt_secret in production should fail validation."""
         from app.config import Settings
 
-        with patch.dict(os.environ, {"ENVIRONMENT": "prod"}):
-            with pytest.raises(Exception, match=r"string_too_short"):
-                Settings(jwt_secret="short")
+        with patch.dict(os.environ, {"ENVIRONMENT": "prod"}), pytest.raises(Exception, match=r"string_too_short"):
+            Settings(jwt_secret="short")
 
     def test_prod_with_custom_secret_passes(self):
         """Non-default secret in production should work (must also set cors_origins)."""

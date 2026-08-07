@@ -270,10 +270,13 @@ def _check_achievements(progress: UserProgress) -> list[dict]:
     new_achievements = []
 
     # First lesson
-    if "first-lesson" not in progress.achievements and len(progress.lessons_progress) > 0:
-        if any(line.completed for line in progress.lessons_progress.values()):
-            progress.achievements.append("first-lesson")
-            new_achievements.append({"id": "first-lesson", "name": "First Steps", "xp": 50})
+    if (
+        "first-lesson" not in progress.achievements
+        and len(progress.lessons_progress) > 0
+        and any(line.completed for line in progress.lessons_progress.values())
+    ):
+        progress.achievements.append("first-lesson")
+        new_achievements.append({"id": "first-lesson", "name": "First Steps", "xp": 50})
 
     # First course
     if "first-course" not in progress.achievements:

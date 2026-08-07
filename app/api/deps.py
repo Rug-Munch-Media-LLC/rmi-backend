@@ -9,6 +9,8 @@ facade so route authors don't need to know which core module owns what.
 
 from __future__ import annotations
 
+import contextlib
+
 # Re-exports - actual implementations come from app/core/.
 # Core modules are populated by the parallel DeepSeek tasks (DS-1..DS-10).
 # Until then, these imports will fail; routes should not depend on them yet.
@@ -28,7 +30,5 @@ except ImportError:
     get_current_user = None  # type: ignore[assignment]
     get_optional_user = None  # type: ignore[assignment]
 
-try:
-    from app.core.config import settings
-except ImportError:
-    pass  # fallback until core.config lands
+with contextlib.suppress(ImportError):
+    from app.core.config import settings  # fallback until core.config lands

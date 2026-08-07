@@ -126,12 +126,15 @@ async def request_id_middleware(request: Request, call_next) -> Any:
 async def payload_size_limit_middleware(request: Request, call_next) -> Any:
     """Enforce 1MB payload limit on non-upload routes."""
     content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > MAX_PAYLOAD_SIZE:
-        if not request.url.path.startswith("/api/v1/admin/backend/upload/"):
-            return JSONResponse(
-                status_code=413,
-                content={"error": "Payload Too Large", "detail": "Maximum payload size is 1MB"},
-            )
+    if (
+        content_length
+        and int(content_length) > MAX_PAYLOAD_SIZE
+        and not request.url.path.startswith("/api/v1/admin/backend/upload/")
+    ):
+        return JSONResponse(
+            status_code=413,
+            content={"error": "Payload Too Large", "detail": "Maximum payload size is 1MB"},
+        )
     return await call_next(request)
 
 

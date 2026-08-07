@@ -107,9 +107,10 @@ def detect_repeat_deployers(eth_labels_path):
                 deployers[addr].append(row)
 
             # Pattern: wallets associated with multiple scam tokens
-            if row.get("entity_type") in ("malicious", "scam", "phishing_scam", "exploiter"):
-                if any(kw in name for kw in ["token", "contract", "proxy"]):
-                    deployers[addr].append(row)
+            if row.get("entity_type") in ("malicious", "scam", "phishing_scam", "exploiter") and any(
+                kw in name for kw in ["token", "contract", "proxy"]
+            ):
+                deployers[addr].append(row)
 
     # Find repeat deployers (appear in multiple scam contexts)
     repeat_deployers = {}

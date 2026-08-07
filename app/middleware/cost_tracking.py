@@ -10,6 +10,7 @@ Also tracks per-endpoint timing statistics for performance monitoring.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from collections import defaultdict
 from typing import TYPE_CHECKING
@@ -78,11 +79,9 @@ class CostBuffer:
 
     def record(self, tenant_id: str, route: str, cost_usd: float, latency_s: float) -> None:
         """Record a single cost event."""
-        try:
+        # Drop oldest if full (acceptable - we keep running totals)
+        with contextlib.suppress(asyncio.QueueFull):
             self._buffer.put_nowait((tenant_id, cost_usd, latency_s, time.monotonic()))
-        except asyncio.QueueFull:
-            # Drop oldest if full (acceptable - we keep running totals)
-            pass
         self._totals[tenant_id] += cost_usd
 
     def get_total(self, tenant_id: str) -> float:

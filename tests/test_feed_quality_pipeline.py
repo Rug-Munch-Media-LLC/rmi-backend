@@ -462,9 +462,9 @@ class TestContentDedupEdgeCases:
 
         assert not dedup.is_duplicate(post_en), "English post should not be dup"
         # Language detection should prevent cross-language dedup
-        is_dup = dedup.is_duplicate(post_ja)
+        dedup.is_duplicate(post_ja)
         # The content is different enough that RapidFuzz won't match
-        assert not is_dup or True  # At minimum, our implementation shouldn't crash
+        # At minimum, our implementation shouldn't crash
 
     def test_same_source_stricter_dedup(self):
         """Same source gets stricter dedup threshold."""

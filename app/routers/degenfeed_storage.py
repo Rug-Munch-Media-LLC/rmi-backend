@@ -23,6 +23,7 @@ PUT/DELETE. Errors are RFC 7807 Problem Details.
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -216,10 +217,8 @@ async def kv_get(namespace: str, key: str) -> dict[str, str | None]:
         if value is not None and namespace == _API_KEYS_NAMESPACE:
             redis = await _redis()
             if redis is not None:
-                try:
+                with contextlib.suppress(Exception):  # pragma: no cover - defensive
                     await redis.set(f"df:{namespace}:{key}", value, ex=_API_KEYS_CACHE_TTL)
-                except Exception:  # pragma: no cover - defensive
-                    pass
 
         return {"value": value}
     except Exception as exc:  # pragma: no cover - defensive
@@ -256,10 +255,8 @@ async def kv_put(namespace: str, key: str, body: KvPutRequest) -> dict[str, bool
         if namespace == _API_KEYS_NAMESPACE:
             redis = await _redis()
             if redis is not None:
-                try:
+                with contextlib.suppress(Exception):  # pragma: no cover - defensive
                     await redis.set(f"df:{namespace}:{key}", body.value, ex=_API_KEYS_CACHE_TTL)
-                except Exception:  # pragma: no cover - defensive
-                    pass
 
         return {"ok": True}
     except Exception as exc:  # pragma: no cover - defensive
@@ -289,10 +286,8 @@ async def kv_delete(namespace: str, key: str) -> dict[str, bool]:
         if namespace == _API_KEYS_NAMESPACE:
             redis = await _redis()
             if redis is not None:
-                try:
+                with contextlib.suppress(Exception):  # pragma: no cover - defensive
                     await redis.delete(f"df:{namespace}:{key}")
-                except Exception:  # pragma: no cover - defensive
-                    pass
 
         return {"ok": True}
     except Exception as exc:  # pragma: no cover - defensive
