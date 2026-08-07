@@ -172,7 +172,7 @@ async def _execute_hop(
     hop_name = hop.get("hop", "unknown")
 
     try:
-        from app.rag_service import three_pillar_search
+        from app.rag.compat import three_pillar_search
 
         results = await three_pillar_search(
             query=hop_query,

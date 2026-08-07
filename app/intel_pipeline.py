@@ -90,7 +90,7 @@ async def classify_scam_risk(text: str) -> dict:
             scores[label] = min(score / len(keywords), 1.0)
 
     try:
-        from app.rag_service import search_documents
+        from app.rag.compat import search_documents
 
         rag_results = await search_documents("known_scams", text, limit=3)
         for r in rag_results:
@@ -225,7 +225,7 @@ async def label_wallet(wallet_data: dict) -> dict:
 
     # Query RAG for similar wallet patterns
     try:
-        from app.rag_service import search_documents
+        from app.rag.compat import search_documents
 
         rag_results = await search_documents(
             "wallet_profiles", wallet_data.get("address", "") + " " + behavior, limit=5

@@ -244,7 +244,7 @@ async def generate_briefing() -> dict[str, Any]:
 
     # Pull from RAG
     try:
-        from app.rag_service import three_pillar_search
+        from app.rag.compat import three_pillar_search
 
         for topic, query in [
             ("Scam Alerts", "rug pull honeypot scam today"),
@@ -278,7 +278,7 @@ async def generate_newsletter() -> dict[str, Any]:
     content_parts = [f"# 📰 Weekly Intelligence Report\n\n*Week of {datetime.now(UTC).strftime('%B %d, %Y')}*\n"]
 
     try:
-        from app.rag_service import three_pillar_search
+        from app.rag.compat import three_pillar_search
 
         for section, query in [
             ("🔴 Top Threats", "major scam exploit hack this week"),

@@ -27,6 +27,16 @@ from typing import Any
 
 import httpx
 
+from app.core.internal_key import INTERNAL_API_KEY
+
+# Bearer token kept for CSRF bypass; X-RMI-Key satisfies the auth middleware
+# (Tier 1 shared secret) on the now-protected /api/v1/rag/v2/* write endpoints.
+RAG_WRITE_HEADERS = {
+    "Authorization": "Bearer sk-local",  # bypass CSRF middleware
+    "X-RMI-Key": INTERNAL_API_KEY,  # auth middleware shared secret
+    "Content-Type": "application/json",
+}
+
 # ── Knowledge bases ────────────────────────────────────────────────────
 
 SCAM_INTEL: list[dict[str, Any]] = [
@@ -555,10 +565,7 @@ async def ingest_collection(
             resp = await client.post(
                 f"{base_url}/api/v1/rag/v2/bulk-ingest",
                 json={"collection": collection, "items": items},
-                headers={
-                    "Authorization": "Bearer sk-local",  # bypass CSRF middleware
-                    "Content-Type": "application/json",
-                },
+                headers=RAG_WRITE_HEADERS,
             )
             resp.raise_for_status()
             return resp.json()

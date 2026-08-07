@@ -27,7 +27,7 @@ import httpx
 
 from app.core.logging import get_logger
 from app.domains.scanner.engines._common import redis_get, redis_set
-from app.domains.scanner.unified.scanner import (
+from app.domains.scanner.unified.model import (
     MARKET_CONTEXT_CACHE_TTL,
     RUG_BRAIN_API_URL,
     MarketContext,

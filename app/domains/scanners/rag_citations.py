@@ -96,7 +96,7 @@ async def query_rag_citations(
             source, title, collection, similarity, snippet, reference
     """
     try:
-        from app.rag_service import search_multi_collection
+        from app.rag.compat import search_multi_collection
     except ImportError:
         logger.debug("RAG service not available, skipping citations")
         return []
@@ -179,7 +179,7 @@ async def query_address_rag(
     is already known in our RAG databases.
     """
     try:
-        from app.rag_service import search_multi_collection
+        from app.rag.compat import search_multi_collection
     except ImportError:
         return []
 

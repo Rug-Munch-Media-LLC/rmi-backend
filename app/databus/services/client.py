@@ -349,7 +349,7 @@ class DataBus:
         # ── 9. RAG INDEXING (optional) ──
         if rag_index and result.get("data"):
             try:
-                from app.rag_service import index_document
+                from app.rag.compat import index_document
 
                 doc_id = f"databus:{data_type}:{hash(str(kwargs))}"
                 await index_document(

@@ -91,7 +91,7 @@ class ProtectionResponse(BaseModel):
 async def check_rag_for_url(url: str) -> dict[str, Any] | None:
     """Check RAG for known scam URL."""
     try:
-        from app.rag_service import three_pillar_search
+        from app.rag.compat import three_pillar_search
 
         results = await asyncio.wait_for(
             three_pillar_search(
@@ -191,7 +191,7 @@ async def scan_url_content(url: str, client: httpx.AsyncClient) -> dict[str, Any
 async def feed_url_to_rag(url: str, is_safe: bool) -> None:
     """Feed URL scan result back to RAG for learning (best effort)."""
     try:
-        from app.rag_service import ingest_document
+        from app.rag.compat import ingest_document
 
         doc = {
             "content": f"URL: {url}\nSafety: {'safe' if is_safe else 'unsafe'}\nScanned by RMI Protection Suite",
@@ -425,12 +425,12 @@ async def get_domains() -> dict | dict[str, list]:
                 domains_set.update(backend_domains)
 
         try:
-            from app.rag_service import three_pillar_search
+            from app.rag.compat import three_pillar_search
 
             rag_results = await asyncio.wait_for(
                 three_pillar_search(
                     query="",
-                    collections=["known_scams"],
+                    collections=["known_scams", "scam_patterns"],
                     limit=100,
                     min_similarity=0.0,
                     use_mmr=False,
@@ -494,7 +494,7 @@ async def protection_health() -> Any:
         health_status["modules"]["blocklist"] = f"error: {e}"
 
     try:
-        from app.rag_service import three_pillar_search
+        from app.rag.compat import three_pillar_search
 
         await three_pillar_search(query="test", collections=["known_scams"], limit=1, min_similarity=0.5)
         health_status["modules"]["rag"] = "ok"

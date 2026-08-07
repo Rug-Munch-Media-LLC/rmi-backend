@@ -82,7 +82,7 @@ async def hybrid_query(
         min_similarity:   Minimum cosine similarity for vector results.
         entity_boost:     RRF boost multiplier for entity-matched docs.
         vector_search_fn: Async callable for vector search.
-                          Default: rag_service.search_multi_collection.
+                          Default: app.rag.compat.search_multi_collection.
 
     Returns:
         Dict with keys:
@@ -92,7 +92,7 @@ async def hybrid_query(
           vector_docs       - docs from vector search
     """
     # Late import to avoid circular dependency
-    from app.rag_service import search_multi_collection
+    from app.rag.compat import search_multi_collection
 
     # 1. Extract entities from query
     extraction = extract_entities(query)

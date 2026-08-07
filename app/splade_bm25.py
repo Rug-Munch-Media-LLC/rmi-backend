@@ -8,7 +8,7 @@ with IDF weighting, replacing the naive token-overlap sparse search.
 Architecture:
   - SPLADE: Term-level importance weighting using the existing BGE-small + ReLU + log(1+abs())
   - BM25: Standard Okapi BM25 with IDF, k1=1.2, b=0.75, stopword removal
-  - Integration: Drop-in replacement for _sparse_text_search in rag_service.py
+  - Integration: Drop-in replacement for _sparse_text_search in app.rag_service (deprecated)
 
 The SPLADE approach generates sparse vectors where each dimension corresponds to a
 vocabulary term, weighted by importance. This replaces naive token counting with

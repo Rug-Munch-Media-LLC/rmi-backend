@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.core.logging import get_logger
 from app.mcp.manifest import MCPServerManifest, MCPToolManifest
-from app.mcp.server import (
+from app.mcp._catalog import (
     TOOL_CATALOG,
     TOOL_DEPRECATED,
     TOOL_SUCCESSORS,
