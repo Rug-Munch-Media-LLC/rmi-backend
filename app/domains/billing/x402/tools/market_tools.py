@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 import aiohttp
 from fastapi import APIRouter, HTTPException
 
+from app.core.logging import get_logger
 from app.domains.billing.x402.shared import (
     FREE_RPCS,
     GenericRequest,
@@ -31,6 +32,8 @@ from app.domains.billing.x402.shared import (
 )
 
 sub_router = APIRouter(tags=["x402-market-tools"])
+
+logger = get_logger("x402.market_tools")
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL 4: Launch Radar ($0.50)
