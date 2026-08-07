@@ -16,10 +16,17 @@ All other functionality has been moved to focused modules:
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Any
 
+from app.core.logging import get_logger
 from app.domains.wallet.analysis import WalletAnalysisMixin
 from app.domains.wallet.db import WalletDBMixin
 from app.domains.wallet.generation import WalletGenerationMixin
+
+if TYPE_CHECKING:
+    from app.domains.wallet.models import PaymentRecord, WalletRecord
+
+logger = get_logger(__name__)
 
 
 class WalletManagerV2(WalletDBMixin, WalletAnalysisMixin, WalletGenerationMixin):
@@ -38,12 +45,12 @@ class WalletManagerV2(WalletDBMixin, WalletAnalysisMixin, WalletGenerationMixin)
 
     async def initialize(self) -> None:
         """Initialize the wallet manager."""
-        await self._load_vault()
+        self._load_vault()
         self._initialized = True
 
     async def close(self) -> None:
         """Close the wallet manager."""
-        await self._save_vault()
+        self._save_vault()
         self._initialized = False
 
 
@@ -53,7 +60,7 @@ class WalletManagerFacade:
     def __init__(self, manager: WalletManagerV2):
         self._manager = manager
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self._manager, name)
 
 

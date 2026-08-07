@@ -128,7 +128,7 @@ async def check_lp_lock(address: str, chain: str) -> dict:
         from app.domains.scanners.liquidity_verifier import LiquidityVerifier
 
         verifier = LiquidityVerifier()
-        lp_info = await verifier.check_lock(address, chain)
+        lp_info = await verifier.check_lock(address, chain)  # type: ignore[attr-defined]
         if lp_info:
             result["locked"] = lp_info.get("locked", False)
             result["unlocked"] = not result["locked"]

@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis
-from app.routers.dev_portal import create_api_key
+from app.routers.dev_portal import CreateKeyRequest, create_api_key
 
 logger = get_logger("developer_tier")
 
@@ -221,7 +221,7 @@ async def register_developer(req: RegisterRequest) -> Any:
             )
 
     # Create key
-    result = create_api_key(req.email, req.tier, req.wallet_address)
+    result = await create_api_key(CreateKeyRequest(email=req.email, tier=req.tier, wallet_address=req.wallet_address))
     if not result:
         return JSONResponse(status_code=500, content={"error": "Failed to create API key"})
 
@@ -231,15 +231,15 @@ async def register_developer(req: RegisterRequest) -> Any:
         content={
             "success": True,
             "message": "Developer API key created. Save it - it won't be shown again.",
-            "api_key": result["key"],
-            "tier": result["tier"],
-            "daily_limit": TIERS[result["tier"]]["daily_limit"],
-            "rate_limit_per_min": TIERS[result["tier"]]["rate_limit_per_min"],
+            "api_key": result.key,
+            "tier": result.tier,
+            "daily_limit": TIERS[result.tier]["daily_limit"],
+            "rate_limit_per_min": TIERS[result.tier]["rate_limit_per_min"],
             "documentation": "https://rugmunch.io/mcp-docs",
             "quickstart": {
-                "curl": f'curl -X POST https://mcp.rugmunch.io/api/v1/x402-tools/audit \\n  -H "Content-Type: application/json" \\n  -H "X-RMI-Dev-Key: {result["key"]}" \\n  -d \'{{"address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"}}\'',
+                "curl": f'curl -X POST https://mcp.rugmunch.io/api/v1/x402-tools/audit \\n  -H "Content-Type: application/json" \\n  -H "X-RMI-Dev-Key: {result.key}" \\n  -d \'{{"address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"}}\'',
                 "python": f"""from rmi import RMI
-rmi = RMI(api_key="{result["key"]}")
+rmi = RMI(api_key="{result.key}")
 result = rmi.scan("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
 """,
             },

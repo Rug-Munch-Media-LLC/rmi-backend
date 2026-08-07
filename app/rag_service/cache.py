@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 from app.rag_service.state import _redis_pool
@@ -14,7 +15,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
 
-async def _get_redis() -> any:
+async def _get_redis() -> Any:
     """Get or create a shared Redis connection (singleton pattern to prevent leaks)."""
     global _redis_pool
     import redis.asyncio as redis

@@ -518,7 +518,7 @@ def _get_pay_to_address(chain: str) -> str:
     try:
         from app.wallet_manager_v2 import get_wallet_manager_v2
 
-        mgr = get_wallet_manager_v2(os.getenv("WALLET_VAULT_PASSWORD", ""))
+        mgr = get_wallet_manager_v2(password=os.getenv("WALLET_VAULT_PASSWORD", ""))
         for w in mgr._wallets.values():
             if w.chain == chain and w.x402_enabled and w.status == "active":
                 return w.address  # type: ignore[no-any-return]

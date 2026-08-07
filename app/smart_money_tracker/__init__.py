@@ -30,6 +30,17 @@ from app.smart_money_tracker.types import (  # noqa: E402 — imported after log
     WalletCategory,
 )
 
+__all__ = [
+    "SmartMoneyTracker",
+    "DetectedMove",
+    "FlowReport",
+    "ImpactLevel",
+    "MoveDirection",
+    "SmartWallet",
+    "WalletCategory",
+    "run_smart_money_scan",
+]
+
 
 async def run_smart_money_scan(lookback_minutes: int = 60, chains: list[str] | None = None) -> str:
     """Run a smart money scan and return a formatted report string."""

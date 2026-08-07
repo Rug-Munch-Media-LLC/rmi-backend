@@ -188,10 +188,10 @@ async def ingest_document(
 
     # Knowledge Graph edge creation
     try:
-        from app.knowledge_graph import get_knowledge_graph
+        from app.knowledge_graph import get_knowledge_graph, ingest_rag_document
 
         kg = await get_knowledge_graph()
-        await kg.ingest_rag_document(collection, doc_id, content, metadata)
+        await ingest_rag_document(kg, collection, doc_id, content, metadata)
     except (AttributeError, ImportError):
         pass
 

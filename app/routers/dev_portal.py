@@ -22,6 +22,8 @@ _usage_store: dict[str, list] = {}
 class CreateKeyRequest(BaseModel):
     email: str
     name: str = ""
+    tier: str = "free"
+    wallet_address: str | None = None
 
 
 class APIKeyResponse(BaseModel):
@@ -45,7 +47,8 @@ async def create_api_key(req: CreateKeyRequest) -> Any:
         "key": key,
         "name": req.name or "Untitled",
         "email": req.email,
-        "tier": "free",
+        "tier": req.tier,
+        "wallet_address": req.wallet_address,
         "created_at": datetime.now(UTC).isoformat(),
         "requests_today": 0,
     }
