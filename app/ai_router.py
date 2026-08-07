@@ -105,30 +105,36 @@ def _prefill_chat(messages: list) -> list:
 
 
 # ── Task → Model routing map ──
-# LiteLLM model_group_alias → actual model:
+# Model names MUST match the model_name entries in the LiteLLM config
+# (/srv/rmi-infra/litellm-config.yaml): qwen-chat / deepseek-analysis.
 #
 # Task routing table:
-#   "chat"      → model="chat"     → qwen-chat       (fast, creative, 11 tok/s)
-#   "simple"    → model="fast"     → qwen-chat       (greetings, basic Q&A)
-#   "analysis"  → model="analysis" → deepseek-analysis (deep, reasoning, 4 tok/s)
-#   "complex"   → model="deep"     → deepseek-analysis (RAG, scoring, forensics)
-#   "chart"     → model="deep"     → deepseek-analysis (needs technical analysis)
-#   "contract"  → model="deep"     → deepseek-analysis (needs security knowledge)
-#   "code"      → model="deep"     → deepseek-analysis (code generation/analysis)
-#   "bulk"      → model="fast"     → qwen-chat       (high-volume, simple tasks)
+#   "chat"      → qwen-chat         (fast, creative, 11 tok/s)
+#   "simple"    → qwen-chat         (greetings, basic Q&A)
+#   "analysis"  → deepseek-analysis (deep, reasoning, 4 tok/s)
+#   "complex"   → deepseek-analysis (RAG, scoring, forensics)
+#   "chart"     → deepseek-analysis (needs technical analysis)
+#   "contract"  → deepseek-analysis (needs security knowledge)
+#   "code"      → deepseek-analysis (code generation/analysis)
+#   "bulk"      → qwen-chat         (high-volume, simple tasks)
 #
-# Default (no task_type, no model): "chat" → qwen-chat
+# Default (no task_type, no model): qwen-chat
 TASK_MODEL_MAP = {
-    "chat": "chat",  # LiteLLM model_group_alias → qwen-chat
-    "analysis": "analysis",  # LiteLLM model_group_alias → deepseek-analysis
-    "simple": "fast",  # LiteLLM model_group_alias → qwen-chat (fast alias)
-    "complex": "deep",  # LiteLLM model_group_alias → deepseek-analysis (deep alias)
-    "code": "deep",  # Complex tasks → deep reasoning model
-    "bulk": "fast",  # High-volume tasks → fast model
+    "chat": "qwen-chat",
+    "analysis": "deepseek-analysis",
+    "simple": "qwen-chat",
+    "complex": "deepseek-analysis",
+    "code": "deepseek-analysis",
+    "bulk": "qwen-chat",
 }
 
-LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://127.0.0.1:4000/v1")
+# Backend runs in Docker on the rmi_network bridge (172.22.0.0/16); LiteLLM
+# runs on the HOST in host-network mode, so the container reaches it via the
+# docker bridge gateway 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://172.22.0.1:4000/v1")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
+
+logger = get_logger("ai_router")
 
 
 async def chat_completion(
@@ -169,7 +175,7 @@ async def chat_completion(
     elif task_type and task_type in TASK_MODEL_MAP:
         resolved_model = TASK_MODEL_MAP[task_type]
     else:
-        resolved_model = "chat"  # default to qwen-chat
+        resolved_model = "qwen-chat"  # default to qwen-chat
 
     # ── GUARDRAILS: Sanitize last user message before sending ──
     from app.core.ai_guardrails import sanitize_input as _guard_input, sanitize_output as _guard_output
@@ -180,9 +186,7 @@ async def chat_completion(
             original = messages_safe[i].get("content", "")
             cleaned = _guard_input(original)
             if cleaned.startswith("[BLOCKED"):
-                import logging
-
-                logging.getLogger("ai_router").warning("guardrails_blocked_input", model=resolved_model, reason=cleaned)
+                logger.warning("guardrails_blocked_input", model=resolved_model, reason=cleaned)
                 return {
                     "id": "guardrails-blocked",
                     "content": cleaned,
@@ -231,9 +235,6 @@ async def chat_completion(
                     "_routed_model": resolved_model,
                 }
             # LiteLLM returned non-200 — log and fall through to fallback
-            import logging
-
-            logger = logging.getLogger("ai_router")
             logger.warning(
                 "litellm_non_200",
                 status=resp.status_code,
@@ -241,9 +242,6 @@ async def chat_completion(
                 model=resolved_model,
             )
     except Exception as e:
-        import logging
-
-        logger = logging.getLogger("ai_router")
         logger.warning("litellm_unreachable", error=str(e))
 
     # ── Fallback 1: Try OpenRouter if configured ──
@@ -282,9 +280,6 @@ async def chat_completion(
                         "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
                     }
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger("ai_router")
             logger.warning("openrouter_fallback_unreachable", error=str(e))
 
     # ── Fallback 2: Try DeepSeek direct if configured ──
@@ -325,9 +320,6 @@ async def chat_completion(
                         "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
                     }
         except Exception as e:
-            import logging
-
-            logger = logging.getLogger("ai_router")
             logger.warning("deepseek_fallback_unreachable", error=str(e))
 
     # ── Fallback 3: Try local Ollama as last resort ──
@@ -356,9 +348,6 @@ async def chat_completion(
                     "_latency_ms": int(r.elapsed.total_seconds() * 1000),
                 }
     except Exception as e:
-        import logging
-
-        logger = logging.getLogger("ai_router")
         logger.warning("ollama_fallback_unreachable", error=str(e))
 
     from app.core.errors import ExternalAPIError
@@ -440,9 +429,7 @@ async def stream_chat_completion(
     elif task_type and task_type in TASK_MODEL_MAP:
         resolved_model = TASK_MODEL_MAP[task_type]
     else:
-        resolved_model = "chat"
-
-    logger = get_logger("ai_router")
+        resolved_model = "qwen-chat"
 
     # ── GUARDRAILS: Sanitize last user message before sending ──
     from app.core.ai_guardrails import sanitize_input as _guard_input

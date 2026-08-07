@@ -64,7 +64,7 @@ OPENROUTER_KEY = (
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen/qwen-2.5-72b-instruct:free")
 
-LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://127.0.0.1:4000/v1")
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://172.22.0.1:4000/v1")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
 
 # Cache
@@ -539,7 +539,7 @@ async def _call_litellm(prompt: str) -> dict | None:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "analysis",  # LiteLLM model_group_alias → deepseek-analysis
+                    "model": "deepseek-analysis",  # LiteLLM model_name → deepseek-analysis
                     "messages": [
                         {
                             "role": "system",
@@ -719,8 +719,8 @@ async def ai_analysis_health() -> dict:
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(f"{LITELLM_BASE_URL.replace('/v1', '')}/health")
             litellm_ok = resp.status_code == 200
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("ai_health_litellm_check_failed", error=str(e))
 
     # Check Ollama
     try:
@@ -734,8 +734,8 @@ async def ai_analysis_health() -> dict:
                 data = resp.json()
                 models = [m.get("name", "") for m in data.get("models", [])]
                 ollama_ok = any("qwen" in m.lower() for m in models)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("ai_health_ollama_check_failed", error=str(e))
 
     overall = "ok" if (litellm_ok or ollama_ok or openrouter_ok) else "degraded"
 

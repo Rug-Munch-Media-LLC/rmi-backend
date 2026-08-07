@@ -17,9 +17,9 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ── LiteLLM proxy config (same pattern as ai_analysis.py) ──
-LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://127.0.0.1:4000/v1")
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://172.22.0.1:4000/v1")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
-AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "analysis")  # LiteLLM group → deepseek-analysis
+AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "deepseek-analysis")  # LiteLLM model_name → deepseek-analysis
 
 # Legacy direct DeepSeek fallback (used only if LiteLLM is unreachable)
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")
@@ -178,7 +178,7 @@ async def _call_litellm_for_rugmaps(prompt: str, task_type: str = "analysis", ma
     Returns:
         Raw response text, or None on failure.
     """
-    model = AI_MODEL if task_type == "analysis" else "chat"
+    model = AI_MODEL if task_type == "analysis" else "qwen-chat"
     try:
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
