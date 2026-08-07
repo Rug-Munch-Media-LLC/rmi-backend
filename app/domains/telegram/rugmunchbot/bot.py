@@ -55,6 +55,7 @@ from app.domains.telegram.rugmunchbot.handlers.account import (
 )
 from app.domains.telegram.rugmunchbot.handlers.alerts import check_alerts, cmd_alert, cmd_alerts
 from app.domains.telegram.rugmunchbot.handlers.api_access import cmd_api
+from app.domains.telegram.rugmunchbot.handlers.ask import cmd_ask
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.groups import (
@@ -133,6 +134,7 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("alerts", "Price & activity alerts"),
             BotCommand("sentiment", "Market sentiment & fear/greed index"),
             BotCommand("research", "RAG-powered deep research (Hunter+)"),
+            BotCommand("ask", "Deep AI answers from RAG + LLM"),
             BotCommand("account", "Your dashboard & usage"),
             BotCommand("pricing", "Subscription plans"),
             BotCommand("topup", "Buy extra scans (no expiry)"),
@@ -212,6 +214,7 @@ def main() -> None:
 
     # Research / RAG
     app.add_handler(CommandHandler("research", cmd_research))
+    app.add_handler(CommandHandler("ask", cmd_ask))
 
     # Account / billing
     app.add_handler(CommandHandler("account", cmd_account))

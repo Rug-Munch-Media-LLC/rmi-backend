@@ -3,7 +3,7 @@
 RugMunchBot -- Message handler + AI chat system.
 
 Auto-detect contract addresses, $TOKEN lookups, and tiered AI chat
-(RAG backend -> local intent matching -> friendly redirect).
+(RAG + LLM synthesis -> local intent matching -> friendly redirect).
 """
 
 from __future__ import annotations
@@ -18,14 +18,18 @@ from telegram.error import TelegramError
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
+from app.domains.telegram.rugmunchbot.ai_chat import (
+    chat_synthesis,
+    format_rag_context,
+    search_rag,
+)
 from app.domains.telegram.rugmunchbot.config import (
-    BACKEND_URL,
     DEXSCREENER,
-    backend_headers,
     fmt_chain,
     fmt_number,
     fmt_pct,
 )
+from app.domains.telegram.rugmunchbot.flood_control import check_flood, refund_flood
 from app.domains.telegram.rugmunchbot.formatters import (
     EVM_RE,
     SOL_RE,
@@ -135,7 +139,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         await cmd_scan(update, ctx)
         return
 
-    # AI Chat -- Tiered fallback (RAG -> local intent -> friendly redirect)
+    # AI Chat -- Tiered fallback (RAG+LLM -> local intent -> friendly redirect)
     allowed, _used, _limit = db.check_rate_limit(user.id, "ai_msg")
     if not allowed:
         from app.domains.telegram.rugmunchbot.formatters import paywall_text
@@ -147,15 +151,46 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         )
         return
 
+    # Flood control: max 3 msgs/sec and 20 msgs/min per user on the AI chat
+    # surface (see flood_control.py for the testable contract). /start and
+    # /help are CommandHandler commands and never reach this handler; tier-3
+    # redirects are refunded below so they are not counted against the limit.
+    flood_ok, retry_after, flood_receipt = await check_flood(user.id)
+    if not flood_ok:
+        logger.info("AI chat flood-limited user=%s retry=%ss", user.id, retry_after)
+        await update.message.reply_text(
+            "\U0001f422 <b>Slow down!</b>\n\n"
+            "You're sending messages too fast. "
+            f"Please wait {retry_after}s and try again.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
     await update.message.chat.send_action("typing")
 
-    # Tier 1: RMI RAG backend
-    rag_response = await _try_rag_backend(text)
-    if rag_response:
-        logger.info("AI chat tier=1 (rag) user=%s text=%.60s", user.id, text)
-        db.increment_usage(user.id, ai_msg=True)
-        await update.message.reply_text(rag_response[:4000], parse_mode=ParseMode.HTML, reply_markup=back_kb())
-        return
+    # Tier 1: RMI RAG search -> LLM synthesis
+    rag_hits = await search_rag(text, top_k=5)
+    if rag_hits:
+        rag_context = format_rag_context(rag_hits[:5])
+        ai_answer = await chat_synthesis(text, rag_context, user_id=user.id)
+        if ai_answer:
+            logger.info("AI chat tier=1 (rag+llm) user=%s text=%.60s", user.id, text)
+            db.increment_usage(user.id, ai_msg=True)
+            await update.message.reply_text(
+                ai_answer[:4000],
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+                disable_web_page_preview=True,
+            )
+            return
+        # LLM synthesis failed/timeout but RAG returned grounding — degrade
+        # gracefully to the best raw hit so the user still gets an answer.
+        best_hit = (rag_hits[0].get("content") or "").strip()
+        if best_hit:
+            logger.info("AI chat tier=1 (rag-raw fallback) user=%s text=%.60s", user.id, text)
+            db.increment_usage(user.id, ai_msg=True)
+            await update.message.reply_text(best_hit[:4000], parse_mode=ParseMode.HTML, reply_markup=back_kb())
+            return
 
     # Tier 2: Local intent matching
     local_response = local_ai_response(text, user)
@@ -170,8 +205,9 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         )
         return
 
-    # Tier 3: Friendly redirect (catch-all)
+    # Tier 3: Friendly redirect (catch-all) — NOT counted against flood limits
     logger.info("AI chat tier=3 (redirect) user=%s text=%.60s", user.id, text)
+    await refund_flood(user.id, flood_receipt)
     db.increment_usage(user.id, ai_msg=True)
     await update.message.reply_text(
         "\U0001f916 <b>RugMunch AI</b>\n\n"
@@ -187,37 +223,6 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
         reply_markup=main_menu_kb(),
         disable_web_page_preview=True,
     )
-
-
-async def _try_rag_backend(query: str) -> str | None:
-    """Tier 1: Query RMI RAG backend. Returns response text or None."""
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.post(
-                f"{BACKEND_URL}/api/v1/rag/v2/search",
-                headers=backend_headers(),
-                json={
-                    "query": query,
-                    "collection": "scam_intel",
-                    "top_k": 5,
-                    "min_similarity": 0.0,
-                    "filters": {},
-                },
-            )
-            if r.status_code == 200:
-                data = r.json()
-                hits = data.get("hits", [])
-                if hits:
-                    answer = hits[0].get("content", "")
-                    if answer:
-                        return answer
-    except httpx.ConnectError:
-        logger.debug("RAG backend unreachable (connection refused)")
-    except httpx.TimeoutException:
-        logger.debug("RAG backend timeout")
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.debug("RAG backend error: %s", e)
-    return None
 
 
 # --- Local intent matching (Tier 2) ---
