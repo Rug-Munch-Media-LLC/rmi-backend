@@ -1,0 +1,37 @@
+[Unit]
+Description=RMI Admin Telegram Bot (@rmiadminbot) — Secure Launcher
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/work/repos/rmi-backend
+ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python -m app.domains.telegram.secure_launcher rmiadminbot
+Restart=always
+RestartSec=10
+TimeoutStopSec=15
+Environment=HOME=/root
+Environment=ADMIN_CHAT_ID=7075336557
+# SECURITY: bot token is NEVER set via Environment=. secure_launcher fetches
+# it from the secret store (rmi/rmiadminbot/bot_token) and unsets it before polling.
+SyslogIdentifier=rmiadminbot
+
+# Systemd hardening (matches rugmunchbot.service, plus ProtectSystem=strict)
+NoNewPrivileges=yes
+ProtectProc=invisible
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/work/repos /root/scripts /root/.local/share/gopass /root/.gnupg /backups
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

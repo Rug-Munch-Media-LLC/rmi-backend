@@ -10,13 +10,17 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+# Canonical gopass path for the rmiadminbot token (held in the secret store,
+# never in systemd Environment= or source control).
+GOPASS_PATH = "rmi/rmiadminbot/bot_token"
+
 
 def _get_admin_token() -> str:
     """Fetch admin bot token from gopass at runtime, falling back to env var."""
     try:
         token = (
-            subprocess.check_output(
-                ["gopass", "show", "rmi/rugmunchbot/admin_bot_token"],
+            subprocess.check_output(  # noqa: S603 — fixed internal secret-manager, no untrusted input
+                ["gopass", "show", GOPASS_PATH],  # noqa: S607 — gopass resolved from PATH by design
                 stderr=subprocess.DEVNULL,
                 timeout=5,
             )
