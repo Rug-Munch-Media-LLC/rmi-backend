@@ -390,11 +390,11 @@ async def _parse_openai_sse(resp: httpx.Response) -> AsyncGenerator[str, None]:
             chunk = json.loads(payload)
         except json.JSONDecodeError:
             continue
-        choices = chunk.get("choices") or []
+        choices: list[dict[str, Any]] = chunk.get("choices") or []
         if not choices:
             continue
-        delta = choices[0].get("delta") or {}
-        token = delta.get("content")
+        delta: dict[str, Any] = choices[0].get("delta") or {}
+        token: Any = delta.get("content")
         if token:
             yield token
 
