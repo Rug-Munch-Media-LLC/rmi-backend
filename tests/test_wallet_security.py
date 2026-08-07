@@ -109,22 +109,35 @@ class TestSolanaSignatureVerification:
 
     def test_verify_solana_import_error_returns_false(self):
         """_verify_solana_signature returns False when nacl not installed."""
+        import sys
+
         from app.domains.auth.wallet import _verify_solana_signature
 
-        with patch("app.domains.auth.wallet._verify_solana_signature", return_value=False):
+        with patch.dict(sys.modules, {"nacl": None, "nacl.signing": None}):
             result = _verify_solana_signature("addr", "msg", "sig")
-            assert result is False
+        assert result is False
 
     def test_verify_solana_exception_returns_false(self):
-        """_verify_solana_signature returns False on any exception."""
+        """_verify_solana_signature returns False on invalid key/signature."""
         from app.domains.auth.wallet import _verify_solana_signature
 
-        with patch("app.domains.auth.wallet._verify_solana_signature", return_value=False):
-            result = _verify_solana_signature("invalid", "msg", "bad-sig")
-            assert result is False
+        result = _verify_solana_signature("invalid", "msg", "bad-sig")
+        assert result is False
 
 
 # ── Chain Routing ────────────────────────────────────────────────────────
+
+
+def _fresh_nonce_redis(address: str):
+    """Return a mock redis client whose nonce lookup passes freshness checks."""
+    import datetime as dt
+
+    from unittest.mock import MagicMock
+
+    r = MagicMock()
+    fresh = (dt.datetime.now(dt.UTC) - dt.timedelta(minutes=1)).isoformat()
+    r.get.return_value = f"{address}:{fresh}"
+    return r
 
 
 class TestChainRouting:
@@ -134,15 +147,16 @@ class TestChainRouting:
         """verify_wallet_signature calls _verify_evm_signature for evm chain."""
         from app.domains.auth.wallet import verify_wallet_signature
 
+        address = "0x1234567890123456789012345678901234567890"
         with (
+            patch("redis.Redis", return_value=_fresh_nonce_redis(address)),
             patch("app.domains.auth.wallet._verify_evm_signature", return_value=False) as evm_mock,
             patch("app.domains.auth.wallet._verify_solana_signature") as sol_mock,
-            patch("app.domains.auth.wallet.datetime"),  # prevent real Redis/nonce check timing issues
         ):
             verify_wallet_signature(
                 "Nonce: abc123",
                 "sig",
-                "0x1234567890123456789012345678901234567890",
+                address,
                 "evm",
             )
             evm_mock.assert_called()
@@ -152,14 +166,16 @@ class TestChainRouting:
         """verify_wallet_signature calls _verify_solana_signature for solana chain."""
         from app.domains.auth.wallet import verify_wallet_signature
 
+        address = "0x1234567890123456789012345678901234567890"
         with (
+            patch("redis.Redis", return_value=_fresh_nonce_redis(address)),
             patch("app.domains.auth.wallet._verify_solana_signature", return_value=False) as sol_mock,
             patch("app.domains.auth.wallet._verify_evm_signature") as evm_mock,
         ):
             verify_wallet_signature(
                 "Nonce: abc123",
                 "sig",
-                "0x1234567890123456789012345678901234567890",
+                address,
                 "solana",
             )
             sol_mock.assert_called()
@@ -169,14 +185,16 @@ class TestChainRouting:
         """verify_wallet_signature defaults to EVM for unknown chains."""
         from app.domains.auth.wallet import verify_wallet_signature
 
+        address = "0x1234567890123456789012345678901234567890"
         with (
+            patch("redis.Redis", return_value=_fresh_nonce_redis(address)),
             patch("app.domains.auth.wallet._verify_evm_signature", return_value=False) as evm_mock,
             patch("app.domains.auth.wallet._verify_solana_signature") as sol_mock,
         ):
             verify_wallet_signature(
                 "Nonce: abc123",
                 "sig",
-                "0x1234567890123456789012345678901234567890",
+                address,
                 "polygon",
             )
             evm_mock.assert_called()
@@ -221,7 +239,7 @@ class TestWalletUserCreation:
         from app.domains.auth.wallet import get_or_create_wallet_user
 
         with (
-            patch("redis.Redis", side_effect=Exception("No Redis")),
+            patch("redis.Redis", side_effect=ConnectionError("No Redis")),
             patch("app.domains.auth._create_jwt", return_value="mock-jwt"),
         ):
             result = await get_or_create_wallet_user("0xabcdef1234567890abcdef1234567890", "evm")
@@ -287,6 +305,6 @@ class TestAuthTokenVerification:
         """verify_auth_token returns None on unexpected exception."""
         from app.domains.auth.wallet import verify_auth_token
 
-        with patch("app.domains.auth._verify_jwt", side_effect=RuntimeError("Boom")):
+        with patch("app.domains.auth._verify_jwt", side_effect=KeyError("boom")):
             result = await verify_auth_token("some-token")
             assert result is None

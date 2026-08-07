@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 import aiohttp
+import httpx
 
 from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
@@ -23,9 +24,6 @@ from app.domains.billing.facilitators.base import (
     VerificationResult,
 )
 from app.domains.billing.facilitators.config import FacilitatorConfig, get_config
-
-
-import httpx
 
 logger = get_logger("facilitator.pieverse")
 
@@ -138,7 +136,7 @@ class PieverseFacilitator(Facilitator):
             return self._format_error("Pieverse verification timed out")
         except aiohttp.ClientError as e:
             return self._format_error(f"Pieverse connection error: {e}")
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        except (ConnectionError, OSError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.exception(f"Pieverse verify error: {e}")
             return self._format_error(f"Pieverse internal error: {e}")
 

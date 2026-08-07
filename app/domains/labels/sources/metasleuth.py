@@ -13,6 +13,7 @@ Limit: 10 calls/day per API key on the free tier. So we cache aggressively.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from datetime import UTC, datetime
 from typing import Any
@@ -59,8 +60,8 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
         try:
             import subprocess
 
-            result = subprocess.run(
-                ["gopass", "show", "-o", "path/to/metasleuth_api_key"],
+            result = subprocess.run(  # noqa: ASYNC221 — best-effort gopass key fallback; runs only when env key missing
+                ["gopass", "show", "-o", "path/to/metasleuth_api_key"],  # noqa: S607 — gopass from PATH; intentional gopass lookup pattern
                 capture_output=True,
                 text=True,
                 timeout=2,
@@ -97,7 +98,7 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
         except httpx.HTTPError as e:
             log.warning("metasleuth_api_http_err: %s", e)
             return {}
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
             log.warning("metasleuth_api_err: %s", e)
             return {}
 

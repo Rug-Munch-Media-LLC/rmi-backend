@@ -19,13 +19,12 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 import numpy as np
 import redis
 
 from app.core.logging import get_logger
 
-
-import httpx
 logger = get_logger("volume_authenticity")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "rmi-redis")
@@ -284,7 +283,7 @@ class VolumeAuthenticityScorer:
         buy_sell: 0.15
     """
 
-    DEFAULT_WEIGHTS = {
+    DEFAULT_WEIGHTS = {  # noqa: RUF012 — class-level defaults; always .copy()ed at use, never mutated
         "statistical": 0.25,
         "vl_ratio": 0.20,
         "wallet_concentration": 0.20,
@@ -484,8 +483,6 @@ async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum"
     # If we have Helius/Moralis data, try to fetch transaction details
     if not trade_sizes and chain in ("solana", "ethereum", "bsc", "base"):
         try:
-            import httpx
-
             api_key = kw.get("api_key", "") or os.getenv("HELIUS_API_KEY", "")
             if chain == "solana" and api_key:
                 async with httpx.AsyncClient(timeout=10) as c:

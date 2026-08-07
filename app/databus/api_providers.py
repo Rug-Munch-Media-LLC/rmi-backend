@@ -10,10 +10,10 @@ Three free/freemium API providers for enhanced crypto intelligence.
 
 from __future__ import annotations
 
+import httpx
+
 from app.core.logging import get_logger
 
-
-import httpx
 logger = get_logger("databus.api_providers")
 
 # ═══════════════════════════════════════════════════════════════

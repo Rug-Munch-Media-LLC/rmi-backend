@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 import aiohttp
+import httpx
 
 from app.core.logging import get_logger
 from app.domains.billing.facilitators.base import (
@@ -23,9 +24,6 @@ from app.domains.billing.facilitators.base import (
     VerificationResult,
 )
 from app.domains.billing.facilitators.config import get_config
-
-
-import httpx
 
 logger = get_logger("facilitator.payai")
 
@@ -218,6 +216,6 @@ class PayAIFacilitator(Facilitator):
         except aiohttp.ClientError as e:
             logger.error("PayAI HTTP error during verify: %s", e)
             return self._format_error(f"PayAI connection error: {e}")
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+        except (ConnectionError, OSError, httpx.HTTPError, httpx.TimeoutException):
             logger.exception("PayAI verify unexpected error")
             return self._format_error("Unexpected PayAI verify error")

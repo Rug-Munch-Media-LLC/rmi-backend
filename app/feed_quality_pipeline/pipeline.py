@@ -281,7 +281,7 @@ class FeedQualityPipeline:
 
         # Phase 2: Collect & merge results
         all_posts: list[FeedPost] = []
-        raw_results: list[ProviderResult] = []
+        raw_results: list[FeedQualityPipeline.ProviderResult] = []
         for result in results:
             if isinstance(result, Exception):
                 # Should not happen with exception handling inside fetch_provider

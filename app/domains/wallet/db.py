@@ -10,11 +10,11 @@ import json
 import os
 from datetime import UTC, datetime
 
+import httpx
+
 from app.core.logging import get_logger
 from app.domains.wallet.models import WalletRecord
 
-
-import httpx
 logger = get_logger("wallet_db")
 
 

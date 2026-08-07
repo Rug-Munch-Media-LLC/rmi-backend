@@ -118,10 +118,6 @@ class DeFiLlamaClient:
         except httpx.HTTPError:
             _defillama_cb.record_failure(is_server_error=True)
             return None
-        except httpx.HTTPError:
-            _defillama_cb.record_failure(is_server_error=True)
-            return None
-
     def get_protocols(self) -> list[dict[str, Any]]:
         """
         Get all protocols data.

@@ -17,6 +17,9 @@ from fastapi import APIRouter, Depends, Query
 
 from app.core.dependencies import get_http_client, get_settings
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from app.config import Settings

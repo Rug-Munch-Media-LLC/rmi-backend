@@ -510,7 +510,7 @@ class GMGNClient:
 
         # Signal 4: Security flags from Birdeye
         if birdeye_security.get("risk_score", 0) > 50:
-            manipulation_signals.append(f"Birdeye security risk: {birdeye_security.get(risk_level)}")
+            manipulation_signals.append(f"Birdeye security risk: {birdeye_security.get('risk_level')}")
             confidence += 20
 
         if confidence >= 60:

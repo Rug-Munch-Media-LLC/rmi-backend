@@ -9,6 +9,7 @@ import asyncio
 from typing import Any
 
 import httpx
+
 from app.core.logging import get_logger
 from app.domains.portfolio.portfolio_risk_package.constants import (
     CHAIN_CONFIGS,

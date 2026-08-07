@@ -1,10 +1,9 @@
 """Live gamification ORM models — battles, viewer XP, challenges, achievements, events."""
 
 from __future__ import annotations
-from datetime import datetime
 
 import uuid
-
+from datetime import datetime  # noqa: TC003 — needed at runtime for SQLAlchemy Mapped[datetime] resolution
 
 from sqlalchemy import (
     Boolean,
@@ -20,7 +19,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models import Base
 from app.models.base import TimestampMixin
-
 
 # ── Creator Battles ───────────────────────────────────────────────────────────
 

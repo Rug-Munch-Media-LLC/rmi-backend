@@ -5,11 +5,16 @@ volume, tx count. Detect arbitrage and inflated-volume scams."""
 
 from __future__ import annotations
 
+import json
+
 import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/chain-compare", tags=["chain-comparability"])
 

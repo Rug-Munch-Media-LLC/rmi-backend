@@ -10,6 +10,8 @@ import secrets
 import time
 from typing import Any
 
+import aiohttp
+
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 

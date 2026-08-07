@@ -12,6 +12,8 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import base58
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -55,7 +57,7 @@ def verify_wallet_signature(message: str, signature: str, address: str, chain: s
         r = redis.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
             port=int(os.getenv("REDIS_PORT", "6379")),
-            password=os.environ["REDIS_PASSWORD"],
+            password=os.getenv("REDIS_PASSWORD", ""),
             decode_responses=True,
         )
 
@@ -129,7 +131,7 @@ def _verify_solana_signature(address: str, message: str, signature: str) -> bool
     try:
         from nacl.signing import VerifyKey
 
-        pubkey = VerifyKey(base64.b58decode(address))
+        pubkey = VerifyKey(base58.b58decode(address))
         msg_bytes = message.encode("utf-8")
         sig_bytes = base64.b64decode(signature)
         pubkey.verify(msg_bytes, sig_bytes)
@@ -188,7 +190,7 @@ async def get_or_create_wallet_user(address: str, chain: str = "base") -> dict[s
         r = redis.Redis(
             host=os.getenv("REDIS_HOST", "localhost"),
             port=int(os.getenv("REDIS_PORT", "6379")),
-            password=os.environ["REDIS_PASSWORD"],
+            password=os.getenv("REDIS_PASSWORD", ""),
             decode_responses=True,
         )
     except (ConnectionError, OSError, ValueError, KeyError, TypeError) as e:

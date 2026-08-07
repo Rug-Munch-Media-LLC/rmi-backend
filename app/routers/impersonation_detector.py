@@ -5,6 +5,7 @@ suspicious approvals. Reveals what an address controls beyond its obvious wallet
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -12,6 +13,9 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/impersonation", tags=["impersonation-detector"])
 

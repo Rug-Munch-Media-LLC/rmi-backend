@@ -11,10 +11,10 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+
 from app.core.logging import get_logger
 
-
-import httpx
 logger = get_logger("rmi_admin_backend")
 
 

@@ -5,6 +5,8 @@ liquidity profile, marketing tactics. Spots scams before they launch."""
 
 from __future__ import annotations
 
+import json
+
 import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel

@@ -182,7 +182,7 @@ class RpcCache:
             redis_url: Redis connection URL. If None, reads REDIS_URL env var.
                        Set to empty string or False to force L1-only mode.
         """
-        self._l1: Ordereddict[str, CacheEntry] = OrderedDict()
+        self._l1: OrderedDict[str, CacheEntry] = OrderedDict()
         self._l1_max = l1_max_size
         self._lock = asyncio.Lock()
         self._stats = CacheStats()

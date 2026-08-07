@@ -21,7 +21,11 @@ from __future__ import annotations
 import importlib as _il
 import os
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.mempool_sentinel import SentinelManager
+    from app.ml_anomaly import TokenMetricAnomalyDetector
 
 _lazy_cache: dict[str, object] = {}
 

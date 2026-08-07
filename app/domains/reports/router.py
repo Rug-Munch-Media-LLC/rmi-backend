@@ -70,8 +70,6 @@ async def generate_report(req: GenerateRequest) -> GenerateResponse:
             report = await generate_wallet_report(catalog, chain, address, model=req.model)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
-    except ValueError as e:
-        raise HTTPException(500, f"report_generation_failed: {e}") from e
     if req.save:
         await save_report(catalog, report)
     # Derive risk_factors from sections (parse them back if needed)

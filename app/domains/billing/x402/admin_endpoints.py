@@ -19,7 +19,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
-
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -87,7 +86,7 @@ def _build_discovery_response() -> dict[str, Any]:
 
         desc = pricing.get("description", "")
         if not desc:
-            _TOOL_DESCRIPTIONS: dict[str, str] = {
+            _TOOL_DESCRIPTIONS: dict[str, str] = {  # noqa: N806 — module-level constant table
                 "forensic_valuation": "Institutional-grade token valuation - DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
                 "osint_identity_hunt": "Cross-platform OSINT - hunt usernames across 400+ networks, domain intelligence, stealth page capture",
                 "investigation_report": "Full investigation report - on-chain forensics, financial valuation, OSINT, scam scoring in one deliverable",

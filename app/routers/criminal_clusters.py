@@ -5,6 +5,7 @@ Shows relationships: same deployer, funding source, code patterns. Rug adjacency
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -14,6 +15,9 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.core.internal_key import INTERNAL_API_KEY
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/criminal-clusters", tags=["criminal-clusters"])
 

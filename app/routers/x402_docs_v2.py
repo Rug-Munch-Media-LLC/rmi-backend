@@ -8,6 +8,7 @@ infrastructure (x402) is invisible backend plumbing.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
