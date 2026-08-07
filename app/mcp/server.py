@@ -24,7 +24,7 @@ log = get_logger(__name__)
 # Tool catalog + versioning metadata now live in app.mcp._catalog to break
 # the registry <-> server import cycle (registry needs TOOL_CATALOG at module
 # load; server needs TOOL_CATEGORIES from registry — lazily, at runtime).
-from app.mcp._catalog import (  # noqa: E402
+from app.mcp._catalog import (  # noqa: E402 — imported after logger init; kept below module header for readability
     MCP_PROTOCOL_VERSION,
     MCP_SERVER_VERSION,
     TOOL_CATALOG,

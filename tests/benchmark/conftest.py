@@ -228,4 +228,4 @@ async def ch_conn():
 
 
 # ── Callable type for assert_time fixture ──────────────────────────────
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: E402 — optional dependency guarded by try/except

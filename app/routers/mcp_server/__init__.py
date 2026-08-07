@@ -11,14 +11,14 @@ from fastapi import APIRouter
 router = APIRouter(tags=["mcp"])
 
 # Import and include all sub-routers
-from .catalog import router as catalog_router
-from .discovery import router as discovery_router
-from .earnings import router as earnings_router
-from .execution import router as execution_router
-from .jsonrpc import router as jsonrpc_router
-from .news import router as news_router
-from .platform import router as platform_router
-from .social_news import router as social_router
+from .catalog import router as catalog_router  # noqa: E402 — module docstring precedes import block
+from .discovery import router as discovery_router  # noqa: E402 — module docstring precedes import block
+from .earnings import router as earnings_router  # noqa: E402 — module docstring precedes import block
+from .execution import router as execution_router  # noqa: E402 — module docstring precedes import block
+from .jsonrpc import router as jsonrpc_router  # noqa: E402 — module docstring precedes import block
+from .news import router as news_router  # noqa: E402 — module docstring precedes import block
+from .platform import router as platform_router  # noqa: E402 — module docstring precedes import block
+from .social_news import router as social_router  # noqa: E402 — module docstring precedes import block
 
 router.include_router(discovery_router)
 router.include_router(catalog_router)
@@ -30,7 +30,7 @@ router.include_router(news_router)
 router.include_router(social_router)
 
 # Re-export config functions for backward compatibility
-from .config import (
+from .config import (  # noqa: E402 — module docstring precedes import block
     MCP_PROTOCOL_VERSION,
     SERVER_NAME,
     SERVER_VERSION,

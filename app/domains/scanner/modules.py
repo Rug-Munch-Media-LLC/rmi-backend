@@ -10,4 +10,4 @@ authoritative export list.
 
 from __future__ import annotations
 
-from app.domains.scanner.modules import *  # noqa: F403 — re-export shim; names resolved via package __all__
+from app.domains.scanner.modules import *

@@ -19,8 +19,8 @@ def _get_admin_token() -> str:
     """Fetch admin bot token from gopass at runtime, falling back to env var."""
     try:
         token = (
-            subprocess.check_output(  # noqa: S603 — fixed internal secret-manager, no untrusted input
-                ["gopass", "show", GOPASS_PATH],  # noqa: S607 — gopass resolved from PATH by design
+            subprocess.check_output(
+                ["gopass", "show", GOPASS_PATH],
                 stderr=subprocess.DEVNULL,
                 timeout=5,
             )

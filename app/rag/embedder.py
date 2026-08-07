@@ -274,7 +274,7 @@ class InfinityEmbedder(EmbedderProtocol):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class BGE_M3_Embedder(EmbedderProtocol):  # noqa: N801 - legacy class name kept for factory compat
+class BGE_M3_Embedder(EmbedderProtocol):
     """BGE-M3 embedder via its container's HTTP API.
 
     Expects a FastAPI service at *url* with a POST ``/embed`` endpoint

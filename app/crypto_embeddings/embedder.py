@@ -15,17 +15,17 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.crypto_embeddings.features import (
+from app.crypto_embeddings.features import (  # noqa: E402 — imported after logger init; kept below module header for readability
     extract_contract_features,
     extract_transaction_features,
     extract_wallet_features,
 )
-from app.crypto_embeddings.models import (
+from app.crypto_embeddings.models import (  # noqa: E402 — module docstring precedes import block
     COLLECTIONS,
     DIMS,
     EmbeddingResult,
 )
-from app.crypto_embeddings.providers import (
+from app.crypto_embeddings.providers import (  # noqa: E402 — module docstring precedes import block
     ContractCodeEmbedder,
     HuggingFaceEmbedder,
     InfinityBGEEmbedder,

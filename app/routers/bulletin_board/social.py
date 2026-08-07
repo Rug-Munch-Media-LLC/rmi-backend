@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import Request  # noqa: TC002 — needed at runtime for FastAPI dependency/signature inspection
+from fastapi import Request
 
 from app.bulletin_board import (
     BulletinBoardManager,

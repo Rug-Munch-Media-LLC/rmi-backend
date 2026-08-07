@@ -115,7 +115,7 @@ class CloudflareX402Facilitator(Facilitator):
                             payer=data.get("payer") or data.get("from"),
                             amount=accepted.get("amount"),
                             chain=data.get("chain") or accepted.get("network", "").split(":")[-1],
-                            token="USDC",  # noqa: S106 — token symbol, not a credential
+                            token="USDC",
                             settlement_id=data.get("settlementId") or data.get("id"),
                         )
 

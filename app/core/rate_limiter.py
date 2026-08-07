@@ -484,7 +484,7 @@ def get_rate_limiter() -> UnifiedRateLimiter:
 # FastAPI Middleware
 # ═══════════════════════════════════════════════════════════════════════════
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402 — module docstring precedes import block
 
 if TYPE_CHECKING:
     from starlette.responses import Response as StarletteResponse
@@ -516,7 +516,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # FastAPI Dependency
 # ═══════════════════════════════════════════════════════════════════════════
 
-from fastapi import HTTPException
+from fastapi import HTTPException  # noqa: E402 — module docstring precedes import block
 
 
 class RateLimitDependency:

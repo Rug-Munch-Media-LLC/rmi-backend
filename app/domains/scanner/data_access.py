@@ -116,7 +116,7 @@ def _rclone_copy(remote_path: str, dest_dir: Path) -> int:
     try:
         import subprocess
 
-        proc = subprocess.run(  # noqa: S603
+        proc = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
@@ -170,7 +170,7 @@ async def b2_parquet_lookup(
         files = sorted(p for p in Path(tmp.name).rglob("*.parquet") if p.is_file())
         quoted = ", ".join("'" + str(p).replace("'", "''") + "'" for p in files)
         try:
-            con.execute(f"CREATE OR REPLACE VIEW chain_events AS SELECT * FROM read_parquet([{quoted}])")  # noqa: S608
+            con.execute(f"CREATE OR REPLACE VIEW chain_events AS SELECT * FROM read_parquet([{quoted}])")
         except Exception:
             raise DataAccessUnavailable("b2_parquet_unreadable") from None
 

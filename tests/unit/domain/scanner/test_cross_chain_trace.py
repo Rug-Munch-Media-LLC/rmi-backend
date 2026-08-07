@@ -35,7 +35,7 @@ def _transfer(
     to_addr: str,
     value: str = "1000000000000000000",  # 1 ETH wei
     tx_hash: str = "0xtx",
-    token_symbol: str | None = "ETH",  # noqa: S107  # fixture param named by rule heuristic
+    token_symbol: str | None = "ETH",  # fixture param named by rule heuristic
 ) -> dict:
     """Build a transfer dict matching queries._fetch_transfers output."""
     return {

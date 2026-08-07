@@ -29,7 +29,6 @@ from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis
-from app.databus_gateway import generate_api_key
 from app.routers.dev_portal import create_api_key
 
 logger = get_logger("developer_tier")
@@ -131,46 +130,13 @@ TIERS = {
 # ── Redis Helper ─────────────────────────────────────────────────
 
 
-def create_tier(tier: str) -> dict[str, Any] | None:
-    """Create a new developer API key."""
-    r = get_redis()
-    if not r:
-        return None
+def hash_api_key(api_key: str) -> str:
+    """Hash a developer API key for storage.
 
-    if tier not in TIERS:
-        return None
-
-    key = generate_api_key()
-    hashed = hash_api_key(key)
-    created_at = datetime.now(UTC).isoformat()
-
-    key_info = {
-        "key": key,  # Only returned once, never stored in plaintext
-        "hashed_key": hashed,
-        "email": email,
-        "tier": tier,
-        "wallet_address": wallet_address,
-        "created_at": created_at,
-        "status": "active",
-        "total_calls": 0,
-        "total_revenue_usd": 0,
-    }
-
-    # Store in Redis (no TTL for free keys, 90-day TTL for trial)
-    r.set(
-        f"rmi:dev:key:{hashed}",
-        json.dumps(key_info),
-        ex=86400 * 90 if tier == "trial" else None,
-    )
-
-    # Index by email for lookup
-    r.sadd(f"rmi:dev:email:{email}", hashed)
-
-    # Track total keys created
-    r.incr("rmi:dev:stats:total_keys")
-    r.incr(f"rmi:dev:stats:tier:{tier}")
-
-    return key_info
+    Keys are never stored in plaintext. The hashed form is used as the
+    Redis key suffix for lookups and usage tracking.
+    """
+    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
 
 def get_usage_for_key(hashed_key: str) -> dict[str, Any]:

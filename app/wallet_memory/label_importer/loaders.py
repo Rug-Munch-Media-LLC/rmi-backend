@@ -137,7 +137,7 @@ async def _load_csv_labels(
     return count
 
 
-import os
+import os  # noqa: E402 — module docstring precedes import block
 
 
 async def _ensure_wallet_labels_table(storage) -> None:

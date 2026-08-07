@@ -21,7 +21,7 @@ parser.add_argument("--to", default="")
 parser.add_argument("--min", type=float, default=1.0)
 args = parser.parse_args()
 
-from app.wallet_manager_v2 import get_wallet_manager_v2
+from app.wallet_manager_v2 import get_wallet_manager_v2  # noqa: E402 — module docstring precedes import block
 
 mgr = get_wallet_manager_v2(os.environ["WALLET_VAULT_PASSWORD"])
 evm_chains = {

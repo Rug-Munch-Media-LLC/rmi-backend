@@ -18,20 +18,20 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie
-from app.domains.auth.deps import get_current_user
-from app.domains.auth.jwt import (
+from app.domains.auth.cookie import _set_auth_cookie, _set_csrf_cookie  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.deps import get_current_user  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.domains.auth.jwt import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _create_jwt,
 )
-from app.domains.auth.passwords import hash_password, verify_password
-from app.domains.auth.router import router
-from app.domains.auth.schemas import (
+from app.domains.auth.passwords import hash_password, verify_password  # noqa: E402 — module docstring precedes import block
+from app.domains.auth.router import router  # noqa: E402 — module docstring precedes import block
+from app.domains.auth.schemas import (  # noqa: E402 — module docstring precedes import block
     TwoFAEnableRequest,
     TwoFALoginRequest,
     TwoFAStatusResponse,
     TwoFAVerifyRequest,
 )
-from app.domains.auth.store import _get_user_by_email, _save_user
+from app.domains.auth.store import _get_user_by_email, _save_user  # noqa: E402 — module docstring precedes import block
 
 # ── 2FA / TOTP ──
 try:

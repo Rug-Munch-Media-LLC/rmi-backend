@@ -38,7 +38,7 @@ logger = get_logger("databus.providers.chain_indexer")
 #   {INDEXER_DEMAND_DIR}/{chain}/dex
 #   {INDEXER_DEMAND_DIR}/{chain}/deployer
 # A file touch avoids cross-service imports — no shared code, no RPC.
-_INDEXER_DEMAND_DIR = os.getenv("INDEXER_DEMAND_DIR", "/tmp/indexer-demand")  # noqa: S108 — intentional shared cross-service signal dir, not a security-sensitive temp file
+_INDEXER_DEMAND_DIR = os.getenv("INDEXER_DEMAND_DIR", "/tmp/indexer-demand")
 
 
 def _signal_indexer_demand(chain: str, event_type: str) -> None:
@@ -217,7 +217,7 @@ async def _chain_indexer_token_transfers(**kwargs: Any) -> dict | None:
                 WHERE {where_clause}
                 ORDER BY et.block_number DESC, et.log_index DESC
                 LIMIT %(limit)s
-                """,  # noqa: S608 — where_clause built from code literals; values parameterized
+                """,
                 params,
             )
         except (ValueError, RuntimeError, OSError) as exc:
@@ -406,7 +406,7 @@ async def _chain_indexer_deployer_history(**kwargs: Any) -> dict | None:
                 WHERE {where_clause}
                 ORDER BY block_number DESC
                 LIMIT %(limit)s
-                """,  # noqa: S608 — where_clause built from code literals; values parameterized
+                """,
                 params,
             )
         except (ValueError, RuntimeError, OSError) as exc:

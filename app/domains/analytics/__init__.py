@@ -42,8 +42,8 @@ async def _health_check() -> DomainHealth:
 
 health_mod.register_health_check("analytics", _health_check)
 
-from app.domains.analytics.router import router
-from app.domains.analytics.service import CreatorAnalyticsEngine, get_analytics_engine
+from app.domains.analytics.router import router  # noqa: E402 — optional dependency guarded by try/except
+from app.domains.analytics.service import CreatorAnalyticsEngine, get_analytics_engine  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "CreatorAnalyticsEngine",

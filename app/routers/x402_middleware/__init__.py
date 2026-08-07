@@ -19,4 +19,4 @@ except ImportError:
     X402_SDK_AVAILABLE = False
 
 # Import sub-modules (they register routes on `router`)
-from . import routes
+from . import routes  # noqa: E402 — optional dependency guarded by try/except

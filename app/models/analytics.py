@@ -12,7 +12,7 @@ for auditability and accurate counting.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime  # noqa: TC003 — needed at runtime for SQLAlchemy Mapped[datetime] resolution
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (

@@ -306,7 +306,7 @@ class TronSelfVerifyFacilitator(Facilitator):
                     payer=from_addr,
                     amount=amount_sun or amount_atoms or "0",
                     chain="tron",
-                    token="TRX",  # noqa: S106 — token symbol, not a credential
+                    token="TRX",
                     confirmations=1,
                 )
 

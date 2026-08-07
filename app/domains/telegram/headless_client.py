@@ -63,7 +63,7 @@ class HeadlessTelegramClient:
 
         if _telethon_available is None:
             try:
-                import telethon  # noqa: F401
+                import telethon
 
                 _telethon_available = True
             except ImportError:

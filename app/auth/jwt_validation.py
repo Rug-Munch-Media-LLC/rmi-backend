@@ -274,4 +274,4 @@ def get_jwks() -> dict[str, Any]:
 # WARNING: Don't silently import timedelta at module level — it's only needed
 # in create_token. Imported here to keep the function self-contained.
 # ══════════════════════════════════════════════════════════════════════════════
-from datetime import timedelta
+from datetime import timedelta  # noqa: E402 — module docstring precedes import block

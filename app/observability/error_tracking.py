@@ -26,10 +26,10 @@ log = get_logger(__name__)
 # The production implementation lives in app.core.observability.
 # This module wraps it with a cleaner public API.
 
-from app.core.observability import (
+from app.core.observability import (  # noqa: E402 — imported after logger init; kept below module header for readability
     capture_exception as capture_exception,
     capture_message as capture_message,
-    flush_sentry as flush,  # noqa: F401
+    flush_sentry as flush,
 )
 
 

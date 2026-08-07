@@ -20,7 +20,7 @@ TEST_JWT_SECRET: str = "test-jwt-secret-key-thats-32-chars-long!"
 os.environ["RMI_AUTH_TOKEN"] = TEST_RMI_AUTH_TOKEN
 os.environ["RMI_INTERNAL_KEY"] = TEST_INTERNAL_KEY
 os.environ["JWT_SECRET"] = TEST_JWT_SECRET
-import pytest
+import pytest  # noqa: E402 — module docstring precedes import block
 
 
 @pytest.fixture(scope="session")

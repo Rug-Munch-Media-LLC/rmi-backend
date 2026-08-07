@@ -7,19 +7,19 @@ from app.core.logging import get_logger
 logger = get_logger("rugcharts_intel")
 
 # Config & cache helpers
-from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, MORALIS_KEY, REDIS_HOST, REDIS_PASSWORD, REDIS_PORT, _r
-from .cross_chain import cross_chain_entity
-from .developer import developer_reputation
-from .holders import holder_health_score
-from .insider import insider_pattern_detector
-from .liquidity import liquidity_risk_monitor
-from .rug_patterns import RUG_PATTERNS, rug_pattern_matcher
+from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, MORALIS_KEY, REDIS_HOST, REDIS_PASSWORD, REDIS_PORT, _r  # noqa: E402 — imported after logger init; kept below module header for readability
+from .cross_chain import cross_chain_entity  # noqa: E402 — imported after logger init; kept below module header for readability
+from .developer import developer_reputation  # noqa: E402 — imported after logger init; kept below module header for readability
+from .holders import holder_health_score  # noqa: E402 — imported after logger init; kept below module header for readability
+from .insider import insider_pattern_detector  # noqa: E402 — module docstring precedes import block
+from .liquidity import liquidity_risk_monitor  # noqa: E402 — module docstring precedes import block
+from .rug_patterns import RUG_PATTERNS, rug_pattern_matcher  # noqa: E402 — module docstring precedes import block
 
 # Feature modules
-from .smart_money import smart_money_feed
-from .token_launch import token_launch_scanner
-from .token_report import _extract_security_highlights, instant_token_report
-from .whale_alert import whale_alert_stream
+from .smart_money import smart_money_feed  # noqa: E402 — module docstring precedes import block
+from .token_launch import token_launch_scanner  # noqa: E402 — module docstring precedes import block
+from .token_report import _extract_security_highlights, instant_token_report  # noqa: E402 — module docstring precedes import block
+from .whale_alert import whale_alert_stream  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "ARKHAM_KEY",

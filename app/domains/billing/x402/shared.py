@@ -17,13 +17,13 @@ from app.core.logging import get_logger
 logger = get_logger("x402_tools")
 
 # Caching shield
-from app.caching_shield.service_mcp import get_service_mcp
-from app.caching_shield.tool_data import td
+from app.caching_shield.service_mcp import get_service_mcp  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.caching_shield.tool_data import td  # noqa: E402 — imported after logger init; kept below module header for readability
 
 _svc_mcp = get_service_mcp()
 
 # Re-export data constants
-from app.domains.billing.x402.shared_data import (  # type: ignore[attr-defined]
+from app.domains.billing.x402.shared_data import (  # type: ignore[attr-defined]  # noqa: E402 — module docstring precedes import block
     BUNDLES,
     FREE_APIS,
     FREE_RPCS,
@@ -34,7 +34,7 @@ from app.domains.billing.x402.shared_data import (  # type: ignore[attr-defined]
 )
 
 # Re-export models
-from app.domains.billing.x402.shared_models import (
+from app.domains.billing.x402.shared_models import (  # noqa: E402 — module docstring precedes import block
     AuditRequest,
     BundleRequest,
     ClusterRequest,

@@ -175,7 +175,7 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
 # ─── Qdrant-backed rated articles ─────────────────────────────────
 # Helpers live in app/routers/news_helpers.py (extracted to keep the
 # router focused on request handling).
-from app.routers.news_helpers import (
+from app.routers.news_helpers import (  # noqa: E402 — module docstring precedes import block
     _count_corroborating,
     _normalize_sentiment_label,
     _point_to_article,
@@ -212,7 +212,7 @@ async def get_news_feed(
         if _NEWS_CACHE and not refresh:
             result = _NEWS_CACHE
             # Background refresh
-            _ = asyncio.create_task(_refresh_cache(include_rss, include_reddit, include_internal))  # noqa: RUF006
+            _ = asyncio.create_task(_refresh_cache(include_rss, include_reddit, include_internal))
         else:
             # First load or forced refresh - fetch inline but with timeout
             try:
@@ -534,10 +534,10 @@ async def get_headlines(
         result = _NEWS_CACHE
         # Trigger background refresh if stale
         if _CACHE_TS and (datetime.now(UTC) - _CACHE_TS) >= _CACHE_TTL:
-            _ = asyncio.create_task(_refresh_cache(True, False, True))  # noqa: RUF006
+            _ = asyncio.create_task(_refresh_cache(True, False, True))
     else:
         # First call — cache is empty. Trigger background seed and return empty.
-        _ = asyncio.create_task(_refresh_cache(True, False, True))  # noqa: RUF006
+        _ = asyncio.create_task(_refresh_cache(True, False, True))
         return {"headlines": [], "count": 0, "cached": False}
 
     articles = result.get("articles", [])

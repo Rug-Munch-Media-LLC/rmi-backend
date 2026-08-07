@@ -35,7 +35,7 @@ os.environ["RMI_INTERNAL_KEY"] = "test-internal-key-32-chars-long!!!"
 os.environ["JWT_SECRET"] = "test-jwt-secret-key-thats-32-chars-long!"
 
 # ── Hypothesis profiles ───────────────────────────────────────────────
-from hypothesis import HealthCheck, settings
+from hypothesis import HealthCheck, settings  # noqa: E402 — module docstring precedes import block
 
 settings.register_profile(
     "ci",
@@ -66,7 +66,7 @@ settings.register_profile(
 
 
 # ── Shared auth fixtures ──────────────────────────────────────────────
-import pytest
+import pytest  # noqa: E402 — module docstring precedes import block
 
 
 @pytest.fixture

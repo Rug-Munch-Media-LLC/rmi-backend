@@ -273,7 +273,7 @@ async def api_telegram_health():
 
     headless_available = False
     try:
-        import telethon  # noqa: F401
+        import telethon
 
         headless_available = True
     except ImportError:

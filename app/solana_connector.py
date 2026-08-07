@@ -270,7 +270,7 @@ def check_solana_connection() -> bool:
 # Prevents cascading failures when Solana RPC endpoints are degraded.
 # Pattern: 5 failures → open, 30s recovery timeout, half-open probe.
 
-from app.core.circuit_breaker import AsyncCircuitBreaker
+from app.core.circuit_breaker import AsyncCircuitBreaker  # noqa: E402 — module docstring precedes import block
 
 _solana_rpc_cb = AsyncCircuitBreaker(
     name="solana_rpc",

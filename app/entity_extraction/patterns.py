@@ -16,7 +16,7 @@ Entity types:
   - ens_domain       : [a-z0-9]+\.eth
 """
 
-import re
+import re  # noqa: E402 — module docstring precedes import block
 
 CHAIN_NAMES: set[str] = {
     "ethereum",

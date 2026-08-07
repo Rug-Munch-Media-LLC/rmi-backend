@@ -26,7 +26,7 @@ router.include_router(gates.router)
 router.include_router(misc.router)
 
 # Re-export models for convenience
-from app.routers.web3_chat.models import (  # noqa: F401, E402  # isort:skip
+from app.routers.web3_chat.models import (  # isort:skip  # noqa: E402 — module docstring precedes import block
     ConnectWalletRequest,
     NFTGateRequest,
     PayRequest,

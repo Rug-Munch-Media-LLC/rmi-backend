@@ -52,8 +52,8 @@ def _fetch_from_gopass(gopass_path: str) -> str:
     """Fetch token from gopass. Returns empty string on failure."""
     try:
         token = (
-            subprocess.check_output(  # noqa: S603 — fixed internal secret-manager, no untrusted input
-                ["gopass", "show", gopass_path],  # noqa: S607 — gopass resolved from PATH by design
+            subprocess.check_output(
+                ["gopass", "show", gopass_path],
                 stderr=subprocess.DEVNULL,
                 timeout=10,
             )

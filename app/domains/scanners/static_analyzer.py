@@ -239,7 +239,7 @@ class StaticAnalyzer:
                 "--disable-color",
             ]
             # Fixed command list, no shell=True; sol_path is a temp file written by us
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,

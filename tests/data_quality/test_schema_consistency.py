@@ -164,5 +164,5 @@ def test_table_row_counts(db_session: Session) -> None:
     print("  Table row counts:")
     for table in tables:
         # table name validated against EXPECTED_TABLES set above — safe from injection
-        count = db_session.execute(sa_text(f"SELECT count(*) FROM {table}")).scalar()  # noqa: S608
+        count = db_session.execute(sa_text(f"SELECT count(*) FROM {table}")).scalar()
         print(f"    {table}: {count}")

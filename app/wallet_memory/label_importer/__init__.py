@@ -14,9 +14,9 @@ from app.core.logging import get_logger
 logger = get_logger("wallet_memory.label_importer")
 
 # Re-export config
-from .bsc import _load_bsc_detail
-from .clean import load_clean_labels
-from .config import (
+from .bsc import _load_bsc_detail  # noqa: E402 — imported after logger init; kept below module header for readability
+from .clean import load_clean_labels  # noqa: E402 — imported after logger init; kept below module header for readability
+from .config import (  # noqa: E402 — imported after logger init; kept below module header for readability
     DATA_DIR,
     ETH_CSV_SPECS,
     ETHERSCAN_COMBINED,
@@ -27,7 +27,7 @@ from .config import (
 )
 
 # Re-export download helpers
-from .download import (
+from .download import (  # noqa: E402 — module docstring precedes import block
     _download_file,
     _download_json,
     _ensure_bsc_labels,
@@ -40,17 +40,17 @@ from .download import (
 )
 
 # Re-export source-specific loaders
-from .ethereum import _load_etherscan_combined, _load_etherscan_phish_hack
-from .exchange import _load_contract_names, _load_exchange_clusters, _load_exchange_wallets
+from .ethereum import _load_etherscan_combined, _load_etherscan_phish_hack  # noqa: E402 — module docstring precedes import block
+from .exchange import _load_contract_names, _load_exchange_clusters, _load_exchange_wallets  # noqa: E402 — module docstring precedes import block
 
 # Re-export shared loaders
-from .loaders import (
+from .loaders import (  # noqa: E402 — module docstring precedes import block
     _ensure_wallet_labels_table,
     _flush_batch,
     _load_csv_labels,
     _normalize_chain,
 )
-from .ofac import _load_ofac_sanctions
+from .ofac import _load_ofac_sanctions  # noqa: E402 — module docstring precedes import block
 
 # ── Module state ──
 
@@ -181,7 +181,7 @@ async def load_all_static_labels() -> dict[str, int]:
     return counts
 
 
-import os
+import os  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "get_last_load_counts",

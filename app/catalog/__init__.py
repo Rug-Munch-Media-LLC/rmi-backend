@@ -50,7 +50,7 @@ async def _health_check() -> DomainHealth:
 health_mod.register_health_check("catalog", _health_check)
 
 # Public API
-from app.catalog.models import (
+from app.catalog.models import (  # noqa: E402 — module docstring precedes import block
     CHAIN_REGISTRY,
     COLLECTIONS,
     Alert,
@@ -65,7 +65,7 @@ from app.catalog.models import (
     Token,
     Wallet,
 )
-from app.catalog.service import CatalogService, get_catalog
+from app.catalog.service import CatalogService, get_catalog  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "CHAIN_REGISTRY",

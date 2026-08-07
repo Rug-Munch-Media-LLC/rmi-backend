@@ -17,7 +17,7 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-from app.agents import (  # noqa: E402 — imported after marker for readability
+from app.agents import (  # noqa: E402 — module docstring precedes import block
     AgentOrchestrator,
     KnowledgeResult,
     MarketResult,

@@ -174,7 +174,7 @@ class TestRugImminencePredictor:
 
     @pytest.mark.asyncio
     async def test_predict_returns_result(self, predictor):
-        with patch.object(predictor, "_analyze_lp_health", new=AsyncMock()):  # noqa: SIM117
+        with patch.object(predictor, "_analyze_lp_health", new=AsyncMock()):
             with patch.object(predictor, "_analyze_deployer_risk", new=AsyncMock()):
                 with patch.object(predictor, "_analyze_smart_money_flow", new=AsyncMock()):
                     with patch.object(predictor, "_analyze_bundle_pattern", new=AsyncMock()):

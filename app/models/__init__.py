@@ -26,17 +26,17 @@ class Base(DeclarativeBase):
     """
 
 
-from app.models.alert import Alert, AlertSubscription
-from app.models.analytics import (
+from app.models.alert import Alert, AlertSubscription  # noqa: E402 — module docstring precedes import block
+from app.models.analytics import (  # noqa: E402 — module docstring precedes import block
     AudienceFollower,
     ContentPost,
     CreatorProfile,
     EngagementEvent,
     ViewEvent,
 )
-from app.models.kv_migration import Bookmark, ChatMessage, IdentityMapping  # noqa: E402 — see Base above
-from app.models.label import Label  # noqa: E402 — see Base above
-from app.models.live import (
+from app.models.kv_migration import Bookmark, ChatMessage, IdentityMapping  # noqa: E402 — module docstring precedes import block
+from app.models.label import Label  # noqa: E402 — module docstring precedes import block
+from app.models.live import (  # noqa: E402 — module docstring precedes import block
     AchievementDef,
     BattleGift,
     Challenge,
@@ -47,10 +47,10 @@ from app.models.live import (
     UserChallenge,
     ViewerXPTransaction,
 )
-from app.models.payment import Payment
-from app.models.scan import ScanResult
-from app.models.token import Token
-from app.models.user import User
+from app.models.payment import Payment  # noqa: E402 — module docstring precedes import block
+from app.models.scan import ScanResult  # noqa: E402 — module docstring precedes import block
+from app.models.token import Token  # noqa: E402 — module docstring precedes import block
+from app.models.user import User  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "AchievementDef",

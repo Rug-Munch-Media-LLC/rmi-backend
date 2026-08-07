@@ -272,9 +272,9 @@ async def mcp_proxy(req: Any) -> dict[str, Any]:
 # Bundle Pricing Endpoints
 # ═══════════════════════════════════════════════════════════════
 
-import contextlib
+import contextlib  # noqa: E402 — module docstring precedes import block
 
-from app.domains.billing.x402.shared import (
+from app.domains.billing.x402.shared import (  # noqa: E402 — module docstring precedes import block
     BUNDLES as _BUNDLES,
     BundleRequest,
 )

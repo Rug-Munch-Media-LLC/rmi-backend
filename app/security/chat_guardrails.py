@@ -534,13 +534,13 @@ class ChatGuardrails:
         def _post() -> None:
             try:
                 data = json.dumps(payload).encode("utf-8")
-                req = urllib.request.Request(  # noqa: S310 — webhook URL is operator-controlled via env, scheme allowlisted
+                req = urllib.request.Request(
                     url,
                     data=data,
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
-                with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310  # nosec B310 — scheme allowlisted, operator-controlled
+                with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310 — scheme allowlisted, operator-controlled
                     resp.read(64)
             except (urllib.error.URLError, OSError, TimeoutError) as exc:
                 self._log("WARN", "chat_guardrail_alert_webhook_failed", error=str(exc))

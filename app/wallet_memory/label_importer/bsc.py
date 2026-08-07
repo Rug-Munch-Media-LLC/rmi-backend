@@ -86,4 +86,4 @@ async def _load_bsc_detail(storage) -> int:
     return count
 
 
-import os
+import os  # noqa: E402 — module docstring precedes import block

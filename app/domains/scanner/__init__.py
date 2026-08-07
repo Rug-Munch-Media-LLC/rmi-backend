@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import app.domains.scanner.service  # noqa: F401 — ensure service package is importable for mock patches
+import app.domains.scanner.service
 from app.domains.scanner.models import ScanResult
 
 

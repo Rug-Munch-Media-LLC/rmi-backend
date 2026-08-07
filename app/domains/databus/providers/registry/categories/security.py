@@ -210,7 +210,7 @@ def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
             liquidity_risk_monitor as analyze_liquidity_risk,
             rug_pattern_matcher as detect_rug_patterns,
             smart_money_feed as get_smart_money,
-            token_launch_scanner,  # noqa: F401  # availability probe for rugcharts_intel
+            token_launch_scanner,  # availability probe for rugcharts_intel
             whale_alert_stream as get_whale_alerts,
         )
 
