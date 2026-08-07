@@ -321,10 +321,8 @@ class CacheLayer:
                 self._type_stats[dtype]["hits"] += 1
             # SWR: schedule background refresh if stale and callback is set
             if is_stale and self.stale_refresh_callback:
-                try:
-                    asyncio.create_task(self.stale_refresh_callback(key))
-                except (ConnectionError, OSError, TimeoutError):
-                    pass  # Best-effort refresh
+                with contextlib.suppress(ConnectionError, OSError, TimeoutError):
+                    asyncio.create_task(self.stale_refresh_callback(key))  # Best-effort refresh
             return val, is_stale
         # L2 (no SWR - Redis handles its own TTL)
         val = await self.l2.get(key)

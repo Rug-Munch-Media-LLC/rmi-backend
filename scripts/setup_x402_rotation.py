@@ -40,10 +40,9 @@ def main():
     # Also try address matching for the known receiving wallets
     for w in mgr._wallets.values():
         addr = str(getattr(w, "address", "") or "").lower()
-        if EVM_RECEIVING in addr or SOL_RECEIVING.lower() in addr:
-            if w not in x402_wallets:
-                x402_wallets.append(w)
-                print(f"Added by address match: {w.wallet_id} ({w.chain})")
+        if (EVM_RECEIVING in addr or SOL_RECEIVING.lower() in addr) and w not in x402_wallets:
+            x402_wallets.append(w)
+            print(f"Added by address match: {w.wallet_id} ({w.chain})")
 
     if not x402_wallets:
         print("No x402 wallets found. Setting rotation on ALL wallets instead.")

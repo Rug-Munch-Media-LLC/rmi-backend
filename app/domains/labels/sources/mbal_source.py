@@ -234,13 +234,12 @@ class MBALService:
         now = asyncio.get_event_loop().time()
 
         # Check daily quota if using free tier
-        if not self.api_key and self.request_count >= 100:
+        if not self.api_key and self.request_count >= 100 and now < self.reset_time:
             # Free tier: 100 queries/day
             # Simple approach: wait until reset (24 hours from first query)
-            if now < self.reset_time:
-                sleep_time = self.reset_time - now
-                logger.info(f"Waiting for MBAL daily quota reset: {sleep_time:.1f}s")
-                await asyncio.sleep(sleep_time)
+            sleep_time = self.reset_time - now
+            logger.info(f"Waiting for MBAL daily quota reset: {sleep_time:.1f}s")
+            await asyncio.sleep(sleep_time)
 
         # Ensure minimum delay between requests
         time_since_last = now - self.last_request_time

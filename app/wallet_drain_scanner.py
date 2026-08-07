@@ -339,12 +339,14 @@ class WalletDrainScanner:
         import aiohttp
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if data.get("status") == "1":
-                            return data.get("result", [])
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp,
+            ):
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("status") == "1":
+                        return data.get("result", [])
         except Exception as e:
             logger.debug(f"Explorer fetch failed for {self.chain}: {e}")
 

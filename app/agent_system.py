@@ -519,35 +519,34 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
                 "stream": True,
             }
 
-            async with httpx.AsyncClient(timeout=45) as c:
-                async with c.stream("POST", base_url, json=body, headers=headers) as r:
-                    if r.status_code == 200:
-                        async for line in r.aiter_lines():
-                            if line.startswith("data: "):
-                                d = line[6:]
-                                if d == "[DONE]":
-                                    if full_response:
-                                        await store_cache(msg, agent_id, full_response)
-                                    yield {"type": "done"}
-                                    return
-                                try:
-                                    ch = json.loads(d)
-                                    txt = ch.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                                    if txt:
-                                        full_response += txt
-                                        yield {"type": "token", "text": txt}
-                                except json.JSONDecodeError:
-                                    pass
-                        if full_response:
-                            await store_cache(msg, agent_id, full_response)
-                        yield {"type": "done"}
-                        return
-                    elif r.status_code == 429:
-                        logger.info("Gemini rate-limited, trying next key/fallback")
-                        continue  # Try next key or fallback provider
-                    else:
-                        logger.warning(f"Gemini error {r.status_code}, trying fallback")
-                        continue
+            async with httpx.AsyncClient(timeout=45) as c, c.stream("POST", base_url, json=body, headers=headers) as r:
+                if r.status_code == 200:
+                    async for line in r.aiter_lines():
+                        if line.startswith("data: "):
+                            d = line[6:]
+                            if d == "[DONE]":
+                                if full_response:
+                                    await store_cache(msg, agent_id, full_response)
+                                yield {"type": "done"}
+                                return
+                            try:
+                                ch = json.loads(d)
+                                txt = ch.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                if txt:
+                                    full_response += txt
+                                    yield {"type": "token", "text": txt}
+                            except json.JSONDecodeError:
+                                pass
+                    if full_response:
+                        await store_cache(msg, agent_id, full_response)
+                    yield {"type": "done"}
+                    return
+                elif r.status_code == 429:
+                    logger.info("Gemini rate-limited, trying next key/fallback")
+                    continue  # Try next key or fallback provider
+                else:
+                    logger.warning(f"Gemini error {r.status_code}, trying fallback")
+                    continue
         except Exception as e:
             logger.warning(f"Gemini call failed: {e}")
             continue

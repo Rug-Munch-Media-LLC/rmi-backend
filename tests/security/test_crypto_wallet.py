@@ -678,15 +678,17 @@ class TestReplayAttackProtection:
         old_time = (datetime.now(UTC) - timedelta(minutes=10)).isoformat()
         mock_redis.get.return_value = f"0xaddr:{old_time}"
 
-        with patch("redis.Redis", return_value=mock_redis):
-            with patch("app.domains.auth.wallet._verify_evm_signature", return_value=True):
-                result = verify_wallet_signature(
-                    "Nonce: old-nonce-123",
-                    "0xsig",
-                    "0x1234567890123456789012345678901234567890",
-                    "evm",
-                )
-                assert result is False
+        with (
+            patch("redis.Redis", return_value=mock_redis),
+            patch("app.domains.auth.wallet._verify_evm_signature", return_value=True),
+        ):
+            result = verify_wallet_signature(
+                "Nonce: old-nonce-123",
+                "0xsig",
+                "0x1234567890123456789012345678901234567890",
+                "evm",
+            )
+            assert result is False
 
     def test_replay_nonce_reused_rejected(self):
         """Already-used nonce is rejected (deleted after first use)."""
@@ -699,27 +701,29 @@ class TestReplayAttackProtection:
         mock_redis.get.return_value = "0xaddr:2026-07-24T00:00:00"
         # After first verification, nonce is deleted
 
-        with patch("redis.Redis", return_value=mock_redis):
-            with patch("app.domains.auth.wallet._verify_evm_signature", return_value=True):
-                # First use succeeds
-                result1 = verify_wallet_signature(
-                    "Nonce: nonce-456",
-                    "0xsig",
-                    "0x1234567890123456789012345678901234567890",
-                    "evm",
-                )
+        with (
+            patch("redis.Redis", return_value=mock_redis),
+            patch("app.domains.auth.wallet._verify_evm_signature", return_value=True),
+        ):
+            # First use succeeds
+            result1 = verify_wallet_signature(
+                "Nonce: nonce-456",
+                "0xsig",
+                "0x1234567890123456789012345678901234567890",
+                "evm",
+            )
 
-                # Second call — nonce already deleted
-                mock_redis.get.return_value = None
-                result2 = verify_wallet_signature(
-                    "Nonce: nonce-456",
-                    "0xsig",
-                    "0x1234567890123456789012345678901234567890",
-                    "evm",
-                )
-                # Note: first call may have deleted; second must fail
-                # (Redis delete is called, then on replay get returns None)
-                assert result2 is False
+            # Second call — nonce already deleted
+            mock_redis.get.return_value = None
+            result2 = verify_wallet_signature(
+                "Nonce: nonce-456",
+                "0xsig",
+                "0x1234567890123456789012345678901234567890",
+                "evm",
+            )
+            # Note: first call may have deleted; second must fail
+            # (Redis delete is called, then on replay get returns None)
+            assert result2 is False
 
     def test_replay_wrong_address_for_nonce_rejected(self):
         """Nonce issued for address A fails with address B's signature."""

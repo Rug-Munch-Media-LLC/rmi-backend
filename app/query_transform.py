@@ -195,11 +195,7 @@ async def hyde_transform(query: str) -> str:
         max_tokens=300,
     )
 
-    if llm_result:
-        result = llm_result
-    else:
-        # Rule-based fallback: prepend crypto-specific context
-        result = _hyde_rule_based(query)
+    result = llm_result or _hyde_rule_based(query)
 
     # Cache in Redis (24h TTL)
     try:

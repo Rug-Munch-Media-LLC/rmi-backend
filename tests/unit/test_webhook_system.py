@@ -318,9 +318,11 @@ class TestWebhookDeliveryService:
 
             mock_client.post = AsyncMock(side_effect=[resp_500, resp_500, resp_200])
 
-            with patch.object(service, "_save_delivery", AsyncMock()):
-                with patch("asyncio.sleep", AsyncMock()):  # no actual waiting
-                    result = await service.deliver(sample_event, sample_sub)
+            with (
+                patch.object(service, "_save_delivery", AsyncMock()),
+                patch("asyncio.sleep", AsyncMock()),
+            ):  # no actual waiting
+                result = await service.deliver(sample_event, sample_sub)
 
         assert result.status == "delivered"
         assert result.attempt == 3  # succeeded on 3rd attempt

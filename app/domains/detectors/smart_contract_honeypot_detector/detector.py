@@ -245,17 +245,16 @@ class HoneypotDetector:
                                 code_reference=f"Selector {selector} in bytecode",
                             )
                         )
-                if "ff" in bytecode:
-                    if not any(f.finding_type == HoneypotType.SELFDESTRUCT for f in result.findings):
-                        result.findings.append(
-                            SecurityFinding(
-                                finding_type=HoneypotType.SELFDESTRUCT,
-                                severity=FindingSeverity.CRITICAL,
-                                description="SELFDESTRUCT opcode found in contract bytecode",
-                                detail="Contract can be permanently destroyed - all funds lost",
-                                code_reference="SELFDESTRUCT (0xff) in bytecode",
-                            )
+                if "ff" in bytecode and not any(f.finding_type == HoneypotType.SELFDESTRUCT for f in result.findings):
+                    result.findings.append(
+                        SecurityFinding(
+                            finding_type=HoneypotType.SELFDESTRUCT,
+                            severity=FindingSeverity.CRITICAL,
+                            description="SELFDESTRUCT opcode found in contract bytecode",
+                            detail="Contract can be permanently destroyed - all funds lost",
+                            code_reference="SELFDESTRUCT (0xff) in bytecode",
                         )
+                    )
                 if "f4" in bytecode and not result.token.is_proxy:
                     result.findings.append(
                         SecurityFinding(

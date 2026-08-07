@@ -46,10 +46,7 @@ def _run_script_main(script_path: str, args: list[str]) -> tuple[int, str, str]:
 
     try:
         spec.loader.exec_module(mod)
-        if hasattr(mod, "main"):
-            rc = mod.main()
-        else:
-            rc = 0
+        rc = mod.main() if hasattr(mod, "main") else 0
     except SystemExit as e:
         rc = e.code if e.code is not None else 0
     except Exception as e:

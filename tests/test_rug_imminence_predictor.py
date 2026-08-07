@@ -174,16 +174,16 @@ class TestRugImminencePredictor:
 
     @pytest.mark.asyncio
     async def test_predict_returns_result(self, predictor):
-        with patch.object(predictor, "_analyze_lp_health", new=AsyncMock()):
-            with patch.object(predictor, "_analyze_deployer_risk", new=AsyncMock()):
-                with patch.object(predictor, "_analyze_smart_money_flow", new=AsyncMock()):
-                    with patch.object(predictor, "_analyze_bundle_pattern", new=AsyncMock()):
-                        with patch.object(predictor, "_analyze_social_velocity", new=AsyncMock()):
-                            with patch.object(predictor, "_analyze_contract_risk", new=AsyncMock()):
-                                with patch.object(predictor, "_analyze_liquidity_migration", new=AsyncMock()):
-                                    result = await predictor.predict(
-                                        "0x1234567890123456789012345678901234567890", "base"
-                                    )
+        with (
+            patch.object(predictor, "_analyze_lp_health", new=AsyncMock()),
+            patch.object(predictor, "_analyze_deployer_risk", new=AsyncMock()),
+            patch.object(predictor, "_analyze_smart_money_flow", new=AsyncMock()),
+            patch.object(predictor, "_analyze_bundle_pattern", new=AsyncMock()),
+            patch.object(predictor, "_analyze_social_velocity", new=AsyncMock()),
+            patch.object(predictor, "_analyze_contract_risk", new=AsyncMock()),
+            patch.object(predictor, "_analyze_liquidity_migration", new=AsyncMock()),
+        ):
+            result = await predictor.predict("0x1234567890123456789012345678901234567890", "base")
 
         assert isinstance(result, RIPResult)
         assert result.token_address == "0x1234567890123456789012345678901234567890"

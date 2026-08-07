@@ -229,10 +229,9 @@ def check_entropy(content):
         stripped = line.strip()
         if len(stripped) > 30 and len(stripped) < 200:
             entropy = shannon_entropy(stripped.encode())
-            if entropy > ENTROPY_THRESHOLD:
-                # Avoid flagging known-safe patterns (base64, hashes)
-                if not re.match(r"^[A-Za-z0-9+/=]+$", stripped):
-                    findings.append((f"High entropy ({entropy:.1f}) at line {i}", "HIGH_ENTROPY"))
+            # Avoid flagging known-safe patterns (base64, hashes)
+            if entropy > ENTROPY_THRESHOLD and not re.match(r"^[A-Za-z0-9+/=]+$", stripped):
+                findings.append((f"High entropy ({entropy:.1f}) at line {i}", "HIGH_ENTROPY"))
     return findings
 
 

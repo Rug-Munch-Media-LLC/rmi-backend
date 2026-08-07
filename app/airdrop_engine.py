@@ -148,7 +148,7 @@ class AntiSniperProtection:
         max_tx_percent: float = 0.0,
     ) -> dict[str, Any]:
         """Apply full anti-sniper protection suite to a token."""
-        results = {
+        results: dict[str, Any] = {
             "blacklist_applied": 0,
             "trading_delayed": False,
             "max_wallet_set": False,
@@ -264,12 +264,14 @@ class SnapshotEngine:
         )
 
         # Build holder balances from transfer logs
+        # LogReceipt is a TypedDict — use subscript access (attribute access
+        # would raise AttributeError on the underlying dict at runtime).
         balances: dict[str, int] = {}
         for log in logs:
             try:
-                from_addr = "0x" + log.topics[1].hex()[-40:]
-                to_addr = "0x" + log.topics[2].hex()[-40:]
-                amount = int(log.data.hex(), 16) if log.data else 0
+                from_addr = "0x" + log["topics"][1].hex()[-40:]
+                to_addr = "0x" + log["topics"][2].hex()[-40:]
+                amount = int(log["data"].hex(), 16) if log["data"] else 0
 
                 balances[from_addr] = balances.get(from_addr, 0) - amount
                 balances[to_addr] = balances.get(to_addr, 0) + amount
@@ -323,7 +325,10 @@ class SnapshotEngine:
         mint = Pubkey.from_string(token_address)
 
         # Get all token accounts for this mint
-        response = client.get_token_accounts_by_mint_json_parsed(mint, commitment="confirmed")
+        # TODO: installed solana-py lacks get_token_accounts_by_mint_json_parsed —
+        # must use get_program_accounts against the SPL Token program to enumerate
+        # all holders of a mint. Left as-is pending rework; would raise at runtime.
+        response = client.get_token_accounts_by_mint_json_parsed(mint, commitment="confirmed")  # type: ignore[attr-defined]
 
         holders = []
         total_supply = 0
@@ -379,7 +384,7 @@ class AirdropDistributor:
         batch_size: int = 50,
     ) -> dict[str, Any]:
         """Execute airdrop on EVM chain (batch or individual)."""
-        results = {
+        results: dict[str, Any] = {
             "total_recipients": len(recipients),
             "successful": 0,
             "failed": 0,
@@ -447,7 +452,7 @@ class AirdropDistributor:
         recipients: list[AirdropRecipient],
     ) -> dict[str, Any]:
         """Execute airdrop on Solana."""
-        results = {
+        results: dict[str, Any] = {
             "total_recipients": len(recipients),
             "successful": 0,
             "failed": 0,
@@ -503,7 +508,7 @@ class TeamAllocation:
             {"address": "0x...", "role": "marketing", "percent": 5, "immediate": 50, "vested": 50, "cliff_months": 3, "vesting_months": 12},
         ]
         """
-        results = {
+        results: dict[str, Any] = {
             "allocations": [],
             "total_allocated": 0,
             "tx_hashes": [],
@@ -681,7 +686,7 @@ async def create_full_token_with_protection(
     """
     from app.token_deployer import DeployParams
 
-    results = {
+    results: dict[str, Any] = {
         "deployment": None,
         "anti_sniper": None,
         "team_allocation": None,

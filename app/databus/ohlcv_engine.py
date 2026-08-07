@@ -254,10 +254,9 @@ class OHLCVEngine:
             bucket_ts = (end // tf_seconds) * tf_seconds
             active_key = self._active_key(token, chain, timeframe, bucket_ts)
             active = self._active_candles.get(active_key)
-            if active and active.timestamp <= end:
-                # Avoid duplicating if already persisted
-                if not candles or candles[-1]["timestamp"] != active.timestamp:
-                    candles.append(active.to_dict())
+            # Avoid duplicating if already persisted
+            if active and active.timestamp <= end and (not candles or candles[-1]["timestamp"] != active.timestamp):
+                candles.append(active.to_dict())
 
             # Cache the result
             r.setex(cache_key, 60, json.dumps(candles[-limit:] if len(candles) > limit else candles))

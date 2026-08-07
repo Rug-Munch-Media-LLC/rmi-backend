@@ -239,10 +239,7 @@ class TestTWAPWindow(unittest.TestCase):
         # Create volatile price samples (manipulation pattern)
         self.volatile_samples = []
         for i in range(10):
-            if i in (3, 4, 5):  # Spike in middle
-                price = 3700.0
-            else:
-                price = 3200.0
+            price = 3700.0 if i in (3, 4, 5) else 3200.0  # Spike in middle
             self.volatile_samples.append(
                 PriceSnapshot(
                     timestamp=1234567800.0 + i * 12,

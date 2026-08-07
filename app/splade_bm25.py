@@ -498,9 +498,13 @@ class BM25Index:
             # Exact phrase bonus (SPLADE positional interaction approximation)
             query_lower = query.lower()
             # Check raw content if we have it stored
-            if score > 0 and hasattr(self, "_raw_content") and doc_id in self._raw_content:
-                if query_lower in self._raw_content[doc_id].lower():
-                    score *= 1.5
+            if (
+                score > 0
+                and hasattr(self, "_raw_content")
+                and doc_id in self._raw_content
+                and query_lower in self._raw_content[doc_id].lower()
+            ):
+                score *= 1.5
 
             if score > 0.01:
                 entry = {

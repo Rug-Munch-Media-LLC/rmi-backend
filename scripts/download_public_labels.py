@@ -455,19 +455,17 @@ async def download_defillama_protocols() -> list[LabelEntry]:
                         chain_addrs = data.get("addresses", {}).get(chain, [])
                         if isinstance(chain_addrs, list):
                             for addr in chain_addrs:
-                                if addr and len(addr) >= 10:
-                                    # Check if already added
-                                    if not any(r.address == addr.lower() for r in results):
-                                        results.append(
-                                            LabelEntry(
-                                                address=addr,
-                                                chain_id=normalize_chain(chain),
-                                                label_name=name,
-                                                label_category="defi",
-                                                source="defillama",
-                                                confidence=0.90,
-                                            )
+                                if addr and len(addr) >= 10 and not any(r.address == addr.lower() for r in results):
+                                    results.append(
+                                        LabelEntry(
+                                            address=addr,
+                                            chain_id=normalize_chain(chain),
+                                            label_name=name,
+                                            label_category="defi",
+                                            source="defillama",
+                                            confidence=0.90,
                                         )
+                                    )
 
             except Exception as e:
                 logger.debug("DefiLlama protocol %s fetch error: %s", slug, e)

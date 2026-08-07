@@ -10,6 +10,7 @@ yields its name, and drops it on teardown - even on test failure.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import uuid
 
@@ -87,7 +88,5 @@ def clean_test_collection() -> str:
         yield name
     finally:
         # Always drop, even on test failure
-        try:
-            httpx.delete(f"{QDRANT_URL}/collections/{name}", timeout=5.0)
-        except Exception:
-            pass  # best-effort cleanup
+        with contextlib.suppress(Exception):
+            httpx.delete(f"{QDRANT_URL}/collections/{name}", timeout=5.0)  # best-effort cleanup

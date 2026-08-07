@@ -172,11 +172,7 @@ class DuckDBAnalytics:
             raise ValueError(f"Invalid parquet path (contains quote): {parquet_path!r}")
         # Bind parquet path to a table for the duration of the query
         bind_sql = f"SELECT * FROM read_parquet('{parquet_path}')"
-        if sql is None:
-            sql = bind_sql
-        else:
-            # Inject the parquet binding as a CTE the user can reference
-            sql = f"WITH parquet AS ({bind_sql}) {sql}"
+        sql = bind_sql if sql is None else f"WITH parquet AS ({bind_sql}) {sql}"
         return self.query(sql, params=params)
 
     def register_dataframe(self, name: str, df: Any) -> None:

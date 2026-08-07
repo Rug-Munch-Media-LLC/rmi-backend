@@ -19,6 +19,7 @@ Markers:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import time
@@ -1267,10 +1268,8 @@ class TestQdrantCollectionManagement:
         yield
         for c in _qdrant_list_collections(qdrant_http_client):
             if c["name"].startswith("test_coll"):
-                try:
+                with contextlib.suppress(Exception):
                     _qdrant_delete_collection(qdrant_http_client, c["name"])
-                except Exception:
-                    pass
 
 
 class TestQdrantVectorSearch:
