@@ -37,6 +37,7 @@ __all__ = [
     "CHAINS",
     "ChainConfig",
     "ChainFamily",
+    "evm",
     "get_cex_wallets",
     "get_chain",
     "get_chain_display",
@@ -49,7 +50,6 @@ __all__ = [
     "is_solana",
     "list_chains",
     "resolve_chain_id",
-    "evm",
     "solana",
     "tron",
 ]

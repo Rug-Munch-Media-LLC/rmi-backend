@@ -30,6 +30,7 @@ from app.domains.portfolio.portfolio_risk_aggregator.scorers import (
 __all__ = [
     "CHAIN_CONFIGS",
     "COMMON_TOKENS",
+    "ERC20_ABI",
     "ChainConnector",
     "ChainPortfolio",
     "EVMConnector",
@@ -40,6 +41,5 @@ __all__ = [
     "SolanaConnector",
     "TokenHolding",
     "TokenRiskScorer",
-    "ERC20_ABI",
     "validate_wallet_address",
 ]

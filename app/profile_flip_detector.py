@@ -41,7 +41,10 @@ DEFILLAMA_PROTOCOL = "https://api.llama.fi/protocol/{}"
 DEFILLAMA_TOKEN = "https://api.llama.fi/token/{}"  # noqa: S105 — config default
 GMGN_API = "https://gmgn.ai/defi/quotation/v1/tokens/{}"
 # ── Compiled patterns ────────────────────────────────────────────
-from app.core.shared_utils import EVM_ADDRESS_RE as _RE_EVM_ADDR, SOLANA_ADDRESS_RE as _RE_SOLANA_ADDR  # noqa: E402 — module docstring precedes import block
+from app.core.shared_utils import (  # noqa: E402 — module docstring precedes import block
+    EVM_ADDRESS_RE as _RE_EVM_ADDR,
+    SOLANA_ADDRESS_RE as _RE_SOLANA_ADDR,
+)
 
 # Note: _RE_TOKEN_ADDR kept as alias for token-specific validation
 _RE_TOKEN_ADDR = _RE_SOLANA_ADDR

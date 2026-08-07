@@ -42,7 +42,6 @@ from app.billing.x402.enforcement import (
     x402_enforcement_middleware,
 )
 
-
 __all__ = [
     "CHAIN_USDC",
     "EVM_PAY_TO",

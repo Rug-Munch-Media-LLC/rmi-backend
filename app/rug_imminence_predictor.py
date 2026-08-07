@@ -24,7 +24,6 @@ from app.domains.detectors.rug_imminence_predictor import (
     get_predictor,
 )
 
-
 __all__ = [
     "DEFAULT_WEIGHTS",
     "SCORE_THRESHOLDS",

@@ -3,26 +3,25 @@
 from __future__ import annotations
 
 from app.domains.scanner.deployer_reputation import (
-    annotations,
+    KNOWN_PATTERNS,
+    SIGNALS,
     Any,
-    numpy,
+    annotations,
+    build_behavioral_fingerprint,
     get_logger,
     logger,
-    SIGNALS,
-    KNOWN_PATTERNS,
-    build_behavioral_fingerprint,
+    numpy,
     score_deployer_risk,
 )
 
-
 __all__ = [
-    "annotations",
+    "KNOWN_PATTERNS",
+    "SIGNALS",
     "Any",
-    "numpy",
+    "annotations",
+    "build_behavioral_fingerprint",
     "get_logger",
     "logger",
-    "SIGNALS",
-    "KNOWN_PATTERNS",
-    "build_behavioral_fingerprint",
+    "numpy",
     "score_deployer_risk",
 ]

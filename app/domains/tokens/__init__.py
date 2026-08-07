@@ -23,8 +23,8 @@ from app.domains.tokens.deployer import (
 
 __all__ = [
     "ChainDeployer",
-    "DeploymentStorage",
     "DeployParams",
+    "DeploymentStorage",
     "EVMDeployer",
     "SolanaDeployer",
     "TokenDeployerFactory",

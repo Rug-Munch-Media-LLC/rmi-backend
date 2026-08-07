@@ -3,28 +3,27 @@
 from __future__ import annotations
 
 from app.domains.scanner.entity_graph import (
+    Any,
+    GraphEdge,
+    GraphNode,
     annotations,
+    build_entity_graph,
     dataclass,
     field,
-    Any,
+    generate_svg,
     get_logger,
     logger,
-    GraphNode,
-    GraphEdge,
-    build_entity_graph,
-    generate_svg,
 )
 
-
 __all__ = [
+    "Any",
+    "GraphEdge",
+    "GraphNode",
     "annotations",
+    "build_entity_graph",
     "dataclass",
     "field",
-    "Any",
+    "generate_svg",
     "get_logger",
     "logger",
-    "GraphNode",
-    "GraphEdge",
-    "build_entity_graph",
-    "generate_svg",
 ]

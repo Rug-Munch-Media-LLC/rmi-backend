@@ -40,7 +40,10 @@ def _L(module_path) -> Any:
 from fastapi import APIRouter  # noqa: E402 — module docstring precedes import block
 from pydantic import BaseModel, Field  # noqa: E402 — module docstring precedes import block
 
-from app.cross_chain_correlator import ChainFingerprint, CrossChainCorrelator  # noqa: E402 — module docstring precedes import block
+from app.cross_chain_correlator import (  # noqa: E402 — module docstring precedes import block
+    ChainFingerprint,
+    CrossChainCorrelator,
+)
 
 router = APIRouter(prefix="/api/v1/security", tags=["security"])
 

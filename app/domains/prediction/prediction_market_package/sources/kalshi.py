@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import requests
 from datetime import UTC, datetime
 from typing import Any
+
+import requests
 
 from app.core.logging import get_logger
 from app.domains.prediction.prediction_market_package.models import (

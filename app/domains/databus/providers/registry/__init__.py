@@ -15,7 +15,6 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING
 
-
 from app.core.circuit_breaker import SimpleCircuitBreaker
 from app.core.logging import get_logger
 
@@ -32,9 +31,14 @@ def build_provider_chains() -> dict[str, ProviderChain]:
     chains: dict[str, ProviderChain] = {}
 
     # ── Import all provider functions ──
-    from app.databus.spl_metadata_decoder import _spl_metadata_decoder_provider  # noqa: F401 — consumed by category builders via locals()
+    from app.databus.spl_metadata_decoder import (
+        _spl_metadata_decoder_provider,  # noqa: F401 — consumed by category builders via locals()
+    )
 
-    from ..chains.alchemy import _alchemy_token_balances, _alchemy_token_metadata  # noqa: F401 — consumed by category builders via locals()
+    from ..chains.alchemy import (  # noqa: F401 — consumed by category builders via locals()
+        _alchemy_token_balances,
+        _alchemy_token_metadata,
+    )
     from ..chains.arkham import (
         _arkham_counterparties,  # noqa: F401 — consumed by category builders via locals()
         _arkham_entity,  # noqa: F401 — consumed by category builders via locals()
@@ -106,7 +110,9 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _solana_tracker_trending,  # noqa: F401 — consumed by category builders via locals()
         _virustotal_url_scan,  # noqa: F401 — consumed by category builders via locals()
     )
-    from ..chains.intel_provider import _scraped_intel_provider  # noqa: F401 — consumed by category builders via locals()
+    from ..chains.intel_provider import (
+        _scraped_intel_provider,  # noqa: F401 — consumed by category builders via locals()
+    )
     from ..chains.local import (
         _clickhouse_wallet_labels,  # noqa: F401 — consumed by category builders via locals()
         _local_token_price,  # noqa: F401 — consumed by category builders via locals()
@@ -133,7 +139,10 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _moralis_wallet_tokens,  # noqa: F401 — consumed by category builders via locals()
         _moralis_wallet_transactions,  # noqa: F401 — consumed by category builders via locals()
     )
-    from ..chains.price_oracle_provider import token_meta_local, token_price_local  # noqa: F401 — consumed by category builders via locals()
+    from ..chains.price_oracle_provider import (  # noqa: F401 — consumed by category builders via locals()
+        token_meta_local,
+        token_price_local,
+    )
 
     # ── Build chains by category ──
     _builders: list[tuple[str, str]] = [

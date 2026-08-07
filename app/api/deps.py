@@ -31,3 +31,4 @@ except ImportError:
     get_optional_user = None  # type: ignore[assignment]
 
 with contextlib.suppress(ImportError):
+    pass  # fallback until core.config lands

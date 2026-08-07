@@ -25,7 +25,6 @@ from app.domains.airdrop.multichain import (
     create_one_to_one_airdrop,
 )
 
-
 __all__ = [
     "AirdropTier",
     "AntiGamingFilter",

@@ -12,7 +12,9 @@ from app.core.logging import get_logger
 logger = get_logger("x402_tools")
 
 # Caching shield - all data calls route through cache → rate limit → provider chain
-from app.caching_shield.service_mcp import get_service_mcp  # noqa: E402 — imported after logger init; kept below module header for readability
+from app.caching_shield.service_mcp import (
+    get_service_mcp,
+)
 
 _svc_mcp = get_service_mcp()
 

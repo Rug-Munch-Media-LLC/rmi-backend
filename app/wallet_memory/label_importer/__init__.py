@@ -15,7 +15,9 @@ logger = get_logger("wallet_memory.label_importer")
 
 # Re-export config
 from .bsc import _load_bsc_detail  # noqa: E402 — imported after logger init; kept below module header for readability
-from .clean import load_clean_labels  # noqa: E402 — imported after logger init; kept below module header for readability
+from .clean import (
+    load_clean_labels,
+)
 from .config import (  # noqa: E402 — imported after logger init; kept below module header for readability
     DATA_DIR,
     ETH_CSV_SPECS,
@@ -40,8 +42,15 @@ from .download import (  # noqa: E402 — module docstring precedes import block
 )
 
 # Re-export source-specific loaders
-from .ethereum import _load_etherscan_combined, _load_etherscan_phish_hack  # noqa: E402 — module docstring precedes import block
-from .exchange import _load_contract_names, _load_exchange_clusters, _load_exchange_wallets  # noqa: E402 — module docstring precedes import block
+from .ethereum import (  # noqa: E402 — module docstring precedes import block
+    _load_etherscan_combined,
+    _load_etherscan_phish_hack,
+)
+from .exchange import (  # noqa: E402 — module docstring precedes import block
+    _load_contract_names,
+    _load_exchange_clusters,
+    _load_exchange_wallets,
+)
 
 # Re-export shared loaders
 from .loaders import (  # noqa: E402 — module docstring precedes import block
@@ -184,9 +193,9 @@ import os  # noqa: E402 — module docstring precedes import block
 
 __all__ = [
     "DATA_DIR",
-    "ETH_CSV_SPECS",
     "ETHERSCAN_COMBINED",
     "ETHERSCAN_PHISH_HACK",
+    "ETH_CSV_SPECS",
     "LABELS_DIR",
     "SOLANA_CSV_SPECS",
     "SOLANA_LABELS_REPO",

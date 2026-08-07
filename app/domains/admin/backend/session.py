@@ -6,7 +6,6 @@ Admin session management: create, validate, destroy, list active sessions.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import secrets
@@ -130,16 +129,7 @@ class SessionManager:
                     await r.srem(f"admin_sessions:{admin_id}", session_id)
             await r.delete(f"admin_session:{session_id}")
             return True
-        except (
-            ConnectionError,
-            OSError,
-            asyncio.TimeoutError,
-            json.JSONDecodeError,
-            ValueError,
-            KeyError,
-            TypeError,
-            TimeoutError,
-        ) as e:
+        except (ConnectionError, OSError, json.JSONDecodeError, ValueError, KeyError, TypeError, TimeoutError) as e:
             logger.debug("destroy_session_error", exc_info=True)
             logger.error(f"Session destroy failed: {e}")
             return False

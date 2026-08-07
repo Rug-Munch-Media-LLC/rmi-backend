@@ -62,12 +62,16 @@ from app.routers.v1.entities import router as entities_v1_router  # noqa: E402 �
 v1_router.include_router(entities_v1_router)
 
 # Cross-chain endpoints
-from app.routers.v1.cross_chain import router as cross_chain_v1_router  # noqa: E402 — module docstring precedes import block
+from app.routers.v1.cross_chain import (
+    router as cross_chain_v1_router,
+)
 
 v1_router.include_router(cross_chain_v1_router)
 
 # Provider status endpoints (Win #20)
-from app.routers.v1.providers import router as providers_v1_router  # noqa: E402 — module docstring precedes import block
+from app.routers.v1.providers import (
+    router as providers_v1_router,
+)
 
 v1_router.include_router(providers_v1_router)
 
@@ -93,12 +97,16 @@ from app.routers.scam_school import router as scam_school_router  # noqa: E402 �
 v1_router.include_router(scam_school_router)
 
 # x402 Advanced Tools: routes at /stream/alerts etc. become /api/v1/x402/stream/alerts
-from app.routers.x402_advanced_tools import router as x402_advanced_router  # noqa: E402 — module docstring precedes import block
+from app.routers.x402_advanced_tools import (
+    router as x402_advanced_router,
+)
 
 v1_router.include_router(x402_advanced_router, prefix="/x402")
 
 # x402 Premium Tools: routes at /reputation_score etc. become /api/v1/x402/reputation_score
-from app.routers.x402_premium_tools import router as x402_premium_router  # noqa: E402 — module docstring precedes import block
+from app.routers.x402_premium_tools import (
+    router as x402_premium_router,
+)
 
 v1_router.include_router(x402_premium_router, prefix="/x402")
 
@@ -114,7 +122,9 @@ from app.routers.v1.data import router as data_v1_router  # noqa: E402 — modul
 v1_router.include_router(data_v1_router)
 
 # Scanner recent — GET /api/v1/scanner/recent (news service consumer)
-from app.routers.v1.scanner import router as scanner_recent_v1_router  # noqa: E402 — module docstring precedes import block
+from app.routers.v1.scanner import (
+    router as scanner_recent_v1_router,
+)
 
 v1_router.include_router(scanner_recent_v1_router)
 

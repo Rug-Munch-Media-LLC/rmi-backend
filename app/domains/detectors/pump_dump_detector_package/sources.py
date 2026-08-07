@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import json
 import os
-import requests
 
 import httpx
+import requests
 
 from app.chain_registry import is_solana
 from app.core.logging import get_logger

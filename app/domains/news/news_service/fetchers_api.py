@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import requests
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
+import requests
 
 from app.core.logging import get_logger
 from app.domains.news.news_service.sources import (

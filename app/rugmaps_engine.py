@@ -10,7 +10,6 @@ from app.domains.scanner.rugmaps import (
     get_bubble_maps_pro,
 )
 
-
 __all__ = [
     "BubbleLink",
     "BubbleMap",

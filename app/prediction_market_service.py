@@ -27,7 +27,6 @@ from app.domains.prediction.prediction_market_service import (
     get_prediction_market_service,
 )
 
-
 __all__ = [
     "CRYPTO_KEYWORDS",
     "SECURITY_KEYWORDS",

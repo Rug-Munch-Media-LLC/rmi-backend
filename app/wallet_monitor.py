@@ -26,7 +26,6 @@ from app.domains.wallet.wallet_monitor import (
     WatchlistManager,
 )
 
-
 __all__ = [
     "AlertChannel",
     "AlertEngine",
