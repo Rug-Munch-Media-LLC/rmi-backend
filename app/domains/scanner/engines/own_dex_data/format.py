@@ -352,9 +352,7 @@ def _build_pairs(
 
             # Determine buy/sell: if our token is token0 and amount0_out > 0,
             # someone is buying (our token leaves the pool = buy)
-            is_buy = (
-                float(swap["amount0_out"] or 0) > 0 if is_token0 else float(swap["amount1_out"] or 0) > 0
-            )
+            is_buy = float(swap["amount0_out"] or 0) > 0 if is_token0 else float(swap["amount1_out"] or 0) > 0
 
             if is_buy:
                 buy_count += 1
@@ -391,8 +389,8 @@ def _build_pairs(
                 price_change_24h = ((last_price - first_price) / first_price) * 100
 
         # Estimate liquidity from normalized volumes
-        max_swap_volume = max(
-            (
+        max_swap_volume = (
+            max(
                 _normalize_amount(
                     float(s["amount0_in"] or 0) + float(s["amount0_out"] or 0)
                     if is_token0
