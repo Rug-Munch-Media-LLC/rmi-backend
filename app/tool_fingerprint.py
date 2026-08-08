@@ -242,9 +242,11 @@ class ToolFingerprinter:
         self._known_scammers: set[str] = set()
         self._cex_wallets: set[str] = set()
 
-    async def fingerprint_transaction(self, tx_data: dict[str, Any], chain: str = "solana") -> list[ToolFingerprintResult]:
+    async def fingerprint_transaction(
+        self, tx_data: dict[str, Any], chain: str = "solana"
+    ) -> list[ToolFingerprintResult]:
         """Analyze a single transaction for tool fingerprints."""
-        results = []
+        results: list[ToolFingerprintResult] = []
         instructions = tx_data.get("instructions", tx_data.get("ix", []))
         tx_data.get("accountKeys", tx_data.get("accounts", []))
         program_ids = [ix.get("programId", "") for ix in instructions]
@@ -286,7 +288,7 @@ class ToolFingerprinter:
 
     async def detect_bundlers(self, tx_list: list[dict[str, Any]], token_address: str) -> list[ToolFingerprintResult]:
         """Detect bundler patterns across multiple transactions."""
-        results = []
+        results: list[ToolFingerprintResult] = []
         evidence_smithii = []
         evidence_printr = []
         evidence_launchlab = []
@@ -430,7 +432,7 @@ class ToolFingerprinter:
             flags.append(f"COORDINATED: {same_block} wallets bought in same block")
 
         # Funding source clustering
-        funding_sources = defaultdict(int)
+        funding_sources: defaultdict[str, int] = defaultdict(int)
         for h in sorted_holders[:20]:
             funder = h.get("funding_source", "unknown")
             if funder:
@@ -572,7 +574,7 @@ class ToolFingerprinter:
 
     async def detect_volume_bots(self, trades: list[dict[str, Any]], token_address: str) -> list[ToolFingerprintResult]:
         """Detect volume bot / wash trading patterns."""
-        results = []
+        results: list[ToolFingerprintResult] = []
         if not trades or len(trades) < 10:
             return results
 
@@ -580,7 +582,7 @@ class ToolFingerprinter:
 
         # Check for circular trading (same set of wallets trading among themselves)
         traders = set()
-        trade_pairs = defaultdict(int)
+        trade_pairs: defaultdict[tuple[str, str], int] = defaultdict(int)
         for t in trades:
             a, b = t.get("buyer", ""), t.get("seller", "")
             traders.add(a)
@@ -635,7 +637,7 @@ class ToolFingerprinter:
 
         start = time.time()
 
-        results = {
+        results: dict[str, Any] = {
             "token_address": token_address,
             "chain": chain,
             "tool_fingerprints": [],
