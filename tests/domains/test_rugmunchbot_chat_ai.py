@@ -129,6 +129,29 @@ class TestChunkText:
         assert len(chunks) > 1
         assert all(len(c) <= 1000 for c in chunks)
 
+    def test_section_headers_lead_chunks(self) -> None:
+        """v10: emoji section headers start a fresh chunk — never dangling at
+        the tail of the previous section."""
+        text = "\n\n".join(
+            f"**{emoji} {title}**\n{body}"
+            for emoji, title, body in [
+                ("\U0001f4ca", "Market Read", "content " * 200),
+                ("\U0001f50d", "On-Chain", "content " * 200),
+                ("\U0001f40b", "Whales", "content " * 200),
+            ]
+        )
+        chunks = chat_ai._chunk_text(text, max_len=2000)
+        assert len(chunks) > 1
+        assert all(len(c) <= 2000 for c in chunks)
+        # Every chunk that is not the first must open with a section header.
+        for chunk in chunks[1:]:
+            assert chunk.lstrip().startswith("**")
+        # Every section header must be present at the start of some chunk.
+        heads = [c.lstrip()[:12] for c in chunks]
+        assert any(h.startswith("**\U0001f4ca") for h in heads)
+        assert any(h.startswith("**\U0001f50d") for h in heads)
+        assert any(h.startswith("**\U0001f40b") for h in heads)
+
     def test_chunks_join_back_to_original_content(self) -> None:
         text = ("a " * 500) + "\n\n" + ("b " * 2000) + "\n\n" + ("c " * 700)
         chunks = chat_ai._chunk_text(text, max_len=1000)
@@ -139,6 +162,87 @@ class TestChunkText:
             return [ch for ch in s if ch.isalpha()]
 
         assert letters("".join(chunks)) == letters(text)
+
+
+class TestSplitOversized:
+    def test_sentence_boundary_preferred(self) -> None:
+        """v10: hard splits land after sentence punctuation, not mid-sentence."""
+        paragraph = ("This is sentence one. " * 60) + "tail"
+        parts = chat_ai._split_oversized(paragraph, 1000)
+        assert len(parts) > 1
+        assert all(len(p) <= 1000 for p in parts)
+        # First part must end on a complete sentence.
+        assert parts[0].rstrip().endswith("one.")
+
+    def test_word_boundary_fallback(self) -> None:
+        paragraph = "word " * 3000  # no sentence punctuation, word boundaries only
+        parts = chat_ai._split_oversized(paragraph, 1000)
+        assert len(parts) > 1
+        assert all(len(p) <= 1000 for p in parts)
+        assert all(p.split() for p in parts)  # no mid-word cuts
+
+
+class TestBeautifyAnswer:
+    def test_plain_header_gets_bold_and_separator(self) -> None:
+        raw = chat_ai._beautify_answer("\U0001f4ca Market Read\nSome evidence here.")
+        lines = raw.split("\n")
+        assert lines[0] == "**\U0001f4ca Market Read**"
+        assert lines[1] == chat_ai.thin_sep()
+        assert lines[2] == "Some evidence here."
+
+    def test_already_bold_header_not_double_wrapped(self) -> None:
+        raw = chat_ai._beautify_answer("**\U0001f50d On-Chain Check**\nBody.")
+        lines = raw.split("\n")
+        assert lines[0] == "**\U0001f50d On-Chain Check**"
+        assert lines[1] == chat_ai.thin_sep()
+
+    def test_blank_line_inserted_before_header(self) -> None:
+        raw = chat_ai._beautify_answer("First section content.\n\n\U0001f40b Whales\nWhale body.")
+        # Header is preceded by a blank line so the chunker sees a boundary.
+        assert "content.\n\n**\U0001f40b Whales**" in raw
+        assert "**\U0001f40b Whales**\n" in raw
+
+    def test_long_emoji_line_is_not_a_header(self) -> None:
+        prose = (
+            "\U0001f4c8 This token's chart broke out of a massive falling wedge "
+            "that has been building since March and the volume profile suggests "
+            "a real accumulation phase behind it."
+        )
+        assert chat_ai._beautify_answer(prose) == prose
+
+    def test_non_header_lines_preserved_verbatim(self) -> None:
+        code = "    if x > 1:\n        return x"  # indentation must survive
+        raw = chat_ai._beautify_answer(f"{code}\n\nplain text")
+        assert code in raw
+        assert "plain text" in raw
+
+    def test_bold_metric_line_untouched(self) -> None:
+        raw = chat_ai._beautify_answer("**\U0001f7e2 SAFE \u2014 76/100**\n")
+        assert raw == "**\U0001f7e2 SAFE \u2014 76/100**"
+
+    def test_is_section_header_heuristics(self) -> None:
+        assert chat_ai._is_section_header("\U0001f4ca Market Read")
+        assert chat_ai._is_section_header("**\U0001f6e1\ufe0f Security**")
+        assert not chat_ai._is_section_header("not a header")
+        assert not chat_ai._is_section_header("")
+
+
+class TestMarkdownBoldToHtml:
+    def test_bold_converted(self) -> None:
+        assert chat_ai._markdown_bold_to_html("**bold**") == "<b>bold</b>"
+
+    def test_triple_asterisk_converted(self) -> None:
+        assert chat_ai._markdown_bold_to_html("***bold***") == "<b>bold</b>"
+
+    def test_escaped_content_stays_safe(self) -> None:
+        # Runs AFTER html.escape: angle brackets inside bold are entities, and
+        # the conversion must NOT re-introduce raw HTML.
+        text = "<b>&lt;script&gt;alert(1)&lt;/script&gt;</b>"
+        assert "<script>alert(1)</script>" not in chat_ai._markdown_bold_to_html(text)
+
+    def test_unbalanced_asterisks_untouched(self) -> None:
+        assert chat_ai._markdown_bold_to_html("*stray") == "*stray"
+        assert chat_ai._markdown_bold_to_html("**open only") == "**open only"
 
 
 class TestIsMeaningfulQuestion:
@@ -513,7 +617,8 @@ class TestChatAiResponse:
         assert msg.chat.actions == ["typing"]
         answer_reply = msg.replies[-1][0][0]
         assert "grounded answer" in answer_reply
-        assert "Grounded in 2" in answer_reply
+        # v10 footer: "⚡ Grounded in {N} intelligence sources | RugMunch Bot"
+        assert "Grounded in 2 intelligence sources | RugMunch Bot" in answer_reply
 
     def test_gibberish_redirect_no_backend_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
         backend = AsyncMock(return_value={"message": "should not be called", "rag_count": 0})

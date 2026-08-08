@@ -80,6 +80,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     is_sol,
     paywall_text,
+    thin_sep,
     web_scan_button,
 )
 from app.domains.telegram.rugmunchbot.handlers.message import (
@@ -111,6 +112,35 @@ SCAN_TIMEOUT = 6.0  # quick scan context is best-effort; never block chat on it
 MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 CHUNK_MAX_CHARS = 3800  # Telegram hard limit is 4096; leave headroom for escape expansion
 MAX_ADDRESS_HINTS = 2  # cap address-triggered scans per message
+
+# ══════════════════════════════════════════════
+# v10 RESPONSE BEAUTIFIER (see _beautify_answer / _markdown_bold_to_html)
+# Section emojis match the persona's RESPONSE FORMATTING block (prompts.py).
+# A line that STARTS with one of these and is short is treated as a section
+# header: normalized to **emoji Title**, with thin_sep() inserted beneath it.
+# ══════════════════════════════════════════════
+_SECTION_EMOJIS: frozenset[str] = frozenset(
+    [
+        "\U0001f4ca",  # 📊 statistics
+        "\U0001f4c8",  # 📈 chart increasing
+        "\U0001f4c9",  # 📉 chart decreasing
+        "\U0001f50d",  # 🔍 magnifying glass
+        "\U0001f6e1\ufe0f",  # 🛡️ shield
+        "\U0001f40b",  # 🐋 whale
+        "\U0001f464",  # 👤 bust
+        "\U0001f4b0",  # 💰 money bag
+        "\U0001f525",  # 🔥 fire
+        "\U0001f6a8",  # 🚨 siren
+        "\u2705",  # ✅ check
+        "\u26a0\ufe0f",  # ⚠️ warning
+        "\U0001f4ac",  # 💬 speech balloon
+        "\U0001f4f0",  # 📰 newspaper
+        "\U0001f465",  # 👥 people
+        "\U0001f680",  # 🚀 rocket
+    ]
+)
+_SECTION_HEADER_MAX = 80  # longer emoji-prefixed lines are content, not headers
+_BOLD_RE = re.compile(r"\*{2,3}([^*\n]+?)\*{2,3}")
 
 # ══════════════════════════════════════════════
 # OWNER ADMIN CONSOLE (ported from handlers/message.py)
@@ -355,16 +385,39 @@ async def _call_backend_chat(
 # ══════════════════════════════════════════════
 
 
+def _last_sentence_boundary(text: str, limit: int) -> int:
+    """Index just past the last sentence-ending punctuation before ``limit``.
+
+    Returns -1 when no sentence boundary exists inside the window. Used by
+    :func:`_split_oversized` so hard splits land at sentence ends instead of
+    mid-sentence ("split at natural section boundaries, not mid-sentence").
+    """
+    best = -1
+    for sep_ in (". ", "? ", "! "):
+        idx = text.rfind(sep_, 0, limit)
+        if idx >= 0:
+            best = max(best, idx + len(sep_))
+    if best > limit:
+        return limit  # boundary punctuation ends exactly at the window edge
+    return best
+
+
 def _split_oversized(paragraph: str, max_len: int) -> list[str]:
-    """Hard-split a single oversized paragraph on the last fitting word."""
+    """Hard-split a single oversized paragraph — prefer sentence boundaries.
+
+    Falls back to the last word boundary, then an exact cut, so a cut never
+    lands mid-word. Sentence-boundary preference keeps chunks readable.
+    """
     if len(paragraph) <= max_len:
         return [paragraph]
     parts: list[str] = []
     remaining = paragraph
     while len(remaining) > max_len:
-        cut = remaining.rfind(" ", 0, max_len)
+        cut = _last_sentence_boundary(remaining, max_len)
         if cut < max_len // 2:
-            cut = max_len  # no good word boundary — cut exactly
+            cut = remaining.rfind(" ", 0, max_len)  # no sentence end — word boundary
+        if cut < max_len // 2:
+            cut = max_len  # no good boundary — cut exactly
         parts.append(remaining[:cut].strip())
         remaining = remaining[cut:].strip()
     if remaining:
@@ -377,7 +430,9 @@ def _chunk_text(text: str, max_len: int = CHUNK_MAX_CHARS) -> list[str]:
 
     Operates on the RAW (pre-escape) text: paragraphs are the safest split
     points and no chunk ever cuts through an HTML entity that escaping would
-    later introduce (e.g. ``&lt;``).
+    later introduce (e.g. ``&lt;``). New emoji section headers (v10) always
+    start a fresh chunk when the current one is non-empty, so headers never
+    dangle at the tail of a previous section.
     """
     if not text:
         return []
@@ -388,13 +443,93 @@ def _chunk_text(text: str, max_len: int = CHUNK_MAX_CHARS) -> list[str]:
     current = ""
     for paragraph in text.split("\n\n"):
         for piece in _split_oversized(paragraph, max_len):
-            if current and len(current) + len(piece) + 2 > max_len:
+            if current and _is_section_header(piece):
+                # v10: prefer section boundaries — a new emoji header leads a
+                # new chunk so it is never glued to the previous section.
+                chunks.append(current)
+                current = ""
+            elif current and len(current) + len(piece) + 2 > max_len:
                 chunks.append(current)
                 current = ""
             current = f"{current}\n\n{piece}" if current else piece
     if current:
         chunks.append(current)
     return chunks
+
+
+# ══════════════════════════════════════════════
+# v10 RESPONSE BEAUTIFIER
+# Runs on the RAW LLM answer BEFORE chunking/escaping: normalizes emoji
+# section headers, inserts thin separators under them, and keeps markdown
+# **bold** markers for the post-escape conversion in _send_answer.
+# ══════════════════════════════════════════════
+
+
+def _is_section_header(line: str) -> bool:
+    """True for a short line that begins with a section emoji (v10 header).
+
+    A line starting with an emoji but longer than ``_SECTION_HEADER_MAX`` is
+    prose, not a header — e.g. "📊 This token's chart broke out of a wedge
+    that's been building since March" stays content. Prefix matching handles
+    multi-code-point emojis (🛡️ = U+1F6E1 + VS16).
+    """
+    core = line.strip().lstrip("*").strip()
+    if not core or len(core) > _SECTION_HEADER_MAX:
+        return False
+    return any(core.startswith(emoji) for emoji in _SECTION_EMOJIS)
+
+
+def _unwrap_bold(line: str) -> str:
+    """Strip a balanced ``**...**``/``***...***`` wrapper (or leading `*`)."""
+    stripped = line.strip()
+    m = re.match(r"^\*{2,3}(.+?)\*{2,3}$", stripped)
+    if m:
+        return m.group(1).strip()
+    return re.sub(r"^\*{1,3}", "", stripped).strip()
+
+
+def _beautify_answer(answer: str) -> str:
+    """v10 beautifier — normalize headers + insert thin separators (raw text).
+
+    - Lines that look like section headers (start with a section emoji,
+      short) are normalized to ``**emoji Title**`` on their own line, with a
+      blank line before them so the chunker sees a clean section boundary.
+    - ``thin_sep()`` is inserted beneath every header for visual rhythm
+      (📊 header / ──── / content, like the /scan report blocks).
+    - All other lines are preserved verbatim (code blocks, lists, spacing).
+    Markdown ``**bold**`` is left in place for :func:`_markdown_bold_to_html`
+    which runs AFTER escaping in :func:`_send_answer`.
+    """
+    lines = answer.split("\n")
+    out: list[str] = []
+    prev_empty = True
+    for raw_line in lines:
+        if not raw_line.strip():
+            out.append("")
+            prev_empty = True
+            continue
+        if _is_section_header(raw_line):
+            if not prev_empty:
+                out.append("")
+            out.append(f"**{_unwrap_bold(raw_line)}**")
+            out.append(thin_sep())
+            prev_empty = False
+            continue
+        out.append(raw_line)
+        prev_empty = False
+    while out and not out[-1]:
+        out.pop()
+    return "\n".join(out)
+
+
+def _markdown_bold_to_html(text: str) -> str:
+    """Convert ``**bold**`` / ``***bold***`` to ``<b>bold</b>``.
+
+    MUST run AFTER ``html.escape()`` so the wrapped content is already
+    entity-safe and only the asterisk pairs are replaced — LLM-supplied HTML
+    is never re-introduced. Unbalanced asterisks pass through untouched.
+    """
+    return _BOLD_RE.sub(r"<b>\1</b>", text)
 
 
 # ══════════════════════════════════════════════
@@ -1100,29 +1235,37 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 async def _send_answer(message: Message, answer: str, rag_count: int) -> None:
     """Reply with the answer, chunked to Telegram's size limit.
 
-    Chunking happens on the RAW text before HTML-escaping so we never split
-    inside an escaped entity. LLM output is not trusted HTML: every chunk is
-    escaped before sending (matches ask.py / message.py conventions). A small
-    "Grounded in N sources" footer is appended to the last chunk when the
-    backend reported RAG grounding. ``rag_count`` is the REAL number of
-    unique RAG hits (from ``X-RAG-Context``); counts above 100 are shown as
-    "hundreds of sources" for readability.
+    v10 pipeline (all on the RAW text first, then escape):
+      1. ``_beautify_answer`` normalizes emoji section headers and inserts
+         thin separators beneath them.
+      2. ``_chunk_text`` splits at paragraph / section-header boundaries —
+         never mid-sentence when a sentence boundary exists.
+      3. Each chunk is HTML-escaped (LLM output is not trusted HTML).
+      4. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
+         emits into real ``<b>...</b>`` — safe because the content was
+         already escaped in step 3.
+    A short "⚡ Grounded in N intelligence sources | RugMunch Bot" footer is
+    appended to the last chunk when the backend reported RAG grounding.
+    ``rag_count`` is the REAL number of unique RAG hits (from
+    ``X-RAG-Context``); counts above 100 are shown as "hundreds of sources".
     """
-    chunks = _chunk_text(answer)
+    raw = _beautify_answer(answer)
+    chunks = _chunk_text(raw)
     if not chunks:
         return
     escaped = [escape(c) for c in chunks]
+    html = [_markdown_bold_to_html(c) for c in escaped]
     if rag_count > 0:
         if rag_count > 100:
-            source_label = "hundreds of"
-            source_noun = "sources"
+            source_label = "hundreds of intelligence sources"
+        elif rag_count == 1:
+            source_label = "1 intelligence source"
         else:
-            source_label = str(rag_count)
-            source_noun = "source" if rag_count == 1 else "sources"
-        escaped[-1] = f"{escaped[-1]}\n\n<i>\u26a1 Grounded in {source_label} intelligence {source_noun}</i>"
+            source_label = f"{rag_count} intelligence sources"
+        html[-1] = f"{html[-1]}\n\n<i>\u26a1 Grounded in {source_label} | RugMunch Bot</i>"
 
-    last = len(escaped) - 1
-    for i, chunk in enumerate(escaped):
+    last = len(html) - 1
+    for i, chunk in enumerate(html):
         # Final safety clip: never exceed Telegram's hard 4096-char limit even
         # when entity expansion pushed a chunk over.
         if len(chunk) > 4000:
