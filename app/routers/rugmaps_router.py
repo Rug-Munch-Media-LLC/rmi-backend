@@ -292,6 +292,54 @@ def _format_currency(value: float) -> str:
     return f"{value:.2f}"
 
 
+# ── Wallet labels + fund flows (OUR data enrichment) ─────────────
+
+
+@router.get("/wallet-labels")
+async def rugmaps_wallet_labels(
+    addresses: str = Query(..., description="Comma-separated wallet addresses (max 200)"),
+    chain: str = Query("solana"),
+) -> dict[str, Any]:
+    """Batch wallet labels for the RugMaps canvas.
+
+    Resolves each address against OUR own data — wallet_v2 Qdrant collection,
+    ClickHouse ``wallet_memory.wallet_labels``, and the DataBus wallet
+    scanner — and returns a per-address label record with a node ``class``
+    (CEX / DEX / mixer / bridge / whale / bot / sniper / dev / normal) that
+    the frontend colors by.
+    """
+    addrs = [a.strip() for a in addresses.split(",") if a.strip()]
+    if not addrs:
+        raise ValidationError("Provide at least one address")
+    if len(addrs) > 200:
+        raise ValidationError("Max 200 addresses per request")
+
+    from app.rugmaps_wallet import batch_lookup_wallet_labels
+
+    return await batch_lookup_wallet_labels(addrs, chain=chain)
+
+
+@router.get("/fund-flows")
+async def rugmaps_fund_flows(
+    token: str = Query(..., description="Token address the map is centered on"),
+    address: str = Query(..., description="Wallet address to trace"),
+    chain: str = Query("solana"),
+    hops: int = Query(1, ge=1, le=2),
+) -> dict[str, Any]:
+    """Fund-flow arrows for a clicked wallet node.
+
+    Returns inbound (funds received by the wallet) and outbound (funds sent)
+    transfers from our ClickHouse wallet_flow engine, plus a cross-chain
+    profile from the cross-chain aggregator.
+    """
+    if not address.strip():
+        raise ValidationError("address is required")
+
+    from app.rugmaps_wallet import lookup_fund_flows
+
+    return await lookup_fund_flows(token=token, address=address, chain=chain, hops=hops)
+
+
 @router.get("/token-graph")
 async def token_holder_graph(
     token_address: str = Query(...),
