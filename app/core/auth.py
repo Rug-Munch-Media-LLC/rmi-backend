@@ -101,6 +101,11 @@ PUBLIC_EXACT_PATHS = frozenset(
 PUBLIC_PREFIXES = (
     "/api/v1/auth/",
     "/api/v1/public/",
+    # x402 paid-tool surface — payment-gated (X-Payment header, not API key).
+    # The payment gate (app.domains.x402.middleware.payment_gate) enforces
+    # payment per-route: no X-Payment -> 402 invoice challenge. Auth here would
+    # 401 before the invoice can be issued, breaking the x402 pay-then-call flow.
+    "/api/v1/x402-tools/",
     "/api/v1/databus/webhooks/",  # External webhook receivers (Helius, Moralis, etc.) — auth via Bearer token per-service
     "/api/v1/degenfeed/storage/",  # DegenFeed KV storage gateway — auth enforced in-router (X-API-Key OR Bearer, RMI_AUTH_TOKEN or RMI_INTERNAL_KEY)
     # KV migration endpoints (Phase 2 KV→selfhosted) — auth enforced in-router (same dual-token check)

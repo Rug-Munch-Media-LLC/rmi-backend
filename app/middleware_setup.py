@@ -471,6 +471,7 @@ def _try_register_csrf(app: FastAPI) -> None:
         # or X-Agent-Id headers instead of cookies. CSRF is not applicable.
         _X402_CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
             "/api/v1/x402/",
+            "/api/v1/x402-tools/",  # x402 paid-tool surface — agent/MCP API (X-Payment, X-Api-Key headers, no cookies)
             "/api/v1/x402-databus/",
             "/api/v1/bulletin-board/",  # Bulletin board — public REST API (auth via Bearer token header, not cookies)
             "/api/v1/developer/",

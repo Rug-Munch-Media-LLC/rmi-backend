@@ -187,12 +187,12 @@ def get_tool_price_usd(tool: str) -> float:
 
     # Fallback: check the enforcement system's comprehensive price list
     try:
-        from routers.x402_enforcement import TOOL_PRICES as _FALLBACK_PRICES, _ensure_tool_prices
+        from app.routers.x402_enforcement import TOOL_PRICES as _FALLBACK_PRICES, _ensure_tool_prices
 
         _ensure_tool_prices()
         fp = _FALLBACK_PRICES.get(tool, {})
         return fp.get("price_usd", 0.01)
-    except (ConnectionError, OSError, TimeoutError):
+    except (ImportError, ConnectionError, OSError, TimeoutError, ValueError):
         return p.get("pro_cents", 1) / 100.0
 
 
@@ -293,7 +293,6 @@ def create_invoice(tool: str, agent_id: str) -> dict[str, Any]:
     invoice_id = uuid4().hex
     amount_usd = get_tool_price_usd(tool)
     pay_to = os.getenv("X402_PAYMENT_ADDRESS", "")
-    hmac_key = _get_hmac_key()
     invoice = {
         "id": invoice_id,
         "tool": tool,
@@ -306,7 +305,14 @@ def create_invoice(tool: str, agent_id: str) -> dict[str, Any]:
         "expires_at": (datetime.now(UTC).timestamp() + 3600),
     }
     msg = json.dumps(invoice, sort_keys=True).encode()
-    invoice["signature"] = base64.b64encode(hmac.new(hmac_key, msg, hashlib.sha256).digest()).decode()
+    try:
+        hmac_key = _get_hmac_key()
+        invoice["signature"] = base64.b64encode(hmac.new(hmac_key, msg, hashlib.sha256).digest()).decode()
+    except RuntimeError:
+        # No signing key configured (X402_HMAC_KEY / ADMIN_API_KEY absent).
+        # Still return a usable 402 challenge — unsigned, but the invoice
+        # carries the payment address, amount and instructions.
+        invoice["signature"] = ""
     return invoice
 
 
@@ -380,11 +386,54 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                 if receipt.get("status") != "0x1":
                     return False
 
-                receipt.get("from", "").lower()
-                to_address = receipt.get("to", "").lower()
+                # NOTE: receipt.to is the USDC *contract*, not the recipient,
+                # for ERC-20 transfers. Parse Transfer event logs to find the
+                # actual recipient + amount (mirrors self_verify_evm_usdc).
+                transfer_event_topic0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+                # Base USDC (CHAIN_USDC["base"]["usdc"])
+                usdc_address = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+                pay_to_lower = pay_to.lower()
+                expected_atoms = int(expected_amount_usd * 1_000_000) if expected_amount_usd > 0 else 0
 
-                # Check recipient matches our payment address
-                return not (to_address and pay_to.lower() != to_address)
+                logs = receipt.get("logs", [])
+                for log in logs:
+                    topics = log.get("topics", [])
+                    if len(topics) < 3:
+                        continue
+                    if topics[0].lower() != transfer_event_topic0:
+                        continue
+                    if log.get("address", "").lower() != usdc_address:
+                        continue
+                    try:
+                        to_address = "0x" + topics[2][-40:].lower()
+                    except (IndexError, ValueError):
+                        continue
+                    if to_address != pay_to_lower:
+                        continue
+
+                    log_data = log.get("data", "0x")
+                    try:
+                        if log_data and log_data.startswith("0x") and len(log_data) >= 66:
+                            actual_amount = int(log_data[:66], 16)
+                        elif log_data:
+                            actual_amount = int(log_data, 16)
+                        else:
+                            actual_amount = 0
+                    except (ValueError, TypeError):
+                        get_logger("wp.x402").warning(f"Could not decode Transfer data for {tx_hash[:16]}...")
+                        continue
+
+                    if actual_amount <= 0:
+                        continue
+                    if expected_atoms and actual_amount < expected_atoms:
+                        get_logger("wp.x402").warning(
+                            f"Base amount mismatch for {tx_hash[:16]}...: "
+                            f"expected {expected_atoms} atoms, got {actual_amount}"
+                        )
+                        return False
+                    return True
+
+                return False
         except (
             httpx.HTTPError,
             ConnectionError,
@@ -402,6 +451,10 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
         try:
             import httpx
 
+            pay_to = os.getenv("X402_PAYMENT_ADDRESS_SOL", os.getenv("X402_PAYMENT_ADDRESS", ""))
+            if not pay_to:
+                return False
+
             async with httpx.AsyncClient(timeout=15) as c:
                 r = await c.post(
                     "https://api.mainnet-beta.solana.com",
@@ -411,12 +464,58 @@ async def verify_payment_on_chain(tx_hash: str, expected_amount_usd: float) -> b
                         "method": "getTransaction",
                         "params": [
                             tx_hash,
-                            {"encoding": "json", "maxSupportedTransactionVersion": 0},
+                            {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0},
                         ],
                     },
                 )
                 data = r.json()
-                return not ("result" not in data or data["result"] is None)
+                tx = data.get("result")
+                if not tx:
+                    return False
+
+                meta = tx.get("meta") or {}
+                # Confirmed + succeeded — reject failed transactions.
+                if meta.get("err") is not None:
+                    return False
+
+                # Solana USDC mint (CHAIN_USDC["solana"]["usdc"])
+                usdc_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+                expected_atoms = int(expected_amount_usd * 1_000_000) if expected_amount_usd > 0 else 0
+
+                # Find the token balance delta for pay_to's USDC account.
+                # postTokenBalances entries carry owner + mint + uiTokenAmount.
+                pre_by_index: dict[int, int] = {}
+                for bal in meta.get("preTokenBalances", []) or []:
+                    if bal.get("mint") != usdc_mint:
+                        continue
+                    try:
+                        pre_by_index[int(bal["accountIndex"])] = int((bal.get("uiTokenAmount") or {}).get("amount", 0))
+                    except (ValueError, TypeError, KeyError):
+                        continue
+
+                for bal in meta.get("postTokenBalances", []) or []:
+                    if bal.get("mint") != usdc_mint:
+                        continue
+                    if (bal.get("owner") or "").lower() != pay_to.lower():
+                        continue
+                    try:
+                        post_amount = int((bal.get("uiTokenAmount") or {}).get("amount", 0))
+                        account_index = int(bal["accountIndex"])
+                    except (ValueError, TypeError, KeyError):
+                        continue
+                    pre_amount = pre_by_index.get(account_index, 0)
+                    received = post_amount - pre_amount
+                    if received <= 0:
+                        continue
+                    if expected_atoms and received < expected_atoms:
+                        get_logger("wp.x402").warning(
+                            f"Solana amount mismatch for {tx_hash[:16]}...: "
+                            f"expected {expected_atoms} atoms, got {received}"
+                        )
+                        return False
+                    return True
+
+                return False
         except (
             httpx.HTTPError,
             ConnectionError,
@@ -532,3 +631,35 @@ async def require_payment(
         "tier": "pro",
         "paid_via_x402": tx_hash,
     }
+
+
+async def payment_gate(request: Request) -> dict[str, Any]:
+    """FastAPI dependency — enforce x402 payment on paid tool routes.
+
+    Wraps :func:`require_payment` so it can be wired as a router-level
+    dependency (``dependencies=[Depends(payment_gate)]``) on the
+    /api/v1/x402-tools/* surface.
+
+    - Free discovery paths (catalog, bundles listing, framework docs, ...)
+      are exempt via route_classifier.is_free_path.
+    - The tool ID is derived from the last path segment, matching
+      route_classifier.extract_tool_id (also handles the catch-all
+      POST /{tool_id} proxy route and bundle sub-paths).
+    - Paid tools called without a valid X-Payment header raise HTTP 402
+      with a signed invoice + payment instructions (from require_payment).
+
+    Returns the payment context dict (agent_id, tool, tier, paid_via_x402)
+    for paid calls that pass verification.
+    """
+    # Deferred imports: free discovery classification lives in the billing
+    # domain and the catalog singleton is the rate-limit/nonce/receipt store.
+    from app.catalog.service import get_catalog
+    from app.domains.billing.x402.route_classifier import is_free_path
+
+    path = request.url.path
+    if is_free_path(path, request.method):
+        return {"agent_id": "free", "tool": "", "tier": "free", "paid_via_x402": None}
+
+    tool_id = path.rstrip("/").split("/")[-1] or "unknown"
+    catalog = get_catalog()
+    return await require_payment(tool_id, request, catalog=catalog)

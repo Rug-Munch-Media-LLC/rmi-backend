@@ -7,6 +7,7 @@ Also contains HTTP helpers, audit helpers, and payment recording stub.
 from __future__ import annotations
 
 import os
+import time
 from typing import Any, ClassVar
 
 import aiohttp
@@ -338,24 +339,74 @@ async def _audit_evm(address: str, chain: str) -> dict[str, Any]:
 
 # Pre-existing bug surface: this name was referenced (via noqa)
 # in 77+ places across x402_tools.py but never defined. The legacy module
-# silently failed at every endpoint call. We surface a no-op stub here
-# so the audit-tracked fix (issue: fix(f821)) has a clear home.
+# silently failed at every endpoint call. We surface a real recording
+# implementation here so every paid tool call writes a receipt row.
+#
+# Canonical DDL: app/catalog/init_schema.py SCHEMA (x402_receipts block).
+# Keep this block in sync — it is idempotent (CREATE TABLE IF NOT EXISTS).
+_X402_RECEIPTS_DDL = """
+CREATE TABLE IF NOT EXISTS x402_receipts (
+    tx_hash     TEXT PRIMARY KEY,
+    agent_id    TEXT,
+    tool        TEXT NOT NULL,
+    amount_usd  REAL NOT NULL,
+    chain       TEXT,
+    paid_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    tier        TEXT
+)
+"""
+
+
 async def record_x402_payment(tool_id: str, price_usd: str, payer: str) -> None:
-    """Record an x402 payment for revenue / refund tracking.
+    """Record an x402 payment to the x402_receipts table for revenue tracking.
 
-    Historical note: pre-P3A this was a NameError-bait. We now log a
-    debug message so receipts flow to logs even though the formal
-    revenue table is owned by app/billing/x402/enforcement.py.
+    Creates the table if needed (idempotent DDL from init_schema), then
+    inserts a receipt row via the catalog Postgres pool. The legacy call
+    signature carries no on-chain tx_hash, so a deterministic surrogate key
+    is synthesized from payer + tool + timestamp.
 
-    Replace with `from app.domains.billing.x402.enforcement import record_x402_payment`
-    once the canonical recording path is wired.
+    Failures are logged, never raised — the paid tool response must not
+    500 because the ledger write failed.
     """
-    logger.debug(
-        "x402_payment_record tool=%s usd=%s payer=%s (P3A stub - route to enforcement)",
-        tool_id,
-        price_usd,
-        payer,
-    )
+    try:
+        from app.catalog.service import get_catalog
+
+        catalog = get_catalog()
+        pool = getattr(catalog, "_pg_pool", None)
+        if pool is None:
+            logger.debug(
+                "x402_payment_record_skip tool=%s usd=%s payer=%s (pg pool unavailable)",
+                tool_id,
+                price_usd,
+                payer,
+            )
+            return
+
+        amount = float(price_usd) if price_usd else 0.0
+        # Legacy callers have no tx_hash — synthesize a stable surrogate key.
+        tx_hash = f"manual-{payer}-{tool_id}-{int(time.time() * 1000)}"
+        async with pool.acquire() as conn:
+            await conn.execute(_X402_RECEIPTS_DDL)
+            await conn.execute(
+                """INSERT INTO x402_receipts (tx_hash, agent_id, tool, amount_usd, chain, paid_at, tier)
+                   VALUES ($1, $2, $3, $4, $5, NOW(), $6)
+                   ON CONFLICT (tx_hash) DO NOTHING""",
+                tx_hash,
+                payer,
+                tool_id,
+                amount,
+                os.getenv("X402_PAYMENT_CHAIN", "base"),
+                os.getenv("X402_DEFAULT_TIER", "pro"),
+            )
+        logger.info(
+            "x402_payment_recorded tool=%s usd=%s payer=%s tx_hash=%s",
+            tool_id,
+            price_usd,
+            payer,
+            tx_hash,
+        )
+    except (ValueError, TypeError, KeyError, httpx.HTTPError, ConnectionError, OSError) as e:
+        logger.warning("x402_payment_record_fail tool=%s: %s", tool_id, e)
 
 
 # Re-exported for tools that mirror legacy symbols
