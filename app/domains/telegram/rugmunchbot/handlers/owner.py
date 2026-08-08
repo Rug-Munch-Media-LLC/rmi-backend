@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.error import BadRequest, Forbidden
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -145,9 +146,14 @@ async def _do_broadcast(bot, msg_text: str, owner_uid: int | None = None) -> tup
             await bot.send_message(u["user_id"], msg_text, parse_mode=ParseMode.HTML)
             sent += 1
             await asyncio.sleep(0.05)
-        except (KeyError, TypeError) as e:
-            logger.debug(f"Broadcast failed for user {u['user_id']}: {e}")
+        except (Forbidden, BadRequest) as e:
+            # Blocked/bad recipient: skip and keep fanning out.
+            logger.debug(f"Broadcast skipped for user {u['user_id']}: {e}")
             failed += 1
+        except (KeyError, TypeError) as e:
+            # Programming error: surface it, abort the fan-out.
+            logger.debug(f"Broadcast aborted for user {u['user_id']}: {e}")
+            raise
     if owner_uid is not None:
         _log(owner_uid, "admin_broadcast", f"sent={sent} failed={failed}")
     return sent, failed
@@ -385,7 +391,7 @@ async def cb_broadcast_confirm(owner_uid: int, chat_id: int, bot, message_id: in
             f"\U0001f4e2 Broadcast complete.\n\u2705 Sent: {sent}\n\u274c Failed: {failed}",
             parse_mode=ParseMode.HTML,
         )
-    except (KeyError, TypeError):
+    except (Forbidden, BadRequest, KeyError, TypeError):
         logger.debug("broadcast summary send failed chat=%s", chat_id)
 
 

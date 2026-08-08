@@ -24,8 +24,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.auth import require_auth
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.domains.newsletter.schemas import (
@@ -66,19 +67,18 @@ async def get_newsletter_service(db: AsyncSession = Depends(get_db)) -> Newslett
 
 
 async def get_creator_id(
-    x_creator_id: str | None = Header(None),
-    authorization: str | None = Header(None),
+    current_user: dict[str, Any] = Depends(require_auth),
 ) -> str:
-    """Extract creator identity from header or auth token.
+    """Extract creator identity from the authenticated JWT token.
 
-    In production, this resolves from the JWT token.
-    For development, falls back to X-Creator-ID header.
+    Requires a valid user JWT (``Authorization: Bearer <jwt>`` or the
+    ``rmi_token`` HttpOnly cookie). The creator id is the authenticated
+    user's id — never a client-supplied header.
     """
-    if x_creator_id:
-        return x_creator_id
-    # TODO: Resolve from JWT in authorization header
-    # This is a placeholder — wire in real auth
-    return "anonymous-creator"
+    uid = current_user.get("id") or current_user.get("sub")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Invalid auth token")
+    return str(uid)
 
 
 def _newsletter_to_out(nl: Any) -> dict[str, Any]:
@@ -171,6 +171,7 @@ async def list_newsletters(
 async def get_newsletter(
     newsletter_id: str,
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get a single newsletter by ID."""
     nl = await svc.get_newsletter(newsletter_id)
@@ -182,6 +183,7 @@ async def update_newsletter(
     newsletter_id: str,
     data: NewsletterUpdate,
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Update a draft or scheduled newsletter."""
     nl = await svc.update_newsletter(newsletter_id, data)
@@ -192,6 +194,7 @@ async def update_newsletter(
 async def delete_newsletter(
     newsletter_id: str,
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Delete a newsletter campaign."""
     await svc.delete_newsletter(newsletter_id)
@@ -205,6 +208,7 @@ async def delete_newsletter(
 async def send_newsletter(
     data: SendRequest,
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Send a newsletter immediately.
 
@@ -225,6 +229,7 @@ async def send_newsletter(
 async def schedule_newsletter(
     data: ScheduleRequest,
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Schedule a newsletter for future delivery."""
     result = await svc.schedule_newsletter(
@@ -243,6 +248,7 @@ async def schedule_newsletter(
 async def delivery_status(
     newsletter_id: str = Query(..., description="Newsletter ID"),
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get delivery analytics for a newsletter."""
     return await svc.get_delivery_status(newsletter_id)
@@ -255,6 +261,7 @@ async def delivery_status(
 async def publish_newsletter(
     data: PublishRequest,
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Publish a newsletter to all configured platforms simultaneously."""
     result = await svc.publish_crossplatform(
@@ -324,6 +331,7 @@ async def list_subscribers(
     offset: int = Query(0, ge=0),
     limit: int = Query(25, ge=1, le=100),
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """List subscribers with optional filters."""
     items, total = await svc.list_subscribers(
@@ -345,6 +353,7 @@ async def list_subscribers(
 async def import_subscribers(
     data: SubscriberImportRequest,
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Bulk import subscribers."""
     result = await svc.import_subscribers(
@@ -359,6 +368,7 @@ async def import_subscribers(
 async def export_subscribers_csv(
     newsletter_id: str = Query(..., description="Newsletter ID"),
     svc: NewsletterService = Depends(get_newsletter_service),
+    _user: dict[str, Any] = Depends(require_auth),
 ) -> str:
     """Export subscribers as CSV."""
     csv_data = await svc.export_subscribers_csv(newsletter_id)
