@@ -23,12 +23,14 @@ import hashlib
 import json
 import os
 import time
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = get_logger("service_mcp")
 
