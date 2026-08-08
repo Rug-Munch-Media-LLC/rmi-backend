@@ -29,28 +29,34 @@ from app.domains.telegram.rugmunchbot.formatters import dex_buttons, is_owner, w
 
 
 def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButton]]:
-    """Shared main-menu rows (v7).
+    """Shared main-menu rows (v8).
 
-    Six capability categories, two buttons per row:
-      Scan Token · Market Intel
-      AI Chat    · RugMaps
-      RugCharts  · Help
+    Five capability groups, two buttons per row:
+      Scan    · Market
+      Wallet  · Intel
+      Account · Help
 
-    Portfolio & Security were folded into Scan / Market Intel (v7).
+    Every registered capability is reachable from one of the groups:
+      Scan    → security audits / deep / SENTINEL / rug checks
+      Market  → overview / trending / movers / launches / whales / charts
+      Wallet  → wallet forensics / portfolio / watchlist / alerts
+      Intel   → news / sentiment / research / ask / chat
+      Account → dashboard / pricing / referrals / scam school
+
     Owner (@cryptorugmunch) additionally sees an Admin button that
     opens the admin sub-menu — hidden from all other users.
     """
     rows = [
         [
-            InlineKeyboardButton("\U0001f50d Scan Token", callback_data="menu_cat_scan"),
-            InlineKeyboardButton("\U0001f4ca Market Intel", callback_data="menu_cat_market"),
+            InlineKeyboardButton("\U0001f50d Scan", callback_data="menu_cat_scan"),
+            InlineKeyboardButton("\U0001f4ca Market", callback_data="menu_cat_market"),
         ],
         [
-            InlineKeyboardButton("\U0001f4ac AI Chat", callback_data="menu_cat_ai"),
-            InlineKeyboardButton("\U0001f5fa\ufe0f RugMaps", callback_data="menu_cat_rugmaps"),
+            InlineKeyboardButton("\U0001f45b Wallet", callback_data="menu_cat_wallet"),
+            InlineKeyboardButton("\U0001f9e0 Intel", callback_data="menu_cat_intel"),
         ],
         [
-            InlineKeyboardButton("\U0001f4c8 RugCharts", callback_data="menu_cat_charts"),
+            InlineKeyboardButton("\U0001f464 Account", callback_data="menu_cat_account"),
             InlineKeyboardButton("\u2139\ufe0f Help", callback_data="menu_cat_help"),
         ],
         [
@@ -76,9 +82,9 @@ def main_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
 
 
 def welcome_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
-    """Main welcome menu — six capability categories (v7).
+    """Main welcome menu — five capability groups (v8).
 
-    Scan Token · Market Intel · AI Chat · RugMaps · RugCharts · Help
+    Scan · Market · Wallet · Intel · Account · Help
 
     Owner (@cryptorugmunch) additionally sees an Admin button that
     opens the admin sub-menu — hidden from all other users.
@@ -91,29 +97,25 @@ def _menu_row(label: str, cb: str) -> list[InlineKeyboardButton]:
 
 
 def category_scan_kb() -> InlineKeyboardMarkup:
-    """🔍 Scan Token submenu (v7).
+    """🔍 Scan submenu (v8).
 
-    Primary actions: Quick Scan (fast) · Deep Scan (full forensic) ·
-    Wallet Analysis · Deployer Check. Portfolio & Security commands were
-    folded into this category (v7).
+    Security audits: Quick Scan (fast) · Deep Scan (full forensic) ·
+    SENTINEL Scan (9-module) · Rug Check · Deployer Check · Hype ·
+    Compare · Investigate (Pro). Wallet/Portfolio/Watchlist/Alerts
+    moved to the Wallet group (v8).
     """
     return InlineKeyboardMarkup(
         [
             _menu_row("\u26a1 Quick Scan (fast)", "run_scan"),
             _menu_row("\U0001f52c Deep Scan (full forensic)", "run_deepscan"),
-            _menu_row("\U0001f45b Wallet Analysis", "run_wallet"),
-            _menu_row("\U0001f575\ufe0f Deployer Check", "run_deployer"),
+            _menu_row("\U0001f6e1\ufe0f SENTINEL Scan (9-module)", "run_sentinelscan"),
+            [
+                InlineKeyboardButton("\U0001f6a8 Rug Check", callback_data="run_rugcheck"),
+                InlineKeyboardButton("\U0001f575\ufe0f Deployer", callback_data="run_deployer"),
+            ],
             [
                 InlineKeyboardButton("\U0001f525 Hype", callback_data="run_hype"),
-                InlineKeyboardButton("\U0001f6a8 Rug Check", callback_data="run_rugcheck"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="run_portfolio"),
                 InlineKeyboardButton("\u2696\ufe0f Compare", callback_data="run_compare"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f440 Watchlist", callback_data="run_watchlist"),
-                InlineKeyboardButton("\U0001f514 Alerts", callback_data="run_alerts"),
             ],
             _menu_row("\U0001f50e Investigate (Pro)", "run_investigate"),
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
@@ -146,20 +148,86 @@ def category_rugmaps_kb() -> InlineKeyboardMarkup:
 
 
 def category_market_kb() -> InlineKeyboardMarkup:
-    """📊 Market Intel submenu (v7 — trending, price, sentiment, news, social)."""
+    """📊 Market submenu (v8).
+
+    Market overview, trending, movers, launches, whales, charts, price,
+    DEX, TA, holders, smart money and fund trace. All /market commands
+    are wired: market · trending · movers · launches · whales · chart.
+    """
     return InlineKeyboardMarkup(
         [
-            _menu_row("\U0001f525 Trending Tokens", "run_trending"),
-            _menu_row("\U0001f4b0 Price Check", "run_price"),
-            _menu_row("\U0001f4ca Market Sentiment", "run_sentiment"),
-            _menu_row("\U0001f4f0 News", "run_news"),
-            _menu_row("\U0001f4e3 Social Signals", "run_social"),
+            _menu_row("\U0001f4ca Market Overview", "run_market"),
             [
-                InlineKeyboardButton("\U0001f4e6 DEX & Liquidity", callback_data="run_dex"),
-                InlineKeyboardButton("\U0001f465 Holders", callback_data="run_holders"),
+                InlineKeyboardButton("\U0001f525 Trending", callback_data="run_trending"),
+                InlineKeyboardButton("\U0001f680 Movers", callback_data="run_movers"),
             ],
-            _menu_row("\U0001f9e0 Smart Money", "run_smartmoney"),
-            _menu_row("\U0001f50d Fund Trace (Hunter+)", "run_trace"),
+            [
+                InlineKeyboardButton("\U0001f195 Launches", callback_data="run_launches"),
+                InlineKeyboardButton("\U0001f40b Whales", callback_data="run_whales"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4c8 Chart", callback_data="run_chart"),
+                InlineKeyboardButton("\U0001f4b0 Price", callback_data="run_price"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4ca TA", callback_data="run_ta"),
+                InlineKeyboardButton("\U0001f4e6 DEX & Liquidity", callback_data="run_dex"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f465 Holders", callback_data="run_holders"),
+                InlineKeyboardButton("\U0001f9e0 Smart Money", callback_data="run_smartmoney"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4e3 Social Signals", callback_data="run_social"),
+                InlineKeyboardButton("\U0001f50d Fund Trace", callback_data="run_trace"),
+            ],
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_wallet_kb() -> InlineKeyboardMarkup:
+    """👛 Wallet submenu (v8).
+
+    Wallet forensics, portfolio, watchlist, alerts and trade simulator.
+    Wallet/Portfolio/Watchlist/Alerts moved here from Scan (v8).
+    """
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f45b Wallet Analysis", "run_wallet"),
+            [
+                InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="run_portfolio"),
+                InlineKeyboardButton("\U0001f440 Watchlist", callback_data="run_watchlist"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f514 Alerts", callback_data="run_alerts"),
+                InlineKeyboardButton("\U0001f4b5 Simulate", callback_data="run_simulate"),
+            ],
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_intel_kb() -> InlineKeyboardMarkup:
+    """🧠 Intel submenu (v8).
+
+    News, sentiment, social signals, RAG research, deep answers and
+    freestyle AI chat. News/Sentiment/Social moved here from Market (v8).
+    """
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f4f0 News", callback_data="run_news"),
+                InlineKeyboardButton("\U0001f4c8 Sentiment", callback_data="run_sentiment"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4e3 Social", callback_data="run_social"),
+                InlineKeyboardButton("\U0001f9e0 Research", callback_data="run_research"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f50d Ask", callback_data="run_ask"),
+                InlineKeyboardButton("\U0001f4ac Chat", callback_data="run_chat"),
+            ],
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
         ]
     )
@@ -205,13 +273,23 @@ def category_security_kb() -> InlineKeyboardMarkup:
 
 
 def category_account_kb() -> InlineKeyboardMarkup:
-    """👤 Account submenu (kept for backward compatibility)."""
+    """👤 Account submenu (v8).
+
+    Account dashboard, pricing, top-up, buy stars, referrals and scam
+    school. Uses the rich menu_* handlers (menu_account, menu_pricing,
+    menu_refer, menu_scamschool) instead of generic run_* cards.
+    """
     return InlineKeyboardMarkup(
         [
-            _menu_row("\U0001f4cb /account — Your dashboard", "run_account"),
-            _menu_row("\u2b50 /pricing — Upgrade tier", "run_pricing"),
-            _menu_row("\U0001f91d /refer — Earn bonus scans", "run_refer"),
-            _menu_row("\U0001f4da /scamschool — Learn scam patterns", "run_scamschool"),
+            _menu_row("\U0001f4cb Account Dashboard", "menu_account"),
+            [
+                InlineKeyboardButton("\u2b50 Pricing", callback_data="menu_pricing"),
+                InlineKeyboardButton("\U0001f50b Top Up", callback_data="menu_topup"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f91d Refer", callback_data="menu_refer"),
+                InlineKeyboardButton("\U0001f4da Scam School", callback_data="menu_scamschool"),
+            ],
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
         ]
     )
