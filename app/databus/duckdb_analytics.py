@@ -608,7 +608,9 @@ async def _duckdb_risk_score(address: str = "", **kwargs) -> dict[str, Any] | No
     return {"address": address, "risk_score": score, "source": "duckdb_offline"}
 
 
-async def _duckdb_search_labels(query: str = "", chain: str | None = None, limit: int = 50, **kwargs) -> dict[str, Any] | None:
+async def _duckdb_search_labels(
+    query: str = "", chain: str | None = None, limit: int = 50, **kwargs
+) -> dict[str, Any] | None:
     """Search labels by keyword."""
     if not query:
         return None

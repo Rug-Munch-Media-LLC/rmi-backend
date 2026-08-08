@@ -239,12 +239,7 @@ class StaticAnalyzer:
                 "--disable-color",
             ]
             # Fixed command list, no shell=True; sol_path is a temp file written by us
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=120,
-            shell=False)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, shell=False)
 
             # Slither outputs JSON to stdout when --json - is used
             output = result.stdout

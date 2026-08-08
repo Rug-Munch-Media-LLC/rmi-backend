@@ -21,6 +21,7 @@ no network or browser access happens in these tests.
 from __future__ import annotations
 
 import sys
+import types
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -80,9 +81,9 @@ def mock_crawler():
     stub = types.ModuleType("crawl4ai")
     with (
         patch.dict(sys.modules, {"crawl4ai": stub}),
-        patch.object(stub, "AsyncWebCrawler") as crawler_cls,
-        patch.object(stub, "BrowserConfig") as browser_cfg,
-        patch.object(stub, "CrawlerRunConfig") as run_cfg,
+        patch.object(stub, "AsyncWebCrawler", create=True) as crawler_cls,
+        patch.object(stub, "BrowserConfig", create=True) as browser_cfg,
+        patch.object(stub, "CrawlerRunConfig", create=True) as run_cfg,
     ):
         crawler = AsyncMock()
         crawler_cls.return_value.__aenter__.return_value = crawler
