@@ -50,7 +50,7 @@ from __future__ import annotations
 
 import re
 from html import escape
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 from telegram.constants import ParseMode
@@ -165,11 +165,12 @@ async def _fetch_scan_context(address: str) -> str | None:
         logger.debug("scan context HTTP %d (addr=%.16s)", r.status_code, address)
         return None
     try:
-        data = r.json()
+        raw = r.json()
     except ValueError:
         return None
-    if not isinstance(data, dict) or data.get("error"):
+    if not isinstance(raw, dict) or raw.get("error"):
         return None
+    data = cast("dict[str, Any]", raw)
     return _format_scan_summary(address, data)
 
 
@@ -215,9 +216,12 @@ async def _call_backend_chat(
         logger.debug("backend chat HTTP %d (user=%s)", r.status_code, user_id)
         return None
     try:
-        body = r.json()
+        raw = r.json()
     except ValueError:
         return None
+    if not isinstance(raw, dict):
+        return None
+    body = cast("dict[str, Any]", raw)
     answer = (body.get("message") or "").strip()
     if not answer:
         return None
@@ -229,7 +233,7 @@ async def _call_backend_chat(
     except (TypeError, ValueError):
         rag_count = 0
 
-    usage = body.get("usage") or {}
+    usage: Any = body.get("usage") or {}
     tokens = 0
     try:
         tokens = int(usage.get("total_tokens") or usage.get("totalTokens") or 0)
@@ -346,7 +350,7 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     if not text:
         return
 
-    u = db.get_or_create_user(user.id, user.username, user.first_name)
+    u = cast("dict[str, Any]", db.get_or_create_user(user.id, user.username, user.first_name))
     if u.get("is_banned"):
         return
     if check_spam(user.id):
@@ -409,7 +413,7 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     # Per-user session: telegram user id keys backend rate limiting
     # (X-Forwarded-For) AND the explicit conversation history (bot DB), so the
     # shared backend bucket never contaminates answers.
-    history = db.get_chat_history(user.id)  # last 5, oldest-first
+    history = cast("list[dict[str, str]]", db.get_chat_history(user.id))  # last 5, oldest-first
 
     # Address enhancement: if the message contains a token address, ALSO pull a
     # quick scanner read and ground the question with a compact risk summary.
