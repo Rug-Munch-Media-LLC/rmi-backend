@@ -186,7 +186,7 @@ def test_rate_limit_batch_default_values(app: FastAPI, redis_client: Any) -> Non
             "/api/v1/rate-limits/batch",
             json={
                 "entries": [
-                    {"ip": "10.0.0.1", "path": "/api/x", "count": 1, "max": 5},
+                    {"ip": "203.0.113.1", "path": "/api/x", "count": 1, "max": 5},
                 ],
             },
             headers=AUTH,
