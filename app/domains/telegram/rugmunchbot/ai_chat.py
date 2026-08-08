@@ -58,7 +58,7 @@ CONTEXT_MAX_CHARS = 4000  # total context block size sent to the LLM
 HIT_MAX_CHARS = 800  # per-hit snippet inside the context block
 
 # ══════════════════════════════════════════════
-# BOT PERSONALITY (v8) — "crypto intelligence analyst"
+# BOT PERSONALITY (v10) — "sharp degen-fluent intelligence analyst"
 # ══════════════════════════════════════════════
 # Owned by app/domains/telegram/rugmunchbot/prompts.py (PERSONA_CONTEXT).
 # The backend owns SYSTEM_PROMPT (app/routers/chat.py); this block is
