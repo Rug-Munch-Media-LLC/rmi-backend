@@ -272,6 +272,9 @@ ROUTER_MODULES: Final[list[str]] = [
     # Multi-Factor Token Rating + Deployer Detection — mounted 2026-08-06
     "app.routers.scoring_router",  # /api/v1/scoring/* (rate, deployer, wallet)
     #
+    # Transaction tracing — receipt logs, 4byte decoding, wallet-hop graph
+    "app.routers.tracing_router",  # /api/v1/tracing/* (decode, health)
+    #
     # Live Trades API — real-time trade data with whale detection — mounted 2026-08-06
     "app.routers.live_trades",  # /api/v1/trades/* (feed, stats, per-token trades)
     #
