@@ -30,6 +30,7 @@ from app.domains.telegram.rugmunchbot.config import (
     fmt_number,
     fmt_pct,
 )
+from app.domains.telegram.rugmunchbot.daily_context import get_market_section
 from app.domains.telegram.rugmunchbot.formatters import (
     BETA_BANNER,
     _price_diff_pct,
@@ -101,6 +102,13 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             conn.close()
 
     text = welcome_card_text()
+
+    # Live daily market awareness: compact "Today's Market" section
+    # (Redis-cached 5 min, fail-open — /start never blocks on market data).
+    market_section = await get_market_section()
+    if market_section:
+        text += f"\n\n{market_section}"
+
     # Owner-only admin section — visible only to @cryptorugmunch.
     if is_owner(user.id):
         text += (
