@@ -25,10 +25,10 @@ from app.domains.auth.jwt import (  # noqa: E402 — imported after logger init;
     _create_jwt,
     _derive_user_id,
 )
-from app.domains.auth.router import (
+from app.domains.auth.router import (  # noqa: E402 — imported after logger init; kept below module header for readability
     router,
 )
-from app.domains.auth.store import (
+from app.domains.auth.store import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _get_user_by_email,
 )
 

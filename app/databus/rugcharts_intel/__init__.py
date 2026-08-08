@@ -17,13 +17,13 @@ from .cache import (  # noqa: E402 — imported after logger init; kept below mo
     REDIS_PORT,
     _r,
 )
-from .cross_chain import (
+from .cross_chain import (  # noqa: E402 — imported after logger init; kept below module header for readability
     cross_chain_entity,
 )
-from .developer import (
+from .developer import (  # noqa: E402 — imported after logger init; kept below module header for readability
     developer_reputation,
 )
-from .holders import (
+from .holders import (  # noqa: E402 — imported after logger init; kept below module header for readability
     holder_health_score,
 )
 from .insider import insider_pattern_detector  # noqa: E402 — module docstring precedes import block

@@ -56,7 +56,7 @@ from app.api.v1.rag.search import router as rag_v2_router  # noqa: E402 — modu
 
 api_v1_router.append(rag_v2_router)
 
-from app.api.v1.admin.alerts_webhook import (
+from app.api.v1.admin.alerts_webhook import (  # noqa: E402 — module docstring precedes import block
     router as admin_alerts_webhook_router,
 )
 
@@ -70,7 +70,7 @@ from app.api.v1.agent.analyze import router as agent_router  # noqa: E402 — mo
 
 api_v1_router.append(agent_router)
 
-from app.api.v1.ai.chart_analysis import (
+from app.api.v1.ai.chart_analysis import (  # noqa: E402 — module docstring precedes import block
     router as ai_chart_router,
 )
 

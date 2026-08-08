@@ -15,7 +15,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.core.http import (
+from app.core.http import (  # noqa: E402 — imported after logger init; kept below module header for readability
     get_http_client,
 )
 from app.unified_scanner.cache import (  # noqa: E402 — imported after logger init; kept below module header for readability
