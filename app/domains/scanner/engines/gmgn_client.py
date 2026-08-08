@@ -14,7 +14,7 @@ import json
 import os
 import subprocess
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 
@@ -33,7 +33,7 @@ def _gmgn(args: list[str], timeout: int = 15) -> dict[str, Any]:
         if result.returncode != 0:
             logger.error(f"gmgn-cli failed: {result.stderr[:200]}")
             return {"error": result.stderr[:200]}
-        return json.loads(result.stdout)
+        return cast("dict[str, Any]", json.loads(result.stdout))
     except subprocess.TimeoutExpired:
         return {"error": "gmgn-cli timed out"}
     except json.JSONDecodeError:
@@ -131,13 +131,13 @@ def get_token_info(address: str, chain: str = "sol") -> dict[str, Any]:
 def get_token_holders(address: str, chain: str = "sol", limit: int = 20) -> list[dict[str, Any]]:
     """Get top token holders."""
     result = _gmgn(["token", "holders", "--address", address, "--chain", chain, "--limit", str(limit)])
-    return result.get("list", []) if isinstance(result, dict) else []
+    return cast("list[dict[str, Any]]", result.get("list", [])) if isinstance(result, dict) else []
 
 
 def get_top_traders(address: str, chain: str = "sol", limit: int = 20) -> list[dict[str, Any]]:
     """Get top traders for a token."""
     result = _gmgn(["token", "traders", "--address", address, "--chain", chain, "--limit", str(limit)])
-    return result.get("list", []) if isinstance(result, dict) else []
+    return cast("list[dict[str, Any]]", result.get("list", [])) if isinstance(result, dict) else []
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -148,7 +148,7 @@ def get_top_traders(address: str, chain: str = "sol", limit: int = 20) -> list[d
 def get_trending(chain: str = "sol", interval: str = "1h", limit: int = 20) -> list[dict[str, Any]]:
     """Get trending tokens."""
     result = _gmgn(["market", "trending", "--chain", chain, "--interval", interval, "--limit", str(limit)])
-    return result.get("list", []) if isinstance(result, dict) else []
+    return cast("list[dict[str, Any]]", result.get("list", [])) if isinstance(result, dict) else []
 
 
 def get_kline(address: str, chain: str = "sol", resolution: str = "1h", limit: int = 100) -> list[dict[str, Any]]:
@@ -167,19 +167,19 @@ def get_kline(address: str, chain: str = "sol", resolution: str = "1h", limit: i
             str(limit),
         ]
     )
-    return result.get("list", []) if isinstance(result, dict) else []
+    return cast("list[dict[str, Any]]", result.get("list", [])) if isinstance(result, dict) else []
 
 
 def get_trenches(chain: str = "sol", status: str = "new", limit: int = 20) -> list[dict[str, Any]]:
     """Get new token launches (Trenches). status: new, near, completed."""
     result = _gmgn(["market", "trenches", "--chain", chain, "--status", status, "--limit", str(limit)])
-    return result.get("list", []) if isinstance(result, dict) else []
+    return cast("list[dict[str, Any]]", result.get("list", [])) if isinstance(result, dict) else []
 
 
 def get_hot_searches(chain: str = "sol") -> list[dict[str, Any]]:
     """Get most-searched tokens."""
     result = _gmgn(["market", "hot-searches", "--chain", chain])
-    return result.get("list", []) if isinstance(result, dict) else []
+    return cast("list[dict[str, Any]]", result.get("list", [])) if isinstance(result, dict) else []
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -195,7 +195,7 @@ def get_portfolio(address: str, chain: str = "sol") -> dict[str, Any]:
 def get_wallet_trades(address: str, chain: str = "sol", limit: int = 50) -> list[dict[str, Any]]:
     """Get wallet trade history."""
     result = _gmgn(["portfolio", "trades", "--address", address, "--chain", chain, "--limit", str(limit)])
-    return result.get("list", []) if isinstance(result, dict) else []
+    return cast("list[dict[str, Any]]", result.get("list", [])) if isinstance(result, dict) else []
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -208,7 +208,7 @@ def get_wallet_tags(wallet: str, chain: str = "sol") -> list[str]:
     trades = get_smart_money_trades(chain, limit=50)
     for t in trades:
         if t["wallet"].lower() == wallet.lower():
-            return t.get("tags", [])
+            return cast("list[str]", t.get("tags", []))
     return []
 
 

@@ -145,6 +145,39 @@ async def run_sentinel_scan(
     _ensure_modules(config)
     _refresh_singletons()
 
+    # Module singletons are guaranteed non-None after ``_refresh_singletons()``;
+    # these asserts narrow ``Optional[X]`` for mypy (union-attr bucket) and are
+    # no-ops at runtime in the initialized path.
+    assert _address_labeler is not None
+    assert _block_zero_sniper is not None
+    assert _bundle_detector is not None
+    assert _bytecode_similarity is not None
+    assert _contract_authority is not None
+    assert _contract_diff is not None
+    assert _cross_chain_trace is not None
+    assert _decompiler_analyzer is not None
+    assert _dev_reputation is not None
+    assert _exchange_funder is not None
+    assert _flash_loan_detector is not None
+    assert _fund_flow_visualizer is not None
+    assert _gas_trace is not None
+    assert _governance_attack is not None
+    assert _guilt_association is not None
+    assert _holder_analyzer is not None
+    assert _honeypot_detector is not None
+    assert _liquidity_verifier is not None
+    assert _metadata_fingerprinter is not None
+    assert _mev_detector is not None
+    assert _oracle_manipulation is not None
+    assert _proxy_detector is not None
+    assert _pump_dump_detector is not None
+    assert _pumpfun_analyzer is not None
+    assert _sentiment_analyzer is not None
+    assert _sleep_cycle is not None
+    assert _social_velocity is not None
+    assert _static_analyzer is not None
+    assert _wash_trading is not None
+
     report = SentinelReport(token_address=token_address, chain=chain)
     coros: dict[str, Any] = {}
 
@@ -376,7 +409,12 @@ _RUNNER_SPEC = [
     ("run_wash_trading", "wash_trading", None, None),
     ("run_metadata_fingerprint", "metadata_fingerprint", None, None),
     ("run_sentiment", "sentiment", None, None),
-    ("run_pumpfun_analysis", "pumpfun_analysis", lambda: _pumpfun_analyzer.analyze, None),
+    (
+        "run_pumpfun_analysis",
+        "pumpfun_analysis",
+        lambda: _pumpfun_analyzer.analyze if _pumpfun_analyzer else None,
+        None,
+    ),
     ("run_honeypot_detection", "honeypot_detection", None, None),
     ("run_contract_authority", "contract_authority", None, None),
     ("run_mev_detection", "mev_detection", None, None),
@@ -397,6 +435,28 @@ def _get_analyzer_map() -> dict[str, Any]:
     """Build analyzer map lazily, ensuring modules are initialized first."""
     _ensure_modules()
     _refresh_singletons()
+    assert _address_labeler is not None
+    assert _bundle_detector is not None
+    assert _contract_authority is not None
+    assert _contract_diff is not None
+    assert _cross_chain_trace is not None
+    assert _decompiler_analyzer is not None
+    assert _exchange_funder is not None
+    assert _flash_loan_detector is not None
+    assert _fund_flow_visualizer is not None
+    assert _governance_attack is not None
+    assert _holder_analyzer is not None
+    assert _honeypot_detector is not None
+    assert _liquidity_verifier is not None
+    assert _metadata_fingerprinter is not None
+    assert _mev_detector is not None
+    assert _oracle_manipulation is not None
+    assert _proxy_detector is not None
+    assert _pump_dump_detector is not None
+    assert _pumpfun_analyzer is not None
+    assert _sentiment_analyzer is not None
+    assert _static_analyzer is not None
+    assert _wash_trading is not None
     return {
         "holder_analysis": _holder_analyzer.analyze,
         "bundle_detection": _bundle_detector.detect_bundles,
@@ -429,12 +489,14 @@ async def run_dev_reputation(
 ) -> dict[str, Any]:
     _ensure_modules(config)
     _refresh_singletons()
+    assert _dev_reputation is not None
     return dataclass_to_dict(await _dev_reputation.analyze(dev_wallet, chains))
 
 
 async def run_pumpfun_analysis(token_address: str, config: SentinelConfig | None = None) -> dict[str, Any]:
     _ensure_modules(config)
     _refresh_singletons()
+    assert _pumpfun_analyzer is not None
     return dataclass_to_dict(await _pumpfun_analyzer.analyze(token_address))
 
 
