@@ -63,11 +63,11 @@ class TestResolveRateLimit:
 
     def test_exact_prefix_match(self) -> None:
         """Longest prefix match wins."""
-        rate, burst = _resolve_rate_limit("/api/v1/scanner/something")
+        rate, _ = _resolve_rate_limit("/api/v1/scanner/something")
         assert rate == pytest.approx(20 / 60.0), "Should match 'scan' category"
 
     def test_burst_never_below_one(self) -> None:
-        rate, burst = _resolve_rate_limit("/api/v1/some-unknown")
+        _, burst = _resolve_rate_limit("/api/v1/some-unknown")
         assert burst >= 1
 
 
@@ -101,8 +101,8 @@ class TestAcquireInMemory:
         assert allowed is True
         assert "X-RateLimit-Limit" in headers
         assert "X-RateLimit-Remaining" in headers
-        assert headers["X-RateLimit-Remaining"] >= 0
-        assert headers["X-RateLimit-Limit"] == 5
+        assert int(headers["X-RateLimit-Remaining"]) >= 0
+        assert int(headers["X-RateLimit-Limit"]) == 5
 
     @pytest.mark.asyncio
     async def test_burst_limit_enforced(self) -> None:
@@ -121,7 +121,7 @@ class TestAcquireInMemory:
         limiter = UnifiedRateLimiter()
         _, h1 = await limiter.acquire("remaining-key", rate=10.0, burst=5)
         _, h2 = await limiter.acquire("remaining-key", rate=10.0, burst=5)
-        assert h2["X-RateLimit-Remaining"] <= h1["X-RateLimit-Remaining"]
+        assert int(h2["X-RateLimit-Remaining"]) <= int(h1["X-RateLimit-Remaining"])
 
     @pytest.mark.asyncio
     async def test_custom_tokens_consumed(self) -> None:
@@ -153,7 +153,7 @@ class TestAcquireInMemory:
     async def test_returns_limit_header(self) -> None:
         limiter = UnifiedRateLimiter()
         _, headers = await limiter.acquire("hdr-test", rate=1.0, burst=5)
-        assert headers["X-RateLimit-Limit"] == 5
+        assert int(headers["X-RateLimit-Limit"]) == 5
         assert "X-RateLimit-Remaining" in headers
         assert "X-RateLimit-Reset" in headers
 
@@ -171,12 +171,12 @@ class TestAcquirePath:
         limiter = UnifiedRateLimiter()
         allowed, headers = await limiter.acquire_path("/api/v1/token/0x...", "client-1")
         assert allowed is True
-        assert headers["X-RateLimit-Limit"] >= 1
+        assert int(headers["X-RateLimit-Limit"]) >= 1
 
     @pytest.mark.asyncio
     async def test_unknown_path_defaults(self) -> None:
         limiter = UnifiedRateLimiter()
-        allowed, headers = await limiter.acquire_path("/unknown/route", "client-2")
+        allowed, _ = await limiter.acquire_path("/unknown/route", "client-2")
         assert allowed is True
 
     @pytest.mark.asyncio
@@ -347,8 +347,8 @@ class TestAcquireWithRedis:
 
         allowed, headers = await limiter.acquire("redis-key", rate=1.0, burst=5)
         assert allowed is True
-        assert headers["X-RateLimit-Limit"] == 5
-        assert headers["X-RateLimit-Remaining"] >= 0
+        assert int(headers["X-RateLimit-Limit"]) == 5
+        assert int(headers["X-RateLimit-Remaining"]) >= 0
 
     @pytest.mark.asyncio
     async def test_redis_acquire_denied(self) -> None:
@@ -383,7 +383,7 @@ class TestAcquireWithRedis:
         limiter._redis = redis
         limiter._lua_sha = "mock_sha"
 
-        allowed, headers = await limiter.acquire("failover-key", rate=1.0, burst=5)
+        allowed, _ = await limiter.acquire("failover-key", rate=1.0, burst=5)
         # Should fail open (in-memory fallback)
         assert allowed is True
         # Connection should be nulled for retry

@@ -39,11 +39,11 @@ class TestTokenBucket:
         """Create a fresh UnifiedRateLimiter with no Redis (in-memory mode)."""
         from app.core.rate_limiter import UnifiedRateLimiter
 
-        l = UnifiedRateLimiter()
-        l._redis = None
-        l._redis_failed = True
-        l._redis_failed_at = 0.0
-        return l
+        limiter_inst = UnifiedRateLimiter()
+        limiter_inst._redis = None
+        limiter_inst._redis_failed = True
+        limiter_inst._redis_failed_at = 0.0
+        return limiter_inst
 
     @pytest.mark.asyncio
     async def test_acquire_allows_within_burst(self, limiter):
@@ -60,12 +60,12 @@ class TestTokenBucket:
         # Burst=2 → 2 requests allowed, 3rd denied
         r1, h1 = await limiter.acquire("test:burst-key", rate=0.1, burst=2.0)
         assert r1 is True
-        assert h1["X-RateLimit-Limit"] == 2
-        assert h1["X-RateLimit-Remaining"] == 1
+        assert int(h1["X-RateLimit-Limit"]) == 2
+        assert int(h1["X-RateLimit-Remaining"]) == 1
 
         r2, h2 = await limiter.acquire("test:burst-key", rate=0.1, burst=2.0)
         assert r2 is True
-        assert h2["X-RateLimit-Remaining"] == 0
+        assert int(h2["X-RateLimit-Remaining"]) == 0
 
         r3, h3 = await limiter.acquire("test:burst-key", rate=0.1, burst=2.0)
         assert r3 is False, "Third request should be denied (burst exhausted)"
@@ -79,10 +79,10 @@ class TestTokenBucket:
         assert "X-RateLimit-Limit" in headers
         assert "X-RateLimit-Remaining" in headers
         assert "X-RateLimit-Reset" in headers
-        # Validate header values are numeric
-        assert isinstance(headers["X-RateLimit-Limit"], int)
-        assert isinstance(headers["X-RateLimit-Remaining"], int)
-        assert isinstance(headers["X-RateLimit-Reset"], int)
+        # Validate header values are numeric strings (Starlette requires str header values)
+        assert isinstance(headers["X-RateLimit-Limit"], str)
+        assert isinstance(headers["X-RateLimit-Remaining"], str)
+        assert isinstance(headers["X-RateLimit-Reset"], str)
 
     @pytest.mark.asyncio
     async def test_remaining_decreases_with_each_request(self, limiter):
@@ -90,7 +90,7 @@ class TestTokenBucket:
         for i in range(3):
             allowed, headers = await limiter.acquire("test:decrease-key", rate=1.0, burst=3.0)
             assert allowed is True
-            assert headers["X-RateLimit-Remaining"] == 3 - i - 1
+            assert int(headers["X-RateLimit-Remaining"]) == 3 - i - 1
 
     @pytest.mark.asyncio
     async def test_retry_after_header_on_deny(self, limiter):
@@ -100,8 +100,8 @@ class TestTokenBucket:
         allowed, headers = await limiter.acquire("test:retry-key", rate=0.01, burst=1.0)
         assert allowed is False
         assert "Retry-After" in headers
-        assert isinstance(headers["Retry-After"], int)
-        assert headers["Retry-After"] >= 1
+        assert isinstance(headers["Retry-After"], str)
+        assert int(headers["Retry-After"]) >= 1
 
     @pytest.mark.asyncio
     async def test_burst_refills_over_time(self, limiter):
@@ -110,7 +110,7 @@ class TestTokenBucket:
         await limiter.acquire("test:refill-key", rate=1000.0, burst=1.0)
         # Wait a tiny bit for refill
         await asyncio.sleep(0.01)
-        allowed, headers = await limiter.acquire("test:refill-key", rate=1000.0, burst=1.0)
+        allowed, _ = await limiter.acquire("test:refill-key", rate=1000.0, burst=1.0)
         assert allowed is True, "Burst should refill rapidly with high rate"
 
 
@@ -263,7 +263,7 @@ class TestRedisFallback:
             allowed, headers = await limiter.acquire("fallback:key", rate=5.0, burst=3.0)
             assert allowed is True
             assert "X-RateLimit-Limit" in headers
-            assert headers["X-RateLimit-Limit"] == 3
+            assert int(headers["X-RateLimit-Limit"]) == 3
 
     @pytest.mark.asyncio
     async def test_memory_fallback_still_enforces_limits(self):
@@ -304,7 +304,7 @@ class TestRedisFallback:
         limiter._redis = MagicMock()
         limiter._redis.ping = AsyncMock(side_effect=ConnectionError("Redis down"))
 
-        redis = await limiter._ensure_redis()
+        _ = await limiter._ensure_redis()
         # Should return None because Redis ping failed
         # Note: this is during init, so _ensure_redis tries to connect
         # _ensure_redis would attempt connection
@@ -337,7 +337,7 @@ class TestRedisFallback:
 
         with patch.object(limiter, "_ensure_redis", return_value=mock_redis):
             # Should fall back to in-memory instead of crashing
-            allowed, headers = await limiter.acquire("crash-test-key", rate=5.0, burst=3.0)
+            allowed, _ = await limiter.acquire("crash-test-key", rate=5.0, burst=3.0)
             assert allowed is True, "Should not crash on Redis disconnect"
             # The limiter should have nulled the Redis connection
             assert limiter._redis is None
@@ -367,9 +367,9 @@ class TestRateLimitMiddleware:
             headers={"X-API-Key": TEST_RMI_AUTH_TOKEN},
         )
         # Headers may be present depending on middleware installation
-        has_limit = "X-RateLimit-Limit" in resp.headers
-        has_remaining = "X-RateLimit-Remaining" in resp.headers
-        has_reset = "X-RateLimit-Reset" in resp.headers
+        assert "X-RateLimit-Limit" in resp.headers
+        assert "X-RateLimit-Remaining" in resp.headers
+        assert "X-RateLimit-Reset" in resp.headers
         # At minimum, response should not crash
         assert resp.status_code != 500
 
@@ -494,7 +494,7 @@ class TestAcquirePath:
         limiter._redis_failed = True
 
         with patch.object(limiter, "_ensure_redis", return_value=None):
-            allowed, headers = await limiter.acquire_path(
+            allowed, _ = await limiter.acquire_path(
                 "/api/v1/scanner/token",
                 "apikey_hash_client",
             )
