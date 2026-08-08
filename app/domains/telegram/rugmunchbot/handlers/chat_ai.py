@@ -70,6 +70,7 @@ from app.domains.telegram.rugmunchbot.config import (
     fmt_number,
     fmt_pct,
 )
+from app.domains.telegram.rugmunchbot.daily_context import get_daily_context
 from app.domains.telegram.rugmunchbot.flood_control import check_flood, refund_flood
 from app.domains.telegram.rugmunchbot.formatters import (
     TOKEN_RE,
@@ -992,6 +993,15 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         summary = await _fetch_scan_context(addresses[0])
         if summary:
             prompt = f"{summary}\n\n{prompt}"
+
+    # LIVE DAILY MARKET AWARENESS: prepend today's market snapshot (BTC/ETH
+    # price, Fear & Greed, top news, trending tokens, recent launches) so the
+    # backend chat can answer "what's hot today" style questions with fresh
+    # context. Redis-cached 5 min + fail-open — chat never blocks on market
+    # data, and no context_override is used so backend auto-RAG stays active.
+    daily_context = await get_daily_context()
+    if daily_context:
+        prompt = f"{daily_context}\n\n{prompt}"
 
     result = await _call_backend_chat(prompt, user.id, history)
     # Stop the 5s interim timer and reap the task (cancellation is caught
