@@ -458,7 +458,7 @@ def get_data_layer() -> UnifiedDataLayer:
         _layer = UnifiedDataLayer()
     return _layer
 
-    async def _cmc_price(self, mint: str, **kw: Any) -> None | dict[str, Any]:
+    async def _cmc_price(self, mint: str, **kw: Any) -> dict[str, Any] | None:
         import os
 
         key = os.getenv("COINMARKETCAP_API_KEY", "")
