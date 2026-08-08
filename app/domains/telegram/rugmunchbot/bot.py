@@ -81,6 +81,8 @@ from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
 from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, register_market
+from app.domains.telegram.rugmunchbot.handlers.prediction import register_prediction
+from app.domains.telegram.rugmunchbot.handlers.defi import register_defi
 from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin,
     cmd_admin_ban,
@@ -111,7 +113,7 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
     sentinel_scan,
 )
 from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment
-from app.domains.telegram.rugmunchbot.handlers.trace import cmd_trace
+from app.domains.telegram.rugmunchbot.handlers.trace import cmd_trace, register_trace_commands
 from app.domains.telegram.rugmunchbot.handlers.watchlist import (
     cmd_unwatch,
     cmd_watch,
@@ -377,6 +379,8 @@ def main() -> None:
 
     # Market commands
     register_market(app)  # /market /trending /movers /launches /whales
+    register_prediction(app)  # /polymarket /election /odds
+    register_defi(app)  # /yield /lpcheck /defi
     _reg(app, "news", cmd_news)
     _reg(app, "sentiment", cmd_sentiment)
 
@@ -425,6 +429,7 @@ def main() -> None:
     # Premium commands
     _reg(app, "holders", cmd_holders)
     _reg(app, "trace", cmd_trace)
+    register_trace_commands(app)  # /dumps /flow
     _reg(app, "investigate", cmd_investigate)
     _reg(app, "webhook", cmd_webhook)
     _reg(app, "api", cmd_api)
