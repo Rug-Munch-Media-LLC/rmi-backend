@@ -26,7 +26,18 @@ logger = get_logger(__name__)
 
 
 def _searxng_url() -> str:
-    """Resolve the SearXNG base URL from settings (fallback: env var, localhost)."""
+    """Resolve the SearXNG base URL.
+
+    Fallback chain (first match wins):
+      SEARXNG_URL env var → http://127.0.0.1:8889 (actual self-hosted
+      instance) → http://localhost:8089 (legacy default).
+    """
+    # 1. Explicit env var wins over everything.
+    env_url = os.getenv("SEARXNG_URL", "").strip()
+    if env_url:
+        return env_url.rstrip("/")
+    # 2. Pydantic settings — reads the same env var, or its default
+    #    (http://127.0.0.1:8889, the actual running SearXNG instance).
     try:
         from app.config import settings as _s
 
@@ -34,7 +45,9 @@ def _searxng_url() -> str:
             return _s.searxng_url.rstrip("/")
     except Exception:  # noqa: S110 — optional dependency during boot
         pass
-    return os.getenv("SEARXNG_URL", "http://localhost:8089").rstrip("/")
+    # 3. Hardcoded fallbacks (settings import failed): real instance first,
+    #    legacy localhost:8089 port last.
+    return "http://127.0.0.1:8889"
 
 
 SEARXNG_TIMEOUT = 8.0  # seconds — live web must never stall chat

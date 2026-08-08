@@ -85,10 +85,12 @@ class Settings(BaseSettings):
 
     # ── Web search (self-hosted SearXNG) ─────────────────────────────────
     searxng_url: str = Field(
-        default="http://localhost:8089",
+        default="http://127.0.0.1:8889",
         description=(
             "Self-hosted SearXNG endpoint (JSON API, no auth) used by the chat "
-            "brain for current-affairs fallback. Set SEARXNG_URL env var."
+            "brain for current-affairs fallback. Defaults to the actual running "
+            "instance (127.0.0.1:8889); legacy localhost:8089 kept as last "
+            "resort. Set SEARXNG_URL env var to override."
         ),
     )
 
