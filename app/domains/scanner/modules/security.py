@@ -9,6 +9,7 @@ Own-Data Integration:
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import httpx
@@ -242,10 +243,51 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
             liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
             price_change = pair.get("priceChange", {}).get("h24", 0) or 0
 
-            is_honeypot = buys > 10 and sells == 0
+            # Pair age from DexScreener `pairCreatedAt` (ms epoch). Own
+            # ClickHouse data may omit it — then age is unknown and the
+            # sells==0 honeypot rule is treated conservatively.
+            pair_age_hours: float | None = None
+            created_ms = pair.get("pairCreatedAt")
+            if created_ms:
+                pair_age_hours = (time.time() - float(created_ms) / 1000.0) / 3600.0
+
+            # A brand-new pair legitimately shows buys with zero sells for
+            # its first minutes, so the sells==0 honeypot rule only applies
+            # to mature pairs (age > 0.5h).
+            no_sell_activity = buys > 10 and sells == 0
+            mature_pair = pair_age_hours is not None and pair_age_hours > 0.5
+
+            if no_sell_activity and not mature_pair:
+                # Inconclusive — fresh pair with no sells yet. Return no_data
+                # so the scoring layer adds a mild liquidity caution instead
+                # of a hard honeypot flag.
+                caution_score = 0
+                if liquidity < 1000:
+                    caution_score += 20
+                elif liquidity < 10000:
+                    caution_score += 10
+                return {
+                    "check": "honeypot",
+                    "result": "no_data",
+                    "is_honeypot": False,
+                    "risk_score": min(100, caution_score),
+                    "buys_24h": buys,
+                    "sells_24h": sells,
+                    "liquidity_usd": liquidity,
+                    "price_change_24h": price_change,
+                    "pair_age_hours": pair_age_hours,
+                    "source": "dexscreener_fallback",
+                }
+
+            is_honeypot = no_sell_activity and mature_pair
             risk_score = 0
             if is_honeypot:
                 risk_score += 60
+                # Tiny LP + zero sells is a stronger signal than deep LP.
+                if liquidity < 1000:
+                    risk_score += 15
+                elif liquidity < 10000:
+                    risk_score += 10
             if liquidity < 100:
                 risk_score += 30
             elif liquidity < 1000:
@@ -262,6 +304,7 @@ async def _check_honeypot_is(token_address: str, chain: str) -> dict[str, Any] |
                 "sells_24h": sells,
                 "liquidity_usd": liquidity,
                 "price_change_24h": price_change,
+                "pair_age_hours": pair_age_hours,
                 "source": "dexscreener_fallback",
             }
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:

@@ -13,17 +13,26 @@ logger = get_logger(__name__)
 RAG_INGEST_CHANNEL = "rmi:rag:ingest"
 RAG_FINDINGS_QUEUE = "rmi:rag:findings_queue"
 
+# Security-critical modules. When one of these fails (error/unavailable),
+# unknown posture is treated as risk rather than absence of risk: a token
+# whose GoPlus/honeypot vetting is down must not silently score as safe.
+CRITICAL_MODULES: frozenset[str] = frozenset({"goplus", "honeypot"})
+DEFAULT_RISK_PENALTY = 15  # safety points subtracted per failed critical module
+
 
 def _risk_level_from_safety(safety_score: float) -> str | None:
     """Map a safety score (0-100, higher = safer) to a risk level.
 
     Mirrors the unified scanner thresholds in
-    ``app.domains.scanner.unified.scoring.compute_score``. Returns
-    ``None`` for safe/low/medium so only high-risk findings are
-    forwarded to the threat-intel RAG pipeline.
+    ``app.domains.scanner.unified.scoring.compute_score`` (>= 60 safe/low,
+    40-59 medium, 20-39 high, < 20 critical). Returns ``None`` for
+    safe/low so only medium/high/critical findings are forwarded to the
+    threat-intel RAG pipeline.
     """
-    if safety_score >= 40:
+    if safety_score >= 60:
         return None
+    if safety_score >= 40:
+        return "medium"
     if safety_score >= 20:
         return "high"
     return "critical"
@@ -50,7 +59,7 @@ async def _publish_scan_to_rag_queue(scan_result: Any) -> None:
     safety = float(getattr(scan_result, "safety_score", 50))
     risk_level = _risk_level_from_safety(safety)
     if risk_level is None:
-        return  # only high/critical findings are threat-intel material
+        return  # only medium/high/critical findings are threat-intel material
 
     r = get_redis_async()
     if r is None:
@@ -146,7 +155,9 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
 
     Baseline: 50 (unknown/neutral).
     Each module contributes risk based on its findings:
-    - Modules returning error/offline: no impact
+    - Modules returning error/offline: no impact (non-critical), or a
+      DEFAULT_RISK_PENALTY per failed critical module (goplus/honeypot)
+      so down vetting providers degrade the safety/confidence metric
     - Clean modules: +5 to score
     - Risk flags: -risk_score contribution
     """
@@ -156,11 +167,23 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
     modules_with_data = 0
 
     for mod_entry in modules_results:
+        module_name = str(mod_entry.get("module", ""))
         r = mod_entry.get("result", {})
         if not isinstance(r, dict):
             continue
         result_status = r.get("result", "")
         if result_status in ("error", "pending", "unavailable"):
+            # Critical security modules must not silently inflate the
+            # score: unknown vetting posture is a risk, so penalize the
+            # safety/confidence metric instead of skipping them.
+            if module_name in CRITICAL_MODULES and result_status in ("error", "unavailable"):
+                risk_penalty += DEFAULT_RISK_PENALTY
+                logger.warning(
+                    "critical_module_failed_penalty",
+                    module=module_name,
+                    status=result_status,
+                    penalty=DEFAULT_RISK_PENALTY,
+                )
             continue  # Module didn't return useful data
 
         modules_with_data += 1

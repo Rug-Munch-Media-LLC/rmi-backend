@@ -134,11 +134,14 @@ async def _create_token(update: Update, user_id: int) -> None:
 
     # Generate secure token
     raw_token = f"rmi_{secrets.token_hex(24)}"
-    hashed_token = raw_token  # In production, hash this before storing
+    # Only the sha256 digest is stored at rest; the raw token is shown to the
+    # user exactly once below and is never recoverable afterwards.
+    hashed_token = db.hash_api_token(raw_token)
+    token_prefix = db.token_prefix(raw_token)
 
     conn.execute(
-        "INSERT INTO api_tokens (user_id, token, name, is_active, created_at) VALUES (?, ?, ?, 1, ?)",
-        (user_id, hashed_token, f"Token #{count + 1}", int(__import__("time").time())),
+        "INSERT INTO api_tokens (user_id, token, token_prefix, name, is_active, created_at) VALUES (?, ?, ?, ?, 1, ?)",
+        (user_id, hashed_token, token_prefix, f"Token #{count + 1}", int(__import__("time").time())),
     )
     conn.commit()
     token_id = conn.lastrowid
@@ -185,7 +188,8 @@ async def _list_tokens(update: Update, user_id: int) -> None:
         if tok.get("last_used"):
             last = f"\n  📡 Last used: {tok['last_used']}"
         name = tok.get("name", f"Token #{tok['id']}")
-        token_preview = tok["token"][:16] + "..." if tok.get("token") and len(tok["token"]) > 16 else "***"
+        prefix = tok.get("token_prefix") or ""
+        token_preview = f"{prefix}..." if prefix else "***"
         text += f"<b>#{tok['id']}</b> — {name}\n  🔑 <code>{token_preview}</code>\n  {status}{last}\n\n"
     text += "Create new: /api create\nRevoke: /api revoke <code>id</code>"
     text += footer_links()

@@ -255,6 +255,127 @@ async def test_honeypot_clean_token():
         assert result["risk_score"] < 50
 
 
+@pytest.mark.asyncio
+async def test_honeypot_fallback_new_token_not_flagged():
+    """Fresh pair (5 min old) with buys but no sells is NOT flagged honeypot.
+
+    Regression: sells==0 within the first minutes of a launch is normal for
+    legitimate tokens, so the fallback must not mass-flag new launches during
+    detector outages. Returns no_data (inconclusive) with a mild caution.
+    """
+    import time as _time
+
+    mock_dexscreener = {
+        "pairs": [
+            {
+                "chainId": "ethereum",
+                "dexId": "uniswap",
+                "pairAddress": "0xpairnew",
+                "baseToken": {"address": "0xnewtoken", "name": "NewToken", "symbol": "NEW"},
+                "priceUsd": "0.01",
+                "txns": {"h24": {"buys": 20, "sells": 0}},
+                "volume": {"h24": 100},
+                "liquidity": {"usd": 500},
+                "priceChange": {"h24": 5},
+                "pairCreatedAt": int((_time.time() - 5 * 60) * 1000),
+            }
+        ]
+    }
+
+    with (
+        patch("app.domains.scanner.modules._core._fetch_with_fallback") as mock_fallback,
+        patch("app.domains.scanner.modules._core.PREFER_OWN_DATA", False),
+    ):
+        mock_fallback.return_value = (mock_dexscreener, "https://api.dexscreener.com/")
+        from app.domains.scanner.modules._core import _DEXSCREENER_CACHE
+
+        _DEXSCREENER_CACHE.clear()
+        import builtins
+
+        _real_import = builtins.__import__
+
+        def _mock_import(name, *args, **kwargs):
+            if name in (
+                "app.domains.detectors.smart_contract_honeypot_detector",
+                "app.smart_contract_honeypot_detector",
+            ):
+                raise ImportError(f"No module named {name!r}")
+            return _real_import(name, *args, **kwargs)
+
+        builtins.__import__ = _mock_import
+        try:
+            from app.domains.scanner.modules import _check_honeypot_is
+
+            result = await _check_honeypot_is("0xnewtoken", "ethereum")
+        finally:
+            builtins.__import__ = _real_import
+
+        assert result is not None
+        assert result["check"] == "honeypot"
+        assert result["result"] == "no_data"
+        assert result["is_honeypot"] is False
+        assert result["risk_score"] < 40
+        assert result["pair_age_hours"] < 0.5
+
+
+@pytest.mark.asyncio
+async def test_honeypot_fallback_old_token_flagged():
+    """Mature pair (2h old) with buys but no sells IS flagged honeypot."""
+    import time as _time
+
+    mock_dexscreener = {
+        "pairs": [
+            {
+                "chainId": "ethereum",
+                "dexId": "uniswap",
+                "pairAddress": "0xpairold",
+                "baseToken": {"address": "0xoldtoken", "name": "OldScam", "symbol": "OLD"},
+                "priceUsd": "0.001",
+                "txns": {"h24": {"buys": 20, "sells": 0}},
+                "volume": {"h24": 100},
+                "liquidity": {"usd": 500},
+                "priceChange": {"h24": 5},
+                "pairCreatedAt": int((_time.time() - 2 * 60 * 60) * 1000),
+            }
+        ]
+    }
+
+    with (
+        patch("app.domains.scanner.modules._core._fetch_with_fallback") as mock_fallback,
+        patch("app.domains.scanner.modules._core.PREFER_OWN_DATA", False),
+    ):
+        mock_fallback.return_value = (mock_dexscreener, "https://api.dexscreener.com/")
+        from app.domains.scanner.modules._core import _DEXSCREENER_CACHE
+
+        _DEXSCREENER_CACHE.clear()
+        import builtins
+
+        _real_import = builtins.__import__
+
+        def _mock_import(name, *args, **kwargs):
+            if name in (
+                "app.domains.detectors.smart_contract_honeypot_detector",
+                "app.smart_contract_honeypot_detector",
+            ):
+                raise ImportError(f"No module named {name!r}")
+            return _real_import(name, *args, **kwargs)
+
+        builtins.__import__ = _mock_import
+        try:
+            from app.domains.scanner.modules import _check_honeypot_is
+
+            result = await _check_honeypot_is("0xoldtoken", "ethereum")
+        finally:
+            builtins.__import__ = _real_import
+
+        assert result is not None
+        assert result["check"] == "honeypot"
+        assert result["result"] == "scanned"
+        assert result["is_honeypot"] is True
+        assert result["risk_score"] >= 50
+        assert result["pair_age_hours"] > 0.5
+
+
 # ── 3. Copycat Detection ──────────────────────────────────────────────
 
 

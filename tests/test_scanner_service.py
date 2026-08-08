@@ -139,6 +139,52 @@ def test_calculate_safety_score_clamped():
     assert score <= 100
 
 
+def test_calculate_safety_score_failed_critical_module_penalty():
+    """A failed critical module (goplus/honeypot) must NOT inflate safety."""
+    from app.domains.scanner.service.scoring import (
+        DEFAULT_RISK_PENALTY,
+        _calculate_safety_score,
+    )
+
+    # GoPlus returns an error result dict -> penalty applied, not skipped
+    modules_run = [{"module": "goplus", "status": "success", "result": {"result": "error", "error": "HTTP 500"}}]
+    score = _calculate_safety_score(modules_run)
+    assert score == 50 - DEFAULT_RISK_PENALTY
+
+    # Both critical vetting providers down -> token must not score safe
+    all_down = [
+        {"module": "goplus", "result": {"result": "unavailable"}},
+        {"module": "honeypot", "result": {"result": "error", "error": "Timeout"}},
+    ]
+    score = _calculate_safety_score(all_down)
+    assert score == 50 - 2 * DEFAULT_RISK_PENALTY
+
+
+def test_calculate_safety_score_failed_non_critical_module_skip():
+    """Non-critical modules in error state keep the skip behavior."""
+    from app.domains.scanner.service.scoring import _calculate_safety_score
+
+    modules_run = [
+        {"module": "copycat", "result": {"result": "error", "error": "API down"}},
+        {"module": "spam", "result": {"result": "pending"}},
+    ]
+    score = _calculate_safety_score(modules_run)
+    assert score == 50
+
+
+def test_risk_level_from_safety_medium_not_safe():
+    """Scores 40-59 are medium risk, not safe; >= 60 is safe (None)."""
+    from app.domains.scanner.service.scoring import _risk_level_from_safety
+
+    assert _risk_level_from_safety(100) is None  # safe
+    assert _risk_level_from_safety(60) is None  # safe/low boundary
+    assert _risk_level_from_safety(59) == "medium"
+    assert _risk_level_from_safety(40) == "medium"
+    assert _risk_level_from_safety(39) == "high"
+    assert _risk_level_from_safety(20) == "high"
+    assert _risk_level_from_safety(19) == "critical"
+
+
 # ── ScanResult Model ──────────────────────────────────────────────────
 
 
