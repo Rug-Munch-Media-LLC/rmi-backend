@@ -198,6 +198,24 @@ CREATE TABLE IF NOT EXISTS deployer_history (
 PARTITION BY toYYYYMM(deployed_at)
 ORDER BY (deployer_address, chain_id, deployed_at);
 
+-- Repeat deployer track records: launch history, rug rate, performance
+CREATE TABLE IF NOT EXISTS deployer_profiles (
+    deployer_address     String,
+    chain_id             LowCardinality(String) DEFAULT '',
+    total_tokens_launched UInt32 DEFAULT 0,
+    total_deployments    UInt32 DEFAULT 0,
+    avg_liquidity_24h    Float64 DEFAULT 0,
+    rugged_pct           Float32 DEFAULT 0,
+    active_pct           Float32 DEFAULT 0,
+    honeypot_pct         Float32 DEFAULT 0,
+    avg_lifespan_days    Float32 DEFAULT 0,
+    chains_used          Array(String) DEFAULT [],
+    first_seen           DateTime,
+    last_seen            DateTime,
+    computed_at          DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(computed_at)
+ORDER BY (deployer_address, chain_id);
+
 -- Cross-chain bridge mappings
 CREATE TABLE IF NOT EXISTS bridge_mappings (
     source_address String,

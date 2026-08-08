@@ -201,6 +201,8 @@ async def scan_token(
             risk_flags.append("malicious_deployer")
         if r.get("reputation_label") == "HIGH":
             risk_flags.append("high_risk_deployer")
+        if r.get("repeat_deployer"):
+            risk_flags.append("REPEAT_DEPLOYER")
 
         risk_score = r.get("risk_score", 0)
         if isinstance(risk_score, (int, float)) and risk_score >= 70 and module_name in ("goplus", "honeypot"):
