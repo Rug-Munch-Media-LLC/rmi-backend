@@ -288,7 +288,8 @@ async def _call_backend_chat(
 
     No ``context_override`` is sent so the backend runs its own RAG search
     (threat_intel, scam_intel, news_v2, defi_exploits, coding_knowledge,
-    scam_patterns, regulation_enforcement + scanner_v2 when the message
+    scam_patterns, regulation_enforcement, scanned_tokens, wallet_v2,
+    stablecoin_market, whale_transfers + scanner_v2 when the message
     contains a token address) — that is what makes answers news-aware. The
     explicit per-user ``history`` overrides the shared backend bucket and the
     telegram user id is forwarded as X-Forwarded-For so the backend per-IP
