@@ -283,12 +283,25 @@ async def _fetch_market_context() -> dict[str, Any]:
 # ``context_override.system_context`` mechanism (see ``_build_messages``).
 #
 # Collections searched for every message; ``scanner_v2`` is added when the
-# message mentions a token address. Search is best-effort: any failure or
-# timeout returns empty context and chat proceeds without RAG (graceful
-# degradation — RAG is an enhancement, never a gate).
-RAG_COLLECTIONS = ["threat_intel", "scam_intel", "news_v2"]
+# message mentions a token address. Focused on SECURITY + INTELLIGENCE +
+# NEWS + REGULATION — the bot's domain. Dev-only collections (coding_knowledge,
+# solidity_patterns, contract_security, github_audits) and generic ones
+# (education) are intentionally excluded. ``scanned_tokens`` is the bot's
+# scan-to-RAG memory (app.rag.scan_memory) and is empty until scans flow in.
+# Search is best-effort: any failure or timeout returns empty context and chat
+# proceeds without RAG (graceful degradation — RAG is an enhancement, never a gate).
+RAG_COLLECTIONS = [
+    "threat_intel",
+    "scam_intel",
+    "news_v2",
+    "defi_exploits",
+    "scam_patterns",
+    "regulation_enforcement",
+    "scanned_tokens",
+    "wallet_v2",
+]
 RAG_TOKEN_COLLECTIONS = ["scanner_v2"]
-RAG_TOP_K = 5
+RAG_TOP_K = 10
 RAG_SEARCH_TIMEOUT = 5.0  # overall budget (seconds) — web chat stays snappy
 RAG_CONTEXT_MAX_CHARS = 1800  # keeps the combined system context under the 2000-char cap
 RAG_HIT_MAX_CHARS = 700  # per-hit snippet
