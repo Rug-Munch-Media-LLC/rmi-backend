@@ -33,17 +33,19 @@ class TestWebhookEventType:
         assert WebhookEventType.TOKEN_LIQUIDITY_CHANGE == "token.liquidity_change"
         assert WebhookEventType.WALLET_ACTIVITY == "wallet.activity"
         assert WebhookEventType.CHAIN_BLOCK == "chain.block"
+        assert WebhookEventType.TRANSACTION_ENHANCED == "transaction.enhanced"
 
     def test_values_count(self):
-        """Should have exactly 7 event types."""
-        assert len(list(WebhookEventType)) == 7
+        """Should have exactly 8 event types."""
+        assert len(list(WebhookEventType)) == 8
 
     def test_values_method(self):
         """values() should return all string values."""
         vals = WebhookEventType.values()
-        assert len(vals) == 7
+        assert len(vals) == 8
         assert "token.deployed" in vals
         assert "chain.block" in vals
+        assert "transaction.enhanced" in vals
 
 
 class TestWebhookFilters:

@@ -13,7 +13,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class WebhookEventType(StrEnum):
-    """The seven webhook event types — all sourced from free data."""
+    """Webhook event types — free-data sourced plus Helius-style enhanced tx.
+
+    ``TRANSACTION_ENHANCED`` mirrors Helius "enhanced transaction" webhooks:
+    a full decoded transaction with instruction-level detail (token transfers,
+    native SOL/ETH transfers, swap classification, account balance deltas)
+    instead of the aggregated row our poll providers emit.
+    """
 
     TOKEN_DEPLOYED = "token.deployed"  # noqa: S105 — config default
     TOKEN_FIRST_SWAP = "token.first_swap"  # noqa: S105 — config default
@@ -22,6 +28,7 @@ class WebhookEventType(StrEnum):
     TOKEN_LIQUIDITY_CHANGE = "token.liquidity_change"  # noqa: S105 — config default
     WALLET_ACTIVITY = "wallet.activity"
     CHAIN_BLOCK = "chain.block"
+    TRANSACTION_ENHANCED = "transaction.enhanced"
 
     @classmethod
     def values(cls) -> list[str]:
@@ -52,6 +59,16 @@ class WebhookFilters(BaseModel):
     wallet_addresses: list[str] = Field(
         default_factory=list,
         description="Watch specific wallets for wallet.activity events. Empty = no wallet filter.",
+    )
+    transaction_types: list[str] = Field(
+        default_factory=list,
+        description="Filter enhanced_transaction events by decoded transaction type "
+        "(e.g. ['SWAP', 'TRANSFER', 'NFT_SALE', 'NFT_MINT']). Empty = all types.",
+    )
+    program_ids: list[str] = Field(
+        default_factory=list,
+        description="Filter enhanced_transaction events by Solana program ID or EVM router "
+        "address (e.g. Jupiter, Raydium, Uniswap). Empty = all programs.",
     )
 
 
@@ -126,6 +143,21 @@ class CreateWebhookRequest(BaseModel):
     url: str = Field(..., min_length=1, max_length=2048)
     event_types: list[WebhookEventType] = Field(..., min_length=1)
     filters: WebhookFilters | None = None
+
+
+class UpdateWebhookRequest(BaseModel):
+    """API request to update an existing webhook subscription.
+
+    Every field is optional — only provided fields are patched. ``active=False``
+    pauses delivery while keeping the subscription for later re-enable.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    url: str | None = Field(default=None, min_length=1, max_length=2048)
+    event_types: list[WebhookEventType] | None = Field(default=None, min_length=1)
+    filters: WebhookFilters | None = None
+    active: bool | None = None
 
 
 class TelegramAlertRequest(BaseModel):

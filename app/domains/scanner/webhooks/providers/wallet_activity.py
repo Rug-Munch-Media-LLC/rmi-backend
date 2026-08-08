@@ -29,7 +29,9 @@ class WalletActivityProvider:
     async def poll(self, cursor: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Query ClickHouse for transfers involving watched addresses."""
         since = (cursor or {}).get("since", "2020-01-01 00:00:00")
-        watch_addresses: list[str] = (cursor or {}).get("addresses", [])
+        # Engine injects the watch list as "wallet_addresses"; "addresses" is
+        # kept as a legacy alias.
+        watch_addresses: list[str] = (cursor or {}).get("wallet_addresses") or (cursor or {}).get("addresses", [])
 
         if not watch_addresses:
             return []
