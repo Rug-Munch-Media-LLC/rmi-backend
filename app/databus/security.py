@@ -82,7 +82,7 @@ class SecurityGate:
         return ACCESS_LEVELS.get(data_type, "authenticated")
 
     @staticmethod
-    def check_access(data_type: str, request: Request | None = None, admin_key: str = "") -> bool:
+    def check_access(data_type: str, request: Request | None = None, admin_key: str | None = "") -> bool:
         """
         Check if the requester has access to this data type.
         Returns True if access is allowed, raises HTTPException if not.

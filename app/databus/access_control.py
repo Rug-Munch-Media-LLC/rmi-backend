@@ -625,7 +625,7 @@ class AccessController:
     @staticmethod
     def identify_consumer(
         request=None,
-        admin_key: str = "",
+        admin_key: str | None = "",
         consumer_type: str = "",
         tool_id: str = "",
         x402_tier: str = "",
