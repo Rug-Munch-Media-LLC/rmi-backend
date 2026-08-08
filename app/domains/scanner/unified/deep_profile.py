@@ -40,7 +40,7 @@ from app.domains.scanner.unified.model import (
     WalletBreakdown,
 )
 
-__all__ = ["module_result", "collect_deep_profile"]
+__all__ = ["collect_deep_profile", "module_result"]
 
 
 def module_result(sentinel: dict[str, Any] | None, key: str) -> dict[str, Any] | None:
