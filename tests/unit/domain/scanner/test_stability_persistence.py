@@ -19,8 +19,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified import persistence
+from app.domains.scanner.unified.model import ScanResult
 
 
 class FakeRedis:
@@ -212,7 +212,7 @@ class _FakeSession:
     async def execute(self, stmt: object) -> _FakeResult:
         return _FakeResult()
 
-    async def __aenter__(self) -> "_FakeSession":
+    async def __aenter__(self) -> _FakeSession:
         return self
 
     async def __aexit__(self, *exc: object) -> bool:

@@ -25,7 +25,6 @@ from fastapi.testclient import TestClient
 
 from app.routers import contract_analyzer
 
-
 # ── Fixtures / helpers ────────────────────────────────────────────────
 
 
