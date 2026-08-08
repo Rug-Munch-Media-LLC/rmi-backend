@@ -19,12 +19,17 @@ class EmbeddingProvider(StrEnum):
 
 
 # Default RAG collections (matches legacy app.rag_engine.COLLECTIONS)
+# ``scanned_tokens`` is a Qdrant-only collection written by the bot
+# scan-to-RAG memory bridge (app.rag.scan_memory) — included so generic
+# multi-collection RAG searches (and the engine's Qdrant fallback) can
+# recall past token scan context.
 COLLECTIONS: list[str] = [
     "scam_intel",
     "deployer_history",
     "wallet_labels",
     "contract_audit",
     "phishing_db",
+    "scanned_tokens",
 ]
 
 
