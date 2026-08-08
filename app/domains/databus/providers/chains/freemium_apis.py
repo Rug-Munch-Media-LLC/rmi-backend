@@ -18,7 +18,7 @@ logger = get_logger("databus.providers.freemium_apis")
 # ── Birdeye (freemium, free tier available) ──
 
 
-async def _birdeye_overview(address: str = "", **kw) -> dict[str, Any] | None:
+async def _birdeye_overview(address: str = "", **kw: Any) -> dict[str, Any] | None:
     """Birdeye — token overview, liquidity, holder stats (Solana/EVM)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -36,7 +36,7 @@ async def _birdeye_overview(address: str = "", **kw) -> dict[str, Any] | None:
     return None
 
 
-async def _birdeye_price(address: str = "", **kw) -> dict[str, Any] | None:
+async def _birdeye_price(address: str = "", **kw: Any) -> dict[str, Any] | None:
     """Birdeye — real-time token price."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -57,7 +57,7 @@ async def _birdeye_price(address: str = "", **kw) -> dict[str, Any] | None:
 # ── Solana Tracker (freemium, 5K/mo free quota) ──
 
 
-async def _solana_tracker_price(mint: str = "", **kw) -> dict[str, Any] | None:
+async def _solana_tracker_price(mint: str = "", **kw: Any) -> dict[str, Any] | None:
     """Solana Tracker — token price."""
     api_key = kw.get("api_key", "")
     if not mint or not api_key:
@@ -75,7 +75,7 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict[str, Any] | None:
     return None
 
 
-async def _solana_tracker_token(mint: str = "", **kw) -> dict[str, Any] | None:
+async def _solana_tracker_token(mint: str = "", **kw: Any) -> dict[str, Any] | None:
     """Solana Tracker — token detail (holders, top holders, markets)."""
     api_key = kw.get("api_key", "")
     if not mint or not api_key:
@@ -93,7 +93,7 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict[str, Any] | None:
     return None
 
 
-async def _solana_tracker_trending(**kw) -> dict[str, Any] | None:
+async def _solana_tracker_trending(**kw: Any) -> dict[str, Any] | None:
     """Solana Tracker — trending tokens."""
     api_key = kw.get("api_key", "")
     if not api_key:
@@ -114,7 +114,7 @@ async def _solana_tracker_trending(**kw) -> dict[str, Any] | None:
 # ── Messari (freemium, 200 req/min) ──
 
 
-async def _messari_news(limit: int = 20, **kw) -> dict[str, Any] | None:
+async def _messari_news(limit: int = 20, **kw: Any) -> dict[str, Any] | None:
     """Messari — crypto news with institutional quality."""
     api_key = kw.get("api_key", "")
     if not api_key:
@@ -136,7 +136,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict[str, Any] | None:
 # ── CoinDesk (freemium, high-quality news) ──
 
 
-async def _coindesk_news(limit: int = 20, **kw) -> dict[str, Any] | None:
+async def _coindesk_news(limit: int = 20, **kw: Any) -> dict[str, Any] | None:
     """CoinDesk — professional crypto journalism."""
     api_key = kw.get("api_key", "")
     if not api_key:
@@ -158,7 +158,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict[str, Any] | None:
 # ── Santiment (freemium, dev activity & social) ──
 
 
-async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict[str, Any] | None:
+async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw: Any) -> dict[str, Any] | None:
     """Santiment — GitHub developer activity."""
     api_key = kw.get("api_key", "")
     if not api_key:
@@ -195,7 +195,7 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict[s
 # ── VirusTotal (free, 500 req/day) ──
 
 
-async def _virustotal_url_scan(url: str, **kw) -> dict[str, Any] | None:
+async def _virustotal_url_scan(url: str, **kw: Any) -> dict[str, Any] | None:
     """VirusTotal — URL security scan for phishing/malware."""
     api_key = kw.get("api_key", "")
     if not url or not api_key:
@@ -217,7 +217,7 @@ async def _virustotal_url_scan(url: str, **kw) -> dict[str, Any] | None:
 # ── Dune Analytics (free tier: 10K CU/mo + fallback) ──
 
 
-async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", **kw) -> dict[str, Any] | None:
+async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", **kw: Any) -> dict[str, Any] | None:
     """Dune — first 5-minute buyers of a token (low-CU cached query)."""
     api_key = kw.get("api_key", "")
     if not token_address or not api_key:
