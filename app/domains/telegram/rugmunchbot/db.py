@@ -832,6 +832,20 @@ def set_banned(user_id: int, banned: bool) -> bool:
     return ok
 
 
+def is_user_banned(user_id: int) -> bool:
+    """Return True when the user is flagged banned in the local SQLite DB.
+
+    Fast single-column read used by the central ban gate (bot.py
+    ``install_ban_gate``). Unknown users are treated as not banned.
+    """
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT is_banned FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    finally:
+        conn.close()
+    return bool(row and row["is_banned"])
+
+
 # ── Scam reports (v6) ──
 
 

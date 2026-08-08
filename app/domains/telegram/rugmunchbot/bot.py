@@ -184,6 +184,72 @@ def install_maintenance_gate(app: Application) -> None:
     app.process_update = guarded
 
 
+async def _send_ban_notice(update: object) -> None:
+    """Send the single banned-user notice on whatever update type arrived."""
+    effective_message = getattr(update, "effective_message", None)
+    callback_query = getattr(update, "callback_query", None)
+    inline_query = getattr(update, "inline_query", None)
+    if effective_message is not None:
+        try:
+            await effective_message.reply_text(
+                "\U0001f6ab <b>You are banned from using this bot.</b>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            logger.debug("ban notice send failed", exc_info=True)
+    elif callback_query is not None:
+        try:
+            await callback_query.answer("You are banned from using this bot.", show_alert=True)
+        except Exception:
+            logger.debug("ban callback answer failed", exc_info=True)
+    elif inline_query is not None:
+        try:
+            await inline_query.answer([], cache_time=60, is_personal=True)
+        except Exception:
+            logger.debug("ban inline answer failed", exc_info=True)
+
+
+def install_ban_gate(app: Application) -> None:
+    """Block banned users from EVERY command, callback, inline and message.
+
+    Wraps ``Application.process_update`` so the ban check runs before any
+    handler is dispatched — commands, callback queries, inline queries,
+    pre-checkout and free text all pass through this single gate.
+
+    Consults BOTH authoritative stores:
+      * local SQLite ``users.is_banned`` (written by /admin_ban, /admin_unban
+        and the admin bot),
+      * the Redis set ``bot:admin:banned_users`` (written by the backend admin
+        API via ``admin_state.ban_user``).
+    Fails open (allows) when a store is unavailable. Owners are always exempt
+    so they can still reach /admin_unban. Banned users receive a single
+    "You are banned" notice and the update is dropped — no command executes.
+    """
+    from app.domains.telegram.rugmunchbot import admin_state
+
+    async def guarded(update: object) -> None:
+        effective_user = getattr(update, "effective_user", None)
+        if effective_user is not None and not is_owner(effective_user.id):
+            banned = False
+            try:
+                banned = await admin_state.is_user_banned(effective_user.id)
+            except Exception:
+                logger.debug("admin_state:is_user_banned failed", exc_info=True)
+            if not banned:
+                try:
+                    banned = db.is_user_banned(effective_user.id)
+                except Exception:
+                    logger.debug("db:is_user_banned failed", exc_info=True)
+            if banned:
+                logger.info("ban-gate blocked user=%s", effective_user.id)
+                await _send_ban_notice(update)
+                return
+        await original_process_update(update)
+
+    original_process_update = app.process_update
+    app.process_update = guarded
+
+
 async def setup_bot_profile(app: Application) -> None:
     """Set bot description, about text, and command list via BotFather API."""
     bot = app.bot
@@ -382,6 +448,12 @@ def main() -> None:
 
     # Global maintenance gate (/admin_toggle off)
     install_maintenance_gate(app)
+
+    # Global ban gate: banned users are blocked at every entry point before
+    # any handler runs. Installed AFTER the maintenance gate so the ban check
+    # is the outermost wrapper and takes priority (banned users get the ban
+    # notice even during maintenance). Owners are exempt in both gates.
+    install_ban_gate(app)
 
     # Scheduled jobs
     job_queue = app.job_queue
