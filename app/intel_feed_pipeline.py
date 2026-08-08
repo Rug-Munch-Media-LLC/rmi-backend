@@ -531,9 +531,9 @@ class IntelPipeline:
         self._total_ingested += stats["total"]
 
         # Prune seen_ids to prevent OOM (unbounded growth)
-        MAX_SEEN_IDS = 50000
-        if len(self._seen_ids) > MAX_SEEN_IDS:
-            self._seen_ids = set(list(self._seen_ids)[-MAX_SEEN_IDS // 2 :])
+        max_seen_ids = 50000
+        if len(self._seen_ids) > max_seen_ids:
+            self._seen_ids = set(list(self._seen_ids)[-max_seen_ids // 2 :])
             logger.info("pruned_seen_ids", count=len(self._seen_ids))
 
         # Cleanup old entries (older than 7 days)

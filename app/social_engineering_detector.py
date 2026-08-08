@@ -41,7 +41,7 @@ PUMPFUN_API = "https://frontend-api.pump.fun"
 LUNARCRUSH_API = "https://api.lunarcrush.com/v2"
 
 # ── Compiled patterns ────────────────────────────────────────────
-from app.core.shared_utils import (
+from app.core.shared_utils import (  # noqa: E402 — import follows module constants; kept below for readability
     SOLANA_ADDRESS_RE as _RE_SOLANA_ADDR,
 )
 

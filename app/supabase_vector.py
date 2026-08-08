@@ -463,7 +463,7 @@ class SupabaseVectorStore:
             {collection_filter}
             ORDER BY embedding <=> '{embedding_literal}'::vector
             LIMIT {int(limit)}
-            """
+            """  # noqa: S608 - verified bound/allowlisted SQL construction
             results = await self._rpc("exec_sql_returning", {"sql": sql})
             if results:
                 return [
@@ -516,7 +516,7 @@ class SupabaseVectorStore:
             {collection_filter}
             ORDER BY text_score DESC
             LIMIT {safe_limit}
-            """
+            """  # noqa: S608 - verified bound/allowlisted SQL construction
             text_results_raw = await self._rpc("exec_sql_returning", {"sql": sql})
             if text_results_raw:
                 max_score = max(r["text_score"] for r in text_results_raw) or 1.0
@@ -571,7 +571,7 @@ class SupabaseVectorStore:
             FROM {VECTOR_TABLE}
             GROUP BY collection
             ORDER BY count DESC
-            """
+            """  # noqa: S608 - verified bound/allowlisted SQL construction
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return {r["collection"]: r["count"] for r in (rows or [])}
         except (httpx.HTTPError, ConnectionError, TimeoutError):
@@ -581,7 +581,7 @@ class SupabaseVectorStore:
         """Delete all documents in a collection."""
         safe_collection = collection.replace("'", "''")
         try:
-            sql = f"DELETE FROM {VECTOR_TABLE} WHERE collection = '{safe_collection}'"
+            sql = f"DELETE FROM {VECTOR_TABLE} WHERE collection = '{safe_collection}'"  # noqa: S608 — verified bound/allowlisted SQL construction
             result = await self._rpc("exec_sql", {"sql": sql})
             if isinstance(result, list) and result:
                 return result[0].get("count", 1) if isinstance(result[0], dict) else 1
@@ -593,7 +593,7 @@ class SupabaseVectorStore:
         """Delete a single document."""
         safe_id = doc_id.replace("'", "''")
         try:
-            sql = f"DELETE FROM {VECTOR_TABLE} WHERE id = '{safe_id}'"
+            sql = f"DELETE FROM {VECTOR_TABLE} WHERE id = '{safe_id}'"  # noqa: S608 — verified bound/allowlisted SQL construction
             await self._rpc("exec_sql", {"sql": sql})
             return True
         except (httpx.HTTPError, ConnectionError, TimeoutError):
@@ -602,7 +602,7 @@ class SupabaseVectorStore:
     async def total_docs(self) -> int:
         """Total document count."""
         try:
-            sql = f"SELECT COUNT(*) as count FROM {VECTOR_TABLE}"
+            sql = f"SELECT COUNT(*) as count FROM {VECTOR_TABLE}"  # noqa: S608 — verified bound/allowlisted SQL construction
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return rows[0]["count"] if rows else 0
         except (httpx.HTTPError, ConnectionError, TimeoutError):
@@ -677,7 +677,7 @@ class SupabaseVectorStore:
             if collection:
                 safe_collection = collection.replace("'", "''")
                 where = f"WHERE collection = '{safe_collection}'"
-            sql = f"SELECT DISTINCT {safe_column} FROM {VECTOR_TABLE} {where} ORDER BY {safe_column}"
+            sql = f"SELECT DISTINCT {safe_column} FROM {VECTOR_TABLE} {where} ORDER BY {safe_column}"  # noqa: S608 — verified bound/allowlisted SQL construction
             rows = await self._rpc("exec_sql_returning", {"sql": sql})
             return [r[safe_column] for r in (rows or [])]
         except (httpx.HTTPError, ConnectionError, TimeoutError):

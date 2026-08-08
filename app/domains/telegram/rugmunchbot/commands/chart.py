@@ -177,8 +177,8 @@ def render_chart_png(
     if not closes:
         return None
 
-    W, H = 1000, 640
-    PAD_L, PAD_R, PAD_T, PAD_B = 70, 20, 50, 60
+    w, h = 1000, 640
+    pad_l, pad_r, pad_t, pad_b = 70, 20, 50, 60
     bg = (15, 17, 21)
     grid_c = (35, 38, 46)
     text_c = (154, 160, 166)
@@ -186,7 +186,7 @@ def render_chart_png(
     up_c = (38, 166, 154)
     down_c = (239, 83, 80)
 
-    img = Image.new("RGB", (W, H), bg)
+    img = Image.new("RGB", (w, h), bg)
     draw = ImageDraw.Draw(img)
     try:
         font = ImageFont.load_default(size=20)
@@ -197,12 +197,12 @@ def render_chart_png(
         tiny = font
 
     # Plot area
-    plot_w = W - PAD_L - PAD_R
-    plot_h = H - PAD_T - PAD_B
+    plot_w = w - pad_l - pad_r
+    plot_h = h - pad_t - pad_b
     vol_h = int(plot_h * 0.22)
     price_h = plot_h - vol_h - 30
-    price_top = PAD_T
-    price_bot = PAD_T + price_h
+    price_top = pad_t
+    price_bot = pad_t + price_h
     vol_top = price_bot + 30
     vol_bot = vol_top + vol_h
 
@@ -213,7 +213,7 @@ def render_chart_png(
     n = len(closes)
 
     def x_of(i: int) -> int:
-        return PAD_L + int(i * plot_w / max(n - 1, 1))
+        return pad_l + int(i * plot_w / max(n - 1, 1))
 
     def y_of(v: float) -> int:
         return price_bot - int((v - mn) / (mx - mn) * price_h)
@@ -221,12 +221,12 @@ def render_chart_png(
     # Grid + labels
     for g in range(5):
         gy = price_top + int(price_h * g / 4)
-        draw.line([(PAD_L, gy), (W - PAD_R, gy)], fill=grid_c, width=1)
+        draw.line([(pad_l, gy), (w - pad_r, gy)], fill=grid_c, width=1)
         val = mx - (mx - mn) * g / 4
         label = f"${val:,.4f}" if val < 1000 else f"${val:,.0f}"
         draw.text((8, gy - 10), label, font=tiny, fill=text_c)
     for g in range(6):
-        gx = PAD_L + int(plot_w * g / 5)
+        gx = pad_l + int(plot_w * g / 5)
         draw.line([(gx, price_top), (gx, vol_bot)], fill=grid_c, width=1)
 
     color = up_c if closes[-1] >= closes[0] else down_c
@@ -252,13 +252,13 @@ def render_chart_png(
         draw.rectangle([bx, vol_bot - vh, bx + body_w, vol_bot], fill=color)
 
     # Border + titles
-    draw.rectangle([PAD_L, price_top, W - PAD_R, vol_bot], outline=grid_c, width=1)
+    draw.rectangle([pad_l, price_top, w - pad_r, vol_bot], outline=grid_c, width=1)
     title = f"{name} ({symbol})"
     if chain:
         title += f"  ·  {chain.capitalize()}"
-    draw.text((PAD_L, 12), title, font=font, fill=title_c)
-    draw.text((PAD_L, H - 30), "Price (USD)", font=tiny, fill=text_c)
-    draw.text((W - PAD_R - 90, vol_top - 22), "Volume", font=tiny, fill=text_c)
+    draw.text((pad_l, 12), title, font=font, fill=title_c)
+    draw.text((pad_l, h - 30), "Price (USD)", font=tiny, fill=text_c)
+    draw.text((w - pad_r - 90, vol_top - 22), "Volume", font=tiny, fill=text_c)
 
     try:
         buf = io.BytesIO()

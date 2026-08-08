@@ -344,13 +344,13 @@ async def three_pillar_search(
 
     # ── RRF fusion ──
     query_type = _classify_query(query)
-    WEIGHTS = {
+    weights = {
         "entity_heavy": (0.3, 0.2, 0.5),
         "keyword_heavy": (0.3, 0.6, 0.1),
         "semantic_heavy": (0.7, 0.2, 0.1),
         "balanced": (0.4, 0.4, 0.2),
     }
-    w_dense, w_sparse, w_entity = WEIGHTS.get(query_type, WEIGHTS["balanced"])
+    w_dense, w_sparse, w_entity = weights.get(query_type, weights["balanced"])
 
     p1_ranked = sorted(pillar1_results, key=lambda x: x.get("similarity", 0), reverse=True)
     p2_ranked = sorted(

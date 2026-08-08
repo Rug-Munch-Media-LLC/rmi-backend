@@ -109,7 +109,7 @@ def _build_accepts_list(tool_id: str, pricing: dict[str, Any]) -> list[dict[str,
 
 def _build_bazaar_extension(tool_id: str, pricing: dict[str, Any], accepts: list[dict[str, Any]]) -> dict[str, Any]:
     """Build x402 v2 bazaar extension for facilitator discovery indexing."""
-    CATEGORY_MAP: dict[str, str] = {
+    category_map: dict[str, str] = {
         "security": "security",
         "intelligence": "intelligence",
         "market": "market-data",
@@ -123,7 +123,7 @@ def _build_bazaar_extension(tool_id: str, pricing: dict[str, Any], accepts: list
         "variant": "crypto",
     }
     category = pricing.get("category", "analysis")
-    bazaar_category = CATEGORY_MAP.get(category, category)
+    bazaar_category = category_map.get(category, category)
 
     read_only_suffixes = ("_info", "_list", "_check", "_scan", "_status", "_health")
     is_read_only = tool_id.endswith(read_only_suffixes)
@@ -303,11 +303,11 @@ def build_scanner_response() -> JSONResponse:
 
 def build_burst_response(retry_after: int = 60) -> JSONResponse:
     """429 for burst rate limit exceeded."""
-    BURST_LIMIT = int(os.getenv("X402_BURST_LIMIT", "5"))
+    burst_limit = int(os.getenv("X402_BURST_LIMIT", "5"))
     return JSONResponse(
         status_code=429,
         content={
-            "error": f"Rate limited. Max {BURST_LIMIT} requests per {retry_after}s per tool.",
+            "error": f"Rate limited. Max {burst_limit} requests per {retry_after}s per tool.",
             "retry_after": retry_after,
         },
         headers={**SECURITY_HEADERS, "Retry-After": str(retry_after)},

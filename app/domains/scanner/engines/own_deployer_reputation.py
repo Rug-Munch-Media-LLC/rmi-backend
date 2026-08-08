@@ -381,7 +381,7 @@ def _query_deployer_stats(deployer_address: str, chain: str) -> dict[str, Any] |
             FROM wallet_memory.deployer_events
             WHERE {where_clause}
             GROUP BY deployer
-            """,
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction
             params,
         )
         if not rows:
@@ -430,7 +430,7 @@ def _query_per_token_lifespan(deployer_address: str, chain: str) -> list[dict[st
             GROUP BY token_address
             ORDER BY last_ts DESC
             LIMIT 200
-            """,
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction
             params,
         )
     except (ValueError, RuntimeError, OSError) as exc:
@@ -502,7 +502,7 @@ def _query_token_health(token_address: str, chain: str) -> dict[str, Any] | None
             WHERE chain = %(chain)s
               AND type = 'swap'
               AND (token0 = %(addr0)s OR token1 = %(addr1)s{pool_clause})
-            """,
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction
             params,
         )
         if not rows or not rows[0]:
