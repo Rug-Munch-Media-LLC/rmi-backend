@@ -1,7 +1,4 @@
-"""
-from typing import Any
-
-Premium x402 tools - reputation scoring, investigation reports, webhook alerts.
+"""Premium x402 tools - reputation scoring, investigation reports, webhook alerts.
 
 These are the standout tools that make the RMI MCP server worth paying for:
 - reputation_score: Single 0-100 trust score combining all enrichment signals
@@ -9,6 +6,7 @@ These are the standout tools that make the RMI MCP server worth paying for:
 - webhook_register: Register callbacks for monitoring alerts
 """
 
+from typing import Any
 
 import json
 import os
