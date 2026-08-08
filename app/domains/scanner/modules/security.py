@@ -5,6 +5,12 @@ Own-Data Integration:
     computes security indicators from ClickHouse evm_transfers + deployer_events.
     Falls back to GoPlus API only when own data has insufficient confidence.
     This eliminates the primary GoPlus API dependency for well-tracked tokens.
+
+Degodding (wave 6, 2026-08-09):
+    The Tier-1 own-data mapping, Tier-2 GoPlus HTTP call, and the 0-100
+    risk-score accumulator live in ``_goplus_helpers.py``. This module keeps
+    the public ``_check_goplus_security`` / ``_check_honeypot_is`` /
+    ``_check_spam`` names (tests patch them at module level).
 """
 
 from __future__ import annotations
@@ -19,6 +25,10 @@ from app.domains.scanner.modules._core import (
     PREFER_OWN_DATA,
     _fetch_dexscreener,
     logger,
+)
+from app.domains.scanner.modules._goplus_helpers import (
+    _goplus_api_scan,
+    _map_own_security_data,
 )
 
 
@@ -51,33 +61,15 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
 
             own_data = await get_own_security(token_address, chain)
             if own_data.get("source") == "own" and own_data.get("confidence", 0) >= 0.5:
-                risk_score = own_data.get("risk_score", 0)
                 logger.info(
                     "Using own security data for %s on %s (risk: %s, confidence: %s)",
                     token_address[:16],
                     chain,
-                    risk_score,
+                    own_data.get("risk_score", 0),
                     own_data.get("confidence"),
                 )
                 # Map own format to GoPlus-compatible output
-                return {
-                    "check": "goplus",
-                    "result": "scanned",
-                    "risk_score": risk_score,
-                    "is_honeypot": own_data.get("is_honeypot", False),
-                    "is_mintable": own_data.get("is_mintable", False),
-                    "is_proxy": own_data.get("is_proxy", False),
-                    "is_blacklisted": False,
-                    "is_whitelisted": False,
-                    "can_take_back_ownership": False,
-                    "hidden_owner": False,
-                    "owner_address": own_data.get("owner_address", ""),
-                    "buy_tax": own_data.get("buy_tax_pct", 0),
-                    "sell_tax": own_data.get("sell_tax_pct", 0),
-                    "holder_count": own_data.get("holder_count", 0),
-                    "total_supply": own_data.get("total_supply", ""),
-                    "source": "own_clickhouse",
-                }
+                return _map_own_security_data(own_data)
             logger.debug(
                 "Own security data insufficient for %s (confidence: %s), falling back to GoPlus",
                 token_address[:16],
@@ -90,98 +82,7 @@ async def _check_goplus_security(token_address: str, chain: str) -> dict[str, An
 
     # ── Tier 2: GoPlus API (original behavior) ──
     chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
-    url = f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}"
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params={"contract_addresses": token_address})
-            if resp.status_code != 200:
-                logger.debug("goplus_http_error", status=resp.status_code, chain=chain)
-                return {"check": "goplus", "result": "error", "error": f"HTTP {resp.status_code}"}
-
-            # Defensive JSON parsing
-            try:
-                data = resp.json()
-            except httpx.HTTPError:
-                logger.debug("goplus_json_parse_failed", chain=chain)
-                return {"check": "goplus", "result": "error", "error": "Invalid JSON response"}
-
-            if not isinstance(data, dict):
-                return {"check": "goplus", "result": "error", "error": "Unexpected response format"}
-
-            result = data.get("result")
-            if not isinstance(result, dict):
-                # GoPlus returned data but no result for this token
-                return {
-                    "check": "goplus",
-                    "result": "scanned",
-                    "note": "Token not indexed by GoPlus",
-                    "risk_score": 0,
-                    "source": "goplus",
-                }
-
-            token_data = result.get(token_address.lower())
-            if not isinstance(token_data, dict):
-                return {"check": "goplus", "result": "error", "error": "Token not found in GoPlus"}
-
-            risk_score = 0
-            is_honeypot = token_data.get("is_honeypot") == "1"
-            if is_honeypot:
-                risk_score += 50
-            if token_data.get("can_take_back_ownership") == "1":
-                risk_score += 20
-            if token_data.get("is_open_source") == "0":
-                risk_score += 15
-            if token_data.get("is_blacklisted") == "1":
-                risk_score += 40
-            if token_data.get("is_whitelisted") == "1":
-                risk_score -= 10
-            buy_tax = float(token_data.get("buy_tax", "0") or 0)
-            sell_tax = float(token_data.get("sell_tax", "0") or 0)
-            if buy_tax > 10:
-                risk_score += 15
-            if sell_tax > 10:
-                risk_score += 15
-            if buy_tax > 50 or sell_tax > 50:
-                risk_score += 20
-            if token_data.get("is_proxy") == "1":
-                risk_score += 10
-            if token_data.get("is_mintable") == "1":
-                risk_score += 10
-            if token_data.get("owner_change_balance") == "1":
-                risk_score += 15
-            if token_data.get("hidden_owner") == "1":
-                risk_score += 15
-            if token_data.get("selfdestruct") == "1":
-                risk_score += 30
-            if token_data.get("transfer_pausable") == "1":
-                risk_score += 10
-            if token_data.get("trading_cooldown") == "1":
-                risk_score += 5
-
-            return {
-                "check": "goplus",
-                "result": "scanned",
-                "risk_score": min(100, max(0, risk_score)),
-                "is_honeypot": is_honeypot,
-                "is_open_source": token_data.get("is_open_source") == "1",
-                "is_proxy": token_data.get("is_proxy") == "1",
-                "is_mintable": token_data.get("is_mintable") == "1",
-                "is_blacklisted": token_data.get("is_blacklisted") == "1",
-                "is_whitelisted": token_data.get("is_whitelisted") == "1",
-                "can_take_back_ownership": token_data.get("can_take_back_ownership") == "1",
-                "hidden_owner": token_data.get("hidden_owner") == "1",
-                "owner_address": token_data.get("owner_address", ""),
-                "buy_tax": buy_tax,
-                "sell_tax": sell_tax,
-                "holder_count": int(token_data.get("holder_count", "0") or 0),
-                "total_supply": token_data.get("total_supply", ""),
-                "source": "goplus",
-            }
-    except httpx.TimeoutException:
-        logger.debug("goplus_timeout", chain=chain)
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
-        logger.warning("goplus_failed", token=token_address, error=str(e)[:100])
-    return {"check": "goplus", "result": "error", "error": "GoPlus API unavailable"}
+    return await _goplus_api_scan(chain_id, token_address, chain)
 
 
 # ── 2. Honeypot Detection (on-chain bytecode + fee analysis) ──────────
