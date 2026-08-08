@@ -79,6 +79,21 @@ def docker_logs_tail(container: str, lines: int = 50) -> dict[str, Any]:
 
 
 # ═══════════════════════════════════════════════
+# DOCKER RESTART (confirmation required by caller)
+# ═══════════════════════════════════════════════
+
+
+def docker_restart(container: str) -> dict[str, Any]:
+    """Restart a container by exact name (allowlist-validated).
+
+    Destructive: callers must present a confirmation step first.
+    """
+    if not _validate_name(container):
+        return {"ok": False, "output": "", "error": f"Invalid container name: '{container}'", "duration": 0.0}
+    return _run_subprocess(["docker", "restart", container], timeout=60)
+
+
+# ═══════════════════════════════════════════════
 # DOCKER STATS (top N by memory)
 # ═══════════════════════════════════════════════
 

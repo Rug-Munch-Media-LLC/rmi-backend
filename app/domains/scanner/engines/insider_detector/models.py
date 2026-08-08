@@ -1,6 +1,7 @@
 """Data structures for insider detection reports."""
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime

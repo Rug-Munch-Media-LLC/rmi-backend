@@ -18,7 +18,7 @@ import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, Any
 
 import httpx
 import requests

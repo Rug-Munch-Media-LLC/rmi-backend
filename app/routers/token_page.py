@@ -6,6 +6,7 @@ into a single endpoint: GET /api/v1/token/{chain}/{address}
 """
 
 from __future__ import annotations
+from typing import Any
 
 from datetime import UTC, datetime
 

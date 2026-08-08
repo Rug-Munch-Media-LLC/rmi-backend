@@ -346,6 +346,41 @@ def restart_service(name: str) -> dict[str, Any]:
 
 
 # ═══════════════════════════════════════════════
+# SERVICE CONTROL (start / stop / restart)
+# ═══════════════════════════════════════════════
+
+_SERVICE_ACTIONS: frozenset[str] = frozenset({"start", "stop", "restart"})
+
+
+def service_control(name: str, action: str) -> dict[str, Any]:
+    """Start / stop / restart a systemd service (allowlist-validated).
+
+    Destructive actions (stop/restart) must be confirmed by the caller.
+    """
+    if not _validate_name(name):
+        return {"ok": False, "output": "", "error": f"Invalid service name: '{name}'", "duration": 0.0}
+    if action not in _SERVICE_ACTIONS:
+        return {"ok": False, "output": "", "error": f"Invalid action '{action}' (start|stop|restart)", "duration": 0.0}
+    return _run_subprocess(["systemctl", action, name], timeout=60)
+
+
+# ═══════════════════════════════════════════════
+# SERVICE LOGS (journalctl tail)
+# ═══════════════════════════════════════════════
+
+
+def service_logs(name: str, tail: int = 50) -> dict[str, Any]:
+    """Tail journalctl for a systemd service (default 50 lines)."""
+    if not _validate_name(name):
+        return {"ok": False, "output": "", "error": f"Invalid service name: '{name}'", "duration": 0.0}
+    tail = max(1, min(int(tail), 500))
+    return _run_subprocess(
+        ["journalctl", "-u", f"{name}.service", "--no-pager", "-n", str(tail), "-o", "short-iso"],
+        timeout=30,
+    )
+
+
+# ═══════════════════════════════════════════════
 # REBOOT (scheduled, cancellable)
 # ═══════════════════════════════════════════════
 

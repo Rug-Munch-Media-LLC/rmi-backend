@@ -10,6 +10,7 @@ alongside tool definitions. Each skill teaches a specific workflow.
 # ═══════════════════════════════════════════════════════════════════════════
 
 from __future__ import annotations
+from typing import Any
 
 AGENT_SKILLS = {
     "token_vetting": {

@@ -1,6 +1,7 @@
 """Bulletin board request models (shared across public/admin/social routes)."""
 
 from __future__ import annotations
+from typing import Any
 
 from pydantic import BaseModel, Field
 

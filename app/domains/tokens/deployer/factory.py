@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Any
 
 from app.domains.tokens.deployer.evm import EVMDeployer
 from app.domains.tokens.deployer.solana import SolanaDeployer

@@ -5,6 +5,7 @@ Market intelligence, premium, security, and alerts query endpoints.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from datetime import UTC, datetime
 

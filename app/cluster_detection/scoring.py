@@ -8,6 +8,7 @@ Extracted from ClusterDetectionPro methods to reduce module size.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from collections import defaultdict
 

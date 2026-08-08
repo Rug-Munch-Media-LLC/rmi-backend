@@ -4,6 +4,7 @@ Tools wired: Ollama, Foundry, Slither, ccxt, web3, blogwatcher, LiteLLM, Vault.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os

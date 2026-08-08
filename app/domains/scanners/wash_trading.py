@@ -23,7 +23,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, Any
 
 import httpx
 import requests

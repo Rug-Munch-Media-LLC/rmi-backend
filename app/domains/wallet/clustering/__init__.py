@@ -1,4 +1,5 @@
 """
+from typing import Any
 Wallet clustering engine — identifies related addresses via on-chain behavior.
 
 Part of the wallet domain. Detects wallet clusters using multiple forensic signals:

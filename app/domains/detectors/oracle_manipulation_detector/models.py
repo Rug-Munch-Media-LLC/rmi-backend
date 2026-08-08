@@ -5,6 +5,7 @@ Enums and dataclasses for oracle manipulation detection.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from dataclasses import asdict, dataclass, field

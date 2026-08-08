@@ -1,6 +1,7 @@
 """MCP Tool Registry - resolves and lists tools from the TOOL_CATALOG."""
 
 from __future__ import annotations
+from typing import Any
 
 from app.core.logging import get_logger
 from app.mcp._catalog import (

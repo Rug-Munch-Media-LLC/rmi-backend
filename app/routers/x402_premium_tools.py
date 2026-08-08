@@ -1,4 +1,5 @@
 """
+from typing import Any
 
 Premium x402 tools - reputation scoring, investigation reports, webhook alerts.
 

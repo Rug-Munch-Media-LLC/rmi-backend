@@ -1,6 +1,7 @@
 """Analysis helper functions for MEV detection."""
 
 from __future__ import annotations
+from typing import Any
 
 
 def _check_pool_vulnerability(pool: dict) -> list[str]:

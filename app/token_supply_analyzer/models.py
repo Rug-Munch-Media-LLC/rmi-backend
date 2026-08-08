@@ -3,6 +3,7 @@ Token Supply Analyzer — Data models, enums, and constants.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import re
 from dataclasses import dataclass, field

@@ -1,6 +1,7 @@
 """Volume anomaly and price pump detection signals."""
 
 from __future__ import annotations
+from typing import Any
 
 from app.domains.detectors.pump_dump_detector_package.types import (
     PUMP_DUMP_THRESHOLDS,

@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from html.parser import HTMLParser
-from typing import ClassVar
+from typing import ClassVar, Any
 
 import httpx
 import requests

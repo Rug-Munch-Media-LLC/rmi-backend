@@ -4,6 +4,7 @@ Scans the same wallet address across all supported chains.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import time
 

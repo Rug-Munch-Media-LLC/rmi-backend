@@ -4,6 +4,7 @@
 Alerts on LP withdrawals, depletion, single-holder dominance."""
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os

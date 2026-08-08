@@ -4,6 +4,7 @@ Hyperliquid perp markets, funding rates, and action data.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 

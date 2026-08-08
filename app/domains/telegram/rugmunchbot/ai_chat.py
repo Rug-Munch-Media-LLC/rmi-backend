@@ -45,6 +45,34 @@ LLM_SYNTHESIS_TIMEOUT = 25.0
 CONTEXT_MAX_CHARS = 4000  # total context block size sent to the LLM
 HIT_MAX_CHARS = 800  # per-hit snippet inside the context block
 
+# ══════════════════════════════════════════════
+# BOT PERSONALITY (v7) — "crypto generalist"
+# ══════════════════════════════════════════════
+# The backend owns SYSTEM_PROMPT (app/routers/chat.py); this block is
+# injected on every bot→backend synthesis call via context_override, so the
+# character profile applies to free-text chat, /chat, /ask and any handler
+# that calls chat_synthesis().
+PERSONA_CONTEXT = (
+    "STYLE DIRECTIVES \u2014 follow these on every reply:\n"
+    "- Speak as a veteran crypto analyst: solid, detailed analysis backed by "
+    "on-chain evidence. Direct, knowledgeable, no fluff.\n"
+    "- Never mention data sources, providers, tools, or APIs \u2014 just give results.\n"
+    "- When giving analysis, cite specific data points: volume, holders, risk "
+    "score, liquidity, price change.\n"
+    "- When answering crypto questions, ground answers in on-chain patterns "
+    "and RAG knowledge.\n"
+    "- Professional but approachable \u2014 the cryptorugmunch style: sharp, "
+    "confident, straight to the point."
+)
+
+
+def _build_system_context(rag_context: str | None) -> str | None:
+    """Combine the personality block with any RAG grounding context."""
+    parts = [PERSONA_CONTEXT]
+    if rag_context:
+        parts.append(rag_context)
+    return "\n\n".join(parts)[:CONTEXT_MAX_CHARS]
+
 
 async def search_rag(query: str, collections: Iterable[str] | None = None, top_k: int = 5) -> list[dict[str, Any]]:
     """Search RAG collections in parallel, dedupe by content, sort by score.
@@ -146,6 +174,8 @@ async def chat_synthesis(
 
     - ``rag_context`` is injected via ``context_override.system_context``,
       which the backend appends to the system prompt (see app/routers/chat.py).
+      The v7 persona block (PERSONA_CONTEXT) is always prepended so every
+      reply speaks in the cryptorugmunch analyst voice.
     - ``history`` (optional, chronological user/assistant pairs) OVERRIDES the
       backend DB history so the shared "anon" bucket never contaminates bot
       responses. Without it, ``[]`` is sent (existing behavior).
@@ -159,8 +189,9 @@ async def chat_synthesis(
         "tier": "T2",
         "max_tokens": 1024,
     }
-    if rag_context:
-        payload["context_override"] = {"system_context": rag_context[:2000]}
+    # v7: personality block is ALWAYS injected (even without RAG context);
+    # RAG grounding is appended after it when available.
+    payload["context_override"] = {"system_context": _build_system_context(rag_context)}
 
     headers = backend_headers()
     if user_id is not None:

@@ -15,6 +15,7 @@ Tax pattern detection:
 """
 
 from __future__ import annotations
+from typing import Any
 
 import os
 from dataclasses import dataclass, field

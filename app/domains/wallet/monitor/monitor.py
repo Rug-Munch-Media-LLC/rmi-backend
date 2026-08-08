@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import json
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import websockets

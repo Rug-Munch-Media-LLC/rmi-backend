@@ -5,6 +5,7 @@ Also serves /.well-known/x402 for standard x402 discovery.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import os
 

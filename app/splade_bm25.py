@@ -20,6 +20,7 @@ with a clear upgrade path to a full SPLADE model.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import asyncio
 import math

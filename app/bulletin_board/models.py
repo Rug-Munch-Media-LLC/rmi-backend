@@ -1,6 +1,7 @@
 """Bulletin board data models and enums."""
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum

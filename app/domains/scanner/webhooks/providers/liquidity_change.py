@@ -10,6 +10,7 @@ Source: Own indexed data + internal analysis — zero external dependency.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.models import WebhookEventType

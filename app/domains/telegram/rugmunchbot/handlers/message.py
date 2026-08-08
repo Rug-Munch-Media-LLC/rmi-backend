@@ -49,15 +49,104 @@ from app.domains.telegram.rugmunchbot.formatters import (
     TOKEN_RE,
     footer_links,
     is_evm,
+    is_owner,
     is_sol,
 )
-from app.domains.telegram.rugmunchbot.keyboards import back_kb, main_menu_kb, paywall_kb
+from app.domains.telegram.rugmunchbot.keyboards import (
+    back_kb,
+    main_menu_kb,
+    owner_admin_reply_kb,
+    paywall_kb,
+)
 from app.domains.telegram.rugmunchbot.states import check_spam, should_skip_llm
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
+
+
+# ══════════════════════════════════════════════
+# Owner admin console (v7)
+# Persistent reply keyboard pinned below the input box in private chats.
+# Button labels are plain text; they are routed to the matching /admin_*
+# command below so @cryptorugmunch always has one-tap admin access.
+# ══════════════════════════════════════════════
+_ADMIN_BUTTON_MAP: dict[str, str] = {
+    "\U0001f6e1\ufe0f Admin Dashboard": "/admin",
+    "\U0001f4ca Stats": "/admin_stats",
+    "\U0001f4e2 Broadcast": "/admin_broadcast",
+    "\U0001f465 User Lookup": "/admin_user",
+    "\U0001f504 Bot ON/OFF": "/admin_toggle",
+    "\U0001f4ac Chat ON/OFF": "/admin_toggle_chat",
+    "\U0001f3d9\ufe0f Main Menu": "/start",
+}
+
+# Chat ids where the persistent admin reply keyboard is already attached.
+_admin_kb_sent: set[int] = set()
+
+
+def admin_kb_is_sent(chat_id: int) -> bool:
+    return chat_id in _admin_kb_sent
+
+
+def admin_kb_mark_sent(chat_id: int) -> None:
+    _admin_kb_sent.add(chat_id)
+
+
+def admin_kb_reset(chat_id: int) -> None:
+    """Forget the sentinel so the next message re-attaches the keyboard."""
+    _admin_kb_sent.discard(chat_id)
+
+
+async def _ensure_admin_reply_kb(update: Update) -> None:
+    """Attach the persistent admin reply keyboard once per owner DM."""
+    chat = update.effective_chat
+    if chat is None or admin_kb_is_sent(chat.id):
+        return
+    admin_kb_mark_sent(chat.id)
+    try:
+        await update.message.reply_text(
+            "\U0001f6e1\ufe0f <b>Admin console</b>\n"
+            "Tap a button below for quick admin actions \u2014 they stay pinned here.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=owner_admin_reply_kb(),
+        )
+    except (TelegramError, ConnectionError, OSError, TimeoutError):
+        admin_kb_reset(chat.id)
+        logger.debug("admin reply keyboard send failed", exc_info=True)
+
+
+async def _dispatch_admin_button(update: Update, ctx, text: str) -> None:
+    """Route an admin reply-keyboard button press to its /admin_* command."""
+    from app.domains.telegram.rugmunchbot.handlers.owner import (
+        cmd_admin,
+        cmd_admin_broadcast,
+        cmd_admin_stats,
+        cmd_admin_toggle,
+        cmd_admin_toggle_chat,
+        cmd_admin_user,
+    )
+    from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_start
+
+    cmd = _ADMIN_BUTTON_MAP[text]
+    ctx.args = []
+    if cmd == "/admin":
+        await cmd_admin(update, ctx)
+    elif cmd == "/admin_stats":
+        await cmd_admin_stats(update, ctx)
+    elif cmd == "/admin_broadcast":
+        await cmd_admin_broadcast(update, ctx)
+    elif cmd == "/admin_user":
+        await cmd_admin_user(update, ctx)
+    elif cmd == "/admin_toggle":
+        await cmd_admin_toggle(update, ctx)
+    elif cmd == "/admin_toggle_chat":
+        await cmd_admin_toggle_chat(update, ctx)
+    elif cmd == "/start":
+        # /start re-attaches the persistent keyboard below the new message.
+        admin_kb_reset(update.effective_chat.id)
+        await cmd_start(update, ctx)
 
 
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -73,6 +162,16 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if check_spam(user.id):
         return
     db.record_activity(msg=True)
+
+    # Owner admin console (v7): in private chats the owner gets a persistent
+    # admin reply keyboard + one-tap routing for its buttons. This runs
+    # BEFORE the bot kill-switch so the owner can still reach /admin toggles
+    # during maintenance.
+    if is_owner(user.id) and update.effective_chat and update.effective_chat.type == "private":
+        await _ensure_admin_reply_kb(update)
+        if text in _ADMIN_BUTTON_MAP:
+            await _dispatch_admin_button(update, ctx, text)
+            return
 
     # Admin kill-switch: whole bot disabled (synced from the admin API).
     if db.get_bot_state("bot_enabled", "on") != "on":
@@ -452,8 +551,9 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
         ),
         (
             "\U0001f44b <b>Hey there!</b>\n\n"
-            "I'm <b>RugMunch</b> \u2014 your crypto security sidekick. "
-            "I scan tokens for scams, analyze wallets, track prices, and more across 77+ chains.\n\n"
+            "I'm <b>RugMunch</b> \u2014 veteran crypto analyst. "
+            "I scan tokens for scams, analyze wallets, track prices, and "
+            "back every read with on-chain evidence across 77+ chains.\n\n"
             "\U0001f6e1\ufe0f <b>Try these:</b>\n"
             "\u2022 Paste a contract address \u2192 auto scan\n"
             "\u2022 <code>$TOKEN</code> \u2192 instant price\n"

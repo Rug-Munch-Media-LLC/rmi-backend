@@ -4,6 +4,7 @@ Pump & Dump — Enums, Dataclasses & Constants
 """
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime

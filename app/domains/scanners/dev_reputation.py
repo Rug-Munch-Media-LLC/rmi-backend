@@ -19,6 +19,7 @@ Data sources (direct API calls - no self.api_base):
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os

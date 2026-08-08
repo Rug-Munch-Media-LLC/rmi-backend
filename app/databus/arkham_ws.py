@@ -8,6 +8,7 @@ WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 """
 
 from __future__ import annotations
+from typing import Any
 
 import os
 from datetime import UTC, datetime

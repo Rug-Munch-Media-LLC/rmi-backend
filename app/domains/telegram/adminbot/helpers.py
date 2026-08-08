@@ -187,13 +187,16 @@ _SYSTEM_MENU: list[tuple[str, str]] = [
 _DOCKER_MENU: list[tuple[str, str]] = [
     ("📋 Docker PS", "dps"),
     ("📊 Stats Top", "dstats"),
+    ("🔄 Restart Container", "drestart_menu"),
     ("📜 Container Logs", "logs_menu"),
     ("🧹 Disk Usage", "dprune"),
     ("⚙️ Manage", "docker"),
 ]
 
 _DATA_MENU: list[tuple[str, str]] = [
-    ("📦 Backup", "backup"),
+    ("📊 Backup Status", "backup_status"),
+    ("🔄 Run Backup", "backup_menu"),
+    ("☁️ Verify B2", "backup_verify"),
     ("📁 Git Status", "git_menu"),
     ("📡 Chain", "chain"),
     ("📡 Indexer", "indexer"),
@@ -216,9 +219,11 @@ _TOOLS_MENU: list[tuple[str, str]] = [
 ]
 
 _OPS_MENU: list[tuple[str, str]] = [
-    ("🔧 Services", "services"),
+    ("🛠 Services", "services"),
+    ("🔧 Svc Control", "svc_help"),
+    ("📋 Svc List", "svc_list"),
+    ("📜 Svc Logs", "svc_logs_menu"),
     ("🚀 Deploy", "deploy"),
-    ("📜 Logs", "logs_menu"),
     ("📤 Push All", "push_all"),
     ("🔔 Alert", "alert_help"),
 ]
@@ -367,6 +372,21 @@ def confirm_keyboard(action: str, payload: str = "") -> Any:
             ]
         ]
     )
+
+
+def docker_confirm_keyboard(container: str) -> Any:
+    """Confirmation keyboard for /drestart <container>."""
+    return confirm_keyboard("drestart", payload=container)
+
+
+def svc_confirm_keyboard(action: str, service: str) -> Any:
+    """Confirmation keyboard for /svc <action> <service>."""
+    return confirm_keyboard(f"svc_{action}", payload=service)
+
+
+def backup_confirm_keyboard(btype: str) -> Any:
+    """Confirmation keyboard for /backup_run <type>."""
+    return confirm_keyboard(f"backup_run_{btype}", payload="")
 
 
 def refresh_keyboard(callback: str, extra: list[tuple[str, str]] | None = None) -> Any:

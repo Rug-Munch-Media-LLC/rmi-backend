@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.catalog.models import Deployer, utcnow
 from app.core.logging import get_logger

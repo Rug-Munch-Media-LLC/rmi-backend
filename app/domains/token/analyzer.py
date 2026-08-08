@@ -1,6 +1,7 @@
 """Pure-Python token risk analysis. No I/O."""
 
 from __future__ import annotations
+from typing import Any
 
 from app.domains.token.models import (
     RiskLevel,

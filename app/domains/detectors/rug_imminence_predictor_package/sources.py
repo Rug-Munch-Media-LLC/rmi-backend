@@ -4,6 +4,7 @@ External API calls for LP data, deployer info, wallet age, etc.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import time
 

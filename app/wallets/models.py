@@ -5,6 +5,7 @@ WalletResult dataclass with safe/full dict serialization.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import asdict, dataclass, field
 

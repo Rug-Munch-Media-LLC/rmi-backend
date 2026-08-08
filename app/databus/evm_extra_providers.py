@@ -5,6 +5,7 @@ Rate limited to 1 req/5 sec per IP. No API key required for basic use.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import httpx
 

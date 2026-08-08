@@ -49,6 +49,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     category_help_kb,
     category_market_kb,
     category_portfolio_kb,
+    category_rugmaps_kb,
     category_scan_kb,
     category_security_kb,
     pricing_kb,
@@ -94,25 +95,36 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             "\U0001f6ab /admin_ban \u2014 Ban a user\n"
             "\U0001f4dd /admin_logs \u2014 Audit log\n"
             "\U0001f6e1\ufe0f /admin_toggle \u2014 Bot ON/OFF\n"
-            "\U0001f4ac /admin_toggle_chat \u2014 Chat ON/OFF",
+            "\U0001f4ac /admin_toggle_chat \u2014 Chat ON/OFF\n\n"
+            "<i>Admin buttons stay pinned below the input box \u2014 "
+            "tap any message and use them anytime.</i>",
             parse_mode=ParseMode.HTML,
             reply_markup=admin_kb(),
         )
     elif data == "menu_cat_scan":
         await query.edit_message_text(
-            "\U0001f50d <b>Scan & Research</b>\n\n"
-            "Deep token security audits, wallet forensics, deployer fingerprints "
-            "and risk scores across 77+ chains.",
+            "\U0001f50d <b>Scan Token</b>\n\n"
+            "Quick security audits, full forensic deep scans, wallet analysis "
+            "and deployer fingerprint checks \u2014 risk scores across 77+ chains.\n\n"
+            "Portfolio, watchlist and alerts live here too.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_scan_kb(),
         )
     elif data == "menu_cat_charts":
         await query.edit_message_text(
-            "\U0001f4c8 <b>Charts & Visualization</b>\n\n"
-            "Price chart images, RugMaps bubble maps, technical analysis "
-            "and market data for any token.",
+            "\U0001f4c9 <b>RugCharts</b>\n\n"
+            "Price chart images, technical analysis and market data for any "
+            "token. Bubble maps live under RugMaps.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_charts_kb(),
+        )
+    elif data == "menu_cat_rugmaps":
+        await query.edit_message_text(
+            "\U0001f5fa\ufe0f <b>RugMaps</b>\n\n"
+            "Bubble-map images of wallet clusters, fund flows, dev wallets "
+            "and smart money \u2014 plus top-holder concentration analysis.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=category_rugmaps_kb(),
         )
     elif data == "menu_cat_security":
         await query.edit_message_text(
@@ -125,8 +137,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     elif data == "menu_cat_market":
         await query.edit_message_text(
             "\U0001f4c8 <b>Market Intel</b>\n\n"
-            "Prices, charts, trending tokens, sentiment, news and DEX liquidity "
-            "\u2014 real-time market data.",
+            "Trending tokens, price checks, sentiment, news, social signals "
+            "and DEX liquidity \u2014 real-time market data.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_market_kb(),
         )
@@ -749,6 +761,65 @@ _RUN_CARDS: dict[str, str] = {
         "analysis \u2192 deployer fingerprint \u2192 funding analysis \u2192 "
         "AI risk verdict.\n\n"
         "\u23f3 Slower than /scan (up to ~2 min) but far more detailed."
+    ),
+    "rugcheck": (
+        "\U0001f6a8 <b>Rug Pull Checklist</b>\n\n"
+        "Usage: <code>/rugcheck &lt;address&gt;</code>\n\n"
+        "Quick red-flag checklist: LP lock, mint authority, holder "
+        "concentration, taxes and deployer history."
+    ),
+    "portfolio": (
+        "\U0001f4c1 <b>Portfolio</b>\n\n"
+        "Usage: <code>/portfolio &lt;wallet_address&gt;</code>\n\n"
+        "Scans a wallet's token holdings \u2014 balances, values and risk "
+        "flags. Track favorites with <code>/watch &lt;address&gt;</code>."
+    ),
+    "watchlist": (
+        "\U0001f440 <b>Watchlist</b>\n\n"
+        "Usage: <code>/watch &lt;address&gt;</code> to add \u2022 "
+        "<code>/watchlist</code> to view \u2022 <code>/unwatch &lt;address&gt;</code> to remove."
+    ),
+    "alerts": (
+        "\U0001f514 <b>Price Alerts</b>\n\n"
+        "Usage: <code>/alert ABOVE &lt;addr&gt; &lt;price&gt;</code> or "
+        "<code>/alert BELOW &lt;addr&gt; &lt;price&gt;</code>. Manage with "
+        "<code>/alerts</code> \u2014 <b>Scout+ tiers</b>."
+    ),
+    "compare": (
+        "\u2696\ufe0f <b>Compare Tokens</b>\n\n"
+        "Usage: <code>/compare &lt;addr1&gt; &lt;addr2&gt;</code>\n\n"
+        "Side-by-side risk score, liquidity, price and holder metrics in one view."
+    ),
+    "social": (
+        "\U0001f4e3 <b>Social Signals</b>\n\n"
+        "Gauge community buzz before you buy:\n"
+        "\u2022 <code>/hype &lt;symbol&gt;</code> \u2014 0-100 hype score incl. social velocity\n"
+        "\u2022 <code>/sentiment</code> \u2014 market-wide fear & greed\n"
+        "\u2022 <code>/news</code> \u2014 headlines with sentiment & bias\n"
+        "\u2022 <code>/trending</code> \u2014 what the crowd is piling into\n\n"
+        "Pair social signals with a <code>/scan</code> for the full picture."
+    ),
+    "smartmoney": (
+        "\U0001f9e0 <b>Smart Money Detection</b>\n\n"
+        "Usage: <code>/smartmoney &lt;address&gt;</code>\n\n"
+        "Flags wallets with profitable histories \u2014 snipers, KOLs and repeat winners."
+    ),
+    "trace": (
+        "\U0001f50d <b>Fund Flow Trace</b>\n\n"
+        "Usage: <code>/trace &lt;address&gt;</code>\n\n"
+        "Cross-chain fund flow tracing \u2014 <b>Hunter+ tier</b>."
+    ),
+    "ta": (
+        "\U0001f4ca <b>Technical Analysis</b>\n\n"
+        "Usage: <code>/ta &lt;address&gt;</code>\n\n"
+        "Momentum, volume trend and buy/sell pressure signals for any token."
+    ),
+    "help": (
+        "\U0001f4d6 <b>Help & About</b>\n\n"
+        "Use <code>/help</code> for the full command reference, or browse "
+        "the categories from the main menu.\n\n"
+        "Community: \U0001f4e2 Alerts channel \u00b7 \U0001f4ac Chat group \u00b7 "
+        "\U0001f310 rugmunch.io"
     ),
     "quick": (
         "\U0001fa99 <b>Quick Price Check</b>\n\n"
