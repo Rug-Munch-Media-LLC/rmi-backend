@@ -298,7 +298,7 @@ class UnifiedRateLimiter:
         rate: float = 1.0,
         burst: float = 5.0,
         tokens: float = 1.0,
-    ) -> tuple[bool, dict[str, int]]:
+    ) -> tuple[bool, dict[str, str]]:
         """Try to consume *tokens* from bucket *key*.
 
         Returns (allowed, headers_dict) where headers_dict has:
@@ -321,7 +321,7 @@ class UnifiedRateLimiter:
 
     async def _acquire_redis(
         self, redis: Any, key: str, rate: float, burst: float, tokens: float
-    ) -> tuple[bool, dict[str, int]]:
+    ) -> tuple[bool, dict[str, str]]:
         bucket_key = f"{self.BUCKET_PREFIX}{key}"
         burst_key = f"{self.BURST_PREFIX}{key}"
         now = _time.time()
@@ -358,7 +358,7 @@ class UnifiedRateLimiter:
 
         return (allowed, headers)
 
-    async def _acquire_memory(self, key: str, rate: float, burst: float, tokens: float) -> tuple[bool, dict[str, int]]:
+    async def _acquire_memory(self, key: str, rate: float, burst: float, tokens: float) -> tuple[bool, dict[str, str]]:
         async with self._mem_lock:
             now = _time.monotonic()
             bucket = self._mem_buckets.get(key)
@@ -382,9 +382,9 @@ class UnifiedRateLimiter:
                 return (
                     True,
                     {
-                        "X-RateLimit-Limit": limit,
-                        "X-RateLimit-Remaining": remaining_after,
-                        "X-RateLimit-Reset": reset_at,
+                        "X-RateLimit-Limit": str(limit),
+                        "X-RateLimit-Remaining": str(remaining_after),
+                        "X-RateLimit-Reset": str(reset_at),
                     },
                 )
 
@@ -395,16 +395,16 @@ class UnifiedRateLimiter:
             return (
                 False,
                 {
-                    "X-RateLimit-Limit": limit,
-                    "X-RateLimit-Remaining": remaining,
-                    "X-RateLimit-Reset": reset_at,
-                    "Retry-After": int(wait) + 1,
+                    "X-RateLimit-Limit": str(limit),
+                    "X-RateLimit-Remaining": str(remaining),
+                    "X-RateLimit-Reset": str(reset_at),
+                    "Retry-After": str(int(wait) + 1),
                 },
             )
 
     # ── Per-path acquire (uses PATH_CATEGORIES) ───────────────────────
 
-    async def acquire_path(self, path: str, client_id: str) -> tuple[bool, dict[str, int]]:
+    async def acquire_path(self, path: str, client_id: str) -> tuple[bool, dict[str, str]]:
         """Acquire a token for the given request path and client."""
         rate, burst = _resolve_rate_limit(path)
         key = f"path:{path}:{client_id}"
