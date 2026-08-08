@@ -7,6 +7,7 @@ Reddit top posts from r/CryptoCurrency, r/ethfinance, r/solana.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import asyncio
 import hashlib

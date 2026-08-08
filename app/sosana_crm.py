@@ -4,6 +4,7 @@ Exposes investigation data: wallets, entities, financials, evidence, risk assess
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os

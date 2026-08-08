@@ -4,6 +4,7 @@
 volume, tx count. Detect arbitrage and inflated-volume scams."""
 
 from __future__ import annotations
+from typing import Any
 
 import json
 

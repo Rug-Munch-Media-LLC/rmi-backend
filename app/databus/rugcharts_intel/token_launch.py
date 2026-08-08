@@ -4,6 +4,7 @@ New token detection + instant risk score.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import time

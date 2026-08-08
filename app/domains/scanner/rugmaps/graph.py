@@ -5,6 +5,7 @@ Connection strength, node positioning, wallet classification, and risk scoring.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import math
 

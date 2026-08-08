@@ -6,6 +6,7 @@ and provides the main API for cluster analysis.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import logging
 from datetime import datetime

@@ -7,7 +7,7 @@ compute the weighted composite score, and collect red flags.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.domains.scanners.bundle_detector import BundleReport

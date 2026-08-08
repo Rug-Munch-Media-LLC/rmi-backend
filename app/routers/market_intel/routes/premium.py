@@ -4,6 +4,7 @@ Premium features: likely rugs, alpha signals, smart money, bundled detection, in
 """
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 

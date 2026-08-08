@@ -13,6 +13,7 @@ Uses solc (Solidity compiler) already installed in the Docker container.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import re

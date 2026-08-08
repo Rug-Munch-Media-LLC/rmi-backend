@@ -1,6 +1,7 @@
 """Pydantic models for structured agent outputs using Instructor."""
 
 from __future__ import annotations
+from typing import Any
 
 from enum import StrEnum
 

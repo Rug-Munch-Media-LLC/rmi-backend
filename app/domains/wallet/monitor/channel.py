@@ -1,6 +1,7 @@
 """Wallet Monitor — Alert Channel."""
 
 from __future__ import annotations
+from typing import Any
 
 import contextlib
 import json

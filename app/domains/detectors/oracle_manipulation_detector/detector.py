@@ -5,6 +5,7 @@ OracleManipulationDetector class with all detection methods.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import math

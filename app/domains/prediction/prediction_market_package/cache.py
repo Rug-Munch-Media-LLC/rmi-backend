@@ -4,6 +4,7 @@ Serialization/deserialization for PredictionMarket and PredictionDigest.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import hashlib
 

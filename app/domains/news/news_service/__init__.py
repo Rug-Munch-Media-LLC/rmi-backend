@@ -4,6 +4,7 @@ Re-exports all public symbols for backward compatibility.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from app.domains.news.news_service.service import NewsService, get_news_service
 from app.domains.news.news_service.sources import (

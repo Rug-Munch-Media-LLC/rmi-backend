@@ -3,6 +3,7 @@ Data Fusion — Extraction and Helper Functions
 """
 
 from __future__ import annotations
+from typing import Any
 
 from app.core.data_fusion.config import IQR_MULTIPLIER, MAX_OUTLIER_PERCENTAGE
 

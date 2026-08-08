@@ -1,6 +1,7 @@
 """Main Rug Imminence Predictor class."""
 
 from __future__ import annotations
+from typing import Any
 
 import asyncio
 import re

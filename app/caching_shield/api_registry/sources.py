@@ -5,6 +5,7 @@ Registry of all free/no-auth/self-hosted data sources used by the system.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from .manager import get_api_manager
 

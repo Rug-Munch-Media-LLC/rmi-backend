@@ -20,9 +20,11 @@ from telegram.constants import ParseMode
 from app.domains.telegram.adminbot import admin_docker, admin_health, admin_ops, admin_server
 from app.domains.telegram.adminbot.helpers import (
     back_button,
+    backup_confirm_keyboard,
     bot_toggle_menu_keyboard,
     confirm_keyboard,
     control_panel_keyboard,
+    docker_confirm_keyboard,
     docker_menu,
     double_confirm_keyboard,
     logs_menu,
@@ -30,11 +32,14 @@ from app.domains.telegram.adminbot.helpers import (
     owner_only,
     refresh_keyboard,
     service_action_keyboard,
+    svc_confirm_keyboard,
 )
 
 try:
+    from app.domains.telegram.adminbot import admin_audit  # type: ignore[import-untyped]
     from app.domains.telegram.adminbot import admin_bot  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover
+    admin_audit = None
     admin_bot = None
 
 if TYPE_CHECKING:
@@ -189,6 +194,8 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     cmd = " ".join(args)
     msg = await update.message.reply_text(f"⏳ Running: `{cmd[:100]}`...", parse_mode=ParseMode.MARKDOWN)
+    if admin_audit is not None:
+        admin_audit.log_action("shell.exec", cmd[:200], update.effective_user.id)
     result = admin_ops.run_shell(cmd, timeout=30)
     output = result["output"] or result["error"]
     status_line = f"{'✅' if result['ok'] else '❌'} `{cmd[:80]}` ({result['duration']:.1f}s)"
@@ -227,6 +234,102 @@ async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"❌ {result['error']}",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=back_button("main"),
+        )
+
+
+@owner_only
+async def cmd_svc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Manage a systemd service: /svc [start|stop|restart] <service>.
+
+    stop/restart require confirmation (destructive); start runs directly.
+    """
+    args = ctx.args
+    if len(args) < 2 or args[0].lower() not in ("start", "stop", "restart"):
+        await update.message.reply_text(
+            "🛠 *Service Control*\n\n"
+            "Usage: `/svc <action> <service>`\n\n"
+            "Actions: `start`, `stop`, `restart`\n\n"
+            "Examples:\n"
+            "`/svc restart rmi-backend`\n"
+            "`/svc start rmiadminbot`\n"
+            "`/svc stop rugmunchbot`\n\n"
+            "⚠️ `stop` and `restart` require confirmation.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+    action = args[0].lower()
+    service = args[1]
+    if not all(c.isalnum() or c in "-_" for c in service):
+        await update.message.reply_text(f"❌ Invalid service name: `{service}`", parse_mode=ParseMode.MARKDOWN)
+        return
+
+    if action in ("stop", "restart"):
+        await update.message.reply_text(
+            f"⚠️ *Confirm {action}*\n\n{action} systemd service `{service}`?",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=svc_confirm_keyboard(action, service),
+        )
+        return
+
+    msg = await update.message.reply_text(f"⏳ Starting `{service}`...", parse_mode=ParseMode.MARKDOWN)
+    result = admin_server.service_control(service, action)
+    if result["ok"]:
+        if admin_audit is not None:
+            admin_audit.log_action("service.start", service, update.effective_user.id)
+        await msg.edit_text(
+            f"✅ `{action} {service}` — done\n\n```\n{result['output'][:1500]}\n```",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("services"),
+        )
+    else:
+        await msg.edit_text(
+            f"❌ {result['error']}", parse_mode=ParseMode.MARKDOWN, reply_markup=back_button("services")
+        )
+
+
+@owner_only
+async def cmd_svc_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """List systemd services with status — /svc_list [filter]."""
+    filter_str = ctx.args[0] if ctx.args else ""
+    msg = await update.message.reply_text("⏳ Listing services...")
+    result = admin_server.services_report(filter_str=filter_str)
+    await msg.edit_text(
+        admin_server.format_services(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("svc_list", extra=[("🛠 All", "services")] if filter_str else None),
+    )
+
+
+@owner_only
+async def cmd_svc_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Tail journalctl for a systemd service: /svc_logs <service> [lines]."""
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "📜 *Service Logs*\n\n"
+            "Usage: `/svc_logs <service> [lines]`\n\n"
+            "Examples:\n"
+            "`/svc_logs rmiadminbot`\n"
+            "`/svc_logs rugmunchbot 100`\n\n"
+            "Default: 50 lines. Max: 500.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+    service = args[0]
+    lines = int(args[1]) if len(args) > 1 and args[1].isdigit() else 50
+    msg = await update.message.reply_text(f"⏳ Fetching logs for `{service}`...", parse_mode=ParseMode.MARKDOWN)
+    result = admin_server.service_logs(service, lines)
+    if result["ok"] and result["output"]:
+        await msg.edit_text(
+            f"📜 `{service}.service` (last {lines} lines):\n\n```\n{result['output'][:3000]}\n```",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("services"),
+        )
+    else:
+        await msg.edit_text(
+            f"❌ {result.get('error', 'no output')}",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("services"),
         )
 
 
@@ -388,6 +491,32 @@ async def cmd_dstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 @owner_only
+async def cmd_drestart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Restart a docker container — requires confirmation."""
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "🔄 *Restart Container*\n\n"
+            "Usage: `/drestart <container>`\n\n"
+            "Examples:\n"
+            "`/drestart rmi-backend`\n"
+            "`/drestart rmi-redis`\n\n"
+            "⚠️ You will be asked to confirm before the restart executes.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+    container = args[0]
+    if not all(c.isalnum() or c in "-_" for c in container):
+        await update.message.reply_text(f"❌ Invalid container name: `{container}`", parse_mode=ParseMode.MARKDOWN)
+        return
+    await update.message.reply_text(
+        f"⚠️ *Confirm restart*\n\nRestart docker container `{container}`?",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=docker_confirm_keyboard(container),
+    )
+
+
+@owner_only
 async def cmd_dprune(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Show docker reclaimable space with prune option."""
     msg = await update.message.reply_text("⏳ Checking docker disk usage...")
@@ -448,6 +577,78 @@ async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             ),
             parse_mode=ParseMode.MARKDOWN,
         )
+
+
+@owner_only
+async def cmd_backup_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Last backup per type (postgres, clickhouse, qdrant, rag, ...)."""
+    msg = await update.message.reply_text("⏳ Checking backup status...")
+    result = admin_ops.backup_status()
+    await msg.edit_text(
+        admin_ops.format_backup_status(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("backup_status", extra=[("▶️ Run", "backup_menu")]),
+    )
+
+
+@owner_only
+async def cmd_backup_run(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Trigger a backup: /backup_run [type] — requires confirmation."""
+    args = ctx.args
+    btype = args[0].lower() if args else "full"
+    known = (
+        "full",
+        "db",
+        "postgres",
+        "clickhouse",
+        "qdrant",
+        "rag",
+        "chain-indexer",
+        "git",
+    )
+    if btype not in known:
+        await update.message.reply_text(
+            "📦 *Run Backup*\n\n"
+            "Usage: `/backup_run <type>`\n\n"
+            f"Types: `{'`, `'.join(known)}`\n\n"
+            "⚠️ Backups are confirmed before they run.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+    await update.message.reply_text(
+        f"⚠️ *Confirm backup*\n\nTrigger `{btype}` backup now?\n\n"
+        "This runs the fleet backup script and may take several minutes.",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=backup_confirm_keyboard(btype),
+    )
+
+
+@owner_only
+async def cmd_backup_verify(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Check B2 sync status / backup verification."""
+    msg = await update.message.reply_text("⏳ Verifying backups...")
+    result = admin_ops.backup_verify()
+    output = result.get("output", "") or result.get("error", "")
+    await msg.edit_text(
+        f"{'✅' if result['ok'] else '❌'} Backup verify ({result.get('duration', 0):.1f}s)\n\n```\n{output[:2500]}\n```",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("backup_verify", extra=[("📊 Status", "backup_status")]),
+    )
+
+
+@owner_only
+async def cmd_admin_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Recent admin actions from the audit trail."""
+    msg = await update.message.reply_text("⏳ Reading audit log...")
+    if admin_audit is None:
+        await msg.edit_text("❌ admin_audit module unavailable.", parse_mode=ParseMode.MARKDOWN)
+        return
+    result = admin_audit.recent_actions(limit=20)
+    await msg.edit_text(
+        admin_audit.format_admin_logs(result),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("admin_logs"),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════

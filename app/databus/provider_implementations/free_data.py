@@ -1,6 +1,7 @@
 """Free fallback providers — never pay for what's free."""
 
 from __future__ import annotations
+from typing import Any
 
 import os
 

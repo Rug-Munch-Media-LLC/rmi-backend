@@ -19,6 +19,7 @@ call `cluster_items(items) -> list[StoryCluster]`.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import hashlib
 import re

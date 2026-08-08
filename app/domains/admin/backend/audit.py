@@ -5,6 +5,7 @@ Immutable audit logging system. Stores to Redis (time-series) + file backup + op
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os

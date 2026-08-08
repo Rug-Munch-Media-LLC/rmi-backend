@@ -4,6 +4,7 @@ DeFiLlama DataBus Provider - Free, unlimited DeFi analytics.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import httpx
 

@@ -14,6 +14,7 @@ Run as a cron: every 15 minutes.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import asyncio
 import contextlib

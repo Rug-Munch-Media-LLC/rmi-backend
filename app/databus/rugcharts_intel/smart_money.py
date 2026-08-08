@@ -4,6 +4,7 @@ Tracks what the most profitable wallets are buying right now.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from datetime import UTC, datetime

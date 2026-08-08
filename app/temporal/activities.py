@@ -1,6 +1,7 @@
 """Temporal activities wrapping rmi-backend operations."""
 
 from __future__ import annotations
+from typing import Any
 
 from temporalio import activity
 

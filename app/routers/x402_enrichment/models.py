@@ -1,4 +1,5 @@
 """
+from typing import Any
 x402 Enrichment — Data Models and Constants
 """
 

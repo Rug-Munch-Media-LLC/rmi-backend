@@ -5,6 +5,7 @@ Forbidden word lists, quality review prompts, and automated content review.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import re

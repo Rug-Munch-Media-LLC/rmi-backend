@@ -19,6 +19,7 @@ from app.domains.telegram.adminbot.helpers import (
     back_button,
     bot_toggle_menu_keyboard,
     control_panel_keyboard,
+    docker_confirm_keyboard,
     docker_menu,
     double_confirm_keyboard,
     is_owner,
@@ -28,11 +29,14 @@ from app.domains.telegram.adminbot.helpers import (
     section_menu_keyboard,
     section_title,
     service_action_keyboard,
+    svc_confirm_keyboard,
 )
 
 try:
+    from app.domains.telegram.adminbot import admin_audit  # type: ignore[import-untyped]
     from app.domains.telegram.adminbot import admin_bot  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover
+    admin_audit = None
     admin_bot = None
 
 if TYPE_CHECKING:
@@ -165,6 +169,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         # ── v4: Restart service (confirmation flow) ──
         elif data.startswith("restart_confirm_"):
             svc = data.replace("restart_confirm_", "")
+            if admin_audit is not None:
+                admin_audit.log_action("service.restart", svc, query.from_user.id)
             result = admin_server.restart_service(svc)
             status_emoji = "✅" if result["ok"] else "❌"
             await query.edit_message_text(
@@ -228,6 +234,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
         elif data == "dprune_run":
             await query.edit_message_text("🧹 Pruning docker...")
+            if admin_audit is not None:
+                admin_audit.log_action("docker.prune", "system prune -af --volumes", query.from_user.id)
             result = admin_docker.docker_prune()
             await query.edit_message_text(
                 f"{'✅' if result['ok'] else '❌'} Prune complete\n\n```\n{result.get('output', result.get('error', ''))[:2500]}\n```",
@@ -429,6 +437,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif data.startswith("docker_restart_"):
             container = data.replace("docker_restart_", "")
+            if admin_audit is not None:
+                admin_audit.log_action("docker.restart", container, query.from_user.id)
             result = admin_ops.docker_restart(container)
             await query.edit_message_text(
                 f"{'✅' if result['ok'] else '❌'} Restarted `{container}`\n\n```\n{result.get('output', result.get('error', ''))[:2000]}\n```",
@@ -466,16 +476,201 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 reply_markup=back_button("main"),
             )
 
+        # ── Service control menu ──
+        elif data == "svc_help":
+            await query.edit_message_text(
+                "🛠 *Service Control*\n\n"
+                "Usage: `/svc <action> <service>`\n\n"
+                "Actions: `start`, `stop`, `restart`\n"
+                "List: `/svc_list [filter]`\n"
+                "Logs: `/svc_logs <service> [lines]`\n\n"
+                "⚠️ `stop`/`restart` require confirmation.",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=back_button("menu_ops"),
+            )
+        elif data == "svc_logs_menu":
+            services = [
+                "rmi-backend",
+                "rmiadminbot",
+                "rugmunchbot",
+                "chain-indexer",
+                "lite-indexer",
+            ]
+            buttons: list[list[InlineKeyboardButton]] = []
+            row: list[InlineKeyboardButton] = []
+            for svc in services:
+                row.append(InlineKeyboardButton(svc, callback_data=f"svc_logs_{svc}"))
+                if len(row) == 2:
+                    buttons.append(row)
+                    row = []
+            if row:
+                buttons.append(row)
+            buttons.append([InlineKeyboardButton("⬅️ Back", callback_data="menu_ops")])
+            await query.edit_message_text(
+                "📜 *Service Logs* — pick a service:",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
+        elif data.startswith("svc_logs_"):
+            svc = data.replace("svc_logs_", "")
+            result = admin_server.service_logs(svc, 50)
+            text = result["output"] if result["ok"] and result["output"] else result.get("error", "no output")
+            await query.edit_message_text(
+                f"📜 `{svc}.service` (last 50 lines):\n\n```\n{text[:3000]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=back_button("svc_logs_menu"),
+            )
+        elif data == "drestart_menu":
+            containers = [
+                "rmi-backend",
+                "rmi-postgres",
+                "rmi-redis",
+                "rmi-clickhouse",
+                "rmi-rag-api",
+                "infinity-rag",
+                "degenfeed-meilisearch",
+                "rmi-qdrant",
+            ]
+            buttons = []
+            row = []
+            for c in containers:
+                row.append(InlineKeyboardButton(c, callback_data=f"drestart_pick_{c}"))
+                if len(row) == 2:
+                    buttons.append(row)
+                    row = []
+            if row:
+                buttons.append(row)
+            buttons.append([InlineKeyboardButton("⬅️ Back", callback_data="menu_docker")])
+            await query.edit_message_text(
+                "🔄 *Restart Container* — pick one:",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
+        elif data.startswith("drestart_pick_"):
+            container = data.replace("drestart_pick_", "")
+            await query.edit_message_text(
+                f"⚠️ *Confirm restart*\n\nRestart docker container `{container}`?",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=docker_confirm_keyboard(container),
+            )
+
         # ── Services ──
+        elif data.startswith("svc_") and "_confirm_" in data:
+            # svc_<action>_confirm_<service> — execute the confirmed action.
+            _, rest = data.split("_", 1)
+            action, _, svc = rest.partition("_confirm_")
+            if admin_audit is not None:
+                admin_audit.log_action(f"service.{action}", svc, query.from_user.id)
+            result = admin_server.service_control(svc, action)
+            await query.edit_message_text(
+                f"{'✅' if result['ok'] else '❌'} `{action} {svc}`\n\n```\n{result.get('output', result.get('error', ''))[:2000]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=service_action_keyboard(svc),
+            )
+        elif data.startswith("svc_") and data.endswith("_cancel"):
+            action = data[len("svc_") : -len("_cancel")]
+            await query.edit_message_text(f"❌ `{action}` cancelled.", parse_mode=ParseMode.MARKDOWN)
         elif data.startswith("svc_"):
             parts = data.split("_", 2)
             if len(parts) >= 3:
                 action, svc = parts[1], parts[2]
-                result = admin_ops.service_control(svc, action)
+                # Destructive actions from inline keyboards require confirmation.
+                if action in ("stop", "restart"):
+                    await query.edit_message_text(
+                        f"⚠️ *Confirm {action}*\n\n{action} systemd service `{svc}`?",
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=svc_confirm_keyboard(action, svc),
+                    )
+                else:
+                    result = admin_ops.service_control(svc, action)
+                    await query.edit_message_text(
+                        f"{'✅' if result['ok'] else '❌'} `{action} {svc}`\n\n```\n{result.get('output', result.get('error', ''))[:2000]}\n```",
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=service_action_keyboard(svc),
+                    )
+
+        # ── Docker restart (confirmation flow) ──
+        elif data.startswith("drestart_confirm_"):
+            container = data.replace("drestart_confirm_", "")
+            if admin_audit is not None:
+                admin_audit.log_action("docker.restart", container, query.from_user.id)
+            result = admin_docker.docker_restart(container)
+            status_emoji = "✅" if result["ok"] else "❌"
+            await query.edit_message_text(
+                f"{status_emoji} Restarted `{container}`\n\n```\n{result.get('output', result.get('error', ''))[:2000]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("dps", extra=[("📋 PS", "dps")]),
+            )
+        elif data.startswith("drestart_cancel"):
+            await query.edit_message_text("❌ Container restart cancelled.", parse_mode=ParseMode.MARKDOWN)
+
+        # ── Backup run (confirmation flow) ──
+        elif data.startswith("backup_run_") and data.endswith("_confirm"):
+            btype = data[len("backup_run_") : -len("_confirm")]
+            if admin_audit is not None:
+                admin_audit.log_action("backup.run", btype, query.from_user.id)
+            await query.edit_message_text(f"⏳ Running `{btype}` backup...")
+            result = admin_ops.trigger_backup(btype)
+            await query.edit_message_text(
+                f"{'✅' if result['ok'] else '❌'} `{btype}` backup ({result.get('duration', 0):.1f}s)\n\n```\n{result.get('output', result.get('error', ''))[:2500]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=back_button("backup"),
+            )
+        elif data.startswith("backup_run_") and data.endswith("_cancel"):
+            btype = data[len("backup_run_") : -len("_cancel")]
+            await query.edit_message_text(f"❌ `{btype}` backup cancelled.", parse_mode=ParseMode.MARKDOWN)
+
+        # ── Backup status / verify / menu ──
+        elif data == "backup_status":
+            result = admin_ops.backup_status()
+            await query.edit_message_text(
+                admin_ops.format_backup_status(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("backup_status", extra=[("▶️ Run", "backup_menu")]),
+            )
+        elif data == "backup_verify":
+            await query.edit_message_text("⏳ Verifying backups...")
+            result = admin_ops.backup_verify()
+            output = result.get("output", "") or result.get("error", "")
+            await query.edit_message_text(
+                f"{'✅' if result['ok'] else '❌'} Backup verify ({result.get('duration', 0):.1f}s)\n\n```\n{output[:2500]}\n```",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("backup_verify", extra=[("📊 Status", "backup_status")]),
+            )
+        elif data == "backup_menu":
+            await query.edit_message_text(
+                "📦 *Backup Control*",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton("🔄 Run Full Backup", callback_data="backup_run"),
+                            InlineKeyboardButton("🗄️ DB Backup", callback_data="backup_db"),
+                        ],
+                        [InlineKeyboardButton("📊 Backup Status", callback_data="backup_status")],
+                        [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                    ]
+                ),
+            )
+
+        # ── Service list + admin logs ──
+        elif data == "svc_list":
+            await query.edit_message_text("⏳ Listing services...")
+            result = admin_server.services_report(filter_str="")
+            await query.edit_message_text(
+                admin_server.format_services(result),
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("svc_list"),
+            )
+        elif data == "admin_logs":
+            if admin_audit is None:
+                await query.edit_message_text("❌ admin_audit module unavailable.", parse_mode=ParseMode.MARKDOWN)
+            else:
+                result = admin_audit.recent_actions(limit=20)
                 await query.edit_message_text(
-                    f"{'✅' if result['ok'] else '❌'} `{action} {svc}`\n\n```\n{result.get('output', result.get('error', ''))[:2000]}\n```",
+                    admin_audit.format_admin_logs(result),
                     parse_mode=ParseMode.MARKDOWN,
-                    reply_markup=service_action_keyboard(svc),
+                    reply_markup=refresh_keyboard("admin_logs"),
                 )
 
         # ── Backup ──

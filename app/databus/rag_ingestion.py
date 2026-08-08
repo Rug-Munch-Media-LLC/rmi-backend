@@ -9,6 +9,7 @@ Redis-backed with permanence to B2.  # Migrated from R2 to B2 2026-07-31
 """
 
 from __future__ import annotations
+from typing import Any
 
 import hashlib
 import json

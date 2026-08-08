@@ -7,7 +7,12 @@ All inline keyboard markup generators in one place.
 
 from __future__ import annotations
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 from app.domains.telegram.rugmunchbot.config import (
     BUY_STARS_PACKS,
@@ -23,37 +28,44 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.formatters import dex_buttons, is_owner, web_scan_button
 
 
-def main_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
+def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButton]]:
+    """Shared main-menu rows (v7).
+
+    Six capability categories, two buttons per row:
+      Scan Token · Market Intel
+      AI Chat    · RugMaps
+      RugCharts  · Help
+
+    Portfolio & Security were folded into Scan / Market Intel (v7).
+    Owner (@cryptorugmunch) additionally sees an Admin button that
+    opens the admin sub-menu — hidden from all other users.
+    """
     rows = [
         [
-            InlineKeyboardButton("\U0001f50d Scan Token", callback_data="menu_scan"),
-            InlineKeyboardButton("\U0001f9db Wallet Check", callback_data="menu_wallet"),
+            InlineKeyboardButton("\U0001f50d Scan Token", callback_data="menu_cat_scan"),
+            InlineKeyboardButton("\U0001f4ca Market Intel", callback_data="menu_cat_market"),
         ],
         [
-            InlineKeyboardButton("\U0001f4ca Technical Analysis", callback_data="menu_ta"),
-            InlineKeyboardButton("\U0001f525 Trending", callback_data="menu_trending"),
+            InlineKeyboardButton("\U0001f4ac AI Chat", callback_data="menu_cat_ai"),
+            InlineKeyboardButton("\U0001f5fa\ufe0f RugMaps", callback_data="menu_cat_rugmaps"),
         ],
         [
-            InlineKeyboardButton("\U0001f440 Watchlist", callback_data="menu_watchlist"),
-            InlineKeyboardButton("\U0001f514 Alerts", callback_data="menu_alerts"),
-        ],
-        [
-            InlineKeyboardButton("\U0001f4cb My Account", callback_data="menu_account"),
-            InlineKeyboardButton("\u2b50 Upgrade", callback_data="menu_pricing"),
-        ],
-        [
-            InlineKeyboardButton("\U0001f4da Scam School", callback_data="menu_scamschool"),
-            InlineKeyboardButton("\U0001f91d Refer & Earn", callback_data="menu_refer"),
+            InlineKeyboardButton("\U0001f4c8 RugCharts", callback_data="menu_cat_charts"),
+            InlineKeyboardButton("\u2139\ufe0f Help", callback_data="menu_cat_help"),
         ],
         [
             InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-            InlineKeyboardButton("\U0001f4e2 Alerts Channel", url=TELEGRAM_CHANNEL),
+            InlineKeyboardButton("\U0001f4e2 Alerts", url=TELEGRAM_CHANNEL),
         ],
     ]
     # Owner-only admin button — hidden from everyone else.
     if user_id is not None and is_owner(user_id):
         rows.append([InlineKeyboardButton("\U0001f6e1\ufe0f Admin", callback_data="menu_cat_admin")])
-    return InlineKeyboardMarkup(rows)
+    return rows
+
+
+def main_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(_main_menu_rows(user_id))
 
 
 # ══════════════════════════════════════════════
@@ -64,29 +76,14 @@ def main_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
 
 
 def welcome_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
-    """Main welcome menu — six capability categories (v6).
+    """Main welcome menu — six capability categories (v7).
 
-    Scan · Charts · Chat · Portfolio · Security · Help
+    Scan Token · Market Intel · AI Chat · RugMaps · RugCharts · Help
 
     Owner (@cryptorugmunch) additionally sees an Admin button that
     opens the admin sub-menu — hidden from all other users.
     """
-    rows = [
-        [InlineKeyboardButton("\U0001f50d Scan", callback_data="menu_cat_scan")],
-        [InlineKeyboardButton("\U0001f4c8 Charts", callback_data="menu_cat_charts")],
-        [InlineKeyboardButton("\U0001f4ac Chat", callback_data="menu_cat_ai")],
-        [InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="menu_cat_portfolio")],
-        [InlineKeyboardButton("\U0001f6e1\ufe0f Security", callback_data="menu_cat_security")],
-        [InlineKeyboardButton("\u2139\ufe0f Help", callback_data="menu_cat_help")],
-        [
-            InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-            InlineKeyboardButton("\U0001f4e2 Alerts", url=TELEGRAM_CHANNEL),
-        ],
-    ]
-    # Owner-only admin button — hidden from everyone else.
-    if user_id is not None and is_owner(user_id):
-        rows.append([InlineKeyboardButton("\U0001f6e1\ufe0f Admin", callback_data="menu_cat_admin")])
-    return InlineKeyboardMarkup(rows)
+    return InlineKeyboardMarkup(_main_menu_rows(user_id))
 
 
 def _menu_row(label: str, cb: str) -> list[InlineKeyboardButton]:
@@ -94,48 +91,75 @@ def _menu_row(label: str, cb: str) -> list[InlineKeyboardButton]:
 
 
 def category_scan_kb() -> InlineKeyboardMarkup:
-    """🔍 Scan & Research submenu (v6 — added /deepscan, /quick)."""
+    """🔍 Scan Token submenu (v7).
+
+    Primary actions: Quick Scan (fast) · Deep Scan (full forensic) ·
+    Wallet Analysis · Deployer Check. Portfolio & Security commands were
+    folded into this category (v7).
+    """
     return InlineKeyboardMarkup(
         [
-            _menu_row("\U0001f6e1\ufe0f /scan — Quick security audit", "run_scan"),
-            _menu_row("\U0001f52c /deepscan — Full deep scan", "run_deepscan"),
-            _menu_row("\U0001f9db /wallet — Wallet forensics", "run_wallet"),
-            _menu_row("\U0001f575\ufe0f /deployer — Dev fingerprint", "run_deployer"),
-            _menu_row("\U0001f525 /hype — 0-100 hype score", "run_hype"),
-            _menu_row("\U0001f6a8 /rugcheck — Red flag checklist", "run_rugcheck"),
-            _menu_row("\U0001f50e /investigate — Deep report (Pro)", "run_investigate"),
-            _menu_row("\U0001f4c8 /quick — Price by symbol", "run_quick"),
+            _menu_row("\u26a1 Quick Scan (fast)", "run_scan"),
+            _menu_row("\U0001f52c Deep Scan (full forensic)", "run_deepscan"),
+            _menu_row("\U0001f45b Wallet Analysis", "run_wallet"),
+            _menu_row("\U0001f575\ufe0f Deployer Check", "run_deployer"),
+            [
+                InlineKeyboardButton("\U0001f525 Hype", callback_data="run_hype"),
+                InlineKeyboardButton("\U0001f6a8 Rug Check", callback_data="run_rugcheck"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="run_portfolio"),
+                InlineKeyboardButton("\u2696\ufe0f Compare", callback_data="run_compare"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f440 Watchlist", callback_data="run_watchlist"),
+                InlineKeyboardButton("\U0001f514 Alerts", callback_data="run_alerts"),
+            ],
+            _menu_row("\U0001f50e Investigate (Pro)", "run_investigate"),
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
         ]
     )
 
 
 def category_charts_kb() -> InlineKeyboardMarkup:
-    """📊 Charts & Visualization submenu (v6 — new category)."""
+    """📈 RugCharts submenu (v7 — charting-focused; RugMaps split out)."""
     return InlineKeyboardMarkup(
         [
-            _menu_row("\U0001f4c9 /chart — Price chart image", "run_chart"),
-            _menu_row("\U0001f5fa\ufe0f /rugmap — Bubble map image", "run_rugmap"),
-            _menu_row("\U0001f4ca /ta — Technical analysis", "run_ta"),
+            _menu_row("\U0001f4c8 /chart — Price chart image", "run_chart"),
+            _menu_row("\U0001f4ca /ta — Technical analysis & signals", "run_ta"),
             _menu_row("\U0001f4b0 /price — Token price", "run_price"),
             _menu_row("\U0001f4e6 /dex — DEX pairs & liquidity", "run_dex"),
-            _menu_row("\U0001f465 /holders — Top holders (Scout+)", "run_holders"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_rugmaps_kb() -> InlineKeyboardMarkup:
+    """🗺️ RugMaps submenu (v7 — bubble maps & holder clusters)."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f5fa\ufe0f /rugmap — Bubble map image", "run_rugmap"),
+            _menu_row("\U0001f465 /holders — Top holders & clusters (Scout+)", "run_holders"),
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
         ]
     )
 
 
 def category_market_kb() -> InlineKeyboardMarkup:
-    """📈 Market Intel submenu (kept for backward compatibility)."""
+    """📊 Market Intel submenu (v7 — trending, price, sentiment, news, social)."""
     return InlineKeyboardMarkup(
         [
-            _menu_row("\U0001f4c8 /trending — Hot tokens now", "run_trending"),
-            _menu_row("\U0001f4b0 /price — Token price", "run_price"),
-            _menu_row("\U0001f4c9 /chart — Price chart & TA", "run_chart"),
-            _menu_row("\U0001f4c8 /sentiment — Fear & greed", "run_sentiment"),
-            _menu_row("\U0001f4f0 /news — Crypto headlines", "run_news"),
-            _menu_row("\U0001f4e6 /dex — DEX pairs & liquidity", "run_dex"),
-            _menu_row("\U0001f465 /holders — Top holders (Scout+)", "run_holders"),
+            _menu_row("\U0001f525 Trending Tokens", "run_trending"),
+            _menu_row("\U0001f4b0 Price Check", "run_price"),
+            _menu_row("\U0001f4ca Market Sentiment", "run_sentiment"),
+            _menu_row("\U0001f4f0 News", "run_news"),
+            _menu_row("\U0001f4e3 Social Signals", "run_social"),
+            [
+                InlineKeyboardButton("\U0001f4e6 DEX & Liquidity", callback_data="run_dex"),
+                InlineKeyboardButton("\U0001f465 Holders", callback_data="run_holders"),
+            ],
+            _menu_row("\U0001f9e0 Smart Money", "run_smartmoney"),
+            _menu_row("\U0001f50d Fund Trace (Hunter+)", "run_trace"),
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
         ]
     )
@@ -224,6 +248,35 @@ def admin_kb() -> InlineKeyboardMarkup:
             ],
             [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
         ]
+    )
+
+
+def owner_admin_reply_kb() -> ReplyKeyboardMarkup:
+    """Persistent reply keyboard pinned to the input field for the owner (v7).
+
+    Shows the admin commands as tappable buttons in every private chat with
+    the bot. The button labels are plain text; the message handler routes
+    them to the matching /admin_* command (see handlers/message.py).
+    """
+    return ReplyKeyboardMarkup(
+        [
+            [
+                KeyboardButton("\U0001f6e1\ufe0f Admin Dashboard"),
+                KeyboardButton("\U0001f4ca Stats"),
+            ],
+            [
+                KeyboardButton("\U0001f4e2 Broadcast"),
+                KeyboardButton("\U0001f465 User Lookup"),
+            ],
+            [
+                KeyboardButton("\U0001f504 Bot ON/OFF"),
+                KeyboardButton("\U0001f4ac Chat ON/OFF"),
+            ],
+            [KeyboardButton("\U0001f3d9\ufe0f Main Menu")],
+        ],
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="RugMunch Admin console",
     )
 
 

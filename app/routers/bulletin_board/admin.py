@@ -1,6 +1,7 @@
 """Admin bulletin board endpoints + comment moderation (require admin session)."""
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import Body, Request
 

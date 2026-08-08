@@ -4,6 +4,7 @@ Distribution analysis (Gini, concentration, freshness).
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from datetime import UTC, datetime

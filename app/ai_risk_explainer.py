@@ -9,6 +9,7 @@ Cost: ~100 tokens per explanation = ~$0.0007 on Ollama Cloud
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os

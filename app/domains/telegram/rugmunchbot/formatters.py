@@ -115,12 +115,11 @@ def social_proof_text() -> str:
 
 
 def welcome_card_text() -> str:
-    """v6 welcome card — capability overview shown by /start and the main menu.
+    """v7 welcome card — capability overview shown by /start and the main menu.
 
-    Includes the requested one-liner ("I can scan tokens, analyze wallets,
-    show charts, run RugMaps bubble maps, answer crypto questions via AI
-    chat, track your portfolio, and more. Try /scan or /chat to get
-    started!") plus a compact 6-category breakdown and quick-start tips.
+    Covers the six main-menu categories (Scan Token · Market Intel · AI Chat ·
+    RugMaps · RugCharts · Help) plus the quick-start tips. Portfolio &
+    Security were folded into Scan / Market Intel.
     """
     proof = social_proof_text()
     return (
@@ -132,11 +131,11 @@ def welcome_card_text() -> str:
         f"your portfolio, and more.</b>\n"
         f"\U0001f4cc Try <code>/scan</code> or <code>/chat</code> to get started!\n\n"
         f"<b>Capabilities:</b>\n"
-        f"\U0001f50d <b>Scan</b> — multi-chain token audits, quick + deep\n"
-        f"\U0001f4c8 <b>Charts</b> — price charts, RugMap bubble maps, TA\n"
-        f"\U0001f4ac <b>Chat</b> — RAG-powered AI answers on crypto & code\n"
-        f"\U0001f4c1 <b>Portfolio</b> — holdings, watchlist, alerts\n"
-        f"\U0001f6e1\ufe0f <b>Security</b> — rug checks, scam school, /report\n"
+        f"\U0001f50d <b>Scan Token</b> — audits, wallet & deployer checks, portfolio\n"
+        f"\U0001f4c8 <b>Market Intel</b> — trending, prices, sentiment, news\n"
+        f"\U0001f4ac <b>AI Chat</b> — RAG-powered answers on crypto & code\n"
+        f"\U0001f5fa\ufe0f <b>RugMaps</b> — wallet cluster bubble maps\n"
+        f"\U0001f4c9 <b>RugCharts</b> — chart images & technical analysis\n"
         f"\u2139\ufe0f <b>Help</b> — full command reference\n\n"
         f"\U0001f4f3 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + "
         f"{TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
@@ -261,6 +260,377 @@ def format_funding_analysis(r: dict) -> str:
     return "\n".join(lines)
 
 
+# --- SENTINEL deep forensic flags (v2 /scan + deep scan) ---
+
+# Known blue-chip allowlist — imported lazily from the unified scanner
+# scoring module (app/domains/scanner/unified/scoring.py) so the bot never
+# hardcodes token addresses. Blue-chips (WETH, WBTC, USDC, USDT, DAI, stETH)
+# legitimately carry high HHI / low LP-lock signals; those warnings are
+# suppressed in /scan output (Bug 1 in scoring.py).
+_BLUECHIP_CACHE: frozenset[str] | None = None
+
+
+def _bluechip_addresses() -> frozenset[str]:
+    global _BLUECHIP_CACHE
+    if _BLUECHIP_CACHE is None:
+        try:
+            from app.domains.scanner.unified.scoring import BLUECHIP_ADDRESSES
+
+            _BLUECHIP_CACHE = frozenset(a.lower() for a in BLUECHIP_ADDRESSES)
+        except ImportError:  # pragma: no cover - defensive
+            _BLUECHIP_CACHE = frozenset()
+    return _BLUECHIP_CACHE
+
+
+def is_bluechip(address: str) -> bool:
+    """True for known blue-chip tokens (case-insensitive allowlist)."""
+    return (address or "").strip().lower() in _bluechip_addresses()
+
+
+def _sentinel_free(sentinel: dict | None) -> dict:
+    """Extract the free-module bucket from a v2 sentinel dict (best-effort)."""
+    if not isinstance(sentinel, dict):
+        return {}
+    free = sentinel.get("free")
+    return free if isinstance(free, dict) else {}
+
+
+def _module_warnings(free: dict, *keys: str) -> list[str]:
+    """Collect warnings across the given sentinel free modules (deduped)."""
+    seen: list[str] = []
+    for key in keys:
+        mod = free.get(key)
+        if isinstance(mod, dict):
+            for w in mod.get("warnings") or []:
+                w_str = str(w).strip()
+                if w_str and w_str not in seen:
+                    seen.append(w_str)
+    return seen
+
+
+def format_sentinel_flags(r: dict) -> str:
+    """Render SENTINEL free-tier flags for the /scan report.
+
+    Reads the v2 scanner's ``sentinel`` dict (free/premium module buckets).
+    Blue-chip tokens (WETH, WBTC, ...) legitimately trigger concentration /
+    low-lock signals — those warnings are suppressed and replaced by a single
+    green confirmation line. Returns "" when the v2 response carried no
+    sentinel data.
+    """
+    sentinel = r.get("sentinel")
+    if not isinstance(sentinel, dict):
+        return ""
+    d = thin_sep()
+    if is_bluechip(r.get("address", "")):
+        return (
+            "\n\U0001f6e1\ufe0f <b>SENTINEL</b>\n"
+            f"{d}\n"
+            "  \u2705 <b>Known blue-chip</b> \u2014 concentration & lock signals suppressed"
+        )
+    free = _sentinel_free(sentinel)
+    flags: list[str] = []
+    if free:
+        # Holder HHI concentration
+        ha = free.get("holder_analysis")
+        if isinstance(ha, dict):
+            hhi = ha.get("hhi")
+            level = str(ha.get("risk_level") or "").lower()
+            if hhi is not None:
+                try:
+                    hhi_f = float(hhi)
+                except (TypeError, ValueError):
+                    hhi_f = 0.0
+                if level in ("high", "critical"):
+                    flags.append(f"\u26a0\ufe0f High holder concentration (HHI: {hhi_f:.0f})")
+                else:
+                    flags.append(f"\U0001f465 Holder concentration (HHI: {hhi_f:.0f}, {level})")
+        # LP lock
+        lv = free.get("liquidity_verification")
+        if isinstance(lv, dict) and lv.get("total_locked_percentage") is not None:
+            try:
+                locked_f = float(lv["total_locked_percentage"])
+            except (TypeError, ValueError):
+                locked_f = 0.0
+            flags.append(f"\U0001f510 LP Lock: {locked_f:.0f}%")
+        # Contract authority
+        ca = free.get("contract_authority")
+        if isinstance(ca, dict):
+            ca_level = str(ca.get("risk_level") or "LOW").upper()
+            if ca_level in ("HIGH", "CRITICAL"):
+                flags.append(f"\U0001f512 Contract authority risk: {ca_level}")
+        # Proxy
+        px = free.get("proxy_detection")
+        if isinstance(px, dict):
+            if px.get("can_upgrade"):
+                flags.append("\u26a0\ufe0f Upgradeable proxy (admin can change implementation)")
+            elif px.get("is_proxy"):
+                flags.append(f"\U0001f4e6 Proxy contract ({px.get('proxy_type') or 'unknown'})")
+        # Deployer reputation
+        dr = free.get("dev_reputation")
+        if isinstance(dr, dict):
+            rep = str(dr.get("reputation_level") or "").lower()
+            if rep in ("suspicious", "dangerous"):
+                score = dr.get("reputation_score")
+                score_str = f"{int(score)}/100" if score is not None else "N/A"
+                flags.append(f"\U0001f468\u200d\U0001f4bb Dev reputation: {rep} ({score_str})")
+        # Remaining module warnings (deduped, capped)
+        for w in _module_warnings(
+            free,
+            "holder_analysis",
+            "liquidity_verification",
+            "contract_authority",
+            "proxy_detection",
+            "metadata_fingerprint",
+            "dev_reputation",
+        ):
+            if len(flags) >= 6:
+                break
+            flags.append(f"\u26a0\ufe0f {w[:100]}")
+    if not flags:
+        flags.append("\u2705 No SENTINEL red flags")
+    lines = ["", "\U0001f6e1\ufe0f <b>SENTINEL</b>", d]
+    lines.extend(f"  {f}" for f in flags)
+    return "\n".join(lines)
+
+
+# --- SENTINEL deep scan report (from POST /api/v1/x402-tools/sentinel_scan) ---
+
+SENTINEL_MODULE_EMOJI: dict[str, str] = {
+    "holder_analysis": "\U0001f465",  # 👥
+    "liquidity_verification": "\U0001f510",  # 🔐
+    "dev_reputation": "\U0001f468\u200d\U0001f4bb",  # 👨‍💻
+    "metadata_fingerprint": "\U0001f5c2\ufe0f",  # 🗒️
+    "contract_authority": "\U0001f512",  # 🔒
+    "proxy_detection": "\U0001f4e6",  # 📦
+    "bundle_detection": "\U0001f4e6",  # 📦
+    "exchange_funding": "\U0001f3e6",  # 🏦
+    "wash_trading": "\U0001f504",  # 🔄
+    "honeypot_detection": "\U0001f3ef",  # 🏯
+    "sentiment": "\U0001f4ac",  # 💬
+    "pumpfun_analysis": "\U0001f680",  # 🚀
+    "mev_detection": "\U0001f50d",  # 🔍
+    "flash_loan_detection": "\u26a1",  # ⚡
+    "pump_dump_detection": "\U0001f4c8",  # 📈
+    "oracle_manipulation": "\U0001f4b0",  # 💰
+    "governance_attack": "\U0001f3db\ufe0f",  # 🏛️
+    "static_analysis": "\U0001f50e",  # 🔎
+    "address_labels": "\U0001f3f7\ufe0f",  # 🏷️
+    "block_zero_sniper": "\U0001f3af",  # 🎯
+    "gas_trace": "\u26a1",  # ⚡
+    "cross_chain_trace": "\U0001f517",  # 🔗
+}
+
+
+def _risk_level_emoji(level: str) -> str:
+    lvl = str(level or "").lower()
+    if lvl in ("critical", "dangerous"):
+        return "\U0001f534"  # 🔴
+    if lvl in ("high", "suspicious"):
+        return "\U0001f7e1"  # 🟠
+    if lvl in ("medium", "moderate"):
+        return "\U0001f7e0"  # 🟡
+    return "\U0001f7e2"  # 🟢
+
+
+def _sentinel_recommendations(risk: float, level: str, red_flags: list) -> list[str]:
+    """Build DYOR recommendations from sentinel risk signals."""
+    lvl = str(level or "").lower()
+    recs: list[str] = []
+    if risk >= 70 or lvl in ("critical", "high"):
+        recs.append("\U0001f534 Avoid this token \u2014 critical risk signals detected")
+    elif risk >= 40:
+        recs.append("\U0001f7e1 Proceed with extreme caution \u2014 elevated risk")
+    else:
+        recs.append("\U0001f7e2 Low risk \u2014 standard DeFi caution still applies")
+    joined = " ".join(str(f).lower() for f in red_flags)
+    if "honeypot" in joined:
+        recs.append("\U0001f3ef Honeypot signal \u2014 verify you can actually SELL before buying")
+    if "bundle" in joined:
+        recs.append("\U0001f4e6 Bundle activity \u2014 volume & concentration may be fabricated")
+    if "wash" in joined:
+        recs.append("\U0001f504 Wash trading suspected \u2014 volume may be fake")
+    recs.append("\U0001f50d Always verify with a second source: /scan <code>address</code>")
+    return recs[:6]
+
+
+def format_sentinel_deepscan_section(data: dict) -> str:
+    """Render the SENTINEL deep-forensic section.
+
+    Consumes the raw response from ``POST /api/v1/x402-tools/sentinel_scan``
+    (SentinelReport serialized): composite risk score, per-module risk
+    breakdown, red flags, and per-module detail (holder HHI, LP lock,
+    contract authority, deployer reputation). Used by /deepscan (appended to
+    the base v2 scan report) and /sentinelscan (standalone).
+    """
+    s = sep()
+    d = thin_sep()
+    address = data.get("address") or data.get("token_address") or ""
+    chain = data.get("chain") or "unknown"
+    try:
+        risk = float(data.get("composite_risk_score") or 0)
+    except (TypeError, ValueError):
+        risk = 0.0
+    level = str(data.get("risk_level") or "unknown")
+    red_flags = data.get("red_flags") or []
+    module_scores = data.get("module_risk_scores") or {}
+    holder = data.get("holder_analysis") or {}
+    liq = data.get("liquidity_verification") or {}
+    dev = data.get("dev_reputation") or {}
+    authority = data.get("contract_authority") or {}
+
+    lines: list[str] = [
+        "\U0001f6e1\ufe0f <b>SENTINEL DEEP FORENSIC SCAN</b>",
+        s,
+    ]
+    if address:
+        lines.append(f"<code>{address}</code>")
+    lines.append(f"{fmt_chain(chain)}\n")
+
+    # ── Composite risk assessment ──
+    lines.append("\U0001f3af <b>Risk Assessment</b>")
+    lines.append(d)
+    lines.append(f"{_risk_level_emoji(level)} Composite Risk: <b>{risk:.0f}/100</b> ({level.upper()})")
+    lines.append("")
+
+    # ── Key findings (red flags) ──
+    if red_flags:
+        lines.append("\U0001f6a8 <b>Key Findings</b>")
+        lines.append(d)
+        for flag in red_flags[:8]:
+            lines.append(f"  \U0001f534 {str(flag)[:160]}")
+        lines.append("")
+    else:
+        lines.append("\U0001f7e2 <b>No critical findings</b>")
+        lines.append("")
+
+    # ── Module risk breakdown ──
+    if module_scores:
+        lines.append("\U0001f4ca <b>Module Risk Breakdown</b>")
+        lines.append(d)
+        ranked = sorted(
+            module_scores.items(),
+            key=lambda kv: float(kv[1] or 0),
+            reverse=True,
+        )
+        for mod, score in ranked[:10]:
+            try:
+                mscore = float(score or 0)
+            except (TypeError, ValueError):
+                mscore = 0.0
+            memoji = SENTINEL_MODULE_EMOJI.get(mod, "\U0001f539")  # 🔹
+            filled = max(0, min(10, int(mscore / 10)))
+            mbar = "\u2b1b" * filled + "\u2b1c" * (10 - filled)
+            lines.append(f"  {memoji} {mod.replace('_', ' ').title()}: {mscore:.0f}/100")
+            lines.append(f"     <code>{mbar}</code>")
+        lines.append("")
+
+    # ── Holder analysis ──
+    if holder:
+        lines.append("\U0001f465 <b>Holder Analysis</b>")
+        lines.append(d)
+        hhi = holder.get("hhi")
+        if hhi is not None:
+            try:
+                hhi_f = float(hhi)
+            except (TypeError, ValueError):
+                hhi_f = 0.0
+            hhi_emoji = (
+                "\U0001f534" if str(holder.get("risk_level") or "").lower() in ("high", "critical") else "\U0001f7e2"
+            )
+            lines.append(f"  {hhi_emoji} HHI Concentration: <b>{hhi_f:.0f}</b> ({holder.get('risk_level', 'unknown')})")
+        if holder.get("total_holders") is not None:
+            try:
+                lines.append(f"  \U0001f465 Total Holders: <b>{int(holder['total_holders']):,}</b>")
+            except (TypeError, ValueError):
+                pass
+        if holder.get("top_10_percentage") is not None:
+            try:
+                lines.append(f"  \U0001f40b Top-10 Supply: <b>{float(holder['top_10_percentage']):.0f}%</b>")
+            except (TypeError, ValueError):
+                pass
+        for w in (holder.get("warnings") or [])[:3]:
+            lines.append(f"  \u26a0\ufe0f {str(w)[:120]}")
+        lines.append("")
+
+    # ── LP analysis ──
+    if liq:
+        lines.append("\U0001f510 <b>LP Analysis</b>")
+        lines.append(d)
+        locked = liq.get("total_locked_percentage")
+        if locked is not None:
+            try:
+                locked_f = float(locked)
+            except (TypeError, ValueError):
+                locked_f = 0.0
+            lock_emoji = "\U0001f7e2" if locked_f >= 80 else "\U0001f7e1" if locked_f > 0 else "\U0001f534"
+            lines.append(f"  {lock_emoji} LP Locked: <b>{locked_f:.0f}%</b>")
+        if liq.get("lp_burned"):
+            lines.append("  \U0001f525 LP tokens burned")
+        if liq.get("fake_lock_detected"):
+            lines.append("  \U0001f534 Fake lock detected")
+        for w in (liq.get("warnings") or [])[:3]:
+            lines.append(f"  \u26a0\ufe0f {str(w)[:120]}")
+        lines.append("")
+
+    # ── Contract authority ──
+    if authority:
+        lines.append("\U0001f512 <b>Contract Authority</b>")
+        lines.append(d)
+        ca_level = str(authority.get("risk_level") or "LOW").upper()
+        lines.append(f"  {_risk_level_emoji(ca_level)} Authority Risk: <b>{ca_level}</b>")
+        for w in (authority.get("warnings") or [])[:3]:
+            lines.append(f"  \u26a0\ufe0f {str(w)[:120]}")
+        lines.append("")
+
+    # ── Deployer reputation ──
+    if dev:
+        lines.append("\U0001f468\u200d\U0001f4bb <b>Deployer Reputation</b>")
+        lines.append(d)
+        rep_score = dev.get("reputation_score")
+        rep_level = str(dev.get("reputation_level") or "unknown")
+        if rep_score is not None:
+            try:
+                lines.append(
+                    f"  {_risk_level_emoji(rep_level)} Reputation: <b>{int(rep_score)}/100</b> ({rep_level.title()})"
+                )
+            except (TypeError, ValueError):
+                pass
+        if dev.get("total_launches") is not None:
+            try:
+                lines.append(
+                    f"  \U0001f4e6 Launches: <b>{int(dev['total_launches'])}</b> | "
+                    f"Rugged: <b>{int(dev.get('rugged_count') or 0)}</b>"
+                )
+            except (TypeError, ValueError):
+                pass
+        rug_rate = dev.get("rug_rate")
+        if rug_rate is not None:
+            try:
+                lines.append(f"  \U0001f4a5 Rug Rate: <b>{float(rug_rate) * 100:.0f}%</b>")
+            except (TypeError, ValueError):
+                pass
+        for w in (dev.get("warnings") or [])[:3]:
+            lines.append(f"  \u26a0\ufe0f {str(w)[:120]}")
+        lines.append("")
+
+    # ── Recommendations ──
+    lines.append("\U0001f4a1 <b>Recommendations</b>")
+    lines.append(d)
+    lines.extend(f"  {rec}" for rec in _sentinel_recommendations(risk, level, red_flags))
+    lines.append("")
+    lines.append(
+        "\u26a0\ufe0f <i>Composite risk is 0-100 (higher = riskier). "
+        "SENTINEL data is forensic evidence \u2014 always DYOR.</i>"
+    )
+    lines.append(footer_links())
+    return "\n".join(lines)
+
+
+def format_sentinel_scan_report(data: dict) -> str:
+    """Standalone /sentinelscan report — SENTINEL deep scan only."""
+    return format_sentinel_deepscan_section(data)
+
+
 # --- Format scan report ---
 def format_scan_report(r: dict) -> str:
     s = sep()
@@ -374,6 +744,11 @@ def format_scan_report(r: dict) -> str:
         lines.extend(v2)
     if r.get("breakdown"):
         lines.append(format_scoring_breakdown(r["breakdown"]))
+    # ── SENTINEL free-tier flags (HHI, LP lock, authority, proxy, dev rep) ──
+    # Blue-chip tokens are suppressed (concentration/lock signals are normal).
+    sentinel_block = format_sentinel_flags(r)
+    if sentinel_block:
+        lines.extend(sentinel_block.split("\n"))
     # ── News card (Ground News style), fall back to plain sentiment ──
     news_block = format_news_card(r.get("news_card"))
     if not news_block:

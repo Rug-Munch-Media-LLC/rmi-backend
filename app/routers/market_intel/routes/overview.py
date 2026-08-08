@@ -4,6 +4,7 @@ Global market overview, movers, chains, fear & greed, on-chain metrics, macro, s
 """
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 

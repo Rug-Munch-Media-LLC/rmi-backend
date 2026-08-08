@@ -1,6 +1,7 @@
 """Multi-chain airdrop data models."""
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import asdict, field
 from datetime import UTC, datetime

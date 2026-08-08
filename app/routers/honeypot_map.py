@@ -4,6 +4,7 @@
 fund flows. Interactive graph showing the honeypot factory network."""
 
 from __future__ import annotations
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query

@@ -1,6 +1,7 @@
 """Crypto-aware feature extractors for smart contracts, transactions, and wallets."""
 
 from __future__ import annotations
+from typing import Any
 
 import hashlib
 import time

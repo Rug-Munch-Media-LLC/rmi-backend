@@ -1,6 +1,7 @@
 """T28 RSS Ingest HTTP endpoint."""
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import APIRouter
 

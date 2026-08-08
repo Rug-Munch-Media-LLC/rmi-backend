@@ -1,6 +1,7 @@
 """Document ingestion pipeline for RAG."""
 
 from __future__ import annotations
+from typing import Any
 
 import contextlib
 import hashlib

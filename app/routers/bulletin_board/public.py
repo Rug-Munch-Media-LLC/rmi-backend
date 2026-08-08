@@ -1,6 +1,7 @@
 """Public bulletin board endpoints (no auth required)."""
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import Request  # noqa: TC002 — FastAPI needs runtime resolution for request objects
 

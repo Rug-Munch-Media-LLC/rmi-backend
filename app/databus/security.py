@@ -13,7 +13,7 @@ Never exposes API keys in responses. Never leaks internal data to public users.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 

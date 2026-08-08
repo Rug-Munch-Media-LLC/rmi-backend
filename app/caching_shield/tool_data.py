@@ -12,6 +12,7 @@ Usage in x402 routers:
 """
 
 from __future__ import annotations
+from typing import Any
 
 from app.caching_shield.unified_layer import get_data_layer
 

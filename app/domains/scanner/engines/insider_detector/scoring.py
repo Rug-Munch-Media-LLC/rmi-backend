@@ -1,6 +1,7 @@
 """Public API — detect_insiders, get_insider_score, find_pre_pump_wallets."""
 
 from __future__ import annotations
+from typing import Any
 
 import asyncio
 

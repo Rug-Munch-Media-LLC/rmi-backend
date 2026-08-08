@@ -44,7 +44,7 @@ CRITICAL_SERVICES: tuple[str, ...] = (
 
 # Human-readable labels for the control-panel health summary.
 SERVICE_LABELS: dict[str, str] = {
-    "infinity-rag": "RAG",
+    "infinity-rag": "Infinity",
     "rmi-backend": "Backend",
     "rmi-clickhouse": "ClickHouse",
     "rmi-postgres": "Postgres",
@@ -53,6 +53,19 @@ SERVICE_LABELS: dict[str, str] = {
 
 # Systemd bot services tracked on the control panel.
 BOT_SERVICES: tuple[str, ...] = ("rugmunchbot", "rmiadminbot")
+
+# Full fleet dashboard service list (container name -> dashboard label).
+# Order matches the /health dashboard output; bots are systemd-managed
+# and tracked separately via BOT_SERVICES.
+FLEET_CONTAINERS: tuple[tuple[str, str], ...] = (
+    ("rmi-backend", "Backend"),
+    ("rmi-postgres", "Postgres"),
+    ("rmi-clickhouse", "ClickHouse"),
+    ("rmi-redis", "Redis"),
+    ("rmi-rag-api", "RAG"),
+    ("degenfeed-meilisearch", "Meilisearch"),
+    ("infinity-rag", "Infinity"),
+)
 
 # Backup sentinel files written by /root/scripts/backup-*.sh on success.
 _BACKUP_SENTINEL = "/backups/.last-successful-backup"
@@ -333,6 +346,32 @@ def critical_services_status() -> list[dict[str, Any]]:
     return [container_status(name) for name in CRITICAL_SERVICES]
 
 
+def fleet_services_status() -> list[dict[str, Any]]:
+    """Status for every service shown on the /health dashboard.
+
+    Returns one entry per fleet service (containers + the bots row),
+    each with ``label``, ``name``, ``status`` and ``level`` emoji.
+    """
+    rows: list[dict[str, Any]] = []
+    for name, label in FLEET_CONTAINERS:
+        c = container_status(name)
+        rows.append({"label": label, "name": name, "status": c["status"], "level": c["level"]})
+    rows.append(_bots_row())
+    return rows
+
+
+def _bots_row() -> dict[str, Any]:
+    """Combined status row for the systemd-managed bots (rugmunchbot + rmiadminbot)."""
+    states = _bot_systemd_status()
+    level = "🟢"
+    if any(e == "🔴" for e in states.values()):
+        level = "🔴"
+    elif any(e == "🟡" for e in states.values()):
+        level = "🟡"
+    status = ", ".join(f"{svc}:{states.get(svc, '🟡')}" for svc in BOT_SERVICES)
+    return {"label": "Bots", "name": "+".join(BOT_SERVICES), "status": status, "level": level}
+
+
 def critical_alert_count(service_checks: list[dict[str, Any]] | None = None) -> int:
     """Count of critical issues: failed systemd units, exited containers, red services."""
     count = 0
@@ -442,6 +481,7 @@ def health_dashboard() -> dict[str, Any]:
     failed = _systemd_failed()
     data["systemd_failed"] = failed
     data["services"] = critical_services_status()
+    data["fleet_services"] = fleet_services_status()
     return data
 
 
@@ -463,6 +503,16 @@ def _format_df_lines(output: str) -> list[str]:
 def format_health_dashboard(data: dict[str, Any]) -> str:
     """Render the comprehensive health dashboard."""
     lines = ["📊 *System Health Dashboard*\n"]
+
+    # ── Fleet services (backend, postgres, clickhouse, redis, bots, rag, meilisearch, infinity) ──
+    fleet = data.get("fleet_services") or []
+    if fleet:
+        lines.append("🚨 *Services*")
+        for s in fleet:
+            label = s.get("label", s.get("name", "?"))
+            status = (s.get("status") or "?")[:44]
+            lines.append(f"  {s.get('level', '🟡')} `{label}` — {status}")
+        lines.append("")
 
     # ── Disk ──
     disk = data.get("disk_pct")
@@ -524,18 +574,23 @@ def format_health_dashboard(data: dict[str, Any]) -> str:
     backup = data.get("backup", {})
     b_hours = backup.get("backup_hours_ago")
     b_emoji = backup.get("level", "🔴")
-    b_txt = f"{b_hours:.1f}h ago" if b_hours is not None else "no sentinel"
-    lines.append(f"🗄 *Backup*: last success {b_txt} {b_emoji}")
+    b_ts = backup.get("last_backup")
+    if b_hours is not None:
+        b_ts_txt = b_ts.strftime("%Y-%m-%d %H:%M UTC") if b_ts else "unknown"
+        lines.append(f"🗄 *Backup*: last success `{b_ts_txt}` ({b_hours:.1f}h ago) {b_emoji}")
+    else:
+        lines.append(f"🗄 *Backup*: no sentinel {b_emoji}")
     git_hours = backup.get("git_hours_ago")
     if git_hours is not None:
         lines.append(f"   Git push backup: {git_hours:.1f}h ago")
     lines.append("")
 
-    # ── Critical services ──
-    lines.append("🚨 *Critical Services*")
-    for c in data.get("services", []):
-        lines.append(f"  {c.get('level', '🟡')} `{c.get('name', '?')}` — {c.get('status', '?')[:48]}")
-    lines.append("")
+    # ── Critical services (legacy view) ──
+    if not fleet:
+        lines.append("🚨 *Critical Services*")
+        for c in data.get("services", []):
+            lines.append(f"  {c.get('level', '🟡')} `{c.get('name', '?')}` — {c.get('status', '?')[:48]}")
+        lines.append("")
 
     alerts = data.get("critical_alerts", 0)
     lines.append(f"🚨 *Total critical alerts*: `{alerts}` {'🟢' if alerts == 0 else '🔴'}")
@@ -564,10 +619,10 @@ def _bot_systemd_status() -> dict[str, str]:
 
 
 def _service_summary() -> dict[str, str]:
-    """Label -> status emoji for the critical containers + bots."""
+    """Label -> status emoji for the fleet containers + bots."""
     summary: dict[str, str] = {}
-    for c in critical_services_status():
-        label = SERVICE_LABELS.get(c.get("name", ""), c.get("name", "?"))
+    for name, label in FLEET_CONTAINERS:
+        c = container_status(name)
         summary[label] = c.get("level", "🟡")
     summary["Bots"] = _bot_systemd_status()
     return summary

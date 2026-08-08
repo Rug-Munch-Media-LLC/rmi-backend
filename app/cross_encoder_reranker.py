@@ -9,6 +9,7 @@ cross-encoder relevance with original vector similarity.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import asyncio
 import time

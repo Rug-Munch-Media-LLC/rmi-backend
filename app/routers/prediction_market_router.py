@@ -21,6 +21,7 @@ Rate limiting: Inherited from app-wide slowapi configuration.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import APIRouter, Query
 

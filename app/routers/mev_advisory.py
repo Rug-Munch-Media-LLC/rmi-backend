@@ -1,6 +1,7 @@
 """MEV Protection Advisory - warns users before trading in sandwich-prone pools."""
 
 from __future__ import annotations
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query

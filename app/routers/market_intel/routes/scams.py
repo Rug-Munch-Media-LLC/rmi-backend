@@ -4,6 +4,7 @@ Scam alerts from DexScreener suspicious tokens and combined alerts feed.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 

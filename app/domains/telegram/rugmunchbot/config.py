@@ -20,11 +20,7 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
     """Fetch token from gopass at runtime, falling back to env vars."""
     try:
         token = (
-            subprocess.check_output(
-                ["gopass", "show", gopass_path],
-                stderr=subprocess.DEVNULL,
-                timeout=5,
-            shell=False)
+            subprocess.check_output(["gopass", "show", gopass_path], stderr=subprocess.DEVNULL, timeout=5, shell=False)
             .decode()
             .strip()
         )
@@ -146,6 +142,16 @@ SOLANAFM_API = "https://api.solana.fm/v0"
 COINGECKO = "https://api.coingecko.com/api/v3"  # price history & trending
 GOPLUS = "https://api.gopluslabs.com/api/v1"  # EVM token security scanner
 HONEYPOT = "https://api.honeypot.is/v2"  # primary EVM security scanner
+
+# ══════════════════════════════════════════════
+# SENTINEL DEEP FORENSIC SCAN
+# ══════════════════════════════════════════════
+# Full 9-module SENTINEL deep scan (POST /api/v1/x402-tools/sentinel_scan).
+# Returns composite risk score (0-100), per-module breakdown, red flags, and
+# aggregated findings. See app/domains/scanners/sentinel_pipeline/config.py
+# (SentinelReport) for the response schema.
+SENTINEL_URL = os.getenv("SENTINEL_URL", f"{BACKEND_URL}/api/v1/x402-tools/sentinel_scan")
+SENTINEL_TIMEOUT = 60.0  # deep forensic scan can take a while (9+ modules)
 
 # ══════════════════════════════════════════════
 # SUBSCRIPTION TIERS (Weekly Allotments)

@@ -1,6 +1,7 @@
 """Caching and serialization helpers for prediction markets."""
 
 from __future__ import annotations
+from typing import Any
 
 import hashlib
 

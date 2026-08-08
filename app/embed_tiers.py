@@ -28,6 +28,7 @@ benefits from 3072-dimension embeddings.
 # ──────────────────────────────────────────────────────────────
 
 from __future__ import annotations
+from typing import Any
 
 TIER_PROVIDERS = {
     "critical": {"gemini_1", "gemini_2", "gemini_3"},  # 3072d only - highest quality

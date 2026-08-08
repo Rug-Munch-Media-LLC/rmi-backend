@@ -20,7 +20,7 @@ import pickle
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Any
 
 import networkx as nx
 import numpy as np

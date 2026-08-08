@@ -8,7 +8,7 @@ for deep wallet cluster analysis.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.domains.wallet.clustering.models import Cluster, Connection, WalletProfile

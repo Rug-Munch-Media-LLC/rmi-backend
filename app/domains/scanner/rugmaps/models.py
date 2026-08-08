@@ -5,6 +5,7 @@ All dataclasses for the interactive wallet visualization engine.
 """
 
 from __future__ import annotations
+from typing import Any
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime

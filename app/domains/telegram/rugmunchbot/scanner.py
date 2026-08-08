@@ -19,6 +19,8 @@ from app.domains.telegram.rugmunchbot.config import (
     DEXSCREENER,
     GOPLUS,
     HONEYPOT,
+    SENTINEL_TIMEOUT,
+    SENTINEL_URL,
     SOLANAFM_API,
     backend_headers,
 )
@@ -247,6 +249,56 @@ async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any
         return None
 
 
+async def sentinel_scan(address: str, chain: str | None = None) -> dict | None:
+    """SENTINEL deep forensic scan — POST /api/v1/x402-tools/sentinel_scan.
+
+    Runs the full 9-module SENTINEL pipeline (holder HHI, LP lock, dev
+    reputation, contract authority, proxy, bundle, wash trading, honeypot,
+    etc.) and returns the backend report dict::
+
+        {
+            "token_address", "chain", "scanned_at",
+            "holder_analysis": {...},          # hhi, total_holders, warnings
+            "liquidity_verification": {...},   # total_locked_percentage, status
+            "dev_reputation": {...},           # reputation_score, rug_rate
+            "contract_authority": {...},       # risk_level, warnings
+            "composite_risk_score": 0-100,     # higher = riskier
+            "risk_level": "unknown"|...,
+            "red_flags": [...],
+            "module_risk_scores": {...},
+            "modules_run": [...],
+            "errors": {...},
+        }
+
+    Returns None on any failure so callers can degrade gracefully (the
+    sentinel deep scan is an enhancement over the base /scan, never a
+    hard dependency).
+    """
+    chain_norm = chain or detect_chain(address)
+    try:
+        async with httpx.AsyncClient(timeout=SENTINEL_TIMEOUT) as client:
+            r = await client.post(
+                SENTINEL_URL,
+                json={"address": address, "chain": chain_norm},
+                headers=backend_headers(),
+                timeout=SENTINEL_TIMEOUT,
+            )
+            if r.status_code != 200:
+                logger.warning("sentinel_scan status %s for %s", r.status_code, address)
+                return None
+            data = r.json()
+            if not isinstance(data, dict):
+                logger.warning("sentinel_scan non-dict response for %s", address)
+                return None
+            data.setdefault("address", address)
+            data.setdefault("chain", chain_norm)
+            data["_source"] = "sentinel"
+            return data
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning("sentinel_scan failed for %s: %s", address, e)
+        return None
+
+
 async def fetch_hype_score(address: str, chain: str | None = None) -> dict | None:
     """Fetch the C5 hype score from the backend DataBus ``hype_score`` provider.
 
@@ -435,6 +487,9 @@ def v2_token_to_legacy(data: dict) -> dict[str, Any]:
         "exchange_funded_pct": float(funding.get("exchange_funded_pct") or 0),
         "fresh_wallet_pct": float(funding.get("fresh_wallet_pct") or 0),
         "holder_overlap_pct": float(overlap.get("max_overlap_pct") or 0),
+        # v2 SENTINEL phase (free/premium module buckets) — surfaced as
+        # "SENTINEL" flags on /scan (see formatters.format_sentinel_flags).
+        "sentinel": data.get("sentinel"),
         # v2 news sentiment (RugBrain news_v2)
         "news_sentiment": data.get("news_sentiment"),
     }

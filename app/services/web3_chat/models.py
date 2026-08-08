@@ -6,6 +6,7 @@ Constants, enums, and data models for Web3-native chat features.
 
 
 from __future__ import annotations
+from typing import Any
 
 import uuid
 from dataclasses import dataclass, field

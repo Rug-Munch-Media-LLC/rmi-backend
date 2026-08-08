@@ -104,6 +104,7 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_hype,
     cmd_quick,
     cmd_scan,
+    cmd_sentinelscan,
     cmd_start,
     cmd_ta,
     cmd_wallet,
@@ -204,6 +205,7 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("help", "Full command reference"),
             BotCommand("scan", "Quick token scan for scams & risks"),
             BotCommand("deepscan", "Full multi-phase deep token scan"),
+            BotCommand("sentinelscan", "SENTINEL deep forensic scan (fast)"),
             BotCommand("deployer", "Deployer fingerprint check"),
             BotCommand("hype", "Quick 0-100 hype score"),
             BotCommand("wallet", "Wallet forensics & analysis"),
@@ -294,6 +296,7 @@ def main() -> None:
     _reg(app, "dex", cmd_dex)
     _reg(app, "scan", cmd_scan)
     _reg(app, "deepscan", cmd_deepscan)
+    _reg(app, "sentinelscan", cmd_sentinelscan)
     _reg(app, "deployer", cmd_deployer)
     _reg(app, "hype", cmd_hype)
     _reg(app, "wallet", cmd_wallet)

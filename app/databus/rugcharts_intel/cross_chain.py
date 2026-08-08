@@ -4,6 +4,7 @@ Same entity across chains via Arkham.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 from datetime import UTC, datetime

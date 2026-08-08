@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.domains.detectors.pump_dump_detector_package.sources import fetch_holders, fetch_trades
 from app.domains.detectors.pump_dump_detector_package.types import (

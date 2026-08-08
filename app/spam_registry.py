@@ -7,6 +7,7 @@ All sources are free, MIT/GPL/CC licensed, production-grade.
 """
 
 from __future__ import annotations
+from typing import Any
 
 import json
 import os
