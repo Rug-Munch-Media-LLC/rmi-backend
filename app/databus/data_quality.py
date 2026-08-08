@@ -191,7 +191,14 @@ async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
                     labels[addr] = label
                     break
         r.close()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        httpx.HTTPError,
+        httpx.TimeoutException,
+        redis.exceptions.ResponseError,
+    ) as e:
         logger.debug(f"Label enrichment failed: {e}")
     return labels
 
@@ -219,7 +226,14 @@ async def enrich_with_arkham(address: str) -> dict | None:
                     "chain": data.get("chain", ""),
                     "is_contract": data.get("contract", False),
                 }
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        httpx.HTTPError,
+        httpx.TimeoutException,
+        redis.exceptions.ResponseError,
+    ):
         pass
     return None
 
@@ -565,7 +579,14 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
             r.close()
             return json.loads(cached)
         r.close()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        httpx.HTTPError,
+        httpx.TimeoutException,
+        redis.exceptions.ResponseError,
+    ):
         pass
 
     # First, check known entities

@@ -24,6 +24,8 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+import redis
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -96,7 +98,7 @@ async def record_feedback(
         )
         return {"status": "ok", "query_id": query_id, "recorded": True}
 
-    except (ConnectionError, OSError, TimeoutError) as exc:
+    except (ConnectionError, OSError, TimeoutError, redis.exceptions.ResponseError) as exc:
         logger.warning("feedback_store_failed", error=str(exc)[:80])
         return {"status": "error", "error": str(exc), "recorded": False}
 
@@ -116,7 +118,7 @@ async def get_feedback(query_id: str) -> dict[str, Any] | None:
         raw = r.get(f"{FEEDBACK_PREFIX}{query_id}")
         if raw:
             return json.loads(raw)
-    except (ConnectionError, OSError, TimeoutError, json.JSONDecodeError) as exc:
+    except (ConnectionError, OSError, TimeoutError, json.JSONDecodeError, redis.exceptions.ResponseError) as exc:
         logger.debug("feedback_get_failed", error=str(exc)[:60])
     return None
 
@@ -146,7 +148,7 @@ async def get_feedback_counts() -> dict[str, int]:
             "unhelpful": unhelpful,
             "helpfulness_ratio": ratio,
         }
-    except (ConnectionError, OSError, TimeoutError) as exc:
+    except (ConnectionError, OSError, TimeoutError, redis.exceptions.ResponseError) as exc:
         logger.debug("feedback_counts_failed", error=str(exc)[:60])
         return {"total": 0, "helpful": 0, "unhelpful": 0, "helpfulness_ratio": 0.0}
 
@@ -180,7 +182,7 @@ async def get_recent_feedback(limit: int = 20) -> list[dict[str, Any]]:
         records.sort(key=lambda x: x.get("ts", 0), reverse=True)
         return records[:limit]
 
-    except (ConnectionError, OSError, TimeoutError) as exc:
+    except (ConnectionError, OSError, TimeoutError, redis.exceptions.ResponseError) as exc:
         logger.debug("recent_feedback_failed", error=str(exc)[:60])
         return []
 

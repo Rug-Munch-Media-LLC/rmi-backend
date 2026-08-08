@@ -74,15 +74,36 @@ _BASELINE = 50.0
 BLUECHIP_MARKET_CAP_USD = 1_000_000_000  # ≈ top-100 by market cap
 BLUECHIP_HOLDER_COUNT = 100_000
 
+# Hardcoded allowlist of known blue-chip tokens (mainnet addresses).
+# These bypass SENTINEL concentration/low-lock/wash/honeypot heuristics even
+# when market-cap / holder data is unavailable (data fetch OOMs or is rate
+# limited). Keys are checksummed mainnet addresses; matched case-insensitively.
+BLUECHIP_ADDRESSES: dict[str, str] = {
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2": "WETH",
+    "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599": "WBTC",
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": "USDC",
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7": "USDT",
+    "0x6B175474E89094C44Da98b954EedeAC495271d0F": "DAI",
+    "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84": "stETH",
+}
+
+# Lowercased lookup set — built once at import; addresses matched case-insensitively.
+_BLUECHIP_ADDRESSES_LOWER: frozenset[str] = frozenset(a.lower() for a in BLUECHIP_ADDRESSES)
+
 
 def _is_bluechip(r: ScanResult) -> bool:
-    """True for top-100 market-cap or >100K-holder tokens (WETH, WBTC, ...).
+    """True for known blue-chip / top-100 market-cap or >100K-holder tokens.
 
-    Uses the core price payload (``market_cap_usd``), the DataBus holder
-    data (``holder_count`` / ``total_holders``) and the SENTINEL free-tier
-    ``holder_analysis.total_holders`` as evidence. Defensive: missing or
-    malformed fields simply mean "not bluechip".
+    The hardcoded ``BLUECHIP_ADDRESSES`` allowlist is checked FIRST so known
+    blue-chips (WETH, WBTC, USDC, USDT, DAI, stETH) are recognized even when
+    market-cap / holder enrichment data is unavailable (data fetch OOMs).
+    Falls through to data-dependent checks (``market_cap_usd``, DataBus
+    holder data, SENTINEL free-tier ``holder_analysis.total_holders``).
+    Defensive: missing or malformed fields simply mean "not bluechip".
     """
+    address = (r.token_address or "").strip().lower()
+    if address in _BLUECHIP_ADDRESSES_LOWER:
+        return True
     if float(r.market_cap_usd or 0) >= BLUECHIP_MARKET_CAP_USD:
         return True
     holders = r.holders if isinstance(r.holders, dict) else {}

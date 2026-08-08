@@ -14,7 +14,9 @@ from __future__ import annotations
 
 from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.scoring import (
+    BLUECHIP_ADDRESSES,
     DIMENSION_WEIGHTS,
+    _is_bluechip,
     apply_news_scoring,
     compute_score,
 )
@@ -552,6 +554,50 @@ class TestBlueChipGuard:
             )
         )
         assert "SENTINEL_LP_LOCK" in out["breakdown"]["liquidity"]["flags"]
+
+    def test_bluechip_allowlist_matches_no_data_token(self) -> None:
+        """Hardcoded allowlist (WETH) is blue-chip even with zero market data.
+
+        Regression for the data-fetch OOM case: WETH scanned with no
+        market-cap / holder enrichment must still bypass SENTINEL flags.
+        """
+        assert "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" in BLUECHIP_ADDRESSES
+        r = ScanResult(
+            token_address="0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+            chain="ethereum",
+            market_cap_usd=0.0,
+            holders=None,
+        )
+        assert _is_bluechip(r) is True
+        out = compute_score(
+            self._bluechip(
+                token_address="0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+                market_cap_usd=0.0,
+                holders=None,
+            )
+        )
+        assert "SENTINEL_HHI_CRITICAL" not in out["breakdown"]["holders"]["flags"]
+        assert "SENTINEL_LP_LOCK" not in out["breakdown"]["liquidity"]["flags"]
+        assert out["risk_level"] in ("safe", "low", "medium")
+
+    def test_bluechip_allowlist_is_case_insensitive(self) -> None:
+        """Lowercased WETH address (as returned by many providers) still matches."""
+        r = ScanResult(
+            token_address="0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+            chain="ethereum",
+            market_cap_usd=0.0,
+        )
+        assert _is_bluechip(r) is True
+
+    def test_unknown_token_not_bluechip_without_data(self) -> None:
+        """A random address with no data must NOT be treated as blue-chip."""
+        r = ScanResult(
+            token_address="0xDEADBEEF00000000000000000000000000000000",
+            chain="ethereum",
+            market_cap_usd=0.0,
+            holders=None,
+        )
+        assert _is_bluechip(r) is False
 
     def test_non_bluechip_still_flagged(self) -> None:
         """A small-cap token with the same signals keeps the penalties."""

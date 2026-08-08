@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+import redis
 
 from app.core.logging import get_logger
 from app.rag.ann_index import Hit, get_index
@@ -535,7 +536,7 @@ def get_collection_stats(collection: str) -> dict:
 
         client = get_redis()
         hashes = client.scard(f"rag:hashes:{collection}") if client is not None else 0
-    except (ConnectionError, TimeoutError, OSError):
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError):
         hashes = 0
     return {
         "collection": collection,

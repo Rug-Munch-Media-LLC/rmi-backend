@@ -14,6 +14,8 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+import redis
+
 from app.core.logging import get_logger
 
 logger = get_logger("x402.enrich")
@@ -64,7 +66,7 @@ def get_cached_enrichment(address: str) -> dict | None:
         cached = r.get(f"x402:enrich:{address}")
         if cached:
             return json.loads(cached)
-    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError) as e:
+    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, redis.exceptions.ResponseError) as e:
         logger.warning("Enrichment error: %s", e)
     return None
 
@@ -91,7 +93,14 @@ def preload_enrichment_cache(addresses: list[str]) -> None:
                         {"labels": [{"category": line.label_category, "name": line.label_name} for line in labels]}
                     ),
                 )
-        except (ConnectionError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+        except (
+            ConnectionError,
+            TimeoutError,
+            OSError,
+            ValueError,
+            json.JSONDecodeError,
+            redis.exceptions.ResponseError,
+        ):
             continue
 
 
@@ -114,7 +123,7 @@ def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) 
         r.lpush("x402:alerts:high_risk", alert)
         r.ltrim("x402:alerts:high_risk", 0, 999)
         logger.warning("ENRICHMENT ALERT: %s in %s: %s", alert_type, tool_name, data)
-    except (ConnectionError, TimeoutError, OSError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
         logger.warning("Enrichment OSError: %s", e)
 
 
@@ -141,7 +150,7 @@ def _load_recent_intel(r=None) -> dict | None:
             "tokens_scanned": intel.get("tokens_scanned", 0),
             "timestamp": intel.get("timestamp", 0),
         }
-    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError):
+    except (ConnectionError, TimeoutError, ValueError, json.JSONDecodeError, redis.exceptions.ResponseError):
         return None
 
 
@@ -211,7 +220,7 @@ def propagate_labels_cross_chain() -> int:
         """)
         logger.info("Cross-chain propagation: %s labels propagated", count)
         return count
-    except (ConnectionError, TimeoutError, OSError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
         logger.warning("Cross-chain propagation failed: %s", e)
         return 0
 

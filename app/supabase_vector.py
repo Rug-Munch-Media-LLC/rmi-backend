@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+import redis
 
 from app.core.logging import get_logger
 from app.core.secrets import get_secret_or_none
@@ -294,7 +295,7 @@ class SupabaseVectorStore:
                 await r.setex(f"rag:{collection}:{doc_id}", 86400 * 30, json.dumps(doc))
                 await r.sadd(f"rag:idx:{collection}", doc_id)
                 return True
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
                 logger.error("Redis fallback insert failed: %s", e)
                 return False
 
@@ -397,7 +398,7 @@ class SupabaseVectorStore:
                         )
                 scored.sort(key=lambda x: x["similarity"], reverse=True)
                 return scored[:limit]
-            except (ConnectionError, TimeoutError, OSError) as e:
+            except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
                 logger.error("Redis search fallback failed: %s", e)
                 return []
 

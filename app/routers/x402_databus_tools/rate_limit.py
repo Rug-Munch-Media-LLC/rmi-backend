@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import redis
+
 from app.core.logging import get_logger
 
 logger = get_logger("x402_databus_tools")
@@ -31,7 +33,7 @@ async def _get_trial_redis() -> Any | None:
         )
         await r.ping()
         return r
-    except (ConnectionError, TimeoutError, OSError):
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError):
         return None
 
 
@@ -79,7 +81,7 @@ async def consume_trial(identifier: str, tool_id: str) -> bool:
         pipe.expire(key, TRIAL_WINDOW_SECONDS)
         await pipe.execute()
         return True
-    except (ConnectionError, TimeoutError, OSError):
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError):
         return False
     finally:
         await r.close()
