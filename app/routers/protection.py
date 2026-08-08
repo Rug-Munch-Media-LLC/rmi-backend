@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
+from anyio import Path as AsyncPath
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
@@ -125,11 +125,10 @@ async def check_rag_for_url(url: str) -> dict[str, Any] | None:
 async def check_blocklist_for_url(url: str) -> dict[str, Any] | None:
     """Check URL against blocklist.json domains."""
     try:
-        blocklist_path = "/app/blocklist.json"
-        if not os.path.exists(blocklist_path):
+        blocklist_path = AsyncPath("/app/blocklist.json")
+        if not await blocklist_path.exists():
             return None
-        with open(blocklist_path) as f:
-            blocklist = json.load(f)
+        blocklist = json.loads(await blocklist_path.read_text())
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
         if domain.startswith("www."):
@@ -353,9 +352,7 @@ async def check_token(
         from app.token_scanner import scan_token
 
         try:
-            scan_result = await asyncio.wait_for(
-                scan_token(address, chain, tier="free", protection_mode=True), timeout=1.8
-            )
+            scan_result = await asyncio.wait_for(scan_token(address, chain, tiers=["free"]), timeout=1.8)
         except TimeoutError:
             logger.warning(f"Token scan timed out for {address}")
             return ProtectionResponse(
@@ -412,17 +409,17 @@ async def get_domains() -> dict | dict[str, list]:
         backend_blocklist_path = "/app/blocklist.json"
         domains_set: set[str] = set()
 
-        if os.path.exists(extension_blocklist_path):
-            with open(extension_blocklist_path) as f:
-                extension_domains = json.load(f)
-                domains_set.update(extension_domains)
+        ext_path = AsyncPath(extension_blocklist_path)
+        if await ext_path.exists():
+            extension_domains = json.loads(await ext_path.read_text())
+            domains_set.update(extension_domains)
         else:
             logger.warning(f"Extension blocklist file does not exist: {extension_blocklist_path}")
 
-        if os.path.exists(backend_blocklist_path):
-            with open(backend_blocklist_path) as f:
-                backend_domains = json.load(f)
-                domains_set.update(backend_domains)
+        backend_path = AsyncPath(backend_blocklist_path)
+        if await backend_path.exists():
+            backend_domains = json.loads(await backend_path.read_text())
+            domains_set.update(backend_domains)
 
         try:
             from app.rag.compat import three_pillar_search
@@ -483,10 +480,9 @@ async def protection_health() -> Any:
         },
     }
     try:
-        blocklist_path = "/app/blocklist.json"
-        if os.path.exists(blocklist_path):
-            with open(blocklist_path) as f:
-                json.load(f)
+        blocklist_path = AsyncPath("/app/blocklist.json")
+        if await blocklist_path.exists():
+            json.loads(await blocklist_path.read_text())
             health_status["modules"]["blocklist"] = "ok"
         else:
             health_status["modules"]["blocklist"] = "missing_file"

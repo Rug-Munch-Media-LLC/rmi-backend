@@ -187,7 +187,7 @@ async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
         try:
             from app.token_scanner import scan_token
 
-            scan = await scan_token(mint, chain, tier="free")
+            scan = await scan_token(mint, chain, tiers=["free"])
             enrich = {}
             if hasattr(scan, "free") and isinstance(scan.free, dict):
                 e = scan.free
