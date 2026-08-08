@@ -31,6 +31,7 @@ from app.domains.telegram.rugmunchbot.config import (
     backend_headers,
     fmt_number,
 )
+from app.domains.telegram.rugmunchbot.data_resolver import resolve_fear_greed, resolve_market_global
 from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     is_owner,
@@ -1314,43 +1315,61 @@ async def _inline_sentiment(update: Update, ctx) -> None:
         return
     await query.edit_message_text("\U0001f4c8 <b>Fetching sentiment...</b>", parse_mode=ParseMode.HTML)
     try:
-        async with httpx.AsyncClient(timeout=12) as client:
-            lines = ["\U0001f4c8 <b>Market Sentiment</b>", thin_sep()]
-            # Fear & Greed Index
-            try:
+        lines = ["\U0001f4c8 <b>Market Sentiment</b>", thin_sep()]
+
+        # Own data first: backend market intel (cached). Only when the backend
+        # is unreachable do we fall back to alternative.me + CoinGecko direct.
+        # DATA_SOURCE is logged by the resolver for reliance tracking.
+
+        async def _external_fng() -> dict | None:
+            async with httpx.AsyncClient(timeout=12) as client:
                 fg = await client.get("https://api.alternative.me/fng/?limit=1")
                 if fg.status_code == 200:
                     fg_data = fg.json().get("data", [{}])[0]
-                    value = int(fg_data.get("value", 50))
-                    classification = fg_data.get("value_classification", "Neutral")
-                    lines.append(f"\U0001f610 Fear & Greed: <b>{value}/100</b> ({classification})")
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                logger.debug("fear&greed fetch failed")
-            # CoinGecko global
-            try:
+                    return {
+                        "value": int(fg_data.get("value", 50)),
+                        "classification": fg_data.get("value_classification", "Neutral"),
+                    }
+            return None
+
+        fng = await resolve_fear_greed(_external_fng)
+        if fng and fng.get("value"):
+            lines.append(
+                f"\U0001f610 Fear & Greed: <b>{fng.get('value')}/100</b> ({fng.get('classification', 'Neutral')})"
+            )
+
+        async def _external_global() -> dict | None:
+            async with httpx.AsyncClient(timeout=12) as client:
                 r = await client.get(f"{COINGECKO}/global")
                 if r.status_code == 200:
                     data = r.json().get("data", {})
-                    mcap = data.get("total_market_cap", {}).get("usd")
-                    if mcap:
-                        lines.append(f"\U0001f4c8 Total Market Cap: <b>{fmt_number(mcap)}</b>")
-                    btc_dom = data.get("market_cap_percentage", {}).get("btc")
-                    if btc_dom:
-                        lines.append(f"\U0001f4bf BTC Dominance: <b>{btc_dom:.1f}%</b>")
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                logger.debug("coingecko global fetch failed")
-            lines.append(footer_links())
-            await query.edit_message_text(
-                "\n".join(lines),
-                parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup(
-                    [
-                        [InlineKeyboardButton("\U0001f504 Refresh", callback_data="sentiment_refresh")],
-                        [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-                    ]
-                ),
-                disable_web_page_preview=True,
-            )
+                    return {
+                        "total_market_cap": data.get("total_market_cap", {}).get("usd"),
+                        "btc_dominance": data.get("market_cap_percentage", {}).get("btc"),
+                    }
+            return None
+
+        global_data = await resolve_market_global(_external_global)
+        if global_data:
+            mcap = global_data.get("total_market_cap")
+            if mcap:
+                lines.append(f"\U0001f4c8 Total Market Cap: <b>{fmt_number(mcap)}</b>")
+            btc_dom = global_data.get("btc_dominance")
+            if btc_dom:
+                lines.append(f"\U0001f4bf BTC Dominance: <b>{btc_dom:.1f}%</b>")
+
+        lines.append(footer_links())
+        await query.edit_message_text(
+            "\n".join(lines),
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("\U0001f504 Refresh", callback_data="sentiment_refresh")],
+                    [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+                ]
+            ),
+            disable_web_page_preview=True,
+        )
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"inline sentiment failed: {e}")
         await query.edit_message_text(
