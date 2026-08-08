@@ -883,11 +883,15 @@ def _query_is_active(token_address: str, chain: str) -> bool:
 
 
 async def _get_holder_analysis_gini(token_address: str, chain: str) -> float:
-    """Reuse own_holder_analysis for the Gini coefficient (spec C2)."""
-    try:
-        from app.domains.scanner.engines.own_holder_analysis import get_own_holder_analysis
+    """Reuse the canonical holder engine for the Gini coefficient (spec C2).
 
-        result = await get_own_holder_analysis(token_address, chain)
+    Routes through ``unified._data_sources.get_token_holders`` — the single
+    shared entry point for holder data (canonical ``own_holder_analysis``).
+    """
+    try:
+        from app.domains.scanner.unified._data_sources import get_token_holders
+
+        result = await get_token_holders(token_address, chain)
         if result and result.get("source") == "own":
             return float(result.get("gini_coefficient") or 0.0)
     except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
