@@ -4,6 +4,12 @@ Own-Data Integration:
     _get_holder_data now queries own_holder_analysis FIRST which computes
     holder distribution from ClickHouse evm_transfers (zero cost, always fresh).
     Falls back to RPC (Solana) / Blockscout (EVM) only when our data is empty.
+
+Degodding (wave 6, 2026-08-09):
+    The Solana/Blockscout holder parsers and the Solana LP-burn check live in
+    ``_holder_helpers.py``. This module keeps the public ``_get_holder_data`` /
+    ``_check_liquidity_lock_multi`` / ``_check_lp_concentration`` names (tests
+    patch them at module level).
 """
 
 from __future__ import annotations
@@ -20,6 +26,11 @@ from app.domains.scanner.modules._core import (
     _fetch_json,
     _solana_rpc_call,
     logger,
+)
+from app.domains.scanner.modules._holder_helpers import (
+    _build_blockscout_top_holders,
+    _build_solana_top_holders,
+    _solana_lp_burn_ratio,
 )
 
 
@@ -90,18 +101,7 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
             data = await _solana_rpc_call("getTokenLargestAccounts", [token_address])
             if data:
                 value = data.get("result", {}).get("value", [])
-                total = sum(int(a.get("amount", "0")) for a in value) or 1
-                top_holders = []
-                for i, acct in enumerate(value[:20]):
-                    pct = (int(acct.get("amount", "0")) / total) * 100
-                    top_holders.append(
-                        {
-                            "rank": i + 1,
-                            "address": acct.get("address", ""),
-                            "amount": acct.get("amount", "0"),
-                            "percentage": round(pct, 2),
-                        }
-                    )
+                top_holders = _build_solana_top_holders(value)
                 result["holder_count"] = len(value)
                 result["top_holders"] = top_holders
                 if top_holders:
@@ -128,18 +128,8 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
                 )
                 if bs_data and "items" in bs_data:
                     items = bs_data["items"][:20]
-                    top_holders = []
-                    for i, h in enumerate(items):
-                        pct = float(h.get("percentage", 0))
-                        top_holders.append(
-                            {
-                                "rank": i + 1,
-                                "address": h.get("address", {}).get("hash", ""),
-                                "percentage": pct,
-                            }
-                        )
+                    result["top_holders"] = _build_blockscout_top_holders(items)
                     result["holder_count"] = bs_data.get("total", {}).get("value", result["holder_count"])
-                    result["top_holders"] = top_holders
                     result["source"] = "blockscout"
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("evm_holders_failed", error=str(e))
@@ -261,31 +251,9 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
             if chain == "solana":
                 pair_addr = pair.get("pairAddress", "")
                 if pair_addr:
-                    supply_data = await _solana_rpc_call("getTokenSupply", [pair_addr])
-                    if supply_data:
-                        supply = int(supply_data.get("result", {}).get("value", {}).get("amount", "0"))
-                        dead_data = await _solana_rpc_call(
-                            "getTokenAccountsByOwner",
-                            [
-                                "dead111111111111111111111111111111111111111",
-                                {"mint": pair_addr},
-                                {"encoding": "jsonParsed"},
-                            ],
-                        )
-                        if dead_data:
-                            dead_balance = 0
-                            for acct in dead_data.get("result", {}).get("value", []):
-                                dead_balance += int(
-                                    acct.get("account", {})
-                                    .get("data", {})
-                                    .get("parsed", {})
-                                    .get("info", {})
-                                    .get("tokenAmount", {})
-                                    .get("amount", "0")
-                                )
-                            if supply > 0:
-                                result["liquidity_locked_pct"] = round((dead_balance / supply) * 100, 1)
-                                result["lp_burned"] = dead_balance > 0
+                    burn = await _solana_lp_burn_ratio(pair_addr)
+                    if burn is not None:
+                        result["liquidity_locked_pct"], result["lp_burned"] = burn
 
             if liquidity < 100:
                 result["liquidity_locked_pct"] = 0
