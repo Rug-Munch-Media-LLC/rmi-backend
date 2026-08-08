@@ -100,7 +100,7 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
     return {"error": "All providers failed", "routing": vars(decision)}
 
 
-async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict[str, Any]:
+async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> Any | dict[str, Any] | None:
     """Call a specific provider — routes through LiteLLM when possible.
     Returns dict or None. Gracefully degrades.
 
