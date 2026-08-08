@@ -17,6 +17,7 @@ Providers are registered in PROVIDER_REGISTRY and consumed by WebhookEngine.
 
 from __future__ import annotations
 
+from app.domains.scanner.webhooks.providers.enhanced_transaction import EnhancedTransactionProvider
 from app.domains.scanner.webhooks.providers.first_swap import FirstSwapProvider
 from app.domains.scanner.webhooks.providers.liquidity_change import LiquidityChangeProvider
 from app.domains.scanner.webhooks.providers.new_block import NewBlockProvider
@@ -35,10 +36,12 @@ PROVIDER_REGISTRY: list[type] = [
     FirstSwapProvider,
     PriceChangeProvider,
     LiquidityChangeProvider,
+    EnhancedTransactionProvider,
 ]
 
 __all__ = [
     "PROVIDER_REGISTRY",
+    "EnhancedTransactionProvider",
     "FirstSwapProvider",
     "LiquidityChangeProvider",
     "NewBlockProvider",

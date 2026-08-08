@@ -100,7 +100,8 @@ class TestWebhookSubscription:
         assert "token.deployed" in values
         assert "token.whale_move" in values
         assert "chain.block" in values
-        assert len(values) == 7
+        assert "transaction.enhanced" in values
+        assert len(values) == 8
 
 
 class TestWebhookEvent:

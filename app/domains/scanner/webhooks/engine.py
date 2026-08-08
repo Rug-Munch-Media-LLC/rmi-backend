@@ -111,6 +111,13 @@ class WebhookEngine:
         while self._running:
             try:
                 cursor = await load_cursor(await provider.cursor_key())
+
+                # Providers that watch addresses (wallet_activity,
+                # enhanced_transaction) read their watch list from the cursor.
+                # The engine injects it from the active subscriptions for that
+                # event type so a subscription controls what is watched.
+                cursor = await self._inject_watch_addresses(provider.event_type, cursor)
+
                 raw_events = await provider.poll(cursor)
 
                 if raw_events:
@@ -146,6 +153,13 @@ class WebhookEngine:
                                 await self._dispatch(event, sub)
                                 dispatched += 1
 
+                        # Wallet-scoped subscriptions (wallet.activity,
+                        # transaction.enhanced) route by wallet_address.
+                        for sub in sub_map.get(raw_event.get("wallet_address", "").lower(), []):
+                            if self._matches_filters(raw_event, sub):
+                                await self._dispatch(event, sub)
+                                dispatched += 1
+
                         # Also dispatch to subscriptions without token filter (catch-all)
                         for sub in sub_map.get("*", []):
                             if self._matches_filters(raw_event, sub):
@@ -177,16 +191,22 @@ class WebhookEngine:
             await asyncio.sleep(provider.poll_interval)
 
     async def _build_subscription_map(self, event_type: WebhookEventType) -> dict[str, list[WebhookSubscription]]:
-        """Build a map: token_address_lower → [subscriptions].
+        """Build a map: address → [subscriptions].
 
-        The catch-all key "*" holds subscriptions that watch all tokens.
+        Keys are lowercased token addresses (from ``filters.token_addresses``),
+        wallet addresses (from ``filters.wallet_addresses``) and the catch-all
+        ``"*"`` for subscriptions that watch everything.
         """
         subs = await self._repo.list_by_event_type(event_type.value)
         sub_map: dict[str, list[WebhookSubscription]] = {}
         for sub in subs:
-            token_filters = sub.filters.token_addresses if sub.filters else []
-            if token_filters:
-                for addr in token_filters:
+            if not sub.filters:
+                sub_map.setdefault("*", []).append(sub)
+                continue
+            token_filters = sub.filters.token_addresses or []
+            wallet_filters = sub.filters.wallet_addresses or []
+            if token_filters or wallet_filters:
+                for addr in [*token_filters, *wallet_filters]:
                     key = addr.lower()
                     sub_map.setdefault(key, []).append(sub)
             else:
@@ -242,13 +262,66 @@ class WebhookEngine:
             if event_token and event_token not in [a.lower() for a in filters.token_addresses]:
                 return False
 
+        # Wallet address filter (wallet.activity, transaction.enhanced)
+        if filters.wallet_addresses:
+            event_wallet = raw_event.get("wallet_address", "").lower()
+            event_from = raw_event.get("from_address", "").lower()
+            event_to = raw_event.get("to_address", "").lower()
+            watched = [a.lower() for a in filters.wallet_addresses]
+            involved = {w for w in (event_wallet, event_from, event_to) if w}
+            if involved and not (involved & set(watched)):
+                return False
+
         # USD value filter
         if filters.min_value_usd is not None:
             value = raw_event.get("value_decimal", 0)
             if isinstance(value, (int, float)) and value < filters.min_value_usd:
                 return False
 
+        # Transaction type filter (transaction.enhanced)
+        if filters.transaction_types:
+            tx_type = raw_event.get("type", "")
+            if tx_type and tx_type not in filters.transaction_types:
+                return False
+
+        # Program ID filter (transaction.enhanced — Solana programs / EVM routers)
+        if filters.program_ids:
+            program_ids = [str(i.get("programId", "")).lower() for i in raw_event.get("instructions", [])]
+            watched_programs = [p.lower() for p in filters.program_ids]
+            if program_ids and not (set(program_ids) & set(watched_programs)):
+                return False
+
         return True
+
+    async def _inject_watch_addresses(
+        self,
+        event_type: WebhookEventType,
+        cursor: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Collect wallet + token watch lists from active subscriptions.
+
+        Providers that watch specific addresses (wallet_activity,
+        enhanced_transaction) read ``cursor["wallet_addresses"]`` /
+        ``cursor["token_addresses"]``; without this injection they would never
+        know which addresses to poll. Catch-all subscriptions are ignored —
+        an address-less provider poll makes no sense and would blow up RPC
+        budgets.
+        """
+        cursor = cursor or {}
+        subs = await self._repo.list_by_event_type(event_type.value)
+        wallets: set[str] = set(cursor.get("wallet_addresses") or [])
+        tokens: set[str] = set(cursor.get("token_addresses") or [])
+        for sub in subs:
+            filters = sub.filters
+            if not filters:
+                continue
+            wallets.update(a.lower() for a in (filters.wallet_addresses or []))
+            tokens.update(a.lower() for a in (filters.token_addresses or []))
+        if wallets:
+            cursor["wallet_addresses"] = sorted(wallets)
+        if tokens:
+            cursor["token_addresses"] = sorted(tokens)
+        return cursor
 
     @staticmethod
     def _build_cursor(

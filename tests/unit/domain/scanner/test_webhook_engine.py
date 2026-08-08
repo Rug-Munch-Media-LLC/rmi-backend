@@ -117,6 +117,52 @@ class TestMatchesFilters:
         # value_decimal defaults to 0 when missing, and 0 < 1000, so filter fails
         assert self.engine._matches_filters({"chain": "ethereum"}, sub) is False
 
+    def test_wallet_address_filter_matches(self):
+        """Event involving a watched wallet should match."""
+        sub = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.WALLET_ACTIVITY],
+            filters=WebhookFilters(wallet_addresses=["0xabc"]),
+        )
+        assert self.engine._matches_filters({"wallet_address": "0xabc"}, sub) is True
+        assert self.engine._matches_filters({"from_address": "0xabc"}, sub) is True
+        assert self.engine._matches_filters({"to_address": "0xABC"}, sub) is True  # case-insensitive
+
+    def test_wallet_address_filter_mismatch(self):
+        """Event not involving the watched wallet should not match."""
+        sub = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.WALLET_ACTIVITY],
+            filters=WebhookFilters(wallet_addresses=["0xabc"]),
+        )
+        assert self.engine._matches_filters({"wallet_address": "0xdef"}, sub) is False
+        assert self.engine._matches_filters({"chain": "ethereum"}, sub) is True  # no wallet info → pass
+
+    def test_transaction_type_filter(self):
+        """Enhanced-tx type filter should match only requested types."""
+        sub = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.TRANSACTION_ENHANCED],
+            filters=WebhookFilters(transaction_types=["SWAP"]),
+        )
+        assert self.engine._matches_filters({"type": "SWAP"}, sub) is True
+        assert self.engine._matches_filters({"type": "TRANSFER"}, sub) is False
+
+    def test_program_id_filter(self):
+        """Enhanced-tx program filter should match instruction program IDs."""
+        sub = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.TRANSACTION_ENHANCED],
+            filters=WebhookFilters(program_ids=["JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"]),
+        )
+        event = {"instructions": [{"programId": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"}]}
+        assert self.engine._matches_filters(event, sub) is True
+        assert self.engine._matches_filters({"instructions": [{"programId": "other"}]}, sub) is False
+
     def test_combined_filters_all_match(self):
         """All filters matching should result in match."""
         sub = WebhookSubscription(
@@ -256,3 +302,89 @@ class TestBuildSubscriptionMap:
 
         assert "*" in sub_map
         assert "0xabc" in sub_map
+
+    @pytest.mark.asyncio
+    async def test_wallet_address_routes(self):
+        """Wallet-scoped subscriptions should be keyed by wallet address."""
+        engine = WebhookEngine()
+
+        sub = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.TRANSACTION_ENHANCED],
+            filters=WebhookFilters(wallet_addresses=["0xABC", "0xDEF"]),
+        )
+
+        with patch.object(engine._repo, "list_by_event_type", AsyncMock(return_value=[sub])):
+            sub_map = await engine._build_subscription_map(WebhookEventType.TRANSACTION_ENHANCED)
+
+        assert "0xabc" in sub_map
+        assert "0xdef" in sub_map
+        assert "*" not in sub_map
+
+
+class TestInjectWatchAddresses:
+    """Tests for _inject_watch_addresses — engine feeds providers their watch list."""
+
+    @pytest.mark.asyncio
+    async def test_injects_wallet_and_token_addresses(self):
+        """Active subscriptions' wallet/token filters become the provider cursor."""
+        engine = WebhookEngine()
+
+        sub1 = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.TRANSACTION_ENHANCED],
+            filters=WebhookFilters(wallet_addresses=["0xABC"]),
+        )
+        sub2 = WebhookSubscription(
+            id="whk:2",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.TRANSACTION_ENHANCED],
+            filters=WebhookFilters(token_addresses=["0xTokenDEF"]),
+        )
+
+        with patch.object(engine._repo, "list_by_event_type", AsyncMock(return_value=[sub1, sub2])):
+            cursor = await engine._inject_watch_addresses(WebhookEventType.TRANSACTION_ENHANCED, {})
+
+        assert cursor["wallet_addresses"] == ["0xabc"]
+        assert cursor["token_addresses"] == ["0xtokendef"]
+
+    @pytest.mark.asyncio
+    async def test_catch_all_subscriptions_do_not_poll(self):
+        """Catch-all subs contribute no watch addresses (prevents RPC explosion)."""
+        engine = WebhookEngine()
+
+        sub = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.TRANSACTION_ENHANCED],
+        )
+
+        with patch.object(engine._repo, "list_by_event_type", AsyncMock(return_value=[sub])):
+            cursor = await engine._inject_watch_addresses(WebhookEventType.TRANSACTION_ENHANCED, {})
+
+        assert "wallet_addresses" not in cursor
+        assert "token_addresses" not in cursor
+
+    @pytest.mark.asyncio
+    async def test_preserves_existing_cursor_values(self):
+        """Existing cursor fields survive injection."""
+        engine = WebhookEngine()
+
+        sub = WebhookSubscription(
+            id="whk:1",
+            url="https://example.com/webhook",
+            event_types=[WebhookEventType.TRANSACTION_ENHANCED],
+            filters=WebhookFilters(wallet_addresses=["0xabc"]),
+        )
+
+        with patch.object(engine._repo, "list_by_event_type", AsyncMock(return_value=[sub])):
+            cursor = await engine._inject_watch_addresses(
+                WebhookEventType.TRANSACTION_ENHANCED,
+                {"since": "2026-01-01", "seen_sigs": ["sig1"]},
+            )
+
+        assert cursor["since"] == "2026-01-01"
+        assert cursor["seen_sigs"] == ["sig1"]
+        assert cursor["wallet_addresses"] == ["0xabc"]

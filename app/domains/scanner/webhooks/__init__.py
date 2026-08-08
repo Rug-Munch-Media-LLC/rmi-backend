@@ -6,6 +6,7 @@ Poll-based webhook engine that uses only:
 
   1. Our own ClickHouse data (token_transfers, deployer_history, wallet_profiles)
   2. Free public RPCs (eth_blockNumber, sol_getSlot)
+  3. Helius / Alchemy RPCs when keys are configured (enhanced transactions)
 
 No external WebSocket subscriptions, no paid APIs, no third-party webhook
 delivery services.
@@ -18,6 +19,9 @@ Event Sources (all free / self-hosted):
   - token.liquidity_change→ ClickHouse DEX pool events
   - wallet.activity       → ClickHouse token_transfers by watched address
   - chain.block           → Free RPC polling (eth_blockNumber / sol_getSlot)
+  - transaction.enhanced  → Helius/Solana jsonParsed + Alchemy EVM receipts
+                            (full decoded tx: token/native transfers, swap
+                            classification, account balance deltas)
 
 Data Flow::
   WebhookEngine.start()
@@ -26,7 +30,8 @@ Data Flow::
     ├── _poll_wallet_activity()    → ClickHouse → _dispatch()
     ├── _poll_price_changes()      → Oracle     → _dispatch()
     ├── _poll_liquidity()          → ClickHouse → _dispatch()
-    └── _poll_new_blocks()         → Free RPC   → _dispatch()
+    ├── _poll_new_blocks()         → Free RPC   → _dispatch()
+    └── _poll_enhanced_transaction() → Helius/Alchemy → _dispatch()
          │
          └── WebhookDeliveryService.deliver()
                ├── httpx POST to subscriber URL
@@ -40,6 +45,7 @@ from app.domains.scanner.webhooks.delivery import WebhookDeliveryService
 from app.domains.scanner.webhooks.engine import WebhookEngine
 from app.domains.scanner.webhooks.models import (
     CreateWebhookRequest,
+    UpdateWebhookRequest,
     WebhookDelivery,
     WebhookEvent,
     WebhookEventType,
@@ -51,6 +57,7 @@ from app.domains.scanner.webhooks.router import router
 
 __all__ = [
     "CreateWebhookRequest",
+    "UpdateWebhookRequest",
     "WebhookDelivery",
     "WebhookDeliveryService",
     "WebhookEngine",
