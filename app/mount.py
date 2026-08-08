@@ -134,9 +134,10 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.domains.news.admin_router",  # /api/v1/news/_admin/*
     "app.domains.reports",  # /api/v1/reports/*
     "app.domains.x402",  # /api/v1/x402/*
-    # app.domains.x402.tools_router EXISTS (15 paid routes at /api/v1/x402-tools/*)
-    # but is intentionally NOT wired: x402-tools surface is deferred until
-    # x402_bridge_health path compatibility is resolved (see NOT YET MOUNTED).
+    # app.domains.x402.tools_router EXISTS (15 paid GET routes at /api/v1/x402-tools/*)
+    # but is intentionally NOT wired: superseded by app.domains.billing.x402.router
+    # (canonical 77-route surface, mounted 2026-08-08). The legacy GET-only surface
+    # is a duplicate-prefix superset; keep it unmounted to avoid path shadowing.
     # x402 MCP + Discovery + Docs
     "app.routers.x402_mcp_handler",  # /mcp/x402, /.well-known/x402
     "app.routers.x402_docs",  # /x402/docs, /x402/sandbox/*
@@ -214,6 +215,12 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.facilitator_health",  # /api/v1/x402/facilitator-health/*  (3 routes)
     "app.routers.x402_bridge_health",  # /api/v1/x402-tools/*  (1 route, bridge health)
     #
+    # Canonical x402 paid-tool surface — mounted 2026-08-08.
+    # 77 endpoints at /api/v1/x402-tools/* (sentinel_scan, audit, bundle_detect, ...).
+    # Must stay AFTER x402_bridge_health so the exact POST /bridge_health route wins
+    # over this router's catch-all POST /{tool_id}.
+    "app.domains.billing.x402.router",  # /api/v1/x402-tools/*  (77 routes, SENTINEL + tools)
+    #
     # Admin panel router — processes, disk, network, system updates
     # NOTE: /api/v1/admin/* does NOT conflict with /api/v1/alerts/*
     #       (alerts_webhook uses prefix "/alerts", resolved to /api/v1/alerts/*)
@@ -278,7 +285,8 @@ ROUTER_MODULES: Final[list[str]] = [
     #     Imported directly by other routers.
     #   "app.routers.x402_tools" — re-export shim for app.domains.billing.x402.router.
     #     The canonical billing/x402 router (77 endpoints at /api/v1/x402-tools) is
-    #     intentionally not wired until x402_bridge_health path compatibility is resolved.
+    #     wired directly above (after x402_bridge_health, mounted 2026-08-08).
+    #     The shim stays unmounted — mounting it would double-register every route.
     #   "app.domains.labels.router" — uses root-level /labels prefix (deprecated pattern).
     #     app.routers.label_lookup already serves /api/v1/labels/*.
 ]

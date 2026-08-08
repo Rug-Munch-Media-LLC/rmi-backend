@@ -10,6 +10,7 @@ import time
 from datetime import UTC, datetime
 
 import httpx
+import redis
 
 from app.core.logging import get_logger
 
@@ -30,7 +31,7 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
             r.close()
             return json.loads(cached)
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, redis.exceptions.ResponseError):
         logger.warning("error")
 
     new_tokens = []
@@ -91,7 +92,7 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
                                 "block": sig_data.get("slot"),
                             }
                         )
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError) as e:
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, redis.exceptions.ResponseError) as e:
         logger.warning(f"error: {e}")
         logger.debug(f"Token launch scan: {e}")
 
@@ -116,7 +117,7 @@ async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> 
         r = _r()
         r.setex(cache_key, CACHE_TTL["token_launch"], json.dumps(result, default=str))
         r.close()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError, redis.exceptions.ResponseError):
         logger.warning("error")
 
     return result

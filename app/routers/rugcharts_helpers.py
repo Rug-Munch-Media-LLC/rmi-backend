@@ -80,7 +80,7 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list
             r.close()
             return json.loads(cached), False
         r.close()
-    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError, json.JSONDecodeError) as e:
         logger.debug(f"Redis cache read failed for {cache_key}: {e}")
 
     chain_map = {
@@ -190,7 +190,7 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list
             r = _r()
             r.setex(cache_key, CACHE_TTL, json.dumps(tokens))
             r.close()
-        except (ConnectionError, TimeoutError, OSError) as e:
+        except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
             logger.debug(f"Redis cache write failed for {cache_key}: {e}")
 
     return tokens, fallback_used
@@ -217,7 +217,7 @@ async def _fetch_ohlcv_gecko(pair_address: str, chain: str, timeframe: str = "1h
             r.close()
             return json.loads(cached)
         r.close()
-    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError, json.JSONDecodeError) as e:
         logger.debug(f"Redis OHLCV cache read failed: {e}")
 
     candles = []
@@ -253,7 +253,7 @@ async def _fetch_ohlcv_gecko(pair_address: str, chain: str, timeframe: str = "1h
             r = _r()
             r.setex(cache_key, OHLCV_TTL, json.dumps(candles))
             r.close()
-        except (ConnectionError, TimeoutError, OSError) as e:
+        except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
             logger.debug(f"Redis OHLCV cache write failed: {e}")
 
     return candles
@@ -300,7 +300,7 @@ async def _fetch_ohlcv_clickhouse(
             r.close()
             return json.loads(cached)
         r.close()
-    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError, json.JSONDecodeError) as e:
         logger.debug(f"Redis CH OHLCV cache read failed: {e}")
 
     interval_min, lookback_hours = _timeframe_to_ch_params(timeframe)
@@ -389,7 +389,7 @@ async def _fetch_ohlcv_clickhouse(
             r = _r()
             r.setex(cache_key, CH_OHLCV_TTL, json.dumps(candles))
             r.close()
-        except (ConnectionError, TimeoutError, OSError) as e:
+        except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
             logger.debug(f"Redis CH OHLCV cache write failed: {e}")
 
     return candles
@@ -406,7 +406,7 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
             r.close()
             return json.loads(cached)
         r.close()
-    except (ConnectionError, TimeoutError, OSError, json.JSONDecodeError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError, json.JSONDecodeError) as e:
         logger.debug(f"Redis pair cache read failed: {e}")
 
     info = {}
@@ -448,7 +448,7 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
             r = _r()
             r.setex(cache_key, CACHE_TTL, json.dumps(info))
             r.close()
-        except (ConnectionError, TimeoutError, OSError) as e:
+        except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
             logger.debug(f"Redis pair cache write failed: {e}")
 
     return info

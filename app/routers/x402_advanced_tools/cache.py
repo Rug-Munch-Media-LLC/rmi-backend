@@ -15,6 +15,8 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
+import redis
+
 from app.core.logging import get_logger
 
 logger = get_logger("x402.cache")
@@ -64,7 +66,14 @@ def get_cached(tool: str, params: dict) -> dict | None:
         data = r.get(key)
         if data:
             return json.loads(data)
-    except (ConnectionError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as e:
+    except (
+        ConnectionError,
+        TimeoutError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        redis.exceptions.ResponseError,
+    ) as e:
         logger.warning("Cache error: %s", e)
     return None
 
@@ -77,7 +86,7 @@ def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL) -> N
         result["_cached"] = True
         result["_cached_at"] = datetime.now(UTC).isoformat()
         r.setex(key, ttl, json.dumps(result))
-    except (ConnectionError, TimeoutError, OSError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
         logger.warning("Cache clear error: %s", e)
 
 
@@ -88,7 +97,7 @@ def invalidate_cache(tool: str | None = None) -> bool:
         for key in r.scan_iter("x402:cache:*"):
             r.delete(key)
         return True
-    except (ConnectionError, TimeoutError, OSError) as e:
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
         logger.warning(f"Cache clear failed (Redis): {e}")
         return False
 

@@ -12,7 +12,7 @@ from app.core.logging import get_logger
 logger = get_logger("x402_tools")
 
 # Caching shield - all data calls route through cache → rate limit → provider chain
-from app.caching_shield.service_mcp import (
+from app.caching_shield.service_mcp import (  # noqa: E402 — module docstring precedes import block
     get_service_mcp,
 )
 
@@ -329,3 +329,20 @@ def _resolve_pay_to(chain: str) -> str:
     if env_key:
         return os.getenv(env_key, "")
     return ""
+
+
+# Pay-to addresses per chain — resolved at import time from WalletManagerV2
+# with env-var fallback. Kept as a module-level dict so callers (shared.py
+# re-export, x402_tools.py shim, integration/payments.py) can snapshot the
+# active payment addresses without re-resolving on every request.
+HUMAN_PAY_TO: dict[str, str] = {
+    "base": _resolve_pay_to("base"),
+    "ethereum": _resolve_pay_to("ethereum"),
+    "bsc": _resolve_pay_to("bsc"),
+    "polygon": _resolve_pay_to("polygon"),
+    "arbitrum": _resolve_pay_to("arbitrum"),
+    "solana": _resolve_pay_to("solana"),
+    "tron": _resolve_pay_to("tron"),
+    "bitcoin": _resolve_pay_to("bitcoin"),
+    "sepa": os.getenv("ASTERPAY_SEPA_IBAN", ""),
+}
