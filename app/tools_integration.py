@@ -95,7 +95,7 @@ def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
             capture_output=True,
             text=True,
             timeout=15,
-        )
+        shell=False)
         bytecode = code.stdout.strip()
 
         # Get nonce
@@ -104,7 +104,7 @@ def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
             capture_output=True,
             text=True,
             timeout=10,
-        )
+        shell=False)
 
         # Get balance
         balance = subprocess.run(
@@ -112,7 +112,7 @@ def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
             capture_output=True,
             text=True,
             timeout=10,
-        )
+        shell=False)
 
         return {
             "address": address,
@@ -148,7 +148,7 @@ def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict:
             capture_output=True,
             text=True,
             timeout=15,
-        )
+        shell=False)
         if result.returncode == 0:
             return json.loads(result.stdout)
     except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
@@ -167,7 +167,7 @@ def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict:
             capture_output=True,
             text=True,
             timeout=60,
-        )
+        shell=False)
         return {
             "address": contract_address,
             "chain": chain,
@@ -309,7 +309,7 @@ def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict:
             capture_output=True,
             text=True,
             timeout=30,
-        )
+        shell=False)
         if result.returncode == 0:
             posts = json.loads(result.stdout) if result.stdout.strip() else []
             return {"feed": feed_url, "posts": posts, "count": len(posts)}

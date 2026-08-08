@@ -244,7 +244,7 @@ class StaticAnalyzer:
                 capture_output=True,
                 text=True,
                 timeout=120,
-            )
+            shell=False)
 
             # Slither outputs JSON to stdout when --json - is used
             output = result.stdout

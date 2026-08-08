@@ -82,28 +82,28 @@ class XTwitterProvider:
                 capture_output=True,
                 text=True,
                 timeout=10,
-            )
+            shell=False)
             self._api_key = result.stdout.strip()
             result = subprocess.run(
                 ["python3", "/root/.secrets/vault.py", "get", "rmi/social/x_api_secret"],
                 capture_output=True,
                 text=True,
                 timeout=10,
-            )
+            shell=False)
             self._api_secret = result.stdout.strip()
             result = subprocess.run(
                 ["python3", "/root/.secrets/vault.py", "get", "rmi/social/x_oauth2_token"],
                 capture_output=True,
                 text=True,
                 timeout=10,
-            )
+            shell=False)
             self._oauth2_token = result.stdout.strip()
             result = subprocess.run(
                 ["python3", "/root/.secrets/vault.py", "get", "rmi/social/x_oauth2_refresh"],
                 capture_output=True,
                 text=True,
                 timeout=10,
-            )
+            shell=False)
             self._oauth2_refresh = result.stdout.strip()
             self._loaded = True
             logger.info("X/Twitter credentials loaded from vault")

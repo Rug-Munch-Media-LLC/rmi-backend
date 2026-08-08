@@ -43,7 +43,7 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
             capture_output=True,
             text=True,
             timeout=30,
-        )
+        shell=False)
         if result.returncode == 0:
             return json.loads(result.stdout)
         logger.warning(f"MCP call failed: {result.stderr[:200]}")

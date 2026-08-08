@@ -65,7 +65,7 @@ async def query_metasleuth(address: str, chain: str = "ethereum") -> list[Label]
                 capture_output=True,
                 text=True,
                 timeout=2,
-            )
+            shell=False)
             if result.returncode == 0 and result.stdout.strip():
                 api_key = result.stdout.strip()
         except subprocess.TimeoutExpired:

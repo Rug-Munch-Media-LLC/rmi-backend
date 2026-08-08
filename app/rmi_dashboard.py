@@ -42,7 +42,7 @@ class Colors:
 
 def clear_screen() -> None:
     """Clear terminal screen."""
-    subprocess.run(["clear"] if os.name == "posix" else ["cls"])
+    subprocess.run(["clear"] if os.name == "posix" else ["cls"], shell=False)
 
 
 def print_header(title: str) -> None:
@@ -191,7 +191,7 @@ class Dashboard:
     def _get_backend_pid(self) -> int | None:
         """Get backend process ID."""
         try:
-            result = subprocess.run(["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(["pgrep", "-f", "uvicorn main:app"], capture_output=True, text=True, timeout=5, shell=False)
             if result.stdout.strip():
                 return int(result.stdout.strip())
         except subprocess.TimeoutExpired:
@@ -207,7 +207,7 @@ class Dashboard:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
-            )
+                shell=False),
             time.sleep(3)
             logger.info(f"{Colors.GREEN}Backend started!{Colors.RESET}")
         except Exception as e:

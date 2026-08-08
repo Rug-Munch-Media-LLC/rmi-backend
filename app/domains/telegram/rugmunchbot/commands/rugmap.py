@@ -269,7 +269,7 @@ async def cmd_rugmap(update, ctx) -> None:
                 f"<code>{address[:12]}...{address[-6:]}</code>{risk_line}\n\n"
                 f"👥 Nodes: <b>{len(nodes)}</b> | 🔗 Links: <b>{len(links)}</b>"
                 f" | 💧 Liq: ${liquidity:,.0f}"
-                + (f"\n🚨 <b>BUNDLE DETECTED</b>" if bundle_detected else "")
+                + ("\n🚨 <b>BUNDLE DETECTED</b>" if bundle_detected else "")
                 + f'\n🌐 <a href="{_web_rugmap_url(address, chain)}">Open interactive map</a>'
             )
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup

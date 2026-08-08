@@ -56,7 +56,7 @@ def _fetch_from_gopass(gopass_path: str) -> str:
                 ["gopass", "show", gopass_path],
                 stderr=subprocess.DEVNULL,
                 timeout=10,
-            )
+            shell=False)
             .decode()
             .strip()
         )

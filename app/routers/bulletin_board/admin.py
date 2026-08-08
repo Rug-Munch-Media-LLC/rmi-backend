@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import Body, Request
 
 from app.bulletin_board import BulletinBoardManager, PostCategory, PostStatus
 from app.core.errors import NotFoundError, ValidationError
 from app.domains.admin.admin_backend import AuditLogger, require_admin
-from app.routers.bulletin_board.models import CreatePostRequest, UpdatePostRequest
 from app.routers.bulletin_board.router import router
+
+if TYPE_CHECKING:
+    from app.routers.bulletin_board.models import CreatePostRequest, UpdatePostRequest
 
 
 @router.get("/admin/bulletin/posts")

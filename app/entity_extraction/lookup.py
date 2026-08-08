@@ -15,10 +15,12 @@ from __future__ import annotations
 import json
 import os
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
-from app.entity_extraction.models import EntityExtractionResult
+
+if TYPE_CHECKING:
+    from app.entity_extraction.models import EntityExtractionResult
 
 logger = get_logger(__name__)
 

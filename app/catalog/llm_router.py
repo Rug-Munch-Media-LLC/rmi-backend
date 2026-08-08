@@ -15,11 +15,14 @@ rather than failing the whole request.
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import httpx
 
-from app.catalog.models import NewsItem
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from app.catalog.models import NewsItem
 
 log = get_logger(__name__)
 

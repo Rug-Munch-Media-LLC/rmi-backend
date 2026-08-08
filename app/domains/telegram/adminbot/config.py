@@ -23,7 +23,7 @@ def _get_admin_token() -> str:
                 ["gopass", "show", GOPASS_PATH],
                 stderr=subprocess.DEVNULL,
                 timeout=5,
-            )
+            shell=False)
             .decode()
             .strip()
         )

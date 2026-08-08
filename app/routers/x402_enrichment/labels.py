@@ -124,7 +124,7 @@ def lookup_labels(addresses: list[str]) -> tuple[dict[str, list[WalletLabel]], f
     return results, (time.time() - t0) * 1000
 
 
-def search_similar_patterns(
+async def search_similar_patterns(
     addresses: list[str],
     r: Any = None,
 ) -> tuple[list[dict], float]:

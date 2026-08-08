@@ -30,7 +30,7 @@ def _from_gopass(path: str) -> str | None:
             capture_output=True,
             text=True,
             timeout=5,
-        )
+        shell=False)
         if result.returncode == 0:
             return result.stdout.strip()
     except FileNotFoundError:

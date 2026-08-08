@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Any
-
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 from app.crypto_embeddings.features import extract_contract_features
@@ -14,6 +12,9 @@ from app.crypto_embeddings.models import (
     OR_FALLBACK_EMBED,
     OR_PRIMARY_EMBED,
 )
+
+if TYPE_CHECKING:
+    import numpy as np
 
 logger = get_logger(__name__)
 
