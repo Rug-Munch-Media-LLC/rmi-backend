@@ -1,7 +1,7 @@
 """Agent configuration for the Pydantic AI agent framework.
 
 Single source of truth for the agent fleet settings. The LLM backend is the
-local llama.cpp server (Qwen3.5-9B, OpenAI-compatible API at :8085).
+local llama.cpp server (Qwen3-4B chat / DeepSeek-R1-8B analysis, API at :8085/:8086).
 
 Per repo convention (app/config.py consolidation notice), configuration
 values live in config modules — downstream agent code imports from here
@@ -17,7 +17,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 # ── Local LLM backend (llama.cpp, OpenAI-compatible) ─────────────────
 LLM_BASE_URL: str = os.getenv("AGENT_LLM_BASE_URL", "http://localhost:8085/v1")
-LLM_MODEL: str = os.getenv("AGENT_LLM_MODEL", "qwen3.5-9b")
+LLM_MODEL: str = os.getenv("AGENT_LLM_MODEL", "qwen-chat")
 # llama.cpp serves an OpenAI-compatible API without auth; the OpenAI client
 # still requires a non-empty api_key, hence the placeholder.
 LLM_API_KEY: str = os.getenv("AGENT_LLM_API_KEY", "not-needed")
