@@ -398,11 +398,18 @@ async def _fast_scan_token(deployment: dict[str, Any], chain: str) -> dict[str, 
 
 
 async def _check_liquidity(token_address: str, chain: str) -> float:
-    """Return liquidity USD for a token (own data → DexScreener fallback)."""
-    try:
-        from app.domains.scanner.modules._core import _fetch_dexscreener
+    """Return liquidity USD for a token — single source: unified data sources.
 
-        ds = await asyncio.wait_for(_fetch_dexscreener(token_address, chain), timeout=6.0)
+    Routes through ``unified._data_sources.get_token_liquidity`` (canonical
+    ``own_dex_data`` → ClickHouse dex_events, DexScreener fallback) instead of
+    crafting its own DexScreener call. The shared getter returns the same
+    DexScreener-compatible payload ``modules._core._fetch_dexscreener`` used
+    to return, so extraction is unchanged.
+    """
+    try:
+        from app.domains.scanner.unified._data_sources import get_token_liquidity
+
+        ds = await asyncio.wait_for(get_token_liquidity(token_address, chain), timeout=6.0)
         if ds and ds.get("pairs"):
             return float(ds["pairs"][0].get("liquidity", {}).get("usd", 0) or 0)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:

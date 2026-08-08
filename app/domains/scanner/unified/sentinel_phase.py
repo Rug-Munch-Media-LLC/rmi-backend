@@ -276,20 +276,23 @@ _register_analyzer_override("cross_chain_trace", _ovr_cross_chain_trace)
 async def _resolve_deployer(address: str, chain: str) -> str | None:
     """Best-effort deployer resolution via DexScreener (free, no API key).
 
-    Returns the first ``creatorAddress`` found for the token's pairs, or
-    ``None`` when the lookup fails/times out. Never raises.
+    Routes through ``unified._data_sources.get_dexscreener_pairs`` — the
+    single shared entry point for raw DexScreener pair payloads (the DataBus
+    provider, memoized). Returns the first ``creatorAddress`` found for the
+    token's pairs, or ``None`` when the lookup fails/times out. Never raises.
     """
     try:
-        async with httpx.AsyncClient(timeout=DEPLOYER_TIMEOUT_S) as client:
-            resp = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{address}")
-            if resp.status_code != 200:
-                return None
-            pairs = (resp.json() or {}).get("pairs") or []
-            for pair in pairs:
-                creator = pair.get("creatorAddress") or ""
-                if creator:
-                    return creator
-    except (httpx.HTTPError, OSError, ValueError, TypeError, KeyError):
+        from app.domains.scanner.unified._data_sources import get_dexscreener_pairs
+
+        pairs = await asyncio.wait_for(
+            get_dexscreener_pairs(address),
+            timeout=DEPLOYER_TIMEOUT_S,
+        )
+        for pair in (pairs or {}).get("pairs") or []:
+            creator = pair.get("creatorAddress") or ""
+            if creator:
+                return creator
+    except (httpx.HTTPError, OSError, ValueError, TypeError, KeyError, TimeoutError):
         logger.debug("deployer_resolve_failed", address=address[:16], chain=chain)
     return None
 
