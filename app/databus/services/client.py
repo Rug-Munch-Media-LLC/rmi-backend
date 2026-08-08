@@ -180,7 +180,9 @@ class DataBus:
         while self._warm_running:
             try:
                 for item in self._warm_types:
-                    with contextlib.suppress(ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+                    with contextlib.suppress(
+                        ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException
+                    ):
                         await self.fetch(
                             data_type=item["data_type"],
                             force_fresh=True,
@@ -205,7 +207,7 @@ class DataBus:
     async def fetch(
         self,
         data_type: str,
-        admin_key: str = "",
+        admin_key: str | None = "",
         force_fresh: bool = False,
         rag_index: bool = False,
         consumer_type: str = "",
