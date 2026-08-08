@@ -72,6 +72,11 @@ class WebhookSubscription(BaseModel):
     @field_validator("url")
     @classmethod
     def _validate_url(cls, v: str) -> str:
+        # ``internal://telegram/{user_id}`` is the trusted bot-internal
+        # delivery target (webhook engine → Redis alert queue → Telegram).
+        # External http(s) URLs keep the existing behaviour.
+        if v.startswith("internal://telegram/"):
+            return v
         if not v.startswith(("http://", "https://")):
             raise ValueError("webhook_url must start with http:// or https://")
         return v
@@ -121,6 +126,24 @@ class CreateWebhookRequest(BaseModel):
     url: str = Field(..., min_length=1, max_length=2048)
     event_types: list[WebhookEventType] = Field(..., min_length=1)
     filters: WebhookFilters | None = None
+
+
+class TelegramAlertRequest(BaseModel):
+    """API request to subscribe a bot user's chat to real events.
+
+    Used by the RugMunchBot (POST /api/v1/scanner/webhooks/telegram) so
+    /alert and /watch can register a user for push alerts (whale moves,
+    price swings, liquidity changes) on a token without an external URL.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    user_id: int = Field(..., gt=0, description="Telegram user_id to deliver alerts to")
+    event_types: list[WebhookEventType] = Field(..., min_length=1)
+    token_addresses: list[str] = Field(default_factory=list)
+    chains: list[str] = Field(default_factory=list)
+    price_change_pct: float | None = Field(default=None, ge=0, le=100)
+    min_value_usd: float | None = Field(default=None, ge=0)
 
 
 class WebhookEventTypeInfo(BaseModel):
