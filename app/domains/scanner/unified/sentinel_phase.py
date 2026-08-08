@@ -31,6 +31,7 @@ time and fall back to the hardcoded tuples below when the registry is empty.
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -115,7 +116,7 @@ _LEGACY_DESCRIPTIONS: dict[str, str] = {
 }
 
 
-def _build_module_lists_from_registry():
+def _build_module_lists_from_registry() -> tuple[tuple[str, ...], tuple[str, ...], dict[str, str]]:
     """Derive FREE/PREMIUM tuples and descriptions from the sentinel registry.
 
     Returns (free, premium, descriptions).  Falls back to legacy hardcoded
@@ -157,7 +158,7 @@ def _no_deployer(module_key: str) -> None:
     raise ValueError(f"skipped: no deployer address resolved for {module_key}")
 
 
-def _get_sentinel_modules():
+def _get_sentinel_modules() -> Any:
     """Import the SENTINEL pipeline modules lazily (keeps import graph light)."""
     from app.domains.scanners.sentinel_pipeline import modules as sentinel_modules
 
@@ -211,7 +212,7 @@ def _get_analyzers(address: str, chain: str, deployer: str | None = None) -> dic
 
         # ── Deployer-dependent modules ───────────────────────
         if needs_deployer and not deployer:
-            analyzers[key] = lambda k=key: _no_deployer(k)
+            analyzers[key] = partial(_no_deployer, key)
             continue
 
         # ── Handle special signatures via overrides ──────────
@@ -223,7 +224,7 @@ def _get_analyzers(address: str, chain: str, deployer: str | None = None) -> dic
             continue
 
         # ── Default: method(address, chain) ──────────────────
-        analyzers[key] = lambda m=method, a=address, c=chain: m(a, c)
+        analyzers[key] = partial(method, address, chain)
 
     return analyzers
 
@@ -247,23 +248,23 @@ def _register_analyzer_override(key: str, builder: Any) -> None:
 # ── Non-standard signatures ───────────────────────────────────────────
 
 
-def _ovr_sleep_cycle(mod, address, chain, deployer):
+def _ovr_sleep_cycle(mod: Any, address: str, chain: str, deployer: str | None) -> Callable[[], Any]:
     return lambda: mod._sleep_cycle.analyze([])
 
 
-def _ovr_social_velocity(mod, address, chain, deployer):
+def _ovr_social_velocity(mod: Any, address: str, chain: str, deployer: str | None) -> Callable[[], Any]:
     return lambda: mod._social_velocity.analyze([])
 
 
-def _ovr_dev_reputation(mod, address, chain, deployer):
+def _ovr_dev_reputation(mod: Any, address: str, chain: str, deployer: str | None) -> Callable[[], Any]:
     if deployer:
-        return lambda d=deployer, c=chain: mod._dev_reputation.analyze(d, [c])
+        return partial(mod._dev_reputation.analyze, deployer, [chain])
     return lambda: _no_deployer("dev_reputation")
 
 
-def _ovr_cross_chain_trace(mod, address, chain, deployer):
+def _ovr_cross_chain_trace(mod: Any, address: str, chain: str, deployer: str | None) -> Callable[[], Any]:
     target = deployer if deployer else address
-    return lambda t=target, c=chain: mod._cross_chain_trace.analyze(t, c)
+    return partial(mod._cross_chain_trace.analyze, target, chain)
 
 
 # Wire overrides

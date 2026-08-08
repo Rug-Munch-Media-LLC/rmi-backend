@@ -145,7 +145,8 @@ async def _fetch_json(
             else:
                 resp = await client.get(url, params=params)
             if resp.status_code == 200:
-                return resp.json()
+                payload = resp.json()
+                return payload if isinstance(payload, dict) else None
             logger.debug("http_error", url=url, status=resp.status_code)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("http_failed", url=url, error=str(e))
@@ -208,7 +209,7 @@ async def _fetch_dexscreener(
             dex_result = await get_own_dex_data(token_address, chain)
             if dex_result.get("source") == "own" and dex_result.get("pairs"):
                 pairs = dex_result["pairs"]
-                result = {
+                result: dict[str, Any] | None = {
                     "pairs": [
                         {
                             "chainId": p.get("chainId", ""),

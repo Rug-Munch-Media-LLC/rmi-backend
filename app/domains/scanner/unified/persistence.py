@@ -134,7 +134,7 @@ async def persist_result(result: ScanResult) -> None:
             r = get_redis_async()
             if r is not None:
                 await _record_stability(r, result.chain, result.token_address, result.risk_level)
-            result._stability_recorded = True
+            result._stability_recorded = True  # type: ignore[attr-defined]  # dynamic guard flag
         except (RedisError, ConnectionError, OSError, TimeoutError):
             logger.debug("scan_stability_record_failed")
 

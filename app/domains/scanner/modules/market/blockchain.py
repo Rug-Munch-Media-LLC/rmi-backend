@@ -115,7 +115,7 @@ async def _check_defillama_context(token_address: str, chain: str) -> dict[str, 
                     if isinstance(info, list):
                         result["protocols_found"] = len(info)
                         protocols = []
-                        total_tvl = 0
+                        total_tvl: float = 0
                         for p in info[:10]:
                             protocols.append(
                                 {
