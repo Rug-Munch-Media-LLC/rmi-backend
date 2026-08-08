@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 from typing import TYPE_CHECKING  # noqa: E402 — imported after logger init; kept below module header for readability
 
-from app.core.slowrate import (
+from app.core.slowrate import (  # noqa: E402 — imported after logger init; kept below module header for readability
     limiter,
 )
 from app.domains.auth.cookie import (  # noqa: E402 — imported after logger init; kept below module header for readability

@@ -14,6 +14,7 @@ Other SENTINEL modules live in tools/evidence_tools.py and tools/report_tools.py
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
@@ -26,7 +27,7 @@ sub_router = APIRouter(tags=["x402-labels"])
 
 
 @sub_router.post("/address_labels")
-async def address_labels_endpoint(req: SentinelModuleRequest) -> dict[str, str]:
+async def address_labels_endpoint(req: SentinelModuleRequest) -> dict[str, Any]:
     """SENTINEL Address Labels - multi-source wallet address labeling.
 
     Pricing: $0.08

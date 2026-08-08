@@ -16,22 +16,18 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-from typing import TYPE_CHECKING  # noqa: E402 — imported after logger init; kept below module header for readability
-
 from app.domains.auth.cookie import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _set_auth_cookie,
     _set_csrf_cookie,
 )
-from app.domains.auth.jwt import (
+from app.domains.auth.jwt import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _create_jwt,
 )
-from app.domains.auth.router import (
+from app.domains.auth.router import (  # noqa: E402 — imported after logger init; kept below module header for readability
     router,
 )
-from app.domains.auth.store import _get_user  # noqa: E402 — TYPE_CHECKING import block
-
-if TYPE_CHECKING:
-    from app.domains.auth.schemas import TelegramAuthRequest
+from app.domains.auth.schemas import TelegramAuthRequest  # noqa: E402 — runtime import for FastAPI body schema
+from app.domains.auth.store import _get_user  # noqa: E402 — imported after logger init
 
 
 @router.post("/telegram")
