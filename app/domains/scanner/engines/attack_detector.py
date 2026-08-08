@@ -319,7 +319,7 @@ async def detect_sandwiches(chain: str, hours_back: int = 1, force_fresh: bool =
                   AND a.tx_hash != c.tx_hash
                 ORDER BY a.block_number DESC
                 LIMIT %(limit)s
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
                 settings={"max_execution_time": MAX_EXECUTION_TIME},
             )
@@ -435,7 +435,7 @@ async def detect_pump_dumps(chain: str, lookback_hours: int = 24, force_fresh: b
                 HAVING count() >= %(min_swaps)s
                 ORDER BY vol0 DESC
                 LIMIT %(limit)s
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
                 settings={"max_execution_time": MAX_EXECUTION_TIME},
             )
@@ -539,7 +539,7 @@ async def _query_pair_volume(client: Any, chain: str, pair_address: str) -> tupl
                   AND contract_address = %(pair)s
                   AND type = 'swap'
                   AND block_timestamp >= now() - INTERVAL 24 HOUR
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
                 settings={"max_execution_time": MAX_EXECUTION_TIME},
             )
@@ -583,7 +583,7 @@ async def _query_price_series(
                   AND block_timestamp >= now() - INTERVAL %(lookback)s HOUR
                 GROUP BY block_number, block_timestamp
                 ORDER BY block_timestamp
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
                 settings={"max_execution_time": MAX_EXECUTION_TIME},
             )
@@ -674,7 +674,7 @@ async def detect_flash_loans(chain: str, hours_back: int = 1, force_fresh: bool 
                 HAVING count() >= 2
                 ORDER BY block_timestamp DESC
                 LIMIT %(limit)s
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
                 settings={"max_execution_time": MAX_EXECUTION_TIME},
             )

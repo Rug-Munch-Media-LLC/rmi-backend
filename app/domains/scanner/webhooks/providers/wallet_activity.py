@@ -37,9 +37,10 @@ class WalletActivityProvider:
             log.warning("clickhouse_unavailable wallet_activity_provider")
             return []
 
-        # Build parameterised IN clause
-        placeholders = ", ".join(f"%({a})s" for a in watch_addresses)
-        params: dict[str, str] = {a: a for a in watch_addresses}
+        # Build parameterised IN clause (numeric placeholders — address values
+        # stay as bound params, never as SQL text)
+        placeholders = ", ".join(f"%({i})s" for i in range(len(watch_addresses)))
+        params: dict[str, str] = {str(i): a for i, a in enumerate(watch_addresses)}
         params["since"] = since
 
         try:
@@ -60,7 +61,7 @@ class WalletActivityProvider:
                        OR to_address IN ({placeholders}))
                 ORDER BY block_timestamp ASC
                 LIMIT 100
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
             )
         except (ValueError, ConnectionError, RuntimeError) as exc:

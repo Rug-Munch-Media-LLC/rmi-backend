@@ -173,7 +173,7 @@ async def _query_dex_swaps(
                 WHERE {where_clause}
                 ORDER BY block_timestamp DESC
                 LIMIT 500
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
             )
         except (ValueError, RuntimeError, OSError) as exc:

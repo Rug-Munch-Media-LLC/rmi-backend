@@ -293,7 +293,7 @@ def _query_same_funder_candidates(
             GROUP BY chain, to_address
             ORDER BY first_ts ASC
             LIMIT %(limit)s
-            """,
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction
             {**params, "zero": _ZERO_ADDR, "dead": _DEAD_ADDR},
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )

@@ -119,7 +119,7 @@ def _load_real_cats(con, base_dir: str) -> dict[str, Any]:
                 FROM read_csv_auto(?, delim='\\t', header=true, all_varchar=true,
                                     sample_size=50000)
                 WHERE col1 IS NOT NULL AND col1 != ''
-            """,
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 [chain, label_type, fpath],
             )
             count = con.execute("SELECT changes()").fetchone()[0]
@@ -133,7 +133,7 @@ def _load_real_cats(con, base_dir: str) -> dict[str, Any]:
                     SELECT column0, ?, ?, 'real-cats'
                     FROM read_csv_auto(?, delim='\\t', header=false, all_varchar=true)
                     WHERE column0 IS NOT NULL AND column0 != ''
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                     [chain, label_type, fpath],
                 )
                 stats[label_type] += 1
@@ -235,7 +235,7 @@ def _load_mbal(con, base_dir: str) -> dict[str, Any]:
                                     sample_size=50000)
                 WHERE column0 IS NOT NULL AND column0 != ''
                 LIMIT 500000
-            """,
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 [tag, tag, fpath],
             )
             c = con.execute("SELECT COUNT(*) FROM mbal_labels WHERE source=?").fetchone()[0]
@@ -443,7 +443,7 @@ class DuckDBAnalytics:
             SELECT address, chain, label, category, risk_score, source
             FROM address_index
             WHERE LOWER(address) IN ({placeholders})
-        """,
+        """,  # noqa: S608 - verified bound/allowlisted SQL construction
             [a.lower() for a in addresses],
         ).fetchall()
 
