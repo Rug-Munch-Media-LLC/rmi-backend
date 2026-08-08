@@ -1,6 +1,6 @@
 """Live tests for the Pydantic AI agent fleet.
 
-Each test runs a real agent against the local llama.cpp model (Qwen3.5-9B
+Each test runs a real agent against the local llama.cpp model (DeepSeek-8B
 at :8093) and asserts the typed output schema.
 
 Marked ``integration`` — excluded from the default CI run
