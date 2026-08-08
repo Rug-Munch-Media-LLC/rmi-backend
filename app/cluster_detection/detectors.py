@@ -40,7 +40,7 @@ async def detect_temporal_clusters(
     Detect clusters based on temporal proximity of transactions.
     Wallets active at the same time may be coordinated.
     """
-    clusters = []
+    clusters: list[WalletCluster] = []
 
     # Group transactions by 5-minute windows
     time_windows = defaultdict(set)
@@ -54,7 +54,7 @@ async def detect_temporal_clusters(
                 time_windows[window].add(wallet)
 
     # Find wallets appearing together frequently
-    cooccurrence = defaultdict(lambda: defaultdict(int))
+    cooccurrence: defaultdict[str, defaultdict[str, int]] = defaultdict(lambda: defaultdict(int))
 
     for window, window_wallets in time_windows.items():
         if len(window_wallets) < 2:
@@ -108,7 +108,7 @@ async def detect_counterparty_clusters(
     Detect clusters based on shared counterparties.
     Wallets sending/receiving to same addresses may be related.
     """
-    clusters = []
+    clusters: list[WalletCluster] = []
 
     # Build counterparty -> wallets mapping
     counterparty_wallets = defaultdict(set)
@@ -119,7 +119,7 @@ async def detect_counterparty_clusters(
             counterparty_wallets[counterparty].add(wallet)
 
     # Find wallets sharing multiple counterparties
-    shared_counterparties = defaultdict(lambda: defaultdict(set))
+    shared_counterparties: defaultdict[str, defaultdict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
 
     for counterparty, c_wallets in counterparty_wallets.items():
         if len(c_wallets) < 2:
@@ -178,7 +178,7 @@ async def detect_behavioral_clusters(
     Detect clusters based on behavioral similarity.
     Similar patterns may indicate same operator.
     """
-    clusters = []
+    clusters: list[WalletCluster] = []
 
     # Extract behavioral fingerprints
     fingerprints = {}
@@ -282,7 +282,7 @@ async def detect_funding_clusters(
     wallets: list[str],
 ) -> list[WalletCluster]:
     """Detect clusters based on common funding sources."""
-    clusters = []
+    clusters: list[WalletCluster] = []
 
     # Find funding transactions (first incoming tx)
     funding_sources = defaultdict(set)

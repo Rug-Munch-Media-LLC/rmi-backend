@@ -153,12 +153,12 @@ class AutoLabeler:
     """Auto-labeling engine that watches wallets and assigns labels based on behavior."""
 
     def __init__(self) -> None:
-        self.labels_applied = Counter()
-        self.pending_observations = defaultdict(list)
+        self.labels_applied: Counter[str] = Counter()
+        self.pending_observations: defaultdict[str, list[Any]] = defaultdict(list)
         self.last_run = None
-        self._known_scam_wallets = set()
-        self._known_mixers = set()
-        self._known_exchanges = set()
+        self._known_scam_wallets: set[str] = set()
+        self._known_mixers: set[str] = set()
+        self._known_exchanges: set[str] = set()
         self._initialize_known_sets()
 
     def _initialize_known_sets(self) -> None:
@@ -308,7 +308,7 @@ class AutoLabeler:
 
     async def batch_analyze(self, observations: list[dict[str, Any]]) -> dict[str, Any]:
         """Batch analyze multiple wallet observations and return all labels."""
-        results = {"labels_applied": [], "stats": {}}
+        results: dict[str, Any] = {"labels_applied": [], "stats": {}}
 
         for obs in observations:
             addr = obs.get("address", "")
