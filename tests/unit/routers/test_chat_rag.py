@@ -35,6 +35,13 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
+@pytest.fixture(autouse=True)
+def _no_web_search(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Chat now falls through to SearXNG on RAG miss — keep existing RAG tests
+    hermetic by disabling the live web search (no real network to :8089)."""
+    monkeypatch.setattr(chat_mod, "searxng_search", AsyncMock(return_value=[]))
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     app = FastAPI()
