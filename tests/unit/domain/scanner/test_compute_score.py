@@ -79,11 +79,13 @@ class TestCriticalToken:
         )
         assert out["score"] < 20
         assert out["risk_level"] == "critical"
-        # Each failed security check contributes -5, rug matches -10 each
-        assert out["breakdown"]["security"]["delta"] == -30.0
+        # Honeypot check (HP01) carries the heavy -35 honeypot penalty;
+        # the remaining failed check (CR01) contributes -5, and the 2 rug
+        # pattern matches contribute -20 (all in the security dimension).
+        assert out["breakdown"]["security"]["delta"] == -60.0
         assert out["breakdown"]["deployer"]["delta"] == -25.0
         assert out["breakdown"]["liquidity"]["delta"] == -20.0
-        assert "HP01" in out["breakdown"]["security"]["flags"]
+        assert "HONEYPOT_DETECTED" in out["breakdown"]["security"]["flags"]
         assert "RUG_PATTERN_MATCH:2" in out["breakdown"]["security"]["flags"]
         assert "DEV_HIGH_RISK" in out["breakdown"]["deployer"]["flags"]
 
@@ -155,8 +157,9 @@ class TestBreakdownShape:
         )
         sec = out["breakdown"]["security"]
         liq = out["breakdown"]["liquidity"]
-        assert sec["score"] == 35.0 - 5.0  # max 35 - 5 penalty
-        assert sec["delta"] == -5.0
+        # HP01 is a confirmed-honeypot check → heavy -35 penalty (not -5)
+        assert sec["score"] == 35.0 - 35.0  # max 35 - 35 honeypot penalty
+        assert sec["delta"] == -35.0
         assert liq["score"] == 25.0 - 20.0  # max 25 - 20 penalty
         assert liq["delta"] == -20.0
 
