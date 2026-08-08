@@ -49,6 +49,7 @@ Deprecated modules after this merge:
 
 from __future__ import annotations
 
+import asyncio
 import re
 from html import escape
 from typing import TYPE_CHECKING, Any, cast
@@ -286,11 +287,13 @@ async def _call_backend_chat(
     ``None`` on any failure/timeout.
 
     No ``context_override`` is sent so the backend runs its own RAG search
-    (threat_intel, scam_intel, news_v2 + scanner_v2 when the message contains
-    a token address) — that is what makes answers news-aware. The explicit
-    per-user ``history`` overrides the shared backend bucket and the telegram
-    user id is forwarded as X-Forwarded-For so the backend per-IP chat rate
-    limiter keys per user (same pattern as the deprecated ai_chat.chat_synthesis).
+    (threat_intel, scam_intel, news_v2, defi_exploits, coding_knowledge,
+    scam_patterns, regulation_enforcement + scanner_v2 when the message
+    contains a token address) — that is what makes answers news-aware. The
+    explicit per-user ``history`` overrides the shared backend bucket and the
+    telegram user id is forwarded as X-Forwarded-For so the backend per-IP
+    chat rate limiter keys per user (same pattern as the deprecated
+    ai_chat.chat_synthesis).
     """
     payload: dict[str, Any] = {
         "message": message[:MAX_MESSAGE_CHARS],
@@ -675,9 +678,58 @@ _CHAT_DISABLED = (
     "and /price still work \u2014 just send a contract address!"
 )
 
-_THINKING_TEMPLATE = (
-    "\U0001f916 <b>Thinking...</b>\n\n\U0001f4ac <i>{question}</i>\n\n\u23f3 Searching threat intel + news..."
+_THINKING_GENERAL = (
+    "\U0001f916 <b>Thinking...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f50d Searching our 91K-document intelligence database..."
 )
+
+_THINKING_ADDRESS = (
+    "\U0001f916 <b>Thinking...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f575\ufe0f Analyzing token data + cross-referencing exploit patterns + checking news..."
+)
+
+_THINKING_INVESTIGATE = (
+    "\U0001f916 <b>Thinking...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f4da Checking research collections, scanner data, and live news..."
+)
+
+# "Investigate-style" intents get the research-collections placeholder instead
+# of the generic DB-search one (matches the /investigate deep-dive framing).
+_INVESTIGATE_INTENT_RE = re.compile(r"\b(investigat\w*|deep dive|forensic|trace this|dig into)\b", re.IGNORECASE)
+
+
+def _thinking_template(text: str, has_address: bool) -> str:
+    """Pick the contextual thinking placeholder for a question.
+
+    Address questions get the scanner-data message (scan context is
+    pre-fetched and prepended to the prompt), investigate-style intents get
+    the research-collections message, everything else gets the general
+    intelligence-database message.
+    """
+    if has_address:
+        return _THINKING_ADDRESS
+    if _INVESTIGATE_INTENT_RE.search(text):
+        return _THINKING_INVESTIGATE
+    return _THINKING_GENERAL
+
+
+_STILL_DIGGING = (
+    "\U0001f916 <b>Still digging...</b>\n\n\u23f3 Cross-referencing exploit databases + checking live news..."
+)
+
+
+async def _edit_placeholder_if_slow(placeholder: Message, delay: float = 5.0) -> None:
+    """After ``delay`` seconds, swap the thinking placeholder for a
+    "still digging" note so long backend queries don't look stalled.
+
+    The task is cancelled by the caller the moment the backend answers, so a
+    fast response never gets clobbered by the interim edit.
+    """
+    try:
+        await asyncio.sleep(delay)
+        await placeholder.edit_text(_STILL_DIGGING, parse_mode=ParseMode.HTML)
+    except (asyncio.CancelledError, TelegramError, ConnectionError, OSError, TimeoutError):
+        logger.debug("chat_ai interim placeholder edit skipped", exc_info=True)
 
 
 # ══════════════════════════════════════════════
@@ -913,26 +965,38 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
 
     await message.chat.send_action("typing")
 
+    # Address enhancement: if the message contains a token address, ALSO pull a
+    # quick scanner read and ground the question with a compact risk summary.
+    # Detected here (before the placeholder) so the thinking message can be
+    # context-aware: address questions show the scanner-data framing.
+    addresses = _extract_addresses(text)
+
     placeholder = await message.reply_text(
-        _THINKING_TEMPLATE.format(question=escape(text[:200])),
+        _thinking_template(text, bool(addresses)).format(question=escape(text[:200])),
         parse_mode=ParseMode.HTML,
     )
+
+    # PROBLEM C: long backend queries (5-15s) keep the placeholder static and
+    # look stalled — schedule an interim "still digging" edit after 5s and
+    # cancel it the moment the backend answers.
+    interim_task = asyncio.create_task(_edit_placeholder_if_slow(placeholder))
 
     # Per-user session: telegram user id keys backend rate limiting
     # (X-Forwarded-For) AND the explicit conversation history (bot DB), so the
     # shared backend bucket never contaminates answers.
     history = cast("list[dict[str, str]]", db.get_chat_history(user.id))  # last 5, oldest-first
 
-    # Address enhancement: if the message contains a token address, ALSO pull a
-    # quick scanner read and ground the question with a compact risk summary.
     prompt = text
-    addresses = _extract_addresses(text)
     if addresses:
         summary = await _fetch_scan_context(addresses[0])
         if summary:
             prompt = f"{summary}\n\n{prompt}"
 
     result = await _call_backend_chat(prompt, user.id, history)
+    # Stop the 5s interim timer and reap the task (cancellation is caught
+    # inside _edit_placeholder_if_slow, so no stray exceptions surface).
+    interim_task.cancel()
+    await asyncio.gather(interim_task, return_exceptions=True)
     if not result:
         # Backend down: try the offline tier-2 canned answers before falling
         # back to the honest unavailability message.
@@ -1029,14 +1093,22 @@ async def _send_answer(message: Message, answer: str, rag_count: int) -> None:
     inside an escaped entity. LLM output is not trusted HTML: every chunk is
     escaped before sending (matches ask.py / message.py conventions). A small
     "Grounded in N sources" footer is appended to the last chunk when the
-    backend reported RAG grounding.
+    backend reported RAG grounding. ``rag_count`` is the REAL number of
+    unique RAG hits (from ``X-RAG-Context``); counts above 100 are shown as
+    "hundreds of sources" for readability.
     """
     chunks = _chunk_text(answer)
     if not chunks:
         return
     escaped = [escape(c) for c in chunks]
     if rag_count > 0:
-        escaped[-1] = f"{escaped[-1]}\n\n<i>\u26a1 Grounded in {rag_count} intelligence source(s)</i>"
+        if rag_count > 100:
+            source_label = "hundreds of"
+            source_noun = "sources"
+        else:
+            source_label = str(rag_count)
+            source_noun = "source" if rag_count == 1 else "sources"
+        escaped[-1] = f"{escaped[-1]}\n\n<i>\u26a1 Grounded in {source_label} intelligence {source_noun}</i>"
 
     last = len(escaped) - 1
     for i, chunk in enumerate(escaped):

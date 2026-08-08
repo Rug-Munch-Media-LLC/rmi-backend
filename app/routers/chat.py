@@ -284,21 +284,21 @@ async def _fetch_market_context() -> dict[str, Any]:
 #
 # Collections searched for every message; ``scanner_v2`` is added when the
 # message mentions a token address. Focused on SECURITY + INTELLIGENCE +
-# NEWS + REGULATION — the bot's domain. Dev-only collections (coding_knowledge,
-# solidity_patterns, contract_security, github_audits) and generic ones
-# (education) are intentionally excluded. ``scanned_tokens`` is the bot's
-# scan-to-RAG memory (app.rag.scan_memory) and is empty until scans flow in.
-# Search is best-effort: any failure or timeout returns empty context and chat
-# proceeds without RAG (graceful degradation — RAG is an enhancement, never a gate).
+# NEWS + REGULATION + CODE-SECURITY — the bot's domain. ``scanned_tokens`` is
+# the bot's scan-to-RAG memory (app.rag.scan_memory) and is empty until scans
+# flow in. Search is best-effort: any failure or timeout returns empty context
+# and chat proceeds without RAG (graceful degradation — RAG is an enhancement,
+# never a gate).
 RAG_COLLECTIONS = [
-    "threat_intel",
-    "scam_intel",
-    "news_v2",
-    "defi_exploits",
-    "scam_patterns",
-    "regulation_enforcement",
-    "scanned_tokens",
-    "wallet_v2",
+    "threat_intel",  # unified scanner + SENTINEL high-risk findings
+    "scam_intel",  # legacy scam intelligence
+    "news_v2",  # news articles and market intelligence
+    "defi_exploits",  # historical DeFi exploits / protocol hacks
+    "coding_knowledge",  # code-level security knowledge (solidity, audits)
+    "scam_patterns",  # scam pattern documentation + rug_timeline alias
+    "regulation_enforcement",  # regulatory actions + enforcement intel
+    "scanned_tokens",  # scan-to-RAG memory (empty until scans flow in)
+    "wallet_v2",  # wallet labels, risk profiles, entity clusters
 ]
 RAG_TOKEN_COLLECTIONS = ["scanner_v2"]
 RAG_TOP_K = 10
@@ -409,14 +409,18 @@ def _format_rag_context(hits: list[dict[str, Any]], max_chars: int = RAG_CONTEXT
 async def _search_rag_context(message: str) -> tuple[str, int]:
     """Search RAG collections for context relevant to ``message``.
 
-    Returns ``(formatted_context, hit_count)``. Never raises: on any failure
-    or timeout it returns ``("", 0)`` so chat proceeds without RAG context.
+    Returns ``(formatted_context, hit_count)`` where ``hit_count`` is the
+    REAL number of unique relevant hits found across ALL searched collections
+    (not a slice): the prompt only gets the top ``RAG_TOP_K`` formatted, but
+    the count reports every deduped match so ``X-RAG-Context`` is honest.
+    Never raises: on any failure or timeout it returns ``("", 0)`` so chat
+    proceeds without RAG context.
 
     Smart search:
     - Extracts token addresses / ``$SYMBOL`` mentions from the message.
     - Searches ``RAG_COLLECTIONS`` for every message; adds
       ``RAG_TOKEN_COLLECTIONS`` (scanner_v2) when a token address is present.
-    - Parallel per-collection search, deduped by content, top ``RAG_TOP_K``.
+    - Parallel per-collection search, deduped by content.
     """
     addresses, symbols = _extract_token_hints(message)
     collections = list(RAG_COLLECTIONS)
@@ -448,10 +452,13 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
         if content and content not in seen:
             seen.add(content)
             deduped.append(h)
-    deduped = deduped[:RAG_TOP_K]
     if not deduped:
         return "", 0
-    return _format_rag_context(deduped), len(deduped)
+    # Report the REAL number of unique hits across all searched collections
+    # (not just the top_k slice we format into the prompt). X-RAG-Context uses
+    # this count so callers can show an honest "grounded in N sources" footer.
+    total_hits = len(deduped)
+    return _format_rag_context(deduped[:RAG_TOP_K]), total_hits
 
 
 # ── Live web search routing (current-affairs fallback) ────────────────
@@ -721,6 +728,8 @@ async def chat(
         "provider": result.get("_provider", ""),
         "latency_ms": result.get("_latency_ms", 0),
         "usage": result.get("usage", {}),
+        # Honest RAG grounding count (real unique hits, not collections × top_k).
+        "x_rag_context": rag_count,
     }
 
 
