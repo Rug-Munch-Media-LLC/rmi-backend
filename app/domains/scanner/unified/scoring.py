@@ -65,6 +65,15 @@ DIMENSION_WEIGHTS: dict[str, int] = {
 # Neutral baseline: a token with no data at all scores exactly 50.
 _BASELINE = 50.0
 
+# Confirmed-honeypot security checks (auto_fail GoPlus / Honeypot.is).
+# A confirmed honeypot is the single most decisive rug signal: the legacy
+# service engine penalizes ``is_honeypot`` at +35 risk (→ 15 safety,
+# "critical"). The unified engine was applying only the generic -5 per
+# failed check, leaving a confirmed honeypot at 45 ("medium") — and a
+# honeypot with clean-looking other modules at 65 ("low"). False negative.
+HONEYPOT_PENALTY = -35.0
+HONEYPOT_CHECK_IDS: frozenset[str] = frozenset({"HP01", "HP02"})
+
 # Blue-chip tokens (top-100 by market cap, or >100K holders) legitimately
 # carry signals the concentration/lock heuristics treat as risk: high HHI
 # (a single wrapping contract can dominate supply — WBTC, wstETH) and low
@@ -340,7 +349,14 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
             for check_id, check in checks.items():
                 status = check.get("status", "")
                 if status == "fail":
-                    _apply("security", -5, str(check_id))
+                    if str(check_id).upper() in HONEYPOT_CHECK_IDS:
+                        # Confirmed honeypot (buy OK / sell blocked) is the
+                        # decisive rug signal — heavy penalty, not the
+                        # generic -5 per failed check (calibration band:
+                        # honeypot → risk > 80 regardless of other modules).
+                        _apply("security", HONEYPOT_PENALTY, "HONEYPOT_DETECTED")
+                    else:
+                        _apply("security", -5, str(check_id))
                 elif status == "pass":
                     _apply("security", 2)
                     green.append(str(check_id))
