@@ -35,7 +35,7 @@ def _desc(tool_id: str, pricing: dict) -> str:
     d = pricing.get("description", "")
     if d and d != tool_id and len(d) > 10:
         return d
-    FALLBACKS = {
+    fallbacks = {
         "airdrop_check": "Verify airdrop legitimacy -- contract audit, distribution analysis, scam pattern detection.",
         "airdrop_finder": "Discover active and upcoming airdrops across all major chains.",
         "all_in_one": "All-in-One Audit -- comprehensive security scan.",
@@ -110,7 +110,7 @@ def _desc(tool_id: str, pricing: dict) -> str:
         "wallet": "Wallet analysis -- comprehensive wallet assessment.",
         "whale": "Whale tracker -- monitor large holder activity.",
     }
-    return FALLBACKS.get(
+    return fallbacks.get(
         tool_id,
         f"{tool_id.replace('_', ' ').title()} -- real-time crypto intelligence and security analysis.",
     )

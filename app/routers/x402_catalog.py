@@ -280,7 +280,7 @@ def discover_route_tools() -> list[dict]:
     try:
         from app.routers.x402_enforcement import TOOL_PRICES
     except ImportError:
-        TOOL_PRICES = {}
+        tool_prices = {}
 
     for fname in ["x402_tools.py", "x402_forensic_tools.py"]:
         fpath = os.path.join(backend_dir, fname)
@@ -294,8 +294,8 @@ def discover_route_tools() -> list[dict]:
             if route in skip:
                 continue
             # Use TOOL_PRICES as source of truth for pricing and category
-            if route in TOOL_PRICES:
-                tp = TOOL_PRICES[route]
+            if route in tool_prices:
+                tp = tool_prices[route]
                 tools.append(
                     {
                         "id": route,

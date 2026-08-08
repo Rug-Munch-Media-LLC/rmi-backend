@@ -129,7 +129,7 @@ class FraudGNNDetector:
 
         # Synthetic training data based on known fraud heuristics
         # Features: [tx_count, avg_value, counterparties, mixer_flag, age_days, etc.]
-        X = np.array(
+        x = np.array(
             [
                 # Legitimate wallets (normal activity)
                 [500, 0.5, 50, 0, 365, 0.01, 200, 0, 20, 5, 365, 300, 10.0, 15, 50, 10, 0.02],
@@ -149,9 +149,9 @@ class FraudGNNDetector:
 
         y = np.array([0, 0, 0, 0, 1, 1, 1, 1, 0, 0])  # 0=legit, 1=fraud
 
-        X_scaled = self.scaler.fit_transform(X)
+        x_scaled = self.scaler.fit_transform(x)
         self.model = RandomForestClassifier(n_estimators=50, max_depth=10, random_state=42, n_jobs=1)
-        self.model.fit(X_scaled, y)
+        self.model.fit(x_scaled, y)
         self.model_type = "fallback:random_forest"
 
     def extract_features(self, wallet_fingerprint: dict) -> np.ndarray:

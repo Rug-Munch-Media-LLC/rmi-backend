@@ -86,13 +86,13 @@ def _build_discovery_response() -> dict[str, Any]:
 
         desc = pricing.get("description", "")
         if not desc:
-            _TOOL_DESCRIPTIONS: dict[str, str] = {
+            _tool_descriptions: dict[str, str] = {
                 "forensic_valuation": "Institutional-grade token valuation - DCF intrinsic value, comparable analysis with outlier detection, scam probability scoring",
                 "osint_identity_hunt": "Cross-platform OSINT - hunt usernames across 400+ networks, domain intelligence, stealth page capture",
                 "investigation_report": "Full investigation report - on-chain forensics, financial valuation, OSINT, scam scoring in one deliverable",
                 "forensic_pack": "Forensic Investigation Pack - valuation + OSINT + report at 33% discount",
             }
-            desc = _TOOL_DESCRIPTIONS.get(tool_id, f"{tool_id} - crypto intelligence tool")
+            desc = _tool_descriptions.get(tool_id, f"{tool_id} - crypto intelligence tool")
         tools[tool_id] = {
             "description": desc,
             "price_usd": price_usd,

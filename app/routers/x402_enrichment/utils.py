@@ -249,7 +249,7 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
     if not key:
         return {}
 
-    CHAIN_MAP = {
+    chain_map = {
         "ethereum": 1,
         "eth": 1,
         "bsc": 56,
@@ -266,7 +266,7 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
         "ftm": 250,
         "gnosis": 100,
     }
-    cid = CHAIN_MAP.get(chain.lower(), 1)
+    cid = chain_map.get(chain.lower(), 1)
 
     results = {}
     for addr in addresses[:20]:

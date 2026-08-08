@@ -114,7 +114,7 @@ async def _load_contract_names(storage) -> int:
 
 async def _load_exchange_wallets(storage) -> int:
     """Load exchange/dex/ico/mining wallet labels. ~350 labeled wallets."""
-    HEADERLESS_FILES = {"exchange.csv", "mining1.csv", "mining2.csv"}
+    headerless_files = {"exchange.csv", "mining1.csv", "mining2.csv"}
 
     total = 0
     for filename, _, chain in [
@@ -135,7 +135,7 @@ async def _load_exchange_wallets(storage) -> int:
         redis_ops = []
 
         try:
-            if filename in HEADERLESS_FILES:
+            if filename in headerless_files:
                 with open(path, encoding="utf-8-sig") as f:
                     reader = csv.reader(f)
                     for row in reader:

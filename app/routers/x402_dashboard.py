@@ -478,8 +478,8 @@ async def ensure_x402_payments_table() -> Any | bool:
         try:
             from app.services.supabase_service import _get_key, _get_url
 
-            SK = _get_key()
-            SU = _get_url()
+            sk = _get_key()
+            su = _get_url()
             sql = """
             DO $$ BEGIN
                 CREATE TABLE IF NOT EXISTS x402_payments (
@@ -508,13 +508,13 @@ async def ensure_x402_payments_table() -> Any | bool:
             import httpx
 
             headers = {
-                "apikey": SK,
-                "Authorization": f"Bearer {SK}",
+                "apikey": sk,
+                "Authorization": f"Bearer {sk}",
                 "Content-Type": "application/json",
             }
             async with httpx.AsyncClient(timeout=15) as c:
                 r = await c.post(
-                    f"{SU}/rest/v1/rpc/exec_sql",
+                    f"{su}/rest/v1/rpc/exec_sql",
                     json={"sql": sql},
                     headers=headers,
                 )

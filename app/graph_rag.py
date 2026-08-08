@@ -79,10 +79,10 @@ async def detect_communities(
             pass
 
     # 3. Label propagation
-    N_ITER = 5
+    n_iter = 5
     labels = {nid: i for i, nid in enumerate(node_ids)}
 
-    for _ in range(N_ITER):
+    for _ in range(n_iter):
         new_labels = {}
         for nid in node_ids:
             neighbors = adjacency.get(nid, set())
