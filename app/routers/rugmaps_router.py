@@ -300,7 +300,8 @@ async def token_holder_graph(
     skip_cache: bool = Query(False),
 ) -> Any | dict[str, Any]:
     """Generate a token holder graph with AI analysis and RAG caching.
-    Uses DeepSeek Flash + our FAISS indexes + wallet labels + semantic cache.
+    Uses local Ollama (Qwen) first, DeepSeek paid fallback, + our FAISS
+    indexes + wallet labels + semantic cache.
     Falls back to DexScreener pair data when on-chain holder graph is empty."""
     import asyncio
 
@@ -400,7 +401,7 @@ async def token_holder_graph(
         node["tags"] = entity.get("tags") or []
         node["risk_level"] = label_data.get("risk_level", "unknown")
 
-    # Generate AI analysis (DeepSeek Flash + fallback to our data engine).
+    # Generate AI analysis (Ollama-first + fallback to our data engine).
     graph_data = {
         "node_count": len(enriched_nodes),
         "link_count": min(len(links), limit * 2),
@@ -409,11 +410,12 @@ async def token_holder_graph(
         "stats": d.get("stats", {}),
     }
 
-    # Generate AI analysis (DeepSeek Flash + fallback to our data engine).
-    # Bound the LLM call: generate_ai_analysis chains LiteLLM (httpx timeout
-    # 120s) then a DeepSeek fallback (30s) — unbounded it can hold the request
-    # for ~150s and blow the frontend/proxy timeout (HTTP 000 >25s). A 15s cap
-    # makes the endpoint fail fast to rule-based (non-AI) graph data instead.
+    # Generate AI analysis (Ollama-first + fallback to our data engine).
+    # Bound the LLM call: generate_ai_analysis chains Ollama (30s), LiteLLM
+    # (httpx timeout 120s), then a DeepSeek fallback (30s) — unbounded it can
+    # hold the request for a long time and blow the frontend/proxy timeout
+    # (HTTP 000 >25s). A 15s cap makes the endpoint fail fast to rule-based
+    # (non-AI) graph data instead.
     try:
         ai_analysis = await asyncio.wait_for(
             generate_ai_analysis(token_address, chain, graph_data, holders, labels, similar_scams),
@@ -552,8 +554,9 @@ class HolderClusterRequest(BaseModel):
 async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict[str, Any]:
     """AI-powered wallet cluster analysis for suspicious patterns.
 
-    Uses LiteLLM → deepseek-analysis to identify bundled launches, sniper
-    coordination, wash trading rings, insider clusters, and dev-linked wallets.
+    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → deepseek-analysis
+    to identify bundled launches, sniper coordination, wash trading rings,
+    insider clusters, and dev-linked wallets.
     """
 
     holders = req.holders or []
@@ -580,7 +583,7 @@ async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict[str, Any
         "chain": req.chain,
         "holder_count": len(holders),
         **result,
-        "ai_model": "litellm/deepseek-analysis",
+        "ai_model": result.get("ai_model", "rule-based"),
     }
 
 
@@ -595,9 +598,9 @@ class ContractAnomalyRequest(BaseModel):
 async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str, Any]:
     """AI-powered contract anomaly detection for rug pull indicators.
 
-    Uses LiteLLM → deepseek-analysis to review token holder distribution,
-    contract behavior, and on-chain patterns for honeypots, rug pulls, and
-    manipulation indicators.
+    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → deepseek-analysis
+    to review token holder distribution, contract behavior, and on-chain
+    patterns for honeypots, rug pulls, and manipulation indicators.
     """
     from app.rugmaps_ai import detect_contract_anomalies
 
@@ -609,16 +612,35 @@ async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str
         "token_address": req.address,
         "chain": req.chain,
         **result,
-        "ai_model": "litellm/deepseek-analysis",
+        "ai_model": result.get("ai_model", "rule-based"),
     }
 
 
 @router.get("/ai-health")
 async def ai_health_check() -> dict[str, Any]:
-    """Check RugMaps AI analysis availability."""
+    """Check RugMaps AI analysis availability (Ollama-first routing)."""
     import httpx
 
-    from app.rugmaps_ai import LITELLM_API_KEY, LITELLM_BASE_URL
+    from app.rugmaps_ai import (
+        LITELLM_API_KEY,
+        LITELLM_BASE_URL,
+        OLLAMA_BASE_URLS,
+        OLLAMA_COMPLEX_MODEL,
+        OLLAMA_FAST_MODEL,
+    )
+
+    ollama_ok = False
+    ollama_url = ""
+    for base_url in OLLAMA_BASE_URLS:
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get(f"{base_url}/api/tags")
+                if resp.status_code == 200:
+                    ollama_ok = True
+                    ollama_url = base_url
+                    break
+        except Exception as e:
+            logger.debug(f"Ollama health probe failed on {base_url}: {e}")
 
     litellm_ok = False
     try:
@@ -632,10 +654,14 @@ async def ai_health_check() -> dict[str, Any]:
         logger.debug(f"LiteLLM health probe failed: {e}")
 
     return {
-        "status": "ok" if litellm_ok else "degraded",
+        "status": "ok" if (ollama_ok or litellm_ok) else "degraded",
         "service": "rugmaps-ai",
+        "ollama_available": ollama_ok,
+        "ollama_url": ollama_url,
+        "ollama_fast_model": OLLAMA_FAST_MODEL,
+        "ollama_complex_model": OLLAMA_COMPLEX_MODEL,
         "litellm_available": litellm_ok,
         "litellm_url": LITELLM_BASE_URL,
-        "model": "deepseek-analysis",
+        "model": "ollama-first -> litellm/deepseek-analysis",
         "fallback": "deepseek-direct + rule-based",
     }
