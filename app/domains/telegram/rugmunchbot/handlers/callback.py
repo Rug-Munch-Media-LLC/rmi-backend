@@ -47,11 +47,13 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     category_ai_kb,
     category_charts_kb,
     category_help_kb,
+    category_intel_kb,
     category_market_kb,
     category_portfolio_kb,
     category_rugmaps_kb,
     category_scan_kb,
     category_security_kb,
+    category_wallet_kb,
     pricing_kb,
     scamschool_kb,
     topup_kb,
@@ -103,12 +105,29 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         )
     elif data == "menu_cat_scan":
         await query.edit_message_text(
-            "\U0001f50d <b>Scan Token</b>\n\n"
-            "Quick security audits, full forensic deep scans, wallet analysis "
-            "and deployer fingerprint checks \u2014 risk scores across 77+ chains.\n\n"
-            "Portfolio, watchlist and alerts live here too.",
+            "\U0001f50d <b>Scan</b>\n\n"
+            "Security audits across 77+ chains \u2014 Quick Scan, full "
+            "forensic Deep Scan, SENTINEL 9-module analysis, rug checks, "
+            "deployer fingerprint and hype/compare tools.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_scan_kb(),
+        )
+    elif data == "menu_cat_wallet":
+        await query.edit_message_text(
+            "\U0001f45b <b>Wallet</b>\n\n"
+            "Wallet forensics, portfolio holdings, watchlist tracking, "
+            "price alerts and trade simulation \u2014 all wallet tools in "
+            "one place.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=category_wallet_kb(),
+        )
+    elif data == "menu_cat_intel":
+        await query.edit_message_text(
+            "\U0001f9e0 <b>Intel</b>\n\n"
+            "News, market sentiment, social signals, RAG deep research, "
+            "deep answers and freestyle AI chat \u2014 knowledge on demand.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=category_intel_kb(),
         )
     elif data == "menu_cat_charts":
         await query.edit_message_text(
@@ -136,9 +155,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         )
     elif data == "menu_cat_market":
         await query.edit_message_text(
-            "\U0001f4c8 <b>Market Intel</b>\n\n"
-            "Trending tokens, price checks, sentiment, news, social signals "
-            "and DEX liquidity \u2014 real-time market data.",
+            "\U0001f4c8 <b>Market</b>\n\n"
+            "Market overview, trending, movers, new launches, whale "
+            "activity, charts, prices, TA, DEX liquidity, holders, smart "
+            "money and fund tracing \u2014 real-time market data.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_market_kb(),
         )
@@ -646,6 +666,14 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         parts = data.split("_", 2)
         ctx.args = [parts[2]] if len(parts) == 3 and parts[2] else []
         await _trending(update, ctx)
+    elif data.startswith("market_refresh"):
+        await _inline_market_data(update, ctx, "market")
+    elif data.startswith("movers_refresh"):
+        await _inline_market_data(update, ctx, "movers")
+    elif data.startswith("launches_refresh"):
+        await _inline_market_data(update, ctx, "launches")
+    elif data.startswith("whales_refresh"):
+        await _inline_market_data(update, ctx, "whales")
     elif data.startswith("deep_"):
         parts = data.split("_", 2)
         if len(parts) < 3:
@@ -761,6 +789,28 @@ _RUN_CARDS: dict[str, str] = {
         "analysis \u2192 deployer fingerprint \u2192 funding analysis \u2192 "
         "AI risk verdict.\n\n"
         "\u23f3 Slower than /scan (up to ~2 min) but far more detailed."
+    ),
+    "sentinelscan": (
+        "\U0001f6e1\ufe0f <b>SENTINEL Deep Scan</b>\n\n"
+        "Usage: <code>/sentinelscan &lt;address&gt; [chain]</code>\n\n"
+        "Runs the full 9-module forensic pipeline: holder HHI, LP lock, "
+        "dev reputation, contract authority, proxy, bundle, wash trading "
+        "and honeypot analysis.\n\n"
+        "\u23f3 Slowest scan (\u2248 1-2 min) \u2014 most thorough."
+    ),
+    "market": (
+        "\U0001f4ca <b>Market Overview</b>\n\n"
+        "Global market cap, 24h volume, BTC/ETH dominance, fear & greed "
+        "index and top-asset movers \u2014 refreshed live from the backend."
+    ),
+    "movers": ("\U0001f680 <b>24h Market Movers</b>\n\nTop gainers and losers across the market over the last 24h."),
+    "launches": (
+        "\U0001f195 <b>New Token Launches</b>\n\n"
+        "Freshly launched tokens with bundler flags \u2014 always "
+        "/scan before buying."
+    ),
+    "whales": (
+        "\U0001f40b <b>Whale Activity</b>\n\nLarge buy/sell moves detected across Solana/Ethereum/Bitcoin pairs."
     ),
     "rugcheck": (
         "\U0001f6a8 <b>Rug Pull Checklist</b>\n\n"
@@ -930,6 +980,9 @@ async def _dispatch_run_cmd(update: Update, ctx, cmd_arg: str | None = None) -> 
     if cmd == "sentiment":
         await _inline_sentiment(update, ctx)
         return
+    if cmd in ("market", "movers", "launches", "whales"):
+        await _inline_market_data(update, ctx, cmd)
+        return
 
     card = _RUN_CARDS.get(cmd)
     if card is None:
@@ -966,6 +1019,220 @@ async def _inline_trending(update: Update, ctx) -> None:
         ),
         disable_web_page_preview=True,
     )
+
+
+async def _inline_market_data(update: Update, ctx, kind: str) -> None:
+    """Live inline market data for run_market/run_movers/run_launches/run_whales.
+
+    Reuses the backend market-intel fetch helpers from market.py (the same
+    wiring as the /market, /movers, /launches and /whales commands) so menu
+    buttons show live data instead of usage cards.
+    """
+    from app.domains.telegram.rugmunchbot.handlers.market import (
+        _change_emoji,
+        _fetch_market_intel,
+        _fmt_usd,
+    )
+
+    query = update.callback_query
+    if query is None:
+        return
+
+    labels = {
+        "market": ("\U0001f4ca", "Fetching market overview...", "market_refresh"),
+        "movers": ("\U0001f680", "Fetching market movers...", "movers_refresh"),
+        "launches": ("\U0001f195", "Fetching new launches...", "launches_refresh"),
+        "whales": ("\U0001f40b", "Fetching whale activity...", "whales_refresh"),
+    }
+    emoji, busy_text, refresh_cb = labels[kind]
+    await query.edit_message_text(f"{emoji} <b>{busy_text}</b>", parse_mode=ParseMode.HTML)
+
+    if kind == "market":
+        text = await _inline_market_overview(_fetch_market_intel, _fmt_usd)
+    elif kind == "movers":
+        text = await _inline_movers_text(_fetch_market_intel, _fmt_usd, _change_emoji)
+    elif kind == "launches":
+        text = await _inline_launches_text(_fetch_market_intel, _fmt_usd, _change_emoji)
+    else:
+        text = await _inline_whales_text(_fetch_market_intel, _fmt_usd)
+
+    if text is None:
+        await query.edit_message_text(
+            f"\u274c Could not fetch {kind} data.", parse_mode=ParseMode.HTML, reply_markup=back_kb()
+        )
+        return
+    await query.edit_message_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("\U0001f504 Refresh", callback_data=refresh_cb)],
+                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+            ]
+        ),
+        disable_web_page_preview=True,
+    )
+
+
+async def _inline_market_overview(fetch, fmt_usd) -> str | None:
+    """Render the /market overview as text for inline callbacks."""
+    import asyncio
+
+    overview, macro = await asyncio.gather(
+        fetch("/api/v1/market/overview"),
+        fetch("/api/v1/market/macro"),
+    )
+    if not overview:
+        return None
+
+    from app.domains.telegram.rugmunchbot.config import fmt_pct
+
+    lines = ["\U0001f4ca <b>Market Overview</b>", sep()]
+    if overview.get("total_market_cap") is not None:
+        lines.append(f"\U0001f310 Total Market Cap: <b>{fmt_usd(overview.get('total_market_cap'))}</b>")
+    if overview.get("total_volume_24h") is not None:
+        lines.append(f"\U0001f4c8 24h Volume: <b>{fmt_usd(overview.get('total_volume_24h'))}</b>")
+    if overview.get("btc_dominance") is not None:
+        lines.append(f"\u20bf BTC Dominance: <b>{float(overview['btc_dominance']):.1f}%</b>")
+    if overview.get("eth_dominance") is not None:
+        lines.append(f"\u27e0 ETH Dominance: <b>{float(overview['eth_dominance']):.1f}%</b>")
+    active = overview.get("active_cryptocurrencies")
+    if active:
+        import contextlib
+
+        with contextlib.suppress(TypeError, ValueError):
+            lines.append(f"\U0001fa99 Active Coins: <b>{int(active):,}</b>")
+
+    fg = overview.get("fear_greed") or {}
+    if fg.get("value") is not None:
+        fg_value = int(fg.get("value", 0))
+        fg_class = fg.get("classification") or "Neutral"
+        fg_emoji = (
+            "\U0001f525"
+            if fg_value >= 75
+            else "\U0001f60d"
+            if fg_value >= 60
+            else "\U0001f610"
+            if fg_value >= 40
+            else "\U0001f631"
+        )
+        lines.append("")
+        lines.append(f"{fg_emoji} Fear & Greed: <b>{fg_value}</b> ({fg_class})")
+
+    if macro and macro.get("items"):
+        lines.append("")
+        for it in macro["items"][:2]:
+            if it.get("current_price") is None:
+                continue
+            asset = it.get("asset", "")
+            change = it.get("change_24h")
+            change_txt = f" ({fmt_pct(change)})" if change is not None else ""
+            lines.append(f"\U0001f4b0 <b>{asset}:</b> {fmt_usd(it.get('current_price'))}{change_txt}")
+
+    lines.append(footer_links())
+    return "\n".join(lines)
+
+
+async def _inline_movers_text(fetch, fmt_usd, change_emoji) -> str | None:
+    """Render the /movers report as text for inline callbacks."""
+    from app.domains.telegram.rugmunchbot.config import fmt_pct
+
+    data = await fetch("/api/v1/market/movers", params={"limit": 20})
+    items = (data or {}).get("items") or []
+    if not items:
+        return None
+
+    gainers = [i for i in items if (i.get("change_24h") or 0) >= 0][:6]
+    losers = [i for i in items if (i.get("change_24h") or 0) < 0][:6]
+
+    lines = ["\U0001f680 <b>24h Market Movers</b>", sep()]
+    lines.append("\U0001f7e2 <b>TOP GAINERS</b>")
+    lines.append(thin_sep())
+    for i, item in enumerate(gainers, 1):
+        symbol = (item.get("symbol") or "???").upper()[:12]
+        name = (item.get("name") or symbol)[:24]
+        change = item.get("change_24h") or 0
+        lines.append(
+            f"{i}. {change_emoji(change)} <b>{name}</b> ({symbol})\n"
+            f"   <b>{fmt_pct(change)}</b> | {fmt_usd(item.get('price'))} | Vol: {fmt_usd(item.get('volume_24h'))}"
+        )
+    if not gainers:
+        lines.append("<i>No gainers in the current window.</i>")
+
+    lines.append("")
+    lines.append("\U0001f534 <b>TOP LOSERS</b>")
+    lines.append(thin_sep())
+    for i, item in enumerate(losers, 1):
+        symbol = (item.get("symbol") or "???").upper()[:12]
+        name = (item.get("name") or symbol)[:24]
+        change = item.get("change_24h") or 0
+        lines.append(
+            f"{i}. {change_emoji(change)} <b>{name}</b> ({symbol})\n"
+            f"   <b>{fmt_pct(change)}</b> | {fmt_usd(item.get('price'))} | Vol: {fmt_usd(item.get('volume_24h'))}"
+        )
+    if not losers:
+        lines.append("<i>No losers in the top movers \u2014 market is green \U0001f7e2</i>")
+
+    lines.append(footer_links())
+    return "\n".join(lines)
+
+
+async def _inline_launches_text(fetch, fmt_usd, change_emoji) -> str | None:
+    """Render the /launches report as text for inline callbacks."""
+    from app.domains.telegram.rugmunchbot.config import fmt_chain, fmt_pct
+
+    data = await fetch("/api/v1/market/launches", params={"limit": 8})
+    items = (data or {}).get("items") or []
+    if not items:
+        return None
+
+    lines = ["\U0001f195 <b>New Token Launches</b>", sep()]
+    for i, item in enumerate(items[:8], 1):
+        symbol = (item.get("symbol") or "???").upper()[:12]
+        name = (item.get("name") or symbol)[:28]
+        change = item.get("change_24h") or 0
+        chain_txt = fmt_chain(item.get("chain") or "solana")
+        bundler = "\U0001f6a8 bundler" if item.get("bundler_detected") else ""
+        addr = item.get("address") or ""
+        lines.append(
+            f"{i}. {change_emoji(change)} <b>{name}</b> ({symbol}) {chain_txt}\n"
+            f"   {fmt_usd(item.get('price'))} | <b>{fmt_pct(change)}</b> | Vol: {fmt_usd(item.get('volume_24h'))}"
+            f"{f' | {bundler}' if bundler else ''}"
+        )
+        if addr:
+            lines.append(f"   <code>{short_addr(addr)}</code>")
+    lines.append("\n<i>Fresh launches \u2014 always /scan before buying.</i>")
+    lines.append(footer_links())
+    return "\n".join(lines)
+
+
+async def _inline_whales_text(fetch, fmt_usd) -> str | None:
+    """Render the /whales report as text for inline callbacks."""
+    from app.domains.telegram.rugmunchbot.config import fmt_chain
+
+    data = await fetch("/api/v1/market/whales", params={"limit": 5})
+    items = (data or {}).get("items") or []
+    if not items:
+        return None
+
+    lines = ["\U0001f40b <b>Whale Activity</b>", sep()]
+    for i, item in enumerate(items[:5], 1):
+        symbol = (item.get("token_symbol") or "???").upper()[:12]
+        action = (item.get("type") or "buy").lower()
+        action_txt = "BUY" if action == "buy" else "SELL"
+        action_emoji = "\U0001f7e2" if action == "buy" else "\U0001f534"
+        smart = " \U0001f4a1 smart money" if item.get("is_smart_money") else ""
+        chain_raw = item.get("chain") or ""
+        chain_txt = f" {fmt_chain(chain_raw)}" if chain_raw else ""
+        addr = item.get("token_address") or ""
+        lines.append(
+            f"{i}. {action_emoji} <b>{action_txt} {symbol}</b>{chain_txt}{smart}\n"
+            f"   {fmt_usd(item.get('value_usd'))}"
+            f"{f' | <code>{short_addr(addr)}</code>' if addr else ''}"
+        )
+    lines.append("\n<i>Large moves detected across Solana/Ethereum/Bitcoin pairs.</i>")
+    lines.append(footer_links())
+    return "\n".join(lines)
 
 
 async def _inline_news(update: Update, ctx) -> None:
