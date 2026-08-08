@@ -16,7 +16,6 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import hashlib
@@ -25,6 +24,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -38,10 +38,10 @@ class LocalMCPClient:
 
     def __init__(self) -> None:
         MCP_HOME.mkdir(parents=True, exist_ok=True)
-        self._servers: dict[str, dict] = {}  # name -> {repo, process, tools}
-        self._l1: dict[str, tuple] = {}
+        self._servers: dict[str, dict[str, Any]] = {}  # name -> {repo, process, tools}
+        self._l1: dict[str, tuple[Any, ...]] = {}
 
-    async def install(self, repo: str, name: str | None = None) -> dict:
+    async def install(self, repo: str, name: str | None = None) -> dict[str, Any]:
         """Clone an MCP server from GitHub and discover its tools."""
         name = name or repo.split("/")[-1]
         server_dir = MCP_HOME / name
@@ -75,7 +75,7 @@ class LocalMCPClient:
         logger.info(f"MCP {name}: {len(tools)} tools from {repo}")
         return {"name": name, "tools": len(tools), "repo": repo}
 
-    async def _discover_tools(self, name: str, server_dir: Path) -> list[dict]:
+    async def _discover_tools(self, name: str, server_dir: Path) -> list[dict[str, Any]]:
         """Run MCP server and call tools/list to discover available tools."""
         entry = self._find_entrypoint(server_dir)
         if not entry:
@@ -137,7 +137,7 @@ class LocalMCPClient:
             logger.warning(f"MCP discover {name} failed: {e}")
             return []
 
-    def _find_entrypoint(self, server_dir: Path) -> dict | None:
+    def _find_entrypoint(self, server_dir: Path) -> dict[str, Any] | None:
         """Find how to start the MCP server."""
         # Check package.json for bin/main
         pkg = server_dir / "package.json"
@@ -167,7 +167,7 @@ class LocalMCPClient:
 
         return None
 
-    async def call(self, server: str, tool: str, args: dict, ttl: int = 60) -> dict | None:
+    async def call(self, server: str, tool: str, args: dict[str, Any], ttl: int = 60) -> dict[str, Any] | None:
         """Call an MCP tool through caching shield."""
         cache_key = hashlib.sha256(f"mcp:{server}:{tool}:{json.dumps(args, sort_keys=True)}".encode()).hexdigest()[:24]
 
@@ -210,10 +210,10 @@ class LocalMCPClient:
             logger.debug(f"MCP call {server}/{tool}: {e}")
             return None
 
-    def list_servers(self) -> list[dict]:
+    def list_servers(self) -> list[dict[str, Any]]:
         return [{"name": n, "repo": s["repo"]} for n, s in self._servers.items()]
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {"servers": len(self._servers), "cache_entries": len(self._l1)}
 
 
@@ -262,7 +262,7 @@ EXPANDED_MCP_REPOS = {
 }
 
 
-async def install_curated_mcps() -> dict:
+async def install_curated_mcps() -> dict[str, Any]:
     """Install all curated free MCPs from GitHub and discover their tools.
 
     Returns summary: {server_name: {repo, tools_count, status, error}}
@@ -293,7 +293,7 @@ async def install_curated_mcps() -> dict:
     return results
 
 
-async def call_expanded_tool(service: str, tool_name: str, args: dict | None = None, ttl: int = 60) -> dict | None:
+async def call_expanded_tool(service: str, tool_name: str, args: dict[str, Any] | None = None, ttl: int = 60) -> dict[str, Any] | None:
     """Call a tool from a curated MCP service."""
     args = args or {}
     client = get_local_mcp()

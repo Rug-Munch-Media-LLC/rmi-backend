@@ -179,7 +179,7 @@ def _rrf_fuse(
     ranked_lists: list[list[dict[str, Any]]],
     k: int = 60,
     entity_boost: float = 1.5,
-    entity_doc_ids: set | None = None,
+    entity_doc_ids: set[Any] | None = None,
     pillar_weights: list[float] | None = None,
 ) -> list[dict[str, Any]]:
     """Reciprocal Rank Fusion of multiple result lists."""
@@ -308,7 +308,7 @@ async def three_pillar_search(
     # ── Pillar 3: Entity exact-match + KG expansion ──
     pillar3_results: list[dict[str, Any]] = []
     entity_extraction = None
-    entity_doc_ids: set = set()
+    entity_doc_ids: set[Any] = set()
     try:
         from app.entity_extraction import EntityLookup, extract_entities
 

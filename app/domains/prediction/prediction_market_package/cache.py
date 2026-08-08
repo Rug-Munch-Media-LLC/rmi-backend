@@ -4,9 +4,9 @@ Serialization/deserialization for PredictionMarket and PredictionDigest.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
+from typing import Any
 
 from app.domains.prediction.prediction_market_package.models import (
     PredictionDigest,
@@ -19,7 +19,7 @@ def cache_hash(*args) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:12]
 
 
-def market_to_dict(m: PredictionMarket) -> dict:
+def market_to_dict(m: PredictionMarket) -> dict[str, Any]:
     return {
         "source": m.source,
         "source_id": m.source_id,
@@ -40,7 +40,7 @@ def market_to_dict(m: PredictionMarket) -> dict:
     }
 
 
-def dict_to_market(d: dict) -> PredictionMarket:
+def dict_to_market(d: dict[str, Any]) -> PredictionMarket:
     return PredictionMarket(
         source=d.get("source", ""),
         source_id=d.get("source_id", ""),
@@ -61,7 +61,7 @@ def dict_to_market(d: dict) -> PredictionMarket:
     )
 
 
-def digest_to_dict(d: PredictionDigest) -> dict:
+def digest_to_dict(d: PredictionDigest) -> dict[str, Any]:
     return {
         "generated_at": d.generated_at,
         "total_markets_searched": d.total_markets_searched,
@@ -74,7 +74,7 @@ def digest_to_dict(d: PredictionDigest) -> dict:
     }
 
 
-def dict_to_digest(d: dict) -> PredictionDigest:
+def dict_to_digest(d: dict[str, Any]) -> PredictionDigest:
     return PredictionDigest(
         generated_at=d.get("generated_at", ""),
         total_markets_searched=d.get("total_markets_searched", 0),

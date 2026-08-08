@@ -1,12 +1,12 @@
 """Document ingestion pipeline for RAG."""
 
 from __future__ import annotations
-from typing import Any
 
 import contextlib
 import hashlib
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.crypto_embeddings import EmbeddingResult, get_embedder
@@ -73,7 +73,7 @@ async def _preembed_scam_patterns() -> None:
     _pattern_cache_loaded = True
 
 
-async def _embed_by_collection(embedder, collection: str, content: str, metadata: dict) -> EmbeddingResult:
+async def _embed_by_collection(embedder, collection: str, content: str, metadata: dict[str, Any]) -> EmbeddingResult:
     """Route to the right embedding head based on collection type."""
     if collection in ("scam_patterns", "known_scams"):
         return await embedder.embed_scam_pattern(
@@ -110,9 +110,9 @@ async def _embed_by_collection(embedder, collection: str, content: str, metadata
 async def ingest_document(
     collection: str,
     content: str,
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
     doc_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Ingest a document with real semantic embedding."""
     embedder = await get_embedder()
     metadata = metadata or {}
@@ -200,7 +200,7 @@ async def ingest_document(
     return {"id": doc_id, "dims": result.dims, "collection": collection}
 
 
-async def seed_known_scams() -> dict:
+async def seed_known_scams() -> dict[str, Any]:
     """Seed the RAG database with known scam patterns."""
     global _seeded
     from app.crypto_embeddings import KNOWN_SCAM_PATTERNS
@@ -245,8 +245,8 @@ async def seed_known_scams() -> dict:
 
 
 async def ingest_forensic_report(
-    report_text: str, report_name: str = "forensic_report", metadata: dict | None = None
-) -> dict:
+    report_text: str, report_name: str = "forensic_report", metadata: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Ingest a forensic report into the RAG knowledge base (permanent storage)."""
     meta = {"name": report_name, "type": "forensic_report", **(metadata or {})}
     return await ingest_document(collection="forensic_reports", content=report_text, metadata=meta)

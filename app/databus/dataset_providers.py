@@ -14,10 +14,10 @@ Two massive free datasets for AML detection and address labeling.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import csv
 import os
+from typing import Any
 
 import httpx
 
@@ -56,7 +56,7 @@ def _find_real_cats_dir() -> str | None:
     return None
 
 
-def _load_real_cats() -> dict:
+def _load_real_cats() -> dict[str, Any]:
     """Load Real-CATS dataset into memory."""
     base = _find_real_cats_dir()
     if not base:
@@ -131,7 +131,7 @@ def _load_real_cats() -> dict:
     return result
 
 
-async def fetch_real_cats(address: str | None = None, category: str = "all", limit: int = 50) -> dict:
+async def fetch_real_cats(address: str | None = None, category: str = "all", limit: int = 50) -> dict[str, Any]:
     """Query Real-CATS - check if address is criminal, or list criminal/benign addresses."""
     data = _load_real_cats()
 
@@ -208,7 +208,7 @@ async def fetch_mbal(
     chain: str | None = None,
     category: str | None = None,
     limit: int = 20,
-) -> dict:
+) -> dict[str, Any]:
     """Query MBAL - 10M labeled addresses. Schema: chain,address,categories,entity,source"""
     base = _find_mbal_dir()
 

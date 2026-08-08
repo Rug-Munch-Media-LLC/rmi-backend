@@ -49,7 +49,7 @@ ENDPOINTS = {
 
 def _cb_http_get(
     url: str,
-    params: dict | None = None,
+    params: dict[str, Any] | None = None,
     timeout: int = 30,
     cb: SimpleCircuitBreaker | None = None,
 ) -> httpx.Response:

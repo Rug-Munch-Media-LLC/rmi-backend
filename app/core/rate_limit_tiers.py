@@ -120,7 +120,7 @@ async def upgrade_tier(req: UpgradeRequest) -> dict[str, Any]:
 
 
 @router.get("/upgrade-links")
-async def payment_links(tier: Tier = Tier.PRO) -> dict:
+async def payment_links(tier: Tier = Tier.PRO) -> dict[str, Any]:
     """Get payment links for upgrading via crypto."""
     price = TIER_LIMITS[tier]["price_monthly_usd"]
     return {

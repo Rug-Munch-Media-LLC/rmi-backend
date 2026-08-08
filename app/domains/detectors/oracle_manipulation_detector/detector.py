@@ -5,12 +5,12 @@ OracleManipulationDetector class with all detection methods.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import math
 import random
 import time
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -288,7 +288,7 @@ class OracleManipulationDetector:
         )
         return report
 
-    def _compute_simulated_twap(self, pair: str, pool: dict, blocks_back: int) -> TWAPWindow | None:
+    def _compute_simulated_twap(self, pair: str, pool: dict[str, Any], blocks_back: int) -> TWAPWindow | None:
         """Simulate TWAP computation from available data."""
         base_prices = {
             "WETH/USDC": 3200.0,
@@ -464,7 +464,7 @@ class OracleManipulationDetector:
 
         return incidents
 
-    async def _fetch_chainlink_feed(self, feed_name: str, feed_info: dict) -> OracleRead | None:
+    async def _fetch_chainlink_feed(self, feed_name: str, feed_info: dict[str, Any]) -> OracleRead | None:
         """Fetch and analyze a Chainlink price feed (simulated)."""
         now = time.time()
         is_stale_sim = random.random() < 0.05  # noqa: S311 — non-crypto randomness

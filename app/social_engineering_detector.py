@@ -111,7 +111,7 @@ _AI_CONTENT_PATTERNS = [
 # ── Core Detection Functions ─────────────────────────────────────
 
 
-def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
+def analyze_profile_photo(photo_url: str | None, name: str) -> dict[str, Any]:
     """Analyze team profile photos for synthetic/AI indicators.
 
     Checks: EXIF metadata stripping, reverse-image availability,
@@ -173,7 +173,7 @@ def analyze_profile_photo(photo_url: str | None, name: str) -> dict:
     }
 
 
-def analyze_domain(domain: str | None) -> dict:
+def analyze_domain(domain: str | None) -> dict[str, Any]:
     """Analyze project domain for trust indicators.
 
     Checks: TLD, registrar, registration date, SSL validity,
@@ -249,7 +249,7 @@ def analyze_domain(domain: str | None) -> dict:
     }
 
 
-def analyze_social_presence(social_links: list[str] | None) -> dict:
+def analyze_social_presence(social_links: list[str] | None) -> dict[str, Any]:
     """Analyze social media presence for authenticity.
 
     Checks: account age (estimated), follower ratios,
@@ -324,7 +324,7 @@ def analyze_social_presence(social_links: list[str] | None) -> dict:
     }
 
 
-def analyze_whitepaper_content(text: str | None) -> dict:
+def analyze_whitepaper_content(text: str | None) -> dict[str, Any]:
     """Analyze whitepaper/documentation text for AI generation or plagiarism.
 
     Checks: AI content markers, generic templates,
@@ -399,7 +399,7 @@ def analyze_whitepaper_content(text: str | None) -> dict:
     }
 
 
-async def check_team_background(name: str, role: str, social_handle: str | None) -> dict:
+async def check_team_background(name: str, role: str, social_handle: str | None) -> dict[str, Any]:
     """Check team member background for red flags.
 
     Uses available data to detect:
@@ -447,11 +447,11 @@ async def check_team_background(name: str, role: str, social_handle: str | None)
 async def detect_social_engineering(
     token_address: str,
     chain: str = "solana",
-    team_members: list[dict] | None = None,
+    team_members: list[dict[str, Any]] | None = None,
     social_links: list[str] | None = None,
     domain: str | None = None,
     whitepaper_text: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Main detection function - orchestrates all sub-analyses.
 
     Args:

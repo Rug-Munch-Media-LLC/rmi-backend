@@ -3,9 +3,9 @@ Webmail admin endpoints.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -17,7 +17,7 @@ mail_router = APIRouter()
 
 
 @mail_router.get("/mail/sent")
-async def mail_sent(request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)) -> dict[str, list]:
+async def mail_sent(request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)) -> dict[str, list[Any]]:
     """Get recently sent emails."""
     return {"messages": [], "total": 0, "source": "smtp_tracking"}
 

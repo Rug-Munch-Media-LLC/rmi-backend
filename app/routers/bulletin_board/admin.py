@@ -1,6 +1,7 @@
 """Admin bulletin board endpoints + comment moderation (require admin session)."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import Body, Request
@@ -26,7 +27,7 @@ async def admin_list_posts(
     offset: int = 0,
     sort_by: str = "created_at",
     sort_order: str = "desc",
-) -> dict:
+) -> dict[str, Any]:
     """List all posts (admin view with full data)."""
     auth = await require_admin(request, "content.read")
     auth["admin"]
@@ -108,7 +109,7 @@ async def admin_create_post(request: Request, body: CreatePostRequest) -> dict[s
 
 
 @router.get("/admin/bulletin/posts/{post_id}")
-async def admin_get_post(request: Request, post_id: str) -> dict[str, dict]:
+async def admin_get_post(request: Request, post_id: str) -> dict[str, dict[str, Any]]:
     """Get full post details (admin)."""
     await require_admin(request, "content.read")
 
@@ -276,7 +277,7 @@ async def admin_unpublish_post(request: Request, post_id: str) -> dict[str, bool
     summary="Admin Pin Post",
     description="Toggle the pinned status of a post. Pinned posts appear at the top of bulletin listings.",
 )
-async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...)) -> dict[str, bool]:
+async def admin_pin_post(request: Request, post_id: str, body: dict[str, Any] = Body(...)) -> dict[str, bool]:
     """Pin or unpin a post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -311,7 +312,7 @@ async def admin_pin_post(request: Request, post_id: str, body: dict = Body(...))
 
 
 @router.get("/admin/bulletin/stats")
-async def admin_bulletin_stats(request: Request) -> dict:
+async def admin_bulletin_stats(request: Request) -> dict[str, Any]:
     """Get bulletin board statistics."""
     await require_admin(request, "content.read")
 
@@ -320,7 +321,7 @@ async def admin_bulletin_stats(request: Request) -> dict:
 
 
 @router.get("/admin/bulletin/scheduled")
-async def admin_scheduled_posts(request: Request) -> dict:
+async def admin_scheduled_posts(request: Request) -> dict[str, Any]:
     """List scheduled posts waiting to be published."""
     await require_admin(request, "content.read")
 
@@ -380,7 +381,7 @@ async def admin_process_expired(request: Request) -> dict[str, bool]:
 
 
 @router.get("/admin/bulletin/posts/{post_id}/comments")
-async def admin_get_comments(request: Request, post_id: str) -> dict:
+async def admin_get_comments(request: Request, post_id: str) -> dict[str, Any]:
     """Get all comments for a post (admin moderation view)."""
     await require_admin(request, "content.read")
 
@@ -392,7 +393,7 @@ async def admin_get_comments(request: Request, post_id: str) -> dict:
 async def admin_moderate_comment(
     request: Request,
     comment_id: str,
-    body: dict = Body(...),
+    body: dict[str, Any] = Body(...),
 ) -> dict[str, bool]:
     """Moderate a comment (approve/reject)."""
     auth = await require_admin(request, "content.write")

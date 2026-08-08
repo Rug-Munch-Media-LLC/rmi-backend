@@ -19,13 +19,13 @@ call `cluster_items(items) -> list[StoryCluster]`.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -133,7 +133,7 @@ class NewsItem:
     sentiment: float = 0.0
 
     @classmethod
-    def from_row(cls, row: dict) -> NewsItem:
+    def from_row(cls, row: dict[str, Any]) -> NewsItem:
         published = row.get("published_at") or row.get("created_at")
         if isinstance(published, str):
             try:
@@ -167,7 +167,7 @@ class StoryCluster:
     sentiment_avg: float
     item_ids: list[str]
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cluster_id": self.cluster_id,
             "representative_title": self.representative_title,
@@ -368,7 +368,7 @@ async def persist_clusters(stories: list[StoryCluster]) -> int:
         return 0
 
 
-async def load_recent_clusters(limit: int = 50) -> list[dict]:
+async def load_recent_clusters(limit: int = 50) -> list[dict[str, Any]]:
     """Load recent clusters from Postgres."""
     try:
         import json

@@ -5,12 +5,12 @@ ApiKey dataclass, discover_keys environment scanner, and KeyPool.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import os
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -172,7 +172,7 @@ class KeyPool:
         key.errors += 1
         key.last_error = error[:100]
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         now = time.monotonic()
         key_stats = []
         for k in self.keys:

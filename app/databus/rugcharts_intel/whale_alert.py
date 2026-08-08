@@ -4,10 +4,10 @@ Real-time large transaction detection.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -20,7 +20,7 @@ logger = get_logger("rugcharts_intel")
 
 async def whale_alert_stream(
     address: str = "", chain: str = "solana", min_value_usd: float = 100000, **kw
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Detect large transactions on a token or wallet. Whale movement alerts.
     Pass address="" to get global whale activity across tracked tokens.
     """

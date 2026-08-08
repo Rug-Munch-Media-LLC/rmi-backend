@@ -281,7 +281,7 @@ def _build_pairs(
     """
     pair_cache = _load_pair_cache(chain)
 
-    def _get_tokens(pool_addr: str, dex_info: dict) -> tuple[str, str]:
+    def _get_tokens(pool_addr: str, dex_info: dict[str, Any]) -> tuple[str, str]:
         """Resolve token0/token1 for a pool, falling back to pair cache."""
         t0 = dex_info.get("token0", "")
         t1 = dex_info.get("token1", "")
@@ -295,7 +295,7 @@ def _build_pairs(
     # Resolve the paired token (token0 or token1 in the pool)
     # We need decimals for our token and the paired token
     # For now, get the paired token from the first swap that has token data
-    def _resolve_paired_token(pool_addr: str, our_token_lower: str, dex_info: dict) -> str | None:
+    def _resolve_paired_token(pool_addr: str, our_token_lower: str, dex_info: dict[str, Any]) -> str | None:
         t0, t1 = _get_tokens(pool_addr, dex_info)
         if t0.lower() == our_token_lower:
             return t1

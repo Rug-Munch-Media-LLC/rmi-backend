@@ -5,10 +5,10 @@ Called by Workers to annotate tool responses with label data.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -26,7 +26,7 @@ class LabelLookupRequest(BaseModel):
 
 
 @router.post("/lookup")
-async def lookup_labels(req: LabelLookupRequest) -> dict:
+async def lookup_labels(req: LabelLookupRequest) -> dict[str, Any]:
     """Batch lookup wallet labels for enrichment.
 
     Called by CF Workers to annotate tool responses with wallet intelligence.
@@ -34,7 +34,7 @@ async def lookup_labels(req: LabelLookupRequest) -> dict:
     """
     try:
         addresses = [a.strip() for a in req.addresses if a.strip()]
-        labels: dict[str, list] = {a: [] for a in addresses}
+        labels: dict[str, list[Any]] = {a: [] for a in addresses}
 
         # Try ClickHouse first
         try:

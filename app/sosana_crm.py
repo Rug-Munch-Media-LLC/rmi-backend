@@ -4,10 +4,10 @@ Exposes investigation data: wallets, entities, financials, evidence, risk assess
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -35,12 +35,12 @@ class SOSANACRM:
         return False
 
     @property
-    def data(self) -> dict:
+    def data(self) -> dict[str, Any]:
         if not self._loaded:
             self.load()
         return self._data or {}
 
-    def summary(self) -> dict:
+    def summary(self) -> dict[str, Any]:
         """Case overview - safe to expose."""
         d = self.data
         return {
@@ -53,14 +53,14 @@ class SOSANACRM:
             "risk_assessment": d.get("risk_assessment", {}),
         }
 
-    def entities(self, entity_type: str | None = None) -> dict:
+    def entities(self, entity_type: str | None = None) -> dict[str, Any]:
         """Get entities: wallets, persons, organizations, tokens."""
         entities = self.data.get("entities", {})
         if entity_type:
             return {entity_type: entities.get(entity_type, [])}
         return entities
 
-    def wallets_detail(self) -> list[dict]:
+    def wallets_detail(self) -> list[dict[str, Any]]:
         """Detailed wallet analysis from the investigation."""
         wallets = self.data.get("entities", {}).get("wallets", [])
         # Enrich with on-chain labels
@@ -83,24 +83,24 @@ class SOSANACRM:
             )
         return result
 
-    def financial_detail(self) -> dict:
+    def financial_detail(self) -> dict[str, Any]:
         """Full financial analysis."""
         return self.data.get("financial_analysis", {})
 
-    def evidence_summary(self) -> dict:
+    def evidence_summary(self) -> dict[str, Any]:
         """Evidence overview with counts."""
         evidence = self.data.get("evidence", {})
         return {tier: len(items) if isinstance(items, list) else items for tier, items in evidence.items()}
 
-    def persons(self) -> list[dict]:
+    def persons(self) -> list[dict[str, Any]]:
         """Persons of interest."""
         return self.data.get("entities", {}).get("persons", [])[:20]
 
-    def organizations(self) -> list[dict]:
+    def organizations(self) -> list[dict[str, Any]]:
         """Organizations involved."""
         return self.data.get("entities", {}).get("organizations", [])[:20]
 
-    def legal_framework(self) -> dict:
+    def legal_framework(self) -> dict[str, Any]:
         """Legal and prosecution framework."""
         return self.data.get("legal_framework", {})
 

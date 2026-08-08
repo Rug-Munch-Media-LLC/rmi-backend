@@ -35,7 +35,7 @@ logger = get_logger("wallet_memory.labels")
 
 # ── RolodETH cache ──────────────────────────────────────────────
 
-_ROLODETH_CACHE: dict[str, list[dict]] | None = None
+_ROLODETH_CACHE: dict[str, list[dict[str, Any]]] | None = None
 _ROLODETH_LAST_FETCH: float = 0.0
 _ROLODETH_TTL = 3600  # 1 hour
 
@@ -61,7 +61,7 @@ class LabelService:
             pass
 
     @staticmethod
-    def _build_static_label(label_data: dict, chain: str) -> dict:
+    def _build_static_label(label_data: dict[str, Any], chain: str) -> dict[str, Any]:
         """Build a label dict from static Redis label data."""
         return {
             "source": f"static_{label_data.get('chain', chain)}",
@@ -74,7 +74,7 @@ class LabelService:
         }
 
     @staticmethod
-    def _build_ofac_label(ofac_data: dict) -> dict:
+    def _build_ofac_label(ofac_data: dict[str, Any]) -> dict[str, Any]:
         """Build a label dict from OFAC sanctions data."""
         return {
             "source": "ofac",
@@ -84,7 +84,7 @@ class LabelService:
         }
 
     @staticmethod
-    def _build_wallet_label(wallet_data: dict, category: str) -> dict:
+    def _build_wallet_label(wallet_data: dict[str, Any], category: str) -> dict[str, Any]:
         """Build a label dict from Omega Forensic wallet data."""
         return {
             "source": "omega_forensic",
@@ -94,7 +94,7 @@ class LabelService:
         }
 
     @staticmethod
-    def _build_cex_label(name: str) -> dict:
+    def _build_cex_label(name: str) -> dict[str, Any]:
         """Build a label dict for a built-in CEX address."""
         return {
             "source": "builtin_cex",
@@ -292,7 +292,7 @@ class LabelService:
 
     # ── Live API methods ────────────────────────────────────────
 
-    async def _query_etherscan(self, address: str, chain: str) -> list[dict]:
+    async def _query_etherscan(self, address: str, chain: str) -> list[dict[str, Any]]:
         """Query Etherscan account API for address labels."""
         from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 
@@ -339,7 +339,7 @@ class LabelService:
         except (ConnectionError, OSError, TimeoutError):
             return []
 
-    async def _query_rolodeth(self, address: str) -> list[dict]:
+    async def _query_rolodeth(self, address: str) -> list[dict[str, Any]]:
         """Query RolodETH GitHub label database."""
         global _ROLODETH_CACHE, _ROLODETH_LAST_FETCH
         import time
@@ -374,7 +374,7 @@ class LabelService:
 
         return labels
 
-    async def _query_walletlabels_xyz(self, address: str) -> list[dict]:
+    async def _query_walletlabels_xyz(self, address: str) -> list[dict[str, Any]]:
         """Query walletLabels.xyz API."""
         try:
             resp = await self._http.get(f"https://api.walletlabels.xyz/v1/address/{address}")
@@ -396,7 +396,7 @@ class LabelService:
         except (ConnectionError, OSError, TimeoutError):
             return []
 
-    async def _query_bluepages(self, address: str) -> list[dict]:
+    async def _query_bluepages(self, address: str) -> list[dict[str, Any]]:
         """Query bluepages.fyi API."""
         try:
             resp = await self._http.get(f"https://bluepages.fyi/api/v1/address/{address}")
@@ -441,7 +441,7 @@ class LabelService:
             return "sanctioned"
         return "wallet"
 
-    def _deduplicate(self, labels: list[dict]) -> list[dict]:
+    def _deduplicate(self, labels: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Remove duplicate labels from different sources."""
         seen = set()
         deduped = []
@@ -452,7 +452,7 @@ class LabelService:
                 deduped.append(lbl)
         return deduped
 
-    def _pick_primary(self, labels: list[dict], flags: dict) -> dict:
+    def _pick_primary(self, labels: list[dict[str, Any]], flags: dict[str, Any]) -> dict[str, Any]:
         """Pick the most informative primary label."""
         if not labels:
             return {"label": "", "category": "unknown"}
@@ -479,7 +479,7 @@ class LabelService:
         )
         return sorted_labels[0] if sorted_labels else {"label": "", "category": "unknown"}
 
-    def _label_risk_contribution(self, labels: list[dict], flags: dict) -> float:
+    def _label_risk_contribution(self, labels: list[dict[str, Any]], flags: dict[str, Any]) -> float:
         """Calculate risk score contribution from labels (0-40 of 100)."""
         score = 0.0
 

@@ -42,7 +42,7 @@ class BubbleMapsPro:
     Fixes all competitor flaws.
     """
 
-    TYPE_COLORS: ClassVar[dict] = {
+    TYPE_COLORS: ClassVar[dict[str, Any]] = {
         "center": "#ff6b6b",
         "scammer": "#ff0000",
         "suspected_scammer": "#ff6b6b",
@@ -54,7 +54,7 @@ class BubbleMapsPro:
         "unknown": "#868e96",
     }
 
-    RISK_COLORS: ClassVar[dict] = {
+    RISK_COLORS: ClassVar[dict[str, Any]] = {
         "safe": "#00ff00",
         "low": "#90ee90",
         "medium": "#ffd700",
@@ -63,8 +63,8 @@ class BubbleMapsPro:
     }
 
     def __init__(self) -> None:
-        self.transaction_cache: dict[str, list[dict]] = {}
-        self.entity_cache: dict[str, dict] = {}
+        self.transaction_cache: dict[str, list[dict[str, Any]]] = {}
+        self.entity_cache: dict[str, dict[str, Any]] = {}
 
     async def generate_map(
         self,
@@ -72,7 +72,7 @@ class BubbleMapsPro:
         depth: int = 2,
         min_strength: float = 0.1,
         time_range: tuple[datetime, datetime] | None = None,
-        filters: dict | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> BubbleMap:
         """Generate a professional bubble map."""
         map_id = f"bubble_{center_wallet[:12]}_{int(datetime.now().timestamp())}"
@@ -87,7 +87,7 @@ class BubbleMapsPro:
         # Fetch transactions at each depth level
         wallets_to_process = [(center_wallet, 0)]
         processed = set()
-        all_transactions: dict[str, list[dict]] = {}
+        all_transactions: dict[str, list[dict[str, Any]]] = {}
 
         while wallets_to_process:
             current_wallet, current_depth = wallets_to_process.pop(0)
@@ -182,7 +182,7 @@ class BubbleMapsPro:
             logger.debug("Failed to fetch tx detail %s: %s", signature[:12], e)
         return None
 
-    def _extract_connected_wallets(self, txs: list[dict], current_wallet: str, center_wallet: str) -> set[str]:
+    def _extract_connected_wallets(self, txs: list[dict[str, Any]], current_wallet: str, center_wallet: str) -> set[str]:
         """Extract unique connected wallet addresses from transactions."""
         connected = set()
         for tx in txs:
@@ -191,7 +191,7 @@ class BubbleMapsPro:
                     connected.add(addr)
         return connected
 
-    async def _fetch_evm_transactions(self, address: str, api_keys: dict) -> list[dict[str, Any]]:
+    async def _fetch_evm_transactions(self, address: str, api_keys: dict[str, Any]) -> list[dict[str, Any]]:
         """Fetch EVM transactions via Etherscan API."""
         api_key = api_keys.get("ethereum", "")
         if not api_key:
@@ -218,7 +218,7 @@ class BubbleMapsPro:
             logger.debug("EVM tx fetch error for %s: %s", address[:12], e)
         return []
 
-    async def _fetch_solana_transactions(self, address: str, api_keys: dict) -> list[dict[str, Any]]:
+    async def _fetch_solana_transactions(self, address: str, api_keys: dict[str, Any]) -> list[dict[str, Any]]:
         """Fetch Solana transactions via Helius API."""
         api_key = api_keys.get("solana", "")
         if not api_key:

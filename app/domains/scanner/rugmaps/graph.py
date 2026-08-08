@@ -5,9 +5,9 @@ Connection strength, node positioning, wallet classification, and risk scoring.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import math
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.scanner.rugmaps.models import BubbleLink, BubbleMap, BubbleNode
@@ -40,7 +40,7 @@ async def add_or_update_node(
     label: str,
     node_type: str,
     layer: int,
-    transactions: list | None = None,
+    transactions: list[Any] | None = None,
 ) -> BubbleNode:
     """Add or update a node in the bubble map."""
     existing = next((n for n in bubble_map.nodes if n.id == node_id), None)
@@ -72,7 +72,7 @@ async def add_or_update_node(
     return node
 
 
-async def add_center_node(bubble_map: BubbleMap, address: str, transactions: list) -> BubbleNode:
+async def add_center_node(bubble_map: BubbleMap, address: str, transactions: list[Any]) -> BubbleNode:
     """Add or update the center node."""
     center = next((n for n in bubble_map.nodes if n.id == address), None)
     risk_score, risk = calculate_risk(transactions, len(bubble_map.nodes))
@@ -137,7 +137,7 @@ def add_or_update_link(
     return link
 
 
-async def classify_wallet(address: str, transactions: list | None = None) -> str:
+async def classify_wallet(address: str, transactions: list[Any] | None = None) -> str:
     """Classify wallet type based on Neo4j labels, address patterns, and transactions.
 
     Priority order:
@@ -188,7 +188,7 @@ async def classify_wallet(address: str, transactions: list | None = None) -> str
     return "unknown"
 
 
-async def get_entity_info(address: str) -> dict | None:
+async def get_entity_info(address: str) -> dict[str, Any] | None:
     """Get entity info for a wallet address using clustering."""
     # Phase 1: Neo4j label graph (primary — 163K+ wallets, 8K+ labels from ClickHouse)
     try:
@@ -215,7 +215,7 @@ async def get_entity_info(address: str) -> dict | None:
     return None
 
 
-def calculate_risk(transactions: list, node_count: int) -> tuple[float, str]:
+def calculate_risk(transactions: list[Any], node_count: int) -> tuple[float, str]:
     """Calculate risk score and label for a node."""
     if not transactions:
         return 0.0, "unknown"
@@ -280,7 +280,7 @@ def calculate_positions(bubble_map: BubbleMap) -> None:
         node.y = 300 + radius * math.sin(angle)
 
 
-def calculate_stats(bubble_map: BubbleMap) -> dict:
+def calculate_stats(bubble_map: BubbleMap) -> dict[str, Any]:
     """Calculate aggregate map statistics."""
     if not bubble_map.nodes:
         return {}

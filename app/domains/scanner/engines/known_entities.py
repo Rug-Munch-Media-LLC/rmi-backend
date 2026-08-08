@@ -10,6 +10,7 @@ Sources: eth-labels MCP, Blockscout, Etherscan, protocol docs, chain-indexer
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -237,7 +238,7 @@ KNOWN_MARKET_MAKERS = {
 
 # ── Lookup Cache ──────────────────────────────────────────────────────
 
-_lookup: dict[str, dict] = {}
+_lookup: dict[str, dict[str, Any]] = {}
 _solana_programs: dict[str, tuple[str, str]] = {}
 _initialized = False
 
@@ -287,7 +288,7 @@ def _init() -> None:
     logger.info(f"known_entities: {len(_lookup)} labels, {len(_solana_programs)} Solana programs")
 
 
-def label_wallet(address: str, chain: str = "ethereum") -> dict:
+def label_wallet(address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Label a wallet. Returns {"name":..., "type":..., "confidence":..., "entity":...}"""
     _init()
     key = f"{chain}:{address.lower()}"
@@ -351,7 +352,7 @@ def get_exchange_name(address: str, chain: str = "ethereum") -> str | None:
     return None
 
 
-def get_all_known_for_chain(chain: str) -> dict[str, dict]:
+def get_all_known_for_chain(chain: str) -> dict[str, dict[str, Any]]:
     """Get all known labels for a specific chain."""
     _init()
     return {addr.split(":", 1)[1]: label for addr, label in _lookup.items() if addr.startswith(f"{chain}:")}

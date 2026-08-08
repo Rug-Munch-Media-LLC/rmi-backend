@@ -19,7 +19,7 @@ class ScanTokenTool(AgentTool):
     name = "scan_token"
     description = "Scan a token for rug pull risks"
 
-    async def execute(self, chain: str, address: str) -> dict:
+    async def execute(self, chain: str, address: str) -> dict[str, Any]:
         # TODO: Wire to actual scanner
         return {"chain": chain, "address": address, "status": "pending integration"}
 
@@ -28,5 +28,5 @@ class WalletLookupTool(AgentTool):
     name = "wallet_lookup"
     description = "Look up wallet profile and transaction history"
 
-    async def execute(self, address: str) -> dict:
+    async def execute(self, address: str) -> dict[str, Any]:
         return {"address": address, "status": "pending integration"}

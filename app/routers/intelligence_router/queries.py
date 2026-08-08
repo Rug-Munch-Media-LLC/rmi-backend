@@ -5,9 +5,9 @@ Market intelligence, premium, security, and alerts query endpoints.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Header, Query
 
@@ -35,7 +35,7 @@ router = APIRouter()
 async def get_trending_tokens(
     chain: str = Query("solana", description="Blockchain"),
     limit: int = Query(50, description="Number of results"),
-) -> dict:
+) -> dict[str, Any]:
     """Get trending tokens."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -63,7 +63,7 @@ async def get_whale_movements(
     chain: str = Query("solana"),
     min_amount_usd: float = Query(10000),
     limit: int = Query(50),
-) -> dict:
+) -> dict[str, Any]:
     """Get recent whale movements."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -92,7 +92,7 @@ async def get_volume_spikes(
     chain: str = Query("solana"),
     min_change_pct: float = Query(100),
     limit: int = Query(50),
-) -> dict:
+) -> dict[str, Any]:
     """Get volume spike alerts."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -120,7 +120,7 @@ async def get_smart_money_activities(
     wallet_category: str | None = None,
     chain: str = Query("solana"),
     limit: int = Query(50),
-) -> dict:
+) -> dict[str, Any]:
     """Get smart money activities (premium feature)."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -144,7 +144,7 @@ async def get_exchange_flows(
     exchange_name: str | None = None,
     flow_type: str | None = None,
     limit: int = Query(50),
-) -> dict:
+) -> dict[str, Any]:
     """Get exchange flow analysis (premium feature)."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -176,7 +176,7 @@ async def get_scam_alerts(
     scam_type: str | None = None,
     confirmed_only: bool = Query(False),
     limit: int = Query(50),
-) -> dict:
+) -> dict[str, Any]:
     """Get scam alerts."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -203,7 +203,7 @@ async def get_scam_alerts(
 )
 async def get_rugpull_alerts(
     limit: int = Query(50),
-) -> dict:
+) -> dict[str, Any]:
     """Get rugpull alerts (real-time)."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -234,7 +234,7 @@ async def get_my_alerts(
     severity: str | None = None,
     limit: int = Query(50),
     authorization: str = Header(None),
-) -> dict:
+) -> dict[str, Any]:
     """Get my intelligence alerts."""
     user_id = await _get_current_user_id(authorization)
     if not user_id:

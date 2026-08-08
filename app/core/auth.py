@@ -176,7 +176,7 @@ def _consumer_keys_for(request: Request) -> set[str]:
     return {key}
 
 
-def _path_has_route(path: str, routes: list) -> bool:
+def _path_has_route(path: str, routes: list[Any]) -> bool:
     """Check if a path matches any registered route. Simple prefix-based approach."""
 
     for route in routes:

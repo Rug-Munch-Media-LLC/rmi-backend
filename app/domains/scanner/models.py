@@ -40,8 +40,8 @@ class ScanResult:
     tier_required: str = "free"
     confidence: int = 0  # 0-100, how much data backs this score
     modules_run: list[dict[str, Any]] = field(default_factory=list)  # [{module, status, error?}]
-    fusion_brief: dict | None = None  # DataFusion enrichment: fused risk + intelligence brief
-    rag_context: dict | None = None  # RAG enrichment context (from RAGIntelligenceEnricher)
+    fusion_brief: dict[str, Any] | None = None  # DataFusion enrichment: fused risk + intelligence brief
+    rag_context: dict[str, Any] | None = None  # RAG enrichment context (from RAGIntelligenceEnricher)
 
 
 CHAIN_IDS = {

@@ -16,7 +16,6 @@ Architecture:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import os
@@ -24,6 +23,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -210,7 +210,7 @@ class ManagedKey:
         self.tokens = min(float(self.burst), self.tokens + elapsed * self.rate_rps)
         self.last_refill = now
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Return status dict - NEVER includes key value."""
         return {
             "provider": self.provider,
@@ -282,7 +282,7 @@ class VaultKeyPool:
 
             return None  # All keys exhausted or rate-limited
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Return pool status - NO key values ever exposed."""
         active = sum(1 for k in self.keys if k.is_available())
         rate_limited = sum(1 for k in self.keys if k.state == KeyState.RATE_LIMITED)
@@ -429,7 +429,7 @@ class DataBusVault:
     def get_pool(self, provider: str) -> VaultKeyPool | None:
         return self.pools.get(provider)
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Full status report. NEVER includes key values."""
         total_keys = sum(len(p.keys) for p in self.pools.values())
         active_keys = sum(sum(1 for k in p.keys if k.is_available()) for p in self.pools.values())
@@ -441,7 +441,7 @@ class DataBusVault:
             "providers": {name: pool.status() for name, pool in self.pools.items()},
         }
 
-    def capacity_report(self) -> dict:
+    def capacity_report(self) -> dict[str, Any]:
         """Generate capacity analysis with recommendations."""
         bottlenecks = []
         recommendations = []

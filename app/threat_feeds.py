@@ -4,6 +4,7 @@ Paper ref: Article 3, Section 2 & Section 6 - Free Datasets and APIs.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -17,12 +18,12 @@ class ThreatIntelFeeds:
     """Aggregates free threat intelligence from multiple open sources."""
 
     def __init__(self) -> None:
-        self._scamdb_cache: dict[str, dict] = {}
-        self._goplus_cache: dict[str, dict] = {}
+        self._scamdb_cache: dict[str, dict[str, Any]] = {}
+        self._goplus_cache: dict[str, dict[str, Any]] = {}
 
     # ── CryptoScamDB integration ──────────────────────────
 
-    async def check_cryptoscamdb(self, address: str) -> dict | None:
+    async def check_cryptoscamdb(self, address: str) -> dict[str, Any] | None:
         """Check if address is in CryptoScamDB (MIT-licensed, free)."""
         if address in self._scamdb_cache:
             return self._scamdb_cache[address]
@@ -50,7 +51,7 @@ class ThreatIntelFeeds:
 
     # ── GoPlus Security API ───────────────────────────────
 
-    async def check_goplus(self, chain_id: str, address: str) -> dict | None:
+    async def check_goplus(self, chain_id: str, address: str) -> dict[str, Any] | None:
         """GoPlus token security check (free, multi-chain)."""
         cache_key = f"{chain_id}:{address}"
         if cache_key in self._goplus_cache:
@@ -101,7 +102,7 @@ class ThreatIntelFeeds:
 
     # ── Januus Free Risk Scores ───────────────────────────
 
-    async def check_januus(self, address: str) -> dict | None:
+    async def check_januus(self, address: str) -> dict[str, Any] | None:
         """Januus free risk score (open-source, no license fee)."""
         try:
             url = f"https://api.januus.io/v1/risk/{address}"
@@ -121,7 +122,7 @@ class ThreatIntelFeeds:
 
     # ── Combined multi-source check ───────────────────────
 
-    async def full_check(self, address: str, chain_id: str = "1") -> dict:
+    async def full_check(self, address: str, chain_id: str = "1") -> dict[str, Any]:
         """Run all free threat intel checks against an address."""
         results = {
             "address": address,

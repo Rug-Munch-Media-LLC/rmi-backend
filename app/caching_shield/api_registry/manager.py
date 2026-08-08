@@ -60,7 +60,7 @@ class UnifiedApiManager:
     def list_providers(self) -> list[str]:
         return sorted(self.pools.keys())
 
-    def capacity_report(self) -> dict:
+    def capacity_report(self) -> dict[str, Any]:
         """Generate capacity analysis: RPS, quotas, bottlenecks."""
         providers = {}
         total_rps = 0.0
@@ -102,7 +102,7 @@ class UnifiedApiManager:
         }
 
 
-def _generate_recommendations(bottlenecks: list, providers: dict) -> list:
+def _generate_recommendations(bottlenecks: list[Any], providers: dict[str, Any]) -> list[Any]:
     """Generate actionable recommendations based on bottlenecks."""
     recs = []
 

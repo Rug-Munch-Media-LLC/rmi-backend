@@ -87,7 +87,7 @@ class FlashLoanDetector:
 
     # ── Direct API fetchers ─────────────────────────────────────────
 
-    async def _fetch_dexscreener_trades(self, token_address: str) -> list[dict]:
+    async def _fetch_dexscreener_trades(self, token_address: str) -> list[dict[str, Any]]:
         """Fetch recent trades from DexScreener for a token."""
         try:
             resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
@@ -100,7 +100,7 @@ class FlashLoanDetector:
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return []
 
-    async def _fetch_birdeye_trades(self, token_address: str, limit: int = 50) -> list[dict]:
+    async def _fetch_birdeye_trades(self, token_address: str, limit: int = 50) -> list[dict[str, Any]]:
         """Fetch recent trades from Birdeye."""
         if not self._birdeye_key:
             return []
@@ -132,14 +132,14 @@ class FlashLoanDetector:
             logger.warning(f"Helius balance check failed for {address}: {e}")
         return None
 
-    async def _fetch_solana_signatures(self, address: str, limit: int = 5) -> list[dict]:
+    async def _fetch_solana_signatures(self, address: str, limit: int = 5) -> list[dict[str, Any]]:
         """Fetch early signatures to determine wallet freshness."""
         result = await self._chain.rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
         if result and "result" in result:
             return result["result"]
         return []
 
-    async def _fetch_evm_account_history(self, address: str, chain: str) -> dict | None:
+    async def _fetch_evm_account_history(self, address: str, chain: str) -> dict[str, Any] | None:
         """Fetch EVM account tx count via Etherscan-style API."""
         from app.chain_registry import CHAINS
 
@@ -166,9 +166,9 @@ class FlashLoanDetector:
 
     # ── Analysis helpers ────────────────────────────────────────────
 
-    def _group_trades_by_wallet(self, trades: list[dict]) -> dict[str, list[dict]]:
+    def _group_trades_by_wallet(self, trades: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         """Group trades by wallet address."""
-        grouped: dict[str, list[dict]] = {}
+        grouped: dict[str, list[dict[str, Any]]] = {}
         for t in trades:
             addr = t.get("wallet", t.get("address", t.get("maker", "")))
             if addr:
@@ -177,7 +177,7 @@ class FlashLoanDetector:
 
     def _detect_flash_pattern(
         self,
-        wallet_trades: list[dict],
+        wallet_trades: list[dict[str, Any]],
         pool_liquidity_usd: float,
     ) -> list[FlashLoanFlag]:
         """Within a single wallet's trades, find buy-then-sell patterns
@@ -310,7 +310,7 @@ class FlashLoanDetector:
             pool_liquidity_usd = float(liq.get("usd", 0)) if isinstance(liq, dict) else float(liq or 0)
 
         # 2. Fetch trades
-        trades: list[dict] = []
+        trades: list[dict[str, Any]] = []
         birdeye_trades = await self._fetch_birdeye_trades(token_address, limit=100)
         if birdeye_trades:
             trades.extend(birdeye_trades)

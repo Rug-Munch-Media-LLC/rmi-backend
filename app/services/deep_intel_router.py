@@ -301,9 +301,9 @@ async def api_full_report(
 
 @router.post("/batch-report")
 async def api_batch_report(
-    tokens: list[dict],
+    tokens: list[dict[str, Any]],
     chain: str = Query("sol", enum=SUPPORTED_CHAINS),
-) -> dict:
+) -> dict[str, Any]:
     """Run deep intel on multiple tokens. Body: [{"address": "0x..."}, ...]"""
     from app.services.deep_intelligence import full_deep_intel
 

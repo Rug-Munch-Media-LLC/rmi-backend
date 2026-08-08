@@ -1,6 +1,7 @@
 """User profile and auth cookie/logout endpoints."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import HTTPException, Request
@@ -29,7 +30,7 @@ from app.domains.auth.store import _get_user  # noqa: E402 — module docstring 
 
 
 @router.get("/user/me", response_model=UserResponse)
-async def user_profile_me(request: Request) -> dict:
+async def user_profile_me(request: Request) -> dict[str, Any]:
     """Get current authenticated user profile."""
     token = _extract_token(request)
     if not token:

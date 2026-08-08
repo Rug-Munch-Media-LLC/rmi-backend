@@ -1,9 +1,9 @@
 """Temporal workflows for rmi-backend."""
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import timedelta
+from typing import Any
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
@@ -12,7 +12,7 @@ from temporalio.common import RetryPolicy
 @workflow.defn
 class TokenScannerWorkflow:
     @workflow.run
-    async def run(self, chain: str, address: str) -> dict:
+    async def run(self, chain: str, address: str) -> dict[str, Any]:
         return await workflow.execute_activity(
             "scan_token",
             args=[chain, address],
@@ -24,7 +24,7 @@ class TokenScannerWorkflow:
 @workflow.defn
 class DatabusHealthCheckWorkflow:
     @workflow.run
-    async def run(self, providers: list[str]) -> dict:
+    async def run(self, providers: list[str]) -> dict[str, Any]:
         results = {}
         for p in providers:
             results[p] = await workflow.execute_activity(
@@ -39,7 +39,7 @@ class DatabusHealthCheckWorkflow:
 @workflow.defn
 class ChainReindexWorkflow:
     @workflow.run
-    async def run(self, chain: str) -> dict:
+    async def run(self, chain: str) -> dict[str, Any]:
         return await workflow.execute_activity(
             "reindex_ponder_chain",
             args=[chain],

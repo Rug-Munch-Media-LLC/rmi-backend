@@ -7,9 +7,9 @@ Totally free. No API key needed. Built for the people.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -19,7 +19,7 @@ mcp = FastMCP("rmi-news", description="RMI Free Crypto News - 50+ sources, real-
 
 
 # Redis connection helper
-def search_news(query: str, limit: int = 10) -> dict:
+def search_news(query: str, limit: int = 10) -> dict[str, Any]:
     """Search crypto news articles by keyword. Returns title, source, sentiment, and URL."""
     r = get_redis()
     ids = r.zrevrange("rmi:news:index", 0, -1)
@@ -62,7 +62,7 @@ def search_news(query: str, limit: int = 10) -> dict:
 
 
 @mcp.tool()
-def get_latest_news(limit: int = 20, include_social: bool = True) -> dict:
+def get_latest_news(limit: int = 20, include_social: bool = True) -> dict[str, Any]:
     """Get the latest crypto news articles across all sources."""
     r = get_redis()
     results = []
@@ -100,7 +100,7 @@ def get_latest_news(limit: int = 20, include_social: bool = True) -> dict:
 
 
 @mcp.tool()
-def get_news_by_source(source: str, limit: int = 20) -> dict:
+def get_news_by_source(source: str, limit: int = 20) -> dict[str, Any]:
     """Get news articles filtered by source name (e.g. cointelegraph, decrypt, coindesk)."""
     r = get_redis()
     results = []
@@ -117,7 +117,7 @@ def get_news_by_source(source: str, limit: int = 20) -> dict:
 
 
 @mcp.tool()
-def get_news_by_sentiment(min_sentiment: float = 0.3, limit: int = 20) -> dict:
+def get_news_by_sentiment(min_sentiment: float = 0.3, limit: int = 20) -> dict[str, Any]:
     """Get news articles filtered by minimum sentiment score (0 to 1, positive = bullish)."""
     r = get_redis()
     bullish, bearish = [], []
@@ -139,7 +139,7 @@ def get_news_by_sentiment(min_sentiment: float = 0.3, limit: int = 20) -> dict:
 
 
 @mcp.tool()
-def get_trending_tickers(limit: int = 10) -> dict:
+def get_trending_tickers(limit: int = 10) -> dict[str, Any]:
     """Get the most mentioned crypto tickers across all news sources."""
     r = get_redis()
     ticker_count = {}
@@ -154,7 +154,7 @@ def get_trending_tickers(limit: int = 10) -> dict:
 
 
 @mcp.tool()
-def get_news_stats() -> dict:
+def get_news_stats() -> dict[str, Any]:
     """Get aggregated statistics about the RMI news corpus."""
     r = get_redis()
     stats = json.loads(r.get("rmi:news:stats") or "{}")

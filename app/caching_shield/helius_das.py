@@ -21,12 +21,12 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import json
 import os
 import time
+from typing import Any
 
 import httpx
 
@@ -48,7 +48,7 @@ class HeliusDasClient:
                 self._keys.append(k)
         self._key_idx = 0
         self._http: httpx.AsyncClient | None = None
-        self._l1: dict[str, tuple] = {}
+        self._l1: dict[str, tuple[Any, ...]] = {}
         self.cache_hits = 0
         self.cache_misses = 0
 
@@ -57,7 +57,7 @@ class HeliusDasClient:
         self._key_idx += 1
         return key
 
-    async def _post(self, method: str, params: dict, ttl: int = 60) -> dict | None:
+    async def _post(self, method: str, params: dict[str, Any], ttl: int = 60) -> dict[str, Any] | None:
         """Make a cached DAS API call."""
         cache_key = hashlib.sha256(f"{method}:{json.dumps(params, sort_keys=True)}".encode()).hexdigest()[:24]
 
@@ -98,16 +98,16 @@ class HeliusDasClient:
 
         return None
 
-    async def get_token_metadata(self, mint: str) -> dict | None:
+    async def get_token_metadata(self, mint: str) -> dict[str, Any] | None:
         """Get token metadata: name, symbol, decimals, image, supply."""
         return await self._post("getAsset", {"id": mint}, ttl=120)
 
-    async def get_token_metadata_batch(self, mints: list[str]) -> dict | None:
+    async def get_token_metadata_batch(self, mints: list[str]) -> dict[str, Any] | None:
         """Batch get metadata for up to 100 tokens."""
         ids = mints[:100]
         return await self._post("getAssetBatch", {"ids": ids}, ttl=120)
 
-    async def get_wallet_tokens(self, address: str, limit: int = 100) -> dict | None:
+    async def get_wallet_tokens(self, address: str, limit: int = 100) -> dict[str, Any] | None:
         """Get all tokens held by a wallet."""
         return await self._post(
             "getTokenAccounts",
@@ -119,7 +119,7 @@ class HeliusDasClient:
             ttl=20,
         )
 
-    async def search_assets(self, query: str, page: int = 1, limit: int = 20) -> dict | None:
+    async def search_assets(self, query: str, page: int = 1, limit: int = 20) -> dict[str, Any] | None:
         """Search for tokens by name/symbol."""
         return await self._post(
             "searchAssets",
@@ -131,7 +131,7 @@ class HeliusDasClient:
             ttl=60,
         )
 
-    async def get_assets_by_owner(self, address: str, limit: int = 100) -> dict | None:
+    async def get_assets_by_owner(self, address: str, limit: int = 100) -> dict[str, Any] | None:
         """Get all assets (tokens + NFTs) owned by an address."""
         return await self._post(
             "getAssetsByOwner",
@@ -143,11 +143,11 @@ class HeliusDasClient:
             ttl=20,
         )
 
-    async def get_asset_proof(self, asset_id: str) -> dict | None:
+    async def get_asset_proof(self, asset_id: str) -> dict[str, Any] | None:
         """Get merkle proof for compressed NFT."""
         return await self._post("getAssetProof", {"id": asset_id}, ttl=3600)
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {
             "keys": len(self._keys),
             "cache_hits": self.cache_hits,

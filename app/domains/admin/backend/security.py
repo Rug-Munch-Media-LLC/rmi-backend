@@ -134,7 +134,7 @@ class SecurityManager:
             return False
 
     @staticmethod
-    async def is_ip_blocked(ip: str) -> dict | None:
+    async def is_ip_blocked(ip: str) -> dict[str, Any] | None:
         """Check if IP is blocked. Returns block info or None."""
         try:
             import redis.asyncio as redis_lib

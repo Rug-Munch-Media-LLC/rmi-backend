@@ -36,7 +36,7 @@ router = APIRouter()
 @router.post("/wallet/connect")
 async def connect_wallet(
     req: ConnectWalletRequest,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Connect a wallet to chat for payments."""
     user_id = user.get("id")
@@ -70,7 +70,7 @@ async def connect_wallet(
 
 @router.post("/wallet/disconnect")
 async def disconnect_wallet(
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Disconnect wallet from chat."""
     user_id = user.get("id")
@@ -81,7 +81,7 @@ async def disconnect_wallet(
 
 @router.get("/wallet")
 async def wallet_info(
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get connected wallet info for the current user."""
     user_id = user.get("id")
@@ -106,7 +106,7 @@ async def wallet_info(
 async def wallet_balance(
     chain: str = Query(default="ethereum"),
     token: str | None = Query(default=None),
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get wallet balance for connected wallet."""
     user_id = user.get("id")
@@ -133,7 +133,7 @@ async def wallet_balance(
 
 @router.get("/balances")
 async def wallet_balances(
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get all token balances for connected wallet across chains."""
     user_id = user.get("id")
@@ -172,7 +172,7 @@ async def wallet_balances(
 @router.post("/swap/quote")
 async def swap_quote(
     req: SwapQuoteRequest,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get a swap quote (simulated — real quotes require 0x or Jupiter API)."""
     try:
@@ -210,7 +210,7 @@ async def gas_estimate(
     to_addr: str = Query(..., description="Recipient address"),
     amount: str = Query(..., description="Amount in wei"),
     chain: str = Query(default="ethereum"),
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Estimate gas for a transfer."""
     gas = await estimate_gas(chain, from_addr, to_addr, amount)

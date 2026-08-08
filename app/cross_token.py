@@ -6,13 +6,13 @@ Proves CRM ↔ SOSANA ↔ PBTC ↔ SHIFT AI connections.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -229,7 +229,7 @@ class CrossTokenAffiliationTracker:
         else:
             return "holder"
 
-    async def map_project_network(self, center_project: str = "CRM", depth: int = 2) -> dict:
+    async def map_project_network(self, center_project: str = "CRM", depth: int = 2) -> dict[str, Any]:
         """
         Map the entire network of projects connected to a center project.
 
@@ -276,7 +276,7 @@ class CrossTokenAffiliationTracker:
 
         return network
 
-    def generate_evidence_report(self) -> dict:
+    def generate_evidence_report(self) -> dict[str, Any]:
         """Generate evidence report of cross-project connections."""
         report = {
             "generated_at": datetime.now().isoformat(),

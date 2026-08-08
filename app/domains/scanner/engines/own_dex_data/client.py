@@ -12,7 +12,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ── DexScreener-compatible response cache ──
-_DEX_CACHE: dict[str, dict | None] = {}
+_DEX_CACHE: dict[str, dict[str, Any] | None] = {}
 _DEX_CACHE_MAX = 100
 
 # ── Lazy ClickHouse client ──

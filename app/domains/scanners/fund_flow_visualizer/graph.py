@@ -11,7 +11,7 @@ from typing import Any
 from .models import FundFlowEdge, FundFlowNode
 
 
-def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple:
+def _build_flow_graph(wallets: dict[str, Any], token_address: str) -> tuple[Any, ...]:
     """Build node list and edge list from wallet data.
 
     Returns (nodes: list[FundFlowNode], edges: list[FundFlowEdge], risk_flags: list[str])

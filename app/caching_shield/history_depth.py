@@ -20,10 +20,10 @@ Cache integration:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import time
 from collections import OrderedDict
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -119,7 +119,7 @@ class HistoryDepthController:
         else:
             return 30  # 30s for shallow queries
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Return controller statistics."""
         return {
             "addresses_in_cooldown": len(self._deep_cooldowns),

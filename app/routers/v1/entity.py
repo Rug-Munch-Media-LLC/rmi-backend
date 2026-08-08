@@ -43,7 +43,7 @@ _SUPPORTED_CHAINS = [
 ]
 
 
-async def _get_wallet_profile(address: str, chain: str) -> dict | None:
+async def _get_wallet_profile(address: str, chain: str) -> dict[str, Any] | None:
     """Get wallet profile from storage (ClickHouse + Redis, degradation-aware)."""
     try:
         from app.wallet_memory.storage import get_storage
@@ -79,7 +79,7 @@ async def _get_labels(address: str, chain: str) -> dict[str, Any] | None:
         return None
 
 
-async def _get_risk_score(address: str, chain: str, intel: dict | None = None) -> dict[str, Any] | None:
+async def _get_risk_score(address: str, chain: str, intel: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Get composite risk score for a wallet."""
     try:
         from app.wallet_memory.risk_scoring import RiskScorer

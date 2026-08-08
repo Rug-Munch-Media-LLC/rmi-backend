@@ -112,7 +112,7 @@ class WsClientManager:
             if channel in self._clients:
                 self._clients[channel].discard(client_id)
 
-    async def broadcast(self, channel: str, data: dict) -> None:
+    async def broadcast(self, channel: str, data: dict[str, Any]) -> None:
         """Publish data to a Redis channel for WebSocket subscribers.
 
         Uses persistent Redis connection - no new connection per broadcast.
@@ -148,11 +148,11 @@ class WsClientManager:
             self.broadcasts_failed += 1
             logger.debug(f"WsClientManager broadcast error: {e}")
 
-    async def broadcast_scan(self, scan_data: dict) -> None:
+    async def broadcast_scan(self, scan_data: dict[str, Any]) -> None:
         """Convenience: broadcast a token scan result."""
         await self.broadcast("scans", scan_data)
 
-    async def broadcast_alert(self, alert_data: dict) -> None:
+    async def broadcast_alert(self, alert_data: dict[str, Any]) -> None:
         """Convenience: broadcast a security alert."""
         # Also persist to alert history (sorted set)
         redis = await self._get_redis()
@@ -185,7 +185,7 @@ class WsClientManager:
                 return len(self._clients.get(channel, set()))
             return sum(len(v) for v in self._clients.values())
 
-    async def stats(self) -> dict:
+    async def stats(self) -> dict[str, Any]:
         """Return broadcaster statistics."""
         redis_ok = False
         try:

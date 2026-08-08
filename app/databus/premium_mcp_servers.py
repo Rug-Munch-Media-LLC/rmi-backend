@@ -24,7 +24,7 @@ def gredis() -> Any:
     return redis.Redis(host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
 
 
-def trial(fingerprint: str, tool: str, limit: int = 10) -> dict:
+def trial(fingerprint: str, tool: str, limit: int = 10) -> dict[str, Any]:
     r, k = gredis(), f"mcp:trial:{tool}:{fingerprint}"
     c = int(r.get(k) or 0)
     if c < limit:
@@ -41,7 +41,7 @@ def trial(fingerprint: str, tool: str, limit: int = 10) -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #1: WHALE ALERT - Real-time large transfers
 # ═══════════════════════════════════════════════════
-def whale_alert(chain: str = "ethereum", min_value: float = 1000000, fingerprint: str = "anon") -> dict:
+def whale_alert(chain: str = "ethereum", min_value: float = 1000000, fingerprint: str = "anon") -> dict[str, Any]:
     """Real-time whale transaction alerts. 15 free/day. $0.03/call premium."""
     auth = trial(fingerprint, "whale", 15)
     if auth["tier"] == "free_exhausted":
@@ -76,7 +76,7 @@ def whale_alert(chain: str = "ethereum", min_value: float = 1000000, fingerprint
 # ═══════════════════════════════════════════════════
 # MCP #2: TOKEN LAUNCH SCANNER
 # ═══════════════════════════════════════════════════
-def token_launch_scanner(chain: str = "solana", max_age_hours: int = 1, fingerprint: str = "anon") -> dict:
+def token_launch_scanner(chain: str = "solana", max_age_hours: int = 1, fingerprint: str = "anon") -> dict[str, Any]:
     """New token detection. 10 free/day. $0.05/call premium."""
     auth = trial(fingerprint, "launch", 10)
     if auth["tier"] == "free_exhausted":
@@ -106,7 +106,7 @@ def token_launch_scanner(chain: str = "solana", max_age_hours: int = 1, fingerpr
 # ═══════════════════════════════════════════════════
 # MCP #3: SMART MONEY TRACKER
 # ═══════════════════════════════════════════════════
-def smart_money_tracker(chain: str = "ethereum", fingerprint: str = "anon") -> dict:
+def smart_money_tracker(chain: str = "ethereum", fingerprint: str = "anon") -> dict[str, Any]:
     """Track profitable wallet activity. 10 free/day. $0.03/call premium."""
     auth = trial(fingerprint, "smartmoney", 10)
     if auth["tier"] == "free_exhausted":
@@ -135,7 +135,7 @@ def smart_money_tracker(chain: str = "ethereum", fingerprint: str = "anon") -> d
 # ═══════════════════════════════════════════════════
 # MCP #4: MEV/SANDWICH DETECTION
 # ═══════════════════════════════════════════════════
-def mev_detector(address: str = "", chain: str = "ethereum", fingerprint: str = "anon") -> dict:
+def mev_detector(address: str = "", chain: str = "ethereum", fingerprint: str = "anon") -> dict[str, Any]:
     """Detect MEV sandwich attacks on any address. 10 free/day. $0.05/call."""
     auth = trial(fingerprint, "mev", 10)
     if auth["tier"] == "free_exhausted":
@@ -166,7 +166,7 @@ def mev_detector(address: str = "", chain: str = "ethereum", fingerprint: str = 
 # ═══════════════════════════════════════════════════
 # MCP #5: NARRATIVE DETECTION
 # ═══════════════════════════════════════════════════
-def narrative_detector(fingerprint: str = "anon") -> dict:
+def narrative_detector(fingerprint: str = "anon") -> dict[str, Any]:
     """AI-identified trending narratives from 500+ sources. 10 free/day."""
     auth = trial(fingerprint, "narrative", 10)
     if auth["tier"] == "free_exhausted":
@@ -200,7 +200,7 @@ def narrative_detector(fingerprint: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #6: CROSS-CHAIN ARBITRAGE SCANNER
 # ═══════════════════════════════════════════════════
-def arbitrage_scanner(token: str = "ETH", fingerprint: str = "anon") -> dict:
+def arbitrage_scanner(token: str = "ETH", fingerprint: str = "anon") -> dict[str, Any]:
     """Cross-chain/DEX price differences. 10 free/day. $0.05/call."""
     auth = trial(fingerprint, "arb", 10)
     if auth["tier"] == "free_exhausted":
@@ -232,7 +232,7 @@ def arbitrage_scanner(token: str = "ETH", fingerprint: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #7: CONTRACT AUDIT QUICK-SCAN
 # ═══════════════════════════════════════════════════
-def quick_audit(address: str, chain: str = "ethereum", fingerprint: str = "anon") -> dict:
+def quick_audit(address: str, chain: str = "ethereum", fingerprint: str = "anon") -> dict[str, Any]:
     """Pre-trade security check. 15 free/day. $0.02/call."""
     auth = trial(fingerprint, "audit", 15)
     if auth["tier"] == "free_exhausted":
@@ -269,7 +269,7 @@ def quick_audit(address: str, chain: str = "ethereum", fingerprint: str = "anon"
 # ═══════════════════════════════════════════════════
 # MCP #8: PORTFOLIO RISK SCORER
 # ═══════════════════════════════════════════════════
-def portfolio_risk(address: str, fingerprint: str = "anon") -> dict:
+def portfolio_risk(address: str, fingerprint: str = "anon") -> dict[str, Any]:
     """Cross-chain risk scoring. 10 free/day. $0.03/call."""
     auth = trial(fingerprint, "risk", 10)
     if auth["tier"] == "free_exhausted":

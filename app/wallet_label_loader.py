@@ -6,11 +6,11 @@ Sources:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import csv
 import json
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 LABELS_BASE = "/app/data/wallet-labels"
 
 
-def load_all_labels(redis_client) -> dict:
+def load_all_labels(redis_client) -> dict[str, Any]:
     """Load all wallet label datasets into Redis. Returns counts."""
     counts = {}
 
@@ -124,7 +124,7 @@ def _load_csv_labels(redis_client, path: str, chain: str, addr_col: str, label_c
     return count
 
 
-def lookup_wallet_label(address: str, chain: str | None = None, redis_client=None) -> dict | None:
+def lookup_wallet_label(address: str, chain: str | None = None, redis_client=None) -> dict[str, Any] | None:
     """Look up a wallet address in the label database."""
     if not redis_client:
         return None

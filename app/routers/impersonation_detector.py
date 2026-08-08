@@ -33,9 +33,9 @@ class ImpersonationReport(BaseModel):
     risk_score: int
 
 
-async def _find_delegates(address: str, chain: str) -> list[dict]:
+async def _find_delegates(address: str, chain: str) -> list[dict[str, Any]]:
     """Find delegate/proxy wallets controlled by this address."""
-    delegates: list[dict] = []
+    delegates: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             # Check for known proxy patterns
@@ -47,9 +47,9 @@ async def _find_delegates(address: str, chain: str) -> list[dict]:
     return delegates
 
 
-async def _find_approvals(address: str, chain: str) -> list[dict]:
+async def _find_approvals(address: str, chain: str) -> list[dict[str, Any]]:
     """Find token approvals with unlimited spend to unverified contracts."""
-    approvals: list[dict] = []
+    approvals: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"{DATABUS}/{chain}/approvals/{address}")
@@ -69,9 +69,9 @@ async def _find_approvals(address: str, chain: str) -> list[dict]:
     return approvals
 
 
-async def _scan_related_contracts(address: str, chain: str) -> list[dict]:
+async def _scan_related_contracts(address: str, chain: str) -> list[dict[str, Any]]:
     """Find contracts deployed by or controlled by this address."""
-    contracts: list[dict] = []
+    contracts: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             # Check eth-labels for any contract addresses associated
@@ -85,7 +85,7 @@ async def _scan_related_contracts(address: str, chain: str) -> list[dict]:
     return contracts
 
 
-def _assess_risk(delegates: list, approvals: list, contracts: list) -> tuple[str, int]:
+def _assess_risk(delegates: list[Any], approvals: list[Any], contracts: list[Any]) -> tuple[str, int]:
     """Compute impersonation risk score."""
     score = 0
     if len(delegates) > 0:
@@ -105,7 +105,7 @@ def _assess_risk(delegates: list, approvals: list, contracts: list) -> tuple[str
 
 
 @router.get("/audit/{address}")
-async def audit_address(address: str, chain: str = Query("ethereum")) -> dict:
+async def audit_address(address: str, chain: str = Query("ethereum")) -> dict[str, Any]:
     """Full impersonation audit for an address."""
     delegates = await _find_delegates(address, chain)
     approvals = await _find_approvals(address, chain)

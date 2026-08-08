@@ -8,9 +8,9 @@ Extracted from ClusterDetectionPro methods to reduce module size.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from collections import defaultdict
+from typing import Any
 
 from app.cluster_detection.models import ClusterType, WalletCluster
 
@@ -88,7 +88,7 @@ def calculate_risk_score(cluster: WalletCluster) -> float:
     return min(100, score)
 
 
-def calculate_behavioral_similarity(fp1: dict, fp2: dict) -> float:
+def calculate_behavioral_similarity(fp1: dict[str, Any], fp2: dict[str, Any]) -> float:
     """Calculate similarity between two behavioral fingerprints."""
     scores = []
 
@@ -123,7 +123,7 @@ def distribution(values: list[int], bins: int = 24) -> list[float]:
     return [c / total if total > 0 else 0 for c in counts]
 
 
-def merge_clusters_by_overlap(all_signals: dict, wallets: list[str]) -> list[WalletCluster]:
+def merge_clusters_by_overlap(all_signals: dict[str, Any], wallets: list[str]) -> list[WalletCluster]:
     """Merge clusters that share wallets."""
     wallet_clusters = defaultdict(set)
 

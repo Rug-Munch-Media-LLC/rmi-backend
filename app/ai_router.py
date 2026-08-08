@@ -71,13 +71,13 @@ async def ai_chat(request: dict[str, Any]) -> dict[str, str]:
 
 
 @router.get("/ai/providers")
-async def list_providers() -> dict[str, list]:
+async def list_providers() -> dict[str, list[Any]]:
     """List available AI providers."""
     return {"providers": list(PROVIDERS.keys())}
 
 
 @router.get("/ai/models")
-async def list_models() -> dict:
+async def list_models() -> dict[str, Any]:
     """List available models by tier."""
     return {"tiers": MODEL_TIERS}
 
@@ -92,7 +92,7 @@ def _strip_think_tags(text: str) -> str:
     return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
-def _prefill_chat(messages: list) -> list:
+def _prefill_chat(messages: list[Any]) -> list[Any]:
     """Add pre-fill assistant message to bypass Qwen3 thinking for chat."""
     last = messages[-1]
     if last.get("role") == "user":

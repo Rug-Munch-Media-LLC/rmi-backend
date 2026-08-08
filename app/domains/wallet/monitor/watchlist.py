@@ -1,9 +1,9 @@
 """Wallet Monitor — Watchlist Manager."""
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 from app.domains.wallet.monitor.config import CONFIG, get_redis
 
@@ -33,7 +33,7 @@ class WatchlistManager:
         return True
 
     @staticmethod
-    async def list(chain: str = "ethereum", limit: int = 1000) -> list[dict]:
+    async def list(chain: str = "ethereum", limit: int = 1000) -> list[dict[str, Any]]:
         r = await get_redis()
         if not r:
             return []

@@ -5,12 +5,12 @@ Admin session management: create, validate, destroy, list active sessions.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.admin.backend.models import AdminRole
@@ -81,7 +81,7 @@ class SessionManager:
             return ""
 
     @staticmethod
-    async def validate_session(session_id: str) -> dict | None:
+    async def validate_session(session_id: str) -> dict[str, Any] | None:
         """Validate and refresh a session."""
         try:
             import redis.asyncio as redis_lib
@@ -136,7 +136,7 @@ class SessionManager:
             return False
 
     @staticmethod
-    async def get_active_sessions(admin_id: str) -> list[dict]:
+    async def get_active_sessions(admin_id: str) -> list[dict[str, Any]]:
         """Get all active sessions for an admin."""
         sessions = []
         try:

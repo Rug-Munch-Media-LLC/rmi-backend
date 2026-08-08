@@ -21,6 +21,7 @@ Rate limiting: Inherited from app-wide slowapi configuration.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -44,7 +45,7 @@ async def search_markets(
     security_only: bool = Query(False, description="Only return security-relevant markets"),
     min_volume: float = Query(0.0, description="Minimum USD volume to include"),
     limit: int = Query(20, ge=1, le=100, description="Max results to return"),
-) -> dict:
+) -> dict[str, Any]:
     """Search all prediction market sources for crypto security intelligence.
 
     Queries Polymarket, Kalshi, Limitless, and Manifold in parallel.
@@ -67,7 +68,7 @@ async def search_markets(
 async def trending_markets(
     category: str | None = Query(None, description="Filter: crypto, security, regulation, all"),
     limit: int = Query(20, ge=1, le=100, description="Max results"),
-) -> dict:
+) -> dict[str, Any]:
     """Get top trending prediction markets by volume across all sources."""
     svc = get_prediction_market_service()
     results = await svc.trending(limit=limit)
@@ -97,7 +98,7 @@ async def trending_markets(
 async def token_markets(
     symbol: str,
     limit: int = Query(20, ge=1, le=50, description="Max results"),
-) -> dict:
+) -> dict[str, Any]:
     """Find all prediction markets mentioning a specific token symbol.
 
     Useful for: gauging market sentiment on specific tokens,
@@ -118,7 +119,7 @@ async def token_markets(
 @router.get("/sentinel")
 async def sentinel_digest(
     refresh: bool = Query(False, description="Force refresh (bypass cache)"),
-) -> dict:
+) -> dict[str, Any]:
     """Daily intelligence digest of security-relevant prediction markets.
 
     Categorizes markets into:
@@ -150,7 +151,7 @@ async def sentinel_digest(
 async def market_detail(
     source: str,
     market_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """Get detailed market data including live orderbook prices.
 
     Sources: polymarket, kalshi
@@ -175,7 +176,7 @@ async def market_detail(
 
 
 @router.get("/sources")
-async def list_sources() -> dict:
+async def list_sources() -> dict[str, Any]:
     """List all integrated prediction market data sources."""
     return {
         "sources": [
@@ -242,7 +243,7 @@ async def list_sources() -> dict:
 # ── Helpers ──────────────────────────────────────────────────────
 
 
-def _market_response(m: PredictionMarket) -> dict:
+def _market_response(m: PredictionMarket) -> dict[str, Any]:
     """Format a PredictionMarket into API response."""
     return {
         "source": m.source,
@@ -265,7 +266,7 @@ def _market_response(m: PredictionMarket) -> dict:
     }
 
 
-def _interpret_market(m: PredictionMarket) -> dict:
+def _interpret_market(m: PredictionMarket) -> dict[str, Any]:
     """Generate a human-readable interpretation of market probabilities."""
     prob_pct = m.probability_yes * 100
 

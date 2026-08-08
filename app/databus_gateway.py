@@ -42,7 +42,7 @@ class DatabusQueryResult:
     latency_ms: float
 
 
-async def databus_get(chain: str, endpoint: str, params: dict | None = None, tier: str = "free") -> DatabusQueryResult:
+async def databus_get(chain: str, endpoint: str, params: dict[str, Any] | None = None, tier: str = "free") -> DatabusQueryResult:
     """Single-chain DataBus query with tier-appropriate caching (shared httpx client)."""
     t0 = time.monotonic()
     url = f"{DATABUS_BASE}/{chain}/{endpoint}"

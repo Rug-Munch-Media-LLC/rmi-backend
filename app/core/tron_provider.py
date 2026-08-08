@@ -1,6 +1,7 @@
 """Tron blockchain provider - free TronGrid API, no key needed."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -11,7 +12,7 @@ logger = get_logger(__name__)
 TRONGRID = "https://api.trongrid.io"
 
 
-async def tron_balance(address: str) -> dict | None:
+async def tron_balance(address: str) -> dict[str, Any] | None:
     """Get TRX balance + TRC20 tokens for an address."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -46,7 +47,7 @@ async def tron_balance(address: str) -> dict | None:
     return None
 
 
-async def tron_transactions(address: str, limit: int = 10) -> dict | None:
+async def tron_transactions(address: str, limit: int = 10) -> dict[str, Any] | None:
     """Get recent transactions for an address."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:

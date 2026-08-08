@@ -16,7 +16,7 @@ logger = get_logger("rmi_mcp_v3")
 router = APIRouter(tags=["mcp_discovery"])
 
 
-def _build_discovery() -> dict:
+def _build_discovery() -> dict[str, Any]:
     """Build the MCP server discovery document."""
     data = _get_tools()
     tools = data["prices"]

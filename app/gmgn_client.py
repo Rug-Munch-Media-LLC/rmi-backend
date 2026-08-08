@@ -7,11 +7,11 @@ degen score, trending deep dive - powered by GMGN + Birdeye + AI.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -36,7 +36,7 @@ class GMGNClient:
     # CORE GMGN QUERIES
     # ═══════════════════════════════════════════════════════════════
 
-    async def query_token(self, address: str, chain: str = "solana") -> dict:
+    async def query_token(self, address: str, chain: str = "solana") -> dict[str, Any]:
         """Get token info, price, security, holders, traders from GMGN"""
         # GMGN MCP token skill simulation via their API
         try:
@@ -72,7 +72,7 @@ class GMGNClient:
         except Exception as e:
             return {"address": address, "error": str(e)}
 
-    async def query_market(self, address: str, resolution: str = "1h", limit: int = 24) -> dict:
+    async def query_market(self, address: str, resolution: str = "1h", limit: int = 24) -> dict[str, Any]:
         """Get OHLCV/candlestick data"""
         try:
             ohlcv = await self.birdeye.get_ohlcv(address, resolution, limit)
@@ -87,7 +87,7 @@ class GMGNClient:
         except Exception as e:
             return {"address": address, "error": str(e)}
 
-    async def query_portfolio(self, wallet: str, chain: str = "solana") -> dict:
+    async def query_portfolio(self, wallet: str, chain: str = "solana") -> dict[str, Any]:
         """Get wallet portfolio, PnL, trading history"""
         try:
             networth = await self.birdeye._call("/v1/wallet/networth", {"wallet": wallet})
@@ -105,7 +105,7 @@ class GMGNClient:
         except Exception as e:
             return {"wallet": wallet, "error": str(e)}
 
-    async def query_trending(self, chain: str = "solana", limit: int = 20) -> dict:
+    async def query_trending(self, chain: str = "solana", limit: int = 20) -> dict[str, Any]:
         """Get trending tokens"""
         try:
             tokens = await self.birdeye.get_new_listings(limit)
@@ -128,7 +128,7 @@ class GMGNClient:
     # ORIGINAL FEATURES
     # ═══════════════════════════════════════════════════════════════
 
-    async def smart_money_narrative(self, address: str) -> dict:
+    async def smart_money_narrative(self, address: str) -> dict[str, Any]:
         """
         ORIGINAL #1: Smart Money Narrative Generator
         Instead of raw data, creates a human-readable story with risk assessment
@@ -246,7 +246,7 @@ class GMGNClient:
             "feature": "smart_money_narrative",
         }
 
-    async def degen_score(self, address: str) -> dict:
+    async def degen_score(self, address: str) -> dict[str, Any]:
         """
         ORIGINAL #2: Degen Score (0-100)
         How "degen" is this token? Higher = more degen/risky/speculative
@@ -379,7 +379,7 @@ class GMGNClient:
         else:
             return "Not degen at all. Boring but probably safer. Might be a good long-term hold."
 
-    async def sniper_radar(self, address: str) -> dict:
+    async def sniper_radar(self, address: str) -> dict[str, Any]:
         """
         ORIGINAL #3: Sniper Detection Radar
         Detects coordinated buying patterns that indicate sniper/insider activity
@@ -440,7 +440,7 @@ class GMGNClient:
             "feature": "sniper_radar",
         }
 
-    async def trending_deep_dive(self, limit: int = 10) -> dict:
+    async def trending_deep_dive(self, limit: int = 10) -> dict[str, Any]:
         """
         ORIGINAL #4: Auto-triggered Trending Deep Dive
         When tokens trend, automatically analyze with full intelligence
@@ -478,7 +478,7 @@ class GMGNClient:
             "feature": "trending_deep_dive",
         }
 
-    async def cross_reference(self, address: str) -> dict:
+    async def cross_reference(self, address: str) -> dict[str, Any]:
         """
         ORIGINAL #5: GMGN + Birdeye Cross-Reference Engine
         When GMGN shows high activity, cross-check with Birdeye for manipulation
@@ -542,7 +542,7 @@ class GMGNClient:
     # HELPERS
     # ═══════════════════════════════════════════════════════════════
 
-    def _extract_security(self, data: dict) -> dict:
+    def _extract_security(self, data: dict[str, Any]) -> dict[str, Any]:
         """Extract security-relevant fields from token data"""
         ext = data.get("extensions", {})
         return {
@@ -554,7 +554,7 @@ class GMGNClient:
             "lp_burned": data.get("lpBurned", False),
         }
 
-    def _analyze_trend(self, candles: list[dict]) -> str:
+    def _analyze_trend(self, candles: list[dict[str, Any]]) -> str:
         """Determine price trend from OHLCV data"""
         if len(candles) < 3:
             return "insufficient_data"
@@ -574,7 +574,7 @@ class GMGNClient:
             return "downtrend"
         return "sideways"
 
-    def _score_trending_token(self, token: dict) -> int:
+    def _score_trending_token(self, token: dict[str, Any]) -> int:
         """Score a trending token for intelligence value"""
         score = 0
         liq = token.get("liquidity", 0) or 0

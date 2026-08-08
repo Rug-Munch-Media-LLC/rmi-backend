@@ -18,9 +18,9 @@ Built by Rug Munch Intelligence - rugmunch.io
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -31,7 +31,7 @@ mcp = FastMCP("rmi-intelligence")
 
 
 # ── Redis Helper ──
-def check_x402_payment(wallet: str | None = None, fingerprint: str | None = None) -> dict:
+def check_x402_payment(wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
     """Check if caller has paid via x402. Free tier: 10/day per fingerprint."""
     r = get_redis()
 
@@ -61,7 +61,7 @@ def check_x402_payment(wallet: str | None = None, fingerprint: str | None = None
 
 
 @mcp.tool()
-def search_news(query: str, limit: int = 10, wallet: str | None = None, fingerprint: str | None = None) -> dict:
+def search_news(query: str, limit: int = 10, wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
     """Search 500+ crypto news sources by keyword. Free: 10 calls/day. Paid: unlimited $0.01/call."""
     auth = check_x402_payment(wallet, fingerprint)
     if auth.get("error") and auth.get("remaining", 1) <= 0:
@@ -116,7 +116,7 @@ def search_news(query: str, limit: int = 10, wallet: str | None = None, fingerpr
 
 
 @mcp.tool()
-def get_latest_news(limit: int = 20, wallet: str | None = None, fingerprint: str | None = None) -> dict:
+def get_latest_news(limit: int = 20, wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
     """Get the latest crypto headlines from 500+ sources."""
     auth = check_x402_payment(wallet, fingerprint)
     r = get_redis()
@@ -142,7 +142,7 @@ def get_latest_news(limit: int = 20, wallet: str | None = None, fingerprint: str
 
 
 @mcp.tool()
-def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -> dict:
+def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -> dict[str, Any]:
     """Get live token price via Pyth Network institutional feeds."""
     try:
         import httpx
@@ -170,7 +170,7 @@ def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -
 
 
 @mcp.tool()
-def get_wallet_labels(address: str, wallet: str | None = None, fingerprint: str | None = None) -> dict:
+def get_wallet_labels(address: str, wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
     """Resolve crypto address to entity label (82K+ labeled addresses)."""
     check_x402_payment(wallet, fingerprint)
     r = get_redis()
@@ -192,7 +192,7 @@ def get_wallet_labels(address: str, wallet: str | None = None, fingerprint: str 
 
 
 @mcp.tool()
-def get_trending_tickers(limit: int = 10) -> dict:
+def get_trending_tickers(limit: int = 10) -> dict[str, Any]:
     """Most mentioned crypto tickers across 500+ news sources."""
     r = get_redis()
     ticker_count = {}
@@ -323,7 +323,7 @@ def get_trending_tickers(limit: int = 10) -> dict:
 
 
 @mcp.tool()
-def get_news_sentiment() -> dict:
+def get_news_sentiment() -> dict[str, Any]:
     """Aggregated market sentiment across all news sources."""
     r = get_redis()
     stats = json.loads(r.get("rmi:news:stats") or "{}")
@@ -350,7 +350,7 @@ def get_news_sentiment() -> dict:
 
 
 @mcp.tool()
-def get_news_stats() -> dict:
+def get_news_stats() -> dict[str, Any]:
     """Complete statistics about the RMI news aggregation platform."""
     return get_news_sentiment()
 

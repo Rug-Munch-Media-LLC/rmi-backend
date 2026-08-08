@@ -131,7 +131,7 @@ class XTwitterProvider:
     def _budget_used(self) -> None:
         self._daily_reads += 1
 
-    async def _api_call(self, method: str, endpoint: str, params: dict | None = None) -> dict | None:
+    async def _api_call(self, method: str, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """Make an X API call with budget tracking and error handling."""
         if not self._check_budget():
             logger.warning("X API daily read budget exhausted")
@@ -168,7 +168,7 @@ class XTwitterProvider:
 
     # ── Public Data Endpoints (cached aggressively) ──────────────
 
-    async def get_user(self, username: str) -> dict | None:
+    async def get_user(self, username: str) -> dict[str, Any] | None:
         """Get user profile - cached 24h."""
         cache_key = f"social:x:user:{username}"
         cached = await self.cache.get(cache_key)
@@ -191,7 +191,7 @@ class XTwitterProvider:
         max_results: int = 100,
         since_id: str | None = None,
         tweet_fields: str | None = None,
-    ) -> list[dict] | None:
+    ) -> list[dict[str, Any]] | None:
         """Get recent tweets from a user - cached 15min hot, 1h warm."""
         cache_key = f"social:x:tweets:{user_id}:{max_results}:{since_id or 'latest'}"
         cached = await self.cache.get(cache_key)
@@ -217,7 +217,7 @@ class XTwitterProvider:
             return tweets
         return None
 
-    async def get_mentions(self, user_id: str, max_results: int = 100) -> list[dict] | None:
+    async def get_mentions(self, user_id: str, max_results: int = 100) -> list[dict[str, Any]] | None:
         """Get mentions of user - cached 15min."""
         cache_key = f"social:x:mentions:{user_id}:{max_results}"
         cached = await self.cache.get(cache_key)
@@ -238,7 +238,7 @@ class XTwitterProvider:
             return mentions
         return None
 
-    async def get_tweet(self, tweet_id: str) -> dict | None:
+    async def get_tweet(self, tweet_id: str) -> dict[str, Any] | None:
         """Get a single tweet - cached 24h (tweets don't change)."""
         cache_key = f"social:x:tweet:{tweet_id}"
         cached = await self.cache.get(cache_key)
@@ -259,7 +259,7 @@ class XTwitterProvider:
             return data
         return None
 
-    async def get_engagement_metrics(self, tweet_ids: list[str]) -> dict[str, dict]:
+    async def get_engagement_metrics(self, tweet_ids: list[str]) -> dict[str, dict[str, Any]]:
         """Get engagement metrics for multiple tweets - cached 1h."""
         if not tweet_ids:
             return {}
@@ -305,7 +305,7 @@ class XTwitterProvider:
 
     async def post_tweet(
         self, text: str, reply_to: str | None = None, media_ids: list[str] | None = None
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Post a tweet - requires x402 payment, uses POST budget."""
         payload = {"text": text}
         if reply_to:
@@ -336,25 +336,25 @@ class SocialDataAggregator:
         self.x = XTwitterProvider(cache)
         self._our_user_id: str | None = None
 
-    async def get_our_profile(self) -> dict | None:
+    async def get_our_profile(self) -> dict[str, Any] | None:
         """Get @CryptoRugMunch profile - cached 1h."""
         return await self.x.get_user("CryptoRugMunch")
 
-    async def get_our_tweets(self, count: int = 20, since_id: str | None = None) -> list[dict] | None:
+    async def get_our_tweets(self, count: int = 20, since_id: str | None = None) -> list[dict[str, Any]] | None:
         """Get @CryptoRugMunch timeline."""
         profile = await self.get_our_profile()
         if not profile:
             return None
         return await self.x.get_user_tweets(profile["id"], max_results=count, since_id=since_id)
 
-    async def get_our_mentions(self, count: int = 20) -> list[dict] | None:
+    async def get_our_mentions(self, count: int = 20) -> list[dict[str, Any]] | None:
         """Get mentions of @CryptoRugMunch."""
         profile = await self.get_our_profile()
         if not profile:
             return None
         return await self.x.get_user_mentions(profile["id"], max_results=count)
 
-    async def search_mentions(self, query: str, count: int = 10) -> list[dict] | None:
+    async def search_mentions(self, query: str, count: int = 10) -> list[dict[str, Any]] | None:
         """
         Search for brand mentions - VERY expensive on free tier.
         Heavily cached (24h). Only use for critical queries.
@@ -378,7 +378,7 @@ class SocialDataAggregator:
             return data["data"]
         return None
 
-    async def get_kol_reputation(self, username: str) -> dict:
+    async def get_kol_reputation(self, username: str) -> dict[str, Any]:
         """
         Calculate KOL reputation score based on:
         - Follower count
@@ -430,7 +430,7 @@ class SocialDataAggregator:
         await self.cache.set(cache_key, result, ttl=CACHE_TTL_COLD)
         return result
 
-    async def get_sentiment(self, username: str = "CryptoRugMunch") -> dict:
+    async def get_sentiment(self, username: str = "CryptoRugMunch") -> dict[str, Any]:
         """
         Basic sentiment analysis of recent mentions.
         Uses cached data only - no live API calls.

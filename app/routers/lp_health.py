@@ -4,11 +4,11 @@
 Alerts on LP withdrawals, depletion, single-holder dominance."""
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
@@ -26,7 +26,7 @@ BACKEND = settings.backend_url
 TG_BOT = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 # Tracked LPs (in-memory, Redis in prod)
-_tracked_lps: dict[str, dict] = {}  # lp_id -> tracking config
+_tracked_lps: dict[str, dict[str, Any]] = {}  # lp_id -> tracking config
 
 
 class LPHealthResult(BaseModel):
@@ -42,7 +42,7 @@ class LPHealthResult(BaseModel):
     alerts: list[str]
 
 
-def _compute_health(ll: dict) -> tuple[int, list[str]]:
+def _compute_health(ll: dict[str, Any]) -> tuple[int, list[str]]:
     """Compute LP health score from metrics."""
     score = 100
     alerts: list[str] = []
@@ -76,7 +76,7 @@ def _compute_health(ll: dict) -> tuple[int, list[str]]:
 
 
 @router.get("/check/{lp_address}")
-async def check_lp_health(lp_address: str, chain: str = Query("ethereum")) -> dict | dict[str, str]:
+async def check_lp_health(lp_address: str, chain: str = Query("ethereum")) -> dict[str, Any] | dict[str, str]:
     """Check health of a specific liquidity pool."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -103,7 +103,7 @@ async def check_lp_health(lp_address: str, chain: str = Query("ethereum")) -> di
 
 
 @router.post("/track")
-async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)) -> dict:
+async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: bool = Query(True)) -> dict[str, Any]:
     """Start tracking an LP for health changes."""
     lp_id = f"{chain}:{lp_address}"
     _tracked_lps[lp_id] = {
@@ -116,7 +116,7 @@ async def track_lp(lp_address: str, chain: str = Query("ethereum"), notify_tg: b
 
 
 @router.delete("/track/{lp_id}")
-async def untrack_lp(lp_id: str) -> dict:
+async def untrack_lp(lp_id: str) -> dict[str, Any]:
     """Stop tracking an LP."""
     _tracked_lps.pop(lp_id, None)
     return {"id": lp_id, "status": "removed"}
@@ -127,7 +127,7 @@ async def untrack_lp(lp_id: str) -> dict:
     summary="List Tracked LPs",
     description="List all liquidity pools currently being monitored for health changes.",
 )
-async def list_tracked() -> dict[str, list]:
+async def list_tracked() -> dict[str, list[Any]]:
     return {"tracked": list(_tracked_lps.values()), "count": len(_tracked_lps)}
 
 
@@ -135,9 +135,9 @@ async def list_tracked() -> dict[str, list]:
 async def find_unhealthy_pools(
     chain: str = Query("ethereum"),
     limit: int = Query(10, le=20),
-) -> dict:
+) -> dict[str, Any]:
     """Scan for unhealthy pools: low locked LP, LP drain, single-holder dominance."""
-    unhealthy: list[dict] = []
+    unhealthy: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(f"{DATABUS}/{chain}/pools/top?sort=risk&limit={limit * 3}")

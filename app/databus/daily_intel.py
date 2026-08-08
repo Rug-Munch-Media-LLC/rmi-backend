@@ -16,12 +16,12 @@ Free models used (zero cost):
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 import re
 import subprocess
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from telegram.error import TelegramError
@@ -81,7 +81,7 @@ async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int =
         return ""
 
 
-async def _gather_all_data() -> dict:
+async def _gather_all_data() -> dict[str, Any]:
     """Gather comprehensive data from ALL DataBus sources."""
     data = {
         "market": {},
@@ -143,7 +143,7 @@ async def _gather_all_data() -> dict:
     return data
 
 
-def _build_research_context(data: dict) -> str:
+def _build_research_context(data: dict[str, Any]) -> str:
     """Build comprehensive context for the research model."""
     parts = []
 
@@ -229,7 +229,7 @@ Published by RugCharts Daily Intelligence
 Subscribe: https://rugmunch.io/news"""
 
 
-async def generate_daily_intel(publish: bool = False, **kw) -> dict | None:
+async def generate_daily_intel(publish: bool = False, **kw) -> dict[str, Any] | None:
     """Generate the complete Daily Intelligence Briefing with quality review.
 
     Pipeline: Gather → Research → Write → Review → Fix → Publish
@@ -350,7 +350,7 @@ Stay sharp. Data-driven decisions only."""
     return report_data
 
 
-async def _publish_briefing(report: str, date_str: str) -> dict:
+async def _publish_briefing(report: str, date_str: str) -> dict[str, Any]:
     """Publish the briefing to all channels."""
     results = {}
 
@@ -369,7 +369,7 @@ async def _publish_briefing(report: str, date_str: str) -> dict:
     return results
 
 
-async def _publish_to_x(report: str, date_str: str) -> dict:
+async def _publish_to_x(report: str, date_str: str) -> dict[str, Any]:
     """Publish briefing summary to X @CryptoRugMunch via xurl."""
     # Extract top story + TLDR for tweet thread
     lines = report.split("\n")
@@ -407,7 +407,7 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
         return {"status": "error", "platform": "x", "error": str(e)[:200]}
 
 
-async def _publish_to_ghost(report: str, date_str: str) -> dict:
+async def _publish_to_ghost(report: str, date_str: str) -> dict[str, Any]:
     """Publish briefing to Ghost CMS under 'daily' tag."""
     if not GHOST_URL or not GHOST_KEY:
         return {"status": "skipped", "reason": "Ghost not configured"}
@@ -448,7 +448,7 @@ async def _publish_to_ghost(report: str, date_str: str) -> dict:
         return {"status": "error", "platform": "ghost", "error": str(e)[:200]}
 
 
-async def _publish_to_telegram(report: str, date_str: str) -> dict:
+async def _publish_to_telegram(report: str, date_str: str) -> dict[str, Any]:
     """Send briefing to Telegram channel."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     channel = os.getenv("CHANNEL_NEWS", "") or os.getenv("CHANNEL_ALERTS", "")

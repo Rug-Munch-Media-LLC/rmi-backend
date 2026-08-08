@@ -377,7 +377,7 @@ class GuiltAssociationAnalyzer:
                 if tx_ts >= thirty_days_ago:
                     report.recent_mixer_funding = True
 
-    async def _fetch_etherscan_txs(self, address: str, api_url: str, api_key: str, action: str) -> list[dict]:
+    async def _fetch_etherscan_txs(self, address: str, api_url: str, api_key: str, action: str) -> list[dict[str, Any]]:
         """Fetch transaction list from an Etherscan-compatible block explorer API."""
         params = {
             "module": "account",
@@ -454,7 +454,7 @@ class GuiltAssociationAnalyzer:
             logger.warning(f"Solana funding sources failed: {e}")
 
         # ── 2. Fetch account transfers (token + SOL transfers) ──────
-        seen_addr_lower: set = set()
+        seen_addr_lower: set[Any] = set()
         for page in range(1, self.SOLANA_TRANSFER_PAGES + 1):
             try:
                 transfers = await asyncio.to_thread(

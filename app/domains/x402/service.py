@@ -134,7 +134,7 @@ class X402Service:
     def _wrap_facilitators(raw: Any) -> list[PaymentFacilitator]:
         """Convert legacy facilitator list → Pydantic list."""
         out: list[PaymentFacilitator] = []
-        items: list[dict] = []
+        items: list[dict[str, Any]] = []
         if isinstance(raw, dict):
             items = raw.get("facilitators", raw.get("data", []))
         elif isinstance(raw, list):

@@ -1,6 +1,7 @@
 """Solana SPL Token deployer."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -171,7 +172,7 @@ class SolanaDeployer(ChainDeployer):
         result = self.client.send_transaction(tx, self.keypair)
         return result["result"]
 
-    async def get_token_info(self, contract_address: str) -> dict:
+    async def get_token_info(self, contract_address: str) -> dict[str, Any]:
         from solders.pubkey import Pubkey
 
         mint = Pubkey.from_string(contract_address)

@@ -6,6 +6,7 @@ from DexScreener's public API.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -15,7 +16,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers.dexscreener")
 
 
-async def _dexscreener_price(**kwargs) -> dict | None:
+async def _dexscreener_price(**kwargs) -> dict[str, Any] | None:
     """DexScreener — free, no key."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
     if not token:
@@ -30,7 +31,7 @@ async def _dexscreener_price(**kwargs) -> dict | None:
     return None
 
 
-async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
+async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict[str, Any] | None:
     """Token metadata from DexScreener (free)."""
     if not mint:
         return None
@@ -44,7 +45,7 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
     return None
 
 
-async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
+async def _dexscreener_holders(mint: str = "", **kw) -> dict[str, Any] | None:
     """Top holders from DexScreener (free)."""
     if not mint:
         return None
@@ -58,7 +59,7 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     return None
 
 
-async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict | None:
+async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Live trades from DexScreener (free)."""
     if not token:
         return None
@@ -74,7 +75,7 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
     return None
 
 
-async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict | None:
+async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Top profitable traders for a token from DexScreener (free)."""
     if not token:
         return None

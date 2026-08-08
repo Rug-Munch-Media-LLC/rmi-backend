@@ -7,9 +7,9 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 CLICKHOUSE_HOST = os.getenv("CH_HOST", "rmi-clickhouse")
 CLICKHOUSE_PORT = int(os.getenv("CH_PORT", "9000"))
@@ -27,7 +27,7 @@ MODEL_COSTS = {
 }
 
 # In-memory buffer for batching writes to ClickHouse
-_buffer: list[tuple] = []
+_buffer: list[tuple[Any, ...]] = []
 _BUFFER_FLUSH_INTERVAL = 30  # seconds
 _last_flush = 0
 
@@ -89,7 +89,7 @@ async def log_cost(
     log_cost_sync(model_name, tokens_in, tokens_out, cost_usd, latency_ms, agent_name, status)
 
 
-async def get_usage(limit: int = 50) -> dict:
+async def get_usage(limit: int = 50) -> dict[str, Any]:
     """Get recent cost usage from ClickHouse."""
     try:
         from clickhouse_driver import Client
@@ -135,7 +135,7 @@ async def get_usage(limit: int = 50) -> dict:
     }
 
 
-async def get_daily_summary(days: int = 7) -> dict:
+async def get_daily_summary(days: int = 7) -> dict[str, Any]:
     """Get cost breakdown by day and model."""
     try:
         from clickhouse_driver import Client

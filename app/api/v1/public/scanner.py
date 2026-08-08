@@ -18,7 +18,7 @@ from pydantic.config import ConfigDict
 router = APIRouter(prefix="/scanner", tags=["scanner"])
 
 # ── In-memory scan storage (ephemeral — survives for status polling) ──
-_scan_results: dict[str, dict] = {}
+_scan_results: dict[str, dict[str, Any]] = {}
 
 # ── Token scan models ──
 
@@ -87,8 +87,8 @@ class WalletScanResult(BaseModel):
     chain: str = Field(..., min_length=1, max_length=50)
     risk_score: int = Field(..., ge=0, le=100)
     risk_factors: list[str] = []
-    token_holdings: list[dict] = []
-    analysis: dict = {}
+    token_holdings: list[dict[str, Any]] = []
+    analysis: dict[str, Any] = {}
 
 
 # ══════════════════════════════════════════════════════════════════════

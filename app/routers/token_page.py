@@ -6,9 +6,9 @@ into a single endpoint: GET /api/v1/token/{chain}/{address}
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/v1/token", tags=["token"])
 DEXSCREENER_BASE = "https://api.dexscreener.com"
 
 
-async def _fetch_dexscreener_pair(chain: str, address: str) -> dict | None:
+async def _fetch_dexscreener_pair(chain: str, address: str) -> dict[str, Any] | None:
     """Fetch token info from DexScreener."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -36,7 +36,7 @@ async def _fetch_dexscreener_pair(chain: str, address: str) -> dict | None:
     return None
 
 
-async def _get_bbs_posts_for_token(token_address: str, limit: int = 10) -> list[dict]:
+async def _get_bbs_posts_for_token(token_address: str, limit: int = 10) -> list[dict[str, Any]]:
     """Get recent BBS posts about a token by tag matching."""
     try:
         from app.bulletin_board.manager import BulletinBoardManager
@@ -78,7 +78,7 @@ async def token_page(
     address: str,
     include_discussions: bool = Query(True),
     discussion_limit: int = Query(10, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Unified token page that combines all token intelligence into one endpoint.
 
     Returns:

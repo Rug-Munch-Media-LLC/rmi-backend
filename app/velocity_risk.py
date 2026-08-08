@@ -20,7 +20,7 @@ logger = get_logger("sentinel.velocity")
 
 # In-memory time-series cache (backed by Redis in production)
 # { "chain:address": [(timestamp, {metrics}), ...] }
-_series_cache: dict[str, list] = defaultdict(list)
+_series_cache: dict[str, list[Any]] = defaultdict(list)
 MAX_SERIES_LENGTH = 10  # Keep last 10 snapshots per token
 
 # ── Velocity thresholds for risk scoring ─────────────────────

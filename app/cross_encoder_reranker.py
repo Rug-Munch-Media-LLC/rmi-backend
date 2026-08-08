@@ -9,10 +9,10 @@ cross-encoder relevance with original vector similarity.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import time
+from typing import Any
 
 from sentence_transformers import CrossEncoder
 
@@ -183,7 +183,7 @@ class CrossEncoderReranker:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self._load_model)
 
-    def health_check(self) -> dict:
+    def health_check(self) -> dict[str, Any]:
         """Return model status, load time, and memory estimate."""
         return {
             "model_name": _MODEL_NAME,
@@ -246,9 +246,9 @@ class CrossEncoderReranker:
     async def rerank(
         self,
         query: str,
-        documents: list[dict],
+        documents: list[dict[str, Any]],
         top_k: int = 10,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Re-rank *documents* against *query* combining cross-encoder + vector similarity.
 
         Parameters
@@ -307,7 +307,7 @@ class CrossEncoderReranker:
             )
 
         # Build result list
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
         if cross_scores is not None:
             # Normalize cross-encoder scores to [0, 1]
             cross_normed = _min_max_normalize(cross_scores)

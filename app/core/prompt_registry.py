@@ -13,10 +13,10 @@ from fastapi import APIRouter
 PROMPTS_DIR = Path(os.getenv("PROMPTS_DIR", str(Path(__file__).parent.parent.parent / "prompts")))
 router = APIRouter(prefix="/api/v1/prompts", tags=["prompts"])
 
-_registry: dict[str, dict] = {}
+_registry: dict[str, dict[str, Any]] = {}
 
 
-def load_all_prompts() -> dict[str, dict]:
+def load_all_prompts() -> dict[str, dict[str, Any]]:
     """Load all prompts from prompts/ directory."""
     global _registry
     _registry = {}
@@ -65,12 +65,12 @@ def render_prompt(name: str, **kwargs) -> str:
 
 
 @router.get("/")
-async def list_prompts() -> dict:
+async def list_prompts() -> dict[str, Any]:
     return {"prompts": list(_registry.values()), "count": len(_registry)}
 
 
 @router.get("/{name}")
-async def get_prompt_info(name: str) -> dict:
+async def get_prompt_info(name: str) -> dict[str, Any]:
     p = get_prompt(name)
     if not p:
         return {"error": "not found"}
@@ -78,6 +78,6 @@ async def get_prompt_info(name: str) -> dict:
 
 
 @router.post("/reload")
-async def reload_prompts() -> dict:
+async def reload_prompts() -> dict[str, Any]:
     load_all_prompts()
     return {"reloaded": len(_registry)}

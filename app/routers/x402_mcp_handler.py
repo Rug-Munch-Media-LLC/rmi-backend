@@ -5,9 +5,9 @@ Also serves /.well-known/x402 for standard x402 discovery.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -19,7 +19,7 @@ router = APIRouter(tags=["x402-MCP"])
 
 
 @router.post("/mcp/x402")
-async def mcp_x402_handler(request: Request) -> dict[str, dict] | dict:
+async def mcp_x402_handler(request: Request) -> dict[str, dict[str, Any]] | dict[str, Any]:
     """MCP protocol handler for x402 payment tools.
 
     Accepts MCP-standard requests: {"method": "tools/list"} or

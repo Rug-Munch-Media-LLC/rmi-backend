@@ -6,6 +6,7 @@ and intel search.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -15,7 +16,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers.arkham")
 
 
-async def _arkham_entity(address: str = "", **kw) -> dict | None:
+async def _arkham_entity(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham — entity resolution for an address."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -33,7 +34,7 @@ async def _arkham_entity(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
+async def _arkham_counterparties(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham — counterparty network mapping."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -51,7 +52,7 @@ async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
+async def _arkham_intel_search(query: str = "", **kw) -> dict[str, Any] | None:
     """Arkham — entity intelligence search."""
     api_key = kw.get("api_key", "")
     if not query or not api_key:
@@ -70,7 +71,7 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
+async def _arkham_portfolio(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham — portfolio holdings with USD values."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -88,7 +89,7 @@ async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_transfers(address: str = "", **kw) -> dict | None:
+async def _arkham_transfers(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham — transfer history with counterparty mapping."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -106,7 +107,7 @@ async def _arkham_transfers(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_labels(address: str = "", **kw) -> dict | None:
+async def _arkham_labels(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham — entity labels with confidence scores."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:

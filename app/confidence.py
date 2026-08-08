@@ -165,7 +165,7 @@ def score_confidence(
 # ── Component Scorers ──────────────────────────────────────────────
 
 
-def _score_concentration(results: list[dict]) -> float:
+def _score_concentration(results: list[dict[str, Any]]) -> float:
     """How concentrated are the top similarities? Sharp drop = strong signal."""
     sims = [r.get("similarity", 0) or r.get("combined_score", 0) for r in results[:5]]
     sims = [s for s in sims if s is not None and s > 0]
@@ -184,7 +184,7 @@ def _score_concentration(results: list[dict]) -> float:
     return ratio
 
 
-def _score_similarity(results: list[dict]) -> float:
+def _score_similarity(results: list[dict[str, Any]]) -> float:
     """Raw semantic similarity quality - how close are top results?"""
     sims = [r.get("similarity", 0) or r.get("combined_score", 0) for r in results[:3]]
     sims = [s for s in sims if s is not None and s > 0]
@@ -196,7 +196,7 @@ def _score_similarity(results: list[dict]) -> float:
     return min(1.0, avg / 0.9)  # normalize: 0.9+ similarity = 1.0 score
 
 
-def _score_corroboration(results: list[dict]) -> float:
+def _score_corroboration(results: list[dict[str, Any]]) -> float:
     """How many independent sources agree?"""
     sources = [r.get("source", "") for r in results if r.get("source")]
     unique = len(set(sources))
@@ -211,7 +211,7 @@ def _score_corroboration(results: list[dict]) -> float:
     return 0.0
 
 
-def _score_reranker_margin(results: list[dict]) -> float:
+def _score_reranker_margin(results: list[dict[str, Any]]) -> float:
     """Gap between #1 and #2 combined score. Big gap = clear winner."""
     scores = [r.get("combined_score", r.get("similarity", 0)) for r in results[:3]]
     scores = [s for s in scores if s is not None and s > 0]
@@ -222,7 +222,7 @@ def _score_reranker_margin(results: list[dict]) -> float:
     return min(1.0, margin / 0.2)
 
 
-def _score_freshness(results: list[dict]) -> float:
+def _score_freshness(results: list[dict[str, Any]]) -> float:
     """How recent is the evidence?"""
     from datetime import datetime
 

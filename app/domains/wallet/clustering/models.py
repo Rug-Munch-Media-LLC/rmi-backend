@@ -84,7 +84,7 @@ class Cluster:
     first_activity: datetime | None = None
     last_activity: datetime | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cluster_id": self.cluster_id,
             "wallets": list(self.wallets),
@@ -108,7 +108,7 @@ class Connection:
     wallet_b: str
     strength: float
     connection_types: list[str]
-    evidence: list[dict]
+    evidence: list[dict[str, Any]]
     total_volume: float = 0.0
     transaction_count: int = 0
     first_connection: datetime | None = None

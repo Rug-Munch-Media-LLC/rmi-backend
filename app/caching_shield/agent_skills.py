@@ -10,6 +10,7 @@ alongside tool definitions. Each skill teaches a specific workflow.
 # ═══════════════════════════════════════════════════════════════════════════
 
 from __future__ import annotations
+
 from typing import Any
 
 AGENT_SKILLS = {
@@ -269,7 +270,7 @@ AGENT_PROMPTS = {
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def get_agent_skills() -> dict:
+def get_agent_skills() -> dict[str, Any]:
     return {
         "skills": AGENT_SKILLS,
         "anti_abuse": ANTI_ABUSE_RULES,

@@ -78,7 +78,7 @@ class CrossChainCorrelator:
 
     def __init__(self) -> None:
         self.profiles: dict[str, CrossChainProfile] = {}
-        self._fingerprints: dict[str, dict] = {}
+        self._fingerprints: dict[str, dict[str, Any]] = {}
 
     async def correlate(
         self, addresses: list[str], chains: list[str] | None = None, depth: int = 2
@@ -114,7 +114,7 @@ class CrossChainCorrelator:
 
         return profiles
 
-    async def _fingerprint_wallet(self, address: str, chain: str) -> dict:
+    async def _fingerprint_wallet(self, address: str, chain: str) -> dict[str, Any]:
         """Build behavioral fingerprint for a wallet on a chain."""
         fp = {
             "address": address,
@@ -156,7 +156,7 @@ class CrossChainCorrelator:
         return fp
 
     def _compare_fingerprints(
-        self, addr_a: str, chain_a: str, fp_a: dict, addr_b: str, chain_b: str, fp_b: dict
+        self, addr_a: str, chain_a: str, fp_a: dict[str, Any], addr_b: str, chain_b: str, fp_b: dict[str, Any]
     ) -> CrossChainLink | None:
         """Compare two cross-chain fingerprints for similarity."""
         signals = []

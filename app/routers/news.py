@@ -117,7 +117,7 @@ _CACHE_TS: datetime | None = None
 _CACHE_TTL = timedelta(minutes=3)
 
 # In-memory comments store (ephemeral - persists via Redis later)
-_COMMENTS: dict[str, list[dict]] = {}
+_COMMENTS: dict[str, list[dict[str, Any]]] = {}
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
@@ -567,7 +567,7 @@ async def get_headlines(
 
 
 @router.get("/categories")
-async def get_categories() -> dict[str, list[dict]]:
+async def get_categories() -> dict[str, list[dict[str, Any]]]:
     """Get all news categories with counts."""
     feed = await get_news_feed(limit=200, refresh=False)
     cats = {}
@@ -583,7 +583,7 @@ async def get_categories() -> dict[str, list[dict]]:
 
 
 @router.get("/stats")
-async def get_stats() -> dict:
+async def get_stats() -> dict[str, Any]:
     """Aggregate statistics about the news pipeline."""
     feed = await get_news_feed(limit=200, refresh=False)
     source_counts = {}
@@ -608,7 +608,7 @@ async def get_stats() -> dict:
 
 
 @router.post("/comment", response_model=CommentResponse)
-async def post_comment(req: CommentRequest, user: dict = Depends(require_public_profile)) -> Any:
+async def post_comment(req: CommentRequest, user: dict[str, Any] = Depends(require_public_profile)) -> Any:
     """Post a comment on any news article. Requires public profile."""
     if not req.article_id or not req.content.strip():
         raise ValidationError("article_id and content required")
@@ -631,7 +631,7 @@ async def post_comment(req: CommentRequest, user: dict = Depends(require_public_
 
 
 @router.get("/comments/{article_id}", response_model=list[CommentResponse])
-async def get_comments(article_id: str) -> list:
+async def get_comments(article_id: str) -> list[Any]:
     """Get comments for a specific article."""
     comments = _COMMENTS.get(article_id, [])
     return [CommentResponse(**c) for c in sorted(comments, key=lambda x: x["created_at"])]

@@ -105,7 +105,7 @@ _BEHAVIOR_RISK_TABLE = {
 }
 
 
-async def _fetch(url: str, timeout: int = 10, headers: dict | None = None, max_retries: int = 2) -> dict | None:
+async def _fetch(url: str, timeout: int = 10, headers: dict[str, Any] | None = None, max_retries: int = 2) -> dict[str, Any] | None:
     """Single URL fetch with aiohttp and retry logic."""
     import asyncio
 
@@ -154,7 +154,7 @@ def _extract_domain(url: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _domain_age_risk(domain: str) -> dict:
+def _domain_age_risk(domain: str) -> dict[str, Any]:
     """
     Assess domain risk based on known patterns.
     Returns risk score 0-1 and flags.
@@ -182,7 +182,7 @@ def _domain_age_risk(domain: str) -> dict:
     return {"risk": min(risk, 1.0), "flags": flags, "domain": domain}
 
 
-def _detect_branding_flip(project_name: str, description: str) -> dict:
+def _detect_branding_flip(project_name: str, description: str) -> dict[str, Any]:
     """
     Detect branding inconsistencies that suggest a flip.
     """
@@ -225,7 +225,7 @@ def _detect_branding_flip(project_name: str, description: str) -> dict:
 
 def _detect_wallet_behavior_flip(
     wallet_history: dict[str, Any] | None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Analyze wallet behavior transitions to detect flips.
     wallet_history should contain:
@@ -278,7 +278,7 @@ def _compute_identity_flip_score(
     wallet_behavior_risk: float,
     cross_project_signals: list[str],
     age_days: int | None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Compute a 0-100 identity flip risk score.
 
@@ -368,7 +368,7 @@ def _compute_identity_flip_score(
 
 def _check_cross_project_laundering(
     deployer_address: str | None,
-    known_projects: list[dict] | None,
+    known_projects: list[dict[str, Any]] | None,
 ) -> list[str]:
     """
     Check if the same entity is behind multiple projects (identity laundering).
@@ -404,9 +404,9 @@ async def detect_profile_flip(
     wallet_address: str | None = None,
     project_name: str | None = None,
     project_url: str | None = None,
-    social_handles: dict | None = None,
+    social_handles: dict[str, Any] | None = None,
     deployer_address: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Comprehensive identity change detection.
 
@@ -555,8 +555,8 @@ async def detect_profile_flip(
 
 
 async def batch_detect_profile_flips(
-    targets: list[dict],
-) -> list[dict]:
+    targets: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
     Batch profile flip detection for multiple targets.
 

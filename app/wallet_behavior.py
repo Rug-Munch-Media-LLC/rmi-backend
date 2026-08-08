@@ -150,7 +150,7 @@ class WalletFingerprint:
     # Classification
     primary_persona: str = "retail_trader"
     persona_confidence: float = 0.0
-    secondary_personas: list[dict] = field(default_factory=list)
+    secondary_personas: list[dict[str, Any]] = field(default_factory=list)
 
     # Scores
     sophistication_score: float = 0.0  # 0-100, how sophisticated is this trader?

@@ -172,7 +172,7 @@ def check_clickhouse() -> dict[str, Any]:
         }
 
 
-async def check_service(name: str, config: dict) -> dict[str, Any]:
+async def check_service(name: str, config: dict[str, Any]) -> dict[str, Any]:
     """Check a single service."""
     check_type = config.get("check_type", "http")
 

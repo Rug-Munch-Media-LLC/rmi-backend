@@ -21,7 +21,7 @@ from app.domains.wallet.clustering.models import Cluster, WalletProfile
 
 def detect_temporal_clusters(
     wallets: dict[str, WalletProfile],
-    transactions: list,
+    transactions: list[Any],
     time_window_minutes: int = 5,
 ) -> list[Cluster]:
     """Detect clusters based on temporal proximity of transactions."""
@@ -200,7 +200,7 @@ def detect_pattern_clusters(
 
 def detect_funding_clusters(
     wallets: dict[str, WalletProfile],
-    transactions: list,
+    transactions: list[Any],
 ) -> list[Cluster]:
     """Detect clusters based on common funding sources."""
     clusters = []
@@ -321,7 +321,7 @@ def _calculate_fingerprint_similarity(fp1: dict[str, Any], fp2: dict[str, Any]) 
     return sum(scores) / len(scores) if scores else 0
 
 
-def _find_center_wallet(wallets: set[str], wallets_dict: dict) -> str | None:
+def _find_center_wallet(wallets: set[str], wallets_dict: dict[str, Any]) -> str | None:
     """Find the most connected wallet in a cluster (center)."""
     if not wallets:
         return None

@@ -69,7 +69,7 @@ def _redis() -> Any:
     )
 
 
-async def handle_webhook(service: str, payload: dict, headers: dict, raw_body: bytes = b"") -> dict:
+async def handle_webhook(service: str, payload: dict[str, Any], headers: dict[str, Any], raw_body: bytes = b"") -> dict[str, Any]:
     """Universal webhook handler.
 
     1. Validate signature
@@ -189,7 +189,7 @@ def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
         return False
 
 
-def _get_scan_triggers(service: str, event_type: str, payload: dict) -> list[str]:
+def _get_scan_triggers(service: str, event_type: str, payload: dict[str, Any]) -> list[str]:
     """Determine which premium scans to trigger based on webhook event."""
     triggers = []
     payload.get("address") or payload.get("tokenAddress") or payload.get("wallet", "")
@@ -228,7 +228,7 @@ def _get_scan_triggers(service: str, event_type: str, payload: dict) -> list[str
     return triggers
 
 
-def _assess_webhook_risk(service: str, event_type: str, payload: dict) -> dict:
+def _assess_webhook_risk(service: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     """Quick risk assessment from webhook data."""
     value_usd = float(payload.get("valueUsd") or payload.get("value", 0))
 
@@ -254,7 +254,7 @@ def _assess_webhook_risk(service: str, event_type: str, payload: dict) -> dict:
     return {"level": "LOW", "title": "Routine event", "description": f"{service} {event_type}"}
 
 
-async def setup_webhook(service: str, webhook_url: str, events: list[str] | None = None, **kw) -> dict:
+async def setup_webhook(service: str, webhook_url: str, events: list[str] | None = None, **kw) -> dict[str, Any]:
     """Programmatically set up a webhook subscription with a service.
 
     For services that support API-based webhook registration (Helius, Moralis),
@@ -312,7 +312,7 @@ async def setup_webhook(service: str, webhook_url: str, events: list[str] | None
     }
 
 
-async def list_webhooks() -> dict:
+async def list_webhooks() -> dict[str, Any]:
     """List all configured webhook subscriptions."""
     try:
         r = _redis()

@@ -70,7 +70,7 @@ class ANNIndex:
     def __init__(self) -> None:
         self._indexes: dict[str, Any] = {}  # collection -> faiss index
         self._id_maps: dict[str, list[str]] = {}  # collection -> [doc_id, ...]
-        self._meta: dict[str, dict] = {}  # collection -> build metadata
+        self._meta: dict[str, dict[str, Any]] = {}  # collection -> build metadata
         self._redis = None
 
     @classmethod

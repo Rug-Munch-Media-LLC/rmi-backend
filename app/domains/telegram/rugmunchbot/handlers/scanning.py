@@ -36,8 +36,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     footer_links,
     format_scan_report,
-    format_sentinel_deepscan_section,
-    format_sentinel_scan_report,
     format_wallet_report,
     is_evm,
     is_owner,
@@ -64,7 +62,6 @@ from app.domains.telegram.rugmunchbot.scanner import (
     fetch_hype_score,
     scan_token,
     scan_token_v2,
-    sentinel_scan,
     v2_token_to_legacy,
     v2_wallet_to_legacy,
 )
@@ -74,57 +71,6 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
-
-# Telegram hard limit per message — deep/sentinel reports can exceed it.
-MAX_MESSAGE_CHARS = 4096
-
-
-def _chunk_report(text: str, max_chars: int | None = None) -> list[str]:
-    """Split a (deep scan) report into Telegram-safe chunks.
-
-    Splits only at ``\n\n`` section boundaries so HTML tags are never cut
-    mid-tag. A single oversized section falls back to newline-level hard
-    splits. ``max_chars`` resolves to MAX_MESSAGE_CHARS at call time so it
-    can be tuned in tests.
-    """
-    if max_chars is None:
-        max_chars = MAX_MESSAGE_CHARS
-    sections = text.split("\n\n")
-    chunks: list[str] = []
-    current = ""
-    for section in sections:
-        if not section.strip():
-            continue
-        if len(section) > max_chars:
-            if current:
-                chunks.append(current)
-                current = ""
-            for line in section.split("\n"):
-                if len(line) > max_chars:
-                    if current:
-                        chunks.append(current)
-                        current = ""
-                    chunks.append(line[:max_chars])
-                    continue
-                candidate = line if not current else f"{current}\n{line}"
-                if len(candidate) <= max_chars:
-                    current = candidate
-                else:
-                    chunks.append(current)
-                    current = line
-            if current:
-                chunks.append(current)
-                current = ""
-            continue
-        candidate = section if not current else f"{current}\n\n{section}"
-        if len(candidate) <= max_chars:
-            current = candidate
-        else:
-            chunks.append(current)
-            current = section
-    if current:
-        chunks.append(current)
-    return chunks
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -194,7 +140,6 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\U0001f50d <b>\U0001f50d SCAN TOKEN</b>\n{d}\n"
         f"/scan <code>address</code> - Quick security audit (fast, ~25s)\n"
         f"/deepscan <code>address</code> - Full multi-phase forensic scan\n"
-        f"/sentinelscan <code>address</code> - SENTINEL deep forensic only (faster)\n"
         f"/wallet <code>address</code> - Wallet analysis & forensics\n"
         f"/deployer <code>address</code> - Deployer fingerprint check\n"
         f"/hype <code>address_or_symbol</code> - 0-100 hype score\n"
@@ -335,14 +280,11 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Full multi-phase deep scan (v6) + SENTINEL deep forensic scan.
+    """Full multi-phase deep scan (v6).
 
-    Runs the v2 scanner base report, enriches it with RugMaps cluster data,
-    and appends the SENTINEL deep forensic scan (POST /api/v1/x402-tools/
-    sentinel_scan): composite risk, module breakdown, red flags, holder HHI,
-    LP lock, contract authority, and deployer reputation. SENTINEL is
-    best-effort — when the endpoint is unavailable the deep scan still
-    returns the base report + enrichment.
+    Runs ALL scanner phases and enriches the result with RugMaps cluster
+    data + on-chain intel for a much more detailed report than /scan.
+    Slower (~1-2 min) but shows every phase it ran.
     """
     user = update.effective_user
     if user is None or update.message is None:
@@ -360,7 +302,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "\u2462 Holder analysis (top holders, concentration)\n"
             "\u2463 Deployer fingerprint (dev history, rugs)\n"
             "\u2464 Funding analysis (fresh wallets, bundles)\n"
-            "\u2465 SENTINEL deep forensic scan + RugMap cluster data\n\n"
+            "\u2465 AI risk verdict + RugMap cluster data\n\n"
             "\u23f3 Slower than /scan (\u2248 1-2 min) but far more detailed.",
             parse_mode=ParseMode.HTML,
         )
@@ -381,18 +323,12 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\U0001f52c <b>Deep scan started...</b>\n"
         f"<code>{short_addr(target)}</code>\n\n"
         f"\u2460 Market \u2192 \u2461 Security \u2192 \u2462 Holders \u2192 "
-        f"\u2463 Deployer \u2192 \u2464 Funding \u2192 \U0001f6e1\ufe0f SENTINEL\n"
+        f"\u2463 Deployer \u2192 \u2464 Funding \u2192 \u2465 AI verdict\n"
         f"\u23f3 This can take up to 2 minutes...",
         parse_mode=ParseMode.HTML,
     )
     try:
-        # Run the v2 base scan and the SENTINEL deep forensic scan in parallel.
-        # SENTINEL is best-effort: a failure returns None and the deep scan
-        # still completes with the base report + enrichment.
-        result_v2, sentinel_data = await asyncio.gather(
-            scan_token_v2(target, chain),
-            sentinel_scan(target, chain),
-        )
+        result_v2 = await scan_token_v2(target, chain)
         if result_v2 is not None:
             result = v2_token_to_legacy(result_v2)
         else:
@@ -456,18 +392,9 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError):
             logger.debug("deepscan enrichment unavailable for %s", target, exc_info=True)
 
-        # ── Build report: base scan + enrichment + SENTINEL deep section ──
         report = format_scan_report(result)
         if enrichment_lines:
             report += "\n\n" + "\n\n".join(enrichment_lines)
-        if sentinel_data:
-            report += "\n\n" + format_sentinel_deepscan_section(sentinel_data)
-        else:
-            logger.info(
-                "SENTINEL deep scan unavailable for %s — base deep scan returned",
-                short_addr(target),
-            )
-
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, target, result["chain"], "deep", result["risk_score"])
         user_tier = db.get_user_tier(user.id)
@@ -476,118 +403,17 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if user_tier in ("hunter", "pro")
             else scan_result_kb(target, result["chain"])
         )
-        chunks = _chunk_report(report)
         await msg.edit_text(
-            chunks[0],
+            report,
             parse_mode=ParseMode.HTML,
             reply_markup=result_kb,
             disable_web_page_preview=True,
         )
-        for chunk in chunks[1:]:
-            await ctx.bot.send_message(
-                chat_id=msg.chat.id,
-                text=chunk,
-                parse_mode=ParseMode.HTML,
-                disable_web_page_preview=True,
-            )
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
         logger.debug("cmd_deepscan_error", exc_info=True)
         logger.error(f"Deep scan error: {e}")
         await msg.edit_text(
             f"\u274c <b>Deep Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=back_kb(),
-        )
-
-
-async def cmd_sentinelscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """SENTINEL-only deep forensic scan — skips the v2 pipeline.
-
-    Runs POST /api/v1/x402-tools/sentinel_scan directly: composite risk,
-    module breakdown, key findings, holder HHI, LP lock, contract authority,
-    and deployer reputation. Faster than /deepscan since it skips the v2
-    phases and enrichment.
-    """
-    user = update.effective_user
-    if user is None or update.message is None:
-        return
-    db.get_or_create_user(user.id, user.username, user.first_name)
-    if check_spam(user.id):
-        return
-    if not ctx.args:
-        await update.message.reply_text(
-            "\U0001f6e1\ufe0f <b>Sentinel Scan</b>\n\n"
-            "Usage: /sentinelscan <code>address</code> [chain]\n\n"
-            "Runs the SENTINEL deep forensic pipeline ONLY (no v2 phases):\n"
-            "\u2022 Composite risk assessment (0-100)\n"
-            "\u2022 Holder HHI concentration analysis\n"
-            "\u2022 LP lock verification\n"
-            "\u2022 Contract authority (mint/freeze/renounce)\n"
-            "\u2022 Deployer reputation & rug history\n\n"
-            "\u26a1 Faster than /deepscan \u2014 skips market & funding phases.",
-            parse_mode=ParseMode.HTML,
-        )
-        return
-    target = ctx.args[0]
-    chain = ctx.args[1] if len(ctx.args) > 1 else None
-    if not is_owner(user.id):
-        allowed, _used, _limit = db.check_rate_limit(user.id, "scan")
-        if not allowed:
-            tier = db.get_user_tier(user.id)
-            await update.message.reply_text(
-                paywall_text(user.id, "scan"),
-                parse_mode=ParseMode.HTML,
-                reply_markup=upgrade_nudge_kb(tier),
-            )
-            return
-    msg = await update.message.reply_text(
-        f"\U0001f6e1\ufe0f <b>Running SENTINEL deep scan...</b>\n"
-        f"<code>{short_addr(target)}</code>\n\n"
-        f"\u23f3 Running 9 forensic modules...",
-        parse_mode=ParseMode.HTML,
-    )
-    try:
-        data = await sentinel_scan(target, chain)
-        if not data:
-            await msg.edit_text(
-                f"\u274c <b>Sentinel Scan Failed</b>\n\n"
-                f"SENTINEL could not complete for <code>{short_addr(target)}</code>.\n\n"
-                f"\u2022 Try /scan <code>{short_addr(target)}</code> for the base report\n"
-                f"\u2022 Or try again later",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
-            return
-        data.setdefault("address", target)
-        data.setdefault("chain", chain or detect_chain(target))
-        db.increment_usage(user.id, scan=True)
-        db.log_scan(
-            user.id,
-            target,
-            data.get("chain", chain or detect_chain(target)),
-            "sentinel",
-            data.get("composite_risk_score") or 0,
-        )
-        report = format_sentinel_scan_report(data)
-        chunks = _chunk_report(report)
-        await msg.edit_text(
-            chunks[0],
-            parse_mode=ParseMode.HTML,
-            reply_markup=scan_result_kb(target, data.get("chain", chain or detect_chain(target))),
-            disable_web_page_preview=True,
-        )
-        for chunk in chunks[1:]:
-            await ctx.bot.send_message(
-                chat_id=msg.chat.id,
-                text=chunk,
-                parse_mode=ParseMode.HTML,
-                disable_web_page_preview=True,
-            )
-    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
-        logger.debug("cmd_sentinelscan_error", exc_info=True)
-        logger.error(f"Sentinel scan error: {e}")
-        await msg.edit_text(
-            f"\u274c <b>Sentinel Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease try again later.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

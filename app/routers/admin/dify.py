@@ -56,7 +56,7 @@ async def dify_status(request: Request, _=Depends(verify_admin)) -> dict[str, st
 @dify_router.get("/dify/conversations")
 async def dify_conversations(
     request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)
-) -> dict[str, list] | dict:
+) -> dict[str, list[Any]] | dict[str, Any]:
     """Get Dify conversation list."""
     dify_url = os.getenv("DIFY_URL", "")
     dify_key = os.getenv("DIFY_API_KEY", "")
@@ -81,7 +81,7 @@ async def dify_conversations(
 @dify_router.get("/dify/apps")
 async def dify_apps(
     request: Request, _=Depends(verify_admin), use_proxy: bool = False
-) -> dict[str, list] | dict[str, Any | None] | Any:
+) -> dict[str, list[Any]] | dict[str, Any | None] | Any:
     """Get Dify apps list."""
     dify_url = os.getenv("DIFY_URL", "")
     dify_key = os.getenv("DIFY_API_KEY", "")
@@ -104,7 +104,7 @@ async def dify_apps(
 @dify_router.get("/dify/conversations/{conversation_id}/messages")
 async def dify_messages(
     request: Request, conversation_id: str, _=Depends(verify_admin), limit: int = Query(30, le=100)
-) -> dict[str, list] | dict[str, str]:
+) -> dict[str, list[Any]] | dict[str, str]:
     """Get messages for a Dify conversation."""
     dify_url = os.getenv("DIFY_URL", "")
     dify_key = os.getenv("DIFY_API_KEY", "")
@@ -134,7 +134,7 @@ class DifyChatRequest(BaseModel):
 @dify_router.post("/dify/chat")
 async def dify_chat(
     request: Request, req: DifyChatRequest, _=Depends(verify_admin)
-) -> dict[str, str] | dict[str, Any | None] | Any | dict:
+) -> dict[str, str] | dict[str, Any | None] | Any | dict[str, Any]:
     """Send a chat message to Dify AI advisor."""
     dify_url = os.getenv("DIFY_URL", "")
     dify_key = os.getenv("DIFY_API_KEY", "")

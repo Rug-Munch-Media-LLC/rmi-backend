@@ -3,6 +3,7 @@ Data Fusion — Extraction and Helper Functions
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.data_fusion.config import IQR_MULTIPLIER, MAX_OUTLIER_PERCENTAGE
@@ -26,7 +27,7 @@ def _remove_outliers(values: list[float]) -> list[float]:
     return filtered
 
 
-def _get_freshness(result: dict, source_key: str, now: float) -> float:
+def _get_freshness(result: dict[str, Any], source_key: str, now: float) -> float:
     """Calculate freshness score 0-1 for a result based on its source TTL."""
     from app.core.data_fusion.config import SOURCE_TTL
 
@@ -38,7 +39,7 @@ def _get_freshness(result: dict, source_key: str, now: float) -> float:
     return max(0.0, 1.0 - (age / ttl))
 
 
-def _extract_numeric(data: dict, *keys: str) -> float | None:
+def _extract_numeric(data: dict[str, Any], *keys: str) -> float | None:
     """Extract numeric value from nested dict following key path."""
     current = data
     for key in keys:
@@ -54,7 +55,7 @@ def _extract_numeric(data: dict, *keys: str) -> float | None:
     return None
 
 
-def _extract_boolean(data: dict, *keys: str) -> bool | None:
+def _extract_boolean(data: dict[str, Any], *keys: str) -> bool | None:
     """Extract boolean value following key path."""
     val = _extract_numeric(data, *keys)
     if val is not None:
@@ -68,7 +69,7 @@ def _extract_boolean(data: dict, *keys: str) -> bool | None:
     return None
 
 
-def _extract_list(data: dict, *keys: str) -> list:
+def _extract_list(data: dict[str, Any], *keys: str) -> list[Any]:
     """Extract list value following key path."""
     current = data
     for key in keys:
@@ -79,7 +80,7 @@ def _extract_list(data: dict, *keys: str) -> list:
     return current if isinstance(current, list) else []
 
 
-def _extract_price(data: dict) -> float | None:
+def _extract_price(data: dict[str, Any]) -> float | None:
     """Extract price from various response formats."""
     for key in ("priceUsd", "price", "usdPrice", "usd"):
         val = data.get(key) if isinstance(data, dict) else None
@@ -91,7 +92,7 @@ def _extract_price(data: dict) -> float | None:
     return None
 
 
-def _merge_holder_lists(holder_sets: list[list[dict]]) -> list[dict]:
+def _merge_holder_lists(holder_sets: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """Merge holder lists from multiple sources, deduplicating by address."""
     seen = set()
     merged = []
@@ -104,7 +105,7 @@ def _merge_holder_lists(holder_sets: list[list[dict]]) -> list[dict]:
     return merged
 
 
-def _deduplicate_findings(findings: list[dict]) -> list[dict]:
+def _deduplicate_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Remove redundant findings (similar descriptions)."""
     seen = set()
     unique = []
@@ -129,7 +130,7 @@ def _risk_level(score: float) -> str:
     return "minimal"
 
 
-def _one_liner(score: float, findings: list[dict]) -> str:
+def _one_liner(score: float, findings: list[dict[str, Any]]) -> str:
     """Generate a single-line risk summary."""
     level = _risk_level(score)
     top_finding = findings[0].get("finding", "")[:60] if findings else ""
@@ -138,13 +139,13 @@ def _one_liner(score: float, findings: list[dict]) -> str:
     return f"{level.upper()}: No specific findings"
 
 
-def _top_findings(findings: list[dict], max_count: int = 5) -> list[dict]:
+def _top_findings(findings: list[dict[str, Any]], max_count: int = 5) -> list[dict[str, Any]]:
     """Return top N findings sorted by severity."""
     sorted_f = sorted(findings, key=lambda f: f.get("severity", 0), reverse=True)
     return sorted_f[:max_count]
 
 
-def _empty_result(reason: str) -> dict:
+def _empty_result(reason: str) -> dict[str, Any]:
     """Return a standard empty fusion result."""
     return {
         "success": False,

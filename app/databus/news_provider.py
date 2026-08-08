@@ -49,7 +49,7 @@ MARKET_BRIEF_TTL = 60  # 1 minute
 CACHE = {}  # In-memory fallback cache with TTL
 
 
-def _cached(key: str, ttl: int = 60) -> dict | None:
+def _cached(key: str, ttl: int = 60) -> dict[str, Any] | None:
     if key in CACHE:
         data, ts = CACHE[key]
         if time.time() - ts < ttl:
@@ -57,7 +57,7 @@ def _cached(key: str, ttl: int = 60) -> dict | None:
     return None
 
 
-def _cache_set(key: str, data: dict) -> None:
+def _cache_set(key: str, data: dict[str, Any]) -> None:
     CACHE[key] = (data, time.time())
 
 
@@ -79,7 +79,7 @@ async def _get_redis() -> aioredis.Redis | None:
         return None
 
 
-async def _redis_get(key: str) -> dict | None:
+async def _redis_get(key: str) -> dict[str, Any] | None:
     """Read JSON from Redis."""
     try:
         r = await _get_redis()
@@ -93,7 +93,7 @@ async def _redis_get(key: str) -> dict | None:
     return None
 
 
-async def _redis_set(key: str, data: dict, ttl: int = 300) -> None:
+async def _redis_set(key: str, data: dict[str, Any], ttl: int = 300) -> None:
     """Write JSON to Redis with TTL."""
     try:
         r = await _get_redis()
@@ -180,7 +180,7 @@ TOP_50_FEEDS = [
 # ── 1. COINGECKO - Prices, trending, market data ───────────────────
 
 
-async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dict | None:
+async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dict[str, Any] | None:
     """Live crypto prices from CoinGecko. Free tier, no key needed."""
     cache_key = f"prices:{coins}"
     cached = _cached(cache_key, 30)
@@ -217,7 +217,7 @@ async def get_market_prices(coins: str = "bitcoin,ethereum,solana", **kw) -> dic
     return None
 
 
-async def get_trending_coins(**kw) -> dict | None:
+async def get_trending_coins(**kw) -> dict[str, Any] | None:
     """Trending coins from CoinGecko search."""
     cache_key = "trending"
     cached = _cached(cache_key, 120)
@@ -256,7 +256,7 @@ async def get_trending_coins(**kw) -> dict | None:
 # ── 2. FEAR & GREED INDEX - Alternative.me ─────────────────────────
 
 
-async def get_fear_greed(**kw) -> dict | None:
+async def get_fear_greed(**kw) -> dict[str, Any] | None:
     """Crypto Fear & Greed Index. Completely free, no key."""
     cache_key = "fear_greed"
     cached = _cached(cache_key, 300)
@@ -301,7 +301,7 @@ async def get_fear_greed(**kw) -> dict | None:
 # ── 3. POLYMARKET - Prediction markets ─────────────────────────────
 
 
-async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> dict | None:
+async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> dict[str, Any] | None:
     """Prediction market events from Polymarket. Free, no key."""
     cache_key = f"polymarket:{tag}:{limit}"
     cached = _cached(cache_key, 120)
@@ -341,7 +341,7 @@ async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> d
 # ── 4. COMBINED MARKET BRIEF - All sources in one call ─────────────
 
 
-async def get_market_brief(**kw) -> dict | None:
+async def get_market_brief(**kw) -> dict[str, Any] | None:
     """One-call market overview: prices + fear/greed + trending + prediction markets."""
     prices_task = get_market_prices()
     fear_task = get_fear_greed()
@@ -602,7 +602,7 @@ async def refresh_news_cache() -> dict[str, Any]:
             all_articles.append(art)
 
     # Sort by published_at (newest first)
-    def _sort_key(a: dict) -> str:
+    def _sort_key(a: dict[str, Any]) -> str:
         return a.get("published_at", "")
 
     all_articles.sort(key=_sort_key, reverse=True)
@@ -640,7 +640,7 @@ async def refresh_news_cache() -> dict[str, Any]:
 # ── 8. PUBLIC API: get_aggregated_news (used by DataBus) ──────────
 
 
-async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict | None:
+async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict[str, Any] | None:
     """Get news articles. Reads from Redis cache (instant)."""
     cached = await _redis_get(NEWS_CACHE_KEY)
     if cached:
@@ -674,7 +674,7 @@ async def get_aggregated_news(limit: int = 20, category: str = "", **kw) -> dict
 # ── 9. PUBLIC API: get_full_news_feed (main endpoint) ─────────────
 
 
-async def get_full_news_feed(limit: int = 15, **kw) -> dict | None:
+async def get_full_news_feed(limit: int = 15, **kw) -> dict[str, Any] | None:
     """Complete news page data. ALWAYS reads from Redis.
 
     On cache miss, returns fast API data + market brief immediately

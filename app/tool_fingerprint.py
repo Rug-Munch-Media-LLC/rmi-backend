@@ -242,7 +242,7 @@ class ToolFingerprinter:
         self._known_scammers: set[str] = set()
         self._cex_wallets: set[str] = set()
 
-    async def fingerprint_transaction(self, tx_data: dict, chain: str = "solana") -> list[ToolFingerprintResult]:
+    async def fingerprint_transaction(self, tx_data: dict[str, Any], chain: str = "solana") -> list[ToolFingerprintResult]:
         """Analyze a single transaction for tool fingerprints."""
         results = []
         instructions = tx_data.get("instructions", tx_data.get("ix", []))
@@ -284,7 +284,7 @@ class ToolFingerprinter:
 
         return results
 
-    async def detect_bundlers(self, tx_list: list[dict], token_address: str) -> list[ToolFingerprintResult]:
+    async def detect_bundlers(self, tx_list: list[dict[str, Any]], token_address: str) -> list[ToolFingerprintResult]:
         """Detect bundler patterns across multiple transactions."""
         results = []
         evidence_smithii = []
@@ -369,7 +369,7 @@ class ToolFingerprinter:
         return results
 
     async def analyze_first_buyers(
-        self, token_address: str, holders_data: list[dict], first_tx_timestamp: str | None = None
+        self, token_address: str, holders_data: list[dict[str, Any]], first_tx_timestamp: str | None = None
     ) -> FirstBuyerAnalysis:
         """Analyze first buyer concentration and patterns."""
         flags = []
@@ -570,7 +570,7 @@ class ToolFingerprinter:
             flags=flags,
         )
 
-    async def detect_volume_bots(self, trades: list[dict], token_address: str) -> list[ToolFingerprintResult]:
+    async def detect_volume_bots(self, trades: list[dict[str, Any]], token_address: str) -> list[ToolFingerprintResult]:
         """Detect volume bot / wash trading patterns."""
         results = []
         if not trades or len(trades) < 10:
@@ -624,8 +624,8 @@ class ToolFingerprinter:
         token_address: str,
         chain: str = "solana",
         deployer_address: str | None = None,
-        holders: list[dict] | None = None,
-        transactions: list[dict] | None = None,
+        holders: list[dict[str, Any]] | None = None,
+        transactions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
         Full token scan - combines all detection methods.
@@ -762,8 +762,8 @@ async def fingerprint_token(
     token_address: str,
     chain: str = "solana",
     deployer: str | None = None,
-    holders: list[dict] | None = None,
-    transactions: list[dict] | None = None,
+    holders: list[dict[str, Any]] | None = None,
+    transactions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Convenience function for full token fingerprinting."""
     fp = await get_fingerprinter()

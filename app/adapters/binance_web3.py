@@ -44,7 +44,7 @@ def _get(url, params=None, timeout=10) -> Any | None:
     return data.get("data", {})
 
 
-def get_wallet_holdings(address: str, chain_id: str) -> list:
+def get_wallet_holdings(address: str, chain_id: str) -> list[Any]:
     """
     Fetch all token holdings for a wallet address on a specific chain.
 

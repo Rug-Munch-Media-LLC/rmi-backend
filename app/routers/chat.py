@@ -461,7 +461,7 @@ async def _build_messages(
     message: str,
     system_context: str | None = None,
     history: list[dict[str, str]] | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Build message list with conversation history + market context + security hardening.
 
     ``history`` (explicit, chronological) OVERRIDES the DB-loaded history when
@@ -500,7 +500,7 @@ async def _build_messages(
 
 
 # ── Helper to save message ──
-def _save_message(user_id: str, role: str, content: str, metadata: dict | None = None) -> Any:
+def _save_message(user_id: str, role: str, content: str, metadata: dict[str, Any] | None = None) -> Any:
     msg_id = f"msg-{uuid.uuid4().hex[:10]}"
     conn = _get_db()
     conn.execute(
@@ -520,7 +520,7 @@ async def chat(
     req: ChatRequest,
     request: Request,
     response: Response,
-    user: dict | None = Depends(get_current_user),
+    user: dict[str, Any] | None = Depends(get_current_user),
     _: None = Depends(chat_rate_limit),
 ) -> dict[str, Any]:
     """Send a message and get an AI response (non-streaming)."""
@@ -635,7 +635,7 @@ async def chat(
 async def chat_stream(
     req: StreamRequest,
     request: Request,
-    user: dict | None = Depends(get_current_user),
+    user: dict[str, Any] | None = Depends(get_current_user),
     _: None = Depends(chat_rate_limit),
 ) -> Any | None:
     """Streaming chat endpoint using Server-Sent Events (SSE)."""
@@ -741,7 +741,7 @@ async def chat_stream(
 async def chat_history(
     limit: int = 50,
     offset: int = 0,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, int]:
     """Get user's chat history."""
     user_id = user.get("id")
@@ -773,7 +773,7 @@ async def chat_history(
 
 
 @router.get("/stats")
-async def chat_stats(user: dict = Depends(require_auth)) -> dict:
+async def chat_stats(user: dict[str, Any] = Depends(require_auth)) -> dict[str, Any]:
     """Get user's chat statistics."""
     user_id = user.get("id")
 
@@ -789,7 +789,7 @@ async def chat_stats(user: dict = Depends(require_auth)) -> dict:
 
 
 @router.delete("/history")
-async def clear_chat_history(user: dict = Depends(require_auth)) -> dict[str, str]:
+async def clear_chat_history(user: dict[str, Any] = Depends(require_auth)) -> dict[str, str]:
     """Clear user's chat history."""
     user_id = user.get("id")
 

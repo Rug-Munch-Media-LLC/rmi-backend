@@ -74,12 +74,12 @@ class EtherscanConnector:
     """Etherscan family API connector with intelligent key rotation."""
 
     def __init__(self) -> None:
-        self._cache: dict[str, tuple] = {}
+        self._cache: dict[str, tuple[Any, ...]] = {}
         self._cache_ttl = 300  # 5 min
         self._last_request: dict[str, float] = {}  # per-network rate limiting
         self._min_interval = 0.2  # 5 req/sec per network
 
-    def _get_network(self, network: str) -> dict:
+    def _get_network(self, network: str) -> dict[str, Any]:
         """Get network config."""
         return NETWORKS.get(network, NETWORKS["eth"])
 
@@ -109,7 +109,7 @@ class EtherscanConnector:
             oldest = min(self._cache, key=lambda k: self._cache[k][1])
             del self._cache[oldest]
 
-    async def _get(self, network: str, params: dict) -> dict | None:
+    async def _get(self, network: str, params: dict[str, Any]) -> dict[str, Any] | None:
         """Make API call to Etherscan family with circuit breaker."""
         net = self._get_network(network)
         api_key = self._network_key(network)
@@ -192,7 +192,7 @@ class EtherscanConnector:
         page: int = 1,
         offset: int = 100,
         sort: str = "desc",
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get transaction list for address."""
         result = await self._get(
             network,
@@ -216,7 +216,7 @@ class EtherscanConnector:
         contract_address: str | None = None,
         page: int = 1,
         offset: int = 100,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get ERC-20 token transfer events."""
         params = {
             "module": "account",
@@ -249,7 +249,7 @@ class EtherscanConnector:
 
     async def get_erc721_transfers(
         self, address: str, network: str = "eth", page: int = 1, offset: int = 100
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get ERC-721 NFT transfer events."""
         result = await self._get(
             network,
@@ -270,14 +270,14 @@ class EtherscanConnector:
         """Get contract ABI."""
         return await self._get(network, {"module": "contract", "action": "getabi", "address": contract}) or ""
 
-    async def get_contract_source(self, contract: str, network: str = "eth") -> dict:
+    async def get_contract_source(self, contract: str, network: str = "eth") -> dict[str, Any]:
         """Get contract source code."""
         result = await self._get(network, {"module": "contract", "action": "getsourcecode", "address": contract})
         if isinstance(result, list) and len(result) > 0:
             return result[0]
         return result or {}
 
-    async def verify_contract(self, contract: str, network: str = "eth") -> dict:
+    async def verify_contract(self, contract: str, network: str = "eth") -> dict[str, Any]:
         """Check if contract is verified."""
         source = await self.get_contract_source(contract, network)
         return {
@@ -288,12 +288,12 @@ class EtherscanConnector:
 
     # ── Transaction API ──────────────────────────────────────
 
-    async def get_transaction_status(self, tx_hash: str, network: str = "eth") -> dict:
+    async def get_transaction_status(self, tx_hash: str, network: str = "eth") -> dict[str, Any]:
         """Get transaction status (success/fail)."""
         result = await self._get(network, {"module": "transaction", "action": "getstatus", "txhash": tx_hash})
         return result or {}
 
-    async def get_transaction_receipt(self, tx_hash: str, network: str = "eth") -> dict:
+    async def get_transaction_receipt(self, tx_hash: str, network: str = "eth") -> dict[str, Any]:
         """Get transaction receipt."""
         result = await self._get(network, {"module": "transaction", "action": "gettxreceiptstatus", "txhash": tx_hash})
         return result or {}
@@ -309,7 +309,7 @@ class EtherscanConnector:
         except (ConnectionError, OSError, TimeoutError, ValueError, TypeError):
             return 0
 
-    async def get_block_reward(self, block_number: int, network: str = "eth") -> dict:
+    async def get_block_reward(self, block_number: int, network: str = "eth") -> dict[str, Any]:
         """Get block reward data."""
         return await self._get(network, {"module": "block", "action": "getblockreward", "blockno": block_number}) or {}
 
@@ -322,7 +322,7 @@ class EtherscanConnector:
         address: str | None = None,
         topic0: str | None = None,
         network: str = "eth",
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get event logs (filtered)."""
         params = {
             "module": "logs",
@@ -339,7 +339,7 @@ class EtherscanConnector:
 
     # ── Utility ──────────────────────────────────────────────
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Return connector status."""
         active = [k for k, v in NETWORKS.items() if v.get("key")]
         return {

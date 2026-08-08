@@ -5,9 +5,9 @@ WalletResult dataclass with safe/full dict serialization.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import asdict, dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -28,7 +28,7 @@ class WalletResult:
     label: str = ""
     encrypted: bool = False
 
-    def to_safe_dict(self) -> dict:
+    def to_safe_dict(self) -> dict[str, Any]:
         """Return dict WITHOUT private key (for API responses)."""
         d = asdict(self)
         d.pop("private_key_hex", None)
@@ -36,6 +36,6 @@ class WalletResult:
         d["has_private_key"] = True
         return d
 
-    def to_full_dict(self) -> dict:
+    def to_full_dict(self) -> dict[str, Any]:
         """Return full dict WITH private key (only for secure operations)."""
         return asdict(self)

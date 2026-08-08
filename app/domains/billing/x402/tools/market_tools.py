@@ -41,7 +41,7 @@ logger = get_logger("x402.market_tools")
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _detect_launches(chain: str, window_min: int) -> dict:  # type: ignore[type-arg]
+async def _detect_launches(chain: str, window_min: int) -> dict[str, Any]:  # type: ignore[type-arg]
     """Detect new token launches with risk scoring."""
     result = {"chain": chain, "window_minutes": window_min, "sources_used": []}
 
@@ -132,7 +132,7 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[s
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _launch_intel(chain: str, hours: int) -> dict:  # type: ignore[type-arg]
+async def _launch_intel(chain: str, hours: int) -> dict[str, Any]:  # type: ignore[type-arg]
     """Token launch intelligence."""
     result = {"chain": chain, "hours": hours, "sources_used": []}
     launches = []
@@ -207,7 +207,7 @@ async def launch_intel(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _anomaly_detector(chain: str) -> dict:  # type: ignore[type-arg]
+async def _anomaly_detector(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Market anomaly detection."""
     result = {"chain": chain, "anomalies": [], "sources_used": []}
 
@@ -280,7 +280,7 @@ async def anomaly_detector(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _market_overview(chain: str) -> dict:  # type: ignore[type-arg]
+async def _market_overview(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Comprehensive market overview."""
     result = {"chain": chain, "sources_used": []}
 
@@ -356,7 +356,7 @@ async def market_overview(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _chain_health(chain: str) -> dict:  # type: ignore[type-arg]
+async def _chain_health(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Chain health metrics."""
     result = {"chain": chain, "chains": {}, "sources_used": []}
 
@@ -434,7 +434,7 @@ async def chain_health(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _defi_yield_scanner(chain: str) -> dict:  # type: ignore[type-arg]
+async def _defi_yield_scanner(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """DeFi yield scanner."""
     result = {"chain": chain, "sources_used": [], "pools": []}
 
@@ -490,7 +490,7 @@ async def defi_yield_scanner(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _gas_forecast(chain: str) -> dict:  # type: ignore[type-arg]
+async def _gas_forecast(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Gas price forecast."""
     result = {"chain": chain, "sources_used": []}
 
@@ -554,7 +554,7 @@ async def gas_forecast(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _sniper_alert(chain: str, hours: int) -> dict:  # type: ignore[type-arg]
+async def _sniper_alert(chain: str, hours: int) -> dict[str, Any]:  # type: ignore[type-arg]
     """Sniper bot detection and alerts."""
     result = {"chain": chain, "hours": hours, "sources_used": [], "sniper_activity": []}
 
@@ -629,7 +629,7 @@ async def sniper_alert(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _airdrop_finder(chain: str) -> dict:  # type: ignore[type-arg]
+async def _airdrop_finder(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Airdrop opportunity finder."""
     result = {"chain": chain, "sources_used": [], "opportunities": []}
 
@@ -682,7 +682,7 @@ async def airdrop_finder(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _mev_protection(chain: str) -> dict:  # type: ignore[type-arg]
+async def _mev_protection(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """MEV protection analysis."""
     result = {"chain": chain, "sources_used": [], "mev_stats": {}}
 

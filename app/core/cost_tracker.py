@@ -2,9 +2,9 @@
 Auto-routes to cheapest model that meets quality threshold."""
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Query
 
@@ -49,7 +49,7 @@ MODEL_COSTS = {
     "bge-m3": {"input": 0.0, "output": 0.0, "provider": "infinity"},
 }
 
-_usage_log: list[dict] = []
+_usage_log: list[dict[str, Any]] = []
 
 
 def log_usage(model: str, input_tokens: int, output_tokens: int, latency_ms: float) -> None:
@@ -86,13 +86,13 @@ def get_cheapest_model(models: list[str]) -> str:
 
 
 @router.get("/rates")
-async def get_rates() -> dict:
+async def get_rates() -> dict[str, Any]:
     """Get current model pricing."""
     return {"models": MODEL_COSTS, "updated": "2026-06-15"}
 
 
 @router.get("/usage")
-async def get_usage(limit: int = Query(50, le=200)) -> dict:
+async def get_usage(limit: int = Query(50, le=200)) -> dict[str, Any]:
     """Get recent usage log."""
     recent = _usage_log[-limit:]
     total_cost = sum(e["cost_usd"] for e in recent)
@@ -108,7 +108,7 @@ async def get_usage(limit: int = Query(50, le=200)) -> dict:
 @router.get("/cheapest")
 async def cheapest_for_task(
     quality: str = Query("medium", description="minimum quality tier"),
-) -> dict:
+) -> dict[str, Any]:
     """Get cheapest model for a given quality tier."""
     if quality == "high":
         candidates = ["deepseek-v4-pro", "gemini-2.5-pro", "mistral-large"]

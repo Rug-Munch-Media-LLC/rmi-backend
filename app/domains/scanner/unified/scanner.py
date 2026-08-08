@@ -180,21 +180,21 @@ class UnifiedTokenScanner:
     """
 
     # Phase 1: Core identity - always run, needed for scoring
-    CORE_CHAINS: ClassVar[list] = [
+    CORE_CHAINS: ClassVar[list[Any]] = [
         "token_price",
         "token_metadata",
         "token_security",
     ]
 
     # Phase 2: Deep analysis - parallel, all free
-    DEEP_CHAINS: ClassVar[list] = [
+    DEEP_CHAINS: ClassVar[list[Any]] = [
         "holder_data",
         "volume_authenticity",
         "chain_indexer_patterns",
     ]
 
     # Phase 3: Premium - requires elite tier (pro gets CORE + DEEP only)
-    PREMIUM_CHAINS: ClassVar[list] = [
+    PREMIUM_CHAINS: ClassVar[list[Any]] = [
         "bundle_detect",
         "cluster_map",
         "dev_finder",
@@ -208,7 +208,7 @@ class UnifiedTokenScanner:
     ]
 
     # Phase 4: Intelligence - always free, enrich the report
-    INTEL_CHAINS: ClassVar[list] = [
+    INTEL_CHAINS: ClassVar[list[Any]] = [
         "token_launches",
         "cross_chain_entity",
     ]
@@ -216,7 +216,7 @@ class UnifiedTokenScanner:
     # Phase 5: SENTINEL deep-forensic modules (direct, no DataBus hop).
     # Free-tier modules always run; premium modules are gated on the same
     # elite/admin tier gate as PREMIUM_CHAINS. See sentinel_phase.py.
-    SENTINEL_FREE_MODULES: ClassVar[tuple] = (
+    SENTINEL_FREE_MODULES: ClassVar[tuple[Any, ...]] = (
         "holder_analysis",
         "liquidity_verification",
         "dev_reputation",
@@ -672,14 +672,14 @@ class UnifiedTokenScanner:
     async def _fetch_batch(
         self,
         chains: list[str],
-        params: dict,
+        params: dict[str, Any],
         admin_key: str | None,
         timeout: float = 30,
     ) -> dict[str, Any]:
         """Parallel DataBus fetch for multiple chains."""
         from app.databus import databus
 
-        async def _fetch_one(chain_name: str) -> tuple:
+        async def _fetch_one(chain_name: str) -> tuple[Any, ...]:
             try:
                 result_data = await asyncio.wait_for(
                     databus.fetch(chain_name, admin_key=admin_key, **params),
@@ -738,7 +738,7 @@ class UnifiedTokenScanner:
 
     # ── MERGE METHODS ──
 
-    def _merge_core(self, r: ScanResult, data: dict) -> None:
+    def _merge_core(self, r: ScanResult, data: dict[str, Any]) -> None:
         """Extract core identity from price, metadata, and security checks."""
         r.modules_run.extend(data.keys())
 
@@ -781,7 +781,7 @@ class UnifiedTokenScanner:
             r.modules_run.append(f"security_checks:{len(checks)}")
             r.enrichment_sources.append(f"security:{security.get('source', 'goplus')}")
 
-    def _merge_deep(self, r: ScanResult, data: dict) -> None:
+    def _merge_deep(self, r: ScanResult, data: dict[str, Any]) -> None:
         """Merge deep analysis results."""
         r.modules_run.extend(data.keys())
 
@@ -800,12 +800,12 @@ class UnifiedTokenScanner:
         r.volume_auth = _ok("volume_authenticity")
         r.chain_indexer_patterns = _ok("chain_indexer_patterns")
 
-    def _merge_premium(self, r: ScanResult, data: dict) -> None:
+    def _merge_premium(self, r: ScanResult, data: dict[str, Any]) -> None:
         """Merge premium-tier results."""
         r.modules_run.extend(data.keys())
         r.premium = {k: v for k, v in data.items() if k in self.PREMIUM_CHAINS and v is not None}
 
-    def _merge_intel(self, r: ScanResult, data: dict) -> None:
+    def _merge_intel(self, r: ScanResult, data: dict[str, Any]) -> None:
         """Merge intelligence enrichment results."""
         r.modules_run.extend(data.keys())
 

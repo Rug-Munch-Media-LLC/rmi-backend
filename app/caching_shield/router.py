@@ -98,7 +98,7 @@ async def cache_clear(request: Request) -> dict[str, str]:
 
 
 @router.get("/rate-limits")
-async def rate_limits_status() -> dict:
+async def rate_limits_status() -> dict[str, Any]:
     """Get current token bucket states for all providers."""
     limiter = get_rate_limiter()
     limits = limiter.get_all_limits()
@@ -122,7 +122,7 @@ async def rate_limits_status() -> dict:
 
 
 @router.get("/solana-tracker")
-async def solana_tracker_stats() -> dict:
+async def solana_tracker_stats() -> dict[str, Any]:
     """Get Solana Tracker multi-key load balancing stats."""
     from app.caching_shield.solana_tracker import get_solana_tracker
 
@@ -134,7 +134,7 @@ async def solana_tracker_stats() -> dict:
 
 
 @router.get("/capacity")
-async def capacity_report() -> dict:
+async def capacity_report() -> dict[str, Any]:
     """Full API capacity analysis - all providers, keys, free APIs, and backend sources."""
     from app.caching_shield.api_registry import list_all_sources
 

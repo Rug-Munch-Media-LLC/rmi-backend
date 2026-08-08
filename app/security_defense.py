@@ -101,7 +101,7 @@ class RequestFingerprint:
     plugins: list[str] = field(default_factory=list)
     timestamp: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def is_suspicious(self) -> bool:
@@ -143,7 +143,7 @@ class ThreatAssessment:
     reasons: list[str] = field(default_factory=list)
     timestamp: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -162,7 +162,7 @@ class SecurityEvent:
     action_taken: str
     details: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -176,7 +176,7 @@ class BotDetectionEngine:
     """
 
     # Known good bot patterns (allow these)
-    GOOD_BOTS: ClassVar[list] = [
+    GOOD_BOTS: ClassVar[list[Any]] = [
         "googlebot",
         "bingbot",
         "duckduckbot",
@@ -189,7 +189,7 @@ class BotDetectionEngine:
     ]
 
     # Known bad patterns (immediate block)
-    BAD_PATTERNS: ClassVar[list] = [
+    BAD_PATTERNS: ClassVar[list[Any]] = [
         "sqlmap",
         "nikto",
         "nmap",
@@ -486,7 +486,7 @@ class HoneypotSystem:
     Returns fake data and logs attacker behavior.
     """
 
-    HONEYPOT_ENDPOINTS: ClassVar[list] = [
+    HONEYPOT_ENDPOINTS: ClassVar[list[Any]] = [
         "/admin/config.php",
         "/api/v1/admin/backup",
         "/.env",

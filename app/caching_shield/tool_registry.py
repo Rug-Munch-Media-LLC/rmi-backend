@@ -14,17 +14,17 @@ Gets called by x402_catalog.py for accurate tool counts.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from pathlib import Path
+from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger("tool_registry")
 
 
-def count_all_tools() -> dict:
+def count_all_tools() -> dict[str, Any]:
     """Return accurate tool counts across the entire system."""
     counts = {
         "x402_gateway": _count_gateway_tools(),

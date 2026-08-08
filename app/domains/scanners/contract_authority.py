@@ -22,12 +22,12 @@ Data sources:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 import httpx
 
@@ -271,7 +271,7 @@ class ContractAuthorityScanner:
             self._compute_risk(report)
             return report
 
-    def _parse_spl_mint_raw(self, raw: bytes, token_address: str) -> dict | None:
+    def _parse_spl_mint_raw(self, raw: bytes, token_address: str) -> dict[str, Any] | None:
         """Parse raw SPL Token Mint account data (82 bytes minimum).
 
         Layout (Mint layout):
@@ -434,7 +434,7 @@ class ContractAuthorityScanner:
             self._compute_risk(report)
             return report
 
-    def _analyze_evm_abi(self, abi: list, proxy_info: EVMProxyInfo, report: ContractAuthorityReport) -> None:
+    def _analyze_evm_abi(self, abi: list[Any], proxy_info: EVMProxyInfo, report: ContractAuthorityReport) -> None:
         """Scan ABI for admin / ownership functions."""
         admin_sigs = [
             "transferOwnership",
@@ -466,7 +466,7 @@ class ContractAuthorityScanner:
             proxy_info.has_admin_functions = True
             proxy_info.admin_function_signatures = found_sigs
 
-    def _classify_proxy_type(self, proxy_info: EVMProxyInfo, abi: list | None) -> str:
+    def _classify_proxy_type(self, proxy_info: EVMProxyInfo, abi: list[Any] | None) -> str:
         """Classify EIP-1967 proxy as Transparent, UUPS, or unknown."""
         if not abi:
             return "EIP-1967"
@@ -491,7 +491,7 @@ class ContractAuthorityScanner:
         # EIP-1167 minimal proxy: starts with 0x363d3d373d3d3d363d73...
         return bytecode.startswith("0x363d3d373d3d3d363d73")
 
-    async def _check_evm_ownership_renounced(self, token_address: str, net: dict, admin_address: str) -> bool:
+    async def _check_evm_ownership_renounced(self, token_address: str, net: dict[str, Any], admin_address: str) -> bool:
         """Check if the admin/owner is a zero address or the contract itself (renounced)."""
         burned_addresses = {
             "0x0000000000000000000000000000000000000000",
@@ -524,7 +524,7 @@ class ContractAuthorityScanner:
 
     # ── Etherscan Helpers ───────────────────────────────────
 
-    async def _etherscan_get(self, params: dict, net: dict) -> dict | None:
+    async def _etherscan_get(self, params: dict[str, Any], net: dict[str, Any]) -> dict[str, Any] | None:
         """Make a GET request to Etherscan-family API."""
         url = net["url"]
         key = net.get("key", "")
@@ -544,7 +544,7 @@ class ContractAuthorityScanner:
             logger.debug(f"Etherscan API error: {e}")
             return None
 
-    async def _etherscan_get_bytecode(self, address: str, net: dict) -> str | None:
+    async def _etherscan_get_bytecode(self, address: str, net: dict[str, Any]) -> str | None:
         """Get contract bytecode via eth_getCode through Etherscan proxy module."""
         data = await self._etherscan_get(
             {"module": "proxy", "action": "eth_getCode", "address": address},
@@ -554,7 +554,7 @@ class ContractAuthorityScanner:
             return data["result"]
         return None
 
-    async def _etherscan_get_storage(self, address: str, slot: str, net: dict) -> str | None:
+    async def _etherscan_get_storage(self, address: str, slot: str, net: dict[str, Any]) -> str | None:
         """Read a storage slot value via Etherscan proxy module."""
         data = await self._etherscan_get(
             {
@@ -570,7 +570,7 @@ class ContractAuthorityScanner:
             return data["result"]
         return None
 
-    async def _etherscan_get_abi(self, address: str, net: dict) -> list | None:
+    async def _etherscan_get_abi(self, address: str, net: dict[str, Any]) -> list[Any] | None:
         """Fetch contract ABI from Etherscan (if verified)."""
         data = await self._etherscan_get(
             {"module": "contract", "action": "getabi", "address": address},

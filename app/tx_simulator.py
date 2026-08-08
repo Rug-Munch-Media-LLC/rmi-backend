@@ -12,9 +12,9 @@ Architecture:
 """
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 
@@ -124,7 +124,7 @@ async def simulate_solana(token_address: str) -> SimulationResult:
     return result
 
 
-async def _get_quote(client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int) -> dict | None:
+async def _get_quote(client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int) -> dict[str, Any] | None:
     """Get a Jupiter swap quote."""
     try:
         params = {
@@ -210,7 +210,7 @@ async def simulate_evm(token_address: str, chain: str = "ethereum") -> Simulatio
     return result
 
 
-async def _eth_call(client: httpx.AsyncClient, rpc_url: str, to: str, data: str) -> dict:
+async def _eth_call(client: httpx.AsyncClient, rpc_url: str, to: str, data: str) -> dict[str, Any]:
     """Execute an eth_call JSON-RPC request."""
     try:
         r = await client.post(
@@ -227,7 +227,7 @@ async def _eth_call(client: httpx.AsyncClient, rpc_url: str, to: str, data: str)
         return {"error": str(e)}
 
 
-async def _simulate_uniswap_sell(client: httpx.AsyncClient, rpc_url: str, token: str) -> dict:
+async def _simulate_uniswap_sell(client: httpx.AsyncClient, rpc_url: str, token: str) -> dict[str, Any]:
     """Simulate a Uniswap V2 sell transaction."""
     try:
         # Encode getAmountsOut(amountIn, [token, WETH])

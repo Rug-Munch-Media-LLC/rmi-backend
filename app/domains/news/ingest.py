@@ -14,13 +14,13 @@ Run as a cron: every 15 minutes.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import contextlib
 import hashlib
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 import feedparser
 import httpx
@@ -73,7 +73,7 @@ def _extract_tickers(text: str) -> list[str]:
     return list(set(re.findall(r"\$([A-Z]{2,6})\b", text)))
 
 
-async def fetch_feed(client: httpx.AsyncClient, feed: dict[str, str]) -> list[dict]:
+async def fetch_feed(client: httpx.AsyncClient, feed: dict[str, str]) -> list[dict[str, Any]]:
     """Fetch and parse a single RSS feed."""
     try:
         r = await client.get(feed["url"], timeout=10.0, follow_redirects=True)
@@ -101,7 +101,7 @@ async def ingest_all(
     feeds: list[dict[str, str]] | None = None,
     embed: bool = True,
     collection: str = "news_articles",
-) -> dict:
+) -> dict[str, Any]:
     """Ingest from all configured RSS feeds. Returns counts."""
     feeds = feeds or DEFAULT_FEEDS
     cat = get_catalog()
@@ -119,7 +119,7 @@ async def ingest_all(
         "total_feeds": len(feeds),
     }
     # Batch fetches to avoid overwhelming connections with 200+ feeds
-    results: list[list[dict]] = []
+    results: list[list[dict[str, Any]]] = []
     async with httpx.AsyncClient() as client:
         for i in range(0, len(feeds), 20):
             batch = feeds[i : i + 20]

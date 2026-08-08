@@ -370,7 +370,7 @@ def _aggregate_trial_stats(r) -> dict[str, Any]:
 
 
 @router.get("/dashboard")
-async def x402_dashboard() -> dict:
+async def x402_dashboard() -> dict[str, Any]:
     """
     Public analytics dashboard for x402 payment and trial stats.
 

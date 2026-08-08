@@ -59,7 +59,7 @@ def _is_enrichable(tool_name: str) -> str:
 def enrich_tool_response(
     tool_name: str,
     raw_result: dict[str, Any],
-    request_params: dict | None = None,
+    request_params: dict[str, Any] | None = None,
     opt_out: bool = False,
 ) -> dict[str, Any]:
     """

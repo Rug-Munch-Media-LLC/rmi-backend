@@ -44,7 +44,7 @@ class GraphEdge:
 def build_entity_graph(
     center_address: str,
     chain: str = "ethereum",
-    transactions: list[dict] | None = None,
+    transactions: list[dict[str, Any]] | None = None,
     labels: dict[str, Any] | None = None,
     cluster_members: list[str] | None = None,
     depth: int = 2,
@@ -362,7 +362,7 @@ def generate_svg(graph_data: dict[str, Any], width: int = 800, height: int = 600
     return "\n".join(svg_parts)
 
 
-def _classify_node(address: str, labels: dict[str, Any], tx: dict) -> tuple[str, str]:
+def _classify_node(address: str, labels: dict[str, Any], tx: dict[str, Any]) -> tuple[str, str]:
     """Classify a counterparty node by type and color."""
     addr_lower = address.lower()
 

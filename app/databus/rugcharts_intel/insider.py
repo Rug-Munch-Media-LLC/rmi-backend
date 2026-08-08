@@ -4,11 +4,11 @@ Pre-pump accumulation detection.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from collections import defaultdict
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -19,7 +19,7 @@ from .cache import CACHE_TTL, HELIUS_KEY, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def insider_pattern_detector(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def insider_pattern_detector(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect wallets that accumulated before major price movements.
     Pattern: large buys in the hours before a significant price increase.
     """

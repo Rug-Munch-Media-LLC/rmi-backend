@@ -38,7 +38,7 @@ class WSConnectionManager:
 
     def __init__(self) -> None:
         # channel → set of (websocket, tier)
-        self._connections: dict[str, set[tuple]] = defaultdict(set)
+        self._connections: dict[str, set[tuple[Any, ...]]] = defaultdict(set)
         self._total_messages = 0
         self._total_connections = 0
 
@@ -52,7 +52,7 @@ class WSConnectionManager:
         self._connections[channel].discard((ws, _tier_for_ws(ws, channel)))
         logger.info(f"WS disconnected: channel={channel}")
 
-    async def broadcast(self, channel: str, data: dict, min_tier: str = "free") -> None:
+    async def broadcast(self, channel: str, data: dict[str, Any], min_tier: str = "free") -> None:
         """Broadcast data to all connections on a channel.
         Only sends to connections with tier >= min_tier.
         """
@@ -70,13 +70,13 @@ class WSConnectionManager:
         for ws, tier in dead:
             self._connections[channel].discard((ws, tier))
 
-    async def broadcast_all(self, data: dict, channel: str = "") -> None:
+    async def broadcast_all(self, data: dict[str, Any], channel: str = "") -> None:
         """Broadcast to 'all' channel (receives everything)."""
         await self.broadcast("all", data)
         if channel:
             await self.broadcast(channel, data)
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {
             "channels": {ch: len(conns) for ch, conns in self._connections.items()},
             "total_connections": self._total_connections,
@@ -109,7 +109,7 @@ CHANNEL_MAP = {
 }
 
 
-async def databus_ws_broadcast(data_type: str, result: dict) -> None:
+async def databus_ws_broadcast(data_type: str, result: dict[str, Any]) -> None:
     """Hook called by DataBus core to push real-time updates to WS clients."""
     channel = CHANNEL_MAP.get(data_type)
     if channel:

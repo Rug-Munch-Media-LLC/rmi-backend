@@ -36,7 +36,7 @@ def _get_rm() -> Any:
 
 
 @router.post("/map")
-async def generate_rug_map(req: RugMapsRequest) -> dict:
+async def generate_rug_map(req: RugMapsRequest) -> dict[str, Any]:
     """Generate interactive RugMap for a wallet (2-hop default)."""
     rm = _get_rm()
     try:
@@ -51,7 +51,7 @@ async def generate_rug_map(req: RugMapsRequest) -> dict:
 
 
 @router.get("/analyze/{address}")
-async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)) -> dict:
+async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)) -> dict[str, Any]:
     """Quick wallet analysis with RugMaps data."""
     rm = _get_rm()
     result = await rm.generate_map(center_wallet=address, depth=depth)
@@ -68,7 +68,7 @@ async def analyze_wallet(address: str, depth: int = Query(2, ge=1, le=5)) -> dic
 
 
 @router.get("/entity/{address}")
-async def get_entity_info(address: str) -> dict:
+async def get_entity_info(address: str) -> dict[str, Any]:
     """Get entity information for an address."""
     rm = _get_rm()
     info = await rm._get_entity_info(address)
@@ -86,7 +86,7 @@ async def rugmaps_health() -> dict[str, str]:
     return {"status": "ok", "service": "rugmaps-engine"}
 
 
-async def _fetch_dexscreener_token_info(token_address: str, chain: str = "solana") -> dict | None:
+async def _fetch_dexscreener_token_info(token_address: str, chain: str = "solana") -> dict[str, Any] | None:
     """Fetch token info from DexScreener as fallback when holder graph is empty."""
     import httpx
 
@@ -109,7 +109,7 @@ async def _fetch_dexscreener_token_info(token_address: str, chain: str = "solana
     return None
 
 
-def _build_dexscreener_graph(pair_data: dict, token_address: str, chain: str) -> dict:
+def _build_dexscreener_graph(pair_data: dict[str, Any], token_address: str, chain: str) -> dict[str, Any]:
     """Build a meaningful bubble map from DexScreener pair data when
     on-chain transaction data is unavailable (contracts, not wallets)."""
 
@@ -298,7 +298,7 @@ async def token_holder_graph(
     chain: str = Query("solana"),
     limit: int = Query(50, ge=5, le=200),
     skip_cache: bool = Query(False),
-) -> Any | dict:
+) -> Any | dict[str, Any]:
     """Generate a token holder graph with AI analysis and RAG caching.
     Uses DeepSeek Flash + our FAISS indexes + wallet labels + semantic cache.
     Falls back to DexScreener pair data when on-chain holder graph is empty."""
@@ -475,7 +475,7 @@ def _get_explorer_url(chain: str, address: str) -> str:
 
 
 @router.post("/auto-label")
-async def auto_label_wallet(request: dict) -> dict[str, str]:
+async def auto_label_wallet(request: dict[str, Any]) -> dict[str, str]:
     """Submit wallet observations for automatic labeling."""
     try:
         from app.auto_labeler import get_auto_labeler
@@ -524,11 +524,11 @@ async def auto_label_stats() -> dict[str, Any]:
 class HolderClusterRequest(BaseModel):
     token_address: str
     chain: str = "solana"
-    holders: list[dict] | None = None
+    holders: list[dict[str, Any]] | None = None
 
 
 @router.post("/cluster-analysis")
-async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict:
+async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict[str, Any]:
     """AI-powered wallet cluster analysis for suspicious patterns.
 
     Uses LiteLLM → deepseek-analysis to identify bundled launches, sniper
@@ -566,12 +566,12 @@ async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict:
 class ContractAnomalyRequest(BaseModel):
     chain: str
     address: str
-    holder_data: dict | None = None
-    scanner_data: dict | None = None
+    holder_data: dict[str, Any] | None = None
+    scanner_data: dict[str, Any] | None = None
 
 
 @router.post("/anomaly-detection")
-async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict:
+async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str, Any]:
     """AI-powered contract anomaly detection for rug pull indicators.
 
     Uses LiteLLM → deepseek-analysis to review token holder distribution,
@@ -593,7 +593,7 @@ async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict:
 
 
 @router.get("/ai-health")
-async def ai_health_check() -> dict:
+async def ai_health_check() -> dict[str, Any]:
     """Check RugMaps AI analysis availability."""
     import httpx
 

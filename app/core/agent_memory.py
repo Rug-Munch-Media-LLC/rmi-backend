@@ -2,10 +2,10 @@
 Enables agents to remember past interactions across sessions."""
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter
@@ -17,7 +17,7 @@ MEMGRAPH_PASS = os.getenv("MEMGRAPH_PASSWORD", "")
 router = APIRouter(prefix="/api/v1/memory", tags=["agent-memory"])
 
 
-async def _run_query(query: str, params: dict | None = None) -> list:
+async def _run_query(query: str, params: dict[str, Any] | None = None) -> list[Any]:
     """Run a Cypher query against Memgraph."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -67,7 +67,7 @@ async def store_conversation(user_id: str, agent_id: str, message: str, role: st
 
 
 @router.get("/conversation/{user_id}/{agent_id}")
-async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict:
+async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict[str, Any]:
     """Retrieve conversation history for an agent."""
     query = """
     MATCH (u:User {id: $user_id})-[:PARTICIPATES_IN]->(c:Conversation)<-[:PARTICIPATES_IN]-(a:Agent {id: $agent_id})
@@ -85,7 +85,7 @@ async def get_conversation(user_id: str, agent_id: str, limit: int = 20) -> dict
 
 
 @router.get("/context/{user_id}")
-async def get_user_context(user_id: str) -> dict:
+async def get_user_context(user_id: str) -> dict[str, Any]:
     """Get all agent conversations + preferences for a user."""
     query = """
     MATCH (u:User {id: $user_id})-[:PARTICIPATES_IN]->(c:Conversation)

@@ -18,7 +18,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers.local")
 
 
-async def _local_token_price(**kwargs) -> dict | None:
+async def _local_token_price(**kwargs) -> dict[str, Any] | None:
     """Get price from our own data (Redis/ClickHouse)."""
     try:
         r = redis.Redis(
@@ -39,7 +39,7 @@ async def _local_token_price(**kwargs) -> dict | None:
     return None
 
 
-async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
+async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None:
     """Get wallet labels from our Wallet Memory Bank (HTTP passthrough)."""
     if not address:
         return None
@@ -58,7 +58,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict | None:
+async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None:
     """Get wallet labels from ClickHouse directly — 39.4M labels, LOCAL tier.
 
     This is the FIRST provider in the wallet_labels chain.
@@ -124,7 +124,7 @@ async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _passthrough_market_overview(**kwargs) -> dict | None:
+async def _passthrough_market_overview(**kwargs) -> dict[str, Any] | None:
     """Market overview from our own backend (DataBus market/brief)."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -136,7 +136,7 @@ async def _passthrough_market_overview(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_trending(**kwargs) -> dict | None:
+async def _passthrough_trending(**kwargs) -> dict[str, Any] | None:
     """Trending tokens from our own backend (DataBus market/trending)."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -148,7 +148,7 @@ async def _passthrough_trending(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_news(**kwargs) -> dict | None:
+async def _passthrough_news(**kwargs) -> dict[str, Any] | None:
     """News from our own Redis-cached aggregator — top 50 sources, instant.
 
     Reads directly from the Redis-backed news_provider.get_full_news_feed()
@@ -201,7 +201,7 @@ async def _passthrough_news(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_alerts(**kwargs) -> dict | None:
+async def _passthrough_alerts(**kwargs) -> dict[str, Any] | None:
     """Active alerts from our own backend."""
     try:
         from app.config import settings
@@ -218,7 +218,7 @@ async def _passthrough_alerts(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Token security scan via our SENTINEL scanner (v2 endpoint)."""
     try:
         async with httpx.AsyncClient(timeout=30) as c:
@@ -233,7 +233,7 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
     return None
 
 
-async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict | None:
+async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict[str, Any] | None:
     """RAG search against the rmi-rag-api vector store."""
     try:
         from app.config import settings
@@ -254,7 +254,7 @@ async def _passthrough_rag(query: str = "", collection: str = "known_scams", **k
 # ── Inline passthrough functions (originally in build_provider_chains) ──
 
 
-async def _passthrough_hyperliquid(**kwargs: Any) -> dict | None:
+async def _passthrough_hyperliquid(**kwargs: Any) -> dict[str, Any] | None:
     """Hyperliquid perp markets from our own backend."""
     try:
         limit = kwargs.get("limit", 10)
@@ -267,7 +267,7 @@ async def _passthrough_hyperliquid(**kwargs: Any) -> dict | None:
     return None
 
 
-async def _passthrough_hyperliquid_action(**kwargs: Any) -> dict | None:
+async def _passthrough_hyperliquid_action(**kwargs: Any) -> dict[str, Any] | None:
     """Hyperliquid action (gain/loss, squeezes) from our own backend."""
     try:
         limit = kwargs.get("limit", 5)
@@ -282,7 +282,7 @@ async def _passthrough_hyperliquid_action(**kwargs: Any) -> dict | None:
     return None
 
 
-async def _passthrough_insider_wallets(**kwargs: Any) -> dict | None:
+async def _passthrough_insider_wallets(**kwargs: Any) -> dict[str, Any] | None:
     """Insider wallets from our own backend."""
     try:
         limit = kwargs.get("limit", 10)
@@ -298,7 +298,7 @@ async def _passthrough_insider_wallets(**kwargs: Any) -> dict | None:
     return None
 
 
-async def _passthrough_prediction_signals(**kwargs: Any) -> dict | None:
+async def _passthrough_prediction_signals(**kwargs: Any) -> dict[str, Any] | None:
     """Prediction market signals from our own backend."""
     try:
         limit = kwargs.get("limit", 5)

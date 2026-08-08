@@ -4,16 +4,16 @@ External API calls for LP data, deployer info, wallet age, etc.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import time
+from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-async def fetch_dexscreener_pool(address: str, chain: str) -> dict | None:
+async def fetch_dexscreener_pool(address: str, chain: str) -> dict[str, Any] | None:
     """Fetch DEX pool data from DexScreener API."""
     import httpx
 
@@ -76,7 +76,7 @@ async def resolve_deployer(address: str, chain: str) -> str | None:
     return None
 
 
-async def check_wallet_age(wallet: str, chain: str) -> dict | None:
+async def check_wallet_age(wallet: str, chain: str) -> dict[str, Any] | None:
     """Estimate wallet age from first transaction."""
     import httpx
 
@@ -105,7 +105,7 @@ async def check_wallet_age(wallet: str, chain: str) -> dict | None:
         return None
 
 
-async def check_deployer_history(deployer: str, chain: str) -> dict:
+async def check_deployer_history(deployer: str, chain: str) -> dict[str, Any]:
     """Check deployer's token deployment history."""
     result = {"total_deployed": 0, "rug_tokens": 0, "active_tokens": 0}
     try:
@@ -122,7 +122,7 @@ async def check_deployer_history(deployer: str, chain: str) -> dict:
     return result
 
 
-async def check_lp_lock(address: str, chain: str) -> dict:
+async def check_lp_lock(address: str, chain: str) -> dict[str, Any]:
     """Check if LP tokens are locked via known lockers."""
     result = {"locked": False, "unlocked": True, "unlock_date": None}
     try:
@@ -139,7 +139,7 @@ async def check_lp_lock(address: str, chain: str) -> dict:
     return result
 
 
-async def fetch_holder_data(address: str, chain: str) -> dict | None:
+async def fetch_holder_data(address: str, chain: str) -> dict[str, Any] | None:
     """Fetch holder count and concentration data."""
     try:
         import httpx

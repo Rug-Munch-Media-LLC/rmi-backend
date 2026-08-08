@@ -210,7 +210,7 @@ class MEVSandwichDetector:
             raw_txs = data.get("results", data.get("transactions", []))
         transactions = [t for t in raw_txs if isinstance(t, dict)]
         result["txs_checked"] = len(transactions)
-        pool_groups: dict[str, list[dict]] = {}
+        pool_groups: dict[str, list[dict[str, Any]]] = {}
         for tx in transactions:
             to_addr = str(tx.get("to_address", "") or "").lower()
             if to_addr:
@@ -286,7 +286,7 @@ class MEVSandwichDetector:
         return None
 
     def _estimate_sandwich_value(
-        self, chain: str, frontrun: dict, victim: dict, backrun: dict
+        self, chain: str, frontrun: dict[str, Any], victim: dict[str, Any], backrun: dict[str, Any]
     ) -> tuple[float, float, float]:
         bot_frontrun_gas = (frontrun.get("gas_price_gwei", 0) or 0) * (frontrun.get("gas_used", 21000) or 21000)
         bot_backrun_gas = (backrun.get("gas_price_gwei", 0) or 0) * (backrun.get("gas_used", 21000) or 21000)

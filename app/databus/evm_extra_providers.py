@@ -5,6 +5,7 @@ Rate limited to 1 req/5 sec per IP. No API key required for basic use.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -14,7 +15,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.evm_extra")
 
 
-async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) -> dict | None:
+async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) -> dict[str, Any] | None:
     """BSC intelligence via BscScan free public API."""
     import aiohttp
 
@@ -50,7 +51,7 @@ async def _fetch_bsc_data(address: str = "", action: str = "balance", **kwargs) 
     return None
 
 
-async def _fetch_polygon_data(address: str = "", action: str = "balance", **kwargs) -> dict | None:
+async def _fetch_polygon_data(address: str = "", action: str = "balance", **kwargs) -> dict[str, Any] | None:
     """Polygon intelligence via PolygonScan free public API."""
     import aiohttp
 

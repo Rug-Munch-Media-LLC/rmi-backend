@@ -4,11 +4,11 @@ Pump & Dump — Enums, Dataclasses & Constants
 """
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 # ── Constants ────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ class CoordinatedBuyGroup:
     timestamp: int | None = None
     chain: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -81,7 +81,7 @@ class VolumeAnomaly:
     time_window: str
     confidence: float
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -95,7 +95,7 @@ class WashTradeCluster:
     circular_trades: int
     volume_pct_of_total: float
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -110,7 +110,7 @@ class PricePumpSignal:
     duration_seconds: int
     dump_pct_from_peak: float
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -124,7 +124,7 @@ class PrePumpAccumulation:
     avg_entry_price: float
     timing_gap_minutes: int
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -136,9 +136,9 @@ class ManipulationFinding:
     severity: FindingSeverity
     description: str
     detail: str = ""
-    evidence: dict = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.finding_type.value,
             "severity": self.severity.value,
@@ -169,7 +169,7 @@ class PumpDumpAnalysisResult:
     analysis_timestamp: str = ""
     error: str | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "token_address": self.token_address,
             "chain": self.chain,

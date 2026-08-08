@@ -18,12 +18,12 @@ Uses:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 import requests
@@ -93,7 +93,7 @@ class GasTraceReport:
     traced_chain: list[TraceHop] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dict for JSON serialization."""
         return {
             "deployer_address": self.deployer_address,
@@ -280,7 +280,7 @@ class GasTraceAnalyzer:
 
     # ── Funding Source Resolution ───────────────────────────────────────────
 
-    async def _find_funding_source(self, address: str, chain: str) -> dict | None:
+    async def _find_funding_source(self, address: str, chain: str) -> dict[str, Any] | None:
         """
         Find the funding source for a given address.
 
@@ -298,7 +298,7 @@ class GasTraceAnalyzer:
             logger.warning(f"Unsupported chain: {chain}")
             return None
 
-    async def _find_funding_source_evm(self, address: str, chain: str) -> dict | None:
+    async def _find_funding_source_evm(self, address: str, chain: str) -> dict[str, Any] | None:
         """Find the earliest incoming funding TX for an EVM address via block explorer API."""
         net = ETHERSCAN_NETWORKS.get(chain.lower())
         if not net:
@@ -366,7 +366,7 @@ class GasTraceAnalyzer:
             logger.warning(f"Etherscan API error for {address}: {e}")
             return None
 
-    async def _find_funding_source_solana(self, address: str) -> dict | None:
+    async def _find_funding_source_solana(self, address: str) -> dict[str, Any] | None:
         """Find the earliest incoming funding transfer for a Solana address."""
         try:
             # Try account transfers first (incoming SOL/SPL)
@@ -410,7 +410,7 @@ class GasTraceAnalyzer:
 
     # ── Wallet Classification ──────────────────────────────────────────────
 
-    async def _classify_wallet(self, address: str, chain: str) -> dict:
+    async def _classify_wallet(self, address: str, chain: str) -> dict[str, Any]:
         """
         Classify a wallet in the trace chain.
 
@@ -538,7 +538,7 @@ class GasTraceAnalyzer:
 
     # ── Wallet Info Fetchers ───────────────────────────────────────────────────
 
-    async def _get_wallet_first_seen(self, address: str, chain: str) -> dict:
+    async def _get_wallet_first_seen(self, address: str, chain: str) -> dict[str, Any]:
         """Get the first seen timestamp for a wallet."""
         if is_solana(chain):
             return await self._get_solana_wallet_info(address)
@@ -553,7 +553,7 @@ class GasTraceAnalyzer:
             info = await self._get_evm_wallet_info(address, chain)
         return info.get("tx_count", 0)
 
-    async def _get_solana_wallet_info(self, address: str) -> dict:
+    async def _get_solana_wallet_info(self, address: str) -> dict[str, Any]:
         """
         Get Solana wallet info: first_seen timestamp and approximate TX count.
 
@@ -608,7 +608,7 @@ class GasTraceAnalyzer:
 
         return result
 
-    async def _get_evm_wallet_info(self, address: str, chain: str) -> dict:
+    async def _get_evm_wallet_info(self, address: str, chain: str) -> dict[str, Any]:
         """
         Get EVM wallet info from block explorer API.
 

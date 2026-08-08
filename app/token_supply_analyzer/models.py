@@ -3,11 +3,11 @@ Token Supply Analyzer — Data models, enums, and constants.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import re
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 # Known burn addresses
 KNOWN_BURN_ADDRESSES = {
@@ -73,7 +73,7 @@ class TokenSupplyProfile:
     top_50_holder_pct: float = 0.0
     deployer_hold_pct: float = 0.0
     holder_count: int = 0
-    whale_holdings: list[dict] = field(default_factory=list)
+    whale_holdings: list[dict[str, Any]] = field(default_factory=list)
 
     lock_status: LockStatus = LockStatus.UNKNOWN
     liquidity_lock_address: str = ""

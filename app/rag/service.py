@@ -113,7 +113,7 @@ class RAGService:
                 error=str(e),
             )
 
-    async def stats(self) -> dict:
+    async def stats(self) -> dict[str, Any]:
         """Return engine stats (collection counts + active embedder backend)."""
         try:
             return engine_get_stats()

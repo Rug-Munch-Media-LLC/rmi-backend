@@ -5,12 +5,12 @@ Store and manage admin user accounts. Uses Redis as primary + Supabase as backup
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.admin.backend.models import AdminRole
@@ -22,7 +22,7 @@ class AdminUserStore:
     """Store and manage admin user accounts."""
 
     @staticmethod
-    async def get_admin(admin_id: str) -> dict | None:
+    async def get_admin(admin_id: str) -> dict[str, Any] | None:
         """Get admin by ID."""
         try:
             import redis.asyncio as redis_lib
@@ -41,7 +41,7 @@ class AdminUserStore:
             return None
 
     @staticmethod
-    async def get_admin_by_email(email: str) -> dict | None:
+    async def get_admin_by_email(email: str) -> dict[str, Any] | None:
         """Get admin by email."""
         try:
             import redis.asyncio as redis_lib
@@ -60,7 +60,7 @@ class AdminUserStore:
             return None
 
     @staticmethod
-    async def save_admin(admin: dict) -> bool:
+    async def save_admin(admin: dict[str, Any]) -> bool:
         """Save admin user."""
         try:
             import redis.asyncio as redis_lib
@@ -93,7 +93,7 @@ class AdminUserStore:
             return False
 
     @staticmethod
-    async def list_admins() -> list[dict]:
+    async def list_admins() -> list[dict[str, Any]]:
         """List all admin users."""
         admins = []
         try:
@@ -119,7 +119,7 @@ class AdminUserStore:
         password: str,
         role: AdminRole = AdminRole.VIEWER,
         created_by: str = "",
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Create a new admin user."""
         from app.auth import hash_password
 
@@ -147,7 +147,7 @@ class AdminUserStore:
         return {k: v for k, v in admin.items() if k not in ("password_hash", "two_factor_secret")}
 
     @staticmethod
-    async def verify_admin_login(email: str, password: str) -> dict | None:
+    async def verify_admin_login(email: str, password: str) -> dict[str, Any] | None:
         """Verify admin login credentials."""
         from app.auth import verify_password
 

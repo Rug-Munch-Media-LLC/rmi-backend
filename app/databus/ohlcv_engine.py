@@ -92,7 +92,7 @@ class Candle:
         self.volume = volume
         self.trades = trades
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "datetime": datetime.fromtimestamp(self.timestamp, tz=UTC).isoformat(),
@@ -104,7 +104,7 @@ class Candle:
             "trades": self.trades,
         }
 
-    def to_array(self) -> list:
+    def to_array(self) -> list[Any]:
         """Compact array format: [ts, o, h, l, c, v, n]"""
         return [
             self.timestamp,
@@ -205,7 +205,7 @@ class OHLCVEngine:
         timeframe: str = "1h",
         limit: int = 100,
         end_ts: int | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Retrieve OHLCV candles for a token.
 
         Args:
@@ -268,12 +268,12 @@ class OHLCVEngine:
             logger.warning(f"OHLCV query failed: {e}")
             return []
 
-    def get_latest_candle(self, token: str, chain: str, timeframe: str = "1h") -> dict | None:
+    def get_latest_candle(self, token: str, chain: str, timeframe: str = "1h") -> dict[str, Any] | None:
         """Get the most recent candle (may be still-open)."""
         candles = self.get_candles(token, chain, timeframe, limit=1)
         return candles[0] if candles else None
 
-    def get_price_change(self, token: str, chain: str, periods: int = 24, timeframe: str = "1h") -> dict:
+    def get_price_change(self, token: str, chain: str, periods: int = 24, timeframe: str = "1h") -> dict[str, Any]:
         """Calculate price change over N periods."""
         candles = self.get_candles(token, chain, timeframe, limit=periods + 1)
         if len(candles) < 2:
@@ -293,7 +293,7 @@ class OHLCVEngine:
             "candles": len(candles),
         }
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Engine statistics."""
         return {
             "active_candles": len(self._active_candles),
@@ -311,7 +311,7 @@ ohlcv_engine = OHLCVEngine()
 
 async def fetch_ohlcv(
     token: str = "", chain: str = "ethereum", timeframe: str = "1h", limit: int = 100, **kw
-) -> dict | None:
+) -> dict[str, Any] | None:
     """DataBus provider for OHLCV candle data.
 
     Args:
@@ -377,7 +377,7 @@ async def ingest_trade_data(
     volume: float = 0,
     timestamp: int | None = None,
     **kw,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """DataBus provider: Ingest a trade and update all OHLCV candles."""
     address = token or kw.get("address", "") or kw.get("token", "")
     if not address or price <= 0:

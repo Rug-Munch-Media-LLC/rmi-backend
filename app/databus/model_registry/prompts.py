@@ -5,14 +5,14 @@ Helpers for building research/writing prompts and getting usage stats.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
+from typing import Any
 
 from .tracking import rate_tracker
 
 
-def build_research_prompt(topic: str, data: dict | None = None) -> str:
+def build_research_prompt(topic: str, data: dict[str, Any] | None = None) -> str:
     """Build a research prompt with all available context."""
     parts = [f"Research task: {topic}\n"]
 
@@ -45,6 +45,6 @@ Style guide:
 Write the complete piece now:"""
 
 
-def get_usage_stats() -> dict:
+def get_usage_stats() -> dict[str, Any]:
     """Get current model usage statistics from rate tracker."""
     return rate_tracker.stats()

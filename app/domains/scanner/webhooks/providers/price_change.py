@@ -36,13 +36,13 @@ class PriceChangeProvider:
     DEFAULT_CHANGE_PCT: float = 5.0  # 5% change
     WINDOW_SECONDS: int = 300  # 5-minute rolling window
 
-    async def poll(self, cursor: dict | None = None) -> list[dict]:
+    async def poll(self, cursor: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Check price oracle for tokens with significant price movement.
 
         Uses the in-process price_consensus module when available for
         real-time price data. Falls back gracefully if unavailable.
         """
-        events: list[dict] = []
+        events: list[dict[str, Any]] = []
 
         # Get price oracle
         oracle = self._get_price_oracle()

@@ -46,7 +46,7 @@ class BulletinBoardManager:
         target_audience: str = "all",
         status: str = "draft",
         featured_image: str = "",
-        attachments: list[dict] | None = None,
+        attachments: list[dict[str, Any]] | None = None,
         tags: list[str] | None = None,
         scheduled_at: str | None = None,
         expires_at: str | None = None,
@@ -351,7 +351,7 @@ class BulletinBoardManager:
         return comment
 
     @staticmethod
-    async def get_comments(post_id: str, limit: int = 100) -> list[dict]:
+    async def get_comments(post_id: str, limit: int = 100) -> list[dict[str, Any]]:
         r = await BulletinBoardManager._get_redis()
         comment_ids = await r.smembers(f"bulletin:post_comments:{post_id}")
         comments = []

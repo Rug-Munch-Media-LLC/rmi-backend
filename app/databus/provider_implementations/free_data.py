@@ -1,9 +1,9 @@
 """Free fallback providers — never pay for what's free."""
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 import httpx
 
@@ -12,7 +12,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
+async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict[str, Any] | None:
     """DexScreener - free token metadata from pairs endpoint."""
     token = mint or kw.get("token", "") or kw.get("contract", "")
     if not token:
@@ -42,7 +42,7 @@ async def _dexscreener_token_metadata(mint: str = "", **kw) -> dict | None:
     return None
 
 
-async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
+async def _dexscreener_holders(mint: str = "", **kw) -> dict[str, Any] | None:
     """DexScreener - free holder/liquidity data from pairs."""
     token = mint or kw.get("token", "")
     if not token:
@@ -60,7 +60,7 @@ async def _dexscreener_holders(mint: str = "", **kw) -> dict | None:
     return None
 
 
-async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict | None:
+async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """DexScreener - recent trades for a token (free, no API key required)."""
     if not token:
         return None
@@ -84,7 +84,7 @@ async def _dexscreener_trades(token: str = "", chain: str = "solana", **kw) -> d
     return None
 
 
-async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict | None:
+async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """DexScreener - top profitable traders for a token."""
     if not token:
         return None
@@ -108,7 +108,7 @@ async def _dexscreener_top_traders(token: str = "", chain: str = "solana", **kw)
     return None
 
 
-async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict | None:
+async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict[str, Any] | None:
     """Etherscan - free transaction data (5 req/sec, no key needed for basic)."""
     if not tx_hash:
         return None
@@ -149,7 +149,7 @@ async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw
     return None
 
 
-async def _defillama_tvl(**kw) -> dict | None:
+async def _defillama_tvl(**kw) -> dict[str, Any] | None:
     """DeFiLlama - global TVL and protocol data (completely free)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
@@ -168,7 +168,7 @@ async def _defillama_tvl(**kw) -> dict | None:
     return None
 
 
-async def _defillama_chains(**kw) -> dict | None:
+async def _defillama_chains(**kw) -> dict[str, Any] | None:
     """DeFiLlama - TVL by chain (completely free)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
@@ -184,7 +184,7 @@ async def _defillama_chains(**kw) -> dict | None:
     return None
 
 
-async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict | None:
+async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict[str, Any] | None:
     """Blockchair - address balance and tx count (free tier)."""
     if not address:
         return None
@@ -205,7 +205,7 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
     return None
 
 
-async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
+async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict[str, Any] | None:
     """Blockchair - chain statistics (free tier)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
@@ -222,7 +222,7 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
     return None
 
 
-async def _birdeye_overview(address: str = "", **kw) -> dict | None:
+async def _birdeye_overview(address: str = "", **kw) -> dict[str, Any] | None:
     """Birdeye - token overview, liquidity, and holder stats (free tier)."""
     api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
     if not address:

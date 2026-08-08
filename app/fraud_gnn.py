@@ -20,7 +20,7 @@ import pickle
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 import networkx as nx
 import numpy as np
@@ -154,7 +154,7 @@ class FraudGNNDetector:
         self.model.fit(x_scaled, y)
         self.model_type = "fallback:random_forest"
 
-    def extract_features(self, wallet_fingerprint: dict) -> np.ndarray:
+    def extract_features(self, wallet_fingerprint: dict[str, Any]) -> np.ndarray:
         """Extract fraud-relevant features from wallet behavioral fingerprint."""
         features = np.zeros(len(FRAUD_FEATURES))
 
@@ -164,7 +164,7 @@ class FraudGNNDetector:
 
         return features.reshape(1, -1)
 
-    def predict(self, wallet_fingerprint: dict) -> tuple[float, bool, str]:
+    def predict(self, wallet_fingerprint: dict[str, Any]) -> tuple[float, bool, str]:
         """
         Predict fraud probability for a wallet.
         Returns: (probability, is_fraud, model_type)
@@ -190,7 +190,7 @@ class FraudGNNDetector:
         is_fraud = fraud_prob >= 0.5
         return (round(fraud_prob, 4), is_fraud, self.model_type or "unknown")
 
-    def score_wallets(self, fingerprints: list[dict]) -> list[dict]:
+    def score_wallets(self, fingerprints: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Score multiple wallets and return enriched results."""
         self._ensure_loaded()
 
@@ -208,7 +208,7 @@ class FraudGNNDetector:
             )
         return results
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         return {
             "loaded": self._loaded,
             "model_type": self.model_type,

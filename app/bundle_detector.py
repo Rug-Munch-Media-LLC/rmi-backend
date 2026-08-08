@@ -10,10 +10,10 @@ References:
 """
 
 from __future__ import annotations
-from typing import Any
 
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -61,8 +61,8 @@ class BundleDetector:
         self,
         token_address: str,
         chain: str = "solana",
-        holders: list[dict] | None = None,
-        transactions: list[dict] | None = None,
+        holders: list[dict[str, Any]] | None = None,
+        transactions: list[dict[str, Any]] | None = None,
     ) -> BundleDetection:
         """Run all bundle detection signals and return combined result."""
         result = BundleDetection(token_address=token_address, chain=chain, is_bundled=False, confidence=0.0)
@@ -98,7 +98,7 @@ class BundleDetector:
 
         return result
 
-    def _atomic_block_signal(self, result: BundleDetection, txs: list[dict]) -> None:
+    def _atomic_block_signal(self, result: BundleDetection, txs: list[dict[str, Any]]) -> None:
         """Check if many holders acquired tokens in the same block (atomic bundle)."""
         block_wallets = defaultdict(set)
         for tx in txs:
@@ -126,7 +126,7 @@ class BundleDetector:
         else:
             result.atomic_block_score = 0.1
 
-    def _common_funder_signal(self, result: BundleDetection, txs: list[dict]) -> None:
+    def _common_funder_signal(self, result: BundleDetection, txs: list[dict[str, Any]]) -> None:
         """Detect if multiple buyers were funded from the same source wallet."""
         funder_counts = defaultdict(int)
         for tx in txs:
@@ -153,7 +153,7 @@ class BundleDetector:
         elif top_count >= 3:
             result.common_funder_score = 0.3
 
-    def _temporal_signal(self, result: BundleDetection, txs: list[dict]) -> None:
+    def _temporal_signal(self, result: BundleDetection, txs: list[dict[str, Any]]) -> None:
         """Check if wallets appeared within a narrow time window."""
         timestamps = []
         for tx in txs:
@@ -177,7 +177,7 @@ class BundleDetector:
         elif window <= 3600:  # 1 hour
             result.temporal_score = 0.3
 
-    def _distribution_anomaly_signal(self, result: BundleDetection, holders: list[dict]) -> None:
+    def _distribution_anomaly_signal(self, result: BundleDetection, holders: list[dict[str, Any]]) -> None:
         """Check for flat/rounded amounts - hallmark of bundled distribution."""
         amounts = []
         for h in holders:
@@ -213,7 +213,7 @@ class BundleDetector:
         elif anomaly_pct > 0.05:
             result.distribution_anomaly_score = 0.3
 
-    def _concentration_signal(self, result: BundleDetection, holders: list[dict]) -> None:
+    def _concentration_signal(self, result: BundleDetection, holders: list[dict[str, Any]]) -> None:
         """Check top-10 and top-3 holder concentration."""
         amounts = []
         for h in holders:

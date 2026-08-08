@@ -4,6 +4,7 @@ Global market overview, movers, chains, fear & greed, on-chain metrics, macro, s
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
@@ -15,7 +16,7 @@ router = APIRouter(tags=["market-intel"])
 
 
 @router.get("/overview")
-async def get_market_overview(request: Request) -> dict:
+async def get_market_overview(request: Request) -> dict[str, Any]:
     """Global market overview - total cap, dominance, fear & greed."""
     now = _now()
     global_data = await _cg("/global", ttl=120)
@@ -62,7 +63,7 @@ async def get_market_movers(
     request: Request,
     limit: int = Query(10, ge=1, le=100),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Top gainers/losers from CoinGecko."""
     now = _now()
     data = await _cg(
@@ -111,7 +112,7 @@ async def get_market_movers(
 
 
 @router.get("/chains")
-async def get_market_chains(request: Request) -> dict:
+async def get_market_chains(request: Request) -> dict[str, Any]:
     """Chain activity - TPS, gas, active addresses from CoinGecko chain data."""
     now = _now()
     chains_data = [
@@ -150,7 +151,7 @@ async def get_market_chains(request: Request) -> dict:
 async def get_fear_greed(
     request: Request,
     days: int = Query(7, ge=1, le=365),
-) -> dict:
+) -> dict[str, Any]:
     """Fear & Greed index from alternative.me."""
     fng_data = await _fng()
     value = 50
@@ -175,7 +176,7 @@ async def get_fear_greed(
 async def get_market_onchain(
     request: Request,
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """On-chain metrics - exchange flows, stablecoin inflows."""
     now = _now()
     global_data = await _cg("/global", ttl=120)
@@ -223,7 +224,7 @@ async def get_market_onchain(
 async def get_market_macro(
     request: Request,
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Macro correlation - BTC vs traditional assets."""
     now = _now()
     price_data = await _cg(
@@ -273,7 +274,7 @@ async def get_market_macro(
 async def get_market_sentiment(
     request: Request,
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Social sentiment - aggregated from market data."""
     now = _now()
     items = []

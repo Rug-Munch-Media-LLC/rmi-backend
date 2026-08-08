@@ -2,9 +2,9 @@
 Credit-conserving: uses Small 4 for bulk, Medium 3.5 only when needed."""
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 import httpx
 
@@ -35,7 +35,7 @@ async def mistral_chat(
     system: str | None = None,
     max_tokens: int = 512,
     temperature: float = 0.7,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Chat completion via Mistral. Conserves free credits by using fast models."""
     if not MISTRAL_KEY:
         return None
@@ -73,7 +73,7 @@ async def mistral_chat(
     return None
 
 
-async def mistral_embed(text: str) -> list | None:
+async def mistral_embed(text: str) -> list[Any] | None:
     """Generate embeddings via Mistral Embed - state of art."""
     if not MISTRAL_KEY:
         return None
@@ -91,7 +91,7 @@ async def mistral_embed(text: str) -> list | None:
     return None
 
 
-async def mistral_moderate(text: str) -> dict | None:
+async def mistral_moderate(text: str) -> dict[str, Any] | None:
     """Content moderation - jailbreak, toxicity, PII detection."""
     if not MISTRAL_KEY:
         return None

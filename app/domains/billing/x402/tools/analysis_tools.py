@@ -37,7 +37,7 @@ sub_router = APIRouter(tags=["x402-analysis-tools"])
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _sentiment_analysis(token: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _sentiment_analysis(token: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Analyze social signals across multiple sources."""
     result = {"token": token, "chain": chain, "sources_used": []}
 
@@ -144,7 +144,7 @@ async def social_sentiment(req: SentimentRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-def _analyze_url(url: str) -> dict:  # type: ignore[type-arg]
+def _analyze_url(url: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Analyze URL for scam indicators using structural analysis."""
     import re
     from urllib.parse import urlparse
@@ -272,7 +272,7 @@ async def url_scam_detector(req: URLRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _twitter_profile(query: str) -> dict:  # type: ignore[type-arg]
+async def _twitter_profile(query: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Get Twitter/X user profile data."""
     result = {"query": query, "sources_used": []}
 
@@ -401,7 +401,7 @@ async def twitter_search(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _social_signal(query: str) -> dict:  # type: ignore[type-arg]
+async def _social_signal(query: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Social signal analyzer."""
     result = {"query": query, "sources_used": []}
 
@@ -453,7 +453,7 @@ async def social_signal(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _nft_wash_detector(collection: str) -> dict:  # type: ignore[type-arg]
+async def _nft_wash_detector(collection: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """NFT wash trading detection."""
     result = {"collection": collection, "sources_used": [], "wash_signals": []}
 
@@ -524,7 +524,7 @@ async def nft_wash_detector(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _bridge_security() -> dict:  # type: ignore[type-arg]
+async def _bridge_security() -> dict[str, Any]:  # type: ignore[type-arg]
     """Bridge security monitoring."""
     result = {"sources_used": [], "bridges": []}  # type: ignore[var-annotated]
 

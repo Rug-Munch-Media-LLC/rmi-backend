@@ -8,7 +8,6 @@ Sources: 25+ trusted crypto news outlets, newsletters, blogs, and mirrors.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import hashlib
@@ -16,6 +15,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 import feedparser
 import httpx
@@ -359,7 +359,7 @@ class Article:
     reading_time: int = 1
     votes_up: int = 0
     votes_down: int = 0
-    comments: list[dict] = field(default_factory=list)
+    comments: list[dict[str, Any]] = field(default_factory=list)
     bookmarks: int = 0
 
 
@@ -472,7 +472,7 @@ def get_feed(
     offset: int = 0,
     impact: str | None = None,
     source: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Get the news feed with all filters."""
     articles = list(_db.values())
 
@@ -542,7 +542,7 @@ def get_feed(
     }
 
 
-def vote_article(article_id: str, direction: str) -> dict:
+def vote_article(article_id: str, direction: str) -> dict[str, Any]:
     a = _db.get(article_id)
     if not a:
         return {"error": "Not found"}
@@ -553,7 +553,7 @@ def vote_article(article_id: str, direction: str) -> dict:
     return {"id": article_id, "votes_up": a.votes_up, "votes_down": a.votes_down}
 
 
-def add_comment(article_id: str, user: str, text: str) -> dict:
+def add_comment(article_id: str, user: str, text: str) -> dict[str, Any]:
     a = _db.get(article_id)
     if not a:
         return {"error": "Not found"}
@@ -568,12 +568,12 @@ def add_comment(article_id: str, user: str, text: str) -> dict:
     return comment
 
 
-def get_comments(article_id: str) -> list[dict]:
+def get_comments(article_id: str) -> list[dict[str, Any]]:
     a = _db.get(article_id)
     return sorted(a.comments, key=lambda c: c.get("votes", 0), reverse=True) if a else []
 
 
-def bookmark(article_id: str) -> dict:
+def bookmark(article_id: str) -> dict[str, Any]:
     a = _db.get(article_id)
     if a:
         a.bookmarks += 1
@@ -581,7 +581,7 @@ def bookmark(article_id: str) -> dict:
     return {"error": "Not found"}
 
 
-def get_categories() -> list:
+def get_categories() -> list[Any]:
     cats = set()
     for a in _db.values():
         for c in a.categories:
@@ -604,7 +604,7 @@ def get_categories() -> list:
     return [{"name": c, "icon": icons.get(c, "📌")} for c in sorted(cats)]
 
 
-def search_articles(query: str, limit: int = 20) -> list:
+def search_articles(query: str, limit: int = 20) -> list[Any]:
     q = query.lower()
     results = []
     for a in _db.values():

@@ -23,7 +23,7 @@ class PaymentVerifier:
     def __init__(self) -> None:
         self._facilitators: dict[str, Any] = {}
 
-    def _verify_eip712_local(self, payload_data: dict) -> dict[str, Any]:
+    def _verify_eip712_local(self, payload_data: dict[str, Any]) -> dict[str, Any]:
         """Verify EIP-712 signed EIP-3009 authorization locally."""
         try:
             from eth_account import Account
@@ -97,7 +97,7 @@ class PaymentVerifier:
             logger.error(f"Local EIP-712 verification error: {e}")
             return {"verified": False, "reason": f"Local verification error: {e!s}"}
 
-    async def _verify_via_payai(self, payload_data: dict, requirements_data: dict | None) -> dict[str, Any]:
+    async def _verify_via_payai(self, payload_data: dict[str, Any], requirements_data: dict[str, Any] | None) -> dict[str, Any]:
         """Fallback: verify via PayAI facilitator HTTP."""
         import aiohttp
 

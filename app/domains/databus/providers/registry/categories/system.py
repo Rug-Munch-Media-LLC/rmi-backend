@@ -3,12 +3,13 @@ System provider chains.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from ...base import Provider, ProviderChain, ProviderTier
 
 
-def build_system_chains(locals_dict: dict) -> dict[str, ProviderChain]:
+def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
     """Build system provider chains."""
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict

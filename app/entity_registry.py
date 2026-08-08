@@ -7,12 +7,12 @@ Paper ref: Article 3, Section 2 - Free Datasets and Labelled-Address Repositorie
 """
 
 from __future__ import annotations
-from typing import Any
 
 import contextlib
 import json
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -199,7 +199,7 @@ class EntityRegistry:
             self._register_exchange_label(addr, labels)
             self._register_scam_labels(addr, labels)
 
-    def _register_exchange_label(self, addr: str, labels: list) -> None:
+    def _register_exchange_label(self, addr: str, labels: list[Any]) -> None:
         """Register address as an exchange if matching labels exist."""
         if "exchange" not in labels and "cex" not in labels:
             return
@@ -212,7 +212,7 @@ class EntityRegistry:
             source="local_labels",
         )
 
-    def _register_scam_labels(self, addr: str, labels: list) -> None:
+    def _register_scam_labels(self, addr: str, labels: list[Any]) -> None:
         """Register address as known scam if labels indicate scam/phishing."""
         for label in labels:
             label_str = str(label).lower()
@@ -258,7 +258,7 @@ class EntityRegistry:
                 clean.append(addr)
         return clean, excluded
 
-    def enrich_holder(self, address: str) -> dict:
+    def enrich_holder(self, address: str) -> dict[str, Any]:
         """Enrich a holder address with known entity info."""
         match = self.classify_address(address)
         if match:

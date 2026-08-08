@@ -44,11 +44,11 @@ class AddressProfile(BaseModel):
     total_value_usd: float = 0
     risk_score: int = 50
     risk_factors: list[str] = []
-    rag_context: dict | None = None
+    rag_context: dict[str, Any] | None = None
     entity_hints: list[str] = []
 
 
-async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
+async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict[str, Any]:
     """Fetch balance/activity for an address on one chain via DataBus."""
     try:
         async with httpx.AsyncClient(timeout=8) as client:
@@ -60,7 +60,7 @@ async def _fetch_chain_balance(chain: str, chain_id: str, address: str) -> dict:
     return {"chain": chain, "balance_usd": 0, "tx_count": 0, "error": "unavailable"}
 
 
-async def _fetch_eth_labels(address: str) -> list[dict]:
+async def _fetch_eth_labels(address: str) -> list[dict[str, Any]]:
     """Look up address in eth-labels database."""
     try:
         async with httpx.AsyncClient(timeout=5) as client:

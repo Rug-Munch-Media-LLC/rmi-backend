@@ -23,9 +23,9 @@ async def detect_coordinated_buys(
     token_address: str,
     chain: str,
     depth: int = 100,
-) -> dict:
+) -> dict[str, Any]:
     """Detect groups of wallets buying in coordinated windows."""
-    findings: list[dict] = []
+    findings: list[dict[str, Any]] = []
     groups: list[CoordinatedBuyGroup] = []
     trades = await fetch_trades(client, token_address, chain, depth)
     if not trades:
@@ -35,7 +35,7 @@ async def detect_coordinated_buys(
         return {"groups": groups, "findings": findings}
     buy_trades.sort(key=lambda t: t.get("unixTime", 0) or 0)
     clusters = []
-    current_cluster: list[dict] = [buy_trades[0]]
+    current_cluster: list[dict[str, Any]] = [buy_trades[0]]
     for trade in buy_trades[1:]:
         pt = current_cluster[-1].get("unixTime", 0)
         ct = trade.get("unixTime", 0)
@@ -89,9 +89,9 @@ async def detect_wash_trading(
     client: httpx.AsyncClient,
     token_address: str,
     chain: str,
-) -> dict:
+) -> dict[str, Any]:
     """Detect wash trading patterns (circular trades between controlled wallets)."""
-    findings: list[dict] = []
+    findings: list[dict[str, Any]] = []
     clusters: list[WashTradeCluster] = []
     trades = await fetch_trades(client, token_address, chain, 200)
     if not trades or len(trades) < 10:

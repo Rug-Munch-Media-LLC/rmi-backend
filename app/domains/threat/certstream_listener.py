@@ -19,7 +19,6 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import json
@@ -29,6 +28,7 @@ import signal
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -192,7 +192,7 @@ async def _persist_domain(domain: str, brand: str, issued_at: datetime | None, i
 CERTSTREAM_URL = os.getenv("CERTSTREAM_URL", "wss://certstream.calidog.io/")
 
 
-async def _process_message(msg: dict) -> int:
+async def _process_message(msg: dict[str, Any]) -> int:
     """Process one CertStream message. Returns # of threats found (0 or 1+)."""
     data_type = msg.get("message_type") or msg.get("type")
     if data_type not in ("certificate_update", "heartbeat"):

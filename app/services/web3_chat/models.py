@@ -6,12 +6,12 @@ Constants, enums, and data models for Web3-native chat features.
 
 
 from __future__ import annotations
-from typing import Any
 
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 # ── Constants ─────────────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ class PaymentRequest:
     token: str
     chain: str
     room_id: str | None = None
-    gas_estimation: dict | None = None
+    gas_estimation: dict[str, Any] | None = None
     tx_hash: str | None = None
     status: PaymentStatus = PaymentStatus.PENDING
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())

@@ -121,9 +121,9 @@ async def _get_contract_bytecode(address: str, chain: str, client: httpx.AsyncCl
     return result
 
 
-def _analyze_bytecode(bytecode: str, source: str) -> dict:
+def _analyze_bytecode(bytecode: str, source: str) -> dict[str, Any]:
     """Analyze contract bytecode/source for suspicious patterns."""
-    findings: list[dict] = []
+    findings: list[dict[str, Any]] = []
     risk_score = 0
 
     for selector, name in SUSPICIOUS_SELECTORS.items():
@@ -179,7 +179,7 @@ async def analyze_contract(
     chain: str = Query("ethereum"),
     client: httpx.AsyncClient = Depends(get_http_client),
     settings: Settings = Depends(get_settings),
-) -> dict:
+) -> dict[str, Any]:
     """Analyze a smart contract's functions and risk profile."""
     backend = settings.backend_url
     info = await _get_contract_bytecode(address, chain, client)
@@ -218,7 +218,7 @@ async def detect_mint_function(
     address: str,
     chain: str = Query("ethereum"),
     client: httpx.AsyncClient = Depends(get_http_client),
-) -> dict:
+) -> dict[str, Any]:
     """Quick check: does this contract have a mint function?"""
     info = await _get_contract_bytecode(address, chain, client)
     bytecode = info.get("bytecode", "")

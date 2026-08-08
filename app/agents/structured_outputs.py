@@ -1,9 +1,9 @@
 """Pydantic models for structured agent outputs using Instructor."""
 
 from __future__ import annotations
-from typing import Any
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -40,6 +40,6 @@ class AuditReport(BaseModel):
     """Structured code audit output."""
 
     contract_name: str
-    vulnerabilities: list[dict] = Field(description="List of {severity, description, line, fix}")
+    vulnerabilities: list[dict[str, Any]] = Field(description="List of {severity, description, line, fix}")
     overall_severity: RiskTier
     audit_summary: str

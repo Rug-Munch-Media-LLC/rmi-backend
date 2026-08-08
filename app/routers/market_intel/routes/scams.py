@@ -4,6 +4,7 @@ Scam alerts from DexScreener suspicious tokens and combined alerts feed.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
@@ -21,7 +22,7 @@ async def get_market_scams(
     request: Request,
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Scam alerts - flagged tokens from DexScreener with suspicious patterns."""
     now = _now()
     items = []
@@ -103,7 +104,7 @@ async def get_market_alerts_feed(
     request: Request,
     limit: int = Query(20, ge=1, le=100),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Combined alerts feed - scams from DexScreener, system alerts, bad actors."""
     now = _now()
     items = []

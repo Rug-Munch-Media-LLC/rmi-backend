@@ -58,7 +58,7 @@ async def list_subscribers() -> Any:
 
 
 @router.post("/subscribers")
-async def add_subscriber(data: dict) -> Any:
+async def add_subscriber(data: dict[str, Any]) -> Any:
     email = data.get("email", "")
     name = data.get("name", "")
     if not email:
@@ -77,7 +77,7 @@ async def add_subscriber(data: dict) -> Any:
 # NEWSLETTER CAMPAIGNS
 # ═══════════════════════════════════════════════════════════
 @router.post("/campaign")
-async def create_campaign(data: dict) -> Any:
+async def create_campaign(data: dict[str, Any]) -> Any:
     subject = data.get("subject", "RMI Intelligence Update")
     body = data.get("body", "")
     list_ids = data.get("list_ids", [1])
@@ -119,7 +119,7 @@ RMI_SMTP_FROM = os.getenv("RMI_SMTP_FROM", "RugMunch <noreply@rugmunch.io>")
 
 
 @router.post("/send")
-async def send_transactional(data: dict) -> dict[str, str]:
+async def send_transactional(data: dict[str, Any]) -> dict[str, str]:
     """Send a single transactional email via rmi-mail SMTP (mail.rugmunch.io)."""
     to = data.get("to", "")
     subject = data.get("subject", "RMI Alert")

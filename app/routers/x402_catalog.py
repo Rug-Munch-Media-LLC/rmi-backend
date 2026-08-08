@@ -44,7 +44,7 @@ _SERVICE_MAP = {
 }
 
 
-def _sanitize_tool(tool: dict) -> dict:
+def _sanitize_tool(tool: dict[str, Any]) -> dict[str, Any]:
     """Remove upstream provider names from user-visible tool fields"""
     for field in ("name", "description"):
         if field in tool and isinstance(tool[field], str):
@@ -60,10 +60,10 @@ def _sanitize_tool(tool: dict) -> dict:
 router = APIRouter(prefix="/api/v1/x402", tags=["x402-catalog"])
 
 # Cache for tool catalog
-_catalog_cache: dict = {}
+_catalog_cache: dict[str, Any] = {}
 
 
-def parse_gateway_tools(gateway_dir: str) -> list[dict]:
+def parse_gateway_tools(gateway_dir: str) -> list[dict[str, Any]]:
     """Parse RMI_TOOLS definitions from a gateway index.ts file.
 
     Handles nested braces by tracking brace depth."""
@@ -160,7 +160,7 @@ def parse_gateway_tools(gateway_dir: str) -> list[dict]:
     return tools
 
 
-def load_external_mcp_tools() -> list[dict]:
+def load_external_mcp_tools() -> list[dict[str, Any]]:
     """Load expanded external MCP tool definitions.
 
     Priority:
@@ -255,7 +255,7 @@ def load_external_mcp_tools() -> list[dict]:
     return []
 
 
-def discover_route_tools() -> list[dict]:
+def discover_route_tools() -> list[dict[str, Any]]:
     """Discover tools from FastAPI route definitions"""
     tools = []
     backend_dir = os.path.dirname(__file__)
@@ -555,7 +555,7 @@ async def list_tools_catalog() -> Any:
 
 
 @router.get("/tools-catalog/{chain}")
-async def list_chain_tools(chain: str) -> dict:
+async def list_chain_tools(chain: str) -> dict[str, Any]:
     """Get tools for a specific chain (includes native + external)"""
     catalog = get_catalog()
     chain_upper = chain.upper()
@@ -564,7 +564,7 @@ async def list_chain_tools(chain: str) -> dict:
 
 
 @router.get("/tools-catalog/category/{category}")
-async def list_category_tools(category: str) -> dict:
+async def list_category_tools(category: str) -> dict[str, Any]:
     """Get tools in a specific category across all chains"""
     catalog = get_catalog()
     filtered = [t for t in catalog["tools"] if t.get("category", "") == category.lower()]
@@ -572,7 +572,7 @@ async def list_category_tools(category: str) -> dict:
 
 
 @router.get("/tools-catalog/service/{service}")
-async def list_service_tools(service: str) -> dict:
+async def list_service_tools(service: str) -> dict[str, Any]:
     """Get tools from a specific external MCP service"""
     catalog = get_catalog()
     filtered = [t for t in catalog["tools"] if t.get("service", "") == service.lower()]

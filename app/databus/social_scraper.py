@@ -14,9 +14,9 @@ Cron: Every 6 hours, discover new tweets, extract content, update metrics.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -53,7 +53,7 @@ class XWebScraper:
 
     async def discover_tweets(
         self, handle: str = OUR_HANDLE, since_date: str | None = None, limit: int = 50
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         Discover tweets from @handle using web_search.
         Returns list of {id, url, text_snippet, date, source}.
@@ -138,7 +138,7 @@ class XWebScraper:
         logger.info(f"Discovered {len(tweets)} tweets for @{handle}")
         return tweets
 
-    async def get_profile(self, handle: str = OUR_HANDLE) -> dict | None:
+    async def get_profile(self, handle: str = OUR_HANDLE) -> dict[str, Any] | None:
         """
         Get profile data via web search. Returns cached if available.
         """
@@ -174,7 +174,7 @@ class XWebScraper:
 
         return None
 
-    async def get_mentions(self, handle: str = OUR_HANDLE, limit: int = 20) -> list[dict]:
+    async def get_mentions(self, handle: str = OUR_HANDLE, limit: int = 20) -> list[dict[str, Any]]:
         """
         Find tweets mentioning @handle.
         """
@@ -205,7 +205,7 @@ class XWebScraper:
         await self.cache.set(cache_key, mentions, ttl=CACHE_TTL_METRICS)
         return mentions
 
-    async def get_trending_topics(self) -> list[dict]:
+    async def get_trending_topics(self) -> list[dict[str, Any]]:
         """Get current crypto trending topics via web search."""
         cache_key = "social:x:trending:crypto"
         cached = await self.cache.get(cache_key)
@@ -240,7 +240,7 @@ class XWebScraper:
         await self.cache.set(cache_key, topics, ttl=CACHE_TTL_METRICS)
         return topics
 
-    async def get_engagement_report(self, handle: str = OUR_HANDLE) -> dict:
+    async def get_engagement_report(self, handle: str = OUR_HANDLE) -> dict[str, Any]:
         """
         Generate an engagement report based on discovered tweets.
         Computes avg likes, best performing tweets, posting frequency.

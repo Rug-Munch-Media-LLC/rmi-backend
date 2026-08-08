@@ -201,7 +201,7 @@ class RpcBatcher:
                 if not fut.done():
                     fut.set_exception(e)
 
-    async def stats(self) -> dict:
+    async def stats(self) -> dict[str, Any]:
         """Return batcher statistics."""
         async with self._lock:
             pending_count = sum(len(v) for v in self._pending.values())

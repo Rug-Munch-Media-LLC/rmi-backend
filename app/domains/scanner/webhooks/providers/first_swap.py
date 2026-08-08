@@ -13,6 +13,7 @@ dependency.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -50,7 +51,7 @@ class FirstSwapProvider:
     event_type: WebhookEventType = WebhookEventType.TOKEN_FIRST_SWAP
     poll_interval: int = 60  # seconds
 
-    async def poll(self, cursor: dict | None = None) -> list[dict]:
+    async def poll(self, cursor: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Detect first swaps by finding transfers involving DEX routers."""
         since = (cursor or {}).get("since", "2020-01-01 00:00:00")
         seen_tokens: set[str] = set((cursor or {}).get("seen_tokens", []))
@@ -86,7 +87,7 @@ class FirstSwapProvider:
             log.warning("first_swap_query_failed", error=str(exc))
             return []
 
-        events: list[dict] = []
+        events: list[dict[str, Any]] = []
         for row in rows:
             token_addr = row[3].lower()
             if token_addr in seen_tokens:

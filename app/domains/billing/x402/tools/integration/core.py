@@ -281,7 +281,7 @@ from app.domains.billing.x402.shared import (  # noqa: E402 — module docstring
 
 
 @sub_router.get("/bundles")
-async def list_bundles() -> dict[str, dict]:  # type: ignore[type-arg]
+async def list_bundles() -> dict[str, dict[str, Any]]:  # type: ignore[type-arg]
     """List all available tool bundles with pricing and savings."""
     return {
         "bundles": {

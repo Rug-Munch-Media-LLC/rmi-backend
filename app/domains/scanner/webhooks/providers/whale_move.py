@@ -8,6 +8,7 @@ Source: Own indexed transfer data — zero external dependency.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -26,7 +27,7 @@ class WhaleMoveProvider:
     # Default minimum value in USD to consider a "whale" move
     DEFAULT_MIN_VALUE: float = 10_000.0
 
-    async def poll(self, cursor: dict | None = None) -> list[dict]:
+    async def poll(self, cursor: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Query ClickHouse for large transfers since last cursor."""
         since = (cursor or {}).get("since", "2020-01-01 00:00:00")
         ch = get_clickhouse()
@@ -58,7 +59,7 @@ class WhaleMoveProvider:
             log.warning("whale_move_query_failed", error=str(exc))
             return []
 
-        events: list[dict] = []
+        events: list[dict[str, Any]] = []
         for row in rows:
             events.append(
                 {

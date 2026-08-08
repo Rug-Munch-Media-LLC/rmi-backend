@@ -16,6 +16,7 @@ Registry shape:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.domains.x402.tools.label_tools import get_entity_labels, get_wallet_labels
@@ -129,7 +130,7 @@ TOOLS = {
 }
 
 
-def list_tools() -> list[dict]:
+def list_tools() -> list[dict[str, Any]]:
     """List all available x402 tools."""
     return [
         {
@@ -143,12 +144,12 @@ def list_tools() -> list[dict]:
     ]
 
 
-def get_tool(tool_id: str) -> dict | None:
+def get_tool(tool_id: str) -> dict[str, Any] | None:
     """Get a tool by ID."""
     return TOOLS.get(tool_id)
 
 
-async def call_tool(tool_id: str, **kwargs) -> dict:
+async def call_tool(tool_id: str, **kwargs) -> dict[str, Any]:
     """Call a tool by ID with arguments."""
     tool = TOOLS.get(tool_id)
     if not tool:

@@ -3,12 +3,13 @@ Social provider chains.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from ...base import Provider, ProviderChain, ProviderTier
 
 
-async def _socialfi_resolve_not_implemented(**kwargs) -> dict:
+async def _socialfi_resolve_not_implemented(**kwargs) -> dict[str, Any]:
     """Stub provider — no ENS/Farcaster resolution source is wired yet.
 
     Returns a clear not_implemented payload instead of the cryptic
@@ -28,7 +29,7 @@ async def _socialfi_resolve_not_implemented(**kwargs) -> dict:
     }
 
 
-def build_social_chains(locals_dict: dict) -> dict[str, ProviderChain]:
+def build_social_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
     """Build social provider chains."""
     chains: dict[str, ProviderChain] = {}
     _g = locals_dict

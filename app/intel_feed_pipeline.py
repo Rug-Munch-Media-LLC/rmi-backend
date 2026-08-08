@@ -221,14 +221,14 @@ class IntelItem:
     category: str
     severity: str
     entities: dict[str, list[str]] = field(default_factory=dict)
-    raw: dict = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 class RSSProcessor:
     """Process standard RSS/Atom feeds into IntelItems."""
 
     @staticmethod
-    async def fetch(feed_config: dict) -> list[IntelItem]:
+    async def fetch(feed_config: dict[str, Any]) -> list[IntelItem]:
         items = []
         try:
             async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
@@ -291,7 +291,7 @@ class NitterProcessor(RSSProcessor):
     """Process Nitter (Twitter mirror) RSS feeds."""
 
     @staticmethod
-    async def fetch(feed_config: dict) -> list[IntelItem]:
+    async def fetch(feed_config: dict[str, Any]) -> list[IntelItem]:
         items = await RSSProcessor.fetch(feed_config)
         # Clean up Nitter-specific formatting
         for item in items:

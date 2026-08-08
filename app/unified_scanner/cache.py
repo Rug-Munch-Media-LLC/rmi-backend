@@ -5,10 +5,10 @@ creating a new TCP connection per cache operation (performance fix).
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -35,7 +35,7 @@ async def _get_redis():
     return aioredis.Redis(connection_pool=_redis_pool)
 
 
-async def _cache_get(key: str) -> dict | None:
+async def _cache_get(key: str) -> dict[str, Any] | None:
     """Get cached wallet scan result using shared connection pool."""
     try:
         r = await _get_redis()
@@ -47,7 +47,7 @@ async def _cache_get(key: str) -> dict | None:
     return None
 
 
-async def _cache_set(key: str, data: dict, ttl: int = 3600) -> None:
+async def _cache_set(key: str, data: dict[str, Any], ttl: int = 3600) -> None:
     """Cache wallet scan result for 1 hour using shared connection pool."""
     try:
         r = await _get_redis()

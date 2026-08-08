@@ -25,7 +25,7 @@ def get_langfuse() -> Langfuse:
     return _langfuse_client
 
 
-def trace_agent_call(agent_name: str, input_data: dict, output_data: dict, **kwargs) -> Any | None:
+def trace_agent_call(agent_name: str, input_data: dict[str, Any], output_data: dict[str, Any], **kwargs) -> Any | None:
     """Trace an agent call in Langfuse."""
     try:
         lf = get_langfuse()

@@ -120,7 +120,7 @@ async def trace_funding_path(req: FundingPathRequest) -> Any:
     """Trace the funding path between two wallets (BFS)."""
     detector = _get_detector()
     path = await detector.trace_funding_path(source=req.source, target=req.target, max_depth=req.max_depth)
-    data: dict = {"source": req.source, "target": req.target}
+    data: dict[str, Any] = {"source": req.source, "target": req.target}
     if path:
         data["path"] = path.to_dict()
         data["path_found"] = True
@@ -416,7 +416,7 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
 
     # Step 1: Get real holders from chain (multi-source fallback)
     holders: list[str] = []
-    excluded_entities: list = []
+    excluded_entities: list[Any] = []
     try:
         from app.unified_provider import get_unified_provider
 

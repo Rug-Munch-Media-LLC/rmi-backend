@@ -103,7 +103,7 @@ async def evaluate_model(model: str, task_name: str) -> dict[str, Any]:
     }
 
 
-async def compare_models(models: list[str], task: str = "scam_detection") -> dict:
+async def compare_models(models: list[str], task: str = "scam_detection") -> dict[str, Any]:
     """Compare multiple models on a benchmark task."""
     scores = []
     for model in models:

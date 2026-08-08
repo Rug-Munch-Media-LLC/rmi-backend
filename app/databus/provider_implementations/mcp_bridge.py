@@ -1,12 +1,12 @@
 """MCP Bridge — Call local MCP servers from DataBus."""
 
 from __future__ import annotations
-from typing import Any
 
 import json as _json
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 _MCP_SERVERS_DIR = Path(os.environ.get("MCP_SERVERS_DIR", str(Path.home() / ".hermes" / "mcp-servers")))
 
 
-async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:
+async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict[str, Any] | None:
     """Universal MCP bridge - calls any local MCP server tool.
     Uses subprocess to call MCP servers installed under MCP_SERVERS_DIR.
     Falls back to HTTP for configured HTTP MCP servers.

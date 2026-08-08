@@ -1,12 +1,12 @@
 """Main Rug Imminence Predictor class."""
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import re
 import time
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.detectors.rug_imminence_predictor.config import (
@@ -564,7 +564,7 @@ class RugImminencePredictor:
             else:
                 result.recommendations.append("\u26a0\ufe0f Consider reducing exposure")
 
-    async def _fetch_dexscreener_pool(self, address: str, chain: str) -> dict | None:
+    async def _fetch_dexscreener_pool(self, address: str, chain: str) -> dict[str, Any] | None:
         import httpx
 
         chain_map = {
@@ -629,7 +629,7 @@ class RugImminencePredictor:
             logger.debug("deployer resolve failed", exc_info=True)
         return None
 
-    async def _check_wallet_age(self, wallet: str, chain: str) -> dict | None:
+    async def _check_wallet_age(self, wallet: str, chain: str) -> dict[str, Any] | None:
         import time
 
         import httpx
@@ -661,7 +661,7 @@ class RugImminencePredictor:
             logger.debug("wallet_age_check_failed")
             return None
 
-    async def _check_deployer_history(self, deployer: str, chain: str) -> dict:
+    async def _check_deployer_history(self, deployer: str, chain: str) -> dict[str, Any]:
         result = {"total_deployed": 0, "rug_tokens": 0, "active_tokens": 0}
         try:
             from app.scam_database import ScamDatabase
@@ -676,7 +676,7 @@ class RugImminencePredictor:
             pass
         return result
 
-    async def _check_lp_lock(self, address: str, chain: str) -> dict:
+    async def _check_lp_lock(self, address: str, chain: str) -> dict[str, Any]:
         result = {"locked": False, "unlocked": True, "unlock_date": None}
         try:
             from app.domains.scanners.liquidity_verifier import LiquidityVerifier
@@ -689,7 +689,7 @@ class RugImminencePredictor:
             pass
         return result
 
-    async def _fetch_holder_data(self, address: str, chain: str) -> dict | None:
+    async def _fetch_holder_data(self, address: str, chain: str) -> dict[str, Any] | None:
         """Fetch holder count and concentration data."""
         return None  # Placeholder - would call holder API
 

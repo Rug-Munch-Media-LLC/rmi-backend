@@ -31,10 +31,10 @@ Rate limits:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import time
+from typing import Any
 
 import httpx
 
@@ -129,7 +129,7 @@ class BitqueryProvider:
             self._monthly_reset = now
         return self._credits_used < FREE_CREDITS_PER_MONTH
 
-    async def _query(self, graphql_query: str, variables: dict | None = None) -> dict | None:
+    async def _query(self, graphql_query: str, variables: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """
         Execute a Bitquery GraphQL query with caching and rate limiting.
         Returns None on billing error (402) or auth error.
@@ -192,7 +192,7 @@ class BitqueryProvider:
             logger.error(f"Bitquery query failed: {e}")
             return {"error": str(e)}
 
-    async def _get_cached(self, query_hash: str, query_text: str) -> dict | None:
+    async def _get_cached(self, query_hash: str, query_text: str) -> dict[str, Any] | None:
         """Get cached response if available and not stale."""
         cache_key = f"bitquery:{query_hash}"
 
@@ -216,7 +216,7 @@ class BitqueryProvider:
 
         return None
 
-    async def _cache_response(self, query_hash: str, query_text: str, data: dict) -> None:
+    async def _cache_response(self, query_hash: str, query_text: str, data: dict[str, Any]) -> None:
         """Cache successful response with metadata."""
         cache_key = f"bitquery:{query_hash}"
 
@@ -236,7 +236,7 @@ class BitqueryProvider:
 
     # ── Public Data Methods ──────────────────────────────────────
 
-    async def get_token_price(self, network: str, token_address: str) -> dict | None:
+    async def get_token_price(self, network: str, token_address: str) -> dict[str, Any] | None:
         """
         Get latest DEX price for a token.
 
@@ -274,7 +274,7 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_holder_distribution(self, network: str, token_address: str, limit: int = 100) -> dict | None:
+    async def get_holder_distribution(self, network: str, token_address: str, limit: int = 100) -> dict[str, Any] | None:
         """
         Get top token holders and their balances.
 
@@ -307,7 +307,7 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_transaction_trace(self, network: str, tx_hash: str) -> dict | None:
+    async def get_transaction_trace(self, network: str, tx_hash: str) -> dict[str, Any] | None:
         """
         Get full transaction trace including internal calls.
 
@@ -356,7 +356,7 @@ class BitqueryProvider:
 
     async def get_dex_volume(
         self, network: str, pool_address: str | None = None, timeframe: str = "24h"
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         Get DEX trading volume for a pool or network.
 
@@ -388,7 +388,7 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_address_balance(self, network: str, address: str) -> dict | None:
+    async def get_address_balance(self, network: str, address: str) -> dict[str, Any] | None:
         """
         Get all token balances for an address.
 
@@ -417,7 +417,7 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_cross_chain_transfers(self, address: str, networks: list[str] | None = None) -> dict | None:
+    async def get_cross_chain_transfers(self, address: str, networks: list[str] | None = None) -> dict[str, Any] | None:
         """
         Track token transfers across multiple chains for an address.
 
@@ -461,7 +461,7 @@ class BitqueryProvider:
 
     async def get_smart_contract_events(
         self, network: str, contract: str, event_signature: str | None = None, limit: int = 50
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         Get smart contract events/logs.
 
@@ -506,7 +506,7 @@ class BitqueryProvider:
 
     # ── Health & Status ─────────────────────────────────────────
 
-    async def health(self) -> dict:
+    async def health(self) -> dict[str, Any]:
         """Provider health check."""
         await self._load_creds()
 

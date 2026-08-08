@@ -4,10 +4,10 @@ Same entity across chains via Arkham.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def cross_chain_entity(address: str = "", **kw) -> dict | None:
+async def cross_chain_entity(address: str = "", **kw) -> dict[str, Any] | None:
     """Trace an entity across all chains using Arkham intelligence.
     Discovers all addresses owned by the same entity on different chains.
     """

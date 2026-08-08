@@ -131,7 +131,7 @@ async def _query_dex_swaps(
     Returns list of raw swap dicts ordered by block_timestamp DESC.
     """
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -224,7 +224,7 @@ async def _query_pool_stats(
 ) -> dict[str, Any] | None:
     """Query dex_events aggregated by pool for quick volume/liquidity stats."""
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -319,7 +319,7 @@ async def check_data_freshness(chain: str = "ethereum") -> dict[str, Any]:
         }
     """
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []

@@ -37,25 +37,25 @@ class WalletMonitorManager:
         for chain in list(self.monitors.keys()):
             await self.stop_chain(chain)
 
-    async def _alert_handler(self, alert: dict) -> None:
+    async def _alert_handler(self, alert: dict[str, Any]) -> None:
         if self._webhooks:
             await AlertChannel.dispatch_webhooks(alert, self._webhooks)
 
-    async def add_watch(self, wallet: str, chain: str = "ethereum", tags: list[str] | None = None) -> dict:
+    async def add_watch(self, wallet: str, chain: str = "ethereum", tags: list[str] | None = None) -> dict[str, Any]:
         ok = await WatchlistManager.add(wallet, chain, tags)
         mon = self.monitors.get(chain)
         if mon:
             await mon._refresh_watchlist()
         return {"success": ok, "wallet": wallet, "chain": chain}
 
-    async def remove_watch(self, wallet: str, chain: str = "ethereum") -> dict:
+    async def remove_watch(self, wallet: str, chain: str = "ethereum") -> dict[str, Any]:
         ok = await WatchlistManager.remove(wallet, chain)
         mon = self.monitors.get(chain)
         if mon:
             await mon._refresh_watchlist()
         return {"success": ok, "wallet": wallet, "chain": chain}
 
-    async def list_watches(self, chain: str = "ethereum", limit: int = 1000) -> list[dict]:
+    async def list_watches(self, chain: str = "ethereum", limit: int = 1000) -> list[dict[str, Any]]:
         return await WatchlistManager.list(chain, limit)
 
     def get_stats(self) -> dict[str, Any]:

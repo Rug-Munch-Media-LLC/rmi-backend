@@ -5,13 +5,13 @@ Immutable audit logging system. Stores to Redis (time-series) + file backup + op
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 import secrets
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.admin.backend.models import AuditLogEntry
@@ -31,8 +31,8 @@ class AuditLogger:
         resource_id: str,
         ip_address: str = "",
         user_agent: str = "",
-        before_state: dict | None = None,
-        after_state: dict | None = None,
+        before_state: dict[str, Any] | None = None,
+        after_state: dict[str, Any] | None = None,
         status: str = "success",
         reason: str = "",
         session_id: str = "",

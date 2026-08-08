@@ -1,11 +1,11 @@
 """Shared CSV loading and storage helper functions."""
 
 from __future__ import annotations
-from typing import Any
 
 import csv
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -25,7 +25,7 @@ def _normalize_chain(chain: str) -> str:
 async def _flush_batch(
     storage,
     redis_ops: list[tuple[str, str, str]],
-    ch_rows: list[tuple],
+    ch_rows: list[tuple[Any, ...]],
     chain: str,
 ) -> None:
     """Flush a batch of Redis writes and ClickHouse inserts."""

@@ -100,7 +100,7 @@ async def x402_catalog(request: Request) -> dict[str, str]:
 
 
 @router.get("/access-matrix")
-async def x402_access_matrix() -> dict:
+async def x402_access_matrix() -> dict[str, Any]:
     """Show which data types each x402 tier can access."""
     from app.databus.access_control import access_controller
 
@@ -113,7 +113,7 @@ async def x402_access_matrix() -> dict:
 
 
 @router.get("/trials/{identifier}")
-async def x402_trial_status(identifier: str) -> dict:
+async def x402_trial_status(identifier: str) -> dict[str, Any]:
     """Check remaining free trials for a wallet or fingerprint."""
     trials = {}
     for tool_id, info in X402_TOOL_PRICING.items():

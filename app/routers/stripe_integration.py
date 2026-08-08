@@ -78,7 +78,7 @@ class CreditEntry:
     """In-memory credit store - replace with Redis/Postgres in production."""
 
     def __init__(self) -> None:
-        self._credits: dict[str, dict] = {}
+        self._credits: dict[str, dict[str, Any]] = {}
 
     def get_balance(self, api_key: str) -> int:
         entry = self._credits.get(api_key, {"balance": 100})  # 100 free credits
@@ -103,7 +103,7 @@ class CreditEntry:
         entry["balance"] -= amount
         return True
 
-    def spending(self, api_key: str) -> dict:
+    def spending(self, api_key: str) -> dict[str, Any]:
         entry = self._credits.get(api_key, {"balance": 100, "total_purchased": 0})
         return {
             "balance": entry["balance"],
@@ -115,7 +115,7 @@ _credit_store = CreditEntry()
 
 
 @router.post("/stripe/checkout")
-async def create_checkout(req: CheckoutRequest) -> Any | dict:
+async def create_checkout(req: CheckoutRequest) -> Any | dict[str, Any]:
     """Create a Stripe checkout session for credit purchase."""
     if not STRIPE_ENABLED:
         return JSONResponse(
@@ -235,7 +235,7 @@ async def stripe_webhook(request: Request) -> dict[str, bool] | Any:
 
 
 @router.get("/stripe/packages")
-async def list_packages() -> dict[str, dict]:
+async def list_packages() -> dict[str, dict[str, Any]]:
     """List available credit packages and subscription tiers."""
     return {
         "packages": {
@@ -271,7 +271,7 @@ async def check_balance(api_key: str = "") -> dict[str, int | float] | dict[str,
 
 
 @router.post("/credits/buy")
-async def buy_credits(api_key: str = "", amount_usd: int = 1000) -> dict:
+async def buy_credits(api_key: str = "", amount_usd: int = 1000) -> dict[str, Any]:
     """Buy credits directly via API (wraps Stripe checkout).
 
     In production, this creates a Stripe checkout session.
@@ -316,7 +316,7 @@ async def buy_credits(api_key: str = "", amount_usd: int = 1000) -> dict:
 
 
 @router.get("/stripe/portal")
-async def customer_portal(customer_id: str = "") -> dict | Any:
+async def customer_portal(customer_id: str = "") -> dict[str, Any] | Any:
     """Stripe customer portal for managing subscriptions."""
     if not STRIPE_ENABLED or not customer_id:
         return {
@@ -337,7 +337,7 @@ async def customer_portal(customer_id: str = "") -> dict | Any:
 
 
 @router.get("/pricing")
-async def get_pricing() -> dict:
+async def get_pricing() -> dict[str, Any]:
     """Pricing page data — frontend-compatible format.
 
     Used by: rmi-frontend/src/pages/PricingPage.tsx
@@ -420,7 +420,7 @@ class SubscriptionCreateRequest(BaseModel):
 
 
 @router.post("/subscription/create")
-async def create_subscription(req: SubscriptionCreateRequest) -> dict:
+async def create_subscription(req: SubscriptionCreateRequest) -> dict[str, Any]:
     """Create a subscription/checkout session — frontend-compatible.
 
     Used by: rmi-frontend/src/pages/PricingPage.tsx

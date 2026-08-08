@@ -28,6 +28,7 @@ benefits from 3072-dimension embeddings.
 # ──────────────────────────────────────────────────────────────
 
 from __future__ import annotations
+
 from typing import Any
 
 TIER_PROVIDERS = {
@@ -102,7 +103,7 @@ def is_provider_allowed(provider_id: str, task: str) -> bool:
     return provider_id in allowed
 
 
-def tier_summary() -> dict:  # type: ignore[type-arg]
+def tier_summary() -> dict[str, Any]:  # type: ignore[type-arg]
     """Return a summary of all tiers and their providers."""
     return {
         "tiers": {

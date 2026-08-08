@@ -34,7 +34,7 @@ def _get_url() -> str:
     return os.environ.get("SUPABASE_URL", "")
 
 
-def _get_headers() -> dict:
+def _get_headers() -> dict[str, Any]:
     """Build headers dynamically to pick up env changes without module reload.
 
     SERVICE KEY REQUIRED: This module performs CRUD operations on the rag_vectors
@@ -64,7 +64,7 @@ EMBEDDING_DIM = int(os.environ.get("RAG_EMBEDDING_DIM", "0"))  # 0 = auto-detect
 TABLE_DIM = int(os.environ.get("RAG_TABLE_DIM", str(max(EMBEDDING_DIM, 1)))) if EMBEDDING_DIM > 0 else 640
 
 
-def pad_vector(vec: list, target_dim: int) -> list:
+def pad_vector(vec: list[Any], target_dim: int) -> list[Any]:
     """Pad or truncate a vector to exactly target_dim dimensions."""
     if len(vec) == target_dim:
         return vec
@@ -135,7 +135,7 @@ class SupabaseVectorStore:
         logger.info("Using default embedding dimension: %s", self._resolved_dim)
         return self._resolved_dim
 
-    async def _rpc(self, fn: str, params: dict | None = None) -> dict:
+    async def _rpc(self, fn: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Execute a Supabase RPC function."""
         url = f"{_get_url()}/rest/v1/rpc/{fn}"
         async with httpx.AsyncClient(timeout=30) as client:
@@ -147,10 +147,10 @@ class SupabaseVectorStore:
         self,
         table: str,
         select: str = "*",
-        filters: dict | None = None,
+        filters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Query Supabase REST API."""
         url = f"{_get_url()}/rest/v1/{table}"
         params = {"select": select, "limit": str(limit), "offset": str(offset)}
@@ -163,7 +163,7 @@ class SupabaseVectorStore:
             resp.raise_for_status()
             return resp.json() if resp.text else []
 
-    async def _upsert(self, table: str, rows: list[dict]) -> dict:
+    async def _upsert(self, table: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
         """Upsert rows into a Supabase table."""
         url = f"{_get_url()}/rest/v1/{table}"
         params = {"on_conflict": "id"}
@@ -270,7 +270,7 @@ class SupabaseVectorStore:
         collection: str,
         embedding: list[float],
         content: str = "",
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
         source: str = "",
         severity: str = "medium",
         chain: str = "",
@@ -317,7 +317,7 @@ class SupabaseVectorStore:
             logger.error("pgvector insert failed: %s", e)
             return False
 
-    async def insert_batch(self, docs: list[dict]) -> int:
+    async def insert_batch(self, docs: list[dict[str, Any]]) -> int:
         """Insert multiple documents in one batch (max 100 per call)."""
         count = 0
         for i in range(0, len(docs), 100):
@@ -350,7 +350,7 @@ class SupabaseVectorStore:
         collection: str | None = None,
         limit: int = 10,
         min_similarity: float = 0.6,
-        filters: dict | None = None,
+        filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         ANN search using pgvector. Falls back to Redis.

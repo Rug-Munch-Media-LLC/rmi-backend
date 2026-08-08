@@ -226,7 +226,7 @@ class BlockZeroSniperAnalyzer:
         Transactions are assumed to be sorted chronologically (earliest first).
         A 'buyer' is the 'from' address - the wallet that initiated the purchase.
         """
-        seen: set = set()
+        seen: set[Any] = set()
         buyers: list[str] = []
 
         for tx in transactions:
@@ -563,7 +563,7 @@ class BlockZeroSniperAnalyzer:
 
     # ── Helius RPC helper ───────────────────────────────────────────────────
 
-    async def _helius_rpc(self, method: str, params: list | None = None) -> Any | None:
+    async def _helius_rpc(self, method: str, params: list[Any] | None = None) -> Any | None:
         """Make a Helius JSON-RPC call."""
         try:
             resp = await self._http.post(
@@ -586,7 +586,7 @@ class BlockZeroSniperAnalyzer:
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
-_DEAD_ADDRESSES: set = {
+_DEAD_ADDRESSES: set[Any] = {
     # Solana
     "11111111111111111111111111111111",
     "1nc1nerator11111111111111111111111111111111",

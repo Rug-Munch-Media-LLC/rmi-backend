@@ -65,7 +65,7 @@ class RequestDeduplicator:
         if future and not future.done():
             future.set_exception(exc)
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Return current dedup statistics."""
         return {
             "in_flight": len(self._in_flight),

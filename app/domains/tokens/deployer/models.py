@@ -37,7 +37,7 @@ class TokenDeployment:
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["created_at"] = self.created_at
         d["updated_at"] = self.updated_at

@@ -6,12 +6,13 @@ and flags such as freshness indicators.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 logger = __import__("logging").getLogger("x402.confidence")
 
 
-def compute_confidence(result: dict) -> dict:
+def compute_confidence(result: dict[str, Any]) -> dict[str, Any]:
     """Add confidence scoring to any tool result."""
     sources = result.get("sources_used", [])
     source_count = len(sources)

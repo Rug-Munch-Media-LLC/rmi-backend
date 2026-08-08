@@ -41,7 +41,7 @@ async def market_summary(force: bool = False) -> Any:
 
 
 @router.get("/mcp/news/categories")
-async def mcp_news_categories() -> dict:
+async def mcp_news_categories() -> dict[str, Any]:
     """Available news categories."""
     from app.caching_shield.market_rundown import get_categories
 
@@ -49,7 +49,7 @@ async def mcp_news_categories() -> dict:
 
 
 @router.get("/mcp/news/sources")
-async def news_sources() -> dict:
+async def news_sources() -> dict[str, Any]:
     """Available news sources."""
     from app.caching_shield.market_rundown import get_sources
 
@@ -57,7 +57,7 @@ async def news_sources() -> dict:
 
 
 @router.post("/mcp/news/vote")
-async def mcp_news_vote(data: dict) -> Any:
+async def mcp_news_vote(data: dict[str, Any]) -> Any:
     """Vote up/down on an article."""
     from app.caching_shield.market_rundown import vote
 
@@ -65,7 +65,7 @@ async def mcp_news_vote(data: dict) -> Any:
 
 
 @router.post("/mcp/news/comment")
-async def mcp_news_comment(data: dict) -> Any:
+async def mcp_news_comment(data: dict[str, Any]) -> Any:
     """Add a comment to an article."""
     from app.caching_shield.market_rundown import comment
 

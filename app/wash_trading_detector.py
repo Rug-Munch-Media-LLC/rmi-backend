@@ -33,7 +33,7 @@ def _validate_url(url: str) -> bool:
     return bool(_URL_SAFE.match(url))
 
 
-async def _fetch(url: str, timeout: int = 10) -> dict | None:
+async def _fetch(url: str, timeout: int = 10) -> dict[str, Any] | None:
     """Single URL fetch with aiohttp. Rejects malformed URLs."""
     if not _validate_url(url):
         logger.debug(f"Invalid URL rejected: {url[:60]}")
@@ -56,7 +56,7 @@ async def _fetch(url: str, timeout: int = 10) -> dict | None:
     return None
 
 
-async def _rpc_call(chain: str, method: str, params: list) -> Any:
+async def _rpc_call(chain: str, method: str, params: list[Any]) -> Any:
     """Call into the x402_tools RPC fallback system."""
     try:
         from app.routers.x402_tools import rpc_call
@@ -67,7 +67,7 @@ async def _rpc_call(chain: str, method: str, params: list) -> Any:
         return None
 
 
-async def _post_json(url: str, payload: dict, timeout: int = 10) -> dict | None:
+async def _post_json(url: str, payload: dict[str, Any], timeout: int = 10) -> dict[str, Any] | None:
     """POST JSON to URL and return parsed response."""
     if not _validate_url(url):
         logger.debug(f"Invalid POST URL rejected: {url[:60]}")
@@ -188,7 +188,7 @@ def _generate_recommendation(score: float, confidence: float) -> str:
     return base
 
 
-async def detect_wash_trading(token_address: str, chain: str) -> dict:
+async def detect_wash_trading(token_address: str, chain: str) -> dict[str, Any]:
     """
     Main wash trading detection pipeline.
 

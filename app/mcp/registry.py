@@ -1,6 +1,7 @@
 """MCP Tool Registry - resolves and lists tools from the TOOL_CATALOG."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -15,7 +16,7 @@ from app.mcp.manifest import MCPServerManifest, MCPToolManifest
 log = get_logger(__name__)
 
 # O(1) lookup index built once at module load
-_TOOL_BY_NAME: dict[str, dict] = {t["name"]: t for t in TOOL_CATALOG}
+_TOOL_BY_NAME: dict[str, dict[str, Any]] = {t["name"]: t for t in TOOL_CATALOG}
 
 # Auth scope tiers: free, x402-paywalled, internal, public
 TOOL_AUTH_SCOPES: dict[str, str] = {

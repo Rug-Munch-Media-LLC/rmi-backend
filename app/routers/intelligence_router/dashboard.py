@@ -5,9 +5,9 @@ Aggregated intelligence dashboard and health check endpoints.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from fastapi import APIRouter
@@ -25,7 +25,7 @@ router = APIRouter()
     summary="Intelligence Dashboard",
     description="Aggregated market intelligence dashboard — fear & greed, global stats, trending, DeFi TVL, BTC mempool. Aggregates data from CoinGecko, DeFiLlama, Mempool.space, and Alternative.me.",
 )
-async def intelligence_dashboard() -> dict:
+async def intelligence_dashboard() -> dict[str, Any]:
     """Aggregated market intelligence dashboard.
 
     Returns a unified view of fear & greed, global crypto market stats,
@@ -39,7 +39,7 @@ async def intelligence_dashboard() -> dict:
     # ── Fear & Greed ─────────────────────────────────────────
     fng_data = await _fng()
     fng_current = {"value": 50, "classification": "Neutral", "timestamp": now}
-    fng_history: list[dict] = []
+    fng_history: list[dict[str, Any]] = []
     if fng_data and "data" in fng_data and fng_data["data"]:
         vals = fng_data["data"]
         if vals:
@@ -68,7 +68,7 @@ async def intelligence_dashboard() -> dict:
 
     # ── Trending from CoinGecko ──────────────────────────────
     trending_data = await _cg("/search/trending", ttl=120)
-    trending_coins: list[dict] = []
+    trending_coins: list[dict[str, Any]] = []
     if trending_data and "coins" in trending_data:
         trending_coins = [
             {
@@ -110,7 +110,7 @@ async def intelligence_dashboard() -> dict:
     # ── DeFi from CoinGecko ──────────────────────────────────
     defi_data = await _cg("/global/defi", ttl=120)
     defi_tvl = 0
-    defi_protocols: list[dict] = []
+    defi_protocols: list[dict[str, Any]] = []
     if defi_data and "data" in defi_data:
         dd = defi_data["data"]
         defi_tvl = float(dd.get("defi_market_cap", 0))
@@ -168,7 +168,7 @@ async def intelligence_dashboard() -> dict:
     summary="Intelligence Health",
     description="Intelligence service health check. Verifies connectivity to n8n, Supabase, and internal intelligence pipelines. Returns status for each subsystem.",
 )
-async def intelligence_health() -> dict:
+async def intelligence_health() -> dict[str, Any]:
     """Intelligence service health check."""
     return {
         "status": "ok",

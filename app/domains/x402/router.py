@@ -183,7 +183,7 @@ async def usage(request: Request) -> UsageResponse:
     daily_calls = 0
     paid_calls = 0
     total_usd = 0.0
-    recent: list[dict] = []
+    recent: list[dict[str, Any]] = []
     if catalog._health.redis:
         try:
             from datetime import UTC, datetime
@@ -253,7 +253,7 @@ async def receipt(tx_hash: str) -> ReceiptResponse:
 
 
 @router.post("/verify")
-async def verify_payment(request: Request) -> dict:
+async def verify_payment(request: Request) -> dict[str, Any]:
     """Verify an X-Payment header for a given tool."""
     body = await request.json()
     tool = body.get("tool", "")

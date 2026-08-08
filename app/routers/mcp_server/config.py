@@ -31,7 +31,7 @@ def _get_facilitator_count() -> int:
         return 10
 
 
-def _desc(tool_id: str, pricing: dict) -> str:
+def _desc(tool_id: str, pricing: dict[str, Any]) -> str:
     d = pricing.get("description", "")
     if d and d != tool_id and len(d) > 10:
         return d
@@ -116,7 +116,7 @@ def _desc(tool_id: str, pricing: dict) -> str:
     )
 
 
-def _input_schema(tool_id: str) -> dict:
+def _input_schema(tool_id: str) -> dict[str, Any]:
     """Return MCP-compliant inputSchema for a tool."""
     base_address = {
         "type": "object",

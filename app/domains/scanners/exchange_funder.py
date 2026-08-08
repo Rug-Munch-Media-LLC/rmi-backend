@@ -18,7 +18,7 @@ import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 import httpx
 import requests
@@ -107,7 +107,7 @@ class ExchangeFunderDetector:
 
     # ── Direct API fetchers ───────────────────────────────────────────
 
-    async def _fetch_solscan_funding_sources(self, wallet: str, days: int = 30) -> list[dict]:
+    async def _fetch_solscan_funding_sources(self, wallet: str, days: int = 30) -> list[dict[str, Any]]:
         """Fetch funding sources for a wallet from Solscan."""
         try:
             sources = self._solscan.get_wallet_funding_sources(wallet, days=days)
@@ -117,7 +117,7 @@ class ExchangeFunderDetector:
             logger.warning(f"Solscan funding sources failed for {wallet}: {e}")
             return []
 
-    async def _fetch_solscan_transfers(self, address: str, page: int = 1, page_size: int = 100) -> list[dict]:
+    async def _fetch_solscan_transfers(self, address: str, page: int = 1, page_size: int = 100) -> list[dict[str, Any]]:
         """Fetch token transfers for an address from Solscan."""
         try:
             result = self._solscan.account_transfers(address, page=page, page_size=page_size)
@@ -127,7 +127,7 @@ class ExchangeFunderDetector:
             logger.warning(f"Solscan transfers failed for {address}: {e}")
             return []
 
-    async def _fetch_solscan_account_info(self, address: str) -> dict | None:
+    async def _fetch_solscan_account_info(self, address: str) -> dict[str, Any] | None:
         """Fetch account info from Solscan."""
         try:
             return self._solscan.account_info(address)
@@ -136,14 +136,14 @@ class ExchangeFunderDetector:
             logger.warning(f"Solscan account info failed for {address}: {e}")
             return None
 
-    async def _fetch_helius_signatures(self, address: str, limit: int = 5) -> list[dict]:
+    async def _fetch_helius_signatures(self, address: str, limit: int = 5) -> list[dict[str, Any]]:
         """Fetch first few signatures for a wallet to determine if it's fresh."""
         result = await self._chain.rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
         if result and "result" in result:
             return result["result"]
         return []
 
-    async def _fetch_dexscreener_boosts(self, token_address: str) -> dict | None:
+    async def _fetch_dexscreener_boosts(self, token_address: str) -> dict[str, Any] | None:
         """Fetch DexScreener boosted token info (free, no key)."""
         try:
             resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")

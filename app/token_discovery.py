@@ -7,9 +7,9 @@ Multi-chain real-time token discovery. Add this route to main.py:
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -28,7 +28,7 @@ MONITORED_CHAINS = {
 }
 
 
-async def fetch_dexscreener_new_pairs(chain: str, limit: int = 20) -> list[dict]:
+async def fetch_dexscreener_new_pairs(chain: str, limit: int = 20) -> list[dict[str, Any]]:
     """Fetch newest trading pairs from DexScreener."""
     url = "https://api.dexscreener.com/latest/dex/search"
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -51,7 +51,7 @@ async def fetch_dexscreener_new_pairs(chain: str, limit: int = 20) -> list[dict]
             return []
 
 
-async def fetch_gecko_new_pools(network: str, limit: int = 20) -> list[dict]:
+async def fetch_gecko_new_pools(network: str, limit: int = 20) -> list[dict[str, Any]]:
     """Fetch newest pools from GeckoTerminal."""
     url = f"https://api.geckoterminal.com/api/v2/networks/{network}/new_pools"
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -66,7 +66,7 @@ async def fetch_gecko_new_pools(network: str, limit: int = 20) -> list[dict]:
             return []
 
 
-async def scan_token_security(chain_id: str, token_address: str) -> dict | None:
+async def scan_token_security(chain_id: str, token_address: str) -> dict[str, Any] | None:
     """GoPlus Security scan."""
     url = f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}"
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -109,7 +109,7 @@ async def scan_token_security(chain_id: str, token_address: str) -> dict | None:
     return None
 
 
-async def discover_tokens(chains: list[str] | None = None) -> dict:
+async def discover_tokens(chains: list[str] | None = None) -> dict[str, Any]:
     """Discover new tokens across chains. Returns {chain: [tokens]}."""
     if chains is None:
         chains = list(MONITORED_CHAINS.keys())

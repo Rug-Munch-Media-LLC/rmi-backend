@@ -24,7 +24,7 @@ def register_task(name: str, fn: Callable) -> None:
     TASKS[name] = fn
 
 
-async def enqueue(name: str, payload: dict, delay: int = 0, max_retries: int = 3) -> None:
+async def enqueue(name: str, payload: dict[str, Any], delay: int = 0, max_retries: int = 3) -> None:
     """Enqueue a background task."""
     import redis
 
@@ -100,7 +100,7 @@ async def process_tasks() -> None:
             await asyncio.sleep(1)
 
 
-async def get_queue_stats() -> dict:
+async def get_queue_stats() -> dict[str, Any]:
     """Get task queue statistics."""
     import redis
 

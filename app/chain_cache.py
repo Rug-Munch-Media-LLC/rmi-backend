@@ -83,7 +83,7 @@ class ChainCache:
                 self._cache.popitem(last=False)
             self._cache[key] = (time.time() + (ttl or self.default_ttl), value)
 
-    async def stats(self) -> dict:
+    async def stats(self) -> dict[str, Any]:
         async with self._lock:
             # Count how many are from warming vs live
             warmed = sum(1 for k in self._cache if k.startswith("warm:"))

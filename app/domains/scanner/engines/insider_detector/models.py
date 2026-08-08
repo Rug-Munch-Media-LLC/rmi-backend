@@ -1,10 +1,10 @@
 """Data structures for insider detection reports."""
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 
 class InsiderType:
@@ -40,7 +40,7 @@ class InsiderEvidence:
     evidence: str
     confidence: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "wallet": self.wallet,
             "type": self.insider_type,
@@ -73,7 +73,7 @@ class InsiderReport:
         self.insiders.append(evidence)
         self.total_frontrun_value += evidence.pnl_estimate
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         unique_wallets = {e.wallet for e in self.insiders}
         return {
             "token": self.token,

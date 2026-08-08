@@ -58,7 +58,7 @@ async def google_auth_url() -> dict[str, Any]:
     return {"url": url}
 
 
-async def _google_token_exchange(code: str) -> dict | None:
+async def _google_token_exchange(code: str) -> dict[str, Any] | None:
     """Exchange authorization code for Google access token."""
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -81,7 +81,7 @@ async def _google_token_exchange(code: str) -> dict | None:
         return resp.json()
 
 
-async def _google_get_user(access_token: str) -> dict | None:
+async def _google_get_user(access_token: str) -> dict[str, Any] | None:
     """Get Google user info from access token."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -93,7 +93,7 @@ async def _google_get_user(access_token: str) -> dict | None:
         return resp.json()
 
 
-async def _create_or_get_user(email: str, display_name: str, provider: str = "google") -> dict:
+async def _create_or_get_user(email: str, display_name: str, provider: str = "google") -> dict[str, Any]:
     """Find existing user or create a new one."""
     user = _get_user_by_email(email)
     if user:

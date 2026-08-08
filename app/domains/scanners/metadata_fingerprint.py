@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from html.parser import HTMLParser
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 import httpx
 import requests
@@ -137,7 +137,7 @@ class MetadataFingerprinter:
     """
 
     # Known social domains for normalisation
-    _SOCIAL_DOMAINS: ClassVar[dict] = {
+    _SOCIAL_DOMAINS: ClassVar[dict[str, Any]] = {
         "twitter.com",
         "x.com",
         "t.me",
@@ -351,7 +351,7 @@ class MetadataFingerprinter:
     # ------------------------------------------------------------------
 
     # Known stablecoin / wrapped token symbols - these legitimately have no description
-    STABLECOIN_SYMBOLS: ClassVar[dict] = {
+    STABLECOIN_SYMBOLS: ClassVar[dict[str, Any]] = {
         "USDC",
         "USDT",
         "DAI",

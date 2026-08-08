@@ -78,10 +78,10 @@ class WhaleWatcher:
         self.api_key = api_key or API_KEY
         self.rpc_url = f"https://mainnet.helius-rpc.com/?api-key={self.api_key}"
         self.session: aiohttp.ClientSession | None = None
-        self._monitored_tokens: dict[str, dict] = {}
+        self._monitored_tokens: dict[str, dict[str, Any]] = {}
         self._whale_db: dict[str, WhaleProfile] = {}
-        self._alert_history: deque = deque(maxlen=1000)
-        self._known_whales: set = set()
+        self._alert_history: deque[Any] = deque(maxlen=1000)
+        self._known_whales: set[Any] = set()
         self.callbacks: list[Callable[[WhaleAlert], None]] = []
 
     async def _get_session(self) -> aiohttp.ClientSession:
@@ -89,7 +89,7 @@ class WhaleWatcher:
             self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         return self.session
 
-    async def _rpc_call(self, method: str, params: list | None = None) -> Any:
+    async def _rpc_call(self, method: str, params: list[Any] | None = None) -> Any:
         s = await self._get_session()
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
         try:

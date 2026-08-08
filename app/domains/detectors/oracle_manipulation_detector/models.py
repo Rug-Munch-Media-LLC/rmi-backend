@@ -5,11 +5,11 @@ Enums and dataclasses for oracle manipulation detection.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class OracleType(Enum):
@@ -74,7 +74,7 @@ class PriceSnapshot:
     source: str = ""
     chain: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -103,7 +103,7 @@ class TWAPWindow:
         risk = min(self.std_dev_pct / 0.10, 1.0)
         return risk
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["oracle_type"] = self.oracle_type.value
         result["samples"] = [s.to_dict() for s in self.samples]
@@ -136,7 +136,7 @@ class OracleRead:
             return abs(self.reported_price - self.expected_price) / self.expected_price
         return None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["oracle_type"] = self.oracle_type.value
         result["is_stale"] = self.is_stale()
@@ -173,7 +173,7 @@ class PriceManipulation:
             f"(deviation={self.deviation_pct:.2f}%, pool={self.pool_address[:10]}...)"
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
         result["manipulation_type"] = self.manipulation_type.value
         result["severity"] = self.severity.value
@@ -219,7 +219,7 @@ class ManipulationReport:
             return 0.0
         return sum(inc.severity.score * (1 + inc.deviation_pct / 100) for inc in self.incidents) / len(self.incidents)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "scan_id": self.scan_id,
             "chain": self.chain,

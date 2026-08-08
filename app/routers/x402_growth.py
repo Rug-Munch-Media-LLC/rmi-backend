@@ -25,12 +25,12 @@ router = APIRouter(prefix="/api/v1/x402", tags=["x402-Growth"])
 #  6. PAYMENT WEBHOOKS
 # ═══════════════════════════════════════════════════════════════════
 
-_webhooks: dict[str, dict] = {}
-_webhook_events: list[dict] = []
+_webhooks: dict[str, dict[str, Any]] = {}
+_webhook_events: list[dict[str, Any]] = []
 
 
 @router.post("/webhooks/register")
-async def register_webhook(url: str = Query(...), events: str = Query("payment.confirmed")) -> dict:
+async def register_webhook(url: str = Query(...), events: str = Query("payment.confirmed")) -> dict[str, Any]:
     """Register a webhook URL for payment notifications.
 
     Events: payment.confirmed (when payment is verified), payment.failed,
@@ -57,7 +57,7 @@ async def register_webhook(url: str = Query(...), events: str = Query("payment.c
 
 
 @router.get("/webhooks")
-async def list_webhooks() -> dict[str, list]:
+async def list_webhooks() -> dict[str, list[Any]]:
     """List registered webhooks."""
     return {"webhooks": list(_webhooks.values()), "total": len(_webhooks)}
 
@@ -70,7 +70,7 @@ async def delete_webhook(hook_id: str) -> dict[str, bool]:
 
 
 @router.get("/webhooks/events")
-async def webhook_events(limit: int = 100) -> dict:
+async def webhook_events(limit: int = 100) -> dict[str, Any]:
     """View recent webhook delivery events."""
     return {"events": list(reversed(_webhooks))[:limit], "total": len(_webhook_events)}
 
@@ -171,7 +171,7 @@ loadInvoice();
 
 
 @router.get("/invoice/{invoice_id}")
-async def get_invoice(invoice_id: str) -> dict:
+async def get_invoice(invoice_id: str) -> dict[str, Any]:
     """Get invoice details (for hosted payment page)."""
     # Parse tool from invoice_id (format: uuid - lookup in pending)
     return {
@@ -229,7 +229,7 @@ ADDITIONAL_CHAINS = {
 
 
 @router.post("/chains/add")
-async def add_chains() -> dict:
+async def add_chains() -> dict[str, Any]:
     """Register Polygon, Arbitrum, Optimism, Avalanche into CHAIN_USDC.
 
     This extends payment coverage from 7 to 11 chains.
@@ -246,7 +246,7 @@ async def add_chains() -> dict:
 
 
 @router.get("/chains")
-async def list_chains() -> dict[str, dict]:
+async def list_chains() -> dict[str, dict[str, Any]]:
     """List all payment chains with USDC addresses."""
     from app.routers.x402_enforcement import CHAIN_USDC
 
@@ -269,12 +269,12 @@ async def list_chains() -> dict[str, dict]:
 #  10. AFFILIATE SYSTEM
 # ═══════════════════════════════════════════════════════════════════
 
-_affiliates: dict[str, dict] = {}
+_affiliates: dict[str, dict[str, Any]] = {}
 _AFFILIATE_COMMISSION = 0.10  # 10%
 
 
 @router.post("/affiliates/register")
-async def register_affiliate(name: str = Query(...), email: str = Query("")) -> dict:
+async def register_affiliate(name: str = Query(...), email: str = Query("")) -> dict[str, Any]:
     """Register an affiliate account.
 
     Affiliates earn 10% of all x402 fees paid by users they refer.
@@ -302,7 +302,7 @@ async def affiliate_stats(code: str) -> Any:
 
 
 @router.get("/affiliates")
-async def list_affiliates() -> dict[str, list]:
+async def list_affiliates() -> dict[str, list[Any]]:
     """List all affiliates."""
     return {"affiliates": list(_affiliates.values()), "total": len(_affiliates)}
 

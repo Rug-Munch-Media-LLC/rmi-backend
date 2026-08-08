@@ -4,10 +4,10 @@ Deployer history tracking.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def developer_reputation(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def developer_reputation(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Track deployer wallet history across all tokens they've created.
     Uses: Arkham entity + Helius transaction history + local token scanner data.
     """

@@ -31,13 +31,13 @@ logger = get_logger("address_labeler")
 
 # ── RolodETH cache (avoid re-fetching on every call) ──────────────────
 
-_ROLODETH_CACHE: dict[str, list[dict]] | None = None
+_ROLODETH_CACHE: dict[str, list[dict[str, Any]]] | None = None
 _ROLODETH_LAST_FETCH: float = 0.0
 _ROLODETH_TTL = 3600  # 1 hour cache
 
 # ── Known scam patterns / addresses (built-in database) ─────────────
 
-BUILTIN_KNOWN_SCAMS: dict[str, dict] = {
+BUILTIN_KNOWN_SCAMS: dict[str, dict[str, Any]] = {
     # Notorious rug-pull deployers and scam addresses
     "0x0000000000000000000000000000000000000000": {"label": "Null address", "category": "burn"},
     "0xdead000000000000000000000000000000000000": {"label": "Dead address", "category": "burn"},
@@ -146,7 +146,7 @@ class AddressLabeler:
 
     # ── Source 2: RolodETH ──────────────────────────────────────────
 
-    async def _fetch_rolodeth(self) -> dict[str, list[dict]]:
+    async def _fetch_rolodeth(self) -> dict[str, list[dict[str, Any]]]:
         """Fetch and cache RolodETH labels from GitHub."""
         global _ROLODETH_CACHE, _ROLODETH_LAST_FETCH
         import time
@@ -161,7 +161,7 @@ class AddressLabeler:
             if resp.status_code == 200:
                 data = resp.json()
                 # Build address-indexed dict: { "0x...": [{label, category, ...}] }
-                index: dict[str, list[dict]] = {}
+                index: dict[str, list[dict[str, Any]]] = {}
                 if isinstance(data, list):
                     for entry in data:
                         addr = entry.get("address", "").lower()

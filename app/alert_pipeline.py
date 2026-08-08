@@ -72,7 +72,7 @@ async def push_alert(
     token_symbol: str = "",
     wallet: str = "",
     risk_score: int = 0,
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> str:
     """
     Push a new alert to the pipeline.
@@ -112,7 +112,7 @@ async def push_alert(
     return alert_id
 
 
-async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict]:
+async def get_recent_alerts(limit: int = 20, severity: str = "") -> list[dict[str, Any]]:
     """Get recent alerts with optional severity filter. Normalizes old/new formats."""
     try:
         r = await _get_redis()

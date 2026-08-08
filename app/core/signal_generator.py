@@ -53,7 +53,7 @@ SIGNAL_RULES = {
 }
 
 
-async def fetch_trending(chain: str, limit: int = 10) -> list:
+async def fetch_trending(chain: str, limit: int = 10) -> list[Any]:
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(
             f"{BACKEND}/api/v1/databus/fetch/trending?chain={chain}&limit={limit}",
@@ -65,7 +65,7 @@ async def fetch_trending(chain: str, limit: int = 10) -> list:
     return []
 
 
-async def scan_and_signal(token: dict) -> dict | None:
+async def scan_and_signal(token: dict[str, Any]) -> dict[str, Any] | None:
     addr = token.get("address", "") or token.get("mint", "")
     if not addr:
         return None
@@ -105,7 +105,7 @@ async def scan_and_signal(token: dict) -> dict | None:
     return None
 
 
-async def publish_signal(signal: dict) -> None:
+async def publish_signal(signal: dict[str, Any]) -> None:
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             await c.post(

@@ -20,9 +20,9 @@ async def detect_pre_pump_accumulation(
     client: httpx.AsyncClient,
     token_address: str,
     chain: str,
-) -> dict:
+) -> dict[str, Any]:
     """Detect wallets accumulating tokens before a pump event."""
-    findings: list[dict] = []
+    findings: list[dict[str, Any]] = []
     accumulations: list[PrePumpAccumulation] = []
     holders_data = await fetch_holders(client, token_address, chain)
     if not holders_data or holders_data.get("holders", 0) > 500:
@@ -31,8 +31,8 @@ async def detect_pre_pump_accumulation(
     if not trades or len(trades) < 20:
         return {"accumulations": accumulations, "findings": findings}
     trades.sort(key=lambda t: t.get("unixTime", 0) or 0)
-    wb: dict[str, list[dict]] = defaultdict(list)
-    ws: dict[str, list[dict]] = defaultdict(list)
+    wb: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    ws: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for trade in trades:
         w = trade.get("owner", "") or trade.get("from", "") or trade.get("wallet", "")
         if not w:
@@ -73,9 +73,9 @@ async def detect_pre_pump_accumulation(
     return {"accumulations": accumulations, "findings": findings}
 
 
-def check_lifecycle_patterns(pairs_data: dict) -> list[dict]:
+def check_lifecycle_patterns(pairs_data: dict[str, Any]) -> list[dict[str, Any]]:
     """Check for known pump-dump lifecycle patterns."""
-    findings: list[dict] = []
+    findings: list[dict[str, Any]] = []
     if not pairs_data.get("pairs"):
         return findings
     pair = pairs_data["pairs"][0]
@@ -142,7 +142,7 @@ def score_to_level(score: float) -> str:
         return "low"
 
 
-def estimate_traders(pairs_data: dict) -> int:
+def estimate_traders(pairs_data: dict[str, Any]) -> int:
     if not pairs_data.get("pairs"):
         return 0
     txns = pairs_data["pairs"][0].get("txns", {})

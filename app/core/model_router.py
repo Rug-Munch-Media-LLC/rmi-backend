@@ -82,7 +82,7 @@ def route_task(task_type: TaskType, prefer: str = "fast") -> RoutingDecision:
     )
 
 
-async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs) -> dict[str, str] | dict:
+async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs) -> dict[str, str] | dict[str, Any]:
     """Auto-route a prompt to the best model. Returns response or falls back."""
     decision = route_task(TaskType(task_type), prefer)
 
@@ -100,7 +100,7 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
     return {"error": "All providers failed", "routing": vars(decision)}
 
 
-async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict:
+async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> None | Any | dict[str, Any]:
     """Call a specific provider — routes through LiteLLM when possible.
     Returns dict or None. Gracefully degrades.
 

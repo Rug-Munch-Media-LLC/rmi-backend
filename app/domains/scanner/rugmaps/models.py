@@ -5,10 +5,10 @@ All dataclasses for the interactive wallet visualization engine.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 
 def _format_timestamp(ts: int | float | datetime | None) -> str | None:
@@ -66,7 +66,7 @@ class BubbleNode:
     entity_name: str | None = None
     tags: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "address": self.address,
@@ -105,10 +105,10 @@ class BubbleLink:
     last_tx: datetime | None = None
 
     # Transaction details (for tooltip)
-    transactions: list[dict] = field(default_factory=list)
+    transactions: list[dict[str, Any]] = field(default_factory=list)
     transaction_hashes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source": self.source,
             "target": self.target,
@@ -141,7 +141,7 @@ class BubbleMap:
     total_transactions: int = 0
     unique_wallets: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "map_id": self.map_id,
             "center_wallet": self.center_wallet,

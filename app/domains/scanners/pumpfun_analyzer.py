@@ -17,11 +17,11 @@ Pump.fun bonding curve model:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 import requests
@@ -367,7 +367,7 @@ class PumpFunAnalyzer:
 
         return list(buyer_map.values())
 
-    async def _fetch_parsed_transaction(self, signature: str) -> dict | None:
+    async def _fetch_parsed_transaction(self, signature: str) -> dict[str, Any] | None:
         """Fetch a single parsed transaction from Helius."""
         try:
             url = f"{HELIUS_RPC_URL}/?api-key={self.helius_api_key}"
@@ -390,7 +390,7 @@ class PumpFunAnalyzer:
             pass
         return None
 
-    def _extract_buyer_from_tx(self, tx: dict, buyer_map: dict[str, BuyerProfile]) -> None:
+    def _extract_buyer_from_tx(self, tx: dict[str, Any], buyer_map: dict[str, BuyerProfile]) -> None:
         """Extract buyer information from a parsed Solana transaction."""
         tx.get("meta") or {}
         message = tx.get("transaction", {}).get("message") or {}

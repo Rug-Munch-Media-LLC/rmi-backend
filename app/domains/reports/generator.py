@@ -97,7 +97,7 @@ Justify in 2 sentences. If the asset is a serial rugger, say so clearly.""",
 
 
 # ── Data gathering (fan-out from catalog) ─────────────────────────
-async def _gather_token(catalog, chain: str, address: str) -> dict:
+async def _gather_token(catalog, chain: str, address: str) -> dict[str, Any]:
     """Gather all data sources for a token."""
     from app.catalog.models import Chain
 
@@ -126,7 +126,7 @@ async def _gather_token(catalog, chain: str, address: str) -> dict:
     }
 
 
-async def _gather_wallet(catalog, chain: str, address: str) -> dict:
+async def _gather_wallet(catalog, chain: str, address: str) -> dict[str, Any]:
     """Gather data for a wallet report."""
     from app.catalog.models import Chain
 
@@ -149,7 +149,7 @@ async def _gather_wallet(catalog, chain: str, address: str) -> dict:
     }
 
 
-async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list:
+async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list[Any]:
     """Fetch news mentioning this subject."""
     if not catalog._health.postgres:
         return []
@@ -174,7 +174,7 @@ async def _fetch_news(catalog, subject_id: str, since_hours: int = 720) -> list:
 
 
 # ── Risk scoring (deterministic) ───────────────────────────────────
-def _compute_risk_token(token_data: dict) -> tuple[int, list[str], RiskTier]:
+def _compute_risk_token(token_data: dict[str, Any]) -> tuple[int, list[str], RiskTier]:
     """Deterministic 0-100 risk score from token data."""
     score = 0
     factors = []
@@ -223,7 +223,7 @@ def _compute_risk_token(token_data: dict) -> tuple[int, list[str], RiskTier]:
     return score, factors, tier
 
 
-def _compute_risk_wallet(wallet_data: dict) -> tuple[int, list[str], RiskTier]:
+def _compute_risk_wallet(wallet_data: dict[str, Any]) -> tuple[int, list[str], RiskTier]:
     score = 0
     factors = []
     wallet = wallet_data.get("wallet")
@@ -507,7 +507,7 @@ async def generate_wallet_report(catalog, chain: str, address: str, model: str =
     )
 
 
-def _template_fallback(name: str, ctx: dict) -> str:
+def _template_fallback(name: str, ctx: dict[str, Any]) -> str:
     """Templated content for when LLM is unreachable."""
     sid = ctx.get("subject_id", "unknown")
     rs = ctx.get("risk_score", "?")

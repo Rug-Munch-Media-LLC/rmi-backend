@@ -4,11 +4,11 @@
 Shows relationships: same deployer, funding source, code patterns. Rug adjacency graph."""
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
@@ -43,9 +43,9 @@ class ClusterEdge(BaseModel):
 
 
 @router.get("/deployer/{deployer_address}")
-async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethereum")) -> dict:
+async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethereum")) -> dict[str, Any]:
     """Get all tokens deployed by this address. Shows full rug adjacency."""
-    tokens: list[dict] = []
+    tokens: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
@@ -78,10 +78,10 @@ async def get_deployer_cluster(deployer_address: str, chain: str = Query("ethere
 
 
 @router.get("/token/{token_address}")
-async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) -> dict:
+async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) -> dict[str, Any]:
     """Get all related tokens for a given token - same deployer, same funder, code clones."""
-    nodes: list[dict] = []
-    edges: list[dict] = []
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
 
     # Fetch token info from scanner
     try:
@@ -146,9 +146,9 @@ async def get_token_cluster(token_address: str, chain: str = Query("ethereum")) 
 
 
 @router.get("/search")
-async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(20, le=50)) -> dict:
+async def search_clusters(q: str = Query(..., min_length=2), limit: int = Query(20, le=50)) -> dict[str, Any]:
     """Search for deployers/tokens in the cluster database."""
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"{BACKEND}/api/v1/eth-labels/search", params={"q": q, "limit": limit})

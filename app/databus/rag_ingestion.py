@@ -9,12 +9,12 @@ Redis-backed with permanence to B2.  # Migrated from R2 to B2 2026-07-31
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -23,7 +23,7 @@ from app.core.logging import get_logger
 logger = get_logger("rag_ingestion")
 
 
-async def nightly_rag_index(**kw) -> dict:
+async def nightly_rag_index(**kw) -> dict[str, Any]:
     """Nightly RAG indexing - embeds all new content from all sources.
 
     Called by cron at 3AM UTC. Idempotent - only indexes new content.
@@ -138,7 +138,7 @@ async def nightly_rag_index(**kw) -> dict:
     return indexed
 
 
-async def _embed_batch(docs: list[dict], collection: str) -> int:
+async def _embed_batch(docs: list[dict[str, Any]], collection: str) -> int:
     """Embed a batch of documents and store in Redis RAG store."""
     if not docs:
         return 0
@@ -199,7 +199,7 @@ async def _embed_batch(docs: list[dict], collection: str) -> int:
         return 0
 
 
-async def rag_health_check(**kw) -> dict:
+async def rag_health_check(**kw) -> dict[str, Any]:
     """Check RAG system health - collections, doc counts, storage."""
     try:
         import redis

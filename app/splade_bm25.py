@@ -20,12 +20,12 @@ with a clear upgrade path to a full SPLADE model.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import math
 import re
 from collections import Counter
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -296,7 +296,7 @@ class BM25Index:
         self.df: Counter = Counter()  # token -> document frequency
         self._built = False
 
-    def add_document(self, doc_id: str, content: str, metadata: dict | None = None) -> None:
+    def add_document(self, doc_id: str, content: str, metadata: dict[str, Any] | None = None) -> None:
         """Add a document to the index."""
         tokens = tokenize(content, remove_stopwords=True, stem=True)
         tf = Counter(tokens)
@@ -414,7 +414,7 @@ class BM25Index:
 
         return score
 
-    def search(self, query: str, limit: int = 20, min_score: float = 0.01) -> list[dict]:
+    def search(self, query: str, limit: int = 20, min_score: float = 0.01) -> list[dict[str, Any]]:
         """
         Search the BM25 index.
 
@@ -448,7 +448,7 @@ class BM25Index:
         scored.sort(key=lambda x: x["bm25_score"], reverse=True)
         return scored[:limit]
 
-    def search_with_expansion(self, query: str, limit: int = 20) -> list[dict]:
+    def search_with_expansion(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         """
         SPLADE-inspired search: expand query terms, weight by importance.
 
@@ -679,7 +679,7 @@ async def bm25_search(
     collections: list[str] | None = None,
     limit: int = 20,
     min_score: float = 0.01,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Search using BM25 with crypto-domain query expansion.
     Drop-in enhancement for _sparse_text_search.
@@ -693,7 +693,7 @@ async def splade_search(
     query: str,
     collections: list[str] | None = None,
     limit: int = 20,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     SPLADE-inspired sparse search with term expansion and importance weighting.
     Uses BM25 as backbone + crypto-domain expansion for SPLADE-like sparse vectors.

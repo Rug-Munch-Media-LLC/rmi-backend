@@ -366,7 +366,7 @@ def get_checks_by_tier(tier: int) -> list[SecurityCheck]:
     return [c for c in SECURITY_CHECKS if c.tier <= tier]
 
 
-def get_check_matrix() -> dict:
+def get_check_matrix() -> dict[str, Any]:
     """Full security check matrix with descriptions."""
     categories = defaultdict(list)
     for check in SECURITY_CHECKS:
@@ -397,7 +397,7 @@ def get_check_matrix() -> dict:
 class TokenSecurityScorer:
     """Weighs and aggregates security check results into a 0-100 risk score."""
 
-    SCORE_BANDS: ClassVar[list] = [
+    SCORE_BANDS: ClassVar[list[Any]] = [
         (0, 20, "SAFE", "#00FF88"),
         (21, 40, "LOW RISK", "#88FF00"),
         (41, 60, "MEDIUM RISK", "#FFD700"),
@@ -670,7 +670,7 @@ async def run_quick_scan(address: str, chain: str = "ethereum", **kw) -> dict[st
 # ── Full Security Scan (Tier 1 + 2 + 3 async) ─────────────────────
 
 
-async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dict | None:
+async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dict[str, Any] | None:
     """DataBus provider: Full token security scan.
 
     Returns scored results with breakdown by category.
@@ -730,6 +730,6 @@ async def run_full_scan(address: str = "", chain: str = "ethereum", **kw) -> dic
     return result
 
 
-async def get_check_matrix_endpoint(**kw) -> dict:
+async def get_check_matrix_endpoint(**kw) -> dict[str, Any]:
     """Returns the full security check matrix definition."""
     return get_check_matrix()

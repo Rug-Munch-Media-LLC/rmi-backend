@@ -1,11 +1,11 @@
 """News, Social, and Security scan providers."""
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import datetime
 import os
+from typing import Any
 
 import httpx
 
@@ -14,7 +14,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _messari_news(limit: int = 20, **kw) -> dict | None:
+async def _messari_news(limit: int = 20, **kw) -> dict[str, Any] | None:
     """Messari News API - curated crypto news with per-asset sentiment scores."""
     api_key = kw.get("api_key", "") or os.getenv("MESSARI_API_KEY", "")
     if not api_key:
@@ -49,7 +49,7 @@ async def _messari_news(limit: int = 20, **kw) -> dict | None:
     return None
 
 
-async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
+async def _coindesk_news(limit: int = 20, **kw) -> dict[str, Any] | None:
     """CoinDesk News API - institutional-grade crypto news with categorization."""
     api_key = kw.get("api_key", "") or os.getenv("COINDESK_API_KEY", "")
     if not api_key:
@@ -86,7 +86,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict | None:
     return None
 
 
-async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict | None:
+async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict[str, Any] | None:
     """Santiment - GitHub dev activity and social volume (free tier: 100 calls/day)."""
     api_key = kw.get("api_key", "") or os.getenv("SANTIMENT_API_KEY", "")
     if not api_key or not project_slug:
@@ -123,7 +123,7 @@ async def _santiment_dev_activity(project_slug: str = "bitcoin", **kw) -> dict |
     return None
 
 
-async def _virustotal_url_scan(url: str, **kw) -> dict | None:
+async def _virustotal_url_scan(url: str, **kw) -> dict[str, Any] | None:
     """VirusTotal - scan token website URLs for phishing/malware (free: 500 req/day)."""
     api_key = kw.get("api_key", "") or os.getenv("VIRUSTOTAL_API_KEY", "")
     if not api_key or not url:
@@ -149,7 +149,7 @@ async def _virustotal_url_scan(url: str, **kw) -> dict | None:
     return None
 
 
-async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", **kw) -> dict | None:
+async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", **kw) -> dict[str, Any] | None:
     """Dune Analytics - finds the first 5-minute buyers of a token.
     Uses dual-key fallback to double free tier capacity (10k CU/mo per key).
     """
@@ -159,7 +159,7 @@ async def _dune_early_buyers(token_address: str = "", chain: str = "ethereum", *
         return None
     query_id = 3946245
 
-    async def _try_dune_key(api_key: str) -> dict | None:
+    async def _try_dune_key(api_key: str) -> dict[str, Any] | None:
         if not api_key:
             return None
         try:

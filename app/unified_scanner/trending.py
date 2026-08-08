@@ -11,7 +11,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-LAST_KNOWN_LAUNCHES: dict[str, set] = {}
+LAST_KNOWN_LAUNCHES: dict[str, set[Any]] = {}
 
 
 async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict[str, Any]:

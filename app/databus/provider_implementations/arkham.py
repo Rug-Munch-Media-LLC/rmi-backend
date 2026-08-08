@@ -1,6 +1,7 @@
 """Arkham Intelligence providers — Free trial month, premium entity data."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -12,7 +13,7 @@ logger = get_logger(__name__)
 _ARKHAM_BASE = "https://api.arkhamintelligence.com"
 
 
-async def _arkham_entity(address: str = "", **kw) -> dict | None:
+async def _arkham_entity(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham - entity intelligence (tx counts, top counterparties, tags)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -28,7 +29,7 @@ async def _arkham_entity(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
+async def _arkham_counterparties(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham - top counterparties ranked by transaction volume."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -49,7 +50,7 @@ async def _arkham_counterparties(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
+async def _arkham_intel_search(query: str = "", **kw) -> dict[str, Any] | None:
     """Arkham - search entities by address prefix (up to 20 matches)."""
     api_key = kw.get("api_key", "")
     if not query or not api_key:
@@ -65,7 +66,7 @@ async def _arkham_intel_search(query: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
+async def _arkham_portfolio(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham - portfolio via entity intelligence (includes balance info)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -81,7 +82,7 @@ async def _arkham_portfolio(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_transfers(address: str = "", **kw) -> dict | None:
+async def _arkham_transfers(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham - transfer history via counterparties endpoint."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -102,7 +103,7 @@ async def _arkham_transfers(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _arkham_labels(address: str = "", **kw) -> dict | None:
+async def _arkham_labels(address: str = "", **kw) -> dict[str, Any] | None:
     """Arkham - labels extracted from entity intelligence (arkhamLabel field)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:

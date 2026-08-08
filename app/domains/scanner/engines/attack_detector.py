@@ -280,7 +280,7 @@ async def detect_sandwiches(chain: str, hours_back: int = 1, force_fresh: bool =
     if client is None:
         return events
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {
             "chain": chain,
             "hours": max(hours_back, 1),
@@ -415,7 +415,7 @@ async def detect_pump_dumps(chain: str, lookback_hours: int = 24, force_fresh: b
         return events
 
     # ── Step 1: candidate pairs with meaningful swap activity ──
-    def _query_pairs() -> list[tuple]:
+    def _query_pairs() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {
             "chain": chain,
             "lookback": max(lookback_hours, 1),
@@ -519,7 +519,7 @@ async def detect_pump_dumps(chain: str, lookback_hours: int = 24, force_fresh: b
 async def _query_pair_volume(client: Any, chain: str, pair_address: str) -> tuple[float, float]:
     """Return (vol_4h, vol_24h) for a pair using both token sides."""
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {"chain": chain, "pair": pair_address}
         try:
             return client.execute(
@@ -565,7 +565,7 @@ async def _query_price_series(
     (following the C6 spec's argMax price series).
     """
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {"chain": chain, "pair": pair_address, "lookback": max(lookback_hours, 1)}
         try:
             return client.execute(
@@ -646,7 +646,7 @@ async def detect_flash_loans(chain: str, hours_back: int = 1, force_fresh: bool 
     if client is None:
         return events
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {"chain": chain, "hours": max(hours_back, 1), "limit": MAX_EVENTS_PER_SCAN}
         try:
             return client.execute(

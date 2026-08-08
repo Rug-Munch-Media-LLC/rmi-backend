@@ -109,7 +109,7 @@ class NewsAnalysisResponse(BaseModel):
 
 
 # ── Row adapter (legacy crypto_news → NewsItemOut) ───────────────
-def _adapt_legacy_row(row: dict) -> NewsItemOut:
+def _adapt_legacy_row(row: dict[str, Any]) -> NewsItemOut:
     """Convert a crypto_news row to NewsItemOut shape."""
     # published is a text field in legacy; try ISO parse
     pub_str = row.get("published") or row.get("ingested_at")

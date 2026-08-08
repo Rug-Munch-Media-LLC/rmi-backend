@@ -157,7 +157,7 @@ class Cluster:
         self.label: str = ""
         self.category: str = "unknown"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cluster_id": self.cluster_id,
             "wallet_count": len(self.wallets),
@@ -536,7 +536,7 @@ class WalletClusteringEngine:
 
     # ── Helpers ───────────────────────────────────────────────────
 
-    def _fingerprint_similarity(self, fp1: dict, fp2: dict) -> float:
+    def _fingerprint_similarity(self, fp1: dict[str, Any], fp2: dict[str, Any]) -> float:
         scores = []
         if fp1["avg_size"] > 0 and fp2["avg_size"] > 0:
             scores.append(min(fp1["avg_size"], fp2["avg_size"]) / max(fp1["avg_size"], fp2["avg_size"]))
@@ -574,7 +574,7 @@ class WalletClusteringEngine:
         c.center_wallet = root
         return c
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Return engine statistics."""
         clusters = self.uf.get_all_clusters()
         multi = {k: v for k, v in clusters.items() if len(v) >= 2}

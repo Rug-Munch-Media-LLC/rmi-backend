@@ -19,13 +19,13 @@ Data sources (direct API calls - no self.api_base):
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 import httpx
 import requests
@@ -149,7 +149,7 @@ class DevReputationEngine:
 
     # ── DexScreener helpers ────────────────────────────────────
 
-    async def _dexscreener_search(self, query: str) -> dict | None:
+    async def _dexscreener_search(self, query: str) -> dict[str, Any] | None:
         """Search DexScreener for pairs matching a query (deployer address, etc.)."""
         try:
             resp = await self.client.get(f"{DEXSCREENER_URL}/latest/dex/search", params={"q": query})
@@ -169,7 +169,7 @@ class DevReputationEngine:
             logger.warning(f"DexScreener search failed for '{query}': {e}")
         return None
 
-    async def _dexscreener_token_info(self, token_address: str) -> dict | None:
+    async def _dexscreener_token_info(self, token_address: str) -> dict[str, Any] | None:
         """Get DexScreener pair data for a specific token."""
         try:
             resp = await self.client.get(f"{DEXSCREENER_URL}/latest/dex/tokens/{token_address}")
@@ -191,7 +191,7 @@ class DevReputationEngine:
 
     # ── Etherscan helpers ──────────────────────────────────────
 
-    async def _etherscan_get(self, chain: str, params: dict) -> dict | None:
+    async def _etherscan_get(self, chain: str, params: dict[str, Any]) -> dict[str, Any] | None:
         """Make an Etherscan-family API call."""
         net = ETHERSCAN_NETWORKS.get(chain.lower())
         if not net:
@@ -228,7 +228,7 @@ class DevReputationEngine:
         """Convert chain name to Moralis chain param."""
         return MORALIS_CHAIN_MAP.get(chain.lower(), "eth")
 
-    async def _moralis_get(self, url: str) -> dict | None:
+    async def _moralis_get(self, url: str) -> dict[str, Any] | None:
         """Make a Moralis Data API call."""
         if not MORALIS_API_KEY:
             logger.warning("MORALIS_API_KEY not set")
@@ -391,7 +391,7 @@ class DevReputationEngine:
         avg_lifespan: float,
         retention: float,
         patterns: list[str],
-    ) -> tuple:
+    ) -> tuple[Any, ...]:
         """Calculate reputation score (0-100, higher = safer)."""
 
         # Base score starts at 70 (neutral for new deployers)

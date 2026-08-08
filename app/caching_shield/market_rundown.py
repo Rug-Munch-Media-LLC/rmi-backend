@@ -13,13 +13,13 @@ Features:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -127,7 +127,7 @@ class NewsArticle:
     market_impact: str = "low"
     votes_up: int = 0
     votes_down: int = 0
-    comments: list[dict] = field(default_factory=list)
+    comments: list[dict[str, Any]] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
 
 
@@ -176,7 +176,7 @@ SENTIMENT_LEXICON = {
 }
 
 
-def analyze_sentiment(text: str) -> dict:
+def analyze_sentiment(text: str) -> dict[str, Any]:
     """Algorithmic sentiment analysis using lexicon matching."""
     text_lower = text.lower()
     score = 0.0
@@ -214,8 +214,8 @@ def classify_article(title: str, summary: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 
 _articles: dict[str, NewsArticle] = {}
-_market_summary: dict = {"text": "", "generated": "", "sentiment": {}}
-_summary_cache: dict = {"text": "", "generated": 0, "ttl": 86400}
+_market_summary: dict[str, Any] = {"text": "", "generated": "", "sentiment": {}}
+_summary_cache: dict[str, Any] = {"text": "", "generated": 0, "ttl": 86400}
 
 
 async def fetch_all_news() -> list[NewsArticle]:
@@ -266,7 +266,7 @@ async def get_articles(
     source: str | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> dict:
+) -> dict[str, Any]:
     """Get articles with optional filters."""
     articles = list(_articles.values())
     if not articles:
@@ -308,7 +308,7 @@ async def get_articles(
     }
 
 
-async def vote(article_id: str, direction: str) -> dict:
+async def vote(article_id: str, direction: str) -> dict[str, Any]:
     """Vote up or down on an article."""
     article = _articles.get(article_id)
     if not article:
@@ -324,7 +324,7 @@ async def vote(article_id: str, direction: str) -> dict:
     return {"id": article_id, "votes_up": article.votes_up, "votes_down": article.votes_down}
 
 
-async def comment(article_id: str, user: str, text: str) -> dict:
+async def comment(article_id: str, user: str, text: str) -> dict[str, Any]:
     """Add a comment to an article."""
     article = _articles.get(article_id)
     if not article:
@@ -340,13 +340,13 @@ async def comment(article_id: str, user: str, text: str) -> dict:
     return comment
 
 
-async def get_comments(article_id: str) -> list[dict]:
+async def get_comments(article_id: str) -> list[dict[str, Any]]:
     """Get comments for an article."""
     article = _articles.get(article_id)
     return article.comments if article else []
 
 
-async def generate_market_summary(force: bool = False) -> dict:
+async def generate_market_summary(force: bool = False) -> dict[str, Any]:
     """Generate AI market summary using DeepSeek V4 Pro (cached 24h)."""
     global _summary_cache
 
@@ -404,7 +404,7 @@ async def generate_market_summary(force: bool = False) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def get_categories() -> list:
+def get_categories() -> list[Any]:
     return [{"name": c, "icon": _category_icon(c)} for c in sorted(CATEGORY_PATTERNS.keys())] + [
         {"name": "General", "icon": "📰"}
     ]
@@ -425,5 +425,5 @@ def _category_icon(cat: str) -> str:
     }.get(cat, "📰")
 
 
-def get_sources() -> list:
+def get_sources() -> list[Any]:
     return [s["name"] for s in CRYPTO_NEWS_SOURCES]

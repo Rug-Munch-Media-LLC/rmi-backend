@@ -150,7 +150,7 @@ async def timed_retrieval(collection: str, cache_hit: bool = False) -> Any:
         trace_retrieval((time.time() - t0) * 1000, collection, result_count, cache_hit)
 
 
-def get_metrics() -> dict:
+def get_metrics() -> dict[str, Any]:
     """Return current metrics snapshot."""
     return {
         "embedding": {

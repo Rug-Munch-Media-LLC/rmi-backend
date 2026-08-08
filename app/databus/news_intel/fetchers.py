@@ -3,9 +3,9 @@ News Intelligence — Source Fetchers
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 import feedparser
 import httpx
@@ -15,7 +15,7 @@ from app.core.logging import get_logger
 logger = get_logger("news_intel")
 
 
-async def _fetch_rss(url: str, source_name: str, timeout: int = 15) -> list[dict]:
+async def _fetch_rss(url: str, source_name: str, timeout: int = 15) -> list[dict[str, Any]]:
     """Fetch and parse an RSS/Atom feed."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as c:
@@ -43,7 +43,7 @@ async def _fetch_rss(url: str, source_name: str, timeout: int = 15) -> list[dict
         return []
 
 
-async def _fetch_cryptopanic() -> list[dict]:
+async def _fetch_cryptopanic() -> list[dict[str, Any]]:
     """Fetch from CryptoPanic API."""
     key = os.getenv("CRYPTOPANIC_API_KEY", "")
     if not key:
@@ -82,7 +82,7 @@ async def _fetch_cryptopanic() -> list[dict]:
         return []
 
 
-async def _fetch_x_crypto() -> list[dict]:
+async def _fetch_x_crypto() -> list[dict[str, Any]]:
     """Fetch crypto news from X/Twitter search (if API key available)."""
     x_key = os.getenv("X_API_KEY", "") or os.getenv("TWITTER_BEARER_TOKEN", "")
     if not x_key:

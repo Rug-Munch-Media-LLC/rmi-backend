@@ -15,9 +15,9 @@ Integrations:
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -180,7 +180,7 @@ SECURITY_INTEL_WORKFLOWS = {
 # ── n8n Workflow Execution ────────────────────────────────────
 
 
-async def trigger_n8n_workflow(workflow_name: str, data: dict | None = None) -> bool:
+async def trigger_n8n_workflow(workflow_name: str, data: dict[str, Any] | None = None) -> bool:
     """Trigger an n8n workflow via webhook."""
     import httpx
 
@@ -287,7 +287,7 @@ async def execute_market_intelligence_pull(workflow_name: str) -> None:
     await _process_intelligence_alerts(workflow_name, collected_data)
 
 
-async def _store_intelligence_data(table_name: str, data: dict) -> None:
+async def _store_intelligence_data(table_name: str, data: dict[str, Any]) -> None:
     """Store intelligence data in Supabase."""
     try:
         import os
@@ -311,7 +311,7 @@ async def _store_intelligence_data(table_name: str, data: dict) -> None:
         logger.error(f"Failed to store intelligence data: {e}")
 
 
-async def _process_intelligence_alerts(workflow_name: str, data: dict) -> None:
+async def _process_intelligence_alerts(workflow_name: str, data: dict[str, Any]) -> None:
     """Process intelligence data and trigger alerts."""
     # Check for significant findings
     if "whale" in workflow_name.lower():
@@ -334,7 +334,7 @@ async def _process_intelligence_alerts(workflow_name: str, data: dict) -> None:
                 await _create_alert("volume_spike", spike)
 
 
-async def _create_alert(alert_type: str, data: dict) -> None:
+async def _create_alert(alert_type: str, data: dict[str, Any]) -> None:
     """Create an intelligence alert."""
     try:
         import os
@@ -362,7 +362,7 @@ async def _create_alert(alert_type: str, data: dict) -> None:
 # ── Dune Analytics Integration ────────────────────────────────
 
 
-async def execute_dune_query(query_id: str, params: dict | None = None) -> dict | None:
+async def execute_dune_query(query_id: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Execute a Dune Analytics query."""
     import os
 

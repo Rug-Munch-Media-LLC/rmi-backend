@@ -4,10 +4,10 @@ Queries the SQLite database built from dawsbot/eth-labels.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 import sqlite3
+from typing import Any
 
 DB_PATH = os.environ.get("ETH_LABELS_DB", os.path.join(os.path.dirname(__file__), "..", "..", "eth-labels.db"))
 # Fallback paths for different environments
@@ -28,7 +28,7 @@ async def fetch_eth_labels(
     label: str | None = None,
     chain_id: int | None = None,
     limit: int = 20,
-) -> dict:
+) -> dict[str, Any]:
     """Query eth-labels database for address labels, name tags, and entity info."""
     if not os.path.exists(DB_PATH):
         return {"error": "eth-labels database not found", "path": DB_PATH}

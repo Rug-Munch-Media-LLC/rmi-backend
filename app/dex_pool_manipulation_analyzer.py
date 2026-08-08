@@ -156,9 +156,9 @@ class DEXPoolManipulationAnalyzer:
     async def analyze_pool(
         self,
         pool_address: str,
-        recent_swaps: list[dict] | None = None,
-        positions: list[dict] | None = None,
-        pool_metadata: dict | None = None,
+        recent_swaps: list[dict[str, Any]] | None = None,
+        positions: list[dict[str, Any]] | None = None,
+        pool_metadata: dict[str, Any] | None = None,
     ) -> PoolRiskReport:
         """Full pool risk analysis."""
         start = time.monotonic()
@@ -242,7 +242,7 @@ class DEXPoolManipulationAnalyzer:
             analysis_time_ms=elapsed,
         )
 
-    def _build_pool_config(self, address: str, meta: dict) -> PoolConfig:
+    def _build_pool_config(self, address: str, meta: dict[str, Any]) -> PoolConfig:
         """Build pool config from metadata dict."""
         return PoolConfig(
             address=address,
@@ -262,7 +262,7 @@ class DEXPoolManipulationAnalyzer:
             created_at=meta.get("created_at", 0),
         )
 
-    def _parse_swaps(self, raw_swaps: list[dict]) -> list[SwapEvent]:
+    def _parse_swaps(self, raw_swaps: list[dict[str, Any]]) -> list[SwapEvent]:
         """Parse raw swap data into typed swap events."""
         parsed = []
         for s in raw_swaps:
@@ -290,7 +290,7 @@ class DEXPoolManipulationAnalyzer:
                 continue
         return parsed
 
-    def _parse_positions(self, raw_positions: list[dict]) -> list[Position]:
+    def _parse_positions(self, raw_positions: list[dict[str, Any]]) -> list[Position]:
         """Parse raw position data into typed positions."""
         parsed = []
         for p in raw_positions:

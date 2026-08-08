@@ -4,10 +4,10 @@ One-call comprehensive intel on any token.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -16,7 +16,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def instant_token_report(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def instant_token_report(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Generate a complete intelligence report for any token in a single call.
     Combines: security scan, holder health, liquidity risk, rug pattern matching,
     developer reputation, entity intel, and whale activity.
@@ -235,7 +235,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
     return report
 
 
-def _extract_security_highlights(security: dict) -> list[str]:
+def _extract_security_highlights(security: dict[str, Any]) -> list[str]:
     """Extract key security findings for the quick overview."""
     highlights = []
     checks = security.get("checks", {})

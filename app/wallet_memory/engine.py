@@ -338,7 +338,7 @@ class WalletMemoryEngine:
 
     # ── Search across all wallets ────────────────────────────────
 
-    async def search_wallets(self, query: str, chain: str = "", limit: int = 20) -> list[dict]:
+    async def search_wallets(self, query: str, chain: str = "", limit: int = 20) -> list[dict[str, Any]]:
         """
         Search for wallets by address prefix, label, or entity name.
         Uses Redis search first, then ClickHouse if available.
@@ -371,7 +371,7 @@ class WalletMemoryEngine:
 
     # ── Feed transactions into clustering engine ─────────────────
 
-    def feed_transactions(self, transactions: list[dict], chain_id: str = "") -> None:
+    def feed_transactions(self, transactions: list[dict[str, Any]], chain_id: str = "") -> None:
         """
         Feed transaction data into the in-memory clustering engine.
         Call this when pulling data from Helius/Etherscan for a wallet.
@@ -427,7 +427,7 @@ class WalletMemoryEngine:
 
     # ── Internal ─────────────────────────────────────────────────
 
-    async def _persist_profile(self, profile: dict) -> None:
+    async def _persist_profile(self, profile: dict[str, Any]) -> None:
         """Save a wallet profile to storage."""
         await self.storage.save_wallet_profile(
             {

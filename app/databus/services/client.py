@@ -13,12 +13,12 @@ Improvements over v1:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import contextlib
 import json
 import time
+from typing import Any
 
 import httpx
 
@@ -213,7 +213,7 @@ class DataBus:
         x402_tier: str = "",
         request=None,
         **kwargs,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         THE method. Fetches data through the full pipeline.
 
@@ -398,7 +398,7 @@ class DataBus:
 
         return result
 
-    async def _local_precheck(self, data_type: str, **kwargs) -> dict | None:
+    async def _local_precheck(self, data_type: str, **kwargs) -> dict[str, Any] | None:
         """Check our own databases BEFORE calling external APIs.
 
         Priority order: RAG → Scanner → Wallet Labels → Redis price cache.
@@ -654,12 +654,12 @@ class DataBus:
 
         return None
 
-    async def fetch_batch(self, requests: list[dict]) -> list[dict | None]:
+    async def fetch_batch(self, requests: list[dict[str, Any]]) -> list[dict[str, Any] | None]:
         """Fetch multiple data types in parallel."""
         tasks = [self.fetch(**req) for req in requests]
         return await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def health(self) -> dict:
+    async def health(self) -> dict[str, Any]:
         """Full system health check with per-type cache stats and provider health."""
         cache_health = await self.cache.health()
         vault_status = self.vault.status() if self.vault else {"error": "not loaded"}
@@ -706,7 +706,7 @@ class DataBus:
             "credit_usage": self._credit_usage,
         }
 
-    def capacity_report(self) -> dict:
+    def capacity_report(self) -> dict[str, Any]:
         """Full capacity and credit report."""
         if not self.vault:
             return {"error": "vault not loaded"}
@@ -730,7 +730,7 @@ class DataBus:
         }
         return report
 
-    def list_chains(self) -> dict:
+    def list_chains(self) -> dict[str, Any]:
         """List all available data types and their provider chains."""
         result = {}
         for name, chain in self.chains.items():
@@ -761,6 +761,6 @@ class DataBus:
         """Clear the entire cache."""
         await self.cache.clear()
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Return fetch statistics."""
         return dict(self._stats)

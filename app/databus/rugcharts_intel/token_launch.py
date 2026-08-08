@@ -4,11 +4,11 @@ New token detection + instant risk score.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 import redis
@@ -20,7 +20,7 @@ from .cache import CACHE_TTL, HELIUS_KEY, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> dict | None:
+async def token_launch_scanner(chain: str = "solana", limit: int = 50, **kw) -> dict[str, Any] | None:
     """Scan for recently launched tokens and assign instant risk scores.
     Combines: age, liquidity, holder count, deployer history, GoPlus checks.
     """

@@ -4,9 +4,9 @@
 liquidity profile, marketing tactics. Spots scams before they launch."""
 
 from __future__ import annotations
-from typing import Any
 
 import json
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
@@ -35,7 +35,7 @@ class LaundryMatch(BaseModel):
 def _name_similarity(a: str, b: str) -> float:
     """Simple trigram similarity for token names."""
 
-    def trigrams(s) -> set:
+    def trigrams(s) -> set[Any]:
         s = s.lower().replace(" ", "")
         return {s[i : i + 3] for i in range(len(s) - 2)} if len(s) >= 3 else {s}
 
@@ -46,7 +46,7 @@ def _name_similarity(a: str, b: str) -> float:
     return len(ta & tb) / len(ta | tb)
 
 
-async def _fetch_token_pairs(chain: str, max_pairs: int = 50) -> list[dict]:
+async def _fetch_token_pairs(chain: str, max_pairs: int = 50) -> list[dict[str, Any]]:
     """Fetch recent token pairs from DexScreener for comparison."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -65,7 +65,7 @@ async def find_matches(
     chain: str = Query("solana"),
     min_similarity: float = Query(0.3, ge=0, le=1),
     limit: int = Query(10, le=25),
-) -> dict[str, dict]:
+) -> dict[str, dict[str, Any]]:
     """Find tokens similar to the given address. Returns top-N copycat matches."""
     # Get reference token data
     try:
@@ -87,7 +87,7 @@ async def find_matches(
     # Fetch comparison pool
     pairs = await _fetch_token_pairs(chain, max_pairs=50)
 
-    matches: list[dict] = []
+    matches: list[dict[str, Any]] = []
     for p in pairs:
         base = p.get("baseToken", {})
         target_name = base.get("name", "") or base.get("symbol", "")
@@ -135,7 +135,7 @@ async def find_matches(
 
 
 @router.get("/scan-similar/{address}")
-async def scan_and_match(address: str, chain: str = Query("solana")) -> dict:
+async def scan_and_match(address: str, chain: str = Query("solana")) -> dict[str, Any]:
     """Scan the address AND find its matches in a single call."""
     async with httpx.AsyncClient(timeout=20) as client:
         scan_task = client.post(

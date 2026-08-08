@@ -121,7 +121,7 @@ async def databus_access_matrix(request: Request) -> Any | dict[str, str]:
 
 
 @router.get("/mcp-scope/{tool_id}")
-async def databus_mcp_scope(tool_id: str) -> dict:
+async def databus_mcp_scope(tool_id: str) -> dict[str, Any]:
     """Get the data types an MCP tool is authorized to access."""
     from app.databus.access_control import access_controller
 
@@ -132,7 +132,7 @@ async def databus_mcp_scope(tool_id: str) -> dict:
 
 
 @router.get("/x402-scope/{tier}")
-async def databus_x402_scope(tier: str) -> dict:
+async def databus_x402_scope(tier: str) -> dict[str, Any]:
     """Get the data types an x402 pricing tier can access."""
     from app.databus.access_control import access_controller
 

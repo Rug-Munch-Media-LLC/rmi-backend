@@ -26,7 +26,7 @@ BACKEND = settings.backend_url
 TG_BOT = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 # In-memory subscription store (Redis in prod)
-_subscriptions: dict[str, list[dict]] = {}  # user_id -> list of alert rules
+_subscriptions: dict[str, list[dict[str, Any]]] = {}  # user_id -> list of alert rules
 
 
 class WhaleAlert(BaseModel):
@@ -48,7 +48,7 @@ class WhaleAlertResponse(BaseModel):
 
 
 @router.post("/subscribe")
-async def subscribe(alert: WhaleAlert) -> dict:
+async def subscribe(alert: WhaleAlert) -> dict[str, Any]:
     """Subscribe to whale alerts for an address."""
     sub_id = f"{alert.user_id}:{alert.address}:{alert.chain}"
     entry = {
@@ -67,7 +67,7 @@ async def subscribe(alert: WhaleAlert) -> dict:
 
 
 @router.delete("/subscribe/{alert_id}")
-async def unsubscribe(alert_id: str) -> dict:
+async def unsubscribe(alert_id: str) -> dict[str, Any]:
     """Remove a whale alert subscription."""
     for _uid, subs in _subscriptions.items():
         for s in subs[:]:
@@ -84,7 +84,7 @@ async def list_subscriptions(user_id: str) -> dict[str, Any | None]:
 
 
 @router.get("/check/{address}")
-async def check_transfer(address: str, chain: str = Query("ethereum"), min_usd: float = Query(50000)) -> dict:
+async def check_transfer(address: str, chain: str = Query("ethereum"), min_usd: float = Query(50000)) -> dict[str, Any]:
     """Check recent large transfers for an address (on-demand scan)."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -118,7 +118,7 @@ async def _send_telegram_alert(chat_id: str, text: str) -> None:
 
 
 @router.post("/scan")
-async def scan_whale_activity(background_tasks: BackgroundTasks) -> dict:
+async def scan_whale_activity(background_tasks: BackgroundTasks) -> dict[str, Any]:
     """Trigger a scan of all subscribed addresses. Cron-friendly."""
     alerts_fired = 0
     for uid, subs in _subscriptions.items():

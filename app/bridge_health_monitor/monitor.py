@@ -108,7 +108,7 @@ class BridgeHealthMonitor:
                 return ((current - historical_val) / historical_val) * 100
         return 0.0
 
-    async def _compute_security_score(self, bridge_key: str, bridge: dict) -> BridgeSecurityScore:
+    async def _compute_security_score(self, bridge_key: str, bridge: dict[str, Any]) -> BridgeSecurityScore:
         vulnerabilities: list[str] = []
         strengths: list[str] = []
 
@@ -218,7 +218,7 @@ class BridgeHealthMonitor:
         )
 
     async def _detect_exploit_signals(
-        self, bridge_key: str, bridge: dict, tvl_snapshot: BridgeTVLSnapshot | None
+        self, bridge_key: str, bridge: dict[str, Any], tvl_snapshot: BridgeTVLSnapshot | None
     ) -> list[ExploitSignal]:
         signals: list[ExploitSignal] = []
         if tvl_snapshot is None:

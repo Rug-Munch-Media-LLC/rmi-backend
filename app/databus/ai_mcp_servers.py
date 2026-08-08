@@ -29,7 +29,7 @@ def gredis() -> Any:
     return redis.Redis(host="rmi-redis", port=6379, password=os.getenv("REDIS_PASSWORD"), decode_responses=True)
 
 
-def trial(fp: str, tool: str, limit: int = 5) -> dict:
+def trial(fp: str, tool: str, limit: int = 5) -> dict[str, Any]:
     # Premium AI tools - lower free tier, costs us CPU
     r, k = gredis(), f"mcp:trial:{tool}:{fp}"
     c = int(r.get(k) or 0)
@@ -62,7 +62,7 @@ def ask(prompt: str, model: str = "qwen2.5-coder:7b", tokens: int = 250) -> str:
 # ═══════════════════════════════════════════════════
 # MCP #1: CONTRACT EXPLAINER - AI explains smart contracts
 # ═══════════════════════════════════════════════════
-def explain_contract(address: str, chain: str = "ethereum", fp: str = "anon") -> dict:
+def explain_contract(address: str, chain: str = "ethereum", fp: str = "anon") -> dict[str, Any]:
     """AI explains what a smart contract does. Uses qwen2.5-coder. 5 free/day. $0.10 premium."""
     auth = trial(fp, "explain", 5)
     if auth["tier"] == "free_exhausted":
@@ -97,7 +97,7 @@ Explain: 1) What this contract does 2) Any risks 3) Key functions. Be concise.""
 # ═══════════════════════════════════════════════════
 # MCP #2: TX FORENSICS NARRATOR - AI narrates wallet activity
 # ═══════════════════════════════════════════════════
-def narrate_wallet(address: str, chain: str = "ethereum", fp: str = "anon") -> dict:
+def narrate_wallet(address: str, chain: str = "ethereum", fp: str = "anon") -> dict[str, Any]:
     """AI narrates what a wallet is doing. 5 free/day. $0.10 premium."""
     auth = trial(fp, "narrate", 5)
     if auth["tier"] == "free_exhausted":
@@ -136,7 +136,7 @@ Narrate: What is this wallet doing? Trading? Accumulating? Laundering? Be specif
 # ═══════════════════════════════════════════════════
 # MCP #3: RUG PULL PREDICTOR - AI predicts rug risk
 # ═══════════════════════════════════════════════════
-def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict:
+def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict[str, Any]:
     """AI rug pull prediction. Combines on-chain data + AI analysis. 3 free/day. $0.15 premium."""
     auth = trial(fp, "rugpredict", 3)
     if auth["tier"] == "free_exhausted":
@@ -173,7 +173,7 @@ def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict
 # ═══════════════════════════════════════════════════
 # MCP #4: NEWS TL;DR - AI summarizes crypto news
 # ═══════════════════════════════════════════════════
-def news_tldr(topic: str = "", fp: str = "anon") -> dict:
+def news_tldr(topic: str = "", fp: str = "anon") -> dict[str, Any]:
     """AI summarizes latest crypto news. Uses dolphin-mistral. 10 free/day. $0.05 premium."""
     auth = trial(fp, "tldr", 10)
     if auth["tier"] == "free_exhausted":
@@ -201,7 +201,7 @@ def news_tldr(topic: str = "", fp: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #5: WALLET PROFILER - AI profiles wallet identity
 # ═══════════════════════════════════════════════════
-def profile_wallet(address: str, fp: str = "anon") -> dict:
+def profile_wallet(address: str, fp: str = "anon") -> dict[str, Any]:
     """AI wallet identity profiling. 5 free/day. $0.08 premium."""
     auth = trial(fp, "profile", 5)
     if auth["tier"] == "free_exhausted":
@@ -228,7 +228,7 @@ def profile_wallet(address: str, fp: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #6: CODE AUDITOR - AI reviews Solidity for bugs
 # ═══════════════════════════════════════════════════
-def audit_code(code: str, fp: str = "anon") -> dict:
+def audit_code(code: str, fp: str = "anon") -> dict[str, Any]:
     """AI reviews Solidity code. 3 free/day. $0.15 premium."""
     auth = trial(fp, "auditai", 3)
     if auth["tier"] == "free_exhausted":
@@ -247,7 +247,7 @@ def audit_code(code: str, fp: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #7: SENTIMENT ORACLE - AI market sentiment
 # ═══════════════════════════════════════════════════
-def sentiment_oracle(token: str = "bitcoin", fp: str = "anon") -> dict:
+def sentiment_oracle(token: str = "bitcoin", fp: str = "anon") -> dict[str, Any]:
     """AI market sentiment. Analyzes news + labels. 10 free/day. $0.05 premium."""
     auth = trial(fp, "sentiment", 10)
     if auth["tier"] == "free_exhausted":
@@ -274,7 +274,7 @@ def sentiment_oracle(token: str = "bitcoin", fp: str = "anon") -> dict:
 # ═══════════════════════════════════════════════════
 # MCP #8: CROSS-CHAIN STORY - AI traces multi-chain flows
 # ═══════════════════════════════════════════════════
-def trace_story(address: str, fp: str = "anon") -> dict:
+def trace_story(address: str, fp: str = "anon") -> dict[str, Any]:
     """AI traces fund flows across chains. 5 free/day. $0.12 premium."""
     auth = trial(fp, "story", 5)
     if auth["tier"] == "free_exhausted":

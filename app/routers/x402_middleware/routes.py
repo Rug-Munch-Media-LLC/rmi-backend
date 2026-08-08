@@ -31,7 +31,7 @@ _verifier = PaymentVerifier()
 
 
 @router.get("/receipt/{receipt_id}/verify")
-async def verify_receipt_public(receipt_id: str) -> dict:
+async def verify_receipt_public(receipt_id: str) -> dict[str, Any]:
     """Public endpoint to verify any x402 receipt."""
     try:
         from app.auth import get_redis
@@ -85,7 +85,7 @@ async def payment_ledger(
     tool: str | None = None,
     network: str | None = None,
     status: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Public anonymized payment ledger for transparency."""
     try:
         from app.auth import get_redis
@@ -130,7 +130,7 @@ async def payment_ledger(
 
 
 @router.get("/transparency")
-async def transparency_dashboard(hours: int = 24) -> dict:
+async def transparency_dashboard(hours: int = 24) -> dict[str, Any]:
     """Public transparency dashboard showing system trust metrics."""
     try:
         from app.auth import get_redis

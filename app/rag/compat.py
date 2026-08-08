@@ -192,7 +192,7 @@ def _estimate_confidence(results: list[dict[str, Any]]) -> dict[str, Any] | None
 # ── Scam detection shim ────────────────────────────────────────────────────
 
 
-async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dict[str, Any]:
+async def detect_scam_patterns(token_data: dict[str, Any], threshold: float = 0.65) -> dict[str, Any]:
     """DEPRECATED — compare token against known scam patterns (old API shape).
 
     Backed by the new engine's ``RAGIntelligenceEnricher`` plus the
@@ -265,9 +265,9 @@ async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dic
 async def ingest_document(
     collection: str,
     content: str,
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
     doc_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """DEPRECATED — ingest one document (old positional API)."""
     from app.rag.engine import ingest_document as _engine_ingest
 
@@ -294,8 +294,8 @@ async def index_document(
     collection: str,
     doc_id: str,
     text: str,
-    metadata: dict | None = None,
-) -> dict:
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """DEPRECATED — index a document (was a no-op in rag_service)."""
     return await ingest_document(collection=collection, content=text, metadata=metadata, doc_id=doc_id)
 

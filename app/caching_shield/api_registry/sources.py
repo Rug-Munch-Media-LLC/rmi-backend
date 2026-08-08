@@ -5,6 +5,7 @@ Registry of all free/no-auth/self-hosted data sources used by the system.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from .manager import get_api_manager
@@ -302,7 +303,7 @@ BACKEND_SOURCES = {
 }
 
 
-def list_all_sources() -> dict:
+def list_all_sources() -> dict[str, Any]:
     """Return combined view of all API keys + backend data sources."""
     mgr = get_api_manager()
 
@@ -326,7 +327,7 @@ def list_all_sources() -> dict:
     }
 
 
-def _summarize_all(mgr) -> dict:
+def _summarize_all(mgr) -> dict[str, Any]:
     """Generate a unified capacity summary across all sources."""
     free_rps = sum(s.get("rate_rps", 0) or 0 for s in BACKEND_SOURCES.values() if s.get("rate_rps"))
     by_type = {}

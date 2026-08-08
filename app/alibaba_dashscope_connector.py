@@ -83,7 +83,7 @@ class AlibabaDashScopeConnector:
         max_tokens: int = 1000,
         temperature: float = 0.7,
         system_prompt: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Generate text using Qwen models.
 
@@ -170,7 +170,7 @@ class AlibabaDashScopeConnector:
             await _dashscope_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
-    async def generate_marketing_content(self, content_type: str, topic: str, details: dict | None = None) -> dict:
+    async def generate_marketing_content(self, content_type: str, topic: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
         """Generate marketing content for specific use cases."""
 
         # Content type templates
@@ -293,7 +293,7 @@ Tone: Exciting, clear, benefit-focused
             temperature=details.get("temperature", 0.7),
         )
 
-    async def generate_variations(self, base_content: str, num_variations: int = 5, platform: str = "twitter") -> dict:
+    async def generate_variations(self, base_content: str, num_variations: int = 5, platform: str = "twitter") -> dict[str, Any]:
         """Generate multiple variations of content."""
 
         prompt = f"""Generate {num_variations} variations of this content for {platform}:
@@ -316,7 +316,7 @@ Variation 2: [content]
 
         return await self.generate_text(prompt=prompt, model="qwen-plus", max_tokens=2000, temperature=0.8)
 
-    async def summarize_content(self, content: str, summary_type: str = "bullet_points") -> dict:
+    async def summarize_content(self, content: str, summary_type: str = "bullet_points") -> dict[str, Any]:
         """Summarize long content into different formats."""
 
         summary_prompts = {
@@ -333,11 +333,11 @@ Variation 2: [content]
 
         return await self.generate_text(prompt=prompt, model="qwen-turbo", max_tokens=500, temperature=0.5)
 
-    def list_models(self) -> list[dict]:
+    def list_models(self) -> list[dict[str, Any]]:
         """List available Qwen models."""
         return [{"id": model_id, **info} for model_id, info in QWEN_MODELS.items()]
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Check connector status."""
         return {
             "api_key_configured": bool(self.api_key),

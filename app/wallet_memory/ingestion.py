@@ -20,12 +20,12 @@ Rate limiting:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import os
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -201,7 +201,7 @@ class WalletIngestionPipeline:
             self._cooldown.mark_fetched(addr, chain)
             return False
 
-    def should_ingest(self, address: str, chain: str, stored_profile: dict | None = None) -> bool:
+    def should_ingest(self, address: str, chain: str, stored_profile: dict[str, Any] | None = None) -> bool:
         """
         Determine if ingestion should run for this address/chain.
         Used by engine.get_wallet_profile() to decide whether to trigger ingestion.
@@ -225,7 +225,7 @@ class WalletIngestionPipeline:
 
     # ── Solana: Helius Enhanced Transactions API ───────────────────
 
-    async def _fetch_solana_transactions(self, address: str) -> list[dict]:
+    async def _fetch_solana_transactions(self, address: str) -> list[dict[str, Any]]:
         """Fetch transaction history from Helius Enhanced Transactions API."""
         api_key = os.getenv("HELIUS_API_KEY", "")
         if not api_key:
@@ -273,7 +273,7 @@ class WalletIngestionPipeline:
 
     # ── EVM: Etherscan-family API ──────────────────────────────────
 
-    async def _fetch_evm_transactions(self, address: str, chain: str) -> list[dict]:
+    async def _fetch_evm_transactions(self, address: str, chain: str) -> list[dict[str, Any]]:
         """Fetch transaction history from Etherscan-family API."""
         net = ETHERSCAN_NETWORKS.get(chain.lower())
         if not net:
@@ -390,7 +390,7 @@ class WalletIngestionPipeline:
 
     # ── Normalization ──────────────────────────────────────────────
 
-    def _normalize_transactions(self, raw_txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
+    def _normalize_transactions(self, raw_txs: list[dict[str, Any]], address: str, chain: str) -> list[NormalizedTransaction]:
         """Convert raw API responses into NormalizedTransaction objects."""
         normalized = []
         addr_lower = address.lower().strip()
@@ -402,7 +402,7 @@ class WalletIngestionPipeline:
 
         return normalized
 
-    def _normalize_helius(self, txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
+    def _normalize_helius(self, txs: list[dict[str, Any]], address: str, chain: str) -> list[NormalizedTransaction]:
         """Parse Helius Enhanced Transactions API response."""
         normalized = []
 
@@ -539,7 +539,7 @@ class WalletIngestionPipeline:
 
         return normalized
 
-    def _normalize_etherscan(self, txs: list[dict], address: str, chain: str) -> list[NormalizedTransaction]:
+    def _normalize_etherscan(self, txs: list[dict[str, Any]], address: str, chain: str) -> list[NormalizedTransaction]:
         """Parse Etherscan-family API response."""
         normalized = []
 

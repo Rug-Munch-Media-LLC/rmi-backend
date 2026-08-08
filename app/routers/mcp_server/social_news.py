@@ -40,7 +40,7 @@ async def news_feed(
 
 
 @router.get("/news/categories")
-async def news_categories() -> dict:
+async def news_categories() -> dict[str, Any]:
     from app.caching_shield.news_network import fetch_all, get_categories
 
     await fetch_all(max_per_source=3)
@@ -48,35 +48,35 @@ async def news_categories() -> dict:
 
 
 @router.post("/news/vote")
-async def news_vote(data: dict) -> Any:
+async def news_vote(data: dict[str, Any]) -> Any:
     from app.caching_shield.news_network import vote_article
 
     return vote_article(data.get("article_id", ""), data.get("direction", "up"))
 
 
 @router.post("/news/comment")
-async def news_comment(data: dict) -> Any:
+async def news_comment(data: dict[str, Any]) -> Any:
     from app.caching_shield.news_network import add_comment
 
     return add_comment(data.get("article_id", ""), data.get("user", "anon"), data.get("text", ""))
 
 
 @router.get("/news/comments/{article_id}")
-async def news_comments(article_id: str) -> dict:
+async def news_comments(article_id: str) -> dict[str, Any]:
     from app.caching_shield.news_network import get_comments
 
     return {"comments": get_comments(article_id)}
 
 
 @router.post("/news/bookmark")
-async def news_bookmark(data: dict) -> Any:
+async def news_bookmark(data: dict[str, Any]) -> Any:
     from app.caching_shield.news_network import bookmark
 
     return bookmark(data.get("article_id", ""))
 
 
 @router.get("/news/search")
-async def news_search(q: str = "", limit: int = 20) -> dict:
+async def news_search(q: str = "", limit: int = 20) -> dict[str, Any]:
     from app.caching_shield.news_network import search_articles
 
     return {"results": search_articles(q, limit)}
@@ -114,7 +114,7 @@ async def reddit_feed(limit: int = 20) -> Any:
 
 
 @router.get("/news/social/accounts")
-async def social_accounts() -> dict:
+async def social_accounts() -> dict[str, Any]:
     """List of monitored X accounts with profile pics."""
     from app.caching_shield.social_feed import get_top_accounts
 
