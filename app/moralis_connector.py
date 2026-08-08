@@ -85,7 +85,7 @@ class MoralisConnector:
         self.auth_key = self._auth_keys[0] if self._auth_keys else ""
         self._data_idx = 0
         self._auth_idx = 0
-        self._cache: dict[str, tuple] = {}  # key → (data, timestamp)
+        self._cache: dict[str, tuple[Any, ...]] = {}  # key → (data, timestamp)
         self._cache_ttl = 300  # 5 min
         self._last_request = 0.0
         self._min_interval = 0.33  # 3 req/sec
@@ -119,7 +119,7 @@ class MoralisConnector:
             oldest = min(self._cache, key=lambda k: self._cache[k][1])
             del self._cache[oldest]
 
-    async def _get(self, url: str, key: str | None = None, use_auth_key: bool = False) -> dict | None:
+    async def _get(self, url: str, key: str | None = None, use_auth_key: bool = False) -> dict[str, Any] | None:
         """Rate-limited GET with caching, key rotation, and circuit breaker."""
         cache_key = f"get:{url}"
         if key is None:
@@ -185,7 +185,7 @@ class MoralisConnector:
 
     # ── Auth API (Key 2) ──────────────────────────────────
 
-    async def request_evm_challenge(self, address: str, chain: str = "eth", domain: str = "rugmunch.io") -> dict | None:
+    async def request_evm_challenge(self, address: str, chain: str = "eth", domain: str = "rugmunch.io") -> dict[str, Any] | None:
         """Request SIWE (Sign-In With Ethereum) challenge for MetaMask etc."""
         chain_id = self._chain_id(chain)
         url = f"{AUTH_URL}/challenge/request/evm"
@@ -213,7 +213,7 @@ class MoralisConnector:
             logger.debug(f"EVM challenge error: {e}")
             return None
 
-    async def request_solana_challenge(self, address: str, domain: str = "rugmunch.io") -> dict | None:
+    async def request_solana_challenge(self, address: str, domain: str = "rugmunch.io") -> dict[str, Any] | None:
         """Request SIWS (Sign-In With Solana) challenge for Phantom etc."""
         url = f"{AUTH_URL}/challenge/request/solana"
         try:
@@ -240,7 +240,7 @@ class MoralisConnector:
             logger.debug(f"Solana challenge error: {e}")
             return None
 
-    async def verify_evm_signature(self, message: str, signature: str) -> dict | None:
+    async def verify_evm_signature(self, message: str, signature: str) -> dict[str, Any] | None:
         """Verify EVM wallet signature, get JWT token."""
         url = f"{AUTH_URL}/challenge/verify/evm"
         try:
@@ -259,7 +259,7 @@ class MoralisConnector:
         except httpx.HTTPError:
             return None
 
-    async def verify_solana_signature(self, message: str, signature: str) -> dict | None:
+    async def verify_solana_signature(self, message: str, signature: str) -> dict[str, Any] | None:
         """Verify Solana wallet signature, get JWT token."""
         url = f"{AUTH_URL}/challenge/verify/solana"
         try:
@@ -280,7 +280,7 @@ class MoralisConnector:
 
     # ── Data API (Key 1) ──────────────────────────────────
 
-    async def get_wallet_tokens(self, address: str, chain: str = "eth") -> list[dict]:
+    async def get_wallet_tokens(self, address: str, chain: str = "eth") -> list[dict[str, Any]]:
         """Get ERC-20 tokens for a wallet."""
         url = f"{DATA_URL}/{address}/erc20?chain={self._chain_param(chain)}&limit=100"
         result = await self._get(url)
@@ -288,7 +288,7 @@ class MoralisConnector:
             return result
         return result.get("result", result.get("data", [])) if result else []
 
-    async def get_wallet_nfts(self, address: str, chain: str = "eth", limit: int = 20) -> list[dict]:
+    async def get_wallet_nfts(self, address: str, chain: str = "eth", limit: int = 20) -> list[dict[str, Any]]:
         """Get NFTs owned by wallet."""
         url = f"{DATA_URL}/{address}/nft?chain={self._chain_param(chain)}&limit={limit}&normalizeMetadata=true"
         result = await self._get(url)
@@ -296,12 +296,12 @@ class MoralisConnector:
             return result
         return result.get("result", result.get("data", [])) if result else []
 
-    async def get_wallet_native_balance(self, address: str, chain: str = "eth") -> dict:
+    async def get_wallet_native_balance(self, address: str, chain: str = "eth") -> dict[str, Any]:
         """Get native token balance (ETH/MATIC/BNB etc)."""
         url = f"{DATA_URL}/{address}/balance?chain={self._chain_param(chain)}"
         return await self._get(url) or {}
 
-    async def get_wallet_token_transfers(self, address: str, chain: str = "eth", limit: int = 20) -> list[dict]:
+    async def get_wallet_token_transfers(self, address: str, chain: str = "eth", limit: int = 20) -> list[dict[str, Any]]:
         """Get token transfer history for whale tracking."""
         url = f"{DATA_URL}/{address}/erc20/transfers?chain={self._chain_param(chain)}&limit={limit}"
         result = await self._get(url)
@@ -309,22 +309,22 @@ class MoralisConnector:
             return result
         return result.get("result", result.get("data", [])) if result else []
 
-    async def get_token_price(self, token_address: str, chain: str = "eth") -> dict:
+    async def get_token_price(self, token_address: str, chain: str = "eth") -> dict[str, Any]:
         """Get token price in USD."""
         url = f"{DATA_URL}/erc20/{token_address}/price?chain={self._chain_param(chain)}"
         return await self._get(url) or {}
 
-    async def get_token_metadata(self, token_address: str, chain: str = "eth") -> dict:
+    async def get_token_metadata(self, token_address: str, chain: str = "eth") -> dict[str, Any]:
         """Get token metadata (name, symbol, decimals)."""
         url = f"{DATA_URL}/erc20/{token_address}?chain={self._chain_param(chain)}"
         return await self._get(url) or {}
 
-    async def get_block(self, block_number: int, chain: str = "eth") -> dict:
+    async def get_block(self, block_number: int, chain: str = "eth") -> dict[str, Any]:
         """Get block data by number."""
         url = f"{DATA_URL}/block/{block_number}?chain={self._chain_param(chain)}"
         return await self._get(url) or {}
 
-    async def get_token_holders(self, token_address: str, chain: str = "eth", limit: int = 20) -> list[dict]:
+    async def get_token_holders(self, token_address: str, chain: str = "eth", limit: int = 20) -> list[dict[str, Any]]:
         """Get top token holders (EVM chains)."""
         url = f"{DATA_URL}/erc20/{token_address}/owners?chain={self._chain_param(chain)}&limit={limit}"
         result = await self._get(url)
@@ -334,7 +334,7 @@ class MoralisConnector:
 
     # ── Stream Management ──────────────────────────────────
 
-    async def list_streams(self) -> list[dict]:
+    async def list_streams(self) -> list[dict[str, Any]]:
         """List all Moralis streams."""
         url = f"{STREAM_URL}/streams"
         result = await self._get(url, use_auth_key=False)
@@ -349,7 +349,7 @@ class MoralisConnector:
         chains: list[str] | None = None,
         address: str | None = None,
         topic0: list[str] | None = None,
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Create a Moralis stream (webhook for EVM events)."""
         if chains is None:
             chains = ["0x1"]  # Ethereum mainnet
@@ -380,7 +380,7 @@ class MoralisConnector:
             logger.debug(f"Create stream error: {e}")
             return None
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Return connector status."""
         return {
             "data_api": bool(self.api_key),

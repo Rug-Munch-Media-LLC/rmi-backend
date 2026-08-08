@@ -4,7 +4,7 @@ RugMunchBot — Per-user flood control (per-second + per-minute).
 
 Protects the AI chat surface from message floods:
   - per-second: max 3 messages per user
-  - per-minute: max 20 messages per user
+  - per-minute: max 30 messages per user (v6: raised from 20)
 
 Storage:
   1. Redis (preferred) — one sliding-window ZSET per user, auto-expiring.
@@ -51,7 +51,7 @@ logger = get_logger("rmi_bot")
 # LIMITS
 # ══════════════════════════════════════════════
 PER_SECOND_LIMIT = 3  # max 3 messages per second per user
-PER_MINUTE_LIMIT = 20  # max 20 messages per minute per user
+PER_MINUTE_LIMIT = 30  # max 30 messages per minute per user (v6: raised from 20)
 WINDOW_SECONDS = 60  # retention window for both counters (sliding)
 REDIS_KEY_PREFIX = "rmi:bot:flood:"
 REDIS_TTL = 120  # expire a user's ZSET shortly after the window passes

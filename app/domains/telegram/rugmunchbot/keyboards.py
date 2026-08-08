@@ -62,15 +62,18 @@ def main_menu_kb() -> InlineKeyboardMarkup:
 
 
 def welcome_menu_kb() -> InlineKeyboardMarkup:
-    """Main welcome menu — six capability categories."""
+    """Main welcome menu — six capability categories (v6).
+
+    🔍 Scan · 📊 Charts · 💬 Chat · 📋 Portfolio · 🛡️ Security · ℹ️ Help
+    """
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("\U0001f50d Scan & Research", callback_data="menu_cat_scan")],
-            [InlineKeyboardButton("\U0001f4c8 Market Intel", callback_data="menu_cat_market")],
-            [InlineKeyboardButton("\U0001f916 AI Chat", callback_data="menu_cat_ai")],
+            [InlineKeyboardButton("\U0001f50d Scan", callback_data="menu_cat_scan")],
+            [InlineKeyboardButton("\U0001f4c8 Charts", callback_data="menu_cat_charts")],
+            [InlineKeyboardButton("\U0001f4ac Chat", callback_data="menu_cat_ai")],
             [InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="menu_cat_portfolio")],
-            [InlineKeyboardButton("\U0001f464 Account", callback_data="menu_cat_account")],
-            [InlineKeyboardButton("\u2139\ufe0f Help & About", callback_data="menu_cat_help")],
+            [InlineKeyboardButton("\U0001f6e1\ufe0f Security", callback_data="menu_cat_security")],
+            [InlineKeyboardButton("\u2139\ufe0f Help", callback_data="menu_cat_help")],
             [
                 InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
                 InlineKeyboardButton("\U0001f4e2 Alerts", url=TELEGRAM_CHANNEL),
@@ -84,22 +87,39 @@ def _menu_row(label: str, cb: str) -> list[InlineKeyboardButton]:
 
 
 def category_scan_kb() -> InlineKeyboardMarkup:
-    """🔍 Scan & Research submenu."""
+    """🔍 Scan & Research submenu (v6 — added /deepscan, /quick)."""
     return InlineKeyboardMarkup(
         [
-            _menu_row("\U0001f6e1\ufe0f /scan — Full security audit", "run_scan"),
+            _menu_row("\U0001f6e1\ufe0f /scan — Quick security audit", "run_scan"),
+            _menu_row("\U0001f52c /deepscan — Full deep scan", "run_deepscan"),
             _menu_row("\U0001f9db /wallet — Wallet forensics", "run_wallet"),
             _menu_row("\U0001f575\ufe0f /deployer — Dev fingerprint", "run_deployer"),
             _menu_row("\U0001f525 /hype — 0-100 hype score", "run_hype"),
             _menu_row("\U0001f6a8 /rugcheck — Red flag checklist", "run_rugcheck"),
             _menu_row("\U0001f50e /investigate — Deep report (Pro)", "run_investigate"),
+            _menu_row("\U0001f4c8 /quick — Price by symbol", "run_quick"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_charts_kb() -> InlineKeyboardMarkup:
+    """📊 Charts & Visualization submenu (v6 — new category)."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f4c9 /chart — Price chart image", "run_chart"),
+            _menu_row("\U0001f5fa\ufe0f /rugmap — Bubble map image", "run_rugmap"),
+            _menu_row("\U0001f4ca /ta — Technical analysis", "run_ta"),
+            _menu_row("\U0001f4b0 /price — Token price", "run_price"),
+            _menu_row("\U0001f4e6 /dex — DEX pairs & liquidity", "run_dex"),
+            _menu_row("\U0001f465 /holders — Top holders (Scout+)", "run_holders"),
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
         ]
     )
 
 
 def category_market_kb() -> InlineKeyboardMarkup:
-    """📊 Market Intel submenu."""
+    """📈 Market Intel submenu (kept for backward compatibility)."""
     return InlineKeyboardMarkup(
         [
             _menu_row("\U0001f4c8 /trending — Hot tokens now", "run_trending"),
@@ -115,7 +135,7 @@ def category_market_kb() -> InlineKeyboardMarkup:
 
 
 def category_ai_kb() -> InlineKeyboardMarkup:
-    """💬 AI Chat submenu."""
+    """💬 AI Chat submenu (v6 — includes /chat reset hint)."""
     return InlineKeyboardMarkup(
         [
             _menu_row("\U0001f4ac /chat — Freestyle AI chat", "run_chat"),
@@ -139,8 +159,22 @@ def category_portfolio_kb() -> InlineKeyboardMarkup:
     )
 
 
+def category_security_kb() -> InlineKeyboardMarkup:
+    """🛡️ Security & Education submenu (v6 — new category)."""
+    return InlineKeyboardMarkup(
+        [
+            _menu_row("\U0001f6a8 /rugcheck — Rug pull checklist", "run_rugcheck"),
+            _menu_row("\U0001f4da /scamschool — Learn scam patterns", "run_scamschool"),
+            _menu_row("\U0001f6ab /report — Report a scam address", "run_report"),
+            _menu_row("\U0001f575\ufe0f /investigate — Deep report (Pro)", "run_investigate"),
+            _menu_row("\U0001f512 /scan — Security audit", "run_scan"),
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
 def category_account_kb() -> InlineKeyboardMarkup:
-    """👤 Account submenu."""
+    """👤 Account submenu (kept for backward compatibility)."""
     return InlineKeyboardMarkup(
         [
             _menu_row("\U0001f4cb /account — Your dashboard", "run_account"),
@@ -198,6 +232,23 @@ def admin_confirm_kb(action: str, payload: str = "") -> InlineKeyboardMarkup:
     )
 
 
+def scan_actions_kb(address: str, chain: str) -> InlineKeyboardMarkup:
+    """Post-scan action row (v6): 📊 View Chart · 🗺️ View RugMap · 📤 Share · 🔍 Deep Scan."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f4c8 View Chart", callback_data=f"chart_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f5fa\ufe0f View RugMap", callback_data=f"rugmap_{address}_{chain}"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4e4 Share", url=_share_token_url(address, chain)),
+                InlineKeyboardButton("\U0001f52c Deep Scan", callback_data=f"deep_{address}_{chain}"),
+            ],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
+        ]
+    )
+
+
 def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
     rows = [
         [web_scan_button(address, chain)],
@@ -221,6 +272,14 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
     dex_btns = dex_buttons(address, chain)
     for i in range(0, len(dex_btns), 2):
         rows.append(dex_btns[i : i + 2])
+    # v6: quick chart / rugmap / share actions
+    rows.append(
+        [
+            InlineKeyboardButton("\U0001f4c8 Chart", callback_data=f"chart_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f5fa\ufe0f RugMap", callback_data=f"rugmap_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f4e4 Share", url=_share_token_url(address, chain)),
+        ]
+    )
     # Upgrade nudge for free users
     rows.append([InlineKeyboardButton("\u2b50 Unlock Premium Features", callback_data="menu_pricing")])
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
@@ -378,6 +437,18 @@ def investigate_kb(address: str, chain: str) -> InlineKeyboardMarkup:
     )
 
 
+def _share_token_url(address: str, chain: str) -> str:
+    """t.me/share/url deep link advertising a scanned token (v6)."""
+    from urllib.parse import quote
+
+    return (
+        "https://t.me/share/url?url="
+        + quote(f"{WEBSITE_URL}/scanner?token={address}&chain={chain}")
+        + "&text="
+        + quote("Scanned with RugMunch — check this token before you buy!")
+    )
+
+
 def deep_scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
     """Extended keyboard shown after scan results with all premium actions."""
     return InlineKeyboardMarkup(
@@ -398,6 +469,11 @@ def deep_scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton("\U0001f514 Set Alert", callback_data=f"alert_{address}_{chain}"),
                 InlineKeyboardButton("\u2b50 Watch", callback_data=f"watch_{address}_{chain}"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4c8 Chart", callback_data=f"chart_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f5fa\ufe0f RugMap", callback_data=f"rugmap_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f4e4 Share", url=_share_token_url(address, chain)),
             ],
             [
                 InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),

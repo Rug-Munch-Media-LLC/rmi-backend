@@ -54,7 +54,7 @@ class AlchemyConnector:
 
     def __init__(self) -> None:
         self.api_key = ALCHEMY_API_KEY
-        self._cache: dict[str, tuple] = {}
+        self._cache: dict[str, tuple[Any, ...]] = {}
         self._cache_ttl = 300  # 5 min
         self._last_request = 0.0
         self._min_interval = 0.1  # 10 req/sec (Alchemy is generous)
@@ -83,7 +83,7 @@ class AlchemyConnector:
             oldest = min(self._cache, key=lambda k: self._cache[k][1])
             del self._cache[oldest]
 
-    async def _rpc_call(self, network: str, method: str, params: list[Any]) -> dict | None:
+    async def _rpc_call(self, network: str, method: str, params: list[Any]) -> dict[str, Any] | None:
         """Make JSON-RPC call to Alchemy with circuit breaker."""
         url = f"{self._network_url(network)}/{self.api_key}"
         cache_key = f"rpc:{network}:{method}:{str(params)[:100]}"
@@ -140,7 +140,7 @@ class AlchemyConnector:
             await _alchemy_cb.record_failure(is_server_error=True)
             return None
 
-    async def _get(self, endpoint: str, network: str = "eth", params: dict | None = None) -> dict | None:
+    async def _get(self, endpoint: str, network: str = "eth", params: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """REST API call to Alchemy with circuit breaker."""
         base = self._network_url(network)
         url = f"{base}/{self.api_key}/{endpoint}"
@@ -193,31 +193,31 @@ class AlchemyConnector:
 
     async def get_nfts(
         self, owner: str, network: str = "eth", page_size: int = 50, page_key: str | None = None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Get NFTs owned by an address."""
         params = {"owner": owner, "pageSize": page_size}
         if page_key:
             params["pageKey"] = page_key
         return await self._get("getNFTs", network, params) or {}
 
-    async def get_nft_metadata(self, contract: str, token_id: str, network: str = "eth") -> dict:
+    async def get_nft_metadata(self, contract: str, token_id: str, network: str = "eth") -> dict[str, Any]:
         """Get metadata for a specific NFT."""
         params = {"contractAddress": contract, "tokenId": token_id}
         return await self._get("getNFTMetadata", network, params) or {}
 
-    async def get_owners_for_collection(self, contract: str, network: str = "eth", page_size: int = 50) -> dict:
+    async def get_owners_for_collection(self, contract: str, network: str = "eth", page_size: int = 50) -> dict[str, Any]:
         """Get all owners of an NFT collection."""
         params = {"contractAddress": contract, "pageSize": page_size}
         return await self._get("getOwnersForCollection", network, params) or {}
 
-    async def get_nft_sales(self, contract: str | None = None, network: str = "eth", limit: int = 50) -> dict:
+    async def get_nft_sales(self, contract: str | None = None, network: str = "eth", limit: int = 50) -> dict[str, Any]:
         """Get recent NFT sales (optional: filter by contract)."""
         params = {"limit": limit}
         if contract:
             params["contractAddress"] = contract
         return await self._get("getNFTSales", network, params) or {}
 
-    async def get_contract_metadata(self, contract: str, network: str = "eth") -> dict:
+    async def get_contract_metadata(self, contract: str, network: str = "eth") -> dict[str, Any]:
         """Get NFT contract metadata (name, symbol, totalSupply)."""
         params = {"contractAddress": contract}
         result = await self._get("getContractMetadata", network, params) or {}
@@ -228,12 +228,12 @@ class AlchemyConnector:
 
     # ── Enhanced API ─────────────────────────────────────────
 
-    async def get_token_balances(self, address: str, network: str = "eth") -> dict:
+    async def get_token_balances(self, address: str, network: str = "eth") -> dict[str, Any]:
         """Get all ERC-20 token balances for an address."""
         params = {"address": address}
         return await self._get("getTokenBalances", network, params) or {}
 
-    async def get_token_metadata(self, contract: str, network: str = "eth") -> dict:
+    async def get_token_metadata(self, contract: str, network: str = "eth") -> dict[str, Any]:
         """Get ERC-20 token metadata."""
         params = {"contractAddress": contract}
         return await self._get("getTokenMetadata", network, params) or {}
@@ -245,7 +245,7 @@ class AlchemyConnector:
         network: str = "eth",
         category: list[str] | None = None,
         max_count: int = 100,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Get asset transfers (tokens, NFTs, internal)."""
         params = {"maxCount": max_count}
         if from_address:
@@ -258,11 +258,11 @@ class AlchemyConnector:
 
     # ── Transaction API ──────────────────────────────────────
 
-    async def get_transaction_receipt(self, tx_hash: str, network: str = "eth") -> dict:
+    async def get_transaction_receipt(self, tx_hash: str, network: str = "eth") -> dict[str, Any]:
         """Get transaction receipt with enhanced data."""
         return await self._rpc_call(network, "eth_getTransactionReceipt", [tx_hash]) or {}
 
-    async def get_block_by_number(self, block_number: int, network: str = "eth", include_txs: bool = False) -> dict:
+    async def get_block_by_number(self, block_number: int, network: str = "eth", include_txs: bool = False) -> dict[str, Any]:
         """Get block data."""
         return await self._rpc_call(network, "eth_getBlockByNumber", [hex(block_number), include_txs]) or {}
 
@@ -285,7 +285,7 @@ class AlchemyConnector:
 
     # ── Utility ──────────────────────────────────────────────
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Return connector status."""
         return {
             "api_key_set": bool(self.api_key),

@@ -1,28 +1,201 @@
 """
-🕸️ RugMap - Wallet Cluster Visualization
+🕸️ RugMap - Bubble Map Visualization
 ==========================================
 Visualize wallet connections and fund flow clusters for a token.
+Fetches the graph from the backend RugMaps engine (/api/v1/rugmaps/
+token-graph) and renders a bubble-map IMAGE. Falls back to the ASCII text
+map + web link when image generation is unavailable.
+
+Usage: /rugmap <address> [chain]
 """
 
 from __future__ import annotations
 
+import io
+
 import httpx
 
 from app.core.logging import get_logger
-from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER, backend_headers
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER, WEBSITE_URL, backend_headers
 
 logger = get_logger("rmi.rugmap")
 
 
+# ══════════════════════════════════════════════
+# v6 — BUBBLE MAP IMAGE RENDERING (Pillow, in bot venv)
+# ══════════════════════════════════════════════
+
+
+def render_bubble_map_png(
+    nodes: list[dict],
+    links: list[dict],
+    name: str,
+    symbol: str,
+    token_address: str,
+) -> bytes | None:
+    """Render a bubble-map PNG of wallet clusters (v6).
+
+    Nodes become bubbles (radius from node weight/value; color by risk),
+    links become connecting lines. Uses Pillow (already in the bot venv).
+    Returns ``None`` when Pillow is unavailable so callers fall back to the
+    text map + web link.
+    """
+    if not nodes:
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except (ImportError, OSError, RuntimeError) as exc:
+        logger.debug("Pillow unavailable, skipping rugmap image: %s", exc)
+        return None
+
+    W, H = 900, 700
+    bg = (15, 17, 21)
+    grid_c = (35, 38, 46)
+    text_c = (154, 160, 166)
+    title_c = (232, 234, 237)
+
+    img = Image.new("RGB", (W, H), bg)
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.load_default(size=20)
+        small = ImageFont.load_default(size=12)
+    except TypeError:
+        font = ImageFont.load_default()
+        small = font
+
+    def node_id(node: dict) -> str:
+        return node.get("address") or node.get("id") or ""
+
+    def risk_color(node: dict) -> tuple[int, int, int]:
+        risk = node.get("risk") or node.get("risk_score") or 0
+        risk_level = str(node.get("risk_level") or "").lower()
+        if risk_level == "high" or (isinstance(risk, (int, float)) and risk >= 60):
+            return (239, 83, 80)
+        if risk_level == "medium" or (isinstance(risk, (int, float)) and risk >= 30):
+            return (255, 183, 77)
+        if risk_level == "low":
+            return (102, 187, 106)
+        return (66, 165, 245)
+
+    # Layout: prefer graph positions, else circle layout.
+    positions: dict[str, tuple[float, float]] = {}
+    for node in nodes:
+        try:
+            x = float(node.get("x") or node.get("fx") or 0)
+            y = float(node.get("y") or node.get("fy") or 0)
+            if x or y:
+                positions[node_id(node)] = (x, y)
+        except (TypeError, ValueError):
+            continue
+
+    if not positions:
+        import math
+
+        n_count = len(nodes)
+        for i, node in enumerate(nodes):
+            angle = 2 * math.pi * i / max(n_count, 1)
+            positions[node_id(node)] = (math.cos(angle), math.sin(angle))
+
+    # Normalize to plot area with margins.
+    xs = [p[0] for p in positions.values()]
+    ys = [p[1] for p in positions.values()]
+    xmin, xmax = (min(xs), max(xs)) if xs else (0, 1)
+    ymin, ymax = (min(ys), max(ys)) if ys else (0, 1)
+    if xmax == xmin:
+        xmax = xmin + 1
+    if ymax == ymin:
+        ymax = ymin + 1
+    margin = 90
+
+    def px(p: tuple[float, float]) -> tuple[int, int]:
+        sx = margin + (p[0] - xmin) / (xmax - xmin) * (W - 2 * margin)
+        sy = H - margin - (p[1] - ymin) / (ymax - ymin) * (H - 2 * margin)
+        return int(sx), int(sy)
+
+    # Links first (under bubbles).
+    drawn: set[tuple[str, str]] = set()
+    for lnk in links:
+        src = lnk.get("source")
+        tgt = lnk.get("target")
+        if isinstance(src, dict):
+            src = node_id(src)
+        if isinstance(tgt, dict):
+            tgt = node_id(tgt)
+        if src not in positions or tgt not in positions:
+            continue
+        key = tuple(sorted((str(src), str(tgt))))
+        if key in drawn:
+            continue
+        drawn.add(key)
+        draw.line([px(positions[src]), px(positions[tgt])], fill=grid_c, width=2)
+
+    # Bubbles.
+    center = nodes[0]
+    for node in nodes:
+        pos = positions.get(node_id(node))
+        if pos is None:
+            continue
+        try:
+            w = float(node.get("weight") or node.get("value") or 0)
+        except (TypeError, ValueError):
+            w = 0
+        is_center = node is center
+        radius = 26 if is_center else max(7, min(20, 9 + w * 0.5))
+        cx, cy = px(pos)
+        col = risk_color(node)
+        draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=col, outline=(232, 234, 237), width=2)
+        label = str(node.get("label") or "")[:10] or node_id(node)[:8]
+        bbox = draw.textbbox((0, 0), label, font=small)
+        lw = bbox[2] - bbox[0]
+        draw.text((cx - lw / 2, cy - 7), label, font=small, fill=title_c)
+
+    title = f"RugMap: {name} ({symbol})"
+    draw.text((16, 12), title, font=font, fill=title_c)
+    draw.text((16, H - 28), "Bubble size = wallet weight · Color = risk", font=small, fill=text_c)
+
+    try:
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        return buf.getvalue()
+    except (OSError, ValueError, RuntimeError):
+        logger.debug("rugmap png render failed", exc_info=True)
+        return None
+
+
+async def _fetch_token_graph(client: httpx.AsyncClient, address: str, chain: str) -> dict | None:
+    """Fetch the token holder graph from the backend RugMaps engine."""
+    try:
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/rugmaps/token-graph",
+            params={"token_address": address, "chain": chain, "limit": 40},
+            headers=backend_headers(),
+            timeout=20,
+        )
+        if r.status_code == 200:
+            body = r.json()
+            if isinstance(body, dict) and (body.get("nodes") or body.get("links")):
+                return body
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+        logger.debug("RugMaps token-graph failed: %s", exc)
+    return None
+
+
+def _web_rugmap_url(address: str, chain: str) -> str:
+    return f"{WEBSITE_URL}/rugmaps?token={address}&chain={chain}"
+
+
 async def cmd_rugmap(update, ctx) -> None:
-    """Handle /rugmap command - visualize wallet clusters."""
-    msg = update.message
+    """Handle /rugmap command - bubble map image of wallet clusters."""
+    msg = update.message or (update.callback_query.message if update.callback_query else None)
+    if msg is None:
+        return
     args = ctx.args
 
     if not args:
         await msg.reply_text(
-            "🕸️ <b>Usage:</b> <code>/rugmap &lt;token_address&gt;</code>\n\n"
-            "Visualizes wallet clusters and fund flows for a token.\n\n"
+            "🕸️ <b>Usage:</b> <code>/rugmap &lt;token_address&gt; [chain]</code>\n\n"
+            "Generates a bubble-map image of wallet clusters and fund flows.\n\n"
             "Example: <code>/rugmap 0x...</code>\n\n"
             "<i>Shows dev wallet, bundler wallets, exchange deposits, and more.</i>",
             parse_mode="HTML",
@@ -30,7 +203,8 @@ async def cmd_rugmap(update, ctx) -> None:
         return
 
     address = args[0]
-    await msg.chat.send_action("typing")
+    explicit_chain = args[1] if len(args) > 1 else ""
+    await msg.chat.send_action("upload_photo")
 
     try:
         smart_money = []
@@ -40,8 +214,20 @@ async def cmd_rugmap(update, ctx) -> None:
         liquidity = 0
         symbol = "???"
         name = "Unknown"
+        chain = explicit_chain
+        graph: dict | None = None
 
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=25) as client:
+            # v6: fetch the token graph from the RugMaps engine first.
+            graph_chain = chain or _guess_chain(address)
+            graph = await _fetch_token_graph(client, address, graph_chain)
+            if graph:
+                nodes = graph.get("nodes") or []
+                links = graph.get("links") or []
+                chain = graph.get("chain") or graph_chain
+            else:
+                nodes, links = [], []
+
             # Try DataBus
             try:
                 r = await client.get(
@@ -68,9 +254,47 @@ async def cmd_rugmap(update, ctx) -> None:
                         symbol = p.get("baseToken", {}).get("symbol", "???")
                         name = p.get("baseToken", {}).get("name", "Unknown")
                         liquidity = float(p.get("liquidity", {}).get("usd", 0))
+                        chain = chain or p.get("chainId", "")
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
                 logger.debug("DexScreener fallback failed: %s", exc)
 
+        # ── v6: try the bubble-map image first ──
+        png = render_bubble_map_png(nodes or [], links or [], name, symbol, address) if nodes else None
+        if png:
+            risk_line = ""
+            if graph and graph.get("risk_level"):
+                risk_line = f"\n🛡️ Graph Risk: <b>{graph['risk_level'].upper()}</b> ({graph.get('risk_score', 0)})"
+            caption = (
+                f"🕸️ <b>RugMap: {name} ({symbol})</b>\n"
+                f"<code>{address[:12]}...{address[-6:]}</code>{risk_line}\n\n"
+                f"👥 Nodes: <b>{len(nodes)}</b> | 🔗 Links: <b>{len(links)}</b>"
+                f" | 💧 Liq: ${liquidity:,.0f}"
+                + (f"\n🚨 <b>BUNDLE DETECTED</b>" if bundle_detected else "")
+                + f'\n🌐 <a href="{_web_rugmap_url(address, chain)}">Open interactive map</a>'
+            )
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+            kb = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton("📊 View Chart", callback_data=f"chart_{address}_{chain}"),
+                        InlineKeyboardButton("🔍 Deep Scan", callback_data=f"deep_{address}_{chain}"),
+                    ],
+                    [InlineKeyboardButton("🏠 Menu", callback_data="menu_main")],
+                ]
+            )
+            try:
+                await msg.reply_photo(
+                    photo=io.BytesIO(png),
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=kb,
+                )
+                return
+            except Exception as e:
+                logger.warning("rugmap photo send failed, falling back to text: %s", e)
+
+        # ── Fallback: ASCII cluster map + web link ──
         lines = [
             f"🕸️ <b>RugMap: {name} ({symbol})</b>",
             "",
@@ -118,7 +342,9 @@ async def cmd_rugmap(update, ctx) -> None:
         lines.extend(
             [
                 "",
-                "<i>Data from RugMunch Intelligence. Full map on rugmunch.io</i>",
+                f'🌐 <a href="{_web_rugmap_url(address, chain)}">Open interactive map on rugmunch.io</a>',
+                "",
+                "<i>Image map unavailable — showing text map.</i>",
             ]
         )
 
@@ -128,3 +354,12 @@ async def cmd_rugmap(update, ctx) -> None:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"RugMap failed: {e}")
         await msg.reply_text("❌ Could not generate rug map. Try again later.", parse_mode="HTML")
+
+
+def _guess_chain(address: str) -> str:
+    from app.domains.telegram.rugmunchbot.formatters import detect_chain
+
+    return detect_chain(address) or "solana"
+
+
+__all__ = ["cmd_rugmap", "render_bubble_map_png"]

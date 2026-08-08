@@ -31,8 +31,8 @@ logger = get_logger("rmi_bot.chat")
 
 CHAT_WELCOME = (
     "\U0001f916 <b>RugMunch AI \u2014 Freestyle Chat</b>\n\n"
-    "I'm a crypto knowledge assistant powered by RAG + LLM. Ask me about "
-    "<b>anything</b>, including:\n\n"
+    "Ask me anything about <b>crypto</b> \u2014 tokens, wallets, security, "
+    "DeFi, trading, coding...\n\n"
     "\U0001f50d <b>Tokens & Security</b> \u2014 audits, honeypots, rug pulls, contracts\n"
     "\U0001f9db <b>Wallets</b> \u2014 holdings, risk, smart money, entity attribution\n"
     "\U0001f4c8 <b>Markets</b> \u2014 prices, trends, liquidity, sentiment, news\n"
@@ -45,6 +45,7 @@ CHAT_WELCOME = (
     "\u2022 /chat <code>is this wallet risky?</code> <i>+ paste address</i>\n\n"
     "\U0001f4ac <b>Tip:</b> just type any message \u2014 no command needed. "
     "I keep the last 5 messages for context (use <code>/chat reset</code> to clear).\n\n"
+    "\U0001f6ab See a scam? <code>/report &lt;address&gt;</code> to flag it.\n\n"
     "\U0001f4f3 Free tier: 15 AI msgs/week \u00b7 Scout: 75 \u00b7 Hunter: 250 \u00b7 Pro: 500"
 )
 

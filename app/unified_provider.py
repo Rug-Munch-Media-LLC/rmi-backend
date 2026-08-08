@@ -70,7 +70,7 @@ class UnifiedProvider:
 
     # ── Solana: Get Token Holders ──────────────────────────
 
-    async def get_token_holders(self, mint: str, limit: int = 20) -> list[dict]:
+    async def get_token_holders(self, mint: str, limit: int = 20) -> list[dict[str, Any]]:
         """Get token holders - tries 5 sources in cascade."""
         cache = self._get_cache()
         cached = await cache.get("holders_v2", mint, limit)
@@ -104,7 +104,7 @@ class UnifiedProvider:
         await cache.set("holders_v2", [], mint, limit, ttl=120)
         return []
 
-    async def _helius_holders(self, mint: str, limit: int) -> list[dict]:
+    async def _helius_holders(self, mint: str, limit: int) -> list[dict[str, Any]]:
         """Get token holders via getProgramAccounts (correct method)."""
         try:
             from app.chain_client import get_chain_client
@@ -139,7 +139,7 @@ class UnifiedProvider:
             logger.debug("Helius holders failed: %s", e)
             return []
 
-    async def _birdeye_holders(self, mint: str, limit: int) -> list[dict]:
+    async def _birdeye_holders(self, mint: str, limit: int) -> list[dict[str, Any]]:
         try:
             if not self.birdeye:
                 return []
@@ -150,7 +150,7 @@ class UnifiedProvider:
             logger.debug("Birdeye holders failed: %s", e)
             return []
 
-    async def _solscan_holders(self, mint: str, limit: int) -> list[dict]:
+    async def _solscan_holders(self, mint: str, limit: int) -> list[dict[str, Any]]:
         try:
             if not self.solscan:
                 return []
@@ -171,7 +171,7 @@ class UnifiedProvider:
             logger.debug("Solscan holders failed: %s", e)
             return []
 
-    async def _dexscreener_holders(self, mint: str, limit: int) -> list[dict]:
+    async def _dexscreener_holders(self, mint: str, limit: int) -> list[dict[str, Any]]:
         try:
             import httpx
 
@@ -193,7 +193,7 @@ class UnifiedProvider:
 
     # ── Solana: Wallet Transactions ────────────────────────
 
-    async def get_wallet_transactions(self, wallet: str, limit: int = 20) -> list[dict]:
+    async def get_wallet_transactions(self, wallet: str, limit: int = 20) -> list[dict[str, Any]]:
         """Get wallet transactions - Helius → Solscan → Birdeye."""
         cache = self._get_cache()
         cached = await cache.get("txs_v2", wallet, limit)
@@ -215,7 +215,7 @@ class UnifiedProvider:
         await cache.set("txs_v2", [], wallet, limit, ttl=60)
         return []
 
-    async def _helius_txs(self, wallet: str, limit: int) -> list[dict]:
+    async def _helius_txs(self, wallet: str, limit: int) -> list[dict[str, Any]]:
         try:
             from app.chain_client import get_chain_client
 
@@ -238,7 +238,7 @@ class UnifiedProvider:
             logger.debug("Helius txs failed: %s", e)
             return []
 
-    async def _solscan_txs(self, wallet: str, limit: int) -> list[dict]:
+    async def _solscan_txs(self, wallet: str, limit: int) -> list[dict[str, Any]]:
         try:
             if not self.solscan:
                 return []
@@ -296,7 +296,7 @@ class UnifiedProvider:
 
     # ── Token Metadata ─────────────────────────────────────
 
-    async def get_token_metadata(self, mint: str) -> dict:
+    async def get_token_metadata(self, mint: str) -> dict[str, Any]:
         """Get token metadata - Helius → Birdeye → DexScreener."""
         cache = self._get_cache()
         cached = await cache.get("meta", mint)
@@ -346,7 +346,7 @@ class UnifiedProvider:
 
     # ── DEX Parity: Full Token Data ───────────────────────
 
-    async def get_token_full(self, mint: str, chain: str = "solana") -> dict:
+    async def get_token_full(self, mint: str, chain: str = "solana") -> dict[str, Any]:
         """
         Get comprehensive token data matching DexScreener/DexTools quality.
 
@@ -484,7 +484,7 @@ class UnifiedProvider:
 
         return result
 
-    async def _get_scanner_cache(self, mint: str, chain: str) -> dict | None:
+    async def _get_scanner_cache(self, mint: str, chain: str) -> dict[str, Any] | None:
         """Try to get data from existing scanner Redis cache."""
         try:
             import json
@@ -514,7 +514,7 @@ class UnifiedProvider:
             pass
         return None
 
-    async def _fetch_dexscreener_full(self, mint: str, chain: str) -> dict | None:
+    async def _fetch_dexscreener_full(self, mint: str, chain: str) -> dict[str, Any] | None:
         """Fetch full token data from DexScreener (free, unlimited)."""
         try:
             import httpx
@@ -544,7 +544,7 @@ class UnifiedProvider:
             logger.debug("DexScreener full fetch failed: %s", e)
         return None
 
-    async def _fetch_gmgn_enrichment(self, mint: str, chain: str) -> dict | None:
+    async def _fetch_gmgn_enrichment(self, mint: str, chain: str) -> dict[str, Any] | None:
         """Enrich with GMGN data if available."""
         try:
             from app.databus.gmgn_provider import get_gmgn_provider
@@ -563,7 +563,7 @@ class UnifiedProvider:
         except Exception:
             return None
 
-    async def _fetch_birdeye_enrichment(self, mint: str) -> dict | None:
+    async def _fetch_birdeye_enrichment(self, mint: str) -> dict[str, Any] | None:
         """Enrich with Birdeye data (holder count, security)."""
         try:
             if not self.birdeye:
@@ -582,7 +582,7 @@ class UnifiedProvider:
         except Exception:
             return None
 
-    async def _fetch_geckoterminal_ohlcv(self, mint: str, chain: str = "solana", limit: int = 24) -> list[dict] | None:
+    async def _fetch_geckoterminal_ohlcv(self, mint: str, chain: str = "solana", limit: int = 24) -> list[dict[str, Any]] | None:
         """Fetch OHLCV data from GeckoTerminal (free, no auth)."""
         try:
             import httpx

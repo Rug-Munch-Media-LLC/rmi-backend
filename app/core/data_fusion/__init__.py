@@ -45,7 +45,7 @@ def envelope(
     confidence: float = 0,
     source: str = "",
     error: str = "",
-) -> dict:
+) -> dict[str, Any]:
     """Standard response envelope for all fusion results."""
     return {
         "success": success,
@@ -83,15 +83,15 @@ class DataFusion:
     # ── Token Risk Fusion ──
     async def fuse_token_risk(
         self,
-        goplus_result: dict | None = None,
-        dexscreener_result: dict | None = None,
-        honeypot_result: dict | None = None,
-        sentinel_result: dict | None = None,
-        additional: list[dict] | None = None,
-    ) -> dict:
+        goplus_result: dict[str, Any] | None = None,
+        dexscreener_result: dict[str, Any] | None = None,
+        honeypot_result: dict[str, Any] | None = None,
+        sentinel_result: dict[str, Any] | None = None,
+        additional: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         self._stats["calls"] += 1
         votes: list[WeightedVote] = []
-        findings: list[dict] = []
+        findings: list[dict[str, Any]] = []
 
         for source_key, result in [
             ("goplus", goplus_result),
@@ -155,7 +155,7 @@ class DataFusion:
         )
 
     # ── Price Data Fusion ──
-    async def fuse_price_data(self, *sources: dict | None) -> dict:
+    async def fuse_price_data(self, *sources: dict[str, Any] | None) -> dict[str, Any]:
         self._stats["calls"] += 1
         prices: list[tuple[float, str, float]] = []  # (price, source_key, freshness)
 
@@ -199,13 +199,13 @@ class DataFusion:
     # ── Holder Data Fusion ──
     async def fuse_holder_data(
         self,
-        rpc_result: dict | None = None,
-        explorer_result: dict | None = None,
-        additional: list[dict] | None = None,
-    ) -> dict:
+        rpc_result: dict[str, Any] | None = None,
+        explorer_result: dict[str, Any] | None = None,
+        additional: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         self._stats["calls"] += 1
         votes: list[WeightedVote] = []
-        holder_sets: list[list[dict]] = []
+        holder_sets: list[list[dict[str, Any]]] = []
 
         for source_key, result in [("consensus_rpc", rpc_result), ("etherscan", explorer_result)]:
             if not result:
@@ -251,7 +251,7 @@ class DataFusion:
         )
 
     # ── Intelligence Brief ──
-    def generate_intelligence_brief(self, token_data: dict) -> dict:
+    def generate_intelligence_brief(self, token_data: dict[str, Any]) -> dict[str, Any]:
         score = token_data.get("risk_score", 50)
         findings = token_data.get("key_findings", [])
 
@@ -269,7 +269,7 @@ class DataFusion:
         }
 
     # ── Internal Fusion Logic ──
-    def _fuse_weighted(self, votes: list[WeightedVote]) -> dict:
+    def _fuse_weighted(self, votes: list[WeightedVote]) -> dict[str, Any]:
         if not votes:
             return {"risk_score": 50, "confidence": 0}
 
@@ -308,7 +308,7 @@ class DataFusion:
         return fused
 
     @property
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {
             "total_fusions": self._stats["calls"],
             "sources_fused": self._stats["sources_fused"],

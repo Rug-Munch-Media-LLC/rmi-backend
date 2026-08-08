@@ -115,24 +115,29 @@ def social_proof_text() -> str:
 
 
 def welcome_card_text() -> str:
-    """v5 welcome card — capability overview shown by /start and the main menu.
+    """v6 welcome card — capability overview shown by /start and the main menu.
 
-    Concise enough to render fast while advertising the full capability set
-    (scanning, wallet intel, markets, AI chat, education).
+    Includes the requested one-liner ("I can scan tokens, analyze wallets,
+    show charts, run RugMaps bubble maps, answer crypto questions via AI
+    chat, track your portfolio, and more. Try /scan or /chat to get
+    started!") plus a compact 6-category breakdown and quick-start tips.
     """
     proof = social_proof_text()
     return (
         f"\U0001f6e1\ufe0f <b>RugMunch Intelligence</b>\n"
         f"<i>The Bloomberg Terminal of Shitcoins</i>\n\n"
         f"{proof}\n\n"
+        f"<b>I can scan tokens, analyze wallets, show charts, run "
+        f"RugMaps bubble maps, answer crypto questions via AI chat, track "
+        f"your portfolio, and more.</b>\n"
+        f"\U0001f4cc Try <code>/scan</code> or <code>/chat</code> to get started!\n\n"
         f"<b>Capabilities:</b>\n"
-        f"\U0001f50d <b>Scan & Research</b> — multi-chain token audits\n"
-        f"  honeypots \u00b7 rug pulls \u00b7 bundles \u00b7 dev history\n"
-        f"\U0001f9db <b>Wallet Intel</b> — forensics \u00b7 smart money \u00b7 risk\n"
-        f"\U0001f4c8 <b>Market Data</b> — prices \u00b7 trending \u00b7 sentiment \u00b7 news\n"
-        f"\U0001f4b1 <b>DeFi Analysis</b> — liquidity \u00b7 volume \u00b7 wash trades\n"
-        f"\U0001f916 <b>AI Chat</b> — RAG-powered answers on crypto & code\n"
-        f"\U0001f4da <b>Scam School</b> — learn before you lose\n\n"
+        f"\U0001f50d <b>Scan</b> — multi-chain token audits, quick + deep\n"
+        f"\U0001f4c8 <b>Charts</b> — price charts, RugMap bubble maps, TA\n"
+        f"\U0001f4ac <b>Chat</b> — RAG-powered AI answers on crypto & code\n"
+        f"\U0001f4c1 <b>Portfolio</b> — holdings, watchlist, alerts\n"
+        f"\U0001f6e1\ufe0f <b>Security</b> — rug checks, scam school, /report\n"
+        f"\u2139\ufe0f <b>Help</b> — full command reference\n\n"
         f"\U0001f4f3 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + "
         f"{TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
         f"\u2b50 <b>Premium from $29.99/mo</b> \u2014 unlock everything\n\n"

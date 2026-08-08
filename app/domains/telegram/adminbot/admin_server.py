@@ -343,3 +343,47 @@ def restart_service(name: str) -> dict[str, Any]:
     if not _validate_name(name):
         return {"ok": False, "output": "", "error": f"Invalid service name: '{name}'", "duration": 0.0}
     return _run_subprocess(["systemctl", "restart", name], timeout=60)
+
+
+# ═══════════════════════════════════════════════
+# REBOOT (scheduled, cancellable)
+# ═══════════════════════════════════════════════
+
+
+def schedule_reboot(delay_seconds: int = 60) -> dict[str, Any]:
+    """Schedule a host reboot ``delay_seconds`` from now.
+
+    Uses ``systemd-run --on-active`` so the reboot is owned by systemd and
+    can be cancelled with ``systemctl cancel`` before it fires. Falls back
+    to ``shutdown -r +N`` (also cancellable with ``shutdown -c``).
+    """
+    if delay_seconds < 10:
+        delay_seconds = 10
+    minutes = max(1, round(delay_seconds / 60.0))
+    unit = f"rmi-admin-reboot-{int(__import__('time').time())}"
+    r = _run_subprocess(
+        ["systemd-run", "--on-active", f"{delay_seconds}", "--unit", unit, "systemctl", "reboot"],
+        timeout=10,
+    )
+    if r["ok"]:
+        return {
+            "ok": True,
+            "output": f"Reboot scheduled in {delay_seconds}s (unit {unit}). Cancel: /sh systemctl cancel {unit}",
+            "error": "",
+            "duration": r["duration"],
+        }
+    # Fallback: shutdown -r +N (minutes)
+    r2 = _run_subprocess(["shutdown", "-r", f"+{minutes}", "RMI Admin Bot initiated reboot"], timeout=10)
+    if r2["ok"]:
+        return {
+            "ok": True,
+            "output": f"Reboot scheduled in ~{minutes} min (shutdown -r). Cancel: /sh shutdown -c",
+            "error": "",
+            "duration": r2["duration"],
+        }
+    return {
+        "ok": False,
+        "output": "",
+        "error": r.get("error") or r2.get("error", "failed to schedule reboot"),
+        "duration": 0.0,
+    }

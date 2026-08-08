@@ -32,17 +32,17 @@ from app.core.logging import get_logger
 logger = get_logger("service_mcp")
 
 # Cache
-_l1: dict[str, tuple] = {}
+_l1: dict[str, tuple[Any, ...]] = {}
 _hits = 0
 _misses = 0
 
 
-def _cache_key(service: str, method: str, params: dict) -> str:
+def _cache_key(service: str, method: str, params: dict[str, Any]) -> str:
     raw = f"{service}:{method}:{json.dumps(params, sort_keys=True, default=str)}"
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
-async def _cached_call(service: str, method: str, params: dict, fn, ttl: int = 60) -> dict | None:
+async def _cached_call(service: str, method: str, params: dict[str, Any], fn, ttl: int = 60) -> dict[str, Any] | None:
     global _hits, _misses
     key = _cache_key(service, method, params)
     entry = _l1.get(key)
@@ -71,7 +71,7 @@ class GMGNTools:
         self._key = os.getenv("GMGN_API_KEY", "")
         self._base = "https://gmgn.ai/api/v1"
 
-    async def token_security(self, chain: str, address: str) -> dict | None:
+    async def token_security(self, chain: str, address: str) -> dict[str, Any] | None:
         async def fn(chain, address) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -90,7 +90,7 @@ class GMGNTools:
 
         return await _cached_call("gmgn", "token_security", {"chain": chain, "address": address}, fn, 60)
 
-    async def holder_distribution(self, chain: str, address: str) -> dict | None:
+    async def holder_distribution(self, chain: str, address: str) -> dict[str, Any] | None:
         async def fn(chain, address) -> dict[str, int]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -103,7 +103,7 @@ class GMGNTools:
 
         return await _cached_call("gmgn", "holders", {"chain": chain, "address": address}, fn, 120)
 
-    async def sniper_check(self, chain: str, address: str) -> dict | None:
+    async def sniper_check(self, chain: str, address: str) -> dict[str, Any] | None:
         async def fn(chain, address) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -130,7 +130,7 @@ class BirdeyeTools:
         self._key = os.getenv("BIRDEYE_API_KEY", "")
         self._base = "https://public-api.birdeye.so"
 
-    async def token_overview(self, address: str) -> dict | None:
+    async def token_overview(self, address: str) -> dict[str, Any] | None:
         async def fn(address) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -149,7 +149,7 @@ class BirdeyeTools:
 
         return await _cached_call("birdeye", "overview", {"address": address}, fn, 30)
 
-    async def token_price(self, address: str) -> dict | None:
+    async def token_price(self, address: str) -> dict[str, Any] | None:
         async def fn(address) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=8) as c:
                 r = await c.get(
@@ -174,7 +174,7 @@ class SolscanTools:
         self._key = os.getenv("SOLSCAN_API_KEY", "")
         self._base = "https://pro-api.solscan.io/v2.0"
 
-    async def token_meta(self, address: str) -> dict | None:
+    async def token_meta(self, address: str) -> dict[str, Any] | None:
         async def fn(address) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -193,7 +193,7 @@ class SolscanTools:
 
         return await _cached_call("solscan", "meta", {"address": address}, fn, 120)
 
-    async def token_holders(self, address: str, limit: int = 10) -> dict | None:
+    async def token_holders(self, address: str, limit: int = 10) -> dict[str, Any] | None:
         async def fn(address, limit) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -217,7 +217,7 @@ class CoinGeckoTools:
         self._key = os.getenv("COINGECKO_API_KEY", "")
         self._base = "https://pro-api.coingecko.com/api/v3"
 
-    async def price(self, token_id: str = "solana") -> dict | None:
+    async def price(self, token_id: str = "solana") -> dict[str, Any] | None:
         async def fn(token_id) -> Any | None:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -235,7 +235,7 @@ class CoinGeckoTools:
 
         return await _cached_call("coingecko", "price", {"token_id": token_id}, fn, 30)
 
-    async def trending(self) -> dict | None:
+    async def trending(self) -> dict[str, Any] | None:
         async def fn() -> dict[str, list[Any | None]]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(f"{self._base}/search/trending", headers={"x-cg-pro-api-key": self._key})
@@ -256,7 +256,7 @@ class EtherscanTools:
         self._key = os.getenv("ETHERSCAN_API_KEY", "")
         self._base = "https://api.etherscan.io/api"
 
-    async def contract_abi(self, address: str) -> dict | None:
+    async def contract_abi(self, address: str) -> dict[str, Any] | None:
         async def fn(address) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -273,8 +273,8 @@ class EtherscanTools:
 
         return await _cached_call("etherscan", "abi", {"address": address}, fn, 3600)
 
-    async def gas_oracle(self) -> dict | None:
-        async def fn() -> dict[str, Any | None] | dict:
+    async def gas_oracle(self) -> dict[str, Any] | None:
+        async def fn() -> dict[str, Any | None] | dict[str, Any]:
             async with httpx.AsyncClient(timeout=8) as c:
                 r = await c.get(
                     self._base,
@@ -310,7 +310,7 @@ class MoralisTools:
         self._idx += 1
         return key
 
-    async def wallet_balance(self, address: str, chain: str = "eth") -> dict | None:
+    async def wallet_balance(self, address: str, chain: str = "eth") -> dict[str, Any] | None:
         async def fn(address, chain) -> dict[str, Any | None]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -323,7 +323,7 @@ class MoralisTools:
 
         return await _cached_call("moralis", "coinmarketcap", "balance", {"address": address, "chain": chain}, fn, 15)
 
-    async def wallet_tokens(self, address: str, chain: str = "eth") -> dict | None:
+    async def wallet_tokens(self, address: str, chain: str = "eth") -> dict[str, Any] | None:
         async def fn(address, chain) -> dict[str, int]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -355,7 +355,7 @@ class ServiceMCP:
         self.moralis = MoralisTools()
         self.coinmarketcap = CoinMarketCapTools()
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {
             "cache_hits": _hits,
             "cache_misses": _misses,
@@ -392,7 +392,7 @@ class CoinMarketCapTools:
         self._key = os.getenv("COINMARKETCAP_API_KEY", "")
         self._base = "https://pro-api.coinmarketcap.com/v1"
 
-    async def latest_listings(self, limit: int = 10) -> dict | None:
+    async def latest_listings(self, limit: int = 10) -> dict[str, Any] | None:
         async def fn(limit) -> dict[str, int]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
@@ -419,8 +419,8 @@ class CoinMarketCapTools:
 
         return await _cached_call("cmc", "listings", {"limit": limit}, fn, 60)
 
-    async def quotes(self, symbols: list) -> dict | None:
-        async def fn(symbols) -> dict:
+    async def quotes(self, symbols: list[Any]) -> dict[str, Any] | None:
+        async def fn(symbols) -> dict[str, Any]:
             async with httpx.AsyncClient(timeout=10) as c:
                 r = await c.get(
                     f"{self._base}/cryptocurrency/quotes/latest",

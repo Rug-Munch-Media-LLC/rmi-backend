@@ -92,7 +92,7 @@ def _find_dir(candidates: list[str]) -> str | None:
     return None
 
 
-def _load_real_cats(con, base_dir: str) -> dict:
+def _load_real_cats(con, base_dir: str) -> dict[str, Any]:
     """Load Real-CATS dataset into criminal_addresses and benign_addresses."""
     stats = {"criminal": 0, "benign": 0, "errors": []}
 
@@ -157,7 +157,7 @@ def _load_real_cats(con, base_dir: str) -> dict:
     return stats
 
 
-def _load_mbal(con, base_dir: str) -> dict:
+def _load_mbal(con, base_dir: str) -> dict[str, Any]:
     """Load MBAL 10M address labels into mbal_labels."""
     stats = {"loaded": 0, "errors": []}
 
@@ -326,7 +326,7 @@ class DuckDBAnalytics:
             self._con = duckdb.connect(self.db_path)
         return self._con
 
-    def initialize(self, force_reload: bool = False) -> dict:
+    def initialize(self, force_reload: bool = False) -> dict[str, Any]:
         """Create tables and load data. Returns load stats."""
         con = self.connect()
 
@@ -385,7 +385,7 @@ class DuckDBAnalytics:
 
     # ── Query methods ────────────────────────────────────────────
 
-    def lookup_address(self, address: str) -> dict | None:
+    def lookup_address(self, address: str) -> dict[str, Any] | None:
         """Look up a single address across all datasets."""
         con = self.connect()
         if not self._loaded:
@@ -428,7 +428,7 @@ class DuckDBAnalytics:
             "all_labels": entries,
         }
 
-    def batch_lookup(self, addresses: list[str]) -> list[dict]:
+    def batch_lookup(self, addresses: list[str]) -> list[dict[str, Any]]:
         """Batch look up multiple addresses."""
         con = self.connect()
         if not self._loaded:
@@ -448,7 +448,7 @@ class DuckDBAnalytics:
         ).fetchall()
 
         # Group by address
-        by_addr: dict[str, list] = {}
+        by_addr: dict[str, list[Any]] = {}
         for row in rows:
             addr = row[0]
             by_addr.setdefault(addr.lower(), []).append(
@@ -498,7 +498,7 @@ class DuckDBAnalytics:
             return result["risk_score"]
         return 0.0  # Unknown = no risk signal
 
-    def search_labels(self, query: str, chain: str | None = None, limit: int = 50) -> list[dict]:
+    def search_labels(self, query: str, chain: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         """Search labels by keyword."""
         con = self.connect()
         if not self._loaded:
@@ -529,7 +529,7 @@ class DuckDBAnalytics:
             for row in rows
         ]
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Get database statistics."""
         con = self.connect()
         try:
@@ -552,7 +552,7 @@ class DuckDBAnalytics:
         except (ConnectionError, OSError, TimeoutError) as e:
             return {"error": str(e), "initialized": self._loaded}
 
-    def execute_query(self, sql: str, params: list | None = None) -> list[tuple]:
+    def execute_query(self, sql: str, params: list[Any] | None = None) -> list[tuple[Any, ...]]:
         """Run arbitrary SQL query. For advanced analytics."""
         con = self.connect()
         if params:
@@ -578,7 +578,7 @@ def _get_engine() -> DuckDBAnalytics:
     return _engine
 
 
-async def _duckdb_lookup(address: str = "", **kwargs) -> dict | None:
+async def _duckdb_lookup(address: str = "", **kwargs) -> dict[str, Any] | None:
     """Look up address in local DuckDB analytics."""
     if not address:
         return None
@@ -586,7 +586,7 @@ async def _duckdb_lookup(address: str = "", **kwargs) -> dict | None:
     return engine.lookup_address(address)
 
 
-async def _duckdb_batch_lookup(addresses: list | None = None, **kwargs) -> dict | None:
+async def _duckdb_batch_lookup(addresses: list[Any] | None = None, **kwargs) -> dict[str, Any] | None:
     """Batch look up addresses in local DuckDB analytics."""
     if not addresses:
         return None
@@ -599,7 +599,7 @@ async def _duckdb_batch_lookup(addresses: list | None = None, **kwargs) -> dict 
     }
 
 
-async def _duckdb_risk_score(address: str = "", **kwargs) -> dict | None:
+async def _duckdb_risk_score(address: str = "", **kwargs) -> dict[str, Any] | None:
     """Get risk score for an address."""
     if not address:
         return None
@@ -608,7 +608,7 @@ async def _duckdb_risk_score(address: str = "", **kwargs) -> dict | None:
     return {"address": address, "risk_score": score, "source": "duckdb_offline"}
 
 
-async def _duckdb_search_labels(query: str = "", chain: str | None = None, limit: int = 50, **kwargs) -> dict | None:
+async def _duckdb_search_labels(query: str = "", chain: str | None = None, limit: int = 50, **kwargs) -> dict[str, Any] | None:
     """Search labels by keyword."""
     if not query:
         return None
@@ -617,13 +617,13 @@ async def _duckdb_search_labels(query: str = "", chain: str | None = None, limit
     return {"query": query, "chain": chain, "results": results, "count": len(results)}
 
 
-async def _duckdb_stats(**kwargs) -> dict | None:
+async def _duckdb_stats(**kwargs) -> dict[str, Any] | None:
     """Get DuckDB analytics statistics."""
     engine = _get_engine()
     return engine.stats()
 
 
-async def _duckdb_query(sql: str = "", **kwargs) -> dict | None:
+async def _duckdb_query(sql: str = "", **kwargs) -> dict[str, Any] | None:
     """Run arbitrary SQL on DuckDB (admin only)."""
     if not sql:
         return {"error": "SQL query required"}

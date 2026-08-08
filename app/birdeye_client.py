@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 import asyncio
 import os
 from datetime import UTC, datetime
@@ -27,7 +28,7 @@ class BirdeyeClient:
         self.client = httpx.AsyncClient(timeout=30.0)
         self.last_call = 0
 
-    async def _call(self, endpoint: str, params: dict | None = None) -> dict:
+    async def _call(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         import time
 
         # Circuit breaker check
@@ -63,17 +64,17 @@ class BirdeyeClient:
             await _birdeye_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
-    async def get_price(self, address: str) -> dict:
+    async def get_price(self, address: str) -> dict[str, Any]:
         return await self._call("/defi/price", {"address": address})
 
-    async def get_token_overview(self, address: str) -> dict:
+    async def get_token_overview(self, address: str) -> dict[str, Any]:
         return await self._call("/defi/token_overview", {"address": address})
 
-    async def get_new_listings(self, limit: int = 20) -> list:
+    async def get_new_listings(self, limit: int = 20) -> list[Any]:
         r = await self._call("/defi/v2/tokens/new_listing", {"limit": limit, "offset": 0})
         return r.get("data", {}).get("items", []) if isinstance(r, dict) else []
 
-    async def security_scan(self, address: str) -> dict:
+    async def security_scan(self, address: str) -> dict[str, Any]:
         """Derived security analysis using ALL Birdeye market data"""
         overview = await self.get_token_overview(address)
         await asyncio.sleep(0.6)
@@ -217,7 +218,7 @@ class BirdeyeClient:
             "birdeye_powered": True,
         }
 
-    async def new_token_radar(self, limit: int = 20, min_liquidity: float = 1000) -> dict:
+    async def new_token_radar(self, limit: int = 20, min_liquidity: float = 1000) -> dict[str, Any]:
         tokens = await self.get_new_listings(limit)
         scored = []
         for t in tokens:
@@ -242,15 +243,15 @@ class BirdeyeClient:
 
     # ── Wallet Intelligence ──────────────────────────────────────────────────
 
-    async def get_wallet_networth(self, wallet: str) -> dict:
+    async def get_wallet_networth(self, wallet: str) -> dict[str, Any]:
         """Get wallet net worth in USD and token breakdown."""
         return await self._call("/v1/wallet/networth", {"wallet": wallet})
 
-    async def get_wallet_pnl(self, wallet: str, timeframe: str = "7d") -> dict:
+    async def get_wallet_pnl(self, wallet: str, timeframe: str = "7d") -> dict[str, Any]:
         """Get wallet profit/loss for a given timeframe."""
         return await self._call("/v1/wallet/pnl", {"wallet": wallet, "time_frame": timeframe})
 
-    async def get_wallet_smart_money_status(self, wallet: str) -> dict:
+    async def get_wallet_smart_money_status(self, wallet: str) -> dict[str, Any]:
         """Check if wallet is tagged as smart money."""
         return await self._call("/v1/wallet/smart_money", {"wallet": wallet})
 

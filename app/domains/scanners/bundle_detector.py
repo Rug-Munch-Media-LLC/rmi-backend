@@ -116,14 +116,14 @@ class BundleDetector:
     """
 
     # Known Jito tip program IDs
-    JITO_PROGRAMS: ClassVar[dict] = {
+    JITO_PROGRAMS: ClassVar[dict[str, Any]] = {
         "Jito4APyf6rDt1pD1jH3nD3is4v7TwzFNWjjMP7B2RK",
         "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
         "ADuCadRmgjMe6UzXVxR1Kn9CS2CXAf8bjiKkC4xFcegX",
     }
 
     # Known bundler program IDs (Smithii, Printr, etc.)
-    BUNDLER_PROGRAMS: ClassVar[dict] = {
+    BUNDLER_PROGRAMS: ClassVar[dict[str, Any]] = {
         "Smithii": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "PumpFun": "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
         "LaunchLab": "LaunchLabzbP1j4R7KzEFmYSF3EXGnZ6tY7AZ8eg3P2qJ",
@@ -154,7 +154,7 @@ class BundleDetector:
 
     # ── Direct API fetchers ───────────────────────────────────────────
 
-    async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
+    async def _fetch_dexscreener_token(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
             resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
@@ -167,7 +167,7 @@ class BundleDetector:
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
-    async def _fetch_solscan_token_data(self, token_address: str) -> dict | None:
+    async def _fetch_solscan_token_data(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token metadata from Solscan (Solana)."""
         try:
             return self._solscan.token_data(token_address)
@@ -176,14 +176,14 @@ class BundleDetector:
             logger.warning(f"Solscan token data failed for {token_address}: {e}")
             return None
 
-    async def _fetch_helius_signatures(self, address: str, limit: int = 50) -> list[dict]:
+    async def _fetch_helius_signatures(self, address: str, limit: int = 50) -> list[dict[str, Any]]:
         """Fetch recent signatures for an address via Helius RPC."""
         result = await self._chain.rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
         if result and "result" in result:
             return result["result"]
         return []
 
-    async def _fetch_helius_transaction(self, tx_signature: str) -> dict | None:
+    async def _fetch_helius_transaction(self, tx_signature: str) -> dict[str, Any] | None:
         """Fetch full transaction details via Helius RPC."""
         result = await self._chain.rpc_call(
             "getTransaction",
@@ -193,7 +193,7 @@ class BundleDetector:
             return result["result"]
         return None
 
-    async def _fetch_solscan_transactions(self, address: str, page: int = 1, page_size: int = 40) -> list[dict]:
+    async def _fetch_solscan_transactions(self, address: str, page: int = 1, page_size: int = 40) -> list[dict[str, Any]]:
         """Fetch transaction history from Solscan."""
         try:
             return self._solscan.account_transactions(address, page=page, page_size=page_size) or []
@@ -202,7 +202,7 @@ class BundleDetector:
             logger.warning(f"Solscan transactions failed for {address}: {e}")
             return []
 
-    async def _fetch_solscan_transaction_detail(self, tx_hash: str) -> dict | None:
+    async def _fetch_solscan_transaction_detail(self, tx_hash: str) -> dict[str, Any] | None:
         """Fetch transaction detail from Solscan."""
         try:
             return self._solscan.transaction_detail(tx_hash)
@@ -259,7 +259,7 @@ class BundleDetector:
 
         return "unknown", 0, 0
 
-    async def _get_early_buyers(self, token: str, chain: str, deploy_block: int) -> list:
+    async def _get_early_buyers(self, token: str, chain: str, deploy_block: int) -> list[Any]:
         """Get wallets that bought within first 10 blocks of deployment.
 
         Uses DexScreener boosts/transactions + Solscan account data.
@@ -424,7 +424,7 @@ class BundleDetector:
 
     # ── Pure computation methods (unchanged) ──────────────────────────
 
-    def _cluster_by_behavior(self, buyers: list) -> list[BehaviorCluster]:
+    def _cluster_by_behavior(self, buyers: list[Any]) -> list[BehaviorCluster]:
         """Cluster wallets by identical trading patterns.
 
         Groups early buyers that share the same behavioral fingerprint across
@@ -565,7 +565,7 @@ class BundleDetector:
 
     def _behavior_cluster_from_indices(
         self,
-        buyers: list,
+        buyers: list[Any],
         indices: list[int],
         amounts: list[float],
         blocks: list[int],
@@ -626,7 +626,7 @@ class BundleDetector:
             base = min(0.98, base + 0.05)
         return round(base, 3)
 
-    def _analyze_compute_budgets(self, buyers: list) -> tuple[dict[str, int], int]:
+    def _analyze_compute_budgets(self, buyers: list[Any]) -> tuple[dict[str, int], int]:
         """Analyze Solana compute budget patterns to identify bot networks.
 
         Key signals:
@@ -661,9 +661,9 @@ class BundleDetector:
 
     def _calculate_risk(
         self,
-        deployer_funded: list,
-        same_block: list,
-        behavior_clusters: list,
+        deployer_funded: list[Any],
+        same_block: list[Any],
+        behavior_clusters: list[Any],
         jito_count: int,
         bundled_pct: float,
         graph_score: int = 0,

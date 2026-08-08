@@ -60,7 +60,7 @@ def _cache_key(scan_type: str, address: str, chain: str = "") -> str:
 # ── 1. BUNDLE DETECTION ────────────────────────
 
 
-async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect coordinated wallet bundles - groups that funded from same source
     within a tight time window. RugMaps-style cluster analysis.
 
@@ -183,7 +183,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict | No
 # ── 2. CLUSTER MAPPING ───────────────────────────────────────────
 
 
-async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw) -> dict | None:
+async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw) -> dict[str, Any] | None:
     """Map the full wallet cluster - funders, recipients, counterparties.
     Returns graph-ready nodes and edges.
     """
@@ -324,7 +324,7 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
 # ── 3. DEV FINDER ────────────────────────────────────────────────
 
 
-async def _helius_rpc_call(client: httpx.AsyncClient, api_key: str, method: str, params: list | dict) -> dict | None:
+async def _helius_rpc_call(client: httpx.AsyncClient, api_key: str, method: str, params: list[Any] | dict[str, Any]) -> dict[str, Any] | None:
     """Make a Helius RPC call and return the result dict, or None on failure."""
     try:
         json_body = {
@@ -361,7 +361,7 @@ async def _arkham_enrich(client: httpx.AsyncClient, address: str, api_key: str) 
     return ""
 
 
-async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> dict | None:
+async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Find the developer/creator wallets behind a token.
     Traces: deployer → funding source → LP creator → team wallets.
     """
@@ -500,7 +500,7 @@ async def find_dev_wallets(token_address: str, chain: str = "solana", **kw) -> d
     return result
 
 
-def _assess_dev_risk(wallets: list) -> dict:
+def _assess_dev_risk(wallets: list[Any]) -> dict[str, Any]:
     """Assess risk based on dev wallet patterns."""
     if not wallets:
         return {"score": 100, "level": "UNKNOWN", "factors": ["No dev wallets found"]}
@@ -535,7 +535,7 @@ def _assess_dev_risk(wallets: list) -> dict:
 # ── 4-10: PREMIUM HIGH-VALUE DETECTION ───────────────────────────
 
 
-async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect snipers - wallets that buy in first blocks and dump fast."""
     cache_key = _cache_key("sniper_detect", address, chain)
     # Check cache...
@@ -619,7 +619,7 @@ async def detect_snipers(address: str, chain: str = "solana", **kw) -> dict | No
     return result
 
 
-async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect bot farms - groups of wallets with identical behavior patterns."""
     cache_key = _cache_key("bot_farm", address, chain)
 
@@ -646,7 +646,7 @@ async def detect_bot_farms(address: str, chain: str = "solana", **kw) -> dict | 
     return result
 
 
-async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect copy trading patterns - wallets mirroring trades with delay."""
     cache_key = _cache_key("copy_trading", address, chain)
 
@@ -667,7 +667,7 @@ async def detect_copy_trading(address: str, chain: str = "solana", **kw) -> dict
     return result
 
 
-async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect insider trading signals - large buys before major announcements."""
     cache_key = _cache_key("insider_signals", address, chain)
 
@@ -689,7 +689,7 @@ async def detect_insider_signals(address: str, chain: str = "solana", **kw) -> d
     return result
 
 
-async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect wash trading - circular transactions, self-trading patterns."""
     cache_key = _cache_key("wash_trading", address, chain)
 
@@ -712,7 +712,7 @@ async def detect_wash_trading(address: str, chain: str = "solana", **kw) -> dict
     return result
 
 
-async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Detect MEV sandwich attacks on this token/wallet."""
     cache_key = _cache_key("mev_sandwich", address, chain)
 
@@ -734,7 +734,7 @@ async def detect_mev_sandwich(address: str, chain: str = "solana", **kw) -> dict
     return result
 
 
-async def detect_fresh_wallets(address: str, chain: str = "solana", **kw) -> dict | None:
+async def detect_fresh_wallets(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Analyze fresh wallet concentration - high % of new wallets = rug risk."""
     cache_key = _cache_key("fresh_wallets", address, chain)
 

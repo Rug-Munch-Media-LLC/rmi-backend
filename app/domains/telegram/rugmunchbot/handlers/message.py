@@ -24,7 +24,7 @@ from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
 from app.core.logging import get_logger
-from app.domains.telegram.rugmunchbot import db
+from app.domains.telegram.rugmunchbot import anti_abuse, db
 from app.domains.telegram.rugmunchbot.admin_state import (
     track_ai_query,
     track_message,
@@ -79,6 +79,24 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
 
     # Analytics: count every inbound message handled (Redis, for the admin API).
     await track_message()
+
+    # ══════════════════════════════════════════════
+    # v6 anti-abuse: prompt injection + known scam addresses
+    # ══════════════════════════════════════════════
+    injection = anti_abuse.check_prompt_injection(text)
+    if injection:
+        logger.info("prompt-injection blocked user=%s category=%s", user.id, injection)
+        await _injection_warning(update, injection)
+        return
+
+    # Block known scam addresses embedded in the message (never auto-scan them).
+    evm_match = EVM_RE.search(text)
+    sol_match = SOL_RE.search(text)
+    for addr in (evm_match.group() if evm_match else None, sol_match.group() if sol_match else None):
+        if addr and anti_abuse.is_known_scam_address(addr):
+            logger.info("known-scam address blocked user=%s addr=%.16s", user.id, addr)
+            await _scam_address_warning(update, addr)
+            return
 
     # AI chat can be toggled independently of the rest of the bot (admin).
     if db.get_bot_state("chat_enabled", "on") != "on":
@@ -182,6 +200,13 @@ async def ai_chat_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     """
     if not text.strip():
         return False
+
+    # v6 anti-abuse: never forward prompt-injection attempts to the LLM.
+    injection = anti_abuse.check_prompt_injection(text)
+    if injection:
+        logger.info("prompt-injection blocked (chat) user=%s category=%s", user.id, injection)
+        await _injection_warning(update, injection)
+        return True
 
     # Tier gate: weekly AI message quota (free: 15, scout: 75, hunter: 250, pro: 500)
     allowed, _used, _limit = db.check_rate_limit(user.id, "ai_msg")
@@ -474,3 +499,73 @@ def local_ai_response(text: str, user) -> str | None:
                 return None
             return response
     return None
+
+
+# ── v6 anti-abuse reply helpers ──
+
+_INJECTION_MESSAGES: dict[str, str] = {
+    "instruction-override": (
+        "I'm designed to follow my original security instructions. I can't be re-prompted to ignore them."
+    ),
+    "secret-extraction": ("I don't reveal system prompts, API keys or internal configuration."),
+    "role-switch": ("I'm RugMunch's assistant — I don't switch to developer/uncensored modes."),
+    "echo-poisoning": ("I don't echo raw prompts or messages — ask me a normal question instead."),
+    "wallet-secret-harvest": ("Never share your seed phrase or private keys with anyone — including bots."),
+    "wallet-drain-social": (
+        "Be careful! Legitimate airdrops never ask you to connect your wallet or approve transactions to claim."
+    ),
+    "forced-promotion": ("I don't promote tokens or post messages on request."),
+}
+
+_KNOWN_SCAM_WARNING = (
+    "\U0001f6a8 <b>Warning: Known Scam Address</b>\n\n"
+    "The address you shared is on our <b>known scam denylist</b> — it has "
+    "been reported by other users and flagged for suspicious activity.\n\n"
+    "\U0001f4a1 <b>Do not interact with this token.</b>\n"
+    "\u2022 Don't approve any transactions\n"
+    "\u2022 Don't connect your wallet to its site\n"
+    "\u2022 If you've bought it, watch for exit liquidity pulls\n\n"
+    "Thanks for checking with RugMunch first!"
+)
+
+
+async def _injection_warning(update: Update, category: str) -> None:
+    """Reply to a prompt-injection attempt with a targeted warning."""
+    text = _INJECTION_MESSAGES.get(category, "I couldn't process that message. Ask me a normal question instead.")
+    kb = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("\U0001f50d /scan — Audit a token", callback_data="run_scan")],
+            [InlineKeyboardButton("\U0001f4ac /chat — Ask me anything", callback_data="run_chat")],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+        ]
+    )
+    try:
+        await update.message.reply_text(
+            f"\U0001f6e1\ufe0f <b>RugMunch Anti-Abuse</b>\n\n{text}\n\n<i>Message blocked: {category}</i>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+        )
+    except (TelegramError, ConnectionError, OSError, TimeoutError):
+        logger.debug("injection warning send failed", exc_info=True)
+
+
+async def _scam_address_warning(update: Update, address: str) -> None:
+    """Reply when the user shares a known scam address."""
+    from app.domains.telegram.rugmunchbot.formatters import short_addr
+
+    kb = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("\U0001f50d /report — Report a scam", callback_data="run_report")],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+        ]
+    )
+    try:
+        await update.message.reply_text(
+            f"{_KNOWN_SCAM_WARNING}\n\n"
+            f"\U0001f517 Address: <code>{short_addr(address)}</code>\n\n"
+            f"Already flagged one like this? /report helps us build the denylist.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+        )
+    except (TelegramError, ConnectionError, OSError, TimeoutError):
+        logger.debug("scam address warning send failed", exc_info=True)

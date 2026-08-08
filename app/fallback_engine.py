@@ -29,6 +29,7 @@ import json
 import re
 import time
 from html.parser import HTMLParser
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -46,7 +47,7 @@ class FallbackCache:
     def __init__(self, redis=None) -> None:
         self.redis = redis
 
-    async def get(self, key: str, max_age_hours: int = 24) -> dict | None:
+    async def get(self, key: str, max_age_hours: int = 24) -> dict[str, Any] | None:
         """Get cached result if not too old."""
         if not self.redis:
             return None
@@ -65,7 +66,7 @@ class FallbackCache:
             logger.debug(f"Cache get failed: {e}")
             return None
 
-    async def set(self, key: str, data: dict, ttl: int = 86400) -> None:
+    async def set(self, key: str, data: dict[str, Any], ttl: int = 86400) -> None:
         """Cache a result."""
         if not self.redis:
             return
@@ -132,7 +133,7 @@ async def fetch_page_text(url: str, timeout: int = 10) -> str | None:
     return None
 
 
-async def scrape_solscan(address: str, chain: str = "solana") -> dict:
+async def scrape_solscan(address: str, chain: str = "solana") -> dict[str, Any]:
     """
     Scrape Solscan public pages for token/wallet info.
     Uses their public HTML pages (no API key needed).
@@ -174,7 +175,7 @@ async def scrape_solscan(address: str, chain: str = "solana") -> dict:
     return {}
 
 
-async def scrape_etherscan(address: str, chain: str = "ethereum") -> dict:
+async def scrape_etherscan(address: str, chain: str = "ethereum") -> dict[str, Any]:
     """
     Scrape Etherscan/Basescan public pages for contract info.
     """
@@ -221,7 +222,7 @@ async def scrape_etherscan(address: str, chain: str = "ethereum") -> dict:
     return {}
 
 
-async def scrape_dexscreener_web(address: str) -> dict:
+async def scrape_dexscreener_web(address: str) -> dict[str, Any]:
     """
     Scrape DexScreener web page for token info.
     Their API sometimes blocks, but the web page is usually accessible.
@@ -256,7 +257,7 @@ async def scrape_dexscreener_web(address: str) -> dict:
 # ── Tertiary/Alternative APIs ─────────────────────────────────
 
 
-async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
+async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict[str, Any]:
     """
     GeckoTerminal API - free, no key required.
     Similar to DexScreener, good backup.
@@ -295,7 +296,7 @@ async def fetch_geckoterminal(address: str, chain: str = "solana") -> dict:
     return {}
 
 
-async def fetch_dexlab(address: str) -> dict:
+async def fetch_dexlab(address: str) -> dict[str, Any]:
     """
     DexLab - Solana-specific DEX data.
     """
@@ -322,7 +323,7 @@ async def fetch_dexlab(address: str) -> dict:
     return {}
 
 
-async def fetch_step_finance(address: str) -> dict:
+async def fetch_step_finance(address: str) -> dict[str, Any]:
     """
     Step Finance - Solana DeFi analytics.
     """
@@ -342,7 +343,7 @@ async def fetch_step_finance(address: str) -> dict:
     return {}
 
 
-async def fetch_moonrank(address: str) -> dict:
+async def fetch_moonrank(address: str) -> dict[str, Any]:
     """
     MoonRank - Solana token analytics.
     """
@@ -362,7 +363,7 @@ async def fetch_moonrank(address: str) -> dict:
     return {}
 
 
-async def fetch_unchained(address: str) -> dict:
+async def fetch_unchained(address: str) -> dict[str, Any]:
     """
     Unchained Capital - alternative on-chain data.
     """
@@ -385,7 +386,7 @@ async def fetch_unchained(address: str) -> dict:
 # ── Community/Unofficial APIs ─────────────────────────────────
 
 
-async def fetch_jito_search(address: str) -> dict:
+async def fetch_jito_search(address: str) -> dict[str, Any]:
     """
     Jito bundle search - check if token is being bundled (MEV activity).
     """
@@ -405,7 +406,7 @@ async def fetch_jito_search(address: str) -> dict:
     return {}
 
 
-async def fetch_orca_pools(address: str) -> dict:
+async def fetch_orca_pools(address: str) -> dict[str, Any]:
     """
     Orca pools - check liquidity on Orca DEX.
     """
@@ -425,7 +426,7 @@ async def fetch_orca_pools(address: str) -> dict:
     return {}
 
 
-async def fetch_raydium_pools(address: str) -> dict:
+async def fetch_raydium_pools(address: str) -> dict[str, Any]:
     """
     Raydium pools - check liquidity on Raydium DEX.
     """
@@ -448,7 +449,7 @@ async def fetch_raydium_pools(address: str) -> dict:
 # ── Social Media / Sentiment Scraping ─────────────────────────
 
 
-async def scrape_twitter_search(token: str) -> dict:
+async def scrape_twitter_search(token: str) -> dict[str, Any]:
     """
     Scrape public Twitter search for token mentions.
     Uses Twitter's public search endpoint (no API key needed).
@@ -473,7 +474,7 @@ async def scrape_twitter_search(token: str) -> dict:
     return result
 
 
-async def scrape_reddit_search(token: str) -> dict:
+async def scrape_reddit_search(token: str) -> dict[str, Any]:
     """
     Scrape Reddit for token discussions.
     Uses Reddit's JSON API (public, no auth needed).
@@ -502,7 +503,7 @@ async def scrape_reddit_search(token: str) -> dict:
 # ── RSS / News Feeds ─────────────────────────────────────────
 
 
-async def fetch_crypto_news_feeds(token: str = "") -> dict:
+async def fetch_crypto_news_feeds(token: str = "") -> dict[str, Any]:
     """
     Fetch crypto news from public RSS feeds.
     """
@@ -539,7 +540,7 @@ async def fetch_crypto_news_feeds(token: str = "") -> dict:
 # ── AI Web Search (via Hermes Agent) ─────────────────────────
 
 
-async def ai_web_search(query: str) -> dict:
+async def ai_web_search(query: str) -> dict[str, Any]:
     """
     Use the Hermes agent's web search capability to find data.
     This is a last resort but can find very specific info.
@@ -568,7 +569,7 @@ async def ai_web_search(query: str) -> dict:
 # ── Public Blockchain Data Archives ───────────────────────────
 
 
-async def fetch_bigquery_public(address: str) -> dict:
+async def fetch_bigquery_public(address: str) -> dict[str, Any]:
     """
     Check Google BigQuery public crypto datasets.
     These are free public datasets with rich on-chain data.
@@ -598,7 +599,7 @@ async def try_all_fallbacks(
     token: str = "",
     url: str = "",
     redis=None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Master fallback orchestrator. Tries EVERY method before giving up.
     Returns the best result found across all fallback layers.
@@ -754,7 +755,7 @@ async def try_all_fallbacks(
 # ── Integration with existing tools ───────────────────────────
 
 
-async def audit_with_fallback(address: str, chain: str, redis=None) -> dict:
+async def audit_with_fallback(address: str, chain: str, redis=None) -> dict[str, Any]:
     """Run audit with full fallback chain."""
     from app.routers.x402_tools import _audit_evm, _audit_solana
 

@@ -14,6 +14,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -112,16 +113,16 @@ class SolanaTrackerClient:
         self._keys = [KeyState(**cfg) for cfg in KEY_CONFIGS]
         self._key_index = 0
         self._key_lock = asyncio.Lock()
-        self._l1: dict[str, tuple] = {}
+        self._l1: dict[str, tuple[Any, ...]] = {}
         self._l1_lock = asyncio.Lock()
         self.cache_hits = 0
         self.cache_misses = 0
 
-    def _cache_key(self, path: str, params: dict) -> str:
+    def _cache_key(self, path: str, params: dict[str, Any]) -> str:
         raw = f"{path}:{json.dumps(params or {}, sort_keys=True, default=str)}"
         return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
-    async def _cache_get(self, key: str) -> dict | None:
+    async def _cache_get(self, key: str) -> dict[str, Any] | None:
         async with self._l1_lock:
             entry = self._l1.get(key)
             if entry:
@@ -133,7 +134,7 @@ class SolanaTrackerClient:
         self.cache_misses += 1
         return None
 
-    async def _cache_set(self, key: str, data: dict, ttl: int) -> None:
+    async def _cache_set(self, key: str, data: dict[str, Any], ttl: int) -> None:
         async with self._l1_lock:
             self._l1[key] = (time.monotonic() + ttl, data)
             if len(self._l1) > 1024:
@@ -163,7 +164,7 @@ class SolanaTrackerClient:
                 return key
             return None
 
-    async def _call(self, path: str, params: dict | None = None, ttl: int = TTL_TOKEN) -> dict | None:
+    async def _call(self, path: str, params: dict[str, Any] | None = None, ttl: int = TTL_TOKEN) -> dict[str, Any] | None:
         cache_key = self._cache_key(path, params or {})
         cached = await self._cache_get(cache_key)
         if cached is not None:
@@ -213,47 +214,47 @@ class SolanaTrackerClient:
         return None
 
     # Token Endpoints
-    async def get_price(self, mint: str) -> dict | None:
+    async def get_price(self, mint: str) -> dict[str, Any] | None:
         return await self._call("/price", {"token": mint}, TTL_PRICE)
 
-    async def get_token(self, mint: str) -> dict | None:
+    async def get_token(self, mint: str) -> dict[str, Any] | None:
         return await self._call(f"/tokens/{mint}", None, TTL_TOKEN)
 
-    async def search_tokens(self, **kwargs) -> dict | None:
+    async def search_tokens(self, **kwargs) -> dict[str, Any] | None:
         params = {k: v for k, v in kwargs.items() if v is not None}
         params.setdefault("limit", 20)
         return await self._call("/search", params, TTL_SEARCH)
 
-    async def get_tokens_latest(self, limit: int = 20) -> dict | None:
+    async def get_tokens_latest(self, limit: int = 20) -> dict[str, Any] | None:
         return await self._call("/tokens/latest", {"limit": min(limit, 100)}, TTL_LATEST)
 
-    async def get_tokens_trending(self, limit: int = 20) -> dict | None:
+    async def get_tokens_trending(self, limit: int = 20) -> dict[str, Any] | None:
         return await self._call("/tokens/trending", {"limit": min(limit, 100)}, TTL_TRENDING)
 
-    async def get_token_holders(self, mint: str, limit: int = 20) -> dict | None:
+    async def get_token_holders(self, mint: str, limit: int = 20) -> dict[str, Any] | None:
         return await self._call(f"/tokens/{mint}/holders", {"limit": min(limit, 50)}, TTL_HOLDERS)
 
-    async def get_token_trades(self, mint: str, limit: int = 20, cursor: str | None = None) -> dict | None:
+    async def get_token_trades(self, mint: str, limit: int = 20, cursor: str | None = None) -> dict[str, Any] | None:
         params = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor
         return await self._call(f"/trades/{mint}", params, TTL_TRADES)
 
     # Wallet
-    async def get_wallet(self, address: str) -> dict | None:
+    async def get_wallet(self, address: str) -> dict[str, Any] | None:
         return await self._call(f"/wallet/{address}", None, TTL_WALLET)
 
-    async def get_wallet_trades(self, address: str, limit: int = 20, cursor: str | None = None) -> dict | None:
+    async def get_wallet_trades(self, address: str, limit: int = 20, cursor: str | None = None) -> dict[str, Any] | None:
         params = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor
         return await self._call(f"/wallet/{address}/trades", params, TTL_TRADES)
 
-    async def get_wallet_pnl(self, address: str) -> dict | None:
+    async def get_wallet_pnl(self, address: str) -> dict[str, Any] | None:
         return await self._call(f"/wallet/{address}/pnl", None, TTL_WALLET)
 
     # Charts
-    async def get_ohlcv(self, mint: str, timeframe: str = "1H", limit: int = 100) -> dict | None:
+    async def get_ohlcv(self, mint: str, timeframe: str = "1H", limit: int = 100) -> dict[str, Any] | None:
         return await self._call(
             f"/ohlcv/{mint}",
             {
@@ -264,7 +265,7 @@ class SolanaTrackerClient:
         )
 
     # Stats
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         now = time.monotonic()
         keys_info = []
         for k in self._keys:
@@ -280,7 +281,7 @@ class SolanaTrackerClient:
                 }
             )
 
-        def _get() -> dict:
+        def _get() -> dict[str, Any]:
             return {
                 "keys": keys_info,
                 "cache_hits": self.cache_hits,

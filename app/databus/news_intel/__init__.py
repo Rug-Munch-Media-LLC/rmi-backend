@@ -25,6 +25,7 @@ import re
 import time
 from collections import Counter
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.databus.news_intel.config import CATEGORY_KEYWORDS, NEWS_SOURCES, QUALITY_INDICATORS, SENTIMENT_KEYWORDS
@@ -36,7 +37,7 @@ logger = get_logger("news_intel")
 # ── Quality & Sentiment ────────────────────────────────────────────
 
 
-def score_quality(article: dict) -> float:
+def score_quality(article: dict[str, Any]) -> float:
     """Score article quality 0-1 based on signals."""
     score = 0.5
     text = (article.get("title", "") + " " + article.get("summary", "") + article.get("description", "")).lower()
@@ -63,7 +64,7 @@ def score_quality(article: dict) -> float:
     return max(0.0, min(1.0, score))
 
 
-def analyze_sentiment(article: dict) -> dict:
+def analyze_sentiment(article: dict[str, Any]) -> dict[str, Any]:
     """Advanced keyword-based sentiment analysis with impact weighting."""
     title = article.get("title", "").lower()
     text = (title + " " + article.get("summary", "") + " " + article.get("description", "")).lower()
@@ -106,7 +107,7 @@ def analyze_sentiment(article: dict) -> dict:
     }
 
 
-def categorize(article: dict) -> list[str]:
+def categorize(article: dict[str, Any]) -> list[str]:
     """Auto-categorize article into topics."""
     text = (article.get("title", "") + " " + article.get("summary", "")).lower()
     categories = []
@@ -118,7 +119,7 @@ def categorize(article: dict) -> list[str]:
     return categories[:4]
 
 
-def content_hash(article: dict) -> str:
+def content_hash(article: dict[str, Any]) -> str:
     """Generate dedup hash from title + normalized text."""
     text = (article.get("title", "") + article.get("summary", "") + article.get("url", "")).lower()
     text = re.sub(r"\s+", " ", text)
@@ -130,11 +131,11 @@ def content_hash(article: dict) -> str:
 
 
 ARTICLE_REACTIONS: dict[str, dict[str, int]] = {}
-ARTICLE_COMMENTS: dict[str, list[dict]] = {}
+ARTICLE_COMMENTS: dict[str, list[dict[str, Any]]] = {}
 REACTION_TYPES = ["🔥", "🐂", "🐻", "💎", "🧠", "🤡", "🚀", "💀"]
 
 
-async def add_reaction(content_hash: str, reaction: str, user: str = "anon", **kw) -> dict:
+async def add_reaction(content_hash: str, reaction: str, user: str = "anon", **kw) -> dict[str, Any]:
     """Add a reaction to an article."""
     if reaction not in REACTION_TYPES:
         return {"error": f"Invalid reaction. Use: {REACTION_TYPES}"}
@@ -153,7 +154,7 @@ async def add_reaction(content_hash: str, reaction: str, user: str = "anon", **k
     }
 
 
-async def add_comment(content_hash: str, user: str, text: str, **kw) -> dict:
+async def add_comment(content_hash: str, user: str, text: str, **kw) -> dict[str, Any]:
     """Add a comment to an article."""
     if content_hash not in ARTICLE_COMMENTS:
         ARTICLE_COMMENTS[content_hash] = []
@@ -174,7 +175,7 @@ async def add_comment(content_hash: str, user: str, text: str, **kw) -> dict:
     }
 
 
-async def get_reactions(content_hash: str, **kw) -> dict:
+async def get_reactions(content_hash: str, **kw) -> dict[str, Any]:
     """Get reactions for an article."""
     counts = ARTICLE_REACTIONS.get(content_hash, {})
     comments = ARTICLE_COMMENTS.get(content_hash, [])
@@ -188,7 +189,7 @@ async def get_reactions(content_hash: str, **kw) -> dict:
     }
 
 
-async def create_bb_post(content_hash: str, user: str = "system", **kw) -> dict:
+async def create_bb_post(content_hash: str, user: str = "system", **kw) -> dict[str, Any]:
     """Turn an article into a Bulletin Board post for community discussion."""
     return {
         "status": "bb_post_created",
@@ -201,10 +202,10 @@ async def create_bb_post(content_hash: str, user: str = "system", **kw) -> dict:
 # ── Main Aggregation Engine ────────────────────────────────────────
 
 
-async def aggregate_all_news(limit: int = 50, **kw) -> dict:
+async def aggregate_all_news(limit: int = 50, **kw) -> dict[str, Any]:
     """Pull from every source, dedup, score, tag, sort."""
     seen_hashes: set[str] = set()
-    all_articles: list[dict] = []
+    all_articles: list[dict[str, Any]] = []
 
     # Step 1: Fetch all sources in parallel
     tasks = []
@@ -298,7 +299,7 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict:
     }
 
 
-async def get_weekly_best(limit: int = 20, **kw) -> dict:
+async def get_weekly_best(limit: int = 20, **kw) -> dict[str, Any]:
     """Curated weekly best - highest quality articles from the past 7 days."""
     all_news = await aggregate_all_news(limit=100)
     articles = all_news.get("articles", [])
@@ -316,7 +317,7 @@ async def get_weekly_best(limit: int = 20, **kw) -> dict:
     }
 
 
-async def get_academic_papers(limit: int = 10, **kw) -> dict:
+async def get_academic_papers(limit: int = 10, **kw) -> dict[str, Any]:
     """Academic/research papers from arXiv and other sources."""
     papers = await _fetch_rss(NEWS_SOURCES["arxiv"]["url"], "arXiv Research", timeout=20)
 
@@ -334,7 +335,7 @@ async def get_academic_papers(limit: int = 10, **kw) -> dict:
     }
 
 
-async def get_social_feed(limit: int = 30, **kw) -> dict:
+async def get_social_feed(limit: int = 30, **kw) -> dict[str, Any]:
     """Social media feed - X/Twitter crypto reactions + CryptoPanic sentiment."""
     x_posts = await _fetch_x_crypto()
     cp_posts = await _fetch_cryptopanic()
