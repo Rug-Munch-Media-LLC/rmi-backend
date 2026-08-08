@@ -89,7 +89,7 @@ class CRUDRouter(APIRouter):
 
         @self.get("/")
         async def list_(
-            svc: Any = Depends(self._get_service_dep),  # type: ignore[misc]
+            svc: Any = Depends(self._get_service_dep),
         ) -> list[Any]:
             try:
                 results = await svc.list()
@@ -104,7 +104,7 @@ class CRUDRouter(APIRouter):
         @self.get("/{id_}")
         async def get_(
             id_: str,
-            svc: Any = Depends(self._get_service_dep),  # type: ignore[misc]
+            svc: Any = Depends(self._get_service_dep),
         ) -> Any:
             try:
                 item = await svc.get(id_)
@@ -123,7 +123,7 @@ class CRUDRouter(APIRouter):
         @self.post("/")
         async def create_(
             data: Any,
-            svc: Any = Depends(self._get_service_dep),  # type: ignore[misc]
+            svc: Any = Depends(self._get_service_dep),
         ) -> Any:
             try:
                 result = await svc.create(data)
@@ -141,7 +141,7 @@ class CRUDRouter(APIRouter):
         async def update_(
             id_: str,
             data: Any,
-            svc: Any = Depends(self._get_service_dep),  # type: ignore[misc]
+            svc: Any = Depends(self._get_service_dep),
         ) -> Any:
             try:
                 item = await svc.update(id_, data)
@@ -160,7 +160,7 @@ class CRUDRouter(APIRouter):
         @self.delete("/{id_}")
         async def delete_(
             id_: str,
-            svc: Any = Depends(self._get_service_dep),  # type: ignore[misc]
+            svc: Any = Depends(self._get_service_dep),
         ) -> dict[str, str]:
             try:
                 ok = await svc.delete(id_)

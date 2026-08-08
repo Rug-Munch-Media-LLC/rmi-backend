@@ -521,7 +521,7 @@ def _get_pay_to_address(chain: str) -> str:
         mgr = get_wallet_manager_v2(password=os.getenv("WALLET_VAULT_PASSWORD", ""))
         for w in mgr._wallets.values():
             if w.chain == chain and w.x402_enabled and w.status == "active":
-                return w.address  # type: ignore[no-any-return]
+                return w.address
     except (AttributeError, ImportError):
         pass
     if chain == "eth":

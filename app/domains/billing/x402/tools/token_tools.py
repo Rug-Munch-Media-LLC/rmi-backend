@@ -60,7 +60,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, Any]:
 
         # If primary returned no data, use full fallback chain
         if not result.get("sources_used"):
-            from app.auth import get_redis as _get_redis  # type: ignore[attr-defined]
+            from app.auth import get_redis as _get_redis
             from app.fallback_engine import try_all_fallbacks
 
             r = await _get_redis()
@@ -81,7 +81,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, Any]:
         raise
         # Last resort: try fallback before raising error
         try:
-            from app.auth import get_redis as _get_redis  # type: ignore[attr-defined]
+            from app.auth import get_redis as _get_redis
             from app.fallback_engine import try_all_fallbacks
 
             r = await _get_redis()
@@ -107,7 +107,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _rug_shield(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _rug_shield(address: str, chain: str) -> dict[str, Any]:
     """Quick pre-buy safety check - fast binary verdict."""
     result = {"chain": chain, "address": address, "sources_used": []}
     risk_score = 0
@@ -204,7 +204,7 @@ async def rug_shield(req: TokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _token_pulse(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _token_pulse(address: str, chain: str) -> dict[str, Any]:
     """Comprehensive token health dashboard."""
     result = {"chain": chain, "address": address, "sources_used": []}
 
@@ -327,7 +327,7 @@ async def token_pulse(req: TokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _token_forensics(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _token_forensics(address: str, chain: str) -> dict[str, Any]:
     """Deep token forensics combining multiple data sources."""
     result = {"address": address, "chain": chain, "sources_used": []}
 
@@ -464,7 +464,7 @@ async def token_deep_dive(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _honeypot_check(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _honeypot_check(address: str, chain: str) -> dict[str, Any]:
     """Honeypot detection."""
     result = {"address": address, "chain": chain, "sources_used": []}
 
@@ -581,7 +581,7 @@ async def token_comparison(req: MultiTokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _risk_monitor(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _risk_monitor(address: str, chain: str) -> dict[str, Any]:
     """Real-time risk monitoring."""
     result = {"address": address, "chain": chain, "sources_used": [], "alerts": []}
 
@@ -662,7 +662,7 @@ async def risk_monitor(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _liquidity_flow(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _liquidity_flow(address: str, chain: str) -> dict[str, Any]:
     """Liquidity flow analysis."""
     result = {"address": address, "chain": chain, "sources_used": []}
 
@@ -730,7 +730,7 @@ async def liquidity_flow(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _rug_pull_predictor(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _rug_pull_predictor(address: str, chain: str) -> dict[str, Any]:
     """Rug pull prediction model."""
     result = {"address": address, "chain": chain, "sources_used": [], "signals": []}
 

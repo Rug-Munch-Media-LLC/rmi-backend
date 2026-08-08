@@ -72,7 +72,7 @@ LTV_RANGES = {
 def _try_import_web3() -> Any | None:
     """Try to import web3, return None if not available."""
     try:
-        import web3  # type: ignore[import-untyped]
+        import web3
 
         return web3
     except ImportError:

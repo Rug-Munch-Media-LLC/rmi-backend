@@ -164,10 +164,10 @@ class Mediator:
             if args:
                 arg = args[0]
                 if isinstance(handler, CommandHandler):
-                    self._command_handlers[arg] = handler  # type: ignore[assignment]
+                    self._command_handlers[arg] = handler
                     logger.debug("cmd_handler_registered", command=arg.__name__)
                 elif isinstance(handler, QueryHandler):
-                    self._query_handlers[arg] = handler  # type: ignore[assignment]
+                    self._query_handlers[arg] = handler
                     logger.debug("query_handler_registered", query=arg.__name__)
                 return
 
@@ -212,7 +212,7 @@ class Mediator:
                 error=f"Command {type(command).__name__} failed",
             )
 
-    async def fetch(self, query: Query) -> R | None:  # type: ignore[type-arg]
+    async def fetch(self, query: Query) -> R | None:
         """Execute a query through its registered handler.
 
         Returns ``None`` if no handler is registered.

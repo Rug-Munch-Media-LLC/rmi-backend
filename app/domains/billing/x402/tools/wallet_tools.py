@@ -40,7 +40,7 @@ sub_router = APIRouter(tags=["x402-wallet-tools"])
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _profile_wallet(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _profile_wallet(address: str, chain: str) -> dict[str, Any]:
     """Full wallet profile with persona detection and activity analysis."""
     result = {"chain": chain, "address": address, "sources_used": []}
 
@@ -153,7 +153,7 @@ async def wallet_profiler(req: WalletRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _get_smart_money(chain: str, threshold: float, limit: int) -> dict[str, Any]:
     """Track whale movements and smart money patterns."""
     result = {"chain": chain, "threshold_usd": threshold, "sources_used": []}
 
@@ -248,7 +248,7 @@ async def smart_money_tracker(chain: str = "solana", threshold: float = 10000.0,
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _cluster_analysis(address: str, chain: str, depth: int) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _cluster_analysis(address: str, chain: str, depth: int) -> dict[str, Any]:
     """Map wallet clusters and funding chains."""
     result = {"chain": chain, "address": address, "depth": depth, "sources_used": []}
 
@@ -336,7 +336,7 @@ async def cluster_detection(req: ClusterRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _whale_decoder(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _whale_decoder(address: str, chain: str) -> dict[str, Any]:
     """Advanced whale wallet analysis."""
     result = {"address": address, "chain": chain, "sources_used": []}
 
@@ -440,7 +440,7 @@ async def whale_decoder(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _portfolio_tracker(addresses: list[str], chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _portfolio_tracker(addresses: list[str], chain: str) -> dict[str, Any]:
     """Multi-wallet portfolio tracker."""
     result = {"addresses": addresses, "chain": chain, "sources_used": [], "wallets": []}
 
@@ -495,7 +495,7 @@ async def portfolio_tracker(req: WalletListRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _copy_trade_finder(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _copy_trade_finder(chain: str) -> dict[str, Any]:
     """Find profitable wallets to copy trade."""
     result = {"chain": chain, "sources_used": []}
 

@@ -34,7 +34,7 @@ sub_router = APIRouter(tags=["x402-deployer-tools"])
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _insider_tracking(creator: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _insider_tracking(creator: str, chain: str) -> dict[str, Any]:
     """Track creator wallet activity across all tokens."""
     result = {"chain": chain, "creator_address": creator, "sources_used": []}
 

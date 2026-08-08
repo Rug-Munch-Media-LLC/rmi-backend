@@ -22,13 +22,13 @@ except ImportError:
 try:
     from app.core.db import get_db
 except ImportError:
-    get_db = None  # type: ignore[assignment]
+    get_db = None
 
 try:
     from app.core.auth import get_current_user, get_optional_user
 except ImportError:
-    get_current_user = None  # type: ignore[assignment]
-    get_optional_user = None  # type: ignore[assignment]
+    get_current_user = None
+    get_optional_user = None
 
 with contextlib.suppress(ImportError):
     pass  # fallback until core.config lands

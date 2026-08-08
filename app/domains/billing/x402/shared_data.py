@@ -310,7 +310,7 @@ def _resolve_pay_to(chain: str) -> str:
         wm_chain = chain_map.get(chain, chain)
         for w in mgr._wallets.values():
             if w.chain == wm_chain and w.x402_enabled and w.status == "active":
-                return w.address  # type: ignore[no-any-return]
+                return w.address
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
     # Fallback: env vars

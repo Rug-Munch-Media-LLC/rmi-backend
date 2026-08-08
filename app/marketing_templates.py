@@ -321,7 +321,7 @@ def format_wallet_short(address: str) -> str:
     return address
 
 
-def generate_x_post(template_name: str, data: dict[str, Any]) -> str:  # type: ignore[type-arg]
+def generate_x_post(template_name: str, data: dict[str, Any]) -> str:
     """Generate X/Twitter post from template."""
     template = X_TEMPLATES.get(template_name, "")
 
@@ -339,7 +339,7 @@ def generate_x_post(template_name: str, data: dict[str, Any]) -> str:  # type: i
     return template.format(**data)
 
 
-def generate_telegram_post(template_name: str, data: dict[str, Any]) -> str:  # type: ignore[type-arg]
+def generate_telegram_post(template_name: str, data: dict[str, Any]) -> str:
     """Generate Telegram post from template (Markdown)."""
     template = TELEGRAM_TEMPLATES.get(template_name, "")
 
@@ -357,7 +357,7 @@ def generate_telegram_post(template_name: str, data: dict[str, Any]) -> str:  # 
     return template.format(**data)
 
 
-def generate_discord_post(template_name: str, data: dict[str, Any]) -> str:  # type: ignore[type-arg]
+def generate_discord_post(template_name: str, data: dict[str, Any]) -> str:
     """Generate Discord post from template."""
     template = DISCORD_TEMPLATES.get(template_name, "")
 
@@ -375,7 +375,7 @@ def generate_discord_post(template_name: str, data: dict[str, Any]) -> str:  # t
     return template.format(**data)
 
 
-def generate_all_posts(template_name: str, data: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
+def generate_all_posts(template_name: str, data: dict[str, Any]) -> dict[str, Any]:
     """Generate posts for all platforms."""
     return {
         "x": generate_x_post(template_name, data),

@@ -328,7 +328,7 @@ class SnapshotEngine:
         # TODO: installed solana-py lacks get_token_accounts_by_mint_json_parsed —
         # must use get_program_accounts against the SPL Token program to enumerate
         # all holders of a mint. Left as-is pending rework; would raise at runtime.
-        response = client.get_token_accounts_by_mint_json_parsed(mint, commitment="confirmed")  # type: ignore[attr-defined]
+        response = client.get_token_accounts_by_mint_json_parsed(mint, commitment="confirmed")
 
         holders = []
         total_supply = 0

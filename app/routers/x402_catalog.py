@@ -179,8 +179,8 @@ def load_external_mcp_tools() -> list[dict[str, Any]]:
             spec = importlib.util.spec_from_file_location("expanded_mcp_catalog", catalog_path)
             if spec is None or spec.loader is None:
                 raise ImportError("Cannot load spec for expanded_mcp_catalog")
-            module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-            spec.loader.exec_module(module)  # type: ignore[union-attr]
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
             tools = getattr(module, "EXTERNAL_MCP_TOOLS", [])
             if tools:
                 logger.info(f"Loaded {len(tools)} tools from expanded_mcp_catalog.py")

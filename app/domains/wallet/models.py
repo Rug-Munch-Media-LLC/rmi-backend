@@ -122,7 +122,7 @@ def _build_registry() -> dict[str, ChainMeta]:
         ("bch", "Bitcoin Cash", "BCH", "bip44"),
         ("zec", "Zcash", "ZEC", "bip44"),
     ]:
-        reg[key] = ChainMeta(key=key, name=name, native_symbol=sym, derivation=der, **btc_def)  # type: ignore[arg-type]
+        reg[key] = ChainMeta(key=key, name=name, native_symbol=sym, derivation=der, **btc_def)
 
     # ── Solana ───────────────────────────────────────────────
     reg["sol"] = ChainMeta(
@@ -150,7 +150,7 @@ def _build_registry() -> dict[str, ChainMeta]:
         ("inj", "Injective", "INJ"),
     ]
     for key, name, sym in cosmos:
-        reg[key] = ChainMeta(key=key, name=name, native_symbol=sym, **cosmos_def)  # type: ignore[arg-type]
+        reg[key] = ChainMeta(key=key, name=name, native_symbol=sym, **cosmos_def)
 
     # ── Polkadot / Kusama (ed25519) ──────────────────────────
     reg["dot"] = ChainMeta(

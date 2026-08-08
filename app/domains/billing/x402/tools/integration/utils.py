@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 async def build_tools_from_catalog() -> list[dict[str, Any]]:
     """Build tool list from TOOL_PRICES (source of truth for all 201+ tools)."""
-    from app.routers.x402_enforcement import TOOL_PRICES  # type: ignore[attr-defined]
+    from app.routers.x402_enforcement import TOOL_PRICES
 
     tools = []
     for tool_id, pricing in sorted(TOOL_PRICES.items()):
@@ -46,14 +46,14 @@ async def build_tools_from_catalog() -> list[dict[str, Any]]:
     return tools
 
 
-def _tool_desc(t: dict[str, Any]) -> str:  # type: ignore[type-arg]
+def _tool_desc(t: dict[str, Any]) -> str:
     """Build tool description string with price and trial info."""
     return (
         f"{t['description']} - ${t['price_usd']:.2f}/call, {t['trial_free']} free trial(s). Category: {t['category']}."
     )
 
 
-def format_openai_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
+def format_openai_tool(t: dict[str, Any]) -> dict[str, Any]:
     """Format a single tool for OpenAI function calling."""
     return {
         "type": "function",
@@ -79,7 +79,7 @@ def format_openai_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[typ
     }
 
 
-def format_langchain_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
+def format_langchain_tool(t: dict[str, Any]) -> dict[str, Any]:
     """Format a single tool for LangChain."""
     return {
         "name": t["id"],
@@ -101,7 +101,7 @@ def format_langchain_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[
     }
 
 
-def format_anthropic_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
+def format_anthropic_tool(t: dict[str, Any]) -> dict[str, Any]:
     """Format a single tool for Anthropic Claude API."""
     return {
         "name": t["id"],
@@ -124,7 +124,7 @@ def format_anthropic_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[
     }
 
 
-def format_gemini_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
+def format_gemini_tool(t: dict[str, Any]) -> dict[str, Any]:
     """Format a single tool for Google Gemini function calling."""
     return {
         "name": t["id"],
@@ -146,7 +146,7 @@ def format_gemini_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[typ
     }
 
 
-def build_framework_base(tools: list[Any], format_key: str, **extra: Any) -> dict[str, Any]:  # type: ignore[type-arg]
+def build_framework_base(tools: list[Any], format_key: str, **extra: Any) -> dict[str, Any]:
     """Build the shared response envelope for framework-format endpoints."""
     return {
         "service": "Rug Munch Intelligence",
@@ -204,7 +204,7 @@ async def record_payment(tool_id: str, price_usd: str, payer: str) -> None:
 async def verify_onchain_direct(
     tx_hash: str,
     chain: str,
-    token_info: dict[str, Any],  # type: ignore[type-arg]
+    token_info: dict[str, Any],
     expected_pay_to: str,
 ) -> bool:
     """Direct on-chain verification fallback for human payments."""
@@ -260,7 +260,7 @@ async def verify_onchain_direct(
 
 async def run_super_tool_batch(
     endpoints: dict[str, str],
-    payload: dict[str, Any],  # type: ignore[type-arg]
+    payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Run multiple tool sub-calls in parallel for super-tool composition.
     Returns dict of {name: response_data_or_None}."""
@@ -270,7 +270,7 @@ async def run_super_tool_batch(
             async with httpx.AsyncClient(timeout=10.0) as c:
                 r = await c.post(url, json=payload)
                 return name, r.json() if r.status_code == 200 else None
-        except (httpx.HTTPError, TimeoutError, json.JSONDecodeError):  # type: ignore[name-defined]
+        except (httpx.HTTPError, TimeoutError, json.JSONDecodeError):
             return name, None
 
     tasks = [_call(name, url) for name, url in endpoints.items()]
@@ -283,7 +283,7 @@ async def run_super_tool_batch(
 
 async def execute_bundle_tasks(
     tasks: dict[str, str],
-    body: dict[str, Any],  # type: ignore[type-arg]
+    body: dict[str, Any],
 ) -> dict[str, Any]:
     """Execute multiple POST calls in parallel for bundle endpoints.
     Returns dict of {name: response_json_or_error_dict}."""
@@ -306,8 +306,8 @@ async def execute_bundle_tasks(
                 ConnectionError,
                 OSError,
                 httpx.HTTPError,
-                requests.RequestException,  # type: ignore[name-defined]
-                json.JSONDecodeError,  # type: ignore[name-defined]
+                requests.RequestException,
+                json.JSONDecodeError,
                 KeyError,
                 TypeError,
             ) as e:
@@ -328,7 +328,7 @@ def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
 
     if target is None and "_" in tool_id:
         try:
-            from app.routers.x402_enforcement import TOOL_PRICES  # type: ignore[attr-defined]
+            from app.routers.x402_enforcement import TOOL_PRICES
 
             pricing = TOOL_PRICES.get(tool_id, {})
             base_tool = pricing.get("base_tool")
@@ -355,10 +355,10 @@ def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
 
 async def enrich_response(
     tool_id: str,
-    result: dict[str, Any],  # type: ignore[type-arg]
-    body: dict[str, Any],  # type: ignore[type-arg]
+    result: dict[str, Any],
+    body: dict[str, Any],
     request: Request,
-) -> dict[str, Any]:  # type: ignore[type-arg]
+) -> dict[str, Any]:
     """Apply wallet intelligence enrichment if not opted out."""
     try:
         opt_out = request.query_params.get("enrich", "").lower() == "false"

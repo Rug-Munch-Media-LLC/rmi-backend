@@ -208,7 +208,7 @@ async def health_unified() -> dict[str, Any]:
     # Check cache
     global _UNIFIED_CACHE
     if _UNIFIED_CACHE["data"] is not None and (now - _UNIFIED_CACHE["timestamp"]) < _UNIFIED_CACHE_TTL:
-        return _UNIFIED_CACHE["data"]  # type: ignore[return-value]
+        return _UNIFIED_CACHE["data"]
 
     # Gather all health data in parallel
     service_task = asyncio.create_task(_get_service_health())

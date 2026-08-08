@@ -27,7 +27,7 @@ from app.caching_shield.tool_data import (  # noqa: E402 — imported after logg
 _svc_mcp = get_service_mcp()
 
 # Re-export data constants
-from app.domains.billing.x402.shared_data import (  # type: ignore[attr-defined]  # noqa: E402 — module docstring precedes import block
+from app.domains.billing.x402.shared_data import (# noqa: E402 — module docstring precedes import block
     BUNDLES,
     FREE_APIS,
     FREE_RPCS,

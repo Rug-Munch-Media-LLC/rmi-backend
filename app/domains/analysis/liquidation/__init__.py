@@ -30,7 +30,7 @@ from app.domains.analysis.liquidation.models import (
 )
 from app.domains.analysis.liquidation.report import generate_report
 
-LiquidationAnalysis.report = lambda self, format="text": _rp_mod.generate_report(self, format)  # type: ignore[attr-defined]
+LiquidationAnalysis.report = lambda self, format="text": _rp_mod.generate_report(self, format)
 
 __all__ = [
     "LTV_RANGES",

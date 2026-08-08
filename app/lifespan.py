@@ -74,7 +74,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
         bus = get_event_bus()
         register_core_subscribers()
-        log.info("event_bus_initialized subscribers=%d", len(bus._subscriptions))  # type: ignore[arg-type]
+        log.info("event_bus_initialized subscribers=%d", len(bus._subscriptions))
     except Exception as exc:
         log.warning("event_bus_init_failed err=%s", exc)
 

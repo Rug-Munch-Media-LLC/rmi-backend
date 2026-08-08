@@ -266,13 +266,13 @@ def _ensure_modules(config: SentinelConfig | None = None) -> None:
         _attr = _KEY_TO_SINGLETON_ATTR.get(_key)
         if _attr is None:
             continue  # key not mapped to a legacy singleton — skip
-        _existing = getattr(__import__(__name__), _attr, None) if False else globals().get(_attr)  # type: ignore[arg-type]
+        _existing = getattr(__import__(__name__), _attr, None) if False else globals().get(_attr)
         if _existing is not None:
             continue  # already initialized
         try:
             _cls = _entry["class"]
             _instance = _cls()
-            globals()[_attr] = _instance  # type: ignore[index]
+            globals()[_attr] = _instance
         except Exception:
             logger.debug("sentinel_init_failed", key=_key)
 

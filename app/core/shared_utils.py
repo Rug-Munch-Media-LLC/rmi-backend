@@ -150,7 +150,7 @@ def validate_eip55_checksum(address: str) -> bool:
         return True
 
     try:
-        from eth_hash.auto import keccak  # type: ignore[import-untyped]
+        from eth_hash.auto import keccak
 
         hashed = keccak(address[2:].lower().encode("ascii")).hex()
     except ImportError:
