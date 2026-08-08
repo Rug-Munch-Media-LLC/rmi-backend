@@ -17,9 +17,10 @@ os.environ["ENVIRONMENT"] = "dev"
 os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
 os.environ["DEV_BYPASS_AUTH"] = "false"
 
+from unittest.mock import patch
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from unittest.mock import patch
 
 
 @pytest.fixture
@@ -116,7 +117,7 @@ def _make_result(
     risk_level: str = "low",
     risk_flags: list[str] | None = None,
     tier: str = "free",
-) -> "ScanResult":
+) -> ScanResult:
     from app.domains.scanner.unified.model import ScanResult
 
     return ScanResult(
@@ -167,7 +168,6 @@ def _allow_global_rate_limits():
 @pytest.fixture
 def mock_scanner():
     """AsyncMock token scanner returning a fresh ScanResult per address."""
-    from app.domains.scanner.unified.model import ScanResult
 
     scanner = AsyncMock()
 

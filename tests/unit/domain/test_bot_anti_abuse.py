@@ -19,7 +19,6 @@ import pytest
 
 from app.domains.telegram.rugmunchbot import anti_abuse
 
-
 # ═══════════════════════════════════════════════
 # 1. PROMPT INJECTION
 # ═══════════════════════════════════════════════
@@ -140,7 +139,7 @@ class TestKnownScamAddress:
         denylist_before = set(anti_abuse._ENV_DENYLIST)
         anti_abuse.register_reported_scam("")
         anti_abuse.register_reported_scam(None)  # type: ignore[arg-type]
-        assert anti_abuse._ENV_DENYLIST == denylist_before
+        assert denylist_before == anti_abuse._ENV_DENYLIST
 
 
 # ═══════════════════════════════════════════════

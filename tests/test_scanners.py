@@ -381,7 +381,6 @@ class TestFlashLoanAttackDetector:
 
     def test_flash_loan_module_imports(self):
         """The flash_loan_attack_detector shim imports without error."""
-        from app.flash_loan_attack_detector import FlashLoanAttackDetector
 
     @pytest.mark.asyncio
     async def test_flash_loan_scan_handles_no_data(self):

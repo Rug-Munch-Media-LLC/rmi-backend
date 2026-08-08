@@ -131,7 +131,6 @@ class TestSolanaSignatureVerification:
 def _fresh_nonce_redis(address: str):
     """Return a mock redis client whose nonce lookup passes freshness checks."""
     import datetime as dt
-
     from unittest.mock import MagicMock
 
     r = MagicMock()

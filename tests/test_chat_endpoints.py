@@ -50,7 +50,7 @@ def app():
 
     app = create_app()
 
-    def plain_429(request, exc):  # noqa: ARG001 — slowapi handler signature
+    def plain_429(request, exc):
         return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
 
     app.add_exception_handler(429, plain_429)
