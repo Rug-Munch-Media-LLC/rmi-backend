@@ -15,7 +15,7 @@ Architecture:
   - Falls back gracefully when data is insufficient
 
 Usage:
-    from app.domains.scanner.engines.own_bundle_detect import get_own_bundle_analysis
+    from app.domains.scanner.engines.own_bundle_detect import detect_bundled_launch, get_own_bundle_analysis
 
     result = await get_own_bundle_analysis("0x...", "ethereum")
     # result = {
@@ -27,6 +27,21 @@ Usage:
     #     "top3_holder_pct": float,
     #     "top10_holder_pct": float,
     #     "bundle_blocks": [...],
+    #     "source": "own",
+    # }
+
+    # Launch-window bundle detection (used by the unified scanner pipeline):
+    launch = await detect_bundled_launch("0x...", "ethereum")
+    # launch = {
+    #     "is_bundled": bool,
+    #     "confidence": float,
+    #     "launch_cluster_score": float,
+    #     "first_time_buyer_pct": float,
+    #     "similar_amount_score": float,
+    #     "deployer_funded_pct": float,
+    #     "common_funder_score": float,
+    #     "deploy_block": int | None,
+    #     "cluster_blocks": [...],
     #     "source": "own",
     # }
 
@@ -59,6 +74,11 @@ logger = get_logger(__name__)
 _BUNDLE_CACHE: dict[str, dict[str, Any]] = {}
 _BUNDLE_CACHE_TTL = 600  # 10 minutes
 _BUNDLE_CACHE_MAX = 100
+
+# ── Launch-window bundle detection constants ─────────────────────────────
+_QUERY_TIMEOUT_SECONDS = 10  # time-box for ClickHouse queries
+_LAUNCH_WINDOW_BLOCKS = 5  # first N blocks after deployment
+_SIMILAR_AMOUNT_CV_BANDS = ((0.1, 100.0), (0.3, 80.0), (0.5, 50.0), (0.8, 20.0))
 
 # ── Lazy ClickHouse client ────────────────────────────────────────────────
 _ch_client: Any = None
@@ -198,8 +218,14 @@ async def get_own_bundle_analysis(
         atomic_task = asyncio.create_task(run_sync(_query_atomic_blocks, token_address, chain))
         funder_task = asyncio.create_task(run_sync(_query_common_funders, token_address, chain))
         holder_task = asyncio.create_task(run_sync(_query_holder_concentration, token_address, chain))
+        launch_task = asyncio.create_task(run_sync(_query_launch_cluster, token_address, chain))
 
-        atomic_blocks, funders, holder_data = await asyncio.gather(atomic_task, funder_task, holder_task)
+        atomic_blocks, funders, holder_data, launch_cluster = await asyncio.gather(
+            atomic_task,
+            funder_task,
+            holder_task,
+            launch_task,
+        )
 
         # Compute scores
         if atomic_blocks:
@@ -210,6 +236,9 @@ async def get_own_bundle_analysis(
 
         if holder_data:
             _score_holder_concentration(result, holder_data)
+
+        if launch_cluster:
+            _score_launch_cluster(result, launch_cluster)
 
         # Aggregate score
         _compute_bundle_score(result)
@@ -241,6 +270,129 @@ async def get_own_bundle_analysis(
         chain=chain,
         bundled=result["is_bundled"],
         confidence=result["confidence"],
+    )
+
+    return result
+
+
+async def detect_bundled_launch(
+    token_address: str,
+    chain: str,
+    force_fresh: bool = False,
+) -> dict[str, Any]:
+    """Detect a coordinated bundle launch (sniper/bot buys at deployment).
+
+    Analyzes the FIRST ``_LAUNCH_WINDOW_BLOCKS`` blocks after the token's
+    deploy event (from ``deployer_events``; falls back to the token's first
+    transfer block) and flags coordinated clusters:
+
+      (a) multiple distinct wallets buying in the same launch blocks,
+      (b) wallets whose first-ever on-chain tx is this token (no prior
+          token history),
+      (c) launch buyers funded by the same wallet (deployer or a shared
+          common funder),
+      (d) similar purchase amounts (bot-sized buys — low coefficient of
+          variation).
+
+    Best-effort: returns an ``unavailable`` result when ClickHouse has no
+    deploy/transfer data for the token.
+
+    Args:
+        token_address: Token contract address
+        chain: Chain name
+        force_fresh: Bypass cache
+
+    Returns:
+        {
+            "check": "bundle_launch",
+            "result": "scanned" | "unavailable" | "error",
+            "source": "own",
+            "token_address": str,
+            "chain": str,
+            "is_bundled": bool,
+            "confidence": float,  # 0-100
+            "risk_label": str,
+            "launch_cluster_score": float,  # 0-100
+            "first_time_buyer_pct": float,
+            "similar_amount_score": float,  # 0-100
+            "deployer_funded_pct": float,
+            "common_funder_score": float,  # 0-100
+            "deploy_block": int | None,
+            "cluster_blocks": [{"block_number": int, "buyer_count": int}],
+            "launch_buyers": int,
+            "common_funders": [...],
+        }
+    """
+    token_address = token_address.lower()
+    chain = _normalize_chain(chain)
+    _start = time.monotonic()
+
+    cache_key = f"launch:{token_address}:{chain}"
+    if not force_fresh and cache_key in _BUNDLE_CACHE:
+        cached = _BUNDLE_CACHE[cache_key]
+        if time.time() - cached.get("_cached_at", 0) < _BUNDLE_CACHE_TTL:
+            return {k: v for k, v in cached.items() if not k.startswith("_")}
+
+    result: dict[str, Any] = {
+        "check": "bundle_launch",
+        "result": "unavailable",
+        "source": "own",
+        "token_address": token_address,
+        "chain": chain,
+        "is_bundled": False,
+        "confidence": 0.0,
+        "risk_label": "low",
+        "launch_cluster_score": 0.0,
+        "first_time_buyer_pct": 0.0,
+        "similar_amount_score": 0.0,
+        "deployer_funded_pct": 0.0,
+        "common_funder_score": 0.0,
+        "deploy_block": None,
+        "cluster_blocks": [],
+        "launch_buyers": 0,
+        "common_funders": [],
+    }
+
+    try:
+        import asyncio
+
+        cluster_task = asyncio.create_task(run_sync(_query_launch_cluster, token_address, chain))
+        funder_task = asyncio.create_task(run_sync(_query_common_funders, token_address, chain))
+
+        cluster, funders = await asyncio.gather(cluster_task, funder_task)
+
+        if cluster:
+            _score_launch_cluster(result, cluster)
+        if funders:
+            _score_common_funders(result, funders)
+
+        _compute_launch_bundle_verdict(result)
+
+        if result["launch_cluster_score"] > 0 or result["common_funder_score"] > 0:
+            result["result"] = "scanned"
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
+        logger.debug("launch_bundle_query_failed for %s: %s", token_address[:16], exc)
+        result["result"] = "unavailable"
+
+    _cache_bundle(cache_key, result)
+
+    _elapsed_ms = (time.monotonic() - _start) * 1000
+    logger.info(
+        "launch_bundle_detect_latency",
+        ms=round(_elapsed_ms, 1),
+        token=token_address[:16],
+        chain=chain,
+        bundled=result["is_bundled"],
+        launch_score=result["launch_cluster_score"],
     )
 
     return result
@@ -491,6 +643,201 @@ def _query_holder_concentration(
         return None
 
 
+def _query_launch_cluster(
+    token_address: str,
+    chain: str,
+    window_blocks: int = _LAUNCH_WINDOW_BLOCKS,
+) -> dict[str, Any] | None:
+    """Query launch-window buy cluster data for a token.
+
+    Finds the token's deploy block (from ``deployer_events``, falling back to
+    its first transfer block) then pulls every buy in the first ``window_blocks``
+    blocks, annotated with:
+
+      - ``is_first_tx`` — the buyer's first-ever on-chain tx is this token
+        (no prior token history — fresh sniper farm signal),
+      - ``deployer_funded`` — the buyer was funded by the deployer wallet
+        (same-funder signal).
+
+    Returns: {
+        "deploy_block": int | None,
+        "launch_buyers": [
+            {"buyer": str, "block_number": int, "buy_count": int,
+             "amount": float, "is_first_tx": bool, "deployer_funded": bool}
+        ],
+        "cluster_blocks": [{"block_number": int, "buyer_count": int}],
+    }
+    """
+    client = _get_ch_client()
+    if client is None:
+        return None
+
+    try:
+        # ── 1. Deploy block (deployer_events first appearance) ──
+        deploy_block: int | None = None
+        deployer: str | None = None
+        deploy_rows = client.execute(
+            """
+            SELECT block_number, deployer
+            FROM wallet_memory.deployer_events
+            WHERE token_address = %(token)s
+              AND chain = %(chain)s
+              AND block_number > 0
+            ORDER BY block_number ASC
+            LIMIT 1
+            """,
+            {"token": token_address, "chain": chain},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        if deploy_rows and deploy_rows[0]:
+            deploy_block = int(deploy_rows[0][0] or 0)
+            deployer = str(deploy_rows[0][1] or "").lower() or None
+
+        # ── 1b. Fallback: first transfer block ──
+        if not deploy_block:
+            min_rows = client.execute(
+                """
+                SELECT min(block_number)
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                """,
+                {"token": token_address, "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            )
+            if min_rows and min_rows[0] and min_rows[0][0]:
+                deploy_block = int(min_rows[0][0])
+
+        if not deploy_block:
+            return None
+
+        start_block = deploy_block
+        end_block = deploy_block + max(0, window_blocks - 1)
+
+        # ── 2. Launch-window buys grouped by wallet ──
+        buy_rows = client.execute(
+            """
+            SELECT
+                from_address AS buyer,
+                block_number,
+                count() AS buy_count,
+                sum(toFloat64OrZero(value)) AS amount
+            FROM wallet_memory.evm_transfers
+            WHERE token_address = %(token)s
+              AND chain = %(chain)s
+              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                        '0x000000000000000000000000000000000000dead')
+              AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                        '0x000000000000000000000000000000000000dead')
+              AND block_number >= %(start)s
+              AND block_number <= %(end)s
+            GROUP BY from_address, block_number
+            ORDER BY block_number ASC
+            LIMIT 300
+            """,
+            {"token": token_address, "chain": chain, "start": start_block, "end": end_block},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+
+        if not buy_rows:
+            return {"deploy_block": deploy_block, "launch_buyers": [], "cluster_blocks": []}
+
+        buyers = list(dict.fromkeys(str(r[0] or "").lower() for r in buy_rows if r and r[0]))
+
+        # ── 3. Per-buyer first-ever tx (any token, in/out) — prior-history check ──
+        first_tx_map: dict[str, str] = {}
+        if buyers:
+            first_rows = client.execute(
+                """
+                SELECT
+                    addr,
+                    argMin(token_address, block_timestamp) AS first_token
+                FROM (
+                    SELECT to_address AS addr, token_address, block_timestamp
+                    FROM wallet_memory.evm_transfers
+                    WHERE chain = %(chain)s
+                      AND to_address IN %(buyers)s
+                      AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                                '0x000000000000000000000000000000000000dead')
+                    UNION ALL
+                    SELECT from_address AS addr, token_address, block_timestamp
+                    FROM wallet_memory.evm_transfers
+                    WHERE chain = %(chain)s
+                      AND from_address IN %(buyers)s
+                      AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                                '0x000000000000000000000000000000000000dead')
+                )
+                GROUP BY addr
+                """,
+                {"buyers": tuple(buyers), "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            )
+            for row in first_rows or []:
+                if row and row[0]:
+                    first_tx_map[str(row[0]).lower()] = str(row[1] or "").lower()
+
+        # ── 4. Deployer-funded launch buyers (same-funder signal) ──
+        deployer_funded: set[str] = set()
+        if deployer and buyers:
+            funded_rows = client.execute(
+                """
+                SELECT DISTINCT to_address
+                FROM wallet_memory.evm_transfers
+                WHERE chain = %(chain)s
+                  AND from_address = %(deployer)s
+                  AND to_address IN %(buyers)s
+                  AND block_timestamp >= now() - INTERVAL 14 DAY
+                """,
+                {"deployer": deployer, "buyers": tuple(buyers), "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            )
+            for row in funded_rows or []:
+                if row and row[0]:
+                    deployer_funded.add(str(row[0]).lower())
+
+        # ── 5. Assemble result ──
+        launch_buyers: list[dict[str, Any]] = []
+        for r in buy_rows:
+            buyer = str(r[0] or "").lower()
+            if not buyer:
+                continue
+            launch_buyers.append(
+                {
+                    "buyer": buyer,
+                    "block_number": int(r[1] or 0),
+                    "buy_count": int(r[2] or 0),
+                    "amount": round(float(r[3] or 0), 6),
+                    "is_first_tx": first_tx_map.get(buyer) == token_address,
+                    "deployer_funded": buyer in deployer_funded,
+                }
+            )
+
+        block_counts: dict[int, int] = {}
+        for b in launch_buyers:
+            blk = int(b["block_number"])
+            block_counts[blk] = block_counts.get(blk, 0) + 1
+        cluster_blocks = [{"block_number": blk, "buyer_count": cnt} for blk, cnt in sorted(block_counts.items())]
+
+        return {
+            "deploy_block": deploy_block,
+            "launch_buyers": launch_buyers,
+            "cluster_blocks": cluster_blocks,
+        }
+
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
+        logger.debug("launch_cluster_query_failed: %s", exc)
+        return None
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SCORING
 # ═══════════════════════════════════════════════════════════════════════════
@@ -588,12 +935,108 @@ def _score_holder_concentration(
         result["concentration_score"] = 20
 
 
+def _score_launch_cluster(
+    result: dict[str, Any],
+    cluster: dict[str, Any],
+) -> None:
+    """Score a launch-window buy cluster for coordinated bundling.
+
+    Pure logic over ``_query_launch_cluster`` output. Signals (each 0-100):
+
+      - ``launch_cluster_score`` — distinct wallets buying in the same launch
+        block (density, 60%) + share of first-time buyers (40%).
+      - ``similar_amount_score`` — low coefficient of variation among launch
+        buy amounts (bot-sized buys cluster at similar amounts).
+      - ``deployer_funded_pct`` — share of launch buyers funded directly by
+        the deployer (same-funder signal).
+    """
+    launch_buyers = cluster.get("launch_buyers") or []
+    cluster_blocks = cluster.get("cluster_blocks") or []
+    deploy_block = cluster.get("deploy_block")
+
+    result["deploy_block"] = deploy_block if deploy_block else None
+    result["cluster_blocks"] = cluster_blocks
+
+    if not launch_buyers:
+        return
+
+    result["launch_buyers"] = len(launch_buyers)
+
+    # (a) + (d) — first-time buyers with no prior token history
+    first_tx_count = sum(1 for b in launch_buyers if b.get("is_first_tx"))
+    first_tx_pct = first_tx_count / len(launch_buyers) * 100
+    result["first_time_buyer_pct"] = round(first_tx_pct, 1)
+
+    # Cluster density: max distinct buyers in a single launch block.
+    max_block_buyers = max((int(b.get("buyer_count", 0)) for b in cluster_blocks), default=0)
+    density_score = min(100.0, max_block_buyers * 10.0)
+
+    first_tx_score = min(100.0, first_tx_pct)
+    result["launch_cluster_score"] = round(0.6 * density_score + 0.4 * first_tx_score, 1)
+
+    # (c) — similar purchase amounts (low CV among positive amounts)
+    amounts = [float(b.get("amount", 0) or 0) for b in launch_buyers if float(b.get("amount", 0) or 0) > 0]
+    if len(amounts) >= 2:
+        mean = sum(amounts) / len(amounts)
+        if mean > 0:
+            variance = sum((a - mean) ** 2 for a in amounts) / len(amounts)
+            std = variance**0.5
+            cv = std / mean
+            similar = 0.0
+            for max_cv, score in _SIMILAR_AMOUNT_CV_BANDS:
+                if cv <= max_cv:
+                    similar = score
+                    break
+            result["similar_amount_score"] = similar
+
+    # (b) — same-funder signal: share funded directly by the deployer
+    deployer_count = sum(1 for b in launch_buyers if b.get("deployer_funded"))
+    result["deployer_funded_pct"] = round(deployer_count / len(launch_buyers) * 100, 1)
+
+
+def _compute_launch_bundle_verdict(result: dict[str, Any]) -> None:
+    """Aggregate launch-window signals into ``is_bundled`` / ``confidence``.
+
+    Used by ``detect_bundled_launch``. Weights:
+      - launch_cluster_score (density + first-time buyers): 0.40
+      - similar_amount_score (bot-sized buys): 0.20
+      - common_funder_score (shared funder among buyers): 0.25
+      - deployer_funded_pct (deployer-funded wallets): 0.15
+    """
+    launch = float(result.get("launch_cluster_score", 0) or 0)
+    similar = float(result.get("similar_amount_score", 0) or 0)
+    funder = float(result.get("common_funder_score", 0) or 0)
+    deployer = float(result.get("deployer_funded_pct", 0) or 0)
+
+    aggregated = launch * 0.40 + similar * 0.20 + funder * 0.25 + min(deployer, 100.0) * 0.15
+    result["confidence"] = round(aggregated, 1)
+
+    if aggregated >= 60:
+        result["is_bundled"] = True
+        result["risk_label"] = "critical"
+    elif aggregated >= 40:
+        result["is_bundled"] = True
+        result["risk_label"] = "high"
+    elif aggregated >= 25:
+        result["is_bundled"] = True
+        result["risk_label"] = "medium"
+    else:
+        result["is_bundled"] = False
+        result["risk_label"] = "low"
+
+
 def _compute_bundle_score(result: dict[str, Any]) -> None:
-    """Compute aggregate bundle score from sub-scores."""
-    atomic = result["atomic_block_score"]
-    funder = result["common_funder_score"]
-    distribution = result["distribution_anomaly_score"]
-    concentration = result["concentration_score"]
+    """Compute aggregate bundle score from sub-scores.
+
+    The launch-cluster signal (when present) contributes a capped bonus of
+    ``launch_cluster_score * 0.10`` — the base weights are unchanged so
+    existing behavior is preserved when no launch data is available.
+    """
+    atomic = result.get("atomic_block_score", 0) or 0
+    funder = result.get("common_funder_score", 0) or 0
+    distribution = result.get("distribution_anomaly_score", 0) or 0
+    concentration = result.get("concentration_score", 0) or 0
+    launch = result.get("launch_cluster_score", 0) or 0
 
     # Weighted combination
     scores = [
@@ -604,6 +1047,9 @@ def _compute_bundle_score(result: dict[str, Any]) -> None:
     ]
 
     aggregated = sum(s * w for s, w in scores)
+    # Launch-cluster bonus (0-10): a clear launch bundle (multiple first-time
+    # buyers in the first blocks) pushes a borderline aggregate over the line.
+    aggregated = aggregated + (launch * 0.10)
     result["confidence"] = round(aggregated, 1)
 
     # Determine bundled status

@@ -25,7 +25,7 @@ from app.core.logging import get_logger
 from app.domains.scanner.unified._coercion import _resolve_scan_tier
 from app.domains.scanner.unified._legacy import _from_legacy_dict, _to_legacy_dict, scan_token_unified
 from app.domains.scanner.unified._merge_helpers import merge_core
-from app.domains.scanner.unified._phase_helpers import run_wallet_analysis
+from app.domains.scanner.unified._phase_helpers import run_bundle_analysis, run_wallet_analysis
 from app.domains.scanner.unified.deep_profile import collect_deep_profile
 from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.persistence import (
@@ -401,6 +401,10 @@ class UnifiedTokenScanner:
             # Runs after deep because it reuses the top-holder list from holder_data.
             await self._run_wallet_analysis(result, address, chain)
 
+            # ── Phase 2c: Bundle-launch detection (own ClickHouse data, free) ──
+            # Coordinated sniper/bot buys in the first blocks after deployment.
+            await self._detect_bundled_launch(result, address, chain)
+
             # ── Phase 3: Premium (tier-gated — elite/admin only) ──
             if tier in ("elite", "admin"):
                 premium_results = await self._fetch_batch(self.PREMIUM_CHAINS, params, admin_key, timeout=30)
@@ -740,6 +744,21 @@ class UnifiedTokenScanner:
         (degodded wave 7). Kept as a method so tests can ``patch.object`` it.
         """
         await run_wallet_analysis(r, address, chain)
+
+    async def _detect_bundled_launch(self, r: ScanResult, address: str, chain: str) -> None:
+        """Detect coordinated bundle buys at token launch (own ClickHouse data).
+
+        Checks deployer events for the token's launch block, groups buys by
+        block in the first N blocks after deployment, and flags coordinated
+        clusters (multiple first-time buyers, same funder, similar amounts).
+        Stores the result on ``ScanResult.bundle_analysis`` for scoring
+        (``BUNDLE_DETECTED``) and output.
+
+        Thin delegate — the phase logic lives in ``unified/_phase_helpers.py``
+        (``run_bundle_analysis``). Kept as a method so tests can
+        ``patch.object`` it, matching the other phase delegates.
+        """
+        await run_bundle_analysis(r, address, chain)
 
     async def _run_news_sentiment(self, r: ScanResult, address: str, chain: str) -> None:
         """Analyze news sentiment for the scanned token (best-effort).
