@@ -68,6 +68,7 @@ from app.domains.telegram.rugmunchbot.handlers.api_access import cmd_api
 from app.domains.telegram.rugmunchbot.handlers.ask import cmd_ask
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.chat import cmd_chat
+from app.domains.telegram.rugmunchbot.handlers.chat_ai import register_chat_ai
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.groups import (
     cmd_banuser,
@@ -78,7 +79,7 @@ from app.domains.telegram.rugmunchbot.handlers.groups import (
 from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
 from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
-from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, cmd_trending
+from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, register_market
 from app.domains.telegram.rugmunchbot.handlers.message import handle_message
 from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin,
@@ -375,7 +376,7 @@ def main() -> None:
     _reg(app, "report", cmd_report)
 
     # Market commands
-    _reg(app, "trending", cmd_trending)
+    register_market(app)  # /market /trending /movers /launches /whales
     _reg(app, "news", cmd_news)
     _reg(app, "sentiment", cmd_sentiment)
 
@@ -437,6 +438,9 @@ def main() -> None:
     # Inline, callbacks, messages
     app.add_handler(InlineQueryHandler(handle_inline))
     app.add_handler(CallbackQueryHandler(handle_callback))
+    # RAG-wired AI chat — must be registered BEFORE the generic free-text
+    # handler (PTB dispatches to the first matching handler)
+    register_chat_ai(app)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Payments

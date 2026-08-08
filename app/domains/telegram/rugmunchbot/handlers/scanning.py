@@ -36,6 +36,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     footer_links,
     format_scan_report,
+    format_sentinel_deepscan_section,
     format_wallet_report,
     is_evm,
     is_owner,
@@ -62,6 +63,7 @@ from app.domains.telegram.rugmunchbot.scanner import (
     fetch_hype_score,
     scan_token,
     scan_token_v2,
+    sentinel_scan as fetch_sentinel_scan,
     v2_token_to_legacy,
     v2_wallet_to_legacy,
 )
@@ -414,6 +416,81 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Deep scan error: {e}")
         await msg.edit_text(
             f"\u274c <b>Deep Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+
+
+async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """SENTINEL deep forensic scan — POST /api/v1/x402-tools/sentinel_scan.
+
+    Standalone command for the 9-module SENTINEL pipeline (holder HHI, LP
+    lock, dev reputation, contract authority, proxy, bundle, wash trading,
+    honeypot). Slower than /deepscan but runs every forensic module and
+    renders via format_sentinel_deepscan_section.
+    """
+    user = update.effective_user
+    if user is None or update.message is None:
+        return
+    db.get_or_create_user(user.id, user.username, user.first_name)
+    if check_spam(user.id):
+        return
+    if not ctx.args:
+        await update.message.reply_text(
+            "\U0001f52c <b>SENTINEL Deep Scan</b>\n\n"
+            "Usage: /sentinelscan <code>address</code> [chain]\n\n"
+            "Runs the full 9-module forensic pipeline:\n"
+            "\u2460 Holder HHI & concentration\n"
+            "\u2461 LP lock & liquidity verification\n"
+            "\u2462 Dev reputation & rug rate\n"
+            "\u2463 Contract authority (proxy, mint, taxes)\n"
+            "\u2464 Bundle & wash trading detection\n"
+            "\u2465 Honeypot analysis\n"
+            "\u2466 Composite risk score + red flags\n\n"
+            "\u23f3 Slowest scan (\u2248 1-2 min) \u2014 most thorough.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    target = ctx.args[0]
+    chain = ctx.args[1] if len(ctx.args) > 1 else None
+    if not is_owner(user.id):
+        allowed, _used, _limit = db.check_rate_limit(user.id, "scan")
+        if not allowed:
+            tier = db.get_user_tier(user.id)
+            await update.message.reply_text(
+                paywall_text(user.id, "scan"),
+                parse_mode=ParseMode.HTML,
+                reply_markup=upgrade_nudge_kb(tier),
+            )
+            return
+    msg = await update.message.reply_text(
+        "\U0001f52c <b>SENTINEL scanning...</b>\n\n\U0001f4aa Running all 9 forensic modules \u2014 this takes a bit.",
+        parse_mode=ParseMode.HTML,
+    )
+    try:
+        result = await fetch_sentinel_scan(target, chain)
+        if not result:
+            await msg.edit_text(
+                "\u274c <b>SENTINEL scan failed</b>\n\n"
+                "Could not reach the forensic pipeline. Please try again shortly.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
+        db.increment_usage(user.id, scan=True)
+        report = format_sentinel_deepscan_section(result)
+        report += f"\n\n{footer_links()}"
+        await msg.edit_text(
+            report,
+            parse_mode=ParseMode.HTML,
+            reply_markup=scan_result_kb(target, result.get("chain") or chain or "unknown"),
+            disable_web_page_preview=True,
+        )
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
+        logger.debug("sentinel_scan_error", exc_info=True)
+        logger.error(f"SENTINEL scan error: {e}")
+        await msg.edit_text(
+            f"\u274c <b>SENTINEL Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
