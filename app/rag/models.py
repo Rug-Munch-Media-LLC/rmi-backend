@@ -23,6 +23,10 @@ class EmbeddingProvider(StrEnum):
 # scan-to-RAG memory bridge (app.rag.scan_memory) — included so generic
 # multi-collection RAG searches (and the engine's Qdrant fallback) can
 # recall past token scan context.
+# ``stablecoin_market`` is a Qdrant-only collection written by
+# scripts/ingest_stablecoin_market.py (DeFiLlama stablecoin market caps)
+# — included so generic market-context queries can recall stablecoin
+# liquidity signals.
 COLLECTIONS: list[str] = [
     "scam_intel",
     "deployer_history",
@@ -30,6 +34,7 @@ COLLECTIONS: list[str] = [
     "contract_audit",
     "phishing_db",
     "scanned_tokens",
+    "stablecoin_market",
 ]
 
 
