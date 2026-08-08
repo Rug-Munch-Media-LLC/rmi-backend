@@ -64,7 +64,8 @@ class TestWalletScanRequest:
         from app.routers.unified_scanner_router import WalletScanRequest
 
         req = WalletScanRequest(address="0xabc")
-        assert req.chain == "solana"
+        # chain defaults to "" = auto-detect from address format (0x → ethereum, base58 → solana)
+        assert req.chain == ""
 
 
 class TestPryscraperBridgeModels:

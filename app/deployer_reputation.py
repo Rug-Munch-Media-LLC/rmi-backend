@@ -10,7 +10,7 @@ from app.domains.scanner.deployer_reputation import (
     build_behavioral_fingerprint,
     get_logger,
     logger,
-    numpy,
+    np as numpy,
     score_deployer_risk,
 )
 

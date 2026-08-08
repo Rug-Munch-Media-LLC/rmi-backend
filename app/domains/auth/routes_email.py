@@ -13,11 +13,6 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-<<<<<<< HEAD
-=======
-from typing import TYPE_CHECKING  # noqa: E402 — imported after logger init; kept below module header for readability
-
->>>>>>> chore/ruff-mypy-reduction
 from app.core.slowrate import (  # noqa: E402 — imported after logger init; kept below module header for readability
     limiter,
 )

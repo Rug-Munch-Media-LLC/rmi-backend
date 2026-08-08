@@ -79,7 +79,8 @@ class TestWalletScanRequest:
         from app.routers.unified_scanner_router import WalletScanRequest
 
         req = WalletScanRequest(address="7EcD8nUjbQiv7qJgGqgfQk7KjVgDqLXq8N5N5n5N5n5N")
-        assert req.chain == "solana"
+        # chain defaults to "" = auto-detect from address format
+        assert req.chain == ""
 
     def test_wallet_missing(self):
         from app.routers.unified_scanner_router import WalletScanRequest
