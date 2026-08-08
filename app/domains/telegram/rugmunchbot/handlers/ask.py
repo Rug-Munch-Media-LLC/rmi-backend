@@ -14,6 +14,7 @@ and the per-second / per-minute flood limit (AI surface).
 
 from __future__ import annotations
 
+from html import escape
 from typing import TYPE_CHECKING
 
 from telegram.constants import ParseMode
@@ -103,8 +104,10 @@ async def cmd_ask(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         answer = await chat_synthesis(query, context, user_id=user.id)
         if answer:
             db.increment_usage(user.id, ai_msg=True)
+            # LLM output is not trusted HTML — escape it so raw <...> can't
+            # crash with Telegram "Can't parse entities".
             await placeholder.edit_text(
-                answer[:4000],
+                escape(answer[:4000]),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
                 disable_web_page_preview=True,
@@ -117,7 +120,7 @@ async def cmd_ask(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if best_hit:
             db.increment_usage(user.id, ai_msg=True)
             await placeholder.edit_text(
-                best_hit[:4000],
+                escape(best_hit[:4000]),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
