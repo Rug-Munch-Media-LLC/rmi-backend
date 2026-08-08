@@ -529,7 +529,12 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 @owner_only
-async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Health dashboard — runs live fleet health checks.
+
+    Registered as the primary handler for both /health and /alerts
+    (legacy alias). The /health name now matches what the command does.
+    """
     msg = await update.message.reply_text("⏳ Running health checks...")
     data = admin_health.health_dashboard()
     text = admin_health.format_health_dashboard(data)
@@ -541,6 +546,10 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             extra=[("🖥️ Status", "status"), ("📊 Quick", "quick_status")],
         ),
     )
+
+
+# Legacy alias — /alerts historically pointed at the health dashboard.
+cmd_alerts = cmd_health
 
 
 # ═══════════════════════════════════════════════════════════════════

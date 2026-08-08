@@ -49,6 +49,7 @@ from app.domains.telegram.adminbot.commands import (
     cmd_dps,
     cmd_dstats,
     cmd_git,
+    cmd_health,
     cmd_help,
     cmd_indexer,
     cmd_logs,
@@ -129,8 +130,8 @@ def main() -> None:
     app.add_handler(CommandHandler("backup", cmd_backup))
     app.add_handler(CommandHandler("deploy", cmd_deploy))
     app.add_handler(CommandHandler("logs", cmd_logs))
-    app.add_handler(CommandHandler("alerts", cmd_alerts))
-    app.add_handler(CommandHandler("health", cmd_alerts))  # alias
+    app.add_handler(CommandHandler("alerts", cmd_alerts))  # legacy alias → health dashboard
+    app.add_handler(CommandHandler("health", cmd_health))  # explicit health dashboard command
     app.add_handler(CommandHandler("quick", cmd_quick))
     app.add_handler(CommandHandler("term", cmd_terminal))
     app.add_handler(CommandHandler("ai", cmd_ai))
