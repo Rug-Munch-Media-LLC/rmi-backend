@@ -210,7 +210,7 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("ta", "Technical analysis & signals"),
             BotCommand("compare", "Compare two tokens side-by-side"),
             BotCommand("quick", "Quick token price check"),
-            BotCommand("trending", "Hot tokens right now"),
+            BotCommand("trending", "Trending tokens by chain (e.g. /trending solana)"),
             BotCommand("rugcheck", "Rug pull red flag checklist"),
             BotCommand("watch", "Add token to watchlist"),
             BotCommand("watchlist", "View your watchlist"),

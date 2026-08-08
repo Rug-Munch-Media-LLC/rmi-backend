@@ -126,7 +126,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"/quick <code>symbol</code> - Instant price (same as $TOKEN)\n"
         f"/compare <code>addr1</code> <code>addr2</code> - Side-by-side\n\n"
         f"\U0001f4c8 <b>\U0001f4c8 CHARTS</b>\n{d}\n"
-        f"/chart <code>address</code> - Chart IMAGE from RugCharts (OHLCV)\n"
+        f"/chart <code>address</code> - Chart IMAGE (OHLCV)\n"
         f"/rugmap <code>address</code> - Bubble map IMAGE of wallet clusters\n"
         f"/ta <code>address</code> - Technical analysis & signals\n"
         f"/price <code>address</code> [chain] - Token price by contract\n"
@@ -216,7 +216,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text(
         f"\U0001f50d <b>Scanning token...</b>\n"
         f"<code>{short_addr(target)}</code>\n\n"
-        f"\u23f3 Querying DexScreener, GoPlus, Honeypot.is, RMI...",
+        f"\u23f3 Running multi-source security checks...",
         parse_mode=ParseMode.HTML,
     )
     try:
@@ -267,7 +267,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Full multi-phase deep scan (v6).
 
     Runs ALL scanner phases and enriches the result with RugMaps cluster
-    data + RugCharts intel for a much more detailed report than /scan.
+    data + on-chain intel for a much more detailed report than /scan.
     Slower (~1-2 min) but shows every phase it ran.
     """
     user = update.effective_user
@@ -475,7 +475,7 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(f"{DEXSCREENER}/tokens/{target}")
             if r.status_code != 200:
-                await msg.edit_text("\u274c Token not found on DexScreener.", parse_mode=ParseMode.HTML)
+                await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
                 return
             pairs = r.json().get("pairs", [])
             if not pairs:
@@ -814,7 +814,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(
             "\U0001f525 <b>Hype Score</b>\n\n"
             "Usage: /hype <code>address_or_symbol</code>\n\n"
-            "Returns a 0-100 hype score based on DexScreener boosts, "
+            "Returns a 0-100 hype score based on market activity, "
             "volume momentum, token age, and price action.",
             parse_mode=ParseMode.HTML,
         )
@@ -862,7 +862,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             # Pair data
             tr = await client.get(f"{DEXSCREENER}/tokens/{address}")
             if tr.status_code != 200:
-                await msg.edit_text("\u274c Token not found on DexScreener.", parse_mode=ParseMode.HTML)
+                await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
                 return
             pairs = tr.json().get("pairs", [])
             if not pairs:
