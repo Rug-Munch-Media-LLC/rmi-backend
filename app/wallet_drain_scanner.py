@@ -321,7 +321,7 @@ class WalletDrainScanner:
         except Exception as e:
             logger.debug(f"Solana scan failed: {e}")
 
-    async def _fetch_explorer_txs(self) -> list[dict]:
+    async def _fetch_explorer_txs(self) -> list[dict[str, Any]]:
         """Fetch recent transactions from block explorer API."""
         explorer_urls = {
             "ethereum": ETHERSCAN_API.format(self.address),

@@ -5,11 +5,11 @@ Fast, consistent, professional trading platform aesthetic.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -304,7 +304,7 @@ def get_or_create_template(card_type: str) -> Image.Image:
         return create_placeholder_template(card_type, template_config)
 
 
-def create_placeholder_template(card_type: str, config: dict) -> Image.Image:
+def create_placeholder_template(card_type: str, config: dict[str, Any]) -> Image.Image:
     """Create a placeholder template if none exists."""
     img = Image.new("RGB", config["size"], color=config["colors"].get("background", "#0A0A0F"))
     draw = ImageDraw.Draw(img)
@@ -336,7 +336,7 @@ def create_placeholder_template(card_type: str, config: dict) -> Image.Image:
     return img
 
 
-def generate_card(card_type: str, data: dict) -> dict:
+def generate_card(card_type: str, data: dict[str, Any]) -> dict[str, Any]:
     """
     Generate card by overlaying text on template.
     Returns image path and metadata.
@@ -433,7 +433,7 @@ async def generate_win_card(
     exit_price: float,
     hold_time: str,
     chain: str = "solana",
-) -> dict:
+) -> dict[str, Any]:
     """Generate big win alert card."""
     data = {
         "wallet_address": wallet_address,
@@ -457,7 +457,7 @@ async def generate_loss_card(
     exit_price: float,
     hold_time: str,
     chain: str = "solana",
-) -> dict:
+) -> dict[str, Any]:
     """Generate loss porn card."""
     data = {
         "wallet_address": wallet_address,
@@ -479,7 +479,7 @@ async def generate_kol_scorecard(
     avg_pnl: float,
     followers: int,
     tier: str = "A",
-) -> dict:
+) -> dict[str, Any]:
     """Generate KOL scorecard."""
     data = {
         "kol_handle": kol_handle,
@@ -492,7 +492,7 @@ async def generate_kol_scorecard(
     return generate_card("kol_scorecard", data)
 
 
-async def generate_rug_call_card(token_symbol: str, amount_stolen: float, victims: int, rug_type: str) -> dict:
+async def generate_rug_call_card(token_symbol: str, amount_stolen: float, victims: int, rug_type: str) -> dict[str, Any]:
     """Generate rugpull alert card."""
     data = {
         "token_symbol": token_symbol.upper(),
@@ -505,7 +505,7 @@ async def generate_rug_call_card(token_symbol: str, amount_stolen: float, victim
 
 async def generate_whale_alert_card(
     wallet_label: str, action: str, amount: float, symbol: str, usd_value: float
-) -> dict:
+) -> dict[str, Any]:
     """Generate whale movement card."""
     data = {
         "wallet_label": wallet_label,
@@ -517,7 +517,7 @@ async def generate_whale_alert_card(
     return generate_card("whale_move", data)
 
 
-async def generate_smart_money_card(wallet_label: str, token_symbol: str, position_size: float, pnl: float) -> dict:
+async def generate_smart_money_card(wallet_label: str, token_symbol: str, position_size: float, pnl: float) -> dict[str, Any]:
     """Generate smart money pick card."""
     data = {
         "wallet_label": wallet_label,
@@ -531,7 +531,7 @@ async def generate_smart_money_card(wallet_label: str, token_symbol: str, positi
 # ── Template Management ──────────────────────────────────────
 
 
-def list_templates() -> list[dict]:
+def list_templates() -> list[dict[str, Any]]:
     """List available card templates."""
     return [
         {

@@ -15,12 +15,12 @@ Endpoints:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -65,7 +65,7 @@ class ReportSubmit(BaseModel):
     description: str = Field(..., min_length=10, max_length=5000)
     category: str = Field(default="scam", pattern="^(scam|exploit|phishing|rugpull|other)$")
     addresses: list[str] = Field(default_factory=list, max_length=20)
-    graph_data: dict = Field(default_factory=dict)
+    graph_data: dict[str, Any] = Field(default_factory=dict)
     author: str = Field(default="anonymous", max_length=100)
 
 
@@ -75,7 +75,7 @@ class CorrelationRequest(BaseModel):
 
 class GraphVerifyRequest(BaseModel):
     report_id: str = Field(..., min_length=1)
-    graph_data: dict = Field(default_factory=dict)
+    graph_data: dict[str, Any] = Field(default_factory=dict)
 
 
 # ── Routes ────────────────────────────────────────────
@@ -86,7 +86,7 @@ async def list_reports(
     category: str = "",
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-) -> dict:
+) -> dict[str, Any]:
     """List community-submitted forensic reports (newest first)."""
     try:
         r = await _get_redis()
@@ -119,7 +119,7 @@ async def list_reports(
 
 
 @router.get("/reports/{report_id}", summary="Get Report Detail")
-async def get_report(report_id: str) -> dict:
+async def get_report(report_id: str) -> dict[str, Any]:
     """Get full details of a community forensics report."""
     try:
         r = await _get_redis()
@@ -135,7 +135,7 @@ async def get_report(report_id: str) -> dict:
 
 
 @router.post("/reports", summary="Submit Community Report")
-async def submit_report(req: ReportSubmit) -> dict:
+async def submit_report(req: ReportSubmit) -> dict[str, Any]:
     """Submit a new community forensics report."""
     report_id = f"cfr-{uuid.uuid4().hex[:12]}"
     now = datetime.now(UTC).isoformat()
@@ -165,7 +165,7 @@ async def submit_report(req: ReportSubmit) -> dict:
 
 
 @router.post("/verify-graph", summary="Verify Report Graph")
-async def verify_graph(req: GraphVerifyRequest) -> dict:
+async def verify_graph(req: GraphVerifyRequest) -> dict[str, Any]:
     """Verify and enrich a report's graph data with Blockscout lookups."""
     worker = _get_worker()
     try:
@@ -177,7 +177,7 @@ async def verify_graph(req: GraphVerifyRequest) -> dict:
 
 
 @router.post("/correlate", summary="Cross-Chain Correlation")
-async def correlate_addresses(req: CorrelationRequest) -> dict:
+async def correlate_addresses(req: CorrelationRequest) -> dict[str, Any]:
     """Batch cross-chain correlation for community investigation addresses."""
     worker = _get_worker()
     try:
@@ -189,7 +189,7 @@ async def correlate_addresses(req: CorrelationRequest) -> dict:
 
 
 @router.get("/leaderboard", summary="Community Leaderboard")
-async def get_leaderboard(period: str = Query(default="weekly", pattern="^(daily|weekly|monthly|all)$")) -> dict:
+async def get_leaderboard(period: str = Query(default="weekly", pattern="^(daily|weekly|monthly|all)$")) -> dict[str, Any]:
     """Get community forensics leaderboard (top sleuths by contributions)."""
     try:
         r = await _get_redis()
@@ -217,7 +217,7 @@ async def get_leaderboard(period: str = Query(default="weekly", pattern="^(daily
 
 
 @router.get("/health", summary="Forensics Service Health")
-async def health_check() -> dict:
+async def health_check() -> dict[str, Any]:
     """Check if Blockscout and Redis are available."""
     worker = _get_worker()
     health = {"redis": "unknown", "blockscout": "unknown"}

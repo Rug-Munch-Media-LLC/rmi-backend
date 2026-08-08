@@ -144,7 +144,7 @@ class RelevanceScorer:
 
     def rescore(
         self,
-        hits: list[dict],
+        hits: list[dict[str, Any]],
         query: str,
         alpha: float = RAG_HYBRID_ALPHA,
     ) -> list[ScoredHit]:
@@ -647,7 +647,7 @@ class ContextBuilder:
 
     def build(
         self,
-        hits: list[ScoredHit] | list[dict],
+        hits: list[ScoredHit] | list[dict[str, Any]],
         max_tokens: int = 4096,
         include_metadata: bool = True,
     ) -> ContextWindow:
@@ -763,7 +763,7 @@ def expand_query(query: str) -> str:
 
 
 def build_context(
-    hits: list[ScoredHit] | list[dict],
+    hits: list[ScoredHit] | list[dict[str, Any]],
     max_tokens: int = 4096,
 ) -> ContextWindow:
     """Quick context assembly (uses default builder)."""

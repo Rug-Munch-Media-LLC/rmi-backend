@@ -43,7 +43,7 @@ KNOWN_MEV_BOTS: dict[str, dict[str, Any]] = {
 }
 
 
-def build_bot_profile(addr: str, info: dict) -> MEVBotProfile:
+def build_bot_profile(addr: str, info: dict[str, Any]) -> MEVBotProfile:
     """Build an MEVBotProfile from a registry entry."""
     return MEVBotProfile(
         address=addr.lower(),

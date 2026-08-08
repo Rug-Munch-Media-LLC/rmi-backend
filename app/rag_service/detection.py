@@ -18,7 +18,7 @@ from app.rag_service.state import _pattern_cache, _pattern_cache_loaded
 logger = get_logger(__name__)
 
 
-async def detect_scam_patterns(token_data: dict, threshold: float = 0.65) -> dict[str, Any]:
+async def detect_scam_patterns(token_data: dict[str, Any], threshold: float = 0.65) -> dict[str, Any]:
     """Compare a token against all known scam patterns."""
     embedder = await get_embedder()
 

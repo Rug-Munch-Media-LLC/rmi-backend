@@ -155,7 +155,7 @@ async def detect_deployer_clusters(
     if not deployer_lower or deployer_lower == "unknown":
         return result
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -249,7 +249,7 @@ async def detect_holder_concentration(
     if not token_lower or not chain_norm:
         return result
 
-    def _query() -> dict:
+    def _query() -> dict[str, Any]:
         client = _get_ch_client()
         if client is None:
             return {"holders": [], "total": 0}
@@ -376,7 +376,7 @@ async def detect_pump_and_dump(
     if not token_lower or not chain_norm:
         return result
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -488,7 +488,7 @@ async def detect_mixer_interactions(address: str, chain: str) -> dict[str, Any]:
     if not mixers:
         return result
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []

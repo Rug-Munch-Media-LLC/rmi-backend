@@ -56,7 +56,7 @@ class AlibabaConnector:
         size: str = "1024x1024",
         style: str = "professional",
         negative_prompt: str | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Generate image using Tongyi Wanxiang.
 
@@ -147,7 +147,7 @@ class AlibabaConnector:
             await _alibaba_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
-    async def generate_marketing_image(self, campaign_type: str, content: dict) -> dict:
+    async def generate_marketing_image(self, campaign_type: str, content: dict[str, Any]) -> dict[str, Any]:
         """Generate marketing image for campaigns."""
 
         prompts = {
@@ -191,7 +191,7 @@ class AlibabaConnector:
             negative_prompt="blurry, low quality, distorted, ugly, amateur, cluttered",
         )
 
-    async def generate_social_post_image(self, post_type: str, data: dict) -> dict:
+    async def generate_social_post_image(self, post_type: str, data: dict[str, Any]) -> dict[str, Any]:
         """Generate image for social media posts."""
 
         if post_type == "win_alert":
@@ -234,7 +234,7 @@ class AlibabaConnector:
             negative_prompt="blurry, low quality, distorted, ugly, text overlay, watermark",
         )
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """Check connector status."""
         return {
             "api_key_configured": bool(self.api_key),

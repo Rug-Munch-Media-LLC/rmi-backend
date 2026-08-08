@@ -5,10 +5,10 @@ Tracks API usage across all providers. Respects hard limits.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import time
 from collections import defaultdict
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -81,7 +81,7 @@ class RateLimitTracker:
         """Record a throttled/blocked call."""
         self._throttled += 1
 
-    def budget_remaining(self, provider: str) -> dict:
+    def budget_remaining(self, provider: str) -> dict[str, Any]:
         """Get remaining budget for a provider."""
         self._reset_windows()
         limits = PROVIDER_LIMITS.get(provider, {})
@@ -105,7 +105,7 @@ class RateLimitTracker:
             "day_pct": round(self._day[provider] / max(rpd, 1) * 100, 1),
         }
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Full usage statistics."""
         return {
             "total_calls": self._total_calls,
@@ -125,7 +125,7 @@ class RateLimitTracker:
 rate_tracker = RateLimitTracker()
 
 
-def _can_use(model_config: dict) -> bool:
+def _can_use(model_config: dict[str, Any]) -> bool:
     """Check if model is under its rate limit using the tracker."""
     provider = model_config.get("provider", "openrouter")
     can, reason = rate_tracker.can_call(provider)

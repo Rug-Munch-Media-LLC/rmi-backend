@@ -3,10 +3,10 @@ Scam School — user progress, lesson completion, exam submission, and leaderboa
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
@@ -37,7 +37,7 @@ progress_router = APIRouter(tags=["scam-school"])
 
 
 @progress_router.get("/scam-school/progress")
-async def get_progress(request: Request) -> dict:
+async def get_progress(request: Request) -> dict[str, Any]:
     """Get current user's full progress."""
     user = await get_current_user(request)
     if not user:
@@ -63,7 +63,7 @@ async def get_progress(request: Request) -> dict:
 
 
 @progress_router.post("/scam-school/lessons/{course_id}/{lesson_id}/complete")
-async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, request: Request) -> dict:
+async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, request: Request) -> dict[str, Any]:
     """Mark a lesson as complete and award XP."""
     user = await get_current_user(request)
     if not user:
@@ -155,7 +155,7 @@ async def complete_lesson(course_id: str, lesson_id: str, req: LessonComplete, r
 
 
 @progress_router.post("/scam-school/exams/{course_id}/{exam_id}")
-async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Request) -> dict:
+async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Request) -> dict[str, Any]:
     """Submit an exam and get results."""
     user = await get_current_user(request)
     if not user:
@@ -274,7 +274,7 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
 
 
 @progress_router.get("/scam-school/leaderboard")
-async def get_leaderboard(limit: int = Query(50, ge=1, le=100)) -> dict:
+async def get_leaderboard(limit: int = Query(50, ge=1, le=100)) -> dict[str, Any]:
     """Get global leaderboard by XP."""
     r = get_redis()
     all_progress = r.hgetall("rmi:scam_school:progress")

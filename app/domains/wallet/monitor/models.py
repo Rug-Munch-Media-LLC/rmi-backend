@@ -1,10 +1,10 @@
 """Wallet Monitor — Data Models."""
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass
@@ -16,14 +16,14 @@ class WalletTx:
     chain: str
     timestamp: str
     gas_price: float | None = None
-    token_transfers: list[dict] = field(default_factory=list)
+    token_transfers: list[dict[str, Any]] = field(default_factory=list)
     is_contract_interaction: bool = False
     is_contract_creation: bool = False
     is_approval: bool = False
-    dex_swap: dict | None = None
-    raw: dict = field(default_factory=dict)
+    dex_swap: dict[str, Any] | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "hash": self.hash,
             "from": self.from_addr,
@@ -47,10 +47,10 @@ class WalletAlert:
     tx_hash: str
     severity: str
     message: str
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "wallet_alert",
             "alert_type": self.alert_type,
@@ -73,7 +73,7 @@ class BurstSignal:
     severity: str
     timestamp: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "burst",
             "wallet": self.wallet,
@@ -92,10 +92,10 @@ class LabelSuggestion:
     suggested_label: str
     confidence: float
     reasoning: str
-    pattern_summary: dict
+    pattern_summary: dict[str, Any]
     timestamp: str
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "label_suggestion",
             "wallet": self.wallet,

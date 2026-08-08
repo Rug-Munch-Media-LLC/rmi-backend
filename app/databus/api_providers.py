@@ -9,6 +9,7 @@ Three free/freemium API providers for enhanced crypto intelligence.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -25,7 +26,7 @@ logger = get_logger("databus.api_providers")
 COINSTATS_BASE = "https://openapiv1.coinstats.app"
 
 
-async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
+async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Resolve a wallet's complete DeFi position - collateral, borrows, LPs, rewards."""
     import aiohttp
 
@@ -80,7 +81,7 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict:
 MOBULA_BASE = "https://api.mobula.io/api/1"
 
 
-async def fetch_mobula_market(asset: str | None = None, blockchain: str | None = None, limit: int = 20) -> dict:
+async def fetch_mobula_market(asset: str | None = None, blockchain: str | None = None, limit: int = 20) -> dict[str, Any]:
     """Fetch market data from Mobula - covers long-tail tokens missed by CMC/CG."""
     import aiohttp
 
@@ -121,7 +122,7 @@ async def fetch_mobula_market(asset: str | None = None, blockchain: str | None =
         return {"error": str(e), "source": "Mobula"}
 
 
-async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dict:
+async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dict[str, Any]:
     """Fetch wallet portfolio via Mobula - balances, tokens, transaction history."""
     import aiohttp
 
@@ -165,7 +166,7 @@ async def fetch_mobula_wallet(address: str, blockchain: str = "ethereum") -> dic
 CRYPTONEWS_BASE = "https://cryptocurrency.cv/api"
 
 
-async def fetch_crypto_news(category: str | None = None, source: str | None = None, limit: int = 20) -> dict:
+async def fetch_crypto_news(category: str | None = None, source: str | None = None, limit: int = 20) -> dict[str, Any]:
     """Fetch crypto news from cryptocurrency.cv - free, no key, unlimited."""
     import aiohttp
 

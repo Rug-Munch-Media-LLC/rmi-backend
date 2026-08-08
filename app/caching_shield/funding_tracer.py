@@ -23,10 +23,10 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -114,7 +114,7 @@ class FundingTrace:
     confidence: float = 0.0  # 0-100
     funding_amount_eth: float = 0.0
     funding_timestamp: int = 0
-    hops: list[dict] = field(default_factory=list)  # trace chain
+    hops: list[dict[str, Any]] = field(default_factory=list)  # trace chain
     errors: list[str] = field(default_factory=list)
 
 
@@ -201,7 +201,7 @@ async def trace_funding_source(
     return trace
 
 
-async def _get_wallet_transactions(address: str, chain_id: int) -> list[dict]:
+async def _get_wallet_transactions(address: str, chain_id: int) -> list[dict[str, Any]]:
     """Get recent transactions for a wallet using Blockscout or Etherscan.
 
     Uses our consensus RPC as fallback - walks getLogs for Transfer events.
@@ -220,7 +220,7 @@ async def _get_wallet_transactions(address: str, chain_id: int) -> list[dict]:
     return await _fetch_rpc_transfers(address, chain_id)
 
 
-async def _fetch_blockscout_txs(address: str, chain_id: int, api_key: str) -> list[dict]:
+async def _fetch_blockscout_txs(address: str, chain_id: int, api_key: str) -> list[dict[str, Any]]:
     """Fetch transactions via Blockscout v2 API.
 
     Format: GET /{chain_id}/api/v2/addresses/{address}/transactions?apikey=KEY
@@ -260,7 +260,7 @@ async def _fetch_blockscout_txs(address: str, chain_id: int, api_key: str) -> li
     return []
 
 
-async def _fetch_etherscan_txs(address: str, api_key: str) -> list[dict]:
+async def _fetch_etherscan_txs(address: str, api_key: str) -> list[dict[str, Any]]:
     """Fetch transactions via Etherscan API."""
     import httpx
 
@@ -289,7 +289,7 @@ async def _fetch_etherscan_txs(address: str, api_key: str) -> list[dict]:
     return []
 
 
-async def _fetch_rpc_transfers(address: str, chain_id: int) -> list[dict]:
+async def _fetch_rpc_transfers(address: str, chain_id: int) -> list[dict[str, Any]]:
     """Fallback: get transactions via public RPC getLogs for Transfer events."""
     from app.consensus_rpc import get_consensus_rpc
 
@@ -334,7 +334,7 @@ async def _fetch_rpc_transfers(address: str, chain_id: int) -> list[dict]:
     return []
 
 
-def _find_earliest_inbound(txs: list[dict], wallet: str) -> dict | None:
+def _find_earliest_inbound(txs: list[dict[str, Any]], wallet: str) -> dict[str, Any] | None:
     """Find the earliest transaction where this wallet received ETH."""
     wallet_lower = wallet.lower()
     for tx in txs:

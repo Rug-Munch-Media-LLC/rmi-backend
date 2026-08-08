@@ -408,7 +408,7 @@ class DecompilerAnalyzer:
             logger.warning(f"Heimdall decompile error for {address}: {e}")
             return False, "", tmp_dir
 
-    async def _extract_anchor_idl(self, program_id: str) -> dict | None:
+    async def _extract_anchor_idl(self, program_id: str) -> dict[str, Any] | None:
         """Try to extract Anchor IDL from a Solana program.
 
         Anchor stores the IDL in the program's account data.
@@ -465,7 +465,7 @@ class DecompilerAnalyzer:
 
         return None
 
-    def _check_anchor_risks(self, idl_data: dict | None) -> list[str]:
+    def _check_anchor_risks(self, idl_data: dict[str, Any] | None) -> list[str]:
         """Check Anchor IDL for dangerous instruction names."""
         risks = []
         if not idl_data:

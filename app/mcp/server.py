@@ -16,6 +16,7 @@ Backend implementations: app/catalog/* + app/domain/reports/generator.py
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -36,7 +37,7 @@ from app.mcp._catalog import (  # noqa: E402 — imported after logger init; kep
 
 
 # ── Tool implementations ──────────────────────────────────────────
-async def call_tool(name: str, arguments: dict) -> dict:
+async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Dispatch a tool call to the appropriate backend."""
     from app.catalog.service import get_catalog
 

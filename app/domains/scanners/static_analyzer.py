@@ -138,7 +138,7 @@ class StaticAnalyzer:
         self._slither_available = shutil.which(SLITHER_BIN) is not None
         self._heimdall_available = shutil.which(HEIMDALL_BIN) is not None
 
-    async def _fetch_contract_source(self, address: str, chain: str) -> dict | None:
+    async def _fetch_contract_source(self, address: str, chain: str) -> dict[str, Any] | None:
         """Fetch verified contract source from Etherscan-style explorer."""
         chain_cfg = CHAINS.get(chain)
         if not chain_cfg or not chain_cfg.explorer_api_url:
@@ -345,7 +345,7 @@ class StaticAnalyzer:
             logger.debug(f"SmartCheck query failed for {address}: {e}")
         return findings
 
-    def _check_dangerous_functions(self, findings: list[dict]) -> list[str]:
+    def _check_dangerous_functions(self, findings: list[dict[str, Any]]) -> list[str]:
         """Check Slither findings for dangerous function names."""
         found = set()
         for f in findings:

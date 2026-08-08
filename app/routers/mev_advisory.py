@@ -1,6 +1,7 @@
 """MEV Protection Advisory - warns users before trading in sandwich-prone pools."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -16,7 +17,7 @@ RMI_KEY = INTERNAL_API_KEY
 
 
 @router.get("/check/{address}")
-async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict:
+async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict[str, Any]:
     """Check MEV risk before trading a token. Returns sandwich attack risk and protection recommendation."""
     async with httpx.AsyncClient(timeout=15) as c:
         # Use existing MEV sandwich detector
@@ -64,7 +65,7 @@ async def check_mev_risk(address: str, chain: str = Query("ethereum")) -> dict:
 
 
 @router.get("/safe-swap")
-async def safe_swap_params(address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)) -> dict:
+async def safe_swap_params(address: str, chain: str = "ethereum", amount_usd: float = Query(100, ge=1)) -> dict[str, Any]:
     """Get optimal swap parameters to avoid MEV."""
     risk = await check_mev_risk(address, chain)
 

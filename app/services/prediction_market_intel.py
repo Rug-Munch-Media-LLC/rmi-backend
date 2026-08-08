@@ -24,11 +24,11 @@ This is the "people actually want to know" layer.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.prediction.prediction_market_service import (
@@ -47,7 +47,7 @@ class IntelSignal:
     severity: str  # critical, high, medium, low, info
     headline: str  # One-line summary
     insight: str  # What it means in plain English
-    evidence: list[dict]  # Supporting data points
+    evidence: list[dict[str, Any]]  # Supporting data points
     action: str  # Recommended action
     confidence: float  # 0.0-1.0
     generated_at: str
@@ -63,7 +63,7 @@ class CryptoFearIndex:
     regulatory_risk: float  # 0-100
     stablecoin_risk: float  # 0-100
     exchange_risk: float  # 0-100
-    components: list[dict]  # Individual markets contributing
+    components: list[dict[str, Any]]  # Individual markets contributing
     generated_at: str
 
 
@@ -90,8 +90,8 @@ class PredictionMarketIntel:
     def __init__(self) -> None:
         self._svc = get_prediction_market_service()
         # In-memory cache (Redis unavailable in current env)
-        self._fear_cache: tuple | None = None  # (timestamp, CryptoFearIndex)
-        self._signals_cache: tuple | None = None  # (timestamp, list[IntelSignal])
+        self._fear_cache: tuple[Any, ...] | None = None  # (timestamp, CryptoFearIndex)
+        self._signals_cache: tuple[Any, ...] | None = None  # (timestamp, list[IntelSignal])
         self._fear_cache_ttl = 300  # 5 minutes
         self._signals_cache_ttl = 120  # 2 minutes
 
@@ -384,7 +384,7 @@ class PredictionMarketIntel:
 
         return weighted_sum / total_weight if total_weight > 0 else 0.0
 
-    def _market_summary(self, m: PredictionMarket) -> dict:
+    def _market_summary(self, m: PredictionMarket) -> dict[str, Any]:
         """Create a compact market summary for signal evidence."""
         return {
             "source": m.source,

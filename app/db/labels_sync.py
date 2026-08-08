@@ -50,7 +50,7 @@ def get_client() -> Any:
     )
 
 
-def parse_file(path: Path) -> list[dict]:
+def parse_file(path: Path) -> list[dict[str, Any]]:
     """Parse a file into a list of dicts keyed by CH column names.
 
     Supports:
@@ -58,7 +58,7 @@ def parse_file(path: Path) -> list[dict]:
       - .csv    (header row, comma-delimited)
     """
     suffix = path.suffix.lower()
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
 
     if suffix == ".jsonl":
         with open(path) as f:
@@ -94,7 +94,7 @@ def parse_file(path: Path) -> list[dict]:
     return rows
 
 
-def upsert_batch(client: Any, batch: list[dict]) -> int:
+def upsert_batch(client: Any, batch: list[dict[str, Any]]) -> int:
     """INSERT a batch into MergeTree. Duplicates are handled by
     ORDER BY (address, label_name, source) — same-key rows coexist
     in MergeTree. For dedup, run periodically:

@@ -3,6 +3,7 @@ Scam School — Pydantic request/response models.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from pydantic import BaseModel
@@ -41,7 +42,7 @@ class UserProgress(BaseModel):
     lessons_progress: dict[str, LessonProgress] = {}
     badges: list[str] = []
     achievements: list[str] = []
-    certificates: list[dict] = []
+    certificates: list[dict[str, Any]] = []
     time_spent_total_minutes: int = 0
 
 

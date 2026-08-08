@@ -16,10 +16,10 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import time
+from typing import Any
 
 import httpx
 
@@ -33,7 +33,7 @@ SOLANA_TOKEN_URL = "https://server.smithery.ai/@insomniactools/solana-agentkit-m
 AUTONSOL_URL = "https://server.smithery.ai/..."  # placeholder - need exact URL
 
 # Cache
-_l1: dict[str, tuple] = {}
+_l1: dict[str, tuple[Any, ...]] = {}
 _cache_hits = 0
 _cache_misses = 0
 
@@ -56,7 +56,7 @@ class MCPDataSources:
             )
         return self._http
 
-    async def _mcp_call(self, url: str, tool: str, args: dict, ttl: int = 60) -> dict | None:
+    async def _mcp_call(self, url: str, tool: str, args: dict[str, Any], ttl: int = 60) -> dict[str, Any] | None:
         """Make a cached MCP tool call."""
         global _cache_hits, _cache_misses
         cache_key = f"mcp:{tool}:{json.dumps(args, sort_keys=True)}"
@@ -101,7 +101,7 @@ class MCPDataSources:
     # BOAR BLOCKCHAIN - EVM Data (50 tools, FREE, keyless)
     # ═══════════════════════════════════════════════════════════════════════
 
-    async def evm_balance(self, address: str, chain: str = "ethereum") -> dict | None:
+    async def evm_balance(self, address: str, chain: str = "ethereum") -> dict[str, Any] | None:
         """Get ETH/native balance. Free, no key."""
         return await self._mcp_call(
             BOAR_URL,
@@ -113,7 +113,7 @@ class MCPDataSources:
             ttl=15,
         )
 
-    async def evm_transactions(self, address: str, chain: str = "ethereum", limit: int = 10) -> dict | None:
+    async def evm_transactions(self, address: str, chain: str = "ethereum", limit: int = 10) -> dict[str, Any] | None:
         """Get recent transactions."""
         return await self._mcp_call(
             BOAR_URL,
@@ -126,7 +126,7 @@ class MCPDataSources:
             ttl=30,
         )
 
-    async def evm_contract_info(self, address: str, chain: str = "ethereum") -> dict | None:
+    async def evm_contract_info(self, address: str, chain: str = "ethereum") -> dict[str, Any] | None:
         """Get contract/ERC-20 info."""
         return await self._mcp_call(
             BOAR_URL,
@@ -138,7 +138,7 @@ class MCPDataSources:
             ttl=300,
         )
 
-    async def ens_resolve(self, name: str) -> dict | None:
+    async def ens_resolve(self, name: str) -> dict[str, Any] | None:
         """Resolve ENS name to address."""
         return await self._mcp_call(
             BOAR_URL,
@@ -149,7 +149,7 @@ class MCPDataSources:
             ttl=3600,
         )
 
-    async def evm_block_info(self, block_number: int | None = None, chain: str = "ethereum") -> dict | None:
+    async def evm_block_info(self, block_number: int | None = None, chain: str = "ethereum") -> dict[str, Any] | None:
         """Get block info."""
         args = {"chain": chain}
         if block_number:
@@ -160,7 +160,7 @@ class MCPDataSources:
     # SOLANA TOKEN ANALYSIS - Risk Scoring (6 tools, NO AUTH)
     # ═══════════════════════════════════════════════════════════════════════
 
-    async def solana_risk_score(self, mint: str) -> dict | None:
+    async def solana_risk_score(self, mint: str) -> dict[str, Any] | None:
         """Get token risk score 0-100. Free, no auth."""
         return await self._mcp_call(
             SOLANA_TOKEN_URL,
@@ -171,7 +171,7 @@ class MCPDataSources:
             ttl=60,
         )
 
-    async def solana_momentum(self, mint: str) -> dict | None:
+    async def solana_momentum(self, mint: str) -> dict[str, Any] | None:
         """Get BUY/SELL momentum signals."""
         return await self._mcp_call(
             SOLANA_TOKEN_URL,
@@ -182,7 +182,7 @@ class MCPDataSources:
             ttl=15,
         )
 
-    async def solana_batch_screen(self, mints: list[str]) -> dict | None:
+    async def solana_batch_screen(self, mints: list[str]) -> dict[str, Any] | None:
         """Batch screen multiple tokens for risk."""
         return await self._mcp_call(
             SOLANA_TOKEN_URL,
@@ -197,7 +197,7 @@ class MCPDataSources:
     # AUTONSOL/SOL-MCP - Rug Detection (FREE)
     # ═══════════════════════════════════════════════════════════════════════
 
-    async def rug_check(self, mint: str) -> dict | None:
+    async def rug_check(self, mint: str) -> dict[str, Any] | None:
         """Real-time rug pull detection with flags."""
         return await self._mcp_call(
             AUTONSOL_URL,
@@ -212,7 +212,7 @@ class MCPDataSources:
     # STATS
     # ═══════════════════════════════════════════════════════════════════════
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {
             "cache_hits": _cache_hits,
             "cache_misses": _cache_misses,

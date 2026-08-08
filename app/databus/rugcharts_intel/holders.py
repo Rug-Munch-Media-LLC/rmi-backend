@@ -4,10 +4,10 @@ Distribution analysis (Gini, concentration, freshness).
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from .cache import CACHE_TTL, HELIUS_KEY, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def holder_health_score(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def holder_health_score(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Analyze holder distribution for rug pull risk indicators.
     Metrics: Gini coefficient, top 10%, fresh wallets, whale dominance.
     """

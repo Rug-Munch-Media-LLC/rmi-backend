@@ -48,7 +48,7 @@ class DetectionSignal:
         self.confidence = confidence  # 0.0 to 1.0
         self.detail = detail
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source": self.source,
             "score": round(self.score, 3),
@@ -93,7 +93,7 @@ class AuthenticityResult:
     def __init__(self) -> None:
         self.source = "volume_authenticity_scorer"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "fake_volume_pct": self.fake_volume_pct,
             "authentic_score": self.authentic_score,
@@ -463,7 +463,7 @@ def _redis_connect() -> Any:
     )
 
 
-async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum", **kw) -> dict | None:
+async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum", **kw) -> dict[str, Any] | None:
     """DataBus provider: Full fake volume analysis for a token pair.
 
     Collects trade data from available sources, runs through all 4 detection layers,
@@ -591,7 +591,7 @@ def quick_authenticity_score(
     tx_count: int,
     buy_count: int = 0,
     sell_count: int = 0,
-) -> dict:
+) -> dict[str, Any]:
     """Fast authenticity check with minimal data. Returns fake_volume_pct + risk."""
     signals = []
     if liquidity > 0:

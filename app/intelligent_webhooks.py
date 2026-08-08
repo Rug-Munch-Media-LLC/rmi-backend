@@ -9,13 +9,13 @@ Processes Helius, Moralis, and custom webhook events with:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -45,7 +45,7 @@ class SmartAlert:
     risk_score: float = 0.0
     cluster_id: str | None = None
     related_wallets: list[str] = field(default_factory=list)
-    enriched_data: dict = field(default_factory=dict)
+    enriched_data: dict[str, Any] = field(default_factory=dict)
     actions: list[str] = field(default_factory=list)  # Recommended actions
 
 
@@ -69,7 +69,7 @@ class IntelligentWebhookProcessor:
     }
 
     def __init__(self) -> None:
-        self._recent_events: dict[str, list[dict]] = defaultdict(list)  # wallet -> events
+        self._recent_events: dict[str, list[dict[str, Any]]] = defaultdict(list)  # wallet -> events
         self._cluster_cache: dict[str, str] = {}  # wallet -> cluster_id
         self._scam_registry: set[str] = set()  # known scam addresses
 
@@ -78,7 +78,7 @@ class IntelligentWebhookProcessor:
         data = f"{source}:{wallet}:{int(ts)}"
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
-    async def _enrich_wallet(self, wallet: str, chain: str) -> dict:
+    async def _enrich_wallet(self, wallet: str, chain: str) -> dict[str, Any]:
         """Enrich wallet with RAG lookup and cluster data."""
         enriched = {
             "labels": [],
@@ -163,7 +163,7 @@ class IntelligentWebhookProcessor:
 
         return False
 
-    def _calculate_risk_score(self, event: dict, enriched: dict) -> float:
+    def _calculate_risk_score(self, event: dict[str, Any], enriched: dict[str, Any]) -> float:
         """Calculate composite risk score (0-100)."""
         score = 0.0
 
@@ -239,7 +239,7 @@ class IntelligentWebhookProcessor:
 
         return actions
 
-    async def process_helius_event(self, event: dict) -> SmartAlert | None:
+    async def process_helius_event(self, event: dict[str, Any]) -> SmartAlert | None:
         """Process Helius webhook event with intelligent analysis."""
         try:
             # Extract key data
@@ -314,7 +314,7 @@ class IntelligentWebhookProcessor:
             logger.warning(f"Helius event processing failed: {e}")
             return None
 
-    async def process_moralis_event(self, event: dict) -> SmartAlert | None:
+    async def process_moralis_event(self, event: dict[str, Any]) -> SmartAlert | None:
         """Process Moralis Stream event with intelligent analysis."""
         try:
             # Extract key data
@@ -394,7 +394,7 @@ class IntelligentWebhookProcessor:
             logger.warning(f"Moralis event processing failed: {e}")
             return None
 
-    async def get_correlated_alerts(self, wallet: str, window_hours: int = 24) -> list[dict]:
+    async def get_correlated_alerts(self, wallet: str, window_hours: int = 24) -> list[dict[str, Any]]:
         """Get correlated events for a wallet."""
         events = self._recent_events.get(wallet, [])
         cutoff = time.time() - (window_hours * 3600)

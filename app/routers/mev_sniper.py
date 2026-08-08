@@ -39,7 +39,7 @@ class SnipeSignal(BaseModel):
     snipe_score: int = 0  # 0-100, composite attractiveness
 
 
-async def _get_new_pairs(chain: str, max_age_min: int = 30) -> list[dict]:
+async def _get_new_pairs(chain: str, max_age_min: int = 30) -> list[dict[str, Any]]:
     """Fetch newly created pairs from DexScreener."""
     pairs = []
     try:
@@ -79,7 +79,7 @@ async def get_snipe_signals(
     min_liquidity: float = Query(5000, ge=0),
     min_safety: int = Query(30, ge=0, le=100),
     limit: int = Query(20, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Get real-time snipe signals for a chain. Sorted by snipe_score descending."""
     pairs = await _get_new_pairs(chain, max_age_min)
     signals: list[dict[str, Any]] = []
@@ -139,5 +139,5 @@ async def get_snipe_signals(
     summary="List Sniper Chains",
     description="List all supported blockchain networks available for MEV sniper signal detection.",
 )
-async def list_sniper_chains() -> dict:
+async def list_sniper_chains() -> dict[str, Any]:
     return {"chains": CHAINS}

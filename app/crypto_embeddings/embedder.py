@@ -176,7 +176,7 @@ class CryptoEmbedder:
         contract_code: str = "",
         creator_address: str = "",
         chain: str = "solana",
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> EmbeddingResult:
         semantic_text = f"""Token Analysis: {name} ({symbol}) on {chain}.
 Description: {description[:2000]}
@@ -213,7 +213,7 @@ Metadata: {json.dumps(metadata or {})[:1000]}"""
     async def embed_wallet(
         self,
         address: str,
-        transactions: list[dict] | None = None,
+        transactions: list[dict[str, Any]] | None = None,
         labels: list[str] | None = None,
         chain: str = "solana",
         balance_usd: float = 0,

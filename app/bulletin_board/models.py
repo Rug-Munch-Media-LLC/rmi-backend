@@ -1,10 +1,10 @@
 """Bulletin board data models and enums."""
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
+from typing import Any
 
 
 class PostStatus(StrEnum):
@@ -68,7 +68,7 @@ class Post:
     pinned: bool = False
     pin_order: int = 0
     featured_image: str = ""
-    attachments: list[dict] = field(default_factory=list)
+    attachments: list[dict[str, Any]] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     meta_title: str = ""
     meta_description: str = ""
@@ -77,17 +77,17 @@ class Post:
     click_count: int = 0
     engagement_score: float = 0.0
     version: int = 1
-    edit_history: list[dict] = field(default_factory=list)
+    edit_history: list[dict[str, Any]] = field(default_factory=list)
     approved_by: str = ""
     approved_at: str | None = None
     notification_sent: bool = False
     allow_comments: bool = False
     comments_count: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-    def to_public_dict(self) -> dict:
+    def to_public_dict(self) -> dict[str, Any]:
         return {
             "post_id": self.post_id,
             "title": self.title,
@@ -129,7 +129,7 @@ class Comment:
     parent_id: str | None = None
     status: str = "approved"
     likes: int = 0
-    replies: list[dict] = field(default_factory=list)
+    replies: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)

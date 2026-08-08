@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, ClassVar, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from app.domains.tokens.deployer.evm import EVMDeployer
 from app.domains.tokens.deployer.solana import SolanaDeployer
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class TokenDeployerFactory:
     """Factory to create the right deployer for a given chain."""
 
-    CHAIN_CONFIG: ClassVar[dict] = {
+    CHAIN_CONFIG: ClassVar[dict[str, Any]] = {
         "ethereum": {
             "deployer_class": EVMDeployer,
             "rpc_env": "ETH_RPC_URL",

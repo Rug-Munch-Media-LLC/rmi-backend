@@ -25,7 +25,7 @@ from app.domains.wallet.clustering.models import Cluster, Connection, Transactio
 logger = logging.getLogger(__name__)
 
 
-async def get_wallet_entity(address: str) -> dict | None:
+async def get_wallet_entity(address: str) -> dict[str, Any] | None:
     """Get entity info for a wallet address from Neo4j label graph.
 
     Called by rugmaps_engine graph.py for wallet entity enrichment.
@@ -42,7 +42,7 @@ async def get_wallet_entity(address: str) -> dict | None:
     return None
 
 
-async def find_related_by_label(address: str) -> list[dict]:
+async def find_related_by_label(address: str) -> list[dict[str, Any]]:
     """Find wallets sharing labels with this address (entity resolution)."""
     try:
         from app.domains.wallet.neo4j_client import find_related_wallets

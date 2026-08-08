@@ -13,11 +13,11 @@ Uses solc (Solidity compiler) already installed in the Docker container.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import re
 import subprocess
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -42,7 +42,7 @@ TARGET_CHUNK_SIZE = 2000
 MAX_CHUNK_SIZE = 3500
 
 
-def parse_solidity_ast(source: str) -> dict | None:
+def parse_solidity_ast(source: str) -> dict[str, Any] | None:
     """Parse Solidity source into AST using solc.
 
     Returns the AST JSON or None if parsing fails.
@@ -78,7 +78,7 @@ def parse_solidity_ast(source: str) -> dict | None:
 
 
 def extract_boundaries(
-    ast: dict,
+    ast: dict[str, Any],
     source: str,
 ) -> list[tuple[int, int, str]]:
     """

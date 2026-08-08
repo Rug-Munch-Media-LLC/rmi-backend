@@ -104,7 +104,7 @@ class GovernanceAttackDetector:
 
     # ── Direct API fetchers ─────────────────────────────────────────
 
-    async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
+    async def _fetch_dexscreener_token(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
             resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
@@ -117,7 +117,7 @@ class GovernanceAttackDetector:
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
-    async def _fetch_solscan_holders(self, token_address: str, top_n: int = 20) -> list[dict]:
+    async def _fetch_solscan_holders(self, token_address: str, top_n: int = 20) -> list[dict[str, Any]]:
         """Fetch top holders from Solscan (Solana only)."""
         try:
             from app.free_solscan_client import FreeSolscanClient
@@ -130,7 +130,7 @@ class GovernanceAttackDetector:
             logger.warning(f"Solscan holders failed for {token_address}: {e}")
             return []
 
-    async def _fetch_birdeye_overview(self, token_address: str) -> dict | None:
+    async def _fetch_birdeye_overview(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token overview from Birdeye."""
         if not self._birdeye_key:
             return None
@@ -148,7 +148,7 @@ class GovernanceAttackDetector:
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
         return None
 
-    async def _fetch_evm_holders(self, token_address: str, chain: str) -> list[dict]:
+    async def _fetch_evm_holders(self, token_address: str, chain: str) -> list[dict[str, Any]]:
         """Fetch top EVM token holders from Etherscan-style explorer."""
         from app.chain_registry import CHAINS
 
@@ -233,7 +233,7 @@ class GovernanceAttackDetector:
 
     # ── Analysis helpers ────────────────────────────────────────────
 
-    def _parse_holders(self, raw_holders: list[dict]) -> list[HolderStake]:
+    def _parse_holders(self, raw_holders: list[dict[str, Any]]) -> list[HolderStake]:
         """Parse raw holder data into HolderStake objects."""
         holders = []
         for h in raw_holders:
@@ -312,7 +312,7 @@ class GovernanceAttackDetector:
 
         return params
 
-    def _check_solana_governance(self, dex_data: dict | None, birdeye_data: dict | None) -> GovernanceParams:
+    def _check_solana_governance(self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None) -> GovernanceParams:
         """Infer governance risk for Solana SPL tokens.
 
         Solana doesn't have governor contracts in the EVM sense.
@@ -417,7 +417,7 @@ class GovernanceAttackDetector:
         # 1. Fetch DEX + holder data
         dex_data = await self._fetch_dexscreener_token(token_address)
 
-        raw_holders: list[dict] = []
+        raw_holders: list[dict[str, Any]] = []
         if is_solana(chain):
             raw_holders = await self._fetch_solscan_holders(token_address, top_n=20)
         elif is_evm(chain):

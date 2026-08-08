@@ -47,7 +47,7 @@ class MetricPoint:
     value: float
     labels: dict[str, str] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -78,7 +78,7 @@ class MetricSeries:
             return "flat"
         return "up" if diff > 0 else "down"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,

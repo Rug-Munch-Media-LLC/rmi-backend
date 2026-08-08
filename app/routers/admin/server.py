@@ -3,13 +3,13 @@ Server admin endpoints (processes, disk, network deep-dive, system updates).
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import contextlib
 import json
 import logging
 import os
+from typing import Any
 
 import psutil
 from fastapi import APIRouter, Depends, Request
@@ -22,7 +22,7 @@ server_router = APIRouter()
 
 
 @server_router.get("/processes")
-async def admin_processes(request: Request, _=Depends(verify_admin)) -> dict | dict[str, str]:
+async def admin_processes(request: Request, _=Depends(verify_admin)) -> dict[str, Any] | dict[str, str]:
     """Get running processes on the server."""
     try:
         processes = []
@@ -44,7 +44,7 @@ async def admin_processes(request: Request, _=Depends(verify_admin)) -> dict | d
 
 
 @server_router.get("/disk")
-async def admin_disk(request: Request, _=Depends(verify_admin)) -> dict | dict[str, str]:
+async def admin_disk(request: Request, _=Depends(verify_admin)) -> dict[str, Any] | dict[str, str]:
     """Get disk usage information."""
     try:
         disks = []
@@ -69,7 +69,7 @@ async def admin_disk(request: Request, _=Depends(verify_admin)) -> dict | dict[s
 
 
 @server_router.get("/network")
-async def admin_network(request: Request, _=Depends(verify_admin)) -> dict | dict[str, str]:
+async def admin_network(request: Request, _=Depends(verify_admin)) -> dict[str, Any] | dict[str, str]:
     """Get network I/O statistics."""
     try:
         net = psutil.net_io_counters()
@@ -86,13 +86,13 @@ async def admin_network(request: Request, _=Depends(verify_admin)) -> dict | dic
 
 
 @server_router.get("/updates")
-async def admin_updates(request: Request, _=Depends(verify_admin)) -> dict:
+async def admin_updates(request: Request, _=Depends(verify_admin)) -> dict[str, Any]:
     """Get system update status — Docker, packages, Python deps, system health.
 
     Delegates to the system-updates-check.sh script and augments with
     real-time psutil data. No external API calls — all local checks.
     """
-    result: dict = {
+    result: dict[str, Any] = {
         "status": "ok",
         "system_packages": 0,
         "python_packages": 0,
@@ -166,7 +166,7 @@ async def admin_updates(request: Request, _=Depends(verify_admin)) -> dict:
                     )
             result["docker_images"] = images
 
-            def _size_sort(img: dict) -> float:
+            def _size_sort(img: dict[str, Any]) -> float:
                 s = img["size"]
                 if "GB" in s:
                     return float(s.replace("GB", "").strip()) * 1024

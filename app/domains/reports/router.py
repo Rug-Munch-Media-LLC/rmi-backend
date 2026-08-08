@@ -15,6 +15,7 @@ so the caller can decide whether to integrate the payment flow.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -112,7 +113,7 @@ def _extract_risk_factors(exec_summary: str) -> list[str]:
 
 
 @router.get("/{report_id}")
-async def get_report(report_id: str) -> dict:
+async def get_report(report_id: str) -> dict[str, Any]:
     """Retrieve a previously generated report from Postgres."""
     catalog = get_catalog()
     await catalog._init_stores()

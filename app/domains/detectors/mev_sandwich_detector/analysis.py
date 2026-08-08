@@ -1,10 +1,11 @@
 """Analysis helper functions for MEV detection."""
 
 from __future__ import annotations
+
 from typing import Any
 
 
-def _check_pool_vulnerability(pool: dict) -> list[str]:
+def _check_pool_vulnerability(pool: dict[str, Any]) -> list[str]:
     """Score a DEX pool for MEV vulnerability based on characteristics. Returns vulnerability flags."""
     flags: list[str] = []
     liquidity = pool.get("liquidity_usd", 0) or 0
@@ -38,7 +39,7 @@ def _estimate_mev_vulnerability_score(flags: list[str]) -> float:
     return min(score, 1.0)
 
 
-def _is_sandwich_pattern(frontrun: dict, victim: dict, backrun: dict) -> float:
+def _is_sandwich_pattern(frontrun: dict[str, Any], victim: dict[str, Any], backrun: dict[str, Any]) -> float:
     """Heuristic check: are these three transactions a sandwich attack? Returns confidence 0.0-1.0."""
     confidence = 0.0
 

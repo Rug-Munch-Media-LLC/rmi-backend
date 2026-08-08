@@ -90,11 +90,11 @@ class ArkhamClient:
     async def _call(
         self,
         endpoint: str,
-        params: dict | None = None,
+        params: dict[str, Any] | None = None,
         *,
         use_cache: bool = True,
         cache_ttl: int | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Core HTTP GET with rate limiting, caching, error handling, and circuit breaker.
 
         Args:
@@ -172,7 +172,7 @@ class ArkhamClient:
 
     # ── Public API Methods ───────────────────────────────────────────────
 
-    async def get_entity(self, address: str) -> dict:
+    async def get_entity(self, address: str) -> dict[str, Any]:
         """Resolve a blockchain address to a known entity.
 
         Returns entity name, category, and attribution metadata."""
@@ -181,7 +181,7 @@ class ArkhamClient:
             cache_ttl=300,  # entity resolution is fairly static
         )
 
-    async def get_labels(self, page: int = 0, limit: int = 100) -> dict:
+    async def get_labels(self, page: int = 0, limit: int = 100) -> dict[str, Any]:
         """Fetch all known labels from Arkham's database.
 
         Returns:
@@ -192,7 +192,7 @@ class ArkhamClient:
             cache_ttl=300,
         )
 
-    async def get_portfolio(self, address: str) -> dict:
+    async def get_portfolio(self, address: str) -> dict[str, Any]:
         """Get historical portfolio holdings for an entity/address.
 
         Returns:

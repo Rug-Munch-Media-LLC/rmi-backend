@@ -7,13 +7,13 @@ Uses MiniMax ($20/mo flat) + Ollama Cloud.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 import urllib.request
 from collections import Counter
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -26,7 +26,7 @@ _trending_topics = Counter()
 _breaking_alerts = []
 
 
-def analyze_article(title: str, content: str = "") -> dict:
+def analyze_article(title: str, content: str = "") -> dict[str, Any]:
     """Full AI analysis of a news article."""
     text = f"{title} {content[:300]}"
 
@@ -108,12 +108,12 @@ def analyze_article(title: str, content: str = "") -> dict:
     }
 
 
-def get_trending(limit: int = 10) -> list:
+def get_trending(limit: int = 10) -> list[Any]:
     """Get trending topics from recent article analysis."""
     return [{"topic": word, "count": count} for word, count in _trending_topics.most_common(limit)]
 
 
-def get_breaking() -> list:
+def get_breaking() -> list[Any]:
     """Get breaking news alerts."""
     return _breaking_alerts[-10:]
 
@@ -151,7 +151,7 @@ def daily_briefing() -> str:
         return f"Daily briefing: {topics} are trending in crypto news today."
 
 
-def news_search(query: str, articles: list, limit: int = 10) -> list:
+def news_search(query: str, articles: list[Any], limit: int = 10) -> list[Any]:
     """Smart search across articles with relevance ranking."""
     results = []
     q_lower = query.lower()

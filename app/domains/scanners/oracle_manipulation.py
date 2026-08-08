@@ -112,7 +112,7 @@ class OracleManipulationDetector:
 
     # ── Direct API fetchers ─────────────────────────────────────────
 
-    async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
+    async def _fetch_dexscreener_token(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
             resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")

@@ -360,7 +360,7 @@ class WalletRecord:
     balance_raw: str = "0"
     balance_decimal: float = 0.0
     balance_usd: float = 0.0
-    token_balances: dict[str, dict] = field(default_factory=dict)
+    token_balances: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Transaction tracking
     total_received: float = 0.0
@@ -389,10 +389,10 @@ class WalletRecord:
     notes: str = ""
     version: int = 1
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-    def to_safe_dict(self) -> dict:
+    def to_safe_dict(self) -> dict[str, Any]:
         """Return without sensitive data."""
         d = self.to_dict()
         d.pop("public_key", None)
@@ -434,7 +434,7 @@ class PaymentRecord:
 
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -450,7 +450,7 @@ class WalletRotationSchedule:
     last_rotated: str | None = None
     next_rotation: str | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 

@@ -12,6 +12,7 @@ Source: app/domains/databus/_generated/provider_chains.py (original god file).
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -26,7 +27,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
     """Build passthrough chains for Hyperliquid, insider wallets, and prediction signals."""
 
     # ── HYPERLIQUID - Perp markets and funding rates ──
-    async def _passthrough_hyperliquid(**kwargs) -> dict | None:
+    async def _passthrough_hyperliquid(**kwargs) -> dict[str, Any] | None:
         try:
             limit = kwargs.get("limit", 10)
             async with httpx.AsyncClient(timeout=10) as c:
@@ -46,7 +47,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
     )
 
     # ── HYPERLIQUID ACTION - Gain/Loss Porn & Squeezes ──
-    async def _passthrough_hyperliquid_action(**kwargs) -> dict | None:
+    async def _passthrough_hyperliquid_action(**kwargs) -> dict[str, Any] | None:
         try:
             limit = kwargs.get("limit", 5)
             async with httpx.AsyncClient(timeout=10) as c:
@@ -71,7 +72,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
     )
 
     # ── INSIDER WALLETS - Premium intelligence ──
-    async def _passthrough_insider_wallets(**kwargs) -> dict | None:
+    async def _passthrough_insider_wallets(**kwargs) -> dict[str, Any] | None:
         try:
             limit = kwargs.get("limit", 10)
             tier = kwargs.get("tier", "free")
@@ -92,7 +93,7 @@ def build_misc_chains(chains: dict[str, ProviderChain]) -> None:
     )
 
     # ── PREDICTION SIGNALS - Market intelligence layer ──
-    async def _passthrough_prediction_signals(**kwargs) -> dict | None:
+    async def _passthrough_prediction_signals(**kwargs) -> dict[str, Any] | None:
         try:
             limit = kwargs.get("limit", 5)
             tier = kwargs.get("tier", "free")

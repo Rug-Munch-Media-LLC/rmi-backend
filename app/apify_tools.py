@@ -16,7 +16,7 @@ APIFY_TOKEN = os.getenv("APIFY_API_TOKEN", "")
 APIFY_BASE = "https://api.apify.com/v2"
 
 
-def _apify_call(actor_id: str, run_input: dict, timeout: int = 120) -> dict | None:
+def _apify_call(actor_id: str, run_input: dict[str, Any], timeout: int = 120) -> dict[str, Any] | None:
     """Run an Apify actor and return results."""
     if not APIFY_TOKEN:
         return {"error": "APIFY_API_TOKEN not configured"}

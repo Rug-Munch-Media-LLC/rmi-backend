@@ -12,6 +12,7 @@ Usage in x402 routers:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.caching_shield.unified_layer import get_data_layer
@@ -23,31 +24,31 @@ class ToolData:
     def __init__(self) -> None:
         self._layer = get_data_layer()
 
-    async def token_price(self, mint: str) -> dict:
+    async def token_price(self, mint: str) -> dict[str, Any]:
         r = await self._layer.fetch("token_price", mint=mint)
         return r.to_dict() if r else {"error": "no data"}
 
-    async def token_meta(self, mint: str) -> dict:
+    async def token_meta(self, mint: str) -> dict[str, Any]:
         r = await self._layer.fetch("token_meta", mint=mint)
         return r.to_dict() if r else {"error": "no data"}
 
-    async def wallet_balance(self, address: str) -> dict:
+    async def wallet_balance(self, address: str) -> dict[str, Any]:
         r = await self._layer.fetch("wallet_balance", address=address)
         return r.to_dict() if r else {"error": "no data"}
 
-    async def risk_scan(self, address: str, chain: str = "solana") -> dict:
+    async def risk_scan(self, address: str, chain: str = "solana") -> dict[str, Any]:
         r = await self._layer.fetch("risk_scan", address=address, chain=chain)
         return r.to_dict() if r else {"error": "no data"}
 
-    async def tx_history(self, address: str) -> dict:
+    async def tx_history(self, address: str) -> dict[str, Any]:
         r = await self._layer.fetch("tx_history", address=address)
         return r.to_dict() if r else {"error": "no data"}
 
-    async def funding_source(self, address: str, chain_id: int = 1) -> dict:
+    async def funding_source(self, address: str, chain_id: int = 1) -> dict[str, Any]:
         r = await self._layer.fetch("funding_source", address=address, chain_id=chain_id)
         return r.to_dict() if r else {"error": "no data"}
 
-    async def call_tool(self, tool_id: str, params: dict | None = None) -> dict:
+    async def call_tool(self, tool_id: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Generic tool dispatcher - calls unified_layer.fetch with tool_id and params.
 
         This is the primary method for trial execution and MCP tool calls.
@@ -93,7 +94,7 @@ class ToolData:
         # Tool not available via DataBus - return None so middleware falls back
         return None
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return self._layer.stats()
 
 

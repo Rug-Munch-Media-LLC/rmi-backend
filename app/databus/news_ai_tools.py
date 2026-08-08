@@ -30,7 +30,7 @@ OLLAMA_URL = "http://ollama:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5-coder:7b"  # Fast, good quality
 
 
-def news_sentiment_analysis(query: str = "", limit: int = 20) -> dict:
+def news_sentiment_analysis(query: str = "", limit: int = 20) -> dict[str, Any]:
     """AI-powered sentiment analysis across 500+ crypto news sources."""
     articles = get_news_articles(limit, query)
     if not articles:
@@ -64,7 +64,7 @@ Respond in JSON format: {{"sentiment": "...", "confidence": ..., "top_stories": 
 
 
 # ── TOOL 2: Market Sentiment Summary ──
-def market_sentiment_summary() -> dict:
+def market_sentiment_summary() -> dict[str, Any]:
     """AI-generated market mood summary from 500+ sources."""
     articles = get_news_articles(50)
     if not articles:
@@ -98,7 +98,7 @@ Respond in JSON: {{"mood_summary": "...", "bullish_themes": ["...","...","..."],
 
 
 # ── TOOL 3: Trending Narratives ──
-def trending_narratives(min_mentions: int = 3) -> dict:
+def trending_narratives(min_mentions: int = 3) -> dict[str, Any]:
     """AI-identified trending crypto narratives from 500+ sources."""
     articles = get_news_articles(100)
     if not articles:
@@ -131,7 +131,7 @@ Respond in JSON: {{"narratives": [{{"name": "...", "mentions": ..., "summary": "
 
 
 # ── TOOL 4: News Impact Analysis ──
-def news_impact_analysis(token: str) -> dict:
+def news_impact_analysis(token: str) -> dict[str, Any]:
     """Analyze how recent news impacts a specific crypto token."""
     articles = get_news_articles(30, token)
     if not articles:
@@ -169,7 +169,7 @@ Respond in JSON: {{"token": "{token}", "impact": "POSITIVE/NEGATIVE/NEUTRAL", "c
 
 
 # ── TOOL 5: Daily Intel Brief ──
-def daily_intel_brief() -> dict:
+def daily_intel_brief() -> dict[str, Any]:
     """AI-generated daily crypto intelligence briefing."""
     articles = get_news_articles(60)
     if not articles:

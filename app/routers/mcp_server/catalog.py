@@ -128,10 +128,10 @@ async def mcp_tools_list(request: Request) -> dict[str, str]:
 
 
 @router.get("/tools")
-async def mcp_tools_mcp_router_format(request: Request) -> dict:
+async def mcp_tools_mcp_router_format(request: Request) -> dict[str, Any]:
     """Serve tools in mcp-router compatible format."""
     tools_data, _cats, _chains_data, _fac_count = _build_tools_list()
-    services: dict[str, list] = {}
+    services: dict[str, list[Any]] = {}
     for tool_id, tool_def in tools_data.items():
         svc = tool_def.get("category", "general")
         if svc not in services:

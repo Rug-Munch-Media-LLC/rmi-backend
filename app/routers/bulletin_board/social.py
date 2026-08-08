@@ -1,6 +1,7 @@
 """Social bulletin board endpoints — badges, leaderboard, x402 bot posting."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import Request  # noqa: TC002 — FastAPI needs runtime resolution for request objects
@@ -25,7 +26,7 @@ from app.routers.bulletin_board.router import router
     summary="Get Badges",
     description="Get all badges earned by a specific user. Includes badge name, description, icon URL, and earned date.",
 )
-async def get_badges(user_id: str) -> dict:
+async def get_badges(user_id: str) -> dict[str, Any]:
     """Get user badges."""
     badges = await get_user_badges(user_id)
     rep = await get_user_reputation(user_id)
@@ -37,7 +38,7 @@ async def get_badges(user_id: str) -> dict:
     summary="Get Leaderboard",
     description="Top users by reputation score. Returns ranking with username, score, badge count, and level.",
 )
-async def get_leaderboard(limit: int = 20) -> dict:
+async def get_leaderboard(limit: int = 20) -> dict[str, Any]:
     """Top users by reputation."""
     r = await BulletinBoardManager._get_redis()
     try:
@@ -61,7 +62,7 @@ async def get_leaderboard(limit: int = 20) -> dict:
 
 
 @router.post("/x402/bot-post")
-async def x402_bot_post(request: Request, data: dict) -> dict[str, bool]:
+async def x402_bot_post(request: Request, data: dict[str, Any]) -> dict[str, bool]:
     """
     Bot posting via x402 - $1 TO JOIN (one-time, 30-day membership).
     Pay $1 once, post unlimited for 30 days. Includes badges.

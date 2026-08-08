@@ -178,14 +178,14 @@ async def _fetch_with_fallback(
 # Multiple scanner modules (_check_honeypot_is, _get_holder_data,
 # _check_liquidity_lock_multi, _get_deployer_info) all call DexScreener
 # for the same token. This LRU cache deduplicates within a process.
-_DEXSCREENER_CACHE: dict[str, dict | None] = {}  # token_address -> response
+_DEXSCREENER_CACHE: dict[str, dict[str, Any] | None] = {}  # token_address -> response
 _DEXSCREENER_CACHE_MAX = 100
 
 
 async def _fetch_dexscreener(
     token_address: str,
     chain: str = "ethereum",
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Fetch DexScreener data once per token, cached per process.
 
     When PREFER_OWN_DATA=true (default), tries ClickHouse own-dex-data first,

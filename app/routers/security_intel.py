@@ -220,7 +220,7 @@ async def batch_contract_scan(req: BatchContractRequest) -> dict[str, int]:
 
 
 @router.get("/wallet/{address}")
-async def wallet_security_check(address: str, chain: str = "auto") -> dict:
+async def wallet_security_check(address: str, chain: str = "auto") -> dict[str, Any]:
     """Full wallet security check: reputation + threat intel."""
     _cg = _L("app.crypto_guard")
     reputation = await _cg.check_wallet_reputation(address, chain)
@@ -248,7 +248,7 @@ async def wallet_security_check(address: str, chain: str = "auto") -> dict:
 
 
 @router.post("/wallet/analyze")
-async def wallet_ml_analysis(req: WalletAnalyzeRequest) -> dict:
+async def wallet_ml_analysis(req: WalletAnalyzeRequest) -> dict[str, Any]:
     """ML behavioral analysis of wallet transactions."""
     # TODO(security-intel): endpoints in this module call APIs that do not match
     # the current class surfaces (ml_anomaly, CrossChainCorrelator,
@@ -407,7 +407,7 @@ async def token_metric_anomaly(req: TokenMetricRequest) -> Any:
 
 
 @router.get("/mempool/status")
-async def mempool_status() -> dict:
+async def mempool_status() -> dict[str, Any]:
     """Mempool sentinel status + recent detections."""
     sentinel = await get_sentinel()
     stats = sentinel.get_stats()  # type: ignore[attr-defined]
@@ -463,7 +463,7 @@ async def dashboard_alerts(
 
 
 @router.post("/dashboard/acknowledge")
-async def dashboard_acknowledge(req: AlertAckRequest) -> dict:
+async def dashboard_acknowledge(req: AlertAckRequest) -> dict[str, Any]:
     """Acknowledge an alert."""
     _sd = _L("app.security_dashboard")
     dash = _sd.get_dashboard()
@@ -472,7 +472,7 @@ async def dashboard_acknowledge(req: AlertAckRequest) -> dict:
 
 
 @router.get("/dashboard/score")
-async def dashboard_score(hours: int = 24) -> dict:
+async def dashboard_score(hours: int = 24) -> dict[str, Any]:
     """Get rolling security score."""
     _sd = _L("app.security_dashboard")
     dash = _sd.get_dashboard()
@@ -484,7 +484,7 @@ async def dashboard_score(hours: int = 24) -> dict:
 
 
 @router.get("/dashboard/timeline/{target}")
-async def dashboard_timeline(target: str) -> dict:
+async def dashboard_timeline(target: str) -> dict[str, Any]:
     """Get incident timeline for a target."""
     _sd = _L("app.security_dashboard")
     dash = _sd.get_dashboard()
@@ -495,7 +495,7 @@ async def dashboard_timeline(target: str) -> dict:
 
 
 @router.get("/entity/label/{address}")
-async def entity_label(address: str) -> dict:
+async def entity_label(address: str) -> dict[str, Any]:
     """Lookup entity label for an address."""
     _el = _L("app.entity_labeler")
     entity = await _el.label_address(address)
@@ -512,7 +512,7 @@ async def entity_batch_label(addresses: list[str]) -> Any:
 
 
 @router.get("/entity/search")
-async def entity_search(q: str = "", category: str | None = None, limit: int = 50) -> dict[str, list[dict]]:
+async def entity_search(q: str = "", category: str | None = None, limit: int = 50) -> dict[str, list[dict[str, Any]]]:
     """Search entity database."""
     _el = _L("app.entity_labeler")
     db = await _el.get_entity_labeler()
@@ -540,7 +540,7 @@ async def entity_detail(entity_id: str) -> Any:
 
 
 @router.get("/portfolio/{wallet}")
-async def portfolio_single(wallet: str, chain: str = "ethereum") -> dict:
+async def portfolio_single(wallet: str, chain: str = "ethereum") -> dict[str, Any]:
     """Get portfolio for a single wallet."""
     _pt = _L("app.portfolio_tracker")
     portfolio = await _pt.get_portfolio(wallet, chain)
@@ -548,7 +548,7 @@ async def portfolio_single(wallet: str, chain: str = "ethereum") -> dict:
 
 
 @router.post("/portfolio/multi")
-async def portfolio_multi(wallets: list[dict[str, str]]) -> dict:
+async def portfolio_multi(wallets: list[dict[str, str]]) -> dict[str, Any]:
     """Aggregate portfolio across multiple wallets/chains."""
     _pt = _L("app.portfolio_tracker")
     result = await _pt.get_multi_wallet_portfolio(wallets)
@@ -556,7 +556,7 @@ async def portfolio_multi(wallets: list[dict[str, str]]) -> dict:
 
 
 @router.get("/portfolio/history/{wallet}")
-async def portfolio_history(wallet: str, chain: str = "ethereum", hours: int = 24) -> dict:
+async def portfolio_history(wallet: str, chain: str = "ethereum", hours: int = 24) -> dict[str, Any]:
     """Historical net worth chart data."""
     _pt = _L("app.portfolio_tracker")
     history = await _pt.get_portfolio_history(wallet, chain, hours)
@@ -591,7 +591,7 @@ async def monitor_unwatch(address: str, chain: str = "ethereum") -> dict[str, bo
 
 
 @router.get("/monitor/watches")
-async def monitor_list() -> dict:
+async def monitor_list() -> dict[str, Any]:
     """List all watched wallets."""
     _wm = _L("app.domains.wallet.wallet_monitor")
     manager = _wm.WalletMonitorManager()

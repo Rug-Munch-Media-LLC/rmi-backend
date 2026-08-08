@@ -105,7 +105,7 @@ async def social_sentiment(username: str = Query("CryptoRugMunch")) -> Any:
 
 
 @router.get("/social/x/budget")
-async def social_x_budget() -> dict:
+async def social_x_budget() -> dict[str, Any]:
     """Current X API read budget status."""
     from app.databus.social import XTwitterProvider
 

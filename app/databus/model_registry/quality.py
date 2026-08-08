@@ -5,10 +5,10 @@ Forbidden word lists, quality review prompts, and automated content review.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import re
+from typing import Any
 
 import httpx
 
@@ -87,7 +87,7 @@ SLOP_PATTERNS = [
 ]
 
 
-async def review_content(content: str, content_type: str = "article") -> dict:
+async def review_content(content: str, content_type: str = "article") -> dict[str, Any]:
     """Review content against quality standards. Returns pass/fail with fixes."""
     if len(content) < 50:
         return {"pass": True, "score": 100, "issues": [], "fixed_version": content}

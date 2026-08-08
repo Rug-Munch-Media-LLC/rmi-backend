@@ -168,7 +168,7 @@ async def _fetch_wallet_memory(address: str, chain: str) -> dict[str, Any]:
 # ═══════════════════════════════════════════
 
 
-async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
+async def _scan_held_tokens(tokens: list[Any], chain: str) -> dict[str, Any]:
     """Scan held tokens using SENTINEL - parallel with full enrichments."""
     if not tokens:
         return {"scanned": 0, "risks": [], "deployers_to_flag": []}
@@ -183,7 +183,7 @@ async def _scan_held_tokens(tokens: list, chain: str) -> dict[str, Any]:
     if not mints:
         return {"scanned": 0, "risks": [], "deployers_to_flag": []}
 
-    async def _scan_one(mint: str) -> dict | None:
+    async def _scan_one(mint: str) -> dict[str, Any] | None:
         try:
             from app.token_scanner import scan_token
 
@@ -427,7 +427,7 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
         return {"label": "unknown", "source": "none", "chains": [chain]}
 
 
-async def _calculate_basic_pnl(address: str, chain: str, tokens: list, native_balance: float = 0) -> dict[str, Any]:
+async def _calculate_basic_pnl(address: str, chain: str, tokens: list[Any], native_balance: float = 0) -> dict[str, Any]:
     """Basic PnL calculation - FREE tier."""
     try:
         total_value = native_balance or 0
@@ -466,7 +466,7 @@ async def _calculate_basic_pnl(address: str, chain: str, tokens: list, native_ba
 # ═══════════════════════════════════════════
 
 
-async def _close_data_flywheel(deployers: list) -> None:
+async def _close_data_flywheel(deployers: list[Any]) -> None:
     """Feed scam findings back to Wallet Memory Bank."""
     if not deployers:
         return

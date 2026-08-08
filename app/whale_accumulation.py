@@ -25,7 +25,7 @@ BIRDEYE_API = "https://public-api.birdeye.so/defi/v3/token/holder?address={}"
 BIRDEYE_FALLBACK = "https://api.birdeye.so/defi/holder?token={}"
 
 
-async def _rpc_call(chain: str, method: str, params: list) -> Any:
+async def _rpc_call(chain: str, method: str, params: list[Any]) -> Any:
     """Call into the x402_tools RPC fallback system."""
     try:
         from app.routers.x402_tools import rpc_call
@@ -36,7 +36,7 @@ async def _rpc_call(chain: str, method: str, params: list) -> Any:
         return None
 
 
-async def _fetch(url: str, timeout: int = 10) -> dict | None:
+async def _fetch(url: str, timeout: int = 10) -> dict[str, Any] | None:
     """Single URL fetch with aiohttp."""
     import aiohttp
 
@@ -149,7 +149,7 @@ def _generate_recommendation(score: float, persona: str) -> str:
     return "No accumulation signals detected. Current market is neutral."
 
 
-async def detect_accumulation(token_address: str, chain: str) -> dict:
+async def detect_accumulation(token_address: str, chain: str) -> dict[str, Any]:
     """
     Main detection pipeline.
 

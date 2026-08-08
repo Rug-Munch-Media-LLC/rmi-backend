@@ -11,6 +11,7 @@ Source: Free public RPCs — zero cost.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -40,14 +41,14 @@ class NewBlockProvider:
     event_type: WebhookEventType = WebhookEventType.CHAIN_BLOCK
     poll_interval: int = 15  # seconds — blocks every ~12s on ETH
 
-    async def poll(self, cursor: dict | None = None) -> list[dict]:
+    async def poll(self, cursor: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Poll free RPCs for new blocks since the last cursor.
 
         Uses eth_blockNumber for EVM chains, getSlot for Solana.
         Returns events for each chain that has advanced.
         """
         last_blocks: dict[str, int] = (cursor or {}).get("blocks", {})
-        events: list[dict] = []
+        events: list[dict[str, Any]] = []
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             for chain, rpc_url in FREE_RPCS.items():

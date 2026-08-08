@@ -1,9 +1,9 @@
 """Public API — detect_insiders, get_insider_score, find_pre_pump_wallets."""
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
@@ -90,7 +90,7 @@ async def detect_insiders(
     return report
 
 
-async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
+async def get_insider_score(wallet: str, chain: str = "sol") -> dict[str, Any]:
     """Score a wallet on how likely it is to be an insider (0-100)."""
     score = 0.0
     signals = []
@@ -182,7 +182,7 @@ async def get_insider_score(wallet: str, chain: str = "sol") -> dict:
     }
 
 
-async def find_pre_pump_wallets(token_address: str, chain: str = "sol") -> list[dict]:
+async def find_pre_pump_wallets(token_address: str, chain: str = "sol") -> list[dict[str, Any]]:
     """Find wallets that bought this token BEFORE the pump."""
     report = await detect_insiders(token_address, chain)
     results = []

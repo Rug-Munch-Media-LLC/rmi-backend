@@ -297,7 +297,7 @@ Return as JSON. Be precise and evidence-based."""
             "investigated_at": datetime.now(UTC).isoformat(),
         }
 
-    async def _plan(self, query: str, context: dict, max_hops: int) -> dict:
+    async def _plan(self, query: str, context: dict[str, Any], max_hops: int) -> dict[str, Any]:
         """Plan multi-hop investigation steps using LLM."""
         if not self.api_key:
             # Default plan without LLM
@@ -358,11 +358,11 @@ Return as JSON. Be precise and evidence-based."""
 
     async def _execute_hop(
         self,
-        step: dict,
-        previous_findings: list,
-        evidence_chain: list,
+        step: dict[str, Any],
+        previous_findings: list[Any],
+        evidence_chain: list[Any],
         embedder,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Execute a single investigation hop."""
         from app.rag.compat import search_multi_collection, search_similar
 
@@ -405,9 +405,9 @@ Return as JSON. Be precise and evidence-based."""
     async def _synthesize(
         self,
         query: str,
-        findings: list,
-        reranked: list,
-    ) -> dict:
+        findings: list[Any],
+        reranked: list[Any],
+    ) -> dict[str, Any]:
         """Synthesize final assessment from all findings."""
         if not self.api_key:
             # Heuristic synthesis without LLM
@@ -555,7 +555,7 @@ class RealTimeTokenMonitor:
         self._max_processed = 10000
         self.alerts = []
 
-    async def scan_new_token(self, token_data: dict) -> dict[str, Any]:
+    async def scan_new_token(self, token_data: dict[str, Any]) -> dict[str, Any]:
         """Quick-look scan of a newly deployed token."""
         from app.rag.compat import detect_scam_patterns
 
@@ -612,7 +612,7 @@ class RealTimeTokenMonitor:
 
         return result
 
-    def get_recent_alerts(self, limit: int = 20) -> list[dict]:
+    def get_recent_alerts(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.alerts[-limit:]
 
 

@@ -5,10 +5,10 @@ Dataclasses for token security analysis reports.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from dataclasses import asdict, dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -79,7 +79,7 @@ class LPAnalysis:
     lock_expiry: str | None = None
     is_burned: bool = False
     burn_tx: str | None = None
-    lp_holders: list[dict] = field(default_factory=list)
+    lp_holders: list[dict[str, Any]] = field(default_factory=list)
     concentration_risk: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
     depth_score: int = 0  # 0-100
 
@@ -200,7 +200,7 @@ class SecurityReport:
     scan_timestamp: str = ""
     scan_duration_ms: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dict for JSON serialization."""
         result = {}
         for k, v in asdict(self).items():

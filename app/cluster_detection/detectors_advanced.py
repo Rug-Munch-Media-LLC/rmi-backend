@@ -5,10 +5,10 @@ ML-based and sleeper detection methods.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
@@ -17,7 +17,7 @@ from app.cluster_detection.models import ClusterSignal, ClusterType, WalletClust
 
 
 async def detect_pattern_clusters(
-    wallet_profiles: dict[str, dict],
+    wallet_profiles: dict[str, dict[str, Any]],
     wallets: list[str],
 ) -> list[WalletCluster]:
     """Detect clusters based on transaction patterns (stub)."""
@@ -26,7 +26,7 @@ async def detect_pattern_clusters(
 
 
 async def detect_ml_clusters(
-    wallet_profiles: dict[str, dict],
+    wallet_profiles: dict[str, dict[str, Any]],
     wallets: list[str],
 ) -> list[WalletCluster]:
     """Detect clusters using machine learning (DBSCAN)."""
@@ -85,7 +85,7 @@ async def detect_ml_clusters(
 
 
 async def detect_sleeper_clusters(
-    wallet_profiles: dict[str, dict],
+    wallet_profiles: dict[str, dict[str, Any]],
     wallets: list[str],
 ) -> list[WalletCluster]:
     """Detect sleeper clusters - dormant wallets waiting to activate."""

@@ -69,7 +69,7 @@ def _make_tx_message(
 async def chat_pay(
     req: PayRequest,
     request: Request,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Send a payment in chat. Requires wallet confirmation.
 
@@ -150,7 +150,7 @@ async def chat_pay(
 async def confirm_payment(
     payment_id: str = Query(..., description="Payment ID to confirm"),
     tx_hash: str = Query(..., description="Transaction hash from wallet"),
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Confirm a payment with a transaction hash after wallet signing."""
     store = get_store()
@@ -183,7 +183,7 @@ async def confirm_payment(
 @router.post("/tip")
 async def chat_tip(
     req: TipRequest,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Tip a user in any room."""
     user_id = user.get("id", "unknown")
@@ -239,7 +239,7 @@ async def chat_tip(
 @router.post("/request")
 async def request_payment(
     req: RequestPayment,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Request a payment from another user."""
     user_id = user.get("id", "unknown")
@@ -276,7 +276,7 @@ async def request_payment(
 @router.post("/split")
 async def split_payment(
     req: SplitRequest,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Split a payment among multiple recipients in a group chat."""
     user_id = user.get("id", "unknown")

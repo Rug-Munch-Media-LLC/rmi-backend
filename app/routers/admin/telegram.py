@@ -55,7 +55,7 @@ async def telegram_stats(request: Request, _=Depends(verify_admin)) -> Any:
 
 
 @telegram_router.get("/telegram/users")
-async def telegram_users(request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)) -> dict:
+async def telegram_users(request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)) -> dict[str, Any]:
     """Get Telegram bot users."""
     users_file = "/tmp/telegram_users.json"  # nosec B108 — shared state file written by bot process, stable path required  # noqa: S108
     users = []
@@ -74,7 +74,7 @@ async def telegram_users(request: Request, _=Depends(verify_admin), limit: int =
 
 
 @telegram_router.get("/telegram/messages")
-async def telegram_messages(request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)) -> dict:
+async def telegram_messages(request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)) -> dict[str, Any]:
     """Get recent Telegram messages."""
     messages_file = "/tmp/telegram_messages.json"  # nosec B108 — shared state file written by bot process, stable path required  # noqa: S108
     messages = []

@@ -25,7 +25,7 @@ class NewsService:
         self.cache: dict[str, Any] = {}
         self.cache_ttl = 180
         self.last_fetch: datetime | None = None
-        self.seen_hashes: set = set()
+        self.seen_hashes: set[Any] = set()
         self._sentiment_cache: dict[str, str] = {}
 
     # ─── SENTIMENT ANALYSIS ───────────────────────────────────────
@@ -171,7 +171,7 @@ class NewsService:
                 seen.add(aid)
                 unique.append(a)
 
-        def parse_ts(a: dict) -> Any:
+        def parse_ts(a: dict[str, Any]) -> Any:
             try:
                 return datetime.fromisoformat(a.get("published_at", "2020-01-01").replace("Z", "+00:00"))
             except (ValueError, TypeError):

@@ -7,13 +7,13 @@ All sources are free, MIT/GPL/CC licensed, production-grade.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from datetime import UTC, datetime
 from http import HTTPStatus
 from pathlib import Path
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -206,7 +206,7 @@ class SpamRegistry:
         self._ensure_loaded()
         return domain.lower() in self._phishing_domains
 
-    def check_token(self, address: str, chain: str = "solana") -> dict:
+    def check_token(self, address: str, chain: str = "solana") -> dict[str, Any]:
         """Full spam/sanctions check for a token address.
 
         Args:
@@ -232,7 +232,7 @@ class SpamRegistry:
             ],
         }
 
-    def filter_spam_tokens(self, tokens: list[dict], chain: str = "solana") -> tuple[list[dict], list[dict]]:
+    def filter_spam_tokens(self, tokens: list[dict[str, Any]], chain: str = "solana") -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Split token list into clean and spam.
         Returns: (clean_tokens, spam_tokens)"""
         self._ensure_loaded()
@@ -246,7 +246,7 @@ class SpamRegistry:
                 clean.append(t)
         return clean, spam
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Get registry statistics."""
         self._ensure_loaded()
         return {

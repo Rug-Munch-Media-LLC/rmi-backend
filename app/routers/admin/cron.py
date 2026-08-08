@@ -3,11 +3,11 @@ Cron job management admin endpoints.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import logging
 import os
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -19,7 +19,7 @@ cron_router = APIRouter()
 
 
 @cron_router.get("/cron/jobs")
-async def cron_jobs(request: Request, _=Depends(verify_admin)) -> dict:
+async def cron_jobs(request: Request, _=Depends(verify_admin)) -> dict[str, Any]:
     """List all Hermes cron jobs."""
     jobs = []
     try:
@@ -77,7 +77,7 @@ async def cron_jobs(request: Request, _=Depends(verify_admin)) -> dict:
 
 
 @cron_router.get("/cron/logs")
-async def cron_logs(request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)) -> dict:
+async def cron_logs(request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)) -> dict[str, Any]:
     """Get cron execution logs."""
     logs = []
     log_file = os.path.expanduser("~/.hermes/cron.log")

@@ -1,10 +1,10 @@
 """Clean data label loader — from label quality fixer."""
 
 from __future__ import annotations
-from typing import Any
 
 import csv
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -13,7 +13,7 @@ from .config import CLEAN_DIR
 logger = get_logger("wallet_memory.label_importer")
 
 
-async def load_clean_labels(storage) -> dict:
+async def load_clean_labels(storage) -> dict[str, Any]:
     """Load pre-cleaned, deduplicated labels from the quality fixer.
     Returns stats dict with counts."""
     stats = {"ethereum": 0, "solana": 0, "errors": 0}

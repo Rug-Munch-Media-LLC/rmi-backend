@@ -1,11 +1,11 @@
 """Crypto-aware feature extractors for smart contracts, transactions, and wallets."""
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import time
 from datetime import datetime
+from typing import Any
 
 import numpy as np
 
@@ -114,7 +114,7 @@ def extract_contract_features(code: str) -> np.ndarray:
     return vec
 
 
-def extract_transaction_features(tx_data: dict) -> np.ndarray:
+def extract_transaction_features(tx_data: dict[str, Any]) -> np.ndarray:
     """Extract behavioral features from transaction history. Returns 64-dim vector."""
     vec = np.zeros(64, dtype=np.float32)
     txs = tx_data.get("transactions", []) if isinstance(tx_data, dict) else []
@@ -190,7 +190,7 @@ def extract_transaction_features(tx_data: dict) -> np.ndarray:
     return vec
 
 
-def extract_wallet_features(wallet_data: dict) -> np.ndarray:
+def extract_wallet_features(wallet_data: dict[str, Any]) -> np.ndarray:
     """Extract wallet entity features for clustering/scam detection. Returns 64-dim vector."""
     vec = np.zeros(64, dtype=np.float32)
     if not wallet_data:

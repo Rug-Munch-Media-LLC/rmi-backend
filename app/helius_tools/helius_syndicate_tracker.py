@@ -111,7 +111,7 @@ class SyndicateTracker:
             self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         return self.session
 
-    async def _rpc_call(self, method: str, params: list | None = None) -> Any:
+    async def _rpc_call(self, method: str, params: list[Any] | None = None) -> Any:
         s = await self._get_session()
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
         try:
@@ -357,7 +357,7 @@ class SyndicateTracker:
 
         return events
 
-    def _generate_alerts(self, holders: list[dict], activity: list[dict]) -> list[dict]:
+    def _generate_alerts(self, holders: list[dict[str, Any]], activity: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Generate alerts based on scan findings."""
         alerts = []
 
@@ -384,7 +384,7 @@ class SyndicateTracker:
 
         return alerts
 
-    async def _get_recent_transactions(self, address: str, limit: int = 50) -> list[dict]:
+    async def _get_recent_transactions(self, address: str, limit: int = 50) -> list[dict[str, Any]]:
         """Get recent transactions with parsed data."""
         sigs_result = await self._rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
         signatures = sigs_result if isinstance(sigs_result, list) else []

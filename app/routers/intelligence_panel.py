@@ -89,7 +89,7 @@ class IntelligenceFeedResponse(BaseModel):
 
 
 @router.get("/prediction-signals", response_model=list[IntelSignalResponse])
-async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)) -> list:
+async def get_prediction_signals(limit: int = Query(10, ge=1, le=20)) -> list[Any]:
     """Get actionable intelligence signals from prediction markets.
 
     Signal types:

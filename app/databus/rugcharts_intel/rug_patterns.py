@@ -4,11 +4,11 @@ RAG-powered similarity to known rug pulls.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -82,7 +82,7 @@ RUG_PATTERNS = [
 ]
 
 
-async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Match token characteristics against known rug pull patterns.
     Each pattern gets a similarity score. High matches = high rug probability.
     """

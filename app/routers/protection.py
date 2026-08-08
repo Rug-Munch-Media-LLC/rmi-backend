@@ -401,7 +401,7 @@ async def check_token(
 
 
 @router.get("/domains")
-async def get_domains() -> dict | dict[str, list]:
+async def get_domains() -> dict[str, Any] | dict[str, list[Any]]:
     """Return the blocklist JSON for extension download."""
     logger.info("=== get_domains endpoint called ===")
     try:

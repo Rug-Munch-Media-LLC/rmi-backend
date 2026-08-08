@@ -33,7 +33,7 @@ BADGE_TIERS = {"bronze": "#CD7F32", "silver": "#C0C0C0", "gold": "#FFD700", "dia
 X402_BB_POST_PRICE = "$1.00"
 
 
-async def get_user_badges(user_id: str) -> list:
+async def get_user_badges(user_id: str) -> list[Any]:
     try:
         r = await BulletinBoardManager._get_redis()
         ids = await r.smembers(f"bb:badges:{user_id}")
@@ -55,7 +55,7 @@ async def award_badge(user_id: str, badge_id: str) -> bool:
         return False
 
 
-async def get_user_reputation(user_id: str) -> dict:
+async def get_user_reputation(user_id: str) -> dict[str, Any]:
     try:
         r = await BulletinBoardManager._get_redis()
         p = r.pipeline()
@@ -83,7 +83,7 @@ async def verify_x402_bot(tx_hash: str, bot_addr: str) -> bool:
         return False
 
 
-async def ingest_post_to_rag(post: Post) -> dict:
+async def ingest_post_to_rag(post: Post) -> dict[str, Any]:
     """Ingest a published bulletin board post into the RAG research collection."""
     try:
         from app.rag.ingestion import ingest_research_post as _ingest_research

@@ -71,7 +71,7 @@ async def trending(http_client: Any, limit: int) -> list[PredictionMarket]:
         return []
 
 
-def _parse_market(m: dict) -> PredictionMarket | None:
+def _parse_market(m: dict[str, Any]) -> PredictionMarket | None:
     try:
         title = m.get("title", "")
         slug = m.get("slug", str(m.get("id", "")))

@@ -18,11 +18,11 @@ Input: list of mention dicts
 """
 
 from __future__ import annotations
-from typing import Any
 
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.scanners._sentinel_registry import sentinel_module
@@ -69,7 +69,7 @@ class VelocityTimelinePoint:
 class SocialVelocityReport:
     velocity_score: float = 0.0  # 0-100, higher = more bot-like
     bot_farm_confidence: float = 0.0  # 0-1
-    mention_timeline: list[dict] = field(default_factory=list)  # [{timestamp, cumulative_count}]
+    mention_timeline: list[dict[str, Any]] = field(default_factory=list)  # [{timestamp, cumulative_count}]
     mention_sources: dict[str, int] = field(default_factory=dict)
     risk_label: str = "UNKNOWN"  # ORGANIC, SUSPICIOUS, CRITICAL
     total_mentions_analyzed: int = 0
@@ -109,7 +109,7 @@ class SocialVelocityAnalyzer:
     # seconds (or more), it's likely organic
     ORGANIC_SPREAD_SEC = 300.0  # 5 minutes
 
-    async def analyze(self, mentions: list) -> SocialVelocityReport:
+    async def analyze(self, mentions: list[Any]) -> SocialVelocityReport:
         """Analyze the velocity of social mentions.
 
         Args:

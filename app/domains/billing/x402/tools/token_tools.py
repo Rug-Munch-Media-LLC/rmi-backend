@@ -107,7 +107,7 @@ async def deep_contract_audit(req: TokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _rug_shield(address: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _rug_shield(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Quick pre-buy safety check - fast binary verdict."""
     result = {"chain": chain, "address": address, "sources_used": []}
     risk_score = 0
@@ -204,7 +204,7 @@ async def rug_shield(req: TokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _token_pulse(address: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _token_pulse(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Comprehensive token health dashboard."""
     result = {"chain": chain, "address": address, "sources_used": []}
 
@@ -327,7 +327,7 @@ async def token_pulse(req: TokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _token_forensics(address: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _token_forensics(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Deep token forensics combining multiple data sources."""
     result = {"address": address, "chain": chain, "sources_used": []}
 
@@ -464,7 +464,7 @@ async def token_deep_dive(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _honeypot_check(address: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _honeypot_check(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Honeypot detection."""
     result = {"address": address, "chain": chain, "sources_used": []}
 
@@ -581,7 +581,7 @@ async def token_comparison(req: MultiTokenRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _risk_monitor(address: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _risk_monitor(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Real-time risk monitoring."""
     result = {"address": address, "chain": chain, "sources_used": [], "alerts": []}
 
@@ -662,7 +662,7 @@ async def risk_monitor(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _liquidity_flow(address: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _liquidity_flow(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Liquidity flow analysis."""
     result = {"address": address, "chain": chain, "sources_used": []}
 
@@ -730,7 +730,7 @@ async def liquidity_flow(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _rug_pull_predictor(address: str, chain: str) -> dict:  # type: ignore[type-arg]
+async def _rug_pull_predictor(address: str, chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
     """Rug pull prediction model."""
     result = {"address": address, "chain": chain, "sources_used": [], "signals": []}
 

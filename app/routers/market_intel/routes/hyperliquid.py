@@ -4,6 +4,7 @@ Hyperliquid perp markets, funding rates, and action data.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
@@ -18,7 +19,7 @@ router = APIRouter(tags=["market-intel"])
 async def get_hyperliquid_data(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Hyperliquid perp markets and funding rates."""
     now = _now()
     markets = await _hyperliquid_markets(limit=limit)
@@ -35,7 +36,7 @@ async def get_hyperliquid_data(
 async def get_hyperliquid_action(
     request: Request,
     limit: int = Query(5, ge=1, le=20),
-) -> dict:
+) -> dict[str, Any]:
     """
     Hyperliquid 'Gain/Loss Porn': Biggest 24h movers and funding squeezes.
     Shows where the market is ripping, dumping, and who is getting liquidated/squeezed.

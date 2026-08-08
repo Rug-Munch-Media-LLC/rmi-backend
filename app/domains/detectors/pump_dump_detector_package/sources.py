@@ -5,10 +5,10 @@ API helpers for DexScreener, Birdeye, and Helius.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
+from typing import Any
 
 import httpx
 import requests
@@ -20,7 +20,7 @@ from app.domains.detectors.pump_dump_detector_package.types import BIRDEYE_API, 
 logger = get_logger("pump_dump_detector")
 
 
-async def fetch_pairs(client: httpx.AsyncClient, token_address: str, chain: str) -> dict:
+async def fetch_pairs(client: httpx.AsyncClient, token_address: str, chain: str) -> dict[str, Any]:
     """Fetch trading pair data from DexScreener."""
     try:
         resp = await client.get(
@@ -49,9 +49,9 @@ async def fetch_trades(
     token_address: str,
     chain: str,
     limit: int = 100,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Fetch recent trades from DexScreener or Birdeye."""
-    trades: list[dict] = []
+    trades: list[dict[str, Any]] = []
     try:
         if is_solana(chain):
             resp = await client.get(
@@ -84,7 +84,7 @@ async def fetch_holders(
     client: httpx.AsyncClient,
     token_address: str,
     chain: str,
-) -> dict:
+) -> dict[str, Any]:
     """Fetch holder data from available APIs."""
     try:
         if is_solana(chain):

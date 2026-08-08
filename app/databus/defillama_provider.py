@@ -4,6 +4,7 @@ DeFiLlama DataBus Provider - Free, unlimited DeFi analytics.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -13,7 +14,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.defillama")
 
 
-async def fetch_defillama_tvl(protocol: str | None = None, chain: str | None = None, limit: int = 20) -> dict:
+async def fetch_defillama_tvl(protocol: str | None = None, chain: str | None = None, limit: int = 20) -> dict[str, Any]:
     """Fetch TVL data from DeFiLlama - free, no auth, no rate limits for standard traffic."""
     import aiohttp
 
@@ -66,7 +67,7 @@ async def fetch_defillama_tvl(protocol: str | None = None, chain: str | None = N
     return results
 
 
-async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict:
+async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict[str, Any]:
     """Fetch live prices from Pyth Network Hermes API - 125+ institutional publishers."""
     import aiohttp
 

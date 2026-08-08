@@ -4,6 +4,7 @@
 fund flows. Interactive graph showing the honeypot factory network."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -39,10 +40,10 @@ class HoneypotEdge(BaseModel):
 
 
 @router.get("/deployer/{deployer_address}")
-async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ethereum")) -> dict:
+async def get_honeypot_deployer(deployer_address: str, chain: str = Query("ethereum")) -> dict[str, Any]:
     """Map all honeypot contracts deployed by a single address."""
-    nodes: list[dict] = []
-    edges: list[dict] = []
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
 
     # Deployer node
     deployer_id = deployer_address[:16]
@@ -99,10 +100,10 @@ async def get_honeypot_network(
     chain: str = Query("ethereum"),
     limit: int = Query(50, le=100),
     min_risk: int = Query(50, le=100),
-) -> dict:
+) -> dict[str, Any]:
     """Get the current honeypot network map for a chain. Clusters by deployer groups."""
-    nodes: list[dict] = []
-    edges: list[dict] = []
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
     seen_deployers: set[str] = set()
 
     try:

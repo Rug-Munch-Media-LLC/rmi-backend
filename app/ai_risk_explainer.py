@@ -9,10 +9,10 @@ Cost: ~100 tokens per explanation = ~$0.0007 on Ollama Cloud
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
+from typing import Any
 from urllib.request import Request, urlopen
 
 from app.core.logging import get_logger
@@ -39,7 +39,7 @@ Example output:
 """
 
 
-def explain_risks(scan: dict) -> str:
+def explain_risks(scan: dict[str, Any]) -> str:
     """Generate a human-readable risk explanation from scanner data."""
     if not scan or scan.get("safety_score") is None:
         return "<b>Unable to analyze</b> - no scanner data available."
@@ -90,7 +90,7 @@ Write the explanation."""
         return _basic_explain(scan)
 
 
-def _basic_explain(scan: dict) -> str:
+def _basic_explain(scan: dict[str, Any]) -> str:
     """Basic explanation when AI is unavailable."""
     score = scan.get("safety_score", 50)
     if score >= 80:

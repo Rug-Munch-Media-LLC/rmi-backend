@@ -5,9 +5,9 @@ Live status of all 10 embedding providers + enterprise credit burn rate.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import time
+from typing import Any
 
 from app.core.logging import get_logger
 from app.rate_limiter import get_dispatcher
@@ -15,7 +15,7 @@ from app.rate_limiter import get_dispatcher
 logger = get_logger("health.dashboard")
 
 
-async def provider_health() -> dict:
+async def provider_health() -> dict[str, Any]:
     """Live health status of all embedding providers."""
     d = await get_dispatcher()
     rl = await d.tracker.stats()
@@ -67,7 +67,7 @@ async def provider_health() -> dict:
     }
 
 
-async def credit_burn() -> dict:
+async def credit_burn() -> dict[str, Any]:
     """Enterprise credit burn tracking - daily rate, projected exhaustion."""
     d = await get_dispatcher()
     rl = await d.tracker.stats()

@@ -96,7 +96,7 @@ class InsiderCluster:
     risk_factors: list[str] = field(default_factory=list)
     member_count: int = 0
     links: list[InsiderLink] = field(default_factory=list)
-    top_relationships: list[dict] = field(default_factory=list)
+    top_relationships: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -180,7 +180,7 @@ async def _cached_get(
 # ── API Data Fetching ────────────────────────────────────────────
 
 
-async def _fetch_dexscreener_pairs(client: httpx.AsyncClient, token_address: str) -> list[dict]:
+async def _fetch_dexscreener_pairs(client: httpx.AsyncClient, token_address: str) -> list[dict[str, Any]]:
     """Fetch trading pairs for a token from DexScreener."""
     url = f"{FREE_APIS['dexscreener']}/tokens/{token_address}"
     data = await _cached_get(client, url)
@@ -195,7 +195,7 @@ async def _fetch_etherscan_holders(
     chain: str,
     api_key: str | None = None,
     limit: int = 500,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Fetch top token holders from Etherscan-like explorer."""
     base = ETHERSCAN_BASES.get(chain)
     if not base:
@@ -218,7 +218,7 @@ async def _fetch_etherscan_holders(
     return []
 
 
-async def _fetch_solscan_holders(client: httpx.AsyncClient, token_address: str, limit: int = 100) -> list[dict]:
+async def _fetch_solscan_holders(client: httpx.AsyncClient, token_address: str, limit: int = 100) -> list[dict[str, Any]]:
     """Fetch top token holders from Solscan (free public API)."""
     params = {
         "tokenAddress": token_address,
@@ -235,7 +235,7 @@ async def _fetch_solscan_holders(client: httpx.AsyncClient, token_address: str, 
     return []
 
 
-async def _fetch_birdeye_holders(client: httpx.AsyncClient, token_address: str, chain: str = "solana") -> list[dict]:
+async def _fetch_birdeye_holders(client: httpx.AsyncClient, token_address: str, chain: str = "solana") -> list[dict[str, Any]]:
     """Fetch holder data from Birdeye public API."""
     chain_map: dict[str, str] = {
         "solana": "solana",
@@ -260,7 +260,7 @@ async def _fetch_token_transfers(
     token_address: str,
     chain: str,
     limit: int = 100,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Fetch recent token transfers from explorer APIs."""
     base = ETHERSCAN_BASES.get(chain)
     if not base:
@@ -283,7 +283,7 @@ async def _fetch_token_transfers(
 
 async def _fetch_wallet_transactions(
     client: httpx.AsyncClient, wallet_address: str, chain: str, limit: int = 50
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Fetch normal transactions for a wallet address."""
     base = ETHERSCAN_BASES.get(chain)
     if not base:
@@ -309,7 +309,7 @@ async def _fetch_wallet_transactions(
 
 def _detect_shared_funding(
     cluster_wallets: list[str],
-    wallet_transactions: dict[str, list[dict]],
+    wallet_transactions: dict[str, list[dict[str, Any]]],
 ) -> list[InsiderLink]:
     """Detect wallets that share common funding sources."""
     links: list[InsiderLink] = []
@@ -341,7 +341,7 @@ def _detect_shared_funding(
 
 def _detect_co_trading(
     cluster_wallets: list[str],
-    token_transfers: dict[str, list[dict]],
+    token_transfers: dict[str, list[dict[str, Any]]],
 ) -> list[InsiderLink]:
     """Detect wallets that trade the same tokens at similar times."""
     links: list[InsiderLink] = []
@@ -381,7 +381,7 @@ def _detect_co_trading(
 
 def _detect_value_transfers(
     cluster_wallets: list[str],
-    wallet_transactions: dict[str, list[dict]],
+    wallet_transactions: dict[str, list[dict[str, Any]]],
 ) -> list[InsiderLink]:
     """Detect direct value transfers between wallets in the cluster."""
     links: list[InsiderLink] = []
@@ -408,7 +408,7 @@ def _detect_value_transfers(
 
 def _detect_co_deployer(
     cluster_wallets: list[str],
-    wallet_transactions: dict[str, list[dict]],
+    wallet_transactions: dict[str, list[dict[str, Any]]],
 ) -> list[InsiderLink]:
     """Detect wallets that were funded by the same deployer."""
     links: list[InsiderLink] = []
@@ -540,8 +540,8 @@ async def analyze_insider_network(
     report = InsiderNetworkReport(target_wallet=addr)
 
     async with httpx.AsyncClient(timeout=20) as client:
-        wallet_transactions: dict[str, list[dict]] = {}
-        token_transfers: dict[str, list[dict]] = {}
+        wallet_transactions: dict[str, list[dict[str, Any]]] = {}
+        token_transfers: dict[str, list[dict[str, Any]]] = {}
         defaultdict(set)
 
         for chain in chains:

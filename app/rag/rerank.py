@@ -22,7 +22,7 @@ log = get_logger(__name__)
 INFINITY_RERANK_MODEL: str = "BAAI/bge-reranker-v2-m3"
 
 
-async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> list[dict]:
+async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> list[dict[str, Any]]:
     """Rerank *documents* against *query* via Infinity's cross-encoder.
 
     Args:
@@ -69,7 +69,7 @@ async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> li
             return []
 
 
-def reorder_by_relevance(items: list[Any], reranked: list[dict], top_n: int) -> list[Any]:
+def reorder_by_relevance(items: list[Any], reranked: list[dict[str, Any]], top_n: int) -> list[Any]:
     """Reorder *items* (index-aligned with the rerank request) by Infinity
     relevance, mutating each item's ``final_score`` and
     ``metadata["rerank_score"]``.

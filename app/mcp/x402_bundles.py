@@ -48,7 +48,7 @@ class X402Bundle:
 class MultiChainFacilitator:
     """Multi-chain payment facilitator."""
 
-    base_config: ClassVar[dict] = {
+    base_config: ClassVar[dict[str, Any]] = {
         "name": "RugMunch Intelligence x402 Gateway",
         "network": "BASE",
         "wallet_address": os.environ.get("X402_BASE_WALLET", "0x1E3AC01d0fdb976179790BDD02823196A92705C9"),
@@ -58,7 +58,7 @@ class MultiChainFacilitator:
         "explorer": "https://basescan.org",
     }
 
-    solana_config: ClassVar[dict] = {
+    solana_config: ClassVar[dict[str, Any]] = {
         "name": "RugMunch Intelligence x402 Gateway",
         "network": "SOLANA",
         "wallet_address": os.environ.get("X402_SOLANA_WALLET", "Gix4P9AmwcZRGzr2hCEME5m2QAvY86dBfm8c7e7MpFzv"),
@@ -68,7 +68,7 @@ class MultiChainFacilitator:
         "explorer": "https://solscan.io",
     }
 
-    third_party: ClassVar[dict] = {
+    third_party: ClassVar[dict[str, Any]] = {
         "base": "https://mcp.rugmunch.io",
         "solana": "https://mcp.rugmunch.io",
     }

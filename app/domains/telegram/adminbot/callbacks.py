@@ -33,8 +33,10 @@ from app.domains.telegram.adminbot.helpers import (
 )
 
 try:
-    from app.domains.telegram.adminbot import admin_audit  # type: ignore[import-untyped]
-    from app.domains.telegram.adminbot import admin_bot  # type: ignore[import-untyped]
+    from app.domains.telegram.adminbot import (
+        admin_audit,  # type: ignore[import-untyped]
+        admin_bot,  # type: ignore[import-untyped]
+    )
 except ImportError:  # pragma: no cover
     admin_audit = None
     admin_bot = None
@@ -457,6 +459,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif data == "compose_restart":
             await query.edit_message_text("⏳ Restarting infra...")
+            if admin_audit is not None:
+                admin_audit.log_action("compose.restart", "all", query.from_user.id)
             result = admin_ops.docker_compose("restart")
             await query.edit_message_text(
                 f"{'✅' if result['ok'] else '❌'} Infra restarted\n\n```\n{result['output'][:2000]}\n```",
@@ -692,18 +696,12 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif data in ("backup_run", "backup_db"):
             btype = "full" if data == "backup_run" else "db"
+            if admin_audit is not None:
+                admin_audit.log_action("backup.run", btype, query.from_user.id)
             await query.edit_message_text(f"⏳ Running {btype} backup...")
             result = admin_ops.trigger_backup(btype)
             await query.edit_message_text(
                 f"{'✅' if result['ok'] else '❌'} {btype} backup ({result.get('duration', 0):.1f}s)\n\n```\n{result.get('output', result.get('error', ''))[:2500]}\n```",
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=back_button("backup"),
-            )
-
-        elif data == "backup_status":
-            result = admin_ops.trigger_backup("status")
-            await query.edit_message_text(
-                result["output"],
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=back_button("backup"),
             )
@@ -730,6 +728,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif data.startswith("deploy_"):
             svc = data.replace("deploy_", "")
+            if admin_audit is not None:
+                admin_audit.log_action("deploy", svc, query.from_user.id)
             await query.edit_message_text(f"⏳ Deploying {svc}...")
             result = admin_ops.deploy_service(svc)
             await query.edit_message_text(
@@ -1123,6 +1123,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         elif data.startswith("reboot_confirm2_"):
             delay = data.replace("reboot_confirm2_", "")
             delay = int(delay) if delay.isdigit() else 60
+            if admin_audit is not None:
+                admin_audit.log_action("system.reboot", f"delay={delay}s", query.from_user.id)
             await query.edit_message_text("⏳ Scheduling reboot...")
             result = admin_server.schedule_reboot(delay_seconds=delay)
             status = "✅" if result["ok"] else "❌"

@@ -1,6 +1,7 @@
 """Public bulletin board endpoints (no auth required)."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import Request  # noqa: TC002 — FastAPI needs runtime resolution for request objects
@@ -16,7 +17,7 @@ from app.routers.bulletin_board.router import router
     summary="Public Create Post",
     description="Create a public discussion post without authentication. For community token discussions. Posts are published immediately with community category.",
 )
-async def public_create_post(body: PublicPostRequest) -> dict:
+async def public_create_post(body: PublicPostRequest) -> dict[str, Any]:
     """Create a public discussion post (no auth required)."""
     import time
 
@@ -54,7 +55,7 @@ async def public_list_posts(
     tag: str = "",
     limit: int = 20,
     offset: int = 0,
-) -> dict:
+) -> dict[str, Any]:
     """List published posts (public)."""
     tags = [tag] if tag else None
     result = await BulletinBoardManager.list_posts(
@@ -96,7 +97,7 @@ async def public_list_posts(
 
 
 @router.get("/posts/{slug}")
-async def public_get_post(request: Request, slug: str) -> dict:
+async def public_get_post(request: Request, slug: str) -> dict[str, Any]:
     """Get a single published post by slug (public)."""
     post = await BulletinBoardManager.get_post_by_slug(slug)
     if not post or post.status != PostStatus.PUBLISHED.value:
@@ -113,7 +114,7 @@ async def public_get_post(request: Request, slug: str) -> dict:
     summary="Public Categories",
     description="List all post categories with the count of published posts in each. Useful for navigation and filtering.",
 )
-async def public_categories() -> dict:
+async def public_categories() -> dict[str, Any]:
     """List all categories with counts."""
     stats = await BulletinBoardManager.get_stats()
     categories = []
@@ -133,7 +134,7 @@ async def public_categories() -> dict:
     summary="Public Pinned Posts",
     description="Get pinned posts that are featured at the top of the bulletin board. Pinned posts are manually curated by admins.",
 )
-async def public_pinned_posts(limit: int = 5) -> dict:
+async def public_pinned_posts(limit: int = 5) -> dict[str, Any]:
     """Get pinned posts (public)."""
     result = await BulletinBoardManager.list_posts(
         pinned_only=True,

@@ -70,11 +70,11 @@ class TokenWatch:
     check_interval_seconds: int = 300  # Default: check every 5 min
     webhook_url: str = ""  # Optional webhook for external alerting
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> TokenWatch:
+    def from_dict(cls, d: dict[str, Any]) -> TokenWatch:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
@@ -93,7 +93,7 @@ class WatchAlert:
     timestamp: str = ""
     delivered: bool = False
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -240,7 +240,7 @@ class TokenWatchService:
 
     # ── Dexscreener Data Fetch ────────────────────────────────────
 
-    async def _fetch_token_data(self, token_address: str, chain: str) -> dict | None:
+    async def _fetch_token_data(self, token_address: str, chain: str) -> dict[str, Any] | None:
         """Fetch token/pair data from Dexscreener."""
         try:
             async with httpx.AsyncClient(timeout=15) as client:
@@ -459,7 +459,7 @@ class TokenWatchService:
 
     # ── Alert Retrieval ────────────────────────────────────────────
 
-    async def get_alerts(self, watch_id: str = "", token_address: str = "", chain: str = "") -> list[dict]:
+    async def get_alerts(self, watch_id: str = "", token_address: str = "", chain: str = "") -> list[dict[str, Any]]:
         """Get alerts for a watch or token."""
         r = await self._get_redis()
         if not r:

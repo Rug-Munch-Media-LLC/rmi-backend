@@ -89,7 +89,7 @@ class SniperDetector:
             self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         return self.session
 
-    async def _rpc_call(self, method: str, params: list | None = None) -> Any:
+    async def _rpc_call(self, method: str, params: list[Any] | None = None) -> Any:
         s = await self._get_session()
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
         try:
@@ -176,7 +176,7 @@ class SniperDetector:
             "block": creation_sig.get("slot", 0),
         }
 
-    async def _get_early_buyers(self, token_address: str, launch_block: int, blocks_after: int = 10) -> list[dict]:
+    async def _get_early_buyers(self, token_address: str, launch_block: int, blocks_after: int = 10) -> list[dict[str, Any]]:
         """Get wallets that interacted with the token in first N blocks."""
         sigs_result = await self._rpc_call("getSignaturesForAddress", [token_address, {"limit": 200}])
         signatures = sigs_result if isinstance(sigs_result, list) else []
@@ -208,7 +208,7 @@ class SniperDetector:
         return buyers
 
     async def _analyze_sniper_wallet(
-        self, buyer_data: dict, launch_time: datetime, launch_block: int
+        self, buyer_data: dict[str, Any], launch_time: datetime, launch_block: int
     ) -> SniperWallet | None:
         """Analyze a single wallet for sniper characteristics."""
         wallet = buyer_data["wallet"]

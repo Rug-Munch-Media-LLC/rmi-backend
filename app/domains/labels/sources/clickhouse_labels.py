@@ -117,7 +117,7 @@ async def query_clickhouse_labels(address: str, chain: str = "ethereum") -> list
 
         # Phase 1: try chain-specific query with all possible chain_id formats
         # clickhouse_driver supports IN tuple with dict params
-        rows: list[tuple] = []
+        rows: list[tuple[Any, ...]] = []
         try:
             rows = client.execute(
                 """

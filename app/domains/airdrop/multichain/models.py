@@ -1,10 +1,10 @@
 """Multi-chain airdrop data models."""
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import asdict, field
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -49,7 +49,7 @@ class CrossChainHolder:
     first_seen: str | None = None
     tx_count_30d: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -105,5 +105,5 @@ class MultiChainAirdropCampaign:
     total_distributed: str = "0"
     tx_hashes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)

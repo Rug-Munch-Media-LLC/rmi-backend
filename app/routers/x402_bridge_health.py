@@ -66,7 +66,7 @@ def _redis() -> Any:
     )
 
 
-def _cache_get(key: str) -> dict | None:
+def _cache_get(key: str) -> dict[str, Any] | None:
     try:
         r = _redis()
         data = r.get(f"x402:cache:bridge_health:{key}")
@@ -81,7 +81,7 @@ def _cache_get(key: str) -> dict | None:
         return None
 
 
-def _cache_set(key: str, result: dict, ttl: int = 60) -> None:
+def _cache_set(key: str, result: dict[str, Any], ttl: int = 60) -> None:
     try:
         r = _redis()
         r.setex(f"x402:cache:bridge_health:{key}", ttl, json.dumps(result, default=str))
@@ -197,8 +197,8 @@ class BridgeHealthResponse(BaseModel):
     bridges_critical: int = 0
     total_tvl_usd: float = 0.0
     tvl_change_24h_pct: float = 0.0
-    bridges: list[dict] = []
-    exploit_signals: list[dict] = []
+    bridges: list[dict[str, Any]] = []
+    exploit_signals: list[dict[str, Any]] = []
     contagion_risk: list[str] = []
     remaining_trials: int = 0
     pricing: dict[str, Any] = {}

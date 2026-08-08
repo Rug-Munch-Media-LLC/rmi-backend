@@ -6,9 +6,9 @@ Each package solves a specific agent need with compelling value.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -287,7 +287,7 @@ AGENT_SDK_INFO = {
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def get_membership_catalog() -> dict:
+def get_membership_catalog() -> dict[str, Any]:
     """Return the full membership catalog for agents."""
     return {
         "bundles": AGENT_BUNDLES,

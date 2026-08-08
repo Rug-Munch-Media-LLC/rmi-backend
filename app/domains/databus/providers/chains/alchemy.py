@@ -3,6 +3,7 @@ Alchemy providers — token balances and metadata (freemium, 300M compute/mo).
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -12,7 +13,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers.alchemy")
 
 
-async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
+async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet", **kw) -> dict[str, Any] | None:
     """Alchemy — get all token balances for an address."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -34,7 +35,7 @@ async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet
     return None
 
 
-async def _alchemy_token_metadata(address: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
+async def _alchemy_token_metadata(address: str = "", network: str = "eth-mainnet", **kw) -> dict[str, Any] | None:
     """Alchemy — get token metadata (name, symbol, decimals)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:

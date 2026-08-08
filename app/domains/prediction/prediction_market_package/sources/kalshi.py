@@ -127,7 +127,7 @@ async def detail(http_client: Any, ticker: str) -> PredictionMarket | None:
         return None
 
 
-def _parse_market(m: dict) -> PredictionMarket | None:
+def _parse_market(m: dict[str, Any]) -> PredictionMarket | None:
     try:
         ticker = m.get("ticker", "")
         title = m.get("title", "")

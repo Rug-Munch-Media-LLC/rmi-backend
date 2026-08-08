@@ -4,10 +4,10 @@ LP health + pull detection.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Monitor liquidity pool health: LP lock, concentration, removal risk.
     Critical for rug pull prevention - the #1 thing degens need to check.
     """

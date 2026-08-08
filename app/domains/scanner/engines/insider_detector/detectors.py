@@ -1,6 +1,7 @@
 """Phase 2 Detection Methods — All insider detection algorithms."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -28,8 +29,8 @@ logger = get_logger(__name__)
 async def _detect_pre_trending(
     token_address: str,
     chain: str,
-    traders: list[dict],
-    events: dict,
+    traders: list[dict[str, Any]],
+    events: dict[str, Any],
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought before the token appeared on trending."""
     results: list[InsiderEvidence] = []
@@ -82,8 +83,8 @@ async def _detect_pre_trending(
 async def _detect_pre_kol(
     token_address: str,
     chain: str,
-    traders: list[dict],
-    events: dict,
+    traders: list[dict[str, Any]],
+    events: dict[str, Any],
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought before the first KOL/influencer trade."""
     results: list[InsiderEvidence] = []
@@ -128,8 +129,8 @@ async def _detect_pre_kol(
 async def _detect_dev_insider(
     token_address: str,
     chain: str,
-    traders: list[dict],
-    events: dict,
+    traders: list[dict[str, Any]],
+    events: dict[str, Any],
     deployer: str | None,
 ) -> list[InsiderEvidence]:
     """Detect wallets connected to the deployer that bought early."""
@@ -199,8 +200,8 @@ async def _detect_dev_insider(
 async def _detect_cex_frontrun(
     token_address: str,
     chain: str,
-    traders: list[dict],
-    events: dict,
+    traders: list[dict[str, Any]],
+    events: dict[str, Any],
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought before a CEX listing."""
     results: list[InsiderEvidence] = []
@@ -247,8 +248,8 @@ async def _detect_cex_frontrun(
 async def _detect_pumpfun_graduation(
     token_address: str,
     chain: str,
-    traders: list[dict],
-    events: dict,
+    traders: list[dict[str, Any]],
+    events: dict[str, Any],
 ) -> list[InsiderEvidence]:
     """Detect wallets that bought a pump.fun token BEFORE it graduated to Raydium."""
     results: list[InsiderEvidence] = []
@@ -293,8 +294,8 @@ async def _detect_pumpfun_graduation(
 async def _detect_snipers(
     token_address: str,
     chain: str,
-    traders: list[dict],
-    events: dict,
+    traders: list[dict[str, Any]],
+    events: dict[str, Any],
     token_created_at: float | None,
 ) -> list[InsiderEvidence]:
     """Detect first-block snipers — wallets that bought in the first block."""

@@ -171,7 +171,7 @@ def _compute_concentration(positions: list[WhalePosition]) -> float:
 # ── API Fetchers ──────────────────────────────────────────────────
 
 
-async def _fetch_json(url: str, headers: dict | None = None, timeout: float = 15.0) -> dict | None:
+async def _fetch_json(url: str, headers: dict[str, Any] | None = None, timeout: float = 15.0) -> dict[str, Any] | None:
     """Fetch JSON from URL with error handling."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -188,7 +188,7 @@ async def _fetch_json(url: str, headers: dict | None = None, timeout: float = 15
         return None
 
 
-async def _fetch_dexscreener_pairs(token_address: str) -> list[dict]:
+async def _fetch_dexscreener_pairs(token_address: str) -> list[dict[str, Any]]:
     """Fetch all DEX pairs for a token across all chains."""
     url = f"{FREE_APIS['dexscreener']}/tokens/{token_address}"
     data = await _fetch_json(url)
@@ -223,7 +223,7 @@ async def _fetch_etherscan_holders(token_address: str, chain: str) -> list[dict[
     return data.get("result", [])
 
 
-async def _fetch_birdeye_holders(token_address: str, chain: str) -> list[dict]:
+async def _fetch_birdeye_holders(token_address: str, chain: str) -> list[dict[str, Any]]:
     """Fetch top holders from Birdeye public API."""
     api_key = _get_env_key("BIRDEYE_API_KEY")
     headers = {"x-chain": chain}
@@ -237,7 +237,7 @@ async def _fetch_birdeye_holders(token_address: str, chain: str) -> list[dict]:
     return data.get("data", {}).get("holders", [])
 
 
-async def _fetch_jupiter_token_info(token_address: str) -> dict | list | None:
+async def _fetch_jupiter_token_info(token_address: str) -> dict[str, Any] | list[Any] | None:
     """Fetch Jupiter token info for Solana tokens."""
     # Try multiple Jupiter API URLs
     urls = [
@@ -295,7 +295,7 @@ async def _analyze_single_chain(
     token_address: str,
     chain: str,
     chain_name: str,
-    pairs: list[dict],
+    pairs: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Analyze whale holdings for a token on a single chain."""
     result: dict[str, Any] = {
@@ -325,7 +325,7 @@ async def _analyze_single_chain(
             result["fdv"] = float(pair.get("fdv", 0) or 0)
         with suppress(ValueError, TypeError):
             result["volume_24h"] = float(pair.get("volume", {}).get("h24", 0) or 0)
-    holders: list[dict] = []
+    holders: list[dict[str, Any]] = []
 
     if chain == "solana":
         # Solana: Try Birdeye first (needs API key)
@@ -472,7 +472,7 @@ async def _cross_reference_whales(
 ) -> tuple[list[CrossChainWhale], list[CrossChainWhale]]:
     """Cross-reference holders across chains to find multi-chain whales."""
     # Collect all holders with their chain info
-    all_holders: dict[str, list[dict]] = {}  # address -> list of positions across chains
+    all_holders: dict[str, list[dict[str, Any]]] = {}  # address -> list of positions across chains
 
     for chain, result in chain_results.items():
         for h in result.get("holders", []):

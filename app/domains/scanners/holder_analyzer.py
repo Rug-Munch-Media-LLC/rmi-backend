@@ -101,7 +101,7 @@ class HolderAnalyzer:
 
     # ── Direct API fetchers ───────────────────────────────────────────
 
-    async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
+    async def _fetch_dexscreener_token(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
             resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
@@ -114,7 +114,7 @@ class HolderAnalyzer:
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
-    async def _fetch_birdeye_overview(self, token_address: str) -> dict | None:
+    async def _fetch_birdeye_overview(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token overview from Birdeye."""
         try:
             result = await self._birdeye.get_token_overview(token_address)
@@ -126,7 +126,7 @@ class HolderAnalyzer:
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
             return None
 
-    async def _fetch_solscan_holders(self, token_address: str, top_n: int = 50) -> list[dict]:
+    async def _fetch_solscan_holders(self, token_address: str, top_n: int = 50) -> list[dict[str, Any]]:
         """Fetch top holders from Solscan (Solana only)."""
         try:
             holders = self._solscan.get_holder_wallets(token_address, top_n=top_n)
@@ -136,7 +136,7 @@ class HolderAnalyzer:
             logger.warning(f"Solscan holders fetch failed for {token_address}: {e}")
             return []
 
-    async def _fetch_helius_token_metadata(self, mint: str) -> dict | None:
+    async def _fetch_helius_token_metadata(self, mint: str) -> dict[str, Any] | None:
         """Fetch token metadata from Helius DAS API."""
         if not self._helius_key:
             return None

@@ -16,7 +16,7 @@ async def token_intelligence(address: str, chain: str = Query(default="solana"))
     """Return composite token intelligence — all DataBus layers in one call."""
     start = time.perf_counter()
 
-    async def _fetch(name: str, coro) -> Any | dict:
+    async def _fetch(name: str, coro) -> Any | dict[str, Any]:
         try:
             return await asyncio.wait_for(coro, timeout=15.0)
         except Exception as e:

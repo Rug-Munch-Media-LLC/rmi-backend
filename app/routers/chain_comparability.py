@@ -4,9 +4,9 @@
 volume, tx count. Detect arbitrage and inflated-volume scams."""
 
 from __future__ import annotations
-from typing import Any
 
 import json
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
@@ -38,9 +38,9 @@ class CrossChainListing(BaseModel):
     suspicion_reason: str = ""
 
 
-async def _get_token_chain_listings(symbol: str) -> list[dict]:
+async def _get_token_chain_listings(symbol: str) -> list[dict[str, Any]]:
     """Find the same token across multiple chains via DexScreener."""
-    listings: list[dict] = []
+    listings: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"{DEXSCREENER}?q={symbol}")
@@ -67,7 +67,7 @@ async def _get_token_chain_listings(symbol: str) -> list[dict]:
     return listings
 
 
-def _detect_suspicious(listings: list[dict]) -> list[dict]:
+def _detect_suspicious(listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Flag suspicious listings: inflated volume, price disconnects."""
     if len(listings) < 2:
         return listings
@@ -100,7 +100,7 @@ def _detect_suspicious(listings: list[dict]) -> list[dict]:
 
 
 @router.get("/token/{symbol}")
-async def compare_token_chains(symbol: str) -> dict:
+async def compare_token_chains(symbol: str) -> dict[str, Any]:
     """Compare a token's listings across all chains. Flags suspicious activity."""
     listings = await _get_token_chain_listings(symbol)
     listings = _detect_suspicious(listings)
@@ -125,10 +125,10 @@ async def compare_token_chains(symbol: str) -> dict:
 async def find_arbitrage_opportunities(
     min_discrepancy: float = Query(2.0, ge=0.5, description="Minimum % price difference"),
     limit: int = Query(10, le=25),
-) -> dict:
+) -> dict[str, Any]:
     """Find tokens with large price discrepancies across chains (arbitrage signals)."""
     # Scan top tokens for price discrepancies
-    opportunities: list[dict] = []
+    opportunities: list[dict[str, Any]] = []
     popular = ["ETH", "USDC", "USDT", "MATIC", "ARB", "OP", "LINK", "UNI", "AAVE", "SNX"]
 
     for symbol in popular[:8]:

@@ -3,12 +3,13 @@ Security provider chains.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from ...base import Provider, ProviderChain, ProviderTier
 
 
-def build_security_chains(locals_dict: dict) -> dict[str, ProviderChain]:
+def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
     """Build security provider chains.
 
     NOTE: Premium scanner, volume_authenticity, token_security, and

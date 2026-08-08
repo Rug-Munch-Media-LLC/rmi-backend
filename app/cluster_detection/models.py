@@ -86,9 +86,9 @@ class WalletCluster:
     # Evolution
     parent_cluster: str | None = None
     child_clusters: list[str] = field(default_factory=list)
-    evolution_history: list[dict] = field(default_factory=list)
+    evolution_history: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cluster_id": self.cluster_id,
             "type": self.cluster_type.value,

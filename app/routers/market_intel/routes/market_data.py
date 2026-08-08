@@ -4,9 +4,9 @@ Token launches, trending, whales, predictions, insiders, dex flows, liquidations
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
@@ -20,7 +20,7 @@ router = APIRouter(tags=["market-intel"])
 async def get_market_launches(
     request: Request,
     limit: int = Query(8, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """New token launches from DexScreener boosts."""
     now = _now()
     boosts = await _ds("/token-boosts/latest/v1", ttl=60)
@@ -97,7 +97,7 @@ async def get_market_launches(
 async def get_market_trending(
     request: Request,
     limit: int = Query(8, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Trending tokens from CoinGecko + DexScreener."""
     now = _now()
     items = []
@@ -130,7 +130,7 @@ async def get_market_whales(
     request: Request,
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Whale movements - large swaps from DexScreener."""
     now = _now()
     items = []
@@ -186,7 +186,7 @@ async def get_market_predictions(
     request: Request,
     limit: int = Query(6, ge=1, le=50),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Prediction markets - Polymarket data."""
     now = _now()
     items = []
@@ -224,7 +224,7 @@ async def get_market_insiders(
     request: Request,
     limit: int = Query(5, ge=1, le=50),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Insider trading signals - derived from CoinGecko trending + price anomalies."""
     now = _now()
     items = []
@@ -282,7 +282,7 @@ async def get_market_insiders(
 async def get_market_dex_flows(
     request: Request,
     limit: int = Query(20, ge=1, le=100),
-) -> dict:
+) -> dict[str, Any]:
     """DEX flow data - buy/sell pressure from top pairs."""
     now = _now()
     items = []
@@ -313,7 +313,7 @@ async def get_market_dex_flows(
 async def get_market_liquidations(
     request: Request,
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Liquidation levels - estimated from Binance price data."""
     now = _now()
     items = []
@@ -345,7 +345,7 @@ async def get_market_liquidations(
 async def get_market_funding(
     request: Request,
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Funding rates from Binance."""
     now = _now()
     items = []
@@ -371,7 +371,7 @@ async def get_market_funding(
 async def get_market_options(
     request: Request,
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Options flow - unusual activity proxy from funding rate extremes."""
     now = _now()
     items = []
@@ -407,7 +407,7 @@ async def get_market_options(
 async def get_market_airdrops(
     request: Request,
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """Airdrop opportunities - curated list of confirmed and upcoming drops."""
     now = _now()
     items = [
@@ -485,7 +485,7 @@ async def get_market_airdrops(
 async def get_market_runners(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Potential runners - tokens with early momentum."""
     now = _now()
     items = []

@@ -34,11 +34,15 @@ from app.domains.telegram.adminbot.commands import (
     cmd_admin_bot_status,
     cmd_admin_bot_toggle,
     cmd_admin_bot_users,
+    cmd_admin_logs,
     cmd_admin_reboot,
     cmd_admin_scanner,
     cmd_alert,
     cmd_alerts,
     cmd_backup,
+    cmd_backup_run,
+    cmd_backup_status,
+    cmd_backup_verify,
     cmd_certs,
     cmd_chain,
     cmd_deploy,
@@ -47,6 +51,7 @@ from app.domains.telegram.adminbot.commands import (
     cmd_docker,
     cmd_dprune,
     cmd_dps,
+    cmd_drestart,
     cmd_dstats,
     cmd_git,
     cmd_health,
@@ -68,6 +73,9 @@ from app.domains.telegram.adminbot.commands import (
     cmd_shell,
     cmd_start,
     cmd_status,
+    cmd_svc,
+    cmd_svc_list,
+    cmd_svc_logs,
     cmd_top,
     cmd_uptime,
 )
@@ -163,6 +171,22 @@ def main() -> None:
     app.add_handler(CommandHandler("dlogs", cmd_dlogs))
     app.add_handler(CommandHandler("dstats", cmd_dstats))
     app.add_handler(CommandHandler("dprune", cmd_dprune))
+    app.add_handler(CommandHandler("drestart", cmd_drestart))
+
+    # ── NEW Commands v6 (Service + Backup management) ──
+    app.add_handler(CommandHandler("svc", cmd_svc))
+    app.add_handler(CommandHandler("svc_list", cmd_svc_list))
+    app.add_handler(CommandHandler("svc_logs", cmd_svc_logs))
+    app.add_handler(CommandHandler("backup_status", cmd_backup_status))
+    app.add_handler(CommandHandler("backup_run", cmd_backup_run))
+    app.add_handler(CommandHandler("backup_verify", cmd_backup_verify))
+    app.add_handler(CommandHandler("admin_logs", cmd_admin_logs))
+    app.add_handler(CommandHandler("admin_svc", cmd_svc))
+    app.add_handler(CommandHandler("admin_svc_list", cmd_svc_list))
+    app.add_handler(CommandHandler("admin_svc_logs", cmd_svc_logs))
+    app.add_handler(CommandHandler("admin_backup_status", cmd_backup_status))
+    app.add_handler(CommandHandler("admin_backup_run", cmd_backup_run))
+    app.add_handler(CommandHandler("admin_backup_verify", cmd_backup_verify))
 
     # ── NEW Commands v5 (admin_* aliases + control panel) ──
     app.add_handler(CommandHandler("admin_services", cmd_services))

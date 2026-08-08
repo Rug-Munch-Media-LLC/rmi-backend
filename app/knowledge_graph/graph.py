@@ -33,7 +33,7 @@ class KnowledgeGraph:
 
     def __init__(self, redis: aioredis.Redis | None = None) -> None:
         self._redis = redis
-        self._node_cache: dict[str, dict] = {}
+        self._node_cache: dict[str, dict[str, Any]] = {}
 
     async def _get_redis(self) -> aioredis.Redis:
         if self._redis:
@@ -71,7 +71,7 @@ class KnowledgeGraph:
         self._node_cache[f"{node_type}:{node_id}"] = data
         return key
 
-    async def get_node(self, node_type: str, node_id: str) -> dict | None:
+    async def get_node(self, node_type: str, node_id: str) -> dict[str, Any] | None:
         """Get a node by type and ID."""
         r = await self._get_redis()
         key = f"kg:node:{node_type}:{node_id}"
@@ -170,7 +170,7 @@ class KnowledgeGraph:
         direction: str = "outgoing",
         min_weight: float = 0.0,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Get neighboring nodes of a given node."""
         r = await self._get_redis()
         results = []
@@ -227,7 +227,7 @@ class KnowledgeGraph:
         to_id: str,
         max_depth: int = 4,
         max_paths: int = 5,
-    ) -> list[list[dict]]:
+    ) -> list[list[dict[str, Any]]]:
         """BFS pathfinding between two nodes."""
         r = await self._get_redis()
         paths = []

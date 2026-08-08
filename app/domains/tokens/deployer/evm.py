@@ -1,9 +1,9 @@
 """EVM token deployer (Ethereum, Base, BSC)."""
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.tokens.deployer.base import ChainDeployer
@@ -173,7 +173,7 @@ class EVMDeployer(ChainDeployer):
         logger.info(f"Factory-deployed {params.symbol} on {self.chain} at {contract_address}")
         return deployment
 
-    async def _erc20_call(self, contract_address: str, abi: list, fn: str, *args):
+    async def _erc20_call(self, contract_address: str, abi: list[Any], fn: str, *args):
         """Helper for ERC-20 contract interactions."""
         contract = self.w3.eth.contract(address=contract_address, abi=abi)
         tx = getattr(contract.functions, fn)(*args).build_transaction(
@@ -239,7 +239,7 @@ class EVMDeployer(ChainDeployer):
             "renounceOwnership",
         )
 
-    async def get_token_info(self, contract_address: str) -> dict:
+    async def get_token_info(self, contract_address: str) -> dict[str, Any]:
         abi = [
             {"inputs": [], "name": "name", "outputs": [{"type": "string"}], "type": "function"},
             {"inputs": [], "name": "symbol", "outputs": [{"type": "string"}], "type": "function"},

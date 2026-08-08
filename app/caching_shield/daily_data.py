@@ -5,11 +5,11 @@ Pulls from ALL our data sources to create comprehensive daily analysis.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from app.core.logging import get_logger
 logger = get_logger("market_data")
 
 
-async def get_price_action() -> dict:
+async def get_price_action() -> dict[str, Any]:
     """Get real-time prices and 24h changes for major assets."""
     try:
         from app.caching_shield.solana_tracker import get_solana_tracker
@@ -43,7 +43,7 @@ async def get_price_action() -> dict:
         return {"error": str(e), "major_assets": {}, "trending": []}
 
 
-async def get_fear_greed() -> dict:
+async def get_fear_greed() -> dict[str, Any]:
     """Get Fear & Greed index from our local MCP."""
     try:
         # Use our crypto-feargreed-mcp
@@ -63,7 +63,7 @@ async def get_fear_greed() -> dict:
     return {"value": 50, "classification": "Neutral"}
 
 
-async def get_top_movers() -> dict:
+async def get_top_movers() -> dict[str, Any]:
     """Get top gainers and losers from CoinGecko."""
     try:
         key = os.getenv("COINGECKO_API_KEY", "")
@@ -84,7 +84,7 @@ async def get_top_movers() -> dict:
     return {"trending": [], "trending_score": []}
 
 
-async def get_security_alerts() -> dict:
+async def get_security_alerts() -> dict[str, Any]:
     """Get recent security incidents from our risk scanner + news."""
     alerts = []
     try:
@@ -125,7 +125,7 @@ async def get_security_alerts() -> dict:
     return {"alerts": alerts, "count": len(alerts)}
 
 
-async def get_whale_activity() -> dict:
+async def get_whale_activity() -> dict[str, Any]:
     """Get whale movement summary."""
     try:
         from app.caching_shield.solana_tracker import get_solana_tracker
@@ -142,7 +142,7 @@ async def get_whale_activity() -> dict:
     return {"trending_high_volume": 0}
 
 
-async def get_prediction_markets() -> dict:
+async def get_prediction_markets() -> dict[str, Any]:
     """Get Polymarket odds for crypto-related markets."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -164,7 +164,7 @@ async def get_prediction_markets() -> dict:
     return {"active_markets": 0, "top_markets": []}
 
 
-async def get_daily_rundown_data() -> dict:
+async def get_daily_rundown_data() -> dict[str, Any]:
     """Get ALL daily data for the AI market rundown."""
     results = await asyncio.gather(
         get_price_action(),

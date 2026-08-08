@@ -6,10 +6,10 @@ and provides the main API for cluster analysis.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from app.domains.wallet.clustering.detection import (
     detect_common_counterparty_clusters,
@@ -93,7 +93,7 @@ class WalletClusteringEngine:
         if conn.last_connection is None or tx.timestamp > conn.last_connection:
             conn.last_connection = tx.timestamp
 
-    def load_from_helius(self, helius_data: list[dict]) -> None:
+    def load_from_helius(self, helius_data: list[dict[str, Any]]) -> None:
         """Load transactions from Helius API format."""
         for item in helius_data:
             tx = Transaction(
@@ -135,7 +135,7 @@ class WalletClusteringEngine:
             max_wallets,
         )
 
-    def generate_bubble_map_data(self, center_wallet: str, depth: int = 2, max_wallets: int = 250) -> dict:
+    def generate_bubble_map_data(self, center_wallet: str, depth: int = 2, max_wallets: int = 250) -> dict[str, Any]:
         return generate_bubble_map_data(self.connections, self.wallets, center_wallet, depth, max_wallets)
 
     def generate_ai_forensic_breakdown(
@@ -145,7 +145,7 @@ class WalletClusteringEngine:
         initial_max_wallets: int = 250,
         max_expansion_depth: int = 5,
         absolute_max_wallets: int = 1000,
-    ) -> dict:
+    ) -> dict[str, Any]:
         return generate_ai_forensic_breakdown(
             self.connections,
             self.wallets,
@@ -157,7 +157,7 @@ class WalletClusteringEngine:
             absolute_max_wallets,
         )
 
-    def get_cluster_report(self, cluster_id: str) -> dict | None:
+    def get_cluster_report(self, cluster_id: str) -> dict[str, Any] | None:
         cluster = self.clusters.get(cluster_id)
         if not cluster:
             return None

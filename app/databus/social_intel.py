@@ -12,13 +12,13 @@ Features:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import os
 import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -32,7 +32,7 @@ GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 # KOL PERFORMANCE TRACKER
 # ═══════════════════════════════════════════════════════════════════════
 
-KOL_DATABASE: dict[str, dict] = {}  # handle → {calls: [...], metrics: {...}}
+KOL_DATABASE: dict[str, dict[str, Any]] = {}  # handle → {calls: [...], metrics: {...}}
 
 
 def _kol_key(handle: str) -> str:
@@ -46,7 +46,7 @@ async def track_kol_call(
     price_at_call: float = 0,
     chain: str = "solana",
     **kw,
-) -> dict:
+) -> dict[str, Any]:
     """Record a KOL making a call on a token.
 
     call_type: buy, sell, shill, warning, analysis
@@ -88,7 +88,7 @@ async def track_kol_call(
     return {"status": "tracked", "call": call}
 
 
-async def get_kol_profile(handle: str, **kw) -> dict:
+async def get_kol_profile(handle: str, **kw) -> dict[str, Any]:
     """Get a KOL's performance profile - call history, success rate, risk score."""
     key = _kol_key(handle)
     data = KOL_DATABASE.get(key, {"calls": [], "metrics": {}})
@@ -119,7 +119,7 @@ async def get_kol_profile(handle: str, **kw) -> dict:
     }
 
 
-async def get_kol_leaderboard(limit: int = 20, **kw) -> dict:
+async def get_kol_leaderboard(limit: int = 20, **kw) -> dict[str, Any]:
     """Leaderboard of top KOLs by trust score and call accuracy."""
     kols = []
     for key, _data in KOL_DATABASE.items():
@@ -175,10 +175,10 @@ SHILL_PATTERNS = {
     },
 }
 
-DETECTED_CAMPAIGNS: list[dict] = []
+DETECTED_CAMPAIGNS: list[dict[str, Any]] = []
 
 
-async def detect_shill_campaigns(posts: list[dict] | None = None, **kw) -> dict:
+async def detect_shill_campaigns(posts: list[dict[str, Any]] | None = None, **kw) -> dict[str, Any]:
     """Scan recent posts for coordinated shill campaigns.
 
     If posts not provided, checks against accumulated KOL call data.
@@ -230,7 +230,7 @@ async def detect_shill_campaigns(posts: list[dict] | None = None, **kw) -> dict:
     }
 
 
-async def get_shill_alerts(**kw) -> dict:
+async def get_shill_alerts(**kw) -> dict[str, Any]:
     """Get recent shill campaign alerts."""
     return {
         "alerts": DETECTED_CAMPAIGNS[-20:],
@@ -271,7 +271,7 @@ SCAM_INDICATORS = [
 ]
 
 
-async def scan_scam_channels(**kw) -> dict:
+async def scan_scam_channels(**kw) -> dict[str, Any]:
     """Scan known scam channels for active campaigns.
 
     In production, this would connect to Telegram API.
@@ -291,7 +291,7 @@ async def scan_scam_channels(**kw) -> dict:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def generate_daily_intel(**kw) -> dict:
+async def generate_daily_intel(**kw) -> dict[str, Any]:
     """Generate a comprehensive Daily Intelligence Report using Groq AI.
 
     Combines: market data, fear/greed, news headlines, CT sentiment,
@@ -408,7 +408,7 @@ BOTTOM LINE: Data-driven. No AI available for narrative synthesis."""
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def get_social_metrics(**kw) -> dict:
+async def get_social_metrics(**kw) -> dict[str, Any]:
     """Aggregate social metrics across platforms.
 
     Tracks: trending topics, sentiment shifts, KOL activity, meme velocity.

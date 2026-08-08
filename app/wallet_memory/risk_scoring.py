@@ -35,7 +35,7 @@ class RiskScorer:
         self._labels = labels
         self._clustering = clustering
 
-    async def score(self, address: str, chain: str, intel: dict | None = None) -> dict[str, Any]:
+    async def score(self, address: str, chain: str, intel: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Calculate composite risk score for a wallet.
 
@@ -102,7 +102,7 @@ class RiskScorer:
             "warnings": warnings,
         }
 
-    def _score_labels(self, intel: dict) -> float:
+    def _score_labels(self, intel: dict[str, Any]) -> float:
         """Score label risk from intelligence dict."""
         score = 0.0
         labels = intel.get("labels", [])
@@ -122,7 +122,7 @@ class RiskScorer:
 
         return min(40, score)
 
-    def _score_cluster(self, intel: dict) -> float:
+    def _score_cluster(self, intel: dict[str, Any]) -> float:
         """Score risk from entity/cluster membership."""
         score = 0.0
         linked = intel.get("linked_wallets", [])
@@ -162,7 +162,7 @@ class RiskScorer:
 
         return min(30, score)
 
-    def _score_deployer_history(self, intel: dict) -> float:
+    def _score_deployer_history(self, intel: dict[str, Any]) -> float:
         """Score risk from deployer history."""
         history = intel.get("deployer_history", [])
         if not history:

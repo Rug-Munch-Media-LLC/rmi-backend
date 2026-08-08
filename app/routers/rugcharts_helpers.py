@@ -70,7 +70,7 @@ def _r() -> Any:
     )
 
 
-async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list[dict], bool]:
+async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list[dict[str, Any]], bool]:
     """Fetch trending tokens from DexScreener with real price data."""
     cache_key = f"rugcharts:trending:{chain}:{limit}"
     try:
@@ -196,7 +196,7 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list
     return tokens, fallback_used
 
 
-async def _fetch_ohlcv_gecko(pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100) -> list[dict]:
+async def _fetch_ohlcv_gecko(pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100) -> list[dict[str, Any]]:
     """Fetch OHLCV candles from GeckoTerminal."""
     network = GECKO_NETWORKS.get(chain, chain)
     tf_info = GECKO_TIMEFRAMES.get(timeframe, ("hour", 1))
@@ -284,7 +284,7 @@ async def _fetch_ohlcv_clickhouse(
     chain: str,
     timeframe: str = "1h",
     limit: int = 100,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Fetch OHLCV candles from the chain-indexer ClickHouse materialized view.
 
     Queries ``wallet_memory.dex_ohlcv_hourly`` (pre-computed 1h candles from
@@ -314,7 +314,7 @@ async def _fetch_ohlcv_clickhouse(
         logger.debug("clickhouse_driver not installed — CH OHLCV unavailable")
         return []
 
-    candles: list[dict] = []
+    candles: list[dict[str, Any]] = []
     try:
         client = CHClient(
             host=CLICKHOUSE_HOST,
@@ -395,7 +395,7 @@ async def _fetch_ohlcv_clickhouse(
     return candles
 
 
-async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
+async def _fetch_pair_info(pair_address: str, chain: str) -> dict[str, Any]:
     """Fetch detailed pair info from GeckoTerminal."""
     network = GECKO_NETWORKS.get(chain, chain)
     cache_key = f"rugcharts:pair:{chain}:{pair_address}"
@@ -454,7 +454,7 @@ async def _fetch_pair_info(pair_address: str, chain: str) -> dict:
     return info
 
 
-def _compute_volume_authenticity(pair_info: dict, candles: list[dict]) -> dict:
+def _compute_volume_authenticity(pair_info: dict[str, Any], candles: list[dict[str, Any]]) -> dict[str, Any]:
     """Compute volume authenticity score from available data."""
     vol_24h = pair_info.get("volume_24h", 0)
     vol_6h = pair_info.get("volume_6h", 0)
@@ -542,7 +542,7 @@ def _compute_volume_authenticity(pair_info: dict, candles: list[dict]) -> dict:
     }
 
 
-def _compute_rug_score(pair_info: dict, vol_auth: dict) -> dict:
+def _compute_rug_score(pair_info: dict[str, Any], vol_auth: dict[str, Any]) -> dict[str, Any]:
     """Compute overall rug risk score."""
     score = 0
     factors = []

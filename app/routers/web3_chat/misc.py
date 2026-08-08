@@ -27,7 +27,7 @@ router = APIRouter()
 async def transaction_history(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get user's transaction history (payments, tips, splits)."""
     user_id = user.get("id")
@@ -82,7 +82,7 @@ async def transaction_history(
 @router.post("/parse-command")
 async def parse_chat_command(
     content: str = Query(..., description="Chat message content"),
-    user: dict = Depends(get_current_user),
+    user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Parse a chat message for Web3 commands (/pay, /tip, /split, /request).
 

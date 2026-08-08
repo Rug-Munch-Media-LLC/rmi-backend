@@ -10,10 +10,10 @@ Payment wallets:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -39,11 +39,11 @@ PAYMENT_WALLETS = {
 }
 
 # Revenue by source tracking
-_revenue_log: list[dict] = []
-_earnings_cache: dict = {"updated": 0, "data": {}}
+_revenue_log: list[dict[str, Any]] = []
+_earnings_cache: dict[str, Any] = {"updated": 0, "data": {}}
 
 
-async def fetch_wallet_earnings() -> dict:
+async def fetch_wallet_earnings() -> dict[str, Any]:
     """Fetch current balances and recent transactions for all payment wallets."""
     results = {}
     total_usd = 0.0
@@ -69,7 +69,7 @@ async def fetch_wallet_earnings() -> dict:
     return results
 
 
-async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
+async def _fetch_evm_balance(address: str, chain_id: int) -> dict[str, Any]:
     """Fetch EVM wallet balance via Blockscout."""
     key = os.getenv("BLOCKSCOUT_API_KEY", "")
     if not key:
@@ -106,7 +106,7 @@ async def _fetch_evm_balance(address: str, chain_id: int) -> dict:
     return {"balance": 0, "balance_usd": 0}
 
 
-async def _fetch_solana_balance(address: str) -> dict:
+async def _fetch_solana_balance(address: str) -> dict[str, Any]:
     """Fetch Solana wallet balance via Helius."""
     key = os.getenv("HELIUS_API_KEY", "")
     if not key or address == "PAY_TO_SOLANA_NOT_SET":
@@ -152,7 +152,7 @@ def log_revenue(tool_id: str, amount_usd: float, chain: str, facilitator: str) -
         _revenue_log.pop(0)
 
 
-def get_revenue_by_source() -> dict:
+def get_revenue_by_source() -> dict[str, Any]:
     """Aggregate revenue by tool, chain, and facilitator."""
     by_tool = {}
     by_chain = {}
@@ -175,7 +175,7 @@ def get_revenue_by_source() -> dict:
     }
 
 
-def get_earnings_report() -> dict:
+def get_earnings_report() -> dict[str, Any]:
     """Full earnings report for the dashboard."""
     return {
         "wallets": PAYMENT_WALLETS,

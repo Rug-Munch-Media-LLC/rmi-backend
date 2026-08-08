@@ -1,6 +1,7 @@
 """DataBus Router sub-module. Batch_Cache endpoints."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,7 +15,7 @@ router = APIRouter(tags=["databus"])
 
 
 @router.post("/batch")
-async def databus_batch(request: Request) -> dict:
+async def databus_batch(request: Request) -> dict[str, Any]:
     """#7 Batch DataBus - fetch multiple data types in one call.
 
     Body: {
@@ -51,7 +52,7 @@ async def databus_batch(request: Request) -> dict:
 
 
 @router.get("/providers/health")
-async def databus_providers_health(request: Request) -> dict:
+async def databus_providers_health(request: Request) -> dict[str, Any]:
     """#5 Provider Health Dashboard - per-provider success/failure/latency/circuit status."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -64,7 +65,7 @@ async def databus_providers_health(request: Request) -> dict:
 
 
 @router.get("/cache/stats")
-async def databus_cache_stats(request: Request) -> dict:
+async def databus_cache_stats(request: Request) -> dict[str, Any]:
     """#10 Per-type cache stats with TTL tuning suggestions."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
@@ -77,7 +78,7 @@ async def databus_cache_stats(request: Request) -> dict:
 
 
 @router.post("/schema/validate")
-async def databus_schema_validate(request: Request) -> dict:
+async def databus_schema_validate(request: Request) -> dict[str, Any]:
     """#15 Validate a DataBus response against expected schema.
 
     Body: {"data_type": "token_price", "data": {"price_usd": 1.23, ...}}

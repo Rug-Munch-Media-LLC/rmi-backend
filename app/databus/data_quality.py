@@ -117,7 +117,7 @@ KNOWN_ENTITIES = {
 }
 
 
-def lookup_entity(address: str, chain: str = "") -> dict | None:
+def lookup_entity(address: str, chain: str = "") -> dict[str, Any] | None:
     """Check if an address is a known entity."""
     # Exact match
     if address in KNOWN_ENTITIES:
@@ -203,7 +203,7 @@ async def enrich_with_wallet_labels(addresses: list[str]) -> dict[str, str]:
     return labels
 
 
-async def enrich_with_arkham(address: str) -> dict | None:
+async def enrich_with_arkham(address: str) -> dict[str, Any] | None:
     """Enrich an address with Arkham entity data."""
     arkham_key = os.getenv("ARKHAM_API_KEY", "")
     if not arkham_key:
@@ -238,7 +238,7 @@ async def enrich_with_arkham(address: str) -> dict | None:
     return None
 
 
-async def enrich_response(result: dict, address: str, chain: str) -> dict:
+async def enrich_response(result: dict[str, Any], address: str, chain: str) -> dict[str, Any]:
     """Universal response enrichment - injects labels, entities, trust into any result."""
     if not result or not isinstance(result, dict):
         return result
@@ -375,7 +375,7 @@ TIER_DEFINITIONS = {
 }
 
 
-def get_tier_info(tier: str) -> dict:
+def get_tier_info(tier: str) -> dict[str, Any]:
     """Get tier definition."""
     return TIER_DEFINITIONS.get(tier, TIER_DEFINITIONS["free"])
 
@@ -387,7 +387,7 @@ def tier_allows(tier: str, data_type: str) -> bool:
     return "*" in allowed or data_type in allowed
 
 
-def tier_comparison_table() -> list[dict]:
+def tier_comparison_table() -> list[dict[str, Any]]:
     """Generate competitive comparison table."""
     return [
         {
@@ -494,7 +494,7 @@ def tier_comparison_table() -> list[dict]:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def smart_verdict(report: dict) -> str:
+def smart_verdict(report: dict[str, Any]) -> str:
     """Generate an intelligent, nuanced verdict instead of just 'EXTREME RISK'."""
 
     report.get("sections", {}).get("entity", {})
@@ -568,7 +568,7 @@ def smart_verdict(report: dict) -> str:
         return f"MINOR CONCERNS - {'; '.join(risks)}. Standard due diligence recommended."
 
 
-async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> dict | None:
+async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
     """Enhanced token report with smart verdicts, enrichment, and tier info."""
 
     cache_key = f"enhanced_report:{chain}:{address}"
@@ -678,7 +678,7 @@ async def enhanced_token_report(address: str, chain: str = "solana", **kw) -> di
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def get_tier_comparison(**kw) -> dict:
+async def get_tier_comparison(**kw) -> dict[str, Any]:
     """Return the competitive tier comparison table."""
     return {
         "tiers": {

@@ -8,9 +8,9 @@ Update ONCE here, everything else auto-syncs.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from datetime import UTC, datetime
+from typing import Any
 
 from app.caching_shield.agent_skills_extended import get_all_agent_skills
 from app.caching_shield.membership_plans import get_membership_catalog
@@ -18,7 +18,7 @@ from app.caching_shield.tool_registry import TOOL_COUNTS
 from app.routers.x402_enforcement import CHAIN_USDC, TOOL_PRICES
 
 
-def get_platform_manifest() -> dict:
+def get_platform_manifest() -> dict[str, Any]:
     """The ONE source of truth. Every platform surface reads from this."""
     tools = dict(TOOL_PRICES)
     counts = TOOL_COUNTS
@@ -154,7 +154,7 @@ def get_platform_manifest() -> dict:
 # ═══ AUTO-SYNC ═══
 
 
-def sync_to_mcp_discovery() -> dict:
+def sync_to_mcp_discovery() -> dict[str, Any]:
     """Generate the MCP discovery JSON fragment that should be merged into _build_discovery()."""
     m = get_platform_manifest()
     return {
@@ -174,7 +174,7 @@ def sync_to_readme() -> str:
     return m["descriptions"]["long"]
 
 
-def sync_to_directory_listing() -> dict:
+def sync_to_directory_listing() -> dict[str, Any]:
     """Generate fields for Smithery/Glama/mcp.so listings."""
     m = get_platform_manifest()
     return {

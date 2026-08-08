@@ -4,10 +4,10 @@ Tracks what the most profitable wallets are buying right now.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -18,7 +18,7 @@ from .cache import ARKHAM_KEY, CACHE_TTL, HELIUS_KEY, _r
 logger = get_logger("rugcharts_intel")
 
 
-async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict | None:
+async def smart_money_feed(chain: str = "solana", limit: int = 20, **kw) -> dict[str, Any] | None:
     """Track what the most profitable wallets are buying right now.
 
     Uses: Helius recent transactions + Arkham entity labels + local wallet scoring.

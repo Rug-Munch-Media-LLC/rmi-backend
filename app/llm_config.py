@@ -12,11 +12,11 @@ Provider chain:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import base64
 import contextlib
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -57,7 +57,7 @@ if not LLM_API_KEY or not os.getenv("LLM_API_KEY"):
     AI_BASE = f"{OPENROUTER_BASE}/chat/completions"
 
 
-def get_content_config() -> dict:
+def get_content_config() -> dict[str, Any]:
     """Get config for content generation (Nemotron 3 Super primary)."""
     return {
         "model": CONTENT_MODEL,
@@ -68,7 +68,7 @@ def get_content_config() -> dict:
     }
 
 
-def get_fast_config() -> dict:
+def get_fast_config() -> dict[str, Any]:
     """Get config for fast/cheap tasks (DeepSeek Flash primary)."""
     if LLM_API_KEY and DEEPSEEK_BASE:
         return {
@@ -81,7 +81,7 @@ def get_fast_config() -> dict:
     return get_content_config()  # fallback to OpenRouter
 
 
-def get_analysis_config() -> dict:
+def get_analysis_config() -> dict[str, Any]:
     """Get config for deep analysis (DeepSeek Pro primary)."""
     if LLM_API_KEY and DEEPSEEK_BASE:
         return {
@@ -150,7 +150,7 @@ async def generate_briefing(topic: str, context: str = "") -> str:
     return await generate_content(prompt, max_tokens=512, temperature=0.6)
 
 
-async def generate_scam_report(findings: dict) -> str:
+async def generate_scam_report(findings: dict[str, Any]) -> str:
     """Generate a structured scam investigation report."""
     import json
 

@@ -59,7 +59,7 @@ def _ch():
 # ── Cache Helpers ───────────────────────────────────────────────────
 
 
-def get_cached_enrichment(address: str) -> dict | None:
+def get_cached_enrichment(address: str) -> dict[str, Any] | None:
     """Check if an address has cached enrichment data."""
     try:
         r = _redis()
@@ -107,7 +107,7 @@ def preload_enrichment_cache(addresses: list[str]) -> None:
 # ── Alert Hooks ─────────────────────────────────────────────────────
 
 
-def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) -> None:
+def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list[Any], r=None) -> None:
     """Fire alert when enrichment finds high-risk addresses."""
     try:
         if not r:
@@ -130,7 +130,7 @@ def _fire_enrichment_alert(tool_name: str, alert_type: str, data: list, r=None) 
 # ── Cron Intel Injection ────────────────────────────────────────────
 
 
-def _load_recent_intel(r=None) -> dict | None:
+def _load_recent_intel(r=None) -> dict[str, Any] | None:
     """Load the latest RMI intel briefing from Redis for injection into tool results."""
     try:
         if not r:
@@ -157,7 +157,7 @@ def _load_recent_intel(r=None) -> dict | None:
 # ── LLM Synthesis ───────────────────────────────────────────────────
 
 
-def _synthesize_enrichment(risk_summary: str, scam_flags: list, tool_name: str) -> str:
+def _synthesize_enrichment(risk_summary: str, scam_flags: list[Any], tool_name: str) -> str:
     """Use DeepSeek Flash to synthesize a human-readable enrichment paragraph."""
     try:
         import httpx as _httpx

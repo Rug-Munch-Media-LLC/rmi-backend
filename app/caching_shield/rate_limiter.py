@@ -216,7 +216,7 @@ class RpcRateLimiter:
                 wait = needed / rate
                 return (False, wait)
 
-    async def stats(self, provider: str | None = None) -> dict:
+    async def stats(self, provider: str | None = None) -> dict[str, Any]:
         """Return rate limiter stats."""
         result = {}
         providers = [provider] if provider else list(PROVIDER_LIMITS.keys())
@@ -270,7 +270,7 @@ class RpcRateLimiter:
                 return bucket
         return (float(pl[1]), 0.0, 0)
 
-    def get_all_limits(self) -> dict:
+    def get_all_limits(self) -> dict[str, Any]:
         """Return all configured provider limits (read-only)."""
         return PROVIDER_LIMITS.copy()
 

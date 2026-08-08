@@ -70,10 +70,10 @@ async def _collect_token_meta(
 
 async def _get_token_traders(token_address: str, chain: str, max_traders: int = 100) -> list[dict[str, Any]]:
     """Get all traders and their trades for a token."""
-    seen_hashes: set = set()
-    traders_map: dict[str, dict] = {}
+    seen_hashes: set[Any] = set()
+    traders_map: dict[str, dict[str, Any]] = {}
 
-    def _add_trade(trade: dict) -> None:
+    def _add_trade(trade: dict[str, Any]) -> None:
         tx_hash = trade.get("tx_hash") or trade.get("transaction_hash", "")
         if tx_hash in seen_hashes:
             return

@@ -157,7 +157,7 @@ def add_text_centered(img, text, position, font_size, color, font_path=None) -> 
     return img
 
 
-def generate_feature_graphic(feature_key: str) -> dict:
+def generate_feature_graphic(feature_key: str) -> dict[str, Any]:
     """Generate feature showcase graphic."""
     config = CONTENT_TYPES["feature_showcase"]
     copy = MARKETING_COPY.get(feature_key)
@@ -204,7 +204,7 @@ def generate_feature_graphic(feature_key: str) -> dict:
     }
 
 
-def generate_launch_graphic() -> dict:
+def generate_launch_graphic() -> dict[str, Any]:
     """Generate platform launch announcement."""
     config = CONTENT_TYPES["launch_announcement"]
     copy = MARKETING_COPY["platform_launch"]
@@ -233,7 +233,7 @@ def generate_launch_graphic() -> dict:
     }
 
 
-def generate_all_marketing_graphics() -> list[dict]:
+def generate_all_marketing_graphics() -> list[dict[str, Any]]:
     """Generate all marketing graphics."""
     results = []
 

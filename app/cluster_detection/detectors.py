@@ -16,10 +16,10 @@ Methods:
 """
 
 from __future__ import annotations
-from typing import Any
 
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 from app.cluster_detection.models import (
     ClusterSignal,
@@ -33,7 +33,7 @@ from app.cluster_detection.scoring import (
 
 
 async def detect_temporal_clusters(
-    wallet_profiles: dict[str, dict],
+    wallet_profiles: dict[str, dict[str, Any]],
     wallets: list[str],
 ) -> list[WalletCluster]:
     """
@@ -101,7 +101,7 @@ async def detect_temporal_clusters(
 
 
 async def detect_counterparty_clusters(
-    wallet_profiles: dict[str, dict],
+    wallet_profiles: dict[str, dict[str, Any]],
     wallets: list[str],
 ) -> list[WalletCluster]:
     """
@@ -171,7 +171,7 @@ async def detect_counterparty_clusters(
 
 
 async def detect_behavioral_clusters(
-    wallet_profiles: dict[str, dict],
+    wallet_profiles: dict[str, dict[str, Any]],
     wallets: list[str],
 ) -> list[WalletCluster]:
     """
@@ -278,7 +278,7 @@ async def detect_behavioral_clusters(
 
 
 async def detect_funding_clusters(
-    wallet_profiles: dict[str, dict],
+    wallet_profiles: dict[str, dict[str, Any]],
     wallets: list[str],
 ) -> list[WalletCluster]:
     """Detect clusters based on common funding sources."""

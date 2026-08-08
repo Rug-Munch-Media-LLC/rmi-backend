@@ -458,7 +458,7 @@ async def store_cache(msg: str, agent_id: str, response: str, ttl: int = 3600) -
 # ═══════════════════════════════════════════════════════════
 
 
-async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict, None]:
+async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict[str, Any], None]:
     """Route to specialist agent, inject RAG context, stream response.
 
     Provider priority:
@@ -622,7 +622,7 @@ async def route_and_stream(msg: str, role_hint: str = "") -> AsyncGenerator[dict
     yield {"type": "done"}
 
 
-def agents_list() -> list:
+def agents_list() -> list[Any]:
     return [
         {
             "id": a.id,

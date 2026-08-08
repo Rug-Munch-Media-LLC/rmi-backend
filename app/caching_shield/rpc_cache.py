@@ -85,7 +85,7 @@ class CacheStats:
         total = self.hits + self.misses
         return (self.hits / total * 100) if total > 0 else 0.0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "hits": self.hits,
             "misses": self.misses,
@@ -364,7 +364,7 @@ class RpcCacheClient:
 
     # ── Health ──────────────────────────────────────────────────────────
 
-    async def health(self) -> dict:
+    async def health(self) -> dict[str, Any]:
         redis_ok = False
         redis = await self._get_redis()
         if redis:

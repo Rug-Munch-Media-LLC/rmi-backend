@@ -122,7 +122,7 @@ class BlockchainDataLayer:
             logger.warning("Failed to fetch tx %s on %s: %s", tx_hash, chain, e)
         return None
 
-    def _parse_tx_data(self, data: dict, chain: str) -> TransactionTrace | None:
+    def _parse_tx_data(self, data: dict[str, Any], chain: str) -> TransactionTrace | None:
         """Parse raw RPC response into a TransactionTrace.
 
         Args:
@@ -194,7 +194,7 @@ class BlockchainDataLayer:
 
         return None
 
-    async def _http_post(self, url: str, payload: dict) -> dict[str, Any] | None:
+    async def _http_post(self, url: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Make an async HTTP POST request.
 
         Attempts httpx first, falls back to urllib.
@@ -219,7 +219,7 @@ class BlockchainDataLayer:
             logger.debug("HTTP request failed: %s", e)
             return None
 
-    def _http_post_sync(self, url: str, payload: dict) -> dict[str, Any] | None:
+    def _http_post_sync(self, url: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Synchronous HTTP POST fallback via urllib.
 
         Args:

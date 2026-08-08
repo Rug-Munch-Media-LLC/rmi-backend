@@ -161,7 +161,7 @@ async def three_pillar_search(
     top_k: int = 5,
     min_similarity: float = 0.0,
     filters: dict[str, Any] | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Run the three-pillar search and return RRF-fused hits.
 
     Each returned hit: {doc_id, score, text, metadata, source_pillars}
@@ -315,7 +315,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
         return []
 
     # ── Corpus stats (single pass) ──────────────────────────────────
-    doc_list: list[tuple[str, str, dict]] = []  # (doc_id, text, metadata)
+    doc_list: list[tuple[str, str, dict[str, Any]]] = []  # (doc_id, text, metadata)
     doc_lengths: list[int] = []
     # doc_freq[t] = number of documents containing term t
     doc_freq: dict[str, int] = {}
@@ -347,7 +347,7 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
     k1 = 1.5
     b = 0.75
 
-    scored: list[tuple[float, str, str, dict]] = []
+    scored: list[tuple[float, str, str, dict[str, Any]]] = []
     for idx, (doc_id, text, metadata) in enumerate(doc_list):
         tokens = _tokenize(text)
         if not tokens:
@@ -437,7 +437,7 @@ async def ingest_document(
     metadata: dict[str, Any] | None = None,
     chunk: bool = True,
     content_type: str = "general",
-) -> dict:
+) -> dict[str, Any]:
     """Ingest a document into the RAG system.
 
     - Chunks the content (content-type-aware strategies, dedup)
@@ -527,7 +527,7 @@ async def ingest_document(
 
 
 # ── Stats ────────────────────────────────────────────────────────────
-def get_collection_stats(collection: str) -> dict:
+def get_collection_stats(collection: str) -> dict[str, Any]:
     """Get stats for one collection: vector count + dedup hashes count."""
     idx = get_index(collection)
     count = idx.count()
@@ -545,7 +545,7 @@ def get_collection_stats(collection: str) -> dict:
     }
 
 
-def get_stats(collections: list[str] | None = None) -> dict:
+def get_stats(collections: list[str] | None = None) -> dict[str, Any]:
     """Get stats for all (or specified) collections + the active embedder backend."""
     from app.rag.models import COLLECTIONS as DEFAULT_COLLECTIONS
 
@@ -559,9 +559,9 @@ def get_stats(collections: list[str] | None = None) -> dict:
 
 # ── Background helpers (used by ingest_cron worker) ──────────────────
 async def bulk_ingest(
-    items: list[dict],
+    items: list[dict[str, Any]],
     collection: str = "scam_intel",
-) -> dict:
+) -> dict[str, Any]:
     """Ingest many items sequentially. Returns summary counts."""
     if not items:
         return {"total": 0, "ok": 0, "duplicate": 0, "empty": 0, "errors": 0}

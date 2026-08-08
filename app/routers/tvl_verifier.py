@@ -66,7 +66,7 @@ async def _get_onchain_tvl(protocol_name: str, chains: list[str]) -> dict[str, f
     return chain_tvls
 
 
-def _compute_discrepancy(defl_tvl: float, onchain_tvl: float) -> dict:
+def _compute_discrepancy(defl_tvl: float, onchain_tvl: float) -> dict[str, Any]:
     """Compute TVL discrepancy with risk assessment."""
     if defl_tvl <= 0 or onchain_tvl <= 0:
         return {"discrepancy_pct": 0, "risk": "unknown", "explanation": "Insufficient data"}
@@ -122,7 +122,7 @@ async def verify_protocol_tvl(slug: str) -> dict[str, Any | None]:
 
 
 @router.get("/top-mismatches")
-async def find_top_mismatches(limit: int = Query(10, le=20)) -> dict:
+async def find_top_mismatches(limit: int = Query(10, le=20)) -> dict[str, Any]:
     """Scan top DeFiLlama protocols for TVL mismatches."""
     # Fetch top protocols from DeFiLlama
     top_protocols: list[str] = []
@@ -136,7 +136,7 @@ async def find_top_mismatches(limit: int = Query(10, le=20)) -> dict:
         logger.warning(f"DeFiLlama protocols fetch failed: {e}")
         raise HTTPException(502, "DeFiLlama unavailable") from e
 
-    mismatches: list[dict] = []
+    mismatches: list[dict[str, Any]] = []
     for slug in top_protocols[: limit * 2]:
         result = await verify_protocol_tvl(slug)
         disc = result.get("discrepancy", {})

@@ -49,7 +49,7 @@ class PythPriceFeedProvider:
             logger.error(f"Error fetching price feeds list: {e}")
             return {}
 
-    async def get_latest_price_updates(self, price_feed_ids: list) -> dict[str, Any]:
+    async def get_latest_price_updates(self, price_feed_ids: list[Any]) -> dict[str, Any]:
         """
         Get the latest price updates for specified price feed IDs.
 
@@ -162,7 +162,7 @@ async def _pyth_price_feed_list(**kwargs) -> dict[str, Any]:
         await provider.close()
 
 
-async def _pyth_latest_price_updates(price_feed_ids: list, **kwargs) -> dict[str, Any]:
+async def _pyth_latest_price_updates(price_feed_ids: list[Any], **kwargs) -> dict[str, Any]:
     """Get latest price updates for specified feeds"""
     provider = PythPriceFeedProvider()
     try:

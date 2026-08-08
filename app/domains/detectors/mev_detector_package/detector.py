@@ -188,7 +188,7 @@ class MEVSandwichDetector:
         return result
 
     def _estimate_sandwich_value(
-        self, chain: str, frontrun: dict, victim: dict, backrun: dict
+        self, chain: str, frontrun: dict[str, Any], victim: dict[str, Any], backrun: dict[str, Any]
     ) -> tuple[float, float, float]:
         eth_price = 3000.0
         bot_frontrun_gas = (frontrun.get("gas_price_gwei", 0) or 0) * (frontrun.get("gas_used", 21000) or 21000)

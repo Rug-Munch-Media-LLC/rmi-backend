@@ -8,10 +8,10 @@ WS Key: from ARKHAM_WS_KEY env var (set in /etc/secrets or docker env)
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -22,11 +22,11 @@ logger = get_logger("arkham_ws")
 ARKHAM_WS_URL = "wss://api.arkhamintelligence.com/ws"
 
 # Track active subscriptions
-_subscriptions: dict[str, dict] = {}
+_subscriptions: dict[str, dict[str, Any]] = {}
 _connected = False
 
 
-async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw) -> dict | None:
+async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw) -> dict[str, Any] | None:
     """Subscribe to real-time updates for an address via Arkham WebSocket.
 
     Args:
@@ -93,7 +93,7 @@ async def arkham_ws_subscribe(address: str = "", action: str = "subscribe", **kw
     return {"status": "no_action", "source": "arkham_ws"}
 
 
-async def broadcast_ws_update(address: str, update: dict) -> None:
+async def broadcast_ws_update(address: str, update: dict[str, Any]) -> None:
     """Called when Arkham WS pushes an update - route through DataBus."""
     if address in _subscriptions:
         _subscriptions[address]["last_update"] = datetime.now(UTC).isoformat()

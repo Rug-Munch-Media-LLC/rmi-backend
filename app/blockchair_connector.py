@@ -39,7 +39,7 @@ class _StaleResultAvailable(Exception):
         self.result = result
 
 
-def _cb_call(url: str, params: dict | None = None, timeout: int = 30) -> Any:
+def _cb_call(url: str, params: dict[str, Any] | None = None, timeout: int = 30) -> Any:
     """Sync HTTP GET wrapped with circuit breaker. Returns JSON data or raises sentinel."""
     if not _blockchair_cb.can_call():
         stale = _blockchair_cb.get_stale_result()

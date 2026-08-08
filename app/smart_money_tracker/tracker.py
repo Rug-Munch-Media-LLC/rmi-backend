@@ -348,7 +348,7 @@ class SmartMoneyTracker:
         except (ImportError, Exception):
             return 50.0
 
-    def _load_move_history(self) -> dict:
+    def _load_move_history(self) -> dict[str, Any]:
         try:
             if os.path.exists(self._move_history_file):
                 with open(self._move_history_file) as f:

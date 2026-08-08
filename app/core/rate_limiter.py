@@ -348,13 +348,13 @@ class UnifiedRateLimiter:
         reset_at = int(now + time_to_full)
 
         headers = {
-            "X-RateLimit-Limit": limit,
-            "X-RateLimit-Remaining": remaining_tokens,
-            "X-RateLimit-Reset": reset_at,
+            "X-RateLimit-Limit": str(limit),
+            "X-RateLimit-Remaining": str(remaining_tokens),
+            "X-RateLimit-Reset": str(reset_at),
         }
 
         if not allowed:
-            headers["Retry-After"] = int(wait) + 1
+            headers["Retry-After"] = str(int(wait) + 1)
 
         return (allowed, headers)
 

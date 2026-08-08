@@ -226,7 +226,7 @@ class TokenLaunch:
     symbol: str | None = None
     initial_liquidity_usd: float = 0
     initial_mcap_usd: float = 0
-    deployer_history: dict | None = None  # deployer rug history
+    deployer_history: dict[str, Any] | None = None  # deployer rug history
     risk_flags: list[str] = field(default_factory=list)
     pump_potential: float = 0.0  # 0-100 GMGN-style pump score
 

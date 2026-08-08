@@ -278,7 +278,7 @@ async def phase5_bundlers_snipers(scanner: DegenSecurityScanner, report: Securit
 
     sniper_window_ms = 30000
     sniper_candidates: list[SniperProfile] = []
-    buyer_timestamps: dict[str, list[dict]] = {}
+    buyer_timestamps: dict[str, list[dict[str, Any]]] = {}
 
     for act in sorted_acts[:100]:
         act_type = act.get("activity_type", "").upper()
@@ -598,7 +598,7 @@ async def _detect_tax_and_honeypot(scanner: DegenSecurityScanner, report: Securi
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _helius_token_metadata(scanner: DegenSecurityScanner, token_address: str) -> dict | None:
+async def _helius_token_metadata(scanner: DegenSecurityScanner, token_address: str) -> dict[str, Any] | None:
     """Fetch token metadata from Helius."""
     if not scanner.helius_key:
         return None
@@ -627,7 +627,7 @@ async def _helius_token_metadata(scanner: DegenSecurityScanner, token_address: s
     return None
 
 
-async def _birdeye_token_data(scanner: DegenSecurityScanner, token_address: str) -> dict | None:
+async def _birdeye_token_data(scanner: DegenSecurityScanner, token_address: str) -> dict[str, Any] | None:
     """Fetch market data from Birdeye."""
     if not scanner.birdeye_key:
         return None

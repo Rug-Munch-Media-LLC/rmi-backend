@@ -1,6 +1,7 @@
 """Bulletin board request models (shared across public/admin/social routes)."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -23,7 +24,7 @@ class CreatePostRequest(BaseModel):
     target_audience: str = "all"
     status: str = "draft"
     featured_image: str = ""
-    attachments: list[dict] = Field(default_factory=list)
+    attachments: list[dict[str, Any]] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     scheduled_at: str | None = None
     expires_at: str | None = None
@@ -42,7 +43,7 @@ class UpdatePostRequest(BaseModel):
     target_audience: str | None = None
     status: str | None = None
     featured_image: str | None = None
-    attachments: list[dict] | None = None
+    attachments: list[dict[str, Any]] | None = None
     tags: list[str] | None = None
     scheduled_at: str | None = None
     expires_at: str | None = None

@@ -81,7 +81,7 @@ class ChainClient:
         self._helius_idx += 1
         return key
 
-    async def rpc_call(self, method: str, params: list[Any]) -> dict | None:
+    async def rpc_call(self, method: str, params: list[Any]) -> dict[str, Any] | None:
         """Rate-limited RPC with Helius fallback and circuit breaker."""
         # Circuit breaker check — fail fast if both providers are down
         if not await _chain_cb.can_call():
@@ -136,7 +136,7 @@ class ChainClient:
             await _chain_cb.record_failure(is_server_error=True)
         return None
 
-    async def get_signatures(self, address: str, limit: int = 20) -> list[dict]:
+    async def get_signatures(self, address: str, limit: int = 20) -> list[dict[str, Any]]:
         result = await self.rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
         if result and "result" in result:
             return result["result"]
@@ -148,7 +148,7 @@ class ChainClient:
             return result["result"].get("value", 0) / 1e9
         return 0.0
 
-    async def get_token_metadata(self, mint: str) -> dict | None:
+    async def get_token_metadata(self, mint: str) -> dict[str, Any] | None:
         if not HELIUS_KEYS:
             return None
         # Circuit breaker check

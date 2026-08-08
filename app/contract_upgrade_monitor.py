@@ -153,7 +153,7 @@ def is_valid_evm_address(address: str) -> bool:
 # ── HTTP Client ───────────────────────────────────────────────────
 
 
-async def _fetch_url(url: str, headers: dict | None = None, timeout: float = 15.0) -> dict | None:
+async def _fetch_url(url: str, headers: dict[str, Any] | None = None, timeout: float = 15.0) -> dict[str, Any] | None:
     """Fetch JSON from a URL with caching."""
     cache_key = f"fetch:{url}"
     now = time.time()
@@ -190,7 +190,7 @@ async def _fetch_url(url: str, headers: dict | None = None, timeout: float = 15.
         return _cache.get(cache_key, (0, None))[1]
 
 
-async def _background_refresh(url: str, headers: dict | None, timeout: float, cache_key: str) -> None:
+async def _background_refresh(url: str, headers: dict[str, Any] | None, timeout: float, cache_key: str) -> None:
     """Refresh cache in background so stale data serves immediately."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -369,7 +369,7 @@ def _detect_proxy_selectors(abi_json: str) -> list[str]:
 # ── Source Code Fetcher ──────────────────────────────────────────
 
 
-async def _fetch_source_code(address: str, chain: str) -> dict | None:
+async def _fetch_source_code(address: str, chain: str) -> dict[str, Any] | None:
     """Fetch contract source code and ABI from block explorer."""
     base_url = ETHERSCAN_BASES.get(chain)
     if not base_url:
@@ -456,7 +456,7 @@ async def fetch_upgrade_history(
     return events
 
 
-def _parse_upgrade_log(log: dict, address: str, chain: str) -> UpgradeEvent | None:
+def _parse_upgrade_log(log: dict[str, Any], address: str, chain: str) -> UpgradeEvent | None:
     """Parse an upgrade event log entry."""
     try:
         tx_hash = log.get("transactionHash", "")

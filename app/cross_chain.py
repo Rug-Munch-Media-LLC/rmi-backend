@@ -247,7 +247,7 @@ def detect_chain(address: str) -> str | None:
 # ── NEW: Convenience wrappers for cross_chain_tracking ───────────
 
 
-async def get_cross_chain_profile(address: str, chain: str = "ethereum") -> dict:
+async def get_cross_chain_profile(address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Get cross-chain entity profile — delegates to tracking package."""
     from app.cross_chain_tracking.entity_tracker import get_entity_tracker
 
@@ -260,7 +260,7 @@ async def get_multi_chain_deployers(
     min_chains: int = 2,
     chain_filter: list[str] | None = None,
     limit: int = 5000,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get deployers active on multiple chains."""
     from app.cross_chain_tracking.deployer_matcher import DeployerMatcher
 

@@ -14,11 +14,11 @@ Graphics Types:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -386,7 +386,7 @@ FEATURE_LIST = [
 # ── Graphics Generation Functions ────────────────────────────
 
 
-def create_placeholder_marketing_template(template_name: str, config: dict) -> Image.Image:
+def create_placeholder_marketing_template(template_name: str, config: dict[str, Any]) -> Image.Image:
     """Create a placeholder marketing template."""
     img = Image.new("RGB", config["size"], color=BRAND_COLORS["background"])
     draw = ImageDraw.Draw(img)
@@ -431,7 +431,7 @@ def create_placeholder_marketing_template(template_name: str, config: dict) -> I
     return img
 
 
-def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> dict:
+def generate_marketing_graphic(graphic_type: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Generate marketing graphic by overlaying text on template.
     Returns image path and metadata.
@@ -503,12 +503,12 @@ def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> d
 # ── Convenience Functions ────────────────────────────────────
 
 
-async def generate_platform_banner(data: dict | None = None) -> dict:
+async def generate_platform_banner(data: dict[str, Any] | None = None) -> dict[str, Any]:
     """Generate platform banner (wide format)."""
     return generate_marketing_graphic("platform_banner_wide", data)
 
 
-async def generate_feature_card(feature_name: str, description: str, stat: str) -> dict:
+async def generate_feature_card(feature_name: str, description: str, stat: str) -> dict[str, Any]:
     """Generate feature showcase card."""
     data = {
         "feature_name": feature_name,
@@ -518,7 +518,7 @@ async def generate_feature_card(feature_name: str, description: str, stat: str) 
     return generate_marketing_graphic("feature_card", data)
 
 
-async def generate_all_feature_cards() -> list[dict]:
+async def generate_all_feature_cards() -> list[dict[str, Any]]:
     """Generate cards for all features."""
     results = []
     for feature in FEATURE_LIST:
@@ -527,7 +527,7 @@ async def generate_all_feature_cards() -> list[dict]:
     return results
 
 
-async def generate_stats_card(stat_value: str, stat_label: str, context: str = "") -> dict:
+async def generate_stats_card(stat_value: str, stat_label: str, context: str = "") -> dict[str, Any]:
     """Generate stats/metrics card."""
     data = {
         "stat_value": stat_value,
@@ -537,7 +537,7 @@ async def generate_stats_card(stat_value: str, stat_label: str, context: str = "
     return generate_marketing_graphic("stats_card", data)
 
 
-async def generate_pricing_card(tier_name: str, price: float, features: list[str]) -> dict:
+async def generate_pricing_card(tier_name: str, price: float, features: list[str]) -> dict[str, Any]:
     """Generate pricing tier card."""
     data = {
         "tier_name": tier_name,
@@ -547,7 +547,7 @@ async def generate_pricing_card(tier_name: str, price: float, features: list[str
     return generate_marketing_graphic("pricing_card", data)
 
 
-async def generate_launch_announcement(headline: str, subheadline: str) -> dict:
+async def generate_launch_announcement(headline: str, subheadline: str) -> dict[str, Any]:
     """Generate launch announcement graphic."""
     data = {
         "headline": headline,
@@ -556,7 +556,7 @@ async def generate_launch_announcement(headline: str, subheadline: str) -> dict:
     return generate_marketing_graphic("launch_announcement", data)
 
 
-async def generate_testimonial_card(quote: str, author: str, title: str) -> dict:
+async def generate_testimonial_card(quote: str, author: str, title: str) -> dict[str, Any]:
     """Generate testimonial card."""
     data = {
         "quote": quote[:200],
@@ -569,7 +569,7 @@ async def generate_testimonial_card(quote: str, author: str, title: str) -> dict
 # ── Template Management ──────────────────────────────────────
 
 
-def list_marketing_templates() -> list[dict]:
+def list_marketing_templates() -> list[dict[str, Any]]:
     """List available marketing graphic templates."""
     return [
         {

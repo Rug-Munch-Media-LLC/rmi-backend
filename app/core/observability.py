@@ -108,7 +108,7 @@ def setup_sentry() -> bool:
     return True
 
 
-def _before_send(event: dict, hint: dict) -> dict | None:
+def _before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
     """Strip secrets before sending to GlitchTip.
 
     Per v4.0 §T07: secrets scrubbed before send. This is a hard
@@ -131,7 +131,7 @@ def _before_send(event: dict, hint: dict) -> dict | None:
         return event  # Better to log it than to drop it
 
 
-def _before_send_transaction(event: dict, hint: dict) -> dict | None:
+def _before_send_transaction(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
     """Drop transactions that are health checks / metrics scrapes (high volume, low value)."""
     url = event.get("transaction") or event.get("request", {}).get("url", "")
     if any(s in url for s in ("/health", "/ready", "/live", "/metrics", "/openapi.json")):

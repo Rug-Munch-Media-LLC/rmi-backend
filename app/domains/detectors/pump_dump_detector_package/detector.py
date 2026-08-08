@@ -159,7 +159,7 @@ async def analyze_token(
 def analyze_token_sync(
     token_address: str,
     chain: str = "ethereum",
-) -> dict:
+) -> dict[str, Any]:
     """Synchronous wrapper for environments without async support."""
     return asyncio.run(analyze_token(token_address, chain)).to_dict()
 

@@ -634,7 +634,7 @@ async def _query_swaps_between(
 ) -> list[dict[str, Any]]:
     """Query dex_events swaps for a token within a historical time range."""
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []

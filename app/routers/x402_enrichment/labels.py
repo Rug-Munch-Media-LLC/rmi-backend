@@ -127,7 +127,7 @@ def lookup_labels(addresses: list[str]) -> tuple[dict[str, list[WalletLabel]], f
 async def search_similar_patterns(
     addresses: list[str],
     r: Any = None,
-) -> tuple[list[dict], float]:
+) -> tuple[list[dict[str, Any]], float]:
     """
     Search for similar scam/wallet patterns using RAG embeddings.
     Falls back gracefully if RAG is unavailable.
@@ -192,7 +192,7 @@ async def search_similar_patterns(
 def build_risk_summary(
     labels: dict[str, list[WalletLabel]],
     sanctioned: list[str],
-    similar_patterns: list[dict],
+    similar_patterns: list[dict[str, Any]],
 ) -> str:
     """Build a concise human-readable risk summary."""
     parts = []

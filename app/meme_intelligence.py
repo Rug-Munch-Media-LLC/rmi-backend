@@ -13,10 +13,10 @@ Integrations:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -50,7 +50,7 @@ KOL_DATABASE = {
 # ── Meme Token Intelligence ────────────────────────────────────
 
 
-async def get_meme_trending(limit: int = 50) -> list[dict]:
+async def get_meme_trending(limit: int = 50) -> list[dict[str, Any]]:
     """Get trending meme tokens across chains."""
     from app.unified_provider import get_unified_provider
 
@@ -95,7 +95,7 @@ async def get_meme_trending(limit: int = 50) -> list[dict]:
     return memes[:limit]
 
 
-async def get_smart_money_in_memes(limit: int = 20) -> list[dict]:
+async def get_smart_money_in_memes(limit: int = 20) -> list[dict[str, Any]]:
     """Track known smart money wallets trading memes."""
     from supabase import create_client
 
@@ -123,7 +123,7 @@ async def get_smart_money_in_memes(limit: int = 20) -> list[dict]:
     return result.data or []
 
 
-async def get_meme_wins_losses(period: str = "24h") -> dict:
+async def get_meme_wins_losses(period: str = "24h") -> dict[str, Any]:
     """Get biggest wins and losses in meme tokens."""
     from supabase import create_client
 
@@ -182,7 +182,7 @@ def classify_meme_category(symbol: str, name: str) -> str:
 # ── KOL Intelligence ──────────────────────────────────────────
 
 
-async def get_kol_scorecard(kol_handle: str) -> dict | None:
+async def get_kol_scorecard(kol_handle: str) -> dict[str, Any] | None:
     """Get KOL scorecard with track record."""
     from supabase import create_client
 
@@ -227,7 +227,7 @@ async def get_kol_scorecard(kol_handle: str) -> dict | None:
     }
 
 
-async def get_top_kols_by_category(category: str = "memes", limit: int = 20) -> list[dict]:
+async def get_top_kols_by_category(category: str = "memes", limit: int = 20) -> list[dict[str, Any]]:
     """Get top KOLs by category with scorecards."""
     from supabase import create_client
 
@@ -249,7 +249,7 @@ async def get_top_kols_by_category(category: str = "memes", limit: int = 20) -> 
 # ── Social Monitoring ─────────────────────────────────────────
 
 
-async def monitor_social_sentiment(token_address: str) -> dict:
+async def monitor_social_sentiment(token_address: str) -> dict[str, Any]:
     """Monitor social sentiment for a token."""
     # LunarCrush integration
     try:
@@ -271,7 +271,7 @@ async def monitor_social_sentiment(token_address: str) -> dict:
         return {"error": "LunarCrush not available"}
 
 
-async def get_viral_crypto_posts(hours: int = 24) -> list[dict]:
+async def get_viral_crypto_posts(hours: int = 24) -> list[dict[str, Any]]:
     """Get viral crypto posts from X/Twitter."""
     from supabase import create_client
 
@@ -294,7 +294,7 @@ async def get_viral_crypto_posts(hours: int = 24) -> list[dict]:
 # ── Hack/Drain Alerts ────────────────────────────────────────
 
 
-async def get_recent_hacks_drains(hours: int = 24) -> list[dict]:
+async def get_recent_hacks_drains(hours: int = 24) -> list[dict[str, Any]]:
     """Get recent hacks and drains from monitoring."""
     from supabase import create_client
 
@@ -315,7 +315,7 @@ async def get_recent_hacks_drains(hours: int = 24) -> list[dict]:
     return result.data or []
 
 
-async def format_hack_alert_for_social(hack_data: dict) -> dict:
+async def format_hack_alert_for_social(hack_data: dict[str, Any]) -> dict[str, Any]:
     """Format hack alert for X/Telegram posting."""
     return {
         "x_post": f"""🚨 HACK ALERT 🚨
@@ -346,7 +346,7 @@ Stay safe out there! 🔒""",
 # ── Wallet Screenshot Generation ──────────────────────────────
 
 
-async def generate_wallet_screenshot(wallet_address: str, pnl_data: dict) -> str:
+async def generate_wallet_screenshot(wallet_address: str, pnl_data: dict[str, Any]) -> str:
     """Generate wallet PnL screenshot for sharing."""
     # This would use a graphics API (Alibaba, etc.) to generate images
     # For now, return placeholder
@@ -365,7 +365,7 @@ async def generate_wallet_screenshot(wallet_address: str, pnl_data: dict) -> str
 # ── Content Generation ────────────────────────────────────────
 
 
-async def generate_marketing_content(content_type: str, data: dict) -> dict:
+async def generate_marketing_content(content_type: str, data: dict[str, Any]) -> dict[str, Any]:
     """Generate marketing content using AI."""
     # This would call Alibaba's AI API for content generation
 

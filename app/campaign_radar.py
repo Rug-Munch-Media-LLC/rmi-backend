@@ -149,7 +149,7 @@ def detect_campaigns(min_cluster_size: int = 3) -> list[CampaignCluster]:
     return sorted(campaigns, key=lambda c: -len(c.tokens))
 
 
-def _extract_deployer_entity(scan: dict) -> str | None:
+def _extract_deployer_entity(scan: dict[str, Any]) -> str | None:
     """Extract deployer entity ID from scan metadata."""
     free = scan.get("free", scan)
     deployer = free.get("deployer", {}) or {}
@@ -159,14 +159,14 @@ def _extract_deployer_entity(scan: dict) -> str | None:
     return entity_id
 
 
-def _extract_funding_source(scan: dict) -> str | None:
+def _extract_funding_source(scan: dict[str, Any]) -> str | None:
     """Extract funding source from scan metadata."""
     free = scan.get("free", scan)
     funding = free.get("funding_source") or free.get("deep_deployer", {}).get("funding_source")
     return funding
 
 
-def _contract_similarity(scan_a: dict, scan_b: dict) -> float:
+def _contract_similarity(scan_a: dict[str, Any], scan_b: dict[str, Any]) -> float:
     """Estimate contract similarity between two scans."""
     free_a = scan_a.get("free", scan_a)
     free_b = scan_b.get("free", scan_b)
@@ -189,7 +189,7 @@ def _contract_similarity(scan_a: dict, scan_b: dict) -> float:
     return 0.0
 
 
-def _cluster_similar(pairs: list[tuple]) -> list[list]:
+def _cluster_similar(pairs: list[tuple[Any, ...]]) -> list[list[Any]]:
     """Union-find clustering of similar contract pairs."""
     parent = {}
 
@@ -220,7 +220,7 @@ def _cluster_similar(pairs: list[tuple]) -> list[list]:
     return list(clusters.values())
 
 
-def _token_summary(scan: dict) -> dict[str, Any]:
+def _token_summary(scan: dict[str, Any]) -> dict[str, Any]:
     """Create a concise token summary for campaign display."""
     return {
         "address": scan.get("address") or scan.get("token_address", ""),

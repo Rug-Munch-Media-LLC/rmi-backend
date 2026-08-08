@@ -39,7 +39,7 @@ def _get_helius_key() -> str | None:
     return key
 
 
-async def _helius_call(method: str, params: list) -> dict | None:
+async def _helius_call(method: str, params: list[Any]) -> dict[str, Any] | None:
     """Call Helius RPC with credential pool fallback."""
     for _attempt in range(3):
         key = _get_helius_key()

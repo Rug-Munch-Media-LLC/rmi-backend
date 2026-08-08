@@ -53,7 +53,7 @@ class VerifySignatureRequest(BaseModel):
 @router.post("/verify-signature")
 async def verify_wallet_signature(
     request: VerifySignatureRequest,
-) -> dict:
+) -> dict[str, Any]:
     """Verify a wallet signature for cross-app authentication.
 
     Used by degenfeed and other RugMunch apps to cryptographically

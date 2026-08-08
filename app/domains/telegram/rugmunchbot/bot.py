@@ -104,10 +104,10 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_hype,
     cmd_quick,
     cmd_scan,
-    cmd_sentinelscan,
     cmd_start,
     cmd_ta,
     cmd_wallet,
+    sentinel_scan,
 )
 from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment
 from app.domains.telegram.rugmunchbot.handlers.trace import cmd_trace
@@ -296,7 +296,7 @@ def main() -> None:
     _reg(app, "dex", cmd_dex)
     _reg(app, "scan", cmd_scan)
     _reg(app, "deepscan", cmd_deepscan)
-    _reg(app, "sentinelscan", cmd_sentinelscan)
+    _reg(app, "sentinelscan", sentinel_scan)
     _reg(app, "deployer", cmd_deployer)
     _reg(app, "hype", cmd_hype)
     _reg(app, "wallet", cmd_wallet)

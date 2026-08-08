@@ -30,16 +30,16 @@ class RugTraceResult(BaseModel):
     deployer: str
     total_stolen_usd: float
     fund_hops: int
-    destination_addresses: list[dict]
-    cex_deposits: list[dict]
-    mixer_usage: list[dict]
+    destination_addresses: list[dict[str, Any]]
+    cex_deposits: list[dict[str, Any]]
+    mixer_usage: list[dict[str, Any]]
     recovery_possible: bool
     trace_graph: dict[str, Any]
 
 
-async def _trace_outbound_txs(address: str, chain: str, max_hops: int = 3) -> list[dict]:
+async def _trace_outbound_txs(address: str, chain: str, max_hops: int = 3) -> list[dict[str, Any]]:
     """Trace outbound transactions from an address across hops."""
-    txs: list[dict] = []
+    txs: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
@@ -54,7 +54,7 @@ async def _trace_outbound_txs(address: str, chain: str, max_hops: int = 3) -> li
     return txs
 
 
-async def _check_cex_deposit(address: str, chain: str) -> dict | None:
+async def _check_cex_deposit(address: str, chain: str) -> dict[str, Any] | None:
     """Check if an address is a known CEX deposit address."""
     try:
         async with httpx.AsyncClient(timeout=5) as client:
@@ -80,7 +80,7 @@ async def _check_cex_deposit(address: str, chain: str) -> dict | None:
     return None
 
 
-async def _check_mixer(address: str, chain: str) -> dict | None:
+async def _check_mixer(address: str, chain: str) -> dict[str, Any] | None:
     """Check if an address is a known mixer/tumbler."""
     try:
         async with httpx.AsyncClient(timeout=5) as client:
@@ -98,7 +98,7 @@ async def _check_mixer(address: str, chain: str) -> dict | None:
 @router.get("/trace/{token_address}")
 async def trace_rug(
     token_address: str, chain: str = Query("ethereum"), max_hops: int = Query(3, le=5)
-) -> dict | dict[str, str]:
+) -> dict[str, Any] | dict[str, str]:
     """Trace stolen funds from a rugged token."""
     # Step 1: Get deployer from SENTINEL
     deployer = ""
@@ -134,8 +134,8 @@ async def trace_rug(
         if to_addr:
             destinations.add(to_addr)
 
-    cex_hits: list[dict] = []
-    mixer_hits: list[dict] = []
+    cex_hits: list[dict[str, Any]] = []
+    mixer_hits: list[dict[str, Any]] = []
     for addr in list(destinations)[:20]:
         cex = await _check_cex_deposit(addr, chain)
         if cex:
@@ -148,7 +148,7 @@ async def trace_rug(
 
     # Build trace graph
     nodes = [{"id": deployer[:16], "label": f"Deployer {deployer[:10]}", "type": "deployer"}]
-    edges: list[dict] = []
+    edges: list[dict[str, Any]] = []
     for tx in direct_txs[:20]:
         to_id = tx.get("to", "")[:16]
         if to_id:
@@ -185,9 +185,9 @@ async def trace_rug(
 
 
 @router.get("/victims/{token_address}")
-async def get_affected_victims(token_address: str, chain: str = Query("ethereum")) -> dict:
+async def get_affected_victims(token_address: str, chain: str = Query("ethereum")) -> dict[str, Any]:
     """Get list of addresses that interacted with (lost money to) a rug token."""
-    victims: list[dict] = []
+    victims: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"{DATABUS}/{chain}/token/{token_address}/holders")

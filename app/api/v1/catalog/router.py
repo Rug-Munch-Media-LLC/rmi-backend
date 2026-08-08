@@ -49,20 +49,20 @@ class AttachRagRequest(BaseModel):
 
 # ── Health / introspection ───────────────────────────────────────
 @router.get("/stats")
-async def stats() -> dict:
+async def stats() -> dict[str, Any]:
     """Catalog stats: which stores are reachable + entity counts."""
     return await get_catalog().stats()
 
 
 @router.get("/probe")
-async def probe() -> dict:
+async def probe() -> dict[str, Any]:
     """Probe which stores are reachable from this container."""
     return await get_catalog().probe_stores()
 
 
 # ── Token endpoints ─────────────────────────────────────────────
 @router.get("/tokens/{chain}/{address}")
-async def get_token(chain: str, address: str) -> dict:
+async def get_token(chain: str, address: str) -> dict[str, Any]:
     """Get a token by chain+address. Returns full Token model + provenance."""
     try:
         c = Chain(chain)
@@ -75,7 +75,7 @@ async def get_token(chain: str, address: str) -> dict:
 
 
 @router.get("/tokens/{chain}/{address}/risk")
-async def get_token_risk(chain: str, address: str) -> dict:
+async def get_token_risk(chain: str, address: str) -> dict[str, Any]:
     """Recipe 3 - Real-time risk score. Composes Redis + Postgres + Neo4j."""
     try:
         c = Chain(chain)
@@ -85,7 +85,7 @@ async def get_token_risk(chain: str, address: str) -> dict:
 
 
 @router.post("/tokens/risky-by-deployer")
-async def risky_tokens(req: FindRiskyTokensRequest) -> dict:
+async def risky_tokens(req: FindRiskyTokensRequest) -> dict[str, Any]:
     """Recipe 1 - Find tokens deployed by wallets with rug history."""
     chain_enum = None
     if req.chain:
@@ -108,7 +108,7 @@ async def risky_tokens(req: FindRiskyTokensRequest) -> dict:
     summary="Get Wallet",
     description="Look up a wallet by chain and address. Returns full wallet model with provenance, entity labels, and transaction history from the catalog store. Supports all 13+ tracked chains.",
 )
-async def get_wallet(chain: str, address: str) -> dict:
+async def get_wallet(chain: str, address: str) -> dict[str, Any]:
     try:
         c = Chain(chain)
     except ValueError:
@@ -121,21 +121,21 @@ async def get_wallet(chain: str, address: str) -> dict:
 
 # ── Entity resolution (Recipe 5) ────────────────────────────────
 @router.post("/entities/resolve")
-async def resolve_entity(req: ResolveEntityRequest) -> dict:
+async def resolve_entity(req: ResolveEntityRequest) -> dict[str, Any]:
     """Cross-chain entity resolution via Neo4j Cypher."""
     return await get_catalog().resolve_entity(req.wallet_id, req.max_chains)
 
 
 # ── RAG bridge endpoints ────────────────────────────────────────
 @router.post("/rag/search")
-async def rag_search(req: RagSearchRequest) -> dict:
+async def rag_search(req: RagSearchRequest) -> dict[str, Any]:
     """Search the RAG system. Returns ranked hits with RRF scores."""
     hits = await get_catalog().rag_search(query=req.query, collection=req.collection, top_k=req.top_k)
     return {"count": len(hits), "hits": hits}
 
 
 @router.post("/rag/ingest")
-async def rag_ingest(req: RagIngestRequest) -> dict:
+async def rag_ingest(req: RagIngestRequest) -> dict[str, Any]:
     """Ingest content into RAG. Returns qdrant_point_id for cross-store linking."""
     return await get_catalog().rag_ingest(
         content=req.content,
@@ -146,7 +146,7 @@ async def rag_ingest(req: RagIngestRequest) -> dict:
 
 
 @router.post("/tokens/{chain}/{address}/attach-rag")
-async def attach_rag(chain: str, address: str, req: AttachRagRequest) -> dict:
+async def attach_rag(chain: str, address: str, req: AttachRagRequest) -> dict[str, Any]:
     """Link an existing RAG embedding (Qdrant point) to a Token row."""
     try:
         c = Chain(chain)

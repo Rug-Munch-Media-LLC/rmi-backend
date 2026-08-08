@@ -363,7 +363,7 @@ async def webhook_register(req: WebhookRegisterRequest) -> dict[str, str]:
 
 
 @router.get("/webhook_list")
-async def webhook_list(address: str | None = None) -> dict:
+async def webhook_list(address: str | None = None) -> dict[str, Any]:
     """List registered webhooks for an address or globally."""
     try:
         import redis as _redis
@@ -567,7 +567,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
 # ═══════════════════════════════════════════════════════════
 
 
-async def _lookup_labels_async(address: str) -> list[dict]:
+async def _lookup_labels_async(address: str) -> list[dict[str, Any]]:
     """Async wrapper for wallet label lookups."""
     try:
         import redis as _redis

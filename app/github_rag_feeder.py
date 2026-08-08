@@ -122,7 +122,7 @@ def ensure_cloned(repo: str) -> str | None:
         return None
 
 
-def extract_from_repo(source: dict) -> list[dict]:
+def extract_from_repo(source: dict[str, Any]) -> list[dict[str, Any]]:
     """Extract documents from a cloned GitHub repo."""
     path = ensure_cloned(source["repo"])
     if not path:
@@ -192,7 +192,7 @@ def extract_from_repo(source: dict) -> list[dict]:
     return docs
 
 
-async def ingest_repo(source: dict) -> Any | int:
+async def ingest_repo(source: dict[str, Any]) -> Any | int:
     """Clone, extract, and ingest a single repo.
 
     DEPRECATED (v3): the legacy RAG ingest endpoint was removed. No-op

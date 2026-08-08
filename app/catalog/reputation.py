@@ -77,7 +77,7 @@ def _beta_credible_interval_95(alpha: float, beta: float) -> tuple[float, float]
 async def compute_deployer_posterior(
     deployer: Deployer,
     catalog: CatalogService,
-) -> dict:
+) -> dict[str, Any]:
     """Compute Bayesian reputation for a deployer.
 
     Returns:

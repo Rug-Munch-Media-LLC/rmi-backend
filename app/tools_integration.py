@@ -4,12 +4,12 @@ Tools wired: Ollama, Foundry, Slither, ccxt, web3, blogwatcher, LiteLLM, Vault.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 import subprocess
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -24,7 +24,7 @@ _DOCKER_HOST = os.getenv("DOCKER_HOST_IP", "172.17.0.1")
 OLLAMA_URL = os.getenv("OLLAMA_URL", f"http://{_DOCKER_HOST}:11434")
 
 
-async def ollama_chat(prompt: str, model: str = "phi3:mini", system: str = "") -> dict:
+async def ollama_chat(prompt: str, model: str = "phi3:mini", system: str = "") -> dict[str, Any]:
     """Use local Ollama for free AI inference."""
     try:
         messages = []
@@ -75,7 +75,7 @@ async def ollama_list_models() -> list[str]:
 CAST_PATH = "/root/.foundry/bin/cast"
 
 
-def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
+def cast_contract_info(address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Get contract bytecode, ABI, and metadata using cast."""
     rpcs = {
         "ethereum": os.getenv("ETH_RPC_URL", "https://eth.llamarpc.com"),
@@ -134,7 +134,7 @@ def cast_contract_info(address: str, chain: str = "ethereum") -> dict:
         }
 
 
-def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict:
+def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict[str, Any]:
     """Decode a transaction using cast."""
     rpcs = {
         "ethereum": "https://eth.llamarpc.com",
@@ -160,7 +160,7 @@ def cast_tx_decode(tx_hash: str, chain: str = "ethereum") -> dict:
 # ═══════════════════════════════════════════════════════════
 # SLITHER - Solidity vulnerability scanner
 # ═══════════════════════════════════════════════════════════
-def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict:
+def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Run Slither on a verified contract."""
     try:
         result = subprocess.run(
@@ -182,7 +182,7 @@ def slither_analyze(contract_address: str, chain: str = "ethereum") -> dict:
 # ═══════════════════════════════════════════════════════════
 # CCXT - 100+ exchange price feeds
 # ═══════════════════════════════════════════════════════════
-def ccxt_get_prices(symbols: list[str] | None = None) -> dict:
+def ccxt_get_prices(symbols: list[str] | None = None) -> dict[str, Any]:
     """Get real-time prices from multiple exchanges via ccxt."""
     try:
         import ccxt
@@ -226,7 +226,7 @@ def ccxt_get_prices(symbols: list[str] | None = None) -> dict:
         return {"error": str(e), "prices": {}}
 
 
-def ccxt_arbitrage(symbol: str = "BTC/USDT") -> dict:
+def ccxt_arbitrage(symbol: str = "BTC/USDT") -> dict[str, Any]:
     """Find arbitrage opportunities across exchanges."""
     prices = ccxt_get_prices([symbol])
     price_data = prices.get("prices", {}).get(symbol, {})
@@ -248,7 +248,7 @@ def ccxt_arbitrage(symbol: str = "BTC/USDT") -> dict:
 # ═══════════════════════════════════════════════════════════
 # WEB3.PY - Direct Ethereum interaction
 # ═══════════════════════════════════════════════════════════
-def web3_wallet_balance(address: str, chain: str = "ethereum") -> dict:
+def web3_wallet_balance(address: str, chain: str = "ethereum") -> dict[str, Any]:
     """Get wallet balance and token holdings via web3."""
     try:
         from web3 import Web3
@@ -293,7 +293,7 @@ def web3_wallet_balance(address: str, chain: str = "ethereum") -> dict:
 BLOGWATCHER_PATH = "/root/go/bin/blogwatcher"
 
 
-def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict:
+def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict[str, Any]:
     """Fetch RSS/Atom feed using blogwatcher."""
     try:
         result = subprocess.run(
@@ -325,7 +325,7 @@ def blogwatcher_fetch(feed_url: str, limit: int = 10) -> dict:
 LITELLM_CONFIG = "/srv/rugmuncher-backend/litellm/config.yaml"
 
 
-def litellm_status() -> dict:
+def litellm_status() -> dict[str, Any]:
     """Check LiteLLM proxy availability."""
     config_exists = os.path.exists(LITELLM_CONFIG)
     return {
@@ -341,7 +341,7 @@ def litellm_status() -> dict:
 VAULT_ADDR = os.getenv("VAULT_ADDR", f"http://{_DOCKER_HOST}:8200")
 
 
-async def vault_get_secret(path: str) -> dict | None:
+async def vault_get_secret(path: str) -> dict[str, Any] | None:
     """Retrieve a secret from HashiCorp Vault."""
     try:
         async with httpx.AsyncClient(timeout=5) as client:
@@ -368,7 +368,7 @@ async def vault_list_secrets(path: str = "secret") -> list[str]:
 # ═══════════════════════════════════════════════════════════
 # TOOL STATUS - Health check for all integrated tools
 # ═══════════════════════════════════════════════════════════
-async def tools_health() -> dict:
+async def tools_health() -> dict[str, Any]:
     """Health check for all integrated tools."""
     return {
         "ollama": {

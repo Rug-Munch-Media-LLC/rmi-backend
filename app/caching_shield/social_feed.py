@@ -7,11 +7,11 @@ Reddit top posts from r/CryptoCurrency, r/ethfinance, r/solana.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import hashlib
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from defusedxml import ElementTree as SafeET
@@ -159,15 +159,15 @@ TTL_NITTER = 900  # 15 min (fallback, longer cache)
 _cache: LRUCache = LRUCache(maxsize=500)
 
 
-def _cache_get(key: str) -> dict | None:
+def _cache_get(key: str) -> dict[str, Any] | None:
     return _cache.get(key)
 
 
-def _cache_set(key: str, data: dict, ttl: int) -> None:
+def _cache_set(key: str, data: dict[str, Any], ttl: int) -> None:
     _cache.set(key, data, ttl)
 
 
-async def get_twitter_feed(limit: int = 30) -> dict:
+async def get_twitter_feed(limit: int = 30) -> dict[str, Any]:
     """Get top crypto tweets via Nitter (free, no auth, cached)."""
     cache_key = f"twitter_feed_{limit}"
     cached = _cache_get(cache_key)
@@ -219,7 +219,7 @@ async def get_twitter_feed(limit: int = 30) -> dict:
     return result
 
 
-async def get_reddit_feed(limit: int = 20) -> dict:
+async def get_reddit_feed(limit: int = 20) -> dict[str, Any]:
     """Get top crypto Reddit posts (free, no auth, cached)."""
     cache_key = f"reddit_feed_{limit}"
     cached = _cache_get(cache_key)
@@ -265,7 +265,7 @@ async def get_reddit_feed(limit: int = 20) -> dict:
     return result
 
 
-async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> dict:
+async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> dict[str, Any]:
     """Get combined social feed - X + Reddit, sorted by recency."""
     twitter, reddit = await asyncio.gather(
         get_twitter_feed(limit_twitter),
@@ -284,7 +284,7 @@ async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> di
     }
 
 
-def get_top_accounts() -> list:
+def get_top_accounts() -> list[Any]:
     """Get the list of monitored X accounts with profile pics."""
     return [
         {

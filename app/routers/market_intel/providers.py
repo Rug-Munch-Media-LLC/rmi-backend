@@ -106,7 +106,7 @@ async def _binance_funding(ttl: int = 120) -> Any:
 
 
 # ── Hyperliquid ────────────────────────────────────────────
-async def _hyperliquid_markets(limit: int = 50, ttl: int = 120) -> list:
+async def _hyperliquid_markets(limit: int = 50, ttl: int = 120) -> list[Any]:
     """Hyperliquid perp markets with price, change, volume, OI, funding."""
     cached = _cget("hl_markets", ttl)
     if cached is not None:
@@ -149,7 +149,7 @@ async def _hyperliquid_markets(limit: int = 50, ttl: int = 120) -> list:
     return []
 
 
-async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict:
+async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict[str, Any]:
     """Hyperliquid 'Gain/Loss Porn': Biggest movers and funding squeezes."""
     cached = _cget("hl_action", ttl)
     if cached is not None:
@@ -177,7 +177,7 @@ async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict:
     return action_data
 
 
-async def _hyperliquid_funding(limit: int = 10, ttl: int = 120) -> list:
+async def _hyperliquid_funding(limit: int = 10, ttl: int = 120) -> list[Any]:
     """Top Hyperliquid funding rates (highest absolute)."""
     cached = _cget("hl_funding", ttl)
     if cached is not None:

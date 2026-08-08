@@ -171,7 +171,7 @@ ACHIEVEMENTS = [
 # ── Auth Helper ──
 
 
-async def get_current_user(request: Request) -> dict | None:
+async def get_current_user(request: Request) -> dict[str, Any] | None:
     """Extract user from JWT."""
     from app.auth import get_current_user as _get_user
 
@@ -200,7 +200,7 @@ def _save_progress(progress: UserProgress) -> None:
 # ── XP & Level Helpers ──
 
 
-def _calculate_level(xp: int) -> dict:
+def _calculate_level(xp: int) -> dict[str, Any]:
     """Calculate level from XP."""
     current_level = LEVELS[0]
     next_level = LEVELS[1] if len(LEVELS) > 1 else None
@@ -224,7 +224,7 @@ def _calculate_level(xp: int) -> dict:
     }
 
 
-def _award_xp(progress: UserProgress, amount: int, source: str) -> dict:
+def _award_xp(progress: UserProgress, amount: int, source: str) -> dict[str, Any]:
     """Award XP and check for level ups."""
     old_level = progress.level
     progress.total_xp += amount
@@ -244,7 +244,7 @@ def _award_xp(progress: UserProgress, amount: int, source: str) -> dict:
     }
 
 
-def _award_badge(progress: UserProgress, badge_id: str) -> dict | None:
+def _award_badge(progress: UserProgress, badge_id: str) -> dict[str, Any] | None:
     """Award a badge if not already owned."""
     if badge_id in progress.badges:
         return None
@@ -265,7 +265,7 @@ def _award_badge(progress: UserProgress, badge_id: str) -> dict | None:
 # ── Achievement / Streak Helpers ──
 
 
-def _check_achievements(progress: UserProgress) -> list[dict]:
+def _check_achievements(progress: UserProgress) -> list[dict[str, Any]]:
     """Check and award new achievements."""
     new_achievements = []
 
@@ -328,7 +328,7 @@ def _update_streak(progress: UserProgress) -> None:
 # ── Certificate Helper ──
 
 
-def _generate_certificate(user_id: str, course_id: str, score: int) -> dict:
+def _generate_certificate(user_id: str, course_id: str, score: int) -> dict[str, Any]:
     """Generate a certificate."""
     cert_id = f"cert-{course_id}-{user_id[:8]}-{secrets.token_hex(4)}"
     course = next((c for c in COURSES if c["id"] == course_id), None)

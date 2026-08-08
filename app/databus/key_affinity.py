@@ -1,9 +1,9 @@
 """DataBus Key Affinity - Consistent Hashing for API Key Selection"""
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -21,7 +21,7 @@ class KeyAffinitySelector:
     def __init__(self) -> None:
         self._assignments: dict[str, str] = {}  # entity_hash -> key_id
 
-    def select_key(self, pool_name: str, available_keys: list, **kwargs) -> object | None:
+    def select_key(self, pool_name: str, available_keys: list[Any], **kwargs) -> object | None:
         """Select a key using consistent hashing of request params."""
         if not available_keys:
             return None
@@ -51,7 +51,7 @@ class KeyAffinitySelector:
                 return k
         return None
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {"affinity_assignments": len(self._assignments)}
 
 

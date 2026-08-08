@@ -259,7 +259,7 @@ class WalletStorage:
 
     # ── Wallet profile ───────────────────────────────────────────
 
-    async def get_wallet_profile(self, address: str, chain_id: str) -> dict | None:
+    async def get_wallet_profile(self, address: str, chain_id: str) -> dict[str, Any] | None:
         """Get wallet profile with cache-first strategy."""
         await self._ensure_connections()
         cache_key = f"wm:profile:{chain_id}:{address.lower()}"
@@ -300,7 +300,7 @@ class WalletStorage:
 
         return profile
 
-    async def save_wallet_profile(self, profile: dict) -> bool:
+    async def save_wallet_profile(self, profile: dict[str, Any]) -> bool:
         """Persist wallet profile to both ClickHouse and Redis cache."""
         await self._ensure_connections()
         addr = profile.get("wallet_address", "").lower()
@@ -349,7 +349,7 @@ class WalletStorage:
 
     # ── Entity lookups ──────────────────────────────────────────
 
-    async def get_entity_for_wallet(self, address: str, chain_id: str) -> dict | None:
+    async def get_entity_for_wallet(self, address: str, chain_id: str) -> dict[str, Any] | None:
         """Get entity membership for a wallet address."""
         await self._ensure_connections()
         cache_key = f"wm:entity:{chain_id}:{address.lower()}"
@@ -391,7 +391,7 @@ class WalletStorage:
 
         return result
 
-    async def get_entity_wallets(self, entity_id: str) -> list[dict]:
+    async def get_entity_wallets(self, entity_id: str) -> list[dict[str, Any]]:
         """Get all wallets linked to an entity across all chains."""
         await self._ensure_connections()
         if not self._ch:
@@ -485,7 +485,7 @@ class WalletStorage:
 
     # ── Scam addresses ───────────────────────────────────────────
 
-    async def check_scam_address(self, address: str, chain_id: str) -> dict | None:
+    async def check_scam_address(self, address: str, chain_id: str) -> dict[str, Any] | None:
         """Check if an address is in the scam database."""
         await self._ensure_connections()
         cache_key = f"wm:scam:{chain_id}:{address.lower()}"
@@ -571,7 +571,7 @@ class WalletStorage:
 
     # ── Deployer history ─────────────────────────────────────────
 
-    async def get_deployer_history(self, address: str, chain_id: str = "") -> list[dict]:
+    async def get_deployer_history(self, address: str, chain_id: str = "") -> list[dict[str, Any]]:
         """Get all tokens deployed by a wallet across chains."""
         await self._ensure_connections()
         if not self._ch:
@@ -659,7 +659,7 @@ class WalletStorage:
 
     # ── Bridge mappings ──────────────────────────────────────────
 
-    async def get_bridge_links(self, address: str, chain_id: str) -> list[dict]:
+    async def get_bridge_links(self, address: str, chain_id: str) -> list[dict[str, Any]]:
         """Get cross-chain bridge mappings for a wallet."""
         await self._ensure_connections()
         if not self._ch:

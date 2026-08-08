@@ -341,7 +341,7 @@ def _get_earned_tiers(correct: int) -> list[str]:
     return [t["name"] for t in BADGE_TIERS if correct >= t["min_correct"]]
 
 
-def _next_tier(correct: int) -> tuple:
+def _next_tier(correct: int) -> tuple[Any, ...]:
     """Get the next tier and votes needed."""
     for t in BADGE_TIERS:
         if correct < t["min_correct"]:

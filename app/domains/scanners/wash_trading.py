@@ -23,7 +23,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import ClassVar, Any
+from typing import Any, ClassVar
 
 import httpx
 import requests
@@ -132,7 +132,7 @@ class WashTradingDetector:
     """
 
     # Known DEX router addresses for cross-DEX detection
-    DEX_ROUTERS: ClassVar[dict] = {
+    DEX_ROUTERS: ClassVar[dict[str, Any]] = {
         "solana": {
             "JUP4Fb2cqiRUr6pNQqvZJQ2SjYqQsBfFidNFBFNB2eq": "Jupiter",
             "675kPX9MHTjS2zt1qfr1NYHuzeL7Gxq8RcE3E4A8N2W5": "Raydium AMM",
@@ -159,7 +159,7 @@ class WashTradingDetector:
 
     # ── Helius helpers ────────────────────────────────────────
 
-    async def _helius_rpc(self, method: str, params: list | None = None) -> dict | None:
+    async def _helius_rpc(self, method: str, params: list[Any] | None = None) -> dict[str, Any] | None:
         """Make a Helius JSON-RPC call."""
         if not HELIUS_API_KEY:
             logger.warning("HELIUS_API_KEY not set")
@@ -186,7 +186,7 @@ class WashTradingDetector:
             logger.warning(f"Helius RPC call failed: {e}")
         return None
 
-    async def _helius_enhanced_txs(self, address: str, limit: int = 100) -> list[dict]:
+    async def _helius_enhanced_txs(self, address: str, limit: int = 100) -> list[dict[str, Any]]:
         """Fetch Enhanced Transactions for a Solana address via Helius.
 
         Returns parsed transaction data including token transfers,
@@ -236,7 +236,7 @@ class WashTradingDetector:
         """Convert chain name to Moralis chain param."""
         return MORALIS_CHAIN_MAP.get(chain.lower(), "eth")
 
-    async def _moralis_get(self, url: str) -> dict | None:
+    async def _moralis_get(self, url: str) -> dict[str, Any] | None:
         """Make a Moralis Data API call with key rotation."""
         if not MORALIS_API_KEY:
             logger.warning("MORALIS_API_KEY not set")
@@ -264,7 +264,7 @@ class WashTradingDetector:
 
     # ── Etherscan helpers ──────────────────────────────────────
 
-    async def _etherscan_get(self, chain: str, params: dict) -> dict | None:
+    async def _etherscan_get(self, chain: str, params: dict[str, Any]) -> dict[str, Any] | None:
         """Make an Etherscan-family API call."""
         net = ETHERSCAN_NETWORKS.get(chain.lower())
         if not net:
@@ -296,7 +296,7 @@ class WashTradingDetector:
 
     # ── DexScreener helper ──────────────────────────────────────
 
-    async def _dexscreener_token_pairs(self, token_address: str) -> list[dict]:
+    async def _dexscreener_token_pairs(self, token_address: str) -> list[dict[str, Any]]:
         """Get DexScreener pairs for a token (to identify DEX interactions)."""
         try:
             resp = await self.client.get(f"{DEXSCREENER_URL}/latest/dex/tokens/{token_address}")

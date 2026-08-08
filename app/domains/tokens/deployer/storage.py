@@ -1,11 +1,11 @@
 """Deployment storage (Redis + Supabase)."""
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.tokens.deployer.models import TokenDeployment
@@ -118,7 +118,7 @@ class DeploymentStorage:
                 logger.error(f"Supabase list failed: {e}")
         return deployments
 
-    async def update_status(self, deployment_id: str, status: str, extra: dict | None = None) -> bool:
+    async def update_status(self, deployment_id: str, status: str, extra: dict[str, Any] | None = None) -> bool:
         dep = await self.get(deployment_id)
         if not dep:
             return False

@@ -8,7 +8,6 @@ Algorithm: engagement-weighted, diversity-scored, entity-resolved.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import html
 import json
@@ -18,6 +17,7 @@ import subprocess
 import urllib.parse
 from collections import Counter
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -286,7 +286,7 @@ GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 # ── Multi-Method X Access ─────────────────────────────────────────
 
 
-async def _xurl_search(query: str, count: int = 20) -> list[dict]:
+async def _xurl_search(query: str, count: int = 20) -> list[dict[str, Any]]:
     """Search X via xurl CLI (OAuth)."""
     try:
         result = subprocess.run(
@@ -316,7 +316,7 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict]:
         return []
 
 
-async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
+async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict[str, Any]]:
     """Get recent posts from a specific user via xurl."""
     try:
         result = subprocess.run(
@@ -373,7 +373,7 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
         return []
 
 
-async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
+async def _cookie_scrape_x(handles: list[str]) -> list[dict[str, Any]]:
     """Attempt cookie-based scraping via saved browser session.
 
     If Tailscale is connected to user's machine, we can pull cookies
@@ -423,7 +423,7 @@ async def _cookie_scrape_x(handles: list[str]) -> list[dict]:
         return []
 
 
-async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[dict]:
+async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[dict[str, Any]]:
     """Fallback: Web scrape X via DuckDuckGo search + embed extraction."""
     posts = []
     async with httpx.AsyncClient(
@@ -476,7 +476,7 @@ async def _web_scrape_x(handles: list[str], count_per_handle: int = 3) -> list[d
     return posts
 
 
-async def _grok_summarize(posts: list[dict]) -> str:
+async def _grok_summarize(posts: list[dict[str, Any]]) -> str:
     """Use Groq (free tier) to generate a CT Rundown summary."""
     if not GROQ_KEY or not posts:
         return ""
@@ -513,7 +513,7 @@ async def _grok_summarize(posts: list[dict]) -> str:
     return _simple_rundown(posts)
 
 
-def _simple_rundown(posts: list[dict]) -> str:
+def _simple_rundown(posts: list[dict[str, Any]]) -> str:
     """Fallback: extract top stories by keyword frequency."""
     words = Counter()
     for p in posts:
@@ -530,7 +530,7 @@ def _simple_rundown(posts: list[dict]) -> str:
 # ── CT Rundown Algorithm ───────────────────────────────────────────
 
 
-def score_ct_post(post: dict, account: dict) -> float:
+def score_ct_post(post: dict[str, Any], account: dict[str, Any]) -> float:
     """Score a CT post for the rundown. Higher = more important.
 
     Factors:
@@ -577,7 +577,7 @@ def score_ct_post(post: dict, account: dict) -> float:
     return score
 
 
-async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
+async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
     """THE method. Fetch, score, and rank CT posts for the daily rundown.
 
     Strategy:
@@ -775,7 +775,7 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict | None:
     }
 
 
-async def track_ct_accounts(**kw) -> dict:
+async def track_ct_accounts(**kw) -> dict[str, Any]:
     """Return the curated CT account list with stats."""
     return {
         "accounts": ALL_CT,

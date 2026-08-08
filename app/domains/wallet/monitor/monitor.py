@@ -101,7 +101,7 @@ class WalletMonitor:
                 logger.warning("evm_ws_error chain=%s error=%s", self.chain, e)
                 await asyncio.sleep(5)
 
-    def _parse_evm_tx(self, raw: dict) -> WalletTx:
+    def _parse_evm_tx(self, raw: dict[str, Any]) -> WalletTx:
         to_addr = raw.get("to") or ""
         data = raw.get("input", "")
         is_contract_creation = not to_addr
@@ -112,7 +112,7 @@ class WalletMonitor:
             if to_lower == addr.lower():
                 dex_swap = {"dex": name, "router": addr}
                 break
-        token_transfers: list[dict] = []
+        token_transfers: list[dict[str, Any]] = []
         for log in raw.get("logs", []):
             topics = log.get("topics", [])
             if topics and topics[0].lower() == TRANSFER_TOPIC.lower():
@@ -215,7 +215,7 @@ class WalletMonitor:
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             return None
 
-    def _parse_solana_tx(self, raw: dict, signature: str) -> WalletTx:
+    def _parse_solana_tx(self, raw: dict[str, Any], signature: str) -> WalletTx:
         meta = raw.get("meta", {})
         tx_inner = raw.get("transaction", {})
         msg = tx_inner.get("message", {})
@@ -229,7 +229,7 @@ class WalletMonitor:
                 if prog == addr:
                     dex_swap = {"dex": name, "router": addr}
                     break
-        token_transfers: list[dict] = []
+        token_transfers: list[dict[str, Any]] = []
         for p in meta.get("postTokenBalances", []):
             token_transfers.append(
                 {
@@ -348,5 +348,5 @@ class WalletMonitor:
     async def stop(self) -> None:
         self.running = False
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         return {"chain": self.chain, "watched_count": len(self._watched), "running": self.running}

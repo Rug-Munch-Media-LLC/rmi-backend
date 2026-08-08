@@ -33,10 +33,10 @@ they're authorized for. The DataBus is the ONLY way to access external data.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from enum import Enum
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -692,8 +692,8 @@ class AccessController:
 
     @staticmethod
     def package_response(
-        data: dict, data_type: str, consumer: ConsumerType, tool_id: str = "", x402_tier: str = ""
-    ) -> dict:
+        data: dict[str, Any], data_type: str, consumer: ConsumerType, tool_id: str = "", x402_tier: str = ""
+    ) -> dict[str, Any]:
         """
         Package a response based on consumer type.
         Strips fields, redacts sensitive data, scopes to authorization level.
@@ -726,7 +726,7 @@ class AccessController:
         return AccessController._strip_dangerous(data)
 
     @staticmethod
-    def _strip_dangerous(data: dict) -> dict:
+    def _strip_dangerous(data: dict[str, Any]) -> dict[str, Any]:
         """Always strip dangerous fields regardless of access level."""
         if not isinstance(data, dict):
             return data
@@ -743,7 +743,7 @@ class AccessController:
         return result
 
     @staticmethod
-    def _package_summary(data: dict, data_type: str) -> dict:
+    def _package_summary(data: dict[str, Any], data_type: str) -> dict[str, Any]:
         """Package as summary - only whitelisted fields."""
         if not isinstance(data, dict):
             return data
@@ -764,7 +764,7 @@ class AccessController:
         return AccessController._strip_dangerous(data)
 
     @staticmethod
-    def _package_for_mcp(data: dict, data_type: str, tool_id: str) -> dict:
+    def _package_for_mcp(data: dict[str, Any], data_type: str, tool_id: str) -> dict[str, Any]:
         """Package for MCP tool - only data types and fields the tool is authorized for."""
         scope = MCP_TOOL_SCOPES.get(tool_id, {})
         allowed_types = scope.get("data_types", [])
@@ -791,13 +791,13 @@ class AccessController:
         return AccessController._strip_dangerous(data)
 
     @staticmethod
-    def get_mcp_allowed_types(tool_id: str) -> list:
+    def get_mcp_allowed_types(tool_id: str) -> list[Any]:
         """Return data types an MCP tool is allowed to access."""
         scope = MCP_TOOL_SCOPES.get(tool_id, {})
         return scope.get("data_types", [])
 
     @staticmethod
-    def get_x402_allowed_types(tier: str) -> list:
+    def get_x402_allowed_types(tier: str) -> list[Any]:
         """Return data types an x402 tier can access."""
         types = X402_ACCESS_TIERS.get(tier, X402_ACCESS_TIERS["free"])
         if types == "all":
@@ -805,7 +805,7 @@ class AccessController:
         return types
 
     @staticmethod
-    def list_access_matrix() -> dict:
+    def list_access_matrix() -> dict[str, Any]:
         """Return the full access matrix for admin UI."""
         result = {}
         for dtype, consumers in DATA_ACCESS_MATRIX.items():

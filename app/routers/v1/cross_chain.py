@@ -22,7 +22,7 @@ router = APIRouter(prefix="/cross-chain", tags=["cross-chain-v1"])
 async def cross_chain_profile(
     address: str,
     chain: str = Query(default="ethereum", description="Chain to resolve from"),
-) -> dict:
+) -> dict[str, Any]:
     """Get cross-chain profile for a wallet address.
 
     Resolves the wallet across all known chains using:
@@ -99,7 +99,7 @@ async def persist_cross_chain_entities(
     description="Trace fund flows across multiple blockchains. "
     "Follows transactions through bridges, mixers, and CEX deposits.",
 )
-async def cross_chain_trace(addresses: list[str]) -> dict:
+async def cross_chain_trace(addresses: list[str]) -> dict[str, Any]:
     """Trace fund flows across chains.
 
     NOTE: Full fund-flow tracing is in development (W2-P4 enhancement).

@@ -196,7 +196,7 @@ def get_tool_price_usd(tool: str) -> float:
         return p.get("pro_cents", 1) / 100.0
 
 
-def get_tool_metadata(tool: str) -> dict:
+def get_tool_metadata(tool: str) -> dict[str, Any]:
     """Public-facing tool metadata for /api/v1/x402/catalog."""
     p = PRICING.get(tool, {})
     return {
@@ -283,7 +283,7 @@ def _get_hmac_key() -> bytes:
 
 
 # ── Payment challenge ─────────────────────────────────────────────
-def create_invoice(tool: str, agent_id: str) -> dict:
+def create_invoice(tool: str, agent_id: str) -> dict[str, Any]:
     """Create a payment challenge (signed invoice) for an agent to pay.
 
     The invoice is signed with the platform's HMAC key (from env var
@@ -460,7 +460,7 @@ async def require_payment(
     tool: str,
     request: Request | None = None,
     catalog=None,
-) -> dict:
+) -> dict[str, Any]:
     """Verify x402 payment. Returns payment context dict.
 
     Raises HTTPException 402 if payment is required but not provided.

@@ -1,6 +1,7 @@
 """Pure-Python token risk analysis. No I/O."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.domains.token.models import (
@@ -27,7 +28,7 @@ class TokenAnalyzer:
         transfer_pausable: bool = False,
     ) -> TokenRisk:
         """Compute TokenRisk from raw inputs. Pure function of inputs."""
-        flags: list[dict] = []
+        flags: list[dict[str, Any]] = []
         score = 0
 
         # Honeypot = critical

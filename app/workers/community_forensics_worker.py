@@ -8,11 +8,11 @@ Background processing for:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import asyncio
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -37,7 +37,7 @@ class CommunityForensicsWorker:
         self.blockscout = httpx.AsyncClient(base_url=BLOCKSCOUT_URL, timeout=30.0)
         self.running = True
 
-    async def verify_report_graph(self, report_id: str, graph_data: dict) -> dict:
+    async def verify_report_graph(self, report_id: str, graph_data: dict[str, Any]) -> dict[str, Any]:
         """Verify and enrich a community report's graph data."""
         # Validate graph structure
         nodes = graph_data.get("nodes", [])
@@ -66,7 +66,7 @@ class CommunityForensicsWorker:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-    async def batch_cross_chain_correlate(self, addresses: list[str]) -> list[dict]:
+    async def batch_cross_chain_correlate(self, addresses: list[str]) -> list[dict[str, Any]]:
         """Batch cross-chain correlation for community investigations."""
         results = []
 
@@ -95,7 +95,7 @@ class CommunityForensicsWorker:
 
         return results
 
-    async def generate_leaderboard_snapshot(self) -> dict:
+    async def generate_leaderboard_snapshot(self) -> dict[str, Any]:
         """Generate daily leaderboard snapshot."""
         # In production, query Supabase for real data
         return {

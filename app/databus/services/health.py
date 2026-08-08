@@ -20,7 +20,7 @@ class ProviderHealthTracker:
     """Track per-provider health: success/failure rates, latency, availability."""
 
     def __init__(self) -> None:
-        self._providers: dict[str, dict] = defaultdict(
+        self._providers: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
                 "total_calls": 0,
                 "successes": 0,
@@ -71,11 +71,11 @@ class ProviderHealthTracker:
             return False
         return True
 
-    def get_health(self, provider_name: str) -> dict:
+    def get_health(self, provider_name: str) -> dict[str, Any]:
         """Get health data for a single provider."""
         return dict(self._providers.get(provider_name, {}))
 
-    def all_health(self) -> dict[str, dict]:
+    def all_health(self) -> dict[str, dict[str, Any]]:
         """Return health data for all tracked providers with computed metrics."""
         result: dict[str, Any] = {}
         for name, data in self._providers.items():

@@ -156,7 +156,7 @@ def _normalize_chain(chain: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _chain_indexer_token_transfers(**kwargs: Any) -> dict | None:
+async def _chain_indexer_token_transfers(**kwargs: Any) -> dict[str, Any] | None:
     """Query evm_transfers for token transfer history.
 
     Parameters (from DataBus fetch kwargs):
@@ -179,7 +179,7 @@ async def _chain_indexer_token_transfers(**kwargs: Any) -> dict | None:
     if not chain:
         return None
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -259,7 +259,7 @@ async def _chain_indexer_token_transfers(**kwargs: Any) -> dict | None:
     }
 
 
-async def _chain_indexer_dex_events(**kwargs: Any) -> dict | None:
+async def _chain_indexer_dex_events(**kwargs: Any) -> dict[str, Any] | None:
     """Query dex_events for DEX swap/pool events on a token.
 
     Parameters:
@@ -280,7 +280,7 @@ async def _chain_indexer_dex_events(**kwargs: Any) -> dict | None:
     # the indexer should enable DEX event fetching for it.
     _signal_indexer_demand(chain, "dex")
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -356,7 +356,7 @@ async def _chain_indexer_dex_events(**kwargs: Any) -> dict | None:
     }
 
 
-async def _chain_indexer_deployer_history(**kwargs: Any) -> dict | None:
+async def _chain_indexer_deployer_history(**kwargs: Any) -> dict[str, Any] | None:
     """Query deployer_events for deployer address history.
 
     Parameters:
@@ -380,7 +380,7 @@ async def _chain_indexer_deployer_history(**kwargs: Any) -> dict | None:
     if chain:
         _signal_indexer_demand(chain, "deployer")
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -445,7 +445,7 @@ async def _chain_indexer_deployer_history(**kwargs: Any) -> dict | None:
     }
 
 
-async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict | None:
+async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict[str, Any] | None:
     """Query solana_spl_balance_changes for SPL token balance deltas.
 
     Parameters:
@@ -460,7 +460,7 @@ async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict | None:
     if not mint:
         return None
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -522,7 +522,7 @@ async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict | None:
     }
 
 
-async def _chain_indexer_holders(**kwargs: Any) -> dict | None:
+async def _chain_indexer_holders(**kwargs: Any) -> dict[str, Any] | None:
     """Compute token holder count from evm_transfers unique addresses.
 
     Parameters:
@@ -542,7 +542,7 @@ async def _chain_indexer_holders(**kwargs: Any) -> dict | None:
     if not token_address or not chain:
         return None
 
-    def _query() -> list[tuple]:
+    def _query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -574,7 +574,7 @@ async def _chain_indexer_holders(**kwargs: Any) -> dict | None:
             logger.debug("holder query failed: %s", exc)
             return []
 
-    def _count_query() -> list[tuple]:
+    def _count_query() -> list[tuple[Any, ...]]:
         client = _get_ch_client()
         if client is None:
             return []
@@ -632,7 +632,7 @@ async def _chain_indexer_holders(**kwargs: Any) -> dict | None:
     }
 
 
-async def _chain_indexer_pattern_search(**kwargs: Any) -> dict | None:
+async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
     """Search chain-indexer for on-chain scam patterns (DeFi behavioral).
 
     Provides natural-language-queryable pattern detection:

@@ -56,7 +56,7 @@ class WalletScanResult:
     scanned_at: str = ""
 
     # ── Identity ──
-    labels: list[dict] = field(default_factory=list)
+    labels: list[dict[str, Any]] = field(default_factory=list)
     entity_name: str = ""
     entity_type: str = ""
     persona: str = ""
@@ -66,25 +66,25 @@ class WalletScanResult:
     native_balance: float = 0.0
     total_value_usd: float = 0.0
     token_count: int = 0
-    holdings: list[dict] = field(default_factory=list)
+    holdings: list[dict[str, Any]] = field(default_factory=list)
     scam_tokens_held: int = 0
     scam_exposure_pct: float = 0.0
-    top_holding_risks: list[dict] = field(default_factory=list)
+    top_holding_risks: list[dict[str, Any]] = field(default_factory=list)
 
     # ── Risk ──
     risk_score: float = 0.0
     risk_flags: list[str] = field(default_factory=list)
-    rag_matches: list[dict] = field(default_factory=list)  # RAG scam intel hits
+    rag_matches: list[dict[str, Any]] = field(default_factory=list)  # RAG scam intel hits
     behavior_patterns: list[str] = field(default_factory=list)
     risk_forecast: str = ""  # AI-generated 7-day prediction
 
     # ── Intelligence ──
-    transactions: dict | None = None
-    counterparties: dict | None = None
-    cross_chain_activity: dict | None = None
+    transactions: dict[str, Any] | None = None
+    counterparties: dict[str, Any] | None = None
+    cross_chain_activity: dict[str, Any] | None = None
     smart_money_overlap: list[str] = field(default_factory=list)
-    social_graph: dict | None = None
-    flow_data: dict | None = None  # For frontend visualization
+    social_graph: dict[str, Any] | None = None
+    flow_data: dict[str, Any] | None = None  # For frontend visualization
 
     # ── Meta ──
     modules_run: list[str] = field(default_factory=list)
@@ -160,7 +160,7 @@ class UnifiedWalletScanner:
 
     async def _fetch_batch(
         self, chains, params, admin_key, timeout_secs=30
-    ) -> dict | tuple[Any, Any] | tuple[Any, None]:
+    ) -> dict[str, Any] | tuple[Any, Any] | tuple[Any, None]:
         from app.databus import databus
 
         async def _one(c) -> tuple[Any, Any] | tuple[Any, None]:

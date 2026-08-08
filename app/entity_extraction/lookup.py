@@ -112,7 +112,7 @@ class EntityLookup:
             doc_key = f"entity:doc:{doc_id}"
             existing_raw = await r.hget(doc_key, entity_type)
             if existing_raw is not None:
-                values: list = json.loads(existing_raw)
+                values: list[Any] = json.loads(existing_raw)
             else:
                 values = []
             if norm_value not in values:

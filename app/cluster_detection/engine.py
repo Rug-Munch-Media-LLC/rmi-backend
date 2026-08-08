@@ -6,11 +6,11 @@ and provides the public API. Singleton management.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 from app.cluster_detection.detectors import (
     detect_behavioral_clusters,
@@ -43,8 +43,8 @@ class ClusterDetectionPro:
     """
 
     def __init__(self) -> None:
-        self.wallet_profiles: dict[str, dict] = {}
-        self.transactions: list[dict] = []
+        self.wallet_profiles: dict[str, dict[str, Any]] = {}
+        self.transactions: list[dict[str, Any]] = []
         self.clusters: dict[str, WalletCluster] = {}
         self.funding_paths: dict[tuple[str, str], FundingPath] = {}
 
@@ -111,7 +111,7 @@ class ClusterDetectionPro:
             if wallet not in self.wallet_profiles:
                 self.wallet_profiles[wallet] = await self._fetch_wallet_profile(wallet)
 
-    async def _fetch_wallet_profile(self, wallet: str) -> dict:
+    async def _fetch_wallet_profile(self, wallet: str) -> dict[str, Any]:
         """Fetch profile for a single wallet."""
         # In production, query Helius/Arkham
         return {

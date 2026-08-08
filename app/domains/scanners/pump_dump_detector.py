@@ -90,7 +90,7 @@ class PumpDumpDetector:
 
     # ── Direct API fetchers ─────────────────────────────────────────
 
-    async def _fetch_dexscreener_token(self, token_address: str) -> dict | None:
+    async def _fetch_dexscreener_token(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token pair data from DexScreener (free, no key)."""
         try:
             resp = await self._http.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
@@ -103,7 +103,7 @@ class PumpDumpDetector:
             logger.warning(f"DexScreener fetch failed for {token_address}: {e}")
         return None
 
-    async def _fetch_birdeye_overview(self, token_address: str) -> dict | None:
+    async def _fetch_birdeye_overview(self, token_address: str) -> dict[str, Any] | None:
         """Fetch token overview from Birdeye (volume, price history)."""
         if not self._birdeye_key:
             return None
@@ -121,7 +121,7 @@ class PumpDumpDetector:
             logger.warning(f"Birdeye overview failed for {token_address}: {e}")
         return None
 
-    async def _fetch_birdeye_trades(self, token_address: str, limit: int = 100) -> list[dict]:
+    async def _fetch_birdeye_trades(self, token_address: str, limit: int = 100) -> list[dict[str, Any]]:
         """Fetch recent trades from Birdeye."""
         if not self._birdeye_key:
             return []
@@ -139,7 +139,7 @@ class PumpDumpDetector:
             logger.warning(f"Birdeye trades failed for {token_address}: {e}")
         return []
 
-    async def _fetch_solana_signatures(self, address: str, limit: int = 5) -> list[dict]:
+    async def _fetch_solana_signatures(self, address: str, limit: int = 5) -> list[dict[str, Any]]:
         """Fetch early signatures to determine wallet freshness."""
         result = await self._chain.rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
         if result and "result" in result:
@@ -148,7 +148,7 @@ class PumpDumpDetector:
 
     # ── Analysis helpers ────────────────────────────────────────────
 
-    def _compute_volume_spike(self, dex_data: dict | None, birdeye_data: dict | None) -> float:
+    def _compute_volume_spike(self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None) -> float:
         """Compare recent 1h volume vs 24h average to detect spikes."""
         vol_1h = 0.0
         vol_24h = 0.0
@@ -170,7 +170,7 @@ class PumpDumpDetector:
 
         return round(vol_1h / avg_hourly, 2)
 
-    def _detect_price_volume_divergence(self, dex_data: dict | None, birdeye_data: dict | None) -> bool:
+    def _detect_price_volume_divergence(self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None) -> bool:
         """Check if price is pumping but volume/mcap doesn't support it."""
         price_change = 0.0
         mcap = 0.0
@@ -195,7 +195,7 @@ class PumpDumpDetector:
 
         return False
 
-    def _determine_lifecycle_stage(self, dex_data: dict | None, birdeye_data: dict | None) -> str:
+    def _determine_lifecycle_stage(self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None) -> str:
         """Infer the token's lifecycle stage from creation time and metrics."""
         created_at = 0
         mcap = 0.0
@@ -235,7 +235,7 @@ class PumpDumpDetector:
         else:
             return "unknown"
 
-    def _check_lp_removal_signal(self, dex_data: dict | None) -> bool:
+    def _check_lp_removal_signal(self, dex_data: dict[str, Any] | None) -> bool:
         """Heuristic: if liquidity is very low relative to mcap, LP may be removed."""
         if not dex_data:
             return False
@@ -252,7 +252,7 @@ class PumpDumpDetector:
                 return True
         return False
 
-    async def _detect_coordinated_buys(self, trades: list[dict], chain: str) -> list[CoordinatedBuyGroup]:
+    async def _detect_coordinated_buys(self, trades: list[dict[str, Any]], chain: str) -> list[CoordinatedBuyGroup]:
         """Identify clusters of fresh wallets buying in the same time window."""
         if not trades:
             return []
@@ -263,7 +263,7 @@ class PumpDumpDetector:
             return []
 
         # Group by block or timestamp
-        by_time: dict[int, list[dict]] = defaultdict(list)
+        by_time: dict[int, list[dict[str, Any]]] = defaultdict(list)
         for t in buys:
             block = int(t.get("block", t.get("slot", 0)))
             ts = int(t.get("blockTime", t.get("timestamp", block)))

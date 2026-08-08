@@ -1,6 +1,7 @@
 """Passthrough/local providers — call our own backend endpoints."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -10,7 +11,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _passthrough_market_overview(**kwargs) -> dict | None:
+async def _passthrough_market_overview(**kwargs) -> dict[str, Any] | None:
     """Market overview from our own /api/v1/content/market-overview."""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -22,7 +23,7 @@ async def _passthrough_market_overview(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_trending(**kwargs) -> dict | None:
+async def _passthrough_trending(**kwargs) -> dict[str, Any] | None:
     """Trending tokens from our own /api/v1/tokens/trending."""
     try:
         limit = kwargs.get("limit", 20)
@@ -35,7 +36,7 @@ async def _passthrough_trending(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_news(**kwargs) -> dict | None:
+async def _passthrough_news(**kwargs) -> dict[str, Any] | None:
     """News from our own backend — 200+ sources, quality-scored."""
     try:
         limit = kwargs.get("limit", 20)
@@ -79,7 +80,7 @@ async def _passthrough_news(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_alerts(**kwargs) -> dict | None:
+async def _passthrough_alerts(**kwargs) -> dict[str, Any] | None:
     """Alerts from our real alert pipeline."""
     try:
         from app.alert_pipeline import get_active_alert_count, get_recent_alerts
@@ -92,7 +93,7 @@ async def _passthrough_alerts(**kwargs) -> dict | None:
     return {"count": 0, "alerts": []}
 
 
-async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
+async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None:
     """Wallet labels from Redis (4.29M hot labels) — rmi:label:{chain}:{address} format.
 
     Falls back to ClickHouse wallet_memory.wallet_labels (39.4M rows) if Redis
@@ -260,7 +261,7 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -> dict | None:
+async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -> dict[str, Any] | None:
     """Batch wallet label lookup — up to 100 addresses at once.
 
     Queries ClickHouse with WHERE address IN (...), returns all labels,
@@ -317,7 +318,7 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
                 return None
 
             # Group labels by address
-            addr_labels: dict[str, list[dict]] = {}
+            addr_labels: dict[str, list[dict[str, Any]]] = {}
             for row in rows:
                 if len(row) < 4:
                     continue
@@ -380,7 +381,7 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
         return None
 
 
-async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict | None:
+async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -> dict[str, Any] | None:
     """SENTINEL scanner - our own token security analysis."""
     try:
         async with httpx.AsyncClient(timeout=30) as c:
@@ -395,7 +396,7 @@ async def _passthrough_scanner(address: str = "", chain: str = "solana", **kw) -
     return None
 
 
-async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict | None:
+async def _passthrough_rag(query: str = "", collection: str = "known_scams", **kw) -> dict[str, Any] | None:
     """RAG search - our 17K+ document knowledge base via rmi-rag-api."""
     try:
         from app.config import settings

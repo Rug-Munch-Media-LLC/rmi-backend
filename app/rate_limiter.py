@@ -402,7 +402,7 @@ class EmbeddingCache:
         except Exception as e:
             logger.info(f"Cache restore skipped: {e}")
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         total = self._hits + self._misses
         return {
             "size": len(self._cache),
@@ -614,14 +614,14 @@ class EmbeddingDispatcher:
             vecs.append(v)
         return vecs
 
-    async def stats(self) -> dict:
+    async def stats(self) -> dict[str, Any]:
         return {
             "rate_limits": await self.tracker.stats(),
             "cache": self.cache.stats(),
             "providers_configured": len(self._providers),
         }
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, Any]:
         """Quick health check (no async needed)."""
         available = sum(1 for p in self._providers if p.free)
         return {

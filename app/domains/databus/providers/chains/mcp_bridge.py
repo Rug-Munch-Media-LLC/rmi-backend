@@ -5,17 +5,17 @@ Uses subprocess to invoke opencode MCP tools and returns parsed results.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import subprocess
+from typing import Any
 
 from app.core.logging import get_logger
 
 logger = get_logger("databus.providers.mcp_bridge")
 
 
-async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:
+async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict[str, Any] | None:
     """Universal MCP bridge — calls any local/remote MCP server tool.
 
     Args:

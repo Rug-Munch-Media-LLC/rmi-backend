@@ -53,12 +53,12 @@ def _redis_conn() -> Any:
     )
 
 
-def _cache_key(tool: str, params: dict) -> str:
+def _cache_key(tool: str, params: dict[str, Any]) -> str:
     raw = f"{tool}:{json.dumps(params, sort_keys=True)}"
     return f"x402:cache:{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
 
 
-def get_cached(tool: str, params: dict) -> dict | None:
+def get_cached(tool: str, params: dict[str, Any]) -> dict[str, Any] | None:
     """Check Redis cache for a tool result."""
     try:
         r = _redis_conn()
@@ -78,7 +78,7 @@ def get_cached(tool: str, params: dict) -> dict | None:
     return None
 
 
-def set_cached(tool: str, params: dict, result: dict, ttl: int = CACHE_TTL) -> None:
+def set_cached(tool: str, params: dict[str, Any], result: dict[str, Any], ttl: int = CACHE_TTL) -> None:
     """Store tool result in Redis cache."""
     try:
         r = _redis_conn()

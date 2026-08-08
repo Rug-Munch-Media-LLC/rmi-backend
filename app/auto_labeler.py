@@ -20,12 +20,12 @@ Label categories:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 import time
 from collections import Counter, defaultdict
 from datetime import datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -201,7 +201,7 @@ class AutoLabeler:
             f"{len(self._known_mixers):,} mixers, {len(self._known_exchanges):,} exchanges"
         )
 
-    async def observe_wallet(self, address: str, chain: str, observations: dict) -> list[dict]:
+    async def observe_wallet(self, address: str, chain: str, observations: dict[str, Any]) -> list[dict[str, Any]]:
         """Record observations about a wallet and check if any labels should be applied."""
         key = f"{chain}:{address.lower()}"
         self.pending_observations[key].append(
@@ -228,7 +228,7 @@ class AutoLabeler:
 
         return unique_new
 
-    async def _check_labels(self, address: str, chain: str, history: list[dict]) -> list[dict]:
+    async def _check_labels(self, address: str, chain: str, history: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Check all label rules against wallet history."""
         applied = []
 
@@ -289,7 +289,7 @@ class AutoLabeler:
 
         return applied
 
-    def _create_label(self, label_key: str, address: str, chain: str, evidence: dict) -> dict:
+    def _create_label(self, label_key: str, address: str, chain: str, evidence: dict[str, Any]) -> dict[str, Any]:
         """Create a label entry."""
         config = AUTO_LABELS[label_key]
         return {
@@ -306,7 +306,7 @@ class AutoLabeler:
             "evidence": evidence,
         }
 
-    async def batch_analyze(self, observations: list[dict]) -> dict:
+    async def batch_analyze(self, observations: list[dict[str, Any]]) -> dict[str, Any]:
         """Batch analyze multiple wallet observations and return all labels."""
         results = {"labels_applied": [], "stats": {}}
 
@@ -327,7 +327,7 @@ class AutoLabeler:
 
         return results
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get auto-labeler statistics."""
         return {
             "labels_applied_total": sum(self.labels_applied.values()),

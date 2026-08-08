@@ -4,13 +4,13 @@ RMI Mega News Aggregator - Largest Free Crypto News Pipeline
 """
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import json
 import logging
 import re
 import time
+from typing import Any
 
 import httpx
 from defusedxml import ElementTree as SafeET
@@ -148,7 +148,7 @@ def extract_tickers(text: str) -> list[str]:
     return list(tickers)[:5]
 
 
-def fetch_all_feeds(db=None) -> dict:
+def fetch_all_feeds(db=None) -> dict[str, Any]:
     """Fetch ALL 50+ RSS feeds, deduplicate, score, store. Returns stats."""
     results = []
     sources_seen = set()

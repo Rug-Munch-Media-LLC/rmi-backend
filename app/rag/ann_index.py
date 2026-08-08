@@ -71,7 +71,7 @@ class ANNIndex:
         # O(1) doc_id -> index lookup, avoids O(N) .index() calls
         self._id_to_idx: dict[str, int] = {}
         self._matrix: np.ndarray | None = None  # shape (N, dim), L2-normalized
-        self._meta: dict[str, dict] = {}  # doc_id -> {text, metadata}
+        self._meta: dict[str, dict[str, Any]] = {}  # doc_id -> {text, metadata}
         self._loaded = False
         # Dirty-tracking: only persisted docs that changed
         self._dirty_ids: set[str] = set()
@@ -134,7 +134,7 @@ class ANNIndex:
         ids: list[str] = []
         id_to_idx: dict[str, int] = {}
         vecs: list[list[float]] = []
-        meta: dict[str, dict] = {}
+        meta: dict[str, dict[str, Any]] = {}
         for i, (doc_id, blob) in enumerate(raw.items()):
             try:
                 entry = json.loads(blob)

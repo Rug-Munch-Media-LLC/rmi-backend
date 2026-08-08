@@ -65,7 +65,7 @@ class SchemaValidator:
         },
     }
 
-    def validate(self, data_type: str, data: Any) -> tuple:
+    def validate(self, data_type: str, data: Any) -> tuple[Any, ...]:
         """Validate response data against expected schema.
         Returns (is_valid, missing_fields).
         """
@@ -80,7 +80,7 @@ class SchemaValidator:
             return False, missing
         return True, []
 
-    def check_response(self, data_type: str, result: dict) -> dict:
+    def check_response(self, data_type: str, result: dict[str, Any]) -> dict[str, Any]:
         """Check a full DataBus response dict. Returns annotated result."""
         if not result or "data" not in result:
             return result

@@ -4,6 +4,7 @@ Premium features: likely rugs, alpha signals, smart money, bundled detection, in
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
@@ -19,7 +20,7 @@ router = APIRouter(tags=["market-intel"])
 async def get_market_likely_rugs(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Likely rug pulls - premium data from scanner."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
@@ -29,21 +30,21 @@ async def get_market_likely_rugs(
 async def get_market_alpha(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
-) -> dict:
+) -> dict[str, Any]:
     """Alpha signals - from trending + whale data."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
 
 
 @router.get("/smart-money")
-async def get_market_smart_money(request: Request) -> dict:
+async def get_market_smart_money(request: Request) -> dict[str, Any]:
     """Smart money flows by sector."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
 
 
 @router.get("/bundlers")
-async def get_market_bundlers(request: Request) -> dict:
+async def get_market_bundlers(request: Request) -> dict[str, Any]:
     """Bundler detection - coordinated buy patterns."""
     now = _now()
     return {"items": [], "total": 0, "updated_at": now}
@@ -54,7 +55,7 @@ async def get_insider_wallets(
     request: Request,
     limit: int = Query(10, ge=1, le=50),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """
     Likely insider trader wallets to watch.
     Premium feature: Tracks wallets with high win rates, early entries before pumps,
@@ -126,7 +127,7 @@ async def get_prediction_signals(
     request: Request,
     limit: int = Query(5, ge=1, le=20),
     tier: str = Query("free"),
-) -> dict:
+) -> dict[str, Any]:
     """
     Prediction market intelligence signals.
     Detects probability swings, ecosystem risks, and token-specific threats

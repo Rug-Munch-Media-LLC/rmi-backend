@@ -1,11 +1,11 @@
 """Semantic LLM Cache for DataBus - caches identical + similar prompts. Redis-backed."""
 
 from __future__ import annotations
-from typing import Any
 
 import hashlib
 import json
 import os
+from typing import Any
 
 _redis_cache_url = None
 _cache_ttl = None
@@ -24,7 +24,7 @@ def _cache_key(prompt: str, model: str) -> str:
     return f"llm_cache:{hashlib.sha256(f'{model}:{prompt}'.encode()).hexdigest()[:16]}"
 
 
-def get_cached(prompt: str, model: str) -> dict | None:
+def get_cached(prompt: str, model: str) -> dict[str, Any] | None:
     """Check if prompt+model result is cached."""
     import redis
 
@@ -38,7 +38,7 @@ def get_cached(prompt: str, model: str) -> dict | None:
     return None
 
 
-def set_cached(prompt: str, model: str, result: dict, ttl: int = CACHE_TTL) -> None:
+def set_cached(prompt: str, model: str, result: dict[str, Any], ttl: int = CACHE_TTL) -> None:
     """Cache a prompt result."""
     import redis
 
@@ -49,7 +49,7 @@ def set_cached(prompt: str, model: str, result: dict, ttl: int = CACHE_TTL) -> N
         pass
 
 
-def get_cache_stats() -> dict:
+def get_cache_stats() -> dict[str, Any]:
     """Get cache statistics."""
     import redis
 

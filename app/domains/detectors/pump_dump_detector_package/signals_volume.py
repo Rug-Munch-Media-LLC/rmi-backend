@@ -1,6 +1,7 @@
 """Volume anomaly and price pump detection signals."""
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.domains.detectors.pump_dump_detector_package.types import (
@@ -12,9 +13,9 @@ from app.domains.detectors.pump_dump_detector_package.types import (
 )
 
 
-async def detect_volume_anomalies(pairs_data: dict) -> dict:
+async def detect_volume_anomalies(pairs_data: dict[str, Any]) -> dict[str, Any]:
     """Detect abnormal volume patterns indicating manipulation."""
-    findings: list[dict] = []
+    findings: list[dict[str, Any]] = []
     anomalies: list[VolumeAnomaly] = []
     if not pairs_data.get("pairs"):
         return {"findings": findings, "anomalies": anomalies}
@@ -74,9 +75,9 @@ async def detect_volume_anomalies(pairs_data: dict) -> dict:
     return {"findings": findings, "anomalies": anomalies}
 
 
-async def analyze_price_pump(pairs_data: dict) -> dict:
+async def analyze_price_pump(pairs_data: dict[str, Any]) -> dict[str, Any]:
     """Analyze price movement for pump-and-dump patterns."""
-    findings: list[dict] = []
+    findings: list[dict[str, Any]] = []
     signal = None
     if not pairs_data.get("pairs"):
         return {"signal": signal, "findings": findings}

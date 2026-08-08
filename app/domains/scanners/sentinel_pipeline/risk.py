@@ -154,7 +154,7 @@ def _extract_risk_gas_trace(report) -> float:
     return 30.0
 
 
-def _compute_composite(scores: dict[str, float]) -> tuple:
+def _compute_composite(scores: dict[str, float]) -> tuple[Any, ...]:
     """Weighted composite risk score -> (score, level).
 
     Weights reflect each module's importance for rug-pull detection.
@@ -201,7 +201,7 @@ def _compute_composite(scores: dict[str, float]) -> tuple:
     return round(composite, 1), level
 
 
-def _collect_red_flags(report_dict: dict | None, module_name: str) -> list[str]:
+def _collect_red_flags(report_dict: dict[str, Any] | None, module_name: str) -> list[str]:
     """Pull top red-flag strings from each module's dict result."""
     flags: list[str] = []
     if not isinstance(report_dict, dict) or not report_dict:

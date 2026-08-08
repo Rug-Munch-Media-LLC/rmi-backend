@@ -20,7 +20,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers.intel_provider")
 
 
-async def _scraped_intel_provider(**kwargs: Any) -> dict | None:
+async def _scraped_intel_provider(**kwargs: Any) -> dict[str, Any] | None:
     """Query scraped_intel table for relevant intelligence.
 
     Parameters (from DataBus fetch):

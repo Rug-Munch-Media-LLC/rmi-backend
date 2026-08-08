@@ -87,7 +87,7 @@ async def ai_route(req: StreamRequest) -> Any:
 
 
 @router.get("/providers")
-async def list_providers() -> dict[str, dict]:
+async def list_providers() -> dict[str, dict[str, Any]]:
     """List all available AI providers with capabilities."""
     from app.core.model_router import ROUTING_TABLE
 

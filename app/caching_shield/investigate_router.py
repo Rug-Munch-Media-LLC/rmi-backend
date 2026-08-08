@@ -80,7 +80,7 @@ async def trace_wallet_funding(req: TraceRequest) -> Any:
 
 
 @router.post("/scan")
-async def full_investigation(req: ScanRequest) -> dict:
+async def full_investigation(req: ScanRequest) -> dict[str, Any]:
     """Full investigation: trace + risk + labels."""
     chain = req.chain.lower()
     chain_id = req.chain_id or CHAIN_NAMES.get(chain, 1)
@@ -239,7 +239,7 @@ async def investigation_graph(req: GraphRequest) -> dict[str, Any | None]:
 
 
 @router.post("/fund-flow")
-async def fund_flow_sankey(req: GraphRequest) -> dict:
+async def fund_flow_sankey(req: GraphRequest) -> dict[str, Any]:
     """
     Return fund flow data formatted for D3 Sankey diagram.
     Shows creator → funders → LPs → sellers flow with amounts.
@@ -265,7 +265,7 @@ async def fund_flow_sankey(req: GraphRequest) -> dict:
     # ── Convert to D3 Sankey format ──────────────────────────
     sankey_nodes = []
     sankey_links = []
-    node_index: dict = {}
+    node_index: dict[str, Any] = {}
 
     for n in nodes:
         idx = len(sankey_nodes)
@@ -360,7 +360,7 @@ async def fund_flow_sankey(req: GraphRequest) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _trace_solana(address: str) -> dict:
+async def _trace_solana(address: str) -> dict[str, Any]:
     from app.caching_shield.data_fallback import DataQueryType, get_data_engine
 
     engine = get_data_engine()
@@ -378,7 +378,7 @@ async def _trace_solana(address: str) -> dict:
     return {"source": "none", "error": "no data from any provider"}
 
 
-async def _trace_evm(address: str, chain_id: int, max_depth: int) -> dict:
+async def _trace_evm(address: str, chain_id: int, max_depth: int) -> dict[str, Any]:
     from app.caching_shield.funding_tracer import trace_funding_source
 
     result = await trace_funding_source(address, chain_id, max_depth)

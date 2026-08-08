@@ -76,7 +76,7 @@ class SystemHealthMonitor:
         }
 
     @staticmethod
-    async def _check_redis() -> dict:
+    async def _check_redis() -> dict[str, Any]:
         """Check Redis connection."""
         try:
             import redis.asyncio as redis_lib
@@ -101,7 +101,7 @@ class SystemHealthMonitor:
             return {"status": "error", "error": str(e)}
 
     @staticmethod
-    async def _check_supabase() -> dict:
+    async def _check_supabase() -> dict[str, Any]:
         """Check Supabase connection."""
         try:
             supabase_url = os.getenv("SUPABASE_URL")

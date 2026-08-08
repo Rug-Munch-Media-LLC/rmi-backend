@@ -13,7 +13,7 @@ router = APIRouter(tags=["mcp_earnings"])
 
 
 @router.get("/mcp/earnings")
-async def earnings_dashboard() -> dict:
+async def earnings_dashboard() -> dict[str, Any]:
     """Live earnings dashboard - wallet balances, revenue by source."""
     from app.caching_shield.earnings_tracker import fetch_wallet_earnings, get_earnings_report
 

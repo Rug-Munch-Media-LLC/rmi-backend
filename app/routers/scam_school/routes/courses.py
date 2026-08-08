@@ -18,7 +18,7 @@ courses_router = APIRouter(tags=["scam-school"])
 
 
 @courses_router.get("/scam-school/courses")
-async def list_courses() -> dict:
+async def list_courses() -> dict[str, Any]:
     """List all available courses with metadata."""
     return {
         "courses": [
@@ -72,25 +72,25 @@ async def get_module(course_id: str, module_id: str) -> Any:
 
 
 @courses_router.get("/scam-school/badges")
-async def list_badges() -> dict:
+async def list_badges() -> dict[str, Any]:
     """List all available badges."""
     return {"badges": BADGES}
 
 
 @courses_router.get("/scam-school/achievements")
-async def list_achievements() -> dict:
+async def list_achievements() -> dict[str, Any]:
     """List all achievements."""
     return {"achievements": ACHIEVEMENTS}
 
 
 @courses_router.get("/scam-school/levels")
-async def list_levels() -> dict:
+async def list_levels() -> dict[str, Any]:
     """List level progression."""
     return {"levels": LEVELS}
 
 
 @courses_router.get("/scam-school/verify-cert/{cert_id}")
-async def verify_certificate(cert_id: str) -> dict:
+async def verify_certificate(cert_id: str) -> dict[str, Any]:
     """Verify a certificate's authenticity."""
     import json
 

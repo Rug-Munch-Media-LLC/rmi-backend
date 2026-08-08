@@ -33,7 +33,7 @@ def _get_key() -> Any:
     return get_secret_or_none("SUPABASE_SERVICE_KEY", "") or get_secret_or_none("SUPABASE_SERVICE_ROLE_KEY") or ""
 
 
-def _get_headers() -> dict:
+def _get_headers() -> dict[str, Any]:
     key = _get_key()
     return {
         "apikey": key,
@@ -80,7 +80,7 @@ SCAM_KEYWORDS = {
 }
 
 
-async def classify_scam_risk(text: str) -> dict:
+async def classify_scam_risk(text: str) -> dict[str, Any]:
     """Classify scam risk using local pattern matching (HF paywalled)."""
     text_lower = text.lower()
     scores = {}
@@ -204,7 +204,7 @@ WALLET_PATTERNS = {
 }
 
 
-async def label_wallet(wallet_data: dict) -> dict:
+async def label_wallet(wallet_data: dict[str, Any]) -> dict[str, Any]:
     """Label a wallet based on behavioral patterns and RAG memory."""
     labels = []
     confidence_scores = {}
@@ -260,7 +260,7 @@ async def label_wallet(wallet_data: dict) -> dict:
 # ── Supabase Hybrid Storage ────────────────────────────
 
 
-async def sync_to_supabase(collection: str, document: dict) -> dict:
+async def sync_to_supabase(collection: str, document: dict[str, Any]) -> dict[str, Any]:
     """Sync RAG document to Supabase for persistent hybrid storage."""
     if not _get_url() or not _get_key():
         return {"status": "skipped", "reason": "No Supabase config"}
@@ -288,7 +288,7 @@ async def sync_to_supabase(collection: str, document: dict) -> dict:
 # ── Batch Processing ───────────────────────────────────
 
 
-async def run_intelligence_cycle() -> dict:
+async def run_intelligence_cycle() -> dict[str, Any]:
     """Run a full intelligence cycle: classify, label, embed, sync."""
     results = {
         "cycle": datetime.now(UTC).isoformat(),

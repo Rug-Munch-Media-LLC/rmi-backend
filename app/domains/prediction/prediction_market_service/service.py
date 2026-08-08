@@ -214,7 +214,7 @@ class PredictionMarketService:
             logger.warning(f"Polymarket search error: {e}")
         return []
 
-    def _parse_polymarket_market(self, m: dict, event: dict | None = None) -> PredictionMarket | None:
+    def _parse_polymarket_market(self, m: dict[str, Any], event: dict[str, Any] | None = None) -> PredictionMarket | None:
         try:
             question = m.get("question", "")
             slug = m.get("slug", "")
@@ -335,7 +335,7 @@ class PredictionMarketService:
             logger.warning(f"Kalshi search error: {e}")
         return []
 
-    def _parse_kalshi_market(self, m: dict) -> PredictionMarket | None:
+    def _parse_kalshi_market(self, m: dict[str, Any]) -> PredictionMarket | None:
         try:
             ticker = m.get("ticker", "")
             title = m.get("title", "")
@@ -443,7 +443,7 @@ class PredictionMarketService:
             logger.warning(f"Limitless search error: {e}")
         return []
 
-    def _parse_limitless_market(self, m: dict) -> PredictionMarket | None:
+    def _parse_limitless_market(self, m: dict[str, Any]) -> PredictionMarket | None:
         try:
             title = m.get("title", "")
             slug = m.get("slug", str(m.get("id", "")))
@@ -512,7 +512,7 @@ class PredictionMarketService:
             logger.warning(f"Manifold search error: {e}")
         return []
 
-    def _parse_manifold_market(self, c: dict) -> PredictionMarket | None:
+    def _parse_manifold_market(self, c: dict[str, Any]) -> PredictionMarket | None:
         try:
             question = c.get("question", "")
             slug = c.get("slug", c.get("id", ""))

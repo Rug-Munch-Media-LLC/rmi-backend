@@ -1,6 +1,7 @@
 """Alchemy API providers for DataBus."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -10,7 +11,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
+async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet", **kw) -> dict[str, Any] | None:
     """Alchemy - get all token balances for an address."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -34,7 +35,7 @@ async def _alchemy_token_balances(address: str = "", network: str = "eth-mainnet
     return None
 
 
-async def _alchemy_token_metadata(contract: str = "", network: str = "eth-mainnet", **kw) -> dict | None:
+async def _alchemy_token_metadata(contract: str = "", network: str = "eth-mainnet", **kw) -> dict[str, Any] | None:
     """Alchemy - get token metadata."""
     api_key = kw.get("api_key", "")
     if not contract or not api_key:

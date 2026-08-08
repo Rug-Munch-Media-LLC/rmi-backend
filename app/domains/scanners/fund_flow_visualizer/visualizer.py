@@ -89,7 +89,7 @@ def _generate_svg(
     active_tiers = [t for t in tier_order if tiers[t]]
 
     # ── Position nodes ───────────────────────────────────────
-    node_positions: dict[str, tuple] = {}  # address_lower → (cx, cy)
+    node_positions: dict[str, tuple[Any, ...]] = {}  # address_lower → (cx, cy)
     y = margin_top
 
     for tier in active_tiers:

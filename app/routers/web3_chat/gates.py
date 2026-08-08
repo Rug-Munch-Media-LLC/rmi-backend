@@ -36,7 +36,7 @@ router = APIRouter()
 async def set_token_gate(
     room_id: str,
     req: TokenGateRequest,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Set token gate requirements for a room."""
     if not req.min_amount or Decimal(req.min_amount) <= 0:
@@ -67,7 +67,7 @@ async def set_token_gate(
 @router.get("/rooms/{room_id}/token-gate")
 async def get_token_gate(
     room_id: str,
-    user: dict | None = Depends(get_current_user),
+    user: dict[str, Any] | None = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get token gate requirements for a room."""
     gate = get_store().get_token_gate(room_id)
@@ -90,7 +90,7 @@ async def get_token_gate(
 @router.delete("/rooms/{room_id}/token-gate")
 async def remove_token_gate(
     room_id: str,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Remove token gate from a room."""
     get_store().remove_gate(room_id)
@@ -101,7 +101,7 @@ async def remove_token_gate(
 async def verify_room_gate(
     room_id: str,
     req: VerifyGateRequest,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Verify a wallet meets token gate requirements."""
     gate = get_store().get_token_gate(room_id) or get_store().get_nft_gate(room_id)
@@ -149,7 +149,7 @@ async def verify_room_gate(
 async def set_nft_gate(
     room_id: str,
     req: NFTGateRequest,
-    user: dict = Depends(require_auth),
+    user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Set NFT gate requirements for a room."""
     if not req.contract_address and not req.collection_name and not req.creator_address:
@@ -200,7 +200,7 @@ async def set_nft_gate(
 @router.get("/rooms/{room_id}/nft-gate")
 async def get_nft_gate(
     room_id: str,
-    user: dict | None = Depends(get_current_user),
+    user: dict[str, Any] | None = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get NFT gate requirements for a room."""
     gate = get_store().get_nft_gate(room_id)

@@ -113,7 +113,7 @@ def _compute_pair_age_days(created_at_unix: int) -> float:
         return 0.0
 
 
-async def parse_dexscreener_data(profile: TokenSupplyProfile, dexscreener_data: dict) -> None:
+async def parse_dexscreener_data(profile: TokenSupplyProfile, dexscreener_data: dict[str, Any]) -> None:
     """Parse DexScreener data into the profile."""
     pairs = dexscreener_data.get("pairs", [])
     if not pairs:
@@ -140,7 +140,7 @@ async def parse_dexscreener_data(profile: TokenSupplyProfile, dexscreener_data: 
                 break
 
 
-async def parse_birdeye_data(profile: TokenSupplyProfile, birdeye_data: dict) -> None:
+async def parse_birdeye_data(profile: TokenSupplyProfile, birdeye_data: dict[str, Any]) -> None:
     """Parse Birdeye data into the profile."""
     profile.total_supply_raw = int(birdeye_data.get("totalSupply", birdeye_data.get("supply", 0)))
     profile.circulating_supply_raw = int(birdeye_data.get("circulatingSupply", 0))

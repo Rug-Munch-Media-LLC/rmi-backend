@@ -44,7 +44,7 @@ async def search(http_client: Any, query: str) -> list[PredictionMarket]:
         return []
 
 
-def _parse_market(c: dict) -> PredictionMarket | None:
+def _parse_market(c: dict[str, Any]) -> PredictionMarket | None:
     try:
         question = c.get("question", "")
         slug = c.get("slug", c.get("id", ""))

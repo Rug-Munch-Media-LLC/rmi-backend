@@ -107,7 +107,7 @@ async def detail(http_client: Any, slug: str) -> PredictionMarket | None:
         return None
 
 
-def _parse_market(m: dict, event: dict | None = None) -> PredictionMarket | None:
+def _parse_market(m: dict[str, Any], event: dict[str, Any] | None = None) -> PredictionMarket | None:
     try:
         question = m.get("question", "")
         slug = m.get("slug", "")

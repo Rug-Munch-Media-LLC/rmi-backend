@@ -6,6 +6,7 @@ Professional copy for wins, losses, KOL scorecards, security alerts.
 # ── X/Twitter Post Templates ──────────────────────────────────
 
 from __future__ import annotations
+
 from typing import Any
 
 X_TEMPLATES = {
@@ -320,7 +321,7 @@ def format_wallet_short(address: str) -> str:
     return address
 
 
-def generate_x_post(template_name: str, data: dict) -> str:  # type: ignore[type-arg]
+def generate_x_post(template_name: str, data: dict[str, Any]) -> str:  # type: ignore[type-arg]
     """Generate X/Twitter post from template."""
     template = X_TEMPLATES.get(template_name, "")
 
@@ -338,7 +339,7 @@ def generate_x_post(template_name: str, data: dict) -> str:  # type: ignore[type
     return template.format(**data)
 
 
-def generate_telegram_post(template_name: str, data: dict) -> str:  # type: ignore[type-arg]
+def generate_telegram_post(template_name: str, data: dict[str, Any]) -> str:  # type: ignore[type-arg]
     """Generate Telegram post from template (Markdown)."""
     template = TELEGRAM_TEMPLATES.get(template_name, "")
 
@@ -356,7 +357,7 @@ def generate_telegram_post(template_name: str, data: dict) -> str:  # type: igno
     return template.format(**data)
 
 
-def generate_discord_post(template_name: str, data: dict) -> str:  # type: ignore[type-arg]
+def generate_discord_post(template_name: str, data: dict[str, Any]) -> str:  # type: ignore[type-arg]
     """Generate Discord post from template."""
     template = DISCORD_TEMPLATES.get(template_name, "")
 
@@ -374,7 +375,7 @@ def generate_discord_post(template_name: str, data: dict) -> str:  # type: ignor
     return template.format(**data)
 
 
-def generate_all_posts(template_name: str, data: dict) -> dict:  # type: ignore[type-arg]
+def generate_all_posts(template_name: str, data: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
     """Generate posts for all platforms."""
     return {
         "x": generate_x_post(template_name, data),

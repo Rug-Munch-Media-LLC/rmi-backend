@@ -189,7 +189,7 @@ class ProxyDetector:
             logger.warning(f"eth_getCode failed for {address}: {e}")
         return None
 
-    async def _fetch_contract_source(self, address: str, chain: str) -> dict | None:
+    async def _fetch_contract_source(self, address: str, chain: str) -> dict[str, Any] | None:
         """Fetch contract source and ABI from Etherscan-style explorer."""
         from app.chain_registry import CHAINS
 
@@ -212,7 +212,7 @@ class ProxyDetector:
             logger.warning(f"Etherscan source fetch failed for {address}: {e}")
         return None
 
-    async def _fetch_solana_program_data(self, program_id: str) -> dict | None:
+    async def _fetch_solana_program_data(self, program_id: str) -> dict[str, Any] | None:
         """Fetch Solana program account data to check upgrade authority."""
         result = await self._chain.rpc_call("getAccountInfo", [program_id, {"encoding": "base64"}])
         if result and "result" in result:

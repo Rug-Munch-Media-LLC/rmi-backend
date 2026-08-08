@@ -3,10 +3,10 @@ Ghost CMS admin endpoints.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -20,7 +20,7 @@ ghost_router = APIRouter()
 @ghost_router.get("/content/drafts")
 async def ghost_drafts(
     request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)
-) -> dict[str, list] | dict:
+) -> dict[str, list[Any]] | dict[str, Any]:
     """Get Ghost drafts."""
     try:
         import httpx
@@ -63,7 +63,7 @@ async def ghost_drafts(
 
 
 @ghost_router.get("/content/tags")
-async def ghost_tags(request: Request, _=Depends(verify_admin)) -> dict[str, list] | dict:
+async def ghost_tags(request: Request, _=Depends(verify_admin)) -> dict[str, list[Any]] | dict[str, Any]:
     """Get Ghost tags."""
     try:
         import httpx
@@ -97,7 +97,7 @@ async def ghost_tags(request: Request, _=Depends(verify_admin)) -> dict[str, lis
 
 
 @ghost_router.get("/content/analytics")
-async def ghost_analytics(request: Request, _=Depends(verify_admin)) -> dict | dict[str, str]:
+async def ghost_analytics(request: Request, _=Depends(verify_admin)) -> dict[str, Any] | dict[str, str]:
     """Get Ghost analytics computed from local data."""
     try:
         import httpx

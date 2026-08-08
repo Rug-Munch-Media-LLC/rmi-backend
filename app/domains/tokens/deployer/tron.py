@@ -1,9 +1,9 @@
 """TRON TRC-20 token deployer."""
 
 from __future__ import annotations
-from typing import Any
 
 import time
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.tokens.deployer.base import ChainDeployer
@@ -75,7 +75,7 @@ class TronDeployer(ChainDeployer):
     async def renounce_ownership(self, contract_address: str) -> str:
         return await self._call_tron(contract_address, "renounceOwnership")
 
-    async def get_token_info(self, contract_address: str) -> dict:
+    async def get_token_info(self, contract_address: str) -> dict[str, Any]:
         contract = self.client.get_contract(contract_address)
         return {
             "name": contract.functions.name().call(),

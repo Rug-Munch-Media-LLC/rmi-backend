@@ -15,10 +15,10 @@ Tax pattern detection:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 
@@ -276,7 +276,7 @@ class HoneypotDetector:
 
     # ── DexScreener ──────────────────────────────────────────
 
-    async def _get_dexscreener_pair(self, token_address: str) -> dict | None:
+    async def _get_dexscreener_pair(self, token_address: str) -> dict[str, Any] | None:
         try:
             resp = await self.client.get(f"{DEXSCREENER_URL}/latest/dex/tokens/{token_address}")
             if resp.status_code == 200:
@@ -319,7 +319,7 @@ class HoneypotDetector:
 
     # ── EVM AMM sell simulation ──────────────────────────────
 
-    async def _simulate_evm_sells(self, pair_data: dict) -> list[SellSimulationResult]:
+    async def _simulate_evm_sells(self, pair_data: dict[str, Any]) -> list[SellSimulationResult]:
         results: list[SellSimulationResult] = []
         reserve_base = float(pair_data.get("reserveBase", 0) or 0)
         reserve_quote = float(pair_data.get("reserveQuote", 0) or 0)

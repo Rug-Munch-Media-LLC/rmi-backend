@@ -5,10 +5,10 @@ Role definitions, permission matrix, and audit log entry model.
 """
 
 from __future__ import annotations
-from typing import Any
 
 from dataclasses import asdict, dataclass
 from enum import StrEnum
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -107,12 +107,12 @@ class AuditLogEntry:
     resource_id: str
     ip_address: str
     user_agent: str
-    before_state: dict | None = None
-    after_state: dict | None = None
+    before_state: dict[str, Any] | None = None
+    after_state: dict[str, Any] | None = None
     status: str = "success"
     reason: str = ""
     session_id: str = ""
     request_id: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)

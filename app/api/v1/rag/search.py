@@ -66,13 +66,13 @@ async def feedback(
 
 
 @router.get("/stats")
-async def stats() -> dict:
+async def stats() -> dict[str, Any]:
     """Per-collection vector counts + active embedder backend."""
     return engine_get_stats()
 
 
 @router.post("/bulk-ingest")
-async def bulk(req: BulkIngestRequest) -> dict:
+async def bulk(req: BulkIngestRequest) -> dict[str, Any]:
     """Ingest many items into a collection sequentially (max 500 per call)."""
     if not req.items:
         raise HTTPException(status_code=400, detail="items must be non-empty")

@@ -130,14 +130,14 @@ class LiquidityVerifier:
 
     # ── Etherscan helpers ────────────────────────────────────
 
-    def _etherscan_net(self, chain: str) -> dict:
+    def _etherscan_net(self, chain: str) -> dict[str, Any]:
         """Get Etherscan-family config for a chain."""
         net_key = chain.lower()
         if net_key == "solana":
             return {}  # Not applicable
         return ETHERSCAN_NETWORKS.get(net_key, ETHERSCAN_NETWORKS["ethereum"])
 
-    async def _etherscan_get(self, chain: str, params: dict) -> dict | None:
+    async def _etherscan_get(self, chain: str, params: dict[str, Any]) -> dict[str, Any] | None:
         """Make a rate-limited Etherscan-family API call."""
         net = self._etherscan_net(chain)
         if not net:
@@ -188,7 +188,7 @@ class LiquidityVerifier:
         }
         return mapping.get(chain.lower(), "eth")
 
-    async def _moralis_get(self, url: str) -> dict | None:
+    async def _moralis_get(self, url: str) -> dict[str, Any] | None:
         """Make a Moralis Data API call with key rotation."""
         if not MORALIS_API_KEY:
             logger.warning("MORALIS_API_KEY not set")
@@ -218,7 +218,7 @@ class LiquidityVerifier:
 
     # ── Helius helpers ────────────────────────────────────────
 
-    async def _helius_rpc(self, method: str, params: list | None = None) -> dict | None:
+    async def _helius_rpc(self, method: str, params: list[Any] | None = None) -> dict[str, Any] | None:
         """Make a Helius JSON-RPC call."""
         if not HELIUS_API_KEY:
             logger.warning("HELIUS_API_KEY not set")
@@ -245,7 +245,7 @@ class LiquidityVerifier:
             logger.warning(f"Helius RPC call failed: {e}")
         return None
 
-    async def _helius_das_get_asset(self, mint_address: str) -> dict | None:
+    async def _helius_das_get_asset(self, mint_address: str) -> dict[str, Any] | None:
         """Get DAS asset info for a Solana token via Helius DAS API."""
         if not HELIUS_API_KEY:
             return None
@@ -280,7 +280,7 @@ class LiquidityVerifier:
             logger.warning(f"Helius DAS asset lookup failed for {mint_address}: {e}")
         return None
 
-    async def _helius_get_token_accounts(self, owner: str) -> list | None:
+    async def _helius_get_token_accounts(self, owner: str) -> list[Any] | None:
         """Get all token accounts for a Solana wallet via Helius."""
         result = await self._helius_rpc(
             "getTokenAccountsByOwner",
@@ -302,7 +302,7 @@ class LiquidityVerifier:
         return chain_lockers.get(address.lower() if not is_solana(chain) else address)
 
     # Known stablecoin / wrapped token symbols - LP lock check is irrelevant
-    STABLECOIN_SYMBOLS: ClassVar[dict] = {
+    STABLECOIN_SYMBOLS: ClassVar[dict[str, Any]] = {
         "USDC",
         "USDT",
         "DAI",
@@ -611,7 +611,7 @@ class LiquidityVerifier:
 
         return False
 
-    async def _get_lp_holders(self, token_address: str, chain: str, lp_token: str = "") -> list:
+    async def _get_lp_holders(self, token_address: str, chain: str, lp_token: str = "") -> list[Any]:
         """Get top LP holders for a token using Etherscan / Moralis.
 
         Strategy:
@@ -686,8 +686,8 @@ class LiquidityVerifier:
         return holders
 
     def _calculate_risk(
-        self, locked_pct: float, all_legit: bool, fake_lock: bool, has_split: bool, upcoming: list
-    ) -> tuple:
+        self, locked_pct: float, all_legit: bool, fake_lock: bool, has_split: bool, upcoming: list[Any]
+    ) -> tuple[Any, ...]:
         """Calculate risk score and warnings for liquidity lock status."""
         score = 0
         warnings = []

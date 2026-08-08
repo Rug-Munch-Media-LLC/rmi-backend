@@ -12,6 +12,7 @@ Split from monolithic canonical_tools.py into category files:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.canonical_tools.intelligence_premium import INTELLIGENCE_PREMIUM_TOOLS
@@ -19,7 +20,7 @@ from app.canonical_tools.market_basic import MARKET_BASIC_TOOLS
 from app.canonical_tools.security_analysis import SECURITY_ANALYSIS_TOOLS
 
 # Merge all category dicts into the canonical tool prices
-CANONICAL_TOOL_PRICES: dict = {}
+CANONICAL_TOOL_PRICES: dict[str, Any] = {}
 CANONICAL_TOOL_PRICES.update(MARKET_BASIC_TOOLS)
 CANONICAL_TOOL_PRICES.update(SECURITY_ANALYSIS_TOOLS)
 CANONICAL_TOOL_PRICES.update(INTELLIGENCE_PREMIUM_TOOLS)

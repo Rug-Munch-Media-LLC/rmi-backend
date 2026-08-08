@@ -14,10 +14,10 @@ Our target: 30,000/month (60% headroom)
 """
 
 from __future__ import annotations
-from typing import Any
 
 import os
 import random
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -67,7 +67,7 @@ def should_send_to_cloud(
     return False
 
 
-def stats() -> dict:
+def stats() -> dict[str, Any]:
     total = max(_counters["total"], 1)
     return {
         **_counters,

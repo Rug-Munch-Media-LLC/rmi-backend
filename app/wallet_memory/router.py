@@ -103,7 +103,7 @@ async def get_deployer_intelligence(req: DeployerIntelRequest) -> Any:
 
 
 @router.post("/flag-deployer")
-async def flag_deployer(req: FlagDeployerRequest) -> dict:
+async def flag_deployer(req: FlagDeployerRequest) -> dict[str, Any]:
     """
     Feed scan results back into the Wallet Memory Bank.
     This is the data flywheel: scans produce intelligence for future scans.
@@ -114,7 +114,7 @@ async def flag_deployer(req: FlagDeployerRequest) -> dict:
 
 
 @router.post("/search")
-async def search_wallets(req: SearchRequest) -> dict:
+async def search_wallets(req: SearchRequest) -> dict[str, Any]:
     """Search wallets by address prefix, label, or entity name."""
     engine = _get_engine()
     results = await engine.search_wallets(req.query, req.chain, req.limit)
@@ -135,7 +135,7 @@ async def get_entity(address: str, chain: str = Query(default="solana")) -> Any:
 
 
 @router.post("/bridge-link")
-async def create_bridge_link(req: BridgeLinkRequest) -> dict:
+async def create_bridge_link(req: BridgeLinkRequest) -> dict[str, Any]:
     """
     Explicitly link two wallets across chains via a bridge transaction.
     """
@@ -167,7 +167,7 @@ async def feed_transactions(req: FeedTransactionsRequest) -> dict[str, int]:
 
 
 @router.post("/persist-clusters")
-async def persist_clusters() -> dict:
+async def persist_clusters() -> dict[str, Any]:
     """Run all clustering heuristics and persist results to storage."""
     engine = _get_engine()
     persisted = await engine.persist_clusters()
@@ -178,7 +178,7 @@ async def persist_clusters() -> dict:
 async def get_wallet_risk(
     address: str,
     chain: str = Query(default="solana"),
-) -> dict:
+) -> dict[str, Any]:
     """
     Get just the risk score for a wallet (fast path).
     """
@@ -246,7 +246,7 @@ async def reload_static_labels() -> dict[str, str]:
 
 
 @router.get("/labels/stats")
-async def label_stats() -> dict:
+async def label_stats() -> dict[str, Any]:
     """
     Get current label load counts and status.
     """
@@ -265,7 +265,7 @@ async def label_stats() -> dict:
 async def get_wallet_labels(
     address: str,
     chain: str = Query(default=""),
-) -> dict:
+) -> dict[str, Any]:
     """Fast label lookup - returns all labels for an address instantly."""
     engine = _get_engine()
 
@@ -304,7 +304,7 @@ async def get_wallet_labels(
 
 
 @router.post("/labels/batch")
-async def batch_label_lookup(request: dict) -> dict[str, int]:
+async def batch_label_lookup(request: dict[str, Any]) -> dict[str, int]:
     """Bulk lookup - query up to 100 addresses at once."""
     addresses = request.get("addresses", [])
     chain = request.get("chain", "")

@@ -15,8 +15,8 @@ from app.core.errors import AuthError
 router = APIRouter(prefix="/api/v1/developer", tags=["developer-portal"])
 
 # In-memory store (Supabase in prod)
-_api_keys: dict[str, dict] = {}
-_usage_store: dict[str, list] = {}
+_api_keys: dict[str, dict[str, Any]] = {}
+_usage_store: dict[str, list[Any]] = {}
 
 
 class CreateKeyRequest(BaseModel):
@@ -56,7 +56,7 @@ async def create_api_key(req: CreateKeyRequest) -> Any:
 
 
 @router.get("/keys")
-async def list_keys(x_api_key: str = Header(...)) -> dict[str, list]:
+async def list_keys(x_api_key: str = Header(...)) -> dict[str, list[Any]]:
     """List your API keys."""
     if x_api_key not in _api_keys:
         raise AuthError(message="Invalid API key")
@@ -64,14 +64,14 @@ async def list_keys(x_api_key: str = Header(...)) -> dict[str, list]:
 
 
 @router.delete("/keys/{key}")
-async def revoke_key(key: str) -> dict:
+async def revoke_key(key: str) -> dict[str, Any]:
     """Revoke an API key."""
     _api_keys.pop(key, None)
     return {"revoked": key}
 
 
 @router.get("/usage")
-async def get_usage(x_api_key: str = Header(...)) -> dict:
+async def get_usage(x_api_key: str = Header(...)) -> dict[str, Any]:
     """Get your API usage stats."""
     if x_api_key not in _api_keys:
         raise AuthError("Invalid API key")

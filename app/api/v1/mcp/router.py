@@ -43,12 +43,12 @@ class JsonRpcRequest(BaseModel):
 class JsonRpcResponse(BaseModel):
     jsonrpc: str = "2.0"
     result: Any | None = None
-    error: dict | None = None
+    error: dict[str, Any] | None = None
     id: int | str | None = None
 
 
 @router.post("")
-async def jsonrpc_handler(req: JsonRpcRequest) -> dict:
+async def jsonrpc_handler(req: JsonRpcRequest) -> dict[str, Any]:
     """JSON-RPC 2.0 endpoint for MCP clients.
 
     Methods:
@@ -123,13 +123,13 @@ async def jsonrpc_handler(req: JsonRpcRequest) -> dict:
 
 
 @router.get("/tools")
-async def list_tools() -> dict:
+async def list_tools() -> dict[str, Any]:
     """Plain JSON endpoint (for direct integration, no JSON-RPC)."""
     return {"server": "rugmunch-intelligence", "version": MCP_SERVER_VERSION, "tools": TOOL_CATALOG}
 
 
 @router.get("/info")
-async def server_info() -> dict:
+async def server_info() -> dict[str, Any]:
     """Server metadata: version, protocol, tool count, capabilities.
 
     Use this to discover the MCP server's capabilities without listing all tools.
@@ -165,7 +165,7 @@ async def server_info() -> dict:
 
 
 @router.post("/call/{tool_id}")
-async def direct_call(tool_id: str, request: Request) -> dict:
+async def direct_call(tool_id: str, request: Request) -> dict[str, Any]:
     """Direct tool execution (no JSON-RPC). For curl/scripts."""
     body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
     arguments = body.get("arguments", body) if isinstance(body, dict) else {}

@@ -117,7 +117,7 @@ class SecurityGate:
         return True
 
     @staticmethod
-    def sanitize_response(data: dict, data_type: str, access_level: str) -> dict:
+    def sanitize_response(data: dict[str, Any], data_type: str, access_level: str) -> dict[str, Any]:
         """
         Strip sensitive fields from responses based on access level.
         NEVER include: API keys, internal URLs, server paths, error details.

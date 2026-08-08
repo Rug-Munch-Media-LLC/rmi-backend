@@ -507,7 +507,7 @@ class CatalogService:
             return {"entity_id": None, "wallets": [], "error": str(e)}
 
     # ── RAG bridge: wire app/rag/engine.py into the catalog ─────────
-    async def rag_search(self, query: str, collection: str = "scam_intel", top_k: int = 5) -> list[dict]:
+    async def rag_search(self, query: str, collection: str = "scam_intel", top_k: int = 5) -> list[dict[str, Any]]:
         """Search the RAG system. Returns raw hits (catalog-agnostic).
 
         Use this when you want RAG results as raw search hits.
@@ -524,8 +524,8 @@ class CatalogService:
         content: str,
         collection: str = "scam_intel",
         doc_id: str | None = None,
-        metadata: dict | None = None,
-    ) -> dict:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Ingest a fact into RAG and (if it's about a token) link to Token.rag_embedding_id.
 
         Returns the RAG ingest result plus the Qdrant point_id for cross-store ref.

@@ -1,6 +1,7 @@
 """Extra passthrough providers — Hyperliquid, insider wallets, prediction signals."""
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -11,7 +12,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _passthrough_hyperliquid(**kwargs) -> dict | None:
+async def _passthrough_hyperliquid(**kwargs) -> dict[str, Any] | None:
     """Hyperliquid perp markets from our own /api/v1/market/hyperliquid."""
     try:
         limit = kwargs.get("limit", 10)
@@ -24,7 +25,7 @@ async def _passthrough_hyperliquid(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_hyperliquid_action(**kwargs) -> dict | None:
+async def _passthrough_hyperliquid_action(**kwargs) -> dict[str, Any] | None:
     """Hyperliquid gain/loss porn from our own /api/v1/market/hyperliquid-action."""
     try:
         limit = kwargs.get("limit", 5)
@@ -37,7 +38,7 @@ async def _passthrough_hyperliquid_action(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_insider_wallets(**kwargs) -> dict | None:
+async def _passthrough_insider_wallets(**kwargs) -> dict[str, Any] | None:
     """Likely insider trader wallets from our own /api/v1/market/insider-wallets."""
     try:
         limit = kwargs.get("limit", 10)
@@ -51,7 +52,7 @@ async def _passthrough_insider_wallets(**kwargs) -> dict | None:
     return None
 
 
-async def _passthrough_prediction_signals(**kwargs) -> dict | None:
+async def _passthrough_prediction_signals(**kwargs) -> dict[str, Any] | None:
     """Prediction market intelligence from our own /api/v1/market/prediction-signals."""
     try:
         limit = kwargs.get("limit", 5)

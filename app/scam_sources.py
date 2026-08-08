@@ -72,7 +72,7 @@ class RSSFeedConnector:
     """Generic RSS/Atom feed connector for security feeds."""
 
     @staticmethod
-    async def fetch_feed(url: str, source_name: str, limit: int = 20) -> list[dict]:
+    async def fetch_feed(url: str, source_name: str, limit: int = 20) -> list[dict[str, Any]]:
         results = []
         try:
             async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
@@ -123,7 +123,7 @@ class GoPlusConnector:
     BASE = "https://api.gopluslabs.io/api/v1"
 
     @staticmethod
-    async def check_token(chain_id: str, address: str) -> dict:
+    async def check_token(chain_id: str, address: str) -> dict[str, Any]:
         """Check a single token for security risks."""
         try:
             async with httpx.AsyncClient(timeout=30) as client:
@@ -405,7 +405,7 @@ class ScamIngestionPipeline:
             "timestamp": self._last_run.isoformat(),
         }
 
-    async def _ingest_all_rss(self, embedder) -> list[dict]:
+    async def _ingest_all_rss(self, embedder) -> list[dict[str, Any]]:
         """Ingest from all security RSS feeds in parallel."""
         all_docs = []
         tasks = [RSSFeedConnector.fetch_feed(url, name, limit=15) for url, name in SECURITY_RSS_FEEDS]
@@ -445,7 +445,7 @@ class ScamIngestionPipeline:
         logger.info(f"RSS ingestion: {len(all_docs)} docs from {len(SECURITY_RSS_FEEDS)} feeds")
         return all_docs
 
-    async def _ingest_curated(self, embedder) -> list[dict]:
+    async def _ingest_curated(self, embedder) -> list[dict[str, Any]]:
         """Ingest manually curated scam patterns (always available)."""
         docs = []
         for pattern in KNOWN_SCAMS_EXPANDED:

@@ -14,6 +14,7 @@ Used for:
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from fastapi import APIRouter
@@ -33,7 +34,7 @@ class GlitchtipTestRequest(BaseModel):
 
 
 @router.post("/glitchtip")
-async def test_glitchtip(req: GlitchtipTestRequest) -> dict:
+async def test_glitchtip(req: GlitchtipTestRequest) -> dict[str, Any]:
     """Trigger a test event. Tests the secret-scrubbing before_send hook."""
     if req.type == "exception":
         try:

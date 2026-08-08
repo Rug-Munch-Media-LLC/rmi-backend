@@ -46,14 +46,14 @@ async def build_tools_from_catalog() -> list[dict[str, Any]]:
     return tools
 
 
-def _tool_desc(t: dict) -> str:  # type: ignore[type-arg]
+def _tool_desc(t: dict[str, Any]) -> str:  # type: ignore[type-arg]
     """Build tool description string with price and trial info."""
     return (
         f"{t['description']} - ${t['price_usd']:.2f}/call, {t['trial_free']} free trial(s). Category: {t['category']}."
     )
 
 
-def format_openai_tool(t: dict) -> dict:  # type: ignore[type-arg]
+def format_openai_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
     """Format a single tool for OpenAI function calling."""
     return {
         "type": "function",
@@ -79,7 +79,7 @@ def format_openai_tool(t: dict) -> dict:  # type: ignore[type-arg]
     }
 
 
-def format_langchain_tool(t: dict) -> dict:  # type: ignore[type-arg]
+def format_langchain_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
     """Format a single tool for LangChain."""
     return {
         "name": t["id"],
@@ -101,7 +101,7 @@ def format_langchain_tool(t: dict) -> dict:  # type: ignore[type-arg]
     }
 
 
-def format_anthropic_tool(t: dict) -> dict:  # type: ignore[type-arg]
+def format_anthropic_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
     """Format a single tool for Anthropic Claude API."""
     return {
         "name": t["id"],
@@ -124,7 +124,7 @@ def format_anthropic_tool(t: dict) -> dict:  # type: ignore[type-arg]
     }
 
 
-def format_gemini_tool(t: dict) -> dict:  # type: ignore[type-arg]
+def format_gemini_tool(t: dict[str, Any]) -> dict[str, Any]:  # type: ignore[type-arg]
     """Format a single tool for Google Gemini function calling."""
     return {
         "name": t["id"],
@@ -146,7 +146,7 @@ def format_gemini_tool(t: dict) -> dict:  # type: ignore[type-arg]
     }
 
 
-def build_framework_base(tools: list, format_key: str, **extra: Any) -> dict:  # type: ignore[type-arg]
+def build_framework_base(tools: list[Any], format_key: str, **extra: Any) -> dict[str, Any]:  # type: ignore[type-arg]
     """Build the shared response envelope for framework-format endpoints."""
     return {
         "service": "Rug Munch Intelligence",
@@ -204,7 +204,7 @@ async def record_payment(tool_id: str, price_usd: str, payer: str) -> None:
 async def verify_onchain_direct(
     tx_hash: str,
     chain: str,
-    token_info: dict,  # type: ignore[type-arg]
+    token_info: dict[str, Any],  # type: ignore[type-arg]
     expected_pay_to: str,
 ) -> bool:
     """Direct on-chain verification fallback for human payments."""
@@ -260,7 +260,7 @@ async def verify_onchain_direct(
 
 async def run_super_tool_batch(
     endpoints: dict[str, str],
-    payload: dict,  # type: ignore[type-arg]
+    payload: dict[str, Any],  # type: ignore[type-arg]
 ) -> dict[str, Any]:
     """Run multiple tool sub-calls in parallel for super-tool composition.
     Returns dict of {name: response_data_or_None}."""
@@ -283,7 +283,7 @@ async def run_super_tool_batch(
 
 async def execute_bundle_tasks(
     tasks: dict[str, str],
-    body: dict,  # type: ignore[type-arg]
+    body: dict[str, Any],  # type: ignore[type-arg]
 ) -> dict[str, Any]:
     """Execute multiple POST calls in parallel for bundle endpoints.
     Returns dict of {name: response_json_or_error_dict}."""
@@ -355,10 +355,10 @@ def resolve_tool_alias(tool_id: str) -> tuple[str | None, str | None]:
 
 async def enrich_response(
     tool_id: str,
-    result: dict,  # type: ignore[type-arg]
-    body: dict,  # type: ignore[type-arg]
+    result: dict[str, Any],  # type: ignore[type-arg]
+    body: dict[str, Any],  # type: ignore[type-arg]
     request: Request,
-) -> dict:  # type: ignore[type-arg]
+) -> dict[str, Any]:  # type: ignore[type-arg]
     """Apply wallet intelligence enrichment if not opted out."""
     try:
         opt_out = request.query_params.get("enrich", "").lower() == "false"

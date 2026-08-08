@@ -5,7 +5,6 @@ Redis caching, FastAPI endpoints, usage tracking, retry logic.
 """
 
 from __future__ import annotations
-from typing import Any
 
 import contextlib
 import hashlib
@@ -14,6 +13,7 @@ import os
 import time
 import urllib.request
 from datetime import UTC, datetime
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -65,7 +65,7 @@ def _track(prompt_tokens: int, completion_tokens: int, cost: float) -> None:
     _usage["total_cost"] += cost
 
 
-def usage_stats() -> dict:
+def usage_stats() -> dict[str, Any]:
     return {**_usage, "timestamp": datetime.now(UTC).isoformat()}
 
 
@@ -117,7 +117,7 @@ def _call_ollama(system: str, prompt: str, max_tokens: int = 250, temp: float = 
 # ── ALL 12 MODULES (Unified) ──
 
 
-def explain_risks(scan: dict) -> str:
+def explain_risks(scan: dict[str, Any]) -> str:
     s = scan.get("safety_score", 50)
     f = scan.get("risk_flags", [])
     g = scan.get("green_flags", [])
@@ -151,7 +151,7 @@ def classify_news(title: str, content: str = "") -> str:
     return "GENERAL"
 
 
-def profile_wallet(tx: dict) -> str:
+def profile_wallet(tx: dict[str, Any]) -> str:
     return (
         _call_ollama(
             "Classify wallet persona: PERSONA|conf. DayTrader Whale BotFarm Insider ScamDeployer AirdropHunter DiamondHands DegenGambler Unknown",
@@ -168,13 +168,13 @@ def enrich_rag(query: str, docs: str) -> str:
     )
 
 
-def rank_alerts(alerts: list) -> list:
+def rank_alerts(alerts: list[Any]) -> list[Any]:
     s = "\n".join(f"{a.get('id', '?')}|{a.get('severity', '?')}|{str(a.get('title', ''))[:80]}" for a in alerts[:10])
     r = _call_ollama("Rank by urgency. Reply: id1,id2,id3...", s, 50)
     return [x.strip() for x in r.split(",") if x.strip()] if r else []
 
 
-def briefing(data: dict) -> str:
+def briefing(data: dict[str, Any]) -> str:
     return (
         _call_ollama(
             "3-para crypto market briefing. P1:volume P2:risks P3:watch. <b>bold</b>. 250 words.",
@@ -187,7 +187,7 @@ def briefing(data: dict) -> str:
     )
 
 
-def post_mortem(incident: dict) -> str:
+def post_mortem(incident: dict[str, Any]) -> str:
     return (
         _call_ollama(
             "Forensic post-mortem: What→How→RedFlags→Protection. <b>bold</b>. 200 words.",
@@ -200,14 +200,14 @@ def post_mortem(incident: dict) -> str:
     )
 
 
-def analyze_submission(sub: dict) -> str:
+def analyze_submission(sub: dict[str, Any]) -> str:
     return (
         _call_ollama("Analyze suspicious token. Verdict+2-3 concerns.", json.dumps(sub)[:1500], 200)
         or "Analysis unavailable."
     )
 
 
-def cross_chain(wallets: dict) -> str:
+def cross_chain(wallets: dict[str, Any]) -> str:
     return (
         _call_ollama(
             "Same entity across chains? MATCH|conf|reason or NO_MATCH|reason",
@@ -218,7 +218,7 @@ def cross_chain(wallets: dict) -> str:
     )
 
 
-def blog_draft(topic: str, data: dict) -> str:
+def blog_draft(topic: str, data: dict[str, Any]) -> str:
     return (
         _call_ollama(
             "Blog post: Title|Hook|Body|Takeaways|CTA. Markdown.",
@@ -231,14 +231,14 @@ def blog_draft(topic: str, data: dict) -> str:
     )
 
 
-def social_post(incident: dict) -> str:
+def social_post(incident: dict[str, Any]) -> str:
     return (
         _call_ollama("Tweet(<280)+Telegram(<500). Hook first.", json.dumps(incident)[:1000], 200, 0.7)
         or "Post unavailable."
     )
 
 
-def compare_tokens(a: dict, b: dict) -> str:
+def compare_tokens(a: dict[str, Any], b: dict[str, Any]) -> str:
     return (
         _call_ollama(
             "Compare 2 tokens: SAFER name REASON SCORE_DIFF KEY_DIFFERENCES",

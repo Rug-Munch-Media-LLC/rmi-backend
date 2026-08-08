@@ -5,6 +5,7 @@ Includes: CoinGecko, DeFiLlama, Blockchair, Etherscan.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -14,7 +15,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers.free_apis")
 
 
-async def _coingecko_price(**kwargs) -> dict | None:
+async def _coingecko_price(**kwargs) -> dict[str, Any] | None:
     """CoinGecko — free for low volume."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
     api_key = kwargs.get("api_key", "")
@@ -32,7 +33,7 @@ async def _coingecko_price(**kwargs) -> dict | None:
     return None
 
 
-async def _defillama_tvl(**kw) -> dict | None:
+async def _defillama_tvl(**kw) -> dict[str, Any] | None:
     """DeFiLlama — total TVL across all protocols (100% free)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
@@ -44,7 +45,7 @@ async def _defillama_tvl(**kw) -> dict | None:
     return None
 
 
-async def _defillama_chains(**kw) -> dict | None:
+async def _defillama_chains(**kw) -> dict[str, Any] | None:
     """DeFiLlama — TVL breakdown by chain (100% free)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
@@ -56,7 +57,7 @@ async def _defillama_chains(**kw) -> dict | None:
     return None
 
 
-async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict | None:
+async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -> dict[str, Any] | None:
     """Blockchair — address balance and tx count (free tier, no API key for basic)."""
     if not address:
         return None
@@ -72,7 +73,7 @@ async def _blockchair_address(address: str = "", chain: str = "bitcoin", **kw) -
     return None
 
 
-async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
+async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict[str, Any] | None:
     """Blockchair — network statistics and mempool data (free)."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
@@ -84,7 +85,7 @@ async def _blockchair_stats(chain: str = "bitcoin", **kw) -> dict | None:
     return None
 
 
-async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict | None:
+async def _etherscan_tx_trace(tx_hash: str = "", network: str = "ethereum", **kw) -> dict[str, Any] | None:
     """Etherscan — transaction trace (free tier, 5 req/s)."""
     if not tx_hash:
         return None

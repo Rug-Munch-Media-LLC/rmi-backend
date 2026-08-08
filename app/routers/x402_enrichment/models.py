@@ -149,6 +149,6 @@ class EnrichmentResult:
     labels: dict[str, list[WalletLabel]] = field(default_factory=dict)
     sanctioned: list[str] = field(default_factory=list)
     risk_summary: str = ""
-    similar_patterns: list[dict] = field(default_factory=list)  # type: ignore[type-arg]
+    similar_patterns: list[dict[str, Any]] = field(default_factory=list)  # type: ignore[type-arg]
     lookup_ms: float = 0
     rag_ms: float = 0

@@ -3,6 +3,7 @@ RMI Agent Skills - Extended Pack. More workflows for more agent types.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 AGENT_SKILLS_EXTENDED = {
@@ -385,7 +386,7 @@ from app.caching_shield.agent_skills import (  # noqa: E402 — module docstring
 ALL_AGENT_SKILLS = {**AGENT_SKILLS, **AGENT_SKILLS_EXTENDED}
 
 
-def get_all_agent_skills() -> dict:
+def get_all_agent_skills() -> dict[str, Any]:
     base = get_agent_skills()
     base["skills"] = ALL_AGENT_SKILLS
     base["quick_start"]["total_skills"] = len(ALL_AGENT_SKILLS)

@@ -105,7 +105,7 @@ class L1Cache:
         async with self._lock:
             self._store.clear()
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         total = self.hits + self.stale_hits + self.misses
         return {
             "keys": len(self._store),
@@ -194,7 +194,7 @@ class L2RedisCache:
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
             pass
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         total = self.hits + self.misses
         return {
             "available": self._available,
@@ -357,7 +357,7 @@ class CacheLayer:
         args_hash = hashlib.sha256(args_str.encode()).hexdigest()[:16]
         return f"{source}:{data_type}:{args_hash}"
 
-    def type_stats(self) -> dict[str, dict]:
+    def type_stats(self) -> dict[str, dict[str, Any]]:
         """Per-data-type hit/miss/stale stats with TTL tuning suggestions."""
         result = {}
         for dtype, counts in self._type_stats.items():
@@ -379,7 +379,7 @@ class CacheLayer:
             result[dtype] = entry
         return result
 
-    async def health(self) -> dict:
+    async def health(self) -> dict[str, Any]:
         l1 = self.l1.stats()
         l2 = self.l2.stats()
         total_hits = l1["hits"] + l1["stale_hits"] + l2["hits"]

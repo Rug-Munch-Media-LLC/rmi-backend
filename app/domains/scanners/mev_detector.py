@@ -11,11 +11,11 @@ Known MEV bot databases:
 """
 
 from __future__ import annotations
-from typing import Any
 
 import json
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 import requests
@@ -256,7 +256,7 @@ class MEVDetector:
 
     # ─── Solana Methods ─────────────────────────────────────────
 
-    async def _fetch_sol_signatures(self, address: str, limit: int) -> list[dict]:
+    async def _fetch_sol_signatures(self, address: str, limit: int) -> list[dict[str, Any]]:
         """Fetch recent transaction signatures for a Solana token."""
         if not self.helius_key or not self.chain:
             url = f"{HELIUS_RPC_URL}/?api-key={self.helius_key}"
@@ -293,7 +293,7 @@ class MEVDetector:
         except (ConnectionError, OSError, TimeoutError):
             return []
 
-    async def _detect_jito_bundles(self, signatures: list[dict]) -> list[dict]:
+    async def _detect_jito_bundles(self, signatures: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Detect transactions that are part of Jito bundles (tip accounts found)."""
         bundles = []
         for sig in signatures:
@@ -302,11 +302,11 @@ class MEVDetector:
                 bundles.append(sig)
         return bundles
 
-    async def _detect_sol_sandwiches(self, token: str, signatures: list[dict]) -> list[SandwichAttack]:
+    async def _detect_sol_sandwiches(self, token: str, signatures: list[dict[str, Any]]) -> list[SandwichAttack]:
         """Detect sandwich patterns in Solana transactions using parsed TX data."""
         sandwiches = []
         # Group by block (solana slots)
-        by_block: dict[int, list[dict]] = {}
+        by_block: dict[int, list[dict[str, Any]]] = {}
         for sig in signatures:
             slot = sig.get("slot", 0)
             if slot not in by_block:
@@ -333,7 +333,7 @@ class MEVDetector:
 
         return sandwiches[:20]  # Cap at 20
 
-    def _identify_sol_mev_bots(self, signatures: list[dict]) -> list[MEVBotActivity]:
+    def _identify_sol_mev_bots(self, signatures: list[dict[str, Any]]) -> list[MEVBotActivity]:
         """Identify known MEV bot addresses in transaction signers."""
         bots = {}
         for sig in signatures:
@@ -352,7 +352,7 @@ class MEVDetector:
 
     # ─── EVM Methods ─────────────────────────────────────────────
 
-    async def _fetch_evm_normal_txs(self, address: str, chain_id: str, limit: int) -> list[dict]:
+    async def _fetch_evm_normal_txs(self, address: str, chain_id: str, limit: int) -> list[dict[str, Any]]:
         """Fetch normal transactions from Etherscan."""
         api_key = self._etherscan_keys.get(chain_id, "")
         base_urls = {
@@ -387,7 +387,7 @@ class MEVDetector:
             logger.warning(f"Etherscan normal TXs failed: {e}")
         return []
 
-    async def _fetch_evm_internal_txs(self, address: str, chain_id: str, limit: int) -> list[dict]:
+    async def _fetch_evm_internal_txs(self, address: str, chain_id: str, limit: int) -> list[dict[str, Any]]:
         """Fetch internal transactions from Etherscan."""
         api_key = self._etherscan_keys.get(chain_id, "")
         base_urls = {
@@ -423,14 +423,14 @@ class MEVDetector:
         return []
 
     def _detect_evm_sandwiches(
-        self, token: str, normal_txs: list[dict], internal_txs: list[dict], chain_id: str
+        self, token: str, normal_txs: list[dict[str, Any]], internal_txs: list[dict[str, Any]], chain_id: str
     ) -> list[SandwichAttack]:
         """Detect sandwich attacks in EVM transactions."""
         sandwiches = []
         mev_builders = EVM_MEV_BUILDERS.get(chain_id, {})
 
         # Group by block number
-        by_block: dict[int, list[dict]] = {}
+        by_block: dict[int, list[dict[str, Any]]] = {}
         for tx in normal_txs:
             block = int(tx.get("blockNumber", 0))
             if block not in by_block:
@@ -464,7 +464,7 @@ class MEVDetector:
 
         return sandwiches[:20]
 
-    def _identify_evm_mev_bots(self, txs: list[dict], chain_id: str) -> list[MEVBotActivity]:
+    def _identify_evm_mev_bots(self, txs: list[dict[str, Any]], chain_id: str) -> list[MEVBotActivity]:
         """Identify known MEV builder addresses in EVM transactions."""
         mev_builders = EVM_MEV_BUILDERS.get(chain_id, {})
         bots = {}

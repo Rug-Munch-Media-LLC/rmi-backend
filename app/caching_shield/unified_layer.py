@@ -70,7 +70,7 @@ class ToolResult:
     latency_ms: float = 0
     confidence: float = 1.0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "data": self.data,
             "source": self.source,
@@ -91,7 +91,7 @@ class ProviderChain:
 
     def __init__(self, name: str) -> None:
         self.name = name
-        self._providers: list[tuple] = []  # (name, fn, rate_rps)
+        self._providers: list[tuple[Any, ...]] = []  # (name, fn, rate_rps)
 
     def add(self, name: str, fn: Callable, rate_rps: float = 10) -> None:
         self._providers.append((name, fn, rate_rps))
@@ -140,7 +140,7 @@ class UnifiedDataLayer:
         self._cache = TieredCache()
         self._providers: dict[str, ProviderChain] = {}
         self._setup_providers()
-        self._token_buckets: dict[str, tuple] = {}  # provider -> (tokens, last_refill)
+        self._token_buckets: dict[str, tuple[Any, ...]] = {}  # provider -> (tokens, last_refill)
         self._bucket_lock = asyncio.Lock()
 
     def _setup_providers(self) -> None:
@@ -314,7 +314,7 @@ class UnifiedDataLayer:
                     if t.get("address") == mint:
                         return {"name": t.get("name"), "symbol": t.get("symbol")}
 
-    async def _helius_balance(self, address: str, **kw) -> dict:
+    async def _helius_balance(self, address: str, **kw) -> dict[str, Any]:
         from app.consensus_rpc import get_consensus_rpc
 
         r = await get_consensus_rpc().get_balance(address)
@@ -401,7 +401,7 @@ class UnifiedDataLayer:
     async def _publicnode_txs(self, address: str, **kw) -> Any:
         return await self._helius_txs(address)
 
-    async def _blockscout(self, address: str, chain_id: int = 1, **kw) -> dict:
+    async def _blockscout(self, address: str, chain_id: int = 1, **kw) -> dict[str, Any]:
         from app.caching_shield.funding_tracer import trace_funding_source
 
         r = await trace_funding_source(address, chain_id)
@@ -425,7 +425,7 @@ class UnifiedDataLayer:
             if r.status_code == 200 and r.json().get("status") == "1":
                 return {"txs": len(r.json().get("result", []))}
 
-    async def _evm_rpc(self, address: str, chain_id: int = 1, **kw) -> dict:
+    async def _evm_rpc(self, address: str, chain_id: int = 1, **kw) -> dict[str, Any]:
         from app.consensus_rpc import get_consensus_rpc
 
         r = await get_consensus_rpc().evm_query_with_consensus(chain_id, "eth_getBalance", [address, "latest"])
@@ -436,7 +436,7 @@ class UnifiedDataLayer:
     # STATS
     # ═══════════════════════════════════════════════════════════════════════
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         return {
             "cache_hits": self._cache.hits,
             "cache_misses": self._cache.misses,
@@ -458,7 +458,7 @@ def get_data_layer() -> UnifiedDataLayer:
         _layer = UnifiedDataLayer()
     return _layer
 
-    async def _cmc_price(self, mint: str, **kw) -> None | dict:
+    async def _cmc_price(self, mint: str, **kw) -> None | dict[str, Any]:
         import os
 
         key = os.getenv("COINMARKETCAP_API_KEY", "")

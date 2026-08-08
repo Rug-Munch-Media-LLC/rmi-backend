@@ -2,9 +2,9 @@
 Free tier: 14,400 req/day, 1M tokens/day."""
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 import httpx
 
@@ -17,7 +17,7 @@ BASE = "https://api.cerebras.ai/v1"
 
 async def cerebras_chat(
     prompt: str, system: str | None = None, temperature: float = 0.7, max_tokens: int = 1024
-) -> dict | None:
+) -> dict[str, Any] | None:
     """GPT-OSS-120B via Cerebras - 9ms latency. Use for real-time, latency-sensitive tasks."""
     if not CEREBRAS_KEY:
         return None

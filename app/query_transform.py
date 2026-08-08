@@ -52,7 +52,7 @@ class TransformedQuery:
     original_query: str
     strategy: str  # "hyde" | "expand" | "step_back" | "none"
     transformed_queries: list[str]  # list of strings to embed & search
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # ======================================================================

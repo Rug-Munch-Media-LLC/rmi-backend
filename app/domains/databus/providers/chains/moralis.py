@@ -6,6 +6,7 @@ net worth, and token search.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 import httpx
@@ -15,7 +16,7 @@ from app.core.logging import get_logger
 logger = get_logger("databus.providers.moralis")
 
 
-async def _moralis_price(**kwargs) -> dict | None:
+async def _moralis_price(**kwargs) -> dict[str, Any] | None:
     """Moralis — paid, high quality token price."""
     token = kwargs.get("token", "")
     api_key = kwargs.get("api_key", "")
@@ -32,7 +33,7 @@ async def _moralis_price(**kwargs) -> dict | None:
     return None
 
 
-async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) -> dict | None:
+async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) -> dict[str, Any] | None:
     """Moralis — wallet token balances."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -51,7 +52,7 @@ async def _moralis_wallet_tokens(address: str = "", chain: str = "eth", **kw) ->
     return None
 
 
-async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> dict | None:
+async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> dict[str, Any] | None:
     """Moralis — wallet NFT holdings."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -70,7 +71,7 @@ async def _moralis_wallet_nfts(address: str = "", chain: str = "eth", **kw) -> d
     return None
 
 
-async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **kw) -> dict | None:
+async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **kw) -> dict[str, Any] | None:
     """Moralis — wallet transaction history."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -89,7 +90,7 @@ async def _moralis_wallet_transactions(address: str = "", chain: str = "eth", **
     return None
 
 
-async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> dict | None:
+async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> dict[str, Any] | None:
     """Moralis — token price (specific endpoint)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -108,7 +109,7 @@ async def _moralis_token_price(address: str = "", chain: str = "eth", **kw) -> d
     return None
 
 
-async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -> dict | None:
+async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -> dict[str, Any] | None:
     """Moralis — token metadata (name, symbol, decimals)."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -127,7 +128,7 @@ async def _moralis_token_metadata(address: str = "", chain: str = "eth", **kw) -
     return None
 
 
-async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
+async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict[str, Any] | None:
     """Moralis — wallet net worth across chains."""
     api_key = kw.get("api_key", "")
     if not address or not api_key:
@@ -145,7 +146,7 @@ async def _moralis_wallet_net_worth(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _moralis_search_tokens(query: str = "", **kw) -> dict | None:
+async def _moralis_search_tokens(query: str = "", **kw) -> dict[str, Any] | None:
     """Moralis — search tokens by name/symbol/address."""
     api_key = kw.get("api_key", "")
     if not query or not api_key:

@@ -1,9 +1,9 @@
 """Price providers for DataBus."""
 
 from __future__ import annotations
-from typing import Any
 
 import os
+from typing import Any
 
 import httpx
 
@@ -12,7 +12,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _local_token_price(**kwargs) -> dict | None:
+async def _local_token_price(**kwargs) -> dict[str, Any] | None:
     """Get price from our own data (Redis/ClickHouse)."""
     try:
         import json
@@ -37,7 +37,7 @@ async def _local_token_price(**kwargs) -> dict | None:
     return None
 
 
-async def _dexscreener_price(**kwargs) -> dict | None:
+async def _dexscreener_price(**kwargs) -> dict[str, Any] | None:
     """DexScreener - free, no key."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
     if not token:
@@ -52,7 +52,7 @@ async def _dexscreener_price(**kwargs) -> dict | None:
     return None
 
 
-async def _coingecko_price(**kwargs) -> dict | None:
+async def _coingecko_price(**kwargs) -> dict[str, Any] | None:
     """CoinGecko - free for low volume."""
     token = kwargs.get("mint", "") or kwargs.get("token", "")
     api_key = kwargs.get("api_key", "")
@@ -67,7 +67,7 @@ async def _coingecko_price(**kwargs) -> dict | None:
     return None
 
 
-async def _moralis_price(**kwargs) -> dict | None:
+async def _moralis_price(**kwargs) -> dict[str, Any] | None:
     """Moralis - paid, high quality."""
     token = kwargs.get("token", "")
     api_key = kwargs.get("api_key", "")
@@ -84,7 +84,7 @@ async def _moralis_price(**kwargs) -> dict | None:
     return None
 
 
-async def _birdeye_price(address: str = "", **kw) -> dict | None:
+async def _birdeye_price(address: str = "", **kw) -> dict[str, Any] | None:
     """Birdeye - real-time token price (free tier)."""
     api_key = kw.get("api_key", "") or os.getenv("BIRDEYE_API_KEY", "")
     if not address:
@@ -105,7 +105,7 @@ async def _birdeye_price(address: str = "", **kw) -> dict | None:
     return None
 
 
-async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
+async def _solana_tracker_price(mint: str = "", **kw) -> dict[str, Any] | None:
     """Solana Tracker - real-time token price (2 keys, 5000 req/mo total)."""
     if not mint:
         return None
@@ -121,7 +121,7 @@ async def _solana_tracker_price(mint: str = "", **kw) -> dict | None:
     return None
 
 
-async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
+async def _solana_tracker_token(mint: str = "", **kw) -> dict[str, Any] | None:
     """Solana Tracker - detailed token metadata and stats."""
     if not mint:
         return None
@@ -137,7 +137,7 @@ async def _solana_tracker_token(mint: str = "", **kw) -> dict | None:
     return None
 
 
-async def _solana_tracker_trending(**kw) -> dict | None:
+async def _solana_tracker_trending(**kw) -> dict[str, Any] | None:
     """Solana Tracker - trending tokens on Solana."""
     try:
         from app.caching_shield.solana_tracker import get_solana_tracker

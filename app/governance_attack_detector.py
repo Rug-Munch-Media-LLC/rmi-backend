@@ -74,8 +74,8 @@ class GovernanceAttackResult:
     timestamp: str = ""
     top_holder_pct: float = 0.0
     top_10_holder_pct: float = 0.0
-    top_holders: list[dict] = field(default_factory=list)
-    governance_params: dict | None = None
+    top_holders: list[dict[str, Any]] = field(default_factory=list)
+    governance_params: dict[str, Any] | None = None
     is_governed: bool = False
     flash_loan_feasible: bool = False
     risk_score: int = 0
@@ -88,7 +88,7 @@ class GovernanceAttackResult:
 # ─── HTTP helpers (minimal dependencies) ─────────────────────────
 
 
-async def _fetch_json(url: str, headers: dict | None = None, params: dict | None = None, timeout: int = 10) -> Any:
+async def _fetch_json(url: str, headers: dict[str, Any] | None = None, params: dict[str, Any] | None = None, timeout: int = 10) -> Any:
     """Single URL fetch returning parsed JSON or None."""
     import aiohttp
 
@@ -133,12 +133,12 @@ async def _eth_call(rpc_url: str, to: str, data: str) -> str | None:
 # ─── Data fetching ───────────────────────────────────────────────
 
 
-async def _fetch_dexscreener(token_address: str) -> dict | None:
+async def _fetch_dexscreener(token_address: str) -> dict[str, Any] | None:
     """Fetch token pair data from DexScreener (free, no key)."""
     return await _fetch_json(DEXSCREENER_API.format(token_address))
 
 
-async def _fetch_solscan_holders(token_address: str) -> list[dict]:
+async def _fetch_solscan_holders(token_address: str) -> list[dict[str, Any]]:
     """Fetch top holders from Solscan (Solana)."""
     data = await _fetch_json(
         "https://api-v2.solscan.io/v2/token/holders",
@@ -150,7 +150,7 @@ async def _fetch_solscan_holders(token_address: str) -> list[dict]:
     return []
 
 
-async def _fetch_birdeye_holders(token_address: str) -> list[dict]:
+async def _fetch_birdeye_holders(token_address: str) -> list[dict[str, Any]]:
     """Fetch holders from Birdeye."""
     key = os.getenv("BIRDEYE_API_KEY", "")
     if not key:
@@ -165,7 +165,7 @@ async def _fetch_birdeye_holders(token_address: str) -> list[dict]:
     return []
 
 
-async def _fetch_evm_holders(token_address: str, chain: str) -> list[dict]:
+async def _fetch_evm_holders(token_address: str, chain: str) -> list[dict[str, Any]]:
     """Fetch top EVM token holders from explorer API."""
     from app.chain_registry import CHAINS
 
@@ -285,7 +285,7 @@ async def _extract_evm_governance_params(token_address: str, chain: str) -> Gove
     return params
 
 
-def _check_solana_governance(dex_data: dict | None) -> GovernanceParams:
+def _check_solana_governance(dex_data: dict[str, Any] | None) -> GovernanceParams:
     """Infer governance risk for Solana SPL tokens (no EVM gov contracts)."""
     params = GovernanceParams()
     if dex_data:
@@ -312,7 +312,7 @@ def _check_solana_governance(dex_data: dict | None) -> GovernanceParams:
 # ─── Holders parsing ─────────────────────────────────────────────
 
 
-def _parse_holders(raw_holders: list[dict]) -> list[HolderStake]:
+def _parse_holders(raw_holders: list[dict[str, Any]]) -> list[HolderStake]:
     """Parse raw explorer holder data into structured objects."""
     holders = []
     for h in raw_holders:
@@ -469,7 +469,7 @@ async def detect_governance_attack(
     # 1. Fetch DEX data + holders
     dex_data = await _fetch_dexscreener(token_address)
 
-    raw_holders: list[dict] = []
+    raw_holders: list[dict[str, Any]] = []
     if is_solana(chain):
         raw_holders = await _fetch_solscan_holders(token_address)
     elif is_evm(chain):

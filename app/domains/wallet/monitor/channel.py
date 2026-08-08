@@ -1,11 +1,11 @@
 """Wallet Monitor — Alert Channel."""
 
 from __future__ import annotations
-from typing import Any
 
 import contextlib
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -19,13 +19,13 @@ class AlertChannel:
     ALERT_CHANNEL = "wallet:alerts"
 
     @staticmethod
-    async def publish_intel(payload: dict) -> None:
+    async def publish_intel(payload: dict[str, Any]) -> None:
         r = await get_redis()
         if r:
             await r.publish(AlertChannel.INTEL_CHANNEL, json.dumps(payload))
 
     @staticmethod
-    async def publish_alert(alert: dict) -> None:
+    async def publish_alert(alert: dict[str, Any]) -> None:
         r = await get_redis()
         if r:
             await r.publish(AlertChannel.ALERT_CHANNEL, json.dumps(alert))
@@ -33,7 +33,7 @@ class AlertChannel:
             await r.setex(alert_id, CONFIG["ALERT_TTL_SECONDS"], json.dumps(alert))
 
     @staticmethod
-    async def dispatch_webhooks(alert: dict, webhooks: list[str]) -> None:
+    async def dispatch_webhooks(alert: dict[str, Any], webhooks: list[str]) -> None:
         if not webhooks:
             return
         async with httpx.AsyncClient(timeout=CONFIG["WEBHOOK_TIMEOUT"]) as client:

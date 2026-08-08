@@ -10,6 +10,7 @@ The engine passes cursor that includes which addresses to watch.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -25,7 +26,7 @@ class WalletActivityProvider:
     event_type: WebhookEventType = WebhookEventType.WALLET_ACTIVITY
     poll_interval: int = 30  # seconds
 
-    async def poll(self, cursor: dict | None = None) -> list[dict]:
+    async def poll(self, cursor: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Query ClickHouse for transfers involving watched addresses."""
         since = (cursor or {}).get("since", "2020-01-01 00:00:00")
         watch_addresses: list[str] = (cursor or {}).get("addresses", [])
@@ -69,7 +70,7 @@ class WalletActivityProvider:
             log.warning("wallet_activity_query_failed", error=str(exc))
             return []
 
-        events: list[dict] = []
+        events: list[dict[str, Any]] = []
         for row in rows:
             events.append(
                 {

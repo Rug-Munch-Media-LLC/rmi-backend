@@ -64,7 +64,7 @@ def generate_bubble_map_data(
     center_wallet: str,
     depth: int = 2,
     max_wallets: int = 250,
-) -> dict:
+) -> dict[str, Any]:
     """Generate data for interactive bubble map visualization."""
     wallet_list, relevant_connections = get_connections_for_bubble_map(
         connections, wallets, center_wallet, depth, max_wallets=max_wallets
@@ -134,13 +134,13 @@ def _get_known_scammer_wallets() -> set[str]:
 def generate_ai_forensic_breakdown(
     connections: dict[tuple[str, str], Connection],
     wallets: dict[str, WalletProfile],
-    transactions: list,
+    transactions: list[Any],
     center_wallet: str,
     initial_depth: int = 2,
     initial_max_wallets: int = 250,
     max_expansion_depth: int = 5,
     absolute_max_wallets: int = 1000,
-) -> dict:
+) -> dict[str, Any]:
     """AI-driven forensic breakdown that dynamically pulls deeper if necessary."""
     initial_wallets, initial_connections = get_connections_for_bubble_map(
         connections, wallets, center_wallet, depth=initial_depth, max_wallets=initial_max_wallets
@@ -234,7 +234,7 @@ def generate_ai_forensic_breakdown(
     }
 
 
-def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], connections: dict) -> dict | None:
+def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], connections: dict[str, Any]) -> dict[str, Any] | None:
     """Get detailed report for a cluster."""
     if not cluster:
         return None

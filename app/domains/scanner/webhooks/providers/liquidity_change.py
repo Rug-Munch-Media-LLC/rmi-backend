@@ -10,6 +10,7 @@ Source: Own indexed data + internal analysis — zero external dependency.
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from app.core.logging import get_logger
@@ -28,9 +29,9 @@ class LiquidityChangeProvider:
     # Minimum USD value for a "significant" liquidity change
     DEFAULT_MIN_VALUE: float = 5_000.0
 
-    async def poll(self, cursor: dict | None = None) -> list[dict]:
+    async def poll(self, cursor: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Detect liquidity changes from internal data sources."""
-        events: list[dict] = []
+        events: list[dict[str, Any]] = []
 
         # Try internal liquidity watchdog first
         watchdog = self._get_liquidity_watchdog()

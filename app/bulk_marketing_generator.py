@@ -423,7 +423,7 @@ def add_text_centered(img, text, position, font_size, color, bold=True) -> Any:
     return img
 
 
-def generate_graphic(concept: dict) -> dict:
+def generate_graphic(concept: dict[str, Any]) -> dict[str, Any]:
     """Generate a single marketing graphic."""
     graphic_type = concept.get("type", "feature")
 
@@ -517,7 +517,7 @@ def upload_to_dropbox(local_path: str, dropbox_path: str | None = None) -> bool:
         return False
 
 
-def generate_all_graphics() -> list[dict]:
+def generate_all_graphics() -> list[dict[str, Any]]:
     """Generate all 50+ marketing graphics."""
     results = []
 

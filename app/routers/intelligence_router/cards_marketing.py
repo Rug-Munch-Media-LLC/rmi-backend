@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.post("/cards/generate")
-async def generate_card(card_type: str, data: dict) -> Any:
+async def generate_card(card_type: str, data: dict[str, Any]) -> Any:
     """Generate shareable card (win, loss, KOL, rug, etc.)."""
     try:
         from app.card_generator import (
@@ -62,7 +62,7 @@ async def generate_card(card_type: str, data: dict) -> Any:
     summary="Get Card Templates",
     description="List available intelligence card templates for generating shareable security/market insight graphics.",
 )
-async def get_card_templates() -> dict[str, list[dict]]:
+async def get_card_templates() -> dict[str, list[dict[str, Any]]]:
     """Get available card templates."""
     try:
         from app.card_generator import CARD_TEMPLATES
@@ -86,7 +86,7 @@ async def get_card_templates() -> dict[str, list[dict]]:
 
 
 @router.get("/marketing/templates")
-async def list_marketing_templates_endpoint() -> dict:
+async def list_marketing_templates_endpoint() -> dict[str, Any]:
     """List available marketing graphic templates."""
     try:
         from app.marketing_graphics_generator import list_marketing_templates
@@ -97,7 +97,7 @@ async def list_marketing_templates_endpoint() -> dict:
 
 
 @router.post("/marketing/generate")
-async def generate_marketing_graphic(graphic_type: str, data: dict | None = None) -> Any:
+async def generate_marketing_graphic(graphic_type: str, data: dict[str, Any] | None = None) -> Any:
     """Generate marketing graphic (banner, feature card, stats, etc.)."""
     try:
         from app.marketing_graphics_generator import generate_marketing_graphic
@@ -117,7 +117,7 @@ async def generate_marketing_graphic(graphic_type: str, data: dict | None = None
 
 
 @router.post("/marketing/generate/feature-cards")
-async def generate_all_feature_cards_endpoint() -> dict:
+async def generate_all_feature_cards_endpoint() -> dict[str, Any]:
     """Generate feature showcase cards for all features."""
     try:
         from app.marketing_graphics_generator import generate_all_feature_cards

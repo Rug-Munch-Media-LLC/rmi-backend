@@ -555,7 +555,7 @@ async def ingest_collection(
     collection: str,
     items: list[dict[str, Any]],
     dry_run: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Ingest all items into a collection via the bulk-ingest API."""
     if dry_run:
         return {"collection": collection, "items": len(items), "status": "dry_run"}
@@ -601,7 +601,7 @@ async def ingest_all(
     return results
 
 
-async def verify_ingestion(base_url: str = "http://localhost:8000") -> dict:
+async def verify_ingestion(base_url: str = "http://localhost:8000") -> dict[str, Any]:
     """Check RAG stats after ingestion."""
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(

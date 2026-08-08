@@ -288,7 +288,7 @@ class ConsensusRpcClient:
         endpoint: RpcEndpoint,
         method: str,
         params: list[Any],
-    ) -> tuple[str, dict | None, float, str | None]:
+    ) -> tuple[str, dict[str, Any] | None, float, str | None]:
         """Query a single endpoint. Returns (name, result_dict, latency, error_string)."""
         await self._maybe_reenable(endpoint.name)
         if endpoint.is_disabled:
