@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth import require_auth
 from app.core.logging import get_logger
+from app.routers.web3_chat.models import ConnectWalletRequest, SwapQuoteRequest
 from app.services.web3_chat import (
     estimate_gas,
     generate_nonce,
@@ -23,9 +24,6 @@ from app.services.web3_chat import (
     parse_amount,
     validate_address,
 )
-
-if TYPE_CHECKING:
-    from app.routers.web3_chat.models import ConnectWalletRequest, SwapQuoteRequest
 
 logger = get_logger("web3_chat_router")
 
