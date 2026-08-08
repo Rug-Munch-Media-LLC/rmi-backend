@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -68,6 +68,7 @@ from app.domains.telegram.rugmunchbot.scanner import (
     v2_wallet_to_legacy,
 )
 from app.domains.telegram.rugmunchbot.states import check_spam
+from app.domains.telegram.rugmunchbot.ta_indicators import analyze_candles
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -543,6 +544,162 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+# ── /ta — real technical analysis from RugCharts OHLCV ──────────────────────
+
+
+async def _fetch_rugcharts_ohlcv(client: httpx.AsyncClient, chain: str, pair_address: str) -> list[dict[str, Any]]:
+    """Fetch OHLCV candles from the backend RugCharts engine (own data).
+
+    Same route the frontend chart uses:
+    ``GET /api/v1/rugcharts/ohlcv/{chain}/{pair}?timeframe=1h&limit=100``.
+    Returns chronological candles (oldest → newest) or ``[]``.
+    """
+    if not pair_address or not chain:
+        return []
+    try:
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/rugcharts/ohlcv/{chain}/{pair_address}",
+            params={"timeframe": "1h", "limit": 100},
+            headers=backend_headers(),
+            timeout=15,
+        )
+        if r.status_code == 200:
+            body = r.json()
+            data = body.get("data") or body
+            candles = data.get("candles") or []
+            if isinstance(candles, list):
+                return candles
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.debug("rugcharts ohlcv fetch failed: %s", e)
+    return []
+
+
+async def _fetch_rugcharts_intel(client: httpx.AsyncClient, chain: str, pair_address: str) -> dict[str, Any]:
+    """Fetch RugCharts intel (rug score + volume authenticity) for risk overlay."""
+    if not pair_address or not chain:
+        return {}
+    try:
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/rugcharts/intel/{chain}/{pair_address}",
+            headers=backend_headers(),
+            timeout=15,
+        )
+        if r.status_code == 200:
+            body = r.json()
+            data = body.get("data") or body
+            return data if isinstance(data, dict) else {}
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.debug("rugcharts intel fetch failed: %s", e)
+    return {}
+
+
+def _ta_arrow(trend: str) -> str:
+    return {"BULLISH": "\U0001f7e2", "BEARISH": "\U0001f534", "NEUTRAL": "\u26aa"}.get(trend, "\u26aa")
+
+
+def _ta_rsi_emoji(label: str) -> str:
+    return {"Overbought": "\U0001f534", "Oversold": "\U0001f7e2", "Neutral": "\u26aa"}.get(label, "\u26aa")
+
+
+def _ta_vol_arrow(trend: str) -> str:
+    return {"Rising": "\U0001f4c8", "Declining": "\U0001f4c9", "Steady": "\u2796"}.get(trend, "\u2796")
+
+
+def format_ta_card(analysis: dict[str, Any], meta: dict[str, Any]) -> str:
+    """Render the /ta technical-analysis card (Telegram HTML).
+
+    ``analysis`` comes from :func:`ta_indicators.analyze_candles`; ``meta``
+    carries the DexScreener pair + RugCharts intel overlay:
+
+        name, symbol, address, chain, price, change_24h,
+        rug_score (int), rug_level (str)
+
+    Follows the bot card conventions: sep()/thin_sep() dividers, bold
+    labels, code-blocked address, footer_links().
+    """
+    name = meta.get("name") or "Unknown"
+    symbol = meta.get("symbol") or "???"
+    address = meta.get("address") or ""
+    chain = meta.get("chain") or ""
+    price = meta.get("price")
+    change_24h = meta.get("change_24h")
+
+    trend = analysis.get("trend") or "NEUTRAL"
+    rsi_val = analysis.get("rsi")
+    rsi_label = analysis.get("rsi_label") or "N/A"
+    ema9 = analysis.get("ema9")
+    ema21 = analysis.get("ema21")
+    ema_cross = analysis.get("ema_cross") or "NEUTRAL"
+    macd_line = analysis.get("macd_line")
+    macd_label = analysis.get("macd_label") or "N/A"
+    vol_ratio = analysis.get("volume_ratio")
+    vol_trend = analysis.get("volume_trend") or "Steady"
+    support = analysis.get("support")
+    resistance = analysis.get("resistance")
+
+    # Price header
+    price_line = f"\U0001f4b0 Price: <b>{fmt_number(price)}</b>" if price is not None else ""
+    if change_24h is not None:
+        arrow = "\U0001f7e2" if change_24h >= 0 else "\U0001f534"
+        price_line += f"  {arrow} {fmt_pct(change_24h)} 24h"
+
+    lines = [
+        "\U0001f4ca <b>Technical Analysis</b>",
+        sep(),
+        f"<b>{name}</b> ({symbol})",
+        f"<code>{address}</code>" if address else "",
+        f"{fmt_chain(chain)} \u00b7 1h \u00b7 {analysis.get('candles', 0)} candles",
+        "",
+        f"\U0001f4c8 <b>Trend: {trend}</b> {_ta_arrow(trend)}",
+        thin_sep(),
+        price_line,
+    ]
+
+    # Indicators
+    if rsi_val is not None:
+        lines.append(f"RSI-14: <b>{rsi_val:.1f}</b> {_ta_rsi_emoji(rsi_label)} {rsi_label}")
+    else:
+        lines.append("RSI-14: N/A")
+    if ema9 is not None and ema21 is not None:
+        lines.append(f"EMA-9: {fmt_number(ema9)} | EMA-21: {fmt_number(ema21)}")
+        cross_emoji = (
+            "\U0001f7e2" if ema_cross == "BULLISH CROSS" else "\U0001f534" if ema_cross == "BEARISH CROSS" else "\u26aa"
+        )
+        lines.append(f"EMA: {cross_emoji} <b>{ema_cross}</b>")
+    if macd_line is not None:
+        macd_emoji = "\U0001f7e2" if macd_label == "Bullish" else "\U0001f534" if macd_label == "Bearish" else "\u26aa"
+        lines.append(f"MACD: {macd_emoji} <b>{macd_label}</b> ({macd_line:+.8g})")
+    if vol_ratio is not None:
+        lines.append(f"Volume: {_ta_vol_arrow(vol_trend)} {vol_ratio:.1f}\u00d7 avg ({vol_trend})")
+    else:
+        lines.append(f"Volume: {_ta_vol_arrow(vol_trend)} {vol_trend}")
+
+    # Key levels
+    lines += [
+        "",
+        "\U0001f3af <b>Key Levels</b>",
+        thin_sep(),
+    ]
+    if resistance is not None:
+        lines.append(f"Resistance: {fmt_number(resistance)}")
+    if support is not None:
+        lines.append(f"Support:    {fmt_number(support)}")
+
+    # Risk overlay from RugCharts intel
+    rug_score = meta.get("rug_score")
+    if rug_score is not None:
+        rug_level = (meta.get("rug_level") or "UNKNOWN").upper()
+        level_emoji = {"SAFE": "\U0001f7e2", "CAUTION": "\U0001f7e1", "DANGER": "\U0001f534"}.get(rug_level, "\u26aa")
+        lines += [
+            "",
+            f"\U0001f6e1\ufe0f <b>Rug Risk</b>: {level_emoji} {rug_level} \u2014 {int(rug_score)}/100",
+        ]
+
+    lines += ["", "<i>TA is not financial advice. Always /scan for security.</i>"]
+    lines.append(footer_links())
+    return "\n".join(line for line in lines if line != "")
+
+
 async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None:
@@ -562,9 +719,10 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
     target = ctx.args[0]
+    explicit_chain = ctx.args[1] if len(ctx.args) > 1 else None
     msg = await update.message.reply_text("\U0001f4ca <b>Running Technical Analysis...</b>", parse_mode=ParseMode.HTML)
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=20) as client:
             r = await client.get(f"{DEXSCREENER}/tokens/{target}")
             if r.status_code != 200:
                 await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
@@ -577,56 +735,92 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             name = p.get("baseToken", {}).get("name", "???")
             symbol = p.get("baseToken", {}).get("symbol", "???")
             price = float(p.get("priceUsd", 0))
+            chain = explicit_chain or p.get("chainId", "") or detect_chain(target)
+            pair_address = p.get("pairAddress", "")
             pc = p.get("priceChange", {})
             vol = p.get("volume", {})
             txns = p.get("txns", {})
-            signals = []
-            h1 = pc.get("h1") or 0
-            h24 = pc.get("h24") or 0
-            d7 = pc.get("d7") or 0
-            if h1 > 5 and h24 > 10:
-                signals.append("\U0001f7e2 Strong short-term momentum")
-            elif h1 < -5 and h24 < -10:
-                signals.append("\U0001f534 Strong downtrend")
-            if h24 > 0 > h1:
-                signals.append("\U0001f7e1 Pullback in uptrend")
-            if h24 < 0 < h1:
-                signals.append("\U0001f7e1 Bounce in downtrend")
-            v24 = float(vol.get("h24") or 0)
-            v6 = float(vol.get("h6") or 0)
-            if v6 > 0 and v24 > 0:
-                vol_trend = v6 / (v24 / 4)
-                if vol_trend > 1.5:
-                    signals.append("\U0001f4c8 Volume increasing (acceleration)")
-                elif vol_trend < 0.5:
-                    signals.append("\U0001f4c9 Volume declining (loss of interest)")
-            buys = txns.get("h24", {}).get("buys", 0)
-            sells = txns.get("h24", {}).get("sells", 0)
-            total_tx = buys + sells
-            if total_tx > 0:
-                buy_ratio = buys / total_tx
-                if buy_ratio > 0.7:
-                    signals.append(f"\U0001f7e2 Buy pressure dominant ({buy_ratio * 100:.0f}% buys)")
-                elif buy_ratio < 0.3:
-                    signals.append(f"\U0001f534 Sell pressure dominant ({(1 - buy_ratio) * 100:.0f}% sells)")
-                else:
-                    signals.append(f"\u26aa Balanced buy/sell ({buy_ratio * 100:.0f}% buys)")
-            text = (
-                f"\U0001f4ca <b>Technical Analysis</b>\n{sep()}\n"
-                f"<b>{name}</b> ({symbol})\n<code>{target}</code>\n\n"
-                f"\U0001f4b0 Price: <b>{fmt_number(price)}</b>\n"
-                f"\U0001f504 1h: {fmt_pct(h1)} | 24h: {fmt_pct(h24)} | 7d: {fmt_pct(d7)}\n\n"
-                f"\U0001f4c8 <b>Volume</b>\n{thin_sep()}\n"
-                f"6h: {fmt_number(v6)} | 24h: {fmt_number(v24)}\n"
-                f"Txns 24h: {total_tx:,} (B:{buys:,} S:{sells:,})\n\n"
-                f"\U0001f3ed <b>Signals</b>\n{thin_sep()}\n"
-            )
-            if signals:
-                text += "\n".join(signals)
+
+            # ── Real indicators from our own OHLCV data ──
+            candles = await _fetch_rugcharts_ohlcv(client, chain, pair_address)
+            analysis = analyze_candles(candles) if candles else None
+
+            # ── Risk overlay from RugCharts intel ──
+            rug_score = None
+            rug_level = None
+            intel = await _fetch_rugcharts_intel(client, chain, pair_address)
+            if intel:
+                rs = intel.get("rug_score") or {}
+                if isinstance(rs, dict):
+                    rug_score = rs.get("score")
+                    rug_level = rs.get("level")
+
+            if analysis is not None:
+                # Full card with computed indicators.
+                text = format_ta_card(
+                    analysis,
+                    {
+                        "name": name,
+                        "symbol": symbol,
+                        "address": target,
+                        "chain": chain,
+                        "price": price,
+                        "change_24h": pc.get("h24") if pc.get("h24") is not None else None,
+                        "rug_score": rug_score,
+                        "rug_level": rug_level,
+                    },
+                )
             else:
-                text += "\u26aa No strong signals detected"
-            text += "\n\n<i>TA is not financial advice. Always /scan for security.</i>"
-            text += footer_links()
+                # Fallback: DexScreener momentum signals when OHLCV is unavailable.
+                signals = []
+                h1 = pc.get("h1") or 0
+                h24 = pc.get("h24") or 0
+                d7 = pc.get("d7") or 0
+                if h1 > 5 and h24 > 10:
+                    signals.append("\U0001f7e2 Strong short-term momentum")
+                elif h1 < -5 and h24 < -10:
+                    signals.append("\U0001f534 Strong downtrend")
+                if h24 > 0 > h1:
+                    signals.append("\U0001f7e1 Pullback in uptrend")
+                if h24 < 0 < h1:
+                    signals.append("\U0001f7e1 Bounce in downtrend")
+                v24 = float(vol.get("h24") or 0)
+                v6 = float(vol.get("h6") or 0)
+                if v6 > 0 and v24 > 0:
+                    vol_trend = v6 / (v24 / 4)
+                    if vol_trend > 1.5:
+                        signals.append("\U0001f4c8 Volume increasing (acceleration)")
+                    elif vol_trend < 0.5:
+                        signals.append("\U0001f4c9 Volume declining (loss of interest)")
+                buys = txns.get("h24", {}).get("buys", 0)
+                sells = txns.get("h24", {}).get("sells", 0)
+                total_tx = buys + sells
+                if total_tx > 0:
+                    buy_ratio = buys / total_tx
+                    if buy_ratio > 0.7:
+                        signals.append(f"\U0001f7e2 Buy pressure dominant ({buy_ratio * 100:.0f}% buys)")
+                    elif buy_ratio < 0.3:
+                        signals.append(f"\U0001f534 Sell pressure dominant ({(1 - buy_ratio) * 100:.0f}% sells)")
+                    else:
+                        signals.append(f"\u26aa Balanced buy/sell ({buy_ratio * 100:.0f}% buys)")
+                text = (
+                    f"\U0001f4ca <b>Technical Analysis</b>\n{sep()}\n"
+                    f"<b>{name}</b> ({symbol})\n<code>{target}</code>\n\n"
+                    f"\U0001f4b0 Price: <b>{fmt_number(price)}</b>\n"
+                    f"\U0001f504 1h: {fmt_pct(h1)} | 24h: {fmt_pct(h24)} | 7d: {fmt_pct(d7)}\n\n"
+                    f"\U0001f4c8 <b>Volume</b>\n{thin_sep()}\n"
+                    f"6h: {fmt_number(v6)} | 24h: {fmt_number(v24)}\n"
+                    f"Txns 24h: {total_tx:,} (B:{buys:,} S:{sells:,})\n\n"
+                    f"\U0001f3ed <b>Signals</b>\n{thin_sep()}\n"
+                )
+                if signals:
+                    text += "\n".join(signals)
+                else:
+                    text += "\u26aa No strong signals detected"
+                if rug_score is not None:
+                    text += f"\n\n\U0001f6e1\ufe0f Rug Risk: {rug_score}/100"
+                text += "\n\n<i>TA is not financial advice. Always /scan for security.</i>"
+                text += footer_links()
         db.increment_usage(user.id, scan=True)
         await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
