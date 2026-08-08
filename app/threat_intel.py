@@ -170,7 +170,7 @@ class BlocklistManager:
 class ThreatAggregator:
     """Aggregates threat intelligence from multiple sources."""
 
-    def __init__(self, blocklist: BlocklistManager = None) -> None:
+    def __init__(self, blocklist: BlocklistManager | None = None) -> None:
         self.blocklist = blocklist or BlocklistManager()
         self._loaded = False
 

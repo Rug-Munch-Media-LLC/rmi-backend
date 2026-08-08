@@ -71,7 +71,7 @@ class BitqueryProvider:
     - Error handling for billing/auth issues
     """
 
-    def __init__(self, cache: CacheLayer = None) -> None:
+    def __init__(self, cache: CacheLayer | None = None) -> None:
         self.cache = cache or get_cache()
         self._client: httpx.AsyncClient | None = None
         self._api_key: str | None = None
@@ -103,7 +103,8 @@ class BitqueryProvider:
                 capture_output=True,
                 text=True,
                 timeout=10,
-            shell=False)
+                shell=False,
+            )
             key = result.stdout.strip()
             if key and len(key) > 10:
                 self._api_key = key
@@ -274,7 +275,9 @@ class BitqueryProvider:
         """
         return await self._query(query)
 
-    async def get_holder_distribution(self, network: str, token_address: str, limit: int = 100) -> dict[str, Any] | None:
+    async def get_holder_distribution(
+        self, network: str, token_address: str, limit: int = 100
+    ) -> dict[str, Any] | None:
         """
         Get top token holders and their balances.
 

@@ -48,7 +48,7 @@ class XWebScraper:
     Designed to run as a cron job every 6 hours.
     """
 
-    def __init__(self, cache: CacheLayer = None) -> None:
+    def __init__(self, cache: CacheLayer | None = None) -> None:
         self.cache = cache or get_cache()
 
     async def discover_tweets(
