@@ -107,7 +107,6 @@ async def cmd_portfolio(update, ctx) -> None:
     from app.domains.telegram.rugmunchbot.formatters import (
         is_evm,
         is_sol,
-        short_addr,
     )
 
     async with httpx.AsyncClient(timeout=25) as client:
@@ -120,7 +119,7 @@ async def cmd_portfolio(update, ctx) -> None:
                     portfolio = await _fetch_evm_portfolio(client, address)
                 else:
                     await msg.reply_text(
-                        f"❌ Unrecognized address format: <code>{address[:20]}...</code>",
+                        f"❌ Unrecognized address format: <code>{address}</code>",
                         parse_mode="HTML",
                     )
                     continue
@@ -130,7 +129,7 @@ async def cmd_portfolio(update, ctx) -> None:
                 tx_count = portfolio.get("tx_count", 0)
 
                 # Build display lines
-                label = f"👛 <b>Portfolio #{addr_idx + 1}:</b> <code>{short_addr(address)}</code>"
+                label = f"👛 <b>Portfolio #{addr_idx + 1}:</b> <code>{address}</code>"
 
                 lines = [label, ""]
 
@@ -198,7 +197,7 @@ async def cmd_portfolio(update, ctx) -> None:
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
                 logger.error("Portfolio failed for %s: %s", address, e)
                 await msg.reply_text(
-                    f"❌ Could not scan <code>{short_addr(address)}</code>. Make sure the address is valid.",
+                    f"❌ Could not scan <code>{address}</code>. Make sure the address is valid.",
                     parse_mode="HTML",
                 )
 

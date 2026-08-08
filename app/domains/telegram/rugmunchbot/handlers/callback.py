@@ -35,7 +35,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     is_owner,
     sep,
-    short_addr,
     thin_sep,
     welcome_card_text,
 )
@@ -56,6 +55,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     category_wallet_kb,
     pricing_kb,
     scamschool_kb,
+    token_buttons,
     topup_kb,
     welcome_menu_kb,
 )
@@ -278,10 +278,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         )
     elif data == "menu_trending":
         await query.edit_message_text("\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
-        from app.domains.telegram.rugmunchbot.handlers.market import _build_trending_text
+        from app.domains.telegram.rugmunchbot.handlers.market import render_trending
 
-        text = await _build_trending_text("solana", limit=8)
-        if text is None:
+        text, kb = await render_trending("solana", limit=8, window="24h")
+        if text is None or kb is None:
             await query.edit_message_text(
                 "\u274c Could not fetch trending data.",
                 parse_mode=ParseMode.HTML,
@@ -291,37 +291,26 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             text,
             parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh_solana")],
-                    [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-                ]
-            ),
+            reply_markup=kb,
             disable_web_page_preview=True,
         )
     elif data == "trending_refresh":
         await query.answer("Refreshing...")
         await query.edit_message_text("\U0001f504 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
-        from app.domains.telegram.rugmunchbot.handlers.market import _build_trending_text
+        from app.domains.telegram.rugmunchbot.handlers.market import render_trending
 
-        text = await _build_trending_text("solana", limit=8)
-        if text is None:
+        text, kb = await render_trending("solana", limit=8, window="24h")
+        if text is None or kb is None:
             await query.edit_message_text(
                 "\u274c Could not refresh trending data.",
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
             return
-        refresh_kb = InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh_solana")],
-                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-            ]
-        )
         await query.edit_message_text(
             text,
             parse_mode=ParseMode.HTML,
-            reply_markup=refresh_kb,
+            reply_markup=kb,
             disable_web_page_preview=True,
         )
     elif data == "news_refresh":
@@ -403,9 +392,13 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
         else:
             text = "\U0001f440 <b>Watchlist</b>\n\n" + "\n".join(
-                f"\u2022 {w.get('symbol', '???')} <code>{short_addr(w['token_address'])}</code>" for w in items
+                f"\u2022 {w.get('symbol', '???')} <code>{w['token_address']}</code>" for w in items
             )
-            await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb())
+            rows: list[list[InlineKeyboardButton]] = []
+            for w in items:
+                rows.append(token_buttons(w["token_address"], w.get("chain") or "solana"))
+            rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
+            await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(rows))
     elif data == "noop":
         await query.answer()
     elif data == "menu_refer":
@@ -464,7 +457,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         if len(parts) >= 3:
             addr, chain = parts[1], parts[2]
             await query.edit_message_text(
-                f"\U0001f4c8 <b>Generating chart...</b>\n<code>{short_addr(addr)}</code>",
+                f"\U0001f4c8 <b>Generating chart...</b>\n<code>{addr}</code>",
                 parse_mode=ParseMode.HTML,
             )
             from app.domains.telegram.rugmunchbot.commands.chart import cmd_chart
@@ -477,7 +470,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         if len(parts) >= 3:
             addr, chain = parts[1], parts[2]
             await query.edit_message_text(
-                f"\U0001f5fa\ufe0f <b>Generating RugMap...</b>\n<code>{short_addr(addr)}</code>",
+                f"\U0001f5fa\ufe0f <b>Generating RugMap...</b>\n<code>{addr}</code>",
                 parse_mode=ParseMode.HTML,
             )
             from app.domains.telegram.rugmunchbot.commands.rugmap import cmd_rugmap
@@ -659,6 +652,29 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         ctx.args = []
         await _sentiment(update, ctx)
+    elif data.startswith("trending_win_"):
+        parts = data.split("_", 3)
+        if len(parts) == 4 and parts[3] in ("1h", "24h", "7d"):
+            win_chain, win = parts[2], parts[3]
+            await query.edit_message_text("\U0001f525 <b>Loading trending...</b>", parse_mode=ParseMode.HTML)
+            from app.domains.telegram.rugmunchbot.handlers.market import render_trending
+
+            text, kb = await render_trending(win_chain, limit=8, window=win)
+            if text is None or kb is None:
+                await query.edit_message_text(
+                    "\u274c Could not fetch trending data.",
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=back_kb(),
+                )
+                return
+            await query.edit_message_text(
+                text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+                disable_web_page_preview=True,
+            )
+        else:
+            await query.answer("Invalid request.", show_alert=True)
     elif data.startswith("trending_refresh"):
         await query.edit_message_text("\U0001f525 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
         from app.domains.telegram.rugmunchbot.handlers.market import cmd_trending as _trending
@@ -694,7 +710,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await ctx.bot.send_invoice(
                 chat_id=query.message.chat_id,
                 title="\U0001f52c Deep Token Scan",
-                description=f"Complete forensic analysis of {short_addr(addr)} on {chain}.",
+                description=f"Complete forensic analysis of {addr} on {chain}.",
                 payload=f"deep_{token}",
                 provider_token="",
                 currency="XTR",
@@ -1000,10 +1016,10 @@ async def _inline_trending(update: Update, ctx) -> None:
     if query is None:
         return
     await query.edit_message_text("\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
-    from app.domains.telegram.rugmunchbot.handlers.market import _build_trending_text
+    from app.domains.telegram.rugmunchbot.handlers.market import render_trending
 
-    text = await _build_trending_text("solana", limit=8)
-    if text is None:
+    text, kb = await render_trending("solana", limit=8, window="24h")
+    if text is None or kb is None:
         await query.edit_message_text(
             "\u274c Could not fetch trending data.", parse_mode=ParseMode.HTML, reply_markup=back_kb()
         )
@@ -1011,12 +1027,7 @@ async def _inline_trending(update: Update, ctx) -> None:
     await query.edit_message_text(
         text,
         parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh_solana")],
-                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-            ]
-        ),
+        reply_markup=kb,
         disable_web_page_preview=True,
     )
 
@@ -1049,27 +1060,31 @@ async def _inline_market_data(update: Update, ctx, kind: str) -> None:
 
     if kind == "market":
         text = await _inline_market_overview(_fetch_market_intel, _fmt_usd)
+        token_items: list[dict] = []
     elif kind == "movers":
         text = await _inline_movers_text(_fetch_market_intel, _fmt_usd, _change_emoji)
+        token_items = []
     elif kind == "launches":
-        text = await _inline_launches_text(_fetch_market_intel, _fmt_usd, _change_emoji)
+        text, token_items = await _inline_launches_text(_fetch_market_intel, _fmt_usd, _change_emoji)
     else:
-        text = await _inline_whales_text(_fetch_market_intel, _fmt_usd)
+        text, token_items = await _inline_whales_text(_fetch_market_intel, _fmt_usd)
 
     if text is None:
         await query.edit_message_text(
             f"\u274c Could not fetch {kind} data.", parse_mode=ParseMode.HTML, reply_markup=back_kb()
         )
         return
+    kb_rows: list[list[InlineKeyboardButton]] = []
+    for item in token_items:
+        addr = item.get("address") or item.get("token_address") or ""
+        if addr:
+            kb_rows.append(token_buttons(addr, item.get("chain") or "solana"))
+    kb_rows.append([InlineKeyboardButton("\U0001f504 Refresh", callback_data=refresh_cb)])
+    kb_rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     await query.edit_message_text(
         text,
         parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("\U0001f504 Refresh", callback_data=refresh_cb)],
-                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-            ]
-        ),
+        reply_markup=InlineKeyboardMarkup(kb_rows),
         disable_web_page_preview=True,
     )
 
@@ -1177,14 +1192,17 @@ async def _inline_movers_text(fetch, fmt_usd, change_emoji) -> str | None:
     return "\n".join(lines)
 
 
-async def _inline_launches_text(fetch, fmt_usd, change_emoji) -> str | None:
-    """Render the /launches report as text for inline callbacks."""
+async def _inline_launches_text(fetch, fmt_usd, change_emoji) -> tuple[str | None, list[dict]]:
+    """Render the /launches report as text for inline callbacks.
+
+    Returns ``(text, token_items)`` so callers can attach per-token buttons.
+    """
     from app.domains.telegram.rugmunchbot.config import fmt_chain, fmt_pct
 
     data = await fetch("/api/v1/market/launches", params={"limit": 8})
     items = (data or {}).get("items") or []
     if not items:
-        return None
+        return None, []
 
     lines = ["\U0001f195 <b>New Token Launches</b>", sep()]
     for i, item in enumerate(items[:8], 1):
@@ -1200,20 +1218,23 @@ async def _inline_launches_text(fetch, fmt_usd, change_emoji) -> str | None:
             f"{f' | {bundler}' if bundler else ''}"
         )
         if addr:
-            lines.append(f"   <code>{short_addr(addr)}</code>")
+            lines.append(f"   <code>{addr}</code>")
     lines.append("\n<i>Fresh launches \u2014 always /scan before buying.</i>")
     lines.append(footer_links())
-    return "\n".join(lines)
+    return "\n".join(lines), items[:8]
 
 
-async def _inline_whales_text(fetch, fmt_usd) -> str | None:
-    """Render the /whales report as text for inline callbacks."""
+async def _inline_whales_text(fetch, fmt_usd) -> tuple[str | None, list[dict]]:
+    """Render the /whales report as text for inline callbacks.
+
+    Returns ``(text, token_items)`` so callers can attach per-token buttons.
+    """
     from app.domains.telegram.rugmunchbot.config import fmt_chain
 
     data = await fetch("/api/v1/market/whales", params={"limit": 5})
     items = (data or {}).get("items") or []
     if not items:
-        return None
+        return None, []
 
     lines = ["\U0001f40b <b>Whale Activity</b>", sep()]
     for i, item in enumerate(items[:5], 1):
@@ -1228,11 +1249,11 @@ async def _inline_whales_text(fetch, fmt_usd) -> str | None:
         lines.append(
             f"{i}. {action_emoji} <b>{action_txt} {symbol}</b>{chain_txt}{smart}\n"
             f"   {fmt_usd(item.get('value_usd'))}"
-            f"{f' | <code>{short_addr(addr)}</code>' if addr else ''}"
+            f"{f' | <code>{addr}</code>' if addr else ''}"
         )
     lines.append("\n<i>Large moves detected across Solana/Ethereum/Bitcoin pairs.</i>")
     lines.append(footer_links())
-    return "\n".join(lines)
+    return "\n".join(lines), items[:5]
 
 
 async def _inline_news(update: Update, ctx) -> None:

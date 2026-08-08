@@ -78,7 +78,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     is_sol,
     paywall_text,
-    short_addr,
     web_scan_button,
 )
 from app.domains.telegram.rugmunchbot.handlers.message import (
@@ -237,7 +236,7 @@ def _format_scan_summary(address: str, data: dict[str, Any]) -> str | None:
     holders = data.get("holders")
     if holders:
         flags.append(f"holders={holders}")
-    return f"Context: token {short_addr(address)} scan shows {', '.join(flags)}"
+    return f"Context: token {address} scan shows {', '.join(flags)}"
 
 
 async def _fetch_scan_context(address: str) -> str | None:
@@ -473,7 +472,7 @@ async def _scam_address_warning(update: Update, address: str) -> None:
     try:
         await update.message.reply_text(
             f"{_KNOWN_SCAM_WARNING}\n\n"
-            f"\U0001f517 Address: <code>{short_addr(address)}</code>\n\n"
+            f"\U0001f517 Address: <code>{address}</code>\n\n"
             f"Already flagged one like this? /report helps us build the denylist.",
             parse_mode=ParseMode.HTML,
             reply_markup=kb,

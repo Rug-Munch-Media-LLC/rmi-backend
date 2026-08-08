@@ -44,7 +44,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_sol,
     paywall_text,
     sep,
-    short_addr,
     thin_sep,
     web_scan_button,
     welcome_card_text,
@@ -234,9 +233,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
     msg = await update.message.reply_text(
-        f"\U0001f50d <b>Scanning token...</b>\n"
-        f"<code>{short_addr(target)}</code>\n\n"
-        f"\u23f3 Running multi-source security checks...",
+        f"\U0001f50d <b>Scanning token...</b>\n<code>{target}</code>\n\n\u23f3 Running multi-source security checks...",
         parse_mode=ParseMode.HTML,
     )
     try:
@@ -249,7 +246,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if result["name"] == "Unknown" and not result["errors"]:
             await msg.edit_text(
                 f"\u274c <b>Token Not Found</b>\n\n"
-                f"No data found for <code>{short_addr(target)}</code>.\n\n"
+                f"No data found for <code>{target}</code>.\n\n"
                 f"\u2022 Check the address is correct\n"
                 f"\u2022 Ensure the token has a trading pair\n"
                 f"\u2022 Try specifying the chain: /scan <code>addr</code> solana",
@@ -325,7 +322,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             return
     msg = await update.message.reply_text(
         f"\U0001f52c <b>Deep scan started...</b>\n"
-        f"<code>{short_addr(target)}</code>\n\n"
+        f"<code>{target}</code>\n\n"
         f"\u2460 Market \u2192 \u2461 Security \u2192 \u2462 Holders \u2192 "
         f"\u2463 Deployer \u2192 \u2464 Funding \u2192 \u2465 AI verdict\n"
         f"\u23f3 This can take up to 2 minutes...",
@@ -340,7 +337,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if result["name"] == "Unknown" and not result["errors"]:
             await msg.edit_text(
                 f"\u274c <b>Token Not Found</b>\n\n"
-                f"No data found for <code>{short_addr(target)}</code>.\n\n"
+                f"No data found for <code>{target}</code>.\n\n"
                 f"\u2022 Check the address is correct\n"
                 f"\u2022 Try specifying the chain: /deepscan <code>addr</code> solana",
                 parse_mode=ParseMode.HTML,
@@ -683,7 +680,7 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             risk_ind = _risk_indicator(r["risk_score"])
             return (
                 f"<b>{r['name']}</b> ({r['symbol']})\n"
-                f"  <code>{short_addr(r['address'])}</code>\n"
+                f"  <code>{r['address']}</code>\n"
                 f"  \U0001f4b0 Price: <b>{fmt_number(r['price'])}</b>\n"
                 f"  \U0001f4c8 MCap: {fmt_number(r['mcap'])} | \U0001f4a7 Liq: {fmt_number(r['liquidity'])}\n"
                 f"  \U0001f4ca Vol: {fmt_number(r['volume_24h'])} | 24h: {fmt_pct(r['price_change_24h'])}\n"
@@ -797,7 +794,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     target = ctx.args[0]
     chain = ctx.args[1] if len(ctx.args) > 1 else None
     msg = await update.message.reply_text(
-        f"\U0001f468\u200d\U0001f4bb <b>Checking deployer fingerprint...</b>\n<code>{short_addr(target)}</code>",
+        f"\U0001f468\u200d\U0001f4bb <b>Checking deployer fingerprint...</b>\n<code>{target}</code>",
         parse_mode=ParseMode.HTML,
     )
     try:
@@ -814,7 +811,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not dev:
             await msg.edit_text(
                 f"\u26aa <b>No Deployer Data</b>\n\n"
-                f"<code>{short_addr(target)}</code>\n"
+                f"<code>{target}</code>\n"
                 f"No deployer reputation data returned by the scanner.\n\n"
                 f"Safety: {data.get('safety_score', 'N/A')}/100 | "
                 f"Risk level: {data.get('risk_level', 'unknown')}",
@@ -841,7 +838,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         lines = [
             "\U0001f468\u200d\U0001f4bb <b>Deployer Fingerprint</b>",
             sep(),
-            f"<code>{short_addr(dev_addr)}</code>\n",
+            f"<code>{dev_addr}</code>\n",
             "\U0001f3af <b>Risk Profile</b>",
             thin_sep(),
         ]

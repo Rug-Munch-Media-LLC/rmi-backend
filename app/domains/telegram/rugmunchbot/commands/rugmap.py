@@ -266,7 +266,7 @@ async def cmd_rugmap(update, ctx) -> None:
                 risk_line = f"\n🛡️ Graph Risk: <b>{graph['risk_level'].upper()}</b> ({graph.get('risk_score', 0)})"
             caption = (
                 f"🕸️ <b>RugMap: {name} ({symbol})</b>\n"
-                f"<code>{address[:12]}...{address[-6:]}</code>{risk_line}\n\n"
+                f"<code>{address}</code>{risk_line}\n\n"
                 f"👥 Nodes: <b>{len(nodes)}</b> | 🔗 Links: <b>{len(links)}</b>"
                 f" | 💧 Liq: ${liquidity:,.0f}"
                 + ("\n🚨 <b>BUNDLE DETECTED</b>" if bundle_detected else "")
@@ -321,14 +321,14 @@ async def cmd_rugmap(update, ctx) -> None:
                 pct = h.get("pct", 0)
                 is_contract = h.get("is_contract", False)
                 tag = "📄" if is_contract else "👛"
-                lines.append(f"  {i}. {tag} <code>{addr[:8]}...{addr[-4:]}</code> - {pct:.2f}%")
+                lines.append(f"  {i}. {tag} <code>{addr}</code> - {pct:.2f}%")
 
         if smart_money:
             lines.extend(["", "💡 <b>Smart Money Cluster</b>"])
             for i, w in enumerate(smart_money[:3], 1):
                 addr = w.get("address", "")
                 pnl = w.get("pnl_usd", 0)
-                lines.append(f"  {i}. <code>{addr[:8]}...{addr[-4:]}</code> - ${pnl:,.0f}")
+                lines.append(f"  {i}. <code>{addr}</code> - ${pnl:,.0f}")
 
         # Build simple ASCII cluster map
         lines.extend(["", "<b>Connection Map</b>"])

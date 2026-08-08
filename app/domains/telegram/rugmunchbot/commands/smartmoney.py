@@ -80,7 +80,7 @@ async def cmd_smartmoney(update, ctx) -> None:
                 pnl = w.get("pnl_usd", 0)
                 entry = w.get("entry_price", 0)
                 pnl_emoji = "📈" if pnl >= 0 else "📉"
-                lines.append(f"  {i}. <code>{addr[:8]}...{addr[-4:]}</code> {pnl_emoji} ${pnl:,.0f}")
+                lines.append(f"  {i}. <code>{addr}</code> {pnl_emoji} ${pnl:,.0f}")
                 if entry:
                     lines.append(f"     Entry: ${entry:.8f}")
             lines.append("")
@@ -89,7 +89,7 @@ async def cmd_smartmoney(update, ctx) -> None:
             for i, h in enumerate(top_holders[:5], 1):
                 addr = h.get("address", "")
                 pct = h.get("pct", 0)
-                lines.append(f"  {i}. <code>{addr[:8]}...{addr[-4:]}</code> - {pct:.2f}%")
+                lines.append(f"  {i}. <code>{addr}</code> - {pct:.2f}%")
             lines.append("")
         else:
             lines.append("❌ No smart money data available for this token.")

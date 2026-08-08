@@ -26,7 +26,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     paywall_text,
     sep,
-    short_addr,
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, trace_kb
@@ -109,7 +108,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     chain = ctx.args[1].lower() if len(ctx.args) > 1 else detect_chain(address)
 
     msg = await update.message.reply_text(
-        f"🔍 <b>Starting fund trace...</b>\n<code>{short_addr(address)}</code>\n\n"
+        f"🔍 <b>Starting fund trace...</b>\n<code>{address}</code>\n\n"
         f"⏳ Tracing across chains and connected wallets...",
         parse_mode=ParseMode.HTML,
     )
@@ -226,7 +225,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     }.get(conn_type, "🔗")
                     chain_tag = f" ({chain_w})" if chain_w else ""
                     label_tag = f" — {label}" if label else ""
-                    lines.append(f"  {conn_emoji} <code>{short_addr(addr_w)}</code>{chain_tag}{label_tag}")
+                    lines.append(f"  {conn_emoji} <code>{addr_w}</code>{chain_tag}{label_tag}")
                 if len(connected) > 8:
                     lines.append(f"  ... and {len(connected) - 8} more")
                 lines.append("")
@@ -320,9 +319,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_trace_error", exc_info=True)
         logger.error(f"Trace error: {e}")
         await msg.edit_text(
-            f"❌ <b>Trace Failed</b>\n\n"
-            f"Could not trace funds for <code>{short_addr(address)}</code>.\n"
-            f"Error: {str(e)[:150]}",
+            f"❌ <b>Trace Failed</b>\n\nCould not trace funds for <code>{address}</code>.\nError: {str(e)[:150]}",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

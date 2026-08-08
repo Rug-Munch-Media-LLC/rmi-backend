@@ -29,7 +29,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     paywall_text,
     sep,
-    short_addr,
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, investigate_kb, paywall_kb
@@ -138,7 +137,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
     msg = await update.message.reply_text(
         f"🕵️ <b>Deep Investigation Started</b>\n"
-        f"<code>{short_addr(address)}</code>\n\n"
+        f"<code>{address}</code>\n\n"
         f"⏳ Phase 1: Running security scan...\n"
         f"⏳ Phase 2: Analyzing wallet forensics...\n"
         f"⏳ Phase 3: Tracing fund flows...\n"
@@ -321,7 +320,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 pct = h.get("pct", 0)
                 filled = min(int((pct / 25) * bar_len), bar_len)
                 bar = "🟥" * filled + "⬜" * (bar_len - filled)
-                lines.append(f"  {i}. <code>{short_addr(h['address'])}</code> {bar} {pct:.1f}%{tag}{cf}")
+                lines.append(f"  {i}. <code>{h['address']}</code> {bar} {pct:.1f}%{tag}{cf}")
             lines.append("")
 
         # Wallet Forensics
@@ -356,7 +355,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 [
                     "👨‍💻 <b>Dev Wallet Intel</b>",
                     d,
-                    f"  👛 <code>{short_addr(dev_wallet)}</code>",
+                    f"  👛 <code>{dev_wallet}</code>",
                     f"  💰 Balance: <b>{fmt_number(dev_data.get('balance_usd', 0))}</b>",
                     f"  📝 Txns: <b>{dev_data.get('tx_count', 0):,}</b>",
                     f"  ⏳ Age: <b>{dev_data.get('wallet_age_days', 0)} days</b>",
@@ -456,7 +455,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         logger.error(f"Investigation error: {e}")
         await msg.edit_text(
             f"❌ <b>Investigation Failed</b>\n\n"
-            f"Could not complete investigation for <code>{short_addr(address)}</code>.\n"
+            f"Could not complete investigation for <code>{address}</code>.\n"
             f"Error: {str(e)[:200]}",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),

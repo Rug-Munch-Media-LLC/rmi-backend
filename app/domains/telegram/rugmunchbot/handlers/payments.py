@@ -19,7 +19,6 @@ from app.domains.telegram.rugmunchbot.config import (
     TIERS,
     TOP_UP_PACKS,
 )
-from app.domains.telegram.rugmunchbot.formatters import short_addr
 from app.domains.telegram.rugmunchbot.keyboards import scan_result_kb
 from app.domains.telegram.rugmunchbot.scanner import scan_token
 from app.domains.telegram.rugmunchbot.states import _pending_deep_scans
@@ -128,7 +127,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
         if pending and pending["user_id"] == user.id:
             msg = await update.message.reply_text(
                 f"\U0001f52c <b>Deep Scan Started</b>\n\n"
-                f"Running enhanced analysis on <code>{short_addr(pending['address'])}</code>...",
+                f"Running enhanced analysis on <code>{pending['address']}</code>...",
                 parse_mode="HTML",
             )
             try:
