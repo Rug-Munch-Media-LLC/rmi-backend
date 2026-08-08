@@ -20,38 +20,40 @@ from app.domains.telegram.rugmunchbot.config import (
     TWITTER_URL,
     WEBSITE_URL,
 )
-from app.domains.telegram.rugmunchbot.formatters import dex_buttons, web_scan_button
+from app.domains.telegram.rugmunchbot.formatters import dex_buttons, is_owner, web_scan_button
 
 
-def main_menu_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+def main_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
+    rows = [
         [
-            [
-                InlineKeyboardButton("\U0001f50d Scan Token", callback_data="menu_scan"),
-                InlineKeyboardButton("\U0001f9db Wallet Check", callback_data="menu_wallet"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f4ca Technical Analysis", callback_data="menu_ta"),
-                InlineKeyboardButton("\U0001f525 Trending", callback_data="menu_trending"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f440 Watchlist", callback_data="menu_watchlist"),
-                InlineKeyboardButton("\U0001f514 Alerts", callback_data="menu_alerts"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f4cb My Account", callback_data="menu_account"),
-                InlineKeyboardButton("\u2b50 Upgrade", callback_data="menu_pricing"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f4da Scam School", callback_data="menu_scamschool"),
-                InlineKeyboardButton("\U0001f91d Refer & Earn", callback_data="menu_refer"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-                InlineKeyboardButton("\U0001f4e2 Alerts Channel", url=TELEGRAM_CHANNEL),
-            ],
-        ]
-    )
+            InlineKeyboardButton("\U0001f50d Scan Token", callback_data="menu_scan"),
+            InlineKeyboardButton("\U0001f9db Wallet Check", callback_data="menu_wallet"),
+        ],
+        [
+            InlineKeyboardButton("\U0001f4ca Technical Analysis", callback_data="menu_ta"),
+            InlineKeyboardButton("\U0001f525 Trending", callback_data="menu_trending"),
+        ],
+        [
+            InlineKeyboardButton("\U0001f440 Watchlist", callback_data="menu_watchlist"),
+            InlineKeyboardButton("\U0001f514 Alerts", callback_data="menu_alerts"),
+        ],
+        [
+            InlineKeyboardButton("\U0001f4cb My Account", callback_data="menu_account"),
+            InlineKeyboardButton("\u2b50 Upgrade", callback_data="menu_pricing"),
+        ],
+        [
+            InlineKeyboardButton("\U0001f4da Scam School", callback_data="menu_scamschool"),
+            InlineKeyboardButton("\U0001f91d Refer & Earn", callback_data="menu_refer"),
+        ],
+        [
+            InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
+            InlineKeyboardButton("\U0001f4e2 Alerts Channel", url=TELEGRAM_CHANNEL),
+        ],
+    ]
+    # Owner-only admin button — hidden from everyone else.
+    if user_id is not None and is_owner(user_id):
+        rows.append([InlineKeyboardButton("\U0001f6e1\ufe0f Admin", callback_data="menu_cat_admin")])
+    return InlineKeyboardMarkup(rows)
 
 
 # ══════════════════════════════════════════════
@@ -61,25 +63,30 @@ def main_menu_kb() -> InlineKeyboardMarkup:
 # ══════════════════════════════════════════════
 
 
-def welcome_menu_kb() -> InlineKeyboardMarkup:
+def welcome_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
     """Main welcome menu — six capability categories (v6).
 
-    🔍 Scan · 📊 Charts · 💬 Chat · 📋 Portfolio · 🛡️ Security · ℹ️ Help
+    Scan · Charts · Chat · Portfolio · Security · Help
+
+    Owner (@cryptorugmunch) additionally sees an Admin button that
+    opens the admin sub-menu — hidden from all other users.
     """
-    return InlineKeyboardMarkup(
+    rows = [
+        [InlineKeyboardButton("\U0001f50d Scan", callback_data="menu_cat_scan")],
+        [InlineKeyboardButton("\U0001f4c8 Charts", callback_data="menu_cat_charts")],
+        [InlineKeyboardButton("\U0001f4ac Chat", callback_data="menu_cat_ai")],
+        [InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="menu_cat_portfolio")],
+        [InlineKeyboardButton("\U0001f6e1\ufe0f Security", callback_data="menu_cat_security")],
+        [InlineKeyboardButton("\u2139\ufe0f Help", callback_data="menu_cat_help")],
         [
-            [InlineKeyboardButton("\U0001f50d Scan", callback_data="menu_cat_scan")],
-            [InlineKeyboardButton("\U0001f4c8 Charts", callback_data="menu_cat_charts")],
-            [InlineKeyboardButton("\U0001f4ac Chat", callback_data="menu_cat_ai")],
-            [InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="menu_cat_portfolio")],
-            [InlineKeyboardButton("\U0001f6e1\ufe0f Security", callback_data="menu_cat_security")],
-            [InlineKeyboardButton("\u2139\ufe0f Help", callback_data="menu_cat_help")],
-            [
-                InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-                InlineKeyboardButton("\U0001f4e2 Alerts", url=TELEGRAM_CHANNEL),
-            ],
-        ]
-    )
+            InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
+            InlineKeyboardButton("\U0001f4e2 Alerts", url=TELEGRAM_CHANNEL),
+        ],
+    ]
+    # Owner-only admin button — hidden from everyone else.
+    if user_id is not None and is_owner(user_id):
+        rows.append([InlineKeyboardButton("\U0001f6e1\ufe0f Admin", callback_data="menu_cat_admin")])
+    return InlineKeyboardMarkup(rows)
 
 
 def _menu_row(label: str, cb: str) -> list[InlineKeyboardButton]:

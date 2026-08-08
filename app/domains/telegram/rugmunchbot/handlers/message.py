@@ -106,7 +106,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
             "The chat feature is under maintenance. Commands like /scan, /wallet "
             "and /price still work \u2014 just send a contract address!",
             parse_mode=ParseMode.HTML,
-            reply_markup=main_menu_kb(),
+            reply_markup=main_menu_kb(user.id),
         )
         return
 
@@ -328,7 +328,7 @@ async def ai_chat_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         "\U0001f4da <code>/scamschool</code> \u2014 learn scam patterns"
         f"{footer_links()}",
         parse_mode=ParseMode.HTML,
-        reply_markup=main_menu_kb(),
+        reply_markup=main_menu_kb(user.id),
         disable_web_page_preview=True,
     )
     return True

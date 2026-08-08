@@ -97,12 +97,22 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             conn.close()
 
     text = welcome_card_text()
-    kb = welcome_menu_kb()
+    # Owner-only admin section — visible only to @cryptorugmunch.
+    if is_owner(user.id):
+        text += (
+            "\n\n\U0001f6e1\ufe0f <b>ADMIN</b>\n"
+            "\u2514 /admin \u2014 Dashboard & stats\n"
+            "\u2514 /admin_broadcast \u2014 Send to all users\n"
+            "\u2514 /admin_user \u2014 Look up a user\n"
+            "\u2514 /admin_toggle \u2014 Bot ON/OFF\n"
+        )
+    kb = welcome_menu_kb(user.id)
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
 
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Full command reference (v6) — explains EVERYTHING the bot can do."""
+    user = update.effective_user
     d = thin_sep()
     s = sep()
     text = (
@@ -168,7 +178,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\u2022 Upgrade for wallet forensics, fund tracing & more"
         f"{footer_links()}"
     )
-    kb = welcome_menu_kb()
+    kb = welcome_menu_kb(user.id if user else None)
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
 
 
