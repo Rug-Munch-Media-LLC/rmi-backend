@@ -98,6 +98,14 @@ def build_provider_chains() -> dict[str, ProviderChain]:
         _free_security_rugcheck,  # noqa: F401 — consumed by category builders via locals()
         _free_wallet_pattern_heuristics,  # noqa: F401 — consumed by category builders via locals()
     )
+    from ..chains.gmgn import (
+        _gmgn_bonded_pairs,  # noqa: F401 — consumed by category builders via locals()
+        _gmgn_new_pairs,  # noqa: F401 — consumed by category builders via locals()
+        _gmgn_token_holders,  # noqa: F401 — consumed by category builders via locals()
+        _gmgn_token_info,  # noqa: F401 — consumed by category builders via locals()
+        _gmgn_token_trades,  # noqa: F401 — consumed by category builders via locals()
+        _gmgn_wallet_tx_history,  # noqa: F401 — consumed by category builders via locals()
+    )
     from ..chains.freemium_apis import (
         _birdeye_overview,  # noqa: F401 — consumed by category builders via locals()
         _birdeye_price,  # noqa: F401 — consumed by category builders via locals()

@@ -127,6 +127,13 @@ def __getattr__(name: str) -> Any:
         "_free_market_geckoterminal": "chains.free_security",
         "_free_market_paraswap_quote": "chains.free_security",
         "_free_market_oneinch_quote": "chains.free_security",
+        # GMGN public API (Tier 3 fallback — free, no key)
+        "_gmgn_token_info": "chains.gmgn",
+        "_gmgn_wallet_tx_history": "chains.gmgn",
+        "_gmgn_token_holders": "chains.gmgn",
+        "_gmgn_new_pairs": "chains.gmgn",
+        "_gmgn_bonded_pairs": "chains.gmgn",
+        "_gmgn_token_trades": "chains.gmgn",
         # Chain Indexer own-data providers (Phase 4 — LOCAL tier)
         "_chain_indexer_deployer_reputation": "chains.chain_indexer_own",
         "_chain_indexer_whale_detect": "chains.chain_indexer_own",
@@ -234,6 +241,13 @@ __all__ = [
     "_free_security_honeypot_is",
     "_free_security_rugcheck",
     "_free_wallet_pattern_heuristics",
+    # GMGN public API providers (Tier 3 fallback)
+    "_gmgn_bonded_pairs",
+    "_gmgn_new_pairs",
+    "_gmgn_token_holders",
+    "_gmgn_token_info",
+    "_gmgn_token_trades",
+    "_gmgn_wallet_tx_history",
     # Provider functions (lazy-loaded)
     "_local_token_price",
     "_local_wallet_labels",

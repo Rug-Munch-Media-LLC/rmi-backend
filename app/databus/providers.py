@@ -73,6 +73,13 @@ _IMPL_NAMES = frozenset(
         "_santiment_dev_activity",
         "_virustotal_url_scan",
         "_dune_early_buyers",
+        # GMGN public API (Tier 3 fallback — free, no key)
+        "_gmgn_token_info",
+        "_gmgn_wallet_tx_history",
+        "_gmgn_token_holders",
+        "_gmgn_new_pairs",
+        "_gmgn_bonded_pairs",
+        "_gmgn_token_trades",
     }
 )
 

@@ -128,6 +128,11 @@ from app.routers.v1.scanner import (  # noqa: E402 — module docstring precedes
 
 v1_router.include_router(scanner_recent_v1_router)
 
+# New token launch feed — GET /api/v1/launches/recent (own ClickHouse → DexScreener → GMGN)
+from app.routers.v1.launches import router as launches_v1_router  # noqa: E402 — module docstring precedes import block
+
+v1_router.include_router(launches_v1_router)
+
 log.info("v1_router_initialized domains=%d", len(v1_router.routes))
 
 # Export as `router` for mount.py auto-discovery

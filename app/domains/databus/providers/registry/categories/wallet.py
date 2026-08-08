@@ -169,7 +169,7 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
 
     chains["wallet_transactions"] = ProviderChain(
         data_type="wallet_transactions",
-        description="Wallet transaction history (Etherscan free → Moralis freemium)",
+        description="Wallet transaction history (Etherscan free → Moralis freemium → GMGN activity)",
         providers=[
             Provider(
                 "etherscan_wallet",
@@ -186,6 +186,14 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 rate_limit_rps=3.0,
                 requires_key=True,
                 key_env="MORALIS_API_KEY",
+            ),
+            Provider(
+                "gmgn_wallet_activity",
+                ProviderTier.FREE_API,
+                _g["_gmgn_wallet_tx_history"],
+                weight=3.0,
+                rate_limit_rps=1.0,
+                description="GMGN smart-money wallet stats — PnL, winrate, buy activity (free, no key; solana-focused)",
             ),
         ],
     )
