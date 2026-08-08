@@ -126,6 +126,20 @@ class WebhookEngine:
                             chain=raw_event.get("chain", "unknown"),
                         )
 
+                        # First-class whale indexing — every polled whale
+                        # move is upserted into the whale_transfers Qdrant
+                        # collection (powers /whales + bot chat history),
+                        # independent of whether any subscription matches.
+                        # Runs alongside the telegram_bridge routing below;
+                        # fail-open: Qdrant down never breaks the poll loop.
+                        if provider.event_type is WebhookEventType.TOKEN_WHALE_MOVE:
+                            try:
+                                from app.domains.scanner.whale_indexer import index_whale_event
+
+                                await index_whale_event(raw_event)
+                            except Exception as exc:
+                                log.warning("whale_index_failed error=%s", exc)
+
                         # Dispatch to matching subscriptions
                         for sub in sub_map.get(raw_event.get("token_address", "").lower(), []):
                             if self._matches_filters(raw_event, sub):
