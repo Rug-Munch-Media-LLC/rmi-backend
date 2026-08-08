@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.domains.scanner.engines.own_dex_data.client import (
@@ -160,8 +160,10 @@ async def _query_dex_swaps(
         where_clause = " AND ".join(where_conditions)
 
         try:
-            return client.execute(
-                f"""
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    f"""
                 SELECT
                     contract_address, dex, version,
                     token0, token1,
@@ -174,7 +176,8 @@ async def _query_dex_swaps(
                 ORDER BY block_timestamp DESC
                 LIMIT 500
                 """,  # noqa: S608 - verified bound/allowlisted SQL construction
-                params,
+                    params,
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("dex_events query failed for %s: %s", token_address, exc)
@@ -236,8 +239,10 @@ async def _query_pool_stats(
         }
 
         try:
-            return client.execute(
-                """
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    """
                 SELECT
                     contract_address,
                     count() AS total_swaps,
@@ -251,7 +256,8 @@ async def _query_pool_stats(
                   AND block_timestamp >= now() - INTERVAL %(hours)s HOUR
                 GROUP BY contract_address, dex, version, token0, token1
                 """,
-                params,
+                    params,
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("pool_stats query failed: %s", exc)
@@ -300,7 +306,7 @@ async def _fallback_to_dexscreener(token_address: str) -> dict[str, Any] | None:
                         "unique_pools": len(data["pairs"]),
                     }
                     logger.info("DexScreener fallback used for %s", token_address)
-                    return data
+                    return cast("dict[str, Any]", data)
     except (ValueError, ConnectionError, TimeoutError, RuntimeError, ImportError) as exc:
         logger.debug("DexScreener fallback failed for %s: %s", token_address, exc)
 
@@ -324,8 +330,10 @@ async def check_data_freshness(chain: str = "ethereum") -> dict[str, Any]:
         if client is None:
             return []
         try:
-            return client.execute(
-                """
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    """
                 SELECT
                     max(block_timestamp) AS latest_ts,
                     count() AS event_count,
@@ -334,7 +342,8 @@ async def check_data_freshness(chain: str = "ethereum") -> dict[str, Any]:
                 WHERE chain = %(chain)s
                   AND block_timestamp >= now() - INTERVAL 24 HOUR
                 """,
-                {"chain": chain},
+                    {"chain": chain},
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("freshness check failed: %s", exc)

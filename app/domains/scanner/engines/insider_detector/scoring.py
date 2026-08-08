@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.domains.scanner.engines import gmgn_client as gmgn
@@ -199,5 +199,5 @@ async def find_pre_pump_wallets(token_address: str, chain: str = "sol") -> list[
                     "evidence": ev.evidence,
                 }
             )
-    results.sort(key=lambda x: x["lead_time_minutes"], reverse=True)
+    results.sort(key=lambda x: cast("float", x["lead_time_minutes"]), reverse=True)
     return results

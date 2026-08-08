@@ -347,7 +347,7 @@ class IntelligenceAggregationLayer:
             for src_label in label.source_labels.values():
                 label_counts[src_label] += 1
 
-            label.primary_label = max(label_counts, key=label_counts.get)
+            label.primary_label = max(label_counts, key=lambda k: label_counts[k])
 
             # Confidence by source count
             source_count = len(label.sources)

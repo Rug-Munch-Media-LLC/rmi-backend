@@ -315,40 +315,40 @@ def is_known_protocol(address: str, chain: str = "ethereum") -> bool:
 
 def is_cex_wallet(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known CEX wallet."""
-    return label_wallet(address, chain)["type"].startswith("cex_")
+    return bool(label_wallet(address, chain)["type"].startswith("cex_"))
 
 
 def is_dex_contract(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known DEX router/factory/pool."""
     t = label_wallet(address, chain)["type"]
-    return t.startswith("dex_") or t in ("token_launchpad",)
+    return bool(t.startswith("dex_") or t in ("token_launchpad",))
 
 
 def is_bridge(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known bridge contract."""
-    return label_wallet(address, chain)["type"] == "bridge"
+    return bool(label_wallet(address, chain)["type"] == "bridge")
 
 
 def is_lending_protocol(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known lending protocol."""
-    return label_wallet(address, chain)["type"] in ("lending", "liquid_staking")
+    return bool(label_wallet(address, chain)["type"] in ("lending", "liquid_staking"))
 
 
 def is_mixer(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known mixer (Tornado Cash, etc)."""
-    return label_wallet(address, chain)["type"] == "mixer"
+    return bool(label_wallet(address, chain)["type"] == "mixer")
 
 
 def is_market_maker(address: str, chain: str = "ethereum") -> bool:
     """True if this is a known market maker."""
-    return label_wallet(address, chain)["type"] == "market_maker"
+    return bool(label_wallet(address, chain)["type"] == "market_maker")
 
 
 def get_exchange_name(address: str, chain: str = "ethereum") -> str | None:
     """Get CEX name if this is an exchange wallet."""
     result = label_wallet(address, chain)
     if result["type"].startswith("cex_"):
-        return result.get("entity") or result["name"]
+        return str(result.get("entity") or result["name"])
     return None
 
 
