@@ -220,7 +220,7 @@ async def wash_trading_endpoint(req: SentinelModuleRequest) -> dict[str, Any]:
 
 
 @sub_router.post("/social_engineering")
-async def social_engineering_endpoint(req: SentinelModuleRequest) -> dict[str, Any]:  # type: ignore[type-arg]
+async def social_engineering_endpoint(req: SentinelModuleRequest) -> dict[str, Any]:
     """SENTINEL Social Engineering & Identity Fraud Detection.
 
     Detects fake teams, AI-generated profiles, phishing domains,

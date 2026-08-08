@@ -742,10 +742,10 @@ async def shutdown_embedder() -> None:
     inner = _embedder
     # Unwrap CachedEmbedder to reach the FallbackEmbedder / raw embedder
     if isinstance(inner, CachedEmbedder):
-        inner = inner._inner  # type: ignore[attr-defined]
+        inner = inner._inner
 
     if isinstance(inner, FallbackEmbedder):
-        for sub in [inner._primary, inner._secondary]:  # type: ignore[attr-defined]
+        for sub in [inner._primary, inner._secondary]:
             if hasattr(sub, "close"):
                 await sub.close()
     elif hasattr(inner, "close"):

@@ -82,7 +82,7 @@ def resolve_data_access_mode() -> DataAccessMode:
     """Resolve the effective data-access mode (auto → best available)."""
     mode = DATA_ACCESS_MODE
     if mode != "auto":
-        return mode  # type: ignore[return-value]
+        return mode
     # auto: ClickHouse (fastest, already indexed) → B2 parquet → RPC
     if _clickhouse_configured():
         return "clickhouse"

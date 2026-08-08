@@ -383,7 +383,7 @@ async def providers_status() -> dict[str, Any]:
     # Check cache
     global _cache
     if _cache["data"] is not None and (now - _cache["timestamp"]) < _CACHE_TTL:
-        return _cache["data"]  # type: ignore[return-value]
+        return _cache["data"]
 
     # Probe all providers
     provider_results: list[dict[str, Any]] = []

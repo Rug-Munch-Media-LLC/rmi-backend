@@ -41,7 +41,7 @@ logger = get_logger("x402.market_tools")
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _detect_launches(chain: str, window_min: int) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _detect_launches(chain: str, window_min: int) -> dict[str, Any]:
     """Detect new token launches with risk scoring."""
     result = {"chain": chain, "window_minutes": window_min, "sources_used": []}
 
@@ -82,7 +82,7 @@ async def _detect_launches(chain: str, window_min: int) -> dict[str, Any]:  # ty
                 result["launches"] = launches
                 result["sources_used"].append("pumpfun")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
         # Layer 2: Raydium new pools
@@ -92,7 +92,7 @@ async def _detect_launches(chain: str, window_min: int) -> dict[str, Any]:  # ty
                 result["raydium_pools"] = len(data["data"])
                 result["sources_used"].append("raydium")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
     # Layer 3: DexScreener - new pairs
@@ -102,7 +102,7 @@ async def _detect_launches(chain: str, window_min: int) -> dict[str, Any]:  # ty
             result["dexscreener_pairs"] = len(data["pairs"])
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     return result
@@ -122,7 +122,7 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[s
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -132,7 +132,7 @@ async def launch_radar(chain: str = "solana", window_minutes: int = 5) -> dict[s
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _launch_intel(chain: str, hours: int) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _launch_intel(chain: str, hours: int) -> dict[str, Any]:
     """Token launch intelligence."""
     result = {"chain": chain, "hours": hours, "sources_used": []}
     launches = []
@@ -156,7 +156,7 @@ async def _launch_intel(chain: str, hours: int) -> dict[str, Any]:  # type: igno
                     )
                 result["sources_used"].append("pumpfun")
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
     # DexScreener trending
@@ -175,7 +175,7 @@ async def _launch_intel(chain: str, hours: int) -> dict[str, Any]:  # type: igno
                 )
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     result["new_launches"] = launches
@@ -197,7 +197,7 @@ async def launch_intel(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -207,7 +207,7 @@ async def launch_intel(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _anomaly_detector(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _anomaly_detector(chain: str) -> dict[str, Any]:
     """Market anomaly detection."""
     result = {"chain": chain, "anomalies": [], "sources_used": []}
 
@@ -220,7 +220,7 @@ async def _anomaly_detector(chain: str) -> dict[str, Any]:  # type: ignore[type-
             result["market_cap_change_24h"] = global_data.get("market_cap_change_percentage_24h_usd", 0)
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     # DexScreener for volume spikes
@@ -244,7 +244,7 @@ async def _anomaly_detector(chain: str) -> dict[str, Any]:  # type: ignore[type-
                     )
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     result["anomaly_count"] = len(result["anomalies"])  # type: ignore[assignment]
@@ -270,7 +270,7 @@ async def anomaly_detector(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -280,7 +280,7 @@ async def anomaly_detector(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _market_overview(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _market_overview(chain: str) -> dict[str, Any]:
     """Comprehensive market overview."""
     result = {"chain": chain, "sources_used": []}
 
@@ -296,7 +296,7 @@ async def _market_overview(chain: str) -> dict[str, Any]:  # type: ignore[type-a
             result["active_cryptocurrencies"] = gd.get("active_cryptocurrencies", 0)
             result["sources_used"].append("coingecko")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     # CoinGecko top coins
@@ -316,7 +316,7 @@ async def _market_overview(chain: str) -> dict[str, Any]:  # type: ignore[type-a
             ]
             result["sources_used"].append("coingecko_markets")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     # DeFiLlama TVL
@@ -326,7 +326,7 @@ async def _market_overview(chain: str) -> dict[str, Any]:  # type: ignore[type-a
             result["chain_tvls"] = {c.get("name"): c.get("tvl") for c in data[:10]}  # type: ignore[assignment, index]
             result["sources_used"].append("defillama")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     return result
@@ -346,7 +346,7 @@ async def market_overview(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -356,7 +356,7 @@ async def market_overview(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _chain_health(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _chain_health(chain: str) -> dict[str, Any]:
     """Chain health metrics."""
     result = {"chain": chain, "chains": {}, "sources_used": []}
 
@@ -378,7 +378,7 @@ async def _chain_health(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
                         }
             result["sources_used"].append("defillama")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     # RPC health check
@@ -403,7 +403,7 @@ async def _chain_health(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
                     if resp.status == 200:
                         healthy += 1
             except (ValueError, KeyError, ConnectionError, RuntimeError):
-                logger.exception("market_tools error")  # type: ignore[name-defined]
+                logger.exception("market_tools error")
                 raise
         result["chains"].setdefault(c, {})["rpc_healthy"] = healthy  # type: ignore[attr-defined]
 
@@ -424,7 +424,7 @@ async def chain_health(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -434,7 +434,7 @@ async def chain_health(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _defi_yield_scanner(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _defi_yield_scanner(chain: str) -> dict[str, Any]:
     """DeFi yield scanner."""
     result = {"chain": chain, "sources_used": [], "pools": []}
 
@@ -457,7 +457,7 @@ async def _defi_yield_scanner(chain: str) -> dict[str, Any]:  # type: ignore[typ
                 )
             result["sources_used"].append("defillama")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     result["total_pools"] = len(result["pools"])  # type: ignore[assignment]
@@ -480,7 +480,7 @@ async def defi_yield_scanner(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -490,7 +490,7 @@ async def defi_yield_scanner(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _gas_forecast(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _gas_forecast(chain: str) -> dict[str, Any]:
     """Gas price forecast."""
     result = {"chain": chain, "sources_used": []}
 
@@ -505,7 +505,7 @@ async def _gas_forecast(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
                 result["current_gas_usd_estimate"] = gas_gwei * 0.001  # type: ignore[assignment]  # Rough estimate
                 result["sources_used"].append(f"{chain}_rpc")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
     # Solana compute units
@@ -514,7 +514,7 @@ async def _gas_forecast(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
             result["sol_compute_unit_price"] = "dynamic (based on priority fees)"
             result["sources_used"].append("solana_docs")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
     # Blocknative gas station (free tier)
@@ -524,7 +524,7 @@ async def _gas_forecast(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
             result["blocknative"] = data["estimatedPrices"]
             result["sources_used"].append("blocknative")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     return result
@@ -544,7 +544,7 @@ async def gas_forecast(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -554,7 +554,7 @@ async def gas_forecast(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _sniper_alert(chain: str, hours: int) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _sniper_alert(chain: str, hours: int) -> dict[str, Any]:
     """Sniper bot detection and alerts."""
     result = {"chain": chain, "hours": hours, "sources_used": [], "sniper_activity": []}
 
@@ -576,7 +576,7 @@ async def _sniper_alert(chain: str, hours: int) -> dict[str, Any]:  # type: igno
                     )
                 result["sources_used"].append("pumpfun")
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
     # DexScreener for abnormal early trading
@@ -598,7 +598,7 @@ async def _sniper_alert(chain: str, hours: int) -> dict[str, Any]:  # type: igno
                     )
             result["sources_used"].append("dexscreener")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     result["total_alerts"] = len(result["sniper_activity"])  # type: ignore[arg-type]
@@ -619,7 +619,7 @@ async def sniper_alert(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -629,7 +629,7 @@ async def sniper_alert(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _airdrop_finder(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _airdrop_finder(chain: str) -> dict[str, Any]:
     """Airdrop opportunity finder."""
     result = {"chain": chain, "sources_used": [], "opportunities": []}
 
@@ -651,7 +651,7 @@ async def _airdrop_finder(chain: str) -> dict[str, Any]:  # type: ignore[type-ar
                 )
             result["sources_used"].append("defillama")  # type: ignore[attr-defined]
     except (ValueError, KeyError, ConnectionError, RuntimeError):
-        logger.exception("market_tools error")  # type: ignore[name-defined]
+        logger.exception("market_tools error")
         raise
 
     result["total_opportunities"] = len(result["opportunities"])  # type: ignore[assignment]
@@ -672,7 +672,7 @@ async def airdrop_finder(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -682,7 +682,7 @@ async def airdrop_finder(req: GenericRequest) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _mev_protection(chain: str) -> dict[str, Any]:  # type: ignore[type-arg]
+async def _mev_protection(chain: str) -> dict[str, Any]:
     """MEV protection analysis."""
     result = {"chain": chain, "sources_used": [], "mev_stats": {}}
 
@@ -694,7 +694,7 @@ async def _mev_protection(chain: str) -> dict[str, Any]:  # type: ignore[type-ar
                 result["mev_stats"]["jito"] = True  # type: ignore[index]
                 result["sources_used"].append("jito")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
         # Check for MEV bots in recent blocks
@@ -705,7 +705,7 @@ async def _mev_protection(chain: str) -> dict[str, Any]:  # type: ignore[type-ar
                 result["mev_stats"]["slot"] = slot  # type: ignore[index]
                 result["sources_used"].append("solana_rpc")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
     elif chain in ["base", "ethereum", "bsc"]:
@@ -716,7 +716,7 @@ async def _mev_protection(chain: str) -> dict[str, Any]:  # type: ignore[type-ar
                 result["mev_stats"]["flashbots"] = True  # type: ignore[index]
                 result["sources_used"].append("flashbots")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
         # Gas price for MEV detection
@@ -726,7 +726,7 @@ async def _mev_protection(chain: str) -> dict[str, Any]:  # type: ignore[type-ar
                 result["gas_price_gwei"] = int(gas, 16) / 1e9  # type: ignore[assignment]
                 result["sources_used"].append(f"{chain}_rpc")  # type: ignore[attr-defined]
         except (ValueError, KeyError, ConnectionError, RuntimeError):
-            logger.exception("market_tools error")  # type: ignore[name-defined]
+            logger.exception("market_tools error")
             raise
 
     result["mev_risk"] = "high" if chain == "ethereum" else "medium" if chain in ["base", "bsc"] else "low"
@@ -754,6 +754,6 @@ async def mev_protection(req: GenericRequest) -> dict[str, Any]:
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, KeyError, ConnectionError, RuntimeError) as e:
-        logger.exception(f"market_tools error: {e}")  # type: ignore[name-defined]
+        logger.exception(f"market_tools error: {e}")
         raise
         raise HTTPException(status_code=500, detail=str(e)) from e

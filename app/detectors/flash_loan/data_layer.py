@@ -207,7 +207,7 @@ class BlockchainDataLayer:
             Parsed response dict or None
         """
         try:
-            import httpx  # type: ignore[import-untyped]
+            import httpx
 
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.post(url, json=payload)

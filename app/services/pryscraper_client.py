@@ -147,7 +147,7 @@ class PryscraperClient:
         if not await _pry_cb.can_call():
             stale = _pry_cb.get_stale_result()
             if stale is not None:
-                return stale  # type: ignore[return-value]
+                return stale
             raise CircuitBreakerOpenError(
                 _pry_cb.name,
                 _pry_cb.state,
