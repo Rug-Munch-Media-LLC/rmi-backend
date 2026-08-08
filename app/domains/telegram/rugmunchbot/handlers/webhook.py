@@ -8,9 +8,12 @@ about token events, price movements, wallet activity, etc.
 
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import time
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 import httpx
 from telegram.constants import ParseMode
@@ -35,6 +38,79 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot.webhook")
 
 WEBHOOK_URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
+
+# SSRF guard: network ranges the bot must never POST to (internal services).
+_BLOCKED_IP_NETS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("::1"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+)
+
+
+def _is_blocked_address(addr: ipaddress._BaseAddress) -> bool:
+    """True when addr is internal/private/link-local/loopback/multicast/unspecified."""
+    if addr.is_multicast or addr.is_unspecified:
+        return True
+    return any(addr in net for net in _BLOCKED_IP_NETS)
+
+
+def _validate_webhook_url(url: str) -> tuple[bool, str]:
+    """Format-level validation: scheme, hostname, no embedded credentials.
+
+    Returns (ok, error_message).
+    """
+    if not WEBHOOK_URL_RE.match(url):
+        return False, "Invalid URL. Must be a valid http:// or https:// URL."
+
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return False, "Invalid URL. Could not parse it."
+
+    if parsed.scheme not in ("http", "https"):
+        return False, "Invalid URL. Only http:// and https:// are allowed."
+
+    if parsed.hostname is None:
+        return False, "Invalid URL. Missing hostname."
+
+    if parsed.username or parsed.password:
+        return False, "Invalid URL. URLs with embedded credentials (@user:pass) are not allowed."
+
+    return True, ""
+
+
+def _assert_safe_target(url: str) -> None:
+    """Resolve the hostname and reject internal/private targets.
+
+    Call immediately before making the request so DNS resolution happens
+    right before the POST (prevents DNS-rebinding TOCTOU). Raises ValueError
+    with a user-facing message when the target is unsafe.
+    """
+    ok, err = _validate_webhook_url(url)
+    if not ok:
+        raise ValueError(err)
+
+    hostname = urlsplit(url).hostname
+
+    try:
+        infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        raise ValueError(f"Could not resolve host: {hostname}")
+
+    for info in infos:
+        addr = ipaddress.ip_address(info[4][0])
+        if _is_blocked_address(addr):
+            raise ValueError(
+                f"URL host {hostname} resolves to {addr}, which is a blocked "
+                "internal/private address. Webhook targets must be public."
+            )
+
 
 # Webhook event types users can subscribe to
 WEBHOOK_EVENTS = {
@@ -201,10 +277,19 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     url = ctx.args[1]
     event_type = ctx.args[2].lower() if len(ctx.args) > 2 else None
 
-    # Validate URL
-    if not WEBHOOK_URL_RE.match(url):
+    # Validate URL (format + SSRF guard: must resolve to a public address)
+    ok, err = _validate_webhook_url(url)
+    if not ok:
         await update.message.reply_text(
-            "❌ Invalid URL. Must be a valid http:// or https:// URL.",
+            f"❌ {err}",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    try:
+        _assert_safe_target(url)
+    except ValueError as e:
+        await update.message.reply_text(
+            f"❌ {e}",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -386,7 +471,18 @@ async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id:
         parse_mode=ParseMode.HTML,
     )
 
+    # SSRF guard: resolve + validate immediately before the POST (DNS-rebinding safe).
     try:
+        _assert_safe_target(url)
+    except ValueError as e:
+        await msg.edit_text(
+            f"❌ <b>Test Blocked</b>\n\nURL: <code>{url[:80]}</code>\n\n{e}",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    try:
+        start = time.monotonic()
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 url,
@@ -401,23 +497,32 @@ async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id:
                 headers={"User-Agent": "RugMunchBot/1.0 Webhook Test"},
                 timeout=10,
             )
+        elapsed_ms = (time.monotonic() - start) * 1000
 
-            if resp.status_code < 500:
-                await msg.edit_text(
-                    f"✅ <b>Test Successful!</b>\n\n"
-                    f"URL: <code>{url[:80]}</code>\n"
-                    f"Status: <b>{resp.status_code}</b>\n"
-                    f"Response: {resp.text[:200]}",
-                    parse_mode=ParseMode.HTML,
-                )
-            else:
-                await msg.edit_text(
-                    f"⚠️ <b>Test Sent but Server Error</b>\n\n"
-                    f"URL: <code>{url[:80]}</code>\n"
-                    f"Status: <b>{resp.status_code}</b>\n"
-                    f"Your server returned an error. Check your webhook endpoint.",
-                    parse_mode=ParseMode.HTML,
-                )
+        # Never echo response body content — only safe metadata.
+        content_length = resp.headers.get("content-length")
+        size_text = f"Size: <b>{content_length}</b> bytes\n" if content_length else "Size: <b>unknown</b>\n"
+
+        if resp.status_code < 500:
+            await msg.edit_text(
+                f"✅ <b>Test Successful!</b>\n\n"
+                f"URL: <code>{url[:80]}</code>\n"
+                f"Status: <b>{resp.status_code}</b>\n"
+                f"Time: <b>{elapsed_ms:.0f}ms</b>\n"
+                f"{size_text}"
+                f"Response received — body content is not displayed.",
+                parse_mode=ParseMode.HTML,
+            )
+        else:
+            await msg.edit_text(
+                f"⚠️ <b>Test Sent but Server Error</b>\n\n"
+                f"URL: <code>{url[:80]}</code>\n"
+                f"Status: <b>{resp.status_code}</b>\n"
+                f"Time: <b>{elapsed_ms:.0f}ms</b>\n"
+                f"{size_text}"
+                f"Your server returned an error. Check your webhook endpoint.",
+                parse_mode=ParseMode.HTML,
+            )
 
         # Update last_ping
         conn = db.get_db()

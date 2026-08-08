@@ -36,7 +36,7 @@ GOPASS_PATHS = {
 }
 
 ENV_KEYS = {
-    "rugmunchbot": ["BOT_TOKEN"],
+    "rugmunchbot": ["RUGMUNCH_BOT_TOKEN"],
     "adminbot": ["ADMIN_BOT_TOKEN"],
     "rmiadminbot": ["ADMIN_BOT_TOKEN"],
 }
@@ -52,11 +52,7 @@ def _fetch_from_gopass(gopass_path: str) -> str:
     """Fetch token from gopass. Returns empty string on failure."""
     try:
         token = (
-            subprocess.check_output(
-                ["gopass", "show", gopass_path],
-                stderr=subprocess.DEVNULL,
-                timeout=10,
-            shell=False)
+            subprocess.check_output(["gopass", "show", gopass_path], stderr=subprocess.DEVNULL, timeout=10, shell=False)
             .decode()
             .strip()
         )
