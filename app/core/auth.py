@@ -8,11 +8,19 @@ Auth tiers
 ==========
 The middleware enforces a 3-tier authentication model:
 
-Tier 0 — Public (no auth)
+Tier 0 — Public (no auth required, but presented credentials ARE validated)
     Health, docs, product data reads, auth endpoints. Explicitly listed in
     PUBLIC_EXACT_PATHS / PUBLIC_PREFIXES and NOT overridden by
     PROTECTED_SUBPATHS. Examples: /health, /docs, /api/v1/market/overview,
     /api/v1/news/headlines.
+
+    Anonymous requests are allowed (the route is public). However, if a
+    request DOES present a credential (X-API-Key, X-RMI-Key, Bearer, or the
+    rmi_token cookie), that credential is validated instead of being skipped:
+      - valid shared secret / JWT  -> allowed, user info attached to
+                                      request.state (auth_method, user)
+      - invalid / revoked token    -> 401 (uniform rejection closes the
+                                      route-existence timing side channel)
 
 Tier 1 — Shared secret
     Any of:
@@ -207,8 +215,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
         public = is_public_path(path, method)
         protected_subpath = is_protected_subpath(path)
 
-        # Tier 0 — allow public paths without any auth (unless overridden).
+        # Tier 0 — public paths. Accept unauthenticated requests, but
+        # validate any presented credential instead of skipping the auth
+        # chain entirely. This closes the PUBLIC_PREFIXES bypass: invalid
+        # or revoked tokens are no longer silently accepted, valid tokens
+        # have their user info attached to request.state, and credentialed
+        # route probes now get a uniform 401 instead of pass-through.
         if public and not protected_subpath:
+            auth_error = await self._authenticate_optional(request)
+            if auth_error is not None:
+                return auth_error
             response = await call_next(request)
             self._apply_consumer_attribution(request, response, require_attribution=False)
             return response
@@ -276,6 +292,63 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return None
 
         log.warning("Auth denied: invalid credentials", path=request.url.path)
+        return ProblemDetail.create(
+            status=401,
+            detail="Unauthorized — invalid API key",
+            code="auth.invalid_key",
+        ).as_response()
+
+    async def _authenticate_optional(self, request: Request) -> Any:
+        """Validate a presented credential on a public route without requiring one.
+
+        Public routes accept anonymous requests (no credential -> None).
+        When a credential IS presented it must be valid:
+          - a valid shared secret is accepted (auth_method attached)
+          - a valid JWT is accepted (user claims attached to request.state.user)
+          - an invalid/revoked token is rejected with 401 — it must NOT
+            silently pass through (this was the PUBLIC_PREFIXES bypass:
+            the entire auth chain was skipped for public prefixes, so
+            garbage tokens got pass-through behavior and route existence
+            could be probed via the timing side channel).
+
+        Returns a ProblemDetail response on invalid presented credentials,
+        or None when the request is anonymous or successfully authenticated.
+        """
+        # No credential presented -> anonymous public request, allowed.
+        if not self._presented_credential(request):
+            return None
+
+        # Dev bypass — explicitly opt-in, never in prod. Mirrors _authenticate
+        # so local workflows with a stale Bearer token on public routes work.
+        if not RMI_AUTH_TOKEN and settings.dev_bypass_auth:
+            log.warning("DEV MODE: Public auth bypassed via DEV_BYPASS_AUTH", path=request.url.path)
+            return None
+
+        # Tier 1 — shared secrets (X-API-Key, X-RMI-Key, Bearer <secret>)
+        if self._has_valid_shared_secret(request):
+            request.state.auth_method = "shared_secret"
+            return None
+
+        # Tier 2 — per-user JWT (Authorization: Bearer or rmi_token cookie)
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            try:
+                from app.auth.jwt_validation import get_current_user
+
+                user = await get_current_user(request)
+            except Exception as exc:
+                log.warning("jwt_validation_error path=%s err=%s", request.url.path, exc)
+                user = None
+            if user is not None:
+                request.state.user = user
+                request.state.auth_method = "jwt"
+                return None
+
+        # A credential was presented but is invalid — reject.
+        log.warning(
+            "Auth denied: invalid credentials on public route",
+            path=request.url.path,
+        )
         return ProblemDetail.create(
             status=401,
             detail="Unauthorized — invalid API key",

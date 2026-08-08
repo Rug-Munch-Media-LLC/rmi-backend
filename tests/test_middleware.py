@@ -12,6 +12,8 @@ import pytest
 
 # Force env vars BEFORE any app imports
 os.environ["JWT_SECRET"] = "a" * 32
+os.environ["RMI_JWT_SECRET"] = "a" * 32
+os.environ["RMI_JWT_ALGORITHM"] = "HS256"
 os.environ["ENVIRONMENT"] = "dev"
 os.environ["RMI_AUTH_TOKEN"] = "test-auth-token-32-chars-long!!"
 os.environ["DEV_BYPASS_AUTH"] = "false"
@@ -84,6 +86,57 @@ class TestAuthMiddleware:
         resp = await client.post("/api/v1/auth/login", json={})
         # May be 422 (validation) or 404 — not 401
         assert resp.status_code != 401
+
+    async def test_public_path_no_token_allowed(self, client):
+        """Public route without any credential stays public (no regression)."""
+        for path in ("/api/v1/market/overview", "/api/v1/public/test"):
+            resp = await client.get(path)
+            # Anonymous public access must NOT be rejected by auth
+            assert resp.status_code != 401, f"{path} must stay public without creds"
+
+    async def test_public_path_valid_token_allowed(self, client):
+        """Public route with a valid shared secret is allowed (and passes through)."""
+        resp = await client.get(
+            "/api/v1/market/overview",
+            headers={"X-API-Key": "test-auth-token-32-chars-long!!"},
+        )
+        assert resp.status_code != 401, "valid shared secret must pass on public route"
+
+    async def test_public_path_invalid_token_rejected(self, client):
+        """SECURITY: public route with an invalid credential MUST 401.
+
+        Regression test for the PUBLIC_PREFIXES bypass: previously the
+        middleware skipped the entire auth chain for public prefixes, so a
+        presented-but-invalid/revoked token was silently accepted (and route
+        existence could be probed via the timing side channel). Now a
+        presented credential is validated: invalid -> uniform 401.
+        """
+        resp = await client.get(
+            "/api/v1/market/overview",
+            headers={"X-API-Key": "this-is-the-wrong-key-entirely"},
+        )
+        assert resp.status_code == 401, f"invalid key on public route must 401, got {resp.status_code}"
+
+    async def test_public_path_invalid_bearer_rejected(self, client):
+        """SECURITY: garbage Bearer token on a public route must 401."""
+        resp = await client.get(
+            "/api/v1/market/overview",
+            headers={"Authorization": "Bearer not-a-real-jwt-token"},
+        )
+        assert resp.status_code == 401, f"invalid Bearer on public route must 401, got {resp.status_code}"
+
+    async def test_public_path_valid_bearer_allowed(self, client):
+        """A valid Bearer JWT on a public route passes and attaches user info."""
+        # Generate a real token signed with the test JWT secret
+        from app.auth.jwt_validation import create_token
+
+        token = create_token("user-123", "test@example.com")
+        resp = await client.get(
+            "/api/v1/market/overview",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        # The route itself may 404/422, but auth must not reject a valid JWT
+        assert resp.status_code != 401, f"valid JWT on public route must not 401, got {resp.status_code}"
 
 
 # ═══════════════════════════════════════════════════════════════════════
