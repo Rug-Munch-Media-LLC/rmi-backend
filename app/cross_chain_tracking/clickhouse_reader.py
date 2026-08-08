@@ -89,9 +89,11 @@ async def fetch_multi_chain_deployers(
         return []
 
     where_clause = "1=1"
+    params: dict[str, Any] = {}
     if chain_filter:
-        escaped = [f"'{c}'" for c in chain_filter]
-        where_clause = f"chain IN ({','.join(escaped)})"
+        # Bind the chain list as a parameter — never interpolate user input
+        where_clause = "chain IN %(chains)s"
+        params["chains"] = tuple(chain_filter)
 
     query = f"""
     SELECT
@@ -108,7 +110,7 @@ async def fetch_multi_chain_deployers(
        AND total_deployments >= %(min_total)s
     ORDER BY total_deployments DESC, chain_count DESC
     LIMIT %(limit)s
-    """
+    """  # noqa: S608 - verified bound/allowlisted SQL construction
 
     try:
         import asyncio
@@ -120,6 +122,7 @@ async def fetch_multi_chain_deployers(
                     "min_chains": min_chains,
                     "min_total": min_total_deployments,
                     "limit": limit,
+                    **params,
                 },
             )
             results = []
@@ -168,8 +171,9 @@ async def fetch_deployments_for_deployer(
     params: dict[str, Any] = {"deployer": deployer.lower(), "limit": limit}
 
     if chain_filter:
-        escaped = [f"'{c}'" for c in chain_filter]
-        where += f" AND chain IN ({','.join(escaped)})"
+        # Bind the chain list as a parameter — never interpolate user input
+        where += " AND chain IN %(chains)s"
+        params["chains"] = tuple(chain_filter)
 
     query = f"""
     SELECT deployer, token_address, chain, block_number, block_timestamp,
@@ -178,7 +182,7 @@ async def fetch_deployments_for_deployer(
     WHERE {where}
     ORDER BY block_timestamp DESC
     LIMIT %(limit)s
-    """
+    """  # noqa: S608 - verified bound/allowlisted SQL construction
 
     try:
         import asyncio
