@@ -67,12 +67,17 @@ from app.caching_shield.history_depth import (
     HistoryDepthController,
     get_history_controller,
 )
-from app.caching_shield.rate_limiter import (
-    PROVIDER_LIMITS,
-    ProviderLimit,
-    RpcRateLimiter,
-    get_rate_limiter,
-)
+
+# AUDIT-2026-Q3 P0 (rate-limiter consolidation): RpcRateLimiter DISABLED.
+# UnifiedRateLimiter (app.core.rate_limiter) is the single active limiter and
+# provides acquire_provider() for backward compat. This deprecated per-provider
+# limiter is kept for reference only — see app/caching_shield/rate_limiter.py.
+# from app.caching_shield.rate_limiter import (
+#     PROVIDER_LIMITS,
+#     ProviderLimit,
+#     RpcRateLimiter,
+#     get_rate_limiter,
+# )
 from app.caching_shield.rpc_cache import (
     TTL_TABLE,
     CacheStats,
@@ -111,7 +116,7 @@ __all__ = [
     "MAX_BATCH_SIZE",
     "MAX_DEPTH",
     "MAX_PAGINATED",
-    "PROVIDER_LIMITS",
+    # "PROVIDER_LIMITS",  # DISABLED AUDIT-2026-Q3 P0 — RpcRateLimiter retired; UnifiedRateLimiter
     "PROVIDER_REGISTRY",
     "TTL_TABLE",
     "ApiKey",
@@ -122,10 +127,10 @@ __all__ = [
     "HistoryDepthController",
     "KeyPool",
     "ProviderConfig",
-    "ProviderLimit",
+    # "ProviderLimit",  # DISABLED AUDIT-2026-Q3 P0 — RpcRateLimiter retired; UnifiedRateLimiter
     "RpcBatcher",
     "RpcCacheClient",
-    "RpcRateLimiter",
+    # "RpcRateLimiter",  # DISABLED AUDIT-2026-Q3 P0 — RpcRateLimiter retired; UnifiedRateLimiter
     "SolanaTrackerClient",
     "ToolData",
     "ToolResult",
@@ -135,7 +140,7 @@ __all__ = [
     "get_api_manager",
     "get_data_layer",
     "get_history_controller",
-    "get_rate_limiter",
+    # "get_rate_limiter",  # DISABLED AUDIT-2026-Q3 P0 — RpcRateLimiter retired; UnifiedRateLimiter
     "get_rpc_cache",
     "get_solana_tracker",
     "get_ws_manager",
