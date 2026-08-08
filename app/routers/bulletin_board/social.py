@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from fastapi import Request  # noqa: TC002 — FastAPI needs runtime resolution for request objects
 
 from app.bulletin_board import (
     BulletinBoardManager,
@@ -13,9 +13,6 @@ from app.bulletin_board import (
 )
 from app.core.errors import AuthorizationError, ValidationError
 from app.routers.bulletin_board.router import router
-
-if TYPE_CHECKING:
-    from fastapi import Request
 
 # ═══════════════════════════════════════════════════
 # BADGES & REPUTATION ENDPOINTS

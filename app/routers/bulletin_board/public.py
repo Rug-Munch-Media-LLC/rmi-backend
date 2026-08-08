@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from fastapi import Request  # noqa: TC002 — FastAPI needs runtime resolution for request objects
 
 from app.bulletin_board import BulletinBoardManager, PostCategory, PostStatus
 from app.core.errors import NotFoundError
+from app.routers.bulletin_board.models import PublicPostRequest  # noqa: TC001 — Pydantic request model
 from app.routers.bulletin_board.router import router
-
-if TYPE_CHECKING:
-    from fastapi import Request
-
-    from app.routers.bulletin_board.models import PublicPostRequest
 
 
 @router.post(
