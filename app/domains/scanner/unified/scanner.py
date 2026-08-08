@@ -20,15 +20,7 @@ from typing import Any, ClassVar
 from app.core.logging import get_logger
 from app.domains.scanner.unified._coercion import (
     _extract_meta_identity,
-    _f,
-    _funded_from,
-    _honeypot_risk,
-    _i,
-    _mev_exposure,
     _resolve_scan_tier,
-    _risk_level_hot,
-    _sleep_pattern,
-    _social_velocity,
 )
 from app.domains.scanner.unified._legacy import _from_legacy_dict, _to_legacy_dict, scan_token_unified
 from app.domains.scanner.unified.deep_profile import collect_deep_profile
