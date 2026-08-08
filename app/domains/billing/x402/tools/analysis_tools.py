@@ -16,6 +16,7 @@ Endpoints mounted on sub_router:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from urllib.parse import quote
 
 import httpx
@@ -122,7 +123,7 @@ async def _sentiment_analysis(token: str, chain: str) -> dict:  # type: ignore[t
 
 
 @sub_router.post("/sentiment")
-async def social_sentiment(req: SentimentRequest) -> dict[str, str]:
+async def social_sentiment(req: SentimentRequest) -> dict[str, Any]:
     """Social signal analysis across Twitter, Telegram, RSS feeds."""
     try:
         result = await _sentiment_analysis(req.token, req.chain)
@@ -197,7 +198,7 @@ def _analyze_url(url: str) -> dict:  # type: ignore[type-arg]
                 indicators.append(f"brand_impersonation:{brand}")
 
     # Indicator 3: Homograph attacks (lookalike chars)
-    if any(c in domain for c in "а ο е ｒ ｎ"):
+    if any(c in domain for c in "а ο е ｒ ｎ"):  # noqa: RUF001 — intentional homograph char set
         risk_score += 30
         indicators.append("homograph_attack")
 
@@ -250,7 +251,7 @@ def _analyze_url(url: str) -> dict:  # type: ignore[type-arg]
 
 
 @sub_router.post("/urlcheck")
-async def url_scam_detector(req: URLRequest) -> dict[str, str]:
+async def url_scam_detector(req: URLRequest) -> dict[str, Any]:
     """URL scam analysis - structural analysis, no blacklists needed."""
     try:
         result = _analyze_url(req.url)
@@ -306,7 +307,7 @@ async def _twitter_profile(query: str) -> dict:  # type: ignore[type-arg]
 
 
 @sub_router.post("/tw_profile")
-async def twitter_profile(req: GenericRequest) -> dict[str, str]:
+async def twitter_profile(req: GenericRequest) -> dict[str, Any]:
     """Twitter/X profile lookup."""
     try:
         query = req.query or req.address or req.token or ""
@@ -329,7 +330,7 @@ async def twitter_profile(req: GenericRequest) -> dict[str, str]:
 
 
 @sub_router.post("/tw_timeline")
-async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
+async def twitter_timeline(req: GenericRequest) -> dict[str, Any]:
     """Get recent tweets from a user."""
     try:
         query = req.query or req.address or req.token or ""
@@ -351,8 +352,8 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
             "version": "2.0",
             "timestamp": datetime.now(UTC).isoformat(),
             "user": query,
-            "tweets": tweets,  # type: ignore[dict-item]
-            "sources_used": ["duckduckgo"] if tweets else [],  # type: ignore[dict-item]
+            "tweets": tweets,
+            "sources_used": ["duckduckgo"] if tweets else [],
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, TypeError) as e:
@@ -365,7 +366,7 @@ async def twitter_timeline(req: GenericRequest) -> dict[str, str]:
 
 
 @sub_router.post("/tw_search")
-async def twitter_search(req: GenericRequest) -> dict[str, str]:
+async def twitter_search(req: GenericRequest) -> dict[str, Any]:
     """Search Twitter/X for tweets."""
     try:
         query = req.query or req.token or ""
@@ -387,8 +388,8 @@ async def twitter_search(req: GenericRequest) -> dict[str, str]:
             "version": "2.0",
             "timestamp": datetime.now(UTC).isoformat(),
             "query": query,
-            "results": results,  # type: ignore[dict-item]
-            "sources_used": ["duckduckgo"] if results else [],  # type: ignore[dict-item]
+            "results": results,
+            "sources_used": ["duckduckgo"] if results else [],
             "guarantee": "Data delivered or auto-refund via x402 receipt",
         }
     except (ValueError, TypeError) as e:
@@ -430,7 +431,7 @@ async def _social_signal(query: str) -> dict:  # type: ignore[type-arg]
 
 
 @sub_router.post("/social_signal")
-async def social_signal(req: GenericRequest) -> dict[str, str]:
+async def social_signal(req: GenericRequest) -> dict[str, Any]:
     """Social signal analyzer."""
     try:
         query = req.query or req.token or req.address or ""
@@ -501,7 +502,7 @@ async def _nft_wash_detector(collection: str) -> dict:  # type: ignore[type-arg]
 
 
 @sub_router.post("/nft_wash_detector")
-async def nft_wash_detector(req: GenericRequest) -> dict[str, str]:
+async def nft_wash_detector(req: GenericRequest) -> dict[str, Any]:
     """NFT wash trading detector."""
     try:
         collection = req.query or req.address or ""
@@ -558,7 +559,7 @@ async def _bridge_security() -> dict:  # type: ignore[type-arg]
 
 
 @sub_router.post("/bridge_security")
-async def bridge_security(req: GenericRequest) -> dict[str, str]:
+async def bridge_security(req: GenericRequest) -> dict[str, Any]:
     """Bridge security monitoring."""
     try:
         result = await _bridge_security()
