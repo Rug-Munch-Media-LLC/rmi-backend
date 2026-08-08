@@ -40,6 +40,14 @@ async def get_sol_price() -> float:
                 if price_str:
                     _sol_price = float(price_str)
                     _sol_price_ts = now
+                    return _sol_price
+            # Jupiter unreachable/blocked from some hosts — CoinGecko fallback
+            r = await client.get("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd")
+            if r.status_code == 200:
+                price = r.json().get("solana", {}).get("usd")
+                if price:
+                    _sol_price = float(price)
+                    _sol_price_ts = now
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"Failed to fetch SOL price: {e}")
     return _sol_price
