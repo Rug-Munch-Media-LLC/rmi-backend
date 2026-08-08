@@ -153,13 +153,13 @@ class CatalogService:
 
             # Neo4j (NEO4J_AUTH=none means no password)
             try:
-                from neo4j import GraphDatabase
+                from neo4j import AsyncGraphDatabase
 
                 cfg = self.config["neo4j"]
                 auth = (cfg["user"], cfg["password"]) if cfg["password"] else None
-                self._neo_driver = GraphDatabase.driver(cfg["uri"], auth=auth)
-                with self._neo_driver.session() as s:
-                    s.run("RETURN 1").consume()
+                self._neo_driver = AsyncGraphDatabase.driver(cfg["uri"], auth=auth)
+                async with self._neo_driver.session() as s:
+                    await (await s.run("RETURN 1")).consume()
                 self._health.neo4j = True
                 log.info("catalog_neo4j_ok")
             except Exception as e:
@@ -305,10 +305,12 @@ class CatalogService:
             return None
         wallet_id = f"{chain.value}:{address}"
         try:
-            with self._neo_driver.session() as s:
-                result = s.run(
-                    "MATCH (w:Wallet {wallet_id: $id}) RETURN w",
-                    id=wallet_id,
+            async with self._neo_driver.session() as s:
+                result = await (
+                    await s.run(
+                        "MATCH (w:Wallet {wallet_id: $id}) RETURN w",
+                        id=wallet_id,
+                    )
                 ).single()
             if not result:
                 return None
@@ -330,30 +332,32 @@ class CatalogService:
         if not self._health.neo4j:
             return False
         try:
-            with self._neo_driver.session() as s:
-                s.run(
-                    """
-                    MERGE (w:Wallet {wallet_id: $wallet_id})
-                    SET w.chain=$chain, w.address=$address,
-                        w.first_seen=$first_seen, w.last_seen=$last_seen,
-                        w.tx_count=$tx_count, w.total_volume_usd=$total_volume_usd,
-                        w.is_deployer=$is_deployer,
-                        w.is_known_exchange=$is_known_exchange,
-                        w.is_suspicious=$is_suspicious,
-                        w.reputation_score=$reputation_score
-                    """,
-                    wallet_id=wallet.wallet_id,
-                    chain=wallet.chain.value,
-                    address=wallet.address,
-                    first_seen=wallet.first_seen.isoformat(),
-                    last_seen=wallet.last_seen.isoformat(),
-                    tx_count=wallet.tx_count,
-                    total_volume_usd=wallet.total_volume_usd,
-                    is_deployer=wallet.is_deployer,
-                    is_known_exchange=wallet.is_known_exchange,
-                    is_suspicious=wallet.is_suspicious,
-                    reputation_score=wallet.reputation_score,
-                )
+            async with self._neo_driver.session() as s:
+                await (
+                    await s.run(
+                        """
+                        MERGE (w:Wallet {wallet_id: $wallet_id})
+                        SET w.chain=$chain, w.address=$address,
+                            w.first_seen=$first_seen, w.last_seen=$last_seen,
+                            w.tx_count=$tx_count, w.total_volume_usd=$total_volume_usd,
+                            w.is_deployer=$is_deployer,
+                            w.is_known_exchange=$is_known_exchange,
+                            w.is_suspicious=$is_suspicious,
+                            w.reputation_score=$reputation_score
+                        """,
+                        wallet_id=wallet.wallet_id,
+                        chain=wallet.chain.value,
+                        address=wallet.address,
+                        first_seen=wallet.first_seen.isoformat(),
+                        last_seen=wallet.last_seen.isoformat(),
+                        tx_count=wallet.tx_count,
+                        total_volume_usd=wallet.total_volume_usd,
+                        is_deployer=wallet.is_deployer,
+                        is_known_exchange=wallet.is_known_exchange,
+                        is_suspicious=wallet.is_suspicious,
+                        reputation_score=wallet.reputation_score,
+                    )
+                ).consume()
             return True
         except Exception as e:
             log.warning("wallet_save_fail: %s", e)
@@ -373,14 +377,12 @@ class CatalogService:
             return []
         try:
             # Step 1: Neo4j - find wallets with rug_count >= min_rug_count
-            with self._neo_driver.session() as s:
-                wallets = [
-                    r["w.wallet_id"]
-                    for r in s.run(
-                        "MATCH (w:Deployer) WHERE w.rug_count >= $min RETURN w.wallet_id LIMIT 200",
-                        min=min_rug_count,
-                    )
-                ]
+            async with self._neo_driver.session() as s:
+                result = await s.run(
+                    "MATCH (w:Deployer) WHERE w.rug_count >= $min RETURN w.wallet_id LIMIT 200",
+                    min=min_rug_count,
+                )
+                wallets = [r["w.wallet_id"] async for r in result]
             if not wallets:
                 return []
             # Step 2: Postgres - find tokens deployed by those wallets
@@ -419,10 +421,12 @@ class CatalogService:
         deployer_reputation: int | None = None
         if token and token.deployer_wallet_id and self._health.neo4j:
             try:
-                with self._neo_driver.session() as s:
-                    r = s.run(
-                        "MATCH (d:Deployer {wallet_id: $id}) RETURN d.reputation_score AS rep, d.rug_count AS rugs",
-                        id=token.deployer_wallet_id,
+                async with self._neo_driver.session() as s:
+                    r = await (
+                        await s.run(
+                            "MATCH (d:Deployer {wallet_id: $id}) RETURN d.reputation_score AS rep, d.rug_count AS rugs",
+                            id=token.deployer_wallet_id,
+                        )
                     ).single()
                 if r:
                     deployer_reputation = r["rep"]
@@ -467,26 +471,28 @@ class CatalogService:
         if not self._health.neo4j:
             return {"entity_id": None, "wallets": [], "note": "neo4j unavailable"}
         try:
-            with self._neo_driver.session() as s:
-                result = s.run(
-                    """
-                    MATCH (start:Wallet {wallet_id: $wallet_id})
-                    OPTIONAL MATCH path = (start)-[:SAME_AS|FUNDED_BY_SAME|CLONE_OF|BEHAVIORAL_MATCH*1..3]-(other:Wallet)
-                    WHERE start <> other
-                    WITH start, other, path,
-                         reduce(conf = 1.0, r IN relationships(path) | conf * r.confidence) AS path_conf
-                    ORDER BY path_conf DESC
-                    LIMIT $limit
-                    RETURN start.entity_id AS entity_id,
-                           collect({
-                               wallet_id: other.wallet_id,
-                               chain: other.chain,
-                               address: other.address,
-                               confidence: path_conf
-                           }) AS cross_chain_wallets
-                    """,
-                    wallet_id=wallet_id,
-                    limit=max_chains,
+            async with self._neo_driver.session() as s:
+                result = await (
+                    await s.run(
+                        """
+                        MATCH (start:Wallet {wallet_id: $wallet_id})
+                        OPTIONAL MATCH path = (start)-[:SAME_AS|FUNDED_BY_SAME|CLONE_OF|BEHAVIORAL_MATCH*1..3]-(other:Wallet)
+                        WHERE start <> other
+                        WITH start, other, path,
+                             reduce(conf = 1.0, r IN relationships(path) | conf * r.confidence) AS path_conf
+                        ORDER BY path_conf DESC
+                        LIMIT $limit
+                        RETURN start.entity_id AS entity_id,
+                               collect({
+                                   wallet_id: other.wallet_id,
+                                   chain: other.chain,
+                                   address: other.address,
+                                   confidence: path_conf
+                               }) AS cross_chain_wallets
+                        """,
+                        wallet_id=wallet_id,
+                        limit=max_chains,
+                    )
                 ).single()
             if not result:
                 return {"entity_id": None, "wallets": [], "note": "no edges"}
@@ -564,9 +570,11 @@ class CatalogService:
                 out["postgres_error"] = str(e)
         if self._health.neo4j:
             try:
-                with self._neo_driver.session() as s:
-                    out["wallets"] = s.run("MATCH (w:Wallet) RETURN COUNT(w) AS c").single()["c"] or 0
-                    out["deployers"] = s.run("MATCH (d:Deployer) RETURN COUNT(d) AS c").single()["c"] or 0
+                async with self._neo_driver.session() as s:
+                    wallets = await (await s.run("MATCH (w:Wallet) RETURN COUNT(w) AS c")).single()
+                    deployers = await (await s.run("MATCH (d:Deployer) RETURN COUNT(d) AS c")).single()
+                    out["wallets"] = wallets["c"] or 0
+                    out["deployers"] = deployers["c"] or 0
             except Exception as e:
                 out["neo4j_error"] = str(e)
         if self._health.qdrant:
