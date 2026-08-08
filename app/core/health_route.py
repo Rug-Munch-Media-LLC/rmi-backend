@@ -43,6 +43,8 @@ else:
     _HAS_METRICS = True
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     import httpx
 
 router = APIRouter(tags=["health"])
@@ -182,7 +184,7 @@ _START_TIME = time.monotonic()
 # ── Store check helpers ─────────────────────────────────────────
 
 
-async def _check_store(name: str, coro) -> dict[str, Any]:
+async def _check_store(name: str, coro: Awaitable[dict[str, Any]]) -> dict[str, Any]:
     """Run a health check and emit Prometheus metrics (if available)."""
     start = time.perf_counter()
     try:
@@ -621,7 +623,7 @@ async def health() -> HealthResponse:
     results = await asyncio.gather(*store_checks.values(), return_exceptions=True)
     stores = {}
     for (name, _), ref in zip(store_checks.items(), results, strict=False):
-        if isinstance(ref, Exception):
+        if isinstance(ref, BaseException):
             ref = {"healthy": False, "error": str(ref)[:200]}
         if "latency_ms" not in ref:
             ref["latency_ms"] = int((time.monotonic() - started) * 1000)

@@ -57,7 +57,7 @@ import json
 import os
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from redis.exceptions import RedisError
@@ -287,8 +287,10 @@ async def detect_sandwiches(chain: str, hours_back: int = 1, force_fresh: bool =
             "limit": MAX_EVENTS_PER_SCAN,
         }
         try:
-            return client.execute(
-                f"""
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    f"""
                 SELECT
                     a.sender AS attacker, a.block_number, a.tx_hash AS buy_tx,
                     b.tx_hash AS victim_tx, c.tx_hash AS sell_tx,
@@ -320,8 +322,9 @@ async def detect_sandwiches(chain: str, hours_back: int = 1, force_fresh: bool =
                 ORDER BY a.block_number DESC
                 LIMIT %(limit)s
                 """,  # noqa: S608 - verified bound/allowlisted SQL construction
-                params,
-                settings={"max_execution_time": MAX_EXECUTION_TIME},
+                    params,
+                    settings={"max_execution_time": MAX_EXECUTION_TIME},
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("sandwich query failed for %s: %s", chain, exc)
@@ -423,8 +426,10 @@ async def detect_pump_dumps(chain: str, lookback_hours: int = 24, force_fresh: b
             "limit": 50,
         }
         try:
-            return client.execute(
-                f"""
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    f"""
                 SELECT contract_address, token0, token1, count() AS swaps,
                        sum(toFloat64(amount0_in)) + sum(toFloat64(amount0_out)) AS vol0
                 FROM {DEX_EVENTS_TABLE}
@@ -436,8 +441,9 @@ async def detect_pump_dumps(chain: str, lookback_hours: int = 24, force_fresh: b
                 ORDER BY vol0 DESC
                 LIMIT %(limit)s
                 """,  # noqa: S608 - verified bound/allowlisted SQL construction
-                params,
-                settings={"max_execution_time": MAX_EXECUTION_TIME},
+                    params,
+                    settings={"max_execution_time": MAX_EXECUTION_TIME},
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("pump_dump pairs query failed for %s: %s", chain, exc)
@@ -522,8 +528,10 @@ async def _query_pair_volume(client: Any, chain: str, pair_address: str) -> tupl
     def _query() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {"chain": chain, "pair": pair_address}
         try:
-            return client.execute(
-                f"""
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    f"""
                 SELECT
                     sumIf(
                         toFloat64(amount0_in) + toFloat64(amount0_out)
@@ -540,8 +548,9 @@ async def _query_pair_volume(client: Any, chain: str, pair_address: str) -> tupl
                   AND type = 'swap'
                   AND block_timestamp >= now() - INTERVAL 24 HOUR
                 """,  # noqa: S608 - verified bound/allowlisted SQL construction
-                params,
-                settings={"max_execution_time": MAX_EXECUTION_TIME},
+                    params,
+                    settings={"max_execution_time": MAX_EXECUTION_TIME},
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("pair volume query failed: %s", exc)
@@ -568,8 +577,10 @@ async def _query_price_series(
     def _query() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {"chain": chain, "pair": pair_address, "lookback": max(lookback_hours, 1)}
         try:
-            return client.execute(
-                f"""
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    f"""
                 SELECT block_number, block_timestamp,
                        argMax(
                            toFloat64(amount1_out) / NULLIF(toFloat64(amount0_in), 0),
@@ -584,8 +595,9 @@ async def _query_price_series(
                 GROUP BY block_number, block_timestamp
                 ORDER BY block_timestamp
                 """,  # noqa: S608 - verified bound/allowlisted SQL construction
-                params,
-                settings={"max_execution_time": MAX_EXECUTION_TIME},
+                    params,
+                    settings={"max_execution_time": MAX_EXECUTION_TIME},
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("price series query failed: %s", exc)
@@ -649,8 +661,10 @@ async def detect_flash_loans(chain: str, hours_back: int = 1, force_fresh: bool 
     def _query() -> list[tuple[Any, ...]]:
         params: dict[str, Any] = {"chain": chain, "hours": max(hours_back, 1), "limit": MAX_EVENTS_PER_SCAN}
         try:
-            return client.execute(
-                f"""
+            return cast(
+                "list[tuple[Any, ...]]",
+                client.execute(
+                    f"""
                 SELECT tx_hash, contract_address, token0, token1,
                        count() AS swap_count,
                        sum(toFloat64(amount0_in)) AS total_in,
@@ -675,8 +689,9 @@ async def detect_flash_loans(chain: str, hours_back: int = 1, force_fresh: bool 
                 ORDER BY block_timestamp DESC
                 LIMIT %(limit)s
                 """,  # noqa: S608 - verified bound/allowlisted SQL construction
-                params,
-                settings={"max_execution_time": MAX_EXECUTION_TIME},
+                    params,
+                    settings={"max_execution_time": MAX_EXECUTION_TIME},
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.debug("flash loan query failed for %s: %s", chain, exc)
@@ -935,10 +950,13 @@ def _insert_attack_events(events: list[dict[str, Any]]) -> int:
         for ev in events
     ]
     try:
-        return client.execute(
-            f"INSERT INTO {ATTACK_TABLE} ({', '.join(_ATTACK_INSERT_COLS)}) VALUES",
-            rows,
-            settings={"max_execution_time": MAX_EXECUTION_TIME},
+        return cast(
+            "int",
+            client.execute(
+                f"INSERT INTO {ATTACK_TABLE} ({', '.join(_ATTACK_INSERT_COLS)}) VALUES",
+                rows,
+                settings={"max_execution_time": MAX_EXECUTION_TIME},
+            ),
         )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.warning("attack_events insert failed: %s", exc)
@@ -1020,16 +1038,19 @@ async def _mark_attacker_whale(events: list[dict[str, Any]]) -> int:
 
     def _query(chain_name: str, attackers: list[str]) -> int:
         try:
-            return client.execute(
-                f"""
+            return cast(
+                "int",
+                client.execute(
+                    f"""
                 ALTER TABLE {DEX_EVENTS_TABLE}
                 UPDATE whale = 1
                 WHERE chain = %(chain)s
                   AND sender IN %(attackers)s
                 SETTINGS mutations_sync = 1
                 """,
-                {"chain": chain_name, "attackers": attackers},
-                settings={"max_execution_time": MAX_EXECUTION_TIME},
+                    {"chain": chain_name, "attackers": attackers},
+                    settings={"max_execution_time": MAX_EXECUTION_TIME},
+                ),
             )
         except (ValueError, RuntimeError, OSError) as exc:
             logger.warning("whale marking failed for %s: %s", chain_name, exc)
