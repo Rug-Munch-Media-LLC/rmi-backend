@@ -15,7 +15,7 @@ logger = get_logger("wallet_memory.label_importer")
 
 # Re-export config
 from .bsc import _load_bsc_detail  # noqa: E402 — imported after logger init; kept below module header for readability
-from .clean import (
+from .clean import (  # noqa: E402 — imported after logger init; kept below module header for readability
     load_clean_labels,
 )
 from .config import (  # noqa: E402 — imported after logger init; kept below module header for readability

@@ -22,7 +22,7 @@ from app.domains.auth.cookie import (  # noqa: E402 — imported after logger in
     _set_auth_cookie,
     _set_csrf_cookie,
 )
-from app.domains.auth.deps import (
+from app.domains.auth.deps import (  # noqa: E402 — imported after logger init; kept below module header for readability
     get_current_user,
 )
 from app.domains.auth.jwt import (  # noqa: E402 — imported after logger init; kept below module header for readability
