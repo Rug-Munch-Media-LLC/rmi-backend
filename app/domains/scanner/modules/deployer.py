@@ -112,6 +112,42 @@ async def _get_deployer_info(token_address: str, chain: str) -> dict[str, Any] |
 
     result["deployer_address"] = deployer_addr or "unknown"
 
+    # ── Repeat deployer track record injection ──
+    # When the deployer is a known repeat deployer (launched >1 token), inject
+    # the track record summary + REPEAT_DEPLOYER risk signal. Uses the fast
+    # path (Redis → ClickHouse deployer_profiles → on-demand compute).
+    if deployer_addr and deployer_addr != "unknown":
+        try:
+            from app.domains.scanner.engines.deployer_profiles import (
+                build_deployer_label,
+                get_deployer_profile,
+            )
+
+            profile = await get_deployer_profile(deployer_addr, chain)
+            if profile and profile.get("is_repeat_deployer"):
+                result["repeat_deployer"] = True
+                result["deployer_profile"] = {
+                    "total_tokens_launched": profile.get("total_tokens_launched", 0),
+                    "total_deployments": profile.get("total_deployments", 0),
+                    "rugged_pct": profile.get("rugged_pct", 0.0),
+                    "active_pct": profile.get("active_pct", 0.0),
+                    "honeypot_pct": profile.get("honeypot_pct", 0.0),
+                    "avg_lifespan_days": profile.get("avg_lifespan_days"),
+                    "avg_liquidity_24h": profile.get("avg_liquidity_24h", 0.0),
+                    "chains_used": profile.get("chains_used", []),
+                    "label": build_deployer_label(profile),
+                }
+                result["deployer_label"] = build_deployer_label(profile)
+                result["risk_flags"] = result.get("risk_flags", [])
+                if "REPEAT_DEPLOYER" not in result["risk_flags"]:
+                    result["risk_flags"].append("REPEAT_DEPLOYER")
+                logger.info(
+                    "Repeat deployer detected: %s",
+                    result["deployer_label"],
+                )
+        except Exception as exc:
+            logger.debug("repeat_deployer_profile_failed", error=str(exc)[:80])
+
     if deployer_addr and deployer_addr != "unknown":
         # ── Score deployer reputation ──
         # Tier 1: own_deployer_reputation — fast cache (in-process 10 min +
