@@ -400,7 +400,7 @@ async def token_holder_graph(
         node["tags"] = entity.get("tags") or []
         node["risk_level"] = label_data.get("risk_level", "unknown")
 
-    # Generate AI analysis (DeepSeek Flash + fallback to our data engine)
+    # Generate AI analysis (DeepSeek Flash + fallback to our data engine).
     graph_data = {
         "node_count": len(enriched_nodes),
         "link_count": min(len(links), limit * 2),
@@ -409,8 +409,29 @@ async def token_holder_graph(
         "stats": d.get("stats", {}),
     }
 
+    # Generate AI analysis (DeepSeek Flash + fallback to our data engine).
+    # Bound the LLM call: generate_ai_analysis chains LiteLLM (httpx timeout
+    # 120s) then a DeepSeek fallback (30s) — unbounded it can hold the request
+    # for ~150s and blow the frontend/proxy timeout (HTTP 000 >25s). A 15s cap
+    # makes the endpoint fail fast to rule-based (non-AI) graph data instead.
     try:
-        ai_analysis = await generate_ai_analysis(token_address, chain, graph_data, holders, labels, similar_scams)
+        ai_analysis = await asyncio.wait_for(
+            generate_ai_analysis(token_address, chain, graph_data, holders, labels, similar_scams),
+            timeout=15,
+        )
+    except TimeoutError:
+        logger.warning(
+            f"RugMaps AI analysis timed out after 15s for {token_address[:12]}, "
+            "returning basic graph data (no AI annotation)"
+        )
+        ai_analysis = generate_fallback_analysis(
+            d.get("risk_score", 0),
+            holders,
+            labels,
+            similar_scams,
+            len(enriched_nodes),
+            min(len(links), limit * 2),
+        )
     except Exception as e:
         logger.warning(f"AI analysis failed, using fallback: {e}")
         ai_analysis = generate_fallback_analysis(
