@@ -8,6 +8,7 @@ Configuration, multi-chain data client, and module-level instances.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import httpx
 
@@ -74,7 +75,7 @@ class MultiChainClient:
 
     # ── GMGN ──
 
-    async def gmgn_get(self, path: str) -> dict:
+    async def gmgn_get(self, path: str) -> dict[str, Any]:
         try:
             headers = {"Content-Type": "application/json"}
             if cfg.GMGN_KEY:
@@ -89,7 +90,7 @@ class MultiChainClient:
 
     # ── DexScreener ──
 
-    async def dexscreener(self, chain: str, address: str) -> dict:
+    async def dexscreener(self, chain: str, address: str) -> dict[str, Any]:
         try:
             chain_id = cfg.CHAIN_DEXSCREENER_MAP.get(chain, chain)
             resp = await self.http.get(f"https://api.dexscreener.com/latest/dex/tokens/{address}")
@@ -108,7 +109,7 @@ class MultiChainClient:
 
     # ── Etherscan / BSCScan ──
 
-    async def scan_get(self, chain: str, params: dict) -> dict:
+    async def scan_get(self, chain: str, params: dict[str, Any]) -> dict[str, Any]:
         if chain not in cfg.CHAIN_SCAN_MAP:
             return {"error": f"no scanner for {chain}"}
         base_url, api_key = cfg.CHAIN_SCAN_MAP[chain]
@@ -124,7 +125,7 @@ class MultiChainClient:
 
     # ── Helius (Solana) ──
 
-    async def helius_get(self, path: str) -> dict:
+    async def helius_get(self, path: str) -> dict[str, Any]:
         if not cfg.HELIUS_KEY:
             return {"error": "HELIUS_API_KEY not set"}
         try:
@@ -136,7 +137,7 @@ class MultiChainClient:
             logger.warning(f"err: {e}")
             return {"error": str(e)}
 
-    async def helius_post(self, path: str, payload: dict) -> dict:
+    async def helius_post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not cfg.HELIUS_KEY:
             return {"error": "HELIUS_API_KEY not set"}
         try:
@@ -152,7 +153,7 @@ class MultiChainClient:
 
     # ── Birdeye ──
 
-    async def birdeye_get(self, path: str) -> dict:
+    async def birdeye_get(self, path: str) -> dict[str, Any]:
         if not cfg.BIRDEYE_KEY:
             return {"error": "BIRDEYE_API_KEY not set"}
         try:
@@ -169,7 +170,7 @@ class MultiChainClient:
 
     # ── Moralis ──
 
-    async def moralis_get(self, path: str, chain: str = "eth") -> dict:
+    async def moralis_get(self, path: str, chain: str = "eth") -> dict[str, Any]:
         if not cfg.MORALIS_KEY:
             return {"error": "MORALIS_API_KEY not set"}
         chain_map = {
@@ -195,7 +196,7 @@ class MultiChainClient:
 
     # ── Webacy (Threat Intel) ──
 
-    async def webacy_get(self, chain: str, address: str) -> dict:
+    async def webacy_get(self, chain: str, address: str) -> dict[str, Any]:
         if not cfg.WEBACY_KEY:
             return {"error": "WEBACY_API_KEY not set"}
         try:
@@ -222,7 +223,7 @@ class MultiChainClient:
 
     # ── Bitquery v2 (GraphQL) ──
 
-    async def bitquery_post(self, query: str, variables: dict | None = None) -> dict:
+    async def bitquery_post(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
         if not cfg.BITQUERY_KEY:
             return {"error": "BITQUERY_API_KEY not set"}
         try:
@@ -243,7 +244,7 @@ class MultiChainClient:
 
     # ── LunarCrush (Social Sentiment) ──
 
-    async def lunarcrush_get(self, path: str, params: dict | None = None) -> dict:
+    async def lunarcrush_get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         if not cfg.LUNARCRUSH_KEY:
             return {"error": "LUNARCRUSH_API_KEY not set"}
         try:
@@ -261,7 +262,7 @@ class MultiChainClient:
 
     # ── GoPlus (On-Chain Security) ──
 
-    async def goplus_get(self, chain: str, address: str) -> dict:
+    async def goplus_get(self, chain: str, address: str) -> dict[str, Any]:
         if not cfg.GOPLUS_KEY:
             return {"error": "GOPLUS_API_KEY not set"}
         try:
@@ -289,7 +290,7 @@ class MultiChainClient:
 
     # ── Chainabuse (Threat Intel) ──
 
-    async def chainabuse_get(self, address: str) -> dict:
+    async def chainabuse_get(self, address: str) -> dict[str, Any]:
         if not cfg.CHAINABUSE_KEY:
             return {"error": "CHAINABUSE_API_KEY not set"}
         try:
@@ -306,7 +307,7 @@ class MultiChainClient:
 
     # ── Generic ──
 
-    async def simple_get(self, url: str, headers: dict | None = None) -> dict:
+    async def simple_get(self, url: str, headers: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
             resp = await self.http.get(url, headers=headers or {})
             if resp.status_code == 200:

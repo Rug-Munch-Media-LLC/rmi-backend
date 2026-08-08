@@ -95,14 +95,80 @@ def main_menu_keyboard() -> Any:
             ],
             [
                 InlineKeyboardButton("🤖 AI", callback_data="menu_ai"),
+                InlineKeyboardButton("🤖 Bots", callback_data="menu_bots"),
                 InlineKeyboardButton("🔧 Tools", callback_data="menu_tools"),
-                InlineKeyboardButton("⚙️ Ops", callback_data="menu_ops"),
             ],
             [
+                InlineKeyboardButton("⚙️ Ops", callback_data="menu_ops"),
                 InlineKeyboardButton("🔄 Quick Status", callback_data="quick_status"),
                 InlineKeyboardButton("🚨 Alerts", callback_data="health"),
             ],
             [InlineKeyboardButton("⚡ Quick Ops", callback_data="quick")],
+        ]
+    )
+
+
+def control_panel_keyboard() -> Any:
+    """/start control panel: quick actions + navigation to sub-menus."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🖥️ Services", callback_data="services"),
+                InlineKeyboardButton("🐳 Docker PS", callback_data="dps"),
+            ],
+            [
+                InlineKeyboardButton("📜 Logs", callback_data="logs_menu"),
+                InlineKeyboardButton("📦 Backups", callback_data="admin_backups"),
+            ],
+            [
+                InlineKeyboardButton("🤖 Bot Stats", callback_data="bot_stats"),
+                InlineKeyboardButton("🚨 Health", callback_data="health"),
+            ],
+            [
+                InlineKeyboardButton("📊 System", callback_data="menu_system"),
+                InlineKeyboardButton("🤖 Bots", callback_data="menu_bots"),
+            ],
+            [
+                InlineKeyboardButton("🔧 Tools", callback_data="menu_tools"),
+                InlineKeyboardButton("⚙️ Ops", callback_data="menu_ops"),
+            ],
+            [InlineKeyboardButton("⚡ Quick Ops", callback_data="quick")],
+        ]
+    )
+
+
+def bot_toggle_menu_keyboard() -> Any:
+    """Bot toggle action buttons."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Enable Bot", callback_data="bot_toggle_on"),
+                InlineKeyboardButton("🔴 Disable Bot", callback_data="bot_toggle_off"),
+            ],
+            [
+                InlineKeyboardButton("💬 Enable Chat", callback_data="bot_chat_on"),
+                InlineKeyboardButton("🔇 Disable Chat", callback_data="bot_chat_off"),
+            ],
+            [InlineKeyboardButton("⬅️ Back", callback_data="menu_bots")],
+        ]
+    )
+
+
+def double_confirm_keyboard(action: str, payload: str = "", stage: int = 1) -> Any:
+    """TWO-step confirmation for destructive actions (e.g. reboot).
+
+    ``action`` is the callback prefix. ``stage=1`` produces
+    ``{action}_confirm_{payload}``; ``stage=2`` produces
+    ``{action}_confirm2_{payload}`` (the final, executing callback).
+    """
+    suffix = "confirm2" if stage >= 2 else "confirm"
+    data = f"{action}_{suffix}_{payload}" if payload else f"{action}_{suffix}"
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("⚠️ I understand, continue", callback_data=data),
+                InlineKeyboardButton("❌ Cancel", callback_data=f"{action}_cancel"),
+            ]
         ]
     )
 
@@ -157,6 +223,14 @@ _OPS_MENU: list[tuple[str, str]] = [
     ("🔔 Alert", "alert_help"),
 ]
 
+_BOT_MENU: list[tuple[str, str]] = [
+    ("🤖 Bot Stats", "bot_stats"),
+    ("👥 Users", "bot_users"),
+    ("📬 Broadcast", "bot_broadcast_help"),
+    ("🔀 Toggle Bot", "bot_toggle_menu"),
+    ("📊 Bot Health", "health"),
+]
+
 SECTION_MENUS: dict[str, list[tuple[str, str]]] = {
     "system": _SYSTEM_MENU,
     "docker": _DOCKER_MENU,
@@ -164,6 +238,7 @@ SECTION_MENUS: dict[str, list[tuple[str, str]]] = {
     "ai": _AI_MENU,
     "tools": _TOOLS_MENU,
     "ops": _OPS_MENU,
+    "bots": _BOT_MENU,
 }
 
 _SECTION_TITLES: dict[str, str] = {
@@ -173,6 +248,7 @@ _SECTION_TITLES: dict[str, str] = {
     "ai": "🤖 *AI*",
     "tools": "🔧 *Tools*",
     "ops": "⚙️ *Operations*",
+    "bots": "🤖 *RugMunchBot Management*",
 }
 
 

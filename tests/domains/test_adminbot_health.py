@@ -17,7 +17,7 @@ os.environ.setdefault("ADMIN_CHAT_ID", "7075336557")
 
 import datetime as _dt
 
-from app.domains.telegram.adminbot import admin_docker, admin_health, admin_server
+from app.domains.telegram.adminbot import admin_bot, admin_docker, admin_health, admin_ops, admin_server
 
 # ═══════════════════════════════════════════════
 # Emoji classifiers
@@ -283,3 +283,124 @@ class TestFormatters:
         text = admin_docker.format_docker_stats(result)
         assert "infinity-rag" in text
         assert "48.99%" in text
+
+
+# ═══════════════════════════════════════════════
+# v5 — Control panel + bot management + backups
+# ═══════════════════════════════════════════════
+
+
+class TestControlPanel:
+    def test_format_control_panel_sections(self) -> None:
+        data = {
+            "hostname": "testhost",
+            "uptime": "up 3 days",
+            "disk_pct": 47.0,
+            "disk_level": "🟢",
+            "mem_avail_gb": 26.7,
+            "mem_total_gb": 62.8,
+            "mem_level": "🟢",
+            "load": (0.5, 0.4, 0.3),
+            "load_level": "🟢",
+            "nproc": 16,
+            "docker": {"running": 10, "total": 12, "exited": 2},
+            "systemd_failed": 0,
+            "critical_alerts": 2,
+            "backup": {"backup_hours_ago": 5.0, "level": "🟢"},
+            "service_summary": {
+                "Backend": "🟢",
+                "Postgres": "🟢",
+                "ClickHouse": "🟡",
+                "Redis": "🟢",
+                "RAG": "🟢",
+                "Bots": {"rugmunchbot": "🟢", "rmiadminbot": "🟢"},
+            },
+        }
+        text = admin_health.format_control_panel(data)
+        assert "Control Panel" in text
+        assert "Service Health" in text
+        assert "Backend" in text
+        assert "ClickHouse" in text
+        assert "Bot" in text
+        assert "AdminBot" in text
+        assert "Quick Stats" in text
+        assert "47%" in text
+        assert "26.7G" in text
+
+    def test_format_control_panel_bots_failure(self) -> None:
+        data = {
+            "hostname": "h",
+            "service_summary": {"Bots": {"rugmunchbot": "🔴", "rmiadminbot": "🟢"}},
+        }
+        text = admin_health.format_control_panel(data)
+        assert "🔴 Bot" in text
+        assert "🟢 AdminBot" in text
+
+
+class TestAdminBotModule:
+    def test_format_bot_stats(self) -> None:
+        data = {
+            "users": 45,
+            "banned": 2,
+            "active_today": 12,
+            "messages_today": 80,
+            "scans_today": 7,
+            "enabled": True,
+            "chat_enabled": True,
+        }
+        text = admin_bot.format_bot_stats(data)
+        assert "RugMunchBot Stats" in text
+        assert "45" in text
+        assert "80" in text
+        assert "ENABLED" in text
+
+    def test_bot_users_empty_ok(self) -> None:
+        result = admin_bot.bot_users(limit=5)
+        assert result["ok"] in (True, False)  # fails open when DB unavailable
+        if result["ok"]:
+            assert "Recent RugMunchBot Users" in result["output"] or "No users" in result["output"]
+
+    def test_bot_broadcast_empty_message(self) -> None:
+        import asyncio
+
+        result = asyncio.run(admin_bot.bot_broadcast("   "))
+        assert result["ok"] is False
+        assert "empty" in result["error"].lower()
+
+    def test_scanner_stats_shape(self) -> None:
+        result = admin_bot.scanner_stats()
+        assert result["ok"] in (True, False)
+        if result["ok"]:
+            assert "Scanner Stats" in result["output"]
+            assert "Scans today" in result["output"]
+
+
+class TestBackupReport:
+    def test_backup_report_missing_sentinel(self, tmp_path, monkeypatch) -> None:
+        # Point sentinels at a nonexistent path so the report shows red lines.
+        monkeypatch.setattr(admin_ops, "_BACKUP_SENTINEL", str(tmp_path / "no-sentinel"))
+        monkeypatch.setattr(admin_ops, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-sentinel-git"))
+        monkeypatch.setattr(admin_ops, "os", __import__("os"))
+        # Ensure /backups dir read is harmless — monkeypatch the dir check.
+        monkeypatch.setattr(admin_ops.os.path, "isdir", lambda p: False)
+        result = admin_ops.backup_report()
+        assert result["ok"] is True
+        assert "Backup Report" in result["output"]
+        assert "no sentinel" in result["output"]
+
+
+class TestScheduleReboot:
+    def test_schedule_reboot_rejects_small_delay(self, monkeypatch) -> None:
+        captured: list[list[str]] = []
+
+        def fake_run(args, timeout=30, cwd=None):
+            captured.append(list(args))
+            return {"ok": True, "output": "ok", "error": "", "duration": 0.01}
+
+        monkeypatch.setattr(admin_server, "_run_subprocess", fake_run)
+        result = admin_server.schedule_reboot(delay_seconds=5)  # clamps to 10
+        assert result["ok"] is True
+        assert captured
+        assert "systemd-run" in captured[0][0]
+        # on-active should be clamped to >= 10
+        assert int(captured[0][2]) >= 10

@@ -68,7 +68,7 @@ class CoinGeckoConnector:
     BASE_URL = "https://api.coingecko.com/api/v3"
 
     def __init__(self) -> None:
-        self._cache: dict[str, tuple] = {}  # key -> (expiry, value)
+        self._cache: dict[str, tuple[Any, ...]] = {}  # key -> (expiry, value)
         self._last_request = 0.0
         self._min_interval = 2.0  # 30 req/min on Demo tier
         # Use whichever key we have (both are Demo tier)
@@ -83,7 +83,7 @@ class CoinGeckoConnector:
     def _base(self) -> str:
         return self.BASE_URL
 
-    async def _get(self, endpoint: str, params: dict | None = None, ttl: int = 300) -> Any | None:
+    async def _get(self, endpoint: str, params: dict[str, Any] | None = None, ttl: int = 300) -> Any | None:
         """Rate-limited GET with caching and circuit breaker."""
         cache_key = f"{endpoint}:{sorted(params.items()) if params else ''}"
         now = time.time()
@@ -142,12 +142,12 @@ class CoinGeckoConnector:
 
     # ── Health Check ─────────────────────────────────────────
 
-    async def ping(self) -> dict:
+    async def ping(self) -> dict[str, Any]:
         """Check API status. Returns {"gecko_says": "To the Moon!"} if healthy."""
         data = await self._get("ping", ttl=60)
         return data or {"gecko_says": "error", "status": "unavailable"}
 
-    async def api_key_status(self) -> dict:
+    async def api_key_status(self) -> dict[str, Any]:
         """Check API key validity and rate limits."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -163,7 +163,7 @@ class CoinGeckoConnector:
 
     # ── Simple Price ─────────────────────────────────────────
 
-    async def get_token_price(self, token_id: str) -> dict | None:
+    async def get_token_price(self, token_id: str) -> dict[str, Any] | None:
         """Get current price for a token by CoinGecko ID."""
         data = await self._get(
             "simple/price",
@@ -179,7 +179,7 @@ class CoinGeckoConnector:
             return data[token_id]
         return None
 
-    async def get_token_prices(self, token_ids: list[str]) -> dict[str, dict]:
+    async def get_token_prices(self, token_ids: list[str]) -> dict[str, dict[str, Any]]:
         """Batch get prices for multiple tokens."""
         data = await self._get(
             "simple/price",
@@ -193,7 +193,7 @@ class CoinGeckoConnector:
         )
         return data or {}
 
-    async def get_token_price_by_contract(self, chain: str, contract: str) -> dict | None:
+    async def get_token_price_by_contract(self, chain: str, contract: str) -> dict[str, Any] | None:
         """Get price by contract address (Ethereum, BSC, etc.)."""
         data = await self._get(
             f"simple/token_price/{chain}",
@@ -211,7 +211,7 @@ class CoinGeckoConnector:
 
     # ── Trending & Search ────────────────────────────────────
 
-    async def get_trending(self) -> list[dict]:
+    async def get_trending(self) -> list[dict[str, Any]]:
         """Get trending coins (updated every 30 min)."""
         data = await self._get("search/trending", ttl=600)
         if not data:
@@ -231,7 +231,7 @@ class CoinGeckoConnector:
 
     # ── Market Data ──────────────────────────────────────────
 
-    async def get_market_overview(self, vs_currency: str = "usd", per_page: int = 50) -> list[dict]:
+    async def get_market_overview(self, vs_currency: str = "usd", per_page: int = 50) -> list[dict[str, Any]]:
         """Get top coins by market cap."""
         data = await self._get(
             "coins/markets",
@@ -259,7 +259,7 @@ class CoinGeckoConnector:
             for c in data[:per_page]
         ]
 
-    async def get_global_metrics(self) -> dict | None:
+    async def get_global_metrics(self) -> dict[str, Any] | None:
         """Get global crypto market metrics."""
         data = await self._get("global", ttl=300)
         if not data:
@@ -276,7 +276,7 @@ class CoinGeckoConnector:
 
     # ── Token Detail ─────────────────────────────────────────
 
-    async def get_token_detail(self, token_id: str) -> dict | None:
+    async def get_token_detail(self, token_id: str) -> dict[str, Any] | None:
         """Get detailed info about a specific token."""
         data = await self._get(
             f"coins/{token_id}",
@@ -316,14 +316,14 @@ class CoinGeckoConnector:
 
     # ── Categories ───────────────────────────────────────────
 
-    async def get_categories(self) -> list[dict]:
+    async def get_categories(self) -> list[dict[str, Any]]:
         """Get all coin categories sorted by market cap."""
         data = await self._get("coins/categories/list", ttl=3600)
         if not data:
             return []
         return [{"id": c.get("id"), "name": c.get("name")} for c in data[:50]]
 
-    async def get_category_market_data(self) -> list[dict]:
+    async def get_category_market_data(self) -> list[dict[str, Any]]:
         """Get categories with market data (top gainers/losers by category)."""
         data = await self._get(
             "coins/categories",
@@ -348,7 +348,7 @@ class CoinGeckoConnector:
 
     # ── OHLC / Candlestick ───────────────────────────────────
 
-    async def get_ohlc(self, token_id: str, vs_currency: str = "usd", days: int = 7) -> list[list]:
+    async def get_ohlc(self, token_id: str, vs_currency: str = "usd", days: int = 7) -> list[list[Any]]:
         """Get OHLC candlestick data. Returns [[timestamp, open, high, low, close], ...]"""
         data = await self._get(
             f"coins/{token_id}/ohlc",
@@ -362,7 +362,7 @@ class CoinGeckoConnector:
 
     # ── Exchanges ────────────────────────────────────────────
 
-    async def get_exchanges(self, per_page: int = 20) -> list[dict]:
+    async def get_exchanges(self, per_page: int = 20) -> list[dict[str, Any]]:
         """Get top exchanges by trading volume."""
         data = await self._get(
             "exchanges",
@@ -387,7 +387,7 @@ class CoinGeckoConnector:
 
     # ── Onchain / GeckoTerminal (Free, no key needed) ──────────
 
-    async def get_trending_pools(self, chain: str = "solana") -> list[dict]:
+    async def get_trending_pools(self, chain: str = "solana") -> list[dict[str, Any]]:
         """Get trending DEX pools via GeckoTerminal free API."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -411,7 +411,7 @@ class CoinGeckoConnector:
 
     # ── Status ───────────────────────────────────────────────
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         return {
             "tier": "demo",
             "api_key": bool(self._api_key),

@@ -27,6 +27,15 @@ from telegram.ext import (
 from app.domains.telegram.adminbot.ai_gateway import cmd_ai
 from app.domains.telegram.adminbot.callbacks import handle_callback
 from app.domains.telegram.adminbot.commands import (
+    cmd_admin_backups,
+    cmd_admin_bot_broadcast,
+    cmd_admin_bot_broadcasts,
+    cmd_admin_bot_stats,
+    cmd_admin_bot_status,
+    cmd_admin_bot_toggle,
+    cmd_admin_bot_users,
+    cmd_admin_reboot,
+    cmd_admin_scanner,
     cmd_alert,
     cmd_alerts,
     cmd_backup,
@@ -154,6 +163,27 @@ def main() -> None:
     app.add_handler(CommandHandler("dstats", cmd_dstats))
     app.add_handler(CommandHandler("dprune", cmd_dprune))
 
+    # ── NEW Commands v5 (admin_* aliases + control panel) ──
+    app.add_handler(CommandHandler("admin_services", cmd_services))
+    app.add_handler(CommandHandler("admin_docker_ps", cmd_dps))
+    app.add_handler(CommandHandler("admin_docker_logs", cmd_dlogs))
+    app.add_handler(CommandHandler("admin_disk", cmd_disk))
+    app.add_handler(CommandHandler("admin_memory", cmd_mem))
+    app.add_handler(CommandHandler("admin_uptime", cmd_uptime))
+    app.add_handler(CommandHandler("admin_backups", cmd_admin_backups))
+    app.add_handler(CommandHandler("admin_rag", cmd_ragstats))
+    app.add_handler(CommandHandler("admin_scanner", cmd_admin_scanner))
+    app.add_handler(CommandHandler("admin_restart", cmd_restart))
+    app.add_handler(CommandHandler("admin_reboot", cmd_admin_reboot))
+
+    # ── NEW Commands v5 (bot management) ──
+    app.add_handler(CommandHandler("admin_bot_stats", cmd_admin_bot_stats))
+    app.add_handler(CommandHandler("admin_bot_status", cmd_admin_bot_status))
+    app.add_handler(CommandHandler("admin_bot_toggle", cmd_admin_bot_toggle))
+    app.add_handler(CommandHandler("admin_bot_broadcast", cmd_admin_bot_broadcast))
+    app.add_handler(CommandHandler("admin_bot_broadcasts", cmd_admin_bot_broadcasts))
+    app.add_handler(CommandHandler("admin_bot_users", cmd_admin_bot_users))
+
     # Terminal mode — catch ALL text messages when in terminal
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_terminal_message),
@@ -166,7 +196,7 @@ def main() -> None:
     # Error handler
     app.add_error_handler(error_handler)
 
-    logger.info("🛡️ RMI Admin Bot v3 starting (@rmi_admin_bot)...")
+    logger.info("🛡️ RMI Admin Bot v5 starting (@rmi_admin_bot)...")
     app.run_polling(drop_pending_updates=True)
 
 

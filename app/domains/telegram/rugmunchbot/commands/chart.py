@@ -1,18 +1,27 @@
 """
-📊 Price Chart - Powered by DexScreener + CoinGecko
-=====================================================
-Generate text-based sparkline charts for any token using
-DexScreener market data with CoinGecko price history fallback.
+📊 Price Chart - Powered by RugCharts OHLCV + DexScreener
+=============================================================
+Generates a chart IMAGE for any token from the RugCharts engine
+(/api/v1/rugcharts/ohlcv/...) and sends it as a Telegram photo.
+Falls back to the text sparkline + web link when image generation
+is unavailable.
+
+Usage: /chart <address> [chain]
 """
 
 from __future__ import annotations
+
+import io
 
 import httpx
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
+    BACKEND_URL,
     COINGECKO,
     DEXSCREENER,
+    WEBSITE_URL,
+    backend_headers,
     fmt_number,
     fmt_pct,
 )
@@ -127,24 +136,194 @@ async def _fetch_cg_price_history(
         return None
 
 
+# ══════════════════════════════════════════════
+# v6 — IMAGE RENDERING (Pillow, already in bot venv)
+# ══════════════════════════════════════════════
+
+
+def render_chart_png(
+    candles: list[dict],
+    name: str,
+    symbol: str,
+    chain: str = "",
+) -> bytes | None:
+    """Render an OHLCV candlestick chart to PNG bytes (v6).
+
+    Uses Pillow (already in the bot venv) — no matplotlib dependency.
+    Returns ``None`` when Pillow is unavailable so callers fall back to the
+    text sparkline + web link. Pure CPU work — safe to run in the async
+    handler (small datasets, <100 candles).
+    """
+    if not candles:
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except (ImportError, OSError, RuntimeError) as exc:
+        logger.debug("Pillow unavailable, skipping chart image: %s", exc)
+        return None
+
+    closes: list[float] = []
+    highs: list[float] = []
+    lows: list[float] = []
+    vols: list[float] = []
+    for c in candles:
+        try:
+            closes.append(float(c["close"]))
+            highs.append(float(c["high"]))
+            lows.append(float(c["low"]))
+            vols.append(float(c.get("volume") or 0))
+        except (KeyError, ValueError, TypeError):
+            continue
+    if not closes:
+        return None
+
+    W, H = 1000, 640
+    PAD_L, PAD_R, PAD_T, PAD_B = 70, 20, 50, 60
+    bg = (15, 17, 21)
+    grid_c = (35, 38, 46)
+    text_c = (154, 160, 166)
+    title_c = (232, 234, 237)
+    up_c = (38, 166, 154)
+    down_c = (239, 83, 80)
+
+    img = Image.new("RGB", (W, H), bg)
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.load_default(size=20)
+        small = ImageFont.load_default(size=16)
+        tiny = ImageFont.load_default(size=14)
+    except TypeError:
+        font = ImageFont.load_default()
+        small = font
+        tiny = font
+
+    # Plot area
+    plot_w = W - PAD_L - PAD_R
+    plot_h = H - PAD_T - PAD_B
+    vol_h = int(plot_h * 0.22)
+    price_h = plot_h - vol_h - 30
+    price_top = PAD_T
+    price_bot = PAD_T + price_h
+    vol_top = price_bot + 30
+    vol_bot = vol_top + vol_h
+
+    mn, mx = min(lows), max(highs)
+    if mx == mn:
+        mx = mn + 1.0
+
+    n = len(closes)
+
+    def x_of(i: int) -> int:
+        return PAD_L + int(i * plot_w / max(n - 1, 1))
+
+    def y_of(v: float) -> int:
+        return price_bot - int((v - mn) / (mx - mn) * price_h)
+
+    # Grid + labels
+    for g in range(5):
+        gy = price_top + int(price_h * g / 4)
+        draw.line([(PAD_L, gy), (W - PAD_R, gy)], fill=grid_c, width=1)
+        val = mx - (mx - mn) * g / 4
+        label = f"${val:,.4f}" if val < 1000 else f"${val:,.0f}"
+        draw.text((8, gy - 10), label, font=tiny, fill=text_c)
+    for g in range(6):
+        gx = PAD_L + int(plot_w * g / 5)
+        draw.line([(gx, price_top), (gx, vol_bot)], fill=grid_c, width=1)
+
+    color = up_c if closes[-1] >= closes[0] else down_c
+
+    # Candlesticks (wick = high→low, body = close line)
+    body_w = max(2, min(12, int(plot_w / n) - 2))
+    for i in range(n):
+        cx = x_of(i)
+        draw.line([(cx, y_of(highs[i])), (cx, y_of(lows[i]))], fill=color, width=2)
+        draw.line(
+            [(cx - body_w // 2, y_of(closes[i])), (cx + body_w // 2, y_of(closes[i]))],
+            fill=color,
+            width=3,
+        )
+
+    # Volume bars
+    vmax = max(vols) if vols and max(vols) > 0 else 1
+    for i in range(n):
+        vh = int(vol_h * vols[i] / vmax)
+        if vh <= 0:
+            continue
+        bx = x_of(i) - body_w // 2
+        draw.rectangle([bx, vol_bot - vh, bx + body_w, vol_bot], fill=color)
+
+    # Border + titles
+    draw.rectangle([PAD_L, price_top, W - PAD_R, vol_bot], outline=grid_c, width=1)
+    title = f"{name} ({symbol})"
+    if chain:
+        title += f"  ·  {chain.capitalize()}"
+    draw.text((PAD_L, 12), title, font=font, fill=title_c)
+    draw.text((PAD_L, H - 30), "Price (USD)", font=tiny, fill=text_c)
+    draw.text((W - PAD_R - 90, vol_top - 22), "Volume", font=tiny, fill=text_c)
+
+    try:
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        return buf.getvalue()
+    except (OSError, ValueError, RuntimeError):
+        logger.debug("chart png render failed", exc_info=True)
+        return None
+
+
+async def _fetch_rugcharts_ohlcv(client: httpx.AsyncClient, chain: str, pair_address: str) -> list[dict] | None:
+    """Fetch OHLCV candles from the backend RugCharts engine.
+
+    Returns the candle list (oldest → newest) or None on any failure.
+    """
+    if not pair_address:
+        return None
+    try:
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/rugcharts/ohlcv/{chain}/{pair_address}",
+            params={"timeframe": "1h", "limit": 100},
+            headers=backend_headers(),
+            timeout=15,
+        )
+        if r.status_code == 200:
+            body = r.json()
+            data = body.get("data") or body
+            candles = data.get("candles") or []
+            if isinstance(candles, list) and candles:
+                return candles
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.debug("rugcharts ohlcv fetch failed: %s", e)
+    return None
+
+
+def _web_chart_url(chain: str, pair_address: str) -> str:
+    if pair_address:
+        return _DEXSCREENER_CHART_URL.format(chain=chain, pair_address=pair_address)
+    return f"{WEBSITE_URL}/scanner"
+
+
 async def cmd_chart(update, ctx) -> None:
-    """Handle /chart command — show price chart with sparkline."""
-    msg = update.message
+    """Handle /chart command — chart image from RugCharts, text fallback."""
+    msg = update.message or (update.callback_query.message if update.callback_query else None)
+    if msg is None:
+        return
     args = ctx.args
 
     if not args:
         await msg.reply_text(
-            "📊 <b>Usage:</b> <code>/chart &lt;token_address&gt;</code>\n\n"
+            "📊 <b>Usage:</b> <code>/chart &lt;token_address&gt; [chain]</code>\n\n"
+            "Generates a chart image from the RugCharts engine (OHLCV).\n\n"
             "Example: <code>/chart 0x6982508145454Ce325dDbE47a25d4ec3d2311933</code>\n"
-            "         <code>/chart So11111111111111111111111111111111111111112</code>",
+            "         <code>/chart So11111111111111111111111111111111111111112 solana</code>",
             parse_mode="HTML",
         )
         return
 
     address = args[0]
-    await msg.chat.send_action("typing")
+    explicit_chain = args[1] if len(args) > 1 else ""
+    await msg.chat.send_action("upload_photo")
 
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=25) as client:
         # ── Fetch DexScreener data ──
         try:
             r = await client.get(f"{DEXSCREENER}/tokens/{address}")
@@ -182,20 +361,53 @@ async def cmd_chart(update, ctx) -> None:
         change_7d = float(p.get("priceChange", {}).get("d7", 0))
         vol_24h = float(p.get("volume", {}).get("h24", 0))
         mcap = float(p.get("marketCap") or p.get("fdv") or 0)
-        chain = p.get("chainId", "")
+        chain = explicit_chain or p.get("chainId", "")
         pair_address = p.get("pairAddress", "")
 
-        # ── Build sparkline ──
+        # ── v6: try RugCharts OHLCV image first ──
+        candles = await _fetch_rugcharts_ohlcv(client, chain, pair_address)
+        png = render_chart_png(candles, name, symbol, chain) if candles else None
+        if png:
+            caption = (
+                f"📊 <b>{name}</b> ({symbol})\n"
+                f"<code>{address[:12]}...{address[-6:]}</code>\n\n"
+                f"💰 Price: <b>${price:.10f}</b>".rstrip("0").rstrip(".")
+                + (
+                    f"\n📈 MCap: {fmt_number(mcap)} | 📊 24h Vol: {fmt_number(vol_24h)}\n"
+                    f"🟢 1h: {fmt_pct(change_1h)} | 24h: {fmt_pct(change_24h)} | 7d: {fmt_pct(change_7d)}"
+                )
+                + f'\n📉 <a href="{_web_chart_url(chain, pair_address)}">Open on DexScreener</a>'
+            )
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+            kb = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton("🗺️ View RugMap", callback_data=f"rugmap_{address}_{chain}"),
+                        InlineKeyboardButton("🔍 Deep Scan", callback_data=f"deep_{address}_{chain}"),
+                    ],
+                    [InlineKeyboardButton("🏠 Menu", callback_data="menu_main")],
+                ]
+            )
+            try:
+                await msg.reply_photo(
+                    photo=io.BytesIO(png),
+                    caption=caption,
+                    parse_mode="HTML",
+                    reply_markup=kb,
+                )
+                return
+            except Exception as e:
+                logger.warning("chart photo send failed, falling back to text: %s", e)
+
+        # ── Fallback: sparkline text + web link ──
         sparkline = ""
-        # Primary: CoinGecko price history
         cg_prices = await _fetch_cg_price_history(client, name, symbol)
         if cg_prices:
             sparkline = _sparkline(cg_prices, width=8)
         else:
-            # Fallback: pseudo sparkline from DexScreener change data
             sparkline = _pseudo_sparkline(price, change_1h, change_6h, change_24h, change_7d)
 
-        # ── Price change arrows ──
         def _arrow(val: float) -> str:
             if val > 0:
                 return "🟢"
@@ -203,8 +415,7 @@ async def cmd_chart(update, ctx) -> None:
                 return "🔴"
             return "⚪"
 
-        # ── Build message ──
-        dex_url = _DEXSCREENER_CHART_URL.format(chain=chain, pair_address=pair_address)
+        dex_url = _web_chart_url(chain, pair_address)
 
         lines = [
             f"📊 <b>{name}</b> ({symbol})",
@@ -224,6 +435,8 @@ async def cmd_chart(update, ctx) -> None:
             f'📉 <a href="{dex_url}">View on DexScreener</a>',
             "",
             "<i>Sparkline: CoinGecko 7d history</i>" if cg_prices else "<i>Sparkline: DexScreener change estimates</i>",
+            "",
+            "<i>Image chart unavailable — showing text sparkline.</i>",
         ]
 
         text = "\n".join(lines)
@@ -237,4 +450,4 @@ async def cmd_chart(update, ctx) -> None:
         )
 
 
-__all__ = ["cmd_chart"]
+__all__ = ["cmd_chart", "render_chart_png"]

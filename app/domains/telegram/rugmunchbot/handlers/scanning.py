@@ -23,7 +23,9 @@ from telegram.constants import ParseMode
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
+    BACKEND_URL,
     DEXSCREENER,
+    backend_headers,
     fmt_chain,
     fmt_number,
     fmt_pct,
@@ -100,47 +102,58 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Full command reference (v6) — explains EVERYTHING the bot can do."""
     d = thin_sep()
     s = sep()
     text = (
         f"\U0001f4d6 <b>RugMunch Intelligence - Command Guide</b>\n"
         f"{s}\n\n"
-        f"\U0001f50d <b>TOKEN ANALYSIS</b>\n{d}\n"
-        f"/scan <code>address</code> - Full security scan + scoring breakdown\n"
+        f"\U0001f50d <b>\U0001f50d SCAN</b>\n{d}\n"
+        f"/scan <code>address</code> - Quick security audit (fast, ~25s)\n"
+        f"/deepscan <code>address</code> - Full multi-phase deep scan\n"
         f"/deployer <code>address</code> - Deployer fingerprint check\n"
         f"/hype <code>address_or_symbol</code> - Quick 0-100 hype score\n"
+        f"/quick <code>symbol</code> - Instant price (same as $TOKEN)\n"
+        f"/compare <code>addr1</code> <code>addr2</code> - Side-by-side\n\n"
+        f"\U0001f4c8 <b>\U0001f4c8 CHARTS</b>\n{d}\n"
+        f"/chart <code>address</code> - Chart IMAGE from RugCharts (OHLCV)\n"
+        f"/rugmap <code>address</code> - Bubble map IMAGE of wallet clusters\n"
         f"/ta <code>address</code> - Technical analysis & signals\n"
-        f"/chart <code>address</code> - Price chart & trends\n"
-        f"/simulate <code>address</code> [amount] - Buy/sell simulation\n"
-        f"/compare <code>addr1</code> <code>addr2</code> - Side-by-side\n"
-        f"/quick <code>symbol</code> - Quick price check (same as $TOKEN)\n\n"
         f"/price <code>address</code> [chain] - Token price by contract\n"
         f"/dex <code>address</code> [chain] - DEX pairs & liquidity\n"
-        f"/holders <code>address</code> - Top holder analysis (Scout+)\n"
-        f"\U0001f9db <b>WALLET INTELLIGENCE</b>\n{d}\n"
-        f"/wallet <code>address</code> - Forensic wallet analysis\n"
-        f"/trace <code>address</code> - Cross-chain fund trace (Hunter+)\n"
+        f"/holders <code>address</code> - Top holder analysis (Scout+)\n\n"
+        f"\U0001f4ac <b>\U0001f4ac CHAT & AI</b>\n{d}\n"
+        f"/chat <code>question</code> - Freestyle AI chat (RAG + LLM)\n"
+        f"/chat reset - Clear conversation context\n"
+        f"/ask <code>question</code> - Deep RAG-grounded answer\n"
+        f"/research <code>query</code> - RAG deep research (Hunter+)\n"
+        f"\u2022 Or just type any message - no command needed!\n\n"
+        f"\U0001f4c1 <b>\U0001f4c1 PORTFOLIO</b>\n{d}\n"
         f"/portfolio <code>address</code> - Wallet portfolio scanner\n"
-        f"/smartmoney <code>address</code> - Smart money detection\n"
-        f"/rugmap <code>address</code> - Wallet cluster visualization\n"
         f"/watch <code>address</code> [chain] - Add to watchlist\n"
         f"/unwatch <code>address</code> - Remove from watchlist\n"
         f"/watchlist - View your watchlist\n"
-        f"/alerts - Price & activity alerts\n\n"
+        f"/alerts - Price & activity alerts\n"
+        f"/simulate <code>address</code> [amount] - Buy/sell simulation\n\n"
+        f"\U0001f6e1\ufe0f <b>\U0001f6e1\ufe0f SECURITY</b>\n{d}\n"
+        f"/rugcheck - Quick rug pull checklist\n"
+        f"/scamschool - Learn about crypto scams\n"
+        f"/report <code>address</code> - Report a scam address to our team\n"
+        f"/investigate <code>address</code> - Deep investigation (Pro)\n\n"
         f"\U0001f4ca <b>MARKET DATA</b>\n{d}\n"
         f"/trending - Hot tokens right now\n"
         f"/news - Latest crypto news with bias/sentiment\n"
-        f"/sentiment - Market fear/greed & indicators\n\n"
-        f"\U0001f50d <b>AI RESEARCH</b>\n{d}\n"
-        f"/research <code>query</code> - RAG deep research (Hunter+)\n\n"
-        f"\U0001f575\ufe0f <b>DEEP ANALYSIS (Pro)</b>\n{d}\n"
-        f"/investigate <code>address</code> - Full investigation report\n"
-        f"/webhook add <code>url</code> - Custom webhook integration\n"
-        f"/api - API access tokens\n\n"
+        f"/sentiment - Market fear/greed & indicators\n"
+        f"/smartmoney <code>address</code> - Smart money detection\n"
+        f"/trace <code>address</code> - Cross-chain fund trace (Hunter+)\n\n"
+        f"\U0001f9db <b>WALLET INTELLIGENCE</b>\n{d}\n"
+        f"/wallet <code>address</code> - Forensic wallet analysis\n"
+        f"/portfolio <code>address</code> - Wallet holdings overview\n\n"
         f"\U0001f4b3 <b>ACCOUNT & BILLING</b>\n{d}\n"
         f"/account - Dashboard & usage stats\n"
         f"/pricing - Subscription plans\n"
         f"/topup - Buy extra scans (no expiry)\n"
+        f"/buystars - Buy Telegram Stars\n"
         f"/refer - Invite friends, earn scans\n\n"
         f"\U0001f4da <b>EDUCATION</b>\n{d}\n"
         f"/scamschool - Learn about crypto scams\n"
@@ -148,9 +161,11 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\U0001f4a1 <b>PRO TIPS</b>\n{d}\n"
         f"\u2022 Paste any <code>0x...</code> address to auto-scan\n"
         f"\u2022 Type <code>$PEPE</code> for instant price check\n"
+        f"\u2022 After any scan, tap Chart / RugMap / Share / Deep Scan\n"
+        f"\u2022 Use /chat for AI questions about tokens, wallets, DeFi, coding\n"
         f"\u2022 Use inline mode: <code>@RugMunchBot address</code> in any chat\n"
-        f"\u2022 Upgrade for wallet forensics, fund tracing & more\n"
-        f"\u2022 Use /refer to earn free scans"
+        f"\u2022 See a scam? /report <code>address</code> keeps us all safer\n"
+        f"\u2022 Upgrade for wallet forensics, fund tracing & more"
         f"{footer_links()}"
     )
     kb = welcome_menu_kb()
@@ -233,6 +248,146 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Scan error: {e}")
         await msg.edit_text(
             f"\u274c <b>Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+
+
+async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Full multi-phase deep scan (v6).
+
+    Runs ALL scanner phases and enriches the result with RugMaps cluster
+    data + RugCharts intel for a much more detailed report than /scan.
+    Slower (~1-2 min) but shows every phase it ran.
+    """
+    user = update.effective_user
+    if user is None or update.message is None:
+        return
+    db.get_or_create_user(user.id, user.username, user.first_name)
+    if check_spam(user.id):
+        return
+    if not ctx.args:
+        await update.message.reply_text(
+            "\U0001f52c <b>Deep Token Scan</b>\n\n"
+            "Usage: /deepscan <code>address</code> [chain]\n\n"
+            "Runs ALL phases:\n"
+            "\u2460 Market data (price, volume, liquidity)\n"
+            "\u2461 Contract security (honeypot, mint, taxes)\n"
+            "\u2462 Holder analysis (top holders, concentration)\n"
+            "\u2463 Deployer fingerprint (dev history, rugs)\n"
+            "\u2464 Funding analysis (fresh wallets, bundles)\n"
+            "\u2465 AI risk verdict + RugMap cluster data\n\n"
+            "\u23f3 Slower than /scan (\u2248 1-2 min) but far more detailed.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    target = ctx.args[0]
+    chain = ctx.args[1] if len(ctx.args) > 1 else None
+    if not is_owner(user.id):
+        allowed, _used, _limit = db.check_rate_limit(user.id, "scan")
+        if not allowed:
+            tier = db.get_user_tier(user.id)
+            await update.message.reply_text(
+                paywall_text(user.id, "scan"),
+                parse_mode=ParseMode.HTML,
+                reply_markup=upgrade_nudge_kb(tier),
+            )
+            return
+    msg = await update.message.reply_text(
+        f"\U0001f52c <b>Deep scan started...</b>\n"
+        f"<code>{short_addr(target)}</code>\n\n"
+        f"\u2460 Market \u2192 \u2461 Security \u2192 \u2462 Holders \u2192 "
+        f"\u2463 Deployer \u2192 \u2464 Funding \u2192 \u2465 AI verdict\n"
+        f"\u23f3 This can take up to 2 minutes...",
+        parse_mode=ParseMode.HTML,
+    )
+    try:
+        result_v2 = await scan_token_v2(target, chain)
+        if result_v2 is not None:
+            result = v2_token_to_legacy(result_v2)
+        else:
+            result = await scan_token(target, chain)
+        if result["name"] == "Unknown" and not result["errors"]:
+            await msg.edit_text(
+                f"\u274c <b>Token Not Found</b>\n\n"
+                f"No data found for <code>{short_addr(target)}</code>.\n\n"
+                f"\u2022 Check the address is correct\n"
+                f"\u2022 Try specifying the chain: /deepscan <code>addr</code> solana",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
+
+        # ── Enrichment phase (best-effort, non-blocking) ──
+        enrichment_lines: list[str] = []
+        chain_norm = chain or result.get("chain") or detect_chain(target)
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                g_r, i_r = await asyncio.gather(
+                    client.get(
+                        f"{BACKEND_URL}/api/v1/rugmaps/token-graph",
+                        params={"token_address": target, "chain": chain_norm, "limit": 30},
+                        headers=backend_headers(),
+                        timeout=12,
+                    ),
+                    client.get(
+                        f"{DEXSCREENER}/tokens/{target}",
+                        timeout=10,
+                    ),
+                    return_exceptions=True,
+                )
+            if isinstance(g_r, httpx.Response) and g_r.status_code == 200:
+                gd = g_r.json()
+                nodes = gd.get("nodes") or []
+                links = gd.get("links") or []
+                enrichment_lines.append(
+                    f"\U0001f5fa\ufe0f <b>RugMap Cluster</b>\n{thin_sep()}\n"
+                    f"\U0001f465 Nodes: <b>{len(nodes)}</b> | Links: <b>{len(links)}</b>"
+                )
+                if gd.get("risk_level"):
+                    enrichment_lines.append(
+                        f"\u26a0\ufe0f Graph Risk: <b>{gd.get('risk_level', 'unknown').upper()}</b> "
+                        f"({gd.get('risk_score', 0)})"
+                    )
+                if gd.get("similar_scams"):
+                    enrichment_lines.append(f"\U0001f6a8 Similar scams: {len(gd['similar_scams'])}")
+            if isinstance(i_r, httpx.Response) and i_r.status_code == 200:
+                pairs = i_r.json().get("pairs", [])
+                if pairs:
+                    p = pairs[0]
+                    enrichment_lines.append(
+                        f"\U0001f4c8 <b>Market Snapshot</b>\n{thin_sep()}\n"
+                        f"\U0001f4b0 {fmt_number(p.get('priceUsd', 0))} | "
+                        f"\U0001f4c8 MCap {fmt_number(p.get('marketCap') or 0)} | "
+                        f"\U0001f4a7 Liq {fmt_number(p.get('liquidity', {}).get('usd') or 0)}\n"
+                        f"\U0001f4ca 24h Vol {fmt_number(p.get('volume', {}).get('h24') or 0)} | "
+                        f"24h {fmt_pct(p.get('priceChange', {}).get('h24') or 0)}"
+                    )
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError):
+            logger.debug("deepscan enrichment unavailable for %s", target, exc_info=True)
+
+        report = format_scan_report(result)
+        if enrichment_lines:
+            report += "\n\n" + "\n\n".join(enrichment_lines)
+        db.increment_usage(user.id, scan=True)
+        db.log_scan(user.id, target, result["chain"], "deep", result["risk_score"])
+        user_tier = db.get_user_tier(user.id)
+        result_kb = (
+            deep_scan_result_kb(target, result["chain"])
+            if user_tier in ("hunter", "pro")
+            else scan_result_kb(target, result["chain"])
+        )
+        await msg.edit_text(
+            report,
+            parse_mode=ParseMode.HTML,
+            reply_markup=result_kb,
+            disable_web_page_preview=True,
+        )
+    except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
+        logger.debug("cmd_deepscan_error", exc_info=True)
+        logger.error(f"Deep scan error: {e}")
+        await msg.edit_text(
+            f"\u274c <b>Deep Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

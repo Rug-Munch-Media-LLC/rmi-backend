@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import time
+from typing import Any
 
 import httpx
 
@@ -26,7 +27,7 @@ DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "")
 DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
 
 # Analysis cache (in-memory + Redis if available)
-_analysis_cache: dict[str, dict] = {}
+_analysis_cache: dict[str, dict[str, Any]] = {}
 CACHE_TTL = 3600  # 1 hour
 
 
@@ -34,7 +35,7 @@ def _cache_key(token: str, chain: str) -> str:
     return hashlib.sha256(f"{chain}:{token}".encode()).hexdigest()[:16]
 
 
-async def get_cached_analysis(token: str, chain: str) -> dict | None:
+async def get_cached_analysis(token: str, chain: str) -> dict[str, Any] | None:
     """Check if we have a cached analysis for this token."""
     key = _cache_key(token, chain)
     if key in _analysis_cache:
@@ -45,7 +46,7 @@ async def get_cached_analysis(token: str, chain: str) -> dict | None:
     return None
 
 
-def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
+def set_cached_analysis(token: str, chain: str, analysis: dict[str, Any]) -> None:
     """Cache analysis result."""
     key = _cache_key(token, chain)
     analysis["_ts"] = time.time()
@@ -57,7 +58,7 @@ def set_cached_analysis(token: str, chain: str, analysis: dict) -> None:
             del _analysis_cache[k]
 
 
-async def get_token_holders(token_address: str, chain: str) -> list[dict]:
+async def get_token_holders(token_address: str, chain: str) -> list[dict[str, Any]]:
     """Get token holders from our data sources."""
     try:
         from app.domains.scanner.rugmaps import get_bubble_maps_pro
@@ -71,7 +72,7 @@ async def get_token_holders(token_address: str, chain: str) -> list[dict]:
         return []
 
 
-async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
+async def get_wallet_labels(addresses: list[str]) -> dict[str, dict[str, Any]]:
     """Get wallet labels from our ClickHouse/FAISS database."""
     labels = {}
     try:
@@ -95,7 +96,7 @@ async def get_wallet_labels(addresses: list[str]) -> dict[str, dict]:
     return labels
 
 
-async def search_similar_scams(token_address: str, chain: str) -> list[dict]:
+async def search_similar_scams(token_address: str, chain: str) -> list[dict[str, Any]]:
     """Search FAISS indexes for similar scam patterns.
 
     DEPRECATED (FAISS → Qdrant): the app.rag v3 engine searches the Qdrant
@@ -244,7 +245,7 @@ async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | N
     return None
 
 
-def _parse_ai_json(content: str) -> dict | None:
+def _parse_ai_json(content: str) -> dict[str, Any] | None:
     """Parse JSON from AI response, stripping markdown code blocks."""
     if not content:
         return None
@@ -276,9 +277,9 @@ def _parse_ai_json(content: str) -> dict | None:
 async def analyze_holder_clusters(
     token_address: str,
     chain: str,
-    holders: list[dict],
-    labels: dict[str, dict],
-) -> dict:
+    holders: list[dict[str, Any]],
+    labels: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     """AI-powered wallet cluster analysis for suspicious patterns.
 
     Analyzes holder clusters for bundling, sniper coordination, wash trading,
@@ -339,7 +340,7 @@ Return ONLY valid JSON with these fields:
     return _fallback_cluster_analysis(holders, labels)
 
 
-def _fallback_cluster_analysis(holders: list[dict], labels: dict[str, dict]) -> dict:
+def _fallback_cluster_analysis(holders: list[dict[str, Any]], labels: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Rule-based cluster analysis when AI is unavailable."""
     clusters = []
     high_risk_addrs = [a for a, lb in labels.items() if lb.get("risk_score", 0) >= 70]
@@ -398,9 +399,9 @@ def _fallback_cluster_analysis(holders: list[dict], labels: dict[str, dict]) -> 
 async def detect_contract_anomalies(
     token_address: str,
     chain: str,
-    holder_data: dict,
-    scanner_data: dict | None = None,
-) -> dict:
+    holder_data: dict[str, Any],
+    scanner_data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """AI-powered contract anomaly detection for rug pull indicators.
 
     Reviews token holder distribution, contract behavior, and on-chain patterns
@@ -479,7 +480,7 @@ Return ONLY valid JSON with these fields:
     return _fallback_anomaly_detection(holder_data, scanner_data)
 
 
-def _fallback_anomaly_detection(holder_data: dict, scanner_data: dict | None) -> dict:
+def _fallback_anomaly_detection(holder_data: dict[str, Any], scanner_data: dict[str, Any] | None) -> dict[str, Any]:
     """Rule-based anomaly detection when AI is unavailable."""
     anomalies = []
     rug_prob = 0
@@ -570,11 +571,11 @@ def _fallback_anomaly_detection(holder_data: dict, scanner_data: dict | None) ->
 async def generate_ai_analysis(
     token_address: str,
     chain: str,
-    graph_data: dict,
-    holders: list[dict],
-    labels: dict[str, dict],
-    similar_scams: list[dict],
-) -> dict:
+    graph_data: dict[str, Any],
+    holders: list[dict[str, Any]],
+    labels: dict[str, dict[str, Any]],
+    similar_scams: list[dict[str, Any]],
+) -> dict[str, Any]:
     """Generate AI analysis via LiteLLM with fallback to rule-based engine."""
     holder_summary = []
     for h in holders[:10]:
@@ -657,12 +658,12 @@ Return ONLY valid JSON, no markdown, no code blocks."""
 
 def generate_fallback_analysis(
     risk_score: int,
-    holders: list[dict],
-    labels: dict[str, dict],
-    similar_scams: list[dict],
+    holders: list[dict[str, Any]],
+    labels: dict[str, dict[str, Any]],
+    similar_scams: list[dict[str, Any]],
     node_count: int,
     link_count: int,
-) -> dict:
+) -> dict[str, Any]:
     """Generate analysis purely from our own data when AI is unavailable."""
 
     red_flags = []

@@ -282,19 +282,74 @@ def service_control(name: str, action: str) -> dict[str, Any]:
 # ═══════════════════════════════════════════════
 
 
+_BACKUP_SENTINEL = "/backups/.last-successful-backup"
+_GIT_BACKUP_SENTINEL = "/backups/.last-successful-backup-all"
+
+
 def trigger_backup(btype: str = "full") -> dict[str, Any]:
     """Trigger a backup script."""
     scripts = {
         "full": "/root/scripts/push-all-repos.sh",
         "db": "/root/scripts/db-backup-all.sh",
-        "status": "",
     }
     script = scripts.get(btype)
-    if btype == "status":
-        return _ok("📊 *Backup Status*\n\nSee: `/root/scripts/` for backup scripts\nLast backup: check backup logs")
     if not script or not os.path.exists(script):
         return _err(f"Backup script not found: {script}")
     return _run_subprocess(["bash", script], timeout=300)
+
+
+def backup_report() -> dict[str, Any]:
+    """Last successful backup timestamps + recent backup artifacts on disk."""
+    t0 = time.time()
+
+    def _sentinel_ts(path: str) -> int | None:
+        try:
+            with open(path, encoding="utf-8") as f:
+                return int(f.read().strip())
+        except (OSError, ValueError):
+            return None
+
+    now = time.time()
+    sentinels: list[tuple[str, int | None]] = [
+        ("App/DB backup", _sentinel_ts(_BACKUP_SENTINEL)),
+        ("Git push backup", _sentinel_ts(_GIT_BACKUP_SENTINEL)),
+    ]
+    lines = ["📦 *Backup Report*\n"]
+    for label, ts in sentinels:
+        if ts:
+            ago_h = (now - ts) / 3600.0
+            emoji = "🟢" if ago_h < 36 else "🟡" if ago_h < 7 * 24 else "🔴"
+            lines.append(
+                f"{emoji} {label}: `{time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(ts))}` ({ago_h:.1f}h ago)"
+            )
+        else:
+            lines.append(f"🔴 {label}: no sentinel found")
+
+    # Recent backup artifacts (sorted newest first).
+    backup_dir = "/backups"
+    recent: list[tuple[float, str]] = []
+    if os.path.isdir(backup_dir):
+        try:
+            for name in os.listdir(backup_dir):
+                full = os.path.join(backup_dir, name)
+                if not os.path.isfile(full) or name.startswith("."):
+                    continue
+                try:
+                    recent.append((os.path.getmtime(full), name))
+                except OSError:
+                    continue
+        except OSError:
+            pass
+    recent.sort(reverse=True)
+    if recent:
+        lines.append("\n*Recent backup artifacts:*")
+        for mtime, name in recent[:8]:
+            lines.append(f"  • `{name[:48]}` {time.strftime('%m-%d %H:%M', time.gmtime(mtime))}")
+    else:
+        lines.append("\nNo recent backup artifacts found in /backups.")
+
+    lines.append("\n💡 Run `/backup run` to trigger a full backup.")
+    return _ok("\n".join(lines), time.time() - t0)
 
 
 # ═══════════════════════════════════════════════

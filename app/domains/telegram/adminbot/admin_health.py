@@ -42,6 +42,18 @@ CRITICAL_SERVICES: tuple[str, ...] = (
     "rmi-redis",
 )
 
+# Human-readable labels for the control-panel health summary.
+SERVICE_LABELS: dict[str, str] = {
+    "infinity-rag": "RAG",
+    "rmi-backend": "Backend",
+    "rmi-clickhouse": "ClickHouse",
+    "rmi-postgres": "Postgres",
+    "rmi-redis": "Redis",
+}
+
+# Systemd bot services tracked on the control panel.
+BOT_SERVICES: tuple[str, ...] = ("rugmunchbot", "rmiadminbot")
+
 # Backup sentinel files written by /root/scripts/backup-*.sh on success.
 _BACKUP_SENTINEL = "/backups/.last-successful-backup"
 _GIT_BACKUP_SENTINEL = "/backups/.last-successful-backup-all"
@@ -528,4 +540,104 @@ def format_health_dashboard(data: dict[str, Any]) -> str:
     alerts = data.get("critical_alerts", 0)
     lines.append(f"🚨 *Total critical alerts*: `{alerts}` {'🟢' if alerts == 0 else '🔴'}")
 
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════
+# CONTROL PANEL (v5 — /start dashboard)
+# ═══════════════════════════════════════════════
+
+
+def _bot_systemd_status() -> dict[str, str]:
+    """Systemd active state for the fleet bots (rugmunchbot / rmiadminbot)."""
+    result: dict[str, str] = {}
+    for svc in BOT_SERVICES:
+        r = _run_subprocess(["systemctl", "is-active", f"{svc}.service"], timeout=5)
+        state = r.get("output", "").strip() or "unknown"
+        if state == "active":
+            result[svc] = "🟢"
+        elif state in ("inactive", "dead", "failed"):
+            result[svc] = "🔴"
+        else:
+            result[svc] = "🟡"
+    return result
+
+
+def _service_summary() -> dict[str, str]:
+    """Label -> status emoji for the critical containers + bots."""
+    summary: dict[str, str] = {}
+    for c in critical_services_status():
+        label = SERVICE_LABELS.get(c.get("name", ""), c.get("name", "?"))
+        summary[label] = c.get("level", "🟡")
+    summary["Bots"] = _bot_systemd_status()
+    return summary
+
+
+def control_panel() -> dict[str, Any]:
+    """Gather the /start control panel data (health + quick stats + bots)."""
+    data = quick_status()
+    data["service_summary"] = _service_summary()
+    return data
+
+
+def format_control_panel(data: dict[str, Any]) -> str:
+    """Render the /start control panel dashboard."""
+    host = data.get("hostname", "host")
+    lines = [f"🛡️ *RMI Admin Control Panel* — `{host}`\n"]
+
+    # ── System health summary ──
+    summary = data.get("service_summary", {})
+    if summary:
+        lines.append("🚨 *Service Health*")
+        row: list[str] = []
+        for label, emoji in summary.items():
+            if isinstance(emoji, dict):  # bots map
+                row.append(f"{emoji.get('rugmunchbot', '🟡')} Bot")
+                row.append(f"{emoji.get('rmiadminbot', '🟡')} AdminBot")
+            else:
+                row.append(f"{emoji} {label}")
+        lines.append(" ".join(row))
+        lines.append("")
+
+    # ── Quick stats ──
+    lines.append("📊 *Quick Stats*")
+    disk = data.get("disk_pct")
+    disk_txt = f"`{disk:.0f}%` {data.get('disk_level', '🟡')}" if disk is not None else "`?` 🟡"
+    lines.append(f"💾 Disk: {disk_txt}")
+
+    mem = data.get("mem_avail_gb")
+    if mem is not None:
+        lines.append(f"🧠 Mem: `{mem:.1f}G` free of `{data.get('mem_total_gb', 0):.1f}G` {data.get('mem_level', '🟡')}")
+    else:
+        lines.append("🧠 Mem: `?` 🟡")
+
+    load = data.get("load")
+    if load:
+        lines.append(
+            f"📈 Load: `{load[0]:.2f} / {load[1]:.2f} / {load[2]:.2f}` ({data.get('nproc', '?')} cores) "
+            f"{data.get('load_level', '🟡')}"
+        )
+    else:
+        lines.append("📈 Load: `?` 🟡")
+
+    docker = data.get("docker", {})
+    dock_emoji = "🟢" if docker.get("exited", 0) == 0 else "🟡"
+    lines.append(f"🐳 Docker: `{docker.get('running', 0)}` running / `{docker.get('total', 0)}` total {dock_emoji}")
+
+    failed = data.get("systemd_failed", 0)
+    sys_emoji = "🟢" if failed == 0 else "🔴"
+    lines.append(f"🛠 Systemd: `{failed}` failed units {sys_emoji}")
+
+    backup = data.get("backup", {})
+    b_hours = backup.get("backup_hours_ago")
+    if b_hours is not None:
+        lines.append(f"🗄 Backup: {b_hours:.1f}h ago {backup.get('level', '🟡')}")
+    else:
+        lines.append(f"🗄 Backup: no sentinel {backup.get('level', '🔴')}")
+
+    alerts = data.get("critical_alerts", 0)
+    lines.append(f"🚨 Alerts: `{alerts}` {'🟢' if alerts == 0 else '🔴'}")
+    lines.append("")
+
+    lines.append("_Owner-only · all commands logged · pick a section below:_")
     return "\n".join(lines)

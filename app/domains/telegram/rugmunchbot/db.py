@@ -164,6 +164,19 @@ def init_db() -> None:
             created_at INTEGER
         );
         CREATE INDEX IF NOT EXISTS idx_chat_history_user ON chat_history(user_id, created_at);
+
+        -- v6: user-submitted scam reports (feeds the known-scam denylist)
+        CREATE TABLE IF NOT EXISTS scam_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_address TEXT NOT NULL,
+            chain TEXT,
+            reason TEXT,
+            status TEXT DEFAULT 'open',
+            created_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_scam_reports_addr ON scam_reports(token_address);
+        CREATE INDEX IF NOT EXISTS idx_scam_reports_user ON scam_reports(user_id, created_at);
     """)
     # Migration: add bonus columns if they don't exist (SQLite safe)
     with contextlib.suppress(sqlite3.OperationalError):
@@ -713,6 +726,54 @@ def set_banned(user_id: int, banned: bool) -> bool:
     ok = cur.rowcount > 0
     conn.close()
     return ok
+
+
+# ── Scam reports (v6) ──
+
+
+def report_scam(user_id: int, token_address: str, chain: str | None = None, reason: str = "") -> bool:
+    """Record a user-submitted scam report (feeds the known-scam denylist).
+
+    Returns True when the report was stored. The address becomes a known
+    scam address for the whole fleet (get_known_scam_addresses).
+    """
+    addr = (token_address or "").strip()
+    if not addr:
+        return False
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO scam_reports (user_id, token_address, chain, reason, status, created_at) "
+        "VALUES (?, ?, ?, ?, 'open', ?)",
+        (user_id, addr, chain or "", (reason or "")[:300], int(time.time())),
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def get_known_scam_addresses() -> set[str]:
+    """Return the set of distinct lowercased addresses with open scam reports."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT lower(token_address) AS addr FROM scam_reports WHERE status = 'open'"
+        ).fetchall()
+    finally:
+        conn.close()
+    return {r["addr"] for r in rows if r["addr"]}
+
+
+def list_scam_reports(limit: int = 20) -> list[dict]:
+    """Return the most recent scam reports (newest first)."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM scam_reports ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
 
 
 # Init on import

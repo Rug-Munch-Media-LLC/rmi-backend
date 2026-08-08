@@ -110,30 +110,30 @@ class ScanResult:
     green_flags: list[str] = field(default_factory=list)
 
     # Enrichment results (keyed by DataBus chain name)
-    security: dict | None = None
-    holders: dict | None = None
-    holder_health: dict | None = None
-    liquidity: dict | None = None
-    volume_auth: dict | None = None
-    dev_reputation: dict | None = None
-    rug_patterns: dict | None = None
-    premium: dict | None = None  # bundle/cluster/sniper/mev/wash/copy/insider
-    smart_money: dict | None = None
-    whale_alerts: dict | None = None
-    cross_chain: dict | None = None
-    launches: dict | None = None
-    chain_indexer_patterns: dict | None = None
+    security: dict[str, Any] | None = None
+    holders: dict[str, Any] | None = None
+    holder_health: dict[str, Any] | None = None
+    liquidity: dict[str, Any] | None = None
+    volume_auth: dict[str, Any] | None = None
+    dev_reputation: dict[str, Any] | None = None
+    rug_patterns: dict[str, Any] | None = None
+    premium: dict[str, Any] | None = None  # bundle/cluster/sniper/mev/wash/copy/insider
+    smart_money: dict[str, Any] | None = None
+    whale_alerts: dict[str, Any] | None = None
+    cross_chain: dict[str, Any] | None = None
+    launches: dict[str, Any] | None = None
+    chain_indexer_patterns: dict[str, Any] | None = None
 
     # Clever wallet analysis (own-data engines — funding_analysis.py)
-    funding_analysis: dict | None = None  # exchange-funded / fresh / mixer holder %
-    wallet_freshness: dict | None = None  # aggregate freshness of top holders
-    holder_overlap: dict | None = None  # holder overlap vs known scam tokens
+    funding_analysis: dict[str, Any] | None = None  # exchange-funded / fresh / mixer holder %
+    wallet_freshness: dict[str, Any] | None = None  # aggregate freshness of top holders
+    holder_overlap: dict[str, Any] | None = None  # holder overlap vs known scam tokens
 
     # News-event-to-price correlation (own-data engine — event_correlation.py)
-    event_correlation: dict | None = None  # which news events moved the price
+    event_correlation: dict[str, Any] | None = None  # which news events moved the price
 
     # News-based sentiment (engines/news_sentiment.py — RugBrain news_v2)
-    news_sentiment: dict | None = None  # {sentiment, confidence, article_count, trending_score, ...}
+    news_sentiment: dict[str, Any] | None = None  # {sentiment, confidence, article_count, trending_score, ...}
 
     # Ground News-style news card (engines/news_sentiment.py — get_token_news_card)
     news_card: dict[str, Any] | None = None  # {sentiment, trending_score, articles, corroboration}

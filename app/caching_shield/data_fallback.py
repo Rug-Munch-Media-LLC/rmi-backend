@@ -25,7 +25,7 @@ import os
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
 
@@ -45,7 +45,7 @@ class DataSource:
 
     name: str
     provider: str  # "helius", "solana_tracker", "jupiter", etc.
-    fn: Callable  # async function to call
+    fn: Callable[..., Any]  # async function to call
     rate_rps: float = 10.0
     monthly_quota: int = 0
     weight: float = 1.0  # Higher = preferred
@@ -79,7 +79,7 @@ class UnifiedDataEngine:
     def __init__(self) -> None:
         self._chains: dict[DataQueryType, list[DataSource]] = {}
         self._setup_chains()
-        self._l1: dict[str, tuple] = {}
+        self._l1: dict[str, tuple[Any, ...]] = {}
         self.stats = {"hits": 0, "misses": 0, "fallbacks": 0}
 
     def _setup_chains(self) -> None:
@@ -145,7 +145,7 @@ class UnifiedDataEngine:
     # MAIN QUERY METHOD
     # ═══════════════════════════════════════════════════════════════════════
 
-    async def query(self, query_type: DataQueryType, **kwargs) -> dict | None:
+    async def query(self, query_type: DataQueryType, **kwargs) -> dict[str, Any] | None:
         """Query data with automatic fallback through the chain."""
         import hashlib
         import json
@@ -206,7 +206,7 @@ class UnifiedDataEngine:
 
     # ── TOKEN PRICE ──
 
-    async def _jupiter_price(self, mint: str, **kw) -> dict | None:
+    async def _jupiter_price(self, mint: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -221,7 +221,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _tracker_price(self, mint: str, **kw) -> dict | None:
+    async def _tracker_price(self, mint: str, **kw) -> dict[str, Any] | None:
         from app.caching_shield.solana_tracker import get_solana_tracker
 
         st = get_solana_tracker()
@@ -236,7 +236,7 @@ class UnifiedDataEngine:
             else None
         )
 
-    async def _dexscreener_price(self, mint: str, **kw) -> dict | None:
+    async def _dexscreener_price(self, mint: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -253,7 +253,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _binance_price(self, mint: str, **kw) -> dict | None:
+    async def _binance_price(self, mint: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -265,7 +265,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _coingecko_price(self, mint: str, **kw) -> dict | None:
+    async def _coingecko_price(self, mint: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -284,7 +284,7 @@ class UnifiedDataEngine:
 
     # ── TOKEN METADATA ──
 
-    async def _helius_das_meta(self, mint: str, **kw) -> dict | None:
+    async def _helius_das_meta(self, mint: str, **kw) -> dict[str, Any] | None:
         from app.caching_shield.helius_das import get_helius_das
 
         das = get_helius_das()
@@ -301,7 +301,7 @@ class UnifiedDataEngine:
             }
         return None
 
-    async def _tracker_meta(self, mint: str, **kw) -> dict | None:
+    async def _tracker_meta(self, mint: str, **kw) -> dict[str, Any] | None:
         from app.caching_shield.solana_tracker import get_solana_tracker
 
         st = get_solana_tracker()
@@ -314,7 +314,7 @@ class UnifiedDataEngine:
             }
         return None
 
-    async def _jupiter_meta(self, mint: str, **kw) -> dict | None:
+    async def _jupiter_meta(self, mint: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -333,7 +333,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _dexscreener_meta(self, mint: str, **kw) -> dict | None:
+    async def _dexscreener_meta(self, mint: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -352,7 +352,7 @@ class UnifiedDataEngine:
 
     # ── WALLET BALANCE ──
 
-    async def _helius_balance(self, address: str, **kw) -> dict | None:
+    async def _helius_balance(self, address: str, **kw) -> dict[str, Any] | None:
         from app.consensus_rpc import get_consensus_rpc
 
         rpc = get_consensus_rpc()
@@ -364,7 +364,7 @@ class UnifiedDataEngine:
             }
         return None
 
-    async def _quicknode_balance(self, address: str, **kw) -> dict | None:
+    async def _quicknode_balance(self, address: str, **kw) -> dict[str, Any] | None:
         from app.consensus_rpc import get_consensus_rpc
 
         rpc = get_consensus_rpc()
@@ -376,7 +376,7 @@ class UnifiedDataEngine:
             }
         return None
 
-    async def _alchemy_balance(self, address: str, **kw) -> dict | None:
+    async def _alchemy_balance(self, address: str, **kw) -> dict[str, Any] | None:
         from app.consensus_rpc import get_consensus_rpc
 
         rpc = get_consensus_rpc()
@@ -388,7 +388,7 @@ class UnifiedDataEngine:
             }
         return None
 
-    async def _publicnode_balance(self, address: str, **kw) -> dict | None:
+    async def _publicnode_balance(self, address: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -406,7 +406,7 @@ class UnifiedDataEngine:
 
     # ── RISK SCAN ──
 
-    async def _goplus_scan(self, address: str, chain: str = "solana", **kw) -> dict | None:
+    async def _goplus_scan(self, address: str, chain: str = "solana", **kw) -> dict[str, Any] | None:
         import httpx
 
         key = os.getenv("GOPLUS_API_KEY", "")
@@ -425,7 +425,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _rugcheck_scan(self, address: str, **kw) -> dict | None:
+    async def _rugcheck_scan(self, address: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -439,7 +439,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _honeypot_scan(self, address: str, **kw) -> dict | None:
+    async def _honeypot_scan(self, address: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -455,7 +455,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _local_labels(self, address: str, **kw) -> dict | None:
+    async def _local_labels(self, address: str, **kw) -> dict[str, Any] | None:
         try:
             from app.wallet_label_loader import lookup_wallet_label
 
@@ -468,7 +468,7 @@ class UnifiedDataEngine:
 
     # ── FUNDING SOURCE (EVM) ──
 
-    async def _blockscout_trace(self, address: str, chain_id: int = 1, **kw) -> dict | None:
+    async def _blockscout_trace(self, address: str, chain_id: int = 1, **kw) -> dict[str, Any] | None:
         from app.caching_shield.funding_tracer import trace_funding_source
 
         result = await trace_funding_source(address, chain_id)
@@ -482,7 +482,7 @@ class UnifiedDataEngine:
             }
         return None
 
-    async def _etherscan_trace(self, address: str, chain_id: int = 1, **kw) -> dict | None:
+    async def _etherscan_trace(self, address: str, chain_id: int = 1, **kw) -> dict[str, Any] | None:
         from app.caching_shield.funding_tracer import _fetch_etherscan_txs
 
         key = os.getenv("ETHERSCAN_API_KEY", "")
@@ -491,7 +491,7 @@ class UnifiedDataEngine:
             return {"txs_found": len(txs), "source": "etherscan"}
         return None
 
-    async def _rpc_trace(self, address: str, chain_id: int = 1, **kw) -> dict | None:
+    async def _rpc_trace(self, address: str, chain_id: int = 1, **kw) -> dict[str, Any] | None:
         from app.caching_shield.funding_tracer import _fetch_rpc_transfers
 
         txs = await _fetch_rpc_transfers(address, chain_id)
@@ -501,7 +501,7 @@ class UnifiedDataEngine:
 
     # ── SOLANA FUNDING ──
 
-    async def _helius_sol_funding(self, address: str, **kw) -> dict | None:
+    async def _helius_sol_funding(self, address: str, **kw) -> dict[str, Any] | None:
         """Trace Solana wallet funding via Helius parsed transaction history."""
         import httpx
 
@@ -552,7 +552,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _tracker_sol_funding(self, address: str, **kw) -> dict | None:
+    async def _tracker_sol_funding(self, address: str, **kw) -> dict[str, Any] | None:
         from app.caching_shield.solana_tracker import get_solana_tracker
 
         st = get_solana_tracker()
@@ -565,7 +565,7 @@ class UnifiedDataEngine:
             }
         return None
 
-    async def _public_rpc_sol_funding(self, address: str, **kw) -> dict | None:
+    async def _public_rpc_sol_funding(self, address: str, **kw) -> dict[str, Any] | None:
         import httpx
 
         try:
@@ -586,7 +586,7 @@ class UnifiedDataEngine:
             logger.debug("Data source failed", exc_info=True)
         return None
 
-    async def _local_wallet_labels(self, address: str, **kw) -> dict | None:
+    async def _local_wallet_labels(self, address: str, **kw) -> dict[str, Any] | None:
         try:
             from app.wallet_label_loader import lookup_wallet_label
 
@@ -617,7 +617,7 @@ class UnifiedDataEngine:
     # STATS
     # ═══════════════════════════════════════════════════════════════════════
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, Any]:
         chains_info = {}
         for qt, sources in self._chains.items():
             chains_info[qt.value] = {

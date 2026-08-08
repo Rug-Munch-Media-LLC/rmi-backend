@@ -89,6 +89,22 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             parse_mode=ParseMode.HTML,
             reply_markup=category_scan_kb(),
         )
+    elif data == "menu_cat_charts":
+        await query.edit_message_text(
+            "\U0001f4c8 <b>Charts & Visualization</b>\n\n"
+            "Price chart images, RugMaps bubble maps, technical analysis "
+            "and market data for any token.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=category_charts_kb(),
+        )
+    elif data == "menu_cat_security":
+        await query.edit_message_text(
+            "\U0001f6e1\ufe0f <b>Security & Education</b>\n\n"
+            "Rug pull checklists, scam education, deep investigations and "
+            "reporting suspicious addresses to the RugMunch team.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=category_security_kb(),
+        )
     elif data == "menu_cat_market":
         await query.edit_message_text(
             "\U0001f4c8 <b>Market Intel</b>\n\n"
@@ -446,6 +462,32 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 reply_markup=back_kb(),
             )
 
+    elif data.startswith("chart_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr, chain = parts[1], parts[2]
+            await query.edit_message_text(
+                f"\U0001f4c8 <b>Generating chart...</b>\n<code>{short_addr(addr)}</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            from app.domains.telegram.rugmunchbot.commands.chart import cmd_chart
+
+            ctx.args = [addr, chain]
+            await cmd_chart(update, ctx)
+
+    elif data.startswith("rugmap_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr, chain = parts[1], parts[2]
+            await query.edit_message_text(
+                f"\U0001f5fa\ufe0f <b>Generating RugMap...</b>\n<code>{short_addr(addr)}</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            from app.domains.telegram.rugmunchbot.commands.rugmap import cmd_rugmap
+
+            ctx.args = [addr, chain]
+            await cmd_rugmap(update, ctx)
+
     elif data.startswith("alert_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
@@ -730,7 +772,22 @@ _RUN_CARDS: dict[str, str] = {
         "Usage: <code>/scan &lt;address&gt; [chain]</code>\n\n"
         "Or just paste any contract address \u2014 I auto-detect it!\n\n"
         "\U0001f4a1 Checks honeypots, rug pulls, bundles, fake volume, "
-        "dev history and liquidity across 77+ chains."
+        "dev history and liquidity across 77+ chains.\n\n"
+        "\U0001f52c Want more? Use <code>/deepscan &lt;address&gt;</code> "
+        "for the full multi-phase forensic audit."
+    ),
+    "deepscan": (
+        "\U0001f52c <b>Deep Token Scan</b>\n\n"
+        "Usage: <code>/deepscan &lt;address&gt; [chain]</code>\n\n"
+        "Runs ALL phases: market data \u2192 contract security \u2192 holder "
+        "analysis \u2192 deployer fingerprint \u2192 funding analysis \u2192 "
+        "AI risk verdict.\n\n"
+        "\u23f3 Slower than /scan (up to ~2 min) but far more detailed."
+    ),
+    "quick": (
+        "\U0001fa99 <b>Quick Price Check</b>\n\n"
+        "Usage: <code>/quick &lt;symbol&gt;</code>\n\n"
+        "Same as typing <code>$TOKEN</code> \u2014 instant price from DexScreener."
     ),
     "wallet": (
         "\U0001f9db <b>Wallet Forensics</b>\n\n"
@@ -760,8 +817,21 @@ _RUN_CARDS: dict[str, str] = {
     ),
     "chart": (
         "\U0001f4c9 <b>Price Chart</b>\n\n"
-        "Usage: <code>/chart &lt;address&gt;</code>\n\n"
-        "Historical chart, technical indicators and trend analysis."
+        "Usage: <code>/chart &lt;address&gt; [chain]</code>\n\n"
+        "Generates a chart image from the RugCharts engine (OHLCV), "
+        "with technical indicators and trend analysis."
+    ),
+    "rugmap": (
+        "\U0001f5fa\ufe0f <b>RugMap Bubble Map</b>\n\n"
+        "Usage: <code>/rugmap &lt;address&gt; [chain]</code>\n\n"
+        "Generates a bubble-map image of wallet clusters, fund flows, "
+        "dev wallets and smart money."
+    ),
+    "report": (
+        "\U0001f6ab <b>Report a Scam</b>\n\n"
+        "Usage: <code>/report &lt;address&gt; [reason]</code>\n\n"
+        "Flags a token address as a scam. Reports feed the shared "
+        "denylist and go straight to the RugMunch team."
     ),
     "dex": (
         "\U0001f4e6 <b>DEX Pairs & Liquidity</b>\n\n"

@@ -92,9 +92,11 @@ from app.domains.telegram.rugmunchbot.handlers.owner import (
 )
 from app.domains.telegram.rugmunchbot.handlers.payments import precheckout, successful_payment
 from app.domains.telegram.rugmunchbot.handlers.price import cmd_dex, cmd_price
+from app.domains.telegram.rugmunchbot.handlers.report import cmd_report
 from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
 from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_compare,
+    cmd_deepscan,
     cmd_deployer,
     cmd_help,
     cmd_hype,
@@ -198,7 +200,8 @@ async def setup_bot_profile(app: Application) -> None:
         commands = [
             BotCommand("start", "Welcome & quick start guide"),
             BotCommand("help", "Full command reference"),
-            BotCommand("scan", "Scan token for scams & risks"),
+            BotCommand("scan", "Quick token scan for scams & risks"),
+            BotCommand("deepscan", "Full multi-phase deep token scan"),
             BotCommand("deployer", "Deployer fingerprint check"),
             BotCommand("hype", "Quick 0-100 hype score"),
             BotCommand("wallet", "Wallet forensics & analysis"),
@@ -220,11 +223,11 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("buystars", "Buy Telegram Stars"),
             BotCommand("refer", "Invite friends, earn scans"),
             BotCommand("scamschool", "Learn about crypto scams"),
-            BotCommand("chart", "Price chart for any token"),
+            BotCommand("chart", "Chart image for any token"),
             BotCommand("portfolio", "Scan wallet token holdings"),
             BotCommand("simulate", "Simulate buy/sell trade"),
             BotCommand("smartmoney", "Detect smart money wallets"),
-            BotCommand("rugmap", "Wallet cluster visualization"),
+            BotCommand("rugmap", "RugMap bubble map image"),
             BotCommand("price", "Token price by contract address"),
             BotCommand("dex", "DEX trading pairs & liquidity data"),
             BotCommand("holders", "Top holders & concentration (Scout+)"),
@@ -234,6 +237,7 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("api", "API access token (Pro)"),
             BotCommand("news", "Latest crypto news"),
             BotCommand("events", "News events & their price impact"),
+            BotCommand("report", "Report a scam address"),
             BotCommand("mygroup", "Your creator coin group"),
             BotCommand("groupinfo", "Group stats (admin)"),
             BotCommand("voicechat", "Manage voice chat (admin)"),
@@ -278,6 +282,7 @@ def main() -> None:
     _reg(app, "price", cmd_price)
     _reg(app, "dex", cmd_dex)
     _reg(app, "scan", cmd_scan)
+    _reg(app, "deepscan", cmd_deepscan)
     _reg(app, "deployer", cmd_deployer)
     _reg(app, "hype", cmd_hype)
     _reg(app, "wallet", cmd_wallet)
@@ -285,6 +290,9 @@ def main() -> None:
     _reg(app, "compare", cmd_compare)
     _reg(app, "quick", cmd_quick)
     _reg(app, "rugcheck", cmd_rugcheck)
+
+    # Anti-abuse
+    _reg(app, "report", cmd_report)
 
     # Market commands
     _reg(app, "trending", cmd_trending)

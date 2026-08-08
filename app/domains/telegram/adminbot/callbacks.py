@@ -17,7 +17,10 @@ from telegram.constants import ParseMode
 from app.domains.telegram.adminbot import admin_docker, admin_health, admin_ops, admin_server, admin_terminal
 from app.domains.telegram.adminbot.helpers import (
     back_button,
+    bot_toggle_menu_keyboard,
+    control_panel_keyboard,
     docker_menu,
+    double_confirm_keyboard,
     is_owner,
     logs_menu,
     main_menu_keyboard,
@@ -26,6 +29,11 @@ from app.domains.telegram.adminbot.helpers import (
     section_title,
     service_action_keyboard,
 )
+
+try:
+    from app.domains.telegram.adminbot import admin_bot  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover
+    admin_bot = None
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -52,11 +60,11 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         # ── Main navigation ──
         if data == "main":
-            qs = admin_health.quick_status()
-            card = admin_health.format_quick_status(qs)
+            qs = admin_health.control_panel()
+            card = admin_health.format_control_panel(qs)
             await query.edit_message_text(
-                f"🛡️ *RMI Admin Bot v4* — Fleet ChatOps\n\n{card}\n\n_Select a section:_",
-                reply_markup=main_menu_keyboard(),
+                f"{card}",
+                reply_markup=control_panel_keyboard(),
                 parse_mode=ParseMode.MARKDOWN,
             )
 
@@ -815,6 +823,137 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             if admin_ai:
                 admin_ai.clear_history(query.from_user.id)
             await query.edit_message_text("🧹 Chat history cleared.", parse_mode=ParseMode.MARKDOWN)
+
+        # ── v5: Backup report ──
+        elif data == "admin_backups":
+            await query.edit_message_text("⏳ Checking backups...")
+            result = admin_ops.backup_report()
+            await query.edit_message_text(
+                result["output"],
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=refresh_keyboard("admin_backups", extra=[("▶️ Run Backup", "backup")]),
+            )
+
+        # ── v5: Bot management ──
+        elif data == "bot_stats":
+            await query.edit_message_text("⏳ Fetching bot stats...")
+            if admin_bot is None:
+                await query.edit_message_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+            else:
+                data = await admin_bot.bot_stats()
+                await query.edit_message_text(
+                    admin_bot.format_bot_stats(data),
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=InlineKeyboardMarkup(
+                        [
+                            [
+                                InlineKeyboardButton("🔄 Refresh", callback_data="bot_stats"),
+                                InlineKeyboardButton("👥 Users", callback_data="bot_users"),
+                            ],
+                            [InlineKeyboardButton("🔀 Toggle", callback_data="bot_toggle_menu")],
+                            [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                        ]
+                    ),
+                )
+
+        elif data == "bot_users":
+            await query.edit_message_text("⏳ Listing users...")
+            if admin_bot is None:
+                await query.edit_message_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+            else:
+                result = admin_bot.bot_users(limit=15)
+                await query.edit_message_text(
+                    result["output"] or result["error"],
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=refresh_keyboard("bot_users", extra=[("🤖 Stats", "bot_stats")]),
+                )
+
+        elif data == "bot_broadcast_help":
+            await query.edit_message_text(
+                "📬 *Bot Broadcast*\n\n"
+                "Usage: `/admin_bot_broadcast <message>`\n"
+                "History: `/admin_bot_broadcasts`\n\n"
+                "Sends the message to every non-banned bot user (delivered async "
+                "by the bot's broadcast worker).",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("📜 History", callback_data="bot_broadcasts")],
+                        [InlineKeyboardButton("⬅️ Back", callback_data="menu_bots")],
+                    ]
+                ),
+            )
+
+        elif data == "bot_broadcasts":
+            await query.edit_message_text("⏳ Fetching broadcast history...")
+            if admin_bot is None:
+                await query.edit_message_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+            else:
+                result = await admin_bot.bot_broadcasts(limit=10)
+                await query.edit_message_text(
+                    result["output"] or result["error"],
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=refresh_keyboard("bot_broadcasts", extra=[("📬 Send", "bot_broadcast_help")]),
+                )
+
+        elif data == "bot_toggle_menu":
+            await query.edit_message_text(
+                "🔀 *RugMunchBot Toggle*\n\nChoose an action:",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=bot_toggle_menu_keyboard(),
+            )
+
+        elif data in ("bot_toggle_on", "bot_toggle_off", "bot_chat_on", "bot_chat_off"):
+            enable = data.endswith("_on")
+            is_chat = data.startswith("bot_chat")
+            label = "chat" if is_chat else "bot"
+            await query.edit_message_text(f"⏳ {'Enabling' if enable else 'Disabling'} {label}...")
+            if admin_bot is None:
+                await query.edit_message_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+            else:
+                result = await admin_bot.bot_toggle_chat(enable) if is_chat else await admin_bot.bot_toggle(enable)
+                status = "✅" if result["ok"] else "❌"
+                await query.edit_message_text(
+                    f"{status} {result['output'] or result['error']}",
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=InlineKeyboardMarkup(
+                        [
+                            [InlineKeyboardButton("🤖 Stats", callback_data="bot_stats")],
+                            [InlineKeyboardButton("⬅️ Menu", callback_data="menu_bots")],
+                        ]
+                    ),
+                )
+
+        # ── v5: Reboot (double confirmation) ──
+        elif data.startswith("reboot_confirm2_"):
+            delay = data.replace("reboot_confirm2_", "")
+            delay = int(delay) if delay.isdigit() else 60
+            await query.edit_message_text("⏳ Scheduling reboot...")
+            result = admin_server.schedule_reboot(delay_seconds=delay)
+            status = "✅" if result["ok"] else "❌"
+            await query.edit_message_text(
+                f"{status} {result.get('output') or result.get('error')}",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🚨 Health", callback_data="health")],
+                        [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+                    ]
+                ),
+            )
+        elif data.startswith("reboot_confirm_"):
+            delay = data.replace("reboot_confirm_", "")
+            delay = int(delay) if delay.isdigit() else 60
+            await query.edit_message_text(
+                f"⛔️ *FINAL CONFIRMATION*\n\n"
+                f"This schedules a **reboot** of the server in **{delay}s**.\n"
+                f"There is **no undo** once it fires.\n\n"
+                f"Are you absolutely sure?",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=double_confirm_keyboard("reboot", payload=str(delay), stage=2),
+            )
+        elif data.startswith("reboot_cancel"):
+            await query.edit_message_text("❌ Reboot cancelled.", parse_mode=ParseMode.MARKDOWN)
 
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.error(f"Callback error: {e}")

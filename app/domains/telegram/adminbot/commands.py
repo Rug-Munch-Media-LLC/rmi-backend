@@ -20,14 +20,22 @@ from telegram.constants import ParseMode
 from app.domains.telegram.adminbot import admin_docker, admin_health, admin_ops, admin_server
 from app.domains.telegram.adminbot.helpers import (
     back_button,
+    bot_toggle_menu_keyboard,
     confirm_keyboard,
+    control_panel_keyboard,
     docker_menu,
+    double_confirm_keyboard,
     logs_menu,
     main_menu_keyboard,
     owner_only,
     refresh_keyboard,
     service_action_keyboard,
 )
+
+try:
+    from app.domains.telegram.adminbot import admin_bot  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover
+    admin_bot = None
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -45,11 +53,11 @@ except ImportError:
 
 @owner_only
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    qs = admin_health.quick_status()
-    card = admin_health.format_quick_status(qs)
+    qs = admin_health.control_panel()
+    card = admin_health.format_control_panel(qs)
     await update.message.reply_text(
-        f"🛡️ *RMI Admin Bot v4* — Fleet ChatOps\n\n{card}\n\n_Owner-only · all commands logged · pick a section below:_",
-        reply_markup=main_menu_keyboard(),
+        f"{card}",
+        reply_markup=control_panel_keyboard(),
         parse_mode=ParseMode.MARKDOWN,
     )
 
@@ -939,3 +947,159 @@ async def cmd_indexer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=back_button("main"),
         )
+
+
+# ═══════════════════════════════════════════════
+# v5 — CONTROL PANEL / BOT MANAGEMENT / REBOOT
+# ═══════════════════════════════════════════════
+
+
+@owner_only
+async def cmd_admin_backups(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Last backup timestamps + recent backup artifacts — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Checking backups...")
+    result = admin_ops.backup_report()
+    await msg.edit_text(
+        result["output"],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("admin_backups", extra=[("▶️ Run Backup", "backup")]),
+    )
+
+
+@owner_only
+async def cmd_admin_scanner(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Scanner activity from the bot DB (scans today / week / total) — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Fetching scanner stats...")
+    if admin_bot is None:
+        await msg.edit_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+        return
+    result = admin_bot.scanner_stats()
+    if result["ok"]:
+        await msg.edit_text(
+            result["output"],
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=refresh_keyboard("scanstats", extra=[("📡 Backend", "scanstats")]),
+        )
+    else:
+        await msg.edit_text(
+            f"❌ {result['error']}",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("main"),
+        )
+
+
+@owner_only
+async def cmd_admin_bot_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """RugMunchBot stats: users, messages today, active users — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Fetching bot stats...")
+    if admin_bot is None:
+        await msg.edit_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+        return
+    data = await admin_bot.bot_stats()
+    await msg.edit_text(
+        admin_bot.format_bot_stats(data),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="bot_stats"),
+                    InlineKeyboardButton("👥 Users", callback_data="bot_users"),
+                ],
+                [InlineKeyboardButton("🔀 Toggle", callback_data="bot_toggle_menu")],
+                [InlineKeyboardButton("⬅️ Main Menu", callback_data="main")],
+            ]
+        ),
+    )
+
+
+@owner_only
+async def cmd_admin_bot_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Alias of /admin_bot_stats — RugMunchBot status + toggle access."""
+    await cmd_admin_bot_stats(update, ctx)
+
+
+@owner_only
+async def cmd_admin_bot_toggle(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Enable/disable RugMunchBot or its AI chat — OWNER ONLY."""
+    await update.message.reply_text(
+        "🔀 *RugMunchBot Toggle*\n\nChoose an action:",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=bot_toggle_menu_keyboard(),
+    )
+
+
+@owner_only
+async def cmd_admin_bot_broadcast(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Broadcast a message to all RugMunchBot users — OWNER ONLY."""
+    args = ctx.args
+    if not args:
+        await update.message.reply_text(
+            "📬 *Bot Broadcast*\n\n"
+            "Usage: `/admin_bot_broadcast <message>`\n\n"
+            "Sends the message to every non-banned bot user (delivered async "
+            "by the bot's broadcast worker).\n\n"
+            "Examples:\n"
+            "`/admin_bot_broadcast 🔔 Scheduled maintenance in 1 hour`",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=back_button("menu_bots"),
+        )
+        return
+    message = " ".join(args)
+    if admin_bot is None:
+        await update.message.reply_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+        return
+    result = await admin_bot.bot_broadcast(message)
+    status = "✅" if result["ok"] else "❌"
+    await update.message.reply_text(
+        f"{status} {result['output'] or result['error']}",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=back_button("menu_bots"),
+    )
+
+
+@owner_only
+async def cmd_admin_bot_broadcasts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Recent broadcast history — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Fetching broadcast history...")
+    if admin_bot is None:
+        await msg.edit_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+        return
+    result = await admin_bot.bot_broadcasts(limit=10)
+    await msg.edit_text(
+        result["output"] or result["error"],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("bot_broadcasts"),
+    )
+
+
+@owner_only
+async def cmd_admin_bot_users(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """List recent RugMunchBot users — OWNER ONLY."""
+    msg = await update.message.reply_text("⏳ Listing users...")
+    if admin_bot is None:
+        await msg.edit_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
+        return
+    result = admin_bot.bot_users(limit=15)
+    await msg.edit_text(
+        result["output"] or result["error"],
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=refresh_keyboard("bot_users", extra=[("🤖 Stats", "bot_stats")]),
+    )
+
+
+@owner_only
+async def cmd_admin_reboot(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Reboot the server — requires DOUBLE confirmation — OWNER ONLY."""
+    args = ctx.args
+    delay = int(args[0]) if args and args[0].isdigit() else 60
+    delay = max(10, min(delay, 600))
+    await update.message.reply_text(
+        f"🔄 *Server Reboot*\n\n"
+        f"You are about to schedule a reboot of `{__import__('socket').gethostname()}` "
+        f"in **{delay}s**.\n\n"
+        f"⚠️ This will restart the backend, bots, and all services. "
+        f"**Double confirmation required.**\n\n"
+        f"All pending work will be interrupted. Proceed?",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=double_confirm_keyboard("reboot", payload=str(delay)),
+    )

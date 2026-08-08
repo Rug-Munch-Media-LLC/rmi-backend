@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -49,7 +50,7 @@ def _get_key() -> str:
     return ""
 
 
-def _get_headers() -> dict:
+def _get_headers() -> dict[str, Any]:
     key = _get_key()
     return {
         "apikey": key,
@@ -64,11 +65,11 @@ def _url(table: str) -> str:
 
 async def _get(
     table: str,
-    params: dict | None = None,
+    params: dict[str, Any] | None = None,
     select: str = "*",
     order: str | None = None,
     limit: int | None = None,
-) -> list:
+) -> list[Any]:
     """Generic GET query."""
     url = _url(table)
     query_parts = [f"select={select}"]
@@ -88,7 +89,7 @@ async def _get(
         return []
 
 
-async def _get_in(table: str, field: str, values: list, select: str = "*") -> list:
+async def _get_in(table: str, field: str, values: list[Any], select: str = "*") -> list[Any]:
     """GET with IN filter."""
     vals = ",".join(str(v) for v in values)
     url = f"{_url(table)}?select={select}&{field}=in.({vals})"
@@ -97,7 +98,7 @@ async def _get_in(table: str, field: str, values: list, select: str = "*") -> li
         return r.json() if r.status_code == 200 else []
 
 
-async def _post(table: str, data: dict) -> dict:
+async def _post(table: str, data: dict[str, Any]) -> dict[str, Any]:
     """Insert a row."""
     url = f"{_url(table)}"
     headers = dict(_get_headers())
@@ -109,7 +110,7 @@ async def _post(table: str, data: dict) -> dict:
         return None
 
 
-async def _patch(table: str, match: dict, data: dict) -> bool:
+async def _patch(table: str, match: dict[str, Any], data: dict[str, Any]) -> bool:
     """Update row(s)."""
     url = _url(table)
     query_parts = [f"{k}=eq.{v}" for k, v in match.items()]
@@ -119,7 +120,7 @@ async def _patch(table: str, match: dict, data: dict) -> bool:
         return r.status_code in (200, 204)
 
 
-async def _delete(table: str, match: dict) -> bool:
+async def _delete(table: str, match: dict[str, Any]) -> bool:
     """Delete row(s)."""
     url = _url(table)
     query_parts = [f"{k}=eq.{v}" for k, v in match.items()]
@@ -129,7 +130,7 @@ async def _delete(table: str, match: dict) -> bool:
         return r.status_code in (200, 204)
 
 
-async def _rpc(fn: str, params: dict | None = None) -> dict:
+async def _rpc(fn: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     """Call a stored procedure."""
     url = f"{_get_url()}/rest/v1/rpc/{fn}"
     headers = dict(_get_headers())
@@ -148,7 +149,7 @@ async def get_alerts(
     user_id: str | None = None,
     limit: int = 50,
     unread_only: bool = False,
-) -> list:
+) -> list[Any]:
     params = {}
     if severity:
         params["severity"] = severity
@@ -180,8 +181,8 @@ async def create_alert(
     amount_usd: float | None = None,
     tx_hash: str | None = None,
     user_id: str | None = None,
-    metadata: dict | None = None,
-) -> dict:
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     data = {
         "title": title,
         "description": description,
@@ -221,7 +222,7 @@ async def get_wallets(
     risk_min: int | None = None,
     risk_max: int | None = None,
     limit: int = 50,
-) -> list:
+) -> list[Any]:
     url = _url("wallets")
     query_parts = ["select=*", f"limit={limit}"]
     if chain:
@@ -237,7 +238,7 @@ async def get_wallets(
         return r.json() if r.status_code == 200 else []
 
 
-async def get_wallet(address: str, chain: str = "ethereum") -> dict:
+async def get_wallet(address: str, chain: str = "ethereum") -> dict[str, Any]:
     url = f"{_url('wallets')}?select=*&address=eq.{address}&chain=eq.{chain}&limit=1"
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(url, headers=_get_headers())
@@ -245,7 +246,7 @@ async def get_wallet(address: str, chain: str = "ethereum") -> dict:
         return data[0] if data else None
 
 
-async def upsert_wallet(address: str, chain: str, **fields) -> dict:
+async def upsert_wallet(address: str, chain: str, **fields) -> dict[str, Any]:
     data = {"address": address, "chain": chain, **fields}
     url = f"{_url('wallets')}"
     headers = dict(_get_headers())
@@ -260,7 +261,7 @@ async def upsert_wallet(address: str, chain: str, **fields) -> dict:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_wallet_intel(address: str | None = None, chain: str | None = None, limit: int = 100) -> list:
+async def get_wallet_intel(address: str | None = None, chain: str | None = None, limit: int = 100) -> list[Any]:
     url = _url("wallet_intel")
     query_parts = ["select=*", f"limit={limit}"]
     if address:
@@ -274,7 +275,7 @@ async def get_wallet_intel(address: str | None = None, chain: str | None = None,
         return r.json() if r.status_code == 200 else []
 
 
-async def get_wallet_connections(address: str) -> list:
+async def get_wallet_connections(address: str) -> list[Any]:
     """Find all wallets connected to this address."""
     url = f"{_url('wallet_intel')}?select=*&related_addresses=cs.{{'{address}'}}&limit=50"
     async with httpx.AsyncClient(timeout=15) as c:
@@ -287,7 +288,7 @@ async def get_wallet_connections(address: str) -> list:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_syndicate_wallets(status: str | None = None, chain: str | None = None, limit: int = 200) -> list:
+async def get_syndicate_wallets(status: str | None = None, chain: str | None = None, limit: int = 200) -> list[Any]:
     url = _url("syndicate_wallets")
     query_parts = ["select=*", f"limit={limit}"]
     if status:
@@ -306,7 +307,7 @@ async def get_syndicate_wallets(status: str | None = None, chain: str | None = N
 # ═════════════════════════════════════════════════════════
 
 
-async def get_watchlist(user_id: str) -> list:
+async def get_watchlist(user_id: str) -> list[Any]:
     return await _get("watchlist", {"user_id": user_id}, order="created_at.desc")
 
 
@@ -314,9 +315,9 @@ async def add_to_watchlist(
     user_id: str,
     address: str,
     chain: str = "ethereum",
-    tags: list | None = None,
+    tags: list[Any] | None = None,
     item_type: str = "wallet",
-) -> dict:
+) -> dict[str, Any]:
     """Add an address to a user's watchlist. item_type: 'token' or 'wallet'."""
     return await _post(
         "watchlist",
@@ -346,19 +347,19 @@ async def remove_from_watchlist(user_id: str, address: str, chain: str = "ethere
 # ═════════════════════════════════════════════════════════
 
 
-async def get_tokens(chain: str | None = None, limit: int = 50, order_by: str = "volume_24h.desc") -> list:
+async def get_tokens(chain: str | None = None, limit: int = 50, order_by: str = "volume_24h.desc") -> list[Any]:
     params = {}
     if chain:
         params["chain"] = chain
     return await _get("tokens", params, order=order_by, limit=limit)
 
 
-async def get_token(address: str, chain: str = "ethereum") -> dict:
+async def get_token(address: str, chain: str = "ethereum") -> dict[str, Any]:
     data = await _get("tokens", {"address": address, "chain": chain}, limit=1)
     return data[0] if data else None
 
 
-async def upsert_token(address: str, chain: str, **fields) -> dict:
+async def upsert_token(address: str, chain: str, **fields) -> dict[str, Any]:
     data = {
         "address": address,
         "chain": chain,
@@ -378,7 +379,7 @@ async def upsert_token(address: str, chain: str, **fields) -> dict:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_bulletin_posts(category: str | None = None, sort: str = "created_at.desc", limit: int = 20) -> list:
+async def get_bulletin_posts(category: str | None = None, sort: str = "created_at.desc", limit: int = 20) -> list[Any]:
     params = {}
     if category and category != "all":
         params["category"] = category
@@ -391,10 +392,10 @@ async def create_bulletin_post(
     author_id: str,
     category: str,
     chain: str | None = None,
-    tags: list | None = None,
+    tags: list[Any] | None = None,
     risk_score: int | None = None,
     source: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     data = {
         "title": title,
         "content": content,
@@ -430,14 +431,14 @@ async def vote_post(post_id: int, vote_type: str) -> bool:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_badges(rarity: str | None = None) -> list:
+async def get_badges(rarity: str | None = None) -> list[Any]:
     params = {}
     if rarity:
         params["rarity"] = rarity
     return await _get("badges", params, order="rarity.asc")
 
 
-async def get_user_badges(user_id: str) -> list:
+async def get_user_badges(user_id: str) -> list[Any]:
     """Get user's earned badges with full badge details."""
     user_badges = await _get("user_badges", {"user_id": user_id})
     if not user_badges:
@@ -455,7 +456,7 @@ async def get_user_badges(user_id: str) -> list:
     return result
 
 
-async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> dict:
+async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> dict[str, Any]:
     return await _post(
         "user_badges",
         {
@@ -472,7 +473,7 @@ async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> 
 # ═════════════════════════════════════════════════════════
 
 
-async def get_profile(user_id: str) -> dict:
+async def get_profile(user_id: str) -> dict[str, Any]:
     data = await _get("profiles", {"id": user_id}, limit=1)
     return data[0] if data else None
 
@@ -486,12 +487,12 @@ async def update_profile(user_id: str, **fields) -> bool:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_contract_analysis(address: str, chain: str = "ethereum") -> dict:
+async def get_contract_analysis(address: str, chain: str = "ethereum") -> dict[str, Any]:
     data = await _get("contract_analyses", {"address": address, "chain": chain}, limit=1)
     return data[0] if data else None
 
 
-async def upsert_contract_analysis(address: str, chain: str, **fields) -> dict:
+async def upsert_contract_analysis(address: str, chain: str, **fields) -> dict[str, Any]:
     data = {
         "address": address,
         "chain": chain,
@@ -511,11 +512,11 @@ async def upsert_contract_analysis(address: str, chain: str, **fields) -> dict:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_entity_clusters(limit: int = 50) -> list:
+async def get_entity_clusters(limit: int = 50) -> list[Any]:
     return await _get("entity_clusters", order="created_at.desc", limit=limit)
 
 
-async def get_cluster_wallets(cluster_id: str) -> list:
+async def get_cluster_wallets(cluster_id: str) -> list[Any]:
     clusters = await _get("entity_clusters", {"cluster_id": cluster_id}, limit=1)
     if not clusters:
         return []
@@ -528,7 +529,7 @@ async def get_cluster_wallets(cluster_id: str) -> list:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_transactions(wallet_address: str, chain: str | None = None, limit: int = 50) -> list:
+async def get_transactions(wallet_address: str, chain: str | None = None, limit: int = 50) -> list[Any]:
     params = {"wallet_address": wallet_address}
     if chain:
         params["chain"] = chain
@@ -540,14 +541,14 @@ async def get_transactions(wallet_address: str, chain: str | None = None, limit:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_market_data(data_type: str | None = None, limit: int = 10) -> list:
+async def get_market_data(data_type: str | None = None, limit: int = 10) -> list[Any]:
     params = {}
     if data_type:
         params["data_type"] = data_type
     return await _get("market_data", params, order="fetched_at.desc", limit=limit)
 
 
-async def store_market_data(source: str, data_type: str, data: dict) -> dict:
+async def store_market_data(source: str, data_type: str, data: dict[str, Any]) -> dict[str, Any]:
     return await _post(
         "market_data",
         {
@@ -564,7 +565,7 @@ async def store_market_data(source: str, data_type: str, data: dict) -> dict:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_subscription(user_id: str) -> dict:
+async def get_subscription(user_id: str) -> dict[str, Any]:
     data = await _get("subscriptions", {"user_id": user_id}, limit=1)
     return data[0] if data else None
 
@@ -577,10 +578,10 @@ async def get_subscription(user_id: str) -> dict:
 async def track_event(
     event_type: str,
     user_id: str | None = None,
-    event_data: dict | None = None,
+    event_data: dict[str, Any] | None = None,
     page: str | None = None,
     session_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     return await _post(
         "analytics_events",
         {
@@ -598,7 +599,7 @@ async def track_event(
 # ═════════════════════════════════════════════════════════
 
 
-async def check_health() -> dict:
+async def check_health() -> dict[str, Any]:
     """Verify Supabase connectivity."""
     try:
         async with httpx.AsyncClient(timeout=5) as c:
@@ -624,7 +625,7 @@ async def record_x402_payment_supabase(
     payer: str = "unknown",
     tx_hash: str = "",
     status: str = "fulfilled",
-) -> dict:
+) -> dict[str, Any]:
     """Insert a payment record into x402_payments table."""
     return await _post(
         "x402_payments",
@@ -646,7 +647,7 @@ async def get_x402_payments(
     payer: str | None = None,
     status: str | None = None,
     limit: int = 100,
-) -> list:
+) -> list[Any]:
     """Query x402_payments with optional filters."""
     params = {}
     if tool:
@@ -660,13 +661,13 @@ async def get_x402_payments(
     return await _get("x402_payments", params, order="created_at.desc", limit=limit)
 
 
-async def get_x402_payment_by_tx(tx_hash: str) -> dict:
+async def get_x402_payment_by_tx(tx_hash: str) -> dict[str, Any]:
     """Get a specific payment by tx_hash."""
     data = await _get("x402_payments", {"tx_hash": tx_hash}, limit=1)
     return data[0] if data else None
 
 
-async def get_x402_earnings_summary() -> dict:
+async def get_x402_earnings_summary() -> dict[str, Any]:
     """Get earnings summary from Supabase.
 
     Aggregates total by chain, tool, and day using Supabase data.

@@ -90,7 +90,7 @@ router = APIRouter(prefix="/api/v1/bulletin", tags=["bulletin"])
 # ── Supabase REST helpers ──────────────────────────────────────
 
 
-def _sb() -> tuple[Any, dict]:
+def _sb() -> tuple[Any, dict[str, Any]]:
     """Return (url, headers) for direct Supabase REST API.
 
     Uses service_role key for full CRUD access to profiles, bulletin_posts,
@@ -109,21 +109,21 @@ def _sb() -> tuple[Any, dict]:
     }
 
 
-async def _sb_get(table: str, params: dict | None = None) -> list:
+async def _sb_get(table: str, params: dict[str, Any] | None = None) -> list[Any]:
     url, headers = _sb()
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.get(f"{url}/rest/v1/{table}", headers=headers, params=params)
     return r.json() if r.status_code == 200 else []
 
 
-async def _sb_post(table: str, data: dict) -> list:
+async def _sb_post(table: str, data: dict[str, Any]) -> list[Any]:
     url, headers = _sb()
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.post(f"{url}/rest/v1/{table}", headers=headers, json=data)
     return r.json() if r.status_code in (200, 201) else []
 
 
-async def _sb_patch(table: str, data: dict, match: dict) -> list:
+async def _sb_patch(table: str, data: dict[str, Any], match: dict[str, Any]) -> list[Any]:
     url, headers = _sb()
     params = "&".join(f"{k}=eq.{v}" for k, v in match.items())
     async with httpx.AsyncClient(timeout=10) as client:
@@ -182,7 +182,7 @@ async def latest_posts(
     sort: str = Query("created_at.desc"),
     limit: int = Query(20, ge=1, le=100),
     include_bots: bool = Query(True),
-) -> dict:
+) -> dict[str, Any]:
     posts = await get_bulletin_posts(category=category, sort=sort, limit=limit)
     for post in posts:
         if not include_bots and post.get("is_bot"):
@@ -207,7 +207,7 @@ async def latest_posts(
     summary="Create Post",
     description="Create a new bulletin board post. Requires an authenticated user profile.",
 )
-async def create_post(post: BulletinPostIn, user: dict = Depends(_require_public_profile)) -> Any:
+async def create_post(post: BulletinPostIn, user: dict[str, Any] = Depends(_require_public_profile)) -> Any:
     result = await create_bulletin_post(
         title=post.title,
         content=post.content,
@@ -240,7 +240,7 @@ class CommentIn(BaseModel):
 
 @router.post("/posts/{post_id}/comments")
 async def create_comment(
-    post_id: int, comment: CommentIn, user: dict = Depends(_require_public_profile)
+    post_id: int, comment: CommentIn, user: dict[str, Any] = Depends(_require_public_profile)
 ) -> dict[str, str]:
     """Create a comment on a bulletin post. Requires public profile."""
     # Store comment in Supabase or Redis (using simple dict for now if not in supabase_service)
@@ -280,7 +280,7 @@ async def create_comment(
     summary="Get Comments",
     description="Retrieve all comments for a bulletin board post. Returns comment text, author, timestamp, and vote count. Sorted by creation date ascending.",
 )
-async def get_comments(post_id: int) -> dict | dict[str, list]:
+async def get_comments(post_id: int) -> dict[str, Any] | dict[str, list[Any]]:
     """Get comments for a bulletin post."""
     try:
         comments = await _sb_get("bulletin_comments", {"post_id": f"eq.{post_id}", "order": "created_at.asc"})
@@ -295,7 +295,7 @@ BOT_FEE_USD = 1.00  # $1 fee for bots to participate
 
 
 @router.post("/bots/register")
-async def register_bot(bot: BotRegistrationIn) -> dict:
+async def register_bot(bot: BotRegistrationIn) -> dict[str, Any]:
     """Register a new bot account. Bot must pay a fee to participate."""
     # Create the bot profile
     try:
@@ -366,9 +366,9 @@ async def register_bot(bot: BotRegistrationIn) -> dict:
     summary="List Bots",
     description="List all registered bulletin board bots with their status, fee payment status, and posting statistics. Optionally filter by status.",
 )
-async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
+async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict[str, Any]:
     """List all registered bots."""
-    params: dict = {
+    params: dict[str, Any] = {
         "select": "*,profiles:bot_user_id(username,is_bot,level,reputation_score)",
         "limit": str(limit),
         "order": "created_at.desc",
@@ -384,7 +384,7 @@ async def list_bots(status: str = Query(None), limit: int = Query(50)) -> dict:
     summary="Bot Fee Status",
     description="Check a specific bot's fee payment status including amount due, last payment date, and next billing date.",
 )
-async def bot_fee_status(bot_id: str) -> dict:
+async def bot_fee_status(bot_id: str) -> dict[str, Any]:
     """Check a bot's fee payment status."""
     reg = await _sb_get("bot_registrations", {"bot_user_id": f"eq.{bot_id}", "limit": "1"})
     if not reg:
@@ -408,7 +408,7 @@ async def bot_fee_status(bot_id: str) -> dict:
     summary="Pay Bot Fee",
     description="Record a bot fee payment. Accepts payment transaction hash and amount. Updates the bot's fee status and extends service period.",
 )
-async def pay_bot_fee(bot_id: str, amount: float, tx_hash: str | None = None, currency: str = "usdc") -> dict:
+async def pay_bot_fee(bot_id: str, amount: float, tx_hash: str | None = None, currency: str = "usdc") -> dict[str, Any]:
     """Record a bot fee payment."""
     try:
         await _sb_post(
@@ -518,9 +518,9 @@ async def create_report(report: ReportIn) -> Any:
     summary="List Reports",
     description="List submitted reports (admin view). Optionally filter by status (pending/reviewed/dismissed) and limit results.",
 )
-async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
+async def list_reports(status: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict[str, Any]:
     """List reports (admin view)."""
-    params: dict = {"order": "created_at.desc", "limit": str(limit)}
+    params: dict[str, Any] = {"order": "created_at.desc", "limit": str(limit)}
     if status:
         params["status"] = f"eq.{status}"
     result = await _sb_get("bulletin_reports", params)
@@ -578,7 +578,7 @@ async def moderate(moderation: ModerationActionIn) -> dict[str, str]:
     summary="Moderation Log",
     description="View the moderation action history log. Returns timestamp, moderator, action type, and target.",
 )
-async def moderation_log(limit: int = Query(50)) -> dict:
+async def moderation_log(limit: int = Query(50)) -> dict[str, Any]:
     """View moderation log."""
     result = await _sb_get("bulletin_moderation_log", {"order": "created_at.desc", "limit": str(limit)})
     return {"log": result, "total": len(result)}
@@ -622,7 +622,7 @@ async def award(badge_id: str, user_id: str, earned_via: str = "auto") -> Any:
     summary="List Alerts",
     description="List all active bulletin board alerts and announcements.",
 )
-async def list_alerts(severity: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict:
+async def list_alerts(severity: str = Query(None), limit: int = Query(50, ge=1, le=200)) -> dict[str, Any]:
     alerts = await get_alerts(severity=severity, limit=limit)
     return {"alerts": alerts, "total": len(alerts)}
 
@@ -653,7 +653,7 @@ async def submit_alert(alert: AlertIn) -> Any:
 
 
 @router.get("/stats")
-async def community_stats() -> dict:
+async def community_stats() -> dict[str, Any]:
     """Get aggregate community stats from Supabase."""
     total_posts = 0
     total_users = 0

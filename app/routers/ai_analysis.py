@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 import httpx
 from fastapi import APIRouter
@@ -28,8 +29,8 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai-analysis"])
 class ContractAnalysisRequest(BaseModel):
     chain: str = Field(..., description="Blockchain (solana, ethereum, bsc, base, etc.)")
     address: str = Field(..., description="Token contract address")
-    holder_data: dict | None = Field(None, description="Holder distribution data")
-    scanner_data: dict | None = Field(None, description="Scanner results (risk scores, LP analysis)")
+    holder_data: dict[str, Any] | None = Field(None, description="Holder distribution data")
+    scanner_data: dict[str, Any] | None = Field(None, description="Scanner results (risk scores, LP analysis)")
 
 
 class AnomalyReport(BaseModel):
@@ -47,7 +48,7 @@ class ContractAnalysisResponse(BaseModel):
     risk_level: str
     ai_summary: str
     anomalies: list[AnomalyReport] = Field(default_factory=list)
-    identified_clusters: list[dict] = Field(default_factory=list)
+    identified_clusters: list[dict[str, Any]] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)
     analysis_source: str = "rule-based"  # "ai" or "rule-based"
     ai_model: str = ""
@@ -68,7 +69,7 @@ LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://172.22.0.1:4000/v1")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
 
 # Cache
-_analysis_cache: dict[str, dict] = {}
+_analysis_cache: dict[str, dict[str, Any]] = {}
 CACHE_TTL = 3600
 
 
@@ -78,8 +79,8 @@ CACHE_TTL = 3600
 def _build_analysis_prompt(
     chain: str,
     address: str,
-    holder_data: dict | None,
-    scanner_data: dict | None,
+    holder_data: dict[str, Any] | None,
+    scanner_data: dict[str, Any] | None,
 ) -> str:
     """Build a comprehensive analysis prompt for the AI."""
 
@@ -193,12 +194,12 @@ If you find NO anomalies, set anomalies to empty array and recommendations to ["
 
 
 def _detect_anomalies_rule_based(
-    holder_data: dict | None,
-    scanner_data: dict | None,
-) -> tuple[list[dict], list[dict], int, str]:
+    holder_data: dict[str, Any] | None,
+    scanner_data: dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int, str]:
     """Run rule-based anomaly detection on the data."""
-    anomalies: list[dict] = []
-    clusters: list[dict] = []
+    anomalies: list[dict[str, Any]] = []
+    clusters: list[dict[str, Any]] = []
     risk_score = 0
 
     # ── Scanner-based checks ──
@@ -405,7 +406,7 @@ def _detect_anomalies_rule_based(
 # ── AI Analysis (Qwen via Ollama or OpenRouter) ──────────────────
 
 
-async def _call_qwen_ollama(prompt: str) -> dict | None:
+async def _call_qwen_ollama(prompt: str) -> dict[str, Any] | None:
     """Call Qwen via local Ollama instance."""
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -434,7 +435,7 @@ async def _call_qwen_ollama(prompt: str) -> dict | None:
     return None
 
 
-async def _call_qwen_openrouter(prompt: str) -> dict | None:
+async def _call_qwen_openrouter(prompt: str) -> dict[str, Any] | None:
     """Call Qwen via OpenRouter."""
     if not OPENROUTER_KEY:
         return None
@@ -471,7 +472,7 @@ async def _call_qwen_openrouter(prompt: str) -> dict | None:
     return None
 
 
-def _parse_ai_response(content: str) -> dict | None:
+def _parse_ai_response(content: str) -> dict[str, Any] | None:
     """Parse the AI's JSON response."""
     if not content:
         return None
@@ -504,9 +505,9 @@ def _parse_ai_response(content: str) -> dict | None:
 async def _run_ai_analysis(
     chain: str,
     address: str,
-    holder_data: dict | None,
-    scanner_data: dict | None,
-) -> tuple[dict | None, str]:
+    holder_data: dict[str, Any] | None,
+    scanner_data: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, str]:
     """Try AI analysis, falling through providers: LiteLLM → Ollama → OpenRouter."""
     prompt = _build_analysis_prompt(chain, address, holder_data, scanner_data)
 
@@ -528,7 +529,7 @@ async def _run_ai_analysis(
     return None, ""
 
 
-async def _call_litellm(prompt: str) -> dict | None:
+async def _call_litellm(prompt: str) -> dict[str, Any] | None:
     """Call analysis model via LiteLLM proxy (deepseek-analysis)."""
     try:
         async with httpx.AsyncClient(timeout=120) as client:
@@ -692,7 +693,7 @@ def _generate_recommendations(risk_score: int) -> list[str]:
         ]
 
 
-def _build_rule_summary(risk_score: int, risk_level: str, anomalies: list[dict]) -> str:
+def _build_rule_summary(risk_score: int, risk_level: str, anomalies: list[dict[str, Any]]) -> str:
     """Build a human-readable summary from rule-based detection."""
     count = len(anomalies)
     if count == 0:
@@ -708,7 +709,7 @@ def _build_rule_summary(risk_score: int, risk_level: str, anomalies: list[dict])
 
 
 @router.get("/ai-health")
-async def ai_analysis_health() -> dict:
+async def ai_analysis_health() -> dict[str, Any]:
     """Check AI analysis availability across all providers."""
     ollama_ok = False
     openrouter_ok = bool(OPENROUTER_KEY)

@@ -73,7 +73,7 @@ def _headers() -> dict[str, str]:
 # ─── Core Request Handler ─────────────────────────────────────────────────────
 
 
-def _request(endpoint: str, params: dict | None = None, retries: int = DEFAULT_RETRIES) -> Any:
+def _request(endpoint: str, params: dict[str, Any] | None = None, retries: int = DEFAULT_RETRIES) -> Any:
     """Make authenticated request to Solscan API with retries and circuit breaker."""
     # Circuit breaker check — serve stale cache if OPEN
     if not _solscan_cb.can_call():
@@ -129,12 +129,12 @@ class FreeSolscanClient:
     # ── Account / Wallet ─────────────────────────────────────────────────────
 
     @staticmethod
-    def account_info(address: str) -> dict | None:
+    def account_info(address: str) -> dict[str, Any] | None:
         """Get account info (balance, type, owner)."""
         return _request("/account", {"address": address})
 
     @staticmethod
-    def account_transactions(address: str, page: int = 1, page_size: int = 40) -> list | None:
+    def account_transactions(address: str, page: int = 1, page_size: int = 40) -> list[Any] | None:
         """Get transaction history for an address."""
         return _request("/account/transaction", {"address": address, "page": page, "page_size": page_size})
 
@@ -147,7 +147,7 @@ class FreeSolscanClient:
         exclude_zero: bool = True,
         activity_type: str | None = None,
         flow: str | None = None,
-    ) -> list | None:
+    ) -> list[Any] | None:
         """Get token transfers for an address."""
         params = {
             "address": address,
@@ -165,7 +165,7 @@ class FreeSolscanClient:
     @staticmethod
     def account_defi_activities(
         address: str, page: int = 1, page_size: int = 100, activity_type: str | None = None
-    ) -> list | None:
+    ) -> list[Any] | None:
         """Get DeFi activities (swaps, liquidity, etc)."""
         params = {
             "address": address,
@@ -177,12 +177,12 @@ class FreeSolscanClient:
         return _request("/account/defi/activities", params)
 
     @staticmethod
-    def account_balance_history(address: str) -> list | None:
+    def account_balance_history(address: str) -> list[Any] | None:
         """Get SOL balance history over time."""
         return _request("/account/balance_change", {"address": address})
 
     @staticmethod
-    def account_portfolio(address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True) -> dict | None:
+    def account_portfolio(address: str, page: int = 1, page_size: int = 100, hide_zero: bool = True) -> dict[str, Any] | None:
         """Get token portfolio for an address."""
         return _request(
             "/account/tokenaccounts",
@@ -196,7 +196,7 @@ class FreeSolscanClient:
         )
 
     @staticmethod
-    def account_token_accounts(address: str, token: str) -> list | None:
+    def account_token_accounts(address: str, token: str) -> list[Any] | None:
         """Get specific token accounts owned by address."""
         return _request(
             "/account/tokenaccounts",
@@ -212,12 +212,12 @@ class FreeSolscanClient:
     @staticmethod
     def token_data(
         token_address: str = "So11111111111111111111111111111111111111112",
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """Get token metadata (name, symbol, supply, decimals, etc)."""
         return _request("/token", {"address": token_address})
 
     @staticmethod
-    def token_holders(token_address: str, page: int = 1, page_size: int = 100) -> list | None:
+    def token_holders(token_address: str, page: int = 1, page_size: int = 100) -> list[Any] | None:
         """Get top token holders."""
         return _request(
             "/token/holder",
@@ -237,14 +237,14 @@ class FreeSolscanClient:
         return result
 
     @staticmethod
-    def token_transfer_summary(token_address: str) -> dict | None:
+    def token_transfer_summary(token_address: str) -> dict[str, Any] | None:
         """Get transfer summary (volume, count, etc)."""
         return _request("/token/transfer/summary", {"tokenAddress": token_address})
 
     @staticmethod
     def token_defi_activities(
         token_address: str, page: int = 1, page_size: int = 100, activity_type: str | None = None
-    ) -> list | None:
+    ) -> list[Any] | None:
         """Get DeFi activities for a token (swaps, liquidity changes)."""
         params = {
             "token": token_address,
@@ -256,7 +256,7 @@ class FreeSolscanClient:
         return _request("/token/defi/activities", params)
 
     @staticmethod
-    def token_markets(token_address: str, page: int = 1, page_size: int = 100) -> list | None:
+    def token_markets(token_address: str, page: int = 1, page_size: int = 100) -> list[Any] | None:
         """Get DEX markets for a token."""
         return _request(
             "/token/markets",
@@ -270,14 +270,14 @@ class FreeSolscanClient:
     # ── Transaction Details ──────────────────────────────────────────────────
 
     @staticmethod
-    def transaction_detail(tx_hash: str) -> dict | None:
+    def transaction_detail(tx_hash: str) -> dict[str, Any] | None:
         """Get full transaction details including inner instructions."""
         return _request("/transaction/detail", {"tx": tx_hash})
 
     # ── Top Transfers (Critical for Bundler Detection) ──────────────────────
 
     @staticmethod
-    def top_address_transfers(address: str, range_days: int = 7) -> list | None:
+    def top_address_transfers(address: str, range_days: int = 7) -> list[Any] | None:
         """Get top transfers to/from an address - KEY for gas funding traces."""
         return _request(
             "/account/top-transfer",
@@ -299,7 +299,7 @@ class FreeSolscanClient:
         return results
 
     @staticmethod
-    def get_holder_wallets(token_address: str, top_n: int = 50) -> list[dict]:
+    def get_holder_wallets(token_address: str, top_n: int = 50) -> list[dict[str, Any]]:
         """Get top N holders with their balances."""
         holders = []
         page = 1
@@ -315,7 +315,7 @@ class FreeSolscanClient:
     # ── Security-Specific Helpers ────────────────────────────────────────────
 
     @staticmethod
-    def get_deployer_transactions(deployer: str, pages: int = 5) -> list[dict]:
+    def get_deployer_transactions(deployer: str, pages: int = 5) -> list[dict[str, Any]]:
         """Get recent transaction history for deployer analysis."""
         all_txs = []
         for page in range(1, pages + 1):
@@ -327,7 +327,7 @@ class FreeSolscanClient:
         return all_txs
 
     @staticmethod
-    def get_wallet_funding_sources(wallet: str, days: int = 30) -> list[dict]:
+    def get_wallet_funding_sources(wallet: str, days: int = 30) -> list[dict[str, Any]]:
         """Trace where a wallet got its initial SOL from - KEY for exchange funding %."""
         transfers = FreeSolscanClient.top_address_transfers(wallet, range_days=days)
         if not transfers:
@@ -352,7 +352,7 @@ class FreeSolscanClient:
         return funding_sources
 
     @staticmethod
-    def get_token_creation_tx(token_address: str) -> dict | None:
+    def get_token_creation_tx(token_address: str) -> dict[str, Any] | None:
         """Find the transaction that created this token."""
         transfers = FreeSolscanClient.account_transfers(token_address, page=1, page_size=10)
         if transfers and len(transfers) > 0:
@@ -364,7 +364,7 @@ class FreeSolscanClient:
         return None
 
     @staticmethod
-    def get_lp_token_accounts(token_address: str) -> list[dict]:
+    def get_lp_token_accounts(token_address: str) -> list[dict[str, Any]]:
         """Get liquidity pool token accounts for LP analysis."""
         markets = FreeSolscanClient.token_markets(token_address, page_size=100)
         lp_accounts = []
