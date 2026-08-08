@@ -13,9 +13,11 @@ from app.core.redis import get_redis
 
 logger = get_logger(__name__)
 
-from app.core.slowrate import (  # noqa: E402 — imported after logger init; kept below module header for readability
-    limiter,
-)
+# AUDIT-2026-Q3 P0 (rate-limiter consolidation): slowapi disabled — UnifiedRateLimiter
+# (app.core.rate_limiter) is the single active limiter. Import kept for reference only.
+# from app.core.slowrate import (  # DISABLED AUDIT-2026-Q3 P0 — slowapi retired; kept for reference
+#     limiter,
+# )
 from app.domains.auth.cookie import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _set_auth_cookie,
     _set_csrf_cookie,
@@ -44,7 +46,7 @@ from app.domains.auth.store import (  # noqa: E402 — module docstring precedes
 
 
 @router.post("/register")
-@limiter.limit("5/minute")
+# @limiter.limit("5/minute")  # DISABLED AUDIT-2026-Q3 P0 — slowapi retired; UnifiedRateLimiter covers /register via PATH_CATEGORIES (auth, 5/min)
 def register_email(req: EmailRegisterRequest, request: Request) -> JSONResponse:
     """Register a new user with email/password."""
     if not _is_valid_email(req.email):
@@ -105,7 +107,7 @@ def register_email(req: EmailRegisterRequest, request: Request) -> JSONResponse:
 
 
 @router.post("/login")
-@limiter.limit("5/minute")
+# @limiter.limit("5/minute")  # DISABLED AUDIT-2026-Q3 P0 — slowapi retired; UnifiedRateLimiter covers /login via PATH_CATEGORIES (auth, 5/min)
 def login_email(req: EmailLoginRequest, request: Request) -> JSONResponse:
     """Login with email/password."""
     user = _get_user_by_email(req.email)

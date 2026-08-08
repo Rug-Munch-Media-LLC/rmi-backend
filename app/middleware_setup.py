@@ -68,7 +68,12 @@ def register_middleware(app: FastAPI) -> None:
     _try_register_tracing(app)
     _try_register_degradation_header(app)
     _try_register_deprecation_header(app)
-    _try_register_slowapi(app)
+    # AUDIT-2026-Q3 P0 (rate-limiter consolidation): slowapi disabled.
+    # UnifiedRateLimiter (app.core.rate_limiter.RateLimitMiddleware, registered
+    # below) is the single active limiter — Redis-backed token bucket with
+    # per-user/per-IP granularity covering all paths. slowapi registration kept
+    # for reference (see _try_register_slowapi below) but NOT wired.
+    # _try_register_slowapi(app)
     _try_register_rate_limit_middleware(app)
     _try_register_slow_query_logging(app)
     _try_register_content_type_enforcement(app)
