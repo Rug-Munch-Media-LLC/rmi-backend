@@ -44,12 +44,18 @@ _ch_client: Any = None
 try:
     import clickhouse_driver.errors as ch_errors
 
-    CH_ERRORS = (ch_errors.Error, ConnectionError, OSError, TimeoutError, ValueError)
+    CH_ERRORS: tuple[type[Exception], ...] = (
+        ch_errors.Error,
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        ValueError,
+    )
 except ImportError:
     CH_ERRORS = (ConnectionError, OSError, TimeoutError, ValueError)
 
 # Client init additionally raises ImportError (missing package) and RuntimeError
-CH_GET_CLIENT_ERRORS = (*CH_ERRORS, ImportError, RuntimeError)
+CH_GET_CLIENT_ERRORS: tuple[type[Exception], ...] = (*CH_ERRORS, ImportError, RuntimeError)
 
 
 def _get_ch_client() -> Any | None:
@@ -59,7 +65,7 @@ def _get_ch_client() -> Any | None:
         return _ch_client
 
     ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
-    ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000"))
+    ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000") or "9000")
     ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
     ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
     ch_db = "wallet_memory"
@@ -88,7 +94,7 @@ def _get_ch_client() -> Any | None:
 # ── Async wrapper ────────────────────────────────────────────────────────
 
 
-async def _run_sync(fn, *args, **kwargs):
+async def _run_sync(fn: Any, *args: Any, **kwargs: Any) -> Any:
     """Run a sync function in a thread pool (clickhouse_driver is sync)."""
     import asyncio
 
@@ -175,7 +181,7 @@ async def detect_deployer_clusters(
                 "ORDER BY block_number DESC LIMIT 100",
             ]
             sql = " ".join(sql_parts)
-            return client.execute(sql, params)
+            return list(client.execute(sql, params))
         except CH_ERRORS as e:
             logger.debug("deployer_cluster_query failed: %s", e)
             return []
@@ -389,20 +395,22 @@ async def detect_pump_and_dump(
         }
 
         try:
-            return client.execute(
-                """
-                SELECT type, block_timestamp, tx_hash, dex, version,
-                       token0, token1, sender, recipient,
-                       amount0_in, amount1_in, amount0_out, amount1_out,
-                       amount0, amount1, whale
-                FROM wallet_memory.dex_events
-                WHERE chain = %(chain)s
-                  AND (token0 = %(addr0)s OR token1 = %(addr1)s)
-                  AND type = 'swap'
-                ORDER BY block_number DESC
-                LIMIT %(limit)s
-                """,
-                params,
+            return list(
+                client.execute(
+                    """
+                    SELECT type, block_timestamp, tx_hash, dex, version,
+                           token0, token1, sender, recipient,
+                           amount0_in, amount1_in, amount0_out, amount1_out,
+                           amount0, amount1, whale
+                    FROM wallet_memory.dex_events
+                    WHERE chain = %(chain)s
+                      AND (token0 = %(addr0)s OR token1 = %(addr1)s)
+                      AND type = 'swap'
+                    ORDER BY block_number DESC
+                    LIMIT %(limit)s
+                    """,
+                    params,
+                )
             )
         except CH_ERRORS as e:
             logger.debug("pump_dump_query failed: %s", e)
@@ -496,18 +504,20 @@ async def detect_mixer_interactions(address: str, chain: str) -> dict[str, Any]:
         params = {"addr": addr_lower, "chain": chain_norm}
 
         try:
-            return client.execute(
-                """
-                SELECT tx_hash, block_number, block_timestamp,
-                       from_address, to_address, value
-                FROM wallet_memory.evm_transfers
-                WHERE chain = %(chain)s
-                  AND (from_address = %(addr)s OR to_address = %(addr)s)
-                  AND (from_address IN %(mixers)s OR to_address IN %(mixers)s)
-                ORDER BY block_number DESC
-                LIMIT 20
-                """,
-                {**params, "mixers": tuple(mixers)},
+            return list(
+                client.execute(
+                    """
+                    SELECT tx_hash, block_number, block_timestamp,
+                           from_address, to_address, value
+                    FROM wallet_memory.evm_transfers
+                    WHERE chain = %(chain)s
+                      AND (from_address = %(addr)s OR to_address = %(addr)s)
+                      AND (from_address IN %(mixers)s OR to_address IN %(mixers)s)
+                    ORDER BY block_number DESC
+                    LIMIT 20
+                    """,
+                    {**params, "mixers": tuple(mixers)},
+                )
             )
         except CH_ERRORS as e:
             logger.debug("mixer_query failed: %s", e)

@@ -692,7 +692,7 @@ class UnifiedTokenScanner:
 
         results = {}
         for item in gathered:
-            if isinstance(item, Exception):
+            if isinstance(item, BaseException):
                 continue
             name, data = item
             if data is None:

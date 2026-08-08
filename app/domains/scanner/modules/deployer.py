@@ -315,7 +315,7 @@ async def _query_deployer_from_ch(
         from clickhouse_driver import Client as CHClient
 
         ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
-        ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000"))
+        ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000") or "9000")
         ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
         ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
         ch_db = "wallet_memory"
@@ -458,7 +458,7 @@ async def _query_deployer_history(
         from clickhouse_driver import Client as CHClient
 
         ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
-        ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000"))
+        ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000") or "9000")
         ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
         ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
         ch_db = "wallet_memory"

@@ -354,8 +354,8 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
         premium_flags = 0
         for feature, data in r.premium.items():
             if data and isinstance(data, dict):
-                risk = data.get("risk", data.get("risk_level", ""))
-                if risk in ("HIGH", "CRITICAL"):
+                premium_risk = data.get("risk", data.get("risk_level", ""))
+                if premium_risk in ("HIGH", "CRITICAL"):
                     _apply("market", -10, f"PREMIUM_{feature.upper()}")
                     premium_flags += 1
         confidence += min(premium_flags * 5, 15)
