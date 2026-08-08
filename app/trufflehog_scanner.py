@@ -55,7 +55,7 @@ class TruffleHogScanner:
     def _check_available(self) -> bool:
         """Check if TruffleHog is installed."""
         try:
-            result = subprocess.run(["trufflehog", "--version"], capture_output=True, timeout=5)
+            result = subprocess.run(["trufflehog", "--version"], capture_output=True, timeout=5, shell=False)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
@@ -92,7 +92,7 @@ class TruffleHogScanner:
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minutes max
-            )
+            shell=False)
 
             if result.returncode != 0 and "no bugs found" not in result.stderr.lower():
                 logger.warning(f"TruffleHog scan warning: {result.stderr}")
@@ -159,7 +159,7 @@ class TruffleHogScanner:
                 capture_output=True,
                 text=True,
                 timeout=600,  # 10 minutes for git clone + scan
-            )
+            shell=False)
 
             findings = []
             for line in result.stdout.split("\n"):

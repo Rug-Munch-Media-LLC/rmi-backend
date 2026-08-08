@@ -90,7 +90,7 @@ class SlitherScanner:
     def _check_available(self) -> bool:
         """Check if Slither is installed."""
         try:
-            result = subprocess.run(["slither", "--version"], capture_output=True, timeout=5)
+            result = subprocess.run(["slither", "--version"], capture_output=True, timeout=5, shell=False)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
@@ -116,7 +116,7 @@ class SlitherScanner:
             cmd.extend(["--solc-args", kwargs["solc_args"]])
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, shell=False)
             return json.loads(result.stdout) if result.stdout else {}
         except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
             return {"success": False, "error": str(e)}
@@ -235,7 +235,7 @@ class MythrilScanner:
     def _check_available(self) -> bool:
         """Check if Mythril is installed."""
         try:
-            result = subprocess.run(["myth", "--version"], capture_output=True, timeout=5)
+            result = subprocess.run(["myth", "--version"], capture_output=True, timeout=5, shell=False)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
@@ -262,7 +262,7 @@ class MythrilScanner:
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minutes for symbolic execution
-            )
+            shell=False)
 
             # Parse output (Mythril outputs in YAML/JSON mixed format)
             # For now, return simple structure
@@ -302,7 +302,7 @@ class MythrilScanner:
         cmd = ["myth", "-x", "-f", file_path]
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, shell=False)
             return {"success": True, "output": result.stdout}
         except subprocess.TimeoutExpired:
             return {"success": False, "error": "Scan timed out"}

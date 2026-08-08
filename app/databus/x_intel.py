@@ -293,7 +293,7 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict]:
             capture_output=True,
             text=True,
             timeout=20,
-        )
+        shell=False)
         if result.returncode != 0:
             return []
 
@@ -323,7 +323,7 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
             capture_output=True,
             text=True,
             timeout=15,
-        )
+        shell=False)
         if result.returncode != 0:
             return []
 
@@ -345,7 +345,7 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict]:
             capture_output=True,
             text=True,
             timeout=15,
-        )
+        shell=False)
 
         if result2.returncode != 0:
             return []

@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from fastapi import Request
+from typing import TYPE_CHECKING
 
 from app.bulletin_board import BulletinBoardManager, PostCategory, PostStatus
 from app.core.errors import NotFoundError
-from app.routers.bulletin_board.models import PublicPostRequest
 from app.routers.bulletin_board.router import router
+
+if TYPE_CHECKING:
+    from fastapi import Request
+
+    from app.routers.bulletin_board.models import PublicPostRequest
 
 
 @router.post(

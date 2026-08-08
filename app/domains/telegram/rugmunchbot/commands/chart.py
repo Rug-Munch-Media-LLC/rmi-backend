@@ -190,11 +190,10 @@ def render_chart_png(
     draw = ImageDraw.Draw(img)
     try:
         font = ImageFont.load_default(size=20)
-        small = ImageFont.load_default(size=16)
+        ImageFont.load_default(size=16)
         tiny = ImageFont.load_default(size=14)
     except TypeError:
         font = ImageFont.load_default()
-        small = font
         tiny = font
 
     # Plot area

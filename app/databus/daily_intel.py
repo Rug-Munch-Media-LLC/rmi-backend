@@ -397,7 +397,7 @@ async def _publish_to_x(report: str, date_str: str) -> dict:
             capture_output=True,
             text=True,
             timeout=20,
-        )
+        shell=False)
         if result.returncode == 0:
             return {"status": "posted", "platform": "x", "length": len(tweet_text)}
         else:

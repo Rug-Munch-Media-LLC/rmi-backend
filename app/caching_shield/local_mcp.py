@@ -52,20 +52,20 @@ class LocalMCPClient:
                 capture_output=True,
                 text=True,
                 timeout=30,
-            )
+            shell=False)
             if r.returncode != 0:
                 raise RuntimeError(f"Clone failed: {r.stderr[:200]}")
 
         # Detect package manager and install deps
         if (server_dir / "package.json").exists():
-            subprocess.run(["npm", "install", "--production"], cwd=server_dir, capture_output=True, timeout=60)
+            subprocess.run(["npm", "install", "--production"], cwd=server_dir, capture_output=True, timeout=60, shell=False)
         elif (server_dir / "requirements.txt").exists():
             subprocess.run(
                 ["pip", "install", "-r", "requirements.txt"],
                 cwd=server_dir,
                 capture_output=True,
                 timeout=60,
-            )
+            shell=False)
 
         # Discover tools via MCP stdio handshake
         tools = await self._discover_tools(name, server_dir)

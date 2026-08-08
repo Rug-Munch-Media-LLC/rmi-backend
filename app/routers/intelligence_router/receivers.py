@@ -6,12 +6,16 @@ Endpoints that receive data from n8n workflows.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter
 
 from app.core.errors import ServiceUnavailableError
 from app.core.logging import get_logger
-from app.routers.intelligence_router.models import MarketUpdate
 from app.routers.intelligence_router.supabase import _supabase_is_configured, _supabase_request
+
+if TYPE_CHECKING:
+    from app.routers.intelligence_router.models import MarketUpdate
 
 logger = get_logger(__name__)
 

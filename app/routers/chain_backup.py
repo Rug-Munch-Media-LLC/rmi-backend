@@ -114,7 +114,7 @@ def _check_rclone_connectivity() -> dict[str, Any]:
             capture_output=True,
             text=True,
             timeout=15,
-        )
+        shell=False)
         elapsed_ms = (time.monotonic() - start) * 1000
         if result.returncode == 0:
             obj_lines = [line for line in result.stdout.strip().split("\n") if line.strip()]

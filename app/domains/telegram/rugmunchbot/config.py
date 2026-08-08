@@ -24,7 +24,7 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
                 ["gopass", "show", gopass_path],
                 stderr=subprocess.DEVNULL,
                 timeout=5,
-            )
+            shell=False)
             .decode()
             .strip()
         )

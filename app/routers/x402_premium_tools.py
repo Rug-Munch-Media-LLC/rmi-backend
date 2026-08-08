@@ -126,7 +126,7 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
         try:
             from app.routers.x402_enrichment import search_similar_patterns
 
-            patterns, _ = search_similar_patterns([addr])
+            patterns, _ = await search_similar_patterns([addr])
             if patterns:
                 sources.append("rag_similarity")
                 for p in patterns:

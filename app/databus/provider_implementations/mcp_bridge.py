@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json as _json
+import os
 import subprocess
+from pathlib import Path
 
 import httpx
 
@@ -11,10 +13,14 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Location of locally-installed MCP servers. Configured via env var;
+# defaults to ~/.hermes/mcp-servers (generic home-dir fallback).
+_MCP_SERVERS_DIR = Path(os.environ.get("MCP_SERVERS_DIR", str(Path.home() / ".hermes" / "mcp-servers")))
+
 
 async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | None:
     """Universal MCP bridge - calls any local MCP server tool.
-    Uses subprocess to call MCP servers installed in /root/.hermes/mcp-servers/.
+    Uses subprocess to call MCP servers installed under MCP_SERVERS_DIR.
     Falls back to HTTP for configured HTTP MCP servers.
     """
     if not mcp_server or not mcp_tool:
@@ -22,21 +28,21 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
     try:
         tool_args = {k: v for k, v in kw.items() if k not in ("api_key", "mcp_server", "mcp_tool")}
 
+        def _server_entry(rel_path: str) -> list[str]:
+            return ["node", str(_MCP_SERVERS_DIR / rel_path)]
+
         MCP_COMMANDS = {
-            "evm-direct": ["node", "/root/.hermes/mcp-servers/evm-direct/bin/cli.js"],
-            "evmscope": ["node", "/root/.hermes/mcp-servers/evmscope/dist/cli.js"],
-            "jupiter-mcp": ["node", "/root/.hermes/mcp-servers/jupiter-mcp/index.js"],
+            "evm-direct": _server_entry("evm-direct/bin/cli.js"),
+            "evmscope": _server_entry("evmscope/dist/cli.js"),
+            "jupiter-mcp": _server_entry("jupiter-mcp/index.js"),
             "crypto-feargreed-mcp": [
                 "python3",
-                "/root/.hermes/mcp-servers/crypto-feargreed-mcp/main.py",
+                str(_MCP_SERVERS_DIR / "crypto-feargreed-mcp/main.py"),
             ],
-            "crypto-indicators-mcp": [
-                "node",
-                "/root/.hermes/mcp-servers/crypto-indicators-mcp/index.js",
-            ],
-            "moralis-mcp": ["node", "/root/.hermes/mcp-servers/moralis-mcp/src/index.mjs"],
-            "web3-research-mcp": ["node", "/root/.hermes/mcp-servers/web3-research-mcp/bin/cli.js"],
-            "solana-mcp": ["node", "/root/.hermes/mcp-servers/solana-mcp-official/index.js"],
+            "crypto-indicators-mcp": _server_entry("crypto-indicators-mcp/index.js"),
+            "moralis-mcp": _server_entry("moralis-mcp/src/index.mjs"),
+            "web3-research-mcp": _server_entry("web3-research-mcp/bin/cli.js"),
+            "solana-mcp": _server_entry("solana-mcp-official/index.js"),
         }
 
         if mcp_server in MCP_COMMANDS:
@@ -49,7 +55,7 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
                 }
             )
             cmd = MCP_COMMANDS[mcp_server]
-            result = subprocess.run(cmd, input=mcp_request, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, input=mcp_request, capture_output=True, text=True, timeout=30, shell=False)
             if result.returncode == 0 and result.stdout:
                 data = _json.loads(result.stdout)
                 if "result" in data:

@@ -123,7 +123,7 @@ def _rclone_copy(remote_path: str, dest_dir: Path) -> int:
             timeout=300,
             env=env,
             check=False,
-        )
+        shell=False)
     except FileNotFoundError as exc:
         raise DataAccessUnavailable("rclone_not_installed") from exc
     except subprocess.TimeoutExpired as exc:

@@ -102,7 +102,7 @@ class BitqueryProvider:
                 capture_output=True,
                 text=True,
                 timeout=10,
-            )
+            shell=False)
             key = result.stdout.strip()
             if key and len(key) > 10:
                 self._api_key = key

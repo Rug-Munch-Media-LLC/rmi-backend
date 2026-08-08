@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime  # noqa: TC003 — SQLAlchemy Mapped[] needs runtime resolution
 
 from sqlalchemy import (
     Boolean,

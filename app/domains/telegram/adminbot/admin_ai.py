@@ -145,7 +145,7 @@ def run_opencode(prompt: str, model: str = DEFAULT_MODEL, max_turns: int = 3) ->
             capture_output=True,
             text=True,
             timeout=OPENCODE_TIMEOUT,
-        )
+        shell=False)
         duration = time.time() - t0
         output = result.stdout.strip() or result.stderr.strip() or "(no output)"
         return {

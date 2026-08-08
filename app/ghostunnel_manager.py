@@ -48,7 +48,7 @@ class GhostunnelManager:
     def _check_available(self) -> bool:
         """Check if ghostunnel is installed."""
         try:
-            result = subprocess.run([self.ghostunnel_bin, "version"], capture_output=True, timeout=5)
+            result = subprocess.run([self.ghostunnel_bin, "version"], capture_output=True, timeout=5, shell=False)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
@@ -89,7 +89,7 @@ class GhostunnelManager:
             cmd.extend(["--status", config.status])
 
         try:
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
             self.processes[config.listen] = process
             return str(process.pid)
         except Exception as e:

@@ -403,7 +403,7 @@ class DataBusVault:
                     capture_output=True,
                     text=True,
                     timeout=5,
-                )
+                shell=False)
                 if result.returncode == 0 and result.stdout.strip():
                     val = result.stdout.strip()
                     if val and val not in ("", "None", "***"):

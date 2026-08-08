@@ -23,10 +23,13 @@ from __future__ import annotations
 
 import json
 import math
+from typing import TYPE_CHECKING
 
 from app.catalog.models import Deployer, utcnow
-from app.catalog.service import CatalogService
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from app.catalog.service import CatalogService
 
 log = get_logger(__name__)
 

@@ -115,7 +115,7 @@ def ensure_cloned(repo: str) -> str | None:
             ["git", "clone", "--depth", "1", f"https://github.com/{repo}.git", path],
             capture_output=True,
             timeout=60,
-        )
+        shell=False)
         return path if os.path.exists(path) else None
     except subprocess.TimeoutExpired:
         return None

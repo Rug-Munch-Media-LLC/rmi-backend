@@ -7,12 +7,11 @@ Token-gated and NFT-gated room management: set, get, remove, and verify gates.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth import get_current_user, require_auth
-from app.routers.web3_chat.models import NFTGateRequest, TokenGateRequest, VerifyGateRequest
 from app.services.web3_chat import (
     GateType,
     TokenGate,
@@ -21,6 +20,9 @@ from app.services.web3_chat import (
     verify_nft_holding,
     verify_token_holdings,
 )
+
+if TYPE_CHECKING:
+    from app.routers.web3_chat.models import NFTGateRequest, TokenGateRequest, VerifyGateRequest
 
 router = APIRouter()
 

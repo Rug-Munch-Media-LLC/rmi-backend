@@ -97,7 +97,7 @@ def enrich_tool_response(
     similar_patterns = []
     rag_ms = 0
     if category in ("wallet", "security"):
-        similar_patterns, rag_ms = search_similar_patterns(addresses[:10], r)
+        similar_patterns, rag_ms = asyncio.run(search_similar_patterns(addresses[:10], r))
 
     # 5. Build enrichment result
     enrichment = EnrichmentResult(
