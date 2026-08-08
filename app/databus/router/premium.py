@@ -14,69 +14,67 @@ router = APIRouter(tags=["databus"])
 
 
 @router.get("/premium/bundles/{address}")
-async def premium_bundle_detect(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_bundle_detect(address: str, chain: str = "solana") -> Any:
     """Bundle detection (RugMaps cluster analysis). Premium tier."""
     return await databus.fetch("bundle_detect", address=address, chain=chain)
 
 
 @router.get("/premium/clusters/{address}")
-async def premium_cluster_map(
-    address: str, chain: str = "solana", depth: int = 3, request: Request | None = None
-) -> Any:
+async def premium_cluster_map(address: str, chain: str = "solana", depth: int = 3) -> Any:
     """Full wallet cluster mapping with graph-ready nodes/edges. Premium tier."""
     return await databus.fetch("cluster_map", address=address, chain=chain, depth=depth)
 
 
 @router.get("/premium/dev-finder/{token}")
-async def premium_dev_finder(token: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_dev_finder(token: str, chain: str = "solana") -> Any:
     """Find developer/creator wallets behind a token. Premium tier."""
     return await databus.fetch("dev_finder", token_address=token, chain=chain)
 
 
 @router.get("/premium/snipers/{address}")
-async def premium_sniper_detect(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_sniper_detect(address: str, chain: str = "solana") -> Any:
     """Detect snipers - first-block buyers with fast dumps. Premium tier."""
     return await databus.fetch("sniper_detect", address=address, chain=chain)
 
 
 @router.get("/premium/bot-farms/{address}")
-async def premium_bot_farms(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_bot_farms(address: str, chain: str = "solana") -> Any:
     """Detect bot farms - identical behavior patterns. Premium tier."""
     return await databus.fetch("bot_farm_detect", address=address, chain=chain)
 
 
 @router.get("/premium/copy-trading/{address}")
-async def premium_copy_trading(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_copy_trading(address: str, chain: str = "solana") -> Any:
     """Detect copy trading patterns. Premium tier."""
     return await databus.fetch("copy_trade_detect", address=address, chain=chain)
 
 
 @router.get("/premium/insider-signals/{address}")
-async def premium_insider(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_insider(address: str, chain: str = "solana") -> Any:
     """Detect insider trading signals. Premium tier."""
     return await databus.fetch("insider_detect", address=address, chain=chain)
 
 
 @router.get("/premium/wash-trading/{address}")
-async def premium_wash_trading(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_wash_trading(address: str, chain: str = "solana") -> Any:
     """Detect wash trading patterns. Premium tier."""
     return await databus.fetch("wash_trade_detect", address=address, chain=chain)
 
 
 @router.get("/premium/mev/{address}")
-async def premium_mev(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_mev(address: str, chain: str = "solana") -> Any:
     """Detect MEV sandwich attacks. Premium tier."""
     return await databus.fetch("mev_detect", address=address, chain=chain)
 
 
 @router.get("/premium/fresh-wallets/{address}")
-async def premium_fresh_wallets(address: str, chain: str = "solana", request: Request | None = None) -> Any:
+async def premium_fresh_wallets(address: str, chain: str = "solana") -> Any:
     """Analyze fresh wallet concentration - high new-wallet % = rug risk. Premium tier."""
     return await databus.fetch("fresh_wallet_analysis", address=address, chain=chain)
 
 
 @router.get("/premium/volume-authenticity/{address}")
-async def premium_volume_auth(address: str, chain: str = "ethereum", request: Request | None = None) -> Any:
+async def premium_volume_auth(address: str, chain: str = "ethereum", request: Request = None) -> Any:  # type: ignore[assignment]
     """Fake volume % with bootstrap CI. The RugCharts moat - no one else does this."""
     return await databus.fetch(
         "volume_authenticity",
@@ -97,14 +95,13 @@ async def ohlcv_candles(
     chain: str = "ethereum",
     timeframe: str = "1h",
     limit: int = 100,
-    request: Request | None = None,
 ) -> Any:
     """OHLCV candlestick data with authenticity scoring baked in."""
     return await databus.fetch("ohlcv", token=address, chain=chain, timeframe=timeframe, limit=limit)
 
 
 @router.get("/premium/security-scan/{address}")
-async def premium_security_scan(address: str, chain: str = "ethereum", request: Request | None = None) -> Any:
+async def premium_security_scan(address: str, chain: str = "ethereum") -> Any:
     """37+ security checks - GoPlus, honeypot, contract, liquidity, holders, rug pull indicators."""
     return await databus.fetch("token_security", address=address, chain=chain)
 
