@@ -1,7 +1,7 @@
 """Agent configuration for the Pydantic AI agent framework.
 
 Single source of truth for the agent fleet settings. The LLM backend is the
-local llama.cpp server (Qwen3.5-9B, OpenAI-compatible API at :8093).
+local llama.cpp server (Qwen3.5-9B, OpenAI-compatible API at :8085).
 
 Per repo convention (app/config.py consolidation notice), configuration
 values live in config modules — downstream agent code imports from here
@@ -16,7 +16,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 # ── Local LLM backend (llama.cpp, OpenAI-compatible) ─────────────────
-LLM_BASE_URL: str = os.getenv("AGENT_LLM_BASE_URL", "http://localhost:8093/v1")
+LLM_BASE_URL: str = os.getenv("AGENT_LLM_BASE_URL", "http://localhost:8085/v1")
 LLM_MODEL: str = os.getenv("AGENT_LLM_MODEL", "qwen3.5-9b")
 # llama.cpp serves an OpenAI-compatible API without auth; the OpenAI client
 # still requires a non-empty api_key, hence the placeholder.
@@ -28,7 +28,9 @@ RAG_API_URL: str = os.getenv("RAG_API_URL", "http://localhost:8012/api/v1/search
 
 # Optional service-to-service auth. Never hardcoded — set in the environment.
 SCANNER_API_KEY: str = os.getenv("SCANNER_API_KEY", "")
-RAG_API_KEY: str = os.getenv("RAG_API_KEY", "")
+# RAG auth: fall back to the canonical RMI_RAG_API_KEY (the rmi-rag-api
+# X-API-Key required by the fleet — see app/config.py + rmi-rag/.env.rag).
+RAG_API_KEY: str = os.getenv("RAG_API_KEY") or os.getenv("RMI_RAG_API_KEY", "")
 
 # ── Runtime tuning ───────────────────────────────────────────────────
 HTTP_TIMEOUT: float = float(os.getenv("AGENT_HTTP_TIMEOUT", "10.0"))

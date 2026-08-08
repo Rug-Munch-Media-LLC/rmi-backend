@@ -107,9 +107,14 @@ async def _get_contract_bytecode(address: str, chain: str, client: httpx.AsyncCl
         )
         if resp2.status_code == 200:
             data = resp2.json().get("result", [{}])[0]
-            result["source"] = data.get("SourceCode", "")
-            result["abi"] = data.get("ABI", "[]")
-            result["verified"] = True
+            if not isinstance(data, dict):
+                # Unverified contract — Etherscan returns a string ("Contract
+                # source code not verified") as the first result element.
+                result["verified"] = False
+            else:
+                result["source"] = data.get("SourceCode", "")
+                result["abi"] = data.get("ABI", "[]")
+                result["verified"] = True
     except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
         logger.warning("Contract analyzer API error: %s", e)
 

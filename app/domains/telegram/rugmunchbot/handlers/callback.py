@@ -801,9 +801,14 @@ _RUN_CARDS: dict[str, str] = {
 }
 
 
-async def _dispatch_run_cmd(update: Update, ctx) -> None:
+async def _dispatch_run_cmd(update: Update, ctx, cmd_arg: str | None = None) -> None:
     """Handle run_* menu buttons: live inline data for trending/news/sentiment,
-    usage cards for everything else."""
+    usage cards for everything else.
+
+    ``cmd_arg`` is the raw callback payload after the ``run_`` prefix (from
+    the callback handler). It is optional — when omitted (defensive) the
+    command is re-derived from ``query.data``.
+    """
     query = update.callback_query
     if query is None:
         return
