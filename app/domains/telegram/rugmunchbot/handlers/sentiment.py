@@ -23,6 +23,7 @@ from app.domains.telegram.rugmunchbot.config import (
     backend_headers,
     fmt_number,
 )
+from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json, resolve_with_fallback
 from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     is_owner,
@@ -39,7 +40,16 @@ logger = get_logger("rmi_bot.sentiment")
 
 
 async def _fetch_market_overview() -> dict:
-    """Fetch market overview from CoinGecko + own data."""
+    """Fetch market overview — own data first, external APIs as fallback.
+
+    Hierarchy enforced via data_resolver:
+      1. Backend market intel (/api/v1/market/overview — our cached pipeline)
+      2. Backend sentiment (/api/v1/market/sentiment)
+      3. External fallback: CoinGecko global + alternative.me F&G + Etherscan gas
+
+    DATA_SOURCE is logged by the resolver so reliance on external providers
+    (CoinGecko/alternative.me/Etherscan) can be tracked.
+    """
     result = {
         "btc_dominance": None,
         "total_mcap": None,
@@ -51,54 +61,91 @@ async def _fetch_market_overview() -> dict:
         "eth_gas": None,
         "btc_dominance_change": None,
     }
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            # CoinGecko global data
-            r = await client.get(f"{COINGECKO}/global")
-            if r.status_code == 200:
-                data = r.json().get("data", {})
-                result["btc_dominance"] = data.get("market_cap_percentage", {}).get("btc")
-                result["total_mcap"] = data.get("total_market_cap", {}).get("usd")
-                result["total_volume_24h"] = data.get("total_volume", {}).get("usd")
 
-            # Fear & Greed Index
-            try:
-                fg = await client.get("https://api.alternative.me/fng/?limit=1")
-                if fg.status_code == 200:
-                    fg_data = fg.json().get("data", [{}])[0]
-                    result["fear_greed"] = {
-                        "value": int(fg_data.get("value", 50)),
-                        "classification": fg_data.get("value_classification", "Neutral"),
-                    }
-            except Exception:  # noqa: S110 — intentional best-effort
-                pass
+    async def _external_overview() -> dict:
+        """Fallback: direct CoinGecko + alternative.me + Etherscan calls."""
+        out = dict(result)
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                # CoinGecko global data
+                r = await client.get(f"{COINGECKO}/global")
+                if r.status_code == 200:
+                    data = r.json().get("data", {})
+                    out["btc_dominance"] = data.get("market_cap_percentage", {}).get("btc")
+                    out["total_mcap"] = data.get("total_market_cap", {}).get("usd")
+                    out["total_volume_24h"] = data.get("total_volume", {}).get("usd")
 
-            # ETH Gas (proxy for network activity)
-            try:
-                gas = await client.get("https://api.etherscan.io/v2/api?chainid=1&module=gastracker&action=gasoracle")
-                if gas.status_code == 200:
-                    gas_data = gas.json().get("result", {})
-                    result["eth_gas"] = gas_data.get("ProposeGasPrice")
-            except Exception:  # noqa: S110 — best-effort rate limiting
-                pass
+                # Fear & Greed Index
+                try:
+                    fg = await client.get("https://api.alternative.me/fng/?limit=1")
+                    if fg.status_code == 200:
+                        fg_data = fg.json().get("data", [{}])[0]
+                        out["fear_greed"] = {
+                            "value": int(fg_data.get("value", 50)),
+                            "classification": fg_data.get("value_classification", "Neutral"),
+                        }
+                except Exception:  # noqa: S110 — intentional best-effort
+                    pass
 
-            # Try own backend sentiment data
-            try:
-                own = await client.get(
-                    f"{BACKEND_URL}/api/v1/market/sentiment",
-                    headers=backend_headers(),
-                    timeout=5,
-                )
-                if own.status_code == 200:
-                    own_data = own.json()
-                    if isinstance(own_data, dict):
-                        result["sentiment"] = own_data.get("sentiment", result["sentiment"])
-                        result["btc_dominance_change"] = own_data.get("btc_dominance_change")
-            except Exception:  # noqa: S110 — intentional best-effort
-                pass
+                # ETH Gas (proxy for network activity)
+                try:
+                    gas = await client.get(
+                        "https://api.etherscan.io/v2/api?chainid=1&module=gastracker&action=gasoracle"
+                    )
+                    if gas.status_code == 200:
+                        gas_data = gas.json().get("result", {})
+                        out["eth_gas"] = gas_data.get("ProposeGasPrice")
+                except Exception:  # noqa: S110 — best-effort rate limiting
+                    pass
 
-    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
-        logger.warning("Market overview fetch failed: %s", e)
+                # Try own backend sentiment data (best-effort enrichment)
+                try:
+                    own = await client.get(
+                        f"{BACKEND_URL}/api/v1/market/sentiment",
+                        headers=backend_headers(),
+                        timeout=5,
+                    )
+                    if own.status_code == 200:
+                        own_data = own.json()
+                        if isinstance(own_data, dict):
+                            out["sentiment"] = own_data.get("sentiment", out["sentiment"])
+                            out["btc_dominance_change"] = own_data.get("btc_dominance_change")
+                except Exception:  # noqa: S110 — intentional best-effort
+                    pass
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.warning("Market overview external fetch failed: %s", e)
+        return out
+
+    # ── Own data first: backend market intel (cached, TTL 120s) ──────────
+    async def _own_overview() -> dict:
+        body = await backend_get_json("/api/v1/market/overview", timeout_secs=5)
+        if not body or not body.get("total_market_cap"):
+            return {}
+        out = dict(result)
+        out["total_mcap"] = body.get("total_market_cap")
+        out["total_volume_24h"] = body.get("total_volume_24h")
+        out["btc_dominance"] = body.get("btc_dominance")
+        fg = body.get("fear_greed")
+        if isinstance(fg, dict) and fg.get("value"):
+            out["fear_greed"] = {
+                "value": int(fg.get("value", 50)),
+                "classification": fg.get("classification", "Neutral"),
+            }
+        # Backend sentiment enrichment (own pipeline)
+        sent = await backend_get_json("/api/v1/market/sentiment", timeout_secs=4)
+        if sent:
+            out["sentiment"] = sent.get("sentiment", out["sentiment"])
+            out["btc_dominance_change"] = sent.get("btc_dominance_change")
+        return out
+
+    overview = await resolve_with_fallback(
+        "market_overview",
+        _own_overview,
+        _external_overview,
+        timeout_secs=8,
+        is_valid=lambda d: bool(d and d.get("total_mcap")),
+    )
+    result.update(overview or {})
 
     # Derive market health
     fg_val = result.get("fear_greed", {}).get("value", 50) if result.get("fear_greed") else 50

@@ -21,6 +21,7 @@ from app.domains.telegram.rugmunchbot.config import (
     DEXSCREENER,
     backend_headers,
 )
+from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json, resolve_with_fallback
 from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     footer_links,
@@ -130,27 +131,62 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        # Fetch from DexScreener + Backend for comprehensive holder data
-        async with httpx.AsyncClient(timeout=20) as client:
-            # Get token info + top pairs
-            dex_resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
-            token_name = "Unknown"  # noqa: S105 — config default
-            token_symbol = "???"  # noqa: S105 — config default
-            dex_pairs = []
+        # Fetch token info + top pairs — own data first (scanner cache /
+        # backend databus), DexScreener only as external fallback.
+        # DATA_SOURCE is logged by the resolver.
+        token_name = "Unknown"  # noqa: S105 — config default
+        token_symbol = "???"  # noqa: S105 — config default
+        dex_pairs: list[dict] = []
 
-            if dex_resp.status_code == 200:
-                dex_data = dex_resp.json()
-                dex_pairs = dex_data.get("pairs", [])
-                if dex_pairs:
-                    p = dex_pairs[0]
-                    token_name = p.get("baseToken", {}).get("name", "Unknown")
-                    token_symbol = p.get("baseToken", {}).get("symbol", "???")
-                    chain = p.get("chainId", chain)
+        async def _own_token_info() -> list[dict] | None:
+            chain_id = chain if chain not in ("unknown", "") else detect_chain(address)
+            body = await backend_get_json(
+                f"/api/v2/scanner/token/price/{chain_id}/{address}",
+                timeout_secs=5,
+            )
+            if not body or not body.get("cached") or not body.get("data"):
+                return None
+            d = body["data"]
+            price = float(d.get("price_usd") or 0)
+            if price <= 0:
+                return None
+            return [
+                {
+                    "baseToken": {
+                        "name": d.get("name", "Unknown"),
+                        "symbol": d.get("symbol", "???"),
+                    },
+                    "chainId": d.get("chain", chain_id),
+                    "priceUsd": price,
+                    "pairAddress": address,
+                }
+            ]
 
-            # Get backend holder data
-            backend_holders = []
-            backend_data = {}
-            try:
+        async def _external_token_info() -> list[dict]:
+            async with httpx.AsyncClient(timeout=20) as client:
+                dex_resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
+                if dex_resp.status_code != 200:
+                    return []
+                return dex_resp.json().get("pairs", [])
+
+        dex_pairs = await resolve_with_fallback(
+            f"holder_token_info:{address[:10]}",
+            _own_token_info,
+            _external_token_info,
+            timeout_secs=8,
+            is_valid=lambda pl: bool(pl),
+        )
+        if dex_pairs:
+            p = dex_pairs[0]
+            token_name = p.get("baseToken", {}).get("name", "Unknown")
+            token_symbol = p.get("baseToken", {}).get("symbol", "???")
+            chain = p.get("chainId", chain)
+
+        # Get backend holder data
+        backend_holders = []
+        backend_data = {}
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
                 bh_resp = await client.get(
                     f"{BACKEND_URL}/api/v1/databus/token/{address}",
                     headers=backend_headers(),
@@ -159,139 +195,140 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 if bh_resp.status_code == 200:
                     backend_data = bh_resp.json()
                     backend_holders = backend_data.get("top_holders", [])
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
+            pass
 
-            # Build holder list from available data sources
-            top_holders = []
-            if backend_holders:
-                top_holders = backend_holders[:20]
-            elif dex_pairs:
-                # Try to extract holders from GoPlus via DexScreener metadata
-                pair = dex_pairs[0]
-                pair_addr = pair.get("pairAddress", "")
-                # Get pair info for holder data
-                with contextlib.suppress(httpx.HTTPError, ConnectionError, TimeoutError):
+        # Build holder list from available data sources
+        top_holders = []
+        if backend_holders:
+            top_holders = backend_holders[:20]
+        elif dex_pairs:
+            # Try to extract holders from GoPlus via DexScreener metadata
+            pair = dex_pairs[0]
+            pair_addr = pair.get("pairAddress", "")
+            # Get pair info for holder data
+            with contextlib.suppress(httpx.HTTPError, ConnectionError, TimeoutError):
+                async with httpx.AsyncClient(timeout=20) as client:
                     await client.get(
                         f"https://api.dexscreener.com/orders/v1/{chain}/{pair_addr}",
                         timeout=5,
                     )
 
-            # Build report
-            s = sep()
-            d = thin_sep()
+        # Build report
+        s = sep()
+        d = thin_sep()
 
-            lines = [
-                "👥 <b>Holder Analysis</b>",
-                s,
-                f"<b>{token_name}</b> ({token_symbol})",
-                f"<code>{address}</code>",
-                "",
-            ]
+        lines = [
+            "👥 <b>Holder Analysis</b>",
+            s,
+            f"<b>{token_name}</b> ({token_symbol})",
+            f"<code>{address}</code>",
+            "",
+        ]
 
-            if top_holders:
-                sum(h.get("pct", 0) for h in top_holders)
-                highest_pct = top_holders[0].get("pct", 0) if top_holders else 0
-                top10_sum = sum(h.get("pct", 0) for h in top_holders[:10])
-                total_holders = len(top_holders)
+        if top_holders:
+            sum(h.get("pct", 0) for h in top_holders)
+            highest_pct = top_holders[0].get("pct", 0) if top_holders else 0
+            top10_sum = sum(h.get("pct", 0) for h in top_holders[:10])
+            total_holders = len(top_holders)
 
-                risk, flags = _holder_risk(highest_pct, top10_sum, total_holders)
+            risk, flags = _holder_risk(highest_pct, top10_sum, total_holders)
 
-                # Concentration overview
-                risk_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "✅"}.get(risk, "⚪")
-                lines.extend(
-                    [
-                        f"<b>Concentration Risk:</b> {risk_emoji} {risk.upper()}",
-                        d,
-                        f"🐳 Top 1: <b>{highest_pct:.1f}%</b>",
-                        f"📊 Top 10: <b>{top10_sum:.1f}%</b>",
-                        f"👥 Total tracked: <b>{total_holders}</b>",
-                        "",
-                        "<b>🚩 Flags</b>",
-                        d,
-                    ]
-                )
-                lines.extend(flags)
-                lines.extend(["", "<b>👑 Top Holders</b>", d])
-
-                # Show top 15 holders
-                for i, h in enumerate(top_holders[:15], 1):
-                    pct = h.get("pct", 0)
-                    addr_h = h.get("address", "???")
-                    tag = f" [{h.get('tag', '')}]" if h.get("tag") else ""
-                    cf = " 📄" if h.get("is_contract") else ""
-                    whale = " 🐳" if pct >= HOLDER_THRESHOLDS["whale"] else ""
-
-                    # Progress bar for visual
-                    bar_len = 10
-                    filled = min(int((pct / 20) * bar_len), bar_len)
-                    bar = "🟥" * filled + "⬜" * (bar_len - filled)
-
-                    lines.append(f"{i}. <code>{addr_h}</code>{tag}{cf}{whale}\n   {bar} {pct:.2f}%")
-
-                # Distribution chart
-                lines.extend(
-                    [
-                        "",
-                        "<b>📊 Distribution Summary</b>",
-                        d,
-                    ]
-                )
-                categories = [
-                    (">10%", sum(h.get("pct", 0) for h in top_holders if h.get("pct", 0) >= 10)),
-                    ("5-10%", sum(h.get("pct", 0) for h in top_holders if 5 <= h.get("pct", 0) < 10)),
-                    ("1-5%", sum(h.get("pct", 0) for h in top_holders if 1 <= h.get("pct", 0) < 5)),
-                    ("<1%", sum(h.get("pct", 0) for h in top_holders if h.get("pct", 0) < 1)),
+            # Concentration overview
+            risk_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "✅"}.get(risk, "⚪")
+            lines.extend(
+                [
+                    f"<b>Concentration Risk:</b> {risk_emoji} {risk.upper()}",
+                    d,
+                    f"🐳 Top 1: <b>{highest_pct:.1f}%</b>",
+                    f"📊 Top 10: <b>{top10_sum:.1f}%</b>",
+                    f"👥 Total tracked: <b>{total_holders}</b>",
+                    "",
+                    "<b>🚩 Flags</b>",
+                    d,
                 ]
-                for label, pct in categories:
-                    bar_len = 10
-                    filled = min(int((pct / 50) * bar_len), bar_len)
-                    bar = "🟧" * filled + "⬜" * (bar_len - filled)
-                    lines.append(f"  {label}: {bar} {pct:.1f}%")
+            )
+            lines.extend(flags)
+            lines.extend(["", "<b>👑 Top Holders</b>", d])
 
-                # Smart money detection (Hunter+)
-                if tier in ("hunter", "pro"):
-                    try:
-                        dev_wallet = backend_data.get("dev_wallet")
-                        if dev_wallet:
-                            lines.extend(
-                                [
-                                    "",
-                                    "🎯 <b>Smart Money Detection</b>",
-                                    d,
-                                    f"  👨‍💻 Dev Wallet: <code>{dev_wallet}</code>",
-                                ]
-                            )
-                        if backend_data.get("bundle_detected"):
-                            lines.append("  📦 Bundle activity detected — coordinated buys")
-                    except (KeyError, TypeError):
-                        pass
+            # Show top 15 holders
+            for i, h in enumerate(top_holders[:15], 1):
+                pct = h.get("pct", 0)
+                addr_h = h.get("address", "???")
+                tag = f" [{h.get('tag', '')}]" if h.get("tag") else ""
+                cf = " 📄" if h.get("is_contract") else ""
+                whale = " 🐳" if pct >= HOLDER_THRESHOLDS["whale"] else ""
 
+                # Progress bar for visual
+                bar_len = 10
+                filled = min(int((pct / 20) * bar_len), bar_len)
+                bar = "🟥" * filled + "⬜" * (bar_len - filled)
+
+                lines.append(f"{i}. <code>{addr_h}</code>{tag}{cf}{whale}\n   {bar} {pct:.2f}%")
+
+            # Distribution chart
+            lines.extend(
+                [
+                    "",
+                    "<b>📊 Distribution Summary</b>",
+                    d,
+                ]
+            )
+            categories = [
+                (">10%", sum(h.get("pct", 0) for h in top_holders if h.get("pct", 0) >= 10)),
+                ("5-10%", sum(h.get("pct", 0) for h in top_holders if 5 <= h.get("pct", 0) < 10)),
+                ("1-5%", sum(h.get("pct", 0) for h in top_holders if 1 <= h.get("pct", 0) < 5)),
+                ("<1%", sum(h.get("pct", 0) for h in top_holders if h.get("pct", 0) < 1)),
+            ]
+            for label, pct in categories:
+                bar_len = 10
+                filled = min(int((pct / 50) * bar_len), bar_len)
+                bar = "🟧" * filled + "⬜" * (bar_len - filled)
+                lines.append(f"  {label}: {bar} {pct:.1f}%")
+
+            # Smart money detection (Hunter+)
+            if tier in ("hunter", "pro"):
+                try:
+                    dev_wallet = backend_data.get("dev_wallet")
+                    if dev_wallet:
+                        lines.extend(
+                            [
+                                "",
+                                "🎯 <b>Smart Money Detection</b>",
+                                d,
+                                f"  👨‍💻 Dev Wallet: <code>{dev_wallet}</code>",
+                            ]
+                        )
+                    if backend_data.get("bundle_detected"):
+                        lines.append("  📦 Bundle activity detected — coordinated buys")
+                except (KeyError, TypeError):
+                    pass
+
+        else:
+            # Fallback: show what we can from DEX data
+            if dex_pairs:
+                pair = dex_pairs[0]
+                txns = pair.get("txns", {})
+                h24_buys = txns.get("h24", {}).get("buys", 0)
+                h24_sells = txns.get("h24", {}).get("sells", 0)
+                h24_total = h24_buys + h24_sells
+
+                lines.extend(
+                    [
+                        "<b>Holder data unavailable</b> — showing trading activity instead",
+                        d,
+                        f"📊 24h Traders: <b>{h24_total:,}</b>",
+                        f"  🔵 Buyers: {h24_buys:,}",
+                        f"  🔴 Sellers: {h24_sells:,}",
+                        "",
+                        "💡 Holder data unavailable for this token.",
+                        "Use /scan for full security analysis.",
+                    ]
+                )
             else:
-                # Fallback: show what we can from DEX data
-                if dex_pairs:
-                    pair = dex_pairs[0]
-                    txns = pair.get("txns", {})
-                    h24_buys = txns.get("h24", {}).get("buys", 0)
-                    h24_sells = txns.get("h24", {}).get("sells", 0)
-                    h24_total = h24_buys + h24_sells
+                lines.append("❌ No holder or trading data found for this address.")
 
-                    lines.extend(
-                        [
-                            "<b>Holder data unavailable</b> — showing trading activity instead",
-                            d,
-                            f"📊 24h Traders: <b>{h24_total:,}</b>",
-                            f"  🔵 Buyers: {h24_buys:,}",
-                            f"  🔴 Sellers: {h24_sells:,}",
-                            "",
-                            "💡 Holder data unavailable for this token.",
-                            "Use /scan for full security analysis.",
-                        ]
-                    )
-                else:
-                    lines.append("❌ No holder or trading data found for this address.")
-
-            lines.append(footer_links())
+        lines.append(footer_links())
 
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, address, chain, "holders", 0)

@@ -16,6 +16,7 @@ from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import DEXSCREENER, WEBSITE_URL
+from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json, resolve_with_fallback
 from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     fmt_chain,
@@ -114,6 +115,47 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+async def _own_dex_pairs(address: str, chain: str) -> list[dict] | None:
+    """Own-data primary: scanner cache price snapshot shaped like a DEX pair.
+
+    Returns ``None`` when the scanner cache has no entry for this token so
+    the resolver falls back to DexScreener.
+    """
+    chain_id = chain if chain not in ("unknown", "") else "ethereum"
+    body = await backend_get_json(
+        f"/api/v2/scanner/token/price/{chain_id}/{address}",
+        timeout_secs=5,
+    )
+    if not body or not body.get("cached") or not body.get("data"):
+        return None
+    d = body["data"]
+    price = float(d.get("price_usd") or 0)
+    if price <= 0:
+        return None
+    return [
+        {
+            "dexId": "scanner",
+            "chainId": d.get("chain", chain_id),
+            "priceUsd": price,
+            "liquidity": {"usd": float(d.get("liquidity_usd") or 0)},
+            "volume": {"h24": float(d.get("volume_24h_usd") or 0)},
+            "marketCap": float(d.get("market_cap_usd") or 0),
+            "pairAddress": address,
+            "baseToken": {"name": d.get("name", "Unknown"), "symbol": d.get("symbol", "???")},
+        }
+    ]
+
+
+async def _external_dex_pairs(address: str) -> list[dict]:
+    """External fallback: DexScreener token pairs (full pair list)."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        return data.get("pairs", [])
+
+
 async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show DEX trading pairs and liquidity for a token.
 
@@ -141,64 +183,61 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
+        # Own data first: scanner cache snapshot (price/mcap/liq/vol from our
+        # scanners); DexScreener is only the external fallback for the full
+        # pair list. DATA_SOURCE is logged by the resolver.
+        pairs = await resolve_with_fallback(
+            f"dex_pairs:{address[:10]}",
+            lambda: _own_dex_pairs(address, chain),
+            lambda: _external_dex_pairs(address),
+            timeout_secs=8,
+            is_valid=lambda pl: bool(pl),
+        )
 
-            if resp.status_code != 200:
-                await msg.edit_text(
-                    "❌ <b>Market Data Unavailable</b>\n\nCould not fetch market data for this token right now.",
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_kb(),
-                )
-                return
+        if not pairs:
+            await msg.edit_text(
+                f"❌ <b>No Trading Pairs Found</b>\n\n"
+                f"No DEX pairs found for <code>{address}</code>.\n"
+                f"The token may not be tradable on any DEX yet.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
 
-            data = resp.json()
-            pairs = data.get("pairs", [])
+        # Show top pairs (up to 5)
+        lines = [
+            f"💱 <b>DEX Pairs: {len(pairs)} found</b>",
+            thin_sep(),
+            f"<code>{address}</code>\n",
+        ]
 
-            if not pairs:
-                await msg.edit_text(
-                    f"❌ <b>No Trading Pairs Found</b>\n\n"
-                    f"No DEX pairs found for <code>{address}</code>.\n"
-                    f"The token may not be tradable on any DEX yet.",
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_kb(),
-                )
-                return
+        for i, p in enumerate(pairs[:5], 1):
+            dex_name = p.get("dexId", "?").capitalize()
+            chain_id = p.get("chainId", chain)
+            price = float(p.get("priceUsd", 0))
+            liq = float(p.get("liquidity", {}).get("usd", 0))
+            vol_24h = float(p.get("volume", {}).get("h24", 0))
+            pair_addr = p.get("pairAddress", "")
 
-            # Show top pairs (up to 5)
-            lines = [
-                f"💱 <b>DEX Pairs: {len(pairs)} found</b>",
-                thin_sep(),
-                f"<code>{address}</code>\n",
-            ]
-
-            for i, p in enumerate(pairs[:5], 1):
-                dex_name = p.get("dexId", "?").capitalize()
-                chain_id = p.get("chainId", chain)
-                price = float(p.get("priceUsd", 0))
-                liq = float(p.get("liquidity", {}).get("usd", 0))
-                vol_24h = float(p.get("volume", {}).get("h24", 0))
-                pair_addr = p.get("pairAddress", "")
-
-                lines.append(
-                    f"{i}. <b>{dex_name}</b> ({fmt_chain(chain_id)})\n"
-                    f"   💵 {fmt_number(price)} | 💧 {fmt_number(liq)}\n"
-                    f"   📊 Vol: {fmt_number(vol_24h)} | <code>{pair_addr}</code>"
-                )
-
-            lines.append(f"\n🌐 <a href='{WEBSITE_URL}/markets/token/{address}'>Full market data on RugMunch.io</a>")
-            lines.append(footer_links())
-
-            text = "\n".join(lines)
-            kb = InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
-                    [InlineKeyboardButton("🤖 AI Analysis", callback_data=f"ai_scan_{address}")],
-                    [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
-                ]
+            lines.append(
+                f"{i}. <b>{dex_name}</b> ({fmt_chain(chain_id)})\n"
+                f"   💵 {fmt_number(price)} | 💧 {fmt_number(liq)}\n"
+                f"   📊 Vol: {fmt_number(vol_24h)} | <code>{pair_addr}</code>"
             )
 
-            await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
+        lines.append(f"\n🌐 <a href='{WEBSITE_URL}/markets/token/{address}'>Full market data on RugMunch.io</a>")
+        lines.append(footer_links())
+
+        text = "\n".join(lines)
+        kb = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
+                [InlineKeyboardButton("🤖 AI Analysis", callback_data=f"ai_scan_{address}")],
+                [InlineKeyboardButton("◀️ Back", callback_data="menu_main")],
+            ]
+        )
+
+        await msg.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
 
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError, OSError) as e:
         logger.warning("cmd_dex failed for %s: %s", address, e)
