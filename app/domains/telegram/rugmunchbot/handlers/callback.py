@@ -80,8 +80,27 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             welcome_card_text(),
             parse_mode=ParseMode.HTML,
-            reply_markup=welcome_menu_kb(),
+            reply_markup=welcome_menu_kb(user.id),
             disable_web_page_preview=True,
+        )
+    elif data == "menu_cat_admin":
+        # Owner-only admin sub-menu — visible via the welcome menu Admin button
+        # (which itself is only rendered for the owner).
+        if not is_owner(user.id):
+            await query.answer("\U0001f512 Owner only.", show_alert=True)
+            return
+        await query.edit_message_text(
+            "\U0001f6e1\ufe0f <b>Admin Panel</b>\n\n"
+            "\U0001f4ca /admin \u2014 Dashboard & stats\n"
+            "\U0001f4e2 /admin_broadcast \u2014 Send to all users\n"
+            "\U0001f465 /admin_user \u2014 Look up a user\n"
+            "\U0001f3af /admin_set_tier \u2014 Change user tier\n"
+            "\U0001f6ab /admin_ban \u2014 Ban a user\n"
+            "\U0001f4dd /admin_logs \u2014 Audit log\n"
+            "\U0001f6e1\ufe0f /admin_toggle \u2014 Bot ON/OFF\n"
+            "\U0001f4ac /admin_toggle_chat \u2014 Chat ON/OFF",
+            parse_mode=ParseMode.HTML,
+            reply_markup=admin_kb(),
         )
     elif data == "menu_cat_scan":
         await query.edit_message_text(

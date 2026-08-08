@@ -54,7 +54,7 @@ async def cmd_ask(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "\u2022 /ask <code>what is bundle buying</code>\n\n"
             "\U0001f4a1 Use <code>/research</code> to see raw source documents.",
             parse_mode=ParseMode.HTML,
-            reply_markup=main_menu_kb(),
+            reply_markup=main_menu_kb(user.id),
         )
         return
 
