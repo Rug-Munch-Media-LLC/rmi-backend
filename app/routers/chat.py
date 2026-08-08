@@ -299,6 +299,7 @@ RAG_COLLECTIONS = [
     "regulation_enforcement",  # regulatory actions + enforcement intel
     "scanned_tokens",  # scan-to-RAG memory (empty until scans flow in)
     "wallet_v2",  # wallet labels, risk profiles, entity clusters
+    "stablecoin_market",  # DeFiLlama stablecoin market caps ($USDT/$USDC liquidity)
 ]
 RAG_TOKEN_COLLECTIONS = ["scanner_v2"]
 RAG_TOP_K = 10
