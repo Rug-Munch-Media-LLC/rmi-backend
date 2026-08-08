@@ -15,7 +15,7 @@ unchanged.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.domains.billing.x402.tools.analysis_tools import sub_router as analysis_tools
 from app.domains.billing.x402.tools.deployer_tools import sub_router as deployer_tools
@@ -26,21 +26,30 @@ from app.domains.billing.x402.tools.market_tools import sub_router as market_too
 from app.domains.billing.x402.tools.report_tools import sub_router as report_tools
 from app.domains.billing.x402.tools.token_tools import sub_router as token_tools
 from app.domains.billing.x402.tools.wallet_tools import sub_router as wallet_tools
+from app.domains.x402.middleware import payment_gate
 
 # The original god-file used prefix="/api/v1/x402-tools" on its single
 # APIRouter.  After the P3A split, every sub-tool module exposes a
 # prefix-less APIRouter; we apply the shared prefix here exactly once.
 _X402_TOOLS_PREFIX = "/api/v1/x402-tools"
 
+# Payment enforcement gate (fix(x402)): every paid tool route under
+# /api/v1/x402-tools/* requires a valid X-Payment header. FastAPI 0.141
+# forwards include_router(dependencies=...) to every route of the included
+# sub-router, so a single dependency here gates all 77 paid routes.
+# Free discovery paths (catalog, bundles listing, ...) are exempted inside
+# payment_gate via route_classifier.is_free_path.
+_PAYMENT_GATE = [Depends(payment_gate)]
+
 router = APIRouter(prefix="", tags=["x402-facade"])
-router.include_router(token_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(wallet_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(deployer_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(market_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(analysis_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(evidence_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(report_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(label_tools, prefix=_X402_TOOLS_PREFIX)
-router.include_router(integration_tools, prefix=_X402_TOOLS_PREFIX)
+router.include_router(token_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(wallet_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(deployer_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(market_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(analysis_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(evidence_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(report_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(label_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
+router.include_router(integration_tools, prefix=_X402_TOOLS_PREFIX, dependencies=_PAYMENT_GATE)
 
 __all__ = ["router"]
