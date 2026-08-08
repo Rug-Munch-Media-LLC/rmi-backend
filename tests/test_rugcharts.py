@@ -310,3 +310,117 @@ class TestAiChartAnalysis:
         assert "Cup and Handle" in body["patterns_detected"]
         # AI key level appended to computed S/R levels.
         assert any(lvl["label"] == "Resistance 3" for lvl in body["key_levels"])
+
+
+class TestRugchartsWhales:
+    def test_whales_returns_trades_with_side_counts(self, client: TestClient, monkeypatch) -> None:
+        """GET /whales/{chain}/{token} → whale trades + buy/sell/unknown counts."""
+        import app.routers.rugcharts as rc
+
+        trades = [
+            {
+                "time": 1_700_000_000,
+                "price_usd": 0.05,
+                "volume_usd": 25_000.0,
+                "side": "buy",
+                "tx_hash": "0xaaa",
+                "chain": "solana",
+            },
+            {
+                "time": 1_700_003_600,
+                "price_usd": 0.04,
+                "volume_usd": 15_000.0,
+                "side": "sell",
+                "tx_hash": "0xbbb",
+                "chain": "solana",
+            },
+            {
+                "time": 1_700_007_200,
+                "price_usd": 0.045,
+                "volume_usd": 12_000.0,
+                "side": "unknown",
+                "tx_hash": "0xccc",
+                "chain": "solana",
+            },
+        ]
+        monkeypatch.setattr(rc, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=trades))
+
+        resp = client.get("/api/v1/rugcharts/whales/solana/0xTOKEN")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["success"] is True
+        data = body["data"]
+        assert data["count"] == 3
+        assert data["buy_count"] == 1
+        assert data["sell_count"] == 1
+        assert data["unknown_count"] == 1
+        assert data["total_whale_usd"] == 52_000.0
+        assert data["whale_trades"][0]["side"] == "buy"
+        assert data["whale_trades"][1]["side"] == "sell"
+        assert body["source"] == "chain_indexer (ClickHouse dex_events)"
+
+    def test_whales_passes_limit_and_min_usd(self, client: TestClient, monkeypatch) -> None:
+        """Query params flow into the ClickHouse helper call."""
+        import app.routers.rugcharts as rc
+
+        mock = AsyncMock(return_value=[])
+        monkeypatch.setattr(rc, "_fetch_whale_trades_clickhouse", mock)
+
+        client.get("/api/v1/rugcharts/whales/ethereum/0xABC?limit=50&min_usd=50000")
+        mock.assert_awaited_once_with("0xABC", "ethereum", 50, 50_000.0)
+
+    def test_whales_empty_clickhouse_returns_empty_overlay(self, client: TestClient, monkeypatch) -> None:
+        """No whale rows → empty lists and zero counts (soft overlay)."""
+        import app.routers.rugcharts as rc
+
+        monkeypatch.setattr(rc, "_fetch_whale_trades_clickhouse", AsyncMock(return_value=[]))
+
+        resp = client.get("/api/v1/rugcharts/whales/base/0xEMPTY")
+        assert resp.status_code == 200, resp.text
+        data = resp.json()["data"]
+        assert data["whale_trades"] == []
+        assert data["buy_count"] == 0
+        assert data["sell_count"] == 0
+        assert data["total_whale_usd"] == 0.0
+
+
+class TestWhaleSideDerivation:
+    """Pure-function tests for the V2 in/out → buy/sell logic."""
+
+    def test_token0_out_is_buy(self) -> None:
+        from app.routers.rugcharts_helpers import _whale_side
+
+        # token0 received FROM pool → trader bought token0
+        assert _whale_side("0xT", "0xT", "0xWETH", "0", "0", "1000", "0") == "buy"
+
+    def test_token0_in_with_token1_out_is_sell(self) -> None:
+        from app.routers.rugcharts_helpers import _whale_side
+
+        # token0 sent INTO pool + token1 received OUT → trader sold token0
+        assert _whale_side("0xT", "0xT", "0xWETH", "1000", "0", "0", "1500") == "sell"
+
+    def test_token1_out_is_buy(self) -> None:
+        from app.routers.rugcharts_helpers import _whale_side
+
+        assert _whale_side("0xT", "0xWETH", "0xT", "0", "0", "0", "2500") == "buy"
+
+    def test_token1_in_with_token0_out_is_sell(self) -> None:
+        from app.routers.rugcharts_helpers import _whale_side
+
+        assert _whale_side("0xT", "0xWETH", "0xT", "0", "1500", "800", "0") == "sell"
+
+    def test_case_insensitive_match(self) -> None:
+        from app.routers.rugcharts_helpers import _whale_side
+
+        assert _whale_side("0xt", "0xT", "0xWETH", "0", "0", "500", "0") == "buy"
+
+    def test_no_match_is_unknown(self) -> None:
+        from app.routers.rugcharts_helpers import _whale_side
+
+        assert _whale_side("0xOTHER", "0xT", "0xWETH", "100", "0", "0", "0") == "unknown"
+
+    def test_v3_absolute_amounts_are_unknown(self) -> None:
+        from app.routers.rugcharts_helpers import _whale_side
+
+        # V3 rows: only amount0/amount1 populated, all positive — no direction.
+        assert _whale_side("0xT", "0xWETH", "0xT", "0", "0", "0", "0") == "unknown"
