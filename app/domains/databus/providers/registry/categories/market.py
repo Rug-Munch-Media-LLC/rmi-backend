@@ -581,6 +581,38 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 key_env="BIRDEYE_API_KEY",
                 monthly_quota=50000,
             ),
+            Provider(
+                "gmgn_token_info",
+                ProviderTier.FREE_API,
+                _g["_gmgn_token_info"],
+                weight=3.0,
+                rate_limit_rps=1.0,
+                description="GMGN public API — token overview, holders, launchpad progress (free, no key)",
+            ),
+        ],
+    )
+
+    # ── New token launch feed (external fallback — own data served by the route) ──
+    chains["new_launches"] = ProviderChain(
+        data_type="new_launches",
+        description="New token launch feed (external tier) — GMGN pump.fun new_creation → GMGN bonded pairs → DexScreener boosts",
+        providers=[
+            Provider(
+                "gmgn_new_pairs",
+                ProviderTier.FREE_API,
+                _g["_gmgn_new_pairs"],
+                weight=6.0,
+                rate_limit_rps=1.0,
+                description="GMGN pump.fun new_creation rank — fresh launches (free, no key)",
+            ),
+            Provider(
+                "gmgn_bonded_pairs",
+                ProviderTier.FREE_API,
+                _g["_gmgn_bonded_pairs"],
+                weight=4.0,
+                rate_limit_rps=1.0,
+                description="GMGN pump.fun bonded pairs — bonding-curve-completed launches (free, no key)",
+            ),
         ],
     )
 

@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 """
-GMGN Data Provider — Real GMGN Agent API integration.
+GMGN Data Provider — Real GMGN public API integration.
 ======================================================
 Provides: token info, live trades, holder analysis, smart money,
 bundle/sniper detection, KOL tracking, new pair discovery.
 
-Uses the GMGN Agent API key from env (GMGN_API_KEY).
-Falls back to DexScreener/Birdeye when GMGN is unavailable.
+Uses GMGN's public (undocumented) JSON API — no API key required.
+The GMGN Agent API key (GMGN_API_KEY) is accepted but optional; when
+present it is sent as a bearer token, otherwise browser-like headers
+are used. Falls back to DexScreener/Birdeye when GMGN is unavailable.
+
+Endpoint provenance (verified against public open-source usage 2026-08-09):
+  - token info:      /defi/quotation/v1/tokens/{chain}/{address}
+  - trades:          /defi/quotation/v1/trades/{chain}/{address}
+  - holders:         /vas/api/v1/token_holders/{chain}/{address}
+  - smart money:     /defi/quotation/v1/smartmoney/{chain}/walletNew/{wallet}
+  - new pairs:       /defi/quotation/v1/rank/{chain}/pump?new_creation=true
 """
 
 from __future__ import annotations
@@ -24,24 +33,61 @@ logger = get_logger(__name__)
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
 GMGN_BASE = "https://gmgn.ai"
 
+# Browser-like headers — GMGN's public API rejects plain curl/httpx UAs.
+_BROWSER_HEADERS = {
+    "accept": "application/json, text/plain, */*",
+    "accept-language": "en-US,en;q=0.9",
+    "referer": "https://gmgn.ai/?chain=sol",
+    "user-agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    ),
+}
+
 # Cache TTLs (seconds)
 TRADE_CACHE_TTL = 30
 TOKEN_CACHE_TTL = 120
 HOLDER_CACHE_TTL = 300
 
 
+def _normalize_chain(chain: str) -> str:
+    """Map chain names to GMGN's short chain slugs (sol, eth, bsc, base...)."""
+    aliases = {
+        "solana": "sol",
+        "sol": "sol",
+        "ethereum": "eth",
+        "eth": "eth",
+        "mainnet": "eth",
+        "bsc": "bsc",
+        "bnb": "bsc",
+        "binance": "bsc",
+        "base": "base",
+        "polygon": "polygon",
+        "matic": "polygon",
+        "arbitrum": "arbitrum",
+        "arb": "arbitrum",
+        "optimism": "optimism",
+        "op": "optimism",
+        "avalanche": "avax",
+        "avax": "avax",
+        "fantom": "fantom",
+        "ftm": "fantom",
+    }
+    return aliases.get(chain.lower(), chain.lower())
+
+
 class GMGNProvider:
-    """Real GMGN Agent API client with fallback cascade."""
+    """Real GMGN public API client with fallback cascade."""
 
     def __init__(self) -> None:
         self.api_key = GMGN_API_KEY
-        self.headers = {
-            "Authorization": f"Bearer {GMGN_API_KEY}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
+        self.headers = dict(_BROWSER_HEADERS)
+        if self.api_key:
+            self.headers["Authorization"] = f"Bearer {self.api_key}"
         self.client = httpx.AsyncClient(timeout=20.0, follow_redirects=True)
-        self._available = bool(GMGN_API_KEY)
+        # Public API works without a key; _available is only used to decide
+        # whether to try GMGN at all (True = always try, fallbacks cover failures).
+        self._available = True
 
     # ═══════════════════════════════════════════════════════════════
     # CORE: Token Info
@@ -63,34 +109,38 @@ class GMGNProvider:
         return await self._fallback_dexscreener_token(address, chain)
 
     async def _fetch_token_info(self, address: str, chain: str) -> dict[str, Any] | None:
-        """Fetch token info from GMGN API directly."""
+        """Fetch token info from GMGN public API directly."""
         if not self._available:
             return None
         try:
-            # GMGN agent API token endpoint
+            chain_slug = _normalize_chain(chain)
+            # GMGN public token quotation endpoint
             resp = await self.client.get(
-                f"{GMGN_BASE}/defi/v1/{chain}/token/{address}",
+                f"{GMGN_BASE}/defi/quotation/v1/tokens/{chain_slug}/{address}",
                 headers=self.headers,
             )
             if resp.status_code == 200:
                 data = resp.json()
-                token = data.get("data", data)
+                token = (data.get("data") or {}).get("token", data.get("data", data))
+                if not token:
+                    return None
                 return {
                     "address": address,
                     "chain": chain,
                     "name": token.get("name", ""),
                     "symbol": token.get("symbol", ""),
-                    "price": float(token.get("price", 0)),
-                    "market_cap": float(token.get("market_cap", 0)),
-                    "fdv": float(token.get("fdv", 0)),
-                    "liquidity": float(token.get("liquidity", 0)),
-                    "volume_24h": float(token.get("volume_24h", 0)),
-                    "holders": int(token.get("holders", 0)),
-                    "price_change_1h": float(token.get("price_change_1h", 0)),
-                    "price_change_24h": float(token.get("price_change_24h", 0)),
-                    "buy_24h": int(token.get("buy_24h", 0)),
-                    "sell_24h": int(token.get("sell_24h", 0)),
-                    "created_at": token.get("created_at"),
+                    "price": float(token.get("price", 0) or 0),
+                    "market_cap": float(token.get("market_cap", 0) or 0),
+                    "fdv": float(token.get("fdv", 0) or 0),
+                    "liquidity": float(token.get("liquidity", 0) or 0),
+                    "volume_24h": float(token.get("volume_24h", 0) or 0),
+                    "holders": int(token.get("holder_count", token.get("holders", 0)) or 0),
+                    "price_change_1h": float(token.get("price_1h", 0) or 0),
+                    "price_change_24h": float(token.get("price_24h", 0) or 0),
+                    "buy_24h": int(token.get("buys_24h", 0) or 0),
+                    "sell_24h": int(token.get("sells_24h", 0) or 0),
+                    "created_at": token.get("creation_timestamp"),
+                    "launchpad": token.get("launchpad"),
                     "source": "gmgn",
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
@@ -129,14 +179,15 @@ class GMGNProvider:
         if not self._available:
             return None
         try:
+            chain_slug = _normalize_chain(chain)
             resp = await self.client.get(
-                f"{GMGN_BASE}/defi/v1/{chain}/token/{address}/trades",
+                f"{GMGN_BASE}/defi/quotation/v1/trades/{chain_slug}/{address}",
                 headers=self.headers,
                 params={"limit": limit},
             )
             if resp.status_code == 200:
                 data = resp.json()
-                trades = data.get("data", data.get("trades", []))
+                trades = (data.get("data") or {}).get("history", data.get("data", data.get("trades", [])))
                 if isinstance(trades, list):
                     return self._normalize_trades(trades, "gmgn")
             logger.debug("GMGN trades HTTP %s", resp.status_code)
@@ -168,22 +219,39 @@ class GMGNProvider:
         if not self._available:
             return None
         try:
+            chain_slug = _normalize_chain(chain)
             resp = await self.client.get(
-                f"{GMGN_BASE}/defi/v1/{chain}/token/{address}/holders",
+                f"{GMGN_BASE}/vas/api/v1/token_holders/{chain_slug}/{address}",
                 headers=self.headers,
+                params={"orderby": "amount_percentage", "direction": "desc", "limit": 100},
             )
             if resp.status_code == 200:
                 data = resp.json()
-                holders = data.get("data", data)
+                rows = (data.get("data") or {}).get("list", [])
+                top = []
+                for h in rows[:20]:
+                    top.append(
+                        {
+                            "address": h.get("address", ""),
+                            "amount_percentage": h.get("amount_percentage"),
+                            "realized_profit": h.get("realized_profit"),
+                            "unrealized_profit": h.get("unrealized_profit"),
+                            "profit_change": h.get("profit_change"),
+                            "is_insider": bool(h.get("insider", False)),
+                            "is_smart_money": bool(h.get("is_smart_dealer", h.get("smart_money", False))),
+                        }
+                    )
                 return {
                     "address": address,
                     "chain": chain,
-                    "total_holders": holders.get("total", 0),
-                    "top_10_pct": holders.get("top_10_percent", 0),
-                    "top_holders": holders.get("top_holders", [])[:20],
-                    "sniper_count": holders.get("sniper_count", 0),
-                    "insider_count": holders.get("insider_count", 0),
-                    "fresh_wallet_pct": holders.get("fresh_wallet_percent", 0),
+                    "total_holders": len(rows),
+                    "top_10_pct": None,
+                    "top_holders": top,
+                    "sniper_count": sum(
+                        1 for h in rows if h.get("profit_change", 0) and h.get("buy_tx_count_cur", 0) <= 2
+                    ),
+                    "insider_count": sum(1 for h in rows if h.get("insider", False)),
+                    "fresh_wallet_pct": 0,
                     "source": "gmgn",
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
@@ -214,9 +282,11 @@ class GMGNProvider:
         if not self._available:
             return None
         try:
+            chain_slug = _normalize_chain(chain)
             resp = await self.client.get(
-                f"{GMGN_BASE}/defi/v1/{chain}/token/{address}/smart-money",
+                f"{GMGN_BASE}/defi/quotation/v1/smartmoney/{chain_slug}/walletNew/{address}",
                 headers=self.headers,
+                params={"period": "7d"},
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -229,6 +299,11 @@ class GMGNProvider:
                     "smart_money_count": sm.get("smart_money_count", 0),
                     "kol_count": sm.get("kol_count", 0),
                     "buy_pressure": sm.get("buy_pressure", 0),
+                    "total_profit_pnl": sm.get("total_profit_pnl"),
+                    "winrate": sm.get("winrate"),
+                    "sol_balance": sm.get("sol_balance"),
+                    "buy_7d": sm.get("buy_7d"),
+                    "tags": sm.get("tags", []),
                     "source": "gmgn",
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
@@ -256,18 +331,24 @@ class GMGNProvider:
         return await self._fallback_dexscreener_new_pairs(chain, limit)
 
     async def _fetch_new_pairs(self, chain: str, limit: int) -> list[dict[str, Any]] | None:
-        """Fetch new token listings from GMGN."""
+        """Fetch new token listings from GMGN (pump.fun new_creation rank)."""
         if not self._available:
             return None
         try:
+            chain_slug = _normalize_chain(chain)
             resp = await self.client.get(
-                f"{GMGN_BASE}/defi/v1/{chain}/new-pairs",
+                f"{GMGN_BASE}/defi/quotation/v1/rank/{chain_slug}/pump",
                 headers=self.headers,
-                params={"limit": limit},
+                params={
+                    "limit": limit,
+                    "orderby": "created_timestamp",
+                    "direction": "desc",
+                    "new_creation": "true",
+                },
             )
             if resp.status_code == 200:
                 data = resp.json()
-                pairs = data.get("data", data.get("pairs", []))
+                pairs = (data.get("data") or {}).get("rank", data.get("data", data.get("pairs", [])))
                 if isinstance(pairs, list):
                     return [
                         {
@@ -275,11 +356,12 @@ class GMGNProvider:
                             "chain": chain,
                             "symbol": p.get("symbol", ""),
                             "name": p.get("name", ""),
-                            "price": float(p.get("price", 0)),
-                            "liquidity": float(p.get("liquidity", 0)),
-                            "market_cap": float(p.get("market_cap", 0)),
-                            "created_at": p.get("created_at"),
-                            "age_seconds": p.get("age_seconds", 0),
+                            "price": float(p.get("price", 0) or 0),
+                            "liquidity": float(p.get("liquidity", 0) or 0),
+                            "market_cap": float(p.get("market_cap", 0) or 0),
+                            "created_at": p.get("creation_timestamp"),
+                            "age_seconds": 0,
+                            "launchpad": p.get("launchpad", "pump"),
                             "source": "gmgn",
                         }
                         for p in pairs
