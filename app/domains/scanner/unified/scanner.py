@@ -2,8 +2,10 @@
 
 Degodded 2026-08-07: defensive scalar-coercion + risk-mapping helpers moved to
 ``unified/_coercion.py``; backend-compat wrappers (``scan_token_unified``,
-``_to_legacy_dict``) moved to ``unified/_legacy.py``. This module keeps the
-class plus the scan-status helpers (``scan_status`` public entry point).
+``_to_legacy_dict``) moved to ``unified/_legacy.py``. 2026-08-08: SENTINEL
+module → typed ``DeepScanProfile`` mapping (``_collect_deep_profile`` /
+``_module_result``) moved to ``unified/deep_profile.py``. This module keeps
+the class plus the scan-status helpers (``scan_status`` public entry point).
 """
 
 from __future__ import annotations
@@ -29,13 +31,8 @@ from app.domains.scanner.unified._coercion import (
     _social_velocity,
 )
 from app.domains.scanner.unified._legacy import _from_legacy_dict, _to_legacy_dict, scan_token_unified
-from app.domains.scanner.unified.model import (
-    BundleProfile,
-    DeepScanProfile,
-    DeployerProfile,
-    ScanResult,
-    WalletBreakdown,
-)
+from app.domains.scanner.unified.deep_profile import collect_deep_profile
+from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.persistence import (
     auto_label_deployer,
     persist_result,
@@ -650,7 +647,7 @@ class UnifiedTokenScanner:
         result.scan_tier = scan_tier
         if scan_tier == "deep":
             try:
-                result.deep_profile = self._collect_deep_profile(result.sentinel)
+                result.deep_profile = collect_deep_profile(result.sentinel)
             except Exception as exc:
                 logger.warning("deep_profile_collect_failed", error=str(exc)[:160])
         return result
@@ -1045,137 +1042,3 @@ class UnifiedTokenScanner:
                 "modules_run": [],
                 "deployer_resolved": False,
             }
-
-    # ── DeepScanProfile collection (Phase 5b — deep tier only) ─────────
-
-    @staticmethod
-    def _module_result(sentinel: dict[str, Any] | None, key: str) -> dict[str, Any] | None:
-        """Extract one SENTINEL module result from the phase dict.
-
-        The sentinel phase dict groups results under ``free``/``premium``
-        buckets; each entry is a plain dict (post ``dataclass_to_dict``) or
-        ``None`` when the module failed/skipped.  Returns ``None`` for
-        missing or failed modules so callers degrade gracefully.
-        """
-        if not isinstance(sentinel, dict):
-            return None
-        for bucket in ("free", "premium"):
-            mods = sentinel.get(bucket)
-            if isinstance(mods, dict):
-                res = mods.get(key)
-                if isinstance(res, dict):
-                    return res
-        return None
-
-    def _collect_deep_profile(self, sentinel: dict[str, Any] | None) -> DeepScanProfile:
-        """Map ALL SENTINEL module results into a typed ``DeepScanProfile``.
-
-        Every source module is extracted defensively: a module that returned
-        ``None``, failed, or lacks a field simply leaves its target profile
-        field at the dataclass default.  Never raises — callers additionally
-        wrap this in try/except as a final guard.
-
-        Module → profile wiring:
-          * exchange_funding + holder_analysis → WalletBreakdown
-          * bundle_detection                    → BundleProfile
-          * dev_reputation + gas_trace +
-            cross_chain_trace + sleep_cycle     → DeployerProfile
-          * wash_trading / honeypot_detection / mev_detection / sentiment /
-            social_velocity / pump_dump_detection / flash_loan_detection /
-            oracle_manipulation                → scalar risk fields
-        """
-        profile = DeepScanProfile()
-
-        # ── WalletBreakdown (exchange_funding + holder_analysis) ──
-        funding = self._module_result(sentinel, "exchange_funding")
-        holders = self._module_result(sentinel, "holder_analysis")
-        if funding or holders:
-            fresh_wallet_pct = _f((funding or {}).get("fresh_wallet_percentage"))
-            if not fresh_wallet_pct:
-                fresh_wallet_pct = _f((holders or {}).get("new_wallets_percentage"))
-            exchange_funded_pct = _f((funding or {}).get("cex_funded_percentage"))
-            if not exchange_funded_pct:
-                exchange_funded_pct = _f((holders or {}).get("exchange_funded_percentage"))
-            profile.wallet_breakdown = WalletBreakdown(
-                total_holders=_i((holders or {}).get("total_holders")),
-                fresh_wallet_count=_i((funding or {}).get("fresh_wallet_count")),
-                fresh_wallet_pct=round(fresh_wallet_pct, 2),
-                exchange_funded_count=_i((funding or {}).get("cex_funded_count")),
-                exchange_funded_pct=round(exchange_funded_pct, 2),
-                instant_buy_count=_i((funding or {}).get("instant_buy_count")),
-                instant_buy_pct=_f((funding or {}).get("instant_buy_percentage")),
-                exchange_breakdown=dict((funding or {}).get("exchange_breakdown") or {}),
-                fake_diversification_score=_f((holders or {}).get("fake_diversification_score")),
-                hhi=_f((holders or {}).get("hhi")),
-                hhi_risk_level=str((holders or {}).get("risk_level", "unknown") or "unknown"),
-            )
-
-        # ── BundleProfile (bundle_detection) ──
-        bundle = self._module_result(sentinel, "bundle_detection")
-        if bundle:
-            deployer_funded = bundle.get("deployer_funded")
-            same_block = bundle.get("same_block_snipers")
-            behavior_clusters = bundle.get("behavior_clusters")
-            deployer_funded = deployer_funded if isinstance(deployer_funded, list) else []
-            same_block = same_block if isinstance(same_block, list) else []
-            behavior_clusters = behavior_clusters if isinstance(behavior_clusters, list) else []
-            cross_launch = bundle.get("cross_launch_flags")
-            cross_launch = cross_launch if isinstance(cross_launch, dict) else {}
-            profile.bundle_profile = BundleProfile(
-                bundles_detected=len(deployer_funded) + len(same_block),
-                deployer_funded_wallets=len(deployer_funded),
-                deployer_funded_pct=_f(bundle.get("total_bundled_percentage")),
-                same_block_snipers=len(same_block),
-                jito_bundles=_i(bundle.get("jito_bundles_detected")),
-                behavior_clusters=len(behavior_clusters),
-                cross_launch_repeat_wallets=_i(cross_launch.get("repeat_count")),
-                bundle_risk_score=_i(bundle.get("risk_score")),
-                bundle_risk_level=str(bundle.get("risk_level", "LOW") or "LOW"),
-            )
-
-        # ── DeployerProfile (dev_reputation + gas_trace + cross_chain_trace + sleep_cycle) ──
-        dev = self._module_result(sentinel, "dev_reputation")
-        gas = self._module_result(sentinel, "gas_trace")
-        xchain = self._module_result(sentinel, "cross_chain_trace")
-        sleep = self._module_result(sentinel, "sleep_cycle")
-        if dev or gas or xchain or sleep:
-            chains_involved = (xchain or {}).get("chains_involved")
-            dev_chains = (dev or {}).get("chains")
-            chains_active = chains_involved if isinstance(chains_involved, list) else None
-            if not chains_active:
-                chains_active = dev_chains if isinstance(dev_chains, list) else []
-            profile.deployer_profile = DeployerProfile(
-                # dev_reputation does not currently expose wallet age — the
-                # field stays at its default (0) until a source exists.
-                wallet_age_days=_i((dev or {}).get("wallet_age_days")),
-                total_deployments=_i((dev or {}).get("total_launches")),
-                rug_rate=round(_f((dev or {}).get("rug_rate")) * 100.0, 2),  # 0-1 fraction → pct
-                funded_from=_funded_from(gas),
-                chains_active=list(chains_active),
-                sleep_pattern=_sleep_pattern(sleep),
-            )
-
-        # ── Scalar risk fields (premium modules) ──
-        wash = self._module_result(sentinel, "wash_trading")
-        profile.wash_trading_score = _f((wash or {}).get("wash_score"))
-        profile.honeypot_risk = _honeypot_risk(self._module_result(sentinel, "honeypot_detection"))
-        profile.mev_exposure = _mev_exposure(self._module_result(sentinel, "mev_detection"))
-        profile.sentiment_score = _f((self._module_result(sentinel, "sentiment") or {}).get("overall_sentiment"))
-        profile.social_velocity = _social_velocity(self._module_result(sentinel, "social_velocity"))
-
-        pump_dump = self._module_result(sentinel, "pump_dump_detection") or {}
-        profile.pump_dump_detected = bool(pump_dump) and (
-            _f(pump_dump.get("risk_score")) >= 50 or _risk_level_hot(pump_dump)
-        )
-
-        flash = self._module_result(sentinel, "flash_loan_detection") or {}
-        profile.flash_loan_risk = bool(flash) and (
-            _f(flash.get("risk_score")) >= 50 or _risk_level_hot(flash) or _i(flash.get("suspect_trade_count")) > 0
-        )
-
-        oracle = self._module_result(sentinel, "oracle_manipulation") or {}
-        profile.oracle_manipulation_risk = bool(oracle) and (
-            _f(oracle.get("risk_score")) >= 50 or _f(oracle.get("manipulable_score")) >= 50 or _risk_level_hot(oracle)
-        )
-
-        return profile
