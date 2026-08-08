@@ -83,6 +83,15 @@ class Settings(BaseSettings):
     )
     llm_cache_ttl: int = 3600
 
+    # ── Web search (self-hosted SearXNG) ─────────────────────────────────
+    searxng_url: str = Field(
+        default="http://localhost:8089",
+        description=(
+            "Self-hosted SearXNG endpoint (JSON API, no auth) used by the chat "
+            "brain for current-affairs fallback. Set SEARXNG_URL env var."
+        ),
+    )
+
     # ── ClickHouse (analytics / cost logging) ────────────────────────────
     clickhouse_host: str = "rmi-clickhouse"
     clickhouse_port: int = 9000
