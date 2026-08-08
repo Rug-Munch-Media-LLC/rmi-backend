@@ -9,19 +9,19 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-from app.domains.auth.cookie import (
+from app.domains.auth.cookie import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _clear_auth_cookie,
 )
-from app.domains.auth.deps import (
+from app.domains.auth.deps import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _extract_token,
 )
-from app.domains.auth.jwt import (
+from app.domains.auth.jwt import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _verify_jwt,
 )
-from app.domains.auth.router import (
+from app.domains.auth.router import (  # noqa: E402 — imported after logger init; kept below module header for readability
     router,
 )
-from app.domains.auth.schemas import (
+from app.domains.auth.schemas import (  # noqa: E402 — imported after logger init; kept below module header for readability
     UserResponse,
 )
 from app.domains.auth.store import _get_user  # noqa: E402 — module docstring precedes import block

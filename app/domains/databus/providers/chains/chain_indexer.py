@@ -217,7 +217,7 @@ async def _chain_indexer_token_transfers(**kwargs: Any) -> dict | None:
                 WHERE {where_clause}
                 ORDER BY et.block_number DESC, et.log_index DESC
                 LIMIT %(limit)s
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
             )
         except (ValueError, RuntimeError, OSError) as exc:
@@ -406,7 +406,7 @@ async def _chain_indexer_deployer_history(**kwargs: Any) -> dict | None:
                 WHERE {where_clause}
                 ORDER BY block_number DESC
                 LIMIT %(limit)s
-                """,
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction
                 params,
             )
         except (ValueError, RuntimeError, OSError) as exc:

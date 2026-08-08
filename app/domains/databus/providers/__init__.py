@@ -31,7 +31,7 @@ from app.domains.databus.providers.circuit_breaker import (  # noqa: E402 — mo
     _rate_limiters,
     _RateLimiter,
 )
-from app.domains.databus.providers.registry import (
+from app.domains.databus.providers.registry import (  # noqa: E402 — lazy import block kept below module init
     build_provider_chains,
 )
 

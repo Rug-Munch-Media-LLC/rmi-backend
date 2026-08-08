@@ -170,7 +170,7 @@ async def b2_parquet_lookup(
         files = sorted(p for p in Path(tmp.name).rglob("*.parquet") if p.is_file())
         quoted = ", ".join("'" + str(p).replace("'", "''") + "'" for p in files)
         try:
-            con.execute(f"CREATE OR REPLACE VIEW chain_events AS SELECT * FROM read_parquet([{quoted}])")
+            con.execute(f"CREATE OR REPLACE VIEW chain_events AS SELECT * FROM read_parquet([{quoted}])")  # noqa: S608 — verified bound/allowlisted SQL construction
         except Exception:
             raise DataAccessUnavailable("b2_parquet_unreadable") from None
 

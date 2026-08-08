@@ -260,32 +260,32 @@ class ScamClassifier:
             return {"status": "error", "error": "xgboost not installed"}
 
         # Extract features and labels
-        X_list = []
+        x_list = []
         y_list = []
 
         for scan in scans:
             features = extract_features(scan)
             is_scam = scan.get("is_scam", False) or scan.get("verdict") == "scam"
 
-            if not X_list:  # First sample - record feature names
+            if not x_list:  # First sample - record feature names
                 self.feature_names = sorted(features.keys())
 
             # Build feature vector in consistent order
             row = [features.get(name, 0.0) for name in self.feature_names]
-            X_list.append(row)
+            x_list.append(row)
             y_list.append(1 if is_scam else 0)
 
-        if len(X_list) < 10:
-            return {"status": "error", "error": f"Need at least 10 samples, got {len(X_list)}"}
+        if len(x_list) < 10:
+            return {"status": "error", "error": f"Need at least 10 samples, got {len(x_list)}"}
 
         if sum(y_list) < 2:
             return {"status": "error", "error": "Need at least 2 scam samples for training"}
 
-        X = np.array(X_list, dtype=np.float32)
+        x = np.array(x_list, dtype=np.float32)
         y = np.array(y_list, dtype=np.int32)
 
         # Handle NaN/Inf
-        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+        x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Train
         self.model = XGBClassifier(
@@ -299,12 +299,12 @@ class ScamClassifier:
             use_label_encoder=False,
             eval_metric="logloss",
         )
-        self.model.fit(X, y)
+        self.model.fit(x, y)
 
         # Evaluate
-        train_pred = self.model.predict(X)
+        train_pred = self.model.predict(x)
         self.accuracy = float((train_pred == y).mean())
-        self.training_samples = len(X_list)
+        self.training_samples = len(x_list)
         self.last_trained = datetime.now(UTC).isoformat()
 
         # Feature importance

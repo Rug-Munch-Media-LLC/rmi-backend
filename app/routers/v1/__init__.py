@@ -62,14 +62,14 @@ from app.routers.v1.entities import router as entities_v1_router  # noqa: E402 �
 v1_router.include_router(entities_v1_router)
 
 # Cross-chain endpoints
-from app.routers.v1.cross_chain import (
+from app.routers.v1.cross_chain import (  # noqa: E402 — module docstring precedes import block
     router as cross_chain_v1_router,
 )
 
 v1_router.include_router(cross_chain_v1_router)
 
 # Provider status endpoints (Win #20)
-from app.routers.v1.providers import (
+from app.routers.v1.providers import (  # noqa: E402 — module docstring precedes import block
     router as providers_v1_router,
 )
 
@@ -97,14 +97,14 @@ from app.routers.scam_school import router as scam_school_router  # noqa: E402 �
 v1_router.include_router(scam_school_router)
 
 # x402 Advanced Tools: routes at /stream/alerts etc. become /api/v1/x402/stream/alerts
-from app.routers.x402_advanced_tools import (
+from app.routers.x402_advanced_tools import (  # noqa: E402 — module docstring precedes import block
     router as x402_advanced_router,
 )
 
 v1_router.include_router(x402_advanced_router, prefix="/x402")
 
 # x402 Premium Tools: routes at /reputation_score etc. become /api/v1/x402/reputation_score
-from app.routers.x402_premium_tools import (
+from app.routers.x402_premium_tools import (  # noqa: E402 — module docstring precedes import block
     router as x402_premium_router,
 )
 
@@ -122,7 +122,7 @@ from app.routers.v1.data import router as data_v1_router  # noqa: E402 — modul
 v1_router.include_router(data_v1_router)
 
 # Scanner recent — GET /api/v1/scanner/recent (news service consumer)
-from app.routers.v1.scanner import (
+from app.routers.v1.scanner import (  # noqa: E402 — module docstring precedes import block
     router as scanner_recent_v1_router,
 )
 

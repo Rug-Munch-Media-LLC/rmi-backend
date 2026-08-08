@@ -35,7 +35,7 @@ from app.domains.scanners.dev_reputation import ETHERSCAN_NETWORKS
 logger = get_logger("wallet_memory.ingestion")
 
 
-from .models import (
+from .models import (  # noqa: E402 — imported after logger init; kept below module header for readability
     NormalizedTransaction,
 )
 

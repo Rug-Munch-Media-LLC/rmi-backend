@@ -9,13 +9,13 @@ import os
 
 API_BASE = os.getenv("API_BASE", "https://rugmunch.io")
 
-from app.routers.scam_school.content.advanced_forensics import (
+from app.routers.scam_school.content.advanced_forensics import (  # noqa: E402 — imports follow env-based config at module top
     advanced_forensics,
 )
-from app.routers.scam_school.content.crypto_basics import (
+from app.routers.scam_school.content.crypto_basics import (  # noqa: E402 — imports follow env-based config at module top
     crypto_basics,
 )
-from app.routers.scam_school.content.scam_detection import (
+from app.routers.scam_school.content.scam_detection import (  # noqa: E402 — imports follow env-based config at module top
     scam_detection,
 )
 

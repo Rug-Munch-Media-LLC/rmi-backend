@@ -17,10 +17,10 @@ from app.core.logging import get_logger
 logger = get_logger("x402_tools")
 
 # Caching shield
-from app.caching_shield.service_mcp import (
+from app.caching_shield.service_mcp import (  # noqa: E402 — imported after logger init; kept below module header for readability
     get_service_mcp,
 )
-from app.caching_shield.tool_data import (
+from app.caching_shield.tool_data import (  # noqa: E402 — imported after logger init; kept below module header for readability
     td,
 )
 
