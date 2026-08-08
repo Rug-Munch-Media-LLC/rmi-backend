@@ -139,7 +139,7 @@ def _resolve_bot_db_path() -> str:
         os.path.join(
             os.path.dirname(__file__), "..", "..", "domains", "telegram", "rugmunchbot", "data", "bot_users.db"
         ),
-        "/tmp/rmi/telegram/bot_users.db",
+        "/tmp/rmi/telegram/bot_users.db",  # nosec B108 — known bot DB mirror path, stable inter-process lookup
     ]
     for path in candidates:
         if path and os.path.exists(path):

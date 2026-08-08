@@ -142,7 +142,7 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
     query = req.query.strip()
 
     # Check Redis cache for common questions
-    cache_key = f"bot:ask:{hashlib.md5(query.encode()).hexdigest()[:16]}"
+    cache_key = f"bot:ask:{hashlib.sha256(query.encode()).hexdigest()[:16]}"
     try:
         r = get_redis_async()
         if r:

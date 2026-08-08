@@ -26,7 +26,7 @@ logger = logging.getLogger("admin_bot.admin_bot")
 # process reads exactly the database the running bot writes to.
 _BOT_DB_CANDIDATES: tuple[str, ...] = (
     "/srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot/data/bot_users.db",
-    "/tmp/rmi/telegram/bot_users.db",
+    "/tmp/rmi/telegram/bot_users.db",  # nosec B108 — known bot DB mirror path, stable inter-process lookup  # noqa: S108
 )
 
 # How many users to list in /admin_bot_users.

@@ -348,7 +348,8 @@ async def graph_analyze(req: GraphAnalyzeRequest) -> Any:
     if "export" in req.analysis_types:
         import tempfile
 
-        path = tempfile.mktemp(suffix=".gexf")
+        fd, path = tempfile.mkstemp(suffix=".gexf")
+        os.close(fd)  # mktemp is insecure/deprecated — mkstemp creates with 0600 perms
         graph.export_gexf(path)
         response["gexf_export_path"] = path
 

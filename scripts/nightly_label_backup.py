@@ -198,7 +198,7 @@ def upload_to_b2(archive_path: str) -> bool:
         # 4. Upload file
         fname = os.path.basename(archive_path)
         # B2 API requires SHA-1 for content verification (X-Bz-Content-Sha1) — not used for security
-        sha1 = hashlib.sha1()  # noqa: S324
+        sha1 = hashlib.sha1(usedforsecurity=False)
         with open(archive_path, "rb") as f:
             for chunk in iter(lambda: f.read(1024 * 1024), b""):
                 sha1.update(chunk)

@@ -23,7 +23,7 @@ telegram_router = APIRouter()
 @telegram_router.get("/telegram/stats")
 async def telegram_stats(request: Request, _=Depends(verify_admin)) -> Any:
     """Get Telegram bot statistics."""
-    bot_state_file = "/tmp/telegram_bot_state.json"
+    bot_state_file = "/tmp/telegram_bot_state.json"  # nosec B108 — shared state file written by bot process, stable path required  # noqa: S108
     stats = {
         "total_users": 0,
         "active_chats": 0,
@@ -57,7 +57,7 @@ async def telegram_stats(request: Request, _=Depends(verify_admin)) -> Any:
 @telegram_router.get("/telegram/users")
 async def telegram_users(request: Request, _=Depends(verify_admin), limit: int = Query(50, le=200)) -> dict:
     """Get Telegram bot users."""
-    users_file = "/tmp/telegram_users.json"
+    users_file = "/tmp/telegram_users.json"  # nosec B108 — shared state file written by bot process, stable path required  # noqa: S108
     users = []
     if os.path.exists(users_file):
         try:
@@ -76,7 +76,7 @@ async def telegram_users(request: Request, _=Depends(verify_admin), limit: int =
 @telegram_router.get("/telegram/messages")
 async def telegram_messages(request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)) -> dict:
     """Get recent Telegram messages."""
-    messages_file = "/tmp/telegram_messages.json"
+    messages_file = "/tmp/telegram_messages.json"  # nosec B108 — shared state file written by bot process, stable path required  # noqa: S108
     messages = []
     if os.path.exists(messages_file):
         try:
@@ -126,7 +126,7 @@ async def telegram_broadcast(
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not bot_token:
         return {"status": "failed", "error": "TELEGRAM_BOT_TOKEN not configured"}
-    users_file = "/tmp/telegram_users.json"
+    users_file = "/tmp/telegram_users.json"  # nosec B108 — shared state file written by bot process, stable path required  # noqa: S108
     chat_ids = []
     if os.path.exists(users_file):
         try:

@@ -100,7 +100,7 @@ SOURCES = [
     },
 ]
 
-CLONE_DIR = "/tmp/rag_sources"
+CLONE_DIR = "/tmp/rag_sources"  # nosec B108 — persistent clone cache across runs, not a temp artifact  # noqa: S108
 
 
 def ensure_cloned(repo: str) -> str | None:
