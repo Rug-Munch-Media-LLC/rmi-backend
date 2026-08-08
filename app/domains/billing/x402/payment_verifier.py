@@ -260,7 +260,7 @@ async def self_verify_evm_usdc(payload: dict[str, Any], chain_key: str, chain_cf
     Checks transfer receipt via Blockscout API, validates USDC contract
     and amount, and prevents double-spend with Redis atomic lock.
     """
-    TRANSFER_EVENT_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    transfer_event_topic0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
     try:
         accepted = payload.get("accepted", {})
@@ -347,7 +347,7 @@ async def self_verify_evm_usdc(payload: dict[str, Any], chain_key: str, chain_cf
 
             if len(topics) < 3:
                 continue
-            if topics[0].lower() != TRANSFER_EVENT_TOPIC0:
+            if topics[0].lower() != transfer_event_topic0:
                 continue
             if log.get("address", "").lower() != usdc_address:
                 continue

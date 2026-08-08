@@ -208,13 +208,13 @@ async def human_execute(req: Any) -> dict[str, Any]:
 async def comprehensive_audit(req: AuditRequest) -> Any:
     """One-call deep audit combining rug check, forensics, social, and whale analysis."""
     try:
-        BASE = "http://localhost:8000/api/v1/x402-tools"
+        base = "http://localhost:8000/api/v1/x402-tools"
         results = await run_super_tool_batch(
             {
-                "rug": f"{BASE}/rugshield",
-                "forensics": f"{BASE}/forensics",
-                "social": f"{BASE}/sentiment",
-                "whale": f"{BASE}/whale",
+                "rug": f"{base}/rugshield",
+                "forensics": f"{base}/forensics",
+                "social": f"{base}/sentiment",
+                "whale": f"{base}/whale",
             },
             {"address": req.address, "chain": req.chain},
         )
@@ -299,13 +299,13 @@ async def comprehensive_audit(req: AuditRequest) -> Any:
 async def smart_money_alpha(req: SmartMoneyAlphaRequest) -> Any:
     """One-call smart money signal combining wallet analysis, smart money tracking, and cluster/sybil detection."""
     try:
-        BASE = "http://localhost:8000/api/v1/x402-tools"
+        base = "http://localhost:8000/api/v1/x402-tools"
         results = await run_super_tool_batch(
             {
-                "wallet": f"{BASE}/wallet",
-                "smartmoney": f"{BASE}/smartmoney",
-                "cluster": f"{BASE}/cluster",
-                "insider": f"{BASE}/insider",
+                "wallet": f"{base}/wallet",
+                "smartmoney": f"{base}/smartmoney",
+                "cluster": f"{base}/cluster",
+                "insider": f"{base}/insider",
             },
             {"address": req.wallet, "chain": req.chain},
         )
@@ -388,12 +388,12 @@ async def smart_money_alpha(req: SmartMoneyAlphaRequest) -> Any:
 async def meme_vibe_score(req: MemeVibeRequest) -> Any:
     """One-call meme token vibe check combining sentiment, social signals, and launch analysis."""
     try:
-        BASE = "http://localhost:8000/api/v1/x402-tools"
+        base = "http://localhost:8000/api/v1/x402-tools"
         results = await run_super_tool_batch(
             {
-                "sentiment": f"{BASE}/sentiment",
-                "social": f"{BASE}/social_signal",
-                "launch": f"{BASE}/launch?address={req.token}&chain={req.chain}",
+                "sentiment": f"{base}/sentiment",
+                "social": f"{base}/social_signal",
+                "launch": f"{base}/launch?address={req.token}&chain={req.chain}",
             },
             {"token": req.token, "chain": req.chain},
         )
@@ -402,7 +402,7 @@ async def meme_vibe_score(req: MemeVibeRequest) -> Any:
         # httpx available at module level
 
         async with httpx.AsyncClient(timeout=10.0) as c:
-            r = await c.get(f"{BASE}/launch", params={"address": req.token, "chain": req.chain})
+            r = await c.get(f"{base}/launch", params={"address": req.token, "chain": req.chain})
             launch_data = r.json() if r.status_code == 200 else results.get("launch")
 
         sentiment_data = results.get("sentiment")

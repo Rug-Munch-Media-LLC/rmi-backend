@@ -92,20 +92,20 @@ def check_burst_limit(client_id: str, tool_id: str) -> dict[str, Any] | None:
 
     burst_key = f"x402:burst:{client_id}:{tool_id}"
     try:
-        BURST_LIMIT = int(os.getenv("X402_BURST_LIMIT", "5"))
-        BURST_WINDOW = int(os.getenv("X402_BURST_WINDOW", "60"))
+        burst_limit = int(os.getenv("X402_BURST_LIMIT", "5"))
+        burst_window = int(os.getenv("X402_BURST_WINDOW", "60"))
         pipe = r.pipeline()
         pipe.incr(burst_key)
         if not r.exists(burst_key):
-            pipe.expire(burst_key, BURST_WINDOW)
+            pipe.expire(burst_key, burst_window)
         results = pipe.execute()
         burst_count = results[0] if results else 0
-        if burst_count > BURST_LIMIT:
-            logger.warning(f"Burst limit: {client_id} hit {burst_count} requests in {BURST_WINDOW}s")
+        if burst_count > burst_limit:
+            logger.warning(f"Burst limit: {client_id} hit {burst_count} requests in {burst_window}s")
             return {
                 "status_code": 429,
-                "message": f"Rate limited. Max {BURST_LIMIT} requests per {BURST_WINDOW}s per tool.",
-                "retry_after": BURST_WINDOW,
+                "message": f"Rate limited. Max {burst_limit} requests per {burst_window}s per tool.",
+                "retry_after": burst_window,
             }
         return None
     except (ConnectionError, OSError, TimeoutError):

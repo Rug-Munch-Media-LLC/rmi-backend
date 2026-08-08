@@ -48,13 +48,13 @@ def render_bubble_map_png(
         logger.debug("Pillow unavailable, skipping rugmap image: %s", exc)
         return None
 
-    W, H = 900, 700
+    w, h = 900, 700
     bg = (15, 17, 21)
     grid_c = (35, 38, 46)
     text_c = (154, 160, 166)
     title_c = (232, 234, 237)
 
-    img = Image.new("RGB", (W, H), bg)
+    img = Image.new("RGB", (w, h), bg)
     draw = ImageDraw.Draw(img)
     try:
         font = ImageFont.load_default(size=20)
@@ -108,8 +108,8 @@ def render_bubble_map_png(
     margin = 90
 
     def px(p: tuple[float, float]) -> tuple[int, int]:
-        sx = margin + (p[0] - xmin) / (xmax - xmin) * (W - 2 * margin)
-        sy = H - margin - (p[1] - ymin) / (ymax - ymin) * (H - 2 * margin)
+        sx = margin + (p[0] - xmin) / (xmax - xmin) * (w - 2 * margin)
+        sy = h - margin - (p[1] - ymin) / (ymax - ymin) * (h - 2 * margin)
         return int(sx), int(sy)
 
     # Links first (under bubbles).
@@ -151,7 +151,7 @@ def render_bubble_map_png(
 
     title = f"RugMap: {name} ({symbol})"
     draw.text((16, 12), title, font=font, fill=title_c)
-    draw.text((16, H - 28), "Bubble size = wallet weight · Color = risk", font=small, fill=text_c)
+    draw.text((16, h - 28), "Bubble size = wallet weight · Color = risk", font=small, fill=text_c)
 
     try:
         buf = io.BytesIO()

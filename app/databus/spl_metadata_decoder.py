@@ -163,7 +163,7 @@ def _parse_token_extensions(extension_data: bytes, base_result: dict[str, Any]) 
     offset = 0
 
     # Extension type constants (from spl-token-2022)
-    EXTENSION_TYPES = {
+    extension_types = {
         1: "Uninitialized",
         2: "TransferFeeConfig",
         3: "TransferFeeAmount",
@@ -193,7 +193,7 @@ def _parse_token_extensions(extension_data: bytes, base_result: dict[str, Any]) 
             ext_type = int.from_bytes(extension_data[offset : offset + 2], "little")
             ext_length = int.from_bytes(extension_data[offset + 2 : offset + 4], "little")
 
-            ext_name = EXTENSION_TYPES.get(ext_type, f"Unknown({ext_type})")
+            ext_name = extension_types.get(ext_type, f"Unknown({ext_type})")
             ext_info = {"type": ext_type, "name": ext_name, "length": ext_length}
 
             # Check for high-risk extensions

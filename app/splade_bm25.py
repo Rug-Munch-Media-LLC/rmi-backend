@@ -632,7 +632,7 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
     import os
     import time
 
-    BM25_PATH = "/app/data/bm25_index.pkl"
+    bm25_path = "/app/data/bm25_index.pkl"
 
     now = time.time()
     if _bm25_index and not force_rebuild and (now - _bm25_built_at) < _BM25_TTL:
@@ -643,8 +643,8 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
             return _bm25_index
 
         # Try loading from disk first
-        if os.path.exists(BM25_PATH) and not force_rebuild:
-            loaded = await asyncio.get_running_loop().run_in_executor(None, BM25Index.load, BM25_PATH)
+        if os.path.exists(bm25_path) and not force_rebuild:
+            loaded = await asyncio.get_running_loop().run_in_executor(None, BM25Index.load, bm25_path)
             if loaded and loaded.doc_count > 0:
                 _bm25_index = loaded
                 _bm25_built_at = time.time()
@@ -659,7 +659,7 @@ async def get_bm25_index(force_rebuild: bool = False) -> BM25Index:
 
         # Persist to disk in background
         if _bm25_index.doc_count > 0:
-            asyncio.create_task(_save_bm25_async(BM25_PATH))
+            asyncio.create_task(_save_bm25_async(bm25_path))
 
         return _bm25_index
 

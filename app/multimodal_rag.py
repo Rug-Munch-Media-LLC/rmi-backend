@@ -229,7 +229,7 @@ async def describe_image(
             logger.warning("No LLM key available for image description")
             return "Image description unavailable - no LLM API key configured"
 
-        TASK_PROMPTS = {
+        task_prompts = {
             "describe": "Describe this image in detail. What crypto-related content does it show?",
             "extract_addresses": (
                 "Extract any cryptocurrency wallet addresses (0x... for EVM, "
@@ -249,7 +249,7 @@ async def describe_image(
             ),
         }
 
-        prompt = TASK_PROMPTS.get(task, TASK_PROMPTS["describe"])
+        prompt = task_prompts.get(task, task_prompts["describe"])
         payload = {
             "model": os.getenv("LLM_MODEL", "deepseek-v4-flash"),
             "messages": [{"role": "user", "content": prompt}],

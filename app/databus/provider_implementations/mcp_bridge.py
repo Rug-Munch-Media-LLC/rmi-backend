@@ -31,7 +31,7 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
         def _server_entry(rel_path: str) -> list[str]:
             return ["node", str(_MCP_SERVERS_DIR / rel_path)]
 
-        MCP_COMMANDS = {
+        mcp_commands = {
             "evm-direct": _server_entry("evm-direct/bin/cli.js"),
             "evmscope": _server_entry("evmscope/dist/cli.js"),
             "jupiter-mcp": _server_entry("jupiter-mcp/index.js"),
@@ -45,7 +45,7 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
             "solana-mcp": _server_entry("solana-mcp-official/index.js"),
         }
 
-        if mcp_server in MCP_COMMANDS:
+        if mcp_server in mcp_commands:
             mcp_request = _json.dumps(
                 {
                     "jsonrpc": "2.0",
@@ -54,7 +54,7 @@ async def _mcp_bridge(mcp_server: str = "", mcp_tool: str = "", **kw) -> dict | 
                     "id": 1,
                 }
             )
-            cmd = MCP_COMMANDS[mcp_server]
+            cmd = mcp_commands[mcp_server]
             result = subprocess.run(cmd, input=mcp_request, capture_output=True, text=True, timeout=30, shell=False)
             if result.returncode == 0 and result.stdout:
                 data = _json.loads(result.stdout)
