@@ -311,7 +311,7 @@ async def cmd_chart(update, ctx) -> None:
     if not args:
         await msg.reply_text(
             "📊 <b>Usage:</b> <code>/chart &lt;token_address&gt; [chain]</code>\n\n"
-            "Generates a chart image from the RugCharts engine (OHLCV).\n\n"
+            "Generates a chart image (OHLCV).\n\n"
             "Example: <code>/chart 0x6982508145454Ce325dDbE47a25d4ec3d2311933</code>\n"
             "         <code>/chart So11111111111111111111111111111111111111112 solana</code>",
             parse_mode="HTML",
@@ -328,7 +328,7 @@ async def cmd_chart(update, ctx) -> None:
             r = await client.get(f"{DEXSCREENER}/tokens/{address}")
             if r.status_code != 200:
                 await msg.reply_text(
-                    "❌ Could not fetch token data from DexScreener.",
+                    "❌ Could not fetch token data.",
                     parse_mode="HTML",
                 )
                 return
@@ -375,7 +375,7 @@ async def cmd_chart(update, ctx) -> None:
                     f"\n📈 MCap: {fmt_number(mcap)} | 📊 24h Vol: {fmt_number(vol_24h)}\n"
                     f"🟢 1h: {fmt_pct(change_1h)} | 24h: {fmt_pct(change_24h)} | 7d: {fmt_pct(change_7d)}"
                 )
-                + f'\n📉 <a href="{_web_chart_url(chain, pair_address)}">Open on DexScreener</a>'
+                + f'\n📉 <a href="{_web_chart_url(chain, pair_address)}">Open chart</a>'
             )
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -431,11 +431,9 @@ async def cmd_chart(update, ctx) -> None:
             f"  {_arrow(change_24h)} 24h: <b>{fmt_pct(change_24h)}</b>",
             f"  {_arrow(change_7d)} 7d:  <b>{fmt_pct(change_7d)}</b>",
             "",
-            f'📉 <a href="{dex_url}">View on DexScreener</a>',
+            f'📉 <a href="{dex_url}">View chart</a>',
             "",
-            "<i>Sparkline: CoinGecko 7d history</i>" if cg_prices else "<i>Sparkline: DexScreener change estimates</i>",
-            "",
-            "<i>Image chart unavailable — showing text sparkline.</i>",
+            "<i>Chart rendering unavailable — showing text sparkline.</i>",
         ]
 
         text = "\n".join(lines)

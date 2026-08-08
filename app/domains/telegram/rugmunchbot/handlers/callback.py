@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Update
 from telegram.constants import ParseMode
-from telegram.error import TelegramError
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -22,8 +21,6 @@ from app.domains.telegram.rugmunchbot.config import (
     BOT_USERNAME,
     BUY_STARS_PACKS,
     COINGECKO,
-    DEXSCREENER,
-    DEXSCREENER_TOKEN_BOOSTS,
     SCAM_SCHOOL_TOPICS,
     SCAN_PACKS,
     TELEGRAM_CHANNEL,
@@ -33,7 +30,6 @@ from app.domains.telegram.rugmunchbot.config import (
     WEBSITE_URL,
     backend_headers,
     fmt_number,
-    fmt_pct,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
@@ -250,103 +246,51 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         )
     elif data == "menu_trending":
         await query.edit_message_text("\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(DEXSCREENER_TOKEN_BOOSTS)
-                if r.status_code == 200:
-                    boost_list = r.json()
-                    if not isinstance(boost_list, list):
-                        boost_list = []
-                    lines = ["\U0001f525 <b>Trending</b>", thin_sep()]
-                    for b in boost_list[:6]:
-                        name = (b.get("name") or b.get("description", "???"))[:12]
-                        sym = b.get("symbol", "???")
-                        addr = b.get("tokenAddress", "")
-                        boost_count = b.get("boostCount", 0)
-                        boost_str = f" \U0001f525{boost_count}" if boost_count else ""
-                        lines.append(f"\U0001f525 <b>{name}</b> ({sym}){boost_str}\n   <code>{short_addr(addr)}</code>")
-                    await query.edit_message_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=back_kb())
-                else:
-                    await query.edit_message_text(
-                        "\u274c Could not fetch trending data.",
-                        parse_mode=ParseMode.HTML,
-                        reply_markup=back_kb(),
-                    )
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            logger.warning(f"handle_callback trending failed: {e}")
+        from app.domains.telegram.rugmunchbot.handlers.market import _build_trending_text
+
+        text = await _build_trending_text("solana", limit=8)
+        if text is None:
             await query.edit_message_text(
-                "\u274c Trending unavailable. Please try again later.",
+                "\u274c Could not fetch trending data.",
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
+            return
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh_solana")],
+                    [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+                ]
+            ),
+            disable_web_page_preview=True,
+        )
     elif data == "trending_refresh":
         await query.answer("Refreshing...")
         await query.edit_message_text("\U0001f504 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                boosts_r = await client.get(DEXSCREENER_TOKEN_BOOSTS)
-                if boosts_r.status_code == 200:
-                    boost_list = boosts_r.json()
-                    if isinstance(boost_list, list):
-                        boost_list = boost_list[:6]
-                        enriched = {}
-                        addresses = {b.get("tokenAddress", "") for b in boost_list if b.get("tokenAddress")}
-                        for addr in addresses:
-                            try:
-                                tr = await client.get(f"{DEXSCREENER}/tokens/{addr}", timeout=4)
-                                if tr.status_code == 200:
-                                    pairs = tr.json().get("pairs", [])
-                                    if pairs:
-                                        enriched[addr] = pairs[0]
-                            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                                pass
-                        lines = ["\U0001f525 <b>Trending Tokens</b>", sep()]
-                        for i, b in enumerate(boost_list, 1):
-                            addr = b.get("tokenAddress", "")
-                            name = (b.get("name") or b.get("description", "???"))[:12]
-                            sym = b.get("symbol", "???")
-                            chain = b.get("chainId", "?")
-                            bc = b.get("boostCount", 0)
-                            bs = f" \U0001f525{bc}" if bc else ""
-                            pair = enriched.get(addr)
-                            if pair:
-                                price = float(pair.get("priceUsd", 0))
-                                h24 = pair.get("priceChange", {}).get("h24") or 0
-                                vol = float(pair.get("volume", {}).get("h24") or 0)
-                                emoji = "\U0001f7e2" if h24 >= 0 else "\U0001f534"
-                                lines.append(
-                                    f"{i}. {emoji} <b>{name}</b> ({sym}) {chain}\n"
-                                    f"   {fmt_number(price)} | {fmt_pct(h24)} | Vol: {fmt_number(vol)}{bs}"
-                                )
-                            else:
-                                lines.append(f"{i}. \U0001f525 <b>{name}</b> ({sym}) {chain}{bs}")
-                        lines.append(footer_links())
-                        refresh_kb = InlineKeyboardMarkup(
-                            [
-                                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
-                                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-                            ]
-                        )
-                        await query.edit_message_text(
-                            "\n".join(lines),
-                            parse_mode=ParseMode.HTML,
-                            reply_markup=refresh_kb,
-                            disable_web_page_preview=True,
-                        )
-                        return
-        except (
-            ConnectionError,
-            OSError,
-            TimeoutError,
-            httpx.HTTPError,
-            httpx.TimeoutException,
-            TelegramError,
-        ) as e:
-            logger.warning(f"trending_refresh failed: {e}")
+        from app.domains.telegram.rugmunchbot.handlers.market import _build_trending_text
+
+        text = await _build_trending_text("solana", limit=8)
+        if text is None:
+            await query.edit_message_text(
+                "\u274c Could not refresh trending data.",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
+        refresh_kb = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh_solana")],
+                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+            ]
+        )
         await query.edit_message_text(
-            "\u274c Could not refresh trending data.",
+            text,
             parse_mode=ParseMode.HTML,
-            reply_markup=back_kb(),
+            reply_markup=refresh_kb,
+            disable_web_page_preview=True,
         )
     elif data == "news_refresh":
         await query.answer("Refreshing...")
@@ -373,7 +317,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             cg_items = await _fetch_cg_trending_news()
             if cg_items:
                 articles = cg_items
-                source_label = "CoinGecko"
+                source_label = "Trending"
         if articles:
             lines = ["\U0001f4f0 <b>Crypto News</b>", f"<i>via {source_label}</i>", sep()]
             for a in articles[:5]:
@@ -687,7 +631,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text("\U0001f525 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
         from app.domains.telegram.rugmunchbot.handlers.market import cmd_trending as _trending
 
-        ctx.args = []
+        parts = data.split("_", 2)
+        ctx.args = [parts[2]] if len(parts) == 3 and parts[2] else []
         await _trending(update, ctx)
     elif data.startswith("deep_"):
         parts = data.split("_", 2)
@@ -808,7 +753,7 @@ _RUN_CARDS: dict[str, str] = {
     "quick": (
         "\U0001fa99 <b>Quick Price Check</b>\n\n"
         "Usage: <code>/quick &lt;symbol&gt;</code>\n\n"
-        "Same as typing <code>$TOKEN</code> \u2014 instant price from DexScreener."
+        "Same as typing <code>$TOKEN</code> \u2014 instant price check."
     ),
     "wallet": (
         "\U0001f9db <b>Wallet Forensics</b>\n\n"
@@ -839,7 +784,7 @@ _RUN_CARDS: dict[str, str] = {
     "chart": (
         "\U0001f4c9 <b>Price Chart</b>\n\n"
         "Usage: <code>/chart &lt;address&gt; [chain]</code>\n\n"
-        "Generates a chart image from the RugCharts engine (OHLCV), "
+        "Generates a chart image (OHLCV), "
         "with technical indicators and trend analysis."
     ),
     "rugmap": (
@@ -931,46 +876,25 @@ async def _inline_trending(update: Update, ctx) -> None:
     if query is None:
         return
     await query.edit_message_text("\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
-    try:
-        async with httpx.AsyncClient(timeout=12) as client:
-            r = await client.get(DEXSCREENER_TOKEN_BOOSTS)
-            if r.status_code == 200:
-                boost_list = r.json()
-                if not isinstance(boost_list, list):
-                    boost_list = []
-                lines = ["\U0001f525 <b>Trending Tokens</b>", thin_sep()]
-                for i, b in enumerate(boost_list[:8], 1):
-                    name = (b.get("name") or b.get("description", "???"))[:12]
-                    sym = b.get("symbol", "???")
-                    addr = b.get("tokenAddress", "")
-                    boost_count = b.get("boostCount", 0)
-                    boost_str = f" \U0001f525{boost_count}" if boost_count else ""
-                    lines.append(
-                        f"{i}. \U0001f525 <b>{name}</b> ({sym}){boost_str}\n   <code>{short_addr(addr)}</code>"
-                    )
-                lines.append(footer_links())
-                await query.edit_message_text(
-                    "\n".join(lines),
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=InlineKeyboardMarkup(
-                        [
-                            [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
-                            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-                        ]
-                    ),
-                    disable_web_page_preview=True,
-                )
-                return
+    from app.domains.telegram.rugmunchbot.handlers.market import _build_trending_text
+
+    text = await _build_trending_text("solana", limit=8)
+    if text is None:
         await query.edit_message_text(
             "\u274c Could not fetch trending data.", parse_mode=ParseMode.HTML, reply_markup=back_kb()
         )
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning(f"inline trending failed: {e}")
-        await query.edit_message_text(
-            "\u274c Trending unavailable. Please try again later.",
-            parse_mode=ParseMode.HTML,
-            reply_markup=back_kb(),
-        )
+        return
+    await query.edit_message_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh_solana")],
+                [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+            ]
+        ),
+        disable_web_page_preview=True,
+    )
 
 
 async def _inline_news(update: Update, ctx) -> None:
@@ -996,7 +920,7 @@ async def _inline_news(update: Update, ctx) -> None:
         cg_items = await _fetch_cg_trending_news()
         if cg_items:
             articles = cg_items
-            source_label = "CoinGecko"
+            source_label = "Trending"
     if not articles:
         await query.edit_message_text(
             "\U0001f4f0 <b>Crypto News</b>\n\nNews feed temporarily unavailable.",

@@ -285,7 +285,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                             f"  🔵 Buyers: {h24_buys:,}",
                             f"  🔴 Sellers: {h24_sells:,}",
                             "",
-                            "💡 Holder data requires GoPlus support or backend integration.",
+                            "💡 Holder data unavailable for this token.",
                             "Use /scan for full security analysis.",
                         ]
                     )

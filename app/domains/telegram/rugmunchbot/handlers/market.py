@@ -18,7 +18,6 @@ from telegram.constants import ParseMode
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
-    DEXSCREENER,
     TELEGRAM_CHANNEL,
     WEBSITE_URL,
     backend_headers,
@@ -76,8 +75,8 @@ async def _fetch_cg_trending_news() -> list[dict] | None:
                 item = c.get("item", {})
                 items.append(
                     {
-                        "title": f"{item.get('name', 'Unknown')} ({item.get('symbol', '?')}) trending on CoinGecko",
-                        "source": "CoinGecko",
+                        "title": f"{item.get('name', 'Unknown')} ({item.get('symbol', '?')}) trending now",
+                        "source": "Trending",
                         "published_at": None,
                         "url": f"https://www.coingecko.com/en/coins/{item.get('id', '')}",
                         "score": item.get("score", 0) or 0,
@@ -93,7 +92,7 @@ async def cmd_rugcheck(update, ctx) -> None:
     """Quick rug pull checklist - educational."""
     from telegram.constants import ParseMode
 
-    from app.domains.telegram.rugmunchbot.formatters import footer_links, sep, thin_sep
+    from app.domains.telegram.rugmunchbot.formatters import footer_links, sep
 
     text = (
         f"\U0001f6a9 <b>Rug Pull Checklist</b>\n{sep()}\n\n"
@@ -126,75 +125,109 @@ async def cmd_rugcheck(update, ctx) -> None:
     )
 
 
-async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    msg = await update.message.reply_text("\U0001f525 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML)
+# Chain aliases accepted by /trending (backend RugCharts chain filter)
+RUGCHARTS_CHAIN_ALIASES = {
+    "sol": "solana",
+    "eth": "ethereum",
+    "bnb": "bsc",
+    "arb": "arbitrum",
+    "tron": "tron",
+}
+TRENDING_CHAINS = "solana · ethereum · base · bsc · arbitrum · tron"
+
+
+def _resolve_chain(arg: str | None) -> str:
+    """Normalize a /trending chain argument (aliases → canonical names)."""
+    if not arg:
+        return "solana"
+    chain = arg.lower().strip()
+    return RUGCHARTS_CHAIN_ALIASES.get(chain, chain)
+
+
+async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> list[dict] | None:
+    """Fetch trending tokens from the RugCharts backend (fused multi-source data).
+
+    Returns the token list (sorted by volume, pre-enriched with price/24h
+    change/liquidity) or None on any failure.
+    """
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            boosts_r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
-            if boosts_r.status_code != 200:
-                await msg.edit_text("\u274c Could not fetch trending data.", parse_mode=ParseMode.HTML)
-                return
-            boost_list = boosts_r.json()
-            if not isinstance(boost_list, list) or not boost_list:
-                await msg.edit_text("\u274c No trending data available.", parse_mode=ParseMode.HTML)
-                return
-            boost_list = boost_list[:8]
-
-            enriched = {}
-            addresses = {b.get("tokenAddress", "") for b in boost_list if b.get("tokenAddress")}
-            for addr in addresses:
-                try:
-                    tr = await client.get(f"{DEXSCREENER}/tokens/{addr}", timeout=5)
-                    if tr.status_code == 200:
-                        pairs = tr.json().get("pairs", [])
-                        if pairs:
-                            enriched[addr] = pairs[0]
-                except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-                    logger.debug(f"Trending enrichment failed for {addr}: {e}")
-
-            lines = ["\U0001f525 <b>Trending Tokens</b>", sep(), thin_sep()]
-            for i, b in enumerate(boost_list, 1):
-                addr = b.get("tokenAddress", "")
-                name = b.get("name") or b.get("description", "???")[:15]
-                symbol = b.get("symbol", "???")
-                chain = b.get("chainId", "?")
-                boost_count = b.get("boostCount", 0)
-                boost_str = f" \U0001f525{boost_count}" if boost_count else ""
-                pair = enriched.get(addr)
-                if pair:
-                    price = float(pair.get("priceUsd", 0))
-                    h24 = pair.get("priceChange", {}).get("h24") or 0
-                    vol = float(pair.get("volume", {}).get("h24") or 0)
-                    emoji = "\U0001f7e2" if h24 >= 0 else "\U0001f534"
-                    lines.append(
-                        f"{i}. {emoji} <b>{name}</b> ({symbol}) {chain}\n"
-                        f"   {fmt_number(price)} | {fmt_pct(h24)} | Vol: {fmt_number(vol)}{boost_str}\n"
-                        f"   <code>{short_addr(addr)}</code>"
-                    )
-                else:
-                    lines.append(
-                        f"{i}. \U0001f525 <b>{name}</b> ({symbol}) {chain}{boost_str}\n"
-                        f"   <code>{short_addr(addr)}</code>"
-                    )
-            lines.append(footer_links())
-            trending_kb = InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("\U0001f504 Refresh", callback_data="trending_refresh")],
-                    [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-                ]
+            r = await client.get(
+                f"{BACKEND_URL}/api/v1/rugcharts/trending",
+                params={"chain": chain, "limit": limit},
+                headers=backend_headers(),
             )
-            await msg.edit_text(
-                "\n".join(lines),
-                parse_mode=ParseMode.HTML,
-                reply_markup=trending_kb,
-                disable_web_page_preview=True,
-            )
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.error(f"cmd_trending failed: {e}")
+            if r.status_code != 200:
+                logger.debug("rugcharts trending status %s", r.status_code)
+                return None
+            body = r.json()
+            data = body.get("data") or body
+            tokens = data.get("tokens") or []
+            return tokens if tokens else None
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+        logger.debug("rugcharts trending fetch failed: %s", exc)
+        return None
+
+
+def _trending_display(token: dict) -> tuple[str, str]:
+    """Return a display-safe (name, symbol), trimming long/garbage values."""
+    raw_name = (token.get("name") or "").strip()
+    symbol = (token.get("symbol") or "").strip()
+    if not symbol:
+        symbol = raw_name.split()[0][:12] if raw_name else "???"
+    name = raw_name[:40] or "Unknown"
+    return name, symbol
+
+
+async def _build_trending_text(chain: str = "solana", limit: int = 8) -> str | None:
+    """Shared trending renderer for /trending + menu/refresh callbacks.
+
+    Returns the HTML message text, or None when no data is available.
+    """
+    tokens = await _fetch_rugcharts_trending(chain, limit)
+    if not tokens:
+        return None
+    lines = [f"\U0001f525 <b>Trending \u2014 {chain.capitalize()}</b>", sep()]
+    for i, t in enumerate(tokens[:limit], 1):
+        addr = t.get("address", "")
+        name, symbol = _trending_display(t)
+        price = float(t.get("price_usd") or 0)
+        h24 = float(t.get("change_24h") or 0)
+        vol = float(t.get("volume_24h") or 0)
+        emoji = "\U0001f7e2" if h24 >= 0 else "\U0001f534"
+        lines.append(
+            f"{i}. {emoji} <b>{name}</b> ({symbol})\n"
+            f"   {fmt_number(price)} | {fmt_pct(h24)} | Vol: {fmt_number(vol)}\n"
+            f"   <code>{short_addr(addr)}</code>"
+        )
+    lines.append(f"\n<i>Chains: {TRENDING_CHAINS}</i>")
+    lines.append(footer_links())
+    return "\n".join(lines)
+
+
+async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /trending [chain] — hot tokens from the RugCharts engine."""
+    chain = _resolve_chain(ctx.args[0]) if ctx.args else "solana"
+    msg = await update.message.reply_text("\U0001f525 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML)
+    text = await _build_trending_text(chain, limit=8)
+    if text is None:
         await msg.edit_text(
             "\u274c <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
             parse_mode=ParseMode.HTML,
         )
+        return
+    trending_kb = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("\U0001f504 Refresh", callback_data=f"trending_refresh_{chain}")],
+            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
+        ]
+    )
+    await msg.edit_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=trending_kb,
+        disable_web_page_preview=True,
+    )
 
 
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -235,7 +268,7 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         cg_items = await _fetch_cg_trending_news()
         if cg_items:
             articles = cg_items
-            source_label = "CoinGecko"
+            source_label = "Trending"
 
     news_kb = InlineKeyboardMarkup(
         [

@@ -385,7 +385,7 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
             "Use <code>/quick &lt;symbol&gt;</code> or <code>$TOKEN</code> for instant prices.\n"
             "Use <code>/chart &lt;address&gt;</code> for technical analysis charts.\n"
             "Use <code>/scan &lt;address&gt;</code> for full market data.\n\n"
-            "\U0001f4b0 I pull real-time data from DexScreener and CoinGecko."
+            "\U0001f4b0 Real-time market data for any token."
         ),
     ),
     (

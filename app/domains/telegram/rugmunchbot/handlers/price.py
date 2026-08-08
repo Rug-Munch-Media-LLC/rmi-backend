@@ -147,7 +147,7 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
             if resp.status_code != 200:
                 await msg.edit_text(
-                    f"❌ <b>DEX Data Unavailable</b>\n\nDexScreener returned status {resp.status_code} for this token.",
+                    "❌ <b>Market Data Unavailable</b>\n\nCould not fetch market data for this token right now.",
                     parse_mode=ParseMode.HTML,
                     reply_markup=back_kb(),
                 )
