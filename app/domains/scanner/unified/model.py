@@ -129,6 +129,14 @@ class ScanResult:
     wallet_freshness: dict[str, Any] | None = None  # aggregate freshness of top holders
     holder_overlap: dict[str, Any] | None = None  # holder overlap vs known scam tokens
 
+    # Token-level wallet freshness metrics (own-data engine — funding_analysis.py
+    # ``compute_wallet_metrics``): fresh_wallet_pct / cex_funded_pct / first_tx_pct.
+    wallet_metrics: dict[str, Any] | None = None
+
+    # Own ClickHouse bundle-launch analysis (engines/own_bundle_detect.py
+    # ``detect_bundled_launch``): coordinated sniper/bot buys at launch.
+    bundle_analysis: dict[str, Any] | None = None
+
     # News-event-to-price correlation (own-data engine — event_correlation.py)
     event_correlation: dict[str, Any] | None = None  # which news events moved the price
 

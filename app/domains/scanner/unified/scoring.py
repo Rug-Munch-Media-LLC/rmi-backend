@@ -76,6 +76,12 @@ _BASELINE = 50.0
 HONEYPOT_PENALTY = -35.0
 HONEYPOT_CHECK_IDS: frozenset[str] = frozenset({"HP01", "HP02"})
 
+# Detected bundle launch (coordinated sniper/bot buys in the first blocks
+# after deployment — own ClickHouse bundle_analysis). A confirmed launch
+# bundle is a decisive coordinated-launch signal, penalized in the security
+# dimension (task spec: -25).
+BUNDLE_PENALTY = -25.0
+
 # Blue-chip tokens (top-100 by market cap, or >100K holders) legitimately
 # carry signals the concentration/lock heuristics treat as risk: high HHI
 # (a single wrapping contract can dominate supply — WBTC, wstETH) and low
@@ -283,6 +289,32 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
         elif max_overlap > 30:
             _apply("holders", -5, "HOLDER_OVERLAP_HIGH")
         if ho.get("result") == "scanned":
+            confidence += 5
+
+    # ── Token-level wallet freshness metrics (own engine — wallet_metrics) ──
+    # fresh_wallet_pct = % of holders with wallets <30 days old; high share is
+    # a farming / bot-farm signal. cex_funded_pct = % of holders funded by CEX
+    # wallets; a high share reads as institutional backing (positive).
+    if r.wallet_metrics and isinstance(r.wallet_metrics, dict):
+        wm = r.wallet_metrics
+        wm_fresh_pct = float(wm.get("fresh_wallet_pct", 0) or 0)
+        wm_cex_pct = float(wm.get("cex_funded_pct", 0) or 0)
+        if wm_fresh_pct > 70:
+            _apply("holders", -15, "FARMING_RISK")
+        if wm_cex_pct > 40:
+            _apply("holders", 10)
+            green.append("INSTITUTIONAL")
+        if int(wm.get("holders_analyzed", 0) or 0) > 0:
+            confidence += 5
+
+    # ── Own bundle-launch analysis (own engine — bundle_analysis) ──
+    # Coordinated sniper/bot buys in the first blocks after deployment is a
+    # decisive rug-pattern signal: heavy security-dimension penalty.
+    if r.bundle_analysis and isinstance(r.bundle_analysis, dict):
+        ba = r.bundle_analysis
+        if ba.get("is_bundled") or float(ba.get("launch_cluster_score", 0) or 0) >= 50:
+            _apply("security", BUNDLE_PENALTY, "BUNDLE_DETECTED")
+        if ba.get("result") == "scanned":
             confidence += 5
 
     # ── Liquidity ──

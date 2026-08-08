@@ -18,6 +18,10 @@ Three metrics, all computed from our own ClickHouse data:
      How many holders of token A also hold token B? High overlap (>30%)
      with a known scam token = coordinated farm group red flag.
 
+  4. ``compute_wallet_metrics`` — Token-Level Wallet Freshness Metrics.
+     For ANY token: % of holders <30 days old, % funded by CEX wallets,
+     % whose first-ever on-chain tx is this token (completely fresh).
+
 Data Sources:
   Primary: wallet_memory.evm_transfers (funding trace, holder sets)
   Primary: wallet_memory.solana_spl_balance_changes (Solana holder sets)
@@ -45,11 +49,13 @@ Usage:
         analyze_funding_sources,
         compute_holder_overlap,
         compute_wallet_freshness,
+        compute_wallet_metrics,
     )
 
     funding = await analyze_funding_sources("0x...", "ethereum", holders=[...])
     fresh   = await compute_wallet_freshness("0x...", "ethereum")
     overlap = await compute_holder_overlap("0xA...", "0xB...", "ethereum")
+    metrics = await compute_wallet_metrics("0x...", "ethereum")
 
 NOTE (degodding 2026-08-07): 1,358 lines. Split is deferred (all three metrics share
 ClickHouse query plumbing and the per-token result model). If splitting, extract the
@@ -127,6 +133,9 @@ _MAX_SCAM_TOKENS = 5  # known-scam tokens cross-referenced for overlap
 # bands, scam-overlap) now live in ``engines/_funding_helpers.py``.
 _ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 _DEAD_ADDR = "0x000000000000000000000000000000000000dead"
+
+# ── Token-level wallet freshness metrics (compute_wallet_metrics) ────────
+_FRESH_WALLET_AGE_DAYS = 30  # holder wallet < 30 days old => "fresh"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -488,6 +497,102 @@ async def analyze_scam_overlap(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# PUBLIC API — Metric 4: Token-Level Wallet Freshness Metrics
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def compute_wallet_metrics(
+    token_address: str,
+    chain: str,
+    holders: list[str] | None = None,
+    force_fresh: bool = False,
+) -> dict[str, Any]:
+    """Compute token-level wallet freshness metrics for ANY token.
+
+    Three metrics over the token's top holders (from ``evm_transfers`` net
+    balances):
+
+      - ``fresh_wallet_pct`` — % of holders whose wallet is <30 days old
+        (first-seen on the chain is recent — farm-like concentration).
+      - ``cex_funded_pct`` — % of holders whose FIRST funder is a CEX wallet
+        (Binance, Coinbase, Kraken, Bybit, OKX, ... — institutional backing).
+      - ``first_tx_pct`` — % of holders whose first-ever on-chain tx is this
+        token (completely fresh wallets — no prior token history).
+
+    Uses ``wallet_memory.evm_transfers`` for wallet age + funder lookups
+    (the same tables as the other funding metrics). Best-effort: returns an
+    ``unavailable`` result when ClickHouse has no holder/age data.
+
+    Args:
+        token_address: Token contract address.
+        chain: Chain name (ethereum, bsc, arbitrum, ...).
+        holders: Top-N holder addresses. When omitted, resolved from
+            ``evm_transfers`` net balances.
+        force_fresh: Bypass all caches.
+
+    Returns:
+        {
+            "check": "wallet_metrics",
+            "result": "scanned" | "unavailable" | "error",
+            "source": "own",
+            "token_address": "0x...",
+            "chain": "ethereum",
+            "holders_analyzed": 25,
+            "fresh_wallet_pct": 12.3,
+            "cex_funded_pct": 45.6,
+            "first_tx_pct": 8.0,
+            "fresh_wallet_count": 3,
+            "cex_funded_count": 11,
+            "first_tx_count": 2,
+            "holder_details": [...],
+            "note": "...",
+        }
+    """
+    token_address = token_address.lower().strip()
+    chain_norm = _normalize_chain(chain)
+    _start = time.monotonic()
+
+    if not token_address or not chain_norm:
+        return _wallet_metrics_error(token_address, chain_norm, "token_address and chain are required")
+
+    cache_key = f"{REDIS_CACHE_PREFIX}:metrics:{chain_norm}:{token_address}"
+    if not force_fresh:
+        cached = await _redis_get(cache_key)
+        if cached is not None:
+            logger.debug("wallet_metrics_redis_hit", key=cache_key)
+            return cast("dict[str, Any]", cached)
+    if not force_fresh and cache_key in _CACHE:
+        entry = _CACHE[cache_key]
+        if time.time() - entry.get("_cached_at", 0) < _CACHE_TTL:
+            return {k: v for k, v in entry.items() if not k.startswith("_")}
+
+    try:
+        result = await _compute_wallet_metrics(token_address, chain_norm, holders)
+    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
+        logger.debug("wallet_metrics_query_failed: %s", exc)
+        result = _wallet_metrics_unavailable(token_address, chain_norm, reason=str(exc)[:120])
+
+    if result.get("result") == "scanned":
+        await _redis_set(cache_key, result, REDIS_TTL_SECONDS)
+        result["_cached_at"] = time.time()
+        _CACHE[cache_key] = result
+        if len(_CACHE) > _CACHE_MAX:
+            _CACHE.pop(next(iter(_CACHE)), None)
+
+    _elapsed_ms = (time.monotonic() - _start) * 1000
+    logger.info(
+        "wallet_metrics_latency",
+        ms=round(_elapsed_ms, 1),
+        token=token_address[:16],
+        chain=chain_norm,
+        holders=result.get("holders_analyzed", 0),
+        fresh_pct=result.get("fresh_wallet_pct", 0.0),
+        cex_pct=result.get("cex_funded_pct", 0.0),
+    )
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # COMPUTATION — Metric 1
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -604,6 +709,168 @@ async def _compute_funding(token_address: str, chain: str, holders: list[str] | 
         "risk_assessment": risk,
         "risk_description": _RISK_DESCRIPTIONS[risk],
         "note": "first incoming transfer per holder classified by funder label/tx-count",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COMPUTATION — Metric 4 (token-level wallet freshness metrics)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _compute_wallet_metrics(
+    token_address: str,
+    chain: str,
+    holders: list[str] | None,
+) -> dict[str, Any]:
+    """Resolve holders, fetch wallet age + first funder, aggregate metrics."""
+    # ── 1. Resolve top holders ──
+    holder_addrs: list[str] = []
+    if holders:
+        holder_addrs = [h.lower().strip() for h in holders if h and h.lower().strip() not in (_ZERO_ADDR, _DEAD_ADDR)]
+        holder_addrs = list(dict.fromkeys(holder_addrs))[:_MAX_HOLDERS]
+
+    if not holder_addrs:
+        holder_rows = await run_sync(_query_top_holders, token_address, chain, _MAX_HOLDERS)
+        if holder_rows:
+            holder_addrs = [str(r[0] or "").lower() for r in holder_rows if r and r[0]]
+            holder_addrs = [h for h in holder_addrs if h not in (_ZERO_ADDR, _DEAD_ADDR)][:_MAX_HOLDERS]
+
+    if not holder_addrs:
+        return _wallet_metrics_unavailable(token_address, chain, reason="no holder data")
+
+    # ── 2. First-ever on-chain tx per holder (wallet age + first-tx token) ──
+    first_tx_rows = await run_sync(_query_holder_first_tx, holder_addrs, chain)
+    first_tx_by_holder: dict[str, dict[str, Any]] = {}
+    for row in first_tx_rows or []:
+        addr = str(row[0] or "").lower()
+        if not addr:
+            continue
+        first_tx_by_holder[addr] = {
+            "first_ts": row[1],
+            "first_token": str(row[2] or "").lower() or None,
+            "first_tx_hash": str(row[3] or "") or None,
+        }
+
+    # Without wallet-age data we cannot compute freshness — degrade gracefully.
+    if not first_tx_by_holder:
+        return _wallet_metrics_unavailable(token_address, chain, reason="no wallet age data")
+
+    # ── 3. First funder per holder (CEX funding source) ──
+    first_in_rows = await run_sync(_query_first_funders, holder_addrs, chain)
+    funder_by_holder: dict[str, dict[str, Any]] = {}
+    for row in first_in_rows or []:
+        addr = str(row[0] or "").lower()
+        if not addr:
+            continue
+        funder_by_holder[addr] = {
+            "funder": str(row[1] or "").lower() or None,
+            "first_tx": str(row[2] or ""),
+            "first_ts": row[3],
+        }
+
+    # ── 4. Funder labels + tx counts (CEX / mixer / fresh classification) ──
+    funders = sorted({info["funder"] for info in funder_by_holder.values() if info.get("funder")})
+    labels_map: dict[str, list[dict[str, Any]]] = {}
+    if funders:
+        label_rows = await run_sync(_query_batch_labels, funders)
+        for row in label_rows or []:
+            addr = str(row[0] or "").lower()
+            if not addr:
+                continue
+            labels_map.setdefault(addr, []).append(
+                {
+                    "label_name": row[1],
+                    "label_category": row[2],
+                    "label_subtype": row[3],
+                    "source": row[4],
+                    "is_sanctioned": bool(row[5]) if len(row) > 5 else False,
+                }
+            )
+
+    tx_count_by_funder: dict[str, int] = {}
+    if funders:
+        tx_rows = await run_sync(_query_funder_tx_counts, funders, chain)
+        for row in tx_rows or []:
+            addr = str(row[0] or "").lower()
+            if addr:
+                tx_count_by_funder[addr] = int(row[1] or 0)
+
+    # ── 5. Per-holder detail + aggregation ──
+    holder_details: list[dict[str, Any]] = []
+    now_ts = time.time()
+    for h_addr in holder_addrs:
+        fh = first_tx_by_holder.get(h_addr, {})
+        fi = funder_by_holder.get(h_addr, {})
+        funder = fi.get("funder")
+        if funder:
+            funding_type, funder_label = _classify_funder(
+                funder,
+                labels_map.get(funder, []),
+                tx_count_by_funder.get(funder, 0),
+                chain,
+            )
+        else:
+            funding_type, funder_label = "other", None
+
+        first_ts = to_epoch(fh.get("first_ts"))
+        age_days = max(0.0, (now_ts - first_ts) / 86400.0) if first_ts is not None else 0.0
+
+        holder_details.append(
+            {
+                "holder": h_addr,
+                "age_days": round(age_days, 1),
+                "fresh": age_days < _FRESH_WALLET_AGE_DAYS,
+                "first_seen_at": to_iso(first_ts) if first_ts is not None else None,
+                "first_tx_token": fh.get("first_token"),
+                "first_tx_is_token": bool(fh.get("first_token") and fh["first_token"] == token_address),
+                "funder": funder,
+                "funder_label": funder_label,
+                "funding_type": funding_type,
+            }
+        )
+
+    return _aggregate_wallet_metrics(holder_details, token_address, chain)
+
+
+def _aggregate_wallet_metrics(
+    holder_details: list[dict[str, Any]],
+    token_address: str,
+    chain: str,
+) -> dict[str, Any]:
+    """Aggregate per-holder freshness details into token-level percentages.
+
+    Pure logic (unit-testable without ClickHouse):
+      - ``fresh_wallet_pct`` — holders with wallet age < 30 days
+      - ``cex_funded_pct`` — holders whose first funder is a CEX wallet
+      - ``first_tx_pct`` — holders whose first-ever on-chain tx is this token
+    """
+    analyzed = len(holder_details)
+    if not analyzed:
+        return _wallet_metrics_unavailable(token_address, chain, reason="no holder data")
+
+    fresh_count = sum(1 for d in holder_details if d.get("fresh"))
+    cex_count = sum(1 for d in holder_details if d.get("funding_type") == "exchange_funded")
+    first_tx_count = sum(1 for d in holder_details if d.get("first_tx_is_token"))
+
+    return {
+        "check": "wallet_metrics",
+        "result": "scanned",
+        "source": "own",
+        "token_address": token_address,
+        "chain": chain,
+        "holders_analyzed": analyzed,
+        "fresh_wallet_pct": round(fresh_count / analyzed * 100, 1),
+        "cex_funded_pct": round(cex_count / analyzed * 100, 1),
+        "first_tx_pct": round(first_tx_count / analyzed * 100, 1),
+        "fresh_wallet_count": fresh_count,
+        "cex_funded_count": cex_count,
+        "first_tx_count": first_tx_count,
+        "holder_details": holder_details,
+        "note": (
+            "fresh_wallet_pct = holders with wallet <30 days old; "
+            "cex_funded_pct = holders whose first funder is a CEX wallet; "
+            "first_tx_pct = holders whose first-ever on-chain tx is this token"
+        ),
     }
 
 
@@ -908,6 +1175,53 @@ def _query_wallet_first_funder(address: str, chain: str) -> list[tuple[Any, ...]
         return None
 
 
+def _query_holder_first_tx(holders: list[str], chain: str) -> list[tuple[Any, ...]] | None:
+    """First-ever on-chain transfer per holder (any token, in or out).
+
+    Returns rows of ``(holder, first_ts, first_token, first_tx_hash)``. The
+    ``first_token`` column drives ``first_tx_pct`` (holders whose first-ever
+    tx is the scanned token) and ``first_ts`` drives the <30-day wallet-age
+    metric.
+    """
+    client = _get_ch_client()
+    if client is None or not holders:
+        return None
+    try:
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
+            SELECT
+                addr,
+                argMin(block_timestamp, block_timestamp) AS first_ts,
+                argMin(token_address, block_timestamp) AS first_token,
+                argMin(tx_hash, block_timestamp) AS first_tx_hash
+            FROM (
+                SELECT to_address AS addr, block_timestamp, token_address, tx_hash
+                FROM wallet_memory.evm_transfers
+                WHERE chain = %(chain)s
+                  AND to_address IN %(holders)s
+                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                              '0x000000000000000000000000000000000000dead')
+                UNION ALL
+                SELECT from_address AS addr, block_timestamp, token_address, tx_hash
+                FROM wallet_memory.evm_transfers
+                WHERE chain = %(chain)s
+                  AND from_address IN %(holders)s
+                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                            '0x000000000000000000000000000000000000dead')
+            )
+            GROUP BY addr
+            """,
+                {"holders": tuple(holders), "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("holder_first_tx_query_failed: %s", exc)
+        return None
+
+
 def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[tuple[Any, ...]] | None:
     """Set of holder addresses for a token (net balance > 0), capped at ``limit``."""
     client = _get_ch_client()
@@ -1128,6 +1442,49 @@ def _scam_overlap_error(token_address: str, chain_norm: str, message: str) -> di
         "worst_token_is_scam": False,
         "risk_assessment": "LOW",
         "comparisons": [],
+    }
+
+
+def _wallet_metrics_unavailable(
+    token_address: str,
+    chain_norm: str,
+    reason: str = "clickhouse unavailable",
+) -> dict[str, Any]:
+    """Graceful degradation result (Metric 4)."""
+    return {
+        "check": "wallet_metrics",
+        "result": "unavailable",
+        "source": "own",
+        "token_address": token_address,
+        "chain": chain_norm,
+        "holders_analyzed": 0,
+        "fresh_wallet_pct": 0.0,
+        "cex_funded_pct": 0.0,
+        "first_tx_pct": 0.0,
+        "fresh_wallet_count": 0,
+        "cex_funded_count": 0,
+        "first_tx_count": 0,
+        "holder_details": [],
+        "note": reason,
+    }
+
+
+def _wallet_metrics_error(token_address: str, chain_norm: str, message: str) -> dict[str, Any]:
+    """Invalid-input error result (Metric 4)."""
+    return {
+        "check": "wallet_metrics",
+        "result": "error",
+        "error": message,
+        "token_address": token_address,
+        "chain": chain_norm,
+        "holders_analyzed": 0,
+        "fresh_wallet_pct": 0.0,
+        "cex_funded_pct": 0.0,
+        "first_tx_pct": 0.0,
+        "fresh_wallet_count": 0,
+        "cex_funded_count": 0,
+        "first_tx_count": 0,
+        "holder_details": [],
     }
 
 

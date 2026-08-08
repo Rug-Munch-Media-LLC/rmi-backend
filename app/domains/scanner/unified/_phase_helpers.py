@@ -79,6 +79,7 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
             analyze_funding_sources,
             analyze_scam_overlap,
             compute_wallet_freshness,
+            compute_wallet_metrics,
         )
 
         holders: list[str] = []
@@ -102,13 +103,18 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
         # ── Metric 3: Holder overlap vs known scam tokens ──
         overlap_task = analyze_scam_overlap(address, chain)
 
+        # ── Metric 4: Token-level wallet freshness metrics (any token) ──
+        metrics_task = compute_wallet_metrics(address, chain, holders=holders or None)
+
         funding: Any
         freshness: Any
         overlap: Any
-        funding, freshness, overlap = await asyncio.gather(
+        metrics: Any
+        funding, freshness, overlap, metrics = await asyncio.gather(
             funding_task,
             freshness_task,
             overlap_task,
+            metrics_task,
             return_exceptions=True,
         )
 
@@ -118,8 +124,32 @@ async def run_wallet_analysis(r: ScanResult, address: str, chain: str) -> None:
             r.wallet_freshness = freshness
         if not isinstance(overlap, BaseException) and isinstance(overlap, dict):
             r.holder_overlap = overlap
+        if not isinstance(metrics, BaseException) and isinstance(metrics, dict):
+            r.wallet_metrics = metrics
 
-        r.modules_run.extend(["funding_analysis", "wallet_freshness", "holder_overlap"])
+        r.modules_run.extend(["funding_analysis", "wallet_freshness", "holder_overlap", "wallet_metrics"])
         r.enrichment_sources.append("wallet_analysis:own")
     except Exception as exc:
         logger.debug("wallet_analysis_failed", error=str(exc)[:120])
+
+
+async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
+    """Run own ClickHouse bundle-launch detection (best-effort).
+
+    Detects coordinated sniper/bot buys in the first blocks after deployment
+    (see ``engines/own_bundle_detect.detect_bundled_launch``) and stores the
+    result on ``ScanResult.bundle_analysis`` so scoring can emit
+    ``BUNDLE_DETECTED``. Never raises — a missing engine or ClickHouse
+    outage degrades to ``unavailable``.
+    """
+    try:
+        from app.domains.scanner.engines.own_bundle_detect import detect_bundled_launch
+
+        bundle = await detect_bundled_launch(address, chain)
+        if isinstance(bundle, dict):
+            r.bundle_analysis = bundle
+            r.modules_run.append("bundle_analysis")
+            if bundle.get("result") == "scanned":
+                r.enrichment_sources.append("bundle_analysis:own")
+    except Exception as exc:
+        logger.debug("bundle_analysis_failed", error=str(exc)[:120])
