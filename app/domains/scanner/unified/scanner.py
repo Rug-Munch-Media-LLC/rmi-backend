@@ -4,8 +4,12 @@ Degodded 2026-08-07: defensive scalar-coercion + risk-mapping helpers moved to
 ``unified/_coercion.py``; backend-compat wrappers (``scan_token_unified``,
 ``_to_legacy_dict``) moved to ``unified/_legacy.py``. 2026-08-08: SENTINEL
 module → typed ``DeepScanProfile`` mapping (``_collect_deep_profile`` /
-``_module_result``) moved to ``unified/deep_profile.py``. This module keeps
-the class plus the scan-status helpers (``scan_status`` public entry point).
+``_module_result``) moved to ``unified/deep_profile.py``. 2026-08-09
+(degodding wave 7): core-identity merge (``_merge_core`` → ``merge_core``)
+moved to ``unified/_merge_helpers.py``; wallet-analysis phase
+(``_run_wallet_analysis`` body + ``_gather_freshness`` → ``gather_freshness``)
+moved to ``unified/_phase_helpers.py``. This module keeps the class plus the
+scan-status helpers (``scan_status`` public entry point).
 """
 
 from __future__ import annotations
@@ -18,11 +22,10 @@ from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from app.core.logging import get_logger
-from app.domains.scanner.unified._coercion import (
-    _extract_meta_identity,
-    _resolve_scan_tier,
-)
+from app.domains.scanner.unified._coercion import _resolve_scan_tier
 from app.domains.scanner.unified._legacy import _from_legacy_dict, _to_legacy_dict, scan_token_unified
+from app.domains.scanner.unified._merge_helpers import merge_core
+from app.domains.scanner.unified._phase_helpers import run_wallet_analysis
 from app.domains.scanner.unified.deep_profile import collect_deep_profile
 from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.persistence import (
@@ -114,50 +117,6 @@ def _status_result_dict(result: ScanResult, background_status: str = "running") 
     data = _to_legacy_dict(result)
     data["background_status"] = background_status
     return data
-
-
-async def _gather_freshness(tasks: list[Any]) -> dict[str, Any]:
-    """Aggregate per-wallet freshness results into a token-level summary.
-
-    Runs the given freshness tasks concurrently and returns a summary dict
-    with the fresh-wallet concentration signal (``fresh_wallet_pct`` is the
-    share of analyzed top holders classified FRESH_SUSPICIOUS).
-    """
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    analyzed: list[dict[str, Any]] = []
-    for res in results:
-        if not isinstance(res, BaseException) and isinstance(res, dict) and res.get("result") == "scanned":
-            analyzed.append(res)
-
-    if not analyzed:
-        return {"result": "unavailable", "reason": "no freshness data", "analyzed": 0}
-
-    classifications = [r.get("classification", "ESTABLISHED") for r in analyzed]
-    suspicious = sum(1 for c in classifications if c == "FRESH_SUSPICIOUS")
-    clean = sum(1 for c in classifications if c == "FRESH_CLEAN")
-    established = sum(1 for c in classifications if c == "ESTABLISHED")
-    avg_score = sum(float(r.get("freshness_score", 0) or 0) for r in analyzed) / len(analyzed)
-
-    return {
-        "result": "scanned",
-        "analyzed": len(analyzed),
-        "fresh_suspicious": suspicious,
-        "fresh_clean": clean,
-        "established": established,
-        "fresh_wallet_pct": round(suspicious / len(analyzed) * 100, 1) if analyzed else 0.0,
-        "avg_freshness_score": round(avg_score, 1),
-        "wallets": [
-            {
-                "address": r.get("address"),
-                "freshness_score": r.get("freshness_score"),
-                "classification": r.get("classification"),
-                "age_days": r.get("age_days"),
-                "total_txs": r.get("total_txs"),
-                "funded_by_cex": r.get("funded_by_cex"),
-            }
-            for r in analyzed
-        ],
-    }
 
 
 class UnifiedTokenScanner:
@@ -338,7 +297,7 @@ class UnifiedTokenScanner:
         try:
             # ── Phase 1: Core (sequential - needed for scoring) ──
             core_results = await self._fetch_batch(self.CORE_CHAINS, params, admin_key, timeout=15)
-            self._merge_core(result, core_results)
+            merge_core(result, core_results)
         except (ValueError, TypeError, KeyError, OSError) as e:
             logger.error(f"Scan core failed for {address}: {e}")
             result.risk_flags.append(f"SCAN_ERROR: {str(e)[:100]}")
@@ -726,49 +685,8 @@ class UnifiedTokenScanner:
         return results
 
     # ── MERGE METHODS ──
-
-    def _merge_core(self, r: ScanResult, data: dict[str, Any]) -> None:
-        """Extract core identity from price, metadata, and security checks."""
-        r.modules_run.extend(data.keys())
-
-        price_data = data.get("token_price", {})
-        if isinstance(price_data, dict):
-            r.price_usd = float(price_data.get("price_usd", 0) or 0)
-            r.market_cap_usd = float(price_data.get("market_cap_usd", 0) or 0)
-            # DataBus price payload uses ``volume_24h_usd``; accept the
-            # legacy ``volume_24h`` alias too so a renamed provider key
-            # never zeroes out the 24h volume.
-            r.volume_24h_usd = float(price_data.get("volume_24h_usd", price_data.get("volume_24h", 0)) or 0)
-            r.liquidity_usd = float(price_data.get("liquidity_usd", 0) or 0)
-            if price_data.get("source"):
-                r.enrichment_sources.append(f"price:{price_data['source']}")
-
-        meta = data.get("token_metadata", {})
-        if isinstance(meta, dict):
-            # token_metadata providers return raw external shapes (DexScreener
-            # ``{"pairs": [...]}`` or Alchemy JSON-RPC ``{"result": {...}}``)
-            # as well as the normalized ``{name, symbol, age_hours}`` form.
-            # Normalize all three defensively — a raw shape must not wipe out
-            # the fields populated by the price oracle.
-            meta_name, meta_symbol = _extract_meta_identity(meta)
-            r.name = str(meta_name or r.name or "")
-            r.symbol = str(meta_symbol or r.symbol or "")
-            r.age_hours = float(meta.get("age_hours", 0) or 0)
-
-        # Fallback: when metadata is missing/empty, the price payload already
-        # carries name/symbol (the F2 price oracle enriches its payload with
-        # them).  Keep whatever non-empty value exists.
-        if not r.name and isinstance(price_data, dict):
-            r.name = str(price_data.get("name", "") or "")
-        if not r.symbol and isinstance(price_data, dict):
-            r.symbol = str(price_data.get("symbol", "") or "")
-
-        security = data.get("token_security", {})
-        if isinstance(security, dict):
-            r.security = security
-            checks = security.get("checks", {})
-            r.modules_run.append(f"security_checks:{len(checks)}")
-            r.enrichment_sources.append(f"security:{security.get('source', 'goplus')}")
+    # Core identity merge (``merge_core``) lives in ``_merge_helpers.py``
+    # (degodded wave 7) — called as a module-level function.
 
     def _merge_deep(self, r: ScanResult, data: dict[str, Any]) -> None:
         """Merge deep analysis results."""
@@ -817,56 +735,11 @@ class UnifiedTokenScanner:
 
         Best-effort: each engine degrades gracefully when own ClickHouse data
         is unavailable, so a failed sub-engine never fails the scan.
+
+        Thin delegate — the phase logic lives in ``unified/_phase_helpers.py``
+        (degodded wave 7). Kept as a method so tests can ``patch.object`` it.
         """
-        try:
-            from app.domains.scanner.engines.funding_analysis import (
-                analyze_funding_sources,
-                analyze_scam_overlap,
-                compute_wallet_freshness,
-            )
-
-            holders: list[str] = []
-            holder_data = r.holders if isinstance(r.holders, dict) else None
-            if holder_data:
-                top = holder_data.get("top_holders") or []
-                if isinstance(top, list):
-                    holders = [str(h.get("address", "")) for h in top if isinstance(h, dict) and h.get("address")]
-                elif isinstance(top, dict):
-                    # Some providers return {address: pct}
-                    holders = [str(a) for a in top if a]
-
-            # ── Metric 1: Exchange-funded wallet % ──
-            funding_task = analyze_funding_sources(address, chain, holders=holders or None)
-
-            # ── Metric 2: Freshness of the top few holders (bounded) ──
-            freshness_holders = holders[:10]
-            freshness_tasks = [compute_wallet_freshness(h, chain) for h in freshness_holders]
-            freshness_task = _gather_freshness(freshness_tasks)
-
-            # ── Metric 3: Holder overlap vs known scam tokens ──
-            overlap_task = analyze_scam_overlap(address, chain)
-
-            funding: Any
-            freshness: Any
-            overlap: Any
-            funding, freshness, overlap = await asyncio.gather(
-                funding_task,
-                freshness_task,
-                overlap_task,
-                return_exceptions=True,
-            )
-
-            if not isinstance(funding, BaseException) and isinstance(funding, dict):
-                r.funding_analysis = funding
-            if not isinstance(freshness, BaseException) and isinstance(freshness, dict):
-                r.wallet_freshness = freshness
-            if not isinstance(overlap, BaseException) and isinstance(overlap, dict):
-                r.holder_overlap = overlap
-
-            r.modules_run.extend(["funding_analysis", "wallet_freshness", "holder_overlap"])
-            r.enrichment_sources.append("wallet_analysis:own")
-        except Exception as exc:
-            logger.debug("wallet_analysis_failed", error=str(exc)[:120])
+        await run_wallet_analysis(r, address, chain)
 
     async def _run_news_sentiment(self, r: ScanResult, address: str, chain: str) -> None:
         """Analyze news sentiment for the scanned token (best-effort).
