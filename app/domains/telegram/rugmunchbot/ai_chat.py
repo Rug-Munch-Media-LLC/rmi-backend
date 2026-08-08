@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 """
-RugMunchBot — RAG search + LLM synthesis (shared AI chat plumbing).
+RugMunchBot — DEPRECATED bot-side RAG search + LLM synthesis plumbing.
 
-Used by:
+**DEPRECATED (dedup refactor):** this module is no longer imported anywhere.
+The old ``handlers/message.py`` pipeline that called ``search_rag`` /
+``format_rag_context`` / ``chat_synthesis`` was merged into
+``handlers/chat_ai.py`` (the single free-text pipeline), and /ask now routes
+through ``chat_ai.chat_ai_response`` like /chat. The ONE synthesis path is
+the backend ``POST /api/v1/chat`` call (auto-RAG with news_v2 grounding).
+
+Kept only as a historical reference and in case a bot-side RAG override is
+ever needed again (it still works and is harmless). Do not wire it back into
+the bot without re-visiting the dedup — prefer ``handlers/chat_ai``.
+
+Historical usage (pre-merge):
   - handlers/message.py tier-1 chat (RAG → LLM synthesis)
   - handlers/ask.py (/ask command)
 

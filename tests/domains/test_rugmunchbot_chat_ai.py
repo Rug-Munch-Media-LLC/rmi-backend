@@ -8,19 +8,32 @@ Contract under test:
   _is_meaningful_question — gibberish gate (no LLM tokens burned on noise)
   _call_backend_chat    — POST /api/v1/chat payload/headers + X-RAG-Context
                           header parsing; graceful None on failure
+  local_ai_response     — tier-2 canned intent replies (ported from
+                          handlers/message.py)
+  _lookup_token_symbol  — $TOKEN instant DexScreener price card (ported from
+                          handlers/message.py)
+  _route_structural     — free-text feature routing: known-scam block,
+                          bare-address auto-scan, $TOKEN card
+  chat_ai_response      — shared AI core (quota + flood + gibberish redirect +
+                          backend RAG chat), used by free text, /chat, /ask
+  ai_chat_handler       — single free-text pipeline entry (merged)
 
 No network I/O: httpx is mocked at the module boundary for the async test.
+The bot SQLite DB is redirected to a temp file per test so the real
+bot_users.db is never touched.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, ClassVar
+import types
+from typing import ClassVar
+from unittest.mock import AsyncMock
 
+import pytest
+
+from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.handlers import chat_ai
-
-if TYPE_CHECKING:
-    import pytest
 
 EVM = "0x6982508145454Ce325dDbE47a25d4ec3d2311933"
 SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
@@ -257,3 +270,325 @@ class TestCallBackendChat:
         ]
         # No context_override -> backend auto-RAG (news-aware grounding).
         assert "context_override" not in captured["json"]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Merged-pipeline tests (ported from handlers/message.py + chat_ai core)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture(autouse=True)
+def _isolate_db(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point the bot DB at a temp file so tests never touch the real DB."""
+    monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "bot_test.db"))
+    db.init_db()
+
+
+class _FakeChat:
+    def __init__(self) -> None:
+        self.actions: list[str] = []
+
+    async def send_action(self, action: str) -> None:
+        self.actions.append(action)
+
+
+class _FakeMessage:
+    def __init__(self, text: str | None = None) -> None:
+        self.chat = _FakeChat()
+        self.text = text
+        self.replies: list[tuple[tuple, dict]] = []
+        self.returned: list[object] = []
+
+    async def reply_text(self, *args: object, **kwargs: object) -> object:
+        self.replies.append((args, kwargs))
+        ph = types.SimpleNamespace()
+        ph.edits: list[tuple[tuple, dict]] = []
+
+        async def edit_text(*a: object, **k: object) -> None:
+            ph.edits.append((a, k))
+
+        ph.edit_text = edit_text
+        self.returned.append(ph)
+        return ph
+
+
+class _FakeUpdate:
+    def __init__(self, user_id: int, username: str, message: object) -> None:
+        self.effective_user = types.SimpleNamespace(id=user_id, username=username, first_name="Tester")
+        self.message = message
+
+
+class _FakeDexClient:
+    """httpx.AsyncClient class fake returning a configurable DexScreener search.
+
+    Configuration is set on the class attributes (``_status`` / ``_pairs``)
+    before monkeypatching ``chat_ai.httpx.AsyncClient`` with this class — the
+    handler instantiates it with ``timeout=...``, which the constructor
+    accepts and ignores.
+    """
+
+    _status: ClassVar[int] = 200
+    _pairs: ClassVar[list[dict]] = []
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        pass
+
+    async def __aenter__(self) -> _FakeDexClient:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+    async def get(self, url: str) -> object:
+        class _Resp:
+            status_code = _FakeDexClient._status
+
+            def json(self) -> dict:
+                return {"pairs": list(_FakeDexClient._pairs)}
+
+        return _Resp()
+
+
+class _FakeDexErrorClient:
+    """httpx.AsyncClient fake that raises on GET (DexScreener down)."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        pass
+
+    async def __aenter__(self) -> _FakeDexErrorClient:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+    async def get(self, url: str) -> object:
+        raise OSError("dex down")
+
+
+def _patch_dex(monkeypatch: pytest.MonkeyPatch, *, status: int = 200, pairs: list[dict] | None = None) -> None:
+    """Point ``chat_ai.httpx.AsyncClient`` at the configurable fake class."""
+    _FakeDexClient._status = status
+    _FakeDexClient._pairs = pairs if pairs is not None else []
+    monkeypatch.setattr(chat_ai.httpx, "AsyncClient", _FakeDexClient)
+
+
+class TestLocalIntent:
+    def test_greeting(self) -> None:
+        assert "Hey there" in (chat_ai.local_ai_response("hi there", None) or "")
+
+    def test_help(self) -> None:
+        assert "RugMunch Capabilities" in (chat_ai.local_ai_response("what can you do", None) or "")
+
+    def test_price_intent(self) -> None:
+        assert "Price & Market Data" in (chat_ai.local_ai_response("show me the price of btc", None) or "")
+
+    def test_scan_intent(self) -> None:
+        assert "Token Security Scan" in (chat_ai.local_ai_response("is this token safe", None) or "")
+
+    def test_no_match(self) -> None:
+        assert chat_ai.local_ai_response("explain yield farming", None) is None
+
+
+class TestLookupTokenSymbol:
+    def test_no_symbol_no_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _patch_dex(monkeypatch)
+        msg = _FakeMessage()
+        assert _run(chat_ai._lookup_token_symbol("hello there", msg)) is False
+        assert msg.replies == []
+
+    def test_symbol_success_replies_price_card(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _patch_dex(
+            monkeypatch,
+            pairs=[
+                {
+                    "baseToken": {"address": "0xabc", "name": "Doge Coin"},
+                    "chainId": "ethereum",
+                    "priceUsd": "0.1234",
+                    "priceChange": {"h24": 5.5},
+                    "volume": {"h24": 1000000},
+                    "marketCap": 50000000,
+                }
+            ],
+        )
+        msg = _FakeMessage()
+        result = _run(chat_ai._lookup_token_symbol("check $DOGE", msg))
+        assert result is True
+        assert len(msg.replies) == 1
+        text = msg.replies[0][0][0]
+        assert "DOGE" in text
+        assert "MCap" in text
+        kb = msg.replies[0][1]["reply_markup"]
+        assert "scan_0xabc_ethereum" in kb.to_json()
+
+    def test_symbol_no_pairs_falls_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _patch_dex(monkeypatch, status=200, pairs=[])
+        msg = _FakeMessage()
+        assert _run(chat_ai._lookup_token_symbol("$DOGE", msg)) is False
+
+    def test_symbol_http_error_falls_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai.httpx, "AsyncClient", _FakeDexErrorClient)
+        msg = _FakeMessage()
+        assert _run(chat_ai._lookup_token_symbol("$DOGE", msg)) is False
+        assert msg.replies == []
+
+
+class TestRouteStructural:
+    def test_known_scam_address_blocked(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai.anti_abuse, "is_known_scam_address", lambda addr: True)
+        msg = _FakeMessage()
+        upd = _FakeUpdate(123, "tester", msg)
+        ctx = types.SimpleNamespace(args=[])
+        result = _run(chat_ai._route_structural(upd, ctx, f"scan {EVM}", upd.effective_user))
+        assert result is True
+        assert len(msg.replies) == 1
+        assert "Known Scam Address" in msg.replies[0][0][0]
+
+    def test_bare_address_routes_to_scan(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls: list = []
+
+        async def fake_cmd_scan(update: object, ctx: object) -> None:
+            calls.append((update, ctx))
+
+        import app.domains.telegram.rugmunchbot.handlers.scanning as scanning_mod
+
+        monkeypatch.setattr(scanning_mod, "cmd_scan", fake_cmd_scan)
+        monkeypatch.setattr(chat_ai, "is_evm", lambda text: text == EVM)
+        monkeypatch.setattr(chat_ai, "is_sol", lambda text: False)
+        msg = _FakeMessage()
+        upd = _FakeUpdate(123, "tester", msg)
+        ctx = types.SimpleNamespace(args=[])
+        result = _run(chat_ai._route_structural(upd, ctx, EVM, upd.effective_user))
+        assert result is True
+        assert len(calls) == 1
+        assert ctx.args == [EVM]
+
+    def test_token_symbol_routes_to_price_card(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _patch_dex(
+            monkeypatch,
+            pairs=[
+                {
+                    "baseToken": {"address": "0xabc", "name": "Doge Coin"},
+                    "chainId": "ethereum",
+                    "priceUsd": "0.1234",
+                    "priceChange": {"h24": 0},
+                    "volume": {"h24": 0},
+                    "marketCap": 0,
+                }
+            ],
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(123, "tester", msg)
+        ctx = types.SimpleNamespace(args=[])
+        result = _run(chat_ai._route_structural(upd, ctx, "what is $DOGE", upd.effective_user))
+        assert result is True
+        assert len(msg.replies) == 1
+
+    def test_plain_question_falls_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _patch_dex(monkeypatch, status=200, pairs=[])
+        msg = _FakeMessage()
+        upd = _FakeUpdate(123, "tester", msg)
+        ctx = types.SimpleNamespace(args=[])
+        result = _run(chat_ai._route_structural(upd, ctx, "how do honeypots work", upd.effective_user))
+        assert result is False
+        assert msg.replies == []
+
+
+class TestChatAiResponse:
+    @pytest.fixture(autouse=True)
+    def _patch_boundaries(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai, "check_spam", lambda uid: False)
+        monkeypatch.setattr(chat_ai, "check_flood", AsyncMock(return_value=(True, 0, None)))
+        monkeypatch.setattr(chat_ai, "refund_flood", AsyncMock())
+
+    def test_success_backend_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "grounded answer", "rag_count": 2, "tokens": 10}),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        result = _run(chat_ai.chat_ai_response(upd, None, "how do honeypots work?", upd.effective_user))
+        assert result is True
+        assert msg.chat.actions == ["typing"]
+        answer_reply = msg.replies[-1][0][0]
+        assert "grounded answer" in answer_reply
+        assert "Grounded in 2" in answer_reply
+
+    def test_gibberish_redirect_no_backend_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        backend = AsyncMock(return_value={"message": "should not be called", "rag_count": 0})
+        monkeypatch.setattr(chat_ai, "_call_backend_chat", backend)
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        result = _run(chat_ai.chat_ai_response(upd, None, "asdf asdf asdf asdf asdf", upd.effective_user))
+        assert result is True
+        backend.assert_not_called()
+        assert "RugMunch AI" in msg.replies[0][0][0]
+        chat_ai.refund_flood.assert_awaited_once()
+
+    def test_backend_down_local_intent_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        result = _run(chat_ai.chat_ai_response(upd, None, "what is a honeypot?", upd.effective_user))
+        assert result is True
+        assert "Token Security Scan" in msg.replies[-1][0][0]
+
+    def test_backend_down_fallback_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        result = _run(chat_ai.chat_ai_response(upd, None, "explain yield farming", upd.effective_user))
+        assert result is True
+        # The "Thinking..." placeholder is created first, then edited to the
+        # honest unavailability message when the backend is down.
+        assert msg.replies[0][0][0].startswith("\U0001f916")
+        assert len(msg.returned) == 1
+        placeholder = msg.returned[0]
+        assert len(placeholder.edits) == 1
+        assert "AI brain temporarily unavailable" in placeholder.edits[0][0][0]
+
+
+class TestAiChatHandler:
+    @pytest.fixture(autouse=True)
+    def _patch_boundaries(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai, "check_spam", lambda uid: False)
+        monkeypatch.setattr(chat_ai, "check_flood", AsyncMock(return_value=(True, 0, None)))
+        monkeypatch.setattr(chat_ai, "refund_flood", AsyncMock())
+
+    def test_free_text_flows_to_backend_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "rag answer", "rag_count": 1, "tokens": 10}),
+        )
+        msg = _FakeMessage(text="how do honeypots work?")
+        upd = _FakeUpdate(12345, "tester", msg)
+        upd.effective_chat = types.SimpleNamespace(id=999, type="private")
+        ctx = types.SimpleNamespace(args=[])
+        _run(chat_ai.ai_chat_handler(upd, ctx))
+        assert any("rag answer" in r[0][0] for r in msg.replies)
+
+    def test_token_symbol_short_circuits_ai(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        backend = AsyncMock(return_value={"message": "nope", "rag_count": 0})
+        monkeypatch.setattr(chat_ai, "_call_backend_chat", backend)
+        _patch_dex(
+            monkeypatch,
+            pairs=[
+                {
+                    "baseToken": {"address": "0xabc", "name": "Doge Coin"},
+                    "chainId": "ethereum",
+                    "priceUsd": "0.1234",
+                    "priceChange": {"h24": 0},
+                    "volume": {"h24": 0},
+                    "marketCap": 0,
+                }
+            ],
+        )
+        msg = _FakeMessage(text="$DOGE pump?")
+        upd = _FakeUpdate(12345, "tester", msg)
+        upd.effective_chat = types.SimpleNamespace(id=999, type="private")
+        ctx = types.SimpleNamespace(args=[])
+        _run(chat_ai.ai_chat_handler(upd, ctx))
+        backend.assert_not_called()
+        assert any("DOGE" in r[0][0] for r in msg.replies)

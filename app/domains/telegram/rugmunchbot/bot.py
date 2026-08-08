@@ -80,7 +80,6 @@ from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
 from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, register_market
-from app.domains.telegram.rugmunchbot.handlers.message import handle_message
 from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin,
     cmd_admin_ban,
@@ -438,10 +437,13 @@ def main() -> None:
     # Inline, callbacks, messages
     app.add_handler(InlineQueryHandler(handle_inline))
     app.add_handler(CallbackQueryHandler(handle_callback))
-    # RAG-wired AI chat — must be registered BEFORE the generic free-text
-    # handler (PTB dispatches to the first matching handler)
+    # SINGLE free-text pipeline (merged from the old handle_message + chat_ai):
+    # $TOKEN lookup, bare-address auto-scan, known-scam block, owner admin
+    # console, then backend RAG chat with news_v2 grounding. There must be NO
+    # other MessageHandler(filters.TEXT & ~filters.COMMAND) registered —
+    # PTB dispatches to the first matching handler and a second registration
+    # would shadow features (the old handle_message shadow bug).
     register_chat_ai(app)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Payments
     app.add_handler(PreCheckoutQueryHandler(precheckout))

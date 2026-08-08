@@ -4,12 +4,12 @@ RugMunchBot -- /chat command: explicit freestyle AI chat entry point (v5).
 
 Usage:
   /chat                  -> welcome card with capabilities + examples
-  /chat <question>       -> full AI pipeline (RAG -> LLM -> intent -> redirect)
+  /chat <question>       -> full AI pipeline (backend RAG chat, news-aware)
   /chat reset            -> clear your conversation context
 
-The actual tier pipeline lives in handlers/message.py (ai_chat_response) and
-is shared with free-text messages, so /chat behaves identically to just
-typing a message.
+The actual pipeline lives in handlers/chat_ai.py (chat_ai_response) and is
+shared with free-text messages and /ask, so /chat behaves identically to
+just typing a message.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
-from app.domains.telegram.rugmunchbot.handlers.message import ai_chat_response
+from app.domains.telegram.rugmunchbot.handlers.chat_ai import chat_ai_response
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
 
 if TYPE_CHECKING:
@@ -85,4 +85,4 @@ async def cmd_chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     # Question -> shared AI pipeline (quota + flood gated inside)
-    await ai_chat_response(update, ctx, query, user)
+    await chat_ai_response(update, ctx, query, user)
