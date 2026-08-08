@@ -20,7 +20,14 @@ from app.domains.telegram.rugmunchbot.config import (
     TIERS,
     WEBSITE_URL,
 )
-from app.domains.telegram.rugmunchbot.formatters import footer_links, sep, thin_sep
+from app.domains.telegram.rugmunchbot.formatters import (
+    BETA_BANNER,
+    BETA_PAYMENTS_LINE,
+    BETA_STATUS_LINE,
+    footer_links,
+    sep,
+    thin_sep,
+)
 from app.domains.telegram.rugmunchbot.keyboards import (
     buy_stars_kb,
     pricing_kb,
@@ -45,13 +52,13 @@ async def cmd_account(update: Update, ctx) -> None:
 
     nudge = ""
     if tier == "free":
+        # FREE PUBLIC BETA: no upgrade pressure — everything is unlocked
+        # while we test. Billing stays one tap away for the launch.
         nudge = (
             f"\n{thin_sep()}\n"
-            f"\u2b50 <b>Upgrade to unlock:</b>\n"
-            f"  \u2022 Bundle detection & fake volume alerts\n"
-            f"  \u2022 Wallet forensics & smart money tracking\n"
-            f"  \u2022 Real-time price alerts & watchlist\n"
-            f"  \u2022 Up to 1,000 scans/week\n"
+            f"{BETA_STATUS_LINE}\n"
+            f"\U0001f4c5 <b>Premium plans coming soon</b> \u2014 "
+            f"beta users get launch discounts."
         )
 
     text = (
@@ -74,7 +81,7 @@ async def cmd_account(update: Update, ctx) -> None:
     kb = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("\u2b50 Upgrade Plan", callback_data="menu_pricing"),
+                InlineKeyboardButton("\u2b50 Plans & Pricing", callback_data="menu_pricing"),
                 InlineKeyboardButton("\U0001f50b Top Up", callback_data="menu_topup"),
             ],
             [InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL)],
@@ -92,6 +99,7 @@ async def cmd_pricing(update: Update, ctx) -> None:
         balance = u.get("stars_balance", 0)
     d = thin_sep()
     text = f"\u2b50 <b>Subscription Plans</b>\n{sep()}\n\n"
+    text += f"{BETA_BANNER}\n\n"
     text += f"Your balance: \u2b50{balance:,}\n\n"
     for key, t in TIERS.items():
         if key == "free":
@@ -124,6 +132,7 @@ async def cmd_topup(update: Update, ctx) -> None:
         f"\U0001f50b <b>Top Up - Buy Extra Usage</b>\n{sep()}\n\n"
         f"Your balance: \u2b50{balance:,}\n\n"
         f"Ran out of weekly scans? Buy bonus usage!\n\n"
+        f"{BETA_PAYMENTS_LINE}\n\n"
         f"\u2705 <b>No expiry</b> - carries over forever\n"
         f"\u2705 <b>Stackable</b> - buy multiple times\n"
         f"\u2705 <b>Instant</b> - available immediately\n\n"
@@ -144,6 +153,7 @@ async def cmd_buystars(update: Update, ctx) -> None:
         f"Current balance: \u2b50{u.get('stars_balance', 0):,}\n\n"
         f"Purchase Stars via Telegram and spend them on scans, "
         f"subscriptions, and premium features!\n\n"
+        f"{BETA_PAYMENTS_LINE}\n\n"
         f"Select a pack below:"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=buy_stars_kb())

@@ -163,11 +163,14 @@ TIERS = {
         "name": "Free",
         "emoji": "🆓",
         "scans_per_week": 25,
-        "ai_msgs_per_week": 15,
+        # BETA BUMP: 15 → 50 AI msgs/week while rugmunchbot is in FREE
+        # PUBLIC BETA (all features unlocked). Revert to 15 when billing
+        # goes live — this one value drives db.check_rate_limit/increment.
+        "ai_msgs_per_week": 50,
         "price_monthly": 0,
         "features": [
             "25 scans/week",
-            "15 AI questions/week",
+            "50 AI questions/week (beta boost)",
             "Basic risk score",
             "Contract safety check",
             "Liquidity overview",

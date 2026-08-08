@@ -32,6 +32,22 @@ from app.domains.telegram.rugmunchbot.config import (
 
 logger = get_logger("rmi_bot")
 
+# ── FREE PUBLIC BETA (2026-08) ──────────────────────────────────────────
+# rugmunchbot is in FREE PUBLIC BETA: every premium feature is unlocked for
+# everyone while we test. Billing surfaces stay functional (they are the
+# future revenue path) but beta status must be prominent. Remove this block
+# and the free-tier quota bump in config.py when beta ends.
+BETA_BANNER = (
+    "\U0001f680 <b>FREE PUBLIC BETA</b> \u2014 all premium features "
+    "unlocked while we test.\n"
+    "\U0001f4c5 <b>Premium plans coming soon</b> \u2014 beta users get "
+    "launch discounts."
+)
+BETA_STATUS_LINE = "\U0001f680 <b>FREE PUBLIC BETA</b> \u2014 all features unlocked \U0001f389"
+BETA_PAYMENTS_LINE = (
+    "\U0001f680 <b>In beta</b> \u2014 everything\u2019s free right now, but payments live for early supporters."
+)
+
 # --- Address detection helpers ---
 TOKEN_RE = re.compile(r"\$([A-Za-z]{2,10})\b")
 EVM_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
@@ -139,7 +155,7 @@ def welcome_card_text() -> str:
         f"\u2139\ufe0f <b>Help</b> — full command reference\n\n"
         f"\U0001f4f3 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + "
         f"{TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
-        f"\u2b50 <b>Premium from $29.99/mo</b> \u2014 unlock everything\n\n"
+        f"{BETA_BANNER}\n\n"
         f"<b>Quick Start:</b>\n"
         f"\U0001f4cc Paste any contract address \u2192 auto-scan\n"
         f"\U0001f4cc Type <code>$TOKEN</code> \u2192 instant price\n"
@@ -156,11 +172,20 @@ def paywall_text(user_id: int, action: str = "scan") -> str:
     limit = tc.get("scans_per_week", 25) if action == "scan" else tc.get("ai_msgs_per_week", 15)
     used = scans if action == "scan" else ai
     bonus = user.get("bonus_scans", 0) if action == "scan" else user.get("bonus_ai_msgs", 0)
+    # Public beta: hitting the (boosted) weekly quota is a REAL limit, but
+    # tell free users it's a beta allocation that resets — not a paywall.
+    beta_note = ""
+    if tier == "free":
+        beta_note = (
+            "\n\U0001f680 <b>Beta:</b> your weekly limit is boosted for the "
+            "public beta \u2014 resets Monday 00:00 UTC.\n"
+        )
     return (
         f"\u26a1 <b>Weekly {action.title()} Limit Reached</b>\n\n"
         f"\U0001f4ca <b>{tc['name']} Tier:</b> {used}/{limit} used this week\n"
-        f"\U0001f381 <b>Bonus Balance:</b> {bonus} extra\n\n"
-        f"<b>Unlock more power:</b>\n\n"
+        f"\U0001f381 <b>Bonus Balance:</b> {bonus} extra\n"
+        f"{beta_note}"
+        f"\n<b>Unlock more power:</b>\n\n"
         f"\U0001f50d <b>Scout ($29.99/mo)</b> - 150 scans/wk + bundle detection\n"
         f"\U0001f3af <b>Hunter ($49.99/mo)</b> - 400 scans/wk + wallet forensics\n"
         f"\U0001f451 <b>Pro ($99.99/mo)</b> - 1,000 scans/wk + smart money alerts\n\n"

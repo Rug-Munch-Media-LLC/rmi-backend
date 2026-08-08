@@ -31,6 +31,7 @@ from app.domains.telegram.rugmunchbot.config import (
     fmt_pct,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
+    BETA_BANNER,
     _price_diff_pct,
     _risk_indicator,
     detect_chain,
@@ -182,7 +183,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"/pricing - Subscription plans\n"
         f"/topup - Buy extra scans (no expiry)\n"
         f"/buystars - Buy Telegram Stars\n"
-        f"/refer - Invite friends, earn scans\n\n"
+        f"/refer - Invite friends, earn scans\n"
+        f"{BETA_BANNER}\n\n"
         f"\U0001f4da <b>EDUCATION</b>\n{d}\n"
         f"/scamschool - Learn about crypto scams\n"
         f"/rugcheck - Quick rug pull checklist\n\n"
