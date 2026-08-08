@@ -16,8 +16,10 @@ from telegram.constants import ParseMode
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
+    BACKEND_URL,
     DEXSCREENER,
     TIERS,
+    backend_headers,
     fmt_number,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
@@ -173,6 +175,49 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # --- Alert commands ---
+
+
+# Real-time event types a user alert subscribes to (delivered as push alerts
+# through the intelligent webhook bridge: provider → engine → Redis queue →
+# bot deliver_pending_alerts job → Telegram DM).
+ALERT_EVENT_TYPES = [
+    "token.price_change",
+    "token.whale_move",
+    "token.liquidity_change",
+]
+
+
+async def _subscribe_backend_alerts(user_id: int, token_address: str, event_types: list[str] | None = None) -> bool:
+    """Register the user's chat for real webhook events on a token.
+
+    Fail-open: local price alerts keep working even if the backend
+    subscription cannot be created (e.g. backend down).
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{BACKEND_URL}/api/v1/scanner/webhooks/telegram",
+                json={
+                    "user_id": user_id,
+                    "event_types": event_types or ALERT_EVENT_TYPES,
+                    "token_addresses": [token_address],
+                },
+                headers=backend_headers(),
+                timeout=10,
+            )
+        if resp.status_code in (200, 201):
+            logger.info("alert_subscribed_backend user=%s token=%s", user_id, token_address[:10])
+            return True
+        logger.warning(
+            "alert_backend_subscribe_failed user=%s status=%s body=%s",
+            user_id,
+            resp.status_code,
+            resp.text[:200],
+        )
+        return False
+    except (httpx.HTTPError, ConnectionError, TimeoutError, OSError) as e:
+        logger.warning(f"alert_backend_subscribe_error user={user_id}: {e}")
+        return False
 
 
 async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -332,6 +377,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         conn.commit()
         conn.close()
+        await _subscribe_backend_alerts(user.id, addr)
         await update.message.reply_text(
             f"\u2705 <b>Alert Updated</b>\n\n"
             f"Token: <code>{short_addr(addr)}</code>\n"
@@ -344,6 +390,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             user.id, addr, chain, symbol=None, alert_price=alert_price, alert_dir=direction_raw.lower()
         )
         if ok:
+            await _subscribe_backend_alerts(user.id, addr)
             await update.message.reply_text(
                 f"\u2705 <b>Alert Set</b>\n\n"
                 f"Token: <code>{short_addr(addr)}</code>\n"

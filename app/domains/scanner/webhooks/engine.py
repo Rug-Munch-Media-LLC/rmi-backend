@@ -180,9 +180,27 @@ class WebhookEngine:
         return sub_map
 
     async def _dispatch(self, event: WebhookEvent, subscription: WebhookSubscription) -> None:
-        """Dispatch an event to a single subscriber."""
+        """Dispatch an event to a single subscriber.
+
+        Internal ``internal://telegram/{user_id}`` subscriptions (created by
+        the bot's alert wiring) are routed to the bot's Redis alert queue —
+        the bot's ``deliver_pending_alerts`` job turns them into Telegram
+        push alerts. Everything else goes through the HTTP delivery service.
+        """
         event.subscription_id = subscription.id
-        await self._delivery.deliver(event, subscription)
+        handled_internal = False
+        try:
+            from app.domains.scanner.webhooks.telegram_bridge import route_internal_telegram
+
+            handled_internal = await route_internal_telegram(event, subscription)
+        except Exception as exc:
+            log.warning(
+                "webhook_internal_routing_failed",
+                sub_id=subscription.id,
+                error=str(exc),
+            )
+        if not handled_internal:
+            await self._delivery.deliver(event, subscription)
 
         # Update subscription's last_triggered_at
         subscription.last_triggered_at = datetime.now(UTC)

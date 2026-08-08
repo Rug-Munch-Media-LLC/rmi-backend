@@ -36,6 +36,7 @@ from telegram.request import HTTPXRequest
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.admin_state import track_command
+from app.domains.telegram.rugmunchbot.alert_worker import deliver_pending_alerts
 from app.domains.telegram.rugmunchbot.broadcast_worker import deliver_pending_broadcasts
 from app.domains.telegram.rugmunchbot.commands import (
     cmd_chart,
@@ -468,6 +469,9 @@ def main() -> None:
         job_queue.run_repeating(check_alerts, interval=ALERT_CHECK_INTERVAL, first=10)
         # Admin-panel broadcasts (queued in Redis by the backend API)
         job_queue.run_repeating(deliver_pending_broadcasts, interval=30, first=15)
+        # Intelligent webhook alerts (queued in Redis by the backend webhook
+        # engine → telegram_bridge; whale/price/liquidity/launch push alerts)
+        job_queue.run_repeating(deliver_pending_alerts, interval=30, first=15)
 
     # Startup
     async def startup(app: Application) -> None:
