@@ -196,7 +196,9 @@ async def _fetch_dexscreener_trending(chain: str, limit: int = 20) -> tuple[list
     return tokens, fallback_used
 
 
-async def _fetch_ohlcv_gecko(pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100) -> list[dict[str, Any]]:
+async def _fetch_ohlcv_gecko(
+    pair_address: str, chain: str, timeframe: str = "1h", limit: int = 100
+) -> list[dict[str, Any]]:
     """Fetch OHLCV candles from GeckoTerminal."""
     network = GECKO_NETWORKS.get(chain, chain)
     tf_info = GECKO_TIMEFRAMES.get(timeframe, ("hour", 1))
@@ -622,3 +624,153 @@ def _compute_rug_score(pair_info: dict[str, Any], vol_auth: dict[str, Any]) -> d
     color = "#10b981" if score < 30 else "#f59e0b" if score < 60 else "#ef4444"
 
     return {"score": score, "level": level, "color": color, "factors": factors}
+
+
+# ── Whale trades (chain-indexer ClickHouse dex_events) ────────────────
+
+WHALE_TTL = 120  # 2 minutes — whale overlays refresh alongside candles
+WHALE_MIN_USD = 10_000.0  # match indexer whale flag threshold (>= $10K)
+
+
+def _whale_side(
+    token: str,
+    token0: str,
+    token1: str,
+    amount0_in: Any,
+    amount1_in: Any,
+    amount0_out: Any,
+    amount1_out: Any,
+) -> str:
+    """Derive a whale trade's side for a target token.
+
+    Uniswap V2 Swap semantics: exactly one leg flows IN and the other OUT.
+    ``amount0Out > 0`` means the trader received token0 FROM the pool (bought
+    token0, sold token1). ``amount1Out > 0`` means the trader received token1
+    (bought token1, sold token0). So direction is only reliable when a valid
+    V2 out-flow exists:
+
+      - a0_out > 0 → token0 bought → token0: BUY, token1: SELL
+      - a1_out > 0 → token1 bought → token1: BUY, token0: SELL
+
+    V3 swaps store absolute amounts (both legs look like "in", no out-flow),
+    so side cannot be derived — return "unknown".
+    """
+    try:
+        a0_out = float(amount0_out or 0)
+        a1_out = float(amount1_out or 0)
+    except (TypeError, ValueError):
+        return "unknown"
+
+    token_l = (token or "").lower()
+    token0_l = (token0 or "").lower()
+    token1_l = (token1 or "").lower()
+
+    # Valid V2 swap: one leg in, one leg out. V3 rows have no out-flow.
+    if a0_out > 0:
+        return "buy" if token_l == token0_l else "sell" if token_l == token1_l else "unknown"
+    if a1_out > 0:
+        return "buy" if token_l == token1_l else "sell" if token_l == token0_l else "unknown"
+    # No out-flow on either leg → V3 or malformed → direction unknowable.
+    return "unknown"
+
+
+async def _fetch_whale_trades_clickhouse(
+    token_address: str,
+    chain: str,
+    limit: int = 100,
+    min_usd: float = WHALE_MIN_USD,
+) -> list[dict[str, Any]]:
+    """Fetch large (whale) DEX swaps for a token from chain-indexer ClickHouse.
+
+    Queries ``wallet_memory.dex_events`` (258M+ raw swap events, 790K+ whale
+    flagged) for events where the token is either side of the pair and the
+    USD notional is >= ``min_usd``. Returns overlay-ready markers:
+
+        {"time": unix_ts, "price_usd": float, "volume_usd": float,
+         "side": "buy"|"sell"|"unknown", "tx_hash": str, "chain": str}
+
+    Uses the native ``clickhouse_driver`` (port 9000) — same client as the
+    OHLCV materialized-view path. Redis-cached for ``WHALE_TTL``.
+    """
+    token_l = (token_address or "").lower()
+    if not token_l or not chain:
+        return []
+
+    cache_key = f"rugcharts:whales:{chain}:{token_l}:{limit}:{min_usd}"
+    try:
+        r = _r()
+        cached = r.get(cache_key)
+        if cached:
+            r.close()
+            return json.loads(cached)
+        r.close()
+    except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError, json.JSONDecodeError) as e:
+        logger.debug(f"Redis whale cache read failed: {e}")
+
+    try:
+        from clickhouse_driver import Client as CHClient
+    except ImportError:
+        logger.debug("clickhouse_driver not installed — whale trades unavailable")
+        return []
+
+    try:
+        client = CHClient(
+            host=CLICKHOUSE_HOST,
+            port=CLICKHOUSE_PORT,
+            user=CLICKHOUSE_USER,
+            password=CLICKHOUSE_PASSWORD,
+            database=CLICKHOUSE_DB,
+            connect_timeout=3,
+            send_receive_timeout=10,
+        )
+        sql_whales = (
+            "SELECT toUnixTimestamp(block_timestamp), price_usd, volume_usd, "
+            "tx_hash, token0, token1, "
+            "amount0_in, amount1_in, amount0_out, amount1_out "
+            "FROM dex_events "
+            "WHERE chain = %(chain)s AND whale = 1 "
+        )
+        _sql = sql_whales + (
+            "AND volume_usd >= %(min_usd)s "
+            "AND (lower(token0) = %(token)s OR lower(token1) = %(token)s) "
+            "ORDER BY block_timestamp ASC LIMIT %(limit)s"
+            if min_usd > 0
+            else "AND (lower(token0) = %(token)s OR lower(token1) = %(token)s) "
+            "ORDER BY block_timestamp ASC LIMIT %(limit)s"
+        )
+        params: dict[str, Any] = {
+            "chain": chain,
+            "token": token_l,
+            "limit": int(limit),
+        }
+        if min_usd > 0:
+            params["min_usd"] = float(min_usd)
+        rows = client.execute(_sql, params)
+        trades: list[dict[str, Any]] = []
+        for row in rows:
+            trades.append(
+                {
+                    "time": int(row[0]),
+                    "price_usd": float(row[1] or 0),
+                    "volume_usd": float(row[2] or 0),
+                    "tx_hash": row[3] or "",
+                    "token0": row[4] or "",
+                    "token1": row[5] or "",
+                    "side": _whale_side(token_l, row[4] or "", row[5] or "", row[6], row[7], row[8], row[9]),
+                    "chain": chain,
+                }
+            )
+        client.disconnect()
+    except Exception as e:  # CH down / query failure — soft-fail to empty overlay
+        logger.debug(f"whale_trades_query_failed: {e}")
+        return []
+
+    if trades:
+        try:
+            r = _r()
+            r.set(cache_key, json.dumps(trades), ex=WHALE_TTL)
+            r.close()
+        except (ConnectionError, TimeoutError, OSError, redis.exceptions.ResponseError) as e:
+            logger.debug(f"Redis whale cache write failed: {e}")
+
+    return trades

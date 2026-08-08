@@ -26,6 +26,7 @@ from .rugcharts_helpers import (
     _fetch_ohlcv_clickhouse,
     _fetch_ohlcv_gecko,
     _fetch_pair_info,
+    _fetch_whale_trades_clickhouse,
 )
 
 logger = get_logger("rugcharts_router")
@@ -307,4 +308,49 @@ async def rugcharts_intel(
         },
         source="geckoterminal+dexscreener+datafusion",
         confidence=fused_risk.get("confidence", 0.3),
+    )
+
+
+@router.get("/whales/{chain}/{token_address}")
+async def rugcharts_whales(
+    chain: str,
+    token_address: str,
+    limit: int = Query(100, ge=1, le=500, description="Max whale trades to return"),
+    min_usd: float = Query(
+        0.0, ge=0.0, description="Optional minimum USD notional filter (0 = any whale-flagged event)"
+    ),
+) -> Any:
+    """Get whale trade markers for a token from chain-indexer ClickHouse.
+
+    Queries ``wallet_memory.dex_events`` for whale-flagged swaps where the
+    token appears on either side of the pair. Each marker carries the unix
+    timestamp, price, USD notional, tx hash and a buy/sell side derived from
+    Uniswap V2 in/out semantics (V3 amounts are absolute, side = "unknown").
+
+    This is the "own data" overlay source for the RugCharts price chart:
+    whale buys (green) / sells (red) rendered directly on the candles.
+    """
+    trades = await _fetch_whale_trades_clickhouse(token_address, chain, limit, min_usd)
+
+    buys = [t for t in trades if t["side"] == "buy"]
+    sells = [t for t in trades if t["side"] == "sell"]
+    unknown = [t for t in trades if t["side"] == "unknown"]
+    total_whale_usd = round(sum(float(t.get("volume_usd", 0)) for t in trades), 2)
+
+    return envelope(
+        success=True,
+        data={
+            "whale_trades": trades,
+            "buy_count": len(buys),
+            "sell_count": len(sells),
+            "unknown_count": len(unknown),
+            "total_whale_usd": total_whale_usd,
+            "count": len(trades),
+            "chain": chain,
+            "token_address": token_address,
+            "min_usd": min_usd,
+            "limit": limit,
+        },
+        source="chain_indexer (ClickHouse dex_events)",
+        confidence=0.8 if trades else 0.0,
     )
