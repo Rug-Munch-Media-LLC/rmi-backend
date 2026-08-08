@@ -7,13 +7,15 @@ Commands: trending, news + helpers: _time_ago, _fetch_cg_trending_news
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.ext import CommandHandler
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
@@ -21,10 +23,11 @@ from app.domains.telegram.rugmunchbot.config import (
     TELEGRAM_CHANNEL,
     WEBSITE_URL,
     backend_headers,
-)
-from app.domains.telegram.rugmunchbot.formatters import (
+    fmt_chain,
     fmt_number,
     fmt_pct,
+)
+from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     sep,
     short_addr,
@@ -33,7 +36,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
 
 if TYPE_CHECKING:
-    from telegram.ext import ContextTypes
+    from telegram.ext import Application, ContextTypes
 
 logger = get_logger("rmi_bot")
 
@@ -228,6 +231,273 @@ async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=trending_kb,
         disable_web_page_preview=True,
     )
+
+
+# ══════════════════════════════════════════════
+# MARKET INTELLIGENCE (/market /movers /launches /whales)
+# Backed by the backend market-intel router (app/routers/market_intel).
+# The backend caches every endpoint (CoinGecko/DexScreener TTL) — the bot
+# does NOT add its own cache layer.
+# ══════════════════════════════════════════════
+
+MARKET_UNAVAILABLE = (
+    "\u26a0\ufe0f <b>Market Data Unavailable</b>\n\n"
+    "Market data is temporarily unavailable.\nPlease try again in a moment."
+)
+
+
+def _fmt_usd(n: float | None) -> str:
+    """Compact USD with trillions support (backend returns raw USD floats).
+
+    Handles 3.2e12 → "$3.20T", 67_234 → "$67,234.10", 0.00001234 → "$0.00001234".
+    Falls back to fmt_number conventions for everything else.
+    """
+    if n is None:
+        return "N/A"
+    try:
+        v = float(n)
+    except (TypeError, ValueError):
+        return str(n)
+    if v >= 1e12:
+        return f"${v / 1e12:.2f}T"
+    if v >= 1e9:
+        return f"${v / 1e9:.2f}B"
+    if v >= 1e6:
+        return f"${v / 1e6:.2f}M"
+    if v >= 1e3:
+        return f"${v:,.2f}"
+    if v >= 1:
+        return f"${v:.4f}"
+    if v >= 0.01:
+        return f"${v:.6f}"
+    return f"${v:.10f}"
+
+
+async def _fetch_market_intel(
+    path: str, params: dict[str, Any] | None = None, timeout_secs: float = 10
+) -> dict[str, Any] | None:
+    """GET a backend market-intel endpoint with the shared-secret header.
+
+    Returns the parsed JSON body or None on any failure (network, non-200,
+    malformed body). Callers render a graceful unavailable state on None.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=timeout_secs) as client:
+            r = await client.get(
+                f"{BACKEND_URL}{path}",
+                params=params,
+                headers=backend_headers(),
+            )
+            if r.status_code != 200:
+                logger.debug("market intel %s status %s", path, r.status_code)
+                return None
+            body = r.json()
+            return body if isinstance(body, dict) else None
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+        logger.debug("market intel %s fetch failed: %s", path, exc)
+        return None
+
+
+def _menu_kb() -> InlineKeyboardMarkup:
+    """Shared bottom bar: back to the main menu."""
+    return InlineKeyboardMarkup([[InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")]])
+
+
+def _change_emoji(change: float) -> str:
+    return "\U0001f7e2" if change >= 0 else "\U0001f534"
+
+
+async def cmd_market(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /market — global market overview (mcap, volume, dominance, fear/greed, BTC/ETH)."""
+    msg = await update.message.reply_text("\U0001f4ca <b>Fetching market overview...</b>", parse_mode=ParseMode.HTML)
+    overview, macro = await asyncio.gather(
+        _fetch_market_intel("/api/v1/market/overview"),
+        _fetch_market_intel("/api/v1/market/macro"),
+    )
+    if not overview:
+        await msg.edit_text(MARKET_UNAVAILABLE, parse_mode=ParseMode.HTML)
+        return
+
+    lines = ["\U0001f4ca <b>Market Overview</b>", sep()]
+    if overview.get("total_market_cap") is not None:
+        lines.append(f"\U0001f310 Total Market Cap: <b>{_fmt_usd(overview.get('total_market_cap'))}</b>")
+    if overview.get("total_volume_24h") is not None:
+        lines.append(f"\U0001f4c8 24h Volume: <b>{_fmt_usd(overview.get('total_volume_24h'))}</b>")
+    if overview.get("btc_dominance") is not None:
+        lines.append(f"\u20bf BTC Dominance: <b>{float(overview['btc_dominance']):.1f}%</b>")
+    if overview.get("eth_dominance") is not None:
+        lines.append(f"\u27e0 ETH Dominance: <b>{float(overview['eth_dominance']):.1f}%</b>")
+    active = overview.get("active_cryptocurrencies")
+    if active:
+        with contextlib.suppress(TypeError, ValueError):
+            lines.append(f"\U0001fa99 Active Coins: <b>{int(active):,}</b>")
+
+    fg = overview.get("fear_greed") or {}
+    if fg.get("value") is not None:
+        fg_value = int(fg.get("value", 0))
+        fg_class = fg.get("classification") or "Neutral"
+        fg_emoji = (
+            "\U0001f525"
+            if fg_value >= 75
+            else "\U0001f60d"
+            if fg_value >= 60
+            else "\U0001f610"
+            if fg_value >= 40
+            else "\U0001f631"
+        )
+        lines.append("")
+        lines.append(f"{fg_emoji} Fear & Greed: <b>{fg_value}</b> ({fg_class})")
+
+    if macro and macro.get("items"):
+        lines.append("")
+        for it in macro["items"][:2]:
+            if it.get("current_price") is None:
+                continue
+            asset = it.get("asset", "")
+            change = it.get("change_24h")
+            change_txt = f" ({fmt_pct(change)})" if change is not None else ""
+            lines.append(f"\U0001f4b0 <b>{asset}:</b> {_fmt_usd(it.get('current_price'))}{change_txt}")
+
+    lines.append(footer_links())
+    await msg.edit_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.HTML,
+        reply_markup=_menu_kb(),
+        disable_web_page_preview=True,
+    )
+
+
+async def cmd_movers(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /movers — top 24h gainers & losers from the backend market router."""
+    msg = await update.message.reply_text("\U0001f680 <b>Fetching market movers...</b>", parse_mode=ParseMode.HTML)
+    data = await _fetch_market_intel("/api/v1/market/movers", params={"limit": 20})
+    items = (data or {}).get("items") or []
+    if not items:
+        await msg.edit_text(MARKET_UNAVAILABLE, parse_mode=ParseMode.HTML)
+        return
+
+    # Backend orders desc by 24h change; split into gainers/losers from that window.
+    gainers = [i for i in items if (i.get("change_24h") or 0) >= 0][:6]
+    losers = [i for i in items if (i.get("change_24h") or 0) < 0][:6]
+
+    lines = ["\U0001f680 <b>24h Market Movers</b>", sep()]
+    lines.append("\U0001f7e2 <b>TOP GAINERS</b>")
+    lines.append(thin_sep())
+    for i, item in enumerate(gainers, 1):
+        symbol = (item.get("symbol") or "???").upper()[:12]
+        name = (item.get("name") or symbol)[:24]
+        change = item.get("change_24h") or 0
+        lines.append(
+            f"{i}. {_change_emoji(change)} <b>{name}</b> ({symbol})\n"
+            f"   <b>{fmt_pct(change)}</b> | {_fmt_usd(item.get('price'))} | Vol: {_fmt_usd(item.get('volume_24h'))}"
+        )
+    if not gainers:
+        lines.append("<i>No gainers in the current window.</i>")
+
+    lines.append("")
+    lines.append("\U0001f534 <b>TOP LOSERS</b>")
+    lines.append(thin_sep())
+    for i, item in enumerate(losers, 1):
+        symbol = (item.get("symbol") or "???").upper()[:12]
+        name = (item.get("name") or symbol)[:24]
+        change = item.get("change_24h") or 0
+        lines.append(
+            f"{i}. {_change_emoji(change)} <b>{name}</b> ({symbol})\n"
+            f"   <b>{fmt_pct(change)}</b> | {_fmt_usd(item.get('price'))} | Vol: {_fmt_usd(item.get('volume_24h'))}"
+        )
+    if not losers:
+        lines.append("<i>No losers in the top movers \u2014 market is green \U0001f7e2</i>")
+
+    lines.append(footer_links())
+    await msg.edit_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.HTML,
+        reply_markup=_menu_kb(),
+        disable_web_page_preview=True,
+    )
+
+
+async def cmd_launches(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /launches — new token launches from the backend market router."""
+    msg = await update.message.reply_text("\U0001f195 <b>Fetching new launches...</b>", parse_mode=ParseMode.HTML)
+    data = await _fetch_market_intel("/api/v1/market/launches", params={"limit": 8})
+    items = (data or {}).get("items") or []
+    if not items:
+        await msg.edit_text(MARKET_UNAVAILABLE, parse_mode=ParseMode.HTML)
+        return
+
+    lines = ["\U0001f195 <b>New Token Launches</b>", sep()]
+    for i, item in enumerate(items[:8], 1):
+        symbol = (item.get("symbol") or "???").upper()[:12]
+        name = (item.get("name") or symbol)[:28]
+        change = item.get("change_24h") or 0
+        chain_txt = fmt_chain(item.get("chain") or "solana")
+        bundler = "\U0001f6a8 bundler" if item.get("bundler_detected") else ""
+        addr = item.get("address") or ""
+        lines.append(
+            f"{i}. {_change_emoji(change)} <b>{name}</b> ({symbol}) {chain_txt}\n"
+            f"   {_fmt_usd(item.get('price'))} | <b>{fmt_pct(change)}</b> | Vol: {_fmt_usd(item.get('volume_24h'))}"
+            f"{f' | {bundler}' if bundler else ''}"
+        )
+        if addr:
+            lines.append(f"   <code>{short_addr(addr)}</code>")
+    lines.append("\n<i>Fresh launches \u2014 always /scan before buying.</i>")
+    lines.append(footer_links())
+    await msg.edit_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.HTML,
+        reply_markup=_menu_kb(),
+        disable_web_page_preview=True,
+    )
+
+
+async def cmd_whales(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /whales — recent whale moves from the backend market router."""
+    msg = await update.message.reply_text("\U0001f40b <b>Fetching whale activity...</b>", parse_mode=ParseMode.HTML)
+    data = await _fetch_market_intel("/api/v1/market/whales", params={"limit": 5})
+    items = (data or {}).get("items") or []
+    if not items:
+        await msg.edit_text(MARKET_UNAVAILABLE, parse_mode=ParseMode.HTML)
+        return
+
+    lines = ["\U0001f40b <b>Whale Activity</b>", sep()]
+    for i, item in enumerate(items[:5], 1):
+        symbol = (item.get("token_symbol") or "???").upper()[:12]
+        action = (item.get("type") or "buy").lower()
+        action_txt = "BUY" if action == "buy" else "SELL"
+        action_emoji = "\U0001f7e2" if action == "buy" else "\U0001f534"
+        smart = " \U0001f4a1 smart money" if item.get("is_smart_money") else ""
+        chain_raw = item.get("chain") or ""
+        chain_txt = f" {fmt_chain(chain_raw)}" if chain_raw else ""
+        addr = item.get("token_address") or ""
+        lines.append(
+            f"{i}. {action_emoji} <b>{action_txt} {symbol}</b>{chain_txt}{smart}\n"
+            f"   {_fmt_usd(item.get('value_usd'))}"
+            f"{f' | <code>{short_addr(addr)}</code>' if addr else ''}"
+        )
+    lines.append("\n<i>Large moves detected across Solana/Ethereum/Bitcoin pairs.</i>")
+    lines.append(footer_links())
+    await msg.edit_text(
+        "\n".join(lines),
+        parse_mode=ParseMode.HTML,
+        reply_markup=_menu_kb(),
+        disable_web_page_preview=True,
+    )
+
+
+def register_market(app: Application) -> None:
+    """Register market-awareness commands on the bot application.
+
+    Wires /market, /trending, /movers, /launches and /whales in one call.
+    The Lead wires this from bot.py; replace the old per-command registrations
+    (e.g. ``_reg(app, "trending", cmd_trending)``) with this call so commands
+    are not double-registered.
+    """
+    app.add_handler(CommandHandler("market", cmd_market))
+    app.add_handler(CommandHandler("trending", cmd_trending))
+    app.add_handler(CommandHandler("movers", cmd_movers))
+    app.add_handler(CommandHandler("launches", cmd_launches))
+    app.add_handler(CommandHandler("whales", cmd_whales))
 
 
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
