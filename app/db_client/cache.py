@@ -9,13 +9,14 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 logger = get_logger(__name__)
 
@@ -28,14 +29,19 @@ except ImportError:
 # RETRY UTILITIES
 # ═══════════════════════════════════════════════════════════
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
-def _async_retry(max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0) -> Any:
+
+def _async_retry(
+    max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0
+) -> Callable[[Callable[_P, Awaitable[_R]]], Callable[_P, Awaitable[_R]]]:
     """Simple async retry decorator for Supabase operations."""
 
-    def decorator(func: Callable) -> Any:
+    def decorator(func: Callable[_P, Awaitable[_R]]) -> Callable[_P, Awaitable[_R]]:
         @wraps(func)
-        async def wrapper(*args, **kwargs) -> Any:
-            last_exc = None
+        async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+            last_exc: Exception | None = None
             wait = delay
             for attempt in range(max_retries + 1):
                 try:
@@ -47,6 +53,7 @@ def _async_retry(max_retries: int = 3, delay: float = 0.5, backoff: float = 2.0)
                     logger.warning(f"[DB] Retry {attempt + 1}/{max_retries} for {func.__name__}: {exc}")
                     await asyncio.sleep(wait)
                     wait *= backoff
+            assert last_exc is not None
             raise last_exc
 
         return wrapper
