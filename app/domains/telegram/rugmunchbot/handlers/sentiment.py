@@ -75,7 +75,7 @@ async def _fetch_market_overview() -> dict:
 
             # ETH Gas (proxy for network activity)
             try:
-                gas = await client.get("https://api.etherscan.io/api?module=gastracker&action=gasoracle")
+                gas = await client.get("https://api.etherscan.io/v2/api?chainid=1&module=gastracker&action=gasoracle")
                 if gas.status_code == 200:
                     gas_data = gas.json().get("result", {})
                     result["eth_gas"] = gas_data.get("ProposeGasPrice")

@@ -266,6 +266,9 @@ ROUTER_MODULES: Final[list[str]] = [
     # Bot API — shared endpoints for Telegram bot (cross-platform connectivity) — mounted 2026-08-06
     "app.routers.bot_api",  # /api/v1/bot/* (scan, ask, pulse, health)
     #
+    # Internal News Feed — bot-facing news headlines — mounted 2026-08-08
+    "app.api.v1.internal.news_feed",  # /api/v1/internal/news-feed
+    #
     # Multi-Factor Token Rating + Deployer Detection — mounted 2026-08-06
     "app.routers.scoring_router",  # /api/v1/scoring/* (rate, deployer, wallet)
     #
