@@ -16,9 +16,8 @@ import json
 import math
 import os
 from collections import defaultdict
-from dataclasses import field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 import numpy as np
@@ -60,21 +59,14 @@ class DetectionSignal:
 class AuthenticityResult:
     """Complete volume authenticity analysis."""
 
-    # Annotated for mypy (mirrors __slots__): all attributes are set
-    # dynamically during scoring; defaults are provided for safety.
-    authentic_score: float = 0.0
-    ci_lower: float = 0.0
-    ci_upper: float = 0.0
-    component_breakdown: dict[str, Any] = field(default_factory=dict)
-    confidence: float = 0.0
-    data_quality: dict[str, Any] = field(default_factory=dict)
-    fake_volume_pct: float = 0.0
-    method_count: int = 0
-    risk_level: str = "unknown"
-    scan_timestamp: str = ""
-    signals: list[str] = field(default_factory=list)
-    source: str = "volume_authenticity_scorer"
-
+    # NOTE: keep this class free of class-level annotated defaults — a name
+    # listed in ``__slots__`` cannot also be a class variable (Python raises
+    # ``ValueError: 'x' in __slots__ conflicts with class variable``). The
+    # typed defaults live in ``__init__`` so mypy sees every attribute and
+    # slots stay memory-efficient. Regression for the DataBus security chain
+    # builder crash (``'authentic_score' in __slots__ conflicts with class
+    # variable``) that silently dropped token_security / volume_authenticity
+    # from the provider registry and disabled the honeypot penalty.
     __slots__ = (
         "authentic_score",
         "ci_lower",
@@ -91,7 +83,20 @@ class AuthenticityResult:
     )
 
     def __init__(self) -> None:
-        self.source = "volume_authenticity_scorer"
+        # All attributes are set dynamically during scoring; typed defaults
+        # are provided for safety so partial results never raise.
+        self.authentic_score: float = 0.0
+        self.ci_lower: float = 0.0
+        self.ci_upper: float = 0.0
+        self.component_breakdown: dict[str, Any] = {}
+        self.confidence: float = 0.0
+        self.data_quality: str = "unknown"
+        self.fake_volume_pct: float = 0.0
+        self.method_count: int = 0
+        self.risk_level: str = "unknown"
+        self.scan_timestamp: str = ""
+        self.signals: list[dict[str, Any]] = []
+        self.source: str = "volume_authenticity_scorer"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -299,7 +304,7 @@ class VolumeAuthenticityScorer:
         buy_sell: 0.15
     """
 
-    DEFAULT_WEIGHTS = {
+    DEFAULT_WEIGHTS: ClassVar[dict[str, float]] = {
         "statistical": 0.25,
         "vl_ratio": 0.20,
         "wallet_concentration": 0.20,
@@ -463,7 +468,7 @@ def _redis_connect() -> Any:
     )
 
 
-async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum", **kw) -> dict[str, Any] | None:
+async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum", **kw: Any) -> dict[str, Any] | None:
     """DataBus provider: Full fake volume analysis for a token pair.
 
     Collects trade data from available sources, runs through all 4 detection layers,
@@ -478,7 +483,10 @@ async def analyze_volume_authenticity(address: str = "", chain: str = "ethereum"
         cached = r.get(cache_key)
         if cached:
             r.close()
-            return json.loads(cached)
+            cached_data: Any = json.loads(cached)
+            if isinstance(cached_data, dict):
+                return cached_data
+            return None
         r.close()
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
