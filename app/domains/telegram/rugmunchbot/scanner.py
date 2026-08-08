@@ -26,6 +26,7 @@ from app.domains.telegram.rugmunchbot.config import (
 )
 from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is_sol
 from app.domains.telegram.rugmunchbot.states import get_sol_price
+from app.rag.scan_memory import schedule_scan_memory_index, should_index_scan
 
 logger = get_logger("rmi_bot")
 
@@ -217,6 +218,11 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
             result["risk_score"] += 20
 
     result["risk_score"] = min(result["risk_score"], 100)
+    # Scan-to-RAG memory: auto-index the summary into Qdrant so future
+    # chat queries can recall "have we scanned this token before?" with
+    # risk context. Background + fail-open — never blocks the response.
+    if should_index_scan(result, source="scan_v1"):
+        schedule_scan_memory_index(result, source="scan_v1")
     return result
 
 
@@ -243,6 +249,9 @@ async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any
             if data.get("status") != "ok":
                 logger.warning("scan_token_v2 non-ok status for %s", address)
                 return None
+            # Scan-to-RAG memory (background, fail-open) — see scan_token.
+            if should_index_scan(data, source="scan_v2"):
+                schedule_scan_memory_index(data, source="scan_v2")
             return data
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("scan_token_v2 failed for %s: %s", address, e)
@@ -293,6 +302,8 @@ async def sentinel_scan(address: str, chain: str | None = None) -> dict | None:
             data.setdefault("address", address)
             data.setdefault("chain", chain_norm)
             data["_source"] = "sentinel"
+            # Scan-to-RAG memory (background, fail-open) — see scan_token.
+            schedule_scan_memory_index(data, source="sentinel")
             return data
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("sentinel_scan failed for %s: %s", address, e)
