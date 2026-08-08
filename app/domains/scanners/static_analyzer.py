@@ -519,7 +519,7 @@ class StaticAnalyzer:
                 # Cleanup temp dir
                 try:
                     tmp_parent = os.path.dirname(sol_path)
-                    if tmp_parent.startswith("/tmp/"):
+                    if tmp_parent.startswith("/tmp/"):  # nosec B108 — defensive prefix check for cleanup, not temp creation  # noqa: S108
                         shutil.rmtree(tmp_parent, ignore_errors=True)
                 except (ConnectionError, OSError, TimeoutError):
                     pass

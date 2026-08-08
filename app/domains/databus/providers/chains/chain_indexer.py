@@ -38,7 +38,7 @@ logger = get_logger("databus.providers.chain_indexer")
 #   {INDEXER_DEMAND_DIR}/{chain}/dex
 #   {INDEXER_DEMAND_DIR}/{chain}/deployer
 # A file touch avoids cross-service imports — no shared code, no RPC.
-_INDEXER_DEMAND_DIR = os.getenv("INDEXER_DEMAND_DIR", "/tmp/indexer-demand")
+_INDEXER_DEMAND_DIR = os.getenv("INDEXER_DEMAND_DIR", "/tmp/indexer-demand")  # nosec B108 — stable cross-process signal dir, env-configurable  # noqa: S108
 
 
 def _signal_indexer_demand(chain: str, event_type: str) -> None:

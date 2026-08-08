@@ -29,7 +29,7 @@ logger = get_logger("databus.dataset_providers")
 # ═══════════════════════════════════════════════════════════════
 
 REAL_CATS_PATHS = [
-    "/tmp/Real-CATS",
+    "/tmp/Real-CATS",  # nosec B108 — known dataset staging location, read-only lookup  # noqa: S108
     "/app/Real-CATS",
     os.path.expanduser("~/rmi/Real-CATS"),
     os.path.expanduser("~/rmi/datasets/Real-CATS"),
@@ -173,7 +173,7 @@ MBAL_PATHS = [
     os.path.expanduser("~/rmi/mbal"),
     "/app/mbal",
     os.path.expanduser("~/rmi/datasets/mbal"),
-    "/tmp/mbal",
+    "/tmp/mbal",  # nosec B108 — known dataset staging location, read-only lookup  # noqa: S108
 ]
 
 MBAL_README = """

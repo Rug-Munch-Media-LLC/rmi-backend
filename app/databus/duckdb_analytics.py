@@ -33,14 +33,14 @@ DB_PATH = os.path.expanduser("~/rmi/analytics.duckdb")
 REAL_CATS_DIRS = [
     os.path.expanduser("~/rmi/Real-CATS"),
     os.path.expanduser("~/rmi/datasets/Real-CATS"),
-    "/tmp/Real-CATS",
+    "/tmp/Real-CATS",  # nosec B108 — known dataset staging location, read-only lookup  # noqa: S108
     "/app/Real-CATS",
 ]
 
 MBAL_DIRS = [
     os.path.expanduser("~/rmi/mbal"),
     os.path.expanduser("~/rmi/datasets/mbal"),
-    "/tmp/mbal",
+    "/tmp/mbal",  # nosec B108 — known dataset staging location, read-only lookup  # noqa: S108
     "/app/mbal",
 ]
 

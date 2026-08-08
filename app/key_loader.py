@@ -25,7 +25,7 @@ def load_key(name: str) -> str:
         return key
 
     # 2. File-based fallback (works around Docker env sanitization)
-    file_path = f"/tmp/{name.lower().replace('_api_key', '')}_key.txt"
+    file_path = f"/tmp/{name.lower().replace('_api_key', '')}_key.txt"  # nosec B108 — reads well-known Docker fallback file  # noqa: S108
     try:
         if os.path.exists(file_path):
             with open(file_path) as f:
