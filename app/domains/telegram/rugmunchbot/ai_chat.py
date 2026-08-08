@@ -28,6 +28,7 @@ import httpx
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
+from app.domains.telegram.rugmunchbot.prompts import PERSONA_CONTEXT
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -46,24 +47,13 @@ CONTEXT_MAX_CHARS = 4000  # total context block size sent to the LLM
 HIT_MAX_CHARS = 800  # per-hit snippet inside the context block
 
 # ══════════════════════════════════════════════
-# BOT PERSONALITY (v7) — "crypto generalist"
+# BOT PERSONALITY (v8) — "crypto intelligence analyst"
 # ══════════════════════════════════════════════
+# Owned by app/domains/telegram/rugmunchbot/prompts.py (PERSONA_CONTEXT).
 # The backend owns SYSTEM_PROMPT (app/routers/chat.py); this block is
 # injected on every bot→backend synthesis call via context_override, so the
 # character profile applies to free-text chat, /chat, /ask and any handler
 # that calls chat_synthesis().
-PERSONA_CONTEXT = (
-    "STYLE DIRECTIVES \u2014 follow these on every reply:\n"
-    "- Speak as a veteran crypto analyst: solid, detailed analysis backed by "
-    "on-chain evidence. Direct, knowledgeable, no fluff.\n"
-    "- Never mention data sources, providers, tools, or APIs \u2014 just give results.\n"
-    "- When giving analysis, cite specific data points: volume, holders, risk "
-    "score, liquidity, price change.\n"
-    "- When answering crypto questions, ground answers in on-chain patterns "
-    "and RAG knowledge.\n"
-    "- Professional but approachable \u2014 the cryptorugmunch style: sharp, "
-    "confident, straight to the point."
-)
 
 
 def _build_system_context(rag_context: str | None) -> str | None:
@@ -174,8 +164,8 @@ async def chat_synthesis(
 
     - ``rag_context`` is injected via ``context_override.system_context``,
       which the backend appends to the system prompt (see app/routers/chat.py).
-      The v7 persona block (PERSONA_CONTEXT) is always prepended so every
-      reply speaks in the cryptorugmunch analyst voice.
+      The v8 persona block (PERSONA_CONTEXT from prompts.py) is always
+      prepended so every reply speaks in the cryptorugmunch analyst voice.
     - ``history`` (optional, chronological user/assistant pairs) OVERRIDES the
       backend DB history so the shared "anon" bucket never contaminates bot
       responses. Without it, ``[]`` is sent (existing behavior).
@@ -189,7 +179,7 @@ async def chat_synthesis(
         "tier": "T2",
         "max_tokens": 1024,
     }
-    # v7: personality block is ALWAYS injected (even without RAG context);
+    # v8: personality block is ALWAYS injected (even without RAG context);
     # RAG grounding is appended after it when available.
     payload["context_override"] = {"system_context": _build_system_context(rag_context)}
 
