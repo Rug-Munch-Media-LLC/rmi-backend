@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 
 from app.domains.scanner.engines.news_sentiment import HIGH_MEDIA_ATTENTION_THRESHOLD
 from app.domains.scanner.unified._evidence import build_evidence
+from app.domains.scanner.unified._score_helpers import apply_sentinel_scoring, build_breakdown
 
 # Dimension weights — the maximum points each dimension can contribute
 # toward the safety score. 35 + 25 + 15 + 15 + 10 = 100.
@@ -367,80 +368,7 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     # flag critical/high risk — correlated deep-forensic signals reinforce
     # each other.
     if r.sentinel and isinstance(r.sentinel, dict):
-        sentinel_free = r.sentinel.get("free") or {}
-        sentinel_critical: list[str] = []
-
-        # holder_analysis (HHIReport) → holders dimension
-        ha = sentinel_free.get("holder_analysis")
-        if isinstance(ha, dict) and ha.get("hhi") is not None:
-            hhi = float(ha.get("hhi", 0) or 0)
-            ha_risk = str(ha.get("risk_level", "")).lower()
-            # HHI > 5000 is normal for wrapped/blue-chip tokens (one
-            # wrapping contract dominates supply) — skip the SENTINEL HHI
-            # flags for bluechips (Bug 1).
-            if not bluechip and (hhi > 5000 or ha_risk == "critical"):
-                _apply("holders", -10, "SENTINEL_HHI_CRITICAL")
-                sentinel_critical.append("holder_analysis")
-            elif not bluechip and (hhi > 3000 or ha_risk == "high"):
-                _apply("holders", -5, "SENTINEL_HHI_HIGH")
-            fake_div = float(ha.get("fake_diversification_score", 0) or 0)
-            if fake_div > 40:
-                _apply("holders", -5, "SENTINEL_FAKE_DIVERSIFICATION")
-            if ha.get("total_holders") is not None:
-                confidence += 5
-
-        # liquidity_verification (LockReport) → liquidity dimension
-        lv = sentinel_free.get("liquidity_verification")
-        if isinstance(lv, dict) and lv.get("total_locked_percentage") is not None:
-            locked = float(lv.get("total_locked_percentage", 0) or 0)
-            lv_risk = str(lv.get("risk_level", "")).upper()
-            fake_lock = bool(lv.get("fake_lock_detected"))
-            # LP lock < 50% is normal for wrapped/blue-chip tokens (deep
-            # AMM pools instead of locked LP positions) — skip the lock
-            # penalty for bluechips unless a real fake-lock/CRITICAL
-            # finding exists (Bug 1).
-            if (not bluechip and locked < 50) or lv_risk == "CRITICAL" or fake_lock:
-                _apply("liquidity", -10, "SENTINEL_LP_LOCK")
-                if lv_risk == "CRITICAL" or fake_lock:
-                    sentinel_critical.append("liquidity_verification")
-            elif locked > 90:
-                _apply("liquidity", 3, "SENTINEL_LP_LOCKED")
-            if lv.get("warnings"):
-                confidence += 3
-
-        # dev_reputation (DevReputationReport) → deployer dimension
-        dr = sentinel_free.get("dev_reputation")
-        if isinstance(dr, dict) and dr.get("reputation_score") is not None:
-            rep_score = float(dr.get("reputation_score", 50) or 50)
-            threat = float(dr.get("dev_threat_index", 0) or 0)
-            if rep_score < 30 or threat > 0.5:
-                _apply("deployer", -10, "SENTINEL_DEV_THREAT")
-                sentinel_critical.append("dev_reputation")
-            elif rep_score >= 80:
-                _apply("deployer", 3, "SENTINEL_DEV_CLEAN")
-            if dr.get("total_launches") is not None:
-                confidence += 5
-
-        # contract_authority / proxy_detection / metadata_fingerprint → security dimension
-        ca = sentinel_free.get("contract_authority")
-        if isinstance(ca, dict) and str(ca.get("risk_level", "")).upper() == "CRITICAL":
-            _apply("security", -5, "SENTINEL_CONTRACT_AUTHORITY")
-            sentinel_critical.append("contract_authority")
-        px = sentinel_free.get("proxy_detection")
-        if isinstance(px, dict) and (
-            str(px.get("risk_level", "")).upper() == "CRITICAL" or (px.get("can_upgrade") and px.get("is_proxy"))
-        ):
-            _apply("security", -5, "SENTINEL_PROXY_RISK")
-            sentinel_critical.append("proxy_detection")
-        mf = sentinel_free.get("metadata_fingerprint")
-        if isinstance(mf, dict) and len(mf.get("similar_tokens") or []) >= 3:
-            _apply("security", -5, "SENTINEL_METADATA_CLONE")
-
-        # sentinel_boost — correlated critical deep-forensic signals reinforce.
-        if len(sentinel_critical) >= 2:
-            boost = min(15.0, 5.0 * len(sentinel_critical))
-            _apply("security", -boost, f"SENTINEL_CRITICAL_BOOST:{len(sentinel_critical)}")
-            r.sentinel_boost = boost
+        confidence += apply_sentinel_scoring(r, bluechip=bluechip, apply=_apply)
 
     # ── Clamp ──
     r.safety_score = max(0.0, min(100.0, score))
@@ -453,15 +381,7 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     r.green_flags = green
 
     # ── Explainable per-dimension breakdown ──
-    breakdown: dict[str, Any] = {}
-    for dim, weight in DIMENSION_WEIGHTS.items():
-        delta = deltas.get(dim, 0.0)
-        breakdown[dim] = {
-            "score": round(max(0.0, min(float(weight), float(weight) + delta)), 1),
-            "max": weight,
-            "delta": round(delta, 1),
-            "flags": dim_flags.get(dim, []),
-        }
+    breakdown = build_breakdown(deltas, dim_flags, DIMENSION_WEIGHTS)
 
     evidence = build_evidence(r)
     r.breakdown = breakdown
