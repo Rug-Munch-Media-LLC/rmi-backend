@@ -20,7 +20,7 @@ from telegram.constants import ParseMode
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import anti_abuse, db
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS
-from app.domains.telegram.rugmunchbot.formatters import detect_chain, short_addr
+from app.domains.telegram.rugmunchbot.formatters import detect_chain
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -92,7 +92,7 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 owner_id,
                 f"\U0001f6a8 <b>New Scam Report</b>\n\n"
                 f"\U0001f464 User: <code>{user.id}</code>\n"
-                f"\U0001f50d Address: <code>{short_addr(address)}</code>\n"
+                f"\U0001f50d Address: <code>{address}</code>\n"
                 f"\U0001f30e Chain: {chain}\n"
                 f"\U0001f4dd Reason: {reason[:200] or 'n/a'}\n\n"
                 f"Use /admin_user <code>{user.id}</code> to inspect the reporter.",
@@ -103,7 +103,7 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text(
         f"\u2705 <b>Scam report submitted</b>\n\n"
-        f"\U0001f50d Address: <code>{short_addr(address)}</code>\n"
+        f"\U0001f50d Address: <code>{address}</code>\n"
         f"\U0001f30e Chain: {chain}\n\n"
         "Thank you! Our team will investigate. This address is now flagged "
         "in the shared denylist so other users get warned too.",

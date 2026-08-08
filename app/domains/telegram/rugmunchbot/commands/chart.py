@@ -368,9 +368,9 @@ async def cmd_chart(update, ctx) -> None:
         png = render_chart_png(candles, name, symbol, chain) if candles else None
         if png:
             caption = (
-                f"📊 <b>{name}</b> ({symbol})\n"
-                f"<code>{address[:12]}...{address[-6:]}</code>\n\n"
-                f"💰 Price: <b>${price:.10f}</b>".rstrip("0").rstrip(".")
+                f"📊 <b>{name}</b> ({symbol})\n<code>{address}</code>\n\n💰 Price: <b>${price:.10f}</b>".rstrip(
+                    "0"
+                ).rstrip(".")
                 + (
                     f"\n📈 MCap: {fmt_number(mcap)} | 📊 24h Vol: {fmt_number(vol_24h)}\n"
                     f"🟢 1h: {fmt_pct(change_1h)} | 24h: {fmt_pct(change_24h)} | 7d: {fmt_pct(change_7d)}"
@@ -418,7 +418,7 @@ async def cmd_chart(update, ctx) -> None:
 
         lines = [
             f"📊 <b>{name}</b> ({symbol})",
-            f"<code>{address[:12]}...{address[-6:]}</code>",
+            f"<code>{address}</code>",
             "",
             sparkline,
             "",

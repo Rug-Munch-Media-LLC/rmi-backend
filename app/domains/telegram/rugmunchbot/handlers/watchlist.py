@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 
 from app.domains.telegram.rugmunchbot import db
@@ -18,9 +19,8 @@ from app.domains.telegram.rugmunchbot.formatters import (
     fmt_number,
     footer_links,
     sep,
-    short_addr,
 )
-from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
+from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb, token_buttons
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -48,10 +48,17 @@ async def cmd_watchlist(update: Update, ctx) -> None:
         if w.get("alert_price"):
             arrow = "\u2191" if w.get("alert_direction") == "above" else "\u2193"
             alert = f" \U0001f514{arrow}{fmt_number(w['alert_price'])}"
-        text += f"{i}. <b>{w.get('symbol') or '???'}</b> <code>{short_addr(w['token_address'])}</code> ({w['chain']}){alert}\n"
+        text += f"{i}. <b>{w.get('symbol') or '???'}</b> <code>{w['token_address']}</code> ({w['chain']}){alert}\n"
     text += f"\n{footer_links()}"
+    rows: list[list[InlineKeyboardButton]] = []
+    for w in items:
+        rows.append(token_buttons(w["token_address"], w.get("chain") or "solana"))
+    rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     await update.message.reply_text(
-        text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
+        text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(rows),
+        disable_web_page_preview=True,
     )
 
 
@@ -70,7 +77,7 @@ async def cmd_watch(update: Update, ctx) -> None:
     ok = db.add_watchlist(user.id, addr, chain, symbol)
     if ok:
         await update.message.reply_text(
-            f"\u2705 Added <code>{short_addr(addr)}</code> to watchlist.\n/watchlist to view all.",
+            f"\u2705 Added <code>{addr}</code> to watchlist.\n/watchlist to view all.",
             parse_mode=ParseMode.HTML,
         )
     else:
@@ -101,7 +108,7 @@ async def cmd_unwatch(update: Update, ctx) -> None:
     ok = db.remove_watchlist(user.id, addr)
     if ok:
         await update.message.reply_text(
-            f"\u2705 Removed <code>{short_addr(addr)}</code> from watchlist.", parse_mode=ParseMode.HTML
+            f"\u2705 Removed <code>{addr}</code> from watchlist.", parse_mode=ParseMode.HTML
         )
     else:
         await update.message.reply_text("\u274c Token not found in your watchlist.", parse_mode=ParseMode.HTML)

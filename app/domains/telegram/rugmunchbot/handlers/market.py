@@ -30,10 +30,9 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     sep,
-    short_addr,
     thin_sep,
 )
-from app.domains.telegram.rugmunchbot.keyboards import back_kb
+from app.domains.telegram.rugmunchbot.keyboards import back_kb, token_buttons
 
 if TYPE_CHECKING:
     from telegram.ext import Application, ContextTypes
@@ -182,49 +181,122 @@ def _trending_display(token: dict) -> tuple[str, str]:
     return name, symbol
 
 
-async def _build_trending_text(chain: str = "solana", limit: int = 8) -> str | None:
-    """Shared trending renderer for /trending + menu/refresh callbacks.
+# ── Trending time windows ──────────────────────────────────────────────
+# The RugCharts backend ranks trending tokens by 24h volume and only passes
+# through ``change_24h`` today. Windows degrade honestly until hourly/7d
+# deltas exist: 1h ranks by volume (hottest right now), 7d falls back to the
+# 24h delta. When the backend starts supplying ``change_1h`` / ``change_7d``
+# they are picked up automatically.
+TRENDING_WINDOWS = ("1h", "24h", "7d")
+_WINDOW_FIELD = {"1h": "change_1h", "24h": "change_24h", "7d": "change_7d"}
 
-    Returns the HTML message text, or None when no data is available.
-    """
-    tokens = await _fetch_rugcharts_trending(chain, limit)
-    if not tokens:
-        return None
-    lines = [f"\U0001f525 <b>Trending \u2014 {chain.capitalize()}</b>", sep()]
-    for i, t in enumerate(tokens[:limit], 1):
+
+def _window_change(token: dict, window: str) -> float:
+    """Change % for the requested window, falling back to 24h when absent."""
+    key = _WINDOW_FIELD.get(window, "change_24h")
+    val = token.get(key)
+    if val is None:
+        val = token.get("change_24h", 0)
+    try:
+        return float(val or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _sort_trending(tokens: list[dict], window: str) -> list[dict]:
+    """Rank trending tokens for the requested window (mutation-free)."""
+    if window == "1h":
+        # No hourly deltas from the backend yet — rank by volume (activity now).
+        return sorted(tokens, key=lambda t: float(t.get("volume_24h") or 0), reverse=True)
+    if window == "7d" and any(t.get("change_7d") is not None for t in tokens):
+        return sorted(tokens, key=lambda t: float(t.get("change_7d") or 0), reverse=True)
+    return sorted(tokens, key=lambda t: float(t.get("change_24h") or 0), reverse=True)
+
+
+def _window_note(window: str, tokens: list[dict]) -> str:
+    """Honest footnote when the window is backed by fallback data."""
+    if window == "1h":
+        return "\U0001f552 1h window \u2014 ranked by volume (hourly deltas pending)"
+    if window == "7d" and not any(t.get("change_7d") is not None for t in tokens):
+        return "\U0001f4c5 7d window \u2014 using 24h deltas (7d series pending)"
+    return ""
+
+
+def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
+    """HTML trending list for the window, full copyable addresses in <code>."""
+    tokens = _sort_trending(tokens, window)
+    lines = [f"\U0001f525 <b>Trending \u2014 {chain.capitalize()} \u00b7 {window}</b>", sep()]
+    for i, t in enumerate(tokens[:8], 1):
         addr = t.get("address", "")
         name, symbol = _trending_display(t)
         price = float(t.get("price_usd") or 0)
-        h24 = float(t.get("change_24h") or 0)
+        chg = _window_change(t, window)
         vol = float(t.get("volume_24h") or 0)
-        emoji = "\U0001f7e2" if h24 >= 0 else "\U0001f534"
+        emoji = "\U0001f7e2" if chg >= 0 else "\U0001f534"
         lines.append(
             f"{i}. {emoji} <b>{name}</b> ({symbol})\n"
-            f"   {fmt_number(price)} | {fmt_pct(h24)} | Vol: {fmt_number(vol)}\n"
-            f"   <code>{short_addr(addr)}</code>"
+            f"   {fmt_number(price)} | {fmt_pct(chg)} | Vol: {fmt_number(vol)}\n"
+            f"   <code>{addr}</code>"
         )
+    note = _window_note(window, tokens)
+    if note:
+        lines.append("")
+        lines.append(f"<i>{note}</i>")
     lines.append(f"\n<i>Chains: {TRENDING_CHAINS}</i>")
     lines.append(footer_links())
     return "\n".join(lines)
+
+
+def _build_trending_kb(tokens: list[dict], chain: str, window: str) -> InlineKeyboardMarkup:
+    """Trending keyboard: per-token [📊 Scan][📈 Chart][🔍 Explorer] rows,
+    a time-window selector and refresh/menu actions."""
+    rows: list[list[InlineKeyboardButton]] = []
+    for t in tokens[:8]:
+        addr = t.get("address", "")
+        if not addr:
+            continue
+        rows.append(token_buttons(addr, t.get("chain") or chain))
+    win_row = [
+        InlineKeyboardButton(f"[{w}]" if w == window else w, callback_data=f"trending_win_{chain}_{w}")
+        for w in TRENDING_WINDOWS
+    ]
+    rows.append(win_row)
+    rows.append([InlineKeyboardButton("\U0001f504 Refresh", callback_data=f"trending_refresh_{chain}")])
+    rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def render_trending(
+    chain: str = "solana", limit: int = 8, window: str = "24h"
+) -> tuple[str | None, InlineKeyboardMarkup | None]:
+    """Fetch + render trending text and its action keyboard.
+
+    Returns ``(text, keyboard)`` — either both, or ``(None, None)`` when the
+    backend returned no data. ``window`` is one of ``TRENDING_WINDOWS``.
+    """
+    tokens = await _fetch_rugcharts_trending(chain, limit)
+    if not tokens:
+        return None, None
+    return _render_trending_text(tokens, chain, window), _build_trending_kb(tokens, chain, window)
+
+
+async def _build_trending_text(chain: str = "solana", limit: int = 8, window: str = "24h") -> str | None:
+    """Text-only trending renderer (kept for backward compatibility)."""
+    text, _kb = await render_trending(chain, limit, window)
+    return text
 
 
 async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /trending [chain] — hot tokens from the RugCharts engine."""
     chain = _resolve_chain(ctx.args[0]) if ctx.args else "solana"
     msg = await update.message.reply_text("\U0001f525 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML)
-    text = await _build_trending_text(chain, limit=8)
-    if text is None:
+    text, trending_kb = await render_trending(chain, limit=8, window="24h")
+    if text is None or trending_kb is None:
         await msg.edit_text(
             "\u274c <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
             parse_mode=ParseMode.HTML,
         )
         return
-    trending_kb = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("\U0001f504 Refresh", callback_data=f"trending_refresh_{chain}")],
-            [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
-        ]
-    )
     await msg.edit_text(
         text,
         parse_mode=ParseMode.HTML,
@@ -440,13 +512,20 @@ async def cmd_launches(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             f"{f' | {bundler}' if bundler else ''}"
         )
         if addr:
-            lines.append(f"   <code>{short_addr(addr)}</code>")
+            lines.append(f"   <code>{addr}</code>")
     lines.append("\n<i>Fresh launches \u2014 always /scan before buying.</i>")
     lines.append(footer_links())
+    rows: list[list[InlineKeyboardButton]] = []
+    for item in items[:8]:
+        addr = item.get("address") or ""
+        if addr:
+            rows.append(token_buttons(addr, item.get("chain") or "solana"))
+    rows.append([InlineKeyboardButton("\U0001f504 Refresh", callback_data="launches_refresh")])
+    rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     await msg.edit_text(
         "\n".join(lines),
         parse_mode=ParseMode.HTML,
-        reply_markup=_menu_kb(),
+        reply_markup=InlineKeyboardMarkup(rows),
         disable_web_page_preview=True,
     )
 
@@ -473,14 +552,21 @@ async def cmd_whales(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         lines.append(
             f"{i}. {action_emoji} <b>{action_txt} {symbol}</b>{chain_txt}{smart}\n"
             f"   {_fmt_usd(item.get('value_usd'))}"
-            f"{f' | <code>{short_addr(addr)}</code>' if addr else ''}"
+            f"{f' | <code>{addr}</code>' if addr else ''}"
         )
     lines.append("\n<i>Large moves detected across Solana/Ethereum/Bitcoin pairs.</i>")
     lines.append(footer_links())
+    rows: list[list[InlineKeyboardButton]] = []
+    for item in items[:5]:
+        addr = item.get("token_address") or ""
+        if addr:
+            rows.append(token_buttons(addr, item.get("chain") or "solana"))
+    rows.append([InlineKeyboardButton("\U0001f504 Refresh", callback_data="whales_refresh")])
+    rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     await msg.edit_text(
         "\n".join(lines),
         parse_mode=ParseMode.HTML,
-        reply_markup=_menu_kb(),
+        reply_markup=InlineKeyboardMarkup(rows),
         disable_web_page_preview=True,
     )
 

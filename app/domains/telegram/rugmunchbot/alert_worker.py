@@ -174,10 +174,10 @@ def _format_alert(item: dict[str, Any]) -> str:
         value = _fmt_money(payload.get("value_decimal"))
         text = (
             f"\U0001f40b <b>Whale Move!</b>\n{header}"
-            f"<b>{symbol}</b> <code>{short_addr(token_addr)}</code>\n\n"
+            f"<b>{symbol}</b> <code>{token_addr}</code>\n\n"
             f"\U0001f4b0 <b>Value:</b> {value}\n"
-            f"\U0001f464 <b>From:</b> <code>{short_addr(payload.get('from_address', ''))}</code>\n"
-            f"\U0001f3e6 <b>To:</b> <code>{short_addr(payload.get('to_address', ''))}</code>\n"
+            f"\U0001f464 <b>From:</b> <code>{payload.get('from_address', '')}</code>\n"
+            f"\U0001f3e6 <b>To:</b> <code>{payload.get('to_address', '')}</code>\n"
             f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
         )
     elif etype == "token.price_change":
@@ -187,7 +187,7 @@ def _format_alert(item: dict[str, Any]) -> str:
         price = _fmt_money(payload.get("price"))
         text = (
             f"{arrow} <b>Price Alert: {symbol}</b>\n{header}"
-            f"<b>{symbol}</b> <code>{short_addr(token_addr)}</code>\n\n"
+            f"<b>{symbol}</b> <code>{token_addr}</code>\n\n"
             f"\U0001f4ca <b>Change:</b> {change}% ({direction or 'move'})\n"
             f"\U0001f4b5 <b>Price:</b> {price}\n"
             f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
@@ -197,17 +197,17 @@ def _format_alert(item: dict[str, Any]) -> str:
         method = str(payload.get("detection_method") or "")
         text = (
             f"\U0001f4a7 <b>Liquidity Change: {symbol}</b>\n{header}"
-            f"<b>{symbol}</b> <code>{short_addr(token_addr)}</code>\n\n"
+            f"<b>{symbol}</b> <code>{token_addr}</code>\n\n"
             f"\U0001f4b0 <b>Value:</b> {value}\n"
             + (f"\U0001f4cb <b>Source:</b> {method}\n" if method else "")
             + f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
         )
     elif etype == "token.deployed":
         name = str(payload.get("token_name") or "")
-        deployer = short_addr(payload.get("deployer_address", ""))
+        deployer = payload.get("deployer_address", "")
         text = (
             f"\U0001f195 <b>New Token Launched</b>\n{header}"
-            f"<b>{symbol}</b> <code>{short_addr(token_addr)}</code>\n"
+            f"<b>{symbol}</b> <code>{token_addr}</code>\n"
             + (f"\U0001f3f7\ufe0f <b>Name:</b> {name}\n" if name else "")
             + (f"\U0001f464 <b>Deployer:</b> <code>{deployer}</code>\n" if deployer else "")
             + f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
@@ -216,7 +216,7 @@ def _format_alert(item: dict[str, Any]) -> str:
         value = _fmt_money(payload.get("value_decimal"))
         text = (
             f"\U0001f504 <b>First Swap: {symbol}</b>\n{header}"
-            f"<b>{symbol}</b> <code>{short_addr(token_addr)}</code>\n\n"
+            f"<b>{symbol}</b> <code>{token_addr}</code>\n\n"
             f"\U0001f4b0 <b>Value:</b> {value}\n"
             f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
         )
@@ -224,8 +224,8 @@ def _format_alert(item: dict[str, Any]) -> str:
         value = _fmt_money(payload.get("value_decimal"))
         text = (
             f"\U0001f45b <b>Wallet Activity</b>\n{header}"
-            f"\U0001f464 <b>From:</b> <code>{short_addr(payload.get('from_address', ''))}</code>\n"
-            f"\U0001f3e6 <b>To:</b> <code>{short_addr(payload.get('to_address', ''))}</code>\n"
+            f"\U0001f464 <b>From:</b> <code>{payload.get('from_address', '')}</code>\n"
+            f"\U0001f3e6 <b>To:</b> <code>{payload.get('to_address', '')}</code>\n"
             f"\U0001f4b0 <b>Value:</b> {value}\n"
             f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
         )

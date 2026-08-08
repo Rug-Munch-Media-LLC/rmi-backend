@@ -25,7 +25,29 @@ from app.domains.telegram.rugmunchbot.config import (
     TWITTER_URL,
     WEBSITE_URL,
 )
-from app.domains.telegram.rugmunchbot.formatters import dex_buttons, is_owner, web_scan_button
+from app.domains.telegram.rugmunchbot.formatters import (
+    dex_buttons,
+    dexscreener_url,
+    explorer_url,
+    is_owner,
+    web_scan_button,
+)
+
+
+def token_buttons(address: str, chain: str, *, include_scan: bool = True) -> list[InlineKeyboardButton]:
+    """Tap-to-action row for any token display: [📊 Scan] [📈 Chart] [🔍 Explorer].
+
+    Scan re-runs the security scan via the ``scan_`` callback; Chart opens
+    the DexScreener page; Explorer opens the block explorer (Solscan /
+    Etherscan-family by chain). Full addresses stay inside the message text
+    in ``<code>`` blocks — button labels only ever carry the short form.
+    """
+    buttons: list[InlineKeyboardButton] = []
+    if include_scan:
+        buttons.append(InlineKeyboardButton("\U0001f4ca Scan", callback_data=f"scan_{address}_{chain}"))
+    buttons.append(InlineKeyboardButton("\U0001f4c8 Chart", url=dexscreener_url(address, chain)))
+    buttons.append(InlineKeyboardButton("\U0001f50d Explorer", url=explorer_url(address, chain)))
+    return buttons
 
 
 def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButton]]:
@@ -418,6 +440,8 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton("\U0001f4e4 Share", url=_share_token_url(address, chain)),
         ]
     )
+    # UX overhaul: tap-to-action token row (scan / chart / explorer)
+    rows.append(token_buttons(address, chain))
     # Upgrade nudge for free users
     rows.append([InlineKeyboardButton("\u2b50 Unlock Premium Features", callback_data="menu_pricing")])
     rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
@@ -617,6 +641,8 @@ def deep_scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
                 InlineKeyboardButton("\U0001f575\ufe0f Investigate", callback_data=f"investigate_{address}_{chain}"),
             ],
+            # UX overhaul: tap-to-action token row (scan / chart / explorer)
+            token_buttons(address, chain),
             [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
         ]
     )

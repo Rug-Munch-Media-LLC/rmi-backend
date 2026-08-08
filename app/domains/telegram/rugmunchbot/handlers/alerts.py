@@ -26,7 +26,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     footer_links,
     sep,
-    short_addr,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
 from app.domains.telegram.rugmunchbot.states import check_alert_rate_limit
@@ -138,7 +137,7 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
         text = (
             f"\U0001f514 <b>Price Alert Triggered!</b>\n{sep()}\n\n"
             f"<b>{symbol}</b>\n"
-            f"<code>{short_addr(addr)}</code>\n\n"
+            f"<code>{addr}</code>\n\n"
             f"\U0001f4b0 <b>Current Price:</b> {fmt_number(current_price)}\n"
             f"\U0001f3af <b>Target Price:</b> {fmt_number(target_price)}\n"
             f"{direction_emoji} <b>Direction:</b> {direction_label}\n"
@@ -380,7 +379,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await _subscribe_backend_alerts(user.id, addr)
         await update.message.reply_text(
             f"\u2705 <b>Alert Updated</b>\n\n"
-            f"Token: <code>{short_addr(addr)}</code>\n"
+            f"Token: <code>{addr}</code>\n"
             f"Rule: {direction_raw.lower()} {fmt_number(alert_price) if alert_price else 'any move'}\n\n"
             f"Use /alerts to see all your active alerts.",
             parse_mode=ParseMode.HTML,
@@ -393,7 +392,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             await _subscribe_backend_alerts(user.id, addr)
             await update.message.reply_text(
                 f"\u2705 <b>Alert Set</b>\n\n"
-                f"Token: <code>{short_addr(addr)}</code>\n"
+                f"Token: <code>{addr}</code>\n"
                 f"Rule: {direction_raw.lower()} {fmt_number(alert_price) if alert_price else 'any move'}\n\n"
                 f"You'll be notified when this condition is met.",
                 parse_mode=ParseMode.HTML,

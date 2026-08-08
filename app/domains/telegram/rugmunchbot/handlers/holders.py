@@ -27,7 +27,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     paywall_text,
     sep,
-    short_addr,
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, holders_kb, paywall_kb
@@ -126,7 +125,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     chain = ctx.args[1].lower() if len(ctx.args) > 1 else detect_chain(address)
 
     msg = await update.message.reply_text(
-        f"👥 <b>Fetching holder data...</b>\n<code>{short_addr(address)}</code>",
+        f"👥 <b>Fetching holder data...</b>\n<code>{address}</code>",
         parse_mode=ParseMode.HTML,
     )
 
@@ -186,7 +185,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 "👥 <b>Holder Analysis</b>",
                 s,
                 f"<b>{token_name}</b> ({token_symbol})",
-                f"<code>{short_addr(address)}</code>",
+                f"<code>{address}</code>",
                 "",
             ]
 
@@ -228,7 +227,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     filled = min(int((pct / 20) * bar_len), bar_len)
                     bar = "🟥" * filled + "⬜" * (bar_len - filled)
 
-                    lines.append(f"{i}. <code>{short_addr(addr_h)}</code>{tag}{cf}{whale}\n   {bar} {pct:.2f}%")
+                    lines.append(f"{i}. <code>{addr_h}</code>{tag}{cf}{whale}\n   {bar} {pct:.2f}%")
 
                 # Distribution chart
                 lines.extend(
@@ -260,7 +259,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                                     "",
                                     "🎯 <b>Smart Money Detection</b>",
                                     d,
-                                    f"  👨‍💻 Dev Wallet: <code>{short_addr(dev_wallet)}</code>",
+                                    f"  👨‍💻 Dev Wallet: <code>{dev_wallet}</code>",
                                 ]
                             )
                         if backend_data.get("bundle_detected"):
@@ -308,7 +307,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Holder analysis error: {e}")
         await msg.edit_text(
             f"❌ <b>Holder Analysis Failed</b>\n\n"
-            f"Could not fetch holder data for <code>{short_addr(address)}</code>.\n"
+            f"Could not fetch holder data for <code>{address}</code>.\n"
             f"Error: {str(e)[:150]}",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),

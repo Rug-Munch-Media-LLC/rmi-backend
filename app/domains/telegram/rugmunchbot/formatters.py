@@ -104,6 +104,46 @@ def web_scan_button(address: str, chain: str = "") -> InlineKeyboardButton:
     return InlineKeyboardButton("\U0001f310 Full Report on RugMunch.io", url=url)
 
 
+# DexScreener chain slugs (match ``chainId`` values from DexScreener pairs).
+DEXSCREENER_CHAINS = {
+    "solana": "solana",
+    "ethereum": "ethereum",
+    "base": "base",
+    "bsc": "bsc",
+    "arbitrum": "arbitrum",
+    "tron": "tron",
+    "polygon": "polygon",
+    "avalanche": "avax",
+    "optimism": "optimism",
+}
+
+
+def dexscreener_url(address: str, chain: str) -> str:
+    """DexScreener token page URL — tap-to-open chart for any token."""
+    slug = DEXSCREENER_CHAINS.get((chain or "").lower(), (chain or "solana").lower())
+    return f"https://dexscreener.com/{slug}/{address}"
+
+
+def explorer_url(address: str, chain: str) -> str:
+    """Block explorer URL for a token/wallet on the given chain."""
+    chain_l = (chain or "").lower()
+    if chain_l == "solana":
+        return f"https://solscan.io/account/{address}"
+    domains = {
+        "ethereum": "etherscan.io",
+        "bsc": "bscscan.com",
+        "polygon": "polygonscan.com",
+        "arbitrum": "arbiscan.io",
+        "optimism": "optimistic.etherscan.io",
+        "base": "basescan.org",
+        "avalanche": "snowtrace.io",
+        "fantom": "ftmscan.com",
+        "tron": "tronscan.org",
+    }
+    domain = domains.get(chain_l, "etherscan.io")
+    return f"https://{domain}/address/{address}"
+
+
 def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
     buttons = []
     for _key, dex in DEX_REF_LINKS.items():
@@ -724,7 +764,7 @@ def format_scan_report(r: dict) -> str:
         for i, h in enumerate(r["top_holders"][:5], 1):
             tag = f" [{h['tag']}]" if h.get("tag") else ""
             cf = " \U0001f4c4" if h.get("is_contract") else ""
-            lines.append(f"  {i}. <code>{short_addr(h['address'])}</code> - {h['pct']:.1f}%{tag}{cf}")
+            lines.append(f"  {i}. <code>{h['address']}</code> - {h['pct']:.1f}%{tag}{cf}")
     adv = []
     if r["bundle_detected"]:
         adv.append("\U0001f578\ufe0f Bundle activity detected")
@@ -733,7 +773,7 @@ def format_scan_report(r: dict) -> str:
     if r["volume_real_ratio"] is not None:
         adv.append(f"\U0001f4ca Vol/MCap ratio: {r['volume_real_ratio']:.2f}x")
     if r["dev_wallet"]:
-        adv.append(f"\U0001f468\u200d\U0001f4bb Dev: <code>{short_addr(r['dev_wallet'])}</code>")
+        adv.append(f"\U0001f468\u200d\U0001f4bb Dev: <code>{r['dev_wallet']}</code>")
     if adv:
         lines.extend(["", "\U0001f52c <b>Advanced Analysis</b>", d])
         lines.extend(adv)
@@ -904,20 +944,11 @@ def _activity_score(tx_count: int | None) -> str:
 
 
 def _explorer_link(address: str, chain: str) -> str:
+    url = explorer_url(address, chain)
     if chain.lower() == "solana":
-        return f'<a href="https://solscan.io/account/{address}">\U0001f50d Solscan</a>'
-    explorers = {
-        "ethereum": "etherscan.io",
-        "bsc": "bscscan.com",
-        "polygon": "polygonscan.com",
-        "arbitrum": "arbiscan.io",
-        "optimism": "optimistic.etherscan.io",
-        "base": "basescan.org",
-        "avalanche": "snowtrace.io",
-        "fantom": "ftmscan.com",
-    }
-    domain = explorers.get(chain.lower(), "etherscan.io")
-    return f'<a href="https://{domain}/address/{address}">\U0001f50d {domain.split(".")[0].title()}</a>'
+        return f'<a href="{url}">\U0001f50d Solscan</a>'
+    domain = url.split("//")[1].split("/")[0]
+    return f'<a href="{url}">\U0001f50d {domain.split(".")[0].title()}</a>'
 
 
 def format_wallet_report(r: dict) -> str:
@@ -963,7 +994,7 @@ def format_wallet_report(r: dict) -> str:
     if r["connected_wallets"]:
         lines.extend(["", "\U0001f517 <b>Connected Wallets</b>", d])
         for w in r["connected_wallets"][:5]:
-            lines.append(f"  \u2022 <code>{short_addr(w)}</code>")
+            lines.append(f"  \u2022 <code>{w}</code>")
     if r["risk_score"] > 0:
         lines.extend(["", risk_bar(r["risk_score"])])
 
