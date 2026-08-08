@@ -1,6 +1,7 @@
 """
-RugMaps AI Analysis — LiteLLM-routed token investigation via DeepSeek 8B.
+RugMaps AI Analysis — local Ollama (Talos) first, LiteLLM/DeepSeek paid fallback.
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
+Routing order: Ollama (Qwen3-4B / DeepSeek-Qwen-8B) → LiteLLM → direct DeepSeek → rule-based.
 """
 
 from __future__ import annotations
@@ -25,6 +26,22 @@ AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "deepseek-analysis")  # LiteLLM model_
 # Legacy direct DeepSeek fallback (used only if LiteLLM is unreachable)
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")
 DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
+
+# ── Ollama (local, Talos) — tried FIRST, before any paid API ──
+# Talos Ollama tailnet IP with localhost fallback when running directly on
+# the Talos host. Comma-separated base URLs, tried in order.
+OLLAMA_BASE_URLS = [
+    u.strip().rstrip("/")
+    for u in os.getenv("OLLAMA_BASE_URL", "http://100.104.130.92:11434,http://localhost:11434").split(",")
+    if u.strip()
+]
+# Fast model → token descriptions, simple labeling (Qwen3-4B; qwen3-work:8b on Talos).
+OLLAMA_FAST_MODEL = os.getenv("OLLAMA_FAST_MODEL", "qwen3:4b")
+# Complex model → cluster interpretation, anomaly detection, rug pull narratives
+# (DeepSeek-R1-Distill-Qwen-8B).
+OLLAMA_COMPLEX_MODEL = os.getenv("OLLAMA_COMPLEX_MODEL", "deepseek-r1:8b")
+# Local inference is fast — 30s cap; anything slower means Ollama is wedged, fall back to paid.
+OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "30"))
 
 # Analysis cache (in-memory + Redis if available)
 _analysis_cache: dict[str, dict[str, Any]] = {}
@@ -245,6 +262,91 @@ async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | N
     return None
 
 
+def _ollama_model_for_task(task_type: str) -> str:
+    """Map a task type to the local Ollama model.
+
+    - fast/chat/label/description → OLLAMA_FAST_MODEL (Qwen3-4B): cheap, fast
+      labeling and token descriptions.
+    - analysis/complex/anomaly/cluster (default) → OLLAMA_COMPLEX_MODEL
+      (DeepSeek Distill Qwen-8B): cluster interpretation, anomaly detection,
+      rug pull narratives.
+    """
+    if task_type in ("fast", "chat", "label", "description", "simple"):
+        return OLLAMA_FAST_MODEL
+    return OLLAMA_COMPLEX_MODEL
+
+
+async def _call_ollama_for_rugmaps(
+    prompt: str, task_type: str = "analysis", max_tokens: int = 800
+) -> tuple[str | None, str]:
+    """Call local Talos Ollama first (zero-cost, no external API).
+
+    Tries every configured base URL in order. Returns ``(content, model_id)``;
+    ``model_id`` is ``"ollama/<model>"`` (even on failure, so callers can log
+    what was attempted).
+    """
+    model = _ollama_model_for_task(task_type)
+    for base_url in OLLAMA_BASE_URLS:
+        try:
+            async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
+                resp = await client.post(
+                    f"{base_url}/api/chat",
+                    json={
+                        "model": model,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are a blockchain forensic expert. "
+                                    "Return ONLY valid JSON, no markdown, no code blocks."
+                                ),
+                            },
+                            {"role": "user", "content": prompt},
+                        ],
+                        "stream": False,
+                        "options": {"temperature": 0.3, "num_predict": max_tokens},
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = (data.get("message", {}) or {}).get("content", "")
+                    if content and content.strip():
+                        content = content.strip()
+                        logger.info("rugmaps_ai_ollama", model=model, base_url=base_url, task_type=task_type)
+                        return content, f"ollama/{model}"
+                else:
+                    logger.warning(
+                        "ollama_rugmaps_non_200", base_url=base_url, status=resp.status_code, body=resp.text[:200]
+                    )
+        except Exception as e:
+            logger.warning("ollama_rugmaps_call_failed", base_url=base_url, error=str(e))
+    return None, f"ollama/{model}"
+
+
+async def _call_ai_with_ollama_priority(
+    prompt: str, task_type: str = "analysis", max_tokens: int = 800
+) -> tuple[str | None, str]:
+    """Route RugMaps AI: local Ollama → LiteLLM → direct DeepSeek.
+
+    Returns ``(content, model_id)`` where ``model_id`` is one of
+    ``"ollama/<model>"``, ``"litellm/<model>"``, ``"deepseek/deepseek-chat"``
+    or ``"none"`` — the caller logs it so we can track what served each response.
+    """
+    content, model = await _call_ollama_for_rugmaps(prompt, task_type=task_type, max_tokens=max_tokens)
+    if content:
+        return content, model
+
+    content = await _call_litellm_for_rugmaps(prompt, task_type=task_type, max_tokens=max_tokens)
+    if content:
+        return content, f"litellm/{AI_MODEL}"
+
+    content = await _call_deepseek_fallback(prompt, max_tokens=max_tokens)
+    if content:
+        return content, "deepseek/deepseek-chat"
+
+    return None, "none"
+
+
 def _parse_ai_json(content: str) -> dict[str, Any] | None:
     """Parse JSON from AI response, stripping markdown code blocks."""
     if not content:
@@ -327,17 +429,19 @@ Return ONLY valid JSON with these fields:
   "summary": "<2-3 sentence concise analysis of the cluster findings>"
 }}"""
 
-    content = await _call_litellm_for_rugmaps(prompt, task_type="analysis", max_tokens=600)
-    if not content:
-        content = await _call_deepseek_fallback(prompt, max_tokens=600)
+    content, ai_model = await _call_ai_with_ollama_priority(prompt, task_type="analysis", max_tokens=600)
 
     if content:
         parsed = _parse_ai_json(content)
         if parsed:
+            parsed["ai_model"] = ai_model
+            logger.info("rugmaps_ai_served", model=ai_model, task="holder_clusters")
             return parsed
 
     # Fallback: simple heuristic clustering
-    return _fallback_cluster_analysis(holders, labels)
+    result = _fallback_cluster_analysis(holders, labels)
+    result["ai_model"] = "rule-based"
+    return result
 
 
 def _fallback_cluster_analysis(holders: list[dict[str, Any]], labels: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -468,16 +572,18 @@ Return ONLY valid JSON with these fields:
   "recommendation": "<one sentence action recommendation>"
 }}"""
 
-    content = await _call_litellm_for_rugmaps(prompt, task_type="analysis", max_tokens=800)
-    if not content:
-        content = await _call_deepseek_fallback(prompt, max_tokens=800)
+    content, ai_model = await _call_ai_with_ollama_priority(prompt, task_type="analysis", max_tokens=800)
 
     if content:
         parsed = _parse_ai_json(content)
         if parsed:
+            parsed["ai_model"] = ai_model
+            logger.info("rugmaps_ai_served", model=ai_model, task="contract_anomalies")
             return parsed
 
-    return _fallback_anomaly_detection(holder_data, scanner_data)
+    result = _fallback_anomaly_detection(holder_data, scanner_data)
+    result["ai_model"] = "rule-based"
+    return result
 
 
 def _fallback_anomaly_detection(holder_data: dict[str, Any], scanner_data: dict[str, Any] | None) -> dict[str, Any]:
@@ -576,7 +682,7 @@ async def generate_ai_analysis(
     labels: dict[str, dict[str, Any]],
     similar_scams: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Generate AI analysis via LiteLLM with fallback to rule-based engine."""
+    """Generate AI analysis via local Ollama first, then paid fallback, then rule-based engine."""
     holder_summary = []
     for h in holders[:10]:
         addr = h.get("address", "")[:12]
@@ -630,14 +736,14 @@ Based on our data, provide a JSON analysis with these fields:
 
 Return ONLY valid JSON, no markdown, no code blocks."""
 
-    # Try LiteLLM first, then DeepSeek fallback
-    content = await _call_litellm_for_rugmaps(prompt, task_type="analysis", max_tokens=800)
-    if not content:
-        content = await _call_deepseek_fallback(prompt, max_tokens=800)
+    # Try local Ollama first, then LiteLLM, then direct DeepSeek
+    content, ai_model = await _call_ai_with_ollama_priority(prompt, task_type="analysis", max_tokens=800)
 
     if content:
         parsed = _parse_ai_json(content)
         if parsed:
+            parsed["ai_model"] = ai_model
+            logger.info("rugmaps_ai_served", model=ai_model, task="token_graph")
             return parsed
         # Partial parse: use raw text as summary
         return {
@@ -650,10 +756,13 @@ Return ONLY valid JSON, no markdown, no code blocks."""
             "bundle_wallets": [],
             "recommendation": "Manual review recommended — AI response was malformed.",
             "confidence": 30,
+            "ai_model": ai_model,
         }
 
     logger.warning("AI analysis unavailable — using fallback engine")
-    return generate_fallback_analysis(risk_score, holders, labels, similar_scams, node_count, link_count)
+    fallback = generate_fallback_analysis(risk_score, holders, labels, similar_scams, node_count, link_count)
+    fallback["ai_model"] = "rule-based"
+    return fallback
 
 
 def generate_fallback_analysis(
