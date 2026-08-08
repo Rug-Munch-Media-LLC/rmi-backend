@@ -19,6 +19,7 @@ import sys
 from datetime import UTC, time as dtime
 from functools import wraps
 
+import httpx
 from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
@@ -30,6 +31,7 @@ from telegram.ext import (
     PreCheckoutQueryHandler,
     filters,
 )
+from telegram.request import HTTPXRequest
 
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
@@ -274,7 +276,16 @@ def main() -> None:
         logger.error("RUGMUNCH_BOT_TOKEN not set!")
         sys.exit(1)
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Force IPv4 for api.telegram.org: this host's IPv6 route is broken and
+    # resolves AAAA first, which caused 20+ ConnectTimeouts per 3h and made
+    # every outbound call fall through to the global error handler.
+    # PTB 21+ drops the `transport` kwarg in favor of `httpx_kwargs`.
+    # S104: binding the outbound source to 0.0.0.0 (all IPv4) is intentional —
+    # it forces IPv4 and avoids the broken IPv6 route.
+    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")  # noqa: S104
+    request = HTTPXRequest(httpx_kwargs={"transport": transport})
+
+    app = Application.builder().token(BOT_TOKEN).request(request).build()
 
     # Core commands
     _reg(app, "start", cmd_start)

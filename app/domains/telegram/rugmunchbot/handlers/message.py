@@ -16,6 +16,7 @@ same pipeline powers /chat <question> (handlers/chat.py) via ai_chat_response.
 from __future__ import annotations
 
 import re
+from html import escape
 from typing import TYPE_CHECKING
 
 import httpx
@@ -252,8 +253,10 @@ async def ai_chat_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             db.add_chat_message(user.id, "assistant", ai_answer)
             await track_ai_query()
             await track_tokens(len(ai_answer) // 4)
+            # LLM output is not trusted HTML — escape it so raw <...> in the
+            # answer can't crash with Telegram "Can't parse entities".
             await update.message.reply_text(
-                ai_answer[:4000],
+                escape(ai_answer[:4000]),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
                 disable_web_page_preview=True,
@@ -269,7 +272,7 @@ async def ai_chat_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             db.add_chat_message(user.id, "assistant", best_hit)
             await track_ai_query()
             await track_tokens(len(best_hit) // 4)
-            await update.message.reply_text(best_hit[:4000], parse_mode=ParseMode.HTML, reply_markup=back_kb())
+            await update.message.reply_text(escape(best_hit[:4000]), parse_mode=ParseMode.HTML, reply_markup=back_kb())
             return True
 
     # Tier 1b: LLM general synthesis (full-range assistant answers). Skipped
@@ -286,7 +289,7 @@ async def ai_chat_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             await track_ai_query()
             await track_tokens(len(ai_answer) // 4)
             await update.message.reply_text(
-                ai_answer[:4000],
+                escape(ai_answer[:4000]),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
                 disable_web_page_preview=True,
