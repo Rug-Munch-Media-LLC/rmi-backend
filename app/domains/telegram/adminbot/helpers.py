@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING, Any
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
-from app.domains.telegram.adminbot.config import OWNER_IDS
+from app.domains.telegram import access_guard
+from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID, OWNER_IDS
 
 # ── Rate limiting ──────────────────────────────────────────────────
 SPAM_COOLDOWN: float = 2.0  # seconds between commands
@@ -53,21 +54,53 @@ def is_owner(update: Update) -> bool:
 
 
 def owner_only(func) -> Any | None:
-    """Decorator: reject non-owners immediately + rate limiting."""
+    """Decorator: reject non-owners silently (hidden bot) + rate limiting.
+
+    The admin bot is HIDDEN: non-owners get no reply at all (not even an
+    "unauthorized" message), so the bot does not advertise its existence
+    or its admin surface. Every denied attempt is logged and a
+    rate-limited alert is sent to the owner chat (defense-in-depth).
+    """
 
     async def wrapper(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Any | None:
         uid = update.effective_user.id if update.effective_user else 0
         # Rate-limit check (silent drop for spam)
         if is_rate_limited(uid):
             return
-        # Authorization check
+        # Authorization check — silent deny + owner alert
         if not is_owner(update):
-            if update.message is not None:
-                await update.message.reply_text("⛔ Unauthorized. This bot is for RMI admins only.")
+            user = update.effective_user
+            chat = update.effective_chat
+            surface = f"cmd:{func.__name__}"
+            if update.callback_query is not None and update.callback_query.data:
+                surface = f"cb:{update.callback_query.data}"
+            await access_guard.deny_admin_attempt(
+                bot=ctx.bot,
+                owner_chat_id=ADMIN_CHAT_ID,
+                bot_name="rmiadminbot",
+                surface=surface,
+                user_id=user.id if user else None,
+                username=user.username if user else None,
+                chat_id=chat.id if chat else None,
+                chat_type=chat.type if chat else None,
+                audit=_audit_deny,
+            )
             return
         return await func(update, ctx)
 
     return wrapper
+
+
+def _audit_deny(user_id: int, action: str, detail: str = "") -> None:
+    """Append a deny record to the admin bot audit trail (fail-open)."""
+    try:
+        from app.domains.telegram.adminbot import admin_audit
+
+        admin_audit.log_action(action, detail, user_id)
+    except Exception:
+        import logging
+
+        logging.getLogger("admin_bot").debug("adminbot audit write failed", exc_info=True)
 
 
 async def edit_or_reply(

@@ -16,6 +16,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
+from app.domains.telegram import access_guard
+from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS
 
 if TYPE_CHECKING:
@@ -26,6 +28,26 @@ logger = get_logger("rmi_bot.groups")
 
 # Voice chat tracking: map user_id -> their group chat_id
 _USER_GROUPS: dict[int, int] = {}
+
+
+async def _deny_group_attempt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log + alert a non-owner group-admin command attempt (defense-in-depth)."""
+    user = update.effective_user
+    chat = update.effective_chat
+    surface = "group-admin-cmd"
+    if update.message is not None and update.message.text:
+        surface = f"cmd:{update.message.text.split()[0]}"
+    await access_guard.deny_admin_attempt(
+        bot=context.bot,
+        owner_chat_id=next(iter(sorted(OWNER_IDS)), 0),
+        bot_name="rugmunchbot",
+        surface=surface,
+        user_id=user.id if user else None,
+        username=user.username if user else None,
+        chat_id=chat.id if chat else None,
+        chat_type=chat.type if chat else None,
+        audit=db.log_admin_action,
+    )
 
 
 async def cmd_mygroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -102,6 +124,7 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     user = update.effective_user
     if not user or user.id not in OWNER_IDS:
         await update.message.reply_text("⛔ Owner-only command.")
+        await _deny_group_attempt(update, context)
         return
 
     args = context.args or []
@@ -165,6 +188,7 @@ async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     user = update.effective_user
     if not user or user.id not in OWNER_IDS:
         await update.message.reply_text("⛔ Owner-only command.")
+        await _deny_group_attempt(update, context)
         return
 
     args = context.args or []
@@ -228,6 +252,7 @@ async def cmd_banuser(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     user = update.effective_user
     if not user or user.id not in OWNER_IDS:
         await update.message.reply_text("⛔ Owner-only command.")
+        await _deny_group_attempt(update, context)
         return
 
     args = context.args or []

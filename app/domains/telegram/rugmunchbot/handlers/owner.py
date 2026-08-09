@@ -27,8 +27,9 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden
 
 from app.core.logging import get_logger
+from app.domains.telegram import access_guard
 from app.domains.telegram.rugmunchbot import db
-from app.domains.telegram.rugmunchbot.config import TIERS
+from app.domains.telegram.rugmunchbot.config import OWNER_IDS, TIERS
 from app.domains.telegram.rugmunchbot.formatters import is_owner, thin_sep
 from app.domains.telegram.rugmunchbot.keyboards import admin_confirm_kb, admin_kb
 
@@ -37,9 +38,35 @@ logger = get_logger("rmi_bot")
 # Pending broadcast confirmation state (keyed by owner user_id).
 _pending_broadcast: dict[int, str] = {}
 
+# Alert target for denied attempts: the owner's private chat (chat id ==
+# user id for private chats). Pick the first owner deterministically.
+_OWNER_ALERT_CHAT: int = next(iter(sorted(OWNER_IDS)), 0)
+
 
 def _log(admin_id: int, action: str, details: str = "") -> None:
     db.log_admin_action(admin_id, action, details)
+
+
+async def _deny_admin_attempt(update: Update, ctx) -> None:
+    """Log + alert a non-owner admin attempt (defense-in-depth). Fail-open."""
+    user = update.effective_user
+    chat = update.effective_chat
+    surface = "admin-cmd"
+    if update.callback_query is not None and update.callback_query.data:
+        surface = f"cb:{update.callback_query.data}"
+    elif update.message is not None and update.message.text:
+        surface = f"cmd:{update.message.text.split()[0]}"
+    await access_guard.deny_admin_attempt(
+        bot=ctx.bot,
+        owner_chat_id=_OWNER_ALERT_CHAT,
+        bot_name="rugmunchbot",
+        surface=surface,
+        user_id=user.id if user else None,
+        username=user.username if user else None,
+        chat_id=chat.id if chat else None,
+        chat_type=chat.type if chat else None,
+        audit=db.log_admin_action,
+    )
 
 
 def _usage_line(uid: int) -> str:
@@ -51,6 +78,7 @@ async def cmd_admin(update: Update, ctx) -> None:
     """/admin — admin dashboard with stats and quick actions."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     _log(uid, "admin_dashboard")
     conn = db.get_db()
@@ -77,6 +105,7 @@ async def cmd_admin_stats(update: Update, ctx) -> None:
     """/admin_stats — users count, active today, messages today, RAG queries, AI tokens."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     _log(uid, "admin_stats")
     conn = db.get_db()
@@ -119,6 +148,7 @@ async def cmd_admin_broadcast(update: Update, ctx) -> None:
     """/admin_broadcast <message> — request confirmation, then broadcast."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
         await update.message.reply_text("Usage: /admin_broadcast <message>")
@@ -163,6 +193,7 @@ async def cmd_admin_toggle(update: Update, ctx) -> None:
     """/admin_toggle [on|off] — globally enable/disable the bot (maintenance)."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     current = db.get_bot_state("bot_enabled", "on")
     if ctx.args and ctx.args[0].lower() in ("on", "off"):
@@ -199,6 +230,7 @@ async def cmd_admin_toggle_chat(update: Update, ctx) -> None:
     """/admin_toggle_chat [on|off] — disable/enable AI chat (commands keep working)."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     current = db.get_bot_state("chat_enabled", "on")
     if ctx.args and ctx.args[0].lower() in ("on", "off"):
@@ -232,6 +264,7 @@ async def cmd_admin_user(update: Update, ctx) -> None:
     """/admin_user <user_id> — show user details, tier, usage."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
         await update.message.reply_text("Usage: /admin_user <user_id>")
@@ -289,6 +322,7 @@ async def cmd_admin_set_tier(update: Update, ctx) -> None:
     """/admin_set_tier <user_id> <tier> [days] — change user tier."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     if len(ctx.args) < 2:
         await update.message.reply_text("Usage: /admin_set_tier <user_id> <tier> [days]")
@@ -316,6 +350,7 @@ async def cmd_admin_ban(update: Update, ctx) -> None:
     """/admin_ban <user_id> — ban user."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
         await update.message.reply_text("Usage: /admin_ban <user_id>")
@@ -340,6 +375,7 @@ async def cmd_admin_unban(update: Update, ctx) -> None:
     """/admin_unban <user_id> — unban user."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
         await update.message.reply_text("Usage: /admin_unban <user_id>")
@@ -361,6 +397,7 @@ async def cmd_admin_logs(update: Update, ctx) -> None:
     """/admin_logs — recent admin actions."""
     uid = update.effective_user.id
     if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
         return
     logs = db.get_admin_logs(limit=15)
     if not logs:
