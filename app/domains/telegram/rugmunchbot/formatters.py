@@ -696,6 +696,77 @@ def format_sentinel_scan_report(data: dict) -> str:
     return format_sentinel_deepscan_section(data)
 
 
+# --- Scan-report intel helpers (own-data engines) ---
+
+
+def _bundle_alert_line(r: dict) -> str | None:
+    """Red alert banner when the own bundle-launch engine flags a bundled launch.
+
+    Reads ``r["bundle_analysis"]`` (``is_bundled`` / ``confidence`` /
+    ``risk_label``) and returns a single prominent banner line, or ``None``
+    when the scanner found no coordinated launch (or no bundle data).
+    """
+    ba = r.get("bundle_analysis")
+    if not isinstance(ba, dict) or not ba.get("is_bundled"):
+        return None
+    try:
+        conf = float(ba.get("confidence") or 0)
+    except (TypeError, ValueError):
+        conf = 0.0
+    risk = str(ba.get("risk_label") or "unknown").upper()
+    return f"\U0001f6a8 <b>BUNDLED LAUNCH DETECTED</b> \u2014 {conf:.0f}% confidence, {risk}"
+
+
+def _deployer_history_line(r: dict) -> str | None:
+    """Repeat-deployer track record line, or ``None`` when no profile exists.
+
+    Reads ``r["deployer_profile"]`` (own ``deployer_profiles`` engine) which
+    carries ``total_tokens_launched`` / ``total_deployments``, ``rugged_pct``
+    (0-1 fraction), and ``avg_lifespan_days``. Falls back to the SENTINEL
+    deep-profile ``rug_rate`` (already a percentage) when only that is set.
+    """
+    dp = r.get("deployer_profile")
+    if not isinstance(dp, dict) or not dp:
+        return None
+    tokens = int(dp.get("total_tokens_launched") or dp.get("total_deployments") or 0)
+    rugged_raw = dp.get("rugged_pct")
+    if rugged_raw is None:
+        rugged_raw = dp.get("rug_rate", 0.0)
+    try:
+        rugged_f = float(rugged_raw or 0.0)
+    except (TypeError, ValueError):
+        rugged_f = 0.0
+    rugged_pct = round(rugged_f * 100) if rugged_f <= 1.0 else round(rugged_f)
+    life_days = dp.get("avg_lifespan_days")
+    if life_days is None:
+        life_str = "unknown"
+    else:
+        try:
+            life_f = float(life_days)
+        except (TypeError, ValueError):
+            life_f = 0.0
+        life_str = f"{round(life_f)} days" if life_f >= 1 else f"{round(life_f * 24)} hours"
+    return f"\U0001f464 <b>Repeat Deployer</b>: {tokens} tokens, {rugged_pct}% rugged, avg life {life_str}"
+
+
+def _wallet_freshness_line(r: dict) -> str | None:
+    """Wallet freshness + CEX-funding line, or ``None`` when no metrics.
+
+    Reads ``r["wallet_metrics"]`` (``fresh_wallet_pct`` / ``cex_funded_pct``)
+    and returns a compact line. Skips the graceful-degradation payload
+    (``result == "unavailable"``) so a failed engine never renders zeros.
+    """
+    wm = r.get("wallet_metrics")
+    if not isinstance(wm, dict) or wm.get("result") == "unavailable":
+        return None
+    try:
+        fresh = float(wm.get("fresh_wallet_pct") or 0)
+        cex = float(wm.get("cex_funded_pct") or 0)
+    except (TypeError, ValueError):
+        return None
+    return f"\U0001f195 {fresh:.0f}% fresh wallets (<30 days), \U0001f3e6 {cex:.0f}% CEX-funded"
+
+
 # --- Format scan report ---
 def format_scan_report(r: dict) -> str:
     s = sep()
@@ -719,19 +790,26 @@ def format_scan_report(r: dict) -> str:
         s,
         f"<b>{r['name']}</b> ({r['symbol']}) {chain_str}{age_str}",
         f"<code>{r['address']}</code>",
-        "",
-        "\U0001f4ca <b>Market Data</b>",
-        d,
-        f"\U0001f4b0 Price: <b>{fmt_number(r['price'])}</b>",
-        f"\U0001f4c8 Market Cap: <b>{fmt_number(r['mcap'])}</b>",
-        f"\U0001f4a7 Liquidity: <b>{fmt_number(r['liquidity'])}</b>",
-        f"\U0001f4ca 24h Volume: <b>{fmt_number(r['volume_24h'])}</b>",
-        f"\U0001f504 1h: {fmt_pct(r['price_change_1h'])} | 24h: {fmt_pct(r['price_change_24h'])} | 7d: {fmt_pct(r['price_change_7d'])}",
-        "",
-        "\U0001f512 <b>Security</b>",
-        d,
-        risk_bar(r["risk_score"]),
     ]
+    bundle_alert = _bundle_alert_line(r)
+    if bundle_alert:
+        lines.append(bundle_alert)
+    lines.extend(
+        [
+            "",
+            "\U0001f4ca <b>Market Data</b>",
+            d,
+            f"\U0001f4b0 Price: <b>{fmt_number(r['price'])}</b>",
+            f"\U0001f4c8 Market Cap: <b>{fmt_number(r['mcap'])}</b>",
+            f"\U0001f4a7 Liquidity: <b>{fmt_number(r['liquidity'])}</b>",
+            f"\U0001f4ca 24h Volume: <b>{fmt_number(r['volume_24h'])}</b>",
+            f"\U0001f504 1h: {fmt_pct(r['price_change_1h'])} | 24h: {fmt_pct(r['price_change_24h'])} | 7d: {fmt_pct(r['price_change_7d'])}",
+            "",
+            "\U0001f512 <b>Security</b>",
+            d,
+            risk_bar(r["risk_score"]),
+        ]
+    )
     if r.get("safety_score") is None:
         # Legacy scan: threats are listed here. v2 scans surface them as
         # "Red Flags" in the Explainable Scoring block below.
@@ -766,10 +844,19 @@ def format_scan_report(r: dict) -> str:
             cf = " \U0001f4c4" if h.get("is_contract") else ""
             lines.append(f"  {i}. <code>{h['address']}</code> - {h['pct']:.1f}%{tag}{cf}")
     adv = []
-    if r["bundle_detected"]:
+    has_bundle_alert = bundle_alert is not None
+    if r["bundle_detected"] and not has_bundle_alert:
         adv.append("\U0001f578\ufe0f Bundle activity detected")
-    if r["fresh_wallet_pct"] > 0:
+    # Richer own-engine wallet metrics (fresh % + CEX %) replace the legacy
+    # fresh-wallet line when present, so we never double-report freshness.
+    wallet_line = _wallet_freshness_line(r)
+    if wallet_line:
+        adv.append(wallet_line)
+    elif r["fresh_wallet_pct"] > 0:
         adv.append(f"\U0001f195 Fresh wallets: {r['fresh_wallet_pct']:.0f}%")
+    deployer_line = _deployer_history_line(r)
+    if deployer_line:
+        adv.append(deployer_line)
     if r["volume_real_ratio"] is not None:
         adv.append(f"\U0001f4ca Vol/MCap ratio: {r['volume_real_ratio']:.2f}x")
     if r["dev_wallet"]:

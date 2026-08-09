@@ -503,6 +503,18 @@ def v2_token_to_legacy(data: dict) -> dict[str, Any]:
         "sentinel": data.get("sentinel"),
         # v2 news sentiment (RugBrain news_v2)
         "news_sentiment": data.get("news_sentiment"),
+        # v2 own-data intel (bundle launch detection, wallet freshness
+        # metrics, repeat-deployer track record) — surfaced as the
+        # "Advanced Analysis" / banner blocks on /scan. The backend exposes
+        # these at the top level of the v2 payload; degrade gracefully when
+        # absent (legacy or older backend).
+        "bundle_analysis": data.get("bundle_analysis"),
+        "wallet_metrics": data.get("wallet_metrics"),
+        "deployer_profile": (
+            data.get("deployer_profile")
+            or (data.get("deep_profile") or {}).get("deployer_profile")
+            or (evidence.get("deployer") or {}).get("deployer_profile")
+        ),
     }
 
 
