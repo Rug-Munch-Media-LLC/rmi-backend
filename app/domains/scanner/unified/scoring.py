@@ -76,6 +76,17 @@ _BASELINE = 50.0
 HONEYPOT_PENALTY = -35.0
 HONEYPOT_CHECK_IDS: frozenset[str] = frozenset({"HP01", "HP02"})
 
+# Confirmed-honeypot override: a honeypot is the single most decisive rug
+# signal, so once HONEYPOT_DETECTED fires, clean-looking checks in OTHER
+# modules must not be able to lift the token back out of the critical band.
+# Real-world calibration (Carbon/CSIX on BSC, GoPlus is_honeypot=1): the
+# -35 penalty alone left the token at safety 29 ("high", risk 71) because
+# seven passing security checks (+14) eroded the delta. The override caps
+# the final safety score below the critical boundary (risk > 80) regardless
+# of bonuses. Note the band mapping: safety >= 20 → "high", so the cap must
+# be strictly below 20 to guarantee "critical".
+HONEYPOT_OVERRIDE_MAX_SAFETY = 19.0  # safety <= 19 → risk >= 81 (critical)
+
 # Detected bundle launch (coordinated sniper/bot buys in the first blocks
 # after deployment — own ClickHouse bundle_analysis). A confirmed launch
 # bundle is a decisive coordinated-launch signal, penalized in the security
@@ -405,6 +416,13 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
     # ── Clamp ──
     r.safety_score = max(0.0, min(100.0, score))
     r.confidence = min(confidence, 100.0)
+
+    # ── Confirmed-honeypot override ──
+    # A confirmed honeypot (HP01/HP02 auto-fail) is decisive: cap the final
+    # safety score at the critical boundary so green bonuses in other
+    # modules cannot mask it. See HONEYPOT_OVERRIDE_MAX_SAFETY above.
+    if "HONEYPOT_DETECTED" in flags:
+        r.safety_score = min(r.safety_score, HONEYPOT_OVERRIDE_MAX_SAFETY)
 
     # ── Risk level ──
     r.risk_level = _risk_level_from_score(r.safety_score)
