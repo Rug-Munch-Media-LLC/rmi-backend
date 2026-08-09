@@ -55,7 +55,7 @@ SUPPORT_EMAIL = "biz@rugmunch.io"
 # Bot profile (set via BotFather API on startup)
 BOT_DESCRIPTION = (
     "🛡️ RugMunch Intelligence - The Bloomberg Terminal of Shitcoins\n\n"
-    "Scan any token across 77+ chains for honeypots, rug pulls, bundles, "
+    "Scan any token across 25+ chains for honeypots, rug pulls, bundles, "
     "fake volume, and dev wallet history. AI-powered risk scoring with "
     "real-time alerts.\n\n"
     "🔍 Multi-chain token scanning\n"
@@ -65,7 +65,7 @@ BOT_DESCRIPTION = (
     "📚 Free crypto scam education\n\n"
     "🌐 rugmunch.io"
 )
-BOT_SHORT_DESCRIPTION = "🛡️ Crypto scam detection & token intelligence across 77+ chains. Free tier available."
+BOT_SHORT_DESCRIPTION = "🛡️ AI crypto intelligence — scan tokens, trace wallets, detect rugs before you buy. Free in beta."
 
 # ══════════════════════════════════════════════
 # API ENDPOINTS

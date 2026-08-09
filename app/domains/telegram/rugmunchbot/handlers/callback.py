@@ -128,7 +128,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     elif data == "menu_cat_scan":
         await query.edit_message_text(
             "\U0001f50d <b>Scan</b>\n\n"
-            "Security audits across 77+ chains \u2014 Quick Scan, full "
+            "Security audits across 25+ chains \u2014 Quick Scan, full "
             "forensic Deep Scan, SENTINEL 9-module analysis, rug checks, "
             "deployer fingerprint and hype/compare tools.",
             parse_mode=ParseMode.HTML,
@@ -816,7 +816,7 @@ _RUN_CARDS: dict[str, str] = {
         "Usage: <code>/scan &lt;address&gt; [chain]</code>\n\n"
         "Or just paste any contract address \u2014 I auto-detect it!\n\n"
         "\U0001f4a1 Checks honeypots, rug pulls, bundles, fake volume, "
-        "dev history and liquidity across 77+ chains.\n\n"
+        "dev history and liquidity across 25+ chains.\n\n"
         "\U0001f52c Want more? Use <code>/deepscan &lt;address&gt;</code> "
         "for the full multi-phase forensic audit."
     ),

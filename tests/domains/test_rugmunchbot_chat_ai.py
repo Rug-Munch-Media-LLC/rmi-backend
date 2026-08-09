@@ -478,7 +478,7 @@ def _patch_dex(monkeypatch: pytest.MonkeyPatch, *, status: int = 200, pairs: lis
 
 class TestLocalIntent:
     def test_greeting(self) -> None:
-        assert "Hey there" in (chat_ai.local_ai_response("hi there", None) or "")
+        assert "Yo! I'm here" in (chat_ai.local_ai_response("hi there", None) or "")
 
     def test_help(self) -> None:
         assert "RugMunch Capabilities" in (chat_ai.local_ai_response("what can you do", None) or "")

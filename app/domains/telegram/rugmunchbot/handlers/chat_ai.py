@@ -720,18 +720,24 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
     (
         re.compile(
             r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|"
-            r"gm|gn|what'?s up|welcome)\b",
+            r"gm|gn|what'?s up|welcome|are you (there|alive|up|online|working)|"
+            r"you (there|alive|up|online|working)|ping|wake up|respond)\b",
             re.IGNORECASE,
         ),
         (
-            "\U0001f44b <b>Hey there!</b>\n\n"
-            "I'm <b>RugMunch</b> \u2014 veteran crypto analyst. "
-            "I scan tokens for scams, analyze wallets, track prices, and "
-            "back every read with on-chain evidence across 77+ chains.\n\n"
-            "\U0001f6e1\ufe0f <b>Try these:</b>\n"
-            "\u2022 Paste a contract address \u2192 auto scan\n"
-            "\u2022 <code>$TOKEN</code> \u2192 instant price\n"
-            "\u2022 <code>/help</code> \u2192 all commands"
+            "\U0001f44b <b>Yo! I'm here.</b>\n\n"
+            "I'm <b>RugMunchBot</b> \u2014 the AI analyst from the <b>Rug Munch Intelligence</b> platform. "
+            "I scan tokens for rugs, profile wallets, track whales, and "
+            "answer crypto questions backed by 91K+ intel documents across 25+ chains.\n\n"
+            "\U0001f6e1\ufe0f <b>Quick start:</b>\n"
+            "\u2022 Paste a contract address \u2192 instant scam scan\n"
+            "\u2022 <code>/scan &lt;addr&gt;</code> \u2192 deep security audit\n"
+            "\u2022 <code>/wallet &lt;addr&gt;</code> \u2192 wallet forensics\n"
+            "\u2022 <code>/market</code> \u2192 live market overview\n"
+            "\u2022 <code>$TOKEN</code> \u2192 price lookup\n"
+            "\u2022 <code>/help</code> \u2192 full command list\n\n"
+            "Or just ask me anything about crypto \u2014 scams, hacks, market moves, "
+            "regulations, whatever's on your mind."
             f"{footer_links()}"
         ),
     ),
@@ -816,23 +822,49 @@ _CHAT_DISABLED = (
 )
 
 _THINKING_GENERAL = (
-    "\U0001f916 <b>Thinking...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
-    "\U0001f50d Searching our 91K-document intelligence database..."
+    "\U0001f916 <b>On it...</b>\n\n\U0001f4ac <i>{question}</i>\n\n\U0001f50d Checking our intelligence database..."
 )
 
 _THINKING_ADDRESS = (
-    "\U0001f916 <b>Thinking...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
-    "\U0001f575\ufe0f Analyzing token data + cross-referencing exploit patterns + checking news..."
+    "\U0001f916 <b>On it...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f575\ufe0f Running token scan \u2192 checking exploit history \u2192 pulling live market data..."
 )
 
 _THINKING_INVESTIGATE = (
-    "\U0001f916 <b>Thinking...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
-    "\U0001f4da Checking research collections, scanner data, and live news..."
+    "\U0001f916 <b>Deep diving...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f4da Cross-referencing research collections + scanner data + news feeds..."
+)
+
+_THINKING_PRICE = (
+    "\U0001f916 <b>Looking that up...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f4b0 Fetching live prices + market data..."
+)
+
+_THINKING_NEWS = (
+    "\U0001f916 <b>Checking the wire...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f4f0 Pulling latest crypto news + market intelligence..."
+)
+
+_THINKING_SCAM = (
+    "\U0001f916 <b>Checking the threat board...</b>\n\n\U0001f4ac <i>{question}</i>\n\n"
+    "\U0001f6e1\ufe0f Searching scam databases + exploit patterns + known rug pulls..."
 )
 
 # "Investigate-style" intents get the research-collections placeholder instead
 # of the generic DB-search one (matches the /investigate deep-dive framing).
 _INVESTIGATE_INTENT_RE = re.compile(r"\b(investigat\w*|deep dive|forensic|trace this|dig into)\b", re.IGNORECASE)
+
+
+# Price/market queries get a market-data message.
+_PRICE_INTENT_RE = re.compile(r"\b(price|cost|worth|value|market cap|mcap|how much|trading at)\b", re.IGNORECASE)
+
+# News queries get a news-feed message.
+_NEWS_INTENT_RE = re.compile(
+    r"\b(news|latest|headline|happened|today|breaking|update|what'?s going on)\b", re.IGNORECASE
+)
+
+# Scam/security queries get a threat-intel message.
+_SCAM_INTENT_RE = re.compile(r"\b(scam|rug|honeypot|exploit|hack|ponzi|fraud|safe|trust)\b", re.IGNORECASE)
 
 
 def _thinking_template(text: str, has_address: bool) -> str:
@@ -847,6 +879,12 @@ def _thinking_template(text: str, has_address: bool) -> str:
         return _THINKING_ADDRESS
     if _INVESTIGATE_INTENT_RE.search(text):
         return _THINKING_INVESTIGATE
+    if _SCAM_INTENT_RE.search(text):
+        return _THINKING_SCAM
+    if _NEWS_INTENT_RE.search(text):
+        return _THINKING_NEWS
+    if _PRICE_INTENT_RE.search(text):
+        return _THINKING_PRICE
     return _THINKING_GENERAL
 
 
