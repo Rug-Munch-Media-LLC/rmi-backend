@@ -8,6 +8,7 @@ used by handlers and other modules.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -612,15 +613,11 @@ def format_sentinel_deepscan_section(data: dict) -> str:
             )
             lines.append(f"  {hhi_emoji} HHI Concentration: <b>{hhi_f:.0f}</b> ({holder.get('risk_level', 'unknown')})")
         if holder.get("total_holders") is not None:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 lines.append(f"  \U0001f465 Total Holders: <b>{int(holder['total_holders']):,}</b>")
-            except (TypeError, ValueError):
-                pass
         if holder.get("top_10_percentage") is not None:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 lines.append(f"  \U0001f40b Top-10 Supply: <b>{float(holder['top_10_percentage']):.0f}%</b>")
-            except (TypeError, ValueError):
-                pass
         for w in (holder.get("warnings") or [])[:3]:
             lines.append(f"  \u26a0\ufe0f {str(w)[:120]}")
         lines.append("")
@@ -662,26 +659,20 @@ def format_sentinel_deepscan_section(data: dict) -> str:
         rep_score = dev.get("reputation_score")
         rep_level = str(dev.get("reputation_level") or "unknown")
         if rep_score is not None:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 lines.append(
                     f"  {_risk_level_emoji(rep_level)} Reputation: <b>{int(rep_score)}/100</b> ({rep_level.title()})"
                 )
-            except (TypeError, ValueError):
-                pass
         if dev.get("total_launches") is not None:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 lines.append(
                     f"  \U0001f4e6 Launches: <b>{int(dev['total_launches'])}</b> | "
                     f"Rugged: <b>{int(dev.get('rugged_count') or 0)}</b>"
                 )
-            except (TypeError, ValueError):
-                pass
         rug_rate = dev.get("rug_rate")
         if rug_rate is not None:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 lines.append(f"  \U0001f4a5 Rug Rate: <b>{float(rug_rate) * 100:.0f}%</b>")
-            except (TypeError, ValueError):
-                pass
         for w in (dev.get("warnings") or [])[:3]:
             lines.append(f"  \u26a0\ufe0f {str(w)[:120]}")
         lines.append("")
@@ -783,13 +774,20 @@ def _wallet_freshness_line(r: dict) -> str | None:
     )
 
 
-def format_wallet_composition_section(r: dict) -> str:
+def format_wallet_composition_section(r: dict, token_created_ts: str | None = None) -> str:
     """Full wallet-composition block for /deepscan (own funding_analysis engine).
 
     Combines ``wallet_metrics`` (fresh <30d / CEX-funded / first-tx-this-token)
     with the ``funding_analysis`` evidence (mixer-funded %, risk assessment).
     Returns an empty string when neither payload has data — deepscan simply
     omits the section.
+
+    Coverage honesty: ``wallet_metrics.coverage_start_ts`` is the start of
+    the indexer's transfer window for this token. When the token's creation
+    time (``token_created_ts``, from DexScreener) predates coverage by >7
+    days, the indexer missed the token's early history and every holder
+    looks <30 days old — fresh/brand-new percentages are artifacts. In that
+    case only the label-based CEX line renders, under a data-coverage caveat.
     """
     wm = r.get("wallet_metrics") if isinstance(r.get("wallet_metrics"), dict) else {}
     if wm.get("result") == "unavailable":
@@ -804,10 +802,41 @@ def format_wallet_composition_section(r: dict) -> str:
         except (TypeError, ValueError):
             return None
 
-    fresh = _f(wm.get("fresh_wallet_pct"))
     cex = _f(wm.get("cex_funded_pct"))
-    first_tx = _f(wm.get("first_tx_pct"))
     analyzed = int(wm.get("holders_analyzed") or 0)
+    scope = f" (top {analyzed} holders)" if analyzed else ""
+
+    # ── Coverage-gap branch: fresh/brand-new are indexer artifacts ──
+    coverage_iso = wm.get("coverage_start_ts")
+    if cex is not None and coverage_iso and token_created_ts:
+        try:
+            import datetime as _dt
+
+            cov = _dt.datetime.fromisoformat(str(coverage_iso).replace("Z", "+00:00"))
+            created = _dt.datetime.fromisoformat(str(token_created_ts).replace("Z", "+00:00"))
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=_dt.UTC)
+            if cov.tzinfo is None:
+                cov = cov.replace(tzinfo=_dt.UTC)
+            gap_days = (cov - created).total_seconds() / 86400.0
+            if gap_days > 7:
+                lines = [
+                    "\U0001f45b <b>Wallet Composition</b>" + scope,
+                    thin_sep(),
+                    (
+                        f"\u26a0\ufe0f Transfer coverage starts "
+                        f"{cov.date().isoformat()} (token created {created.date().isoformat()}) — "
+                        "fresh/brand-new stats skipped, indexer missed early history."
+                    ),
+                ]
+                if cex is not None:
+                    lines.append(f"\U0001f3e6 Exchange-funded (CEX, label-based): <b>{cex:.1f}%</b>")
+                return "\n".join(lines)
+        except (TypeError, ValueError):
+            pass  # unparseable dates — fall through to the full block
+
+    fresh = _f(wm.get("fresh_wallet_pct"))
+    first_tx = _f(wm.get("first_tx_pct"))
     mixer = _f(funding.get("mixer_funded_pct"))
     risk = str(funding.get("risk_assessment") or "").upper()
 
@@ -827,7 +856,6 @@ def format_wallet_composition_section(r: dict) -> str:
         lines.append(f"{emoji} Funding risk: <b>{risk}</b>")
     if not lines:
         return ""
-    scope = f" (top {analyzed} holders)" if analyzed else ""
     return "\U0001f45b <b>Wallet Composition</b>" + scope + "\n" + thin_sep() + "\n" + "\n".join(lines)
 
 

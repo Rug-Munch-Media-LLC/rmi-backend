@@ -226,6 +226,42 @@ class TestWalletCompositionSection:
         assert "Mixer-funded" not in out
         assert "80.0%" in out
 
+    def test_coverage_gap_suppresses_fresh_stats(self) -> None:
+        """Old token, late indexing — fresh/brand-new are artifacts; only the
+        label-based CEX line renders, under a data-coverage caveat."""
+        report = _base_report()
+        report["wallet_metrics"] = {
+            "result": "scanned",
+            "holders_analyzed": 50,
+            "fresh_wallet_pct": 98.0,
+            "cex_funded_pct": 18.0,
+            "first_tx_pct": 26.0,
+            "coverage_start_ts": "2026-07-30T00:00:00+00:00",
+        }
+        out = format_wallet_composition_section(report, token_created_ts="2023-05-05T00:00:00+00:00")
+        assert "Fresh wallets" not in out
+        assert "Brand-new" not in out
+        assert "Transfer coverage starts 2026-07-30" in out
+        assert "token created 2023-05-05" in out
+        assert "Exchange-funded (CEX, label-based): <b>18.0%</b>" in out
+
+    def test_full_coverage_renders_stats_with_creation_time(self) -> None:
+        """New token covered since launch — the full block renders."""
+        report = _base_report()
+        report["wallet_metrics"] = {
+            "result": "scanned",
+            "holders_analyzed": 25,
+            "fresh_wallet_pct": 60.0,
+            "cex_funded_pct": 10.0,
+            "first_tx_pct": 30.0,
+            "coverage_start_ts": "2026-08-05T00:00:00+00:00",
+        }
+        out = format_wallet_composition_section(report, token_created_ts="2026-08-06T00:00:00+00:00")
+        assert "Fresh wallets (<30d): <b>60.0%</b>" in out
+        assert "Brand-new (1st tx = this token): <b>30.0%</b>" in out
+        assert "Exchange-funded (CEX): <b>10.0%</b>" in out
+        assert "Transfer coverage starts" not in out
+
 
 class TestAllIntelTogether:
     def test_all_sections_render_when_present(self) -> None:
