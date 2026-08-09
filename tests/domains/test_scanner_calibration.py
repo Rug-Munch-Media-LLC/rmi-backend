@@ -100,3 +100,46 @@ class TestHoneypotBand:
         )
         assert out["score"] < HONEYPOT_OVER_BONUSES_MAX
         assert out["risk_level"] in ("high", "critical")
+
+    def test_honeypot_with_green_security_checks_still_critical(self) -> None:
+        """Real-world regression (Carbon/CSIX, BSC, GoPlus is_honeypot=1):
+        the -35 penalty alone was eroded by seven passing security checks
+        (+14) to safety 29 ("high", risk 71). A confirmed honeypot must land
+        in the critical band regardless of green bonuses in other checks."""
+        out = compute_score(
+            _result(
+                modules_run=["token_security"],
+                security={
+                    "checks": {
+                        "HP01": {"status": "fail", "details": "GoPlus honeypot=YES"},
+                        "CR01": {"status": "pass", "details": "Verified=YES"},
+                        "CR02": {"status": "pass", "details": "Proxy=no"},
+                        "CR03": {"status": "pass", "details": "Mintable=no"},
+                        "HP04": {"status": "pass", "details": "Pausable=no"},
+                        "CR04": {"status": "pass", "details": ""},
+                        "HD03": {"status": "pass", "details": "Holders=27583"},
+                        "LR03": {"status": "pass", "details": "Anti-whale=no"},
+                    }
+                },
+            )
+        )
+        assert out["score"] < HONEYPOT_CRITICAL_MAX
+        assert out["risk_level"] == "critical"
+        assert "HONEYPOT_DETECTED" in out["breakdown"]["security"]["flags"]
+
+    def test_honeypot_override_wins_over_all_clean_modules(self) -> None:
+        """Honeypot + every module clean → still critical (override beats
+        bonuses from liquidity/holders/deployer/volume too)."""
+        out = compute_score(
+            _result(
+                modules_run=["token_security", "liquidity", "holders", "deployer", "volume"],
+                security=_honeypot_checks(),
+                liquidity={"locked_pct": 95},
+                holders={"top_10_pct": 20},
+                dev_reputation={"risk_score": 10},
+                volume_auth={"fake_volume_pct": 5},
+            )
+        )
+        assert out["score"] < HONEYPOT_CRITICAL_MAX
+        assert out["risk_level"] == "critical"
+        assert "HONEYPOT_DETECTED" in out["breakdown"]["security"]["flags"]
