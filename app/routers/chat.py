@@ -22,8 +22,6 @@ import asyncio
 import json
 import os
 import re
-import sqlite3
-import tempfile
 import time
 import uuid
 from datetime import UTC, datetime
@@ -38,7 +36,7 @@ from app.ai_router import (
     chat_completion as do_chat_completion,
     stream_chat_completion as do_stream_chat_completion,
 )
-from app.auth import get_current_user, require_auth
+from app.auth import get_current_user
 from app.core.errors import AuthorizationError, ExternalAPIError
 from app.core.logging import get_logger
 from app.core.web_search import searxng_search
@@ -47,9 +45,16 @@ from app.core.web_search import searxng_search
 from app.security.ai_guard import AIGuard
 from app.security.chat_guardrails import get_chat_rate_limiter
 
+from .chat_db import _get_db
+from .chat_history import router as chat_history_router
+
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
+
+# ── History / stats sub-router (extracted) ──
+router.include_router(chat_history_router)
+
 
 # Initialize guard
 ai_guard = AIGuard()
@@ -59,26 +64,6 @@ if TYPE_CHECKING:
 
     import redis.asyncio as redis
 
-
-# ── DB path ──
-# The container runs read-only except /tmp and /dev/shm, so /app/data is not
-# writable at runtime. Allow override via CHAT_DB_PATH; fall back to the
-# repo data dir when writable, otherwise a per-app temp dir.
-def _resolve_db_path() -> str:
-    override = os.getenv("CHAT_DB_PATH", "").strip()
-    if override:
-        return override
-    repo_data = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "rmi.db")
-    try:
-        os.makedirs(os.path.dirname(repo_data), exist_ok=True)
-        return repo_data
-    except OSError:
-        fallback_dir = os.path.join(tempfile.gettempdir(), "rmi")
-        os.makedirs(fallback_dir, exist_ok=True)
-        return os.path.join(fallback_dir, "chat.db")
-
-
-DB_PATH = _resolve_db_path()
 
 # ── Free API endpoints for market context ──
 COINGECKO_API = "https://api.coingecko.com/api/v3"
@@ -105,39 +90,6 @@ async def _get_client() -> httpx.AsyncClient:
             headers={"User-Agent": "RugMunchIntelligence/1.0"},
         )
     return _http_client
-
-
-# ── Database helpers ──
-def _get_db() -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
-
-
-def _ensure_tables() -> None:
-    conn = _get_db()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS chat_messages (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL,
-            metadata TEXT DEFAULT '{}',
-            created_at TEXT DEFAULT (datetime('now'))
-        )
-    """)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_user ON chat_messages(user_id, created_at)")
-    conn.commit()
-    conn.close()
-
-
-try:
-    _ensure_tables()
-except Exception:
-    # Router must mount even if the DB layer is unavailable (e.g. read-only
-    # filesystem) — the handlers degrade gracefully per-request.
     logger.warning("chat_db_init_failed", exc_info=True)
 
 
@@ -730,7 +682,7 @@ async def chat(
         "provider": result.get("_provider", ""),
         "latency_ms": result.get("_latency_ms", 0),
         "usage": result.get("usage", {}),
-        # Honest RAG grounding count (real unique hits, not collections × top_k).
+        # Honest RAG grounding count (real unique hits, not collections x top_k).
         "x_rag_context": rag_count,
     }
 
@@ -839,67 +791,3 @@ async def chat_stream(
         media_type="text/event-stream",
         headers=stream_headers,
     )
-
-
-@router.get("/history")
-async def chat_history(
-    limit: int = 50,
-    offset: int = 0,
-    user: dict[str, Any] = Depends(require_auth),
-) -> dict[str, int]:
-    """Get user's chat history."""
-    user_id = user.get("id")
-
-    conn = _get_db()
-    rows = conn.execute(
-        """SELECT id, role, content, metadata, created_at
-           FROM chat_messages
-           WHERE user_id = ?
-           ORDER BY created_at DESC
-           LIMIT ? OFFSET ?""",
-        (user_id, limit, offset),
-    ).fetchall()
-    conn.close()
-
-    messages = []
-    for row in rows:
-        messages.append(
-            {
-                "id": row["id"],
-                "role": row["role"],
-                "content": row["content"],
-                "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
-                "created_at": row["created_at"],
-            }
-        )
-
-    return {"count": len(messages), "messages": list(reversed(messages))}
-
-
-@router.get("/stats")
-async def chat_stats(user: dict[str, Any] = Depends(require_auth)) -> dict[str, Any]:
-    """Get user's chat statistics."""
-    user_id = user.get("id")
-
-    conn = _get_db()
-    total = conn.execute("SELECT COUNT(*) FROM chat_messages WHERE user_id = ?", (user_id,)).fetchone()[0]
-    total_users = conn.execute("SELECT COUNT(DISTINCT user_id) FROM chat_messages").fetchone()[0]
-    conn.close()
-
-    return {
-        "total_messages": total,
-        "total_conversations": total_users,
-    }
-
-
-@router.delete("/history")
-async def clear_chat_history(user: dict[str, Any] = Depends(require_auth)) -> dict[str, str]:
-    """Clear user's chat history."""
-    user_id = user.get("id")
-
-    conn = _get_db()
-    conn.execute("DELETE FROM chat_messages WHERE user_id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-
-    return {"status": "ok", "message": "Chat history cleared"}
