@@ -72,7 +72,10 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 try:
     from clickhouse_driver.errors import Error as CHDriverError
@@ -125,7 +128,7 @@ _CACHE_TTL = 300  # 5 minutes in-process mirror
 _CACHE_MAX = 200
 
 # ── Query / analysis limits (time-boxing) ─────────────────────────────────
-_QUERY_TIMEOUT_SECONDS = 10
+_QUERY_TIMEOUT_SECONDS = 20
 _MAX_HOLDERS = 50  # top-N holders analyzed for funding sources
 _MAX_SCAM_TOKENS = 5  # known-scam tokens cross-referenced for overlap
 
@@ -739,6 +742,19 @@ async def _compute_wallet_metrics(
     if not holder_addrs:
         return _wallet_metrics_unavailable(token_address, chain, reason="no holder data")
 
+    # ── 1b. Indexer coverage window for this token (freshness honesty) ──
+    # The first-tx lookup below can only see the indexer's transfer window.
+    # If the token launched before the window started (old token, late
+    # indexing), every holder looks freshly-born — an artifact we expose to
+    # callers instead of letting them print bogus fresh/brand-new %.
+    coverage_start = await run_sync(_query_token_coverage_start, token_address, chain)
+    if coverage_start is not None:
+        coverage_start_ts = to_iso(coverage_start)
+        coverage_days = round((time.time() - coverage_start.timestamp()) / 86400.0, 1)
+    else:
+        coverage_start_ts = None
+        coverage_days = None
+
     # ── 2. First-ever on-chain tx per holder (wallet age + first-tx token) ──
     # Both directions run concurrently on DEDICATED connections (the shared
     # client rejects simultaneous queries) — each is a chain-partition scan
@@ -838,13 +854,21 @@ async def _compute_wallet_metrics(
             }
         )
 
-    return _aggregate_wallet_metrics(holder_details, token_address, chain)
+    return _aggregate_wallet_metrics(
+        holder_details,
+        token_address,
+        chain,
+        coverage_start_ts=coverage_start_ts,
+        coverage_days=coverage_days,
+    )
 
 
 def _aggregate_wallet_metrics(
     holder_details: list[dict[str, Any]],
     token_address: str,
     chain: str,
+    coverage_start_ts: str | None = None,
+    coverage_days: float | None = None,
 ) -> dict[str, Any]:
     """Aggregate per-holder freshness details into token-level percentages.
 
@@ -852,6 +876,11 @@ def _aggregate_wallet_metrics(
       - ``fresh_wallet_pct`` — holders with wallet age < 30 days
       - ``cex_funded_pct`` — holders whose first funder is a CEX wallet
       - ``first_tx_pct`` — holders whose first-ever on-chain tx is this token
+
+    ``coverage_start_ts`` / ``coverage_days`` describe how far back the
+    indexer's transfer history goes for this token. When the window starts
+    long after the token launched, fresh/brand-new percentages are artifacts
+    of the gap and MUST be caveated by the caller (see the bot formatter).
     """
     analyzed = len(holder_details)
     if not analyzed:
@@ -875,10 +904,14 @@ def _aggregate_wallet_metrics(
         "cex_funded_count": cex_count,
         "first_tx_count": first_tx_count,
         "holder_details": holder_details,
+        "coverage_start_ts": coverage_start_ts,
+        "coverage_days": coverage_days,
         "note": (
             "fresh_wallet_pct = holders with wallet <30 days old; "
             "cex_funded_pct = holders whose first funder is a CEX wallet; "
-            "first_tx_pct = holders whose first-ever on-chain tx is this token"
+            "first_tx_pct = holders whose first-ever on-chain tx is this token; "
+            "coverage_start_ts = start of the indexer's transfer window for this token "
+            "(fresh stats unreliable when it postdates the token launch)"
         ),
     }
 
@@ -1199,6 +1232,34 @@ def _query_wallet_first_funder(address: str, chain: str) -> list[tuple[Any, ...]
         )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("wallet_first_funder_query_failed: %s", exc)
+        return None
+
+
+def _query_token_coverage_start(token_address: str, chain: str) -> datetime | None:
+    """Earliest indexed transfer timestamp for this token — the data window.
+
+    Freshness / brand-new / first-funder stats are only trustworthy when this
+    window covers the token's full history (coverage start ≈ token launch).
+    Late coverage — the indexer started tracking an old token recently —
+    makes every holder look <30 days old. That is an indexing artifact, not
+    a market signal, and callers must surface it as a coverage caveat.
+    """
+    client = _get_ch_client()
+    if client is None:
+        return None
+    try:
+        rows = client.execute(
+            """
+            SELECT min(block_timestamp)
+            FROM wallet_memory.evm_transfers
+            WHERE chain = %(chain)s AND token_address = %(token)s
+            """,
+            {"token": token_address, "chain": chain},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        return rows[0][0] if rows and rows[0][0] is not None else None
+    except (ValueError, RuntimeError, OSError):
+        logger.debug("token_coverage_start_query_failed: %s", token_address[:12])
         return None
 
 

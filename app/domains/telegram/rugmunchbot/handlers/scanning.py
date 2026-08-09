@@ -79,6 +79,35 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot")
 
 
+def _ds_pairs(data: Any) -> list[dict[str, Any]]:
+    """Normalize DexScreener token responses (dict ``{"pairs": [...]}`` or
+    bare list — the API has served both shapes) into a pair list."""
+    if isinstance(data, dict):
+        pairs = data.get("pairs") or []
+    elif isinstance(data, list):
+        pairs = data
+    else:
+        pairs = []
+    return [p for p in pairs if isinstance(p, dict)]
+
+
+def _ds_created_iso(pair: dict[str, Any]) -> str | None:
+    """DexScreener pair creation time (``pairCreatedAt``, ms epoch) as ISO.
+
+    Returns None when absent — callers treat it as 'creation unknown'.
+    """
+    ms = pair.get("pairCreatedAt")
+    try:
+        ms = int(ms or 0)
+    except (TypeError, ValueError):
+        return None
+    if ms <= 0:
+        return None
+    import datetime as _dt
+
+    return _dt.datetime.fromtimestamp(ms / 1000.0, tz=_dt.UTC).isoformat()
+
+
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None:
@@ -425,11 +454,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         # ── Enrichment phase (best-effort, non-blocking) ──
         enrichment_lines: list[str] = []
         chain_norm = chain or result.get("chain") or detect_chain(target)
-        # Wallet composition from the own funding_analysis engine (fresh /
-        # brand-new / CEX-funded %) — the deepscan-only forensic block.
-        wallet_section = format_wallet_composition_section(result)
-        if wallet_section:
-            enrichment_lines.append(wallet_section)
+        token_created_ts: str | None = None
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 g_r, i_r = await asyncio.gather(
@@ -461,9 +486,10 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 if gd.get("similar_scams"):
                     enrichment_lines.append(f"\U0001f6a8 Similar scams: {len(gd['similar_scams'])}")
             if isinstance(i_r, httpx.Response) and i_r.status_code == 200:
-                pairs = i_r.json().get("pairs", [])
+                pairs = _ds_pairs(i_r.json())
                 if pairs:
                     p = pairs[0]
+                    token_created_ts = _ds_created_iso(p)
                     enrichment_lines.append(
                         f"\U0001f4c8 <b>Market Snapshot</b>\n{thin_sep()}\n"
                         f"\U0001f4b0 {fmt_number(p.get('priceUsd', 0))} | "
@@ -474,6 +500,15 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     )
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError):
             logger.debug("deepscan enrichment unavailable for %s", target, exc_info=True)
+
+        # Wallet composition from the own funding_analysis engine (fresh /
+        # brand-new / CEX-funded %) — the deepscan-only forensic block.
+        # ``token_created_ts`` (DexScreener pair creation) lets the formatter
+        # suppress fresh/brand-new stats when the indexer's coverage starts
+        # long after the token launched (coverage artifact, not a signal).
+        wallet_section = format_wallet_composition_section(result, token_created_ts=token_created_ts)
+        if wallet_section:
+            enrichment_lines.append(wallet_section)
 
         report = format_scan_report(result)
         if enrichment_lines:
@@ -808,7 +843,7 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if r.status_code != 200:
                 await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
                 return
-            pairs = r.json().get("pairs", [])
+            pairs = _ds_pairs(r.json())
             if not pairs:
                 await msg.edit_text("\u274c No trading pairs found.", parse_mode=ParseMode.HTML)
                 return
@@ -993,7 +1028,7 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{DEXSCREENER}/search/?q={symbol}")
             if r.status_code == 200:
-                pairs = r.json().get("pairs", [])
+                pairs = _ds_pairs(r.json())
                 if pairs:
                     p = pairs[0]
                     addr = p.get("baseToken", {}).get("address", "")
@@ -1204,7 +1239,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if not (is_evm(target) or is_sol(target)):
                 r = await client.get(f"{DEXSCREENER}/search/?q={target}")
                 if r.status_code == 200:
-                    pairs = r.json().get("pairs", [])
+                    pairs = _ds_pairs(r.json())
                     if pairs:
                         address = pairs[0].get("baseToken", {}).get("address", "")
                         chain = pairs[0].get("chainId", "")
@@ -1231,7 +1266,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if tr.status_code != 200:
                 await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
                 return
-            pairs = tr.json().get("pairs", [])
+            pairs = _ds_pairs(tr.json())
             if not pairs:
                 await msg.edit_text("\u274c No trading pairs found.", parse_mode=ParseMode.HTML)
                 return
