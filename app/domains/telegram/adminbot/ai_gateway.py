@@ -25,6 +25,8 @@ except ImportError:
 @owner_only
 async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """AI Gateway — query our AI models."""
+    if update.message is None or update.effective_user is None:
+        return
     if admin_ai is None:
         await update.message.reply_text("⚠️ AI module not available (missing admin_ai.py)")
         return

@@ -56,7 +56,11 @@ except ImportError:
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Route all inline keyboard callbacks to the appropriate action."""
     query = update.callback_query
+    if query is None:
+        return
     data = query.data
+    if data is None:
+        return
     await query.answer()
 
     if not is_owner(update):
