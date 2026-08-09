@@ -272,7 +272,9 @@ class TestCacheAndPublicApi:
         assert first == second
         # Date is wall-clock-dependent; pin the stable parts only.
         assert first.startswith("CURRENT MARKET CONTEXT (")
-        assert "Bitcoin $67,123" in first
+        # Prices come from /market/overview (single-call) — the fixture's
+        # OVERVIEW_BODY btc_price=67000.0 is the primary source, not macro.
+        assert "Bitcoin $67,000" in first
         # Snapshot stored under the cache key with a 5-minute TTL.
         entry = fake_redis.store[dc.CACHE_KEY]
         assert entry["ttl"] == dc.CACHE_TTL
@@ -299,7 +301,9 @@ class TestCacheAndPublicApi:
 
         text = await dc.get_daily_context()
         assert text.startswith("CURRENT MARKET CONTEXT (")
-        assert "Bitcoin $67,123" in text
+        # Overview is the primary price source since 2026-08-09 (single-call);
+        # fixture OVERVIEW_BODY btc_price=67000.0 wins over macro's 67123.45.
+        assert "Bitcoin $67,000" in text
 
     async def test_market_section_uses_same_cache(self, fake_redis: FakeRedis, fake_backend: dict[str, Any]) -> None:
         section = await dc.get_market_section()
