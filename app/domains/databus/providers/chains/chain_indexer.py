@@ -95,7 +95,7 @@ def _new_ch_client() -> Any | None:
             password=ch_pass or "",  # empty string, never None (driver crashes on None)
             database=ch_db,
             connect_timeout=3,
-            send_receive_timeout=10,
+            send_receive_timeout=20,
         )
         candidate.execute("SELECT 1")
     except (ConnectionError, TimeoutError, RuntimeError, OSError, AttributeError, CHDriverError) as e:

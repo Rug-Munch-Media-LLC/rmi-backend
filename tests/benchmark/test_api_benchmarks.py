@@ -8,11 +8,13 @@ and handler execution). Thresholds are set for CI environments.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
-from starlette.testclient import TestClient
+
+if TYPE_CHECKING:
+    from starlette.testclient import TestClient
 
 # ── Thresholds (milliseconds) ─────────────────────────────────────────
 # These are set intentionally high for CI environments. In production
@@ -155,9 +157,10 @@ class TestMarketEndpointBenchmarks:
 
     @pytest.mark.benchmark
     def test_market_trending_response_time(self, benchmark_client: TestClient, assert_time: Any) -> None:
-        """GET /api/v1/market/trending should respond in < 500ms.
+        """GET /api/v1/market/trending should respond in < 200ms (warm state).
 
         Mocks external HTTP calls to isolate handler performance.
+        Warms the market_intel route family first to avoid cold-start latency.
         """
         with patch("app.routers.market_intel.providers._aget") as mock_aget:
             # Simulate a CoinGecko trending response
@@ -177,6 +180,9 @@ class TestMarketEndpointBenchmarks:
                     for i in range(8)
                 ]
             }
+
+            # Warmup: hit a market_intel route to trigger lazy init (shared across market routes)
+            benchmark_client.get("/api/v1/market/overview", headers=_BENCHMARK_AUTH)
 
             elapsed_ms, resp = _time_request(
                 benchmark_client,
