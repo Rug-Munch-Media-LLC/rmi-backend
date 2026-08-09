@@ -324,6 +324,10 @@ def get_or_create_user(user_id: int, username: str | None = None, first_name: st
 
 
 def get_user_tier(user_id: int) -> str:
+    from app.domains.telegram.rugmunchbot.config import BETA_MODE
+
+    if BETA_MODE:
+        return "pro"  # Beta: all features unlocked for everyone
     conn = get_db()
     row = conn.execute("SELECT tier, tier_expires FROM users WHERE user_id = ?", (user_id,)).fetchone()
     conn.close()
