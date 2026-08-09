@@ -29,13 +29,13 @@ includes it in its collection list (see the ``COLLECTIONS`` default in
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from app.config import settings
 from app.core.logging import get_logger
 from app.rag.embeddings import EMBEDDING_DIM, get_embedding
 
@@ -50,7 +50,9 @@ COLLECTION = "scanned_tokens"
 VECTOR_SIZE = int(EMBEDDING_DIM)
 DISTANCE = "Cosine"
 
-_QDRANT_URL = os.getenv("QDRANT_URL", "http://rmi-qdrant:6333").rstrip("/")
+# Resolved via app.config (env var wins; Docker-compose name inside the
+# network; host-mapped localhost on host-side systemd runs).
+_QDRANT_URL = settings.qdrant_url.rstrip("/")
 
 # Collection created once per process (mirrors the _COLLECTION_ENSURED
 # pattern in app/domains/scanner/whale_indexer.py).

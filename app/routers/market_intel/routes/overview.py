@@ -17,10 +17,19 @@ router = APIRouter(tags=["market-intel"])
 
 @router.get("/overview")
 async def get_market_overview(request: Request) -> dict[str, Any]:
-    """Global market overview - total cap, dominance, fear & greed."""
+    """Global market overview - total cap, dominance, fear & greed, BTC/ETH prices."""
     now = _now()
     global_data = await _cg("/global", ttl=120)
     fng_data = await _fng()
+    price_data = await _cg(
+        "/simple/price",
+        params={
+            "ids": "bitcoin,ethereum",
+            "vs_currencies": "usd",
+            "include_24hr_change": "true",
+        },
+        ttl=120,
+    )
 
     total_mcap = 3.2e12
     total_vol = 85e9
@@ -36,6 +45,16 @@ async def get_market_overview(request: Request) -> dict[str, Any]:
         btc_dom = _safe_float(d.get("market_cap_percentage", {}).get("btc"), btc_dom)
         eth_dom = _safe_float(d.get("market_cap_percentage", {}).get("eth"), eth_dom)
         active = int(d.get("active_cryptocurrencies", active))
+
+    btc_price = 67000
+    btc_change = 0.0
+    eth_price = 3500
+    eth_change = 0.0
+    if price_data:
+        btc_price = _safe_float(price_data.get("bitcoin", {}).get("usd"), btc_price)
+        btc_change = _safe_float(price_data.get("bitcoin", {}).get("usd_24h_change"), 0.0)
+        eth_price = _safe_float(price_data.get("ethereum", {}).get("usd"), eth_price)
+        eth_change = _safe_float(price_data.get("ethereum", {}).get("usd_24h_change"), 0.0)
 
     fng_value = 50
     fng_class = "Neutral"
@@ -53,6 +72,10 @@ async def get_market_overview(request: Request) -> dict[str, Any]:
         "active_cryptocurrencies": active,
         "markets": 500,
         "stablecoin_volume": total_vol * 0.35,
+        "btc_price": btc_price,
+        "btc_change_24h": btc_change,
+        "eth_price": eth_price,
+        "eth_change_24h": eth_change,
         "fear_greed": {"value": fng_value, "classification": fng_class, "timestamp": now},
         "updated_at": now,
     }

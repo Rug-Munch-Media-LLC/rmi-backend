@@ -17,7 +17,6 @@ Ingest:
 
 from __future__ import annotations
 
-import os
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -25,6 +24,7 @@ from typing import Any
 import httpx
 import redis
 
+from app.config import settings
 from app.core.logging import get_logger
 from app.rag.ann_index import Hit, get_index
 from app.rag.chunking import Chunk, chunk_text, content_hash, estimate_tokens, is_duplicate, mark_ingested
@@ -39,7 +39,9 @@ _RRF_K = 60
 # Qdrant fallback: collections that live in Qdrant (e.g. `news` seeded by
 # rmi-rag/scripts/news_to_rag.py) are searchable even though the in-process
 # numpy/Redis index has no data for them. Cache which collections exist.
-_QDRANT_URL = os.getenv("QDRANT_URL", "http://rmi-qdrant:6333").rstrip("/")
+# Resolved via app.config (env var wins; Docker name inside the network;
+# host-mapped localhost on host-side systemd runs).
+_QDRANT_URL = settings.qdrant_url.rstrip("/")
 _QDRANT_COLLECTIONS: set[str] = set()
 _QDRANT_PROBED = False
 

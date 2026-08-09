@@ -12,11 +12,52 @@ CONSOLIDATION NOTICE (2026-07-24):
 from __future__ import annotations
 
 import os
+import socket
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _hostname_resolves(hostname: str) -> bool:
+    """Best-effort DNS check for a hostname (no raise)."""
+    try:
+        socket.getaddrinfo(hostname, None)
+        return True
+    except OSError:
+        return False
+
+
+def resolve_service_url(key: str, docker: str, local: str) -> str:
+    """Resolve a service URL the way the process can actually reach it.
+
+    Priority:
+      1. Explicit env var wins (already set in systemd/compose).
+      2. Docker-compose service name — used when it resolves from this
+         process (i.e. we are inside the compose network).
+      3. Host-mapped ``localhost`` URL — used when the Docker name fails
+         DNS, which is the case for host-side systemd runs of the backend
+         and bots (rugmunchbot.service / rmiadminbot.service).
+
+    This mirrors ``app.rag.crawler._ensure_host_connectivity``: the RAG
+    bridge (``scan_memory``, ``engine``, ``whale_indexer``) previously
+    hardcoded ``rmi-qdrant:6333`` / ``infinity-rag:8001`` defaults and
+    silently failed every host-side scan-to-RAG index (fail-open), leaving
+    ``scanned_tokens`` empty.
+    """
+    val = os.getenv(key)
+    if val:
+        return val
+    host = ""
+    try:
+        host = (urlparse(docker).hostname or "").lower()
+    except ValueError:
+        host = ""
+    if host and _hostname_resolves(host):
+        return docker
+    return local
 
 
 def _build_db_url_from_env() -> str | None:
@@ -91,6 +132,21 @@ class Settings(BaseSettings):
             "brain for current-affairs fallback. Defaults to the actual running "
             "instance (127.0.0.1:8889); legacy localhost:8089 kept as last "
             "resort. Set SEARXNG_URL env var to override."
+        ),
+    )
+
+    # ── RAG store (Qdrant) ───────────────────────────────────────────────
+    qdrant_url: str = Field(
+        default_factory=lambda: resolve_service_url(
+            "QDRANT_URL",
+            docker="http://rmi-qdrant:6333",
+            local="http://localhost:6333",
+        ),
+        description=(
+            "Qdrant HTTP endpoint for RAG collections (scanned_tokens, "
+            "whale_transfers, news_v2, ...). Set QDRANT_URL env var. Default "
+            "auto-resolves: Docker-compose name inside the network, host-mapped "
+            "localhost:6333 on host-side systemd runs."
         ),
     )
 
@@ -216,11 +272,17 @@ class Settings(BaseSettings):
     # embeddings/reranking use Infinity exclusively (``infinity_url``).
     ollama_url: str = "http://localhost:11434"
     infinity_url: str = Field(
-        default="http://infinity-rag:8001",
+        default_factory=lambda: resolve_service_url(
+            "INFINITY_URL",
+            docker="http://infinity-rag:8001",
+            local="http://localhost:8001",
+        ),
         description=(
             "Infinity (OpenAI-compatible embedding/rerank server) base URL for the "
             "RugBrain (crypto-native RAG) pipeline: POST /embeddings (BAAI/bge-m3) "
-            "and POST /rerank (BAAI/bge-reranker-v2-m3). Set INFINITY_URL env var."
+            "and POST /rerank (BAAI/bge-reranker-v2-m3). Set INFINITY_URL env var. "
+            "Default auto-resolves: Docker-compose name inside the network, "
+            "host-mapped localhost:8001 on host-side systemd runs."
         ),
     )
     openrouter_api_key: str = ""
