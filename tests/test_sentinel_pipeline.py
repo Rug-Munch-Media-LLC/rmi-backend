@@ -612,8 +612,8 @@ def _unified_scan_patches(payload: dict):
         patch.object(scanner, "_run_news_sentiment", new=AsyncMock(return_value=None)),
         patch.object(scanner, "_get_news_card", new=AsyncMock(return_value=None)),
         patch.object(scanner, "_run_event_correlation", new=AsyncMock(return_value=None)),
-        patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock(return_value=None)),
-        patch("app.domains.scanner.unified.scanner.auto_label_deployer", new=AsyncMock(return_value=None)),
+        patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock(return_value=None)),
+        patch("app.domains.scanner.unified._finalize_helpers.auto_label_deployer", new=AsyncMock(return_value=None)),
         patch("app.rag.intelligence.RAGIntelligenceEnricher.enrich_scan_result", new=AsyncMock(return_value=None)),
         patch("app.domains.scanner.unified.sentinel_phase.run_sentinel_phase", new=AsyncMock(return_value=payload)),
     ]

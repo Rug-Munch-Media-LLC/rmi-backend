@@ -151,12 +151,12 @@ def _scan_externals(
                 new=AsyncMock(side_effect=_make_fetch_dispatcher(responses)),
             )
         )
-        stack.enter_context(patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()))
-        stack.enter_context(patch("app.domains.scanner.unified.scanner.auto_label_deployer", new=AsyncMock()))
+        stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()))
+        stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.auto_label_deployer", new=AsyncMock()))
         if publish_rag is not None:
-            stack.enter_context(patch("app.domains.scanner.unified.scanner.publish_rag_finding", new=publish_rag))
+            stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.publish_rag_finding", new=publish_rag))
         elif not keep_publish_rag:
-            stack.enter_context(patch("app.domains.scanner.unified.scanner.publish_rag_finding", new=AsyncMock()))
+            stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.publish_rag_finding", new=AsyncMock()))
         # Always patch send_scanner_alert: a CRITICAL scan would otherwise make
         # real Telegram HTTP calls in tests. Tests that assert on the alert pass
         # their own mock; everyone else gets a silent default.
