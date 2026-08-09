@@ -37,8 +37,6 @@ from qdrant_client import AsyncQdrantClient, models
 from app.config import resolve_service_url
 from app.core.logging import get_logger
 from app.domains.rugmaps.qdrant import COLLECTIONS, DENSE_VECTOR_NAME
-from app.core.logging import get_logger
-from app.domains.rugmaps.qdrant import COLLECTIONS, DENSE_VECTOR_NAME
 
 logger = get_logger(__name__)
 

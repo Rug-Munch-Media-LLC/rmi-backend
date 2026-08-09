@@ -100,7 +100,7 @@ def _fetch_recent_deployer_events(
                 }
             )
         return events
-    except Exception as exc:  # noqa: BLE001 — feed must never hard-fail on own-data outage
+    except Exception as exc:
         logger.debug("deployer_events recent fetch failed: %s", exc)
         return []
 
@@ -264,7 +264,7 @@ async def _gmgn_launches(chain: str, limit: int, pump_only: bool) -> list[dict[s
                             "source": "gmgn_bonded",
                         }
                     )
-    except Exception as exc:  # noqa: BLE001 — feed must never hard-fail on external outage
+    except Exception as exc:
         logger.debug("gmgn launches failed: %s", exc)
     return items[:limit]
 
@@ -315,7 +315,7 @@ async def _enrich_bundle_risk(item: dict[str, Any]) -> dict[str, Any]:
             "top10_holder_pct": result.top10_holder_pct,
             "holder_count": result.holder_count,
         }
-    except Exception as exc:  # noqa: BLE001 — enrichment is best-effort
+    except Exception as exc:
         logger.debug("bundle enrichment failed addr=%s err=%s", addr, exc)
     return item
 
