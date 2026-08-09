@@ -886,7 +886,10 @@ async def _lookup_token_symbol(text: str, message: Message) -> bool:
         return False
     symbol = token_match.group(1).upper()
     try:
-        await message.chat.send_action("typing")
+        try:
+            await message.chat.send_action("typing")
+        except Exception:
+            pass
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{DEXSCREENER}/search/?q={symbol}")
             if r.status_code == 200:
@@ -1100,7 +1103,10 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         await _reply_redirect(message, user, flood_receipt)
         return True
 
-    await message.chat.send_action("typing")
+    try:
+        await message.chat.send_action("typing")
+    except Exception:
+        pass  # typing indicator is cosmetic
 
     # Address enhancement: if the message contains a token address, ALSO pull a
     # quick scanner read and ground the question with a compact risk summary.
