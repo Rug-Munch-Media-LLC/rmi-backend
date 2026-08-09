@@ -23,18 +23,19 @@ from typing import Any, ClassVar
 
 from app.core.logging import get_logger
 from app.domains.scanner.unified._coercion import _resolve_scan_tier
+from app.domains.scanner.unified._finalize_helpers import (
+    finalize_background,
+    get_news_card,
+    run_news_sentiment,
+)
 from app.domains.scanner.unified._legacy import _from_legacy_dict, _to_legacy_dict, scan_token_unified
 from app.domains.scanner.unified._merge_helpers import merge_core
 from app.domains.scanner.unified._phase_helpers import run_bundle_analysis, run_wallet_analysis
 from app.domains.scanner.unified.deep_profile import collect_deep_profile
 from app.domains.scanner.unified.model import ScanResult
-from app.domains.scanner.unified.persistence import (
-    auto_label_deployer,
-    persist_result,
-    publish_rag_finding,
-    read_stability,
-)
+from app.domains.scanner.unified.persistence import read_stability
 from app.domains.scanner.unified.scoring import compute_score
+from app.domains.scanner.unified.sentinel_phase import run_sentinel_for_result
 
 logger = get_logger(__name__)
 
@@ -426,104 +427,11 @@ class UnifiedTokenScanner:
             await _status("sentinel")
             await self._run_sentinel_phase(result, address, chain, tier)
 
-            # ── Score (recomputed with all modules) ──
-            scoring = compute_score(result)
-            result.breakdown = scoring["breakdown"]
-            result.evidence = scoring["evidence"]
-
-            # ── News sentiment (free enrichment, after scoring so the
-            #    HIGH_MEDIA_ATTENTION flag survives compute_score) ──
-            await self._run_news_sentiment(result, address, chain)
-
-            # ── Ground News-style news card (free enrichment) ──
-            await self._get_news_card(result, address, chain)
-
-            # ── News-driven risk adjustment (post-scoring — news engines
-            #    run after compute_score, so the bonus/penalty is applied
-            #    in a second pass that keeps score/flags/breakdown in sync) ──
-            try:
-                from app.domains.scanner.unified.scoring import apply_news_scoring
-
-                apply_news_scoring(result)
-            except Exception as exc:
-                logger.debug("news_scoring_failed", error=str(exc)[:120])
-
-            # ── Market-aware risk adjustment (post-scoring — market context
-            #    is fetched before the phases, then applied here so the
-            #    score/flags/breakdown stay in sync) ──
-            try:
-                from app.domains.scanner.unified.scoring import apply_market_scoring
-
-                apply_market_scoring(result)
-            except Exception as exc:
-                logger.debug("market_scoring_failed", error=str(exc)[:120])
-
-            # ── Enrich with RAG context (similar patterns from previous scans) ──
-            try:
-                from app.rag.intelligence import RAGIntelligenceEnricher
-
-                enricher = RAGIntelligenceEnricher()
-                rag_context = await enricher.enrich_scan_result(result)
-                result.rag_context = rag_context
-            except Exception:
-                logger.debug("RAG enrichment unavailable", exc_info=True)
-                result.rag_context = None
-
-            # ── Record own-data coverage metrics ──
-            try:
-                from app.domains.scanner.metrics import record_token_scan_coverage
-
-                modules_run_list = [{"module": m, "status": "success", "result": {}} for m in result.modules_run]
-                record_token_scan_coverage(result.enrichment_sources, modules_run_list)
-            except ImportError:
-                pass
-            except Exception:
-                pass
-
-            # ── Persist: Postgres + Redis cache (fire-and-forget) ──
-            asyncio.create_task(persist_result(result))
-
-            # ── Publish high-risk findings to RAG pipeline ──
-            if result.risk_level in ("high", "critical"):
-                try:
-                    from app.core.events import ScanCompleted, get_event_bus
-
-                    bus = get_event_bus()
-                    await bus.publish(
-                        ScanCompleted(
-                            token_address=result.token_address,
-                            chain=result.chain,
-                            safety_score=result.safety_score,
-                            risk_level=result.risk_level,
-                            risk_flags=result.risk_flags,
-                            modules_run=result.modules_run,
-                        )
-                    )
-                except Exception as e:
-                    logger.debug("scan_event_publish_failed", error=str(e)[:80])
-
-                try:
-                    await publish_rag_finding(result)
-                except Exception as e:
-                    logger.debug("rag_finding_publish_failed", error=str(e)[:80])
-
-            # ── Push Telegram alert (fire-and-forget — never block the scan) ──
-            alert_task = self._fire_telegram_alert(result)
-            try:
-                # Bounded, shielded grace period: lets the alert complete while
-                # the background phase is still winding down. On timeout the
-                # alert continues independently — it never delays the HTTP
-                # response past the 25s budget.
-                if alert_task is not None:
-                    await asyncio.wait_for(asyncio.shield(alert_task), timeout=5)
-            except TimeoutError:
-                pass
-
-            # ── Auto-label high-risk deployer wallets (fire-and-forget) ──
-            try:
-                asyncio.create_task(auto_label_deployer(result))
-            except Exception as exc:
-                logger.debug("deployer_label_schedule_failed", error=str(exc)[:80])
+            # ── Score + finalize (recomputed with all modules; news/RAG
+            #    enrichment, persist, publish, Telegram alert, deployer
+            #    auto-label) — lives in ``unified/_finalize_helpers.py``
+            #    (degodded wave 8) ──
+            await finalize_background(result, address, chain, _status, self._fire_telegram_alert)
 
             result.background_status = "complete"
             await _status("done", state="complete")
@@ -763,80 +671,20 @@ class UnifiedTokenScanner:
     async def _run_news_sentiment(self, r: ScanResult, address: str, chain: str) -> None:
         """Analyze news sentiment for the scanned token (best-effort).
 
-        Queries RugBrain RAG ``news_v2`` for articles mentioning the token,
-        computes BULLISH/BEARISH/NEUTRAL/NO_DATA sentiment plus a 0-100 media
-        attention (trending) score, and stores the result on
-        ``ScanResult.news_sentiment``. Adds the ``HIGH_MEDIA_ATTENTION``
-        green flag when trending_score > 70.
-
-        Runs AFTER ``compute_score`` so the appended flag is not overwritten
-        by scoring's ``green_flags`` assignment. Time-boxed so a slow RAG
-        backend can never stall the scan. Never raises — news sentiment is
-        best-effort enrichment, not a scan blocker.
+        Thin delegate — the logic lives in ``unified/_finalize_helpers.py``
+        (``run_news_sentiment``, degodded wave 8). Kept as a method so tests
+        can ``patch.object`` it, matching the other phase delegates.
         """
-        try:
-            from app.domains.scanner.engines.news_sentiment import analyze_token_news_sentiment
-
-            sentiment = await asyncio.wait_for(
-                analyze_token_news_sentiment(
-                    token_symbol=r.symbol or "",
-                    token_name=r.name or "",
-                    chain=chain,
-                ),
-                timeout=10,
-            )
-            if not isinstance(sentiment, dict):
-                return
-            r.news_sentiment = sentiment
-            r.modules_run.append("news_sentiment")
-            if sentiment.get("result") == "scanned" and int(sentiment.get("article_count", 0) or 0) > 0:
-                r.enrichment_sources.append("news_sentiment:rag")
-            if int(sentiment.get("trending_score", 0) or 0) > 70:
-                flag = "HIGH_MEDIA_ATTENTION"
-                if flag not in r.green_flags:
-                    r.green_flags.append(flag)
-        except Exception as exc:
-            logger.debug("news_sentiment_failed", error=str(exc)[:120])
+        await run_news_sentiment(r, address, chain)
 
     async def _get_news_card(self, r: ScanResult, address: str, chain: str) -> None:
         """Build the Ground News-style news card for the scanned token.
 
-        Queries RugBrain RAG ``news_v2`` and rates each article across
-        factuality / source reputation / market impact / sentiment axes,
-        then stores the card on ``ScanResult.news_card``. On-chain
-        corroboration is passed through from ``event_correlation`` when the
-        scanner has its own on-chain evidence of the news event.
-
-        Runs AFTER ``_run_news_sentiment`` so both news enrichment fields
-        are available to Telegram/report rendering. Time-boxed so a slow
-        RAG backend can never stall the scan. Never raises — the news card
-        is best-effort enrichment, not a scan blocker.
+        Thin delegate — the logic lives in ``unified/_finalize_helpers.py``
+        (``get_news_card``, degodded wave 8). Kept as a method so tests can
+        ``patch.object`` it, matching the other phase delegates.
         """
-        try:
-            from app.domains.scanner.engines.news_sentiment import get_token_news_card
-
-            on_chain: bool | None = None
-            if isinstance(r.event_correlation, dict) and r.event_correlation.get("events"):
-                on_chain = True
-
-            card = await asyncio.wait_for(
-                get_token_news_card(
-                    token_symbol=r.symbol or "",
-                    token_name=r.name or "",
-                    chain=chain,
-                    limit=5,
-                    on_chain_evidence=on_chain,
-                ),
-                timeout=10,
-            )
-            if not isinstance(card, dict):
-                return
-            r.news_card = card
-            r.modules_run.append("news_card")
-            if card.get("result") == "scanned" and card.get("articles"):
-                r.enrichment_sources.append("news_card:rag")
-        except Exception as exc:
-            logger.debug("news_card_failed", error=str(exc)[:120])
+        await get_news_card(r, address, chain)
 
     async def _run_event_correlation(self, r: ScanResult, address: str, chain: str) -> None:
         """Correlate recent news events with price moves for the scanned token.
@@ -863,66 +711,18 @@ class UnifiedTokenScanner:
     async def _run_sentinel_phase(self, r: ScanResult, address: str, chain: str, tier: str) -> None:
         """Run Phase 5 — SENTINEL deep-forensic modules (free + tier-gated).
 
-        Free-tier modules (holder HHI, LP lock, dev reputation, metadata
-        fingerprint, contract authority, proxy detection) always populate
-        ``r.sentinel["free"]``. Premium modules populate
-        ``r.sentinel["premium"]`` only when the tier is elite/admin; for
-        other tiers a ``premium_preview`` list advertises the locked modules
-        with an unlock prompt (paid path: x402 SENTINEL deep scan).
+        Thin delegate — the logic lives in ``unified/sentinel_phase.py``
+        (``run_sentinel_for_result``, degodded wave 8). Kept as a method so
+        tests can ``patch.object`` it, matching the other phase delegates.
 
         Best-effort: a broken module is recorded in ``sentinel.errors`` and
         never fails the scan. Time-boxed so external API latency cannot
         stall the overall scan.
         """
-        try:
-            from app.domains.scanner.unified.sentinel_phase import (
-                extract_deployer_from_security,
-                run_sentinel_phase,
-            )
-
-            deployer = extract_deployer_from_security(r.security)
-            sentinel = await asyncio.wait_for(
-                run_sentinel_phase(address=address, chain=chain, tier=tier, deployer=deployer),
-                timeout=30,
-            )
-            if not isinstance(sentinel, dict):
-                return
-            r.sentinel = sentinel
-
-            # ── Wire SENTINEL holder analysis into the unified holder phase ──
-            # The SENTINEL free-tier holder_analysis module computes HHI /
-            # concentration directly from DexScreener/Birdeye/Solscan. When
-            # the DataBus holder_health chain produced no HHI, promote the
-            # SENTINEL HHI so the unified holder phase (scoring + evidence)
-            # sees the deep-forensic concentration signal.
-            sentinel_free = sentinel.get("free") or {}
-            holder_analysis = sentinel_free.get("holder_analysis")
-            if isinstance(holder_analysis, dict) and holder_analysis.get("hhi") is not None:
-                hhi = holder_analysis.get("hhi")
-                if not isinstance(r.holder_health, dict) or r.holder_health.get("hhi") is None:
-                    merged = dict(r.holder_health) if isinstance(r.holder_health, dict) else {}
-                    merged["hhi"] = hhi
-                    merged.setdefault("gini", None)
-                    merged["hhi_source"] = "sentinel_holder_analysis"
-                    r.holder_health = merged
-
-            # Surface free-tier module names in modules_run + enrichment so
-            # the SENTINEL phase is visible in metrics and the API report.
-            free_ran = [k for k in self.SENTINEL_FREE_MODULES if k in (sentinel.get("modules_run") or [])]
-            if free_ran:
-                r.modules_run.extend(free_ran)
-                r.enrichment_sources.append("sentinel:free")
-            if sentinel.get("premium_unlocked"):
-                r.enrichment_sources.append("sentinel:premium")
-        except Exception as exc:
-            logger.debug("sentinel_phase_failed", error=str(exc)[:160])
-            r.sentinel = {
-                "free": {},
-                "premium": None,
-                "premium_unlocked": False,
-                "premium_modules": list(self.SENTINEL_FREE_MODULES),
-                "premium_preview": [],
-                "errors": {"_phase": str(exc)[:200]},
-                "modules_run": [],
-                "deployer_resolved": False,
-            }
+        await run_sentinel_for_result(
+            r,
+            address,
+            chain,
+            tier,
+            free_modules=self.SENTINEL_FREE_MODULES,
+        )

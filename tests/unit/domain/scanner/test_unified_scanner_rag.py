@@ -89,7 +89,7 @@ class TestUnifiedScannerRagEnrichment:
     async def test_scan_calls_rag_enricher_and_stores_context(self) -> None:
         fake = _FakeEnricher()
         with (
-            patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
+            patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()),
             patch.object(UnifiedTokenScanner, "_fetch_batch", new=AsyncMock(return_value={})),
             patch.object(UnifiedTokenScanner, "_run_wallet_analysis", new=AsyncMock()),
             patch.object(UnifiedTokenScanner, "_run_event_correlation", new=AsyncMock()),
@@ -108,7 +108,7 @@ class TestUnifiedScannerRagEnrichment:
     @pytest.mark.asyncio
     async def test_scan_rag_failure_is_best_effort(self) -> None:
         with (
-            patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
+            patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()),
             patch.object(UnifiedTokenScanner, "_fetch_batch", new=AsyncMock(return_value={})),
             patch.object(UnifiedTokenScanner, "_run_wallet_analysis", new=AsyncMock()),
             patch.object(UnifiedTokenScanner, "_run_event_correlation", new=AsyncMock()),

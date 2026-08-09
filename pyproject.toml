@@ -121,6 +121,8 @@ extend-exclude = [
 # Pre-existing: try/except/pass (existing scanner code), fire-and-forget task,
 # and timeout parameter name conflict with asyncio.timeout (will be cleaned separately)
 "app/domains/scanner/unified/scanner.py" = ["S110", "RUF006", "ASYNC109"]
+# Same fire-and-forget task patterns, extracted to _finalize_helpers.py (wave 8)
+"app/domains/scanner/unified/_finalize_helpers.py" = ["S110", "RUF006"]
 # Pre-existing: variable naming conventions in middleware (will be cleaned separately)
 "app/middleware_setup.py" = ["N806", "SIM102"]
 # Postiz simulated analytics: random.random/randint for demo metrics, not crypto

@@ -41,6 +41,8 @@ from app.core.logging import get_logger
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from app.domains.scanner.unified.model import ScanResult
+
 logger = get_logger("sentinel_phase")
 
 # Per-module timeout — protects scan latency when an external API hangs.
@@ -405,3 +407,69 @@ def _build_premium_preview() -> list[dict[str, str]]:
         }
         for key in SENTINEL_PREMIUM_MODULES
     ]
+
+
+async def run_sentinel_for_result(
+    r: ScanResult,
+    address: str,
+    chain: str,
+    tier: str,
+    free_modules: tuple[str, ...],
+) -> None:
+    """Run the SENTINEL phase and wire its results into a unified ScanResult.
+
+    Extracted from ``unified/scanner.py::_run_sentinel_phase`` (degodding
+    wave 8, 2026-08-09) so the merge logic (SENTINEL HHI promotion, free-tier
+    module tracking, error fallback) lives beside the phase runner.
+
+    Best-effort: a failing module is recorded in ``sentinel.errors`` and
+    never fails the scan. Time-boxed so external API latency cannot stall
+    the overall scan.
+    """
+    try:
+        deployer = extract_deployer_from_security(r.security)
+        sentinel = await asyncio.wait_for(
+            run_sentinel_phase(address=address, chain=chain, tier=tier, deployer=deployer),
+            timeout=30,
+        )
+        if not isinstance(sentinel, dict):
+            return
+        r.sentinel = sentinel
+
+        # ── Wire SENTINEL holder analysis into the unified holder phase ──
+        # The SENTINEL free-tier holder_analysis module computes HHI /
+        # concentration directly from DexScreener/Birdeye/Solscan. When
+        # the DataBus holder_health chain produced no HHI, promote the
+        # SENTINEL HHI so the unified holder phase (scoring + evidence)
+        # sees the deep-forensic concentration signal.
+        sentinel_free = sentinel.get("free") or {}
+        holder_analysis = sentinel_free.get("holder_analysis")
+        if isinstance(holder_analysis, dict) and holder_analysis.get("hhi") is not None:
+            hhi = holder_analysis.get("hhi")
+            if not isinstance(r.holder_health, dict) or r.holder_health.get("hhi") is None:
+                merged = dict(r.holder_health) if isinstance(r.holder_health, dict) else {}
+                merged["hhi"] = hhi
+                merged.setdefault("gini", None)
+                merged["hhi_source"] = "sentinel_holder_analysis"
+                r.holder_health = merged
+
+        # Surface free-tier module names in modules_run + enrichment so
+        # the SENTINEL phase is visible in metrics and the API report.
+        free_ran = [k for k in free_modules if k in (sentinel.get("modules_run") or [])]
+        if free_ran:
+            r.modules_run.extend(free_ran)
+            r.enrichment_sources.append("sentinel:free")
+        if sentinel.get("premium_unlocked"):
+            r.enrichment_sources.append("sentinel:premium")
+    except Exception as exc:
+        logger.debug("sentinel_phase_failed", error=str(exc)[:160])
+        r.sentinel = {
+            "free": {},
+            "premium": None,
+            "premium_unlocked": False,
+            "premium_modules": list(free_modules),
+            "premium_preview": [],
+            "errors": {"_phase": str(exc)[:200]},
+            "modules_run": [],
+            "deployer_resolved": False,
+        }

@@ -79,7 +79,7 @@ class TestResultCaching:
         with (
             _patch_redis(fake),
             patch.object(scanner, "_fetch_batch", new=AsyncMock(return_value={})) as fetch,
-            patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
+            patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()),
         ):
             result = await scanner.scan("0xCACHETEST", chain="ethereum", tier="free")
 
@@ -107,7 +107,7 @@ class TestResultCaching:
             patch.object(scanner, "_run_event_correlation", new=AsyncMock()),
             patch.object(scanner, "_run_news_sentiment", new=AsyncMock()),
             patch.object(scanner, "_run_sentinel_phase", new=AsyncMock()),
-            patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
+            patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()),
         ):
             result = await scanner.scan("0xCACHETEST", chain="ethereum", tier="free")
 
@@ -129,7 +129,7 @@ class TestResultCaching:
             patch.object(scanner, "_run_event_correlation", new=AsyncMock()),
             patch.object(scanner, "_run_news_sentiment", new=AsyncMock()),
             patch.object(scanner, "_run_sentinel_phase", new=AsyncMock()),
-            patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
+            patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()),
         ):
             result = await scanner.scan("0xCACHETEST", chain="ethereum", tier="elite")
 
@@ -193,7 +193,7 @@ class TestStabilityField:
         with (
             _patch_redis(fake),
             patch.object(scanner, "_fetch_batch", new=AsyncMock(return_value={})),
-            patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
+            patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()),
         ):
             result = await scanner.scan("0xCACHETEST", chain="ethereum", tier="free")
 
@@ -213,7 +213,7 @@ class TestStabilityField:
         with (
             _patch_redis(fake),
             patch.object(scanner, "_fetch_batch", new=AsyncMock(return_value={})),
-            patch("app.domains.scanner.unified.scanner.persist_result", new=AsyncMock()),
+            patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()),
         ):
             result = await scanner.scan("0xCACHETEST", chain="ethereum", tier="free")
 
