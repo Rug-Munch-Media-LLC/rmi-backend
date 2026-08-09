@@ -432,15 +432,7 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
     dex_btns = dex_buttons(address, chain)
     for i in range(0, len(dex_btns), 2):
         rows.append(dex_btns[i : i + 2])
-    # v6: quick chart / rugmap / share actions
-    rows.append(
-        [
-            InlineKeyboardButton("\U0001f4c8 Chart", callback_data=f"chart_{address}_{chain}"),
-            InlineKeyboardButton("\U0001f5fa\ufe0f RugMap", callback_data=f"rugmap_{address}_{chain}"),
-            InlineKeyboardButton("\U0001f4e4 Share", url=_share_token_url(address, chain)),
-        ]
-    )
-    # UX overhaul: tap-to-action token row (scan / chart / explorer)
+    # UX overhaul: tap-to-action token row (scan / chart / explorer) — covers chart/rugmap/share
     rows.append(token_buttons(address, chain))
     # Upgrade nudge for free users
     rows.append([InlineKeyboardButton("\u2b50 Unlock Premium Features", callback_data="menu_pricing")])
