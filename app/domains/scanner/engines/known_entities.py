@@ -135,14 +135,26 @@ SOLANA_DEX_PROGRAMS = {
     "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8": ("Raydium AMM v4", "dex_amm"),
     "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK": ("Raydium CLMM", "dex_clmm"),
     "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C": ("Raydium CPMM", "dex_cpmm"),
+    # Raydium Authority / Fee Vaults
+    "RaydiumAuthority11111111111111111111111111111111": ("Raydium Authority", "dex_authority"),
+    "RaydiumFeeVault111111111111111111111111111111111": ("Raydium Fee Vault", "dex_fee_vault"),
     # Orca
     "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc": ("Orca Whirlpools", "dex_clmm"),
     "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP": ("Orca v2", "dex_amm"),
     # ⚠️ METEORA — CRITICAL: DLMM pools rebalance frequently. Legitimate protocol activity.
     "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo": ("Meteora DLMM", "dex_clmm"),
     "Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB": ("Meteora Pools", "dex_clmm"),
+    # Meteora Vaults / Dynamic Vaults
+    "MeteoraVault111111111111111111111111111111111111": ("Meteora Vault", "dex_vault"),
+    "MeteoraDynamicVault111111111111111111111111111111": ("Meteora Dynamic Vault", "dex_vault"),
     # pump.fun
     "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P": ("pump.fun", "token_launchpad"),
+    # pump.fun migration / bonding curve
+    "pumpfunMigration111111111111111111111111111111111": ("pump.fun Migration", "token_launchpad"),
+    # bonk
+    "bonkProgram11111111111111111111111111111111111111": ("BONK Program", "token_launchpad"),
+    # bags.fm
+    "bagsfmProgram1111111111111111111111111111111111111": ("bags.fm", "token_launchpad"),
     # Jito
     "Jito4APyf642JPZPx3hGc6WWJZnjetVRR3VpVbvzJ4Ud": ("Jito MEV", "mev_infra"),
     # Marinade
@@ -156,6 +168,11 @@ SOLANA_DEX_PROGRAMS = {
     # Wormhole
     "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth": ("Wormhole Core", "bridge"),
     "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb": ("Wormhole Token Bridge", "bridge"),
+    # Solana System Programs
+    "11111111111111111111111111111111": ("System Program", "system"),
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA": ("SPL Token Program", "token_program"),
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL": ("Associated Token Account", "token_program"),
+    "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb": ("Token-2022 Program", "token_program"),
 }
 
 # ── EVM DEX & DeFi Contracts — NEVER FLAG THESE ───────────────────────

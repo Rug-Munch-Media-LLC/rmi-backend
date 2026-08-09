@@ -31,6 +31,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     sep,
     thin_sep,
+    explorer_url,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, token_buttons
 
@@ -137,6 +138,36 @@ RUGCHARTS_CHAIN_ALIASES = {
 }
 TRENDING_CHAINS = "solana · ethereum · base · bsc · arbitrum · tron"
 
+# Chain badge emojis
+CHAIN_BADGES = {
+    "solana": "🟣",
+    "ethereum": "🔵",
+    "base": "🔵",
+    "bsc": "🟡",
+    "arbitrum": "🔵",
+    "polygon": "🟣",
+    "avalanche": "🔴",
+    "optimism": "🔴",
+    "tron": "🟢",
+    "fantom": "👻",
+}
+
+# Age badge thresholds (hours)
+AGE_BADGES = [
+    (24, "🆕"),  # < 24h
+    (168, "🌱"),  # < 7d
+    (720, "🌿"),  # < 30d
+    (float("inf"), "🌳"),  # > 30d
+]
+
+# Liquidity tier thresholds (USD)
+LIQ_TIERS = [
+    (1_000_000, "💧 Deep"),
+    (100_000, "💦 Medium"),
+    (10_000, "💧 Shallow"),
+    (0, "⚠️ Critical"),
+]
+
 
 def _resolve_chain(arg: str | None) -> str:
     """Normalize a /trending chain argument (aliases → canonical names)."""
@@ -146,12 +177,160 @@ def _resolve_chain(arg: str | None) -> str:
     return RUGCHARTS_CHAIN_ALIASES.get(chain, chain)
 
 
-async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> list[dict] | None:
-    """Fetch trending tokens from the RugCharts backend (fused multi-source data).
+def _chain_badge(chain: str) -> str:
+    """Return chain badge emoji."""
+    return CHAIN_BADGES.get(chain.lower(), "⚪")
 
-    Returns the token list (sorted by volume, pre-enriched with price/24h
-    change/liquidity) or None on any failure.
-    """
+
+def _age_badge(created_at_ms: int | None) -> str:
+    """Return age badge based on token creation time."""
+    if not created_at_ms:
+        return "❓"
+    try:
+        from datetime import UTC, datetime
+
+        created = datetime.fromtimestamp(created_at_ms / 1000, tz=UTC)
+        age_hours = (datetime.now(UTC) - created).total_seconds() / 3600
+        for threshold, badge in AGE_BADGES:
+            if age_hours < threshold:
+                return badge
+    except Exception:
+        pass
+    return "❓"
+
+
+def _liq_badge(liquidity_usd: float) -> str:
+    """Return liquidity tier badge."""
+    for threshold, badge in LIQ_TIERS:
+        if liquidity_usd >= threshold:
+            return badge
+    return "⚠️ Critical"
+
+
+def _risk_emoji(risk_score: int | float | None) -> str:
+    """Return risk emoji from score."""
+    if risk_score is None:
+        return "⚪"
+    try:
+        score = float(risk_score)
+        if score >= 70:
+            return "🔴"
+        if score >= 40:
+            return "🟡"
+        return "🟢"
+    except Exception:
+        return "⚪"
+
+
+async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) -> list[dict] | None:
+    """Fetch trending from DexScreener token boosts, then enrich with token details."""
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            # Step 1: Get boosted tokens
+            r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
+            if r.status_code != 200:
+                return None
+            boosted = r.json()
+            if not isinstance(boosted, list):
+                return None
+
+            # Step 2: Fetch token details for each boosted token (parallel, max 10)
+            semaphore = asyncio.Semaphore(10)
+
+            async def fetch_token_details(item: dict) -> dict | None:
+                if not isinstance(item, dict):
+                    return None
+                token_addr = item.get("tokenAddress") or item.get("address")
+                if not token_addr:
+                    return None
+                # Filter by chain if specified
+                item_chain = item.get("chainId", "").lower()
+                if chain and chain != "all" and item_chain != chain.lower():
+                    return None
+
+                async with semaphore:
+                    try:
+                        r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_addr}", timeout=8)
+                        if r.status_code != 200:
+                            return None
+                        data = r.json()
+                        pairs = data.get("pairs", [])
+                        if not pairs:
+                            return None
+                        p = pairs[0]
+                        bt = p.get("baseToken", {})
+                        name = bt.get("name") or "Unknown"
+                        symbol = bt.get("symbol") or "???"
+                        # Skip obvious garbage
+                        if any(g in name.lower() for g in ["crawled", "smol", "anaem", "dev leave", "robinhood"]):
+                            return None
+                        return {
+                            "address": token_addr,
+                            "chain": p.get("chainId", chain),
+                            "name": name,
+                            "symbol": symbol,
+                            "price_usd": float(p.get("priceUsd") or 0),
+                            "volume_24h": float(p.get("volume", {}).get("h24") or 0),
+                            "liquidity_usd": float(p.get("liquidity", {}).get("usd") or 0),
+                            "change_24h": float(p.get("priceChange", {}).get("h24") or 0),
+                            "change_1h": float(p.get("priceChange", {}).get("h1") or 0),
+                            "change_7d": float(p.get("priceChange", {}).get("d7") or 0),
+                            "created_at": p.get("pairCreatedAt"),
+                            "dex": p.get("dexId"),
+                            "info": p.get("info", {}),
+                            "source": "dexscreener",
+                        }
+                    except Exception:
+                        return None
+
+            # Fetch details for top boosted tokens
+            tasks = [fetch_token_details(item) for item in boosted[: limit * 2]]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            tokens = [r for r in results if isinstance(r, dict) and r is not None]
+            return tokens[:limit] if tokens else None
+
+    except Exception as exc:
+        logger.debug("dexscreener trending fetch failed: %s", exc)
+        return None
+
+
+async def _fetch_coingecko_trending(chain: str = "solana", limit: int = 15) -> list[dict] | None:
+    """Fetch trending from CoinGecko."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get("https://api.coingecko.com/api/v3/search/trending")
+            if r.status_code != 200:
+                return None
+            data = r.json()
+            coins = data.get("coins", [])
+            if not coins:
+                return None
+            tokens = []
+            for c in coins[:limit]:
+                item = c.get("item", {})
+                if not item:
+                    continue
+                # CoinGecko doesn't give contract addresses directly
+                # We'll use the id for matching later
+                tokens.append(
+                    {
+                        "coingecko_id": item.get("id"),
+                        "name": item.get("name") or "Unknown",
+                        "symbol": (item.get("symbol") or "???").upper(),
+                        "score": item.get("score", 0),
+                        "market_cap_rank": item.get("market_cap_rank"),
+                        "source": "coingecko",
+                    }
+                )
+            return tokens if tokens else None
+    except Exception as exc:
+        logger.debug("coingecko trending fetch failed: %s", exc)
+        return None
+
+
+async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> list[dict] | None:
+    """Fetch trending tokens from the RugCharts backend."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(
@@ -165,28 +344,189 @@ async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> li
             body = r.json()
             data = body.get("data") or body
             tokens = data.get("tokens") or []
+            for t in tokens:
+                t["source"] = "rugcharts"
             return tokens if tokens else None
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+    except Exception as exc:
         logger.debug("rugcharts trending fetch failed: %s", exc)
         return None
+
+
+def _normalize_address(addr: str) -> str:
+    """Normalize address for deduplication."""
+    return addr.lower().strip()
+
+
+def _merge_trending_sources(
+    rugcharts: list[dict] | None,
+    dexscreener: list[dict] | None,
+    coingecko: list[dict] | None,
+    limit: int = 20,
+) -> list[dict]:
+    """Merge and deduplicate trending tokens from multiple sources."""
+    merged: dict[str, dict] = {}
+
+    # Priority: RugCharts (has full data) > DexScreener > CoinGecko
+    for source_tokens, priority in [
+        (rugcharts or [], 3),
+        (dexscreener or [], 2),
+        (coingecko or [], 1),
+    ]:
+        for t in source_tokens:
+            addr = t.get("address") or t.get("coingecko_id")
+            if not addr:
+                continue
+            norm = _normalize_address(addr)
+            existing = merged.get(norm)
+
+            # Quality score: has_name (2) + has_symbol (1) + has_volume (1) + has_liquidity (1) + priority (0-3)
+            name = (t.get("name") or "").strip()
+            symbol = (t.get("symbol") or "").strip()
+            has_name = bool(name and name != "Unknown")
+            has_symbol = bool(symbol and symbol != "???")
+            has_volume = float(t.get("volume_24h") or 0) > 0
+            has_liquidity = float(t.get("liquidity_usd") or 0) > 0
+            quality = (
+                (2 if has_name else 0)
+                + (1 if has_symbol else 0)
+                + (1 if has_volume else 0)
+                + (1 if has_liquidity else 0)
+                + priority
+            )
+
+            existing_quality = 0
+            if existing:
+                ename = (existing.get("name") or "").strip()
+                esymbol = (existing.get("symbol") or "").strip()
+                existing_quality = (
+                    (2 if ename and ename != "Unknown" else 0)
+                    + (1 if esymbol and esymbol != "???" else 0)
+                    + (1 if float(existing.get("volume_24h") or 0) > 0 else 0)
+                    + (1 if float(existing.get("liquidity_usd") or 0) > 0 else 0)
+                    + existing.get("_priority", 0)
+                )
+
+            if not existing or quality > existing_quality:
+                merged[norm] = {**t, "_priority": priority, "_quality": quality, "_source": t.get("source", "unknown")}
+
+    # Convert to list and sort by quality then volume
+    result = list(merged.values())
+    result.sort(key=lambda x: (x.get("_quality", 0), float(x.get("volume_24h") or 0)), reverse=True)
+
+    # Filter out tokens with "Unknown" names (prefer named tokens from DexScreener)
+    result = [t for t in result if (t.get("name") or "").strip() and (t.get("name") or "").strip() != "Unknown"]
+
+    return result[:limit]
+
+
+async def _enrich_with_quick_scan(tokens: list[dict], chain: str) -> list[dict]:
+    """Add quick risk scan data to trending tokens (best-effort, parallel)."""
+    if not tokens:
+        return tokens
+
+    async def scan_one(token: dict) -> dict:
+        addr = token.get("address")
+        if not addr:
+            return token
+        try:
+            async with httpx.AsyncClient(timeout=8) as client:
+                r = await client.post(
+                    f"{BACKEND_URL}/api/v1/bot/scan",
+                    headers=backend_headers(),
+                    json={"address": addr, "chain": chain},
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    if isinstance(data, dict) and not data.get("error"):
+                        token["risk_score"] = data.get("risk_score")
+                        token["holders"] = data.get("holders")
+                        token["liquidity_usd"] = data.get("liquidity") or token.get("liquidity_usd")
+                        token["bundle_detected"] = data.get("bundle_detected")
+        except Exception:
+            pass
+        return token
+
+    # Run scans in parallel (max 5 concurrent to avoid overload)
+    semaphore = asyncio.Semaphore(5)
+
+    async def limited_scan(t):
+        async with semaphore:
+            return await scan_one(t)
+
+    enriched = await asyncio.gather(*[limited_scan(t) for t in tokens], return_exceptions=True)
+    return [t for t in enriched if isinstance(t, dict)]
+
+
+async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[dict] | None:
+    """Fetch and fuse trending from all sources with enrichment."""
+    # Fetch from all sources in parallel
+    rg_task = _fetch_rugcharts_trending(chain, limit)
+    ds_task = _fetch_dexscreener_trending(chain, limit)
+    cg_task = _fetch_coingecko_trending(chain, limit)
+
+    rugcharts, dexscreener, coingecko = await asyncio.gather(rg_task, ds_task, cg_task, return_exceptions=True)
+
+    # Handle exceptions
+    if isinstance(rugcharts, Exception):
+        rugcharts = None
+    if isinstance(dexscreener, Exception):
+        dexscreener = None
+    if isinstance(coingecko, Exception):
+        coingecko = None
+
+    # Merge sources
+    fused = _merge_trending_sources(rugcharts, dexscreener, coingecko, limit)
+
+    if not fused:
+        return None
+
+    # Enrich with quick risk scans
+    enriched = await _enrich_with_quick_scan(fused, chain)
+
+    return enriched
+
+
+def _clean_token_name(name: str, symbol: str) -> tuple[str, str]:
+    """Clean up token names from DexScreener/CoinGecko."""
+    if not name or name == "Unknown":
+        return symbol or "Unknown", symbol or "???"
+
+    # Filter out garbage patterns
+    garbage_patterns = [
+        r"on robinhood.*",
+        r"crawled out of.*",
+        r"just a smol.*",
+        r"dev leave.*",
+        r"community took over.*",
+        r"sent to a.*",
+        r"smolsem.*",
+        r"anaem.*",
+    ]
+    import re
+
+    cleaned = name
+    for pattern in garbage_patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE).strip()
+
+    # If name is too long or looks like a sentence, use symbol
+    if len(cleaned) > 50 or cleaned.count(" ") > 6:
+        return symbol or "Unknown", symbol or "???"
+
+    # If symbol is in name, prefer name
+    if symbol and symbol.upper() in cleaned.upper():
+        return cleaned[:40], symbol
+
+    return cleaned[:40], symbol or "???"
 
 
 def _trending_display(token: dict) -> tuple[str, str]:
     """Return a display-safe (name, symbol), trimming long/garbage values."""
     raw_name = (token.get("name") or "").strip()
     symbol = (token.get("symbol") or "").strip()
-    if not symbol:
-        symbol = raw_name.split()[0][:12] if raw_name else "???"
-    name = raw_name[:40] or "Unknown"
-    return name, symbol
+    return _clean_token_name(raw_name, symbol)
 
 
 # ── Trending time windows ──────────────────────────────────────────────
-# The RugCharts backend ranks trending tokens by 24h volume and only passes
-# through ``change_24h`` today. Windows degrade honestly until hourly/7d
-# deltas exist: 1h ranks by volume (hottest right now), 7d falls back to the
-# 24h delta. When the backend starts supplying ``change_1h`` / ``change_7d``
-# they are picked up automatically.
 TRENDING_WINDOWS = ("1h", "24h", "7d")
 _WINDOW_FIELD = {"1h": "change_1h", "24h": "change_24h", "7d": "change_7d"}
 
@@ -206,7 +546,6 @@ def _window_change(token: dict, window: str) -> float:
 def _sort_trending(tokens: list[dict], window: str) -> list[dict]:
     """Rank trending tokens for the requested window (mutation-free)."""
     if window == "1h":
-        # No hourly deltas from the backend yet — rank by volume (activity now).
         return sorted(tokens, key=lambda t: float(t.get("volume_24h") or 0), reverse=True)
     if window == "7d" and any(t.get("change_7d") is not None for t in tokens):
         return sorted(tokens, key=lambda t: float(t.get("change_7d") or 0), reverse=True)
@@ -216,28 +555,43 @@ def _sort_trending(tokens: list[dict], window: str) -> list[dict]:
 def _window_note(window: str, tokens: list[dict]) -> str:
     """Honest footnote when the window is backed by fallback data."""
     if window == "1h":
-        return "\U0001f552 1h window \u2014 ranked by volume (hourly deltas pending)"
+        return "🕒 1h window — ranked by volume (hourly deltas pending)"
     if window == "7d" and not any(t.get("change_7d") is not None for t in tokens):
-        return "\U0001f4c5 7d window \u2014 using 24h deltas (7d series pending)"
+        return "📅 7d window — using 24h deltas (7d series pending)"
     return ""
 
 
 def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
-    """HTML trending list for the window, full copyable addresses in <code>."""
+    """HTML trending list with badges, clickable CAs, risk indicators."""
     tokens = _sort_trending(tokens, window)
-    lines = [f"\U0001f525 <b>Trending \u2014 {chain.capitalize()} \u00b7 {window}</b>", sep()]
+    lines = [f"🔥 <b>Trending — {chain.capitalize()} · {window}</b>", sep()]
+
     for i, t in enumerate(tokens[:8], 1):
         addr = t.get("address", "")
         name, symbol = _trending_display(t)
         price = float(t.get("price_usd") or 0)
         chg = _window_change(t, window)
         vol = float(t.get("volume_24h") or 0)
-        emoji = "\U0001f7e2" if chg >= 0 else "\U0001f534"
+        liq = float(t.get("liquidity_usd") or 0)
+        risk = t.get("risk_score")
+        created = t.get("created_at")
+
+        # Badges
+        chain_badge = _chain_badge(chain)
+        age_badge = _age_badge(created)
+        liq_badge = _liq_badge(liq)
+        risk_emoji = _risk_emoji(risk)
+        chg_emoji = "🟢" if chg >= 0 else "🔴"
+
+        # Bundle warning
+        bundle_flag = " 🚨" if t.get("bundle_detected") else ""
+
         lines.append(
-            f"{i}. {emoji} <b>{name}</b> ({symbol})\n"
-            f"   {fmt_number(price)} | {fmt_pct(chg)} | Vol: {fmt_number(vol)}\n"
+            f"{i}. {chain_badge} {age_badge} {risk_emoji} <b>{name}</b> ({symbol}){bundle_flag}\n"
+            f"   {liq_badge} | {chg_emoji} {fmt_pct(chg)} | Vol: {fmt_number(vol)}\n"
             f"   <code>{addr}</code>"
         )
+
     note = _window_note(window, tokens)
     if note:
         lines.append("")
@@ -248,52 +602,54 @@ def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
 
 
 def _build_trending_kb(tokens: list[dict], chain: str, window: str) -> InlineKeyboardMarkup:
-    """Trending keyboard: per-token [📊 Scan][📈 Chart][🔍 Explorer] rows,
-    a time-window selector and refresh/menu actions."""
+    """Trending keyboard: per-token action rows + window selector + refresh."""
     rows: list[list[InlineKeyboardButton]] = []
     for t in tokens[:8]:
         addr = t.get("address", "")
         if not addr:
             continue
-        rows.append(token_buttons(addr, t.get("chain") or chain))
+        rows.append(
+            [
+                InlineKeyboardButton("📊 Scan", callback_data=f"scan_{addr}_{chain}"),
+                InlineKeyboardButton("📈 Chart", callback_data=f"chart_{addr}_{chain}"),
+                InlineKeyboardButton("🕸️ Map", callback_data=f"rugmap_{addr}_{chain}"),
+                InlineKeyboardButton("🔍 Explorer", url=explorer_url(addr, chain)),
+            ]
+        )
     win_row = [
         InlineKeyboardButton(f"[{w}]" if w == window else w, callback_data=f"trending_win_{chain}_{w}")
         for w in TRENDING_WINDOWS
     ]
     rows.append(win_row)
-    rows.append([InlineKeyboardButton("\U0001f504 Refresh", callback_data=f"trending_refresh_{chain}")])
-    rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
+    rows.append([InlineKeyboardButton("🔄 Refresh", callback_data=f"trending_refresh_{chain}")])
+    rows.append([InlineKeyboardButton("🏠 Menu", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
 
 async def render_trending(
-    chain: str = "solana", limit: int = 8, window: str = "24h"
+    chain: str = "solana", limit: int = 20, window: str = "24h"
 ) -> tuple[str | None, InlineKeyboardMarkup | None]:
-    """Fetch + render trending text and its action keyboard.
-
-    Returns ``(text, keyboard)`` — either both, or ``(None, None)`` when the
-    backend returned no data. ``window`` is one of ``TRENDING_WINDOWS``.
-    """
-    tokens = await _fetch_rugcharts_trending(chain, limit)
+    """Fetch + render fused trending text and its action keyboard."""
+    tokens = await _fetch_fused_trending(chain, limit)
     if not tokens:
         return None, None
     return _render_trending_text(tokens, chain, window), _build_trending_kb(tokens, chain, window)
 
 
-async def _build_trending_text(chain: str = "solana", limit: int = 8, window: str = "24h") -> str | None:
+async def _build_trending_text(chain: str = "solana", limit: int = 20, window: str = "24h") -> str | None:
     """Text-only trending renderer (kept for backward compatibility)."""
     text, _kb = await render_trending(chain, limit, window)
     return text
 
 
 async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /trending [chain] — hot tokens from the RugCharts engine."""
+    """Handle /trending [chain] — hot tokens from fused multi-source data."""
     chain = _resolve_chain(ctx.args[0]) if ctx.args else "solana"
-    msg = await update.message.reply_text("\U0001f525 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML)
-    text, trending_kb = await render_trending(chain, limit=8, window="24h")
+    msg = await update.message.reply_text("🔥 <b>Fetching trending tokens...</b>", parse_mode=ParseMode.HTML)
+    text, trending_kb = await render_trending(chain, limit=20, window="24h")
     if text is None or trending_kb is None:
         await msg.edit_text(
-            "\u274c <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
+            "❌ <b>Trending Unavailable</b>\n\nCould not fetch trending tokens right now.\nPlease try again later.",
             parse_mode=ParseMode.HTML,
         )
         return
