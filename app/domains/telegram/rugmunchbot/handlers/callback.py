@@ -15,12 +15,14 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, U
 from telegram.constants import ParseMode
 
 from app.core.logging import get_logger
+from app.domains.telegram import access_guard
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     BOT_USERNAME,
     BUY_STARS_PACKS,
     COINGECKO,
+    OWNER_IDS,
     SCAM_SCHOOL_TOPICS,
     SCAN_PACKS,
     TELEGRAM_CHANNEL,
@@ -67,6 +69,24 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot")
 
 
+async def _deny_callback_attempt(update: Update, ctx: ContextTypes.DEFAULT_TYPE, surface: str) -> None:
+    """Log + alert a non-owner admin callback attempt (defense-in-depth)."""
+    query = update.callback_query
+    user = query.from_user if query else None
+    chat = update.effective_chat
+    await access_guard.deny_admin_attempt(
+        bot=ctx.bot,
+        owner_chat_id=next(iter(sorted(OWNER_IDS)), 0),
+        bot_name="rugmunchbot",
+        surface=f"cb:{surface}",
+        user_id=user.id if user else None,
+        username=user.username if user else None,
+        chat_id=chat.id if chat else None,
+        chat_type=chat.type if chat else None,
+        audit=db.log_admin_action,
+    )
+
+
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None:
@@ -88,6 +108,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         # (which itself is only rendered for the owner).
         if not is_owner(user.id):
             await query.answer("\U0001f512 Owner only.", show_alert=True)
+            await _deny_callback_attempt(update, ctx, "menu_cat_admin")
             return
         await query.edit_message_text(
             "\U0001f6e1\ufe0f <b>Admin Panel</b>\n\n"
@@ -1386,6 +1407,7 @@ async def _dispatch_admin_cb(update: Update, ctx, data: str) -> None:
         return
     if not is_owner(query.from_user.id):
         await query.answer("\u26a0\ufe0f Owner only.", show_alert=True)
+        await _deny_callback_attempt(update, ctx, query.data or "admin-cb")
         return
 
     from app.domains.telegram.rugmunchbot.handlers.owner import (

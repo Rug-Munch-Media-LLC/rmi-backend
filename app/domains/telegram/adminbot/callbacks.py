@@ -14,7 +14,9 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
+from app.domains.telegram import access_guard
 from app.domains.telegram.adminbot import admin_docker, admin_health, admin_ops, admin_server, admin_terminal
+from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID
 from app.domains.telegram.adminbot.helpers import (
     back_button,
     bot_toggle_menu_keyboard,
@@ -64,7 +66,21 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     await query.answer()
 
     if not is_owner(update):
-        await query.edit_message_text("⛔ Unauthorized.")
+        # Hidden bot: no visible reply (not even "Unauthorized") — the
+        # callback is silently dropped; log + owner alert instead.
+        user = update.effective_user
+        chat = update.effective_chat
+        await access_guard.deny_admin_attempt(
+            bot=ctx.bot,
+            owner_chat_id=ADMIN_CHAT_ID,
+            bot_name="rmiadminbot",
+            surface=f"cb:{data}",
+            user_id=user.id if user else None,
+            username=user.username if user else None,
+            chat_id=chat.id if chat else None,
+            chat_type=chat.type if chat else None,
+            audit=(admin_audit.log_action if admin_audit is not None else None),
+        )
         return
 
     try:

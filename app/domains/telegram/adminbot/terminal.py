@@ -11,11 +11,25 @@ from typing import TYPE_CHECKING
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
+from app.domains.telegram import access_guard
 from app.domains.telegram.adminbot import admin_terminal
+from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID
 from app.domains.telegram.adminbot.helpers import is_owner, main_menu_keyboard, owner_only
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
+
+
+def _audit_deny_terminal(user_id: int, action: str, detail: str = "") -> None:
+    """Append a deny record to the admin bot audit trail (fail-open)."""
+    try:
+        from app.domains.telegram.adminbot import admin_audit
+
+        admin_audit.log_action(action, detail, user_id)
+    except Exception:
+        import logging
+
+        logging.getLogger("admin_bot").debug("terminal audit write failed", exc_info=True)
 
 
 @owner_only
@@ -52,7 +66,19 @@ async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE
     if not admin_terminal.in_terminal(user_id):
         return
     if not is_owner(update):
-        await update.message.reply_text("⛔ Unauthorized")
+        # Hidden bot: silent deny even in terminal mode; log + owner alert.
+        chat = update.effective_chat
+        await access_guard.deny_admin_attempt(
+            bot=ctx.bot,
+            owner_chat_id=ADMIN_CHAT_ID,
+            bot_name="rmiadminbot",
+            surface="terminal:message",
+            user_id=user_id,
+            username=update.effective_user.username,
+            chat_id=chat.id if chat else None,
+            chat_type=chat.type if chat else None,
+            audit=_audit_deny_terminal,
+        )
         return
 
     session = admin_terminal._sessions[user_id]
