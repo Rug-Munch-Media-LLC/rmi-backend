@@ -65,7 +65,9 @@ BOT_DESCRIPTION = (
     "📚 Free crypto scam education\n\n"
     "🌐 rugmunch.io"
 )
-BOT_SHORT_DESCRIPTION = "🛡️ AI crypto intelligence — scan tokens, trace wallets, detect rugs before you buy. Free in beta."
+BOT_SHORT_DESCRIPTION = (
+    "🛡️ AI crypto intelligence — scan tokens, trace wallets, detect rugs before you buy. Free in beta."
+)
 
 # ══════════════════════════════════════════════
 # API ENDPOINTS
@@ -158,6 +160,10 @@ SENTINEL_TIMEOUT = 60.0  # deep forensic scan can take a while (9+ modules)
 # ══════════════════════════════════════════════
 # Weekly model: resets every Monday 00:00 UTC.
 # Prevents day-one dump abuse and smooths API load.
+# BETA MODE: all premium features unlocked for everyone during public beta.
+# Set to False when billing goes live. This overrides tier checks in db.py.
+BETA_MODE = os.environ.get("RMI_BOT_BETA_MODE", "true").lower() in ("true", "1", "yes")
+
 TIERS = {
     "free": {
         "name": "Free",

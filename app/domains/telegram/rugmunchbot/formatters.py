@@ -93,8 +93,16 @@ def thin_sep(char: str = "\u2500", length: int = 24) -> str:
     return char * length
 
 
-def footer_links() -> str:
-    return f'\n{sep()}\n\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
+def footer_links(address: str = "", chain: str = "") -> str:
+    """Bot footer with links. When a token is provided, includes
+    RugCharts + RugMaps deep links so users can jump to visual analysis."""
+    base = f'\n{sep()}\n\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
+    if address:
+        base += (
+            f'\n\U0001f4c8 <a href="https://rugmunch.io/rugcharts?token={address}&chain={chain}">RugCharts</a>'
+            f' | \U0001f5fa\ufe0f <a href="https://rugmunch.io/rugmaps?token={address}&chain={chain}">RugMaps</a>'
+        )
+    return base
 
 
 def web_scan_button(address: str, chain: str = "") -> InlineKeyboardButton:
@@ -687,7 +695,9 @@ def format_sentinel_deepscan_section(data: dict) -> str:
         "\u26a0\ufe0f <i>Composite risk is 0-100 (higher = riskier). "
         "SENTINEL data is forensic evidence \u2014 always DYOR.</i>"
     )
-    lines.append(footer_links())
+    _addr = data.get("address", data.get("token", ""))
+    _chain = data.get("chain", "solana")
+    lines.append(footer_links(_addr, _chain))
     return "\n".join(lines)
 
 
@@ -909,7 +919,9 @@ def format_scan_report(r: dict) -> str:
         lines.extend(news_block)
 
     lines.extend(["", s, "\U0001f4b1 <b>Trade:</b>"])
-    lines.append(footer_links())
+    _addr = r.get("address", r.get("token", ""))
+    _chain = r.get("chain", "solana")
+    lines.append(footer_links(_addr, _chain))
     return "\n".join(lines)
 
 
@@ -1120,5 +1132,7 @@ def format_wallet_report(r: dict) -> str:
     if funding_text:
         lines.append(funding_text)
 
-    lines.append(footer_links())
+    _addr = r.get("address", r.get("token", ""))
+    _chain = r.get("chain", "solana")
+    lines.append(footer_links(_addr, _chain))
     return "\n".join(lines)
