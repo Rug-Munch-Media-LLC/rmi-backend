@@ -27,7 +27,7 @@ All responses follow the standardized envelope format.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
@@ -101,7 +101,7 @@ def _ok(data: Any = None, meta: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"data": data, "error": None, "meta": meta or {}}
 
 
-def _err(code: str, message: str, status: int = 400) -> HTTPException:
+def _err(code: str, message: str, status: int = 400) -> NoReturn:
     """Standard error response."""
     raise HTTPException(
         status_code=status,

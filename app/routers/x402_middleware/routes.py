@@ -37,6 +37,7 @@ async def verify_receipt_public(receipt_id: str) -> dict[str, Any]:
         from app.auth import get_redis
 
         r = await get_redis()
+        assert r is not None
         receipt_data = await r.get(f"x402:receipt:{receipt_id}")
         if not receipt_data:
             raise NotFoundError("Receipt not found")
@@ -91,6 +92,7 @@ async def payment_ledger(
         from app.auth import get_redis
 
         r = await get_redis()
+        assert r is not None
         all_ids = await r.zrevrange("x402:receipts_by_time", offset, offset + limit - 1)
         ledger = []
         for rid in all_ids:
@@ -136,6 +138,7 @@ async def transparency_dashboard(hours: int = 24) -> dict[str, Any]:
         from app.auth import get_redis
 
         r = await get_redis()
+        assert r is not None
         cutoff = time.time() - (hours * 3600)
         recent_ids = await r.zrangebyscore("x402:receipts_by_time", cutoff, "+inf")
         total = fulfilled = refunded = failed = 0
@@ -235,6 +238,7 @@ async def verify_payment_endpoint(request: Request) -> Any:
                 from app.auth import get_redis
 
                 r = await get_redis()
+                assert r is not None
                 verify_key = f"x402:verify:{result.get('settlement_id') or str(time.time())}"
                 await r.set(
                     verify_key,
@@ -365,12 +369,13 @@ async def store_receipt(request: Request) -> Any | dict[str, bool]:
 
 
 @router.get("/fallback/status")
-async def fallback_status() -> dict[str, str]:
+async def fallback_status() -> dict[str, Any]:
     """Check fallback system health, cache stats, and fallback success rate."""
     try:
         from app.auth import get_redis
 
         r = await get_redis()
+        assert r is not None
         cache_count = 0
         async for _key in r.scan_iter(match="x402:cache:*", count=100):
             cache_count += 1
