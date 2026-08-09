@@ -31,9 +31,7 @@ DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/
 # Talos Ollama tailnet IP with localhost fallback when running directly on
 # the Talos host. Comma-separated base URLs, tried in order.
 OLLAMA_BASE_URLS = [
-    u.strip().rstrip("/")
-    for u in os.getenv("OLLAMA_BASE_URL", "http://100.104.130.92:11434,http://localhost:11434").split(",")
-    if u.strip()
+    u.strip().rstrip("/") for u in os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").split(",") if u.strip()
 ]
 # Fast model → token descriptions, simple labeling (Qwen3-4B; qwen3-work:8b on Talos).
 OLLAMA_FAST_MODEL = os.getenv("OLLAMA_FAST_MODEL", "qwen3:4b")
