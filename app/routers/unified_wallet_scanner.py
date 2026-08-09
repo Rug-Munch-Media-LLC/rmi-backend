@@ -26,7 +26,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -96,9 +96,9 @@ class WalletScanResult:
 class UnifiedWalletScanner:
     """THE wallet scanner. Beats anything on the market."""
 
-    CORE = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]
-    DEEP = ["wallet_transactions", "entity_intel", "cross_chain_entity"]
-    PREMIUM = ["arkham_counterparties", "arkham_portfolio"]
+    CORE: ClassVar[list[str]] = ["wallet_labels", "wallet_tokens", "wallet_net_worth"]
+    DEEP: ClassVar[list[str]] = ["wallet_transactions", "entity_intel", "cross_chain_entity"]
+    PREMIUM: ClassVar[list[str]] = ["arkham_counterparties", "arkham_portfolio"]
 
     async def scan(
         self, address: str, chain: str = "solana", tier: str = "free", admin_key: str | None = None
