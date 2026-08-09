@@ -31,7 +31,7 @@ logger = logging.getLogger("telegram.access_guard")
 # Alert at most once per (user_id, surface) per 10 minutes.
 _ALERT_TTL_SECONDS = 600
 _ALERT_CACHE_MAXSIZE = 4096
-_alerted: TTLCache = TTLCache(maxsize=_ALERT_CACHE_MAXSIZE, ttl=_ALERT_TTL_SECONDS)
+_alerted: TTLCache[tuple[int | None, str], bool] = TTLCache(maxsize=_ALERT_CACHE_MAXSIZE, ttl=_ALERT_TTL_SECONDS)
 
 
 def _fmt_user(uid: int | None, username: str | None) -> str:
