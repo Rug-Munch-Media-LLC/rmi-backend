@@ -240,6 +240,23 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         except Exception as e:
             return {"error": f"eth_labels_stats failed: {e!s}"}
 
+    if name == "parquet_query":
+        # R2 Parquet data lake query via DuckDB httpfs (port of stranded branch work)
+        try:
+            from app.mcp.tools.parquet_query import query_parquet_mcp
+
+            result = await query_parquet_mcp(
+                chain=arguments.get("chain", ""),
+                table=arguments.get("table", ""),
+                address=arguments.get("address"),
+                from_block=arguments.get("from_block"),
+                to_block=arguments.get("to_block"),
+                limit=int(arguments.get("limit", 100)),
+            )
+            return {"result": result}
+        except Exception as e:
+            return {"error": f"parquet_query failed: {e!s}"}
+
     if name == "mcp_discover":
         # MCP catalog discovery with versioning + deprecation + category filtering
         from app.mcp.registry import TOOL_CATEGORIES  # lazy: avoid circular import

@@ -362,6 +362,53 @@ TOOL_CATALOG: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "parquet_query",
+        "description": "Query blockchain data (transfers, swaps, deployments, native_transfers) from the R2 Parquet data lake via DuckDB httpfs. Supports Ethereum, BSC, Arbitrum, Polygon, and Base. Filter by address and block range.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "chain": {
+                    "type": "string",
+                    "enum": ["ethereum", "bsc", "arbitrum", "polygon", "base"],
+                    "description": "Blockchain to query",
+                },
+                "table": {
+                    "type": "string",
+                    "enum": ["transfers", "swaps", "deployments", "native_transfers"],
+                    "description": "Data table to query",
+                },
+                "address": {
+                    "type": "string",
+                    "description": "Optional address filter (from_address or to_address)",
+                },
+                "from_block": {
+                    "type": "integer",
+                    "description": "Optional starting block number (inclusive)",
+                },
+                "to_block": {
+                    "type": "integer",
+                    "description": "Optional ending block number (inclusive)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max rows to return (default 100, max 1000)",
+                },
+            },
+            "required": ["chain", "table"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "rows": {"type": "array"},
+                "count": {"type": "integer"},
+                "chain": {"type": "string"},
+                "table": {"type": "string"},
+                "truncated": {"type": "boolean"},
+                "error": {"type": ["string", "null"]},
+            },
+        },
+    },
+    {
         "name": "status_check",
         "description": "Health check across all RMI subsystems (backend, postgres, clickhouse, qdrant, redis, minio, reth, mcp server, x402, certstream, glitchtip). Returns pass/fail/degraded for each with latency.",
         "inputSchema": {
@@ -408,6 +455,7 @@ TOOL_VERSIONS: dict[str, str] = {
     "eth_labels_query": "1.0.0",  # M3 moat TIER 2
     "eth_labels_stats": "1.0.0",  # M3 moat TIER 2
     "mcp_discover": "1.0.0",  # M3 moat TIER 1
+    "parquet_query": "1.0.0",  # ported from stranded feat/scanners-p4-8-cont (R2 data lake)
     "status_check": "1.0.0",  # M3 moat TIER 1
 }
 

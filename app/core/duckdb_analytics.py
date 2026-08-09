@@ -82,6 +82,17 @@ class DuckDBAnalytics:
 
         self._persist_path = persist_path
         self._attached: set[str] = set()  # track attached DBs to avoid double-attach
+        self._s3_configured: bool = False  # cache: s3 creds set only once
+
+        # Load httpfs extension for S3/R2 Parquet support (used by query_remote_parquet)
+        try:
+            self._conn.execute("INSTALL httpfs; LOAD httpfs;")
+            log.info("duckdb_httpfs_loaded")
+        except Exception as exc:
+            log.warning(
+                "duckdb_httpfs_install_failed: %s. Remote parquet queries will not work.",
+                exc,
+            )
 
     def query(
         self,
@@ -174,6 +185,60 @@ class DuckDBAnalytics:
         bind_sql = f"SELECT * FROM read_parquet('{parquet_path}')"  # noqa: S608 — verified bound/allowlisted SQL construction
         sql = bind_sql if sql is None else f"WITH parquet AS ({bind_sql}) {sql}"
         return self.query(sql, params=params)
+
+    def query_remote_parquet(
+        self,
+        bucket_url: str,
+        sql: str,
+        params: list[Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Query Parquet files from S3/R2 remote storage using httpfs.
+
+        Configures S3-compatible credentials from env vars on first call
+        (R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY), then
+        executes the provided SQL which should reference the remote Parquet
+        files via ``read_parquet('{bucket_url}', union_by_name=true)``.
+
+        Args:
+            bucket_url: S3 URL path to Parquet file(s) or glob.
+                        Example: s3://rmi-parquet/ethereum/transfers/*/*/*.parquet
+            sql: SQL query that references read_parquet(...) for the bucket_url.
+            params: Optional parameter list for ? placeholders.
+
+        Returns:
+            list of dicts. Empty list on error (with a warning logged).
+        """
+        self._ensure_s3_configured()
+        try:
+            return self.query(sql, params=params)
+        except Exception as exc:
+            log.warning(
+                "duckdb_remote_parquet_fail bucket=%s err=%s: %s",
+                bucket_url,
+                type(exc).__name__,
+                exc,
+            )
+            return []
+
+    def _ensure_s3_configured(self) -> None:
+        """Idempotently configure S3-compatible credentials from env vars (R2)."""
+        if self._s3_configured:
+            return
+        endpoint = os.getenv("R2_ENDPOINT_URL")
+        access_key = os.getenv("R2_ACCESS_KEY_ID")
+        secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+        if not (endpoint and access_key and secret_key):
+            log.warning(
+                "duckdb_s3_missing_config - R2_ENDPOINT_URL/R2_ACCESS_KEY_ID/"
+                "R2_SECRET_ACCESS_KEY not set; remote parquet queries will fail"
+            )
+            return
+        self._conn.execute(
+            "SET s3_endpoint = ?; SET s3_access_key_id = ?; SET s3_secret_access_key = ?;",
+            [endpoint, access_key, secret_key],
+        )
+        self._s3_configured = True
+        log.info("duckdb_s3_configured endpoint=%s", endpoint)
 
     def register_dataframe(self, name: str, df: Any) -> None:
         """Register a pandas/polars DataFrame as a queryable table.
