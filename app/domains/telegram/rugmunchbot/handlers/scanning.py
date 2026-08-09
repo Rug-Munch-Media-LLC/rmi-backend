@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -39,6 +40,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     format_scan_report,
     format_sentinel_deepscan_section,
+    format_wallet_composition_section,
     format_wallet_report,
     is_evm,
     is_owner,
@@ -289,6 +291,62 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+async def _poll_v2_scan_completion(address: str, chain: str, max_wait_s: float = 24.0) -> dict | None:
+    """Poll the v2 scan status endpoint until background phases complete.
+
+    The v2 scan API returns within ~25s while deep phases (wallet metrics,
+    SENTINEL, news) continue in a background task. /deepscan waits a little
+    longer so the wallet-composition section has real data. Returns the
+    completed status payload (legacy serializer shape), or None on
+    timeout/failure — the caller then renders whatever the fast path had.
+    """
+    url = f"{BACKEND_URL}/api/v2/scanner/token/scan/{chain}/{address}/status"
+    deadline = time.monotonic() + max_wait_s
+    await asyncio.sleep(4)  # head start for the background phases
+    while time.monotonic() < deadline:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.get(url, headers=backend_headers())
+            if r.status_code == 200:
+                data = r.json()
+                if isinstance(data, dict) and data.get("background_status") == "complete":
+                    return data
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as exc:
+            logger.debug("v2 scan status poll failed for %s: %s", address[:12], exc)
+        await asyncio.sleep(4)
+    return None
+
+
+def _merge_completed_scan(result_v2: dict, completed: dict) -> None:
+    """Merge late-arriving background-phase data into the fast-path v2 payload.
+
+    Only fills keys the fast path left empty — never overwrites. The status
+    payload uses the legacy serializer (``deep_profile`` nesting,
+    ``funding_analysis`` top-level) so both shapes are probed.
+    """
+    for key in ("wallet_metrics", "bundle_analysis"):
+        if completed.get(key) and not result_v2.get(key):
+            result_v2[key] = completed[key]
+    # funding_analysis is consumed from evidence by v2_token_to_legacy —
+    # fill both slots so downstream readers always find it.
+    if completed.get("funding_analysis"):
+        if not result_v2.get("funding_analysis"):
+            result_v2["funding_analysis"] = completed["funding_analysis"]
+        ev0 = result_v2.setdefault("evidence", {})
+        if not ev0.get("funding_analysis"):
+            ev0["funding_analysis"] = completed["funding_analysis"]
+    if not result_v2.get("deployer_profile"):
+        dp = completed.get("deployer_profile") or (completed.get("deep_profile") or {}).get("deployer_profile")
+        if dp:
+            result_v2["deployer_profile"] = dp
+    completed_ev = completed.get("evidence")
+    if isinstance(completed_ev, dict):
+        ev = result_v2.setdefault("evidence", {})
+        for k, v in completed_ev.items():
+            if v and not ev.get(k):
+                ev[k] = v
+
+
 async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Full multi-phase deep scan (v6).
 
@@ -339,6 +397,16 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
     try:
         result_v2 = await scan_token_v2(target, chain)
+        if (
+            result_v2 is not None
+            and result_v2.get("background_status") == "running"
+            and not result_v2.get("wallet_metrics")
+        ):
+            # Deep phases still running — wait briefly so the wallet
+            # composition (fresh/CEX/brand-new %) lands before we render.
+            completed = await _poll_v2_scan_completion(target, chain or result_v2.get("chain") or detect_chain(target))
+            if completed:
+                _merge_completed_scan(result_v2, completed)
         if result_v2 is not None:
             result = v2_token_to_legacy(result_v2)
         else:
@@ -357,6 +425,11 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         # ── Enrichment phase (best-effort, non-blocking) ──
         enrichment_lines: list[str] = []
         chain_norm = chain or result.get("chain") or detect_chain(target)
+        # Wallet composition from the own funding_analysis engine (fresh /
+        # brand-new / CEX-funded %) — the deepscan-only forensic block.
+        wallet_section = format_wallet_composition_section(result)
+        if wallet_section:
+            enrichment_lines.append(wallet_section)
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 g_r, i_r = await asyncio.gather(
