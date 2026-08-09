@@ -21,6 +21,7 @@ from functools import wraps
 
 import httpx
 from telegram import BotCommand, Update
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -70,6 +71,7 @@ from app.domains.telegram.rugmunchbot.handlers.ask import cmd_ask
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.chat import cmd_chat
 from app.domains.telegram.rugmunchbot.handlers.chat_ai import register_chat_ai
+from app.domains.telegram.rugmunchbot.handlers.defi import register_defi
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.groups import (
     cmd_banuser,
@@ -81,8 +83,6 @@ from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
 from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, register_market
-from app.domains.telegram.rugmunchbot.handlers.prediction import register_prediction
-from app.domains.telegram.rugmunchbot.handlers.defi import register_defi
 from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin,
     cmd_admin_ban,
@@ -96,6 +96,7 @@ from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin_user,
 )
 from app.domains.telegram.rugmunchbot.handlers.payments import precheckout, successful_payment
+from app.domains.telegram.rugmunchbot.handlers.prediction import register_prediction
 from app.domains.telegram.rugmunchbot.handlers.price import cmd_dex, cmd_price
 from app.domains.telegram.rugmunchbot.handlers.report import cmd_report
 from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
@@ -337,9 +338,9 @@ async def daily_scam_tip(ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
     try:
         await ctx.bot.send_message(CHANNELS["main"], text, parse_mode="HTML", disable_web_page_preview=True)
-    except (KeyError, TypeError) as e:
-        logger.debug("daily_scam_tip_error", exc_info=True)
-        logger.error(f"Daily tip failed: {e}")
+    except TelegramError as e:
+        # Channel perms / transient API error — log and let the next daily run retry.
+        logger.error(f"Daily tip failed: {e}", exc_info=True)
 
 
 def main() -> None:
