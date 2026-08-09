@@ -310,9 +310,7 @@ async def compute_deployer_profile(
             # Rugged proxy (chain-agnostic): no DEX swaps after 72h is the
             # primary signal; the <$1K volume check only applies on chains
             # where volume_usd is actually populated (e.g. base/arbitrum).
-            if swaps_after_72h == 0:
-                rugged += 1
-            elif isinstance(vol_after_72h, (int, float)) and vol_after_72h < RUG_LIQUIDITY_USD:
+            if swaps_after_72h == 0 or (isinstance(vol_after_72h, (int, float)) and vol_after_72h < RUG_LIQUIDITY_USD):
                 rugged += 1
 
         # Still active: swaps in last 48h
