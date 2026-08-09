@@ -140,7 +140,7 @@ def system_status() -> dict[str, Any]:
         timeout=10,
     )
     if d_result["ok"]:
-        count = len([l for l in d_result["output"].splitlines() if l.strip()])
+        count = len([line for line in d_result["output"].splitlines() if line.strip()])
         docker_count = f"\n🐳 Containers: {count} running"
 
     return {

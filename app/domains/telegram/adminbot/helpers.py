@@ -47,6 +47,8 @@ if TYPE_CHECKING:
 
 def is_owner(update: Update) -> bool:
     """Check if the user is a known owner."""
+    if update.effective_user is None:
+        return False
     return update.effective_user.id in OWNER_IDS
 
 
@@ -60,7 +62,8 @@ def owner_only(func) -> Any | None:
             return
         # Authorization check
         if not is_owner(update):
-            await update.message.reply_text("⛔ Unauthorized. This bot is for RMI admins only.")
+            if update.message is not None:
+                await update.message.reply_text("⛔ Unauthorized. This bot is for RMI admins only.")
             return
         return await func(update, ctx)
 
@@ -79,9 +82,11 @@ async def edit_or_reply(
         try:
             await update.callback_query.edit_message_text(text, reply_markup=keyboard, parse_mode=parse_mode)
         except (ConnectionError, OSError, TimeoutError):
-            await update.callback_query.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
+            if update.callback_query.message is not None:
+                await update.callback_query.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
     else:
-        await update.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
+        if update.message is not None:
+            await update.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
 
 
 def main_menu_keyboard() -> Any:

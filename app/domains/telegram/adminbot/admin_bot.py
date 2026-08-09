@@ -120,8 +120,8 @@ async def bot_stats() -> dict[str, Any]:
         days = await admin_state.get_daily_analytics(1)
         if days:
             messages_today = max(messages_today, int(days[0].get("messages", 0)))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("admin_bot: daily analytics failed: %s", exc)
 
     return {
         **counts,

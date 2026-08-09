@@ -60,6 +60,8 @@ except ImportError:
 
 @owner_only
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     qs = admin_health.control_panel()
     card = admin_health.format_control_panel(qs)
     await update.message.reply_text(
@@ -76,6 +78,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show the categorized main menu."""
     await update.message.reply_text(
         "🛡️ *RMI Admin Bot* — Select a section:",
@@ -91,6 +95,8 @@ async def cmd_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     msg = await update.message.reply_text("⏳ Gathering fleet status...")
     s = admin_ops.system_status()
     text = admin_ops.format_status(s)
@@ -116,6 +122,8 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_disk(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     msg = await update.message.reply_text("⏳ Checking disk usage...")
     result = admin_ops.disk_usage()
     text = admin_ops.format_disk(result)
@@ -141,6 +149,8 @@ async def cmd_disk(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_mem(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     msg = await update.message.reply_text("⏳ Gathering memory report...")
     result = admin_ops.memory_report()
     text = admin_ops.format_memory(result)
@@ -166,6 +176,8 @@ async def cmd_mem(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     await update.message.reply_text(
         "🐳 *Docker Management*",
         reply_markup=docker_menu(),
@@ -180,6 +192,8 @@ async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     args = ctx.args
     if not args:
         await update.message.reply_text(
@@ -197,7 +211,7 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     cmd = " ".join(args)
     msg = await update.message.reply_text(f"⏳ Running: `{cmd[:100]}`...", parse_mode=ParseMode.MARKDOWN)
     if admin_audit is not None:
-        admin_audit.log_action("shell.exec", cmd[:200], update.effective_user.id)
+        admin_audit.log_action("shell.exec", cmd[:200], update.effective_user.id if update.effective_user else 0)
     result = admin_ops.run_shell(cmd, timeout=30)
     output = result["output"] or result["error"]
     status_line = f"{'✅' if result['ok'] else '❌'} `{cmd[:80]}` ({result['duration']:.1f}s)"
@@ -214,6 +228,8 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     args = ctx.args
     if not args:
         text = admin_ops.service_list()
@@ -241,6 +257,8 @@ async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_svc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Manage a systemd service: /svc [start|stop|restart] <service>.
 
     stop/restart require confirmation (destructive); start runs directly.
@@ -277,7 +295,7 @@ async def cmd_svc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     result = admin_server.service_control(service, action)
     if result["ok"]:
         if admin_audit is not None:
-            admin_audit.log_action("service.start", service, update.effective_user.id)
+            admin_audit.log_action("service.start", service, update.effective_user.id if update.effective_user else 0)
         await msg.edit_text(
             f"✅ `{action} {service}` — done\n\n```\n{result['output'][:1500]}\n```",
             parse_mode=ParseMode.MARKDOWN,
@@ -291,6 +309,8 @@ async def cmd_svc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_svc_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """List systemd services with status — /svc_list [filter]."""
     filter_str = ctx.args[0] if ctx.args else ""
     msg = await update.message.reply_text("⏳ Listing services...")
@@ -304,6 +324,8 @@ async def cmd_svc_list(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_svc_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Tail journalctl for a systemd service: /svc_logs <service> [lines]."""
     args = ctx.args
     if not args:
@@ -342,6 +364,8 @@ async def cmd_svc_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_top(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Top 10 processes by CPU (or by memory with /top mem)."""
     sort_by = ctx.args[0].lower() if ctx.args and ctx.args[0].lower() in ("mem", "memory", "cpu") else "cpu"
     msg = await update.message.reply_text("⏳ Gathering processes...")
@@ -355,6 +379,8 @@ async def cmd_top(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_uptime(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """System uptime + load averages."""
     msg = await update.message.reply_text("⏳ Checking uptime...")
     result = admin_server.uptime_report()
@@ -367,6 +393,8 @@ async def cmd_uptime(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_net(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Network interfaces + listening ports summary."""
     msg = await update.message.reply_text("⏳ Scanning network...")
     result = admin_server.network_report()
@@ -379,6 +407,8 @@ async def cmd_net(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_certs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """SSL certificate expiry dates (certbot + acme.sh)."""
     msg = await update.message.reply_text("⏳ Checking certificates...")
     result = admin_server.cert_expiry()
@@ -391,6 +421,8 @@ async def cmd_certs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_services(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """List systemd services, optionally filtered (e.g. /services rag)."""
     filter_str = ctx.args[0] if ctx.args else ""
     msg = await update.message.reply_text("⏳ Listing services...")
@@ -405,6 +437,8 @@ async def cmd_services(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Restart a systemd service — requires confirmation."""
     args = ctx.args
     if not args:
@@ -436,6 +470,8 @@ async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_dps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Formatted docker ps table (name, status, uptime, ports)."""
     msg = await update.message.reply_text("⏳ Listing containers...")
     result = admin_docker.docker_ps_table()
@@ -448,6 +484,8 @@ async def cmd_dps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_dlogs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Tail docker logs for a container: /dlogs <container> [lines]."""
     args = ctx.args
     if not args:
@@ -482,6 +520,8 @@ async def cmd_dlogs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_dstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Docker stats snapshot — top 10 by memory."""
     msg = await update.message.reply_text("⏳ Sampling container stats...")
     result = admin_docker.docker_stats_top(limit=10)
@@ -494,6 +534,8 @@ async def cmd_dstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_drestart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Restart a docker container — requires confirmation."""
     args = ctx.args
     if not args:
@@ -520,6 +562,8 @@ async def cmd_drestart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_dprune(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show docker reclaimable space with prune option."""
     msg = await update.message.reply_text("⏳ Checking docker disk usage...")
     result = admin_docker.docker_disk_usage()
@@ -545,6 +589,8 @@ async def cmd_dprune(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     args = ctx.args
     action = args[0] if args else ""
 
@@ -583,6 +629,8 @@ async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_backup_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Last backup per type (postgres, clickhouse, qdrant, rag, ...)."""
     msg = await update.message.reply_text("⏳ Checking backup status...")
     result = admin_ops.backup_status()
@@ -595,6 +643,8 @@ async def cmd_backup_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> N
 
 @owner_only
 async def cmd_backup_run(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Trigger a backup: /backup_run [type] — requires confirmation."""
     args = ctx.args
     btype = args[0].lower() if args else "full"
@@ -627,6 +677,8 @@ async def cmd_backup_run(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
 
 @owner_only
 async def cmd_backup_verify(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Check B2 sync status / backup verification."""
     msg = await update.message.reply_text("⏳ Verifying backups...")
     result = admin_ops.backup_verify()
@@ -640,6 +692,8 @@ async def cmd_backup_verify(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> N
 
 @owner_only
 async def cmd_admin_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Recent admin actions from the audit trail."""
     msg = await update.message.reply_text("⏳ Reading audit log...")
     if admin_audit is None:
@@ -660,6 +714,8 @@ async def cmd_admin_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
 
 @owner_only
 async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     args = ctx.args
     if not args:
         await update.message.reply_text(
@@ -698,6 +754,8 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     args = ctx.args
     if not args:
         await update.message.reply_text(
@@ -733,6 +791,8 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Health dashboard — runs live fleet health checks.
 
     Registered as the primary handler for both /health and /alerts
@@ -762,6 +822,8 @@ cmd_alerts = cmd_health
 
 @owner_only
 async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     await update.message.reply_text(
         "⚡ *Quick Operations*",
         reply_markup=InlineKeyboardMarkup(
@@ -799,6 +861,8 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Send a prompt to OpenCode AI — OWNER ONLY."""
     if admin_ai is None:
         await update.message.reply_text("⚠️ AI module not available (missing admin_ai.py)")
@@ -861,6 +925,8 @@ async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_git(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show git status for a repo — OWNER ONLY."""
     args = ctx.args
     if not args:
@@ -908,6 +974,8 @@ async def cmd_git(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_push(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Push all repos — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Pushing all repos...")
     result = admin_ops.push_all_repos()
@@ -927,6 +995,8 @@ async def cmd_push(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_chain(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show LiteIndexer chain status — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Checking chain indexer status...")
     result = admin_ops.chain_status()
@@ -959,6 +1029,8 @@ async def cmd_chain(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Send an alert to subscribed chats — OWNER ONLY."""
     args = ctx.args
     if not args:
@@ -1006,6 +1078,8 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_ragstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show RAG collection sizes and embedding model status — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Fetching RAG stats...")
     result = admin_ops.rag_stats()
@@ -1043,6 +1117,8 @@ async def cmd_ragstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show latest rated news articles with bias/sentiment — OWNER ONLY."""
     limit = int(ctx.args[0]) if ctx.args and ctx.args[0].isdigit() else 5
     msg = await update.message.reply_text("⏳ Fetching news feed...")
@@ -1091,6 +1167,8 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_scanstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show scanner usage and own_data vs external breakdown — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Fetching scanner stats...")
     result = admin_ops.scan_stats()
@@ -1136,6 +1214,8 @@ async def cmd_scanstats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_indexer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Show LiteIndexer chain-by-chain status — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Checking chain indexers...")
     result = admin_ops.indexer_status()
@@ -1168,6 +1248,8 @@ async def cmd_indexer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_admin_backups(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Last backup timestamps + recent backup artifacts — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Checking backups...")
     result = admin_ops.backup_report()
@@ -1180,6 +1262,8 @@ async def cmd_admin_backups(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> N
 
 @owner_only
 async def cmd_admin_scanner(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Scanner activity from the bot DB (scans today / week / total) — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Fetching scanner stats...")
     if admin_bot is None:
@@ -1202,6 +1286,8 @@ async def cmd_admin_scanner(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> N
 
 @owner_only
 async def cmd_admin_bot_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """RugMunchBot stats: users, messages today, active users — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Fetching bot stats...")
     if admin_bot is None:
@@ -1232,6 +1318,8 @@ async def cmd_admin_bot_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -
 
 @owner_only
 async def cmd_admin_bot_toggle(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Enable/disable RugMunchBot or its AI chat — OWNER ONLY."""
     await update.message.reply_text(
         "🔀 *RugMunchBot Toggle*\n\nChoose an action:",
@@ -1242,6 +1330,8 @@ async def cmd_admin_bot_toggle(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -
 
 @owner_only
 async def cmd_admin_bot_broadcast(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Broadcast a message to all RugMunchBot users — OWNER ONLY."""
     args = ctx.args
     if not args:
@@ -1271,6 +1361,8 @@ async def cmd_admin_bot_broadcast(update: Update, ctx: ContextTypes.DEFAULT_TYPE
 
 @owner_only
 async def cmd_admin_bot_broadcasts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Recent broadcast history — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Fetching broadcast history...")
     if admin_bot is None:
@@ -1286,6 +1378,8 @@ async def cmd_admin_bot_broadcasts(update: Update, ctx: ContextTypes.DEFAULT_TYP
 
 @owner_only
 async def cmd_admin_bot_users(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """List recent RugMunchBot users — OWNER ONLY."""
     msg = await update.message.reply_text("⏳ Listing users...")
     if admin_bot is None:
@@ -1301,6 +1395,8 @@ async def cmd_admin_bot_users(update: Update, ctx: ContextTypes.DEFAULT_TYPE) ->
 
 @owner_only
 async def cmd_admin_reboot(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
     """Reboot the server — requires DOUBLE confirmation — OWNER ONLY."""
     args = ctx.args
     delay = int(args[0]) if args and args[0].isdigit() else 60

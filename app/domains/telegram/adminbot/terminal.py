@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 @owner_only
 async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Enter terminal mode — every message becomes a shell command."""
+    if update.effective_user is None or update.message is None:
+        return
     user_id = update.effective_user.id
     admin_terminal.enter_terminal(user_id)
     session = admin_terminal._sessions[user_id]
@@ -44,6 +46,8 @@ async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle messages in terminal mode."""
+    if update.effective_user is None or update.message is None:
+        return
     user_id = update.effective_user.id
     if not admin_terminal.in_terminal(user_id):
         return
@@ -52,7 +56,10 @@ async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE
         return
 
     session = admin_terminal._sessions[user_id]
-    cmd = update.message.text.strip()
+    text = update.message.text
+    if text is None:
+        return
+    cmd = text.strip()
     result = admin_terminal.execute(session, cmd)
 
     if result.get("exit"):
