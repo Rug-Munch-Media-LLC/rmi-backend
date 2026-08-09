@@ -45,6 +45,10 @@ OVERVIEW_BODY = {
     "total_volume_24h": 85e9,
     "btc_dominance": 60.5,
     "eth_dominance": 10.2,
+    "btc_price": 67000.0,
+    "btc_change_24h": 1.2,
+    "eth_price": 3450.0,
+    "eth_change_24h": 0.8,
     "fear_greed": {"value": 62, "classification": "Greed", "timestamp": "2026-08-09T00:00:00Z"},
     "updated_at": "2026-08-09T00:00:00Z",
 }
@@ -128,7 +132,8 @@ class TestFetchDailyData:
     async def test_assembles_all_sections(self, fake_backend: dict[str, Any]) -> None:
         data = await dc.fetch_daily_data()
 
-        assert data["prices"] == {"btc": 67123.45, "eth": 3512.89}
+        # Prices now come from /market/overview (single-call) — macro is fallback.
+        assert data["prices"] == {"btc": 67000.0, "btc_change_24h": 1.2, "eth": 3450.0, "eth_change_24h": 0.8}
         assert data["total_mcap"] == 3.2e12
         assert data["btc_dominance"] == 60.5
         assert data["fear_greed_value"] == 62
@@ -143,6 +148,27 @@ class TestFetchDailyData:
         assert data["launches"][2] == "BASED [base]"
         # fully empty name/symbol -> short address
         assert data["launches"][3] == "00000000\u2026 [ethereum]"
+
+    async def test_prices_fall_back_to_macro_when_overview_has_no_prices(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Older /market/overview responses (no btc_price/eth_price fields) must
+        still resolve prices via /market/macro — no regression for pre-fix backends."""
+        no_price_overview = {k: v for k, v in OVERVIEW_BODY.items() if not k.startswith(("btc_", "eth_"))}
+
+        async def _fake(
+            path: str, params: dict[str, Any] | None = None, timeout_secs: float = 5.0
+        ) -> dict[str, Any] | None:
+            return {
+                dc.OVERVIEW_PATH: no_price_overview,
+                dc.MACRO_PATH: MACRO_BODY,
+                dc.NEWS_PATH: NEWS_BODY,
+                dc.TRENDING_PATH: TRENDING_BODY,
+                dc.LAUNCHES_PATH: LAUNCHES_BODY,
+            }.get(path)
+
+        monkeypatch.setattr(dc, "backend_get_json", _fake)
+
+        data = await dc.fetch_daily_data()
+        assert data["prices"] == {"btc": 67123.45, "eth": 3512.89}
 
     async def test_all_backend_failures_yield_empty_snapshot(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def _down(path: str, params: dict[str, Any] | None = None, timeout_secs: float = 5.0) -> None:

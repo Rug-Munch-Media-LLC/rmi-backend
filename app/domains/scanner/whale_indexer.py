@@ -31,13 +31,13 @@ payload keys — the same convention used here.
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from app.config import settings
 from app.core.logging import get_logger
 from app.domains.scanner.webhooks.providers.utils import get_clickhouse
 from app.rag.embeddings import get_embedding
@@ -52,7 +52,9 @@ COLLECTION = "whale_transfers"
 VECTOR_SIZE = 1024
 DISTANCE = "Cosine"
 
-_QDRANT_URL = os.getenv("QDRANT_URL", "http://rmi-qdrant:6333").rstrip("/")
+# Resolved via app.config (env var wins; Docker-compose name inside the
+# network; host-mapped localhost on host-side systemd runs).
+_QDRANT_URL = settings.qdrant_url.rstrip("/")
 
 # Minimum USD value matching WhaleMoveProvider.DEFAULT_MIN_VALUE — used by
 # the backfill so it only pulls events that qualify as "whale" moves.

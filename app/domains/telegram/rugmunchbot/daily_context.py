@@ -144,16 +144,29 @@ def _has_content(data: dict[str, Any]) -> bool:
 
 
 async def _fetch_overview() -> dict[str, Any]:
-    """Total mcap, BTC dominance, Fear & Greed from /market/overview."""
+    """Total mcap, BTC dominance, Fear & Greed from /market/overview.
+
+    Since 2026-08-09 the overview endpoint also carries BTC/ETH spot
+    prices + 24h change, so a single call yields both the top-line
+    metrics and the flagship prices (macro stays as fallback).
+    """
     body = await backend_get_json(OVERVIEW_PATH, timeout_secs=FETCH_TIMEOUT)
     if not body:
         return {}
     fg = body.get("fear_greed") or {}
+    prices: dict[str, Any] = {}
+    if body.get("btc_price") is not None:
+        prices["btc"] = body.get("btc_price")
+        prices["btc_change_24h"] = body.get("btc_change_24h")
+    if body.get("eth_price") is not None:
+        prices["eth"] = body.get("eth_price")
+        prices["eth_change_24h"] = body.get("eth_change_24h")
     return {
         "total_mcap": body.get("total_market_cap"),
         "btc_dominance": body.get("btc_dominance"),
         "fear_greed_value": fg.get("value"),
         "fear_greed_label": fg.get("classification") or "Neutral",
+        "prices": prices or None,
     }
 
 
@@ -260,6 +273,11 @@ async def fetch_daily_data() -> dict[str, Any]:
     news = _ok(2, [])
     trending = _ok(3, [])
     launches = _ok(4, [])
+    # Prefer BTC/ETH prices from /market/overview (single call); macro is
+    # the fallback when the overview endpoint predates the price fields.
+    overview_prices = overview.get("prices") or {}
+    if overview_prices.get("btc") is not None:
+        prices = overview_prices
     return {
         "prices": prices,
         "total_mcap": overview.get("total_mcap"),

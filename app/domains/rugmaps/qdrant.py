@@ -23,16 +23,20 @@ same Docker-compose default as the rest of the backend.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient, models
 
+from app.config import resolve_service_url
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://rmi-qdrant:6333").rstrip("/")
+# Resolved via app.config (env var wins; Docker name inside the network;
+# host-mapped localhost on host-side systemd runs).
+QDRANT_URL = resolve_service_url("QDRANT_URL", docker="http://rmi-qdrant:6333", local="http://localhost:6333").rstrip(
+    "/"
+)
 
 # RugMaps Phase 0 collections: name -> dense vector dimension.
 COLLECTIONS: dict[str, int] = {

@@ -34,6 +34,9 @@ from typing import Any
 import httpx
 from qdrant_client import AsyncQdrantClient, models
 
+from app.config import resolve_service_url
+from app.core.logging import get_logger
+from app.domains.rugmaps.qdrant import COLLECTIONS, DENSE_VECTOR_NAME
 from app.core.logging import get_logger
 from app.domains.rugmaps.qdrant import COLLECTIONS, DENSE_VECTOR_NAME
 
@@ -126,12 +129,16 @@ async def seed_wallets(
     Returns a stats dict: rows fetched, vectors embedded, points upserted,
     and skipped/failed counts.
     """
-    qdrant_url = (qdrant_url if qdrant_url is not None else os.getenv("QDRANT_URL", "http://rmi-qdrant:6333")).rstrip(
-        "/"
-    )
-    embed_url = (embed_url if embed_url is not None else os.getenv("INFINITY_URL", "http://infinity-rag:8001")).rstrip(
-        "/"
-    )
+    qdrant_url = (
+        qdrant_url
+        if qdrant_url is not None
+        else resolve_service_url("QDRANT_URL", docker="http://rmi-qdrant:6333", local="http://localhost:6333")
+    ).rstrip("/")
+    embed_url = (
+        embed_url
+        if embed_url is not None
+        else resolve_service_url("INFINITY_URL", docker="http://infinity-rag:8001", local="http://localhost:8001")
+    ).rstrip("/")
     table = os.getenv("RGM_SEED_TABLE", "wallet_memory.wallet_labels")
 
     # 1) Pull labeled wallets from ClickHouse (fetch extra rows for dedupe)

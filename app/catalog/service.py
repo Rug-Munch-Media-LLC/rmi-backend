@@ -35,6 +35,7 @@ from app.catalog.models import (
     Wallet,
     utcnow,
 )
+from app.config import resolve_service_url
 from app.core.logging import get_logger
 from app.rag.engine import (
     ingest_document as rag_ingest_document,
@@ -65,7 +66,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "password": os.getenv("NEO4J_PASSWORD", ""),
     },
     "qdrant": {
-        "url": os.getenv("QDRANT_URL", "http://rmi-qdrant:6333"),
+        "url": resolve_service_url("QDRANT_URL", docker="http://rmi-qdrant:6333", local="http://localhost:6333"),
         "api_key": os.getenv("QDRANT_API_KEY", ""),
     },
     "minio": {
