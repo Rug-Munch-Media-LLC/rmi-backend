@@ -163,12 +163,19 @@ async def scan_token(
             # keys (scanner.v2_token_to_legacy). wallet_metrics drives the
             # deepscan wallet-composition section (fresh / CEX-funded /
             # first-tx %); previously computed but never serialized.
+            # deployer_profile nests under deep_profile on the result model.
             "wallet_metrics": result.wallet_metrics,
             "bundle_analysis": result.bundle_analysis,
             "deployer_profile": (
-                asdict(result.deployer_profile)
-                if is_dataclass(result.deployer_profile) and not isinstance(result.deployer_profile, type)
-                else result.deployer_profile
+                asdict(result.deep_profile.deployer_profile)
+                if result.deep_profile
+                and is_dataclass(result.deep_profile.deployer_profile)
+                and not isinstance(result.deep_profile.deployer_profile, type)
+                else (
+                    result.deep_profile.deployer_profile
+                    if result.deep_profile and result.deep_profile.deployer_profile
+                    else None
+                )
             ),
         }
     except Exception as e:
