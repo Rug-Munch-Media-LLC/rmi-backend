@@ -22,9 +22,9 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
-from telegram.error import BadRequest, Forbidden
+from telegram.error import BadRequest, Forbidden, RetryAfter, TelegramError
 
 from app.core.logging import get_logger
 from app.domains.telegram import access_guard
@@ -166,7 +166,7 @@ async def cmd_admin_broadcast(update: Update, ctx) -> None:
     )
 
 
-async def _do_broadcast(bot, msg_text: str, owner_uid: int | None = None) -> tuple[int, int]:
+async def _do_broadcast(bot: Bot, msg_text: str, owner_uid: int | None = None) -> tuple[int, int]:
     conn = db.get_db()
     users = conn.execute("SELECT user_id FROM users WHERE is_banned = 0").fetchall()
     conn.close()
@@ -176,8 +176,18 @@ async def _do_broadcast(bot, msg_text: str, owner_uid: int | None = None) -> tup
             await bot.send_message(u["user_id"], msg_text, parse_mode=ParseMode.HTML)
             sent += 1
             await asyncio.sleep(0.05)
-        except (Forbidden, BadRequest) as e:
-            # Blocked/bad recipient: skip and keep fanning out.
+        except RetryAfter as e:
+            # Flood control: back off as Telegram instructs, retry once, then skip.
+            await asyncio.sleep(e.retry_after + 1)
+            try:
+                await bot.send_message(u["user_id"], msg_text, parse_mode=ParseMode.HTML)
+                sent += 1
+            except TelegramError as retry_err:
+                logger.debug(f"Broadcast retry failed for user {u['user_id']}: {retry_err}")
+                failed += 1
+        except TelegramError as e:
+            # Blocked (Forbidden), malformed (BadRequest), or transient API error:
+            # skip this recipient and keep fanning out.
             logger.debug(f"Broadcast skipped for user {u['user_id']}: {e}")
             failed += 1
         except (KeyError, TypeError) as e:
