@@ -760,11 +760,11 @@ def _deployer_history_line(r: dict) -> str | None:
 
 
 def _wallet_freshness_line(r: dict) -> str | None:
-    """Wallet freshness + CEX-funding line, or ``None`` when no metrics.
+    """Wallet freshness + CEX-funding + brand-new line, or ``None`` when no metrics.
 
-    Reads ``r["wallet_metrics"]`` (``fresh_wallet_pct`` / ``cex_funded_pct``)
-    and returns a compact line. Skips the graceful-degradation payload
-    (``result == "unavailable"``) so a failed engine never renders zeros.
+    Reads ``r["wallet_metrics"]`` (``fresh_wallet_pct`` / ``cex_funded_pct`` /
+    ``first_tx_pct``) and returns a compact line. Skips the graceful-degradation
+    payload (``result == "unavailable"``) so a failed engine never renders zeros.
     """
     wm = r.get("wallet_metrics")
     if not isinstance(wm, dict) or wm.get("result") == "unavailable":
@@ -772,9 +772,63 @@ def _wallet_freshness_line(r: dict) -> str | None:
     try:
         fresh = float(wm.get("fresh_wallet_pct") or 0)
         cex = float(wm.get("cex_funded_pct") or 0)
+        first_tx = float(wm.get("first_tx_pct") or 0)
     except (TypeError, ValueError):
         return None
-    return f"\U0001f195 {fresh:.0f}% fresh wallets (<30 days), \U0001f3e6 {cex:.0f}% CEX-funded"
+    n = int(wm.get("holders_analyzed") or 0)
+    scope = f"top {n} holders" if n else "holders"
+    return (
+        f"\U0001f45b {scope.capitalize()}: \U0001f195 {fresh:.0f}% fresh (<30d) · "
+        f"\U0001f3e6 {cex:.0f}% CEX-funded · \u2728 {first_tx:.0f}% brand-new"
+    )
+
+
+def format_wallet_composition_section(r: dict) -> str:
+    """Full wallet-composition block for /deepscan (own funding_analysis engine).
+
+    Combines ``wallet_metrics`` (fresh <30d / CEX-funded / first-tx-this-token)
+    with the ``funding_analysis`` evidence (mixer-funded %, risk assessment).
+    Returns an empty string when neither payload has data — deepscan simply
+    omits the section.
+    """
+    wm = r.get("wallet_metrics") if isinstance(r.get("wallet_metrics"), dict) else {}
+    if wm.get("result") == "unavailable":
+        wm = {}
+    funding = (r.get("evidence") or {}).get("funding_analysis") or {}
+    if not isinstance(funding, dict):
+        funding = {}
+
+    def _f(val: object) -> float | None:
+        try:
+            return float(val)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+
+    fresh = _f(wm.get("fresh_wallet_pct"))
+    cex = _f(wm.get("cex_funded_pct"))
+    first_tx = _f(wm.get("first_tx_pct"))
+    analyzed = int(wm.get("holders_analyzed") or 0)
+    mixer = _f(funding.get("mixer_funded_pct"))
+    risk = str(funding.get("risk_assessment") or "").upper()
+
+    lines: list[str] = []
+    if fresh is not None:
+        lines.append(f"\U0001f195 Fresh wallets (<30d): <b>{fresh:.1f}%</b>")
+    if first_tx is not None:
+        lines.append(f"\u2728 Brand-new (1st tx = this token): <b>{first_tx:.1f}%</b>")
+    if cex is not None:
+        lines.append(f"\U0001f3e6 Exchange-funded (CEX): <b>{cex:.1f}%</b>")
+    if mixer:
+        lines.append(f"\U0001f977 Mixer-funded: <b>{mixer:.1f}%</b>")
+    if risk and risk not in ("", "UNKNOWN"):
+        emoji = {"LOW": "\U0001f7e2", "MEDIUM": "\U0001f7e1", "HIGH": "\U0001f534", "CRITICAL": "\U0001f6a8"}.get(
+            risk, "\u26aa"
+        )
+        lines.append(f"{emoji} Funding risk: <b>{risk}</b>")
+    if not lines:
+        return ""
+    scope = f" (top {analyzed} holders)" if analyzed else ""
+    return "\U0001f45b <b>Wallet Composition</b>" + scope + "\n" + thin_sep() + "\n" + "\n".join(lines)
 
 
 # --- Format scan report ---

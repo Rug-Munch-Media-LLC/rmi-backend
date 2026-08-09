@@ -82,6 +82,7 @@ except ImportError:  # pragma: no cover
 from app.core.logging import get_logger
 from app.domains.databus.providers.chains.chain_indexer import (
     _get_ch_client,
+    _new_ch_client,
     _normalize_chain,
 )
 from app.domains.scanner.engines._common import (
@@ -739,7 +740,15 @@ async def _compute_wallet_metrics(
         return _wallet_metrics_unavailable(token_address, chain, reason="no holder data")
 
     # ── 2. First-ever on-chain tx per holder (wallet age + first-tx token) ──
-    first_tx_rows = await run_sync(_query_holder_first_tx, holder_addrs, chain)
+    # Both directions run concurrently on DEDICATED connections (the shared
+    # client rejects simultaneous queries) — each is a chain-partition scan
+    # with its own timeout budget (the combined UNION ALL query used to
+    # exceed the 10s ClickHouse timeout on busy chains).
+    first_tx_in, first_tx_out = await asyncio.gather(
+        run_sync(_query_holder_first_tx_in, holder_addrs, chain, _new_ch_client()),
+        run_sync(_query_holder_first_tx_out, holder_addrs, chain, _new_ch_client()),
+    )
+    first_tx_rows = _merge_first_tx_rows(first_tx_in, first_tx_out)
     first_tx_by_holder: dict[str, dict[str, Any]] = {}
     for row in first_tx_rows or []:
         addr = str(row[0] or "").lower()
@@ -1022,6 +1031,24 @@ def _query_top_holders(token_address: str, chain: str, limit: int) -> list[tuple
                     settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
                 ),
             )
+        # EVM: prefer the pre-aggregated holder_balances table — keyed
+        # (chain, token_address, address), so this lookup is ms-fast.
+        # The legacy path aggregates evm_transfers via UNION ALL, which
+        # full-scans the chain's transfer rows (122M+ on ethereum) and blows
+        # the query timeout on busy tokens. Fall back to it only when the
+        # indexer has not seen the token yet (empty holder_balances).
+        hb_rows = client.execute(
+            """
+            SELECT address, balance FROM wallet_memory.holder_balances FINAL
+            WHERE chain = %(chain)s AND token_address = %(token)s AND balance > 0
+            ORDER BY balance DESC
+            LIMIT %(limit)s
+            """,
+            {"token": token_address, "chain": chain, "limit": limit},
+            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+        )
+        if hb_rows:
+            return cast("list[tuple[Any, ...]] | None", hb_rows)
         return cast(
             "list[tuple[Any, ...]] | None",
             client.execute(
@@ -1175,15 +1202,20 @@ def _query_wallet_first_funder(address: str, chain: str) -> list[tuple[Any, ...]
         return None
 
 
-def _query_holder_first_tx(holders: list[str], chain: str) -> list[tuple[Any, ...]] | None:
-    """First-ever on-chain transfer per holder (any token, in or out).
+def _query_holder_first_tx_in(
+    holders: list[str], chain: str, client: Any | None = None
+) -> list[tuple[Any, ...]] | None:
+    """First INCOMING transfer per holder (any token).
 
-    Returns rows of ``(holder, first_ts, first_token, first_tx_hash)``. The
-    ``first_token`` column drives ``first_tx_pct`` (holders whose first-ever
-    tx is the scanned token) and ``first_ts`` drives the <30-day wallet-age
-    metric.
+    Half of the wallet-birth lookup. The legacy combined query ran both
+    directions as one UNION ALL — a double full scan of the chain's
+    evm_transfers partition that exceeded the 10s query timeout. Splitting
+    the directions lets the caller run them concurrently, each within its
+    own timeout budget. ``client`` should be a dedicated connection
+    (``_new_ch_client()``) when run concurrently; defaults to the shared
+    singleton for sequential callers.
     """
-    client = _get_ch_client()
+    client = client or _get_ch_client()
     if client is None or not holders:
         return None
     try:
@@ -1192,34 +1224,92 @@ def _query_holder_first_tx(holders: list[str], chain: str) -> list[tuple[Any, ..
             client.execute(
                 """
             SELECT
-                addr,
+                to_address AS addr,
                 argMin(block_timestamp, block_timestamp) AS first_ts,
                 argMin(token_address, block_timestamp) AS first_token,
                 argMin(tx_hash, block_timestamp) AS first_tx_hash
-            FROM (
-                SELECT to_address AS addr, block_timestamp, token_address, tx_hash
-                FROM wallet_memory.evm_transfers
-                WHERE chain = %(chain)s
-                  AND to_address IN %(holders)s
-                  AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                              '0x000000000000000000000000000000000000dead')
-                UNION ALL
-                SELECT from_address AS addr, block_timestamp, token_address, tx_hash
-                FROM wallet_memory.evm_transfers
-                WHERE chain = %(chain)s
-                  AND from_address IN %(holders)s
-                  AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
-                                            '0x000000000000000000000000000000000000dead')
-            )
-            GROUP BY addr
+            FROM wallet_memory.evm_transfers
+            WHERE chain = %(chain)s
+              AND to_address IN %(holders)s
+              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                          '0x000000000000000000000000000000000000dead')
+            GROUP BY to_address
             """,
                 {"holders": tuple(holders), "chain": chain},
                 settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
             ),
         )
     except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("holder_first_tx_query_failed: %s", exc)
+        logger.debug("holder_first_tx_in_query_failed: %s", exc)
         return None
+
+
+def _query_holder_first_tx_out(
+    holders: list[str], chain: str, client: Any | None = None
+) -> list[tuple[Any, ...]] | None:
+    """First OUTGOING transfer per holder (any token) — see _query_holder_first_tx_in."""
+    client = client or _get_ch_client()
+    if client is None or not holders:
+        return None
+    try:
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
+            SELECT
+                from_address AS addr,
+                argMin(block_timestamp, block_timestamp) AS first_ts,
+                argMin(token_address, block_timestamp) AS first_token,
+                argMin(tx_hash, block_timestamp) AS first_tx_hash
+            FROM wallet_memory.evm_transfers
+            WHERE chain = %(chain)s
+              AND from_address IN %(holders)s
+              AND to_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                        '0x000000000000000000000000000000000000dead')
+            GROUP BY from_address
+            """,
+                {"holders": tuple(holders), "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("holder_first_tx_out_query_failed: %s", exc)
+        return None
+
+
+def _merge_first_tx_rows(
+    in_rows: list[tuple[Any, ...]] | None,
+    out_rows: list[tuple[Any, ...]] | None,
+) -> list[tuple[Any, ...]]:
+    """Merge the two first-tx directions, keeping the earliest row per holder."""
+    best: dict[str, tuple[Any, ...]] = {}
+    for rows in (in_rows, out_rows):
+        for row in rows or []:
+            if not row or not row[0]:
+                continue
+            addr = str(row[0]).lower()
+            cur = best.get(addr)
+            if cur is None or (row[1] is not None and (cur[1] is None or row[1] < cur[1])):
+                best[addr] = row
+    return list(best.values())
+
+
+def _query_holder_first_tx(holders: list[str], chain: str) -> list[tuple[Any, ...]] | None:
+    """First-ever on-chain transfer per holder (any token, in or out).
+
+    Sequential fallback kept for tests/back-compat; the engine hot path uses
+    ``_query_holder_first_tx_in`` + ``_query_holder_first_tx_out``
+    concurrently via ``run_sync`` gather (see ``_compute_wallet_metrics``).
+
+    Returns rows of ``(holder, first_ts, first_token, first_tx_hash)``. The
+    ``first_token`` column drives ``first_tx_pct`` (holders whose first-ever
+    tx is the scanned token) and ``first_ts`` drives the <30-day wallet-age
+    metric.
+    """
+    return _merge_first_tx_rows(
+        _query_holder_first_tx_in(holders, chain),
+        _query_holder_first_tx_out(holders, chain),
+    )
 
 
 def _query_holder_set(token_address: str, chain: str, limit: int = 500) -> list[tuple[Any, ...]] | None:

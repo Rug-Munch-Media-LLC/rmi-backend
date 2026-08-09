@@ -65,12 +65,15 @@ def _signal_indexer_demand(chain: str, event_type: str) -> None:
 _ch_client: Any = None
 
 
-def _get_ch_client() -> Any | None:
-    """Lazy-init ClickHouse native client for wallet_memory database."""
-    global _ch_client
-    if _ch_client is not None:
-        return _ch_client
+def _new_ch_client() -> Any | None:
+    """Fresh (uncached) ClickHouse connection for the wallet_memory database.
 
+    clickhouse_driver.Client does NOT tolerate concurrent queries on one
+    connection ("Simultaneous queries on single connection detected").
+    Engines that fan queries out across ``run_sync`` threads must each use
+    their own connection from this factory; the shared ``_get_ch_client``
+    singleton is only safe for strictly-sequential callers.
+    """
     ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
     ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000"))
     ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
@@ -82,17 +85,10 @@ def _get_ch_client() -> Any | None:
         from clickhouse_driver.errors import Error as CHDriverError
     except ImportError:
         logger.warning("clickhouse_driver not installed; Chain-indexer ClickHouse unavailable")
-        _ch_client = None
         return None
 
-    # Build + verify on a LOCAL client first, then publish to the module
-    # global. Publishing before ``SELECT 1`` completes lets a concurrent
-    # caller (scan engines run parallel tasks via run_sync threads) grab the
-    # half-initialized client and issue a second query on the same in-flight
-    # connection -> clickhouse_driver PartiallyConsumedQueryError.
-    candidate: Any = None
     try:
-        candidate = CHClient(
+        candidate: Any = CHClient(
             host=ch_host,
             port=ch_port,
             user=ch_user,
@@ -104,10 +100,24 @@ def _get_ch_client() -> Any | None:
         candidate.execute("SELECT 1")
     except (ConnectionError, TimeoutError, RuntimeError, OSError, AttributeError, CHDriverError) as e:
         logger.warning("Chain-indexer ClickHouse unavailable: %s", str(e).splitlines()[0][:200])
-        _ch_client = None
+        return None
+    return candidate
+
+
+def _get_ch_client() -> Any | None:
+    """Lazy-init shared ClickHouse client for wallet_memory database.
+
+    Single cached connection — safe only for strictly-sequential queries.
+    Concurrent ``run_sync`` callers must use ``_new_ch_client()`` instead.
+    """
+    global _ch_client
+    if _ch_client is not None:
+        return _ch_client
+    candidate = _new_ch_client()
+    if candidate is None:
         return None
     _ch_client = candidate
-    logger.info("Chain-indexer ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
+    logger.info("Chain-indexer ClickHouse connected (shared client)")
     return _ch_client
 
 

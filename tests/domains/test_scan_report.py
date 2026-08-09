@@ -13,6 +13,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     _deployer_history_line,
     _wallet_freshness_line,
     format_scan_report,
+    format_wallet_composition_section,
 )
 
 
@@ -137,10 +138,18 @@ class TestDeployerHistory:
 class TestWalletFreshness:
     def test_renders_fresh_and_cex_funded(self) -> None:
         report = _base_report()
-        report["wallet_metrics"] = {"fresh_wallet_pct": 22.5, "cex_funded_pct": 45.0, "result": "scanned"}
+        report["wallet_metrics"] = {
+            "fresh_wallet_pct": 22.5,
+            "cex_funded_pct": 45.0,
+            "first_tx_pct": 12.0,
+            "holders_analyzed": 25,
+            "result": "scanned",
+        }
         out = format_scan_report(report)
-        assert "22% fresh wallets (<30 days)" in out
+        assert "22% fresh (<30d)" in out
         assert "45% CEX-funded" in out
+        assert "12% brand-new" in out
+        assert "Top 25 holders" in out
 
     def test_skipped_when_wallet_metrics_absent(self) -> None:
         out = format_scan_report(_base_report())
@@ -170,8 +179,52 @@ class TestWalletFreshness:
         report["fresh_wallet_pct"] = 99  # legacy field — should be superseded
         report["wallet_metrics"] = {"fresh_wallet_pct": 10.0, "cex_funded_pct": 30.0, "result": "scanned"}
         out = format_scan_report(report)
-        assert "10% fresh wallets (<30 days)" in out
+        assert "10% fresh (<30d)" in out
         assert "Fresh wallets: 99%" not in out
+
+
+class TestWalletCompositionSection:
+    """Deepscan-only wallet-composition block (own funding_analysis engine)."""
+
+    def test_full_section_renders_all_stats(self) -> None:
+        report = _base_report()
+        report["wallet_metrics"] = {
+            "result": "scanned",
+            "holders_analyzed": 25,
+            "fresh_wallet_pct": 38.1,
+            "cex_funded_pct": 61.9,
+            "first_tx_pct": 22.4,
+        }
+        report["evidence"] = {"funding_analysis": {"mixer_funded_pct": 2.4, "risk_assessment": "HIGH"}}
+        out = format_wallet_composition_section(report)
+        assert "Wallet Composition" in out
+        assert "top 25 holders" in out
+        assert "Fresh wallets (<30d): <b>38.1%</b>" in out
+        assert "Brand-new (1st tx = this token): <b>22.4%</b>" in out
+        assert "Exchange-funded (CEX): <b>61.9%</b>" in out
+        assert "Mixer-funded: <b>2.4%</b>" in out
+        assert "Funding risk: <b>HIGH</b>" in out
+
+    def test_empty_when_no_data(self) -> None:
+        assert format_wallet_composition_section(_base_report()) == ""
+
+    def test_empty_when_unavailable_payload(self) -> None:
+        report = _base_report()
+        report["wallet_metrics"] = {"result": "unavailable", "fresh_wallet_pct": 0.0}
+        assert format_wallet_composition_section(report) == ""
+
+    def test_zero_mixer_line_omitted(self) -> None:
+        report = _base_report()
+        report["wallet_metrics"] = {
+            "result": "scanned",
+            "holders_analyzed": 10,
+            "fresh_wallet_pct": 5.0,
+            "cex_funded_pct": 80.0,
+            "first_tx_pct": 0.0,
+        }
+        out = format_wallet_composition_section(report)
+        assert "Mixer-funded" not in out
+        assert "80.0%" in out
 
 
 class TestAllIntelTogether:
@@ -184,7 +237,7 @@ class TestAllIntelTogether:
         assert "BUNDLED LAUNCH DETECTED" in out
         assert "92% confidence, CRITICAL" in out
         assert "Repeat Deployer" in out
-        assert "35% fresh wallets (<30 days)" in out
+        assert "35% fresh (<30d)" in out
         assert "20% CEX-funded" in out
 
     def test_all_sections_skipped_when_absent(self) -> None:

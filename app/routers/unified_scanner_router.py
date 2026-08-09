@@ -6,6 +6,7 @@ are injected via ``Depends()`` so they can be mocked in tests.
 
 from __future__ import annotations
 
+from dataclasses import asdict, is_dataclass
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -158,6 +159,17 @@ async def scan_token(
             "news_sentiment": result.news_sentiment,
             "news_card": result.news_card,
             "sentinel": result.sentinel,
+            # Own-engine intel blocks — the Telegram bot maps these top-level
+            # keys (scanner.v2_token_to_legacy). wallet_metrics drives the
+            # deepscan wallet-composition section (fresh / CEX-funded /
+            # first-tx %); previously computed but never serialized.
+            "wallet_metrics": result.wallet_metrics,
+            "bundle_analysis": result.bundle_analysis,
+            "deployer_profile": (
+                asdict(result.deployer_profile)
+                if is_dataclass(result.deployer_profile) and not isinstance(result.deployer_profile, type)
+                else result.deployer_profile
+            ),
         }
     except Exception as e:
         raise HTTPException(500, f"Scan failed: {str(e)[:200]}") from e
