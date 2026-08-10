@@ -260,8 +260,26 @@ async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) ->
                         bt = p.get("baseToken", {})
                         name = bt.get("name") or "Unknown"
                         symbol = bt.get("symbol") or "???"
-                        # Skip obvious garbage
-                        if any(g in name.lower() for g in ["crawled", "smol", "anaem", "dev leave", "robinhood"]):
+                        # Skip obvious garbage and low-quality tokens
+                        garbage_patterns = [
+                            "crawled",
+                            "smol",
+                            "anaem",
+                            "dev leave",
+                            "robinhood",
+                            "mow",
+                            "pengu mow",  # known low-quality meme tokens
+                        ]
+                        if any(g in name.lower() for g in garbage_patterns):
+                            return None
+                        if any(g in symbol.lower() for g in garbage_patterns):
+                            return None
+                        # Minimum quality thresholds
+                        liquidity = float(p.get("liquidity", {}).get("usd") or 0)
+                        volume_24h = float(p.get("volume", {}).get("h24") or 0)
+                        price = float(p.get("priceUsd") or 0)
+                        # Skip tokens with very low liquidity (<$1000) or volume (<$5000)
+                        if liquidity < 1000 or volume_24h < 5000:
                             return None
                         return {
                             "address": token_addr,

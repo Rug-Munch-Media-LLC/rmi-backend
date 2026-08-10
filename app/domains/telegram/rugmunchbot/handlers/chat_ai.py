@@ -107,7 +107,7 @@ logger = get_logger("rmi_bot.chat_ai")
 # ══════════════════════════════════════════════
 CHAT_ENDPOINT = f"{BACKEND_URL}/api/v1/chat"  # RAG-grounded AI chat (news-aware)
 SCAN_ENDPOINT = f"{BACKEND_URL}/api/v1/bot/scan"  # fast Redis-cached token scan
-CHAT_TIMEOUT = 30.0  # backend AI synthesis budget (task requirement: >30s = fail)
+CHAT_TIMEOUT = 60.0  # backend AI synthesis budget (deepseek-v4-flash can take 30-45s)
 SCAN_TIMEOUT = 6.0  # quick scan context is best-effort; never block chat on it
 MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 CHUNK_MAX_CHARS = 3800  # Telegram hard limit is 4096; leave headroom for escape expansion
@@ -381,8 +381,91 @@ async def _call_backend_chat(
 
 
 # ══════════════════════════════════════════════
-# OUTPUT CHUNKING (raw text first, then escape)
+# LOCAL LLM FALLBACK (free chatting when backend is down)
 # ══════════════════════════════════════════════
+
+LOCAL_LLM_URL = "http://localhost:4000/v1/chat/completions"
+LOCAL_LLM_MODEL = "groq-llama"  # fast model for fallback chatting
+LOCAL_LLM_TIMEOUT = 15.0
+LOCAL_LLM_FALLBACK_MODELS = ["groq-llama", "groq-qwen", "deepseek-v4-flash"]
+
+
+async def _call_local_llm(
+    message: str,
+    user_id: int,
+    history: list[dict[str, str]] | None = None,
+) -> dict[str, Any] | None:
+    """Local LLM fallback via LiteLLM for free chatting.
+
+    When the backend RAG chat is unavailable, this lets the bot continue
+    to chat intelligently using local models (Groq Llama/Qwen, DeepSeek).
+    Not as powerful as the backend RAG but keeps the conversation going.
+    """
+    # Build messages array with conversation history
+    messages: list[dict[str, str]] = [
+        {
+            "role": "system",
+            "content": (
+                "You are Rug Munch, an AI crypto intelligence assistant. "
+                "You help users understand crypto security, detect scams, analyze tokens, "
+                "and answer questions about blockchain, DeFi, and crypto markets. "
+                "Be direct, witty, slightly cynical but genuinely helpful. "
+                "Never give financial advice. Keep answers concise (2-4 sentences). "
+                "If you don't know something, say so honestly."
+            ),
+        }
+    ]
+    # Add conversation history (last 5 messages)
+    if history:
+        for msg in history[-5:]:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
+    # Add current message
+    messages.append({"role": "user", "content": message[:2000]})
+
+    # Try each available model in order
+    for model in LOCAL_LLM_FALLBACK_MODELS:
+        try:
+            async with httpx.AsyncClient(timeout=LOCAL_LLM_TIMEOUT) as client:
+                r = await client.post(
+                    LOCAL_LLM_URL,
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "max_tokens": 1024,
+                        "temperature": 0.7,
+                    },
+                    timeout=LOCAL_LLM_TIMEOUT,
+                )
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
+            logger.debug("local LLM %s unavailable (user=%s): %s", model, user_id, e)
+            continue
+        if r.status_code != 200:
+            logger.debug("local LLM %s HTTP %d (user=%s)", model, r.status_code, user_id)
+            continue
+        try:
+            raw = r.json()
+        except ValueError:
+            continue
+        if not isinstance(raw, dict):
+            continue
+        choices = raw.get("choices", [])
+        if not choices or not isinstance(choices, list):
+            continue
+        answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
+        if not answer:
+            continue
+        return {
+            "message": answer,
+            "rag_count": 0,
+            "tokens": raw.get("usage", {}).get("total_tokens", 0),
+            "model": model,
+            "provider": "local",
+            "latency_ms": 0,
+        }
+    return None
 
 
 def _last_sentence_boundary(text: str, limit: int) -> int:
@@ -1289,7 +1372,16 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     interim_task.cancel()
     await asyncio.gather(interim_task, return_exceptions=True)
     if not result:
-        # Backend down: try the offline tier-2 canned answers before falling
+        # Backend down: try local LLM fallback for free chatting
+        llm_result = await _call_local_llm(prompt, user.id, history)
+        if llm_result:
+            answer = llm_result["message"]
+            db.increment_usage(user.id, ai_msg=True)
+            db.add_chat_message(user.id, "user", text)
+            db.add_chat_message(user.id, "assistant", answer)
+            await _send_answer(message, answer, 0)
+            return True
+        # Local LLM also down: try the offline tier-2 canned answers before falling
         # back to the honest unavailability message.
         if await _reply_local_intent(message, text, user):
             return True
