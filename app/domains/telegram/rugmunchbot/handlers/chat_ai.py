@@ -103,11 +103,22 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot.chat_ai")
 
 # ══════════════════════════════════════════════
-# ENDPOINTS & BUDGETS
+# ENDPOINTS & BUDGETS — LOCAL MODELS
 # ══════════════════════════════════════════════
-CHAT_ENDPOINT = f"{BACKEND_URL}/api/v1/chat"  # RAG-grounded AI chat (news-aware)
-SCAN_ENDPOINT = f"{BACKEND_URL}/api/v1/bot/scan"  # fast Redis-cached token scan
-CHAT_TIMEOUT = 60.0  # backend AI synthesis budget (deepseek-v4-flash can take 30-45s)
+# Qwen 3 4B for quick chat (fast, conversational)
+QWEN_CHAT_URL = "http://localhost:8085/v1/chat/completions"
+QWEN_MODEL = "qwen-chat"
+QWEN_TIMEOUT = 15.0
+
+# DeepSeek R1 Distill Qwen 8B for deep analysis (hides thinking output)
+DEEPSEEK_CHAT_URL = "http://localhost:8086/v1/chat/completions"
+DEEPSEEK_MODEL = "deepseek-analysis"
+DEEPSEEK_TIMEOUT = 30.0
+
+# Backend RAG chat (when available, for RAG-grounded answers)
+CHAT_ENDPOINT = f"{BACKEND_URL}/api/v1/chat"
+SCAN_ENDPOINT = f"{BACKEND_URL}/api/v1/bot/scan"
+CHAT_TIMEOUT = 60.0
 SCAN_TIMEOUT = 6.0  # quick scan context is best-effort; never block chat on it
 MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 CHUNK_MAX_CHARS = 3800  # Telegram hard limit is 4096; leave headroom for escape expansion
@@ -311,39 +322,67 @@ async def _call_backend_chat(
     user_id: int,
     history: list[dict[str, str]] | None = None,
 ) -> dict[str, Any] | None:
-    """POST /api/v1/chat — backend RAG-grounded AI answer.
+    """Chat with local models (Qwen 3 4B for quick, DeepSeek 8B for analysis).
 
-    Returns a dict with ``message``, ``rag_count`` (from the X-RAG-Context
-    header), ``tokens``, ``model``, ``provider`` and ``latency_ms``, or
-    ``None`` on any failure/timeout.
+    Uses llama.cpp servers running locally. Qwen for fast chat, DeepSeek
+    for deep analysis (thinking output is hidden from the user).
 
-    No ``context_override`` is sent so the backend runs its own RAG search
-    (threat_intel, scam_intel, news_v2, defi_exploits, coding_knowledge,
-    scam_patterns, regulation_enforcement, scanned_tokens, wallet_v2,
-    stablecoin_market, whale_transfers + scanner_v2 when the message
-    contains a token address) — that is what makes answers news-aware. The
-    explicit per-user ``history`` overrides the shared backend bucket and the
-    telegram user id is forwarded as X-Forwarded-For so the backend per-IP
-    chat rate limiter keys per user (same pattern as the deprecated
-    ai_chat.chat_synthesis).
+    Returns a dict with ``message``, ``rag_count``, ``tokens``, ``model``,
+    ``provider`` and ``latency_ms``, or ``None`` on any failure/timeout.
     """
-    payload: dict[str, Any] = {
-        "message": message[:MAX_MESSAGE_CHARS],
-        "history": list(history) if history else [],
-        "tier": "T2",
-        "temperature": 0.7,
-        "max_tokens": 1024,
-    }
-    headers = backend_headers()
-    headers["X-Forwarded-For"] = str(user_id)
+    # Determine mode based on message complexity
+    is_deep = any(kw in message.lower() for kw in [
+        "analyze", "analysis", "deep", "explain", "why", "how does",
+        "compare", "risk", "detail", "technical", "report",
+    ])
+
+    if is_deep:
+        url = DEEPSEEK_CHAT_URL
+        model = DEEPSEEK_MODEL
+        timeout = DEEPSEEK_TIMEOUT
+    else:
+        url = QWEN_CHAT_URL
+        model = QWEN_MODEL
+        timeout = QWEN_TIMEOUT
+
+    # Build messages with conversation history
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are Rug Munch, an AI crypto intelligence assistant. "
+                "You help users understand crypto security, detect scams, analyze tokens, "
+                "and answer questions about blockchain, DeFi, and crypto markets. "
+                "Be direct, witty, slightly cynical but genuinely helpful. "
+                "Never give financial advice. Keep answers concise (2-4 sentences). "
+                "If you don't know something, say so honestly."
+            ),
+        }
+    ]
+    if history:
+        for msg in history[-5:]:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": message[:2000]})
+
     try:
-        async with httpx.AsyncClient(timeout=CHAT_TIMEOUT) as client:
-            r = await client.post(CHAT_ENDPOINT, headers=headers, json=payload)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.post(
+                url,
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "max_tokens": 1024,
+                    "temperature": 0.7,
+                },
+            )
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
-        logger.debug("backend chat unavailable (user=%s): %s", user_id, e)
+        logger.debug("local chat unavailable (user=%s): %s", user_id, e)
         return None
     if r.status_code != 200:
-        logger.debug("backend chat HTTP %d (user=%s)", r.status_code, user_id)
+        logger.debug("local chat HTTP %d (user=%s)", r.status_code, user_id)
         return None
     try:
         raw = r.json()
@@ -351,32 +390,28 @@ async def _call_backend_chat(
         return None
     if not isinstance(raw, dict):
         return None
-    body = cast("dict[str, Any]", raw)
-    answer = (body.get("message") or "").strip()
+    choices = raw.get("choices", [])
+    if not choices or not isinstance(choices, list):
+        return None
+    answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
+
+    # Strip thinking output from DeepSeek
+    if is_deep:
+        import re
+        answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
+        answer = re.sub(r"</?answer>", "", answer)
+        answer = answer.strip()
+
     if not answer:
         return None
 
-    rag_count = 0
-    raw_rag = r.headers.get("X-RAG-Context", "0")
-    try:
-        rag_count = int(raw_rag) if raw_rag else 0
-    except (TypeError, ValueError):
-        rag_count = 0
-
-    usage: Any = body.get("usage") or {}
-    tokens = 0
-    try:
-        tokens = int(usage.get("total_tokens") or usage.get("totalTokens") or 0)
-    except (TypeError, ValueError):
-        tokens = 0
-
     return {
         "message": answer,
-        "rag_count": rag_count,
-        "tokens": tokens,
-        "model": body.get("model", ""),
-        "provider": body.get("_provider", ""),
-        "latency_ms": body.get("latency_ms", 0),
+        "rag_count": 0,
+        "tokens": raw.get("usage", {}).get("total_tokens", 0),
+        "model": model,
+        "provider": "local",
+        "latency_ms": 0,
     }
 
 
@@ -384,10 +419,14 @@ async def _call_backend_chat(
 # LOCAL LLM FALLBACK (free chatting when backend is down)
 # ══════════════════════════════════════════════
 
-LOCAL_LLM_URL = "http://localhost:4000/v1/chat/completions"
-LOCAL_LLM_MODEL = "groq-llama"  # fast model for fallback chatting
-LOCAL_LLM_TIMEOUT = 15.0
-LOCAL_LLM_FALLBACK_MODELS = ["groq-llama", "groq-qwen", "deepseek-v4-flash"]
+# Local model endpoints (llama.cpp servers)
+QWEN_CHAT_URL = "http://localhost:8085/v1/chat/completions"
+QWEN_MODEL = "qwen-chat"
+QWEN_TIMEOUT = 15.0
+
+DEEPSEEK_CHAT_URL = "http://localhost:8086/v1/chat/completions"
+DEEPSEEK_MODEL = "deepseek-analysis"
+DEEPSEEK_TIMEOUT = 30.0
 
 
 async def _call_local_llm(
