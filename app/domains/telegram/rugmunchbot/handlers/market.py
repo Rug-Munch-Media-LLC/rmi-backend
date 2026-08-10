@@ -31,7 +31,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     sep,
     thin_sep,
-    explorer_url,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, token_buttons
 
@@ -420,7 +419,7 @@ def _merge_trending_sources(
 
 
 async def _enrich_with_quick_scan(tokens: list[dict], chain: str) -> list[dict]:
-    """Add quick risk scan data to trending tokens (best-effort, parallel)."""
+    """Add quick risk scan data + DexScreener symbol to trending tokens."""
     if not tokens:
         return tokens
 
@@ -429,7 +428,8 @@ async def _enrich_with_quick_scan(tokens: list[dict], chain: str) -> list[dict]:
         if not addr:
             return token
         try:
-            async with httpx.AsyncClient(timeout=8) as client:
+            async with httpx.AsyncClient(timeout=10) as client:
+                # Fetch risk scan
                 r = await client.post(
                     f"{BACKEND_URL}/api/v1/bot/scan",
                     headers=backend_headers(),
@@ -442,6 +442,19 @@ async def _enrich_with_quick_scan(tokens: list[dict], chain: str) -> list[dict]:
                         token["holders"] = data.get("holders")
                         token["liquidity_usd"] = data.get("liquidity") or token.get("liquidity_usd")
                         token["bundle_detected"] = data.get("bundle_detected")
+                # Fetch symbol from DexScreener if missing
+                if not token.get("symbol"):
+                    try:
+                        r2 = await client.get(f"{DEXSCREENER}/tokens/{addr}", timeout=6)
+                        if r2.status_code == 200:
+                            pairs = r2.json().get("pairs", [])
+                            if pairs:
+                                p = pairs[0]
+                                token["symbol"] = p.get("baseToken", {}).get("symbol", "")
+                                if not token.get("name"):
+                                    token["name"] = p.get("baseToken", {}).get("name", "")
+                    except Exception:
+                        pass
         except Exception:
             pass
         return token
@@ -487,11 +500,13 @@ async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[
 
 
 def _clean_token_name(name: str, symbol: str) -> tuple[str, str]:
-    """Clean up token names from DexScreener/CoinGecko."""
+    """Clean up token names from DexScreener/CoinGecko/RugCharts."""
+    import re
+
     if not name or name == "Unknown":
         return symbol or "Unknown", symbol or "???"
 
-    # Filter out garbage patterns
+    # Filter out garbage patterns (meme descriptions, etc.)
     garbage_patterns = [
         r"on robinhood.*",
         r"crawled out of.*",
@@ -501,15 +516,22 @@ def _clean_token_name(name: str, symbol: str) -> tuple[str, str]:
         r"sent to a.*",
         r"smolsem.*",
         r"anaem.*",
+        r"the true origin.*",
+        r"built her empire.*",
+        r"the soft power.*",
+        r"born in \d{4}.*",
+        r"slightly sassy.*",
     ]
-    import re
-
     cleaned = name
     for pattern in garbage_patterns:
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE).strip()
 
     # If name is too long or looks like a sentence, use symbol
-    if len(cleaned) > 50 or cleaned.count(" ") > 6:
+    if len(cleaned) > 40 or cleaned.count(" ") > 5:
+        return symbol or "Unknown", symbol or "???"
+
+    # If name is empty after cleaning, use symbol
+    if not cleaned:
         return symbol or "Unknown", symbol or "???"
 
     # If symbol is in name, prefer name
@@ -523,6 +545,9 @@ def _trending_display(token: dict) -> tuple[str, str]:
     """Return a display-safe (name, symbol), trimming long/garbage values."""
     raw_name = (token.get("name") or "").strip()
     symbol = (token.get("symbol") or "").strip()
+    # If name looks like an address (starts with 0x or is 44 chars), use symbol
+    if raw_name.startswith("0x") or len(raw_name) == 44:
+        raw_name = ""
     return _clean_token_name(raw_name, symbol)
 
 
@@ -566,9 +591,15 @@ def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
     tokens = _sort_trending(tokens, window)
     lines = [f"🔥 <b>Trending — {chain.capitalize()} · {window}</b>", sep()]
 
-    for i, t in enumerate(tokens[:8], 1):
+    rendered = 0
+    for t in tokens:
         addr = t.get("address", "")
+        if not addr:
+            continue
         name, symbol = _trending_display(t)
+        rendered += 1
+        if rendered > 8:
+            break
         price = float(t.get("price_usd") or 0)
         chg = _window_change(t, window)
         vol = float(t.get("volume_24h") or 0)
@@ -586,8 +617,11 @@ def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
         # Bundle warning
         bundle_flag = " 🚨" if t.get("bundle_detected") else ""
 
+        # If name unknown, show truncated address instead
+        display_name = name if name not in ("Unknown", "???", "") else f"{addr[:8]}...{addr[-6:]}"
+        display_symbol = symbol if symbol not in ("Unknown", "???", "") else "?"
         lines.append(
-            f"{i}. {chain_badge} {age_badge} {risk_emoji} <b>{name}</b> ({symbol}){bundle_flag}\n"
+            f"{rendered}. {chain_badge} {age_badge} {risk_emoji} <b>{display_name}</b> ({display_symbol}){bundle_flag}\n"
             f"   {liq_badge} | {chg_emoji} {fmt_pct(chg)} | Vol: {fmt_number(vol)}\n"
             f"   <code>{addr}</code>"
         )
@@ -602,27 +636,57 @@ def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
 
 
 def _build_trending_kb(tokens: list[dict], chain: str, window: str) -> InlineKeyboardMarkup:
-    """Trending keyboard: per-token action rows + window selector + refresh."""
+    """Trending keyboard: named token buttons + chain/window selectors.
+
+    Design: each token gets ONE button with its name → opens scan.
+    Chain row switches chain, window row changes time frame.
+    Clean, scannable, no button overload.
+    """
     rows: list[list[InlineKeyboardButton]] = []
+
+    # Token buttons — one per token, named, opens scan
     for t in tokens[:8]:
         addr = t.get("address", "")
         if not addr:
             continue
-        rows.append(
-            [
-                InlineKeyboardButton("📊 Scan", callback_data=f"scan_{addr}_{chain}"),
-                InlineKeyboardButton("📈 Chart", callback_data=f"chart_{addr}_{chain}"),
-                InlineKeyboardButton("🕸️ Map", callback_data=f"rugmap_{addr}_{chain}"),
-                InlineKeyboardButton("🔍 Explorer", url=explorer_url(addr, chain)),
-            ]
+        name, symbol = _trending_display(t)
+        # If name/symbol are unknown, use truncated address
+        if name in ("Unknown", "???", "") or symbol in ("Unknown", "???", ""):
+            label = f"🔍 {addr[:8]}...{addr[-6:]}"[:40]
+        else:
+            label = f"🔍 {name} ({symbol})"[:40]
+        rows.append([InlineKeyboardButton(label, callback_data=f"scan_{addr}_{chain}")])
+
+    # Chain selector row (2 per row for compact layout)
+    chain_list = ["solana", "ethereum", "base", "bsc", "arbitrum"]
+    chain_emoji = {"solana": "🟣", "ethereum": "🔵", "base": "🔵", "bsc": "🟡", "arbitrum": "🔵"}
+    chain_row = []
+    for c in chain_list:
+        emoji = chain_emoji.get(c, "⚪")
+        label = f"{emoji} {c.capitalize()}"
+        if len(chain_row) >= 3:
+            rows.append(chain_row)
+            chain_row = []
+        chain_row.append(
+            InlineKeyboardButton(f"[{label}]" if c == chain else label, callback_data=f"trending_chain_{c}")
         )
+    if chain_row:
+        rows.append(chain_row)
+
+    # Window selector row
     win_row = [
         InlineKeyboardButton(f"[{w}]" if w == window else w, callback_data=f"trending_win_{chain}_{w}")
         for w in TRENDING_WINDOWS
     ]
     rows.append(win_row)
-    rows.append([InlineKeyboardButton("🔄 Refresh", callback_data=f"trending_refresh_{chain}")])
-    rows.append([InlineKeyboardButton("🏠 Menu", callback_data="menu_main")])
+
+    # Refresh + Menu
+    rows.append(
+        [
+            InlineKeyboardButton("🔄 Refresh", callback_data=f"trending_refresh_{chain}"),
+            InlineKeyboardButton("🏠 Menu", callback_data="menu_main"),
+        ]
+    )
     return InlineKeyboardMarkup(rows)
 
 

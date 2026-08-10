@@ -388,13 +388,22 @@ async def analyze_holder_clusters(
     if not holders:
         return {"clusters": [], "suspicious_count": 0, "verdict": "UNKNOWN", "summary": "No holder data available."}
 
+    # Filter out DEX/AMM/LP wallets from bundle analysis
+    from app.domains.scanner.rugmaps.graph import is_dex_wallet
+
+    filtered_holders = [h for h in holders if not is_dex_wallet(h.get("address", ""), h.get("label", ""))]
+    dex_count = len(holders) - len(filtered_holders)
+
     holder_text = []
-    for h in holders[:15]:
+    for h in filtered_holders[:15]:
         addr = h.get("address", "")[:12]
         pct = h.get("supply_pct", h.get("pct", "?"))
         label = labels.get(h.get("address", ""), {}).get("entity", {}).get("name", "")
         risk = labels.get(h.get("address", ""), {}).get("risk_score", "?")
         holder_text.append(f"  {addr}... — {pct}% supply — label: {label or 'unknown'} — risk: {risk}/100")
+
+    if dex_count > 0:
+        holder_text.append(f"  [{dex_count} DEX/LP wallets excluded from analysis]")
 
     prompt = f"""You are RugMunch Intelligence's wallet cluster forensic analyst.
 

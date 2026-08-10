@@ -162,7 +162,7 @@ _ADMIN_BUTTON_MAP: dict[str, str] = {
 async def _ensure_admin_reply_kb(update: Update) -> None:
     """Attach the persistent admin reply keyboard once per owner DM."""
     chat = update.effective_chat
-    if chat is None or admin_kb_is_sent(chat.id):
+    if chat is None or admin_kb_is_sent(chat.id) or update.message is None:
         return
     admin_kb_mark_sent(chat.id)
     try:
@@ -719,6 +719,88 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
     ),
     (
         re.compile(
+            r"\b(mev|sandwich|frontrun|backrun|protect(ion)? (trade|swap)|"
+            r"safe swap|slippage|gas optimal|mev blocker|flashbot)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f6e1\ufe0f <b>MEV Protection</b>\n\n"
+            "Use <code>/mev &lt;token_address&gt;</code> to check sandwich attack risk "
+            "and get safe swap parameters:\n"
+            "• Frontrunning risk score\n"
+            "• Recommended slippage tolerance\n"
+            "• Optimal gas settings\n"
+            "• MEV-blocker routing suggestion\n\n"
+            "<i>Free during beta — protect your trades from MEV bots.</i>"
+            f"{footer_links()}"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(impersonat|fake token|copycat|clone token|pretending to be|"
+            r"fake version|counterfeit|fraudulent token)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f97e <b>Impersonation Detector</b>\n\n"
+            "Use <code>/impersonation &lt;token_address&gt;</code> to audit for:\n"
+            "• Name/symbol similarity to known tokens\n"
+            "• Honeypot delegates & hidden permissions\n"
+            "• Related malicious contracts\n\n"
+            "<i>Free during beta — spot fake tokens before you buy.</i>"
+            f"{footer_links()}"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(death clock|how long (will|does)|survival|when (will|does) (it|token) die|"
+            r"rug countdown|abandonment|token lifespan|longevity)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\u23f0 <b>Death Clock</b>\n\n"
+            "Use <code>/deathclock &lt;chain&gt; &lt;token_address&gt;</code> to predict:\n"
+            "• Days until likely death (rug or abandonment)\n"
+            "• Key risk factors\n"
+            "• Survival probability\n\n"
+            "<i>Free during beta — know the risk before you hold.</i>"
+            f"{footer_links()}"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(new launch|just launched|fresh token|new token|recent launch|"
+            "brand new|just dropped|newly created)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f525 <b>Token Launches</b>\n\n"
+            "Use <code>/launches [chain]</code> to see new token launches with:\n"
+            "• Auto-risk flags (low/medium/high)\n"
+            "• Liquidity & holder counts\n"
+            "• Direct scan buttons\n\n"
+            "<i>Free during beta — discover new tokens early.</i>"
+            f"{footer_links()}"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(cluster|related wallet|funding path|same owner|connected wallet|"
+            r"wallet group|bundle|coordinated|sniper bot|deployer funded)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f578\ufe0f <b>Wallet Clustering</b>\n\n"
+            "Use <code>/cluster &lt;wallet_address&gt;</code> to detect:\n"
+            "• Related wallets by behavior/funding\n"
+            "• Fund origin (CEX, mixer, other tokens)\n"
+            "• Deployer-funded wallets (bundle detection)\n\n"
+            "<i>Free during beta — uncover hidden wallet connections.</i>"
+            f"{footer_links()}"
+        ),
+    ),
+    (
+        re.compile(
             r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|"
             r"gm|gn|what'?s up|welcome|are you (there|alive|up|online|working)|"
             r"you (there|alive|up|online|working)|ping|wake up|respond)\b",
@@ -735,6 +817,8 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
             "\u2022 <code>/wallet &lt;addr&gt;</code> \u2192 wallet forensics\n"
             "\u2022 <code>/market</code> \u2192 live market overview\n"
             "\u2022 <code>$TOKEN</code> \u2192 price lookup\n"
+            "\u2022 <code>/mev</code> \u2192 MEV risk & safe swap params\n"
+            "\u2022 <code>/deathclock</code> \u2192 token survival prediction\n"
             "\u2022 <code>/help</code> \u2192 full command list\n\n"
             "Or just ask me anything about crypto \u2014 scams, hacks, market moves, "
             "regulations, whatever's on your mind."
@@ -752,7 +836,9 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
     (
         re.compile(
             r"\b(help|how|what|can you|capabilities|features|commands|what do|"
-            r"what are|guide|tutorial|docs|documentation)\b",
+            r"what are|who are you|tell me about|about you|about this bot|"
+            r"introduce yourself|describe yourself|what can you do|what else can you|"
+            r"show me what you|guide|tutorial|docs|documentation)\b",
             re.IGNORECASE,
         ),
         (
@@ -763,9 +849,14 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
             "\U0001f4ca <code>/quick &lt;symbol&gt;</code> \u2014 Price lookup\n"
             "\U0001f4c8 <code>/chart &lt;addr&gt;</code> \u2014 Technical analysis\n"
             "\u2696\ufe0f <code>/compare &lt;a&gt; &lt;b&gt;</code> \u2014 Side-by-side compare\n"
-            "\U0001f525 <code>/trending</code> \u2014 Hot tokens\n"
+            "\U0001f525 <code>/trending</code> \u2014 Hot tokens by chain\n"
             "\U0001f4f0 <code>/news</code> \u2014 Crypto headlines\n"
             "\U0001f393 <code>/scamschool</code> \u2014 Learn scam patterns\n"
+            "\U0001f6e1\ufe0f <code>/mev</code> \u2014 MEV risk & safe swap params\n"
+            "\U0001f97e <code>/impersonation</code> \u2014 Detect fake tokens\n"
+            "\u23f0 <code>/deathclock</code> \u2014 Token longevity prediction\n"
+            "\U0001f525 <code>/launches</code> \u2014 New token launch feed\n"
+            "\U0001f578\ufe0f <code>/cluster</code> \u2014 Wallet clustering & funding\n"
             "\U0001f451 <code>/pricing</code> \u2014 Upgrade your tier"
             f"{footer_links()}"
         ),
@@ -796,7 +887,10 @@ _REDIRECT_MESSAGE = (
     "\U0001f50d <code>/scan &lt;address&gt;</code> \u2014 security audit\n"
     "\U0001f4cc <code>$TOKEN</code> \u2014 instant price lookup\n"
     "\U0001f9db <code>/wallet &lt;addr&gt;</code> \u2014 wallet analysis\n"
-    "\U0001f525 <code>/trending</code> \u2014 hot tokens\n"
+    "\U0001f525 <code>/trending</code> \u2014 hot tokens by chain\n"
+    "\U0001f6e1\ufe0f <code>/mev</code> \u2014 MEV protection\n"
+    "\U0001f97e <code>/impersonation</code> \u2014 detect fake tokens\n"
+    "\u23f0 <code>/deathclock</code> \u2014 token survival prediction\n"
     "\U0001f4da <code>/scamschool</code> \u2014 learn scam patterns"
     f"{footer_links()}"
 )
@@ -1139,6 +1233,13 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         if await _reply_local_intent(message, text, user):
             return True
         await _reply_redirect(message, user, flood_receipt)
+        return True
+
+    # Tier-2 for meaningful questions too — capability inquiries like
+    # "what can you do", "what are your features", "who are you" get instant
+    # canned replies instead of waiting for the backend (avoids the "still
+    # digging" placeholder for queries we can answer locally).
+    if await _reply_local_intent(message, text, user):
         return True
 
     try:

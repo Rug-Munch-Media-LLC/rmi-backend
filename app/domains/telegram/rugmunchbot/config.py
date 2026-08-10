@@ -485,6 +485,20 @@ def risk_bar(score: float, length: int = 10) -> str:
         return "✅" * filled + "⬜" * (length - filled) + f" {score}% SAFE"
 
 
+def _risk_gauge(score: float) -> str:
+    """Compact emoji risk gauge for scan results."""
+    if score >= 80:
+        return "🔴🔴🔴🔴🔴 EXTREME RISK"
+    elif score >= 60:
+        return "🟠🟠🟠🟠⬜ HIGH RISK"
+    elif score >= 40:
+        return "🟡🟡🟡⬜⬜ MODERATE"
+    elif score >= 20:
+        return "🟢🟢⬜⬜⬜ LOW RISK"
+    else:
+        return "✅✅✅✅✅ SAFE"
+
+
 def threat_indicator(label: str, found: bool) -> str:
     return f"{'🔴' if found else '✅'} {label}"
 

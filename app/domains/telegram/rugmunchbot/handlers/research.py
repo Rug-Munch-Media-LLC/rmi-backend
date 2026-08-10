@@ -130,13 +130,20 @@ def _format_research_result(query: str, hits: list[dict]) -> str:
             "known_scams": "\U0001f6ab",
         }.get(collection, "\U0001f4c4")
 
-        # Source info
+        # Source info with clickable link
         source = metadata.get("source", "") or metadata.get("url", "") or ""
-        source_str = f"\n  <i>Source: {source[:100]}</i>" if source else ""
+        title = metadata.get("title", "") or metadata.get("name", "") or collection
+        if source:
+            if source.startswith("http"):
+                source_str = f"\n  📎 <a href='{source}'>{title[:60]}</a>"
+            else:
+                source_str = f"\n  📎 <i>{source[:100]}</i>"
+        else:
+            source_str = ""
 
         lines.extend(
             [
-                f"<b>{i}. {col_emoji} [{collection}]</b> (score: {score:.2f}){source_str}",
+                f"<b>{i}. {col_emoji} [{collection}]</b> (relevance: {score:.0%}){source_str}",
                 d,
                 content,
                 "",

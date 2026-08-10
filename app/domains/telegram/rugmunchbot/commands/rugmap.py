@@ -112,7 +112,9 @@ def render_bubble_map_png(
         sy = h - margin - (p[1] - ymin) / (ymax - ymin) * (h - 2 * margin)
         return int(sx), int(sy)
 
-    # Links first (under bubbles).
+    # Links first (under bubbles) — with fund flow direction arrows.
+    import math
+
     drawn: set[tuple[str, str]] = set()
     for lnk in links:
         src = lnk.get("source")
@@ -127,7 +129,19 @@ def render_bubble_map_png(
         if key in drawn:
             continue
         drawn.add(key)
-        draw.line([px(positions[src]), px(positions[tgt])], fill=grid_c, width=2)
+        src_pos, tgt_pos = px(positions[src]), px(positions[tgt])
+        draw.line([src_pos, tgt_pos], fill=(80, 85, 100), width=2)
+        # Arrow head for fund flow direction
+        dx = tgt_pos[0] - src_pos[0]
+        dy = tgt_pos[1] - src_pos[1]
+        dist = math.sqrt(dx * dx + dy * dy)
+        if dist > 20:
+            ux, uy = dx / dist, dy / dist
+            arr_len, arr_w = 10, 5
+            tip = tgt_pos
+            left = (tip[0] - arr_len * ux + arr_w * uy, tip[1] - arr_len * uy - arr_w * ux)
+            right = (tip[0] - arr_len * ux - arr_w * uy, tip[1] - arr_len * uy + arr_w * ux)
+            draw.polygon([tip, left, right], fill=(120, 125, 140))
 
     # Bubbles.
     center = nodes[0]
@@ -140,18 +154,33 @@ def render_bubble_map_png(
         except (TypeError, ValueError):
             w = 0
         is_center = node is center
-        radius = 26 if is_center else max(7, min(20, 9 + w * 0.5))
+        radius = 28 if is_center else max(8, min(22, 10 + w * 0.5))
         cx, cy = px(pos)
         col = risk_color(node)
+        # Glow for center token
+        if is_center:
+            for r in range(radius + 6, radius + 2, -2):
+                draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 200, 0, 30))
         draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=col, outline=(232, 234, 237), width=2)
         label = str(node.get("label") or "")[:10] or node_id(node)[:8]
         bbox = draw.textbbox((0, 0), label, font=small)
         lw = bbox[2] - bbox[0]
         draw.text((cx - lw / 2, cy - 7), label, font=small, fill=title_c)
 
-    title = f"RugMap: {name} ({symbol})"
-    draw.text((16, 12), title, font=font, fill=title_c)
-    draw.text((16, h - 28), "Bubble size = wallet weight · Color = risk", font=small, fill=text_c)
+    # Legend
+    draw.text((16, 12), f"RugMap: {name} ({symbol})", font=font, fill=title_c)
+    legend_y = h - 50
+    draw.ellipse([16, legend_y, 30, legend_y + 12], fill=(239, 83, 80))
+    draw.text((34, legend_y), "High Risk", font=small, fill=text_c)
+    draw.ellipse([120, legend_y, 134, legend_y + 12], fill=(255, 183, 77))
+    draw.text((138, legend_y), "Medium", font=small, fill=text_c)
+    draw.ellipse([210, legend_y, 224, legend_y + 12], fill=(102, 187, 106))
+    draw.text((228, legend_y), "Low Risk", font=small, fill=text_c)
+    draw.ellipse([310, legend_y, 324, legend_y + 12], fill=(66, 165, 245))
+    draw.text((328, legend_y), "Unknown", font=small, fill=text_c)
+    draw.text(
+        (16, legend_y + 18), "Bubble size = wallet weight  ·  Arrow = fund flow direction", font=small, fill=text_c
+    )
 
     try:
         buf = io.BytesIO()
@@ -258,8 +287,14 @@ async def cmd_rugmap(update, ctx) -> None:
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
                 logger.debug("DexScreener fallback failed: %s", exc)
 
-        # ── v6: try the bubble-map image first ──
-        png = render_bubble_map_png(nodes or [], links or [], name, symbol, address) if nodes else None
+        # ── Use branded visual engine ──
+        from app.domains.telegram.rugmunchbot.services.visuals import render_cluster_map
+
+        png = (
+            render_cluster_map(nodes or [], links or [], name, symbol, chain, total_holders, top10_pct)
+            if nodes
+            else None
+        )
         if png:
             risk_line = ""
             if graph and graph.get("risk_level"):

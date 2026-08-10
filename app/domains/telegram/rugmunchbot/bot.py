@@ -47,6 +47,19 @@ from app.domains.telegram.rugmunchbot.commands import (
     cmd_simulate,
     cmd_smartmoney,
 )
+from app.domains.telegram.rugmunchbot.commands.premium import (
+    cmd_cluster,
+    cmd_deathclock,
+    cmd_impersonation,
+    cmd_launches,
+    cmd_mev,
+)
+from app.domains.telegram.rugmunchbot.commands.premium_extra import cmd_whale
+from app.domains.telegram.rugmunchbot.commands.premium_v2 import (
+    cmd_honeypot,
+    cmd_laundry,
+    cmd_lphealth,
+)
 from app.domains.telegram.rugmunchbot.config import (
     ALERT_CHECK_INTERVAL,
     BOT_DESCRIPTION,
@@ -299,6 +312,15 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("scamschool", "Learn about crypto scams"),
             BotCommand("chart", "Chart image for any token"),
             BotCommand("portfolio", "Scan wallet token holdings"),
+            BotCommand("mev", "MEV risk advisory & safe swap params"),
+            BotCommand("impersonation", "Detect fake tokens & impersonation"),
+            BotCommand("deathclock", "Token longevity prediction"),
+            BotCommand("launches", "New token launches with risk flags"),
+            BotCommand("cluster", "Wallet clustering & funding paths"),
+            BotCommand("whale", "Whale movement alert subscriptions"),
+            BotCommand("honeypot", "Honeypot detector - can you sell?"),
+            BotCommand("lphealth", "Liquidity pool health check"),
+            BotCommand("laundry", "Money laundering detector"),
             BotCommand("simulate", "Simulate buy/sell trade"),
             BotCommand("smartmoney", "Detect smart money wallets"),
             BotCommand("rugmap", "RugMap bubble map image"),
@@ -414,6 +436,17 @@ def main() -> None:
     _reg(app, "smartmoney", cmd_smartmoney)
     _reg(app, "rugmap", cmd_rugmap)
     _reg(app, "events", cmd_events)
+
+    # Premium intelligence commands (all free during beta)
+    _reg(app, "mev", cmd_mev)
+    _reg(app, "impersonation", cmd_impersonation)
+    _reg(app, "deathclock", cmd_deathclock)
+    _reg(app, "launches", cmd_launches)
+    _reg(app, "cluster", cmd_cluster)
+    _reg(app, "whale", cmd_whale)
+    _reg(app, "honeypot", cmd_honeypot)
+    _reg(app, "lphealth", cmd_lphealth)
+    _reg(app, "laundry", cmd_laundry)
 
     # Owner / admin panel (owner-only — hidden from BotFather list)
     _reg(app, "admin", cmd_admin)

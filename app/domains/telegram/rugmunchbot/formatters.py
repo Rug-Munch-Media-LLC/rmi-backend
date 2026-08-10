@@ -24,6 +24,7 @@ from app.domains.telegram.rugmunchbot.config import (
     TELEGRAM_CHANNEL,
     TIERS,
     WEB_APP_URL,
+    _risk_gauge,
     fmt_chain,
     fmt_number,
     fmt_pct,
@@ -652,6 +653,47 @@ def format_sentinel_deepscan_section(data: dict) -> str:
             lines.append(f"  \u26a0\ufe0f {str(w)[:120]}")
         lines.append("")
 
+    # ── Contract Creation Analysis ──
+    creation = data.get("contract_creation") or {}
+    if creation:
+        lines.append("\U0001f4be <b>Contract Creation Analysis</b>")
+        lines.append(d)
+        creator = creation.get("creator_address")
+        if creator:
+            lines.append(f"  \U0001f464 Creator: <code>{creator}</code>")
+        block = creation.get("block_number")
+        if block:
+            lines.append(f"  \U0001f4c5 Block: <b>{block:,}</b>")
+        tx_hash = creation.get("tx_hash")
+        if tx_hash:
+            lines.append(f"  \U0001f517 Tx: <code>{tx_hash}</code>")
+        first_interactors = creation.get("first_interactors") or []
+        if first_interactors:
+            lines.append(f"  \U0001f9e0 First Interactors ({len(first_interactors)}):")
+            for i, w in enumerate(first_interactors[:5], 1):
+                addr = w.get("address", "")
+                label = w.get("label", "")
+                fresh = w.get("is_fresh", False)
+                fresh_badge = " 🆕" if fresh else ""
+                lines.append(f"    {i}. <code>{addr}</code>{fresh_badge} {label}")
+        fresh_pct = creation.get("fresh_wallet_percentage")
+        if fresh_pct is not None:
+            try:
+                fpct = float(fresh_pct)
+            except (TypeError, ValueError):
+                fpct = 0.0
+            fresh_emoji = "\U0001f534" if fpct > 50 else "\U0001f7e1" if fpct > 20 else "\U0001f7e2"
+            lines.append(f"  {fresh_emoji} Fresh Wallets at Launch: <b>{fpct:.0f}%</b>")
+        deployer_funded_pct = creation.get("deployer_funded_percentage")
+        if deployer_funded_pct is not None:
+            try:
+                dfpct = float(deployer_funded_pct)
+            except (TypeError, ValueError):
+                dfpct = 0.0
+            df_emoji = "\U0001f534" if dfpct > 30 else "\U0001f7e1" if dfpct > 10 else "\U0001f7e2"
+            lines.append(f"  {df_emoji} Deployer-Funded at Launch: <b>{dfpct:.0f}%</b>")
+        lines.append("")
+
     # ── Deployer reputation ──
     if dev:
         lines.append("\U0001f468\u200d\U0001f4bb <b>Deployer Reputation</b>")
@@ -748,6 +790,119 @@ def _deployer_history_line(r: dict) -> str | None:
             life_f = 0.0
         life_str = f"{round(life_f)} days" if life_f >= 1 else f"{round(life_f * 24)} hours"
     return f"\U0001f464 <b>Repeat Deployer</b>: {tokens} tokens, {rugged_pct}% rugged, avg life {life_str}"
+
+
+def _format_deployer_section(r: dict) -> list[str]:
+    """Format a dedicated deployer info section — always shown in scan output.
+
+    Shows: deployer address, launchpad detection, reputation label,
+    deployer history (if repeat deployer), and RAG cross-reference.
+    """
+    lines = []
+    d = thin_sep()
+
+    deployer_addr = r.get("deployer_address") or r.get("dev_wallet") or ""
+    reputation_label = r.get("reputation_label", "")
+    reputation_score = r.get("reputation_score")
+    deployer_profile = r.get("deployer_profile", {})
+    chain = r.get("chain", "")
+
+    # Header
+    lines.append("")
+    lines.append("\U0001f468\u200d\U0001f4bb <b>Deployer</b>")
+    lines.append(d)
+
+    # Deployer address (always shown)
+    if deployer_addr and deployer_addr != "unknown":
+        lines.append(f"  \U0001f464 Address: <code>{deployer_addr}</code>")
+    else:
+        lines.append("  \U0001f464 Address: <i>unknown</i>")
+
+    # Launchpad detection
+    try:
+        from app.domains.scanner.engines.launchpad_registry import detect_launchpad
+
+        launchpad = detect_launchpad(deployer_addr, chain)
+        if launchpad:
+            lp_name = launchpad.get("name", "unknown")
+            lp_type = launchpad.get("type", "")
+            lines.append(f"  \U0001f680 Launchpad: <b>{lp_name}</b> ({lp_type})")
+    except (ConnectionError, OSError, ImportError):
+        pass
+
+    # Reputation label
+    if reputation_label and reputation_label != "UNKNOWN":
+        emoji = "🔴" if reputation_label in ("CRITICAL", "HIGH") else "🟡" if reputation_label == "MEDIUM" else "🟢"
+        lines.append(f"  {emoji} Reputation: <b>{reputation_label}</b>")
+
+    # Reputation score (0-100, higher = more trusted)
+    if reputation_score is not None:
+        try:
+            score = float(reputation_score)
+            emoji = "🟢" if score >= 70 else "🟡" if score >= 40 else "🔴"
+            lines.append(f"  {emoji} Trust Score: <b>{score:.0f}/100</b>")
+        except (TypeError, ValueError):
+            pass
+
+    # Deployer metrics (from own engine)
+    deployer_metrics = r.get("deployer_metrics", {})
+    if deployer_metrics:
+        total_deployed = deployer_metrics.get("total_tokens_deployed", 0)
+        rugpull_rate = deployer_metrics.get("rugpull_rate", 0.0)
+        honeypot_rate = deployer_metrics.get("honeypot_rate", 0.0)
+        if total_deployed:
+            lines.append(f"  \U0001f4ca Tokens Deployed: <b>{total_deployed}</b>")
+        if rugpull_rate:
+            lines.append(f"  \U0001f4a3 Rugpull Rate: <b>{float(rugpull_rate) * 100:.0f}%</b>")
+        if honeypot_rate:
+            lines.append(f"  \U0001f52a Honeypot Rate: <b>{float(honeypot_rate) * 100:.0f}%</b>")
+
+    # Repeat deployer profile
+    if deployer_profile and isinstance(deployer_profile, dict):
+        total_tokens = deployer_profile.get("total_tokens_launched", 0)
+        rugged_pct = deployer_profile.get("rugged_pct", 0.0)
+        honeypot_pct = deployer_profile.get("honeypot_pct", 0.0)
+        avg_life = deployer_profile.get("avg_lifespan_days")
+        chains_used = deployer_profile.get("chains_used", [])
+        label = deployer_profile.get("label", "")
+
+        if total_tokens and total_tokens > 1:
+            lines.append(f"  \U0001f464 Repeat Deployer: <b>{total_tokens} tokens</b>")
+        if rugged_pct:
+            try:
+                rpct = float(rugged_pct) * 100 if float(rugged_pct) <= 1.0 else float(rugged_pct)
+                emoji = "🔴" if rpct >= 50 else "🟡" if rpct >= 20 else "🟢"
+                lines.append(f"  {emoji} Rug Rate: <b>{rpct:.0f}%</b>")
+            except (TypeError, ValueError):
+                pass
+        if honeypot_pct:
+            try:
+                hpct = float(honeypot_pct) * 100 if float(honeypot_pct) <= 1.0 else float(honeypot_pct)
+                lines.append(f"  \U0001f52a Honeypot Rate: <b>{hpct:.0f}%</b>")
+            except (TypeError, ValueError):
+                pass
+        if avg_life:
+            try:
+                life_f = float(avg_life)
+                life_str = f"{round(life_f)} days" if life_f >= 1 else f"{round(life_f * 24)} hours"
+                lines.append(f"  \u23f0 Avg Token Lifespan: <b>{life_str}</b>")
+            except (TypeError, ValueError):
+                pass
+        if chains_used:
+            lines.append(f"  \U0001f310 Chains: <b>{', '.join(chains_used)}</b>")
+        if label:
+            lines.append(f"  🏷️ Label: <b>{label}</b>")
+
+    # Deployment info
+    deployed_at = r.get("deployed_at") or r.get("deployment_timestamp")
+    if deployed_at:
+        lines.append(f"  \U0001f4c5 Deployed: <b>{str(deployed_at)[:19]}</b>")
+
+    deployment_tx = r.get("deployment_tx") or r.get("deployment_hash")
+    if deployment_tx:
+        lines.append(f"  \U0001f517 TX: <code>{str(deployment_tx)[:20]}...</code>")
+
+    return lines
 
 
 def _wallet_freshness_line(r: dict) -> str | None:
@@ -859,10 +1014,78 @@ def format_wallet_composition_section(r: dict, token_created_ts: str | None = No
     return "\U0001f45b <b>Wallet Composition</b>" + scope + "\n" + thin_sep() + "\n" + "\n".join(lines)
 
 
-# --- Format scan report ---
+# ── SENTINEL warning code → human-readable description map ──
+_SENTINEL_CODE_MAP = {
+    "CR01": "Critical: Honeypot detected — sells blocked",
+    "CR02": "Critical: Trading cooldown active",
+    "CR03": "Critical: Hidden mint function",
+    "CR04": "Critical: Owner can blacklist addresses",
+    "CR05": "Critical: Transfer restrictions",
+    "CR06": "Critical: Extreme fee manipulation",
+    "CR07": "Critical: Anti-whale can be disabled by owner",
+    "HI01": "High: Extreme holder concentration",
+    "HI02": "High: Very low liquidity",
+    "HI03": "High: Ownership not renounced",
+    "HI04": "High: Upgradeable proxy contract",
+    "HI05": "High: Dev wallet holds significant supply",
+    "MD01": "Medium: LP lock below 6 months",
+    "MD02": "Medium: Contract not verified",
+    "MD03": "Medium: High buy/sell taxes",
+    "MD04": "Medium: Low holder count",
+    "MD05": "Medium: Recent contract creation",
+    "RP01": "Risk: Dev has prior rug history",
+    "RP02": "Risk: Dev reputation flagged",
+    "RP03": "Risk: Similar to known scam bytecode",
+    "RP04": "Risk: Funding from mixer/tumbler",
+    "RP05": "Risk: Deployer-funded wallets detected",
+    "RP06": "Risk: Wash trading patterns",
+    "RP07": "Risk: Bundle launch detected",
+    "RP08": "Risk: Abnormal volume/mcap ratio",
+}
+
+
+def _decode_sentinel_warning(w: str) -> str:
+    """Convert a raw sentinel warning (possibly containing codes like CR01) to a human-readable string."""
+    w_str = str(w).strip()
+    # Try to map known codes at the start of the warning
+    for code, desc in _SENTINEL_CODE_MAP.items():
+        if w_str.startswith(code) or w_str.startswith(f"{code}:") or f"[{code}]" in w_str:
+            # If there's additional text after the code, append it
+            remainder = w_str.replace(code, "").replace(f"[{code}]", "").replace(":", "").strip()
+            if remainder and not any(remainder.startswith(c) for c in _SENTINEL_CODE_MAP):
+                return f"{desc} — {remainder}"
+            return desc
+    # No code found — return cleaned-up original
+    return w_str.replace("_", " ").replace("  ", " ").strip()
+
+
+def _fmt_usd_amount(v) -> str:
+    """Format a USD amount with proper suffixes (K, M, B)."""
+    if v is None:
+        return "N/A"
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return "N/A"
+    if v == 0:
+        return "$0"
+    if v >= 1_000_000_000:
+        return f"${v / 1_000_000_000:.1f}B"
+    if v >= 1_000_000:
+        return f"${v / 1_000_000:.1f}M"
+    if v >= 1_000:
+        return f"${v / 1_000:.1f}K"
+    if v >= 1:
+        return f"${v:,.2f}"
+    return f"${v:.6f}"
+
+
+# --- Format scan report (professional redesign) ---
 def format_scan_report(r: dict) -> str:
     s = sep()
     d = thin_sep()
+
+    # ── Header ──
     age_str = ""
     if r.get("created_at"):
         try:
@@ -876,6 +1099,7 @@ def format_scan_report(r: dict) -> str:
                 age_str = f" | Age: {age.seconds // 3600}h"
         except (ConnectionError, OSError, TimeoutError):
             pass
+
     chain_str = fmt_chain(r["chain"])
     lines = [
         "\U0001f6e1\ufe0f <b>RMI Token Scan</b>",
@@ -883,79 +1107,118 @@ def format_scan_report(r: dict) -> str:
         f"<b>{r['name']}</b> ({r['symbol']}) {chain_str}{age_str}",
         f"<code>{r['address']}</code>",
     ]
+
+    # Bundle alert (prominent)
     bundle_alert = _bundle_alert_line(r)
     if bundle_alert:
         lines.append(bundle_alert)
+
+    # ── Market Data ──
+    price = r.get("price", 0)
+    mcap = r.get("mcap", 0)
+    liquidity = r.get("liquidity_usd") or r.get("liquidity", 0)
+    vol_24h = r.get("volume_24h", 0)
+
     lines.extend(
         [
             "",
             "\U0001f4ca <b>Market Data</b>",
             d,
-            f"\U0001f4b0 Price: <b>{fmt_number(r['price'])}</b>",
-            f"\U0001f4c8 Market Cap: <b>{fmt_number(r['mcap'])}</b>",
-            f"\U0001f4a7 Liquidity: <b>{fmt_number(r['liquidity'])}</b>",
-            f"\U0001f4ca 24h Volume: <b>{fmt_number(r['volume_24h'])}</b>",
-            f"\U0001f504 1h: {fmt_pct(r['price_change_1h'])} | 24h: {fmt_pct(r['price_change_24h'])} | 7d: {fmt_pct(r['price_change_7d'])}",
-            "",
-            "\U0001f512 <b>Security</b>",
-            d,
-            risk_bar(r["risk_score"]),
+            f"  \U0001f4b0 Price: <b>{_fmt_usd_amount(price)}</b>",
+            f"  \U0001f4c8 Market Cap: <b>{_fmt_usd_amount(mcap)}</b>",
+            f"  \U0001f4a7 Liquidity: <b>{_fmt_usd_amount(liquidity)}</b>",
+            f"  \U0001f4ca 24h Volume: <b>{_fmt_usd_amount(vol_24h)}</b>",
+            f"  \U0001f504 1h: {fmt_pct(r.get('price_change_1h'))} | 24h: {fmt_pct(r.get('price_change_24h'))} | 7d: {fmt_pct(r.get('price_change_7d'))}",
         ]
     )
-    if r.get("safety_score") is None:
-        # Legacy scan: threats are listed here. v2 scans surface them as
-        # "Red Flags" in the Explainable Scoring block below.
-        if r["threats"]:
-            lines.append("")
-            for t in r["threats"]:
-                lines.append(f"  \U0001f534 {t}")
-        else:
-            lines.append("  \u2705 No threats detected")
-    cl = []
-    if r["honeypot"] is not None:
-        cl.append(threat_indicator("Honeypot", r["honeypot"]))
-    if r["contract_verified"] is not None:
-        cl.append(threat_indicator("Verified", not r["contract_verified"]))
-    if r["mintable"] is not None:
-        cl.append(threat_indicator("Mintable", r["mintable"]))
-    if r["owner_renounced"] is not None:
-        cl.append(threat_indicator("Ownership Renounced", not r["owner_renounced"]))
-    if r["lp_locked"] is not None:
-        cl.append(f"\U0001f510 LP Locked: {r['lp_locked'] * 100:.0f}%")
-    if r["buy_tax"] is not None:
-        cl.append(f"\U0001f4e5 Buy Tax: {r['buy_tax'] * 100:.1f}%")
-    if r["sell_tax"] is not None:
-        cl.append(f"\U0001f4e4 Sell Tax: {r['sell_tax'] * 100:.1f}%")
-    if cl:
+
+    # ── Security Assessment ──
+    risk = r.get("risk_score", 0)
+    lines.extend(
+        [
+            "",
+            "\U0001f512 <b>Security Assessment</b>",
+            d,
+            risk_bar(risk),
+            f"  {_risk_gauge(risk)}",
+        ]
+    )
+
+    # Contract checks
+    checks = []
+    if r.get("honeypot") is not None:
+        checks.append(threat_indicator("Honeypot", r["honeypot"]))
+    if r.get("contract_verified") is not None:
+        checks.append(threat_indicator("Verified", not r["contract_verified"]))
+    if r.get("mintable") is not None:
+        checks.append(threat_indicator("Mintable", r["mintable"]))
+    if r.get("owner_renounced") is not None:
+        checks.append(threat_indicator("Ownership Renounced", not r["owner_renounced"]))
+    if checks:
         lines.append("")
-        lines.extend(cl)
-    if r["top_holders"]:
+        lines.extend(checks)
+
+    # Taxes & LP
+    tax_lines = []
+    if r.get("buy_tax") is not None and r["buy_tax"] > 0:
+        tax_lines.append(f"  \U0001f4e5 Buy Tax: {r['buy_tax'] * 100:.1f}%")
+    if r.get("sell_tax") is not None and r["sell_tax"] > 0:
+        tax_lines.append(f"  \U0001f4e4 Sell Tax: {r['sell_tax'] * 100:.1f}%")
+    if r.get("lp_locked") is not None:
+        tax_lines.append(f"  \U0001f510 LP Locked: {r['lp_locked'] * 100:.0f}%")
+    if tax_lines:
+        lines.append("")
+        lines.extend(tax_lines)
+
+    # ── SENTINEL Forensic Flags ──
+    sentinel_flags = _format_sentinel_pro(r)
+    if sentinel_flags:
+        lines.extend(["", "\U0001f6e1\ufe0f <b>SENTINEL Forensics</b>", d])
+        lines.extend(sentinel_flags)
+
+    # ── Top Holders ──
+    if r.get("top_holders"):
         lines.extend(["", "\U0001f465 <b>Top Holders</b>", d])
         for i, h in enumerate(r["top_holders"][:5], 1):
             tag = f" [{h['tag']}]" if h.get("tag") else ""
             cf = " \U0001f4c4" if h.get("is_contract") else ""
             lines.append(f"  {i}. <code>{h['address']}</code> - {h['pct']:.1f}%{tag}{cf}")
+
+    # ── Advanced Analysis ──
     adv = []
-    has_bundle_alert = bundle_alert is not None
-    if r["bundle_detected"] and not has_bundle_alert:
+    if r.get("bundle_detected") and not bundle_alert:
         adv.append("\U0001f578\ufe0f Bundle activity detected")
-    # Richer own-engine wallet metrics (fresh % + CEX %) replace the legacy
-    # fresh-wallet line when present, so we never double-report freshness.
     wallet_line = _wallet_freshness_line(r)
     if wallet_line:
         adv.append(wallet_line)
-    elif r["fresh_wallet_pct"] > 0:
+    elif r.get("fresh_wallet_pct", 0) > 0:
         adv.append(f"\U0001f195 Fresh wallets: {r['fresh_wallet_pct']:.0f}%")
+    # ── Deployer Section (always shown) ──
+    deployer_lines = _format_deployer_section(r)
+    if deployer_lines:
+        lines.extend(deployer_lines)
+
+    # ── Advanced Analysis ──
+    adv = []
     deployer_line = _deployer_history_line(r)
     if deployer_line:
         adv.append(deployer_line)
-    if r["volume_real_ratio"] is not None:
-        adv.append(f"\U0001f4ca Vol/MCap ratio: {r['volume_real_ratio']:.2f}x")
-    if r["dev_wallet"]:
+    if r.get("volume_real_ratio") is not None:
+        ratio = r["volume_real_ratio"]
+        emoji = "🔴" if ratio > 5 else "🟡" if ratio > 2 else "🟢"
+        adv.append(f"{emoji} Vol/MCap ratio: {ratio:.2f}x")
+    if r.get("dev_wallet") and not any("Dev:" in l for l in deployer_lines):
         adv.append(f"\U0001f468\u200d\U0001f4bb Dev: <code>{r['dev_wallet']}</code>")
+    wallet_line = _wallet_freshness_line(r)
+    if wallet_line:
+        adv.append(wallet_line)
+    elif r.get("fresh_wallet_pct", 0) > 0:
+        adv.append(f"\U0001f195 Fresh wallets: {r['fresh_wallet_pct']:.0f}%")
     if adv:
         lines.extend(["", "\U0001f52c <b>Advanced Analysis</b>", d])
         lines.extend(adv)
+
+    # ── Socials ──
     socials = r.get("socials", {})
     if socials:
         soc_parts = []
@@ -968,43 +1231,100 @@ def format_scan_report(r: dict) -> str:
                 soc_parts.append(f'<a href="{surl}">\U0001f310</a>')
         if soc_parts:
             lines.extend(["", f"\U0001f517 Socials: {' | '.join(soc_parts)}"])
-    # v2 explainable scoring: safety/confidence/risk-level + green/red flags
-    v2 = []
-    if r.get("safety_score") is not None:
-        emoji = "\U0001f7e2" if r["safety_score"] >= 80 else "\U0001f7e1" if r["safety_score"] >= 40 else "\U0001f534"
-        v2.append(f"{emoji} Safety Score: <b>{r['safety_score']:.0f}/100</b>")
-    if r.get("confidence") is not None:
-        v2.append(f"\U0001f50d Confidence: <b>{r['confidence']:.0f}%</b>")
-    if r.get("risk_level"):
-        v2.append(f"\U0001f6a8 Risk Level: <b>{r['risk_level'].upper()}</b>")
-    if r.get("green_flags"):
-        gfs = ", ".join(str(g) for g in r["green_flags"][:5])
-        v2.append(f"\U0001f7e2 Green Flags: {gfs}")
-    if r.get("safety_score") is not None and r.get("threats"):
-        rfs = ", ".join(str(t) for t in r["threats"][:6])
-        v2.append(f"\U0001f534 Red Flags: {rfs}")
-    if v2:
-        lines.extend(["", "\U0001f9e9 <b>Explainable Scoring</b>", d])
-        lines.extend(v2)
-    if r.get("breakdown"):
-        lines.append(format_scoring_breakdown(r["breakdown"]))
-    # ── SENTINEL free-tier flags (HHI, LP lock, authority, proxy, dev rep) ──
-    # Blue-chip tokens are suppressed (concentration/lock signals are normal).
-    sentinel_block = format_sentinel_flags(r)
-    if sentinel_block:
-        lines.extend(sentinel_block.split("\n"))
-    # ── News card (Ground News style), fall back to plain sentiment ──
-    news_block = format_news_card(r.get("news_card"))
-    if not news_block:
-        news_block = format_news_sentiment(r.get("news_sentiment"))
-    if news_block:
-        lines.extend(news_block)
 
+    # ── Footer ──
     lines.extend(["", s, "\U0001f4b1 <b>Trade:</b>"])
     _addr = r.get("address", r.get("token", ""))
     _chain = r.get("chain", "solana")
     lines.append(footer_links(_addr, _chain))
     return "\n".join(lines)
+
+
+def _format_sentinel_pro(r: dict) -> list[str]:
+    """Professional sentinel flag rendering with decoded warning codes."""
+    sentinel = r.get("sentinel")
+    if not isinstance(sentinel, dict):
+        return []
+    if is_bluechip(r.get("address", "")):
+        return ["  \u2705 <b>Known blue-chip</b> — concentration & lock signals suppressed"]
+
+    free = _sentinel_free(sentinel)
+    flags: list[str] = []
+
+    # Holder concentration
+    ha = free.get("holder_analysis")
+    if isinstance(ha, dict):
+        hhi = ha.get("hhi")
+        level = str(ha.get("risk_level") or "").lower()
+        if hhi is not None:
+            try:
+                hhi_f = float(hhi)
+            except (TypeError, ValueError):
+                hhi_f = 0.0
+            emoji = "🔴" if level in ("high", "critical") else "🟡" if level == "medium" else "🟢"
+            flags.append(f"{emoji} Holder concentration: HHI {hhi_f:.0f} ({level})")
+
+    # LP lock
+    lv = free.get("liquidity_verification")
+    if isinstance(lv, dict):
+        locked = lv.get("total_locked_percentage")
+        if locked is not None:
+            try:
+                locked_f = float(locked)
+            except (TypeError, ValueError):
+                locked_f = 0.0
+            emoji = "🔴" if locked_f < 20 else "🟡" if locked_f < 80 else "🟢"
+            flags.append(f"{emoji} LP Locked: {locked_f:.0f}%")
+        liq_usd = lv.get("liquidity_usd")
+        if liq_usd:
+            flags.append(f"  Liquidity USD: {_fmt_usd_amount(liq_usd)}")
+
+    # Contract authority
+    ca = free.get("contract_authority")
+    if isinstance(ca, dict):
+        ca_level = str(ca.get("risk_level") or "LOW").upper()
+        if ca_level in ("HIGH", "CRITICAL"):
+            flags.append(f"🔴 Contract authority risk: {ca_level}")
+        elif ca_level == "MEDIUM":
+            flags.append(f"🟡 Contract authority: {ca_level}")
+
+    # Proxy
+    px = free.get("proxy_detection")
+    if isinstance(px, dict):
+        if px.get("can_upgrade"):
+            flags.append("⚠️ Upgradeable proxy (admin can change implementation)")
+        elif px.get("is_proxy"):
+            flags.append(f"📦 Proxy contract ({px.get('proxy_type') or 'unknown'})")
+
+    # Dev reputation
+    dr = free.get("dev_reputation")
+    if isinstance(dr, dict):
+        rep = str(dr.get("reputation_level") or "").lower()
+        if rep in ("suspicious", "dangerous"):
+            score = dr.get("reputation_score")
+            score_str = f"{int(score)}/100" if score is not None else "N/A"
+            flags.append(f"🔴 Dev reputation: {rep} ({score_str})")
+
+    # Decode raw warning codes (CR01, RP05, etc.)
+    for w in _module_warnings(
+        free,
+        "holder_analysis",
+        "liquidity_verification",
+        "contract_authority",
+        "proxy_detection",
+        "metadata_fingerprint",
+        "dev_reputation",
+    ):
+        decoded = _decode_sentinel_warning(w)
+        if decoded and decoded not in flags:
+            if len(flags) >= 8:
+                break
+            flags.append(f"⚠️ {decoded}")
+
+    if not flags:
+        flags.append("✅ No SENTINEL red flags")
+
+    return flags
 
 
 def format_news_card(nc: dict[str, Any] | None) -> list[str]:
@@ -1178,6 +1498,7 @@ def format_wallet_report(r: dict) -> str:
             lines.append(f"  \u2022 <code>{w}</code>")
     if r["risk_score"] > 0:
         lines.extend(["", risk_bar(r["risk_score"])])
+        lines.append(f"  {_risk_gauge(r['risk_score'])}")
 
     # v2 wallet metrics: entity, scam exposure, smart money overlap
     v2_lines = []
