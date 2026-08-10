@@ -211,6 +211,12 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"/ta <code>address</code> - Technical analysis & signals\n\n"
         f"\U0001f5fa\ufe0f <b>\U0001f5fa\ufe0f RUGMAPS</b>\n{d}\n"
         f"/rugmap <code>address</code> - Bubble map IMAGE of wallet clusters\n\n"
+        f"\U0001f6e1\ufe0f <b>PREMIUM INTELLIGENCE</b> (free in beta)\n{d}\n"
+        f"/mev <code>address</code> - MEV risk & safe swap params\n"
+        f"/impersonation <code>address</code> - Detect fake tokens\n"
+        f"/deathclock <code>chain addr</code> - Token survival prediction\n"
+        f"/launches [chain] - New token launch feed\n"
+        f"/cluster <code>address</code> - Wallet clustering & funding\n\n"
         f"\U0001f4ac <b>\U0001f4ac AI CHAT</b>\n{d}\n"
         f"/chat <code>question</code> - Freestyle AI chat (RAG + LLM)\n"
         f"/chat reset - Clear conversation context\n"
@@ -280,6 +286,23 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         result_v2 = await scan_token_v2(target, chain)
         if result_v2 is not None:
             result = v2_token_to_legacy(result_v2)
+            # Supplement with DexScreener data if v2 liquidity is 0
+            if not result.get("liquidity"):
+                try:
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        r = await client.get(f"{DEXSCREENER}/tokens/{target}")
+                        if r.status_code == 200:
+                            pairs = r.json().get("pairs", [])
+                            if pairs:
+                                p = pairs[0]
+                                liq = p.get("liquidity", {})
+                                if liq.get("usd"):
+                                    result["liquidity"] = float(liq["usd"])
+                                if not result.get("name") or result["name"] == "Unknown":
+                                    result["name"] = p.get("baseToken", {}).get("name", "Unknown")
+                                    result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
+                except Exception:
+                    pass
         else:
             # v2 unavailable → fall back to legacy multi-source scanner
             result = await scan_token(target, chain)
@@ -419,11 +442,23 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await update.message.reply_text(
         f"\U0001f52c <b>Deep scan started...</b>\n"
         f"<code>{target}</code>\n\n"
-        f"\u2460 Market \u2192 \u2461 Security \u2192 \u2462 Holders \u2192 "
+        f"\u25b6\ufe0f \u2460 Market \u2192 \u2461 Security \u2192 \u2462 Holders \u2192 "
         f"\u2463 Deployer \u2192 \u2464 Funding \u2192 \u2465 AI verdict\n"
         f"\u23f3 This can take up to 2 minutes...",
         parse_mode=ParseMode.HTML,
     )
+    # Phase 1: Market data
+    await asyncio.sleep(2)
+    try:
+        await msg.edit_text(
+            f"\U0001f52c <b>Deep scan in progress...</b>\n"
+            f"<code>{target}</code>\n\n"
+            f"\u2705 \u2460 Market \u2192 \u25b6\ufe0f \u2461 Security \u2192 \u2462 Holders \u2192 "
+            f"\u2463 Deployer \u2192 \u2464 Funding \u2192 \u2465 AI verdict",
+            parse_mode=ParseMode.HTML,
+        )
+    except Exception:
+        pass
     try:
         result_v2 = await scan_token_v2(target, chain)
         if (
@@ -436,6 +471,17 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             completed = await _poll_v2_scan_completion(target, chain or result_v2.get("chain") or detect_chain(target))
             if completed:
                 _merge_completed_scan(result_v2, completed)
+        # Phase 2: Security + Holders complete
+        try:
+            await msg.edit_text(
+                f"\U0001f52c <b>Deep scan in progress...</b>\n"
+                f"<code>{target}</code>\n\n"
+                f"\u2705 \u2460 Market \u2705 \u2461 Security \u2705 \u2462 Holders \u2192 "
+                f"\u25b6\ufe0f \u2463 Deployer \u2192 \u2464 Funding \u2192 \u2465 AI verdict",
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception:
+            pass
         if result_v2 is not None:
             result = v2_token_to_legacy(result_v2)
         else:

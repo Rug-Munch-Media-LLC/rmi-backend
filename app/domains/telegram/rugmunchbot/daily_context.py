@@ -96,33 +96,68 @@ def _fmt_mcap(value: Any) -> str:
 
 
 def _trending_label(item: dict[str, Any]) -> str:
-    """Render a trending token as 'SYM +12.3%' (falls back to name)."""
+    """Render a trending token as 'Name (SYM) +12.3% [chain] — address'."""
     symbol = (item.get("symbol") or "").strip().upper()
     name = (item.get("name") or "").strip()
-    label = symbol or name or "?"
+    addr = (item.get("token_address") or item.get("address") or "").strip()
+    chain = (item.get("chain") or "").strip().lower()
     change = item.get("change_24h")
+
+    # Build label: always show name + symbol
+    if name and symbol:
+        label = f"{name} ({symbol})"
+    elif name:
+        label = name
+    elif symbol:
+        label = symbol
+    elif addr:
+        label = f"{addr[:12]}..."
+    else:
+        label = "Unknown Token"
+
+    # Add change
     if change is not None:
         with contextlib.suppress(TypeError, ValueError):
             label = f"{label} {float(change):+.1f}%"
+
+    # Add chain
+    if chain:
+        label = f"{label} [{chain}]"
+
+    # Add full address
+    if addr:
+        label = f"{label} — <code>{addr}</code>"
+
     return label
 
 
 def _launch_label(item: dict[str, Any]) -> str:
-    """Render a launch item as 'Name (SYM) [chain]' or a short address."""
+    """Render a launch item as 'Name (SYM) [chain] — address'."""
     name = (item.get("name") or "").strip()
     symbol = (item.get("symbol") or "").strip()
     chain = (item.get("chain") or "").strip().lower()
-    addr = (item.get("token_address") or "").strip()
-    if name:
-        label = f"{name} ({symbol})" if symbol else name
+    addr = (item.get("token_address") or item.get("address") or "").strip()
+
+    # Build label: always show name + symbol
+    if name and symbol:
+        label = f"{name} ({symbol})"
+    elif name:
+        label = name
     elif symbol:
         label = symbol
     elif addr:
-        label = f"{addr[:8]}\u2026"
+        label = f"{addr[:12]}..."
     else:
-        label = "unknown"
+        label = "Unknown Token"
+
+    # Add chain
     if chain:
         label = f"{label} [{chain}]"
+
+    # Add full address
+    if addr:
+        label = f"{label} — <code>{addr}</code>"
+
     return label
 
 
@@ -203,15 +238,17 @@ async def _fetch_news(limit: int = NEWS_LIMIT) -> list[str]:
 
 
 async def _fetch_trending(limit: int = TRENDING_LIMIT) -> list[str]:
-    """Top trending token labels (name/symbol + 24h change)."""
+    """Top trending token labels (name/symbol + 24h change + address)."""
     body = await backend_get_json(TRENDING_PATH, params={"limit": limit}, timeout_secs=FETCH_TIMEOUT)
     if not body:
         return []
     items = body.get("items") or []
     labels: list[str] = []
     for it in items:
+        # Enrich with DexScreener if name/symbol missing
+        it = await _enrich_token_name(it)
         label = _trending_label(it)
-        if label and label != "?" and label not in labels:
+        if label and "Unknown Token" not in label and label not in labels:
             labels.append(label)
         if len(labels) >= 3:
             break
@@ -219,7 +256,7 @@ async def _fetch_trending(limit: int = TRENDING_LIMIT) -> list[str]:
 
 
 async def _fetch_launches(limit: int = LAUNCH_LIMIT) -> list[str]:
-    """Recent launch labels from /launches/recent (bundle enrichment off)."""
+    """Recent launch labels from /launches/recent (with DexScreener enrichment)."""
     body = await backend_get_json(
         LAUNCHES_PATH,
         params={"limit": limit, "enrich_bundle": False},
@@ -230,10 +267,45 @@ async def _fetch_launches(limit: int = LAUNCH_LIMIT) -> list[str]:
     items = body.get("items") or []
     labels: list[str] = []
     for it in items:
+        # Enrich with DexScreener if name/symbol missing
+        it = await _enrich_token_name(it)
         labels.append(_launch_label(it))
         if len(labels) >= limit:
             break
     return labels
+
+
+# ── DexScreener Enrichment ──────────────────────────────────────────────
+
+async def _enrich_token_name(item: dict[str, Any]) -> dict[str, Any]:
+    """Enrich a token item with name/symbol from DexScreener if missing."""
+    name = (item.get("name") or "").strip()
+    symbol = (item.get("symbol") or "").strip()
+    if name and symbol:
+        return item  # Already has both
+
+    addr = (item.get("token_address") or item.get("address") or "").strip()
+    if not addr:
+        return item
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{addr}")
+            if r.status_code == 200:
+                pairs = r.json().get("pairs", [])
+                if pairs:
+                    p = pairs[0]
+                    base = p.get("baseToken", {})
+                    if not name:
+                        item["name"] = base.get("name", "")
+                    if not symbol:
+                        item["symbol"] = base.get("symbol", "")
+                    if not item.get("chain"):
+                        item["chain"] = p.get("chainId", "")
+    except Exception:
+        pass
+    return item
 
 
 # ── Assembly ────────────────────────────────────────────────────────────
@@ -363,11 +435,11 @@ def format_market_section(data: dict[str, Any], when: datetime | None = None) ->
     if bits:
         lines.append(" | ".join(bits))
     if trending:
-        lines.append("\U0001f525 " + " \u00b7 ".join(escape(t) for t in trending))
+        lines.append("\U0001f525 " + " \u00b7 ".join(trending))
     if news:
         lines.append("\U0001f4f0 " + escape(news[0]))
     if launches:
-        lines.append("\U0001f680 " + " \u00b7 ".join(escape(launch) for launch in launches))
+        lines.append("\U0001f680 " + " \u00b7 ".join(launches))
     return "\n".join(lines)
 
 

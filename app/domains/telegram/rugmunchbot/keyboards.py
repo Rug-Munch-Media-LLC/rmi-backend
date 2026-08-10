@@ -79,7 +79,7 @@ def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButto
         ],
         [
             InlineKeyboardButton("\U0001f464 Account", callback_data="menu_cat_account"),
-            InlineKeyboardButton("\u2139\ufe0f Help", callback_data="menu_cat_help"),
+            InlineKeyboardButton("\U0001f916 AI Chat", callback_data="menu_cat_chat"),
         ],
         [
             InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
@@ -426,7 +426,11 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("\U0001f514 Price Alert", callback_data=f"alert_{address}_{chain}"),
-            InlineKeyboardButton("\U0001f4c8 Sentiment", callback_data=f"sentiment_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f4ca Sentiment", callback_data=f"sentiment_{address}_{chain}"),
+        ],
+        [
+            InlineKeyboardButton("\U0001f4e4 Share", callback_data=f"share_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f50d MEV Check", callback_data=f"mev_{address}_{chain}"),
         ],
     ]
     dex_btns = dex_buttons(address, chain)

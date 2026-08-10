@@ -192,6 +192,15 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             parse_mode=ParseMode.HTML,
             reply_markup=category_ai_kb(),
         )
+    elif data == "menu_cat_chat":
+        # Direct entry to AI chat — show welcome card with examples
+        from app.domains.telegram.rugmunchbot.handlers.chat import CHAT_WELCOME
+
+        await query.edit_message_text(
+            CHAT_WELCOME,
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
     elif data == "menu_cat_portfolio":
         await query.edit_message_text(
             "\U0001f4c1 <b>Portfolio</b>\n\nTrack your wallet holdings, watchlist, alerts and trade simulations.",
@@ -444,6 +453,21 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
+    elif data.startswith("share_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr, chain = parts[1], parts[2]
+            share_text = (
+                f"\U0001f50d <b>RMI Token Scan</b>\n\n"
+                f"<code>{addr}</code> ({chain.title()})\n\n"
+                f"Scan this token with RugMunchBot:\n"
+                f"https://t.me/RugMunchBot?start=scan_{addr}_{chain}"
+            )
+            await query.edit_message_text(
+                share_text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
     elif data.startswith("holders_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
@@ -674,6 +698,32 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         ctx.args = []
         await _sentiment(update, ctx)
+    elif data.startswith("trending_chain_"):
+        # Switch chain: trending_chain_{chain}
+        new_chain = data[len("trending_chain_") :]
+        if new_chain in ("solana", "ethereum", "base", "bsc", "arbitrum"):
+            await query.edit_message_text(
+                f"\U0001f525 <b>Loading {new_chain.capitalize()} trending...</b>",
+                parse_mode=ParseMode.HTML,
+            )
+            from app.domains.telegram.rugmunchbot.handlers.market import render_trending
+
+            text, kb = await render_trending(new_chain, limit=8, window="24h")
+            if text is None or kb is None:
+                await query.edit_message_text(
+                    "\u274c Could not fetch trending data.",
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=back_kb(),
+                )
+                return
+            await query.edit_message_text(
+                text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+                disable_web_page_preview=True,
+            )
+        else:
+            await query.answer("Chain not supported.", show_alert=True)
     elif data.startswith("trending_win_"):
         parts = data.split("_", 3)
         if len(parts) == 4 and parts[3] in ("1h", "24h", "7d"):

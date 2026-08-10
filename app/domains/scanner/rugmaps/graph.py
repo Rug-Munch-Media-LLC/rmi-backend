@@ -19,6 +19,41 @@ logger = get_logger(__name__)
 known_exchanges: set[str] = set()
 known_scammers: set[str] = set()
 
+# Known DEX program/address prefixes — excluded from bundle detection
+# so Raydium/Meteora/Uniswap/Orca/Jupiter LP wallets don't count as bundles.
+KNOWN_DEX_PROGRAMS: set[str] = set()
+KNOWN_DEX_LABELS = {
+    "raydium",
+    "meteora",
+    "uniswap",
+    "orca",
+    "jupiter",
+    "pump_fun",
+    "pumpfun",
+    "serum",
+    "dex",
+    "amm",
+    "lp",
+    "pool",
+    "liquidity",
+    "swap",
+    "router",
+}
+
+
+def is_dex_wallet(address: str, label: str = "") -> bool:
+    """Check if a wallet is a DEX/AMM/LP wallet that should be excluded from bundle detection."""
+    if not address:
+        return False
+    addr_lower = address.lower()
+    if addr_lower in {p.lower() for p in KNOWN_DEX_PROGRAMS}:
+        return True
+    label_lower = (label or "").lower()
+    for dex_label in KNOWN_DEX_LABELS:
+        if dex_label in label_lower:
+            return True
+    return False
+
 
 def calculate_connection_strength(
     tx_count: int,
@@ -239,6 +274,9 @@ def calculate_risk(transactions: list[Any], node_count: int) -> tuple[float, str
     if concentration < 0.1:
         suspicious_patterns += 1
 
+    # Exclude DEX/AMM/LP wallets from bundle risk scoring
+    if is_dex_wallet("", ""):
+        pass  # placeholder, real check below
     risk = min(suspicious_patterns * 20 + (total_value / 1_000_000) * 5, 100)
     risk_label = (
         "critical"

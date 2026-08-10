@@ -231,6 +231,27 @@ def render_chart_png(
 
     color = up_c if closes[-1] >= closes[0] else down_c
 
+    # Moving averages (MA7, MA25)
+    def ma(data, period):
+        result = []
+        for i in range(len(data)):
+            if i < period - 1:
+                result.append(None)
+            else:
+                result.append(sum(data[i - period + 1 : i + 1]) / period)
+        return result
+
+    ma7 = ma(closes, min(7, n))
+    ma25 = ma(closes, min(25, n))
+    for i in range(1, n):
+        for ma_data, ma_color in [(ma7, (255, 183, 77)), (ma25, (100, 181, 246))]:
+            if ma_data[i] is not None and ma_data[i - 1] is not None:
+                draw.line(
+                    [(x_of(i - 1), y_of(ma_data[i - 1])), (x_of(i), y_of(ma_data[i]))],
+                    fill=ma_color,
+                    width=2,
+                )
+
     # Candlesticks (wick = high→low, body = close line)
     body_w = max(2, min(12, int(plot_w / n) - 2))
     for i in range(n):
@@ -257,6 +278,11 @@ def render_chart_png(
     if chain:
         title += f"  ·  {chain.capitalize()}"
     draw.text((pad_l, 12), title, font=font, fill=title_c)
+    # MA legend
+    if ma7[-1] is not None:
+        draw.text((pad_l + 200, 12), f"MA7: ${ma7[-1]:.4f}", font=tiny, fill=(255, 183, 77))
+    if ma25[-1] is not None:
+        draw.text((pad_l + 350, 12), f"MA25: ${ma25[-1]:.4f}", font=tiny, fill=(100, 181, 246))
     draw.text((pad_l, h - 30), "Price (USD)", font=tiny, fill=text_c)
     draw.text((w - pad_r - 90, vol_top - 22), "Volume", font=tiny, fill=text_c)
 
@@ -270,17 +296,31 @@ def render_chart_png(
         return None
 
 
-async def _fetch_rugcharts_ohlcv(client: httpx.AsyncClient, chain: str, pair_address: str) -> list[dict] | None:
+async def _fetch_rugcharts_ohlcv(
+    client: httpx.AsyncClient, chain: str, pair_address: str, timeframe: str = "1h"
+) -> list[dict] | None:
     """Fetch OHLCV candles from the backend RugCharts engine.
+
+    Args:
+        timeframe: "15m", "1h", "4h", "1d", "1w"
 
     Returns the candle list (oldest → newest) or None on any failure.
     """
     if not pair_address:
         return None
+    # Map timeframe to API params
+    tf_map = {
+        "15m": {"timeframe": "15m", "limit": 200},
+        "1h": {"timeframe": "1h", "limit": 150},
+        "4h": {"timeframe": "4h", "limit": 120},
+        "1d": {"timeframe": "1d", "limit": 100},
+        "1w": {"timeframe": "1w", "limit": 80},
+    }
+    params = tf_map.get(timeframe, {"timeframe": "1h", "limit": 100})
     try:
         r = await client.get(
             f"{BACKEND_URL}/api/v1/rugcharts/ohlcv/{chain}/{pair_address}",
-            params={"timeframe": "1h", "limit": 100},
+            params=params,
             headers=backend_headers(),
             timeout=15,
         )
@@ -320,6 +360,7 @@ async def cmd_chart(update, ctx) -> None:
 
     address = args[0]
     explicit_chain = args[1] if len(args) > 1 else ""
+    timeframe = args[2] if len(args) > 2 else "1d"
     await msg.chat.send_action("upload_photo")
 
     async with httpx.AsyncClient(timeout=25) as client:
@@ -363,9 +404,15 @@ async def cmd_chart(update, ctx) -> None:
         chain = explicit_chain or p.get("chainId", "")
         pair_address = p.get("pairAddress", "")
 
-        # ── v6: try RugCharts OHLCV image first ──
-        candles = await _fetch_rugcharts_ohlcv(client, chain, pair_address)
-        png = render_chart_png(candles, name, symbol, chain) if candles else None
+        # ── Fetch OHLCV for requested timeframe ──
+        candles = await _fetch_rugcharts_ohlcv(client, chain, pair_address, timeframe)
+        # Fallback to 1h if requested timeframe unavailable
+        if not candles and timeframe != "1h":
+            candles = await _fetch_rugcharts_ohlcv(client, chain, pair_address, "1h")
+        # Use branded visual engine
+        from app.domains.telegram.rugmunchbot.services.visuals import render_candlestick_chart
+
+        png = render_candlestick_chart(candles, name, symbol, chain, timeframe) if candles else None
         if png:
             caption = (
                 f"📊 <b>{name}</b> ({symbol})\n<code>{address}</code>\n\n💰 Price: <b>${price:.10f}</b>".rstrip(
@@ -382,7 +429,13 @@ async def cmd_chart(update, ctx) -> None:
             kb = InlineKeyboardMarkup(
                 [
                     [
-                        InlineKeyboardButton("🗺️ View RugMap", callback_data=f"rugmap_{address}_{chain}"),
+                        InlineKeyboardButton("1H", callback_data=f"chart_{address}_{chain}_1h"),
+                        InlineKeyboardButton("4H", callback_data=f"chart_{address}_{chain}_4h"),
+                        InlineKeyboardButton("1D", callback_data=f"chart_{address}_{chain}_1d"),
+                        InlineKeyboardButton("1W", callback_data=f"chart_{address}_{chain}_1w"),
+                    ],
+                    [
+                        InlineKeyboardButton("🗺️ RugMap", callback_data=f"rugmap_{address}_{chain}"),
                         InlineKeyboardButton("🔍 Deep Scan", callback_data=f"deep_{address}_{chain}"),
                     ],
                     [InlineKeyboardButton("🏠 Menu", callback_data="menu_main")],
