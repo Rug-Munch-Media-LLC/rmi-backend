@@ -20,6 +20,7 @@ from telegram.ext import CommandHandler
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
+    DEXSCREENER,
     TELEGRAM_CHANNEL,
     WEBSITE_URL,
     backend_headers,
@@ -193,7 +194,7 @@ def _age_badge(created_at_ms: int | None) -> str:
         for threshold, badge in AGE_BADGES:
             if age_hours < threshold:
                 return badge
-    except Exception:
+    except Exception:  # noqa: S110 — badge is best-effort
         pass
     return "❓"
 
@@ -277,7 +278,6 @@ async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) ->
                         # Minimum quality thresholds
                         liquidity = float(p.get("liquidity", {}).get("usd") or 0)
                         volume_24h = float(p.get("volume", {}).get("h24") or 0)
-                        price = float(p.get("priceUsd") or 0)
                         # Skip tokens with very low liquidity (<$1000) or volume (<$5000)
                         if liquidity < 1000 or volume_24h < 5000:
                             return None
@@ -471,9 +471,9 @@ async def _enrich_with_quick_scan(tokens: list[dict], chain: str) -> list[dict]:
                                 token["symbol"] = p.get("baseToken", {}).get("symbol", "")
                                 if not token.get("name"):
                                     token["name"] = p.get("baseToken", {}).get("name", "")
-                    except Exception:
+                    except Exception:  # noqa: S110 — enrichment is best-effort
                         pass
-        except Exception:
+        except Exception:  # noqa: S110 — return token even if enrichment fails
             pass
         return token
 
@@ -618,7 +618,6 @@ def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
         rendered += 1
         if rendered > 8:
             break
-        price = float(t.get("price_usd") or 0)
         chg = _window_change(t, window)
         vol = float(t.get("volume_24h") or 0)
         liq = float(t.get("liquidity_usd") or 0)
