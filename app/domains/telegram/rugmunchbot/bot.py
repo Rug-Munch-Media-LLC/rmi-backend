@@ -337,6 +337,17 @@ async def setup_bot_profile(app: Application) -> None:
             BotCommand("mygroup", "Your creator coin group"),
             BotCommand("groupinfo", "Group stats (admin)"),
             BotCommand("voicechat", "Manage voice chat (admin)"),
+            BotCommand("market", "Market overview — BTC/ETH, Fear & Greed"),
+            BotCommand("movers", "Biggest gainers & losers"),
+            BotCommand("whales", "Whale movement alerts"),
+            BotCommand("polymarket", "Polymarket prediction markets"),
+            BotCommand("election", "Election odds & predictions"),
+            BotCommand("odds", "Sports & event odds"),
+            BotCommand("yield", "DeFi yield farming opportunities"),
+            BotCommand("lpcheck", "Liquidity pool health check"),
+            BotCommand("defi", "DeFi protocol analytics"),
+            BotCommand("dumps", "Detect token dump patterns"),
+            BotCommand("flow", "Money flow & fund tracking"),
         ]
         await bot.set_my_commands(commands)
         logger.info("Bot commands registered")

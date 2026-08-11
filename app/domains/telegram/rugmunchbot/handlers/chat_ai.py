@@ -1485,21 +1485,15 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     ):
         return True
 
+    # Thumbs up + typing + preliminary message — instant feedback
     with contextlib.suppress(Exception):
-        await message.chat.send_action("typing")  # show typing indicator
-
-    # Thumbs up the user's question first — instant acknowledgment
+        await message.chat.send_action("typing")
     with contextlib.suppress(Exception):
-        await message.reply_sticker(
-            "CAACAgIAAxkBAAIBZ2QAAmQn7sYqW0QjZ3gX8YqKFpAACLwADwAAtE2wYsunqBgADIAQ"
-        ) if False else None  # sticker ID varies; use reaction instead
-    with contextlib.suppress(Exception):
-        # Telegram Bot API 7.0+ reaction: thumbs up
         from telegram import ReactionTypeEmoji
 
         await message.set_reaction([ReactionTypeEmoji(emoji="👍")])
 
-    # Quick preliminary response — keeps user engaged while LLM thinks
+    # Preliminary "thinking" message — keeps user engaged
     preliminary = await message.reply_text(
         "\U0001f916 <b>Thinking...</b>\n\n"
         f"\U0001f4ac <i>{escape(text[:150])}</i>\n\n"
@@ -1508,68 +1502,45 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         disable_web_page_preview=True,
     )
 
-    # Address enhancement: if the message contains a token address, ALSO pull a
-    # quick scanner read and ground the question with a compact risk summary.
+    # CONCURRENT: fetch daily context + scan context + LLM call all at once
     addresses = _extract_addresses(text)
+    history = cast("list[dict[str, str]]", db.get_chat_history(user.id))
 
-    # PROBLEM C: long backend queries (5-15s) keep the placeholder static and
-    # look stalled — schedule an interim "still digging" edit after 5s and
-    # cancel it the moment the backend answers.
-    interim_task = asyncio.create_task(_edit_placeholder_if_slow(preliminary))
+    # Start all async work concurrently
+    daily_ctx_task = asyncio.create_task(get_daily_context())
+    scan_ctx_task = asyncio.create_task(_fetch_scan_context(addresses[0])) if addresses else None
 
-    # Per-user session: telegram user id keys backend rate limiting
-    # (X-Forwarded-For) AND the explicit conversation history (bot DB), so the
-    # shared backend bucket never contaminates answers.
-    history = cast("list[dict[str, str]]", db.get_chat_history(user.id))  # last 5, oldest-first
+    daily_context = await daily_ctx_task
+    scan_summary = await scan_ctx_task if scan_ctx_task else None
 
     prompt = text
-    if addresses:
-        summary = await _fetch_scan_context(addresses[0])
-        if summary:
-            prompt = f"{summary}\n\n{prompt}"
-
-    # LIVE DAILY MARKET AWARENESS: prepend today's market snapshot (BTC/ETH
-    # price, Fear & Greed, top news, trending tokens, recent launches) so the
-    # backend chat can answer "what's hot today" style questions with fresh
-    # context. Redis-cached 5 min + fail-open — chat never blocks on market
-    # data, and no context_override is used so backend auto-RAG stays active.
-    daily_context = await get_daily_context()
+    if scan_summary:
+        prompt = f"{scan_summary}\n\n{prompt}"
     if daily_context:
         prompt = f"{daily_context}\n\n{prompt}"
 
-    # Use local models ONLY (no backend API — costs money)
+    # Call local LLM (Qwen — fast, no backend cost)
     result = await _call_local_llm(prompt, user.id, history)
-    # Stop the 5s interim timer and reap the task (cancellation is caught
-    # inside _edit_placeholder_if_slow, so no stray exceptions surface).
-    interim_task.cancel()
-    await asyncio.gather(interim_task, return_exceptions=True)
     if not result:
-        # Backend also down: try the offline tier-2 canned answers before falling
-        # back to the honest unavailability message.
         if await _reply_local_intent(message, text, user):
             return True
-        logger.info("chat_ai backend unavailable user=%s text=%.60s", user.id, text)
-        try:
+        with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
             await preliminary.edit_text(
                 _FALLBACK_MESSAGE,
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
-        except (TelegramError, ConnectionError, OSError, TimeoutError):
-            logger.debug("chat_ai fallback send failed", exc_info=True)
         return True
 
     answer = result["message"]
     db.increment_usage(user.id, ai_msg=True)
     db.add_chat_message(user.id, "user", text)
     db.add_chat_message(user.id, "assistant", answer)
-    try:
+    with contextlib.suppress(Exception):
         await track_ai_query()
         await track_tokens(len(answer) // 4)
-    except Exception:
-        logger.debug("chat_ai analytics failed (user=%s)", user.id, exc_info=True)
 
-    # Replace preliminary "thinking" message with the real answer
+    # Replace thinking message with real answer
     try:
         await preliminary.edit_text(
             answer,
@@ -1578,7 +1549,6 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             disable_web_page_preview=True,
         )
     except (TelegramError, ConnectionError, OSError, TimeoutError):
-        # If edit fails (e.g. message too long), send as new message
         await _send_answer(message, answer, result.get("rag_count", 0))
     return True
 
