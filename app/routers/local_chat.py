@@ -2,14 +2,17 @@
 Local Model Chat — proxies to llama.cpp servers (Qwen 3 4B, DeepSeek 8B).
 Qwen for quick chat, DeepSeek for deep analysis (thinking hidden).
 """
+
 from __future__ import annotations
 
-import httpx
+import os
 import re
 import time
+from typing import Literal
+
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Literal
 
 from app.core.logging import get_logger
 
@@ -17,10 +20,11 @@ logger = get_logger("rmi.local_chat")
 
 router = APIRouter(prefix="/api/v1/chat/local", tags=["local-chat"])
 
-# Local model endpoints
-QWEN_URL = "http://localhost:8085/v1/chat/completions"
+# Local model endpoints (bridge gateway — containers can't reach host 127.0.0.1)
+LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
+QWEN_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
-DEEPSEEK_URL = "http://localhost:8086/v1/chat/completions"
+DEEPSEEK_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-analysis"
 
 
