@@ -112,7 +112,7 @@ logger = get_logger("rmi_bot.chat_ai")
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
-QWEN_TIMEOUT = 60.0
+QWEN_TIMEOUT = 30.0  # fail fast — CPU LLM is slow
 
 # DeepSeek R1 Distill Qwen 8B for deep analysis (hides thinking output)
 DEEPSEEK_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
@@ -391,7 +391,7 @@ async def _call_backend_chat(
                 json={
                     "model": model,
                     "messages": messages,
-                    "max_tokens": 512,
+                    "max_tokens": 200,  # keep answers concise for speed
                     "temperature": 0.7,
                     "chat_template_kwargs": {"enable_thinking": False},
                 },
@@ -414,8 +414,6 @@ async def _call_backend_chat(
     answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
 
     # Strip thinking output from DeepSeek and Qwen.
-    # Handle BOTH closed <think>...</think> AND unclosed <think> (token budget
-    # exhausted before the model finishes reasoning).
     import re
 
     answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
@@ -423,11 +421,8 @@ async def _call_backend_chat(
     answer = re.sub(r"</?answer>", "", answer)
     answer = re.sub(r"<think>", "", answer)
     answer = re.sub(r"</think>", "", answer)
-    # Remove thinking text (models often think out loud before giving the answer)
-    # Take only the last substantive paragraph as the actual answer
     paragraphs = [p.strip() for p in answer.split("\n") if p.strip()]
     if len(paragraphs) > 1:
-        # Take the last paragraph that doesn't start with thinking patterns
         for p in reversed(paragraphs):
             if not any(
                 p.lower().startswith(prefix)
@@ -453,15 +448,17 @@ async def _call_backend_chat(
                     "the user asked",
                     "since they're",
                     "since the",
+                    "so that's",
+                    "i'll",
+                    "let's",
+                    "looking at",
                 ]
             ):
                 answer = p
                 break
     answer = answer.strip()
-
     if not answer:
         return None
-
     return {
         "message": answer,
         "rag_count": 0,
@@ -525,7 +522,7 @@ async def _call_local_llm(
                     json={
                         "model": model,
                         "messages": messages,
-                        "max_tokens": 512,
+                        "max_tokens": 200,  # concise + fast
                         "temperature": 0.7,
                         "chat_template_kwargs": {"enable_thinking": False},
                     },
