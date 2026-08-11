@@ -11,6 +11,7 @@ bootstrapping before settings is fully initialized.
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
@@ -23,15 +24,40 @@ if TYPE_CHECKING:
 
 
 def _get_redis_url() -> str:
-    """Get Redis URL from settings, falling back to direct env var during boot."""
+    """Get Redis URL from settings, falling back to direct env var during boot.
+    If the URL has no password, try fetching from gopass (bot runs on host)."""
+    url = ""
     try:
         from app.config import settings as _s
 
         if _s.redis_url:
-            return _s.redis_url
+            url = _s.redis_url
     except Exception:  # noqa: S110 — optional dependency
         pass
-    return os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    if not url:
+        url = os.getenv("REDIS_URL", "")
+    if not url:
+        url = "redis://localhost:6379/0"
+    # If URL has no password, try gopass
+    if "@" not in url:
+        try:
+            pw = (
+                subprocess.check_output(
+                    ["/usr/bin/gopass", "show", "rmi/redis/password"],
+                    stderr=subprocess.DEVNULL,
+                    timeout=5,
+                    shell=False,
+                )
+                .decode()
+                .strip()
+            )
+            if pw:
+                url = url.replace("redis://", f"redis://:{pw}@")
+                # Normalize hostname for host-based processes
+                url = url.replace("@rmi-redis:", "@localhost:")
+        except Exception:  # noqa: S110 — gopass may not be installed
+            pass
+    return url
 
 
 REDIS_URL = _get_redis_url()
