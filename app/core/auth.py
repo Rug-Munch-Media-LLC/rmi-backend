@@ -139,6 +139,7 @@ PUBLIC_PREFIXES = (
     "/api/v1/rugmaps/",  # RugMaps token graph & entity analysis — public product feature
     "/api/v1/rugcharts/",  # RugCharts trending, OHLCV, token intelligence — public product feature
     "/api/v1/bot/",  # Telegram bot API — public scan, ask, pulse endpoints (cross-platform connectivity); scan/ask protected via PROTECTED_SUBPATHS
+    "/api/v1/admin/backend/",  # Admin dashboard — session auth via X-Admin-Session header (own auth layer, not API key)
     "/ws/",
 )
 

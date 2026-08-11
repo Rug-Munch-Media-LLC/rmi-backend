@@ -82,9 +82,9 @@ class AuditLogger:
         try:
             log_file = f"/var/log/rmi/audit_{datetime.now(UTC).strftime('%Y-%m')}.jsonl"
             os.makedirs(os.path.dirname(log_file), exist_ok=True)
-            with open(log_file, "a") as f:
+            with open(log_file, "a") as f:  # noqa: ASYNC230 — audit writes are infrequent, blocking is acceptable
                 f.write(json.dumps(entry.to_dict()) + "\n")
-        except (json.JSONDecodeError, ValueError, TypeError) as e:
+        except (json.JSONDecodeError, ValueError, TypeError, OSError) as e:
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"File audit log failed: {e}")
 
