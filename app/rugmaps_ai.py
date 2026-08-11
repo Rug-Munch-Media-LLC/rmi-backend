@@ -1,7 +1,7 @@
 """
-RugMaps AI Analysis — local Ollama (Talos) first, LiteLLM/DeepSeek paid fallback.
+RugMaps AI Analysis — DIRECT llama.cpp (local models, NO paid APIs).
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
-Routing order: Ollama (Qwen3-4B / DeepSeek-Qwen-8B) → LiteLLM → direct DeepSeek → rule-based.
+Routing order: llama.cpp deepseek-analysis → llama.cpp qwen-chat → rule-based.
 """
 
 from __future__ import annotations
@@ -18,21 +18,14 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# ── LiteLLM proxy config (same pattern as ai_analysis.py) ──
-LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://172.22.0.1:4000/v1")
-LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
-AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "deepseek-analysis")  # LiteLLM model_name → deepseek-analysis
-
-# Legacy direct DeepSeek fallback (used only if LiteLLM is unreachable)
-DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")
-DEEPSEEK_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
-
-# ── Ollama (local, Talos) — tried FIRST, before any paid API ──
-# Talos Ollama tailnet IP with localhost fallback when running directly on
-# the Talos host. Comma-separated base URLs, tried in order.
-OLLAMA_BASE_URLS = [
-    u.strip().rstrip("/") for u in os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").split(",") if u.strip()
-]
+# ── Direct llama.cpp config (NO litellm proxy, NO paid APIs) ──
+# Backend runs in Docker on the rmi_network bridge (172.22.0.0/16); llama.cpp
+# runs on the HOST, so the container reaches it via the docker bridge gateway
+# 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
+LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
+QWEN_PORT = 8085  # qwen-chat (Qwen3-4B-Abliterated, fast)
+DEEPSEEK_PORT = 8086  # deepseek-analysis (DeepSeek-R1-8B-Abliterated, reasoning)
+AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "deepseek-analysis")
 # Fast model → token descriptions, simple labeling (Qwen3-4B; qwen3-work:8b on Talos).
 OLLAMA_FAST_MODEL = os.getenv("OLLAMA_FAST_MODEL", "qwen3:4b")
 # Complex model → cluster interpretation, anomaly detection, rug pull narratives

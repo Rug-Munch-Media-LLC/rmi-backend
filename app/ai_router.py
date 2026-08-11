@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """
-Stub AI Router - Intelligent Model-First Provider Swapping
-===========================================================
-Routes requests to optimal AI provider based on quota, latency, and cost.
-For now, a minimal stub that delegates to OpenRouter.
+AI Router — DIRECT LOCAL MODELS
+=================================
+All consumer chat (Telegram bot, website, rugmaps, rugcharts) routes DIRECTLY
+to the self-hosted llama.cpp servers. NO litellm proxy, NO paid/external APIs.
+
+Local models (llama.cpp, OpenAI-compatible /v1 endpoints):
+  - qwen-chat          (Qwen3-4B-Abliterated,   llama.cpp :8085, 8k ctx)
+  - deepseek-analysis  (DeepSeek-R1-8B-Abliterated, llama.cpp :8086, 8k ctx)
 """
 
 from __future__ import annotations
 
-import base64
 import json
 import os
+import re
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
@@ -24,101 +28,20 @@ from fastapi import APIRouter
 
 router = APIRouter(tags=["AI Router"])
 
-# Decode base64 LLM key if present, otherwise use plain LLM_API_KEY
-# (safety net: ensures key is decoded even when imported without main.py)
-if os.getenv("LLM_API_KEY_B64"):
-    os.environ["LLM_API_KEY"] = base64.b64decode(os.getenv("LLM_API_KEY_B64")).decode()
-
-# Model tiers (for reference, full config in ai_router.py)
-MODEL_TIERS = {
-    "T0": {"name": "Ultra", "models": ["gpt-4o", "claude-3.5-sonnet"], "max_cost_per_1k": 0.05},
-    "T1": {"name": "Premium", "models": ["gpt-4-turbo", "claude-3-opus"], "max_cost_per_1k": 0.02},
-    "T2": {
-        "name": "Standard",
-        "models": ["gpt-3.5-turbo", "claude-3-haiku"],
-        "max_cost_per_1k": 0.005,
-    },
-    "T3": {"name": "Fast", "models": ["llama-3-8b", "mistral-tiny"], "max_cost_per_1k": 0.001},
-    "T4": {"name": "Free", "models": ["tiny-llama", "phi-2"], "max_cost_per_1k": 0.0},
+# ── Local model registry ──
+# model_name → llama.cpp port on the docker bridge gateway.
+LOCAL_MODEL_PORTS = {
+    "qwen-chat": 8085,
+    "deepseek-analysis": 8086,
 }
+DEFAULT_MODEL = "qwen-chat"
 
-# Providers (for reference)
-PROVIDERS = {
-    "deepseek": {
-        "url": os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"),
-        "key_env": "LLM_API_KEY",
-        "model": os.getenv("LLM_MODEL", "deepseek-v4-flash"),
-        "rpm": 100,
-    },
-    "openrouter": {
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "key_env": "OPENROUTER_API_KEY",
-        "rpm": 100,
-    },
-}
-
-
-@router.post("/ai/completions")
-async def ai_completions(request: dict[str, Any]) -> dict[str, str]:
-    """AI completion via optimal provider routing."""
-    return {"error": "AI Router not fully configured", "provider": "openrouter"}
-
-
-@router.post("/ai/chat")
-async def ai_chat(request: dict[str, Any]) -> dict[str, str]:
-    """AI chat endpoint with provider fallback."""
-    return {"error": "AI Router not fully configured", "provider": "openrouter"}
-
-
-@router.get("/ai/providers")
-async def list_providers() -> dict[str, list[Any]]:
-    """List available AI providers."""
-    return {"providers": list(PROVIDERS.keys())}
-
-
-@router.get("/ai/models")
-async def list_models() -> dict[str, Any]:
-    """List available models by tier."""
-    return {"tiers": MODEL_TIERS}
-
-
-# ── Direct chat completion (used by app.routers.chat) ──
-
-
-def _strip_think_tags(text: str) -> str:
-    """Strip <think> tags from model output (Qwen3/DeepSeek R1 reasoning)."""
-    import re
-
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-
-
-def _prefill_chat(messages: list[Any]) -> list[Any]:
-    """Add pre-fill assistant message to bypass Qwen3 thinking for chat."""
-    last = messages[-1]
-    if last.get("role") == "user":
-        msg = last["content"].lower()
-        if any(w in msg for w in ["what", "how", "explain", "tell", "describe"]):
-            messages.append({"role": "assistant", "content": "Here"})
-        else:
-            messages.append({"role": "assistant", "content": "Sure"})
-    return messages
-
+# Backend runs in Docker on the rmi_network bridge (172.22.0.0/16); llama.cpp
+# runs on the HOST, so the container reaches it via the docker bridge gateway
+# 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
+LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 
 # ── Task → Model routing map ──
-# Model names MUST match the model_name entries in the LiteLLM config
-# (/srv/rmi-infra/litellm-config.yaml): qwen-chat / deepseek-analysis.
-#
-# Task routing table:
-#   "chat"      → qwen-chat         (fast, creative, 11 tok/s)
-#   "simple"    → qwen-chat         (greetings, basic Q&A)
-#   "analysis"  → deepseek-analysis (deep, reasoning, 4 tok/s)
-#   "complex"   → deepseek-analysis (RAG, scoring, forensics)
-#   "chart"     → deepseek-analysis (needs technical analysis)
-#   "contract"  → deepseek-analysis (needs security knowledge)
-#   "code"      → deepseek-analysis (code generation/analysis)
-#   "bulk"      → qwen-chat         (high-volume, simple tasks)
-#
-# Default (no task_type, no model): qwen-chat
 TASK_MODEL_MAP = {
     "chat": "qwen-chat",
     "analysis": "deepseek-analysis",
@@ -126,15 +49,177 @@ TASK_MODEL_MAP = {
     "complex": "deepseek-analysis",
     "code": "deepseek-analysis",
     "bulk": "qwen-chat",
+    "chart": "deepseek-analysis",
+    "contract": "deepseek-analysis",
 }
 
-# Backend runs in Docker on the rmi_network bridge (172.22.0.0/16); LiteLLM
-# runs on the HOST in host-network mode, so the container reaches it via the
-# docker bridge gateway 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
-LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://172.22.0.1:4000/v1")
-LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
-
 logger = get_logger("ai_router")
+
+# Model tiers (compat shim for /ai/models — reflects the local reality)
+MODEL_TIERS = {
+    "T0": {"name": "Local-Deep", "models": ["deepseek-analysis"], "max_cost_per_1k": 0.0},
+    "T1": {"name": "Local-Deep", "models": ["deepseek-analysis"], "max_cost_per_1k": 0.0},
+    "T2": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
+    "T3": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
+    "T4": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
+}
+
+PROVIDERS = {
+    "llama.cpp": {"host": LLAMA_HOST, "ports": LOCAL_MODEL_PORTS, "local": True},
+}
+
+
+def _strip_think_tags(text: str) -> str:
+    """Strip <think> tags from model output (Qwen3/DeepSeek R1 reasoning).
+
+    Handles both complete blocks (<think>...</think>) and unterminated blocks
+    that get cut off when max_tokens is reached mid-think (strip everything from
+    <think> onward in that case).
+    """
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Unterminated think block (truncated by max_tokens) — drop it entirely
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
+    return cleaned.strip()
+
+
+def _resolve_model(model: str | None, task_type: str | None) -> str:
+    """Resolve to a LOCAL model name. Non-local names are coerced to default."""
+    if model and model in LOCAL_MODEL_PORTS:
+        return model
+    if task_type and task_type in TASK_MODEL_MAP:
+        return TASK_MODEL_MAP[task_type]
+    return DEFAULT_MODEL
+
+
+class _ThinkStreamFilter:
+    """Incrementally strip <think>...</think> blocks from a token stream."""
+
+    OPEN = "<think>"
+    CLOSE = "</think>"
+
+    def __init__(self) -> None:
+        self._in_think = False
+        self._buf = ""
+
+    def feed(self, token: str) -> str:
+        self._buf += token
+        out: list[str] = []
+        while self._buf:
+            if self._in_think:
+                end = self._buf.find(self.CLOSE)
+                if end == -1:
+                    break
+                self._buf = self._buf[end + len(self.CLOSE) :]
+                self._in_think = False
+                continue
+            start = self._buf.find(self.OPEN)
+            if start == -1:
+                emit = self._buf
+                self._buf = ""
+                for i in range(1, len(self.OPEN)):
+                    if emit.endswith(self.OPEN[:i]):
+                        self._buf = emit[-i:]
+                        emit = emit[:-i]
+                        break
+                if emit:
+                    out.append(emit)
+                break
+            if start:
+                out.append(self._buf[:start])
+            self._buf = self._buf[start + len(self.OPEN) :]
+            self._in_think = True
+        return "".join(out)
+
+    def flush(self) -> str:
+        leftover = "" if self._in_think else self._buf
+        self._buf = ""
+        self._in_think = False
+        return leftover
+
+
+# ── Compat router endpoints (mounted by other routers) ──
+
+
+@router.post("/ai/completions")
+async def ai_completions(request: dict[str, Any]) -> dict[str, Any]:
+    messages = request.get("messages") or [{"role": "user", "content": request.get("prompt", "")}]
+    return await chat_completion(messages=messages, model=request.get("model"), task_type=request.get("task_type"))
+
+
+@router.post("/ai/chat")
+async def ai_chat(request: dict[str, Any]) -> dict[str, Any]:
+    messages = request.get("messages") or [{"role": "user", "content": request.get("prompt", "")}]
+    return await chat_completion(messages=messages, model=request.get("model"), task_type=request.get("task_type"))
+
+
+@router.get("/ai/providers")
+async def list_providers() -> dict[str, list[Any]]:
+    return {"providers": list(PROVIDERS.keys())}
+
+
+@router.get("/ai/models")
+async def list_models() -> dict[str, Any]:
+    return {"tiers": MODEL_TIERS}
+
+
+# ── Provider call helpers ──
+
+
+async def _post_chat(
+    client: Any,
+    url: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    provider: str,
+) -> dict[str, Any] | None:
+    """POST a chat completion; return normalized dict or None on failure."""
+    resp = await client.post(
+        url,
+        json={
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        },
+        headers={"Content-Type": "application/json"},
+    )
+    if resp.status_code != 200:
+        logger.warning(
+            "local_llm_non_200",
+            provider=provider,
+            status=resp.status_code,
+            body=resp.text[:300],
+            model=model,
+        )
+        return None
+    data = resp.json()
+    choices = data.get("choices", [])
+    content = ""
+    if choices and "message" in choices[0]:
+        content = _strip_think_tags(choices[0]["message"].get("content", ""))
+    return {
+        "id": data.get("id", "chat-unknown"),
+        "content": content,
+        "choices": choices,
+        "model": data.get("model", model),
+        "usage": data.get("usage", {}),
+        "_provider": provider,
+        "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
+        "_routed_model": model,
+    }
+
+
+def _other_local(model: str) -> str:
+    """Return the other local model (cross-model redundancy)."""
+    for name in LOCAL_MODEL_PORTS:
+        if name != model:
+            return name
+    return DEFAULT_MODEL
+
+
+# ── Direct chat completion (used by app.routers.chat) ──
 
 
 async def chat_completion(
@@ -145,41 +230,20 @@ async def chat_completion(
     temperature: float = 0.7,
     max_tokens: int = 2048,
 ) -> dict[str, Any]:
-    """Call the LLM API via LiteLLM proxy with task-based routing.
+    """Call a LOCAL llama.cpp model directly via task-based routing.
 
-    Routes through LiteLLM on port 4000 which handles provider selection,
-    usage-based routing, and fallback. Falls back to local Ollama if
-    LiteLLM is unavailable.
-
-    Task routing (via task_type param):
-      - "chat" / "simple"  → model="chat" (LiteLLM group → qwen-chat)
-      - "analysis" / "complex" / "code" → model="analysis"/"deep" (→ deepseek-analysis)
-      - None → uses explicit model param if provided, otherwise "chat"
-
-    Args:
-        messages: Chat messages in OpenAI format.
-        model: Explicit model name (overrides task_type routing).
-        task_type: Task category for auto-routing (chat/analysis/simple/complex/code/bulk).
-        tier: Deprecated, kept for API compatibility.
-        temperature: Sampling temperature (0.0-2.0).
-        max_tokens: Maximum tokens in response.
-
-    Returns:
-        Dict with id, content, choices, model, usage, _provider, _latency_ms.
+    Chain (all local, no external APIs):
+      1. Direct llama.cpp for the resolved model
+      2. The other local llama.cpp server (cross-model redundancy)
+      3. ExternalAPIError
     """
     import httpx
 
-    # Resolve model: explicit model > task_type routing > default
-    if model:
-        resolved_model = model
-    elif task_type and task_type in TASK_MODEL_MAP:
-        resolved_model = TASK_MODEL_MAP[task_type]
-    else:
-        resolved_model = "qwen-chat"  # default to qwen-chat
-
-    # ── GUARDRAILS: Sanitize last user message before sending ──
     from app.core.ai_guardrails import sanitize_input as _guard_input, sanitize_output as _guard_output
 
+    resolved_model = _resolve_model(model, task_type)
+
+    # ── GUARDRAILS: Sanitize last user message before sending ──
     messages_safe = list(messages)
     for i in range(len(messages_safe) - 1, -1, -1):
         if messages_safe[i].get("role") == "user":
@@ -199,176 +263,55 @@ async def chat_completion(
             messages_safe[i]["content"] = cleaned
             break
 
-    # ── Primary: LiteLLM proxy ──
-    litellm_url = f"{LITELLM_BASE_URL}/chat/completions"
-    try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                litellm_url,
-                json={
-                    "model": resolved_model,
-                    "messages": messages_safe,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                },
-                headers={
-                    "Authorization": f"Bearer {LITELLM_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                choices = data.get("choices", [])
-                content = ""
-                if choices and "message" in choices[0]:
-                    content = _strip_think_tags(choices[0]["message"].get("content", ""))
-                # ── GUARDRAILS: Sanitize output ──
-                content = _guard_output(content)
-                return {
-                    "id": data.get("id", "chat-unknown"),
-                    "content": content,
-                    "choices": choices,
-                    "model": data.get("model", resolved_model),
-                    "usage": data.get("usage", {}),
-                    "_provider": "litellm",
-                    "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
-                    "_routed_model": resolved_model,
-                }
-            # LiteLLM returned non-200 — log and fall through to fallback
-            logger.warning(
-                "litellm_non_200",
-                status=resp.status_code,
-                body=resp.text[:300],
-                model=resolved_model,
-            )
-    except Exception as e:
-        logger.warning("litellm_unreachable", error=str(e))
-
-    # ── Fallback 1: Try OpenRouter if configured ──
-    openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
-    if openrouter_key:
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        # ── 1: Direct llama.cpp for the resolved model ──
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    json={
-                        "model": "deepseek/deepseek-v4-flash",
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                    },
-                    headers={
-                        "Authorization": f"Bearer {openrouter_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    choices = data.get("choices", [])
-                    content = ""
-                    if choices and "message" in choices[0]:
-                        content = _strip_think_tags(choices[0]["message"].get("content", ""))
-                    # ── GUARDRAILS: Sanitize output ──
-                    content = _guard_output(content)
-                    return {
-                        "id": data.get("id", "chat-unknown"),
-                        "content": content,
-                        "choices": choices,
-                        "model": "deepseek/deepseek-v4-flash",
-                        "usage": data.get("usage", {}),
-                        "_provider": "openrouter-fallback",
-                        "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
-                    }
-        except Exception as e:
-            logger.warning("openrouter_fallback_unreachable", error=str(e))
-
-    # ── Fallback 2: Try DeepSeek direct if configured ──
-    deepseek_key = os.getenv("LLM_API_KEY", "")
-    if deepseek_key:
-        try:
-            url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
-            ds_model = os.getenv("LLM_MODEL", "deepseek-v4-flash")
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    url,
-                    json={
-                        "model": ds_model,
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                    },
-                    headers={
-                        "Authorization": f"Bearer {deepseek_key}",
-                        "Content-Type": "application/json",
-                    },
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    choices = data.get("choices", [])
-                    content = ""
-                    if choices and "message" in choices[0]:
-                        content = _strip_think_tags(choices[0]["message"].get("content", ""))
-                    # ── GUARDRAILS: Sanitize output ──
-                    content = _guard_output(content)
-                    return {
-                        "id": data.get("id", "chat-unknown"),
-                        "content": content,
-                        "choices": choices,
-                        "model": ds_model,
-                        "usage": data.get("usage", {}),
-                        "_provider": "deepseek-fallback",
-                        "_latency_ms": int(resp.elapsed.total_seconds() * 1000),
-                    }
-        except Exception as e:
-            logger.warning("deepseek_fallback_unreachable", error=str(e))
-
-    # ── Fallback 3: Try local Ollama as last resort ──
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": "qwen3:4b",
-                    "prompt": messages[-1]["content"] if messages else "",
-                    "stream": False,
-                },
+            result = await _post_chat(
+                client,
+                f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[resolved_model]}/v1/chat/completions",
+                resolved_model,
+                messages_safe,
+                temperature,
+                max_tokens,
+                provider="llama-direct",
             )
-            if r.status_code == 200:
-                resp_data = r.json()
-                resp_text = _strip_think_tags(resp_data.get("response", ""))
-                # ── GUARDRAILS: Sanitize output ──
-                resp_text = _guard_output(resp_text)
-                return {
-                    "id": "ollama-local",
-                    "content": resp_text,
-                    "choices": [{"message": {"content": resp_text}}],
-                    "model": "qwen3:4b",
-                    "usage": {},
-                    "_provider": "ollama-fallback",
-                    "_latency_ms": int(r.elapsed.total_seconds() * 1000),
-                }
-    except Exception as e:
-        logger.warning("ollama_fallback_unreachable", error=str(e))
+            if result:
+                result["content"] = _guard_output(result["content"])
+                return result
+        except Exception as e:
+            logger.warning("llama_direct_unreachable", model=resolved_model, error=str(e))
+
+        # ── 2: Cross-model local fallback ──
+        other = _other_local(resolved_model)
+        try:
+            result = await _post_chat(
+                client,
+                f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions",
+                other,
+                messages_safe,
+                temperature,
+                max_tokens,
+                provider="llama-direct-cross",
+            )
+            if result:
+                result["content"] = _guard_output(result["content"])
+                return result
+        except Exception as e:
+            logger.warning("llama_cross_unreachable", model=other, error=str(e))
 
     from app.core.errors import ExternalAPIError
 
     raise ExternalAPIError(
-        message="No AI provider available. Ensure LiteLLM is running on port 4000, "
-        "or set OPENROUTER_API_KEY / LLM_API_KEY as fallback."
+        message="Local AI models unavailable. Check llama-chat (port 8085) / "
+        "llama-analysis (port 8086) systemd services."
     )
 
 
-# ── Streaming chat completion (used by app.routers.chat /api/v1/chat/stream) ──
+# ── Streaming chat completion ──
 
 
 async def _parse_openai_sse(resp: httpx.Response) -> AsyncGenerator[str, None]:
-    """Yield content deltas from an OpenAI-compatible SSE stream.
-
-    Handles the ``data: `` framing used by LiteLLM, OpenRouter, and DeepSeek.
-    Skips keep-alive/``[DONE]`` lines, malformed JSON, and reasoning-only
-    deltas (e.g. DeepSeek R1 / Qwen3 think tags) so only final content
-    tokens reach the caller.
-    """
+    """Yield content deltas from an OpenAI-compatible SSE stream."""
     async for line in resp.aiter_lines():
         if not line.startswith("data:"):
             continue
@@ -388,6 +331,51 @@ async def _parse_openai_sse(resp: httpx.Response) -> AsyncGenerator[str, None]:
             yield token
 
 
+async def _stream_from(
+    client: Any,
+    url: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    provider: str,
+) -> AsyncGenerator[str, None] | None:
+    """Open an SSE stream; yield think-stripped tokens, or None on failure."""
+    try:
+        async with client.stream(
+            "POST",
+            url,
+            json={
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": True,
+            },
+            headers={"Content-Type": "application/json"},
+        ) as resp:
+            if resp.status_code != 200:
+                logger.warning(
+                    "local_llm_stream_non_200",
+                    provider=provider,
+                    status=resp.status_code,
+                    body=(await resp.aread())[:300],
+                    model=model,
+                )
+                return
+            think_filter = _ThinkStreamFilter()
+            async for chunk in _parse_openai_sse(resp):
+                visible = think_filter.feed(chunk)
+                if visible:
+                    yield visible
+            tail = think_filter.flush()
+            if tail:
+                yield tail
+    except Exception as e:
+        logger.warning("local_llm_stream_unreachable", provider=provider, model=model, error=str(e))
+        return
+
+
 async def stream_chat_completion(
     messages: list[dict[str, str]],
     model: str | None = None,
@@ -396,43 +384,15 @@ async def stream_chat_completion(
     temperature: float = 0.7,
     max_tokens: int = 2048,
 ) -> AsyncGenerator[str, None]:
-    """Stream an LLM response token-by-token (SSE-compatible).
+    """Stream a LOCAL llama.cpp response token-by-token (SSE-compatible).
 
-    Mirrors :func:`chat_completion`'s routing and fallback chain — LiteLLM →
-    OpenRouter → DeepSeek → Ollama — but yields raw token strings as they
-    arrive instead of a single blocking result dict. Callers such as
-    ``app.routers.chat`` wrap this in an SSE ``StreamingResponse``.
-
-    Security: the last user message is run through the same guardrail
-    sanitizer as :func:`chat_completion` before being sent to any provider.
-    Output sanitization is intentionally left to the caller so multi-token
-    patterns (e.g. secrets spanning chunk boundaries) are redacted on the
-    assembled response by the caller's AIGuard pipeline.
-
-    Args:
-        messages: Chat messages in OpenAI format.
-        model: Explicit model name (overrides task_type routing).
-        task_type: Task category for auto-routing (chat/analysis/simple/complex/code/bulk).
-        tier: Deprecated, kept for API compatibility.
-        temperature: Sampling temperature (0.0-2.0).
-        max_tokens: Maximum tokens in response.
-
-    Yields:
-        str: Raw token chunks from the active provider. A token prefixed with
-            ``[ERROR`` signals a provider failure and is terminal.
+    Same direct-local chain as chat_completion.
     """
     import httpx
 
-    # Resolve model: explicit model > task_type routing > default
-    if model:
-        resolved_model = model
-    elif task_type and task_type in TASK_MODEL_MAP:
-        resolved_model = TASK_MODEL_MAP[task_type]
-    else:
-        resolved_model = "qwen-chat"
-
-    # ── GUARDRAILS: Sanitize last user message before sending ──
     from app.core.ai_guardrails import sanitize_input as _guard_input
+
+    resolved_model = _resolve_model(model, task_type)
 
     messages_safe = list(messages)
     for i in range(len(messages_safe) - 1, -1, -1):
@@ -445,133 +405,42 @@ async def stream_chat_completion(
             messages_safe[i]["content"] = cleaned
             break
 
-    # ── Primary: LiteLLM proxy (streaming) ──
-    litellm_url = f"{LITELLM_BASE_URL}/chat/completions"
-    try:
-        async with (
-            httpx.AsyncClient(timeout=120.0) as client,
-            client.stream(
-                "POST",
-                litellm_url,
-                json={
-                    "model": resolved_model,
-                    "messages": messages_safe,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "stream": True,
-                },
-                headers={
-                    "Authorization": f"Bearer {LITELLM_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-            ) as resp,
-        ):
-            if resp.status_code == 200:
-                async for chunk in _parse_openai_sse(resp):
-                    yield chunk
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        # ── 1: Direct llama.cpp (streaming) ──
+        produced = False
+        gen = _stream_from(
+            client,
+            f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[resolved_model]}/v1/chat/completions",
+            resolved_model,
+            messages_safe,
+            temperature,
+            max_tokens,
+            provider="llama-direct",
+        )
+        if gen is not None:
+            async for token in gen:
+                produced = True
+                yield token
+            if produced:
                 return
-            logger.warning(
-                "litellm_stream_non_200",
-                status=resp.status_code,
-                body=(await resp.aread())[:300],
-                model=resolved_model,
-            )
-    except Exception as e:
-        logger.warning("litellm_stream_unreachable", error=str(e))
 
-    # ── Fallback 1: OpenRouter (streaming) ──
-    openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
-    if openrouter_key:
-        try:
-            async with (
-                httpx.AsyncClient(timeout=120.0) as client,
-                client.stream(
-                    "POST",
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    json={
-                        "model": "deepseek/deepseek-v4-flash",
-                        "messages": messages_safe,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "stream": True,
-                    },
-                    headers={
-                        "Authorization": f"Bearer {openrouter_key}",
-                        "Content-Type": "application/json",
-                    },
-                ) as resp,
-            ):
-                if resp.status_code == 200:
-                    async for chunk in _parse_openai_sse(resp):
-                        yield chunk
-                    return
-        except Exception as e:
-            logger.warning("openrouter_stream_unreachable", error=str(e))
-
-    # ── Fallback 2: DeepSeek direct (streaming) ──
-    deepseek_key = os.getenv("LLM_API_KEY", "")
-    if deepseek_key:
-        try:
-            url = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
-            ds_model = os.getenv("LLM_MODEL", "deepseek-v4-flash")
-            async with (
-                httpx.AsyncClient(timeout=120.0) as client,
-                client.stream(
-                    "POST",
-                    url,
-                    json={
-                        "model": ds_model,
-                        "messages": messages_safe,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "stream": True,
-                    },
-                    headers={
-                        "Authorization": f"Bearer {deepseek_key}",
-                        "Content-Type": "application/json",
-                    },
-                ) as resp,
-            ):
-                if resp.status_code == 200:
-                    async for chunk in _parse_openai_sse(resp):
-                        yield chunk
-                    return
-        except Exception as e:
-            logger.warning("deepseek_stream_unreachable", error=str(e))
-
-    # ── Fallback 3: local Ollama as last resort ──
-    try:
-        async with (
-            httpx.AsyncClient(timeout=120.0) as client,
-            client.stream(
-                "POST",
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": "qwen3:4b",
-                    "prompt": messages_safe[-1]["content"] if messages_safe else "",
-                    "stream": True,
-                },
-            ) as r,
-        ):
-            if r.status_code == 200:
-                async for line in r.aiter_lines():
-                    if not line:
-                        continue
-                    try:
-                        chunk = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    if chunk.get("done"):
-                        break
-                    token = chunk.get("response")
-                    if token:
-                        yield token
+        # ── 2: Cross-model local fallback (streaming) ──
+        other = _other_local(resolved_model)
+        produced = False
+        gen = _stream_from(
+            client,
+            f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions",
+            other,
+            messages_safe,
+            temperature,
+            max_tokens,
+            provider="llama-direct-cross",
+        )
+        if gen is not None:
+            async for token in gen:
+                produced = True
+                yield token
+            if produced:
                 return
-    except Exception as e:
-        logger.warning("ollama_stream_unreachable", error=str(e))
 
-    # ── All providers failed ──
-    yield (
-        "[ERROR No AI provider available for streaming. Ensure LiteLLM is running "
-        "on port 4000, or set OPENROUTER_API_KEY / LLM_API_KEY as fallback.]"
-    )
+    yield ("[ERROR Local AI models unavailable. Check llama-chat (8085) / llama-analysis (8086) services.]")

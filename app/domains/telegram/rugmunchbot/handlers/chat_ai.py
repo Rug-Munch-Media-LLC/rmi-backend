@@ -50,6 +50,8 @@ Deprecated modules after this merge:
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import os
 import re
 from html import escape
 from typing import TYPE_CHECKING, Any, cast
@@ -106,14 +108,16 @@ logger = get_logger("rmi_bot.chat_ai")
 # ENDPOINTS & BUDGETS — LOCAL MODELS
 # ══════════════════════════════════════════════
 # Qwen 3 4B for quick chat (fast, conversational)
-QWEN_CHAT_URL = "http://localhost:8085/v1/chat/completions"
+# Bridge gateway — containers can't reach host 127.0.0.1
+LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
+QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
-QWEN_TIMEOUT = 15.0
+QWEN_TIMEOUT = 60.0
 
 # DeepSeek R1 Distill Qwen 8B for deep analysis (hides thinking output)
-DEEPSEEK_CHAT_URL = "http://localhost:8086/v1/chat/completions"
+DEEPSEEK_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-analysis"
-DEEPSEEK_TIMEOUT = 30.0
+DEEPSEEK_TIMEOUT = 120.0
 
 # Backend RAG chat (when available, for RAG-grounded answers)
 CHAT_ENDPOINT = f"{BACKEND_URL}/api/v1/chat"
@@ -331,10 +335,22 @@ async def _call_backend_chat(
     ``provider`` and ``latency_ms``, or ``None`` on any failure/timeout.
     """
     # Determine mode based on message complexity
-    is_deep = any(kw in message.lower() for kw in [
-        "analyze", "analysis", "deep", "explain", "why", "how does",
-        "compare", "risk", "detail", "technical", "report",
-    ])
+    is_deep = any(
+        kw in message.lower()
+        for kw in [
+            "analyze",
+            "analysis",
+            "deep",
+            "explain",
+            "why",
+            "how does",
+            "compare",
+            "risk",
+            "detail",
+            "technical",
+            "report",
+        ]
+    )
 
     if is_deep:
         url = DEEPSEEK_CHAT_URL
@@ -355,7 +371,8 @@ async def _call_backend_chat(
                 "and answer questions about blockchain, DeFi, and crypto markets. "
                 "Be direct, witty, slightly cynical but genuinely helpful. "
                 "Never give financial advice. Keep answers concise (2-4 sentences). "
-                "If you don't know something, say so honestly."
+                "If you don't know something, say so honestly. "
+                "IMPORTANT: Do not output any thinking or reasoning. Just give the final answer directly."
             ),
         }
     ]
@@ -374,7 +391,7 @@ async def _call_backend_chat(
                 json={
                     "model": model,
                     "messages": messages,
-                    "max_tokens": 1024,
+                    "max_tokens": 512,
                     "temperature": 0.7,
                 },
             )
@@ -395,12 +412,49 @@ async def _call_backend_chat(
         return None
     answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
 
-    # Strip thinking output from DeepSeek
-    if is_deep:
-        import re
-        answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
-        answer = re.sub(r"</?answer>", "", answer)
-        answer = answer.strip()
+    # Strip thinking output from DeepSeek and Qwen
+    import re
+
+    # Remove <think>...</think> blocks
+    answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
+    answer = re.sub(r"</?answer>", "", answer)
+    answer = re.sub(r"<think>", "", answer)
+    answer = re.sub(r"</think>", "", answer)
+    # Remove thinking text (models often think out loud before giving the answer)
+    # Take only the last paragraph as the actual answer
+    paragraphs = [p.strip() for p in answer.split("\n") if p.strip()]
+    if len(paragraphs) > 1:
+        # Take the last paragraph that doesn't start with thinking patterns
+        for p in reversed(paragraphs):
+            if not any(
+                p.lower().startswith(prefix)
+                for prefix in [
+                    "okay",
+                    "let me",
+                    "first",
+                    "i need",
+                    "i should",
+                    "i will",
+                    "i can",
+                    "so i",
+                    "well",
+                    "hmm",
+                    "the user",
+                    "the question",
+                    "i think",
+                    "i believe",
+                    "i understand",
+                    "i need to",
+                    "so the",
+                    "the answer",
+                    "the user asked",
+                    "since they're",
+                    "since the",
+                ]
+            ):
+                answer = p
+                break
+    answer = answer.strip()
 
     if not answer:
         return None
@@ -419,64 +473,55 @@ async def _call_backend_chat(
 # LOCAL LLM FALLBACK (free chatting when backend is down)
 # ══════════════════════════════════════════════
 
-# Local model endpoints (llama.cpp servers)
-QWEN_CHAT_URL = "http://localhost:8085/v1/chat/completions"
-QWEN_MODEL = "qwen-chat"
-QWEN_TIMEOUT = 15.0
-
-DEEPSEEK_CHAT_URL = "http://localhost:8086/v1/chat/completions"
-DEEPSEEK_MODEL = "deepseek-analysis"
-DEEPSEEK_TIMEOUT = 30.0
-
 
 async def _call_local_llm(
     message: str,
     user_id: int,
     history: list[dict[str, str]] | None = None,
 ) -> dict[str, Any] | None:
-    """Local LLM fallback via LiteLLM for free chatting.
+    """Local LLM fallback via llama.cpp servers for free chatting.
 
-    When the backend RAG chat is unavailable, this lets the bot continue
-    to chat intelligently using local models (Groq Llama/Qwen, DeepSeek).
-    Not as powerful as the backend RAG but keeps the conversation going.
+    Qwen 3 4B for quick chat, DeepSeek R1 Distill Qwen 8B for deep analysis.
+    Thinking output is stripped from responses.
     """
     # Build messages array with conversation history
     messages: list[dict[str, str]] = [
         {
             "role": "system",
             "content": (
-                "You are Rug Munch, an AI crypto intelligence assistant. "
-                "You help users understand crypto security, detect scams, analyze tokens, "
-                "and answer questions about blockchain, DeFi, and crypto markets. "
-                "Be direct, witty, slightly cynical but genuinely helpful. "
-                "Never give financial advice. Keep answers concise (2-4 sentences). "
-                "If you don't know something, say so honestly."
+                "You are Rug Munch, a crypto AI assistant. "
+                "Be direct and concise. Never give financial advice. "
+                "Do not output thinking or reasoning. Just give the final answer directly."
             ),
         }
     ]
-    # Add conversation history (last 5 messages)
+    # Add conversation history (last 3 messages — less context = faster)
     if history:
-        for msg in history[-5:]:
+        for msg in history[-3:]:
             role = msg.get("role", "user")
             content = msg.get("content", "")
             if role in ("user", "assistant") and content:
-                messages.append({"role": role, "content": content})
+                messages.append({"role": role, "content": content[:500]})
     # Add current message
     messages.append({"role": "user", "content": message[:2000]})
 
-    # Try each available model in order
-    for model in LOCAL_LLM_FALLBACK_MODELS:
+    # Try each available model in order (Qwen first for speed, DeepSeek for depth)
+    for url, model, timeout in [
+        (QWEN_CHAT_URL, QWEN_MODEL, QWEN_TIMEOUT),
+        (DEEPSEEK_CHAT_URL, DEEPSEEK_MODEL, DEEPSEEK_TIMEOUT),
+    ]:
         try:
-            async with httpx.AsyncClient(timeout=LOCAL_LLM_TIMEOUT) as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout, connect=5.0, read=timeout, write=10.0)
+            ) as client:
                 r = await client.post(
-                    LOCAL_LLM_URL,
+                    url,
                     json={
                         "model": model,
                         "messages": messages,
-                        "max_tokens": 1024,
+                        "max_tokens": 512,
                         "temperature": 0.7,
                     },
-                    timeout=LOCAL_LLM_TIMEOUT,
                 )
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
             logger.debug("local LLM %s unavailable (user=%s): %s", model, user_id, e)
@@ -494,6 +539,51 @@ async def _call_local_llm(
         if not choices or not isinstance(choices, list):
             continue
         answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
+
+        # Strip thinking output (DeepSeek and Qwen both emit it)
+        import re
+
+        answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
+        answer = re.sub(r"</?answer>", "", answer)
+        answer = re.sub(r"<think>", "", answer)
+        answer = re.sub(r"</think>", "", answer)
+        # Take only the last paragraph (thinking usually comes first)
+        paragraphs = [p.strip() for p in answer.split("\n") if p.strip()]
+        if len(paragraphs) > 1:
+            for p in reversed(paragraphs):
+                if not any(
+                    p.lower().startswith(prefix)
+                    for prefix in [
+                        "okay",
+                        "let me",
+                        "first",
+                        "i need",
+                        "i should",
+                        "i will",
+                        "i can",
+                        "so i",
+                        "well",
+                        "hmm",
+                        "the user",
+                        "the question",
+                        "i think",
+                        "i believe",
+                        "i understand",
+                        "i need to",
+                        "so the",
+                        "the answer",
+                        "the user asked",
+                        "since they're",
+                        "since the",
+                        "so that's",
+                        "i'll",
+                        "let's",
+                        "looking at",
+                    ]
+                ):
+                    answer = p
+                    break
+        answer = answer.strip()
         if not answer:
             continue
         return {
@@ -1139,11 +1229,9 @@ async def _lookup_token_symbol(text: str, message: Message) -> bool:
     if not token_match:
         return False
     symbol = token_match.group(1).upper()
+    with contextlib.suppress(Exception):
+        await message.chat.send_action("typing")
     try:
-        try:
-            await message.chat.send_action("typing")
-        except Exception:
-            pass
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{DEXSCREENER}/search/?q={symbol}")
             if r.status_code == 200:
@@ -1405,22 +1493,14 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     if daily_context:
         prompt = f"{daily_context}\n\n{prompt}"
 
-    result = await _call_backend_chat(prompt, user.id, history)
+    # Use local models ONLY (no backend API — costs money)
+    result = await _call_local_llm(prompt, user.id, history)
     # Stop the 5s interim timer and reap the task (cancellation is caught
     # inside _edit_placeholder_if_slow, so no stray exceptions surface).
     interim_task.cancel()
     await asyncio.gather(interim_task, return_exceptions=True)
     if not result:
-        # Backend down: try local LLM fallback for free chatting
-        llm_result = await _call_local_llm(prompt, user.id, history)
-        if llm_result:
-            answer = llm_result["message"]
-            db.increment_usage(user.id, ai_msg=True)
-            db.add_chat_message(user.id, "user", text)
-            db.add_chat_message(user.id, "assistant", answer)
-            await _send_answer(message, answer, 0)
-            return True
-        # Local LLM also down: try the offline tier-2 canned answers before falling
+        # Backend also down: try the offline tier-2 canned answers before falling
         # back to the honest unavailability message.
         if await _reply_local_intent(message, text, user):
             return True

@@ -65,8 +65,10 @@ OPENROUTER_KEY = (
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen/qwen-2.5-72b-instruct:free")
 
-LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://172.22.0.1:4000/v1")
-LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", os.getenv("LITELLM_MASTER_KEY", "sk-litellm"))
+# ── Direct llama.cpp config (NO litellm proxy, NO paid APIs) ──
+LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
+DEEPSEEK_PORT = 8086  # deepseek-analysis (DeepSeek-R1-8B-Abliterated, reasoning)
+QWEN_PORT = 8085  # qwen-chat (Qwen3-4B-Abliterated, fast)
 
 # Cache
 _analysis_cache: dict[str, dict[str, Any]] = {}
@@ -511,36 +513,34 @@ async def _run_ai_analysis(
     """Try AI analysis, falling through providers: LiteLLM → Ollama → OpenRouter."""
     prompt = _build_analysis_prompt(chain, address, holder_data, scanner_data)
 
-    # ── Primary: LiteLLM proxy (routes to deepseek-analysis via model_group_alias) ──
-    result = await _call_litellm(prompt)
+    # ── Primary: llama.cpp deepseek-analysis (local, reasoning) ──
+    result = await _call_llama_analysis(prompt, DEEPSEEK_PORT, "deepseek-analysis")
     if result:
-        return result, "litellm/deepseek-analysis"
+        return result, "llama/deepseek-analysis"
 
-    # ── Fallback 1: Ollama direct local ──
-    result = await _call_qwen_ollama(prompt)
+    # ── Fallback: llama.cpp qwen-chat (local, fast) ──
+    result = await _call_llama_analysis(prompt, QWEN_PORT, "qwen-chat")
     if result:
-        return result, f"ollama/{OLLAMA_MODEL}"
-
-    # ── Fallback 2: OpenRouter ──
-    result = await _call_qwen_openrouter(prompt)
-    if result:
-        return result, f"openrouter/{QWEN_MODEL}"
+        return result, "llama/qwen-chat"
 
     return None, ""
 
 
-async def _call_litellm(prompt: str) -> dict[str, Any] | None:
-    """Call analysis model via LiteLLM proxy (deepseek-analysis)."""
+async def _call_llama_analysis(prompt: str, port: int, model: str) -> dict[str, Any] | None:
+    """Call a local llama.cpp model directly. NO litellm, NO paid APIs."""
+    import re
+
+    def _strip_think(text: str) -> str:
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+        return re.sub(r"<think>.*", "", text, flags=re.DOTALL).strip()
+
     try:
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
-                f"{LITELLM_BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {LITELLM_API_KEY}",
-                    "Content-Type": "application/json",
-                },
+                f"http://{LLAMA_HOST}:{port}/v1/chat/completions",
+                headers={"Content-Type": "application/json"},
                 json={
-                    "model": "deepseek-analysis",  # LiteLLM model_name → deepseek-analysis
+                    "model": model,
                     "messages": [
                         {
                             "role": "system",
@@ -555,10 +555,10 @@ async def _call_litellm(prompt: str) -> dict[str, Any] | None:
             if resp.status_code == 200:
                 data = resp.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                return _parse_ai_response(content)
-            logger.warning("litellm_non_200", status=resp.status_code, body=resp.text[:200])
+                return _parse_ai_response(_strip_think(content))
+            logger.warning("llama_non_200", status=resp.status_code, body=resp.text[:200], model=model)
     except Exception as e:
-        logger.warning("litellm_call_failed", error=str(e))
+        logger.warning("llama_analysis_failed", error=str(e), model=model)
     return None
 
 
