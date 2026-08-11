@@ -393,6 +393,7 @@ async def _call_backend_chat(
                     "messages": messages,
                     "max_tokens": 512,
                     "temperature": 0.7,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
             )
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
@@ -412,16 +413,18 @@ async def _call_backend_chat(
         return None
     answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
 
-    # Strip thinking output from DeepSeek and Qwen
+    # Strip thinking output from DeepSeek and Qwen.
+    # Handle BOTH closed <think>...</think> AND unclosed <think> (token budget
+    # exhausted before the model finishes reasoning).
     import re
 
-    # Remove <think>...</think> blocks
     answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
+    answer = re.sub(r"<think>.*", "", answer, flags=re.DOTALL)
     answer = re.sub(r"</?answer>", "", answer)
     answer = re.sub(r"<think>", "", answer)
     answer = re.sub(r"</think>", "", answer)
     # Remove thinking text (models often think out loud before giving the answer)
-    # Take only the last paragraph as the actual answer
+    # Take only the last substantive paragraph as the actual answer
     paragraphs = [p.strip() for p in answer.split("\n") if p.strip()]
     if len(paragraphs) > 1:
         # Take the last paragraph that doesn't start with thinking patterns
@@ -505,7 +508,10 @@ async def _call_local_llm(
     # Add current message
     messages.append({"role": "user", "content": message[:2000]})
 
-    # Try each available model in order (Qwen first for speed, DeepSeek for depth)
+    # Try each available model in order (Qwen first for speed, DeepSeek for depth).
+    # chat_template_kwargs.enable_thinking=false disables the Qwen3/DeepSeek
+    # reasoning preamble so all tokens go to the actual answer. Without this the
+    # model burns the entire budget on <think> blocks and returns nothing.
     for url, model, timeout in [
         (QWEN_CHAT_URL, QWEN_MODEL, QWEN_TIMEOUT),
         (DEEPSEEK_CHAT_URL, DEEPSEEK_MODEL, DEEPSEEK_TIMEOUT),
@@ -521,6 +527,7 @@ async def _call_local_llm(
                         "messages": messages,
                         "max_tokens": 512,
                         "temperature": 0.7,
+                        "chat_template_kwargs": {"enable_thinking": False},
                     },
                 )
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
@@ -540,14 +547,19 @@ async def _call_local_llm(
             continue
         answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
 
-        # Strip thinking output (DeepSeek and Qwen both emit it)
+        # Strip thinking output (DeepSeek and Qwen both emit <think> blocks).
+        # Handle BOTH closed <think>...</think> AND unclosed <think> (when the
+        # token budget runs out before the model finishes reasoning).
         import re
 
+        # First remove properly closed think blocks
         answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
+        # Then remove any remaining unclosed <think> tag and everything after it
+        answer = re.sub(r"<think>.*", "", answer, flags=re.DOTALL)
         answer = re.sub(r"</?answer>", "", answer)
         answer = re.sub(r"<think>", "", answer)
         answer = re.sub(r"</think>", "", answer)
-        # Take only the last paragraph (thinking usually comes first)
+        # Take only the last substantive paragraph (thinking usually comes first)
         paragraphs = [p.strip() for p in answer.split("\n") if p.strip()]
         if len(paragraphs) > 1:
             for p in reversed(paragraphs):
@@ -1452,10 +1464,8 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     if await _reply_local_intent(message, text, user):
         return True
 
-    try:
-        await message.chat.send_action("typing")
-    except Exception:
-        pass  # typing indicator is cosmetic
+    with contextlib.suppress(Exception):
+        await message.chat.send_action("typing")  # typing indicator is cosmetic
 
     # Address enhancement: if the message contains a token address, ALSO pull a
     # quick scanner read and ground the question with a compact risk summary.
