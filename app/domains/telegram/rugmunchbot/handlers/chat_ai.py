@@ -1059,8 +1059,8 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
     ),
     (
         re.compile(
-            r"\b(help|how|what|can you|capabilities|features|commands|what do|"
-            r"what are|who are you|tell me about|about you|about this bot|"
+            r"\b(help|can you|capabilities|features|commands|what do|what are|"
+            r"who are you|tell me about you|about you|about this bot|"
             r"introduce yourself|describe yourself|what can you do|what else can you|"
             r"show me what you|guide|tutorial|docs|documentation)\b",
             re.IGNORECASE,
@@ -1086,6 +1086,31 @@ _INTENT_RULES: list[tuple[re.Pattern, str]] = [
         ),
     ),
 ]
+
+
+def _is_greeting_or_thanks(text: str) -> bool:
+    """Check if the message is a greeting or thanks (canned reply worthy)."""
+    return bool(
+        re.search(
+            r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|gm|gn|"
+            r"what'?s up|ping|wake up|"
+            r"thank|thanks|ty|thx|appreciate|good bot|nice|great)\b",
+            text.lower(),
+        )
+    )
+
+
+def _is_capability_question(text: str) -> bool:
+    """Check if the message asks about bot capabilities (canned reply worthy)."""
+    return bool(
+        re.search(
+            r"\b(help|can you|capabilities|features|commands|what do|what are|"
+            r"who are you|tell me about you|about you|about this bot|"
+            r"introduce yourself|describe yourself|what can you do|what else can you|"
+            r"show me what you|guide|tutorial|docs|documentation)\b",
+            text.lower(),
+        )
+    )
 
 
 def local_ai_response(text: str, user: Any) -> str | None:
@@ -1448,40 +1473,49 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         )
         return True
 
-    # Gibberish gate — don't burn backend LLM tokens on noise. Falls through
-    # to the offline tier-2 local intent / tier-3 redirect (ported from the
-    # old message.py pipeline).
+    # Gibberish gate — don't burn LLM tokens on noise.
     if not _is_meaningful_question(text):
-        if await _reply_local_intent(message, text, user):
-            return True
         await _reply_redirect(message, user, flood_receipt)
         return True
 
-    # Tier-2 for meaningful questions too — capability inquiries like
-    # "what can you do", "what are your features", "who are you" get instant
-    # canned replies instead of waiting for the backend (avoids the "still
-    # digging" placeholder for queries we can answer locally).
-    if await _reply_local_intent(message, text, user):
+    # Tier-2: ONLY instant-reply for greetings, thanks, and capability inquiries.
+    # Everything else goes to the LLM — the bot should answer what the user asks.
+    if (_is_greeting_or_thanks(text) or _is_capability_question(text)) and await _reply_local_intent(
+        message, text, user
+    ):
         return True
 
     with contextlib.suppress(Exception):
-        await message.chat.send_action("typing")  # typing indicator is cosmetic
+        await message.chat.send_action("typing")  # show typing indicator
+
+    # Thumbs up the user's question first — instant acknowledgment
+    with contextlib.suppress(Exception):
+        await message.reply_sticker(
+            "CAACAgIAAxkBAAIBZ2QAAmQn7sYqW0QjZ3gX8YqKFpAACLwADwAAtE2wYsunqBgADIAQ"
+        ) if False else None  # sticker ID varies; use reaction instead
+    with contextlib.suppress(Exception):
+        # Telegram Bot API 7.0+ reaction: thumbs up
+        from telegram import ReactionTypeEmoji
+
+        await message.set_reaction([ReactionTypeEmoji(emoji="👍")])
+
+    # Quick preliminary response — keeps user engaged while LLM thinks
+    preliminary = await message.reply_text(
+        "\U0001f916 <b>Thinking...</b>\n\n"
+        f"\U0001f4ac <i>{escape(text[:150])}</i>\n\n"
+        "\u23f1\ufe0f Working on a detailed answer...",
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
 
     # Address enhancement: if the message contains a token address, ALSO pull a
     # quick scanner read and ground the question with a compact risk summary.
-    # Detected here (before the placeholder) so the thinking message can be
-    # context-aware: address questions show the scanner-data framing.
     addresses = _extract_addresses(text)
-
-    placeholder = await message.reply_text(
-        _thinking_template(text, bool(addresses)).format(question=escape(text[:200])),
-        parse_mode=ParseMode.HTML,
-    )
 
     # PROBLEM C: long backend queries (5-15s) keep the placeholder static and
     # look stalled — schedule an interim "still digging" edit after 5s and
     # cancel it the moment the backend answers.
-    interim_task = asyncio.create_task(_edit_placeholder_if_slow(placeholder))
+    interim_task = asyncio.create_task(_edit_placeholder_if_slow(preliminary))
 
     # Per-user session: telegram user id keys backend rate limiting
     # (X-Forwarded-For) AND the explicit conversation history (bot DB), so the
@@ -1516,7 +1550,7 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             return True
         logger.info("chat_ai backend unavailable user=%s text=%.60s", user.id, text)
         try:
-            await placeholder.edit_text(
+            await preliminary.edit_text(
                 _FALLBACK_MESSAGE,
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
@@ -1535,7 +1569,17 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     except Exception:
         logger.debug("chat_ai analytics failed (user=%s)", user.id, exc_info=True)
 
-    await _send_answer(message, answer, result.get("rag_count", 0))
+    # Replace preliminary "thinking" message with the real answer
+    try:
+        await preliminary.edit_text(
+            answer,
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+            disable_web_page_preview=True,
+        )
+    except (TelegramError, ConnectionError, OSError, TimeoutError):
+        # If edit fails (e.g. message too long), send as new message
+        await _send_answer(message, answer, result.get("rag_count", 0))
     return True
 
 
