@@ -128,6 +128,12 @@ MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 CHUNK_MAX_CHARS = 3800  # Telegram hard limit is 4096; leave headroom for escape expansion
 MAX_ADDRESS_HINTS = 2  # cap address-triggered scans per message
 
+# Chat RAG Bridge — RugBrain/RugMunchScan context + SearXNG web search.
+# One call returns live web search, RAG knowledge, market digest, scanner
+# context and exploit rundown blocks (fail-open upstream).
+BRIDGE_CONTEXT_ENDPOINT = os.getenv("BRIDGE_CONTEXT_ENDPOINT", "http://127.0.0.1:8095/chat/context")
+BRIDGE_TIMEOUT = 12.0  # web search can take a few seconds; never block chat on it
+
 # ══════════════════════════════════════════════
 # v10 RESPONSE BEAUTIFIER (see _beautify_answer / _markdown_bold_to_html)
 # Section emojis match the persona's RESPONSE FORMATTING block (prompts.py).
@@ -316,6 +322,49 @@ async def _fetch_scan_context(address: str) -> str | None:
     return _format_scan_summary(address, data)
 
 
+async def _fetch_bridge_context(
+    message: str,
+    history: list[dict[str, str]] | None = None,
+) -> str | None:
+    """Live context from the Chat RAG Bridge (port 8095, fail-open).
+
+    Returns one compact block combining the bridge's upstream context:
+    SearXNG web search (live internet), RAG knowledge, market digest,
+    token scanner and exploit rundown. ``None`` on any failure so chat
+    never blocks on it.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(BRIDGE_TIMEOUT, connect=3.0, read=BRIDGE_TIMEOUT)) as client:
+            r = await client.post(
+                BRIDGE_CONTEXT_ENDPOINT,
+                json={"message": message[:8000], "history": history},
+            )
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
+        logger.debug("bridge context unavailable (user msg %.40s): %s", message, e)
+        return None
+    if r.status_code != 200:
+        logger.debug("bridge context HTTP %d (user msg %.40s)", r.status_code, message)
+        return None
+    try:
+        raw = r.json()
+    except ValueError:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    blocks = raw.get("blocks") if isinstance(raw.get("blocks"), dict) else {}
+    if not blocks:
+        return None
+    # Order matters: scanner (address-specific) > web (live) > rag > market.
+    parts: list[str] = []
+    for key in ("scanner_context", "web_context", "rag_context", "market_context", "rundown_context"):
+        val = (blocks.get(key) or "").strip()
+        if val:
+            parts.append(val)
+    if not parts:
+        return None
+    return "\n\n".join(parts)
+
+
 # ══════════════════════════════════════════════
 # BACKEND CHAT CALL
 # ══════════════════════════════════════════════
@@ -494,13 +543,18 @@ async def _call_zen_llm(
     model = os.getenv("ZEN_MODEL", "deepseek-v4-flash-free")
     timeout = 45.0 if deep else 20.0  # cloud — observed ~2.5s, generous headroom
 
-    system_prompt = "You are Rug Munch, a crypto security AI. Answer directly and concisely. No financial advice."
+    system_prompt = (
+        "You are Rug Munch, a crypto security AI. "
+        "Give a complete, well-rounded answer — cover the key points clearly "
+        "and add useful context where it helps. Keep it tight, no fluff. "
+        "No financial advice."
+    )
     if deep:
         system_prompt = (
             "You are Rug Munch, a crypto security AI and on-chain analyst. "
-            "Give a thorough, well-structured answer: cover mechanisms, risks, "
-            "and actionable checks. Use short sections or bullets. "
-            "Never give financial advice."
+            "Give a thorough, comprehensive answer: cover mechanisms, risks, "
+            "red flags, and actionable checks. Use clear sections and bullets. "
+            "Go deep — the user asked for analysis. Never give financial advice."
         )
 
     messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
@@ -519,7 +573,7 @@ async def _call_zen_llm(
                 json={
                     "model": model,
                     "messages": messages,
-                    "max_tokens": 1200 if deep else 200,  # deep = room to expand
+                    "max_tokens": 2000 if deep else 500,  # API is fast — give it room
                     "temperature": 0.7,
                     "thinking": {"type": "disabled"},
                 },
@@ -1623,11 +1677,15 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # Start all async work concurrently
     daily_ctx_task = asyncio.create_task(get_daily_context())
     scan_ctx_task = asyncio.create_task(_fetch_scan_context(addresses[0])) if addresses else None
+    bridge_ctx_task = asyncio.create_task(_fetch_bridge_context(text, history))
 
     daily_context = await daily_ctx_task
     scan_summary = await scan_ctx_task if scan_ctx_task else None
+    bridge_context = await bridge_ctx_task
 
     prompt = text
+    if bridge_context:
+        prompt = f"{bridge_context}\n\n{prompt}"
     if scan_summary:
         prompt = f"{scan_summary}\n\n{prompt}"
     if daily_context:
