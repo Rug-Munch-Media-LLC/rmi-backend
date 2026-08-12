@@ -177,8 +177,11 @@ async def get_market_trending(
                     "rank": coin.get("market_cap_rank", 0),
                     "symbol": (coin.get("symbol") or "").upper(),
                     "name": coin.get("name", ""),
-                    "address": cid,
-                    "token_address": cid,
+                    # CoinGecko trending has no on-chain address — only the
+                    # coin ID. Leave address empty so the bot never presents
+                    # a coin ID as a scanable token address.
+                    "address": "",
+                    "token_address": "",
                     "chain": "multi",
                     "price": _safe_float(cdata.get("price")),
                     "change_24h": change,

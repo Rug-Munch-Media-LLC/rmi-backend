@@ -40,6 +40,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
 from datetime import UTC, datetime
 from html import escape
 from typing import Any
@@ -124,8 +125,9 @@ def _trending_label(item: dict[str, Any]) -> str:
     if chain:
         label = f"{label} [{chain}]"
 
-    # Add full address
-    if addr:
+    # Add full address (only if it's a REAL scanable on-chain address —
+    # 0x hex for EVM, base58 for Solana — never a coin ID like 'thinking-cat')
+    if addr and re.fullmatch(r"(0x[a-fA-F0-9]{20,40}|[1-9A-HJ-NP-Za-km-z]{32,44})", addr):
         label = f"{label} — <code>{addr}</code>"
 
     return label
