@@ -104,6 +104,9 @@ paths = [
   # Test fixtures: internal IPs used intentionally
   '''tests/integration/test_scanner_pipeline\.py''',
   '''tests/test_chat_guardrails\.py''',
+  '''.hypothesis/''',
+  # SSRF guard: private IP ranges used intentionally to BLOCK internal access
+  '''app/domains/telegram/rugmunchbot/handlers/webhook\.py''',
   # Security reports and audit artifacts — these are reports ABOUT
   # secrets, not secrets themselves. False positive source.
   '''security-reports/''',
