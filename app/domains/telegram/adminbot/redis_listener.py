@@ -39,9 +39,12 @@ def _resolve_redis_password() -> str:
 
 
 def _build_redis_url(base_url: str | None, password: str | None) -> str:
-    """Inject password into Redis URL if provided and not already present."""
+    """Inject password into Redis URL if provided and not already present.
+    Normalize rmi-redis hostname to localhost for host-based processes."""
     if not base_url:
         return "redis://localhost:6379/0"
+    # Host-based processes can't resolve Docker DNS names
+    base_url = base_url.replace("@rmi-redis:", "@localhost:")
     if "@" in base_url:
         return base_url  # already has credentials
     if password and "://" in base_url:
