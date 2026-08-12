@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Query, Request
 
 from app.routers.market_intel.providers import _binance_funding, _cg, _ds, _polymarket
-from app.routers.market_intel.utils import _now, _safe_float
+from app.routers.market_intel.utils import _now, _parse_money, _safe_float
 
 router = APIRouter(tags=["market-intel"])
 
@@ -98,31 +98,97 @@ async def get_market_trending(
     request: Request,
     limit: int = Query(8, ge=1, le=50),
 ) -> dict[str, Any]:
-    """Trending tokens from CoinGecko + DexScreener."""
+    """Trending tokens — our own merged list from CoinGecko + DexScreener.
+
+    DexScreener token-boosts (top) = what is actually getting attention and
+    volume on DEXes right now (chain + real token address). CoinGecko
+    /search/trending = CEX-level social/volume momentum. Both are live,
+    cached 60-120s. Items are ranked: DEX boosts first (real traded volume),
+    then CoinGecko coins.
+    """
     now = _now()
-    items = []
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    # ── DexScreener token-boosts (top) — real DEX attention ─────────────
+    boosts = await _ds("/token-boosts/top/v1", ttl=60)
+    if boosts and isinstance(boosts, list):
+        for b in boosts[:limit]:
+            addr = b.get("tokenAddress", "")
+            chain = b.get("chainId", "solana")
+            if not addr or addr in seen:
+                continue
+            seen.add(addr)
+            name = (b.get("description") or "").strip()[:24] or addr[:8]
+            symbol = b.get("symbol") or addr[:6].upper()
+            price = 0.0
+            mcap = 0.0
+            vol = 0.0
+            change = 0.0
+            # Enrich with real pair data (price/volume/change)
+            pairs = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
+            if pairs and isinstance(pairs, dict) and pairs.get("pairs"):
+                p = pairs["pairs"][0]
+                bt = p.get("baseToken", {})
+                name = bt.get("name", name)
+                symbol = bt.get("symbol", symbol).upper()
+                price = _safe_float(p.get("priceUsd"))
+                mcap = _safe_float(p.get("fdv"))
+                vol = _safe_float((p.get("volume") or {}).get("h24"))
+                change = _safe_float((p.get("priceChange") or {}).get("h24"))
+            items.append(
+                {
+                    "rank": len(items) + 1,
+                    "symbol": symbol,
+                    "name": name,
+                    "address": addr,
+                    "token_address": addr,
+                    "chain": chain,
+                    "price": price,
+                    "change_24h": change,
+                    "volume_24h": vol,
+                    "market_cap": mcap,
+                    "source": "dexscreener",
+                }
+            )
+
+    # ── CoinGecko /search/trending — CEX-level momentum ─────────────────
     data = await _cg("/search/trending", ttl=120)
     if data and "coins" in data:
         for item in data["coins"][:limit]:
             coin = item.get("item", {})
+            cid = coin.get("id", "")
+            if cid in seen:
+                continue
+            seen.add(cid)
+            cdata = coin.get("data") or {}
+            # price_change_percentage_24h is a per-currency dict → take usd
+            chg_raw = cdata.get("price_change_percentage_24h")
+            change = 0.0
+            if isinstance(chg_raw, dict):
+                change = _safe_float(chg_raw.get("usd"))
+            elif chg_raw is not None:
+                change = _safe_float(chg_raw)
+            # total_volume / market_cap come as '$3,513,341' strings
+            vol = _parse_money(cdata.get("total_volume"))
+            mcap = _parse_money(cdata.get("market_cap"))
             items.append(
                 {
                     "rank": coin.get("market_cap_rank", 0),
                     "symbol": (coin.get("symbol") or "").upper(),
                     "name": coin.get("name", ""),
-                    "address": coin.get("id", ""),
+                    "address": cid,
+                    "token_address": cid,
                     "chain": "multi",
-                    "price": _safe_float(coin.get("data", {}).get("price") if coin.get("data") else 0),
-                    "change_24h": _safe_float(
-                        coin.get("data", {}).get("price_change_percentage_24h") if coin.get("data") else 0
-                    ),
-                    "volume_24h": _safe_float(coin.get("data", {}).get("total_volume") if coin.get("data") else 0),
-                    "market_cap": _safe_float(coin.get("data", {}).get("market_cap") if coin.get("data") else 0),
-                    "risk_score": 40,
-                    "image": coin.get("thumb", ""),
+                    "price": _safe_float(cdata.get("price")),
+                    "change_24h": change,
+                    "volume_24h": vol,
+                    "market_cap": mcap,
+                    "source": "coingecko",
                 }
             )
-    return {"items": items, "total": len(items), "updated_at": now}
+
+    return {"items": items[:limit], "total": len(items), "updated_at": now}
 
 
 @router.get("/whales")

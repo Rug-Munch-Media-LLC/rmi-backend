@@ -63,7 +63,7 @@ CACHE_KEY = "rmi_bot:daily_context:v1"
 CACHE_TTL = 300  # 5 minutes
 FETCH_TIMEOUT = 5.0  # per-endpoint budget; all fetch in parallel
 NEWS_LIMIT = 5  # fetch a few, render top 3
-TRENDING_LIMIT = 8  # route default is 8; render top 3
+TRENDING_LIMIT = 10  # route default is 8; render up to 10
 LAUNCH_LIMIT = 5
 HEADLINE_MAX_CHARS = 110  # per-headline truncation inside the context block
 CONTEXT_MAX_CHARS = 1400  # hard cap on the LLM-facing context block
@@ -250,7 +250,7 @@ async def _fetch_trending(limit: int = TRENDING_LIMIT) -> list[str]:
         label = _trending_label(it)
         if label and "Unknown Token" not in label and label not in labels:
             labels.append(label)
-        if len(labels) >= 3:
+        if len(labels) >= limit:
             break
     return labels
 
@@ -277,6 +277,7 @@ async def _fetch_launches(limit: int = LAUNCH_LIMIT) -> list[str]:
 
 # ── DexScreener Enrichment ──────────────────────────────────────────────
 
+
 async def _enrich_token_name(item: dict[str, Any]) -> dict[str, Any]:
     """Enrich a token item with name/symbol from DexScreener if missing."""
     name = (item.get("name") or "").strip()
@@ -290,6 +291,7 @@ async def _enrich_token_name(item: dict[str, Any]) -> dict[str, Any]:
 
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{addr}")
             if r.status_code == 200:
