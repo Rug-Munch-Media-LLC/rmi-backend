@@ -597,12 +597,33 @@ async def _call_zen_llm(
 
     messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
     if history:
-        for msg in history[-3:]:
+        # History is REFERENCE ONLY — never continuation. A truncated prior
+        # assistant answer (e.g. a list cut at 500 chars) otherwise makes the
+        # model "finish" the old answer instead of answering the new question.
+        # Render it as one inert block, not as assistant turns.
+        hist_lines: list[str] = []
+        for msg in history[-4:]:
             role = msg.get("role", "user")
             content = msg.get("content", "")
             if role in ("user", "assistant") and content:
-                messages.append({"role": role, "content": content[:500]})
-    messages.append({"role": "user", "content": message[:2000]})
+                hist_lines.append(f"[{role}] {content[:300]}")
+        if hist_lines:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "PREVIOUS CONVERSATION (reference only — do NOT "
+                        "continue it, do NOT quote it, answer only the NEW "
+                        "question below):\n" + "\n".join(hist_lines)
+                    ),
+                }
+            )
+    messages.append(
+        {
+            "role": "user",
+            "content": f"CURRENT QUESTION: {message[:2000]}",
+        }
+    )
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=5.0, read=timeout, write=10.0)) as client:
@@ -1274,7 +1295,9 @@ def _is_capability_question(text: str) -> bool:
     return bool(
         re.search(
             r"\b(help|can you|capabilities|features|commands|what do|what are|"
-            r"who are you|tell me about you|about you|about this bot|"
+            r"who are you|who created you|who made you|who built you|who "
+            r"developed you|who runs you|who is your creator|who is behind you|"
+            r"tell me about you|about you|about this bot|"
             r"introduce yourself|describe yourself|what can you do|what else can you|"
             r"show me what you|guide|tutorial|docs|documentation)\b",
             text.lower(),
