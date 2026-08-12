@@ -112,7 +112,7 @@ logger = get_logger("rmi_bot.chat_ai")
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
-QWEN_TIMEOUT = 30.0  # fail fast — CPU LLM is slow
+QWEN_TIMEOUT = 90.0  # CPU LLM: prompt eval + generation can take 30-60s
 
 # DeepSeek R1 Distill Qwen 8B for deep analysis (hides thinking output)
 DEEPSEEK_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
@@ -465,6 +465,87 @@ async def _call_backend_chat(
         "tokens": raw.get("usage", {}).get("total_tokens", 0),
         "model": model,
         "provider": "local",
+        "latency_ms": 0,
+    }
+
+
+# ══════════════════════════════════════════════
+# CLOUD LLM (Zen DeepSeek V4 Flash Free — production speed)
+# ══════════════════════════════════════════════
+
+
+async def _call_zen_llm(
+    message: str,
+    user_id: int,
+    history: list[dict[str, str]] | None = None,
+    *,
+    deep: bool = False,
+) -> dict[str, Any] | None:
+    """Fast free cloud chat via OpenCode Zen DeepSeek V4 Flash Free.
+
+    Reaches the Zen main account through the fleet egress proxy
+    (127.0.0.1:18081 — the proxy handles account auth). ``thinking`` is
+    disabled so tokens go to the answer, not the reasoning preamble.
+    ``deep`` trades a little latency for a longer, more thorough answer
+    (analysis/report requests); short queries stay snappy.
+    Returns the same dict shape as :func:`_call_local_llm`.
+    """
+    url = os.getenv("ZEN_CHAT_URL", "http://127.0.0.1:18081/zen/v1/chat/completions")
+    model = os.getenv("ZEN_MODEL", "deepseek-v4-flash-free")
+    timeout = 45.0 if deep else 20.0  # cloud — observed ~2.5s, generous headroom
+
+    system_prompt = "You are Rug Munch, a crypto security AI. Answer directly and concisely. No financial advice."
+    if deep:
+        system_prompt = (
+            "You are Rug Munch, a crypto security AI and on-chain analyst. "
+            "Give a thorough, well-structured answer: cover mechanisms, risks, "
+            "and actionable checks. Use short sections or bullets. "
+            "Never give financial advice."
+        )
+
+    messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    if history:
+        for msg in history[-3:]:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content[:500]})
+    messages.append({"role": "user", "content": message[:2000]})
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=5.0, read=timeout, write=10.0)) as client:
+            r = await client.post(
+                url,
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "max_tokens": 1200 if deep else 200,  # deep = room to expand
+                    "temperature": 0.7,
+                    "thinking": {"type": "disabled"},
+                },
+            )
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
+        logger.debug("Zen LLM unavailable (user=%s): %s", user_id, e)
+        return None
+    if r.status_code != 200:
+        logger.debug("Zen LLM HTTP %d (user=%s)", r.status_code, user_id)
+        return None
+    try:
+        raw = r.json()
+    except ValueError:
+        return None
+    choices = raw.get("choices", []) if isinstance(raw, dict) else []
+    if not choices or not isinstance(choices, list):
+        return None
+    answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
+    if not answer:
+        return None
+    return {
+        "message": answer,
+        "rag_count": 0,
+        "tokens": raw.get("usage", {}).get("total_tokens", 0),
+        "model": model,
+        "provider": "zen",
         "latency_ms": 0,
     }
 
@@ -1109,6 +1190,26 @@ def _is_capability_question(text: str) -> bool:
     )
 
 
+def _is_deep_question(text: str) -> bool:
+    """Detect analysis/report requests that deserve a longer, deeper answer.
+
+    Short queries get a snappy 1-2s answer; deep ones get up to 1200 tokens
+    and a structured-analysis system prompt.
+    """
+    low = text.lower()
+    if len(low.split()) > 40:  # long multi-part question → deep
+        return True
+    return bool(
+        re.search(
+            r"\b(analyze|analysis|explain|explain how|why|how does|how do|compare|"
+            r"risk|risks|detail|detailed|technical|report|investigate|research|"
+            r"break down|walk me through|what happens if|is it safe|should i|"
+            r"how to|step by step|deep dive|tokenomics|audit|vulnerabilit)\b",
+            low,
+        )
+    )
+
+
 async def _keep_typing(chat: Any) -> None:
     """Keep the Telegram typing indicator alive until cancelled.
 
@@ -1532,8 +1633,13 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     if daily_context:
         prompt = f"{daily_context}\n\n{prompt}"
 
-    # Call local LLM (Qwen — fast, no backend cost)
-    result = await _call_local_llm(prompt, user.id, history)
+    # Call cloud LLM first (Zen DeepSeek V4 Flash Free — ~2.5s, production speed),
+    # fall back to local CPU llama.cpp if the cloud path is unavailable.
+    # Deep questions (analyze/explain/risk/...) get a longer, structured answer.
+    deep = _is_deep_question(text)
+    result = await _call_zen_llm(prompt, user.id, history, deep=deep)
+    if not result:
+        result = await _call_local_llm(prompt, user.id, history)
 
     # Stop typing indicator
     typing_task.cancel()
