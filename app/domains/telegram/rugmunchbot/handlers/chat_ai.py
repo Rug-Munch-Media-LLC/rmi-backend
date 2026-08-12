@@ -391,7 +391,7 @@ async def _call_backend_chat(
                 json={
                     "model": model,
                     "messages": messages,
-                    "max_tokens": 200,  # keep answers concise for speed
+                    "max_tokens": 350,  # room for detailed answers
                     "temperature": 0.7,
                     "chat_template_kwargs": {"enable_thinking": False},
                 },
@@ -489,19 +489,18 @@ async def _call_local_llm(
         {
             "role": "system",
             "content": (
-                "You are Rug Munch, a crypto AI assistant. "
-                "Be direct and concise. Never give financial advice. "
-                "Do not output thinking or reasoning. Just give the final answer directly."
+                "You are Rug Munch, a crypto security AI. "
+                "Answer directly and concisely. No financial advice. No thinking output."
             ),
         }
     ]
-    # Add conversation history (last 3 messages — less context = faster)
+    # Add conversation history (last 2 messages — less context = faster on CPU)
     if history:
-        for msg in history[-3:]:
+        for msg in history[-2:]:
             role = msg.get("role", "user")
             content = msg.get("content", "")
             if role in ("user", "assistant") and content:
-                messages.append({"role": role, "content": content[:500]})
+                messages.append({"role": role, "content": content[:300]})
     # Add current message
     messages.append({"role": "user", "content": message[:2000]})
 
@@ -522,7 +521,7 @@ async def _call_local_llm(
                     json={
                         "model": model,
                         "messages": messages,
-                        "max_tokens": 200,  # concise + fast
+                        "max_tokens": 350,  # room for detailed answers
                         "temperature": 0.7,
                         "chat_template_kwargs": {"enable_thinking": False},
                     },
@@ -1110,6 +1109,21 @@ def _is_capability_question(text: str) -> bool:
     )
 
 
+async def _keep_typing(chat: Any) -> None:
+    """Keep the Telegram typing indicator alive until cancelled.
+
+    Telegram expires send_action('typing') after ~5 seconds. LLM calls take
+    10-30s on CPU, so we re-send every 4s to keep the bubble visible.
+    """
+    while True:
+        with contextlib.suppress(Exception):
+            await chat.send_action("typing")
+        try:
+            await asyncio.sleep(4)
+        except asyncio.CancelledError:
+            break
+
+
 def local_ai_response(text: str, user: Any) -> str | None:
     """Tier 2: Match user intent against keyword patterns."""
     text_lower = text.lower().strip()
@@ -1482,13 +1496,15 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     ):
         return True
 
-    # Thumbs up + typing + preliminary message — instant feedback
-    with contextlib.suppress(Exception):
-        await message.chat.send_action("typing")
+    # Thumbs up — instant acknowledgment
     with contextlib.suppress(Exception):
         from telegram import ReactionTypeEmoji
 
         await message.set_reaction([ReactionTypeEmoji(emoji="👍")])
+
+    # Start typing indicator — Telegram typing expires after ~5s, so we
+    # keep it alive in a background task until the answer is ready.
+    typing_task = asyncio.create_task(_keep_typing(message.chat))
 
     # Preliminary "thinking" message — keeps user engaged
     preliminary = await message.reply_text(
@@ -1518,6 +1534,11 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
 
     # Call local LLM (Qwen — fast, no backend cost)
     result = await _call_local_llm(prompt, user.id, history)
+
+    # Stop typing indicator
+    typing_task.cancel()
+    await asyncio.gather(typing_task, return_exceptions=True)
+
     if not result:
         if await _reply_local_intent(message, text, user):
             return True

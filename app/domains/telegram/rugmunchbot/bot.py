@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import random
 import sys
-from datetime import UTC, time as dtime
+from datetime import time as dtime  # noqa: F401 — used by daily_scam_tip if re-enabled
 from functools import wraps
 
 import httpx
@@ -515,7 +515,7 @@ def main() -> None:
     # Scheduled jobs
     job_queue = app.job_queue
     if job_queue:
-        job_queue.run_daily(daily_scam_tip, dtime(hour=14, minute=0, tzinfo=UTC))
+        # job_queue.run_daily(daily_scam_tip, dtime(hour=14, minute=0, tzinfo=UTC))  # disabled 2026-08-12
         job_queue.run_repeating(check_alerts, interval=ALERT_CHECK_INTERVAL, first=10)
         # Admin-panel broadcasts (queued in Redis by the backend API)
         job_queue.run_repeating(deliver_pending_broadcasts, interval=30, first=15)
