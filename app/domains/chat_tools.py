@@ -5,9 +5,9 @@ instead of hallucinating. This module provides:
 
 - ``_detect_tool_intent`` — pure classifier over the user message.
 - ``_exec_price`` / ``_exec_scan`` / ``_exec_trace`` / ``_exec_ta`` /
-  ``_exec_market`` / ``_exec_news`` — best-effort async executors that call
-  the DIRECT data modules (no x402 endpoints). Each is fail-open: returns
-  ``None`` on any error/timeout and NEVER raises.
+  ``_exec_market`` / ``_exec_news`` / ``_exec_suspicious`` — best-effort async
+  executors that call the DIRECT data modules (no x402 endpoints). Each is
+  fail-open: returns ``None`` on any error/timeout and NEVER raises.
 - ``_run_tool_for_intent`` — dispatcher with an 8s timeout.
 
 Everything here is defensive by design: a failed executor is invisible to
@@ -102,6 +102,35 @@ _INTENT_MARKET_PHRASES = (
     "btc eth sol",
 )
 
+# Suspicious-token asks: "list me the shady tokens you've seen launching".
+# Deliberately does NOT include bare "honeypot"/"scam" (those stay with the
+# scan intent for single-token checks); "honeypot tokens" / "scam tokens"
+# (the plural list shape) are included. Checked AFTER scan/trace/price so a
+# single-address or single-symbol security/price query is never hijacked.
+_INTENT_SUSPICIOUS_PHRASES = (
+    "suspicious",
+    "shady",
+    "sketchy",
+    "scammy",
+    "scam tokens",
+    "rug",
+    "honeypot tokens",
+    "recent launches",
+    "new tokens",
+    "tokens that launched",
+    "tokens launching",
+    "looks like a scam",
+    "red flags",
+)
+_SUS_STANDALONE_RE = re.compile(r"\bsus\b", re.IGNORECASE)
+# "what is a honeypot" is an educational question, not a token list request —
+# exclude definitional questions unless they also use list-request language.
+_DEFINITION_QUESTION_RE = re.compile(r"^\s*what(?:'s| is| are)\b", re.IGNORECASE)
+_LIST_REQUEST_RE = re.compile(
+    r"\b(list|show|give me|found|noticed|seen|spot|find|analysis|analyze)\b",
+    re.IGNORECASE,
+)
+
 # News — single words get word boundaries so "newsletter" does not fire as
 # news; multi-word phrases match as whole phrases. Checked AFTER market so
 # explicit market phrasing ("how's the market") stays market, and after the
@@ -193,15 +222,17 @@ _COINGECKO_IDS: dict[str, str] = {
 
 
 def _detect_tool_intent(message: str) -> str | None:
-    """Classify ``message`` into a tool intent: price/scan/ta/market/news/trace/None.
+    """Classify ``message`` into a tool intent: price/scan/ta/market/news/trace/suspicious/None.
 
     Priority: explicit TA keywords > scan (address/symbol + security words)
     > trace (address + forensics phrases, or address + who/what/related/trace)
-    > price (phrase + symbol/name, or a lone ``$SYMBOL``) > market phrases
-    > news keywords. News is deliberately checked AFTER market so explicit
-    market/fear-greed/btc-eth-sol phrasing ("how's the market") stays market,
-    and after ta/scan/trace/price so a price/scan query is not reclassified.
-    Returns None when no clear intent (general question → normal RAG/LLM).
+    > price (phrase + symbol/name, or a lone ``$SYMBOL``) > suspicious (shady /
+    new-token LIST asks — checked after scan/trace/price so a single-token
+    security/price query stays scan/price) > market phrases > news keywords.
+    News is deliberately checked AFTER market so explicit market/fear-greed/
+    btc-eth-sol phrasing ("how's the market") stays market, and after
+    ta/scan/trace/price so a price/scan query is not reclassified. Returns
+    None when no clear intent (general question → normal RAG/LLM).
     """
     low = message.lower().strip()
     if not low:
@@ -238,6 +269,13 @@ def _detect_tool_intent(message: str) -> str | None:
         if has_symbol and not scan_kw and not any(m in low for m in _INTENT_MARKET_PHRASES):
             return "price"
 
+    # Suspicious — "list me the shady/new tokens" ask. Checked AFTER the
+    # scan/trace/price branches (single-address/symbol security or price
+    # queries returned above) and BEFORE market/news so a shady-tokens ask
+    # never falls through to the generic market/news fallback.
+    if _is_suspicious_list_request(low):
+        return "suspicious"
+
     # Market.
     if any(m in low for m in _INTENT_MARKET_PHRASES):
         return "market"
@@ -248,6 +286,27 @@ def _detect_tool_intent(message: str) -> str | None:
         return "news"
 
     return None
+
+
+def _is_suspicious_list_request(low: str) -> bool:
+    """True when ``low`` asks for a list/analysis of shady or new tokens.
+
+    Requires a suspicious keyword AND a list/analysis shape: a definitional
+    "what is X" question (unless it also uses list-request language such as
+    "list"/"show"/"noticed") is not a suspicious-token ask. Single-address or
+    single-symbol queries never reach this — the scan/trace/price branches in
+    ``_detect_tool_intent`` return first.
+    """
+    if not low:
+        return False
+    matched = any(p in low for p in _INTENT_SUSPICIOUS_PHRASES) or bool(_SUS_STANDALONE_RE.search(low))
+    if not matched:
+        return False
+    # A definitional "what is X" question is not a suspicious-token ask unless
+    # it also uses list-request language ("list"/"show"/"noticed"...).
+    if _DEFINITION_QUESTION_RE.search(low):
+        return _LIST_REQUEST_RE.search(low) is not None
+    return True
 
 
 def _extract_price_symbol(message: str) -> str | None:
@@ -687,6 +746,253 @@ async def _exec_news(message: str = "") -> str | None:
         return None
 
 
+# ── Suspicious-tokens listing ────────────────────────────────────────
+# "Give me the shady tokens you've seen launching" must surface REAL tokens
+# the bot has observed, with concrete reasons — never a generic lecture and
+# never fabricated names. Pulls launch records via the in-process detector +
+# GMGN provider (no x402 endpoints), then ranks by the record's own fields:
+# age, liquidity, known-scammer overlap, and honeypot/mintable flags when
+# present. Fail-open → None (chat falls back to RAG/LLM).
+
+_SUSPICIOUS_LAUNCH_LIMIT = 30  # detector window to inspect
+_SUSPICIOUS_FRESH_LIMIT = 20  # GMGN fresh pairs to supplement with
+_SUSPICIOUS_MAX_ROWS = 8  # cap on rendered list
+_SUSPICIOUS_YOUNG_SECONDS = 3600  # <1h age is the classic rug window
+_SUSPICIOUS_LIQUIDITY_LOW = 1000.0  # <$1k LP
+_SUSPICIOUS_LIQUIDITY_THIN = 5000.0  # <$5k LP
+_SUSPICIOUS_MC_TINY = 5000.0  # market cap below this is a red flag
+
+_LAUNCH_ENTITY_KEYS = (
+    "address",
+    "creator",
+    "deployer",
+    "owner",
+    "wallet",
+    "maker",
+    "launcher",
+    "creator_address",
+    "deployer_address",
+    "owner_address",
+)
+
+
+def _is_truthy(value: Any) -> bool:
+    """Best-effort truthiness for provider flag fields ("true"/1/"yes"/...)."""
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "y", "locked", "mintable", "honeypot")
+    return False
+
+
+def _suspicious_flags(launch: dict[str, Any]) -> list[str]:
+    """Concrete flag reasons present in the launch record (empty when absent)."""
+    flags: list[str] = []
+    for key in ("is_honeypot", "honeypot", "flagged_honeypot"):
+        if _is_truthy(launch.get(key)):
+            flags.append("honeypot")
+            break
+    for key in ("is_mintable", "mintable", "mintable_flag"):
+        if _is_truthy(launch.get(key)):
+            flags.append("mintable")
+            break
+    for key in ("lp_locked", "is_lp_locked", "liquidity_locked"):
+        val = launch.get(key)
+        if val is not None and not _is_truthy(val):
+            flags.append("LP not locked")
+            break
+    raw_flags = launch.get("risk_flags") or launch.get("flags")
+    if isinstance(raw_flags, list):
+        for item in raw_flags:
+            text = str(item).strip()
+            if text and text.lower() not in ("none", "null"):
+                flags.append(text[:40])
+                break
+    elif isinstance(raw_flags, str):
+        text = raw_flags.strip()
+        if text and text.lower() not in ("none", "null"):
+            flags.append(text[:40])
+    return flags
+
+
+def _launch_age_seconds(launch: dict[str, Any]) -> float | None:
+    """Launch age in seconds from ``age_seconds`` or ``created_at``; None when unknown."""
+    try:
+        age = launch.get("age_seconds")
+        if age is not None and float(age) > 0:
+            return float(age)
+    except (TypeError, ValueError):
+        pass
+    created = launch.get("created_at")
+    if created is None:
+        return None
+    try:
+        ts = float(created)
+        if ts > 1e11:  # epoch milliseconds
+            ts /= 1000.0
+        return max(0.0, datetime.now(UTC).timestamp() - ts)
+    except (TypeError, ValueError):
+        return None
+
+
+def _launch_scammer_hit(launch: dict[str, Any], scammers: set[str]) -> str | None:
+    """Concrete reason when an entity field of the launch matches a known scammer."""
+    if not scammers:
+        return None
+    for key in _LAUNCH_ENTITY_KEYS:
+        val = launch.get(key)
+        if val is None:
+            continue
+        norm = str(val).strip()
+        if not norm:
+            continue
+        if norm.startswith("0x"):
+            norm = norm.lower()
+        if norm in scammers:
+            return "deployer matches known scammer" if key != "address" else "address matches known scammer"
+    return None
+
+
+def _launch_suspicion_score(launch: dict[str, Any], scammers: set[str]) -> tuple[float, str]:
+    """(suspicion_score, concrete_reason) for a launch record; (0.0, "") when none.
+
+    Signals, all derived from the record's own fields:
+      - age < 1h                      (+40)  → "age 4m"
+      - liquidity 0 / <$1k / <$5k     (+50/35/15) → "0 liquidity" / "LP $850"
+      - entity matches known scammer  (+100) → "deployer matches known scammer"
+      - honeypot / mintable / unlocked-LP (+60 each)
+      - market cap < $5k              (+10)  → "MC $1.2k"
+    """
+    score = 0.0
+    reasons: list[str] = []
+
+    age_s = _launch_age_seconds(launch)
+    if age_s is not None and age_s < _SUSPICIOUS_YOUNG_SECONDS:
+        score += 40
+        minutes = int(age_s // 60)
+        reasons.append(f"age {minutes}m" if minutes >= 1 else "age <1m")
+
+    liq = _to_float(launch.get("liquidity"))
+    if liq is not None:
+        if liq <= 0:
+            score += 50
+            reasons.append("0 liquidity")
+        elif liq < _SUSPICIOUS_LIQUIDITY_LOW:
+            score += 35
+            reasons.append(f"LP ${liq:,.0f}")
+        elif liq < _SUSPICIOUS_LIQUIDITY_THIN:
+            score += 15
+            reasons.append(f"LP ${liq:,.0f}")
+
+    scam_reason = _launch_scammer_hit(launch, scammers)
+    if scam_reason:
+        score += 100
+        reasons.append(scam_reason)
+
+    for flag in _suspicious_flags(launch):
+        score += 60
+        reasons.append(flag)
+
+    mc = _to_float(launch.get("market_cap"))
+    if mc is not None and 0 < mc < _SUSPICIOUS_MC_TINY:
+        score += 10
+        reasons.append(f"MC ${mc:,.0f}")
+
+    if not reasons:
+        return 0.0, ""
+    deduped = list(dict.fromkeys(reasons))  # drop duplicate flag wording
+    return score, "; ".join(deduped)[:120]
+
+
+def _rank_suspicious(launches: list[dict[str, Any]], scammers: set[str]) -> list[tuple[dict[str, Any], str]]:
+    """Rank launches by suspiciousness; only records with a concrete reason."""
+    ranked: list[tuple[float, dict[str, Any], str]] = []
+    for launch in launches:
+        if not isinstance(launch, dict):
+            continue
+        score, reason = _launch_suspicion_score(launch, scammers)
+        if score > 0 and reason:
+            ranked.append((score, launch, reason))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [(launch, reason) for _, launch, reason in ranked]
+
+
+def _merge_launches(primary: list[dict[str, Any]], extra: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Concatenate launch records, deduping by address (symbol when address empty)."""
+    seen: set[str] = set()
+    merged: list[dict[str, Any]] = []
+    for launch in [*primary, *extra]:
+        if not isinstance(launch, dict):
+            continue
+        key = str(launch.get("address") or "").strip() or str(launch.get("symbol") or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        merged.append(launch)
+    return merged
+
+
+def _render_suspicious(ranked: list[tuple[dict[str, Any], str]]) -> str | None:
+    """Numbered 🔴 list of the top suspicious launches; None when empty."""
+    if not ranked:
+        return None
+    lines: list[str] = []
+    for i, (launch, reason) in enumerate(ranked[:_SUSPICIOUS_MAX_ROWS], start=1):
+        symbol = str(launch.get("symbol") or "???").strip().upper()
+        chain = str(launch.get("chain") or "solana").strip() or "solana"
+        address = str(launch.get("address") or "").strip()
+        short = address[:10] + "…" if len(address) > 10 else (address or "?")
+        lines.append(f"{i}. 🔴 {symbol} ({chain}) — {short} — {reason}")
+    return "Suspicious recent launches:\n" + "\n".join(lines)
+
+
+async def _exec_suspicious(message: str = "") -> str | None:
+    """List recent launches that look shady, ranked by concrete signals.
+
+    Fetches REAL launches via the in-process detector + GMGN provider (never
+    the x402 endpoints) and ranks by the records' own fields (age, liquidity,
+    known-scammer overlap, honeypot/mintable flags). Fail-open → None when no
+    launch data is available — chat falls back to RAG/LLM. Never invents
+    tokens or reasons.
+    """
+    launches: list[dict[str, Any]] = []
+    try:
+        from app.databus.token_launch_detector import get_launch_detector
+
+        raw = await get_launch_detector().get_recent_launches(limit=_SUSPICIOUS_LAUNCH_LIMIT)
+        if isinstance(raw, list):
+            launches = raw
+    except Exception as e:
+        logger.debug("chat_tool_suspicious_launches_failed", error=str(e)[:120])
+
+    # Supplement with GMGN fresh pairs (fail-open — never blocks the list).
+    try:
+        from app.databus.gmgn_provider import get_gmgn_provider
+
+        fresh = await get_gmgn_provider().get_new_pairs("solana", limit=_SUSPICIOUS_FRESH_LIMIT)
+        if isinstance(fresh, list):
+            launches = _merge_launches(launches, fresh)
+    except Exception as e:
+        logger.debug("chat_tool_suspicious_gmgn_failed", error=str(e)[:120])
+
+    if not launches:
+        return None
+
+    try:
+        from app.databus.shill_detector import load_known_scammers
+
+        scammers: set[str] = set(load_known_scammers())
+    except Exception as e:
+        logger.debug("chat_tool_suspicious_scammers_failed", error=str(e)[:120])
+        scammers = set()
+
+    return _render_suspicious(_rank_suspicious(launches, scammers))
+
+
 # ── Dispatcher ─────────────────────────────────────────────────────────
 
 TOOL_TIMEOUT_SECONDS = 8.0
@@ -698,6 +1004,7 @@ _EXECUTORS: dict[str, Any] = {
     "ta": _exec_ta,
     "market": _exec_market,
     "news": _exec_news,
+    "suspicious": _exec_suspicious,
 }
 
 
