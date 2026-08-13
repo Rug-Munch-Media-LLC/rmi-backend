@@ -1,0 +1,218 @@
+{
+	"version": "1.0",
+	"updated": "2026-08-13",
+	"total_channels": 19,
+	"note": "STARTER Telegram-channel registry for news monitoring + scammer-caller tracking. Extensible: the owner drops in their full verified list by editing this file (add entries under \"channels\") or calling upsert_channel(). Entries are validated at load; malformed ones are skipped (see tg_channel_registry.py). Every seed entry carries a confidence note in \"notes\" — re-verify medium-confidence handles before production scraping.",
+	"categories": {
+		"crypto_news": [
+			"cointelegraph",
+			"wublockchain",
+			"coindesk",
+			"cryptoslate",
+			"beincrypto",
+			"TheBlock__",
+			"cryptonews",
+			"PANewsOfficial",
+			"coingape",
+			"ambcrypto",
+			"bitcoinmagazine"
+		],
+		"defi": ["thedefiant"],
+		"exploit_alerts": ["rektnews", "CertiKAlert", "PeckShieldAlert"],
+		"phishing_alerts": ["ScamSniffer"],
+		"scam_alerts": ["SlowMist", "zachxbt"],
+		"shill_promotions": ["cryptobanter"]
+	},
+	"channels": [
+		{
+			"username": "cointelegraph",
+			"name": "CoinTelegraph",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 12,
+			"notes": "Official CoinTelegraph Telegram channel — high confidence, established outlet.",
+			"enabled": true
+		},
+		{
+			"username": "wublockchain",
+			"name": "Wu Blockchain (Colin Wu)",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 24,
+			"notes": "Wu Blockchain (Colin Wu) — high-frequency aggregator, high confidence.",
+			"enabled": true
+		},
+		{
+			"username": "coindesk",
+			"name": "CoinDesk",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 12,
+			"notes": "CoinDesk official channel — medium-high confidence; re-verify handle before production scraping.",
+			"enabled": true
+		},
+		{
+			"username": "cryptoslate",
+			"name": "CryptoSlate",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 8,
+			"notes": "CryptoSlate official channel — medium-high confidence.",
+			"enabled": true
+		},
+		{
+			"username": "beincrypto",
+			"name": "BeInCrypto",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 8,
+			"notes": "BeInCrypto official channel — medium-high confidence.",
+			"enabled": true
+		},
+		{
+			"username": "TheBlock__",
+			"name": "The Block",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 8,
+			"notes": "[REVIEW] The Block Telegram handle — medium confidence; verify exact username (double underscore).",
+			"enabled": true
+		},
+		{
+			"username": "cryptonews",
+			"name": "Cryptonews.com",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 8,
+			"notes": "[REVIEW] Cryptonews.com channel — medium confidence; verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "PANewsOfficial",
+			"name": "PANews",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 8,
+			"notes": "[REVIEW] PANews official channel — medium confidence; verify handle casing.",
+			"enabled": true
+		},
+		{
+			"username": "coingape",
+			"name": "CoinGape",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 6,
+			"notes": "[REVIEW] CoinGape channel — medium confidence; verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "ambcrypto",
+			"name": "AMBCrypto",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 6,
+			"notes": "[REVIEW] AMBCrypto channel — medium confidence; verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "bitcoinmagazine",
+			"name": "Bitcoin Magazine",
+			"kind": "news",
+			"category": "crypto_news",
+			"reliable": true,
+			"scrape_times_per_day": 6,
+			"notes": "[REVIEW] Bitcoin Magazine channel — medium confidence; verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "thedefiant",
+			"name": "The Defiant",
+			"kind": "news",
+			"category": "defi",
+			"reliable": true,
+			"scrape_times_per_day": 6,
+			"notes": "[REVIEW] The Defiant channel — medium confidence; verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "rektnews",
+			"name": "REKT News",
+			"kind": "intel",
+			"category": "exploit_alerts",
+			"reliable": true,
+			"scrape_times_per_day": 12,
+			"notes": "[REVIEW] REKT News — exploit/incident intel; medium confidence, verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "CertiKAlert",
+			"name": "CertiK Alert",
+			"kind": "scammer_caller",
+			"category": "exploit_alerts",
+			"reliable": true,
+			"scrape_times_per_day": 24,
+			"notes": "CertiK official security-alert channel — medium-high confidence, linked from certik.org.",
+			"enabled": true
+		},
+		{
+			"username": "PeckShieldAlert",
+			"name": "PeckShield Alert",
+			"kind": "scammer_caller",
+			"category": "exploit_alerts",
+			"reliable": true,
+			"scrape_times_per_day": 24,
+			"notes": "[REVIEW] PeckShield alert channel — medium confidence; verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "ScamSniffer",
+			"name": "ScamSniffer Alerts",
+			"kind": "scammer_caller",
+			"category": "phishing_alerts",
+			"reliable": true,
+			"scrape_times_per_day": 24,
+			"notes": "ScamSniffer anti-phishing alert channel — medium-high confidence.",
+			"enabled": true
+		},
+		{
+			"username": "SlowMist",
+			"name": "SlowMist",
+			"kind": "scammer_caller",
+			"category": "scam_alerts",
+			"reliable": true,
+			"scrape_times_per_day": 24,
+			"notes": "[REVIEW] SlowMist security team channel — medium confidence; verify handle.",
+			"enabled": true
+		},
+		{
+			"username": "zachxbt",
+			"name": "ZachXBT",
+			"kind": "scammer_caller",
+			"category": "scam_alerts",
+			"reliable": true,
+			"scrape_times_per_day": 12,
+			"notes": "[REVIEW] ZachXBT — primarily X-based; Telegram handle should be re-verified before enabling scraping.",
+			"enabled": true
+		},
+		{
+			"username": "cryptobanter",
+			"name": "Crypto Banter (Ran Neuner)",
+			"kind": "scammer_caller",
+			"category": "shill_promotions",
+			"reliable": false,
+			"scrape_times_per_day": 6,
+			"notes": "[REVIEW] Crypto Banter flagged in known_scammers.json as scam_shiller (Ran Neuner) — monitor as shill-caller, do not treat as reliable. Verify handle.",
+			"enabled": true
+		}
+	]
+}
