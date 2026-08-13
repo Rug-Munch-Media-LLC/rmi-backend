@@ -135,16 +135,6 @@ class NansenClient:
         return self._get(path)
 
     def get_smart_money(self) -> list[dict[str, Any]] | None:
-        """Retrieve the list of tracked smart-money wallets."""
-        path = ENDPOINTS["smart_money"]
-        return self._get(path)
-
-    def get_wallet_activity(self, address: str) -> dict[str, Any] | None:
-        """Get transaction history for a wallet with entity labels."""
-        path = ENDPOINTS["wallet_activity"].format(address=address)
-        return self._get(path)
-
-    def get_smart_money(self) -> list[dict[str, Any]] | None:
         """
         Retrieve the list of tracked smart-money wallets.
 
@@ -152,7 +142,10 @@ class NansenClient:
         recent activity summaries.
         """
         path = ENDPOINTS["smart_money"]
-        return self._get(path)
+        data = self._get(path)
+        if isinstance(data, list):
+            return data
+        return data.get("result") if isinstance(data, dict) else None
 
     def get_wallet_activity(self, address: str) -> dict[str, Any] | None:
         """

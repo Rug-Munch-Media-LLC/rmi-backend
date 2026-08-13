@@ -99,6 +99,8 @@ class SupabaseRealtimeBridge:
                     while self._running:
                         try:
                             raw = await asyncio.wait_for(ws.recv(), timeout=60)
+                            if isinstance(raw, bytes):
+                                raw = raw.decode()
                             await self._handle_message(raw)
                         except TimeoutError:
                             await ws.ping()

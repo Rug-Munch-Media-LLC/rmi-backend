@@ -205,7 +205,7 @@ class ScamClassifier:
     """XGBoost classifier trained on historical scan data."""
 
     def __init__(self) -> None:
-        self.model = None
+        self.model: Any = None
         self.feature_names: list[str] = []
         self.training_samples: int = 0
         self.accuracy: float = 0.0
@@ -218,7 +218,7 @@ class ScamClassifier:
             try:
                 with open(MODEL_PATH, "rb") as f:
                     # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                    self.model = pickle.load(f, usedforsecurity=False)
+                    self.model = pickle.load(f)
                 if os.path.exists(FEATURE_NAMES_PATH):
                     with open(FEATURE_NAMES_PATH) as f:
                         meta = json.load(f)

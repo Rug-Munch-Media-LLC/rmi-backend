@@ -97,7 +97,7 @@ for w in mgr._wallets.values():
                 async with AsyncClient(rpc) as c:
                     resp = await c.get_balance(kp.pubkey(), commitment=Confirmed)
                     if resp.value <= 2_000_000:
-                        return
+                        return None
                     sweep = resp.value - 1_000_000
                     ix = transfer(
                         TransferParams(
@@ -108,7 +108,7 @@ for w in mgr._wallets.values():
                     )
                     tx = Transaction().add(ix)
                     tx.sign(kp)
-                    r = await c.send_transaction(tx, kp)
+                    r = await c.send_transaction(tx)
                     return str(r.value)
 
             sig = asyncio.run(_do())

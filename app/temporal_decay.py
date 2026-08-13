@@ -187,7 +187,7 @@ def get_collection_freshness_summary(
     Returns median age, stale docs count, and overall health.
     """
     now = datetime.now(UTC)
-    summary = {}
+    summary: dict[str, dict[str, str | int | float | None]] = {}
 
     for coll, count in collection_stats.items():
         if coll not in doc_timestamps or not doc_timestamps[coll]:

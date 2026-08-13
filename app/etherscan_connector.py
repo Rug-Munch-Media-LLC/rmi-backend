@@ -175,13 +175,11 @@ class EtherscanConnector:
 
     async def get_balance(self, address: str, network: str = "eth") -> str:
         """Get native token balance (ETH/BNB/MATIC/etc)."""
-        return (
-            await self._get(
-                network,
-                {"module": "account", "action": "balance", "address": address, "tag": "latest"},
-            )
-            or "0"
+        result = await self._get(
+            network,
+            {"module": "account", "action": "balance", "address": address, "tag": "latest"},
         )
+        return result if isinstance(result, str) else "0"
 
     async def get_tx_list(
         self,
@@ -233,19 +231,17 @@ class EtherscanConnector:
 
     async def get_token_balance(self, contract_address: str, address: str, network: str = "eth") -> str:
         """Get ERC-20 token balance for address."""
-        return (
-            await self._get(
-                network,
-                {
-                    "module": "account",
-                    "action": "tokenbalance",
-                    "contractaddress": contract_address,
-                    "address": address,
-                    "tag": "latest",
-                },
-            )
-            or "0"
+        result = await self._get(
+            network,
+            {
+                "module": "account",
+                "action": "tokenbalance",
+                "contractaddress": contract_address,
+                "address": address,
+                "tag": "latest",
+            },
         )
+        return result if isinstance(result, str) else "0"
 
     async def get_erc721_transfers(
         self, address: str, network: str = "eth", page: int = 1, offset: int = 100
@@ -268,7 +264,8 @@ class EtherscanConnector:
 
     async def get_contract_abi(self, contract: str, network: str = "eth") -> str:
         """Get contract ABI."""
-        return await self._get(network, {"module": "contract", "action": "getabi", "address": contract}) or ""
+        result = await self._get(network, {"module": "contract", "action": "getabi", "address": contract})
+        return result if isinstance(result, str) else ""
 
     async def get_contract_source(self, contract: str, network: str = "eth") -> dict[str, Any]:
         """Get contract source code."""

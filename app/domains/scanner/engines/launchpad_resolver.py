@@ -471,7 +471,7 @@ async def resolve_deployer_universal(
     deployer_key = str(deployer_from_event or "").strip()
 
     # Cache key: token when available, otherwise deploy tx (deterministic).
-    anchor = token_key or f"tx:{deploy_tx}" or f"deployer:{deployer_key}"
+    anchor = token_key or f"tx:{deploy_tx}"
     cache_key = f"{REDIS_CACHE_PREFIX}:uni:{chain_norm}:{anchor}"
     cached = await _redis_get(cache_key)
     if cached is not None and isinstance(cached, dict) and cached.get("real_deployer"):

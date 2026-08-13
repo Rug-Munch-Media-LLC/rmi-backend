@@ -39,7 +39,7 @@ PROFILE = {
     "website": "https://rugmunch.io",
 }
 
-POST_TYPES = {
+POST_TYPES: dict[str, dict[str, Any]] = {
     "micro": {"tag": "micro", "label": "Post", "icon": "💬", "limit": 4000},
     "thread": {"tag": "thread", "label": "Thread", "icon": "🧵", "limit": 4000},
     "article": {"tag": "article", "label": "Longform", "icon": "📄", "limit": 50000},
@@ -174,7 +174,7 @@ async def get_feed(page: int = 1, limit: int = 20, tag: str = "", include: str =
     if not GHOST_CONTENT_KEY:
         return {"posts": [], "error": "content key not configured"}
 
-    params = {
+    params: dict[str, str | int] = {
         "key": GHOST_CONTENT_KEY,
         "limit": limit,
         "page": page,
