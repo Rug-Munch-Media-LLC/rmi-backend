@@ -25,5 +25,46 @@
 		"https://blog.chainalysis.com/feed",
 		"https://dune.com/blog/rss"
 	],
-	"onchain": ["https://solana.com/news/feed", "https://dune.com/blog/rss"]
+	"onchain": ["https://solana.com/news/feed", "https://dune.com/blog/rss"],
+	"incident_sources": {
+		"version": 1,
+		"sources": [
+			{
+				"name": "defillama_hacks",
+				"description": "DefiLlama hacks & exploits database — public JSON endpoint (api.llama.fi/hacks), no auth required.",
+				"type": "json_api",
+				"url": "https://api.llama.fi/hacks",
+				"category": "exploit",
+				"collections": ["defi_exploits", "threat_intel"],
+				"enabled": true
+			},
+			{
+				"name": "rekt_news_leaderboard",
+				"description": "REKT News leaderboard of major crypto exploits — public JSON API (api.rekt.news/leaderboard).",
+				"type": "json_api",
+				"url": "https://api.rekt.news/leaderboard",
+				"category": "exploit",
+				"collections": ["defi_exploits"],
+				"enabled": true
+			},
+			{
+				"name": "slowmist_hacked",
+				"description": "SlowMist Hacked database (hacked.slowmist.io) — HTML page; no verified public JSON endpoint yet. Wired but disabled until a parser exists.",
+				"type": "html_page",
+				"url": "https://hacked.slowmist.io/",
+				"category": "scam",
+				"collections": ["known_scams", "scam_patterns"],
+				"enabled": false
+			},
+			{
+				"name": "certik_security_alerts",
+				"description": "CertiK security alerts (alert.certik.org) — Cloudflare-protected page; no verified unauthenticated JSON endpoint yet. Wired but disabled until a parser exists.",
+				"type": "html_page",
+				"url": "https://alert.certik.org/",
+				"category": "exploit",
+				"collections": ["threat_intel"],
+				"enabled": false
+			}
+		]
+	}
 }
