@@ -163,7 +163,11 @@ GMGN_CHAINS = {
     "ethereum": "eth",
     "base": "base",
     "bsc": "bsc",
-    "arbitrum": "arb",
+    "polygon": "polygon",
+    "arbitrum": "arbitrum",
+    "optimism": "optimism",
+    "avalanche": "avax",
+    "fantom": "fantom",
     "tron": "tron",
     "robinhood": "robinhood",
 }
