@@ -1,0 +1,34 @@
+# RMI Daily Briefing — content/alerts pipeline run (05:30 UTC).
+# Template unit — adjust the WorkingDirectory / ExecStart paths, User and
+# Group to the deployment host before installing. See README.md in this
+# directory for the install + owner-veto workflow.
+
+[Unit]
+Description=RMI Daily Briefing — news sweep → alerts → shill → briefing
+Documentation=file:README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/work/repos/rmi-backend
+
+# Dry-run by default: gathers real data but skips publish/send so the owner
+# can veto/edit the draft (§2 methodology). Flip to --no-dry-run once the
+# owner approves the automated push.
+ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python -m app.domains.content.daily_pipeline --run
+# ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python -m app.domains.content.daily_pipeline --run --no-dry-run
+
+User=dev
+Group=dev
+Environment=PYTHONUNBUFFERED=1
+
+# Hardening. ProtectHome=read-only keeps the Ghost session cookie readable
+# (app/content_platform.py reads it from the owner's home); the pipeline
+# writes nothing outside /tmp.
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/tmp
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictSUIDSGID=true
