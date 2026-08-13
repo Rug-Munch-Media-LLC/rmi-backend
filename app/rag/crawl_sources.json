@@ -27,7 +27,7 @@
 	],
 	"onchain": ["https://solana.com/news/feed", "https://dune.com/blog/rss"],
 	"incident_sources": {
-		"version": 1,
+		"version": 2,
 		"sources": [
 			{
 				"name": "defillama_hacks",
@@ -63,6 +63,33 @@
 				"url": "https://alert.certik.org/",
 				"category": "exploit",
 				"collections": ["threat_intel"],
+				"enabled": false
+			},
+			{
+				"name": "metamask_eth_phishing_detect",
+				"description": "MetaMask eth-phishing-detect — canonical phishing-domain blacklist (raw GitHub JSON src/config.json: blacklist/tolerance/fuzz/lists). MIT. Wired but disabled until a domain-list parser exists (normalizer expects dict records; this feed is a list of domain strings).",
+				"type": "json_api",
+				"url": "https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/main/src/config.json",
+				"category": "scam",
+				"collections": ["known_scams", "scam_patterns"],
+				"enabled": false
+			},
+			{
+				"name": "defihacklabs_incidents",
+				"description": "DeFiHackLabs — 600+ exploit incident records (project, amount lost, date, chain, technique) in a single markdown table (raw GitHub docs/Incidents_All.md). Educational repo; license flagged [REVIEW]. Wired but disabled until a markdown-table parser exists.",
+				"type": "html_page",
+				"url": "https://raw.githubusercontent.com/DeFiHackLabs/DeFiHackLabs/main/docs/Incidents_All.md",
+				"category": "exploit",
+				"collections": ["defi_exploits", "threat_intel"],
+				"enabled": false
+			},
+			{
+				"name": "ethereum_labels_0x406",
+				"description": "0x406/ethereum-labels — labeled EVM addresses by category (mixers, exchanges, MEV bots, phishing, hackers) as per-category CSV files. MIT (flagged [REVIEW]). Wired but disabled until a CSV parser exists.",
+				"type": "html_page",
+				"url": "https://github.com/0x406/ethereum-labels",
+				"category": "scam",
+				"collections": ["known_scams", "threat_intel"],
 				"enabled": false
 			}
 		]

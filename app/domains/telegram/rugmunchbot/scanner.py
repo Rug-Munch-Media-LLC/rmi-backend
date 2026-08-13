@@ -14,6 +14,15 @@ from typing import Any
 import httpx
 
 from app.domains.scanner.gmgn_enrich import enrich_scan_with_gmgn
+
+# Consolidated risk-signal enrichment (bundle / deployer / wash / whale /
+# authority / social cross-ref). Imported defensively so the bot still works
+# if the module is not deployable on a given host.
+try:  # pragma: no cover - exercised only when scan_enrich is absent
+    from app.domains.scanner.scan_enrich import enrich_scan
+except ImportError:
+    enrich_scan = None
+
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
@@ -222,6 +231,12 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     # GMGN holder/smart-money enrichment — best-effort + non-blocking
     # (hard 6s internal budget, fail-open; never raises).
     result = await enrich_scan_with_gmgn(result, address, result["chain"])
+    # Risk-signal enrichment (bundle / deployer reputation / wash trading /
+    # whale flow / authority / social cross-ref) — best-effort + non-blocking
+    # (hard 8s budget, fail-open per module; never raises). Attaches
+    # ``risk_signals`` so the formatter can render the "why it's sus" block.
+    if enrich_scan is not None:
+        result = await enrich_scan(result, address, result["chain"])
     # Scan-to-RAG memory: auto-index the summary into Qdrant so future
     # chat queries can recall "have we scanned this token before?" with
     # risk context. Background + fail-open — never blocks the response.
@@ -256,6 +271,9 @@ async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any
             # GMGN holder/smart-money enrichment — best-effort + non-blocking
             # (hard 6s internal budget, fail-open; never raises).
             data = await enrich_scan_with_gmgn(data, address, chain or detect_chain(address))
+            # Risk-signal enrichment — best-effort + non-blocking, see scan_token.
+            if enrich_scan is not None:
+                data = await enrich_scan(data, address, chain or detect_chain(address))
             # Scan-to-RAG memory (background, fail-open) — see scan_token.
             if should_index_scan(data, source="scan_v2"):
                 schedule_scan_memory_index(data, source="scan_v2")

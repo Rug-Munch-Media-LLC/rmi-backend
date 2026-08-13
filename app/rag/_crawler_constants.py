@@ -60,6 +60,9 @@ INCIDENT_CATEGORY_BY_SOURCE: dict[str, str] = {
     "rekt_news_leaderboard": "exploit",
     "slowmist_hacked": "scam",
     "certik_security_alerts": "exploit",
+    "metamask_eth_phishing_detect": "scam",
+    "defihacklabs_incidents": "exploit",
+    "ethereum_labels_0x406": "scam",
 }
 
 # Dedup counter keys returned in sweep summaries (distinguish dup levels).
