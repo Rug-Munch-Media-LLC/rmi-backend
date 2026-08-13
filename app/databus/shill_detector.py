@@ -194,8 +194,9 @@ def load_known_scammers(path: str | None = None) -> set[str]:
     """Load known-scammer handles/addresses from JSON.
 
     The JSON may be a list of strings, or a dict of ``{"handles": [...],
-    "addresses": [...], "entries": [{"handle": ..., "reason": ...}]}``.
-    Returns an empty set when the file is absent (never raises).
+    "addresses": [...], "entries": [{"handle": ..., "reason": ...}], "accounts":
+    [{"handle": ..., "name": ..., "category": ...}]}``. Returns an empty set when
+    the file is absent (never raises).
     """
     path = path or _KNOWN_SCAMMERS_PATH
     try:
@@ -215,9 +216,10 @@ def load_known_scammers(path: str | None = None) -> set[str]:
         for key in ("handles", "addresses"):
             for item in raw.get(key, []) or []:
                 result.add(_normalize_handle(item))
-        for item in raw.get("entries", []) or []:
-            if isinstance(item, dict):
-                result.add(_normalize_handle(item.get("handle") or item.get("address")))
+        for key in ("entries", "accounts"):
+            for item in raw.get(key, []) or []:
+                if isinstance(item, dict):
+                    result.add(_normalize_handle(item.get("handle") or item.get("address")))
     return {h for h in result if h}
 
 
