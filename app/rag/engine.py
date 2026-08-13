@@ -29,6 +29,7 @@ from app.config import settings
 from app.core.logging import get_logger
 from app.rag.ann_index import Hit, get_index
 from app.rag.chunking import Chunk, chunk_text, content_hash, estimate_tokens, is_duplicate, mark_ingested
+from app.rag.config import RAG_CONTEXT_MAX_TOKENS
 from app.rag.embeddings import current_backend, get_embedding
 from app.rag.tracing import trace_span
 
@@ -36,6 +37,14 @@ log = get_logger(__name__)
 
 # RRF constant
 _RRF_K = 60
+
+# Hard context-token budget applied AFTER rerank on the primary search
+# facade (env override wins, e.g. ``RAG_CONTEXT_MAX_TOKENS=2048``).
+_CONTEXT_MAX_TOKENS = int(os.getenv("RAG_CONTEXT_MAX_TOKENS", RAG_CONTEXT_MAX_TOKENS))
+
+# Max characters sent per candidate to the cross-encoder (bge-reranker-v2-m3
+# truncates to 512 tokens internally; 2000 chars is a safe upper bound).
+_RERANK_MAX_CHARS = 2000
 
 # Qdrant fallback: collections that live in Qdrant (e.g. `news` seeded by
 # rmi-rag/scripts/news_to_rag.py) are searchable even though the in-process
@@ -350,6 +359,62 @@ async def _legacy_pillar_search(
     return fused
 
 
+async def _rerank_hits(query: str, hits: list[Hit]) -> list[Hit]:
+    """Cross-encoder rerank (Infinity, BAAI/bge-reranker-v2-m3) — MANDATORY.
+
+    Reranks *hits* against *query* and reorders them by cross-encoder
+    relevance, updating each hit's ``score`` and
+    ``metadata["rerank_score"]``. This is the mandatory post-retrieval
+    step on the primary search facade; there is no skip path. Fail-open:
+    if the reranker is unreachable or returns nothing, the pre-rerank
+    order is kept (search must never break because reranking is down).
+    """
+    if len(hits) < 2:
+        return hits
+    try:
+        from app.rag.rerank import rerank_results
+
+        docs = [(h.text or "")[:_RERANK_MAX_CHARS] for h in hits]
+        reranked = await rerank_results(query, docs, top_n=len(hits))
+        if not reranked:
+            return hits
+        ordered: list[Hit] = []
+        for item in sorted(reranked, key=lambda x: -float(x.get("relevance_score", 0.0))):
+            idx = int(item.get("index", -1))
+            if 0 <= idx < len(hits):
+                hit = hits[idx]
+                score = float(item.get("relevance_score", 0.0))
+                hit.score = score
+                hit.metadata = {**hit.metadata, "rerank_score": round(score, 4)}
+                ordered.append(hit)
+        return ordered if ordered else hits
+    except Exception as exc:
+        log.debug("rag_rerank_failed err=%s", exc)
+        return hits
+
+
+def _apply_context_budget(hits: list[Hit], max_tokens: int = _CONTEXT_MAX_TOKENS) -> list[Hit]:
+    """Truncate *hits* to a hard context-token budget.
+
+    Walks the (reranked) hits in order, accumulating ``estimate_tokens``
+    per hit, and keeps the longest prefix that fits within ``max_tokens``.
+    At least one hit is always kept so a single oversized chunk still
+    surfaces. This guarantees the context handed to the LLM never exceeds
+    the budget.
+    """
+    if max_tokens <= 0:
+        return hits
+    budgeted: list[Hit] = []
+    used = 0
+    for h in hits:
+        tokens = estimate_tokens(h.text or "")
+        if budgeted and used + tokens > max_tokens:
+            break
+        used += tokens
+        budgeted.append(h)
+    return budgeted
+
+
 async def three_pillar_search(
     query: str,
     collection: str = "scam_intel",
@@ -357,16 +422,19 @@ async def three_pillar_search(
     min_similarity: float = 0.0,
     filters: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Run the three-pillar search and return RRF-fused hits.
+    """Run the three-pillar search and return RRF-fused, reranked hits.
 
-    Each returned hit: {doc_id, score, text, metadata, source_pillars}
+    Each returned hit: {doc_id, score, text, metadata}
 
     Primary path (``RAG_STORE=qdrant``, default): the unified Qdrant hybrid
     store (dense + lexical-sparse prefetches, server-side RRF k=60) replaces
     the in-process numpy ANN + Redis BM25-lite scan. The Infinity bge-m3
-    embedding (``get_embedding``) still runs here and the bge-reranker
-    rerank still runs AFTER retrieval in ``HybridRetriever._apply_rerank``.
-    On Qdrant failure/empty results the legacy pillar path runs instead.
+    embedding (``get_embedding``) still runs here. Cross-encoder rerank
+    (Infinity ``BAAI/bge-reranker-v2-m3``) is MANDATORY: every result list
+    is reranked before a hard context-token budget (``RAG_CONTEXT_MAX_TOKENS``,
+    default 4096) is applied, so the LLM never receives an unbounded
+    context. Rerank is fail-open (pre-rerank order kept when the reranker
+    is unreachable), but there is no skip path.
     Set ``RAG_STORE=legacy`` to restore the previous numpy/Redis path.
     """
     start = time.monotonic()
@@ -391,6 +459,16 @@ async def three_pillar_search(
         else:
             backend = "legacy"
             fused = await _legacy_pillar_search(query, qvec, collection, top_k, min_similarity, filters)
+
+        # G2: mandatory cross-encoder rerank (fail-open) + hard context-token
+        # budget before the LLM call. No skip path.
+        pre_rerank = len(fused)
+        fused = await _rerank_hits(query, fused)
+        rerank_applied = bool(fused and fused[0].metadata.get("rerank_score") is not None)
+        span.set_attribute("retrieval.rerank_input", pre_rerank)
+        span.set_attribute("retrieval.rerank_applied", rerank_applied)
+        fused = _apply_context_budget(fused, max_tokens=_CONTEXT_MAX_TOKENS)
+        span.set_attribute("retrieval.context_budget_tokens", _CONTEXT_MAX_TOKENS)
 
         took_ms = int((time.monotonic() - start) * 1000)
         log.info(

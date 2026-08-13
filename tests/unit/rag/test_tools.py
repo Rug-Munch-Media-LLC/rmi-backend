@@ -211,7 +211,7 @@ async def test_get_news() -> None:
     assert result["results"][0]["doc_id"] == "news:1"
     assert result["source"] == "RAG news_v2"
     hr.assert_called_once_with()
-    retriever.retrieve.assert_awaited_once_with(query="bitcoin etf", collection="news_v2", top_k=5, rerank=False)
+    retriever.retrieve.assert_awaited_once_with(query="bitcoin etf", collection="news_v2", top_k=5, rerank=True)
 
 
 # ── Fail-open ──────────────────────────────────────────────────────────

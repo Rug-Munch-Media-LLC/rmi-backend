@@ -75,6 +75,24 @@ RAG_HYBRID_ALPHA: float = 0.7
 # RRF constant for reciprocal rank fusion (k=60 is the standard).
 RAG_RRF_K: int = 60
 
+# ── Context budget (G2) ──────────────────────────────────────────────
+# Hard token budget for the context handed to the LLM. Applied AFTER
+# cross-encoder rerank on the primary search facade
+# (``app.rag.engine.three_pillar_search``) so the LLM never receives an
+# unbounded context. Env override: ``RAG_CONTEXT_MAX_TOKENS``.
+RAG_CONTEXT_MAX_TOKENS: int = 4096
+
+# ── RAG regression eval (G3) ─────────────────────────────────────────
+# Minimum aggregate metrics for the CI gate (``scripts/rag-eval.sh`` and
+# the ``rag_eval`` pytest marker). Env overrides: ``RAG_EVAL_HIT_RATE_MIN``,
+# ``RAG_EVAL_FAITHFULNESS_MIN``.
+#
+# Baselines measured live on the golden set (2026-08-13, threat_intel_v2):
+# hit_rate ~0.56-0.73, faithfulness ~0.27-0.34. The floors sit BELOW the
+# baseline so the gate fires only on genuine regressions, not noise.
+RAG_EVAL_HIT_RATE_MIN: float = 0.5
+RAG_EVAL_FAITHFULNESS_MIN: float = 0.25
+
 # ── Ingestion scheduler ───────────────────────────────────────────────
 
 # Default interval (seconds) between scheduled ingestion sweeps.
