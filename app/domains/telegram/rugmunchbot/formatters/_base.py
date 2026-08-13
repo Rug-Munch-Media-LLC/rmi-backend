@@ -165,11 +165,11 @@ def social_proof_text() -> str:
 
 
 def welcome_card_text() -> str:
-    """v7 welcome card — capability overview shown by /start and the main menu.
+    """v9 welcome card — capability overview shown by /start and the main menu.
 
-    Covers the six main-menu categories (Scan Token · Market Intel · AI Chat ·
-    RugMaps · RugCharts · Help) plus the quick-start tips. Portfolio &
-    Security were folded into Scan / Market Intel.
+    Covers the five main-menu sections (Scan · Intelligence · Alerts ·
+    Wallet · Help) plus the quick-start tips. Account & AI Chat are
+    reachable from the same menu.
     """
     proof = social_proof_text()
     return (
@@ -180,12 +180,11 @@ def welcome_card_text() -> str:
         f"RugMaps bubble maps, answer crypto questions via AI chat, track "
         f"your portfolio, and more.</b>\n"
         f"\U0001f4cc Try <code>/scan</code> or <code>/chat</code> to get started!\n\n"
-        f"<b>Capabilities:</b>\n"
-        f"\U0001f50d <b>Scan Token</b> — audits, wallet & deployer checks, portfolio\n"
-        f"\U0001f4c8 <b>Market Intel</b> — trending, prices, sentiment, news\n"
-        f"\U0001f4ac <b>AI Chat</b> — RAG-powered answers on crypto & code\n"
-        f"\U0001f5fa\ufe0f <b>RugMaps</b> — wallet cluster bubble maps\n"
-        f"\U0001f4c9 <b>RugCharts</b> — chart images & technical analysis\n"
+        f"<b>Sections:</b>\n"
+        f"\U0001f50d <b>Scan</b> — audits, deep/SENTINEL, deployer, rug checks\n"
+        f"\U0001f9e0 <b>Intelligence</b> — market, trending, news, AI chat\n"
+        f"\U0001f514 <b>Alerts</b> — price alerts, watchlist, whale alerts\n"
+        f"\U0001f45b <b>Wallet</b> — forensics, portfolio, watchlist\n"
         f"\u2139\ufe0f <b>Help</b> — full command reference\n\n"
         f"\U0001f4f3 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + "
         f"{TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
@@ -194,7 +193,7 @@ def welcome_card_text() -> str:
         f"\U0001f4cc Paste any contract address \u2192 auto-scan\n"
         f"\U0001f4cc Type <code>$TOKEN</code> \u2192 instant price\n"
         f"\U0001f4cc /chat <code>your question</code> \u2192 talk to me\n"
-        f"\U0001f4cc Pick a category below \U0001f447"
+        f"\U0001f4cc Pick a section below \U0001f447"
     )
 
 

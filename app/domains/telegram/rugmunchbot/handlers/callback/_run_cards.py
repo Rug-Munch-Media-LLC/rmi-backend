@@ -71,6 +71,31 @@ _RUN_CARDS: dict[str, str] = {
         "<code>/alert BELOW &lt;addr&gt; &lt;price&gt;</code>. Manage with "
         "<code>/alerts</code> \u2014 <b>Scout+ tiers</b>."
     ),
+    "alert": (
+        "\U0001f4c4 <b>Set a Price Alert</b>\n\n"
+        "Usage: <code>/alert ABOVE &lt;addr&gt; &lt;price&gt;</code>\n"
+        "       <code>/alert BELOW &lt;addr&gt; &lt;price&gt;</code>\n"
+        "       <code>/alert CHANGE_5 &lt;addr&gt;</code>\n\n"
+        "Manage all alerts with <code>/alerts</code> \u2014 <b>Scout+ tiers</b>."
+    ),
+    "watch": (
+        "\u2b50 <b>Watch a Token</b>\n\n"
+        "Usage: <code>/watch &lt;address&gt; [chain]</code>\n\n"
+        "Add a token to your watchlist \u2014 view it anytime with "
+        "<code>/watchlist</code> and remove with <code>/unwatch &lt;address&gt;</code>."
+    ),
+    "whale": (
+        "\U0001f40b <b>Whale Movement Alerts</b>\n\n"
+        "Usage: <code>/whale &lt;address&gt;</code>\n\n"
+        "Subscribe to whale movement alerts for a token and get notified "
+        "when big wallets move."
+    ),
+    "webhook": (
+        "\U0001f517 <b>Custom Webhooks</b>\n\n"
+        "Usage: <code>/webhook</code>\n\n"
+        "Manage custom webhook notifications for price, liquidity and "
+        "security events \u2014 <b>Pro tier</b>."
+    ),
     "compare": (
         "\u2696\ufe0f <b>Compare Tokens</b>\n\n"
         "Usage: <code>/compare &lt;addr1&gt; &lt;addr2&gt;</code>\n\n"

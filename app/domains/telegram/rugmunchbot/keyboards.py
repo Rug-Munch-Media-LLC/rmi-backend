@@ -51,19 +51,21 @@ def token_buttons(address: str, chain: str, *, include_scan: bool = True) -> lis
 
 
 def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButton]]:
-    """Shared main-menu rows (v8).
+    """Shared main-menu rows (v9 — sectioned).
 
-    Five capability groups, two buttons per row:
-      Scan    · Market
-      Wallet  · Intel
-      Account · Help
+    Five primary capability sections, two buttons per row:
+      Scan         · Intelligence
+      Alerts       · Wallet
+      Account      · AI Chat
 
-    Every registered capability is reachable from one of the groups:
-      Scan    → security audits / deep / SENTINEL / rug checks
-      Market  → overview / trending / movers / launches / whales / charts
-      Wallet  → wallet forensics / portfolio / watchlist / alerts
-      Intel   → news / sentiment / research / ask / chat
-      Account → dashboard / pricing / referrals / scam school
+    Every registered capability is reachable from one of the sections:
+      Scan          → security audits / deep / SENTINEL / rug checks
+      Intelligence  → market / trending / movers / launches / whales /
+                      news / sentiment / social / research / ask / chat
+      Alerts        → price alerts / watchlist / whale alerts / webhooks
+      Wallet        → wallet forensics / portfolio / watchlist / simulate
+      Account       → dashboard / pricing / referrals / scam school
+      Help          → full command reference / community links
 
     Owner (@cryptorugmunch) additionally sees an Admin button that
     opens the admin sub-menu — hidden from all other users.
@@ -71,11 +73,11 @@ def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButto
     rows = [
         [
             InlineKeyboardButton("\U0001f50d Scan", callback_data="menu_cat_scan"),
-            InlineKeyboardButton("\U0001f4ca Market", callback_data="menu_cat_market"),
+            InlineKeyboardButton("\U0001f9e0 Intelligence", callback_data="menu_cat_intel"),
         ],
         [
+            InlineKeyboardButton("\U0001f514 Alerts", callback_data="menu_cat_alerts"),
             InlineKeyboardButton("\U0001f45b Wallet", callback_data="menu_cat_wallet"),
-            InlineKeyboardButton("\U0001f9e0 Intel", callback_data="menu_cat_intel"),
         ],
         [
             InlineKeyboardButton("\U0001f464 Account", callback_data="menu_cat_account"),
@@ -83,7 +85,7 @@ def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButto
         ],
         [
             InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
-            InlineKeyboardButton("\U0001f4e2 Alerts", url=TELEGRAM_CHANNEL),
+            InlineKeyboardButton("\U0001f4e2 Channel", url=TELEGRAM_CHANNEL),
         ],
     ]
     # Owner-only admin button — hidden from everyone else.
@@ -104,9 +106,9 @@ def main_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
 
 
 def welcome_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
-    """Main welcome menu — five capability groups (v8).
+    """Main welcome menu — five capability sections (v9).
 
-    Scan · Market · Wallet · Intel · Account · Help
+    Scan · Intelligence · Alerts · Wallet · Help
 
     Owner (@cryptorugmunch) additionally sees an Admin button that
     opens the admin sub-menu — hidden from all other users.
@@ -209,10 +211,10 @@ def category_market_kb() -> InlineKeyboardMarkup:
 
 
 def category_wallet_kb() -> InlineKeyboardMarkup:
-    """👛 Wallet submenu (v8).
+    """👛 Wallet submenu (v9).
 
-    Wallet forensics, portfolio, watchlist, alerts and trade simulator.
-    Wallet/Portfolio/Watchlist/Alerts moved here from Scan (v8).
+    Wallet forensics, portfolio, watchlist and trade simulator. Price
+    alerts moved to the dedicated Alerts section (v9).
     """
     return InlineKeyboardMarkup(
         [
@@ -222,7 +224,6 @@ def category_wallet_kb() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("\U0001f440 Watchlist", callback_data="run_watchlist"),
             ],
             [
-                InlineKeyboardButton("\U0001f514 Alerts", callback_data="run_alerts"),
                 InlineKeyboardButton("\U0001f4b5 Simulate", callback_data="run_simulate"),
             ],
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
@@ -231,25 +232,62 @@ def category_wallet_kb() -> InlineKeyboardMarkup:
 
 
 def category_intel_kb() -> InlineKeyboardMarkup:
-    """🧠 Intel submenu (v8).
+    """🧠 Intelligence submenu (v9 — full knowledge + market section).
 
-    News, sentiment, social signals, RAG research, deep answers and
-    freestyle AI chat. News/Sentiment/Social moved here from Market (v8).
+    Market overview, trending, movers, launches, whales, news, sentiment,
+    social signals, RAG research, deep answers and freestyle AI chat.
+    Market commands moved here from the old Market group (v9).
     """
     return InlineKeyboardMarkup(
         [
             [
+                InlineKeyboardButton("\U0001f4ca Market", callback_data="run_market"),
+                InlineKeyboardButton("\U0001f525 Trending", callback_data="run_trending"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f680 Movers", callback_data="run_movers"),
+                InlineKeyboardButton("\U0001f195 Launches", callback_data="run_launches"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f40b Whales", callback_data="run_whales"),
                 InlineKeyboardButton("\U0001f4f0 News", callback_data="run_news"),
+            ],
+            [
                 InlineKeyboardButton("\U0001f4c8 Sentiment", callback_data="run_sentiment"),
-            ],
-            [
                 InlineKeyboardButton("\U0001f4e3 Social", callback_data="run_social"),
-                InlineKeyboardButton("\U0001f9e0 Research", callback_data="run_research"),
             ],
             [
+                InlineKeyboardButton("\U0001f9e0 Research", callback_data="run_research"),
                 InlineKeyboardButton("\U0001f50d Ask", callback_data="run_ask"),
-                InlineKeyboardButton("\U0001f4ac Chat", callback_data="run_chat"),
             ],
+            [InlineKeyboardButton("\U0001f4ac Chat", callback_data="run_chat")],
+            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
+        ]
+    )
+
+
+def category_alerts_kb() -> InlineKeyboardMarkup:
+    """🔔 Alerts submenu (v9 — dedicated section).
+
+    Price & activity alerts, watchlist management, whale movement alerts
+    and custom webhooks. Watchlist commands moved here from the Wallet
+    group so Alerts is a first-class section.
+    """
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f514 Alerts", callback_data="run_alerts"),
+                InlineKeyboardButton("\U0001f4c4 Set Alert", callback_data="run_alert"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f440 Watchlist", callback_data="run_watchlist"),
+                InlineKeyboardButton("\u2b50 Watch", callback_data="run_watch"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f40b Whale Alerts", callback_data="run_whale"),
+                InlineKeyboardButton("\U0001f195 Launches", callback_data="run_launches"),
+            ],
+            [InlineKeyboardButton("\U0001f517 Webhooks (Pro)", callback_data="run_webhook")],
             [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
         ]
     )

@@ -52,6 +52,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     buy_stars_kb,
     category_account_kb,
     category_ai_kb,
+    category_alerts_kb,
     category_charts_kb,
     category_help_kb,
     category_intel_kb,
@@ -127,17 +128,27 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     elif data == "menu_cat_wallet":
         await query.edit_message_text(
             "\U0001f45b <b>Wallet</b>\n\n"
-            "Wallet forensics, portfolio holdings, watchlist tracking, "
-            "price alerts and trade simulation \u2014 all wallet tools in "
-            "one place.",
+            "Wallet forensics, portfolio holdings, watchlist tracking and "
+            "trade simulation \u2014 all wallet tools in one place. Price "
+            "alerts live under the dedicated Alerts section.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_wallet_kb(),
         )
+    elif data == "menu_cat_alerts":
+        await query.edit_message_text(
+            "\U0001f514 <b>Alerts</b>\n\n"
+            "Price & activity alerts, watchlist tracking, whale movement "
+            "alerts and custom webhook notifications \u2014 stay on top of "
+            "your tokens without staring at charts.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=category_alerts_kb(),
+        )
     elif data == "menu_cat_intel":
         await query.edit_message_text(
-            "\U0001f9e0 <b>Intel</b>\n\n"
-            "News, market sentiment, social signals, RAG deep research, "
-            "deep answers and freestyle AI chat \u2014 knowledge on demand.",
+            "\U0001f9e0 <b>Intelligence</b>\n\n"
+            "Market overview, trending, movers, news, sentiment, social "
+            "signals, RAG deep research, deep answers and freestyle AI "
+            "chat \u2014 knowledge on demand.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_intel_kb(),
         )
