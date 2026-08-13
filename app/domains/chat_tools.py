@@ -5,9 +5,9 @@ instead of hallucinating. This module provides:
 
 - ``_detect_tool_intent`` — pure classifier over the user message.
 - ``_exec_price`` / ``_exec_scan`` / ``_exec_trace`` / ``_exec_ta`` /
-  ``_exec_market`` — best-effort async executors that call the DIRECT data
-  modules (no x402 endpoints). Each is fail-open: returns ``None`` on any
-  error/timeout and NEVER raises.
+  ``_exec_market`` / ``_exec_news`` — best-effort async executors that call
+  the DIRECT data modules (no x402 endpoints). Each is fail-open: returns
+  ``None`` on any error/timeout and NEVER raises.
 - ``_run_tool_for_intent`` — dispatcher with an 8s timeout.
 
 Everything here is defensive by design: a failed executor is invisible to
@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -99,6 +100,16 @@ _INTENT_MARKET_PHRASES = (
     "btc/eth",
     "eth/sol",
     "btc eth sol",
+)
+
+# News — single words get word boundaries so "newsletter" does not fire as
+# news; multi-word phrases match as whole phrases. Checked AFTER market so
+# explicit market phrasing ("how's the market") stays market, and after the
+# ta/scan/trace/price branches so a price/scan query is never reclassified.
+_NEWS_KEYWORD_RE = re.compile(
+    r"\b(?:news|headlines|latest|breaking|stories)\b"
+    r"|\btop stories\b|\bbig news\b|\bwhat's happening\b|\bwhat happened today\b",
+    re.IGNORECASE,
 )
 
 # Natural token names → display symbol (price extraction without a $ prefix).
@@ -182,11 +193,14 @@ _COINGECKO_IDS: dict[str, str] = {
 
 
 def _detect_tool_intent(message: str) -> str | None:
-    """Classify ``message`` into a tool intent: price/scan/ta/market/trace/None.
+    """Classify ``message`` into a tool intent: price/scan/ta/market/news/trace/None.
 
     Priority: explicit TA keywords > scan (address/symbol + security words)
     > trace (address + forensics phrases, or address + who/what/related/trace)
-    > price (phrase + symbol/name, or a lone ``$SYMBOL``) > market phrases.
+    > price (phrase + symbol/name, or a lone ``$SYMBOL``) > market phrases
+    > news keywords. News is deliberately checked AFTER market so explicit
+    market/fear-greed/btc-eth-sol phrasing ("how's the market") stays market,
+    and after ta/scan/trace/price so a price/scan query is not reclassified.
     Returns None when no clear intent (general question → normal RAG/LLM).
     """
     low = message.lower().strip()
@@ -227,6 +241,11 @@ def _detect_tool_intent(message: str) -> str | None:
     # Market.
     if any(m in low for m in _INTENT_MARKET_PHRASES):
         return "market"
+
+    # News — checked AFTER market (explicit market phrasing wins) and after
+    # the ta/scan/trace/price branches above.
+    if _NEWS_KEYWORD_RE.search(low):
+        return "news"
 
     return None
 
@@ -591,6 +610,83 @@ async def _exec_market(message: str = "") -> str | None:
     return f"Market snapshot: {text}"
 
 
+# ── News ────────────────────────────────────────────────────────────
+# Reuses the Qdrant news_v2 helpers in app/routers/news (imported lazily) —
+# never re-implements a news query. Fail-open → None like every executor.
+
+_NEWS_SCROLL_WINDOW = 50  # scroll a window, then keep the newest 10
+_NEWS_MAX_ITEMS = 10
+
+
+def _relative_time(published_at: str | None) -> str:
+    """Compact "3h ago" from an ISO-8601 timestamp; "" when unparseable."""
+    if not published_at:
+        return ""
+    try:
+        raw = str(published_at).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        seconds = max(int((datetime.now(UTC) - dt).total_seconds()), 0)
+        if seconds < 60:
+            return f"{seconds}s ago"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours}h ago"
+        return f"{hours // 24}d ago"
+    except (TypeError, ValueError, OverflowError):
+        return ""
+
+
+async def _exec_news(message: str = "") -> str | None:
+    """Top headlines from the Qdrant news_v2 feed, newest first. Fail-open.
+
+    Calls the in-process ``_scroll_news_v2`` / ``_point_to_article`` helpers
+    from ``app.routers.news`` (never the HTTP endpoints, never a second
+    network round-trip beyond the single scroll). Renders a compact
+    "Top stories" block capped at 10 items; returns None on failure/empty.
+    """
+    try:
+        from app.routers.news import _point_to_article, _scroll_news_v2
+
+        points = await _scroll_news_v2(limit=_NEWS_SCROLL_WINDOW)
+        if not points:
+            return None
+        articles: list[dict[str, Any]] = []
+        for p in points:
+            a = _point_to_article(p)
+            if not isinstance(a, dict):
+                continue
+            if not str(a.get("title") or "").strip():
+                continue
+            articles.append(a)
+        if not articles:
+            return None
+
+        # Newest first (ISO-8601 string compare; missing published_at sinks).
+        articles.sort(key=lambda a: str(a.get("published_at") or ""), reverse=True)
+
+        lines: list[str] = []
+        for i, a in enumerate(articles[:_NEWS_MAX_ITEMS], start=1):
+            title = str(a.get("title") or "").strip()
+            source = str(a.get("source") or "").strip() or "?"
+            rel = _relative_time(a.get("published_at"))
+            rel_str = f" ({rel})" if rel else ""
+            url = str(a.get("url") or a.get("source_url") or "").strip()
+            lines.append(f"{i}. {title} — {source}{rel_str}")
+            if url:
+                lines.append(f"   {url}")
+        if not lines:
+            return None
+        return "Top stories:\n" + "\n".join(lines)
+    except Exception as e:
+        logger.debug("chat_tool_news_failed", error=str(e)[:120])
+        return None
+
+
 # ── Dispatcher ─────────────────────────────────────────────────────────
 
 TOOL_TIMEOUT_SECONDS = 8.0
@@ -601,6 +697,7 @@ _EXECUTORS: dict[str, Any] = {
     "trace": _exec_trace,
     "ta": _exec_ta,
     "market": _exec_market,
+    "news": _exec_news,
 }
 
 
