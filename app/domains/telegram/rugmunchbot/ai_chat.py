@@ -36,10 +36,10 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 from app.domains.telegram.rugmunchbot.prompts import PERSONA_CONTEXT
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

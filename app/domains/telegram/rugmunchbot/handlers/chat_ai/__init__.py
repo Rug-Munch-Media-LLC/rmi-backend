@@ -61,7 +61,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import anti_abuse, db
 from app.domains.telegram.rugmunchbot.admin_state import track_ai_query, track_message, track_tokens
 from app.domains.telegram.rugmunchbot.config import (
@@ -120,6 +119,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     paywall_kb,
 )
 from app.domains.telegram.rugmunchbot.states import check_spam
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Message

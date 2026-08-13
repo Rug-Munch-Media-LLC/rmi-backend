@@ -16,7 +16,6 @@ from typing import Any
 
 import httpx
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     COINGECKO,
@@ -26,6 +25,7 @@ from app.domains.telegram.rugmunchbot.config import (
     fmt_number,
     fmt_pct,
 )
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi.chart")
 

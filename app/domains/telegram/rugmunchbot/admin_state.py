@@ -29,8 +29,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from app.core.logging import get_logger
 from app.core.redis import get_redis_async
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger(__name__)
 

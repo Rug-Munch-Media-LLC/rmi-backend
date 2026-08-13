@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from telegram import Update
 
-from app.core.logging import get_logger
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes

@@ -26,12 +26,12 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.error import BadRequest, Forbidden, RetryAfter, TelegramError
 
-from app.core.logging import get_logger
 from app.domains.telegram import access_guard
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS, TIERS
 from app.domains.telegram.rugmunchbot.formatters import is_owner, thin_sep
 from app.domains.telegram.rugmunchbot.keyboards import admin_confirm_kb, admin_kb
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot")
 

@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING
 
 from telegram.constants import ParseMode
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import anti_abuse, db
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS
 from app.domains.telegram.rugmunchbot.formatters import detect_chain
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Update

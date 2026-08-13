@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.core.logging import get_logger
 from app.domains.telegram import access_guard
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Update

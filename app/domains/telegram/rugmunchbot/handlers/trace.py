@@ -15,7 +15,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import CommandHandler
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
@@ -37,6 +36,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     web_scan_button,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, trace_kb
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Update

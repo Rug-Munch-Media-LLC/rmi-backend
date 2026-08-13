@@ -16,8 +16,8 @@ from typing import Any, cast
 
 import httpx
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER, WEBSITE_URL, backend_headers
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi.rugmap")
 

@@ -13,7 +13,6 @@ from typing import Any
 
 import httpx
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
@@ -26,6 +25,7 @@ from app.domains.telegram.rugmunchbot.config import (
 )
 from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is_sol
 from app.domains.telegram.rugmunchbot.states import get_sol_price
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.rag.scan_memory import schedule_scan_memory_index, should_index_scan
 
 logger = get_logger("rmi_bot")

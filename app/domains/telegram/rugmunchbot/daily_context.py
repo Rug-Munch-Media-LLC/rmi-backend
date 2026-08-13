@@ -45,10 +45,10 @@ from datetime import UTC, datetime
 from html import escape
 from typing import Any
 
-from app.core.logging import get_logger
 from app.core.redis import get_redis_async
 from app.domains.telegram.rugmunchbot.config import fmt_number
 from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot.daily_context")
 

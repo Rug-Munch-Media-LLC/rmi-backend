@@ -14,7 +14,6 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import DEXSCREENER, WEBSITE_URL
 from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json, resolve_with_fallback
 from app.domains.telegram.rugmunchbot.formatters import (
@@ -26,6 +25,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.scanner_bridge import ScannerBridge
 
 if TYPE_CHECKING:
