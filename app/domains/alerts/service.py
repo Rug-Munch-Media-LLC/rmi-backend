@@ -132,3 +132,74 @@ def _severity_for(event_type: AlertType) -> str:
     if event_type in warning:
         return "warning"
     return "info"
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PLATFORM ALERT PIPELINE (canonical)
+# ────────────────────────────────────────────────────────────────────────────
+# Orchestrates normalize → dedupe → route for platform alerts (bulletin /
+# security-intel / scanner / launch / whale / syndicate / mempool). Distinct
+# from the AlertService subscription CRUD above. Pure — no network/DB; the
+# transport is the injectable `send` callable in the routing plan.
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def ingest_and_route(
+    raw_alerts: list[tuple[str, dict[str, Any]]],
+    thresholds: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Orchestrate the canonical platform-alert pipeline.
+
+    normalize → dedupe → route. ``raw_alerts`` is a list of ``(source, raw)``
+    pairs where ``source`` is one of the VALID_SOURCES and ``raw`` is the
+    detector payload dict. ``thresholds`` optionally overrides per-channel
+    routing policies (channel name → ChannelPolicy or dict with
+    ``min_severity`` / ``categories``); defaults to publisher.DEFAULT_CHANNELS.
+    """
+    from app.domains.alerts.ingestion import dedupe_alerts, normalize_alert
+    from app.domains.alerts.models import PlatformAlert
+    from app.domains.alerts.publisher import route_alerts
+
+    normalized: list[PlatformAlert] = []
+    for source, raw in raw_alerts:
+        alert = normalize_alert(source, raw)
+        if alert is not None:
+            normalized.append(alert)
+
+    deduped = dedupe_alerts(normalized)
+    policies = _policies_from_thresholds(thresholds)
+    plan = route_alerts(deduped, channel_filter=policies)
+
+    return {
+        "received": len(raw_alerts),
+        "normalized_count": len(normalized),
+        "dropped_count": len(raw_alerts) - len(normalized),
+        "normalized": [a.to_dict() for a in normalized],
+        "deduped_count": len(deduped),
+        "duplicates_removed": len(normalized) - len(deduped),
+        "deduped": [a.to_dict() for a in deduped],
+        "plan": plan,
+    }
+
+
+def _policies_from_thresholds(
+    thresholds: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build a channel→ChannelPolicy map from a thresholds dict (or defaults)."""
+    from app.domains.alerts.publisher import DEFAULT_CHANNELS, ChannelPolicy
+
+    if not thresholds:
+        return DEFAULT_CHANNELS
+    policies: dict[str, Any] = {}
+    for channel, cfg in thresholds.items():
+        if isinstance(cfg, ChannelPolicy):
+            policies[channel] = cfg
+        elif isinstance(cfg, dict):
+            categories = cfg.get("categories")
+            policies[channel] = ChannelPolicy(
+                min_severity=str(cfg.get("min_severity", "low")),
+                categories=frozenset(categories) if categories else None,
+            )
+        else:
+            policies[channel] = DEFAULT_CHANNELS.get(channel, ChannelPolicy())
+    return policies or DEFAULT_CHANNELS
