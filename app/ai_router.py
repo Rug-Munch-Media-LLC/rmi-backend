@@ -16,13 +16,15 @@ import json
 import os
 import re
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
+
+import httpx
 
 from app.core.logging import get_logger
+from app.databus.proxy_rotator import get_proxy_rotator
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
-
-    import httpx
 
 from fastapi import APIRouter
 
@@ -188,6 +190,46 @@ async def list_models() -> dict[str, Any]:
 # ── Provider call helpers ──
 
 
+def _is_proxyable_destination(url: str) -> bool:
+    """True when ``url`` targets a public host that should ride the proxy tier.
+
+    Private / loopback destinations (the local llama.cpp servers on the docker
+    bridge, localhost) are never proxied: a residential proxy cannot reach
+    RFC1918 space, so sending those through the tier would only burn a
+    rotation and add latency.
+    """
+    try:
+        host = urlsplit(url).hostname
+    except ValueError:
+        return False
+    if not host:
+        return False
+    host = host.lower()
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        return False
+    # RFC1918 private ranges: 10/8, 172.16/12 (docker bridge), 192.168/16
+    return not host.startswith(("10.", "172.", "192.168."))
+
+
+def _build_ai_client(rotator: Any, url: str) -> tuple[Any, str | None]:
+    """Build the httpx client for one chat request.
+
+    When the residential proxy rotator is enabled AND ``url`` is a public
+    destination, the client is routed through the next rotating proxy
+    (proxy-first, gmgn_provider style). Otherwise — rotator disabled, every
+    proxy on cooldown, or a private/loopback destination — the client is
+    direct.
+
+    Returns ``(client, proxy_url)`` where ``proxy_url`` is None for a direct
+    client; the caller passes both to :func:`_post_chat` so a blocked proxy
+    can be marked failed and retried direct.
+    """
+    proxy_url: str | None = None
+    if rotator.enabled and _is_proxyable_destination(url):
+        proxy_url = rotator.get_rotating_proxy()
+    return rotator.get_client(proxy=proxy_url), proxy_url
+
+
 async def _post_chat(
     client: Any,
     url: str,
@@ -196,18 +238,65 @@ async def _post_chat(
     temperature: float,
     max_tokens: int,
     provider: str,
+    *,
+    proxy_url: str | None = None,
+    rotator: Any = None,
 ) -> dict[str, Any] | None:
-    """POST a chat completion; return normalized dict or None on failure."""
-    resp = await client.post(
-        url,
-        json={
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        },
-        headers={"Content-Type": "application/json"},
-    )
+    """POST a chat completion; return normalized dict or None on failure.
+
+    When the client is proxy-routed (``proxy_url`` set), a 403/429/5xx
+    response or a transport error marks the proxy failed (cooldown) and
+    retries the request once against a direct client — the same
+    proxy→direct fallback as :mod:`app.databus.gmgn_provider`, so a
+    blocked/banned residential egress degrades to the datacenter IP instead
+    of failing the call.
+    """
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+
+    async def _do_post(post_client: Any) -> httpx.Response:
+        return await post_client.post(
+            url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+
+    proxied = proxy_url is not None and rotator is not None
+
+    try:
+        resp = await _do_post(client)
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
+        if not proxied:
+            logger.warning("local_llm_unreachable", provider=provider, url=url[:120])
+            return None
+        logger.warning("llm_proxy_transport_error", provider=provider, url=url[:120])
+        rotator.mark_failed(proxy_url)
+        direct = rotator.get_client(proxy=None)
+        try:
+            resp = await _do_post(direct)
+        except (httpx.HTTPError, ConnectionError, TimeoutError):
+            return None
+        finally:
+            await direct.aclose()
+
+    if proxied and (resp.status_code in (403, 429) or resp.status_code >= 500):
+        logger.warning(
+            "llm_proxy_blocked",
+            provider=provider,
+            status=resp.status_code,
+            url=url[:120],
+        )
+        rotator.mark_failed(proxy_url)
+        direct = rotator.get_client(proxy=None)
+        try:
+            resp = await _do_post(direct)
+        finally:
+            await direct.aclose()
+
     if resp.status_code != 200:
         logger.warning(
             "local_llm_non_200",
@@ -260,8 +349,6 @@ async def chat_completion(
       2. The other local llama.cpp server (cross-model redundancy)
       3. ExternalAPIError
     """
-    import httpx
-
     from app.core.ai_guardrails import sanitize_input as _guard_input, sanitize_output as _guard_output
 
     resolved_model = _resolve_model(model, task_type)
@@ -286,17 +373,26 @@ async def chat_completion(
             messages_safe[i]["content"] = cleaned
             break
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    # Client is proxy-first when the residential rotator is enabled and the
+    # destination is public (see _build_ai_client); local llama.cpp stays
+    # direct. _post_chat retries direct on a blocked/banned proxy.
+    rotator = get_proxy_rotator()
+    first_url = f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[resolved_model]}/v1/chat/completions"
+    client, proxy_url = _build_ai_client(rotator, first_url)
+
+    async with client:
         # ── 1: Direct llama.cpp for the resolved model ──
         try:
             result = await _post_chat(
                 client,
-                f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[resolved_model]}/v1/chat/completions",
+                first_url,
                 resolved_model,
                 messages_safe,
                 temperature,
                 max_tokens,
                 provider="llama-direct",
+                proxy_url=proxy_url,
+                rotator=rotator,
             )
             if result:
                 content = _guard_output(result["content"])
@@ -307,15 +403,18 @@ async def chat_completion(
 
         # ── 2: Cross-model local fallback ──
         other = _other_local(resolved_model)
+        other_url = f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions"
         try:
             result = await _post_chat(
                 client,
-                f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions",
+                other_url,
                 other,
                 messages_safe,
                 temperature,
                 max_tokens,
                 provider="llama-direct-cross",
+                proxy_url=proxy_url,
+                rotator=rotator,
             )
             if result:
                 content = _guard_output(result["content"])

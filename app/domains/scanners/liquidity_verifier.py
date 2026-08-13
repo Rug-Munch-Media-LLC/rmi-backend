@@ -23,10 +23,7 @@ Data sources (direct API calls - no self.api_base):
 from __future__ import annotations
 
 import json
-import os
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
 from typing import Any, ClassVar, cast
 
 import httpx
@@ -42,80 +39,29 @@ from app.domains.scanner.modules._core import (
 )
 from app.domains.scanners._sentinel_registry import sentinel_module
 
+# ── Degodded split (2026-08-14) ────────────────────────────────────────
+# Pure types/constants live in sibling submodules; re-exported here so
+# every existing importer keeps the same names / objects (NO behavior change).
+from ._config import (  # noqa: F401 re-export
+    BSCSCAN_API_KEY,
+    ETHERSCAN_API_KEY,
+    ETHERSCAN_NETWORKS,
+    FTMSCAN_API_KEY,
+    HELIUS_API_KEY,
+    HELIUS_RPC_URL,
+    MORALIS_API_KEY,
+    MORALIS_DATA_URL,
+    POLYGONSCAN_API_KEY,
+    SNOWTRACE_API_KEY,
+)
+from ._models import (
+    SOLANA_BURN_ADDRESSES,
+    LockDetail,
+    LockReport,
+    LockStatus,
+)
+
 logger = get_logger("liquidity_verifier")
-
-# ── API Keys ────────────────────────────────────────────────
-
-ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY", "")
-BSCSCAN_API_KEY = os.getenv("BSCSCAN_API_KEY", "")
-POLYGONSCAN_API_KEY = os.getenv("POLYGONSCAN_API_KEY", "")
-SNOWTRACE_API_KEY = os.getenv("SNOWTRACE_API_KEY", "")
-FTMSCAN_API_KEY = os.getenv("FTMSCAN_API_KEY", "")
-MORALIS_API_KEY = os.getenv("MORALIS_API_KEY", "")
-HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "")
-
-# Etherscan-family network configs
-ETHERSCAN_NETWORKS = {
-    "ethereum": {"url": "https://api.etherscan.io/api", "key": ETHERSCAN_API_KEY},
-    "eth": {"url": "https://api.etherscan.io/api", "key": ETHERSCAN_API_KEY},
-    "bsc": {"url": "https://api.bscscan.com/api", "key": BSCSCAN_API_KEY},
-    "polygon": {"url": "https://api.polygonscan.com/api", "key": POLYGONSCAN_API_KEY},
-    "avalanche": {"url": "https://api.snowtrace.io/api", "key": SNOWTRACE_API_KEY},
-    "fantom": {"url": "https://api.ftmscan.com/api", "key": FTMSCAN_API_KEY},
-    "arbitrum": {"url": "https://api.arbiscan.io/api", "key": ETHERSCAN_API_KEY},
-    "optimism": {"url": "https://api-optimistic.etherscan.io/api", "key": ETHERSCAN_API_KEY},
-    "base": {"url": "https://api.basescan.org/api", "key": ETHERSCAN_API_KEY},
-}
-
-MORALIS_DATA_URL = "https://deep-index.moralis.io/api/v2.2"
-HELIUS_RPC_URL = os.getenv("HELIUS_RPC_URL", "https://mainnet.helius-rpc.com")
-
-
-class LockStatus(Enum):
-    LOCKED = "locked"
-    BURNED = "burned"
-    UNLOCKED = "unlocked"
-    PARTIAL = "partial"  # Split lock (e.g., 80% locked, 20% unlocked)
-    EXPIRED = "expired"
-    UNKNOWN = "unknown"
-
-
-@dataclass
-class LockDetail:
-    locker_address: str
-    platform: str  # "UNCX", "TeamFinance", "PinkLock", "Mudra", "SolanaBurn"
-    lock_id: str = ""
-    amount_locked: float = 0.0
-    total_supply: float = 0.0
-    percentage_locked: float = 0.0
-    lock_expiry: int | None = None  # unix timestamp
-    is_legit: bool = True  # False if locker is a fake/unverified contract
-    is_burned: bool = False
-    unlock_in_days: int | None = None
-
-
-@dataclass
-class LockReport:
-    token_address: str
-    chain: str
-    status: LockStatus
-    total_locked_percentage: float  # % of LP locked or burned
-    lock_details: list[LockDetail]
-    is_legitimate_locker: bool  # True if all lockers are verified platforms
-    has_split_lock: bool  # True if partial lock detected
-    upcoming_unlocks: list[LockDetail]  # Locks expiring within 7 days
-    fake_lock_detected: bool  # True if a fake/unverified locker is found
-    lp_burned: bool  # True if LP tokens are burned (Solana)
-    risk_score: int = 0  # 0-100
-    risk_level: str = "LOW"  # LOW, MEDIUM, HIGH, CRITICAL
-    warnings: list[str] = field(default_factory=list)
-
-
-# Dead/burn addresses for Solana
-SOLANA_BURN_ADDRESSES = {
-    "1nc1nerator11111111111111111111111111111111",
-    "11111111111111111111111111111111",
-}
 
 
 @sentinel_module(

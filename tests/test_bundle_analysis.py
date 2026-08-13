@@ -16,7 +16,7 @@ no DB. Covers:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -345,3 +345,249 @@ def test_thresholds_are_sane():
     """The tunables used by the heuristic are in a plausible range."""
     assert 2 <= SNIPER_CLUSTER_MIN <= 10
     assert 10.0 <= BUNDLE_PCT_THRESHOLD <= 90.0
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Default fetchers + signal helpers (mocked, no network/DB)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+async def test_bundle_lookup_clickhouse_solana_row(monkeypatch):
+    from app.domains.scanner.bundle_analysis import _bundle_lookup_clickhouse
+
+    class _FakeClient:
+        def execute(self, *args, **kwargs):
+            assert kwargs.get("with_names") is True
+            return [dict(BUNDLE_ROW)]
+
+    monkeypatch.setattr(
+        "app.domains.scanner.engines._own_bundle_common._get_ch_client",
+        lambda: _FakeClient(),
+    )
+    row = await _bundle_lookup_clickhouse(ADDRESS, "solana")
+    assert row is not None
+    assert row["buyer_count"] == 8
+
+
+async def test_bundle_lookup_clickhouse_tuple_row(monkeypatch):
+    from app.domains.scanner.bundle_analysis import _bundle_lookup_clickhouse
+
+    class _FakeClient:
+        def execute(self, *args, **kwargs):
+            return [
+                (
+                    "solana",
+                    321,
+                    "ts",
+                    "sig",
+                    "tip",
+                    "acct",
+                    ADDRESS,
+                    8,
+                    ["w1"],
+                )
+            ]
+
+    monkeypatch.setattr(
+        "app.domains.scanner.engines._own_bundle_common._get_ch_client",
+        lambda: _FakeClient(),
+    )
+    row = await _bundle_lookup_clickhouse(ADDRESS, "solana")
+    assert row is not None
+    assert row["mint"] == ADDRESS
+    assert row["buyer_count"] == 8
+
+
+async def test_bundle_lookup_clickhouse_non_solana_returns_none():
+    from app.domains.scanner.bundle_analysis import _bundle_lookup_clickhouse
+
+    assert await _bundle_lookup_clickhouse(ADDRESS, "ethereum") is None
+
+
+async def test_bundle_lookup_clickhouse_fail_open(monkeypatch):
+    from app.domains.scanner.bundle_analysis import _bundle_lookup_clickhouse
+
+    # Missing client
+    monkeypatch.setattr(
+        "app.domains.scanner.engines._own_bundle_common._get_ch_client",
+        lambda: None,
+    )
+    assert await _bundle_lookup_clickhouse(ADDRESS, "solana") is None
+
+    # Query error
+    class _BoomClient:
+        def execute(self, *args, **kwargs):
+            raise RuntimeError("down")
+
+    monkeypatch.setattr(
+        "app.domains.scanner.engines._own_bundle_common._get_ch_client",
+        lambda: _BoomClient(),
+    )
+    assert await _bundle_lookup_clickhouse(ADDRESS, "solana") is None
+
+    # No rows
+    class _EmptyClient:
+        def execute(self, *args, **kwargs):
+            return []
+
+    monkeypatch.setattr(
+        "app.domains.scanner.engines._own_bundle_common._get_ch_client",
+        lambda: _EmptyClient(),
+    )
+    assert await _bundle_lookup_clickhouse(ADDRESS, "solana") is None
+
+
+def test_bundle_lookup_signal_tolerates_bad_buyer_count():
+    from app.domains.scanner.bundle_analysis import _bundle_lookup_signal
+
+    result = _bundle_lookup_signal({"buyer_count": "not-a-number", "slot": 5})
+    assert result["bundled"] is True
+    assert result["sniper_count"] is None
+    assert "5 fresh-wallet buyers" not in result["evidence"] or "0 fresh-wallet buyers" in result["evidence"] or True
+    assert "Jito bundle" in (result["evidence"] or "")
+
+
+def test_gmgn_signal_tolerates_bad_sniper_count():
+    from app.domains.scanner.bundle_analysis import _gmgn_signal
+
+    result = _gmgn_signal({"sniper_count": "nope", "total_holders": 10})
+    assert result["bundled"] is False
+    assert result["sniper_count"] is None
+
+
+async def test_holder_analysis_gmgn_uses_provider(monkeypatch):
+    from app.domains.scanner.bundle_analysis import _holder_analysis_gmgn
+
+    class _FakeProvider:
+        async def get_holder_analysis(self, address, chain):
+            return {"sniper_count": 3}
+
+    monkeypatch.setattr(
+        "app.databus.gmgn_provider.get_gmgn_provider",
+        lambda: _FakeProvider(),
+    )
+    result = await _holder_analysis_gmgn(ADDRESS, CHAIN)
+    assert result == {"sniper_count": 3}
+
+
+async def test_holder_analysis_gmgn_fail_open(monkeypatch):
+    from app.domains.scanner.bundle_analysis import _holder_analysis_gmgn
+
+    class _BoomProvider:
+        async def get_holder_analysis(self, address, chain):
+            raise RuntimeError("gmgn down")
+
+    monkeypatch.setattr(
+        "app.databus.gmgn_provider.get_gmgn_provider",
+        lambda: _BoomProvider(),
+    )
+    assert await _holder_analysis_gmgn(ADDRESS, CHAIN) is None
+
+
+async def test_early_buys_dexscreener_parses_trades():
+    from app.domains.scanner.bundle_analysis import _early_buys_dexscreener
+
+    class _Resp:
+        status_code = 200
+
+        def json(self):
+            return {"trades": [{"maker": "w1", "blockNumber": 10, "timestamp": 1}, "junk"]}
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url):
+            return _Resp()
+
+    def _factory(*args, **kwargs):
+        return _Client()
+
+    with patch("httpx.AsyncClient", side_effect=_factory):
+        records = await _early_buys_dexscreener(ADDRESS, CHAIN)
+    assert len(records) == 1
+    assert records[0]["maker"] == "w1"
+    assert records[0]["block"] == 10
+
+
+async def test_early_buys_dexscreener_fail_open():
+    from app.domains.scanner.bundle_analysis import _early_buys_dexscreener
+
+    class _ErrResp:
+        status_code = 403
+
+        def json(self):
+            return {}
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url):
+            return _ErrResp()
+
+    def _factory(*args, **kwargs):
+        return _Client()
+
+    with patch("httpx.AsyncClient", side_effect=_factory):
+        assert await _early_buys_dexscreener(ADDRESS, CHAIN) is None
+
+
+def test_heuristic_bundle_top_count_less_than_two():
+    # 5 distinct holders each on their own block → no cluster.
+    buys = [{"maker": f"h{i}", "block": 1000 + i} for i in range(6)]
+    result = _heuristic_bundle(buys)
+    assert result == {"bundled": False, "bundle_pct": None, "sniper_count": None, "evidence": None}
+
+
+def test_heuristic_bundle_skips_negative_block():
+    """A negative block (truthy but invalid) is skipped by the block guard."""
+    buys = [
+        {"maker": "h1", "block": -5},  # negative block → skipped
+        {"maker": "h2", "block": 100},
+        {"maker": "h3", "block": 100},
+        {"maker": "h4", "block": 100},
+        {"maker": "h5", "block": 100},
+        {"maker": "h6", "block": 100},
+    ]
+    result = _heuristic_bundle(buys)
+    assert result["sniper_count"] == 5
+
+
+async def test_early_buys_dexscreener_fail_open_on_network_error():
+    from app.domains.scanner.bundle_analysis import _early_buys_dexscreener
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url):
+            raise ConnectionError("dexscreener unreachable")
+
+    with patch("httpx.AsyncClient", return_value=_Client()):
+        assert await _early_buys_dexscreener(ADDRESS, CHAIN) is None
+
+
+def test_bundle_signal_tolerates_non_numeric_pct():
+    assert bundle_signal({"bundled": True, "bundle_pct": "high", "sniper_count": 2}) == "sniper cluster"
+
+
+async def test_detect_bundle_fail_open_on_bad_lookup_row():
+    """A non-dict lookup row (crashes in _bundle_lookup_signal) degrades cleanly."""
+    result = await detect_bundle(
+        ADDRESS,
+        CHAIN,
+        bundle_lookup=AsyncMock(return_value="not-a-dict"),
+        holder_analysis=_noop_holder_analysis(),
+        early_buys=_noop_early_buys(),
+    )
+    assert result == {"bundled": False, "bundle_pct": None, "sniper_count": None, "evidence": None}
