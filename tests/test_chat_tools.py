@@ -1,7 +1,7 @@
 """Pure unit tests for the chat tool-use layer (live data grounding).
 
 Covers ``app/domains/chat_tools.py`` + the ``chat.py`` integration helpers:
-  - ``_detect_tool_intent``: classifier → price/scan/ta/market/None.
+  - ``_detect_tool_intent``: classifier → price/scan/ta/market/trace/None.
   - ``_extract_price_symbol`` / ``_extract_first_address`` / ``_chain_for_address``.
   - Executors (``_exec_price`` / ``_exec_scan`` / ``_exec_ta`` / ``_exec_market``):
     fail-open → None when the underlying fetch raises; format output when
@@ -68,9 +68,10 @@ def _make_candles(n: int = 20, start: float = 100.0) -> list[dict]:
         ("$BTC", "price"),
         ("btc price", "price"),
         ("how much is " + _EVM, "price"),  # address + explicit price phrase
-        # scan — keywords + address/symbol, or a lone address
-        (_EVM, "scan"),
-        (_SOL, "scan"),
+        # scan — security keywords + address/symbol; a bare address without a
+        # security keyword or forensics intent is now None (trace owns forensics)
+        (_EVM, None),
+        (_SOL, None),
         (f"scan this token {_EVM}", "scan"),
         (f"is {_EVM} a honeypot", "scan"),
         (f"rug pull check on {_EVM}", "scan"),
