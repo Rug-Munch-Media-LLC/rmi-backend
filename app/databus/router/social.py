@@ -104,6 +104,42 @@ async def social_sentiment(username: str = Query("CryptoRugMunch")) -> Any:
     return await agg.get_sentiment(username)
 
 
+@router.get("/social/sentiment/token/{token}")  # type: ignore[untyped-decorator]
+async def social_sentiment_token(token: str, window: str = Query("24h")) -> dict[str, Any]:
+    """Per-token social sentiment metrics (LunarCrush-style engine).
+
+    Windows: 1h | 24h | 7d. Computed from ingested posts (X/nitter +
+    Farcaster + Reddit); cached 12h in Redis, RAG-embedded nightly.
+    """
+    from app.databus.social_sentiment import get_social_sentiment
+
+    return get_social_sentiment(token, window=window)
+
+
+@router.get("/social/sentiment/trending")  # type: ignore[untyped-decorator]
+async def social_sentiment_trending(limit: int = Query(20, ge=1, le=100)) -> dict[str, Any]:
+    """Trending tokens by mention velocity x sentiment x influence."""
+    from app.databus.social_sentiment import get_social_trending
+
+    return get_social_trending(limit=limit)
+
+
+@router.get("/social/sentiment/account/{account}")  # type: ignore[untyped-decorator]
+async def social_sentiment_account(account: str) -> dict[str, Any]:
+    """Per-account social metrics: influence/tier, sentiment, token focus."""
+    from app.databus.social_sentiment import get_account_social
+
+    return get_account_social(account)
+
+
+@router.post("/social/sentiment/index-rag")  # type: ignore[untyped-decorator]
+async def social_sentiment_index_rag(limit_tokens: int = Query(50, ge=1, le=200)) -> dict[str, Any]:
+    """Recompute + embed token sentiment metrics into the RAG ``social_sentiment`` collection."""
+    from app.databus.social_sentiment import index_social_sentiment_to_rag
+
+    return await index_social_sentiment_to_rag(limit_tokens=limit_tokens)
+
+
 @router.get("/social/x/budget")
 async def social_x_budget() -> dict[str, Any]:
     """Current X API read budget status."""

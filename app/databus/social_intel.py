@@ -39,6 +39,54 @@ def _kol_key(handle: str) -> str:
     return f"kol:{handle.lower().lstrip('@')}"
 
 
+def get_tracked_accounts() -> list[dict[str, Any]]:
+    """Influencer registry-backed tracked account list (curated CT + registry).
+
+    Lazily imported from x_intel to keep module load light and avoid cycles.
+    """
+    from app.databus.x_intel import TRACKED_ACCOUNTS
+
+    return list(TRACKED_ACCOUNTS)
+
+
+def seed_kol_database_from_registry() -> int:
+    """Seed KOL_DATABASE with tracked accounts so KOL tracking is registry-aware.
+
+    Idempotent; returns number of accounts newly seeded.
+    """
+    from app.databus.x_intel import TRACKED_ACCOUNTS
+
+    seeded = 0
+    for acc in TRACKED_ACCOUNTS:
+        handle = str(acc.get("handle", "")).lstrip("@")
+        if not handle:
+            continue
+        key = _kol_key(handle)
+        if key not in KOL_DATABASE:
+            KOL_DATABASE[key] = {
+                "calls": [],
+                "metrics": {
+                    "total_calls": 0,
+                    "buy_calls": 0,
+                    "sell_calls": 0,
+                    "shills": 0,
+                    "warnings": 0,
+                    "analyses": 0,
+                    "tokens_mentioned": set(),
+                    "avg_roi": 0,
+                    "win_rate": 0,
+                    "followers": 0,
+                    "tier": acc.get("tier"),
+                    "category": acc.get("category"),
+                    "farcaster": acc.get("farcaster"),
+                },
+            }
+            seeded += 1
+    if seeded:
+        logger.info(f"Seeded {seeded} registry accounts into KOL database")
+    return seeded
+
+
 async def track_kol_call(
     handle: str,
     token: str,
@@ -447,6 +495,7 @@ async def get_social_metrics(**kw) -> dict[str, Any]:
         },
         "kol_activity": {
             "tracked": len(KOL_DATABASE),
+            "registry_tracked": len(get_tracked_accounts()),
             "active_campaigns": len(DETECTED_CAMPAIGNS),
             "high_risk_signals": sum(1 for c in DETECTED_CAMPAIGNS if c.get("severity") == "CRITICAL"),
         },

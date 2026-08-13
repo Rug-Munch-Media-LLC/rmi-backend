@@ -449,6 +449,21 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         indexed["errors"].append(f"social: {str(e)[:100]}")
 
+    try:
+        # ── 5. Index social sentiment metrics (LunarCrush-style engine) ──
+        from app.databus.social_sentiment import index_social_sentiment_to_rag
+
+        sent = await index_social_sentiment_to_rag(limit_tokens=50)
+        indexed["collections"]["social_sentiment"] = sent.get("ingested", 0)
+        indexed["total_docs"] += sent.get("ingested", 0)
+        logger.info(
+            f"RAG indexed {sent.get('ingested', 0)} social_sentiment docs "
+            f"({sent.get('tokens_analyzed', 0)} tokens analyzed)"
+        )
+
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, ImportError) as e:
+        indexed["errors"].append(f"social_sentiment: {str(e)[:100]}")
+
     indexed["completed_at"] = datetime.now(UTC).isoformat()
     indexed["source"] = "rag_ingestion"
 
@@ -534,6 +549,7 @@ async def rag_health_check(**kw) -> dict[str, Any]:
             "ct_rundown",
             "market_intel",
             "social_intel",
+            "social_sentiment",
             "wallet_profiles",
             "token_analysis",
             "scam_patterns",

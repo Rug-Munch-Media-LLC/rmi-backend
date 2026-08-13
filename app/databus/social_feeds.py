@@ -8,6 +8,8 @@ import hashlib
 import json
 import logging
 import time
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -136,6 +138,98 @@ def fetch_nitter(db_r=None) -> Any:
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
                 pass  # Try next instance
     return results
+
+
+def sync_nitter_sources_from_tracked(top_n: int = 100, sources_file: str | None = None) -> dict[str, Any]:
+    """Add nitter RSS entries for the top-N tracked accounts into unified_news_sources.json.
+
+    Ranked by account weight (registry ``tier`` when present, curated
+    ``weight`` otherwise). Existing nitter entries are never duplicated and
+    no handle with an existing ``https://nitter.net/{handle}/rss`` URL is
+    re-added. Idempotent — safe to re-run once influential_accounts.json
+    lands (it reads the merged account list from x_intel).
+
+    Returns a summary dict with counts for logging/tests.
+    """
+    from app.databus import x_intel
+
+    if sources_file is None:
+        sources_file = str(Path(__file__).resolve().parent / "unified_news_sources.json")
+
+    data = json.loads(Path(sources_file).read_text(encoding="utf-8"))
+    sources = data.setdefault("sources", [])
+
+    existing_urls = {str(s.get("url", "")).lower() for s in sources if isinstance(s, dict)}
+    existing_ids = {str(s.get("id", "")).lower() for s in sources if isinstance(s, dict)}
+
+    def _priority(acc: dict[str, Any]) -> int:
+        tier = acc.get("tier")
+        try:
+            if tier is not None and int(tier) in (1, 2):
+                return int(tier)
+        except (TypeError, ValueError):
+            pass
+        weight = float(acc.get("weight") or 0)
+        return 1 if weight >= 0.85 else 2 if weight >= 0.7 else 3
+
+    def _tier_rank(acc: dict[str, Any]) -> int:
+        try:
+            return int(acc.get("tier") or 4)
+        except (TypeError, ValueError):
+            return 4
+
+    # Primary sort: registry tier (1 first), then weight, then handle.
+    ranked = sorted(
+        x_intel.TRACKED_ACCOUNTS,
+        key=lambda a: (_tier_rank(a), -float(a.get("weight") or 0), str(a.get("handle", "")).lower()),
+    )
+
+    added = 0
+    skipped = 0
+    for acc in ranked[:top_n]:
+        handle = str(acc.get("handle", "")).strip().lstrip("@")
+        if not handle:
+            continue
+        url = f"https://nitter.net/{handle}/rss"
+        if url.lower() in existing_urls:
+            skipped += 1
+            continue
+        prio = _priority(acc)
+        slug = handle.lower().replace("/", "_")
+        source_id = f"twitter-{slug}"
+        if source_id.lower() in existing_ids:
+            skipped += 1
+            continue
+        sources.append(
+            {
+                "id": source_id,
+                "name": f"{acc.get('name') or handle} (X)",
+                "url": url,
+                "category": "social",
+                "type": "nitter",
+                "priority": prio,
+                "quality_tier": "established" if prio == 1 else "independent",
+                "language": "en",
+                "requires_api_key": False,
+                "verified": True,
+                "needs_verification": False,
+            }
+        )
+        existing_urls.add(url.lower())
+        existing_ids.add(source_id.lower())
+        added += 1
+
+    data["total_sources"] = len(sources)
+    data["updated"] = datetime.now(UTC).date().isoformat()
+    note = data.setdefault("verification", {}).setdefault("note", "")
+    data["verification"]["note"] = (
+        note + f"; nitter sync from tracked accounts ({added} added, {skipped} already present) "
+        f"{datetime.now(UTC).date().isoformat()}"
+    ).strip("; ")
+
+    Path(sources_file).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    logger.info(f"nitter sync: added={added} skipped={skipped} total_sources={len(sources)}")
+    return {"added": added, "skipped": skipped, "total_sources": len(sources), "top_n": top_n}
 
 
 def merge_into_redis(articles, prefix="rmi:news") -> Any | int:

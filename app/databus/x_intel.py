@@ -17,6 +17,7 @@ import subprocess
 import urllib.parse
 from collections import Counter
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -278,8 +279,100 @@ CT_ACCOUNTS: dict[str, list[dict[str, Any]]] = {
     ],
 }
 
+# ── Influential Accounts Registry (built concurrently) ──────────────
+# app/databus/influential_accounts.json — the ~250-account registry.
+# Actual format (see file; loader tolerates missing/extra keys):
+# {
+#   "registry": "influential accounts",
+#   "description": "...",
+#   "total": 256,
+#   "categories": {...},
+#   "overlap_with_ct": [...],   # handles already in CT_ACCOUNTS
+#   "overlap_count": 123,
+#   "generated": "...",
+#   "accounts": [
+#     {
+#       "handle": "VitalikButerin",   # X handle — canonical dedup key
+#       "name": "Vitalik Buterin",
+#       "tier": 1,                    # 1 = highest signal (2 = secondary)
+#       "category": "founder",        # free-form, mirrors CT categories
+#       "notes": "...",               # optional context
+#       "overlap_with_ct": true,      # already curated in CT_ACCOUNTS
+#       "verified": true
+#     }
+#   ]
+# }
+# Optional account fields the pipeline consumes when present: ``weight``
+# (0..1 engagement weight), ``farcaster`` (Farcaster username for
+# post-scraping), ``platforms`` (e.g. ["x", "farcaster"]).
+# When the file is absent (registry still building) we degrade gracefully
+# to the curated CT_ACCOUNTS list below — the pipeline is registry-ready.
+
+_INFLUENTIAL_ACCOUNTS_FILE = Path(__file__).resolve().parent / "influential_accounts.json"
+
+
+def load_influential_accounts() -> list[dict[str, Any]]:
+    """Load the influencer registry. Returns [] when absent/malformed."""
+    try:
+        if not _INFLUENTIAL_ACCOUNTS_FILE.exists():
+            return []
+        data = json.loads(_INFLUENTIAL_ACCOUNTS_FILE.read_text(encoding="utf-8"))
+        accounts = data.get("accounts", []) if isinstance(data, dict) else []
+        return [a for a in accounts if isinstance(a, dict) and a.get("handle")]
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning(f"influential_accounts.json load failed: {e}")
+        return []
+
+
+def _merge_influential_accounts(accounts: list[dict[str, Any]]) -> None:
+    """Merge registry accounts into CT_ACCOUNTS, dedup on lowercased handle.
+
+    Existing curated accounts keep their metadata (name/category/weight);
+    the registry only fills in optional enrichments (farcaster, tier,
+    platforms) for them. New handles are appended under the
+    ``influencer_registry`` tier.
+    """
+    if not accounts:
+        return
+    existing = {a["handle"].lower(): a for tier in CT_ACCOUNTS.values() for a in tier}
+    registry_tier = CT_ACCOUNTS.setdefault("influencer_registry", [])
+    added = 0
+    for acc in accounts:
+        handle = str(acc.get("handle", "")).lower().lstrip("@")
+        if not handle:
+            continue
+        cur = existing.get(handle)
+        if cur is not None:
+            # Keep curated metadata; absorb optional registry enrichments.
+            for k in ("farcaster", "tier", "platforms"):
+                if k not in cur and acc.get(k) is not None:
+                    cur[k] = acc[k]
+            continue
+        entry: dict[str, Any] = {
+            "handle": acc.get("handle"),
+            "name": acc.get("name") or acc.get("handle"),
+            "category": acc.get("category") or "influencer",
+            "weight": float(acc.get("weight") or 0.7),
+        }
+        for k in ("farcaster", "tier", "platforms", "verified"):
+            if acc.get(k) is not None:
+                entry[k] = acc[k]
+        registry_tier.append(entry)
+        existing[handle] = entry
+        added += 1
+    if added:
+        logger.info(f"Merged {added} influencer-registry accounts into CT tracking")
+
+
+INFLUENTIAL_ACCOUNTS = load_influential_accounts()
+_merge_influential_accounts(INFLUENTIAL_ACCOUNTS)
+
 ALL_CT = [a for tier in CT_ACCOUNTS.values() for a in tier]
 CT_HANDLES = [a["handle"].lower() for a in ALL_CT]
+
+# Merged tracked-account list (curated + registry) shared with
+# social_scraper / social_intel for post-scraping.
+TRACKED_ACCOUNTS: list[dict[str, Any]] = [dict(a) for a in ALL_CT]
 
 GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 
