@@ -69,6 +69,8 @@ class NewsArticle(BaseModel):
     market_impact: str | None = None  # high / medium / low
     tokens_mentioned: list[str] = Field(default_factory=list)
     group_id: str | None = None  # same story from multiple sources
+    cluster_id: str | None = None  # T03 story cluster (persistent, content-derived)
+    source_count: int = 0  # distinct sources covering this story
     corroborating_sources: int = 0  # how many sources report this
 
 

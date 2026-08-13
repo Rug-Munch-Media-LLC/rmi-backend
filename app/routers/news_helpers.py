@@ -50,6 +50,8 @@ def _point_to_article(point: dict[str, Any]) -> dict[str, Any]:
         "chains_mentioned": list(meta.get("chains_mentioned") or []),
         "news_id": meta.get("news_id") or "",
         "group_id": meta.get("group_id"),
+        "cluster_id": meta.get("cluster_id"),
+        "source_count": meta.get("source_count") or 0,
         "point_id": str(point.get("id", "")),
     }
 
@@ -151,11 +153,11 @@ def _sort_articles_by(
 def _count_corroborating(article: dict[str, Any], articles: list[dict[str, Any]]) -> int:
     """Count how many distinct sources report the same story as *article*.
 
-    Uses the Qdrant ``group_id`` when present; otherwise groups by a
-    normalised title hash so same-story variants from different sources
-    corroborate each other.
+    Uses the Qdrant ``cluster_id`` / ``group_id`` when present; otherwise
+    groups by a normalised title hash so same-story variants from different
+    sources corroborate each other.
     """
-    group = article.get("group_id") or ""
+    group = article.get("cluster_id") or article.get("group_id") or ""
     if not group and article.get("title"):
         norm = "".join(ch for ch in article["title"].lower() if ch.isalnum())[:80]
         group = f"title:{norm}"
@@ -163,7 +165,7 @@ def _count_corroborating(article: dict[str, Any], articles: list[dict[str, Any]]
         return 0
     sources: set[str] = set()
     for a in articles:
-        a_group = a.get("group_id") or ""
+        a_group = a.get("cluster_id") or a.get("group_id") or ""
         if not a_group and a.get("title"):
             a_norm = "".join(ch for ch in a["title"].lower() if ch.isalnum())[:80]
             a_group = f"title:{a_norm}"
