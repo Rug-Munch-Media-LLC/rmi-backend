@@ -70,6 +70,11 @@ WALLET_CONFIDENCE: dict[str, float] = {}
 #: Scammer handles merged from ``known_scammers.json`` + runtime additions.
 KNOWN_SCAMMER_HANDLES: set[str] = set()
 
+#: Handle -> documented rug-call entries (``kol_rug_history.json`` + runtime
+#: additions via :func:`register_kol_rug`). This is the KOL's ACTUAL documented
+#: rug history — the primary source for the rug-rate penalty.
+KOL_RUG_HISTORY: dict[str, list[dict[str, Any]]] = {}
+
 
 @dataclass
 class CallOutcome:
@@ -100,6 +105,7 @@ class KOLScoreRecord:
     wallet_confidence: float
     total_calls: int
     total_tokens: int
+    documented_rug_count: int = 0
     track_record: dict[str, Any] = field(default_factory=dict)
     computed_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
@@ -140,6 +146,64 @@ def _load_known_scammers() -> set[str]:
             return {str(h).lower().lstrip("@") for h in handles if str(h).strip()}
         return {str(h).lower().lstrip("@") for h in raw if str(h).strip()}
     return set()
+
+
+def _load_kol_rug_history() -> dict[str, list[dict[str, Any]]]:
+    """Load documented KOL rug history (handle -> rug entries).
+
+    Prefers the canonical loader in ``shill_detector`` (designed concurrently)
+    and falls back to a local reader when that module is unavailable. Returns
+    an empty map when the file is missing.
+    """
+    try:  # canonical loader (shill_detector.py, same dir/file)
+        from app.databus.shill_detector import load_kol_rug_history
+
+        loaded = load_kol_rug_history()
+        if isinstance(loaded, dict):
+            return {str(h).lower().lstrip("@"): list(v) for h, v in loaded.items()}
+    except (ImportError, AttributeError, OSError, ValueError):
+        pass
+    path = Path(__file__).resolve().parent / "kol_rug_history.json"
+    if not path.is_file():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        logger.warning("kol_rug_history.json unreadable: %s", str(e)[:120])
+        return {}
+    entries = raw if isinstance(raw, list) else raw.get("kol_rug_history") or raw.get("entries") or []
+    if not isinstance(entries, list):
+        return {}
+    result: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        handle = str(entry.get("handle") or entry.get("kol") or "").lower().lstrip("@")
+        if not handle:
+            continue
+        rugs = entry.get("rugs") or entry.get("rug_calls") or []
+        if isinstance(rugs, list):
+            result.setdefault(handle, []).extend(r for r in rugs if isinstance(r, dict))
+    return result
+
+
+def get_kol_rug_history(handle: str) -> dict[str, Any]:
+    """Return the documented rug history for a KOL handle (public query).
+
+    Source is ``kol_rug_history.json`` (loaded at import) plus any runtime
+    entries registered via :func:`register_kol_rug`.
+    """
+    key = handle.lower().lstrip("@")
+    if not key:
+        return {"handle": handle, "rugs": [], "rug_count": 0, "found": False, "source": "kol_rug_history"}
+    rugs = list(KOL_RUG_HISTORY.get(key, []))
+    return {
+        "handle": key,
+        "rugs": rugs,
+        "rug_count": len(rugs),
+        "found": len(rugs) > 0,
+        "source": "kol_rug_history",
+    }
 
 
 def _wallet_attribution_confidence(handle: str) -> float:
@@ -228,6 +292,9 @@ def _deleted_alert_count(handle: str) -> int:
 _WIN_RATE_WEIGHT = 25.0
 _RETURN_WEIGHT = 10.0  # applied to return normalized to [-1, 1] over ±50%
 _RUG_RATE_WEIGHT = 30.0
+#: Denominator for the documented rug rate when a KOL has no tracked calls:
+#: >= 3 documented rug calls (and no call history) still hits full rug rate.
+_DOCUMENTED_RUG_DENOM = 3
 _SHILL_ALERT_WEIGHT = 6.0
 _SHILL_ALERT_CAP = 5
 # Deleted-call penalty — a KOL retracting calls after the fact loses trust.
@@ -270,13 +337,28 @@ def _call_accuracy(calls: list[dict[str, Any]]) -> tuple[float, float]:
     return win_rate, avg_return
 
 
-def _rug_rate(calls: list[dict[str, Any]]) -> float:
-    """Fraction of distinct called tokens that are known rugs (0..1)."""
+def _rug_rate(handle: str, calls: list[dict[str, Any]]) -> float:
+    """Rug rate (0..1): max of the KOL's documented rug history and the
+    fraction of called tokens known to have rugged.
+
+    The documented history (``kol_rug_history.json``) is the primary source —
+    a KOL with documented rug calls is penalized even when the local outcome
+    store has not resolved those calls yet. When the KOL has no tracked calls,
+    the documented count is scaled against ``_DOCUMENTED_RUG_DENOM`` so a
+    history with >= 3 documented rugs hits the full penalty.
+    """
     tokens = {str(c.get("token", "")).strip().upper() for c in calls if str(c.get("token", "")).strip()}
-    if not tokens:
-        return 0.0
-    rugged = tokens & KNOWN_RUG_TOKENS
-    return len(rugged) / len(tokens)
+    token_rug_rate = 0.0
+    if tokens:
+        rugged = tokens & KNOWN_RUG_TOKENS
+        token_rug_rate = len(rugged) / len(tokens)
+
+    documented = KOL_RUG_HISTORY.get(handle.lower().lstrip("@"), [])
+    if not documented:
+        return token_rug_rate
+    denominator = len(tokens) if tokens else _DOCUMENTED_RUG_DENOM
+    documented_rug_rate = min(1.0, len(documented) / denominator)
+    return max(token_rug_rate, documented_rug_rate)
 
 
 def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
@@ -293,7 +375,8 @@ def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
 
     calls = _load_calls(handle)
     win_rate, avg_return = _call_accuracy(calls)
-    rug_rate = _rug_rate(calls)
+    rug_rate = _rug_rate(handle, calls)
+    documented_rug_count = len(KOL_RUG_HISTORY.get(key, []))
     shill_count = _shill_alert_count(handle)
     deleted_count = _deleted_alert_count(handle)
     known_scammer = key in KNOWN_SCAMMER_HANDLES
@@ -321,6 +404,9 @@ def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
             "call_accuracy": round(_WIN_RATE_WEIGHT * win_rate, 1),
             "avg_return_24h": round(avg_return, 4),
             "rug_penalty": round(-_RUG_RATE_WEIGHT * rug_rate, 1),
+            "documented_rug_penalty": round(
+                -_RUG_RATE_WEIGHT * min(1.0, documented_rug_count / (len(tokens) or _DOCUMENTED_RUG_DENOM)), 1
+            ),
             "shill_penalty": round(-_SHILL_ALERT_WEIGHT * min(shill_count, _SHILL_ALERT_CAP), 1),
             "deleted_post_penalty": round(-_DELETED_ALERT_WEIGHT * min(deleted_count, _DELETED_ALERT_CAP), 1),
             "scammer_penalty": round(-_SCAMMER_PENALTY, 1) if known_scammer else 0.0,
@@ -335,11 +421,13 @@ def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
         wallet_confidence=round(wallet_conf, 4),
         total_calls=len(calls),
         total_tokens=len(tokens),
+        documented_rug_count=documented_rug_count,
         track_record={
             "calls": calls[-25:],
             "tokens_called": tokens,
             "win_rate": round(win_rate, 4),
             "avg_return_24h": round(avg_return, 4),
+            "documented_rug_count": documented_rug_count,
         },
     )
 
@@ -392,6 +480,7 @@ def record_to_dict(record: KOLScoreRecord) -> dict[str, Any]:
         "wallet_confidence": record.wallet_confidence,
         "total_calls": record.total_calls,
         "total_tokens": record.total_tokens,
+        "documented_rug_count": record.documented_rug_count,
         "track_record": record.track_record,
         "computed_at": record.computed_at,
         "found": True,
@@ -428,6 +517,17 @@ def record_call_outcome(
 def register_rug_token(token: str) -> None:
     """Mark a token (symbol or address) as rugged for rug-rate scoring."""
     KNOWN_RUG_TOKENS.add(str(token).strip().upper())
+
+
+def register_kol_rug(handle: str, entry: dict[str, Any]) -> None:
+    """Add a documented rug call for a handle (runtime, mirrors JSON file).
+
+    ``entry`` is any dict describing a documented rug call (``token_symbol``,
+    ``token_address``, ``chain``, ``date``, ``outcome``, ``evidence_url``).
+    """
+    key = handle.lower().lstrip("@")
+    if key:
+        KOL_RUG_HISTORY.setdefault(key, []).append(dict(entry))
 
 
 def register_shill_alert(handle: str, count: int = 1) -> None:
@@ -479,6 +579,7 @@ def clear_registry() -> None:
     DELETED_ALERTS.clear()
     WALLET_CONFIDENCE.clear()
     KNOWN_SCAMMER_HANDLES.clear()
+    KOL_RUG_HISTORY.clear()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -521,3 +622,6 @@ def _load_redis(key: str) -> dict[str, Any] | None:
 
 # Load the scammer overlap set once at import time (file may not exist yet).
 KNOWN_SCAMMER_HANDLES.update(_load_known_scammers())
+
+# Load the documented KOL rug history once at import time (file may not exist yet).
+KOL_RUG_HISTORY.update(_load_kol_rug_history())

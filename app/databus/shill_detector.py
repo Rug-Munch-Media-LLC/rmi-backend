@@ -50,6 +50,13 @@ _FRONT_RUN_SELL_WINDOW_D = float(os.getenv("FRONT_RUN_SELL_WINDOW_D", "7"))  # s
 _COORDINATED_WINDOW_H = float(os.getenv("COORDINATED_WINDOW_H", "2"))  # <2h cluster
 _COORDINATED_MIN_KOLS = int(os.getenv("COORDINATED_MIN_KOLS", "3"))  # ≥3 KOLs
 _KNOWN_SCAMMERS_PATH = os.getenv("KNOWN_SCAMMERS_PATH", os.path.join(os.path.dirname(__file__), "known_scammers.json"))
+_KOL_RUG_HISTORY_PATH = os.getenv(
+    "KOL_RUG_HISTORY_PATH", os.path.join(os.path.dirname(__file__), "kol_rug_history.json")
+)
+#: A KOL with documented rug history is more likely to shill-dump again — the
+#: min-sell threshold for alerting is multiplied by this factor (lower = more
+#: sensitive). 1.0 disables the behavior.
+_RUG_HISTORY_SELL_FACTOR = float(os.getenv("SHILL_RUG_HISTORY_SELL_FACTOR", "0.5"))
 
 # Confidence tiers, weakest → strongest (matches label store 4-tier).
 _WEAK_CONFIDENCE: frozenset[str] = frozenset({"probabilistic", "crowdsourced_unverified", ""})
@@ -215,6 +222,60 @@ def load_known_scammers(path: str | None = None) -> set[str]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# KOL rug history
+# ═══════════════════════════════════════════════════════════════════════
+
+#: Handle -> list of documented rug-call entries, loaded once at import from
+#: ``kol_rug_history.json`` (same optional-file pattern as known scammers).
+KOL_RUG_HISTORY: dict[str, list[dict[str, Any]]] = {}
+
+
+def load_kol_rug_history(path: str | None = None) -> dict[str, list[dict[str, Any]]]:
+    """Load documented KOL rug history from JSON.
+
+    The JSON may be a list of ``{"handle": ..., "rugs": [...]}`` entries, or a
+    dict of ``{"kol_rug_history": [...]}`` / ``{"entries": [...]}``. A rug
+    entry is any dict describing a documented rug call (``token_symbol``,
+    ``token_address``, ``chain``, ``date``, ``outcome``, ``evidence_url``).
+    Returns an empty map when the file is absent (never raises).
+    """
+    path = path or _KOL_RUG_HISTORY_PATH
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (OSError, ValueError):
+        logger.debug("kol_rug_history file %s unavailable; continuing with empty map", path)
+        return {}
+    if isinstance(raw, list):
+        entries = raw
+    elif isinstance(raw, dict):
+        entries = raw.get("kol_rug_history") or raw.get("entries") or []
+    else:
+        entries = []
+    if not isinstance(entries, list):
+        return {}
+    result: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        handle = _normalize_handle(entry.get("handle") or entry.get("kol"))
+        if not handle:
+            continue
+        rugs = entry.get("rugs") or entry.get("rug_calls") or []
+        if isinstance(rugs, list):
+            result.setdefault(handle, []).extend(r for r in rugs if isinstance(r, dict))
+    return result
+
+
+def get_kol_rug_history(handle: str) -> list[dict[str, Any]]:
+    """Return the documented rug history for a handle (normalized key)."""
+    return list(KOL_RUG_HISTORY.get(_normalize_handle(handle), []))
+
+
+KOL_RUG_HISTORY.update(load_kol_rug_history())
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Wallet helpers
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -309,6 +370,7 @@ def detect_shill(
     kol_wallets: list[dict[str, Any]],
     wallet_txs: list[dict[str, Any]],
     known_scammers: set[str] | list[str] | None = None,
+    kol_rug_history: dict[str, list[dict[str, Any]]] | None = None,
     *,
     now: float | None = None,
 ) -> list[dict[str, Any]]:
@@ -323,6 +385,9 @@ def detect_shill(
             (``wallet``, ``tx_type`` buy|sell, ``token_address``,
             ``token_symbol``, ``amount_usd``, ``ts``).
         known_scammers: optional extra handle/address set to auto-flag.
+        kol_rug_history: optional handle -> documented rug entries; None loads
+            ``kol_rug_history.json``. A KOL with past rug calls gets a lower
+            shill-alert threshold (they are more likely to shill-dump again).
         now: epoch seconds for deterministic windows (defaults to now).
 
     Returns a list of ``shill_alert`` records (usually 0..2 per post).
@@ -341,6 +406,8 @@ def detect_shill(
         return []
 
     known = set(known_scammers) if known_scammers else load_known_scammers()
+    rug_hist = kol_rug_history if kol_rug_history is not None else KOL_RUG_HISTORY
+    has_rug_history = bool(rug_hist.get(kol_id))
     wallets = _active_wallet_addresses(kol_wallets)
     alerts: list[dict[str, Any]] = []
 
@@ -365,6 +432,10 @@ def detect_shill(
     front_run_h = max(1.0, _FRONT_RUN_WINDOW_H)
     front_run_sell_d = max(1.0, _FRONT_RUN_SELL_WINDOW_D)
     min_sell_usd = max(0.0, _MIN_SELL_USD)
+    # KOLs with documented rug history are more likely to shill-dump again —
+    # lower the alert threshold so smaller sells still trigger a flag.
+    if has_rug_history:
+        min_sell_usd *= max(0.0, _RUG_HISTORY_SELL_FACTOR)
 
     for wallet in wallets:
         txs = _wallet_txs_for(wallet["address"], wallet_txs)
@@ -405,7 +476,9 @@ def detect_shill(
                 bought_pre = len(buys_before_7d) > 0
                 weak_conf = _wallet_confidence_weak(wallet)
                 # Guardrail: weak attribution needs 2 corroborating sells for CRITICAL.
-                corroborated = len(sells_after) >= 2 or not weak_conf
+                # A KOL with documented rug history is treated as corroborated
+                # (past behavior raises the prior that this sell is a dump).
+                corroborated = len(sells_after) >= 2 or not weak_conf or has_rug_history
                 severity = "critical" if bought_pre and corroborated else "high"
                 evidence = [
                     {
@@ -418,6 +491,13 @@ def detect_shill(
                         "detail": f"sold {len(sells_after)} tx(s) {sell_total:.0f} USD within {sell_window_h:g}h of bullish post",
                     }
                 ]
+                if has_rug_history:
+                    evidence.append(
+                        {
+                            "kind": "rug_history",
+                            "detail": "KOL has documented rug history; shill-alert threshold lowered",
+                        }
+                    )
                 if weak_conf and not corroborated:
                     evidence.append(
                         {
@@ -600,6 +680,7 @@ def analyze_shill_signals(
     kol_wallets_by_kol: dict[str, list[dict[str, Any]]],
     wallet_txs_by_wallet: dict[str, list[dict[str, Any]]],
     known_scammers: set[str] | list[str] | None = None,
+    kol_rug_history: dict[str, list[dict[str, Any]]] | None = None,
     *,
     now: float | None = None,
     include_coordinated: bool = True,
@@ -613,6 +694,9 @@ def analyze_shill_signals(
         wallet_txs_by_wallet: wallet address → ``kol_wallet_tx`` rows
             (only wallets attributed to the KOLs are queried by the caller).
         known_scammers: optional override; None → load from file.
+        kol_rug_history: optional handle → documented rug entries; None loads
+            ``kol_rug_history.json``. Handles with rug history get a lower
+            shill-alert threshold in :func:`detect_shill`.
 
     Returns a summary dict with ``alerts`` (deduped), per-pattern counts and
     severity totals — shaped for the ``/shill-alerts`` feed.
@@ -635,6 +719,7 @@ def analyze_shill_signals(
                     wallets,
                     flat_txs,
                     known,
+                    kol_rug_history,
                     now=ts,
                 )
             )
