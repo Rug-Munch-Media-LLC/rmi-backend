@@ -7,10 +7,13 @@ injectable ``send: Callable`` that the orchestrator supplies and executes;
 the default is a no-op stub.
 
 Default channels
-----------------
+-----------------
     site            — all alerts
     alerts_channel  — @RugMunchAlerts: high+
     rmialerts       — critical + high
+    rmialpha        — highest-signal early data: launch, syndicate, whale
+                      (high+). Alpha = the earliest, most actionable alerts
+                      before they reach the broader news surfaces.
     rmicryptonews   — news-worthy categories (scanner, launch, bulletin,
                       whale, cex_flow)
     main_channel    — critical only
@@ -31,6 +34,11 @@ SEVERITY_RANK: dict[str, int] = {"critical": 4, "high": 3, "medium": 2, "low": 1
 # Categories considered news-worthy for the rmicryptonews surface.
 NEWS_CATEGORIES = frozenset({"scanner", "launch", "bulletin", "whale", "cex_flow"})
 
+# Highest-signal early-data categories for the rmialpha surface (alpha).
+# Alpha = the earliest, most actionable on-chain signals: token launches,
+# syndicate activity, and whale moves.
+ALPHA_CATEGORIES = frozenset({"launch", "syndicate", "whale"})
+
 
 @dataclass(frozen=True)
 class ChannelPolicy:
@@ -50,6 +58,7 @@ DEFAULT_CHANNELS: dict[str, ChannelPolicy] = {
     "site": ChannelPolicy(min_severity="low"),
     "alerts_channel": ChannelPolicy(min_severity="high"),
     "rmialerts": ChannelPolicy(min_severity="high"),
+    "rmialpha": ChannelPolicy(min_severity="high", categories=ALPHA_CATEGORIES),
     "rmicryptonews": ChannelPolicy(min_severity="low", categories=NEWS_CATEGORIES),
     "main_channel": ChannelPolicy(min_severity="critical"),
 }

@@ -19,6 +19,9 @@ alerts_channel   ``RMI_ALERTS_CHANNEL``         Public @RugMunchAlerts channel
                                                 the ``@RugMunchAlerts`` handle; may be a
                                                 numeric chat id instead.
 rmialerts        ``RMI_ALERTS_CHANNEL_ID``      Internal RMI alerts channel (high+).
+rmialpha         ``RMI_ALPHA_CHANNEL_ID``       RMI Alpha channel — highest-signal early
+                                                data (launch/syndicate/whale, high+). No
+                                                default: skipped when unset.
 rmicryptonews    ``RMI_CRYPTONEWS_CHANNEL_ID``  RMI Crypto News channel (news-worthy alerts).
 main_channel     ``RMI_MAIN_CHANNEL_ID``        Main channel (critical only).
 site             (none)                         No Telegram surface — always skipped.
@@ -82,6 +85,11 @@ CHANNEL_BINDINGS: tuple[ChannelBinding, ...] = (
         logical="rmialerts",
         env_var="RMI_ALERTS_CHANNEL_ID",
         description="Internal RMI alerts channel (high+)",
+    ),
+    ChannelBinding(
+        logical="rmialpha",
+        env_var="RMI_ALPHA_CHANNEL_ID",
+        description="RMI Alpha channel (highest-signal early data: launch/syndicate/whale, high+)",
     ),
     ChannelBinding(
         logical="rmicryptonews",
