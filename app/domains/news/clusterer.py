@@ -6,9 +6,15 @@ counted 2-3x in their signal.
 
 Algorithm:
   1. MinHash signature (128 permutations) on shingled title+body (first 500 chars)
-  2. DBSCAN clusters within 30-minute windows, Jaccard threshold 0.6, eps=0.15
-  3. Each cluster = one story with all source URLs, sentiment avg, item count
-  4. Persist clusters to Postgres `news_clusters` table; raw items unchanged
+  2. Time-aware DBSCAN over the whole feed window, Jaccard threshold 0.6,
+     eps=0.15, neighbor pair must ALSO fall within `window_minutes` of each
+     other (default 72h so multi-day stories cluster).
+  3. Each cluster = one story with all source URLs, sentiment avg, item count,
+     distinct source count and a bias distribution across sources.
+  4. Persistent cluster keys derived from the representative's MinHash
+     signature (content-based, stable across runs) — a story re-clustered
+     later maps to the same cluster_id and merges in Postgres.
+  5. Persist clusters to Postgres `news_clusters` table; raw items unchanged
 
 Endpoints:
   GET /api/v1/news?clustered=true    returns stories (clusters), not raw items
@@ -24,10 +30,11 @@ import hashlib
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.logging import get_logger
+from app.domains.news.ratings import SOURCE_CREDIBILITY
 
 logger = get_logger(__name__)
 
@@ -78,25 +85,69 @@ def _jaccard_minhash(a: list[int], b: list[int]) -> float:
     return sum(1 for x, y in zip(a, b, strict=False) if x == y) / len(a)
 
 
+def _persistent_cluster_key(sig: list[int]) -> str:
+    """Content-derived persistent cluster key.
+
+    Hashed from the MinHash signature itself, so the same story produces
+    the same cluster_id across runs — regardless of which items happen to
+    be in the current window. This lets `persist_clusters` merge new
+    sources into an existing story instead of creating a fresh id each run.
+    """
+    digest = hashlib.sha1(
+        "|".join(str(x) for x in sig).encode(),
+        usedforsecurity=False,
+    ).hexdigest()
+    return digest[:16]
+
+
+def _bias_for_source(source: str) -> str:
+    """Bias label for a source name; 'center' if unknown."""
+    if not source:
+        return "center"
+    key = source.lower().strip().replace("_", " ").replace("-", " ")
+    if key in SOURCE_CREDIBILITY:
+        return str(SOURCE_CREDIBILITY[key].get("bias", "center"))
+    for known_key, cred in SOURCE_CREDIBILITY.items():
+        if known_key in key or key in known_key:
+            return str(cred.get("bias", "center"))
+    return "center"
+
+
 # ── DBSCAN (pure-python, no sklearn dep) ────────────────────────────
 def _dbscan(
     signatures: list[list[int]],
+    times: list[datetime],
     eps: float = 0.4,
     min_samples: int = 2,
+    window_minutes: int = 4320,
 ) -> list[int]:
-    """Density-based clustering. Returns cluster id per item (-1 = noise).
+    """Density-based clustering with a time-window constraint.
+
+    Returns cluster id per item (-1 = noise).
 
     Similarity is Jaccard (estimated via MinHash). Neighbours are pairs
-    with Jaccard distance <= eps (i.e. similarity >= 1 - eps).
-    Default eps=0.4 means similarity >= 0.6 (per T03 spec).
+    with Jaccard distance <= eps (i.e. similarity >= 1 - eps) AND whose
+    published_at times are within `window_minutes` of each other. The time
+    constraint replaces the old fixed 30-minute bucketing — a story that
+    unfolds over days still chains together as long as each pair of
+    sources lands within the window, while unrelated-but-similar headlines
+    far apart in time stay separate.
     """
     n = len(signatures)
     labels = [-1] * n
     cluster_id = 0
+    max_delta = timedelta(minutes=window_minutes)
     for i in range(n):
         if labels[i] != -1:
             continue
-        neighbors = [j for j in range(n) if i != j and (1.0 - _jaccard_minhash(signatures[i], signatures[j])) <= eps]
+        neighbors: list[int] = []
+        for j in range(n):
+            if i == j:
+                continue
+            if abs(times[i] - times[j]) > max_delta:
+                continue
+            if (1.0 - _jaccard_minhash(signatures[i], signatures[j])) <= eps:
+                neighbors.append(j)
         if len(neighbors) < min_samples - 1:
             # not enough neighbours - mark as noise (may become border later)
             continue
@@ -107,9 +158,14 @@ def _dbscan(
             q = seed_set[k]
             if labels[q] == -1:
                 labels[q] = cluster_id
-                q_neighbors = [
-                    j for j in range(n) if j != q and (1.0 - _jaccard_minhash(signatures[q], signatures[j])) <= eps
-                ]
+                q_neighbors: list[int] = []
+                for j in range(n):
+                    if j == q:
+                        continue
+                    if abs(times[q] - times[j]) > max_delta:
+                        continue
+                    if (1.0 - _jaccard_minhash(signatures[q], signatures[j])) <= eps:
+                        q_neighbors.append(j)
                 if len(q_neighbors) >= min_samples - 1:
                     seed_set.extend(q_neighbors)
             elif labels[q] is None or labels[q] == -1:
@@ -166,6 +222,12 @@ class StoryCluster:
     item_count: int
     sentiment_avg: float
     item_ids: list[str]
+    source_count: int = 0
+    bias_distribution: dict[str, int] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.source_count == 0 and self.sources:
+            self.source_count = len(self.sources)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -178,98 +240,77 @@ class StoryCluster:
             "item_count": self.item_count,
             "sentiment_avg": round(self.sentiment_avg, 3),
             "item_ids": self.item_ids,
+            "source_count": self.source_count,
+            "bias_distribution": self.bias_distribution,
         }
 
 
 # ── Main entry point ────────────────────────────────────────────────
 def cluster_items(
     items: list[NewsItem],
-    window_minutes: int = 30,
+    window_minutes: int = 4320,
     eps: float = 0.4,
     min_samples: int = 2,
 ) -> list[StoryCluster]:
     """Cluster news items into stories.
 
-    Items are first grouped by 30-minute time windows, then DBSCAN runs
-    on MinHash signatures within each window. Single-item clusters are
-    kept (they're "noise" in DBSCAN terms but valid singleton stories).
+    Items are clustered with time-aware DBSCAN over the full feed window:
+    two items join the same story when Jaccard similarity >= 0.6 (distance
+    <= eps=0.4) AND they are published within `window_minutes` (default
+    72h = 4320 min). Multi-day stories therefore cluster — the old fixed
+    30-minute buckets split them apart. Single-item clusters are kept
+    (they're "noise" in DBSCAN terms but valid singleton stories).
 
-    `eps` is the Jaccard DISTANCE threshold (1 - similarity). Per the
-    task spec, two items cluster together when Jaccard similarity >= 0.6,
-    so distance <= 0.4, so eps=0.4. Tighten for stricter clusters.
+    Cluster ids are content-derived (persistent) so re-clustering the same
+    story later yields the same key and Postgres upserts merge members.
     """
     t0 = time.time()
     if not items:
         return []
 
-    # Group by time window
-    windows: dict[datetime, list[NewsItem]] = {}
-    for it in sorted(items, key=lambda x: x.published_at):
-        bucket = it.published_at.replace(
-            minute=(it.published_at.minute // window_minutes) * window_minutes,
-            second=0,
-            microsecond=0,
-        )
-        windows.setdefault(bucket, []).append(it)
+    ordered = sorted(items, key=lambda x: x.published_at)
+    sigs = [_minhash_signature(_shingles(f"{it.title} {it.body}")) for it in ordered]
+    times = [it.published_at for it in ordered]
+    labels = _dbscan(sigs, times, eps=eps, min_samples=min_samples, window_minutes=window_minutes)
+
+    # Singletons (label == -1) still become stories
+    clusters: dict[int, list[int]] = {}
+    for idx, lbl in enumerate(labels):
+        clusters.setdefault(lbl if lbl != -1 else idx, []).append(idx)
 
     stories: list[StoryCluster] = []
-    for _bucket, group in windows.items():
-        if len(group) == 1:
-            # singleton - still a story
-            it = group[0]
-            stories.append(
-                StoryCluster(
-                    cluster_id=hashlib.sha1(
-                        f"single:{it.id}:{it.published_at.isoformat()}".encode(),
-                        usedforsecurity=False,
-                    ).hexdigest()[:16],
-                    representative_title=it.title,
-                    source_urls=[it.url] if it.url else [],
-                    sources=[it.source] if it.source else [],
-                    first_seen=it.published_at,
-                    last_updated=it.published_at,
-                    item_count=1,
-                    sentiment_avg=it.sentiment,
-                    item_ids=[it.id],
-                )
+    for _cid, indices in clusters.items():
+        members = [ordered[i] for i in indices]
+        # Pick representative = longest title (usually the most descriptive)
+        rep = max(members, key=lambda x: len(x.title))
+        rep_sig = _minhash_signature(_shingles(f"{rep.title} {rep.body}"))
+        sentiments = [m.sentiment for m in members if m.sentiment is not None]
+        avg_sent = sum(sentiments) / len(sentiments) if sentiments else 0.0
+        source_set = sorted({m.source for m in members if m.source})
+        bias_dist: dict[str, int] = {}
+        for m in members:
+            b = _bias_for_source(m.source)
+            bias_dist[b] = bias_dist.get(b, 0) + 1
+        stories.append(
+            StoryCluster(
+                cluster_id=_persistent_cluster_key(rep_sig),
+                representative_title=rep.title,
+                source_urls=[m.url for m in members if m.url],
+                sources=source_set,
+                first_seen=min(m.published_at for m in members),
+                last_updated=max(m.published_at for m in members),
+                item_count=len(members),
+                sentiment_avg=avg_sent,
+                item_ids=[m.id for m in members],
+                source_count=len(source_set),
+                bias_distribution=bias_dist,
             )
-            continue
-
-        sigs = [_minhash_signature(_shingles(f"{it.title} {it.body}")) for it in group]
-        labels = _dbscan(sigs, eps=eps, min_samples=min_samples)
-        # Singletons (label == -1) still become stories
-        clusters: dict[int, list[int]] = {}
-        for idx, lbl in enumerate(labels):
-            clusters.setdefault(lbl if lbl != -1 else idx, []).append(idx)
-        for _cid, indices in clusters.items():
-            members = [group[i] for i in indices]
-            # Pick representative = longest title (usually the most descriptive)
-            rep = max(members, key=lambda x: len(x.title))
-            sentiments = [m.sentiment for m in members if m.sentiment is not None]
-            avg_sent = sum(sentiments) / len(sentiments) if sentiments else 0.0
-            cluster_id = hashlib.sha1(
-                ":".join(sorted(m.id for m in members)).encode(),
-                usedforsecurity=False,
-            ).hexdigest()[:16]
-            stories.append(
-                StoryCluster(
-                    cluster_id=cluster_id,
-                    representative_title=rep.title,
-                    source_urls=[m.url for m in members if m.url],
-                    sources=sorted({m.source for m in members if m.source}),
-                    first_seen=min(m.published_at for m in members),
-                    last_updated=max(m.published_at for m in members),
-                    item_count=len(members),
-                    sentiment_avg=avg_sent,
-                    item_ids=[m.id for m in members],
-                )
-            )
+        )
 
     logger.info(
-        "news_clustered items=%d stories=%d windows=%d elapsed_ms=%.1f",
+        "news_clustered items=%d stories=%d elapsed_ms=%.1f",
         len(items),
         len(stories),
-        len(windows),
         (time.time() - t0) * 1000,
     )
     return stories
@@ -284,6 +325,8 @@ CREATE TABLE IF NOT EXISTS news_clusters (
   last_updated         TIMESTAMPTZ NOT NULL,
   item_count           INTEGER NOT NULL DEFAULT 0,
   sentiment_avg        DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+  source_count         INTEGER NOT NULL DEFAULT 0,
+  bias_distribution    JSONB NOT NULL DEFAULT '{}'::jsonb,
   source_urls          JSONB NOT NULL DEFAULT '[]'::jsonb,
   sources              JSONB NOT NULL DEFAULT '[]'::jsonb,
   item_ids             JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -291,6 +334,8 @@ CREATE TABLE IF NOT EXISTS news_clusters (
 );
 CREATE INDEX IF NOT EXISTS news_clusters_last_updated_idx
   ON news_clusters (last_updated DESC);
+ALTER TABLE news_clusters ADD COLUMN IF NOT EXISTS source_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE news_clusters ADD COLUMN IF NOT EXISTS bias_distribution JSONB NOT NULL DEFAULT '{}'::jsonb;
 """
 
 
@@ -314,8 +359,27 @@ async def ensure_schema() -> bool:
         return False
 
 
+def _dedupe_keep_order(values: list[Any]) -> list[Any]:
+    """Dedupe a list preserving first-seen order."""
+    seen: set[str] = set()
+    out: list[Any] = []
+    for v in values:
+        vk = str(v)
+        if vk not in seen:
+            seen.add(vk)
+            out.append(v)
+    return out
+
+
 async def persist_clusters(stories: list[StoryCluster]) -> int:
-    """Upsert stories to Postgres. Returns rows affected."""
+    """Upsert stories to Postgres, merging with any existing cluster.
+
+    Cluster ids are content-derived, so a story re-clustered across runs
+    hits the same row. Existing members (source_urls, sources, item_ids,
+    first_seen) are merged rather than replaced, and last_updated advances
+    to the newest member — a running story keeps accumulating sources.
+    Returns rows affected.
+    """
     if not stories:
         return 0
     try:
@@ -327,32 +391,58 @@ async def persist_clusters(stories: list[StoryCluster]) -> int:
 
         conn = await asyncpg.connect(PG_URL)
         try:
-            rows = [
-                (
-                    s.cluster_id,
-                    s.representative_title,
-                    s.first_seen,
-                    s.last_updated,
-                    s.item_count,
-                    s.sentiment_avg,
-                    json.dumps(s.source_urls),
-                    json.dumps(s.sources),
-                    json.dumps(s.item_ids),
+            # Load existing rows for merge
+            ids = [s.cluster_id for s in stories]
+            existing_rows = await conn.fetch(
+                "SELECT cluster_id, source_urls, sources, item_ids, first_seen, last_updated "
+                "FROM news_clusters WHERE cluster_id = ANY($1::text[])",
+                ids,
+            )
+            existing = {r["cluster_id"]: r for r in existing_rows}
+
+            rows = []
+            for s in stories:
+                ex = existing.get(s.cluster_id)
+                source_urls = _dedupe_keep_order([*(ex["source_urls"] if ex else []), *s.source_urls])
+                sources = _dedupe_keep_order([*(ex["sources"] if ex else []), *s.sources])
+                item_ids = _dedupe_keep_order([*(ex["item_ids"] if ex else []), *s.item_ids])
+                first_seen = min(s.first_seen, ex["first_seen"]) if ex else s.first_seen
+                last_updated = max(s.last_updated, ex["last_updated"]) if ex else s.last_updated
+                # Bias distribution: recount over merged sources
+                bias_dist: dict[str, int] = {}
+                for src in sources:
+                    b = _bias_for_source(src)
+                    bias_dist[b] = bias_dist.get(b, 0) + 1
+                rows.append(
+                    (
+                        s.cluster_id,
+                        s.representative_title,
+                        first_seen,
+                        last_updated,
+                        len(item_ids),
+                        s.sentiment_avg,
+                        len(sources),
+                        json.dumps(bias_dist),
+                        json.dumps(source_urls),
+                        json.dumps(sources),
+                        json.dumps(item_ids),
+                    )
                 )
-                for s in stories
-            ]
             await conn.executemany(
                 """
                 INSERT INTO news_clusters
                   (cluster_id, representative_title, first_seen, last_updated,
-                   item_count, sentiment_avg, source_urls, sources, item_ids)
-                VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb)
+                   item_count, sentiment_avg, source_count, bias_distribution,
+                   source_urls, sources, item_ids)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb)
                 ON CONFLICT (cluster_id) DO UPDATE SET
                   representative_title = EXCLUDED.representative_title,
                   first_seen = EXCLUDED.first_seen,
                   last_updated = EXCLUDED.last_updated,
                   item_count = EXCLUDED.item_count,
                   sentiment_avg = EXCLUDED.sentiment_avg,
+                  source_count = EXCLUDED.source_count,
+                  bias_distribution = EXCLUDED.bias_distribution,
                   source_urls = EXCLUDED.source_urls,
                   sources = EXCLUDED.sources,
                   item_ids = EXCLUDED.item_ids
@@ -391,6 +481,8 @@ async def load_recent_clusters(limit: int = 50) -> list[dict[str, Any]]:
                     "last_updated": r["last_updated"].isoformat(),
                     "item_count": r["item_count"],
                     "sentiment_avg": r["sentiment_avg"],
+                    "source_count": r.get("source_count", 0),
+                    "bias_distribution": json.loads(r["bias_distribution"]) if r.get("bias_distribution") else {},
                     "source_urls": json.loads(r["source_urls"]),
                     "sources": json.loads(r["sources"]),
                     "item_ids": json.loads(r["item_ids"]),

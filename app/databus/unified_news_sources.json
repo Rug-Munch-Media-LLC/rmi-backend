@@ -1,7 +1,7 @@
 {
 	"version": "1.0",
-	"updated": "2026-08-03",
-	"total_sources": 255,
+	"updated": "2026-08-13",
+	"total_sources": 265,
 	"categories": {
 		"crypto_news": [
 			"cointelegraph",
@@ -42,7 +42,8 @@
 			"finbold-com",
 			"blockonomi-com",
 			"dailycoin-com",
-			"crypto-com"
+			"crypto-com",
+			"dlnews-com"
 		],
 		"crypto_media": [
 			"ethereum-blog",
@@ -276,7 +277,16 @@
 			"google-regulation",
 			"google-nft",
 			"bing-crypto",
-			"bing-blockchain"
+			"bing-blockchain",
+			"google-news-cryptocurrency",
+			"google-news-bitcoin",
+			"google-news-ethereum",
+			"google-news-solana",
+			"google-news-defi",
+			"google-news-crypto-regulation",
+			"google-news-stablecoin",
+			"google-news-crypto-security",
+			"google-news-nft"
 		]
 	},
 	"sources": [
@@ -1360,6 +1370,19 @@
 			"needs_verification": false
 		},
 		{
+			"id": "dlnews-com",
+			"name": "DL News",
+			"url": "https://www.dlnews.com/arc/outboundfeeds/rss/",
+			"category": "crypto_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "established",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
 			"id": "coinpedia",
 			"name": "Coinpedia",
 			"url": "https://coinpedia.org/feed/",
@@ -1674,15 +1697,15 @@
 		{
 			"id": "theblock",
 			"name": "The Block",
-			"url": "https://www.theblock.co/rss",
+			"url": "https://www.theblock.co/rss.xml",
 			"category": "crypto_news",
 			"type": "rss",
 			"priority": 1,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "trustnodes",
@@ -1707,8 +1730,8 @@
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "unchained",
@@ -1720,8 +1743,8 @@
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "zycrypto",
@@ -2507,6 +2530,123 @@
 			"id": "google-regulation",
 			"name": "Google News — Crypto Regulation",
 			"url": "https://news.google.com/rss/search?q=crypto+regulation+OR+SEC+crypto+OR+crypto+bill&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-cryptocurrency",
+			"name": "Google News — Cryptocurrency",
+			"url": "https://news.google.com/rss/search?q=cryptocurrency&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-bitcoin",
+			"name": "Google News — Bitcoin",
+			"url": "https://news.google.com/rss/search?q=bitcoin&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-ethereum",
+			"name": "Google News — Ethereum",
+			"url": "https://news.google.com/rss/search?q=ethereum&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-solana",
+			"name": "Google News — Solana",
+			"url": "https://news.google.com/rss/search?q=solana&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-defi",
+			"name": "Google News — DeFi",
+			"url": "https://news.google.com/rss/search?q=defi&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-crypto-regulation",
+			"name": "Google News — Crypto Regulation (topic)",
+			"url": "https://news.google.com/rss/search?q=crypto+regulation&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-stablecoin",
+			"name": "Google News — Stablecoin",
+			"url": "https://news.google.com/rss/search?q=stablecoin&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-crypto-security",
+			"name": "Google News — Crypto Security",
+			"url": "https://news.google.com/rss/search?q=crypto+security&hl=en-US&gl=US&ceid=US:en",
+			"category": "global_news",
+			"type": "rss",
+			"priority": 2,
+			"quality_tier": "aggregator",
+			"language": "en",
+			"requires_api_key": false,
+			"verified": true,
+			"needs_verification": false
+		},
+		{
+			"id": "google-news-nft",
+			"name": "Google News — NFT",
+			"url": "https://news.google.com/rss/search?q=nft&hl=en-US&gl=US&ceid=US:en",
 			"category": "global_news",
 			"type": "rss",
 			"priority": 2,
@@ -3597,9 +3737,9 @@
 		}
 	],
 	"verification": {
-		"method": "curl -L browser-UA, 12s timeout, 8 parallel (2026-08-03)",
-		"verified": 123,
-		"needs_verification": 132,
-		"total": 255
+		"method": "curl -L browser-UA, 12s timeout, 8 parallel (2026-08-13)",
+		"verified": 136,
+		"needs_verification": 129,
+		"total": 265
 	}
 }

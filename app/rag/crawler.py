@@ -281,7 +281,8 @@ async def discover_crypto_news(sources: list[str] | None = None) -> list[dict[st
 
     Args:
         sources: Explicit feed URLs. Defaults to all feeds in
-            ``unified_news_sources.json`` (rss/atom/sitemap types).
+            ``unified_news_sources.json`` (rss/atom/sitemap/reddit/nitter
+            types — the reddit/nitter entries are RSS feeds too).
 
     Returns:
         A list of discovered items: ``{"url", "title", "published",

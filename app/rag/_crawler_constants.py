@@ -19,9 +19,13 @@ from pathlib import Path
 _SOURCES_FILE = Path(__file__).resolve().parents[1] / "databus" / "unified_news_sources.json"
 # Legacy per-repo crawl list — fallback for old deployments.
 _LEGACY_SOURCES_FILE = Path(__file__).parent / "crawl_sources.json"
-# Source types that yield article feeds the crawler can follow. Social streams
-# (reddit / nitter) are excluded: the crawler follows article links, not posts.
-_CRAWLABLE_TYPES = ("rss", "atom", "sitemap")
+# Source types that yield article feeds the crawler can follow. Reddit and
+# nitter sources in the registry are RSS feeds too (``reddit-*``/``twitter-*``
+# entries in unified_news_sources.json, 36 sources) — they are wired into
+# discovery so the social streams are consumed instead of sitting dead. The
+# sweep's quality gates (spam/relevance/freshness/English/quality) still apply
+# to every discovered item, and crawl failures fail open per source.
+_CRAWLABLE_TYPES = ("rss", "atom", "sitemap", "reddit", "nitter")
 DEFAULT_COLLECTION = "news_v2"
 DEFAULT_PAGE_TIMEOUT_MS = 45_000
 DEFAULT_MAX_URLS_PER_SWEEP = 25

@@ -345,6 +345,9 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
                         "category": story.get("category", ""),
                         "ct_score": story.get("ct_score", 0),
                         "engagement": story.get("engagement", {}),
+                        # Keep the source tweet URL citable — the audit found
+                        # CT docs were stored without it.
+                        "url": story.get("url", ""),
                     },
                 }
             )

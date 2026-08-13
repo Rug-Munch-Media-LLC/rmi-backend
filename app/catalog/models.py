@@ -278,6 +278,11 @@ class NewsItem(BaseModel):
     tokens_mentioned: list[str] = Field(default_factory=list)
     wallets_mentioned: list[str] = Field(default_factory=list)
     sentiment_score: float | None = Field(None, ge=-1.0, le=1.0)
+    bias: str | None = None
+    sentiment_label: str | None = None
+    factual_rating: str | None = None
+    source_tier: int | None = None
+    rating_confidence: float | None = None
     ai_analysis: str | None = None
     rag_embedding_id: str | None = None
     store: Literal["postgres"] = "postgres"

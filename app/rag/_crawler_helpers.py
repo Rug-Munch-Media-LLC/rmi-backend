@@ -346,9 +346,10 @@ def load_sources() -> dict[str, list[str]]:
     """Load crawl source feed URLs from ``unified_news_sources.json``.
 
     Returns a mapping of category → list of feed URLs for crawlable source
-    types (``rss``/``atom``/``sitemap``). Social sources (``reddit``,
-    ``nitter``) are excluded because the crawler follows article links,
-    not social streams.
+    types (``rss``/``atom``/``sitemap``/``reddit``/``nitter``). The reddit
+    and nitter entries are RSS feeds too, so they are included — the social
+    streams are consumed by discovery and pass through the same quality
+    gates as article feeds.
 
     Falls back to the legacy ``crawl_sources.json`` (category → URLs) when
     the unified file is missing or malformed, so old deployments keep
