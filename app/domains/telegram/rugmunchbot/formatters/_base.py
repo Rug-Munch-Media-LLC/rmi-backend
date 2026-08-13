@@ -8,6 +8,7 @@ every public name; imports elsewhere are unchanged.
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
@@ -79,16 +80,54 @@ def thin_sep(char: str = "\u2500", length: int = 24) -> str:
     return char * length
 
 
+# --- Referral codes (single source of truth for trade links) --------------
+# Owner referral codes appended to the trade-link URLs built in this module
+# (``gmgn_url`` / ``dextools_url`` → ``footer_links`` / ``dex_buttons``).
+# Empty string = the ``?ref=`` param is omitted entirely, so links stay
+# clean until a code is set. Environment overrides win over the dict:
+# ``RMI_REF_GMGN`` / ``RMI_REF_DEXTOOLS``.
+REF_CODES = {
+    # GMGN already ships with `ref=rugmunch` in config.DEX_REF_LINKS — keep
+    # that attribution here so the footer GMGN link matches the keyboard.
+    # Change to "" (or set RMI_REF_GMGN) to drop the param.
+    "gmgn": "rugmunch",
+    # fill in your ref code
+    "dextools": "",
+}
+# DexScreener has no referral program → intentionally absent from REF_CODES
+# (``dexscreener_url`` never appends a ``?ref=`` param).
+
+
+def _ref_code(platform: str) -> str:
+    """Resolve the owner's referral code for a platform.
+
+    Env overrides (``RMI_REF_GMGN`` / ``RMI_REF_DEXTOOLS``) take precedence
+    over ``REF_CODES``; an empty result omits the ``?ref=`` param.
+    """
+    env_name = f"RMI_REF_{platform.upper()}"
+    return os.environ.get(env_name, REF_CODES.get(platform, ""))
+
+
 def footer_links(address: str = "", chain: str = "") -> str:
     """Bot footer with links. When a token is provided, includes
-    RugCharts + RugMaps deep links so users can jump to visual analysis."""
-    base = f'\n{sep()}\n\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
+    GMGN → DexScreener → DexTools trade links (GMGN carries the owner's
+    ref code) plus RugCharts + RugMaps deep links so users can jump to
+    visual analysis. HTML-safe for Telegram (only ``<a>`` tags)."""
     if address:
-        base += (
-            f'\n\U0001f4c8 <a href="https://rugmunch.io/rugcharts?token={address}&chain={chain}">RugCharts</a>'
+        trade = (
+            f'<a href="{gmgn_url(address, chain)}">GMGN</a>'
+            f' | <a href="{dexscreener_url(address, chain)}">DexScreener</a>'
+            f' | <a href="{dextools_url(address, chain)}">DexTools</a>'
+        )
+        charts = (
+            f'\U0001f4c8 <a href="https://rugmunch.io/rugcharts?token={address}&chain={chain}">RugCharts</a>'
             f' | \U0001f5fa\ufe0f <a href="https://rugmunch.io/rugmaps?token={address}&chain={chain}">RugMaps</a>'
         )
-    return base
+        return (
+            f"\n{sep()}\n{trade}\n{charts}\n"
+            f'\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
+        )
+    return f'\n{sep()}\n\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
 
 
 def web_scan_button(address: str, chain: str = "") -> InlineKeyboardButton:
@@ -116,6 +155,59 @@ def dexscreener_url(address: str, chain: str) -> str:
     """DexScreener token page URL — tap-to-open chart for any token."""
     slug = DEXSCREENER_CHAINS.get((chain or "").lower(), (chain or "solana").lower())
     return f"https://dexscreener.com/{slug}/{address}"
+
+
+# GMGN chain slugs (match the path segment GMGN uses per chain).
+GMGN_CHAINS = {
+    "solana": "sol",
+    "ethereum": "eth",
+    "base": "base",
+    "bsc": "bsc",
+    "arbitrum": "arb",
+}
+
+
+def gmgn_url(address: str, chain: str) -> str:
+    """GMGN token page URL — smart-money tracking + trading terminal.
+
+    Appends the owner's ``?ref=`` param when a GMGN ref code is configured
+    (``REF_CODES["gmgn"]`` or ``RMI_REF_GMGN``); omits it when empty.
+    """
+    slug = GMGN_CHAINS.get((chain or "").lower(), (chain or "solana").lower())
+    url = f"https://gmgn.ai/{slug}/token/{address}"
+    ref = _ref_code("gmgn")
+    if ref:
+        url += f"?ref={ref}"
+    return url
+
+
+# DexTools chain slugs (match the path segment DexTools uses per chain).
+DEXTOOLS_CHAINS = {
+    "solana": "sol",
+    "ethereum": "ether",
+    "base": "base",
+    "bsc": "bnb",
+    "arbitrum": "arbitrum",
+    "polygon": "polygon",
+    "avalanche": "avalanche",
+    "optimism": "optimism",
+    "tron": "tron",
+}
+
+
+def dextools_url(address: str, chain: str) -> str:
+    """DexTools pair page URL — chart explorer for any token.
+
+    Appends the owner's ``?ref=`` param when a DexTools ref code is
+    configured (``REF_CODES["dextools"]`` or ``RMI_REF_DEXTOOLS``); omits
+    it when empty.
+    """
+    slug = DEXTOOLS_CHAINS.get((chain or "").lower(), (chain or "solana").lower())
+    url = f"https://www.dextools.io/app/en/{slug}/pair-explorer/{address}"
+    ref = _ref_code("dextools")
+    if ref:
+        url += f"?ref={ref}"
+    return url
 
 
 def explorer_url(address: str, chain: str) -> str:
@@ -148,6 +240,12 @@ def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
                 chain_id=CHAIN_IDS.get(chain.lower(), 1),
             )
             buttons.append(InlineKeyboardButton(f"{dex['emoji']} {dex['name']}", url=url))
+    # Chart trade links — DexScreener (no ref program) + DexTools (ref via
+    # REF_CODES / RMI_REF_DEXTOOLS when configured). GMGN already ships via
+    # DEX_REF_LINKS above, so it is not duplicated here.
+    if chain:
+        buttons.append(InlineKeyboardButton("\U0001f986 DexScreener", url=dexscreener_url(token, chain)))
+        buttons.append(InlineKeyboardButton("\U0001f4c8 DexTools", url=dextools_url(token, chain)))
     return buttons
 
 
