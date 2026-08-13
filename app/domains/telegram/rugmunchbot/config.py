@@ -499,6 +499,25 @@ DEX_REF_LINKS = {
     },
 }
 
+# ══════════════════════════════════════════════
+# JUPITER REFERRAL FEE ACCOUNTS (programmatic swap execution)
+# ══════════════════════════════════════════════
+# On-chain fee-recipient wallets for the Jupiter referral program. These are
+# the PROGRAMMATIC counterpart to the ``?ref=rugmunch`` UI-attribution links
+# in ``DEX_REF_LINKS["jupiter"]`` above (deep links only attribute the click;
+# they never move funds). Any swap executed through Jupiter's program with
+# ``feeAccount`` / ``platformFeeBps`` set routes a share of the swap fee to
+# these wallets.
+#
+# Where they are used:
+#   - walletpress plugin swap routing (walletpress repo) — the Solana swap
+#     path sets ``feeAccount`` = ``JUPITER_FEE_ACCOUNT`` on the Jupiter v6
+#     swap instruction so every executed swap pays the RugMunch referral fee.
+#   - Future Jupiter Ultra / swap-execution paths in THIS repo must reuse
+#     these constants instead of re-pasting the wallet strings.
+JUPITER_FEE_ACCOUNT = "8ouwE3sx6im8pDVwKRZ6n2QNjZwLmrBQ1XTiHhsXge39"  # Jupiter v6 Swap fee recipient
+JUPITER_ULTRA_ACCOUNT = "Dkrbs5cWeaVspAbCHUM4ds6kJdZeuJkgmaje9w9Urtfh"  # Jupiter Ultra fee recipient
+
 # Chain ID mapping for 1inch
 CHAIN_IDS = {
     "ethereum": 1,

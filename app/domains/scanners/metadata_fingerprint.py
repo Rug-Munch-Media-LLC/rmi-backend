@@ -36,6 +36,35 @@ from app.domains.scanners._sentinel_registry import sentinel_module
 logger = get_logger("metadata_fingerprint")
 
 # ---------------------------------------------------------------------------
+# Pump.fun metadata (off-chain: description, socials, creator)
+# ---------------------------------------------------------------------------
+# Pump.fun token metadata lives in the Pump.fun API (frontend-api.pump.fun),
+# not on-chain. Public, no auth required. GET /coins/{mint} returns
+# {mint, name, symbol, description, image_uri, twitter, telegram, website,
+#  creator, created_timestamp, ...}.
+PUMPFUN_API_BASE = "https://frontend-api.pump.fun"
+# Pump.fun program ID — the mint's creator is the bonding-curve program, so the
+# on-chain creator is useless; the real deployer is the API's ``creator`` field.
+PUMPFUN_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+# Pump.fun mints end in "pump" (base58 address, case-insensitive).
+PUMPFUN_MINT_SUFFIX = "pump"
+
+
+def is_pumpfun_mint(address: str, chain: str = "solana") -> bool:
+    """Best-effort Pump.fun mint detection.
+
+    A Pump.fun token is a Solana mint whose address ends in ``pump`` (the
+    factory always generates ``...pump``-suffixed mint keys). The creator-is-
+    program check (``creator == PUMPFUN_PROGRAM_ID``) is handled after the
+    API fetch in ``_fetch_metadata`` — when the resolved on-chain creator is
+    the Pump.fun program, the API's ``creator`` field is the real deployer.
+    """
+    if not address or (chain or "").lower() != "solana":
+        return False
+    return address.lower().endswith(PUMPFUN_MINT_SUFFIX)
+
+
+# ---------------------------------------------------------------------------
 # HTML structure extractor - strips text content, keeps tag hierarchy
 # ---------------------------------------------------------------------------
 
@@ -95,6 +124,20 @@ class TokenMetadata:
 
 
 @dataclass
+class PumpFunMetadata:
+    """Normalized metadata from the Pump.fun ``/coins/{mint}`` endpoint."""
+
+    mint: str
+    name: str = ""
+    symbol: str = ""
+    description: str = ""
+    twitter: str = ""
+    telegram: str = ""
+    website: str = ""
+    creator: str = ""
+
+
+@dataclass
 class SocialOverlapResult:
     overlapping_links: list[str]
     overlap_count: int
@@ -114,6 +157,7 @@ class FingerprintReport:
     name: str = ""
     symbol: str = ""
     description_snippet: str = ""  # first 200 chars
+    creator: str = ""  # deployer address (Pump.fun API creator for pump mints)
     similar_tokens: list[dict[str, object]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     confidence: str = "LOW"  # LOW, MEDIUM, HIGH
@@ -156,11 +200,19 @@ class MetadataFingerprinter:
 
     DEXSCREENER_BASE = "https://api.dexscreener.com"
     BIRDEYE_BASE = "https://public-api.birdeye.so"
+    PUMPFUN_API_BASE = PUMPFUN_API_BASE
+    PUMPFUN_PROGRAM_ID = PUMPFUN_PROGRAM_ID
 
-    def __init__(self, dexscreener_client: httpx.AsyncClient | None = None, birdeye_api_key: str = "") -> None:
+    def __init__(
+        self,
+        dexscreener_client: httpx.AsyncClient | None = None,
+        birdeye_api_key: str = "",
+        pumpfun_client: httpx.AsyncClient | None = None,
+    ) -> None:
         self.dexscreener_client = dexscreener_client or httpx.AsyncClient(timeout=15.0)
         self.birdeye_key = birdeye_api_key
         self.birdeye_client = httpx.AsyncClient(timeout=15.0)
+        self.pumpfun_client = pumpfun_client or httpx.AsyncClient(timeout=10.0)
         # In-memory cache: address -> TokenMetadata
         self._cache: dict[str, TokenMetadata] = {}
 
@@ -220,6 +272,7 @@ class MetadataFingerprinter:
             name=meta.name,
             symbol=meta.symbol,
             description_snippet=meta.description[:200],
+            creator=meta.creator,
             similar_tokens=similar,
             warnings=warnings,
             confidence=confidence,
@@ -475,14 +528,82 @@ class MetadataFingerprinter:
         return sorted(domains)
 
     # ------------------------------------------------------------------
-    # API fetch - DexScreener + Birdeye direct calls
+    # API fetch - Pump.fun resolver + DexScreener/Birdeye direct calls
     # ------------------------------------------------------------------
 
-    async def _fetch_metadata(self, token_address: str, chain: str) -> TokenMetadata:
-        """Fetch token metadata from DexScreener and Birdeye.
+    @staticmethod
+    def _pumpfun_social_links(meta: PumpFunMetadata) -> list[str]:
+        """Build social link URLs from Pump.fun API handle/URL fields."""
+        links: list[str] = []
+        twitter = (meta.twitter or "").strip()
+        if twitter:
+            if twitter.startswith("http"):
+                links.append(twitter)
+            else:
+                links.append(f"https://x.com/{twitter.lstrip('@')}")
+        telegram = (meta.telegram or "").strip()
+        if telegram:
+            if telegram.startswith("http"):
+                links.append(telegram)
+            else:
+                links.append(f"https://t.me/{telegram.lstrip('@')}")
+        website = (meta.website or "").strip()
+        if website:
+            links.append(website if website.startswith("http") else f"https://{website}")
+        return links
 
-        Merges data from both sources, preferring DexScreener for core
-        token info and using Birdeye for supplementary metadata.
+    async def fetch_pumpfun_metadata(self, mint: str) -> PumpFunMetadata | None:
+        """Fetch Pump.fun coin metadata from the public API.
+
+        GET https://frontend-api.pump.fun/coins/{mint} (no auth) returns the
+        off-chain description, socials (twitter/telegram/website) and the real
+        creator wallet. Fail-open: any error/empty payload returns ``None`` so
+        callers keep the previous (DexScreener/Birdeye-only) behavior.
+        """
+        if not mint:
+            return None
+        try:
+            resp = await self.pumpfun_client.get(f"{self.PUMPFUN_API_BASE}/coins/{mint}")
+            if resp.status_code != 200:
+                logger.debug(f"pumpfun_metadata_status {resp.status_code} for {mint[:16]}")
+                return None
+            data = resp.json()
+            if not isinstance(data, dict) or not data.get("mint"):
+                return None
+            return PumpFunMetadata(
+                mint=str(data.get("mint") or mint),
+                name=str(data.get("name") or ""),
+                symbol=str(data.get("symbol") or ""),
+                description=str(data.get("description") or ""),
+                twitter=str(data.get("twitter") or ""),
+                telegram=str(data.get("telegram") or ""),
+                website=str(data.get("website") or ""),
+                creator=str(data.get("creator") or ""),
+            )
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            OSError,
+        ) as e:
+            logger.debug("pumpfun_metadata_error", exc_info=True)
+            logger.warning(f"Pump.fun metadata fetch failed for {mint}: {e}")
+            return None
+
+    async def _fetch_metadata(self, token_address: str, chain: str) -> TokenMetadata:
+        """Fetch token metadata from DexScreener, Birdeye and Pump.fun.
+
+        Pump.fun tokens (Solana mints ending in ``pump``) get their
+        description / socials / real creator from the Pump.fun public API —
+        that data is off-chain and not present in on-chain or DexScreener
+        metadata. Non-Pump.fun tokens keep the DexScreener (+ Birdeye
+        supplement) path. All fetchers fail open: a dead source never
+        crashes the fingerprint, it just contributes no fields.
         """
         meta = TokenMetadata(address=token_address, chain=chain)
 
@@ -597,16 +718,33 @@ class MetadataFingerprinter:
             logger.debug("unknown_error", exc_info=True)
             logger.warning(f"Birdeye metadata fetch failed for {token_address}: {e}")
 
+        # --- Pump.fun: off-chain description/socials/creator ---
+        # Detect pump.fun mints BEFORE the merge. The API is fail-open: on
+        # any error ``pumpfun_meta`` is None and behavior is unchanged.
+        pumpfun_meta: PumpFunMetadata | None = None
+        if is_pumpfun_mint(token_address, chain):
+            pumpfun_meta = await self.fetch_pumpfun_metadata(token_address)
+        pumpfun_description = (pumpfun_meta.description if pumpfun_meta else "") or ""
+        pumpfun_social_links = self._pumpfun_social_links(pumpfun_meta) if pumpfun_meta else []
+        pumpfun_creator = (pumpfun_meta.creator if pumpfun_meta else "") or ""
+
         # --- Merge data: DexScreener first, Birdeye supplements ---
-        meta.name = dex_name
-        meta.symbol = dex_symbol
-        meta.description = dex_description or birdeye_description
+        meta.name = dex_name or (pumpfun_meta.name if pumpfun_meta else "") or ""
+        meta.symbol = dex_symbol or (pumpfun_meta.symbol if pumpfun_meta else "") or ""
+        meta.description = pumpfun_description or dex_description or birdeye_description
         meta.logo_url = dex_logo_url
+
+        # Deployer/creator: the pump.fun API ``creator`` is the real deployer
+        # (on-chain creator of a pump mint is the bonding-curve program).
+        # Guard against the factory address itself so we never report the
+        # program as the deployer.
+        if pumpfun_creator and pumpfun_creator.lower() != PUMPFUN_PROGRAM_ID.lower():
+            meta.creator = pumpfun_creator
 
         # Merge social links (deduplicated)
         all_socials: list[str] = []
         seen_urls: set[str] = set()
-        for url in dex_social_links + birdeye_social_links:
+        for url in pumpfun_social_links + dex_social_links + birdeye_social_links:
             norm = self._normalise_link(url)
             if norm and norm not in seen_urls:
                 seen_urls.add(norm)
@@ -615,6 +753,8 @@ class MetadataFingerprinter:
 
         # Website: try to fetch HTML if we have a URL
         website_url = dex_website or birdeye_website
+        if not website_url and pumpfun_meta and pumpfun_meta.website:
+            website_url = pumpfun_meta.website
         if website_url:
             try:
                 resp = await self.dexscreener_client.get(website_url, follow_redirects=True)

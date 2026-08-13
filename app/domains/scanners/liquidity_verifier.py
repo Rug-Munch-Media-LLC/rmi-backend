@@ -32,6 +32,7 @@ import requests
 
 from app.chain_registry import get_known_lockers, is_solana
 from app.core.logging import get_logger
+from app.domains.scanner.modules._core import _best_pair, is_pumpfun_token
 from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("liquidity_verifier")
@@ -472,6 +473,41 @@ class LiquidityVerifier:
                 warnings=["Stablecoin/wrapped token - LP lock check not applicable"],
             )
 
+        # Pump.fun short-circuit: LP is burned/locked by design (bonding curve
+        # → Raydium migration burns the LP). Detecting it up-front prevents the
+        # false "LP only 0.0% locked - HIGH rug pull risk" flag that otherwise
+        # appears when the on-chain Helius burn check is unavailable. Only
+        # applies to genuine pump.fun tokens — never hardcoded for others.
+        # Fail-open: a detector regression must never crash the verification.
+        try:
+            is_pumpfun = is_solana(chain) and await self._detect_pumpfun(token_address)
+        except (ConnectionError, OSError, TimeoutError, RuntimeError, ValueError, TypeError):
+            logger.debug("pumpfun_detect_failed", exc_info=True)
+            is_pumpfun = False
+        if is_pumpfun:
+            return LockReport(
+                token_address=token_address,
+                chain=chain,
+                status=LockStatus.BURNED,
+                total_locked_percentage=100.0,
+                lock_details=[
+                    LockDetail(
+                        locker_address="pump.fun",
+                        platform="PumpFun",
+                        percentage_locked=100.0,
+                        is_burned=True,
+                    )
+                ],
+                is_legitimate_locker=True,
+                has_split_lock=False,
+                upcoming_unlocks=[],
+                fake_lock_detected=False,
+                lp_burned=True,
+                risk_score=0,
+                risk_level="LOW",
+                warnings=["Pump.fun token - LP burned/locked by the bonding curve (100%)"],
+            )
+
         # Verify the lock on-chain (Solana LP burn via Helius, or EVM holders via Moralis/Etherscan)
         lp_burned, lp_holders = await self._verify_lock_onchain(token_address, chain, lp_token)
         if lp_burned:
@@ -553,7 +589,59 @@ class LiquidityVerifier:
             warnings=warnings,
         )
 
-    async def _check_solana_lp_burn(self, token_address: str) -> bool:
+    async def _dexscreener_first_pair(self, token_address: str) -> dict[str, Any] | None:
+        """Fetch the best (highest-liquidity) DexScreener pair, fail-open."""
+        try:
+            resp = await self.client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
+            if resp.status_code == 200:
+                pairs = resp.json().get("pairs") or []
+                if pairs:
+                    return _best_pair(pairs) or pairs[0]
+        except (
+            httpx.HTTPError,
+            requests.RequestException,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            TimeoutError,
+        ) as e:
+            logger.debug("_dexscreener_first_pair_error", exc_info=True)
+            logger.debug(f"DexScreener pair lookup failed for {token_address}: {e}")
+        return None
+
+    async def _gmgn_launchpad(self, token_address: str) -> str:
+        """Return the GMGN ``launchpad`` label for a token, or ``''`` (fail-open)."""
+        try:
+            from app.databus.gmgn_provider import get_gmgn_provider
+
+            info = await get_gmgn_provider().get_token_info(token_address, "solana")
+            if isinstance(info, dict):
+                return str(info.get("launchpad") or "")
+        except Exception:
+            logger.debug("gmgn_launchpad_failed", exc_info=True)
+        return ""
+
+    async def _detect_pumpfun(self, token_address: str) -> bool:
+        """Best-effort Pump.fun detection: mint suffix / pair / GMGN launchpad.
+
+        Never raises — every source is fail-open. Returns True when any
+        signal matches (mint ends in ``pump``, the DEX pair is pump.fun-created,
+        or GMGN labels the launchpad as pump).
+        """
+        if is_pumpfun_token(token_address, "solana"):
+            return True
+        try:
+            pair = await self._dexscreener_first_pair(token_address)
+            if pair and is_pumpfun_token(token_address, "solana", pair=pair):
+                return True
+        except (ConnectionError, OSError, TimeoutError):
+            logger.debug("pumpfun_pair_detect_failed", exc_info=True)
+        launchpad = await self._gmgn_launchpad(token_address)
+        return is_pumpfun_token(token_address, "solana", launchpad=launchpad)
+
+    async def _check_solana_lp_burn(self, token_address: str, pair: dict[str, Any] | None = None) -> bool:
         """Check if Solana LP tokens are burned using Helius.
 
         Strategy:
@@ -564,25 +652,23 @@ class LiquidityVerifier:
         """
         # Try DexScreener to find the LP pair info
         try:
-            resp = await self.client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_address}")
-            if resp.status_code == 200:
-                data = resp.json()
-                pairs = data.get("pairs") or []
-                if pairs:
-                    pair = pairs[0]
-                    lp_address = pair.get("pairAddress", "")
-                    if not lp_address:
-                        return False
+            pair = pair or await self._dexscreener_first_pair(token_address)
+            if not pair:
+                return False
 
-                    # Check Helius: get token accounts at burn addresses
-                    for burn_addr in SOLANA_BURN_ADDRESSES:
-                        accounts = await self._helius_get_token_accounts(burn_addr)
-                        if accounts:
-                            for acct in accounts:
-                                info = acct.get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
-                                mint = info.get("mint", "")
-                                if mint == lp_address:
-                                    return True
+            lp_address = pair.get("pairAddress", "")
+            if not lp_address:
+                return False
+
+            # Check Helius: get token accounts at burn addresses
+            for burn_addr in SOLANA_BURN_ADDRESSES:
+                accounts = await self._helius_get_token_accounts(burn_addr)
+                if accounts:
+                    for acct in accounts:
+                        info = acct.get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
+                        mint = info.get("mint", "")
+                        if mint == lp_address:
+                            return True
         except (
             httpx.HTTPError,
             requests.RequestException,

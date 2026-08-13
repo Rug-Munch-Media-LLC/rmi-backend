@@ -340,6 +340,57 @@ def social_proof_text() -> str:
     )
 
 
+def about_text() -> str:
+    """Backstory block — who is behind Rug Munch Bot.
+
+    Used by /start, /help and /faq so every surface carries the same
+    company line. HTML-safe for Telegram: only ``<b>`` tags.
+    """
+    return (
+        "\U0001f916 <b>About</b>\n"
+        "Rug Munch Bot is created by the team behind "
+        "<b>RMI (Rug Munch Intelligence)</b> \u2014 a division of "
+        "<b>Rug Munch Media LLC</b>, a Wyoming-based company \u2014 to "
+        "protect retail investors from crypto scams with on-chain "
+        "intelligence, scanner forensics, and AI analysis."
+    )
+
+
+def faq_text() -> str:
+    """Lightweight FAQ — plain-language answers to common questions.
+
+    Pure string formatter (no network, no DB) so /faq always renders and is
+    unit-testable. HTML-safe for Telegram: only ``<b>`` / ``<code>`` tags and
+    ``&amp;`` escaping — no raw markdown.
+    """
+    return (
+        "\U0001f4d6 <b>Rug Munch Bot - FAQ</b>\n\n"
+        "\U0001f916 <b>What is Rug Munch Bot?</b>\n"
+        "An AI scam-detection copilot: paste any token address or wallet and "
+        "get instant audits, forensics and risk scores.\n\n"
+        "\U0001f50d <b>What can you scan?</b>\n"
+        "Tokens on EVM chains and Solana, wallets, deployers, LP health, "
+        "honeypots, MEV risk, hype scores and more. Try /scan "
+        "<code>address</code> or /wallet <code>address</code>.\n\n"
+        "\U0001f4b0 <b>Is it free?</b>\n"
+        "Yes! We\u2019re in <b>FREE PUBLIC BETA</b> \u2014 every premium "
+        "feature is unlocked while we test. Paid plans (Scout/Hunter/Pro) "
+        "come later.\n\n"
+        "\U0001f3db\ufe0f <b>What is RMI?</b>\n"
+        "RMI (Rug Munch Intelligence) is the team behind the bot, owned by "
+        "<b>Rug Munch Media LLC</b>, a Wyoming-based company. We build "
+        "on-chain intelligence tools that protect retail investors.\n\n"
+        "\U0001f3af <b>How accurate are the scans?</b>\n"
+        "Our SENTINEL engine runs 9 forensics modules over 17 indexed chains "
+        "(359M+ on-chain rows) with 200+ tools. No tool is 100% \u2014 "
+        "always DYOR, and pair a scan with the charts on rugmunch.io.\n\n"
+        "\u26a0\ufe0f <b>See a scam?</b>\n"
+        "Report it with /report <code>address</code> \u2014 it keeps "
+        "everyone safer.\n\n"
+        "\U0001f4d6 More: /help for the full command guide"
+    )
+
+
 def welcome_card_text() -> str:
     """Modern capability overview — brand line, "what I can do" list, CTA.
 
@@ -362,9 +413,11 @@ def welcome_card_text() -> str:
         f"\U0001f4f0 <b>News</b> \u2014 live crypto news + RAG AI chat\n"
         f"\U0001f514 <b>Alerts</b> \u2014 price, watchlist &amp; whale alerts\n"
         f"\U0001f4da <b>Scam School</b> \u2014 learn the plays &amp; KOL/scammer tracking\n\n"
+        f"{about_text()}\n\n"
         f"{BETA_BANNER}\n\n"
         f"\U0001f4cc Try <code>/scan</code> <code>address</code> or "
         f"<code>/chat</code> <code>question</code>\n"
+        f"\U0001f4cc New here? <code>/faq</code> \u2014 how it works\n"
         f"\U0001f4cc Pick a section below \U0001f447"
         f"{footer_links()}"
     )

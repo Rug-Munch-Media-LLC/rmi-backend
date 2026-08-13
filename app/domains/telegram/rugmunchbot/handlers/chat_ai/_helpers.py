@@ -306,6 +306,62 @@ _KNOWN_SCAM_WARNING = (
 
 
 # ══════════════════════════════════════════════
+# SELF-IMPROVEMENT / DEVELOPER QUESTIONS
+# "what capabilities could I add that would help you do your job better" is
+# a REAL question — NOT a request for the command menu. The generic
+# capability rule used to over-match "capabilities" and dump the menu for
+# any capability mention, so self-improvement questions get their own
+# specific answer (capabilities already present + genuine improvement gaps).
+# ══════════════════════════════════════════════
+
+_SELF_IMPROVEMENT_RE = re.compile(
+    r"(?:"
+    r"\bwould help you\b"
+    r"|\bcould you use\b"
+    r"|\bif i added\b"
+    r"|\bas your developer\b"
+    r"|\bwhat do you need\b"
+    r"|\bhow (?:could|can) (?:you improve|i improve you|i make you better)\b"
+    r"|\bwhat would make you better\b"
+    r"|\bwhat (?:capabilit\w*|features|tools|data) (?:should|could) i add\b"
+    r"|\bwhat (?:capabilit\w*|features|tools|data) could you use\b"
+    r"|\b(?:capabilit\w*|features|tools|data) you could use\b"
+    r"|\bwhat (?:would|could) (?:help|improve|make) you\b"
+    r"|\bwhat (?:could|should) i add\b"
+    r"|\bto perform better\b"
+    r"|\bperform your job better\b"
+    r"|\bdo your job better\b"
+    r"|\bimprove (?:yourself|the bot)\b"
+    r")",
+    re.IGNORECASE,
+)
+
+_SELF_IMPROVEMENT_ANSWER = (
+    "\U0001f6e0\ufe0f <b>What would genuinely help me</b>\n\n"
+    "Love this question! I already run on a solid stack \u2014 token "
+    "security scans, wallet forensics, cross-chain tracing, live prices, "
+    "whale alerts, and a 91K+ doc intel library across 25+ chains. But if "
+    "you're asking what would make me <i>better</i> at my job:\n\n"
+    "\U0001f4c8 <b>Real-time price &amp; orderbook feeds</b> \u2014 "
+    "sub-second prices and depth data so my market answers never go stale.\n"
+    "\U0001f4cb <b>Full on-chain history</b> \u2014 complete transfer and "
+    "trade history for any token or wallet, so traces and funding paths go "
+    "deeper than recent activity.\n"
+    "\U0001f465 <b>More labeled wallet data</b> \u2014 exchanges, funds, "
+    "scammer addresses and airdrop farmers, so cluster analysis names the "
+    "players instead of just linking them.\n"
+    "\U0001f9e0 <b>A stronger LLM</b> \u2014 bigger context and better "
+    "reasoning means sharper answers on complex multi-step investigations.\n"
+    "\U0001f4f0 <b>Live news &amp; webhooks</b> \u2014 push feeds for "
+    "exploits, launches and whale moves, so I can flag threats the moment "
+    "they happen instead of waiting for someone to ask.\n\n"
+    "Each of those turns me from reactive to proactive \u2014 faster, "
+    "deeper, safer intel for the whole community."
+    f"{footer_links()}"
+)
+
+
+# ══════════════════════════════════════════════
 # TIER-2 LOCAL INTENT MATCHING (ported from handlers/message.py)
 # Canned, zero-backend answers for greetings / feature intents. Used for
 # gibberish that is not worth an LLM call and as an offline fallback when the
@@ -313,6 +369,13 @@ _KNOWN_SCAM_WARNING = (
 # ══════════════════════════════════════════════
 
 _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
+    # Self-improvement questions MUST win over the capability menu (and over
+    # incidental keyword matches like "scan"/"news" in e.g. "what would help
+    # you scan tokens better"), so this rule is registered FIRST.
+    (
+        _SELF_IMPROVEMENT_RE,
+        _SELF_IMPROVEMENT_ANSWER,
+    ),
     (
         re.compile(
             r"\b(scan|check|audit|rug|scam|honeypot|safu|drain|phish|malicious|"
@@ -576,7 +639,14 @@ def _is_greeting_or_thanks(text: str) -> bool:
 
 
 def _is_capability_question(text: str) -> bool:
-    """Check if the message asks about bot capabilities (canned reply worthy)."""
+    """Check if the message asks about bot capabilities (canned reply worthy).
+
+    Stays intentionally BROAD — it is the gate that routes both the command
+    menu AND the self-improvement answer to the instant canned path. The
+    distinction between "what can you do" (→ menu) and "what would help you"
+    (→ self-improvement wishlist) is made by :func:`_is_self_improvement_question`
+    + rule order inside :func:`local_ai_response`, not by this gate.
+    """
     return bool(
         re.search(
             r"\b(help|can you|capabilities|features|commands|what do|what are|"
@@ -588,6 +658,17 @@ def _is_capability_question(text: str) -> bool:
             text.lower(),
         )
     )
+
+
+def _is_self_improvement_question(text: str) -> bool:
+    """True when the user asks what the BOT needs / could add to do better.
+
+    Distinct from :func:`_is_capability_question`: "what can you do" is a
+    menu question, but "what would help you / what capabilities could I add /
+    as your developer" is a self-improvement question answered with the
+    specific wishlist instead of the command menu.
+    """
+    return bool(_SELF_IMPROVEMENT_RE.search(text))
 
 
 def _is_deep_question(text: str) -> bool:

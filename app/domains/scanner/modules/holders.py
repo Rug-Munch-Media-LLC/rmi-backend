@@ -22,9 +22,11 @@ import httpx
 from app.domains.scanner.modules._core import (
     GOPLUS_CHAIN_IDS,
     PREFER_OWN_DATA,
+    _best_pair,
     _fetch_dexscreener,
     _fetch_json,
     _solana_rpc_call,
+    is_pumpfun_token,
     logger,
 )
 from app.domains.scanner.modules._holder_helpers import (
@@ -32,6 +34,24 @@ from app.domains.scanner.modules._holder_helpers import (
     _build_solana_top_holders,
     _solana_lp_burn_ratio,
 )
+
+
+async def _gmgn_token_info(token_address: str, chain: str) -> dict[str, Any] | None:
+    """Best-effort GMGN token info — liquidity / holders / volume fallback.
+
+    Returns the GMGN provider payload (keys: ``liquidity``, ``holders``,
+    ``volume_24h``, ``market_cap``, ``launchpad``, ...) or ``None`` on any
+    failure. Always fail-open — never raises.
+    """
+    try:
+        from app.databus.gmgn_provider import get_gmgn_provider
+
+        info = await get_gmgn_provider().get_token_info(token_address, chain)
+        if isinstance(info, dict) and info.get("source") != "none":
+            return info
+    except Exception as exc:
+        logger.debug("gmgn_token_info_fallback_failed", error=str(exc)[:60])
+    return None
 
 
 async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | None:
@@ -106,8 +126,12 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
                 result["top_holders"] = top_holders
                 if top_holders:
                     result["concentration_pct"] = top_holders[0]["percentage"]
-                result["source"] = "solana_rpc"
-                return result
+                if value:
+                    # Real accounts found — done. Empty accounts (brand-new
+                    # pump.fun tokens, unsettled RPC) fall through to the
+                    # DexScreener / GMGN fallback instead of returning 0.
+                    result["source"] = "solana_rpc"
+                    return result
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("solana_holders_failed", error=str(e))
     else:
@@ -133,6 +157,34 @@ async def _get_holder_data(token_address: str, chain: str) -> dict[str, Any] | N
                     result["source"] = "blockscout"
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.debug("evm_holders_failed", error=str(e))
+
+    # ── Tier 3: DexScreener / GMGN fallback (all chains) ──
+    # When the primary holder query returns nothing (common for brand-new
+    # pump.fun tokens before their pool is indexed / RPC accounts settle),
+    # surface REAL holder numbers from the DEX pair (own dex data or
+    # DexScreener API) and GMGN token info instead of reporting 0.
+    if not result.get("holder_count") and not result.get("top_holders"):
+        try:
+            ds_data = await _fetch_dexscreener(token_address, chain)
+            if ds_data and ds_data.get("pairs"):
+                pair = _best_pair(ds_data["pairs"]) or ds_data["pairs"][0]
+                holders = int(pair.get("holders", 0) or 0)
+                if holders > 0:
+                    result["holder_count"] = holders
+                    result["source"] = "dexscreener"
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.debug("holder_dexscreener_fallback_failed", error=str(e)[:60])
+
+        if not result.get("holder_count"):
+            try:
+                gmgn = await _gmgn_token_info(token_address, chain)
+            except Exception:
+                gmgn = None
+            if gmgn:
+                holders = int(gmgn.get("holders", 0) or 0)
+                if holders > 0:
+                    result["holder_count"] = holders
+                    result["source"] = gmgn.get("source", "gmgn")
 
     return result
 
@@ -234,8 +286,8 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
     # ── Tier 3: DEX data fallback (own ClickHouse first, DexScreener API fallback) ──
     try:
         ds_data = await _fetch_dexscreener(token_address, chain)
-        if ds_data:
-            pair = ds_data["pairs"][0]
+        if ds_data and ds_data.get("pairs"):
+            pair = _best_pair(ds_data["pairs"]) or ds_data["pairs"][0]
             liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
             result["liquidity_usd"] = liquidity
             result["dex"] = pair.get("dexId", "")
@@ -247,19 +299,51 @@ async def _check_liquidity_lock_multi(token_address: str, chain: str, pair_addre
                 age_hours = (time.time() - pair_created / 1000) / 3600
                 result["pool_age_hours"] = round(age_hours, 1)
 
-            # Check for LP burn on Solana
+            # LP lock state on Solana
             if chain == "solana":
-                pair_addr = pair.get("pairAddress", "")
-                if pair_addr:
-                    burn = await _solana_lp_burn_ratio(pair_addr)
-                    if burn is not None:
-                        result["liquidity_locked_pct"], result["lp_burned"] = burn
-
-            if liquidity < 100:
-                result["liquidity_locked_pct"] = 0
-            result["source"] = "dexscreener"
+                # Pump.fun LP is 100% burned/locked by design (bonding curve
+                # → Raydium migration burns LP). Short-circuit so the curve
+                # pair's $0 virtual liquidity can never yield the false
+                # "LP 0% locked" rug flag.
+                if is_pumpfun_token(token_address, chain, pair=pair):
+                    result["liquidity_locked_pct"] = 100.0
+                    result["lp_burned"] = True
+                    result["is_pumpfun"] = True
+                    result["source"] = "pumpfun_lp_burn"
+                else:
+                    pair_addr = pair.get("pairAddress", "")
+                    if pair_addr:
+                        burn = await _solana_lp_burn_ratio(pair_addr)
+                        if burn is not None:
+                            result["liquidity_locked_pct"], result["lp_burned"] = burn
+                    if liquidity < 100:
+                        result["liquidity_locked_pct"] = 0
+                    result["source"] = "dexscreener"
+            else:
+                if liquidity < 100:
+                    result["liquidity_locked_pct"] = 0
+                result["source"] = "dexscreener"
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.debug("liquidity_fallback_failed", error=str(e))
+
+    # ── Tier 4: GMGN liquidity fallback — never surface $0 when GMGN has data ──
+    try:
+        gmgn = await _gmgn_token_info(token_address, chain)
+    except Exception:
+        gmgn = None
+    if gmgn:
+        if not result.get("liquidity_usd"):
+            gmgn_liq = float(gmgn.get("liquidity", 0) or 0)
+            if gmgn_liq > 0:
+                result["liquidity_usd"] = gmgn_liq
+                result["source"] = gmgn.get("source", "gmgn")
+        # GMGN launchpad signal can still prove pump.fun when the pair
+        # lookup missed it (e.g. own dex data had no pump labels).
+        if is_pumpfun_token(token_address, chain, launchpad=gmgn.get("launchpad", "")):
+            result["liquidity_locked_pct"] = 100.0
+            result["lp_burned"] = True
+            result["is_pumpfun"] = True
+            result["source"] = "pumpfun_lp_burn"
 
     return result
 

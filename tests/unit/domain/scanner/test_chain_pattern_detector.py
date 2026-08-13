@@ -553,7 +553,7 @@ class TestAnalyzeAndIngest:
         assert out["match_count"] == 2  # holder concentration + deployer cluster
         assert out["total_risk_score"] > 0
         assert out["ingested_into_rag"] == 2
-        assert out["source"] == "chain_indexer (ClickHouse)"
+        assert out["source"] == "lite_chain_indexer (ClickHouse)"
 
     @pytest.mark.asyncio
     async def test_detect_and_ingest_alias(self) -> None:

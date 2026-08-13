@@ -145,7 +145,10 @@ class TestVerifyLockScenarios:
     async def test_verify_lock_solana_lp_burn(self) -> None:
         """Solana tokens with burned LP should be reported as BURNED."""
         verifier = LiquidityVerifier()
-        with patch.object(verifier, "_check_solana_lp_burn", AsyncMock(return_value=True)):
+        with (
+            patch.object(verifier, "_check_solana_lp_burn", AsyncMock(return_value=True)),
+            patch.object(verifier, "_detect_pumpfun", AsyncMock(return_value=False)),
+        ):
             report = await verifier.verify_lock("SolMintAddr", "solana")
         assert report.status == LockStatus.BURNED
         assert report.lp_burned is True
@@ -206,10 +209,13 @@ class TestAPIFailureHandling:
     async def test_etherscan_get_http_error_returns_none(self) -> None:
         """Etherscan HTTP errors should return None rather than raising."""
         verifier = LiquidityVerifier()
-        with patch.dict(
-            "app.domains.scanners.liquidity_verifier.ETHERSCAN_NETWORKS",
-            {"ethereum": {"url": "https://api.example.invalid/api", "key": "test-key"}},
-        ), patch.object(verifier.client, "get", AsyncMock(side_effect=httpx.HTTPError("boom"))):
+        with (
+            patch.dict(
+                "app.domains.scanners.liquidity_verifier.ETHERSCAN_NETWORKS",
+                {"ethereum": {"url": "https://api.example.invalid/api", "key": "test-key"}},
+            ),
+            patch.object(verifier.client, "get", AsyncMock(side_effect=httpx.HTTPError("boom"))),
+        ):
             result = await verifier._etherscan_get("ethereum", {"module": "account", "action": "balance"})
         assert result is None
 
@@ -224,10 +230,13 @@ class TestAPIFailureHandling:
             def json(self) -> dict:
                 return {}
 
-        with patch.dict(
-            "app.domains.scanners.liquidity_verifier.ETHERSCAN_NETWORKS",
-            {"ethereum": {"url": "https://api.example.invalid/api", "key": "test-key"}},
-        ), patch.object(verifier.client, "get", AsyncMock(return_value=RateLimitedResponse())):
+        with (
+            patch.dict(
+                "app.domains.scanners.liquidity_verifier.ETHERSCAN_NETWORKS",
+                {"ethereum": {"url": "https://api.example.invalid/api", "key": "test-key"}},
+            ),
+            patch.object(verifier.client, "get", AsyncMock(return_value=RateLimitedResponse())),
+        ):
             result = await verifier._etherscan_get("ethereum", {"module": "account", "action": "balance"})
         assert result is None
 

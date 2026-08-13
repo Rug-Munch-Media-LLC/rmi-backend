@@ -449,10 +449,10 @@ class TestCacheHelpers:
 
 class TestDataBusProvider:
     @pytest.mark.asyncio
-    async def test_chain_indexer_attack_detection_provider(self):
+    async def test_lite_chain_indexer_attack_detection_provider(self):
         """The LOCAL DataBus provider delegates and wraps engine output."""
-        from app.domains.databus.providers.chains.chain_indexer_own import (
-            _chain_indexer_attack_detection,
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import (
+            _lite_chain_indexer_attack_detection,
         )
 
         with (
@@ -469,7 +469,7 @@ class TestDataBusProvider:
                 ),
             ),
         ):
-            out = await _chain_indexer_attack_detection(chain="ethereum", hours_back=1)
+            out = await _lite_chain_indexer_attack_detection(chain="ethereum", hours_back=1)
 
         assert out is not None
         assert out["tier"] == "local"
@@ -477,24 +477,24 @@ class TestDataBusProvider:
         assert out["data"]["result"] == "scanned"
 
     @pytest.mark.asyncio
-    async def test_chain_indexer_attack_detection_provider_skips_when_disabled(self):
+    async def test_lite_chain_indexer_attack_detection_provider_skips_when_disabled(self):
         """Provider returns None when PREFER_OWN_DATA is disabled."""
-        from app.domains.databus.providers.chains.chain_indexer_own import (
-            _chain_indexer_attack_detection,
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import (
+            _lite_chain_indexer_attack_detection,
         )
 
         with (
-            patch("app.domains.databus.providers.chains.chain_indexer_own.PREFER_OWN_DATA", False),
+            patch("app.domains.databus.providers.chains.lite_chain_indexer_own.PREFER_OWN_DATA", False),
             patch(
                 "app.domains.scanner.engines.attack_detector.run_attack_detection",
                 AsyncMock(return_value={"result": "scanned", "events_new": 0}),
             ),
         ):
-            out = await _chain_indexer_attack_detection(chain="ethereum")
+            out = await _lite_chain_indexer_attack_detection(chain="ethereum")
         assert out is None
 
     def test_provider_registered_in_lazy_map(self):
         """The provider function is discoverable via the DataBus lazy map."""
-        from app.domains.databus.providers import _chain_indexer_attack_detection
+        from app.domains.databus.providers import _lite_chain_indexer_attack_detection
 
-        assert callable(_chain_indexer_attack_detection)
+        assert callable(_lite_chain_indexer_attack_detection)
