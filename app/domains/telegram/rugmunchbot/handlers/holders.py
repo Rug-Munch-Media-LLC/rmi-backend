@@ -89,7 +89,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     db.get_or_create_user(user.id, user.username, user.first_name)
 
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "👥 <b>Holder Analysis</b>\n\n"
             "Usage: /holders <code>address</code> [chain]\n\n"
             "<b>Examples:</b>\n"
@@ -103,7 +103,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier not in ("scout", "hunter", "pro") and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "👥 <b>Holder Analysis</b>\n\n"
             "This feature requires <b>Scout tier</b> or higher.\n\n"
             "🔍 <b>Scout ($29.99/mo)</b> — Holder distribution + concentration\n"
@@ -117,7 +117,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
             )
             return
@@ -125,7 +125,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     address = ctx.args[0]
     chain = ctx.args[1].lower() if len(ctx.args) > 1 else detect_chain(address)
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"👥 <b>Fetching holder data...</b>\n<code>{address}</code>",
         parse_mode=ParseMode.HTML,
     )

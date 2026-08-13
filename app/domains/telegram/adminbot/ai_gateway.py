@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 try:
-    from app.domains.telegram.adminbot import admin_ai  # type: ignore[import-untyped]
+    from app.domains.telegram.adminbot import admin_ai
 except ImportError:
     admin_ai = None
 

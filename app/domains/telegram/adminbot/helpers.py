@@ -7,9 +7,10 @@ Owner gating, message editing, keyboard builders for the admin bot.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.constants import ParseMode
 
 from app.domains.telegram import access_guard
@@ -30,13 +31,13 @@ def is_rate_limited(uid: int, cooldown: float = SPAM_COOLDOWN) -> bool:
     return False
 
 
-def rate_limited(func) -> Any | None:
+def rate_limited(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
     """Decorator: enforce per-user cooldown before command execution."""
 
     async def wrapper(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Any | None:
         uid = update.effective_user.id if update.effective_user else 0
         if is_rate_limited(uid):
-            return  # silently drop spam
+            return None  # silently drop spam
         return await func(update, ctx)
 
     return wrapper
@@ -53,7 +54,7 @@ def is_owner(update: Update) -> bool:
     return update.effective_user.id in OWNER_IDS
 
 
-def owner_only(func) -> Any | None:
+def owner_only(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
     """Decorator: reject non-owners silently (hidden bot) + rate limiting.
 
     The admin bot is HIDDEN: non-owners get no reply at all (not even an
@@ -66,7 +67,7 @@ def owner_only(func) -> Any | None:
         uid = update.effective_user.id if update.effective_user else 0
         # Rate-limit check (silent drop for spam)
         if is_rate_limited(uid):
-            return
+            return None
         # Authorization check — silent deny + owner alert
         if not is_owner(update):
             user = update.effective_user
@@ -85,7 +86,7 @@ def owner_only(func) -> Any | None:
                 chat_type=chat.type if chat else None,
                 audit=_audit_deny,
             )
-            return
+            return None
         return await func(update, ctx)
 
     return wrapper
@@ -115,7 +116,7 @@ async def edit_or_reply(
         try:
             await update.callback_query.edit_message_text(text, reply_markup=keyboard, parse_mode=parse_mode)
         except (ConnectionError, OSError, TimeoutError):
-            if update.callback_query.message is not None:
+            if isinstance(update.callback_query.message, Message):
                 await update.callback_query.message.reply_text(text, reply_markup=keyboard, parse_mode=parse_mode)
     else:
         if update.message is not None:

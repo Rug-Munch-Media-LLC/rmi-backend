@@ -42,10 +42,10 @@ async def telegram_stats(request: Request, _=Depends(verify_admin)) -> Any:
             logger.warning("Could not read bot state")
     try:
         for proc in psutil.process_iter(["pid", "name", "cmdline"]):
-            cmdline = proc.info.get("cmdline") or []
+            cmdline = proc.info.get("cmdline") or []  # type: ignore[attr-defined] — psutil Process.info is a dynamic per-iter attrs dict
             if any("telegram" in str(c).lower() for c in cmdline):
                 stats["status"] = "running"
-                stats["pid"] = proc.info["pid"]
+                stats["pid"] = proc.info["pid"]  # type: ignore[attr-defined]
                 break
         else:
             stats["status"] = "stopped"
@@ -74,7 +74,9 @@ async def telegram_users(request: Request, _=Depends(verify_admin), limit: int =
 
 
 @telegram_router.get("/telegram/messages")
-async def telegram_messages(request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)) -> dict[str, Any]:
+async def telegram_messages(
+    request: Request, _=Depends(verify_admin), limit: int = Query(20, le=100)
+) -> dict[str, Any]:
     """Get recent Telegram messages."""
     messages_file = "/tmp/telegram_messages.json"  # nosec B108 — shared state file written by bot process, stable path required  # noqa: S108
     messages = []
@@ -93,7 +95,7 @@ class TelegramSendRequest(BaseModel):
 
 
 @telegram_router.post("/telegram/send")
-async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(verify_admin)) -> dict[str, str]:
+async def telegram_send(request: Request, req: TelegramSendRequest, _=Depends(verify_admin)) -> dict[str, Any]:
     """Send a message via Telegram bot."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not bot_token:
@@ -121,7 +123,7 @@ class TelegramBroadcastRequest(BaseModel):
 @telegram_router.post("/telegram/broadcast")
 async def telegram_broadcast(
     request: Request, req: TelegramBroadcastRequest, _=Depends(verify_admin)
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Broadcast a message to all Telegram bot users."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not bot_token:

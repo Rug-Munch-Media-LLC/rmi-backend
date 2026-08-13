@@ -65,7 +65,7 @@ async def _helius_call(method: str, params: list[Any]) -> dict[str, Any] | None:
 
 async def _fetch_helius_wallet(address: str) -> dict[str, Any]:
     """Fetch wallet age, tx count, balances, and token holdings from Helius."""
-    result = {}
+    result: dict[str, Any] = {}
 
     bal_data = await _helius_call(
         "getTokenAccountsByOwner",
@@ -129,7 +129,7 @@ async def _fetch_moralis_wallet(address: str, chain: str) -> dict[str, Any]:
     }
     moralis_chain = chain_map.get(chain, "eth")
 
-    result = {}
+    result: dict[str, Any] = {}
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             headers = {"X-API-Key": key}
@@ -200,7 +200,7 @@ async def _fetch_etherscan_wallet(address: str, chain: str) -> dict[str, Any]:
     if chain not in ETHERSCAN_APIS:
         return {}
 
-    result = {}
+    result: dict[str, Any] = {}
     try:
         async with httpx.AsyncClient(timeout=12.0) as client:
             api_url = ETHERSCAN_APIS[chain]

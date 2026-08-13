@@ -45,7 +45,7 @@ _earnings_cache: dict[str, Any] = {"updated": 0, "data": {}}
 
 async def fetch_wallet_earnings() -> dict[str, Any]:
     """Fetch current balances and recent transactions for all payment wallets."""
-    results = {}
+    results: dict[str, Any] = {}
     total_usd = 0.0
 
     for name, wallet in PAYMENT_WALLETS.items():

@@ -62,7 +62,7 @@ async def get_leaderboard(limit: int = 20) -> dict[str, Any]:
 
 
 @router.post("/x402/bot-post")
-async def x402_bot_post(request: Request, data: dict[str, Any]) -> dict[str, bool]:
+async def x402_bot_post(request: Request, data: dict[str, Any]) -> dict[str, Any]:
     """
     Bot posting via x402 - $1 TO JOIN (one-time, 30-day membership).
     Pay $1 once, post unlimited for 30 days. Includes badges.
@@ -87,13 +87,10 @@ async def x402_bot_post(request: Request, data: dict[str, Any]) -> dict[str, boo
         title=f"[BOT] {title}",
         content=content,
         author_id=f"bot:{bot_addr[:12]}",
-        author_username=f"🤖 bot_{bot_addr[:8]}",
+        author_email="bot@rugmunch.io",
+        author_name=f"🤖 bot_{bot_addr[:8]}",
         category=category,
-        is_bot=True,
-        chain=data.get("chain", ""),
-        token_address=data.get("token_address", ""),
         tags=data.get("tags", []),
-        source="x402_api",
     )
 
     await award_badge(f"bot:{bot_addr[:12]}", "bot_verified")
@@ -107,7 +104,7 @@ async def x402_bot_post(request: Request, data: dict[str, Any]) -> dict[str, boo
 
 
 @router.get("/x402/info")
-async def x402_bot_info() -> dict[str, str]:
+async def x402_bot_info() -> dict[str, Any]:
     """Info for bots wanting to join the Bulletin Board."""
     return {
         "service": "RMI Bulletin Board - x402 Bot Membership",

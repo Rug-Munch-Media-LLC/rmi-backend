@@ -28,7 +28,7 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
 
     Called by cron at 3AM UTC. Idempotent - only indexes new content.
     """
-    indexed = {"collections": {}, "total_docs": 0, "errors": []}
+    indexed: dict[str, Any] = {"collections": {}, "total_docs": 0, "errors": []}
 
     try:
         # ── 1. Index recent news articles ──
@@ -63,7 +63,7 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
         # ── 2. Index CT Rundown ──
         from app.databus.x_intel import fetch_ct_rundown
 
-        ct = await fetch_ct_rundown(limit=30)
+        ct = await fetch_ct_rundown(limit=30) or {}
         ct_docs = []
         for story in ct.get("rundown", [])[:20]:
             h = hashlib.sha256((story.get("url", "") + story.get("text", "")).encode()).hexdigest()[:12]
@@ -92,8 +92,8 @@ async def nightly_rag_index(**kw) -> dict[str, Any]:
         # ── 3. Index market data snapshot ──
         from app.databus.news_provider import get_fear_greed, get_market_brief
 
-        market = await get_market_brief()
-        fear = await get_fear_greed()
+        market = await get_market_brief() or {}
+        fear = await get_fear_greed() or {}
 
         market_doc = {
             "id": f"market:{datetime.now(UTC).strftime('%Y%m%d')}",

@@ -80,7 +80,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     db.get_or_create_user(user.id, user.username, user.first_name)
 
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔍 <b>Cross-Chain Fund Trace</b>\n\n"
             "Usage: /trace <code>address</code>\n\n"
             "Traces fund flows across chains, identifies funding sources,\n"
@@ -94,7 +94,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier not in ("hunter", "pro") and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔍 <b>Cross-Chain Fund Trace</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
             "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
@@ -107,7 +107,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
             )
             return
@@ -115,7 +115,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     address = ctx.args[0]
     chain = ctx.args[1].lower() if len(ctx.args) > 1 else detect_chain(address)
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"🔍 <b>Starting fund trace...</b>\n<code>{address}</code>\n\n"
         f"⏳ Tracing across chains and connected wallets...",
         parse_mode=ParseMode.HTML,
@@ -351,7 +351,7 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     db.get_or_create_user(user.id, user.username, user.first_name)
 
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🐋 <b>Dump Detector</b>\n\n"
             "Find large sell-offs for any token.\n\n"
             "<b>Usage:</b> /dumps <code>token_address</code> [chain]\n\n"
@@ -365,7 +365,7 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier not in ("hunter", "pro") and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🐋 <b>Dump Detector</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
             "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
@@ -378,7 +378,7 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
             )
             return
@@ -386,7 +386,7 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     address = ctx.args[0].strip()
     chain = ctx.args[1].lower() if len(ctx.args) > 1 else detect_chain(address)
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"🐋 <b>Scanning for dumps...</b>\n<code>{short_addr(address)}</code>\n\n⏳ Querying DexScreener trades...",
         parse_mode=ParseMode.HTML,
     )
@@ -543,7 +543,7 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     db.get_or_create_user(user.id, user.username, user.first_name)
 
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "💰 <b>Fund Flow Tracer</b>\n\n"
             "Follow the money — trace where a wallet's funds\n"
             "came from and where they've been going.\n\n"
@@ -558,7 +558,7 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier not in ("hunter", "pro") and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "💰 <b>Fund Flow Tracer</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
             "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
@@ -571,7 +571,7 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
             )
             return
@@ -579,7 +579,7 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     address = ctx.args[0].strip()
     chain = ctx.args[1].lower() if len(ctx.args) > 1 else detect_chain(address)
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"💰 <b>Tracing fund flows...</b>\n<code>{short_addr(address)}</code>\n\n⏳ Analyzing wallet activity...",
         parse_mode=ParseMode.HTML,
     )

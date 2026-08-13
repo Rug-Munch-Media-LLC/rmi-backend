@@ -16,7 +16,7 @@ async def threat_intel_check(address: str, chain: str = "sol") -> dict[str, Any]
     """
     Aggregate on-chain threat intelligence from GoPlus, Webacy, and Chainabuse.
     """
-    result = {
+    result: dict[str, Any] = {
         "address": address,
         "chain": chain,
         "goplus": None,

@@ -95,7 +95,7 @@ def enrich_tool_response(
 
     # 4. RAG similarity search (only for wallet-centric tools)
     similar_patterns = []
-    rag_ms = 0
+    rag_ms = 0.0
     if category in ("wallet", "security"):
         similar_patterns, rag_ms = asyncio.run(search_similar_patterns(addresses[:10], r))
 
@@ -258,4 +258,5 @@ __all__ = [
     "lookup_labels",
     "preload_enrichment_cache",
     "propagate_labels_cross_chain",
+    "search_similar_patterns",
 ]

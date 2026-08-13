@@ -38,13 +38,13 @@ async def get_market_scams(
             addr = b.get("tokenAddress", "")
             chain = b.get("chainId", "solana")
             pairs_data = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
-            price = 0
-            mcap = 0
-            vol_24h = 0
-            change_24h = 0
+            price = 0.0
+            mcap = 0.0
+            vol_24h = 0.0
+            change_24h = 0.0
             name = b.get("description", "")[:30] if b.get("description") else ""
             symbol = addr[:6].upper()
-            liquidity = 0
+            liquidity = 0.0
             if pairs_data and isinstance(pairs_data, dict) and pairs_data.get("pairs"):
                 p = pairs_data["pairs"][0]
                 bt = p.get("baseToken", {})
@@ -116,11 +116,11 @@ async def get_market_alerts_feed(
             addr = b.get("tokenAddress", "")
             chain = b.get("chainId", "solana")
             pairs_data = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
-            price = 0
-            mcap = 0
-            vol_24h = 0
-            change_24h = 0
-            liquidity = 0
+            price = 0.0
+            mcap = 0.0
+            vol_24h = 0.0
+            change_24h = 0.0
+            liquidity = 0.0
             symbol = addr[:6].upper()
             if pairs_data and isinstance(pairs_data, dict) and pairs_data.get("pairs"):
                 p = pairs_data["pairs"][0]

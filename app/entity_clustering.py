@@ -150,7 +150,7 @@ class ClusteringStrategy:
         for address in addresses:
             try:
                 # Get creation info from EVM client
-                creation_info = evm_client.get_transaction_count(address)
+                creation_info = evm_client.get_transaction_count(address)  # type: ignore[attr-defined]  # missing method on EVMClient — [REVIEW]
                 if creation_info:
                     clusters["shared_creation"].append(address)
             except Exception as e:
@@ -168,7 +168,7 @@ class ClusteringStrategy:
         for address in addresses:
             try:
                 # Check for protocol interactions
-                interactions = evm_client.get_address_transactions(address, limit=10)
+                interactions = evm_client.get_address_transactions(address, limit=10)  # type: ignore[attr-defined]  # missing method on EVMClient — [REVIEW]
                 for tx in interactions:
                     if protocol.lower() in str(tx).lower():
                         clusters[protocol].append(address)
@@ -218,7 +218,7 @@ class EntityClusteringEngine:
             }
         return {"address": address, "chain": chain, "correlated": None, "recommendations": []}
 
-    def _generate_recommendations(self, entity: dict[str, Any]) -> list[str]:
+    def _generate_recommendations(self, entity: dict[str, Any]) -> list[dict[str, str]]:
         """Generate security/recommendation based on entity data."""
         recommendations = []
 

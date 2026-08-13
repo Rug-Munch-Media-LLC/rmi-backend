@@ -67,7 +67,7 @@ def explain_contract(address: str, chain: str = "ethereum", fp: str = "anon") ->
     auth = trial(fp, "explain", 5)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"address": address, "chain": chain}
+    result: dict[str, Any] = {"address": address, "chain": chain}
     # Fetch source from Etherscan
     try:
         r = req.get(
@@ -102,7 +102,7 @@ def narrate_wallet(address: str, chain: str = "ethereum", fp: str = "anon") -> d
     auth = trial(fp, "narrate", 5)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"address": address, "chain": chain}
+    result: dict[str, Any] = {"address": address, "chain": chain}
     try:
         r = req.get(
             f"https://api.etherscan.io/api?module=account&action=txlist&address={address}&sort=desc&page=1&offset=10",
@@ -141,7 +141,7 @@ def predict_rug(address: str, chain: str = "ethereum", fp: str = "anon") -> dict
     auth = trial(fp, "rugpredict", 3)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"address": address, "chain": chain}
+    result: dict[str, Any] = {"address": address, "chain": chain}
     signals = []
     # GoPlus security
     try:
@@ -206,7 +206,7 @@ def profile_wallet(address: str, fp: str = "anon") -> dict[str, Any]:
     auth = trial(fp, "profile", 5)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"address": address}
+    result: dict[str, Any] = {"address": address}
     r = gredis()
     # Gather labels
     labels = []
@@ -279,7 +279,7 @@ def trace_story(address: str, fp: str = "anon") -> dict[str, Any]:
     auth = trial(fp, "story", 5)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"address": address}
+    result: dict[str, Any] = {"address": address}
     r = gredis()
     findings = []
     for chain in ["ethereum", "bsc", "polygon", "arbitrum", "optimism", "base"]:

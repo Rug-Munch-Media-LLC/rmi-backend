@@ -17,7 +17,7 @@ from telegram.constants import ParseMode
 from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import DEXSCREENER, WEBSITE_URL
 from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json, resolve_with_fallback
-from app.domains.telegram.rugmunchbot.formatters import (
+from app.domains.telegram.rugmunchbot.formatters import (  # type: ignore[attr-defined]  # PTB None-able fields
     detect_chain,
     fmt_chain,
     fmt_number,
@@ -42,7 +42,7 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
              /price EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v solana
     """
     if not context.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "💰 <b>Token Price</b>\n\n"
             "Usage: /price <code>address</code> [chain]\n\n"
             "Examples:\n"
@@ -56,7 +56,7 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     address = context.args[0]
     chain = context.args[1].lower() if len(context.args) > 1 else detect_chain(address)
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"💰 <b>Fetching price...</b>\n<code>{address}</code>",
         parse_mode=ParseMode.HTML,
     )
@@ -163,7 +163,7 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     Example: /dex 0x6982508145454Ce325dDbE47a25d4ec3d2311933
     """
     if not context.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "💱 <b>DEX Data</b>\n\n"
             "Usage: /dex <code>address</code> [chain]\n\n"
             "Shows trading pairs, liquidity, and DEX info for a token.\n\n"
@@ -177,7 +177,7 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     address = context.args[0]
     chain = context.args[1].lower() if len(context.args) > 1 else detect_chain(address)
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"💱 <b>Fetching DEX data...</b>\n<code>{address}</code>",
         parse_mode=ParseMode.HTML,
     )

@@ -18,7 +18,7 @@ async def slow_rug_detector(token_address: str, chain: str = "sol") -> dict[str,
     Detect gradual LP removal, fee increases, slow ownership transfers.
     Track liquidity drain velocity over time.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "slow_rug_score": 0,

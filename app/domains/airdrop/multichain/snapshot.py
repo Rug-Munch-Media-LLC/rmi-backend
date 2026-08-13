@@ -110,9 +110,9 @@ class MultiChainSnapshotEngine:
         balances: dict[str, int] = {}
         for log in logs:
             try:
-                from_addr = "0x" + log.topics[1].hex()[-40:]
-                to_addr = "0x" + log.topics[2].hex()[-40:]
-                amount = int(log.data.hex(), 16) if log.data else 0
+                from_addr = "0x" + log.topics[1].hex()[-40:]  # type: ignore[attr-defined]  # PTB None-able fields
+                to_addr = "0x" + log.topics[2].hex()[-40:]  # type: ignore[attr-defined]  # PTB None-able fields
+                amount = int(log.data.hex(), 16) if log.data else 0  # type: ignore[attr-defined]  # PTB None-able fields
 
                 balances[from_addr] = balances.get(from_addr, 0) - amount
                 balances[to_addr] = balances.get(to_addr, 0) + amount
@@ -142,7 +142,7 @@ class MultiChainSnapshotEngine:
 
         try:
             mint = Pubkey.from_string(source.token_address)
-            response = client.get_token_accounts_by_mint_json_parsed(mint, commitment="confirmed")
+            response = client.get_token_accounts_by_mint_json_parsed(mint, commitment="confirmed")  # type: ignore[attr-defined]  # PTB None-able fields
 
             holders = {}
             min_amount = int(source.min_holdings)

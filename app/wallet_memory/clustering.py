@@ -18,7 +18,7 @@ Union-Find for O(alpha(n)) merges. Results persisted to storage.py.  # noqa: RUF
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from app.core.logging import get_logger
 
@@ -242,7 +242,7 @@ class WalletClusteringEngine:
             addr_list = list(addrs)
             for i in range(len(addr_list)):
                 for j in range(i + 1, len(addr_list)):
-                    pair = tuple(sorted([addr_list[i], addr_list[j]]))
+                    pair: tuple[str, str] = cast("tuple[str, str]", tuple(sorted([addr_list[i], addr_list[j]])))
                     self._pair_heuristics[pair].add("temporal_proximity")
                     self._heuristic_links["temporal_proximity"].add(f"{pair[0]}:{pair[1]}")
                     self.uf.union(addr_list[i], addr_list[j])
@@ -271,7 +271,7 @@ class WalletClusteringEngine:
             wl = list(wallets)
             for i in range(len(wl)):
                 for j in range(i + 1, len(wl)):
-                    pair = tuple(sorted([wl[i], wl[j]]))
+                    pair: tuple[str, str] = cast("tuple[str, str]", tuple(sorted([wl[i], wl[j]])))
                     pair_shared[pair] += 1
 
         # Link pairs exceeding threshold
@@ -290,7 +290,9 @@ class WalletClusteringEngine:
                 (a, b)
                 for a in members
                 for b in members
-                if a < b and "common_counterparties" in self._pair_heuristics.get(tuple(sorted([a, b])), set())
+                if a < b
+                and "common_counterparties"
+                in self._pair_heuristics.get(cast("tuple[str, str]", tuple(sorted([a, b]))), set())
             ]
             if counterparty_pairs and len(members) >= 2:
                 c = Cluster(f"counterparty_{root[:12]}")
@@ -323,7 +325,7 @@ class WalletClusteringEngine:
             for j in range(i + 1, len(addrs)):
                 sim = self._fingerprint_similarity(fingerprints[addrs[i]], fingerprints[addrs[j]])
                 if sim >= self.MIN_FINGERPRINT_SIMILARITY:
-                    pair = tuple(sorted([addrs[i], addrs[j]]))
+                    pair: tuple[str, str] = cast("tuple[str, str]", tuple(sorted([addrs[i], addrs[j]])))
                     self._pair_heuristics[pair].add("behavioral_pattern")
                     self._heuristic_links["behavioral_pattern"].add(f"{pair[0]}:{pair[1]}")
                     self.uf.union(addrs[i], addrs[j])
@@ -336,7 +338,9 @@ class WalletClusteringEngine:
                 1
                 for a in members
                 for b in members
-                if a < b and "behavioral_pattern" in self._pair_heuristics.get(tuple(sorted([a, b])), set())
+                if a < b
+                and "behavioral_pattern"
+                in self._pair_heuristics.get(cast("tuple[str, str]", tuple(sorted([a, b]))), set())
             ]
             if beh_pairs and len(members) >= 2:
                 c = Cluster(f"behavioral_{root[:12]}")
@@ -374,7 +378,7 @@ class WalletClusteringEngine:
             wl = list(wallets)
             for i in range(len(wl)):
                 for j in range(i + 1, len(wl)):
-                    pair = tuple(sorted([wl[i], wl[j]]))
+                    pair: tuple[str, str] = cast("tuple[str, str]", tuple(sorted([wl[i], wl[j]])))
                     self._pair_heuristics[pair].add("common_funding")
                     self._heuristic_links["common_funding"].add(f"{pair[0]}:{pair[1]}")
                     self.uf.union(wl[i], wl[j])
@@ -420,7 +424,7 @@ class WalletClusteringEngine:
             self.uf.find(payer_lower)
             for r in recipients_set:
                 self.uf.find(r)
-                pair = tuple(sorted([payer_lower, r]))
+                pair: tuple[str, str] = cast("tuple[str, str]", tuple(sorted([payer_lower, r])))
                 self._pair_heuristics[pair].add("gas_payer")
                 self._heuristic_links["gas_payer"].add(f"{pair[0]}:{pair[1]}")
                 self.uf.union(payer_lower, r)
@@ -466,7 +470,7 @@ class WalletClusteringEngine:
             al = list(all_addrs)
             for i in range(len(al)):
                 for j in range(i + 1, len(al)):
-                    pair = tuple(sorted([al[i], al[j]]))
+                    pair: tuple[str, str] = cast("tuple[str, str]", tuple(sorted([al[i], al[j]])))
                     self._pair_heuristics[pair].add("deposit_withdraw")
                     self._heuristic_links["deposit_withdraw"].add(f"{pair[0]}:{pair[1]}")
                     self.uf.union(al[i], al[j])
@@ -516,7 +520,7 @@ class WalletClusteringEngine:
             members_list = list(members)
             for i in range(len(members_list)):
                 for j in range(i + 1, len(members_list)):
-                    pair = tuple(sorted([members_list[i], members_list[j]]))
+                    pair: tuple[str, str] = cast("tuple[str, str]", tuple(sorted([members_list[i], members_list[j]])))
                     all_heuristics |= self._pair_heuristics.get(pair, set())
 
             # Confidence = weighted sum of contributing heuristics

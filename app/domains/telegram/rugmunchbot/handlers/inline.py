@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 async def handle_inline(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.inline_query.query.strip()
+    query = update.inline_query.query.strip()  # type: ignore[union-attr]  # PTB None-able fields
     if not query:
         return
     results = []
@@ -59,4 +59,4 @@ async def handle_inline(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
         )
     if results:
-        await update.inline_query.answer(results, cache_time=30, is_personal=True)
+        await update.inline_query.answer(results, cache_time=30, is_personal=True)  # type: ignore[union-attr]  # PTB None-able fields

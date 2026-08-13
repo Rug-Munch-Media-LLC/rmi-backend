@@ -5,7 +5,6 @@ DeFi TVL, news, social feeds, DEX data, and prediction markets.
 All BASIC tier ($0.01-0.02/call).
 """
 
-
 from typing import Any
 
 from fastapi import Request  # runtime: FastAPI dependency injection
@@ -26,7 +25,7 @@ logger = get_logger("x402_databus_tools")
 
 
 @router.get("/catalog")
-async def x402_catalog(request: Request) -> dict[str, str]:
+async def x402_catalog(request: Request) -> dict[str, Any]:
     """Full catalog of available x402 DataBus tools with pricing."""
     catalog = []
     for tool_id, info in sorted(X402_TOOL_PRICING.items(), key=lambda x: (x[1]["category"], x[1]["price_usd"])):

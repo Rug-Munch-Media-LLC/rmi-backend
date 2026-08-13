@@ -122,7 +122,7 @@ class L2RedisCache:
     """Redis cache. Shared across processes. TTL-managed automatically."""
 
     def __init__(self) -> None:
-        self._redis = None
+        self._redis: Any = None
         self._available = False
         self._prefix = "databus:"
         self.hits = 0
@@ -134,7 +134,7 @@ class L2RedisCache:
         try:
             import redis.asyncio as aioredis
 
-            kwargs = {
+            kwargs: dict[str, Any] = {
                 "host": REDIS_HOST,
                 "port": REDIS_PORT,
                 "db": REDIS_DB,
@@ -222,7 +222,7 @@ class CacheLayer:
         self.l2 = L2RedisCache()
         self._l3_enabled = False
         # SWR: caller sets this to a coroutine factory for background refresh
-        self.stale_refresh_callback: Callable | None = None
+        self.stale_refresh_callback: Callable[..., Any] | None = None
         # Per-type hit/miss tracking for TTL tuning
         self._type_stats: dict[str, dict[str, int]] = defaultdict(lambda: {"hits": 0, "stale_hits": 0, "misses": 0})
         # Data type TTLs - optimized for FREE tier usage to avoid rate limits
@@ -363,7 +363,7 @@ class CacheLayer:
         for dtype, counts in self._type_stats.items():
             total = counts["hits"] + counts["stale_hits"] + counts["misses"]
             hit_rate = round((counts["hits"] + counts["stale_hits"]) / total * 100, 1) if total > 0 else 0
-            entry = {
+            entry: dict[str, Any] = {
                 "hits": counts["hits"],
                 "stale_hits": counts["stale_hits"],
                 "misses": counts["misses"],

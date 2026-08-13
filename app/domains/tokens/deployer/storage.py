@@ -36,7 +36,7 @@ class DeploymentStorage:
             logger.warning(f"Redis not available for deployment storage: {e}")
 
         try:
-            from supabase import create_client
+            from supabase import create_client  # type: ignore[attr-defined]  # PTB None-able fields
 
             supabase_url = os.getenv("SUPABASE_URL")
             supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""

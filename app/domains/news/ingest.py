@@ -213,7 +213,7 @@ async def ingest_all(
                     doc_id=ni.news_id,
                     metadata={"source": ni.source, "news_id": ni.news_id},
                 )
-                if r.get("status") == "ok" and r.get("qdrant_point_id"):
+                if r.get("status") == "ok" and r.get("qdrant_point_id"):  # type: ignore[attr-defined]  # PTB None-able fields
                     # Update news_items with rag_embedding_id
                     try:
                         async with cat._pg_pool.acquire() as conn:

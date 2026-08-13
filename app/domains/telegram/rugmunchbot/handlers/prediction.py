@@ -164,7 +164,7 @@ async def cmd_polymarket(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     category = ctx.args[0].lower() if ctx.args else "all"
     if category not in POLYMARKET_CATEGORIES:
         category = "all"
-    msg = await update.message.reply_text("\U0001f52e <b>Fetching prediction markets...</b>", parse_mode=ParseMode.HTML)
+    msg = await update.message.reply_text("\U0001f52e <b>Fetching prediction markets...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     data = await _fetch_prediction(
         "/api/v1/prediction-markets/trending", params={"limit": MARKET_LIMIT, "category": category}
     )
@@ -192,7 +192,7 @@ async def cmd_election(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """
     extra = " ".join(ctx.args) if ctx.args else ""
     q = f"election {extra}".strip() or "election"
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         "\U0001f5f3\ufe0f <b>Fetching election odds...</b>", parse_mode=ParseMode.HTML
     )
     data = await _fetch_prediction("/api/v1/prediction-markets/search", params={"q": q, "limit": 40})
@@ -218,7 +218,7 @@ async def cmd_odds(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /odds <topic> — search odds for any topic (token, event, policy)."""
     topic = " ".join(ctx.args).strip() if ctx.args else ""
     if not topic:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f4b0 <b>Odds Search</b>\n\n"
             "Search prediction market odds for any topic.\n\n"
             "Usage: <code>/odds bitcoin</code>\n"
@@ -231,7 +231,7 @@ async def cmd_odds(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             disable_web_page_preview=True,
         )
         return
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f4b0 <b>Fetching odds for \u201c{escape(topic[:60])}\u201d...</b>",
         parse_mode=ParseMode.HTML,
     )

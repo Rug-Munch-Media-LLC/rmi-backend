@@ -57,7 +57,7 @@ async def mcp_x402_handler(request: Request) -> dict[str, dict[str, Any]] | dict
 
 
 @router.get("/.well-known/x402")
-async def well_known_x402() -> dict[str, str]:
+async def well_known_x402() -> dict[str, Any]:
     """x402 service discovery document (RFC-like).
 
     Standard endpoint that x402-compatible clients check to discover

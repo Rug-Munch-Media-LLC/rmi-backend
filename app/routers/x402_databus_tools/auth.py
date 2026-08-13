@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 logger = get_logger("x402_databus_tools")
 
 
-def _clean_response(result: dict[str, Any]) -> dict[str, Any]:
+def _clean_response(result: dict[str, Any] | None) -> dict[str, Any] | None:
     """Strip internal DataBus fields that reveal provider architecture.
 
     External clients see WHAT data they got, not WHERE it came from.

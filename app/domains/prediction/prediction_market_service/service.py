@@ -214,7 +214,9 @@ class PredictionMarketService:
             logger.warning(f"Polymarket search error: {e}")
         return []
 
-    def _parse_polymarket_market(self, m: dict[str, Any], event: dict[str, Any] | None = None) -> PredictionMarket | None:
+    def _parse_polymarket_market(
+        self, m: dict[str, Any], event: dict[str, Any] | None = None
+    ) -> PredictionMarket | None:
         try:
             question = m.get("question", "")
             slug = m.get("slug", "")
@@ -410,7 +412,7 @@ class PredictionMarketService:
                     pm = self._parse_kalshi_market(markets[0])
                     if pm:
                         pm.probability_yes = best_yes
-                    pm.probability_no = 1.0 - best_yes
+                    pm.probability_no = 1.0 - best_yes  # type: ignore[union-attr]  # PTB None-able fields
                     return pm
             return None
         except Exception as e:

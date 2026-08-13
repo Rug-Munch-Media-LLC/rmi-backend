@@ -196,7 +196,8 @@ async def feed_url_to_rag(url: str, is_safe: bool) -> None:
             "content": f"URL: {url}\nSafety: {'safe' if is_safe else 'unsafe'}\nScanned by RMI Protection Suite",
             "metadata": {"source": "protection_suite", "url": url, "safe": is_safe},
         }
-        await ingest_document(doc)
+        # Real signature is ingest_document(collection, content, metadata=...) — old call passed the whole dict
+        await ingest_document(collection="protection_scans", content=doc["content"], metadata=doc.get("metadata"))
     except Exception as e:
         logger.debug(f"Failed to feed URL to RAG: {e}")
 
@@ -469,7 +470,7 @@ async def get_domains() -> dict[str, Any] | dict[str, list[Any]]:
 @router.get("/health")
 async def protection_health() -> Any:
     """Health check for protection modules."""
-    health_status = {
+    health_status: dict[str, Any] = {
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
         "modules": {

@@ -23,7 +23,7 @@ logger = get_logger("scam_school")
 
 # ── Gamification Config ──
 
-LEVELS = [
+LEVELS: list[dict[str, Any]] = [
     {"level": 1, "title": "Novice", "xp_required": 0, "color": "#9ca3af"},
     {"level": 2, "title": "Learner", "xp_required": 300, "color": "#6366f1"},
     {"level": 3, "title": "Analyst", "xp_required": 800, "color": "#8b5cf6"},
@@ -184,6 +184,8 @@ async def get_current_user(request: Request) -> dict[str, Any] | None:
 def _get_progress(user_id: str) -> UserProgress:
     """Get or create user progress."""
     r = get_redis()
+    if r is None:
+        return UserProgress(user_id=user_id, started_at=datetime.now(UTC).isoformat())
     data = r.hget("rmi:scam_school:progress", user_id)
     if data:
         d = json.loads(data)
@@ -194,6 +196,8 @@ def _get_progress(user_id: str) -> UserProgress:
 def _save_progress(progress: UserProgress) -> None:
     """Save user progress to Redis."""
     r = get_redis()
+    if r is None:
+        return
     r.hset("rmi:scam_school:progress", progress.user_id, progress.model_dump_json())
 
 

@@ -190,7 +190,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         kb_rows.append([InlineKeyboardButton("\U0001f310 Full Web Research", url=f"{WEBSITE_URL}/research")])
         kb_rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
 
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f50d <b>RAG-Powered Research</b>\n\n"
             "Ask anything about crypto security, scam patterns, or specific tokens.\n\n"
             "<b>Examples:</b>\n"
@@ -206,7 +206,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     # Tier check
     tier = db.get_user_tier(user.id)
     if tier in ("free", "scout") and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f50d <b>RAG Research</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
             "\U0001f3af <b>Hunter ($49.99/mo)</b> — 400 scans/wk + RAG research\n"
@@ -219,7 +219,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
             )
             return
@@ -233,7 +233,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             address = arg
             break
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f50d <b>Researching...</b>\n\n"
         f"\U0001f4ac <i>{query[:100]}</i>\n\n"
         f"\U0001f50d Querying RAG collections: "

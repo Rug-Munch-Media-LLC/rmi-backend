@@ -484,7 +484,7 @@ async def _nft_wash_detector(collection: str) -> dict[str, Any]:
         pass
 
     # Wash trading signals
-    os_stats = result.get("opensea", {})  # type: ignore[var-annotated]
+    os_stats = result.get("opensea", {})
     one_day_vol = os_stats.get("one_day_volume", 0)  # type: ignore[union-attr]
     one_day_sales = os_stats.get("one_day_sales", 0)  # type: ignore[union-attr]
 
@@ -526,7 +526,7 @@ async def nft_wash_detector(req: GenericRequest) -> dict[str, Any]:
 
 async def _bridge_security() -> dict[str, Any]:
     """Bridge security monitoring."""
-    result = {"sources_used": [], "bridges": []}  # type: ignore[var-annotated]
+    result = {"sources_used": [], "bridges": []}
 
     # DeFiLlama bridges
     try:

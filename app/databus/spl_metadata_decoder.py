@@ -99,7 +99,7 @@ def parse_spl_mint_data(raw_data: bytes) -> dict[str, Any]:
       Bytes 46-49: freeze_authority_option (u32)
       Bytes 50-81: freeze_authority pubkey (32 bytes)
     """
-    result = {
+    result: dict[str, Any] = {
         "is_valid": False,
         "decimals": 0,
         "supply": 0,
@@ -321,7 +321,7 @@ async def decode_spl_token_metadata(mint: str, rpc_urls: list[str] | None = None
     if rpc_urls is None:
         rpc_urls = PUBLIC_RPC_ENDPOINTS
 
-    result = {
+    result: dict[str, Any] = {
         "mint": mint,
         "success": False,
         "rpc_used": None,

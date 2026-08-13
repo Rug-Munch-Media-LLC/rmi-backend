@@ -4,6 +4,8 @@ x402 Middleware — Configuration constants.
 
 from __future__ import annotations
 
+from typing import Any
+
 # ERC-20 token metadata for EIP-712 domain verification
 TOKEN_METADATA = {
     (8453, "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"): ("USD Coin", "2"),
@@ -11,7 +13,7 @@ TOKEN_METADATA = {
 }
 
 # Network configs with correct facilitator URLs
-FACILITATOR_CONFIGS = {
+FACILITATOR_CONFIGS: dict[str, dict[str, Any]] = {
     "base": {
         "network": "eip155:8453",
         "chain_id": 8453,

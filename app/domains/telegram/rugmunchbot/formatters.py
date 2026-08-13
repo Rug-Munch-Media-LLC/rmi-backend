@@ -158,7 +158,7 @@ def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
     buttons = []
     for _key, dex in DEX_REF_LINKS.items():
         if chain.lower() in dex.get("chains", []):
-            url = dex["url"].format(
+            url = dex["url"].format(  # type: ignore[attr-defined]  # PTB None-able fields
                 token=token,
                 chain=chain,
                 chain_id=CHAIN_IDS.get(chain.lower(), 1),
@@ -945,7 +945,7 @@ def format_wallet_composition_section(r: dict, token_created_ts: str | None = No
     case only the label-based CEX line renders, under a data-coverage caveat.
     """
     wm = r.get("wallet_metrics") if isinstance(r.get("wallet_metrics"), dict) else {}
-    if wm.get("result") == "unavailable":
+    if wm.get("result") == "unavailable":  # type: ignore[union-attr]  # PTB None-able fields
         wm = {}
     funding = (r.get("evidence") or {}).get("funding_analysis") or {}
     if not isinstance(funding, dict):
@@ -957,12 +957,12 @@ def format_wallet_composition_section(r: dict, token_created_ts: str | None = No
         except (TypeError, ValueError):
             return None
 
-    cex = _f(wm.get("cex_funded_pct"))
-    analyzed = int(wm.get("holders_analyzed") or 0)
+    cex = _f(wm.get("cex_funded_pct"))  # type: ignore[union-attr]  # PTB None-able fields
+    analyzed = int(wm.get("holders_analyzed") or 0)  # type: ignore[union-attr]  # PTB None-able fields
     scope = f" (top {analyzed} holders)" if analyzed else ""
 
     # ── Coverage-gap branch: fresh/brand-new are indexer artifacts ──
-    coverage_iso = wm.get("coverage_start_ts")
+    coverage_iso = wm.get("coverage_start_ts")  # type: ignore[union-attr]  # PTB None-able fields
     if cex is not None and coverage_iso and token_created_ts:
         try:
             import datetime as _dt
@@ -990,8 +990,8 @@ def format_wallet_composition_section(r: dict, token_created_ts: str | None = No
         except (TypeError, ValueError):
             pass  # unparseable dates — fall through to the full block
 
-    fresh = _f(wm.get("fresh_wallet_pct"))
-    first_tx = _f(wm.get("first_tx_pct"))
+    fresh = _f(wm.get("fresh_wallet_pct"))  # type: ignore[union-attr]  # PTB None-able fields
+    first_tx = _f(wm.get("first_tx_pct"))  # type: ignore[union-attr]  # PTB None-able fields
     mixer = _f(funding.get("mixer_funded_pct"))
     risk = str(funding.get("risk_assessment") or "").upper()
 

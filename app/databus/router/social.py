@@ -21,7 +21,7 @@ X_HANDLE = "CryptoRugMunch"
 
 
 @router.get("/social/x/profile/{username}")
-async def social_x_profile(username: str) -> dict[str, str]:
+async def social_x_profile(username: str) -> dict[str, Any]:
     """Get X/Twitter user profile - cached 24h."""
     from app.databus.social import SocialDataAggregator
 
@@ -33,7 +33,7 @@ async def social_x_profile(username: str) -> dict[str, str]:
 
 
 @router.get("/social/x/tweets/{username}")
-async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)) -> dict[str, str]:
+async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)) -> dict[str, Any]:
     """Get recent tweets from user - cached 15min."""
     from app.databus.social import SocialDataAggregator
 
@@ -50,7 +50,7 @@ async def social_x_tweets(username: str, count: int = Query(20, ge=1, le=100)) -
 
 
 @router.get("/social/x/mentions")
-async def social_x_mentions(count: int = Query(20, ge=1, le=100)) -> dict[str, str]:
+async def social_x_mentions(count: int = Query(20, ge=1, le=100)) -> dict[str, Any]:
     """Get mentions of @CryptoRugMunch - cached 15min."""
     from app.databus.social import SocialDataAggregator
 
@@ -62,7 +62,7 @@ async def social_x_mentions(count: int = Query(20, ge=1, le=100)) -> dict[str, s
 
 
 @router.get("/social/x/engagement")
-async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-separated tweet IDs")) -> dict[str, str]:
+async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-separated tweet IDs")) -> dict[str, Any]:
     """Get engagement metrics for tweets - cached 1h."""
     from app.databus.social import SocialDataAggregator
 
@@ -75,7 +75,7 @@ async def social_x_engagement(tweet_ids: str = Query(..., description="Comma-sep
 @router.get("/social/x/search")
 async def social_x_search(
     q: str = Query(..., description="Search query"), count: int = Query(10, ge=1, le=100)
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Search X/Twitter - VERY expensive, cached 24h. Use sparingly."""
     from app.databus.social import SocialDataAggregator
 
@@ -120,7 +120,7 @@ async def social_x_budget() -> dict[str, Any]:
 
 
 @router.get("/social/x/discover")
-async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50, ge=1, le=100)) -> dict[str, str]:
+async def social_x_discover(handle: str = Query(X_HANDLE), limit: int = Query(50, ge=1, le=100)) -> dict[str, Any]:
     """Discover tweets via web search - no API needed, works for free."""
     from app.databus.social_scraper import XWebScraper
 
@@ -142,7 +142,7 @@ async def social_x_engagement_report(handle: str = Query(X_HANDLE)) -> Any:
 @router.get("/social/x/mentions-discover")
 async def social_x_mentions_discover(
     handle: str = Query(X_HANDLE), limit: int = Query(20, ge=1, le=50)
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Find tweets mentioning a handle - via web search."""
     from app.databus.social_scraper import XWebScraper
 
@@ -152,7 +152,7 @@ async def social_x_mentions_discover(
 
 
 @router.get("/social/x/trending")
-async def social_x_trending() -> dict[str, str]:
+async def social_x_trending() -> dict[str, Any]:
     """Get current crypto trending topics from web search."""
     from app.databus.social_scraper import XWebScraper
 

@@ -23,7 +23,7 @@ async def bitquery_health() -> Any:
 
 
 @router.get("/bitquery/token-price/{network}/{token_address}")
-async def bitquery_token_price(network: str, token_address: str) -> dict[str, str]:
+async def bitquery_token_price(network: str, token_address: str) -> dict[str, Any]:
     """Get DEX token price from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -35,7 +35,7 @@ async def bitquery_token_price(network: str, token_address: str) -> dict[str, st
 
 
 @router.get("/bitquery/holders/{network}/{token_address}")
-async def bitquery_holders(network: str, token_address: str, limit: int = Query(100, ge=1, le=500)) -> dict[str, str]:
+async def bitquery_holders(network: str, token_address: str, limit: int = Query(100, ge=1, le=500)) -> dict[str, Any]:
     """Get token holder distribution from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -47,7 +47,7 @@ async def bitquery_holders(network: str, token_address: str, limit: int = Query(
 
 
 @router.get("/bitquery/tx-trace/{network}/{tx_hash}")
-async def bitquery_tx_trace(network: str, tx_hash: str) -> dict[str, str]:
+async def bitquery_tx_trace(network: str, tx_hash: str) -> dict[str, Any]:
     """Get full transaction trace from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -59,7 +59,7 @@ async def bitquery_tx_trace(network: str, tx_hash: str) -> dict[str, str]:
 
 
 @router.get("/bitquery/dex-volume/{network}")
-async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: str = Query("24h")) -> dict[str, str]:
+async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: str = Query("24h")) -> dict[str, Any]:
     """Get DEX trading volume from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -77,7 +77,7 @@ async def bitquery_dex_volume(network: str, pool: str = Query(None), timeframe: 
 
 
 @router.get("/bitquery/balance/{network}/{address}")
-async def bitquery_balance(network: str, address: str) -> dict[str, str]:
+async def bitquery_balance(network: str, address: str) -> dict[str, Any]:
     """Get address token balances from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -89,7 +89,7 @@ async def bitquery_balance(network: str, address: str) -> dict[str, str]:
 
 
 @router.get("/bitquery/cross-chain/{address}")
-async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc,solana")) -> dict[str, str]:
+async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc,solana")) -> dict[str, Any]:
     """Track token transfers across chains from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 
@@ -104,7 +104,7 @@ async def bitquery_cross_chain(address: str, networks: str = Query("ethereum,bsc
 @router.get("/bitquery/contract-events/{network}/{contract}")
 async def bitquery_contract_events(
     network: str, contract: str, event: str = Query(None), limit: int = Query(50, ge=1, le=200)
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Get smart contract events from Bitquery."""
     from app.databus.bitquery_provider import BitqueryProvider
 

@@ -17,16 +17,16 @@ from typing import Any
 from app.core.logging import get_logger
 
 # Lazy imports - api_arsenal and wallet_database may not exist
-ForensicAPIArsenal = None
-APIResponse = None
-WalletDatabase = None
-get_wallet_database = None
+ForensicAPIArsenal: Any = None
+APIResponse: Any = None
+WalletDatabase: Any = None
+get_wallet_database: Any = None
 
 with contextlib.suppress(ImportError):
-    from .api_arsenal import ForensicAPIArsenal
+    from .api_arsenal import ForensicAPIArsenal  # type: ignore[no-redef]
 
 with contextlib.suppress(ImportError):
-    from .wallet_database import get_wallet_database
+    from .wallet_database import get_wallet_database  # type: ignore[no-redef]
 
 logging.basicConfig(level=logging.INFO)
 logger = get_logger("CrossTokenTracker")
@@ -71,7 +71,7 @@ class CrossTokenAffiliationTracker:
     """
 
     def __init__(self) -> None:
-        self.wallet_db = get_wallet_database() if get_wallet_database else None
+        self.wallet_db: Any = get_wallet_database() if get_wallet_database else None
         self.project_tokens = PROJECT_TOKENS
         self.affiliations: dict[str, list[TokenAffiliation]] = {}
         self.connections: list[CrossProjectConnection] = []
@@ -246,7 +246,7 @@ class CrossTokenAffiliationTracker:
         center_wallets = self.wallet_db.get_cross_project_wallets(center_project)
 
         # Build network
-        network = {
+        network: dict[str, Any] = {
             "center": center_project,
             "nodes": [],
             "edges": [],
@@ -278,7 +278,7 @@ class CrossTokenAffiliationTracker:
 
     def generate_evidence_report(self) -> dict[str, Any]:
         """Generate evidence report of cross-project connections."""
-        report = {
+        report: dict[str, Any] = {
             "generated_at": datetime.now().isoformat(),
             "summary": {
                 "total_wallets_analyzed": len(self.affiliations),

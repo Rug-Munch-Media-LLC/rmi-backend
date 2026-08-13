@@ -18,7 +18,7 @@ async def ownership_theater_detector(token_address: str, chain: str = "sol") -> 
     Detect fake renunciation: hidden admin roles, upgradeable proxies,
     secondary controlled addresses, remaining privileges.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "is_renounced": None,

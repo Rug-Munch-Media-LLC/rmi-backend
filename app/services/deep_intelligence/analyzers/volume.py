@@ -17,7 +17,7 @@ async def volume_authenticity(token_address: str, chain: str = "sol") -> dict[st
     Detect wash trading, fake volume, bot vs organic trading.
     Analyzes: round-trip txs, wash score, bot detection, volume-to-holder anomalies.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "wash_score": 0,

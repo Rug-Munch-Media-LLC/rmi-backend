@@ -18,7 +18,7 @@ async def deployer_reputation(address: str, chain: str = "sol") -> dict[str, Any
     Track EVERY token a deployer wallet has created across ALL chains.
     Score based on: scam rate, avg lifespan, total extracted, cross-chain fingerprint.
     """
-    result = {
+    result: dict[str, Any] = {
         "deployer": address,
         "chain": chain,
         "tokens_deployed": 0,

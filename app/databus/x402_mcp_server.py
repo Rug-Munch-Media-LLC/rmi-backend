@@ -30,10 +30,15 @@ from app.core.redis import get_redis
 mcp = FastMCP("rmi-intelligence")
 
 
+def _redis() -> Any:
+    """Redis client. get_redis() may return None when degraded; callers assume availability (crash as before)."""
+    return get_redis()
+
+
 # ── Redis Helper ──
 def check_x402_payment(wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
     """Check if caller has paid via x402. Free tier: 10/day per fingerprint."""
-    r = get_redis()
+    r = _redis()
 
     # Free tier by fingerprint (browser/IP hash)
     if fingerprint:
@@ -61,7 +66,9 @@ def check_x402_payment(wallet: str | None = None, fingerprint: str | None = None
 
 
 @mcp.tool()
-def search_news(query: str, limit: int = 10, wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
+def search_news(
+    query: str, limit: int = 10, wallet: str | None = None, fingerprint: str | None = None
+) -> dict[str, Any]:
     """Search 500+ crypto news sources by keyword. Free: 10 calls/day. Paid: unlimited $0.01/call."""
     auth = check_x402_payment(wallet, fingerprint)
     if auth.get("error") and auth.get("remaining", 1) <= 0:
@@ -72,7 +79,7 @@ def search_news(query: str, limit: int = 10, wallet: str | None = None, fingerpr
             "payment_protocol": "x402",
         }
 
-    r = get_redis()
+    r = _redis()
     results = []
     q = query.lower()
     indexes = [
@@ -119,7 +126,7 @@ def search_news(query: str, limit: int = 10, wallet: str | None = None, fingerpr
 def get_latest_news(limit: int = 20, wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
     """Get the latest crypto headlines from 500+ sources."""
     auth = check_x402_payment(wallet, fingerprint)
-    r = get_redis()
+    r = _redis()
     results = []
     ids = r.zrevrange("rmi:news:500feeds", 0, limit - 1) or r.zrevrange("rmi:news:index", 0, limit - 1)
     for aid in ids:
@@ -173,7 +180,7 @@ def get_token_price(mint: str = "So11111111111111111111111111111111111111112") -
 def get_wallet_labels(address: str, wallet: str | None = None, fingerprint: str | None = None) -> dict[str, Any]:
     """Resolve crypto address to entity label (82K+ labeled addresses)."""
     check_x402_payment(wallet, fingerprint)
-    r = get_redis()
+    r = _redis()
     result = r.get(f"rmi:label:ethereum:{address.lower()}")
     if not result:
         return {
@@ -194,7 +201,7 @@ def get_wallet_labels(address: str, wallet: str | None = None, fingerprint: str 
 @mcp.tool()
 def get_trending_tickers(limit: int = 10) -> dict[str, Any]:
     """Most mentioned crypto tickers across 500+ news sources."""
-    r = get_redis()
+    r = _redis()
     ticker_count = {}
     for idx in ["rmi:news:500feeds", "rmi:news:index"]:
         ids = r.zrevrange(idx, 0, min(500, r.zcard(idx)))
@@ -325,7 +332,7 @@ def get_trending_tickers(limit: int = 10) -> dict[str, Any]:
 @mcp.tool()
 def get_news_sentiment() -> dict[str, Any]:
     """Aggregated market sentiment across all news sources."""
-    r = get_redis()
+    r = _redis()
     stats = json.loads(r.get("rmi:news:stats") or "{}")
     json.loads(r.get("rmi:news:stats_500") or "{}")
     total = sum(
@@ -358,7 +365,7 @@ def get_news_stats() -> dict[str, Any]:
 @mcp.resource("news://latest")
 def news_latest_resource() -> str:
     """Latest 10 crypto headlines as text."""
-    r = get_redis()
+    r = _redis()
     ids = r.zrevrange("rmi:news:500feeds", 0, 9) or r.zrevrange("rmi:news:index", 0, 9)
     lines = []
     for aid in ids:

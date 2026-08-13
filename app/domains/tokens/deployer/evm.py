@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
+
+from eth_typing import ChecksumAddress, HexStr
+from web3.types import TxParams
 
 from app.core.logging import get_logger
 from app.domains.tokens.deployer.base import ChainDeployer
@@ -68,13 +71,13 @@ class EVMDeployer(ChainDeployer):
 
     async def _deploy_direct(self, params: DeployParams) -> TokenDeployment:
         bytecode, owner = self._build_contract_code(params)
-        nonce = self.w3.eth.get_transaction_count(self.deployer_address)
+        nonce = self.w3.eth.get_transaction_count(cast("ChecksumAddress", self.deployer_address))
         gas_price = self.w3.eth.gas_price
-        tx = {
-            "from": self.deployer_address,
+        tx: TxParams = {
+            "from": cast("ChecksumAddress", self.deployer_address),
             "nonce": nonce,
             "gasPrice": gas_price,
-            "data": bytecode,
+            "data": cast("HexStr", bytecode),
             "chainId": self.w3.eth.chain_id,
         }
         try:
@@ -85,7 +88,7 @@ class EVMDeployer(ChainDeployer):
         signed = self.w3.eth.account.sign_transaction(tx, self.private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed.rawTransaction)
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-        contract_address = receipt.contractAddress
+        contract_address = receipt.contractAddress  # type: ignore[attr-defined]  # PTB None-able fields
         deployment = TokenDeployment(
             deployment_id=self._generate_deployment_id(self.chain, params.symbol, tx_hash.hex()),
             chain=self.chain,
@@ -96,7 +99,7 @@ class EVMDeployer(ChainDeployer):
             contract_address=contract_address,
             deployer_address=self.deployer_address,
             tx_hash=tx_hash.hex(),
-            block_number=receipt.blockNumber,
+            block_number=receipt.blockNumber,  # type: ignore[attr-defined]  # PTB None-able fields
             owner_address=owner,
             mintable=params.mintable,
             burnable=params.burnable,
@@ -124,7 +127,7 @@ class EVMDeployer(ChainDeployer):
                 "type": "function",
             }
         ]
-        factory = self.w3.eth.contract(address=factory_address, abi=factory_abi)
+        factory = self.w3.eth.contract(address=cast("ChecksumAddress", factory_address), abi=factory_abi)
         owner = params.owner_address or self.deployer_address
         tx = factory.functions.createToken(
             params.name,
@@ -137,7 +140,7 @@ class EVMDeployer(ChainDeployer):
         ).build_transaction(
             {
                 "from": self.deployer_address,
-                "nonce": self.w3.eth.get_transaction_count(self.deployer_address),
+                "nonce": self.w3.eth.get_transaction_count(cast("ChecksumAddress", self.deployer_address)),
                 "gasPrice": self.w3.eth.gas_price,
                 "chainId": self.w3.eth.chain_id,
             }
@@ -146,7 +149,7 @@ class EVMDeployer(ChainDeployer):
         tx_hash = self.w3.eth.send_raw_transaction(signed.rawTransaction)
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
         contract_address = None
-        for log in receipt.logs:
+        for log in receipt.logs:  # type: ignore[attr-defined]  # PTB None-able fields
             if log.address.lower() == factory_address.lower():
                 contract_address = "0x" + log.data[-40:]
                 break
@@ -162,7 +165,7 @@ class EVMDeployer(ChainDeployer):
             contract_address=contract_address,
             deployer_address=self.deployer_address,
             tx_hash=tx_hash.hex(),
-            block_number=receipt.blockNumber,
+            block_number=receipt.blockNumber,  # type: ignore[attr-defined]  # PTB None-able fields
             owner_address=owner,
             mintable=params.mintable,
             burnable=params.burnable,
@@ -175,11 +178,11 @@ class EVMDeployer(ChainDeployer):
 
     async def _erc20_call(self, contract_address: str, abi: list[Any], fn: str, *args):
         """Helper for ERC-20 contract interactions."""
-        contract = self.w3.eth.contract(address=contract_address, abi=abi)
+        contract = self.w3.eth.contract(address=cast("ChecksumAddress", contract_address), abi=abi)
         tx = getattr(contract.functions, fn)(*args).build_transaction(
             {
                 "from": self.deployer_address,
-                "nonce": self.w3.eth.get_transaction_count(self.deployer_address),
+                "nonce": self.w3.eth.get_transaction_count(cast("ChecksumAddress", self.deployer_address)),
                 "gasPrice": self.w3.eth.gas_price,
                 "chainId": self.w3.eth.chain_id,
             }
@@ -247,7 +250,7 @@ class EVMDeployer(ChainDeployer):
             {"inputs": [], "name": "totalSupply", "outputs": [{"type": "uint256"}], "type": "function"},
             {"inputs": [], "name": "owner", "outputs": [{"type": "address"}], "type": "function"},
         ]
-        contract = self.w3.eth.contract(address=contract_address, abi=abi)
+        contract = self.w3.eth.contract(address=cast("ChecksumAddress", contract_address), abi=abi)
         return {
             "name": contract.functions.name().call(),
             "symbol": contract.functions.symbol().call(),
@@ -265,7 +268,7 @@ class EVMDeployer(ChainDeployer):
                 "type": "function",
             }
         ]
-        contract = self.w3.eth.contract(address=contract_address, abi=abi)
+        contract = self.w3.eth.contract(address=cast("ChecksumAddress", contract_address), abi=abi)
         return str(contract.functions.balanceOf(wallet_address).call())
 
     async def blacklist_add(self, contract_address: str, address: str) -> str:
@@ -307,7 +310,7 @@ class EVMDeployer(ChainDeployer):
                 "type": "function",
             }
         ]
-        contract = self.w3.eth.contract(address=contract_address, abi=abi)
+        contract = self.w3.eth.contract(address=cast("ChecksumAddress", contract_address), abi=abi)
         return contract.functions.isBlacklisted(address).call()
 
     async def set_trading_enabled(self, contract_address: str, enabled: bool) -> str:

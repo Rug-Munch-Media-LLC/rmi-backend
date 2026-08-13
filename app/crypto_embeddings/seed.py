@@ -1,6 +1,19 @@
 """Known scam pattern templates used for pattern matching."""
 
-KNOWN_SCAM_PATTERNS = [
+from typing import TypedDict
+
+
+class ScamPattern(TypedDict):
+    """Shape of a known scam pattern entry."""
+
+    name: str
+    description: str
+    severity: str
+    indicators: list[str]
+    code_snippets: list[str]
+
+
+KNOWN_SCAM_PATTERNS: list[ScamPattern] = [
     {
         "name": "Honeypot - Sell Disabled",
         "description": "Token where only the creator can sell. Buyers are trapped.",

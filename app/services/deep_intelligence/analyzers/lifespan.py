@@ -19,7 +19,7 @@ async def token_lifespan_predictor(token_address: str, chain: str = "sol") -> di
     AI-driven survival analysis. Compare against historical rug patterns.
     Predict survival probability at 7d, 30d, 90d.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "survival_probability": {

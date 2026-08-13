@@ -66,8 +66,8 @@ class PortfolioRiskAggregator:
                 continue
             cp = result
             profile.chain_portfolios[chain] = cp
-            total_value += cp.total_value_usd
-            all_tokens.extend(cp.holdings)
+            total_value += cp.total_value_usd  # type: ignore[union-attr]  # PTB None-able fields
+            all_tokens.extend(cp.holdings)  # type: ignore[union-attr]  # PTB None-able fields
         for token in all_tokens:
             if total_value > 0:
                 token.pct_of_portfolio = (token.estimated_usd_value / total_value) * 100

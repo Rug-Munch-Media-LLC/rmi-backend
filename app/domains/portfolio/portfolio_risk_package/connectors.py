@@ -65,7 +65,9 @@ class EVMConnector(ChainConnector):
             self._w3 = _Web3(provider)
             if self.config.get("poa"):
                 try:
-                    from web3.middleware import geth_poa_middleware
+                    from web3.middleware import (
+                        geth_poa_middleware,  # type: ignore[attr-defined]  # PTB None-able fields
+                    )
 
                     self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
                 except ImportError:
@@ -123,7 +125,7 @@ class EVMConnector(ChainConnector):
                     "topics": [
                         transfer_topic,
                         None,
-                        _Web3.to_checksum_address(address).hex()
+                        _Web3.to_checksum_address(address).hex()  # type: ignore[attr-defined]  # PTB None-able fields
                         if address.startswith("0x")
                         else "0x" + address.zfill(64),
                     ],
@@ -173,7 +175,7 @@ class SolanaConnector(ChainConnector):
 
     async def get_native_balance(self, address: str) -> float:
         try:
-            from solana.rpc.api import Pubkey as SolPubkey
+            from solana.rpc.api import Pubkey as SolPubkey  # type: ignore[attr-defined]  # PTB None-able fields
 
             pubkey = SolPubkey.from_string(address)
             resp = await asyncio.to_thread(self.client.get_balance, pubkey)
@@ -188,7 +190,7 @@ class SolanaConnector(ChainConnector):
     async def get_token_balances(self, address: str) -> list[dict[str, Any]]:
         results = []
         try:
-            from solana.rpc.api import Pubkey as SolPubkey
+            from solana.rpc.api import Pubkey as SolPubkey  # type: ignore[attr-defined]  # PTB None-able fields
 
             pubkey = SolPubkey.from_string(address)
             resp = await asyncio.to_thread(self.client.get_token_accounts_by_owner_json_parsed, pubkey)

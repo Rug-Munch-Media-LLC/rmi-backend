@@ -46,7 +46,7 @@ def whale_alert(chain: str = "ethereum", min_value: float = 1000000, fingerprint
     auth = trial(fingerprint, "whale", 15)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"chain": chain, "min_value_usd": min_value, "alerts": []}
+    result: dict[str, Any] = {"chain": chain, "min_value_usd": min_value, "alerts": []}
     if chain == "ethereum":
         try:
             r = req.get(
@@ -81,7 +81,7 @@ def token_launch_scanner(chain: str = "solana", max_age_hours: int = 1, fingerpr
     auth = trial(fingerprint, "launch", 10)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"chain": chain, "max_age_hours": max_age_hours, "new_tokens": []}
+    result: dict[str, Any] = {"chain": chain, "max_age_hours": max_age_hours, "new_tokens": []}
     if chain == "solana":
         try:
             r = req.get("https://api.dexscreener.com/token-profiles/latest/v1", timeout=10)
@@ -140,7 +140,7 @@ def mev_detector(address: str = "", chain: str = "ethereum", fingerprint: str = 
     auth = trial(fingerprint, "mev", 10)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"address": address, "chain": chain, "sandwich_risk": "low", "mev_exposure": 0}
+    result: dict[str, Any] = {"address": address, "chain": chain, "sandwich_risk": "low", "mev_exposure": 0}
     try:
         r = req.get(
             f"https://api.etherscan.io/api?module=account&action=txlist&address={address}&sort=desc&page=1&offset=20",
@@ -237,7 +237,7 @@ def quick_audit(address: str, chain: str = "ethereum", fingerprint: str = "anon"
     auth = trial(fingerprint, "audit", 15)
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
-    result = {"address": address, "chain": chain}
+    result: dict[str, Any] = {"address": address, "chain": chain}
     try:
         r = req.get(
             f"https://api.gopluslabs.io/api/v1/token_security/{chain}?contract_addresses={address}",
@@ -275,7 +275,7 @@ def portfolio_risk(address: str, fingerprint: str = "anon") -> dict[str, Any]:
     if auth["tier"] == "free_exhausted":
         return {"error": "Free exhausted", "upgrade": auth["upgrade"]}
     r = gredis()
-    risk = {"address": address, "risk_score": 0, "risk_factors": []}
+    risk: dict[str, Any] = {"address": address, "risk_score": 0, "risk_factors": []}
     # Check sanctions
     if r.get(f"rmi:label:ethereum:{address.lower()}"):
         label = json.loads(r.get(f"rmi:label:ethereum:{address.lower()}") or "{}")

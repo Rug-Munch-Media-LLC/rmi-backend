@@ -57,7 +57,7 @@ async def register_webhook(url: str = Query(...), events: str = Query("payment.c
 
 
 @router.get("/webhooks")
-async def list_webhooks() -> dict[str, list[Any]]:
+async def list_webhooks() -> dict[str, Any]:
     """List registered webhooks."""
     return {"webhooks": list(_webhooks.values()), "total": len(_webhooks)}
 
@@ -246,7 +246,7 @@ async def add_chains() -> dict[str, Any]:
 
 
 @router.get("/chains")
-async def list_chains() -> dict[str, dict[str, Any]]:
+async def list_chains() -> dict[str, Any]:
     """List all payment chains with USDC addresses."""
     from app.routers.x402_enforcement import CHAIN_USDC
 
@@ -302,7 +302,7 @@ async def affiliate_stats(code: str) -> Any:
 
 
 @router.get("/affiliates")
-async def list_affiliates() -> dict[str, list[Any]]:
+async def list_affiliates() -> dict[str, Any]:
     """List all affiliates."""
     return {"affiliates": list(_affiliates.values()), "total": len(_affiliates)}
 

@@ -95,6 +95,8 @@ async def verify_certificate(cert_id: str) -> dict[str, Any]:
     import json
 
     r = get_redis()
+    if r is None:
+        raise NotFoundError("Certificate not found")
     all_progress = r.hgetall("rmi:scam_school:progress")
 
     for user_id, data in all_progress.items():

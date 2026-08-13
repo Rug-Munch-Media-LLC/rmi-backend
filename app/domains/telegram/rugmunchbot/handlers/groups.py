@@ -77,7 +77,7 @@ async def cmd_mygroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             pass
 
     if not chat_id:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ You don't have a creator coin group yet.\n\n"
             "Creator coin groups are automatically created when you "
             "deploy a creator coin on our platform.",
@@ -116,20 +116,20 @@ async def cmd_mygroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "Ask an admin to generate one."
         )
 
-    await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, parse_mode="Markdown")  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show information about a managed group. Owner/admin only."""
     user = update.effective_user
     if not user or user.id not in OWNER_IDS:
-        await update.message.reply_text("⛔ Owner-only command.")
+        await update.message.reply_text("⛔ Owner-only command.")  # type: ignore[union-attr]  # PTB None-able fields
         await _deny_group_attempt(update, context)
         return
 
     args = context.args or []
     if not args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "Usage: /groupinfo <chat_id>\nShows group stats: member count, active voice chats, etc."
         )
         return
@@ -137,7 +137,7 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         chat_id = int(args[0])
     except ValueError:
-        await update.message.reply_text("❌ Invalid chat_id. Must be a number.")
+        await update.message.reply_text("❌ Invalid chat_id. Must be a number.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     try:
@@ -146,7 +146,7 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         client = await get_headless_client()
         info = await client._fetch_group_info(chat_id)
     except (ImportError, RuntimeError, Exception) as e:
-        await update.message.reply_text(f"❌ Error: {e}")
+        await update.message.reply_text(f"❌ Error: {e}")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     # Check voice chat status
@@ -180,20 +180,20 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"🎙️ **Voice Chat:**\n{voice_status}"
     )
 
-    await update.message.reply_text(text, parse_mode="Markdown")
+    await update.message.reply_text(text, parse_mode="Markdown")  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Start or end a voice/video chat. Owner/admin only."""
     user = update.effective_user
     if not user or user.id not in OWNER_IDS:
-        await update.message.reply_text("⛔ Owner-only command.")
+        await update.message.reply_text("⛔ Owner-only command.")  # type: ignore[union-attr]  # PTB None-able fields
         await _deny_group_attempt(update, context)
         return
 
     args = context.args or []
     if len(args) < 2:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "Usage:\n"
             "/voicechat start <chat_id> [title]\n"
             "/voicechat start_video <chat_id> [title]\n"
@@ -205,7 +205,7 @@ async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         chat_id = int(args[1])
     except ValueError:
-        await update.message.reply_text("❌ Invalid chat_id.")
+        await update.message.reply_text("❌ Invalid chat_id.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     title = " ".join(args[2:]) if len(args) > 2 else None
@@ -213,7 +213,7 @@ async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     from app.domains.telegram.rugmunchbot.config import BOT_TOKEN
 
     if not BOT_TOKEN:
-        await update.message.reply_text("❌ Bot not configured.")
+        await update.message.reply_text("❌ Bot not configured.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     from telegram import Bot
@@ -227,44 +227,44 @@ async def cmd_voicechat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
             session = await create_voice_chat(bot, chat_id, title=title, is_video=is_video)
             link = session.invite_link or ""
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 f"✅ {'📹 Video' if is_video else '🎤 Voice'} chat started!\nJoin: {link}"
                 if link
                 else f"✅ {'📹 Video' if is_video else '🎤 Voice'} chat started!",
                 parse_mode="Markdown",
             )
         except RuntimeError as e:
-            await update.message.reply_text(f"❌ {e}")
+            await update.message.reply_text(f"❌ {e}")  # type: ignore[union-attr]  # PTB None-able fields
     elif action == "end":
         try:
             from app.domains.telegram.voice_chat import end_voice_chat
 
             await end_voice_chat(bot, chat_id)
-            await update.message.reply_text("✅ Voice chat ended.")
+            await update.message.reply_text("✅ Voice chat ended.")  # type: ignore[union-attr]  # PTB None-able fields
         except RuntimeError as e:
-            await update.message.reply_text(f"❌ {e}")
+            await update.message.reply_text(f"❌ {e}")  # type: ignore[union-attr]  # PTB None-able fields
     else:
-        await update.message.reply_text("❌ Unknown action. Use: start, start_video, or end.")
+        await update.message.reply_text("❌ Unknown action. Use: start, start_video, or end.")  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_banuser(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Ban a user from a group. Owner/admin only."""
     user = update.effective_user
     if not user or user.id not in OWNER_IDS:
-        await update.message.reply_text("⛔ Owner-only command.")
+        await update.message.reply_text("⛔ Owner-only command.")  # type: ignore[union-attr]  # PTB None-able fields
         await _deny_group_attempt(update, context)
         return
 
     args = context.args or []
     if len(args) < 2:
-        await update.message.reply_text("Usage: /banuser <chat_id> <user_id> [reason]")
+        await update.message.reply_text("Usage: /banuser <chat_id> <user_id> [reason]")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     try:
         chat_id = int(args[0])
         user_id = int(args[1])
     except ValueError:
-        await update.message.reply_text("❌ Invalid chat_id or user_id.")
+        await update.message.reply_text("❌ Invalid chat_id or user_id.")  # type: ignore[union-attr]  # PTB None-able fields
         return
 
     reason = " ".join(args[2:]) if len(args) > 2 else None
@@ -275,11 +275,11 @@ async def cmd_banuser(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         client = await get_headless_client()
         success = await client.ban_user(chat_id, user_id, reason=reason)
         if success:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 f"✅ User `{user_id}` banned from chat `{chat_id}`." + (f"\nReason: {reason}" if reason else ""),
                 parse_mode="Markdown",
             )
         else:
-            await update.message.reply_text("❌ Failed to ban user.")
+            await update.message.reply_text("❌ Failed to ban user.")  # type: ignore[union-attr]  # PTB None-able fields
     except (ImportError, RuntimeError) as e:
-        await update.message.reply_text(f"❌ {e}")
+        await update.message.reply_text(f"❌ {e}")  # type: ignore[union-attr]  # PTB None-able fields

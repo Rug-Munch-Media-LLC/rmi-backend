@@ -118,12 +118,12 @@ class WalletGenerationMixin:
             created_by=created_by,
         )
 
-        if mnemonic and self.encryption_password:
-            self._store_mnemonic(wallet_id, mnemonic)
+        if mnemonic and self.encryption_password:  # type: ignore[attr-defined]  # PTB None-able fields
+            self._store_mnemonic(wallet_id, mnemonic)  # type: ignore[attr-defined]  # PTB None-able fields
             wallet.labels["mnemonic"] = "encrypted"
 
-        self._wallets[wallet_id] = wallet
-        self._save_vault()
+        self._wallets[wallet_id] = wallet  # type: ignore[attr-defined]  # PTB None-able fields
+        self._save_vault()  # type: ignore[attr-defined]  # PTB None-able fields
         logger.info(f"Wallet generated: {wallet_id} ({chain}) - {address}")
         return wallet
 
@@ -245,10 +245,10 @@ class WalletGenerationMixin:
             created_by=created_by,
         )
         if mnemonic:
-            self._store_mnemonic(wallet.wallet_id, mnemonic)
+            self._store_mnemonic(wallet.wallet_id, mnemonic)  # type: ignore[attr-defined]  # PTB None-able fields
         wallet.labels["hd_account"] = str(account_index)
         wallet.labels["hd_address"] = str(address_index)
-        self._save_vault()
+        self._save_vault()  # type: ignore[attr-defined]  # PTB None-able fields
         return wallet
 
     def generate_batch(

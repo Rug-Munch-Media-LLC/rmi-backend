@@ -11,8 +11,8 @@ Split from monolithic x402_advanced_tools.py into:
   - narrative.py   Layer 6: Narrative engine
 """
 
-
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Query
 
@@ -45,10 +45,9 @@ async def clear_cache(tool: str = Query(default=None)) -> dict[str, str]:
 
 
 @router.get("/cache/stats")
-async def cache_stats() -> dict[str, int] | dict[str, str]:
+async def cache_stats() -> dict[str, Any]:
     """Get cache hit/miss statistics."""
     try:
-
         from app.routers.x402_advanced_tools.cache import _redis_conn
 
         r = _redis_conn()

@@ -226,7 +226,7 @@ async def _dispatch_admin_button(update: Update, ctx: ContextTypes.DEFAULT_TYPE,
         await cmd_admin_toggle_chat(update, ctx)
     elif cmd == "/start":
         # /start re-attaches the persistent keyboard below the new message.
-        admin_kb_reset(update.effective_chat.id)
+        admin_kb_reset(update.effective_chat.id)  # type: ignore[union-attr]  # PTB None-able fields
         await cmd_start(update, ctx)
 
 
@@ -1006,7 +1006,7 @@ async def _injection_warning(update: Update, category: str) -> None:
         ]
     )
     try:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"\U0001f6e1\ufe0f <b>RugMunch Anti-Abuse</b>\n\n{text}\n\n<i>Message blocked: {category}</i>",
             parse_mode=ParseMode.HTML,
             reply_markup=kb,
@@ -1024,7 +1024,7 @@ async def _scam_address_warning(update: Update, address: str) -> None:
         ]
     )
     try:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"{_KNOWN_SCAM_WARNING}\n\n"
             f"\U0001f517 Address: <code>{address}</code>\n\n"
             f"Already flagged one like this? /report helps us build the denylist.",

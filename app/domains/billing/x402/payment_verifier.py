@@ -83,8 +83,8 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
             if decoded.startswith("{"):
                 payload = json.loads(decoded)
                 if "x402Version" in payload:
-                    return payload  # type: ignore[no-any-return]
-                return payload  # type: ignore[no-any-return]
+                    return payload
+                return payload
         except (MemoryError, KeyboardInterrupt, SystemExit):
             raise
         except json.JSONDecodeError:
@@ -98,7 +98,7 @@ def parse_x_pay_header(header_value: str) -> dict[str, Any] | None:
             payload_str = stripped
 
         if payload_str.startswith("{"):
-            return json.loads(payload_str)  # type: ignore[no-any-return]
+            return json.loads(payload_str)
 
         return None
     except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
@@ -117,7 +117,7 @@ def _detect_token_from_asset(asset_address: str, chain_cfg: dict[str, Any]) -> s
     tokens = chain_cfg.get("tokens", {})
     for symbol, addr in tokens.items():
         if isinstance(addr, str) and addr.lower() == asset_lower:
-            return symbol  # type: ignore[no-any-return]
+            return symbol
 
     if "TR7NH" in asset_lower:
         return "USDT"
@@ -154,9 +154,9 @@ async def verify_payment(payload: dict[str, Any]) -> dict[str, Any]:
 
     if verify_method == "facilitator":
         if chain_cfg["method"] == "local_eip712":
-            return VERIFIER._verify_eip712_local(payload)  # type: ignore[no-any-return]
+            return VERIFIER._verify_eip712_local(payload)
         elif chain_cfg["method"] == "payai":
-            return await VERIFIER._verify_via_payai(payload, None)  # type: ignore[no-any-return]
+            return await VERIFIER._verify_via_payai(payload, None)
 
     if verify_method == "self":
         return await self_verify_evm_usdc(payload, chain_key or "", chain_cfg)
@@ -185,7 +185,7 @@ async def verify_payment_via_router(payload: dict[str, Any]) -> dict[str, Any]:
             from app.routers.x402_middleware import PaymentVerifier  # type: ignore[attr-defined]
 
             verifier = PaymentVerifier()
-            return await verifier.verify_payment(  # type: ignore[no-any-return]
+            return await verifier.verify_payment(
                 json.dumps(payload),
                 network_key="base",
             )
