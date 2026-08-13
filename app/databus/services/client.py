@@ -49,7 +49,7 @@ class DataBus:
 
     def __init__(self) -> None:
         self.cache: CacheLayer = get_cache()
-        self.vault: DataBusVault = None  # loaded async
+        self.vault: DataBusVault | None = None  # loaded async
         self.chains: dict[str, ProviderChain] = {}
         self.security = security
         self._initialized = False
@@ -59,7 +59,7 @@ class DataBus:
         # Provider health
         self._provider_health = ProviderHealthTracker()
         # Cache warm task
-        self._warm_task: asyncio.Task | None = None
+        self._warm_task: asyncio.Task[Any] | None = None
         self._warm_running = False
         # Stats
         self._stats = {
@@ -134,7 +134,7 @@ class DataBus:
                         from app.caching_shield.ws_broadcaster import get_ws_manager
 
                         ws = get_ws_manager()
-                        await ws.broadcast_data(data_type, result)
+                        await ws.broadcast(data_type, result)
                     except (AttributeError, ImportError):
                         pass
         except (ConnectionError, OSError, TimeoutError) as e:
@@ -152,7 +152,7 @@ class DataBus:
         if self._warm_running:
             return
         self._warm_running = True
-        self._warm_types = [
+        self._warm_types: list[dict[str, Any]] = [
             {"data_type": "market_overview", "kwargs": {}},
             {"data_type": "trending", "kwargs": {}},
             {"data_type": "market_brief", "kwargs": {}},
@@ -582,8 +582,8 @@ class DataBus:
                     from app.config import settings
 
                     search_query = query or address
-                    async with httpx.AsyncClient(timeout=10) as c:
-                        r = await c.get(
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        rag_resp = await client.get(
                             "http://rmi-rag-api:8012/api/v1/search",
                             params={
                                 "q": search_query,
@@ -592,8 +592,8 @@ class DataBus:
                             },
                             headers={"X-API-Key": settings.rmi_rag_api_key},
                         )
-                        if r.status_code == 200:
-                            data = r.json()
+                        if rag_resp.status_code == 200:
+                            data = rag_resp.json()
                             if data.get("results") and len(data["results"]) > 0:
                                 return {
                                     "data": data,
@@ -659,7 +659,9 @@ class DataBus:
     async def fetch_batch(self, requests: list[dict[str, Any]]) -> list[dict[str, Any] | None]:
         """Fetch multiple data types in parallel."""
         tasks = [self.fetch(**req) for req in requests]
-        return await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Drop exceptions — callers expect dicts only
+        return [r for r in results if not isinstance(r, BaseException)]
 
     async def health(self) -> dict[str, Any]:
         """Full system health check with per-type cache stats and provider health."""

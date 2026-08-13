@@ -182,7 +182,7 @@ async def scan_all() -> Any:
     summary="Clustering Health",
     description="Health check for the wallet clustering engine. Returns status of clustering models and data sources.",
 )
-async def clustering_health() -> dict[str, str]:
+async def clustering_health() -> dict[str, Any]:
     cache_stats = {}
     gnn_status = {}
     spam_stats = {}
@@ -422,7 +422,7 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
 
         provider = get_unified_provider()
         holder_data = await provider.get_token_holders(req.contract_address, limit=30)
-        holders = [h.get("address") for h in holder_data if h.get("address")]
+        holders = [str(h.get("address")) for h in holder_data if h.get("address")]
 
         # Filter out exchange/DeFi infrastructure
         try:
@@ -465,7 +465,7 @@ async def scan_contract_clusters(req: ContractScanRequest) -> Any:
         except Exception as e:
             logger.warning(f"Feed failed: {e}")
 
-    result = {
+    result: dict[str, Any] = {
         "contract": req.contract_address,
         "chain": req.chain,
         "total_holders": len(holders) + len(excluded_entities),

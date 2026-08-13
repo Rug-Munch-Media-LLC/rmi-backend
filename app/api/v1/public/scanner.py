@@ -171,7 +171,7 @@ async def _run_token_scan(scan_id: str, chain: str, address: str, depth: str) ->
         try:
             from app.unified_scanner import scan_wallet as wallet_scan
 
-            result = await wallet_scan(address=address, chain=chain)
+            result = await wallet_scan(wallet_address=address, chain=chain)
             score = result.get("risk_score", 50)
             _scan_results[scan_id] = {
                 "status": "completed",
@@ -211,7 +211,7 @@ async def scan_wallet_endpoint(request: WalletScanRequest) -> Any:
     try:
         from app.unified_scanner import scan_wallet as _scan_wallet
 
-        result = await _scan_wallet(address=request.address, chain=request.chain)
+        result = await _scan_wallet(wallet_address=request.address, chain=request.chain)
         return WalletScanResult(
             scan_id=scan_id,
             status="completed",
@@ -349,7 +349,7 @@ async def _query_self_sufficiency() -> dict[str, Any]:
         from clickhouse_driver import Client as CHClient
 
         ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
-        ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000"))
+        ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT") or "9000")
         ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
         ch_pass = (os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD")) or ""
         ch_db = "wallet_memory"

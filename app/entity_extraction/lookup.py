@@ -51,7 +51,7 @@ class EntityLookup:
         self._redis_port = redis_port
         self._redis_password = redis_password
         self._redis_db = redis_db
-        self._redis = None  # lazy async connection
+        self._redis: Any = None  # lazy async connection
 
     # ── Singleton ──────────────────────────────────────────────────
 

@@ -46,7 +46,7 @@ class TokenLaunchDetector:
 
     def __init__(self) -> None:
         self._running = False
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[Any] | None = None
 
     async def start(self) -> None:
         """Start the background polling loop."""
@@ -128,7 +128,7 @@ class TokenLaunchDetector:
                         pairs = resp.json().get("pairs", [])
                         for p in pairs:
                             created = p.get("pairCreatedAt")
-                            age_s = 999999
+                            age_s: float = 999999.0
                             if created:
                                 age_s = (
                                     datetime.now(UTC) - datetime.fromtimestamp(created / 1000, tz=UTC)

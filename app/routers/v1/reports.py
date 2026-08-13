@@ -258,7 +258,7 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
             from app.caching_shield.service_mcp import ServiceMCP
 
             mcp = ServiceMCP()
-            security = await mcp.token_security(chain, subject_id)
+            security = await mcp.gmgn.token_security(chain, subject_id)
             if security:
                 return {"contract_analysis": security}
         except ImportError:

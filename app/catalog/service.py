@@ -100,7 +100,7 @@ class CatalogService:
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config = config or DEFAULT_CONFIG
         self._health = StoreHealth()
-        self._redis = None
+        self._redis: Any = None
         self._pg_pool: Any = None
         self._neo_driver: Any = None
         self._qdrant: Any = None  # httpx.AsyncClient

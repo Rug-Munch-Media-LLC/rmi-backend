@@ -66,7 +66,7 @@ class SmartMoneyTracker:
                                 first_seen=w.get("first_seen", 0),
                                 last_active=w.get("last_active", 0),
                                 total_tx_count=w.get("total_tx_count", 0),
-                                reputation_score=w.get("reputation_score", w.get("reputation", 50.0)),
+                                reputation_score=float(w.get("reputation_score", w.get("reputation", 50.0)) or 50.0),
                                 confidence=w.get("confidence", 0.5),
                                 notes=w.get("notes", ""),
                             )
@@ -164,7 +164,8 @@ class SmartMoneyTracker:
     def remove_wallet(self, address: str, chain: str) -> bool:
         before = len(self._wallets)
         self._wallets = [w for w in self._wallets if not (w.address.lower() == address.lower() and w.chain == chain)]
-        return len(self._wallets) < before and (self._save_wallets() or True)
+        self._save_wallets()
+        return len(self._wallets) < before
 
     def get_wallets(self, category: WalletCategory | None = None, chain: str | None = None) -> list[SmartWallet]:
         wallets = self._wallets
@@ -342,9 +343,14 @@ class SmartMoneyTracker:
         if not token_address:
             return 50.0
         try:
-            from app.token_scanner import TokenScanner
+            # [REVIEW] was `from app.token_scanner import TokenScanner` — the class was
+            # removed in the domains refactor; token_scanner.py is now a shim exporting
+            # async scan_token() returning ScanResult. Old import always failed, so token
+            # safety silently fell back to 50.0.
+            from app.token_scanner import scan_token
 
-            return (await TokenScanner().scan(token_address, chain)).get("safety_score", 50.0)
+            result = await scan_token(token_address, chain)
+            return float(getattr(result, "safety_score", 50.0) or 50.0)
         except (ImportError, Exception):
             return 50.0
 
@@ -388,7 +394,7 @@ class SmartMoneyTracker:
                 *[asyncio.create_task(self._scan_single_wallet(w, lookback_minutes)) for w in batch],
                 return_exceptions=True,
             ):
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     logger.error("Wallet scan failed: %s", result)
                 elif result is not None:
                     moves, wk, txh = result

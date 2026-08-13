@@ -32,8 +32,6 @@ ETH_CONTRACT_LABELS_REPO = (
 )
 OFAC_URL = "https://raw.githubusercontent.com/OFAC/crypto-sanctions-list/main/crypto-sanctions-list.json"
 
-CLEAN_DIR = os.path.join(DATA_DIR, "wallet-labels-clean")
-
 SOLANA_CSV_SPECS = [
     (
         "solana_cex_labels.csv",

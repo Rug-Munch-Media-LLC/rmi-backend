@@ -12,6 +12,7 @@ Usage: /rugmap <address> [chain]
 from __future__ import annotations
 
 import io
+from typing import Any, cast
 
 import httpx
 
@@ -27,8 +28,8 @@ logger = get_logger("rmi.rugmap")
 
 
 def render_bubble_map_png(
-    nodes: list[dict],
-    links: list[dict],
+    nodes: list[dict[str, Any]],
+    links: list[dict[str, Any]],
     name: str,
     symbol: str,
     token_address: str,
@@ -63,10 +64,10 @@ def render_bubble_map_png(
         font = ImageFont.load_default()
         small = font
 
-    def node_id(node: dict) -> str:
+    def node_id(node: dict[str, Any]) -> str:
         return node.get("address") or node.get("id") or ""
 
-    def risk_color(node: dict) -> tuple[int, int, int]:
+    def risk_color(node: dict[str, Any]) -> tuple[int, int, int]:
         risk = node.get("risk") or node.get("risk_score") or 0
         risk_level = str(node.get("risk_level") or "").lower()
         if risk_level == "high" or (isinstance(risk, (int, float)) and risk >= 60):
@@ -125,7 +126,7 @@ def render_bubble_map_png(
             tgt = node_id(tgt)
         if src not in positions or tgt not in positions:
             continue
-        key = tuple(sorted((str(src), str(tgt))))
+        key = cast("tuple[str, str]", tuple(sorted((str(src), str(tgt)))))
         if key in drawn:
             continue
         drawn.add(key)
@@ -150,16 +151,16 @@ def render_bubble_map_png(
         if pos is None:
             continue
         try:
-            w = float(node.get("weight") or node.get("value") or 0)
+            weight = float(node.get("weight") or node.get("value") or 0)
         except (TypeError, ValueError):
-            w = 0
+            weight = 0
         is_center = node is center
-        radius = 28 if is_center else max(8, min(22, 10 + w * 0.5))
+        radius = 28 if is_center else max(8, min(22, 10 + weight * 0.5))
         cx, cy = px(pos)
         col = risk_color(node)
         # Glow for center token
         if is_center:
-            for r in range(radius + 6, radius + 2, -2):
+            for r in range(int(radius) + 6, int(radius) + 2, -2):
                 draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 200, 0, 30))
         draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=col, outline=(232, 234, 237), width=2)
         label = str(node.get("label") or "")[:10] or node_id(node)[:8]
@@ -192,7 +193,7 @@ def render_bubble_map_png(
         return None
 
 
-async def _fetch_token_graph(client: httpx.AsyncClient, address: str, chain: str) -> dict | None:
+async def _fetch_token_graph(client: httpx.AsyncClient, address: str, chain: str) -> dict[str, Any] | None:
     """Fetch the token holder graph from the backend RugMaps engine."""
     try:
         r = await client.get(
@@ -240,11 +241,11 @@ async def cmd_rugmap(update, ctx) -> None:
         top_holders = []
         bundle_detected = False
         fresh_wallet_pct = 0
-        liquidity = 0
+        liquidity = 0.0
         symbol = "???"
         name = "Unknown"
         chain = explicit_chain
-        graph: dict | None = None
+        graph: dict[str, Any] | None = None
 
         async with httpx.AsyncClient(timeout=25) as client:
             # v6: fetch the token graph from the RugMaps engine first.
@@ -289,6 +290,10 @@ async def cmd_rugmap(update, ctx) -> None:
 
         # ── Use branded visual engine ──
         from app.domains.telegram.rugmunchbot.services.visuals import render_cluster_map
+
+        # Holder stats for the map footer (top_holders entries carry pct).
+        total_holders = len(top_holders)
+        top10_pct = sum(float(h.get("pct") or 0) for h in top_holders[:10])
 
         png = (
             render_cluster_map(nodes or [], links or [], name, symbol, chain, total_holders, top10_pct)

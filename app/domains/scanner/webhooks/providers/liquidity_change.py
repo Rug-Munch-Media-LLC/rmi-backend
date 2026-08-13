@@ -101,8 +101,8 @@ class LiquidityChangeProvider:
     def _get_liquidity_watchdog(self) -> Any | None:
         """Try to import the internal liquidity watchdog (optional)."""
         try:
-            from app.liquidity_watchdog import (
-                LiquidityWatchdog,  # type: ignore[attr-defined]  # optional module, class absent — guarded by try/except
+            from app.liquidity_watchdog import (  # type: ignore[attr-defined]  # optional module, class absent — guarded by try/except
+                LiquidityWatchdog,
             )
 
             return LiquidityWatchdog()

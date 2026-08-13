@@ -48,7 +48,7 @@ class CryptoEmbedder:
         self._infinity: InfinityBGEEmbedder | None = None
         self._openrouter: OpenRouterEmbedder | None = None
         self._huggingface: HuggingFaceEmbedder | None = None
-        self._redis = None
+        self._redis: Any = None
         self._initialized = False
         self._cache_hits = 0
         self._cache_misses = 0

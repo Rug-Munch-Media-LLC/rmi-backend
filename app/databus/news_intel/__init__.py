@@ -208,7 +208,7 @@ async def aggregate_all_news(limit: int = 50, **kw) -> dict[str, Any]:
     all_articles: list[dict[str, Any]] = []
 
     # Step 1: Fetch all sources in parallel
-    tasks = []
+    tasks: list[Any] = []
     for _src_id, src in NEWS_SOURCES.items():
         if src["type"] == "rss":
             tasks.append(_fetch_rss(src["url"], src["name"]))

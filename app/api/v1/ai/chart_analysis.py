@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import math
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -448,8 +448,9 @@ async def chart_analysis(req: ChartAnalysisRequest) -> ChartAnalysisResponse:
         return _build_fallback_response(req, indicators, sr_levels, patterns)
 
     # 7. Parse the AI response
-    raw_response: str = str(result.get("response", ""))
-    provider: str = str(result.get("routing", {}).get("provider", result.get("provider", "unknown")))
+    result_dict = cast("dict[str, Any]", result)  # smart_route always returns a dict
+    raw_response: str = str(result_dict.get("response", ""))
+    provider: str = str(result_dict.get("routing", {}).get("provider", result_dict.get("provider", "unknown")))
     logger.info("chart_analysis_complete", provider=provider, response_len=len(raw_response))
 
     try:

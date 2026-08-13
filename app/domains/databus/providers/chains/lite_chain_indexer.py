@@ -75,7 +75,7 @@ def _new_ch_client() -> Any | None:
     singleton is only safe for strictly-sequential callers.
     """
     ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
-    ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT", "9000"))
+    ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT") or "9000")
     ch_user = os.getenv("CLICKHOUSE_USER") or os.getenv("CH_USER", "rmi")
     ch_pass = os.getenv("CLICKHOUSE_PASSWORD") or os.getenv("CH_PASSWORD", "")
     ch_db = "wallet_memory"

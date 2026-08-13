@@ -38,7 +38,7 @@ SYNDICATE_WALLETS = [
 ]
 
 # Tier classification
-TIERS = {
+TIERS: dict[str, dict[str, Any]] = {
     "5xTgWFnVbH2rH6s7p1mLkN3vBQrYz8TcA4wKdE2XsJ9": {
         "tier": 1,
         "label": "Syndicate Leader",
@@ -111,7 +111,7 @@ class SyndicateTracker:
             self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         return self.session
 
-    async def _rpc_call(self, method: str, params: list[Any] | None = None) -> Any:
+    async def _rpc_call(self, method: str, params: list[Any] | dict[str, Any] | None = None) -> Any:
         s = await self._get_session()
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}
         try:
@@ -217,7 +217,7 @@ class SyndicateTracker:
         token_accounts = token_result.get("value", []) if isinstance(token_result, dict) else []
 
         # Get CRM V1 balance specifically
-        crm_balance = 0
+        crm_balance = 0.0
         for ta in token_accounts:
             parsed = ta.get("account", {}).get("data", {}).get("parsed", {}).get("info", {})
             if parsed.get("mint") == CRM_V1_CONTRACT:
@@ -330,13 +330,13 @@ class SyndicateTracker:
                 to_wallet = transfer.get("toUserAccount", "")
                 amount = float(transfer.get("tokenAmount", 0))
 
-                tier = None
+                tier: int | None = None
                 risk = "low"
                 if from_wallet in TIERS:
-                    tier = TIERS[from_wallet]["tier"]
+                    tier = int(TIERS[from_wallet]["tier"])
                     risk = "critical"
                 elif to_wallet in TIERS:
-                    tier = TIERS[to_wallet]["tier"]
+                    tier = int(TIERS[to_wallet]["tier"])
                     risk = "high"
 
                 event = SyndicateEvent(

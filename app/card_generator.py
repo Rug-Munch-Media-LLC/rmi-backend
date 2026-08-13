@@ -19,8 +19,8 @@ logger = get_logger(__name__)
 
 # ── Paths ────────────────────────────────────────────────────
 
-TEMPLATE_DIR = "/root/backend/assets/card_templates"
-GENERATED_DIR = "/root/backend/assets/generated_cards"
+TEMPLATE_DIR = "/path/to/app/assets/card_templates"
+GENERATED_DIR = "/path/to/app/assets/generated_cards"
 
 # Ensure directories exist
 os.makedirs(TEMPLATE_DIR, exist_ok=True)
@@ -28,7 +28,7 @@ os.makedirs(GENERATED_DIR, exist_ok=True)
 
 # ── Card Templates Config ────────────────────────────────────
 
-CARD_TEMPLATES = {
+CARD_TEMPLATES: dict[str, dict[str, Any]] = {
     "big_win": {
         "name": "Big Win Alert",
         "template_file": "big_win_template.png",
@@ -353,7 +353,7 @@ def generate_card(card_type: str, data: dict[str, Any]) -> dict[str, Any]:
         # Try to load font (use default if not available)
         try:
             font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            base_font = ImageFont.truetype(font_path, 32)
+            base_font: Any = ImageFont.truetype(font_path, 32)
         except (ConnectionError, OSError, TimeoutError):
             base_font = ImageFont.load_default()
 
@@ -492,7 +492,9 @@ async def generate_kol_scorecard(
     return generate_card("kol_scorecard", data)
 
 
-async def generate_rug_call_card(token_symbol: str, amount_stolen: float, victims: int, rug_type: str) -> dict[str, Any]:
+async def generate_rug_call_card(
+    token_symbol: str, amount_stolen: float, victims: int, rug_type: str
+) -> dict[str, Any]:
     """Generate rugpull alert card."""
     data = {
         "token_symbol": token_symbol.upper(),
@@ -517,7 +519,9 @@ async def generate_whale_alert_card(
     return generate_card("whale_move", data)
 
 
-async def generate_smart_money_card(wallet_label: str, token_symbol: str, position_size: float, pnl: float) -> dict[str, Any]:
+async def generate_smart_money_card(
+    wallet_label: str, token_symbol: str, position_size: float, pnl: float
+) -> dict[str, Any]:
     """Generate smart money pick card."""
     data = {
         "wallet_label": wallet_label,

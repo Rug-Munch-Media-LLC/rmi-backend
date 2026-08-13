@@ -18,7 +18,7 @@ async def fetch_defillama_tvl(protocol: str | None = None, chain: str | None = N
     """Fetch TVL data from DeFiLlama - free, no auth, no rate limits for standard traffic."""
     import aiohttp
 
-    results = {}
+    results: dict[str, Any] = {}
 
     async with aiohttp.ClientSession() as session:
         # All protocols
@@ -85,7 +85,7 @@ async def fetch_pyth_prices(symbols: str | None = None, limit: int = 10) -> dict
         ):
             if resp.status == 200:
                 data = await resp.json()
-                results = {
+                results: dict[str, Any] = {
                     "prices": [],
                     "source": "Pyth Network (Hermes)",
                     "publishers": "125+ institutional (Jane Street, Wintermute, etc.)",

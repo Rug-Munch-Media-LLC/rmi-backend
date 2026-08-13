@@ -176,7 +176,9 @@ class SniperDetector:
             "block": creation_sig.get("slot", 0),
         }
 
-    async def _get_early_buyers(self, token_address: str, launch_block: int, blocks_after: int = 10) -> list[dict[str, Any]]:
+    async def _get_early_buyers(
+        self, token_address: str, launch_block: int, blocks_after: int = 10
+    ) -> list[dict[str, Any]]:
         """Get wallets that interacted with the token in first N blocks."""
         sigs_result = await self._rpc_call("getSignaturesForAddress", [token_address, {"limit": 200}])
         signatures = sigs_result if isinstance(sigs_result, list) else []
@@ -336,7 +338,7 @@ class SniperDetector:
 
         if ring_size >= 3:
             evidence.append(
-                f"Detected wallet ring: {ring_size} wallets funded from same source ({ring_funding[:8]}...)"
+                f"Detected wallet ring: {ring_size} wallets funded from same source ({(ring_funding or '')[:8]}...)"
             )
 
         if jito_count > 0:

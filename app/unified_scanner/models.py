@@ -105,6 +105,7 @@ class WalletRiskFactors:
 
     held_token_risks: list[dict[str, Any]] = field(default_factory=list)
     highest_risk_token: dict[str, Any] | None = None
+    avg_held_token_safety: float = 0
 
     total_risk_score: int = 0
     risk_category: str = "unknown"

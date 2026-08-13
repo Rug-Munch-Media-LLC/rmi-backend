@@ -33,7 +33,7 @@ class WalletFactory:
 
     def __init__(self, encrypt_keys: bool = True, master_password: str | None = None) -> None:
         self._encrypt = encrypt_keys
-        self._password = master_password or os.getenv("RMI_WALLET_MASTER_PASSWORD", "")
+        self._password = master_password if master_password is not None else os.getenv("RMI_WALLET_MASTER_PASSWORD", "")
         self._key_store: dict[str, WalletResult] = {}
         self._rotation_index: dict[str, int] = {}
         self._generation_count: int = 0

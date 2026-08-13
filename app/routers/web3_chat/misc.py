@@ -6,7 +6,7 @@ Transaction history, command parsing, and other miscellaneous endpoints.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
 
@@ -30,7 +30,7 @@ async def transaction_history(
     user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get user's transaction history (payments, tips, splits)."""
-    user_id = user.get("id")
+    user_id = cast("str", user.get("id"))
     store = get_store()
 
     payments = store.get_user_payments(user_id)

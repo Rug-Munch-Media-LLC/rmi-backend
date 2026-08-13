@@ -30,7 +30,7 @@ def scan_all_chains(address: str) -> dict[str, Any]:
           "errors": [...],
         }
     """
-    result = {
+    result: dict[str, Any] = {
         "chains": {},
         "grand_total": 0.0,
         "grand_change_24h_usd": 0.0,

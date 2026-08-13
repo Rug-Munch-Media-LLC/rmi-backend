@@ -110,7 +110,9 @@ class BulletinBoardManager:
 
         # Supabase backup
         try:
-            from supabase import create_client
+            from supabase import (
+                create_client,  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+            )
 
             supabase_url = os.getenv("SUPABASE_URL")
             supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
@@ -197,7 +199,9 @@ class BulletinBoardManager:
         await r.hset("rmi:bulletin_posts", post_id, json.dumps(post_dict))
 
         try:
-            from supabase import create_client
+            from supabase import (
+                create_client,  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+            )
 
             supabase_url = os.getenv("SUPABASE_URL")
             supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""
@@ -365,7 +369,7 @@ class BulletinBoardManager:
     @staticmethod
     async def get_stats() -> dict[str, Any]:
         r = await BulletinBoardManager._get_redis()
-        stats = {
+        stats: dict[str, Any] = {
             "total_posts": await r.hlen("rmi:bulletin_posts") or 0,
             "published": await r.scard("bulletin:status:published") or 0,
             "drafts": await r.scard("bulletin:status:draft") or 0,

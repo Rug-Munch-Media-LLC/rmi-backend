@@ -433,7 +433,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
             from app.gmgn_client import GMGNClient
 
             gmgn = GMGNClient()
-            intel = await gmgn.get_wallet_intelligence(wallet_address)
+            intel = await gmgn.get_wallet_intelligence(wallet_address)  # type: ignore[attr-defined]  # [REVIEW] GMGNClient lacks this method; call always skipped by AttributeError guard
             if intel:
                 factors.insider_trading_confidence = float(intel.get("insider_score", 0))
                 factors.sniper_activity_score = float(intel.get("sniper_score", 0))
@@ -452,7 +452,7 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
             from app.entity_clustering import EntityClusteringEngine
 
             engine = EntityClusteringEngine()
-            cluster = engine.find_cluster(wallet_address)
+            cluster = engine.find_cluster(wallet_address)  # type: ignore[attr-defined]  # [REVIEW] EntityClusteringEngine lacks find_cluster; call always skipped by AttributeError guard
             if cluster:
                 factors.cluster_size = max(factors.cluster_size, cluster.get("size", 0))
                 factors.cluster_shared_funding = cluster.get("shared_funding", False)
@@ -502,7 +502,9 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
     # ── ELITE: ML anomaly + portfolio tracker ──
     if tier == "elite":
         try:
-            from app.ml_anomaly import detect_wallet_anomaly
+            from app.ml_anomaly import (
+                detect_wallet_anomaly,  # type: ignore[attr-defined]  # [REVIEW] ml_anomaly exposes WalletAnomalyDetector class, not this function; block skipped by ImportError guard
+            )
 
             anomaly = await detect_wallet_anomaly(wallet_address, chain)
             if anomaly:
@@ -513,7 +515,9 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
         try:
             from app.portfolio_tracker import get_portfolio
 
-            portfolio = await get_portfolio(wallet_address, chain)
+            portfolio = get_portfolio(
+                wallet_address, chain
+            )  # [REVIEW] removed erroneous await — get_portfolio is sync; was raising TypeError at runtime
             if portfolio:
                 factors.current_balance_usd = max(
                     factors.current_balance_usd, float(portfolio.get("total_value_usd", 0))

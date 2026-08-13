@@ -17,7 +17,7 @@ def build_intel_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]:
     try:
         from app.databus.arkham_ws import arkham_ws_subscribe
     except ImportError:
-        arkham_ws_subscribe = None
+        arkham_ws_subscribe = None  # type: ignore[assignment]  # optional module fallback
 
     chains["entity_intel"] = ProviderChain(
         data_type="entity_intel",

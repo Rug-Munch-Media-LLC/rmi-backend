@@ -30,7 +30,7 @@ RAG_API_URL: str = os.getenv("RAG_API_URL", "http://localhost:8012/api/v1/search
 SCANNER_API_KEY: str = os.getenv("SCANNER_API_KEY", "")
 # RAG auth: fall back to the canonical RMI_RAG_API_KEY (the rmi-rag-api
 # X-API-Key required by the fleet — see app/config.py + rmi-rag/.env.rag).
-RAG_API_KEY: str = os.getenv("RAG_API_KEY") or os.getenv("RMI_RAG_API_KEY", "")
+RAG_API_KEY: str = os.getenv("RAG_API_KEY", "") or os.getenv("RMI_RAG_API_KEY", "")
 
 # ── Runtime tuning ───────────────────────────────────────────────────
 HTTP_TIMEOUT: float = float(os.getenv("AGENT_HTTP_TIMEOUT", "10.0"))

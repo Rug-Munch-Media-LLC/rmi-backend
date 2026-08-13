@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .catalog import PatternCatalog
+from .catalog import PATTERN_LIBRARY
 
-__all__ = ["PatternCatalog"]
+__all__ = ["PATTERN_LIBRARY"]

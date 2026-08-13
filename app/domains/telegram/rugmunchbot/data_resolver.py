@@ -63,11 +63,11 @@ def _record(resolver_name: str, source: str) -> None:
 
 async def resolve_with_fallback(
     resolver_name: str,
-    primary_fn: Callable[[], Awaitable[T]],
+    primary_fn: Callable[[], Awaitable[Any]],
     fallback_fn: Callable[[], Awaitable[T]],
     *,
     timeout_secs: float = 5.0,
-    is_valid: Callable[[T], bool] | None = None,
+    is_valid: Callable[[Any], bool] | None = None,
 ) -> T:
     """Try own-data ``primary_fn`` first, fall back to ``fallback_fn``.
 
@@ -184,7 +184,7 @@ async def resolve_token_price(
         _primary,
         fallback_fn,
         timeout_secs=timeout_secs,
-        is_valid=lambda d: bool(d and d.get("price_usd")),  # type: ignore[attr-defined]  # PTB None-able fields
+        is_valid=lambda d: bool(d and d.get("price_usd")),
     )
 
 
@@ -209,7 +209,7 @@ async def resolve_market_global(
         _primary,
         fallback_fn,
         timeout_secs=timeout_secs,
-        is_valid=lambda d: bool(d and d.get("total_market_cap")),  # type: ignore[attr-defined]  # PTB None-able fields
+        is_valid=lambda d: bool(d and d.get("total_market_cap")),
     )
 
 
@@ -234,7 +234,7 @@ async def resolve_fear_greed(
         _primary,
         fallback_fn,
         timeout_secs=timeout_secs,
-        is_valid=lambda d: bool(d and d.get("value")),  # type: ignore[attr-defined]  # PTB None-able fields
+        is_valid=lambda d: bool(d and d.get("value")),
     )
 
 

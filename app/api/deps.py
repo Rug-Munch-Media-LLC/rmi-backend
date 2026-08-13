@@ -25,10 +25,13 @@ except ImportError:
     get_db = None
 
 try:
-    from app.core.auth import get_current_user, get_optional_user
+    from app.domains.auth.deps import get_current_user
 except ImportError:
-    get_current_user = None
-    get_optional_user = None
+    get_current_user = None  # type: ignore[assignment]  # fallback until core auth lands
+
+# No separate optional-user dependency exists — get_current_user already returns
+# None for unauthenticated requests.
+get_optional_user = get_current_user
 
 with contextlib.suppress(ImportError):
     pass  # fallback until core.config lands

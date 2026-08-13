@@ -65,6 +65,8 @@ def get_wallet_holdings(address: str, chain_id: str) -> list[Any]:
     for _ in range(max_pages):
         params = {"address": address.lower(), "chainId": chain_id, "offset": offset}
         data = _get(url, params=params)
+        if data is None:
+            break
         batch = data.get("list") or []
         all_tokens.extend(batch)
 

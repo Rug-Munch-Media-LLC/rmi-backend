@@ -71,8 +71,8 @@ class CrossEncoderReranker:
         self._model_type: str = "none"  # "onnx", "fp32", or "none"
         self._load_time_secs: float | None = None
         self._memory_estimate_mb: float | None = None
-        self._tokenizer = None  # for ONNX path
-        self._onnx_session = None  # for ONNX path
+        self._tokenizer: Any = None  # for ONNX path
+        self._onnx_session: Any = None  # for ONNX path
 
     # -----------------------------------------------------------------------
     # Singleton accessor
@@ -155,7 +155,8 @@ class CrossEncoderReranker:
 
         # Rough memory estimate: parameter count * 4 bytes (fp32)
         try:
-            total_params = sum(p.numel() for p in self._model.model.parameters())
+            inner_model = self._model.model
+            total_params = sum(p.numel() for p in (inner_model.parameters() if inner_model is not None else []))
             self._memory_estimate_mb = round(total_params * 4 / (1024 * 1024), 1)
         except (ConnectionError, OSError, TimeoutError):
             self._memory_estimate_mb = 420.0
@@ -235,9 +236,12 @@ class CrossEncoderReranker:
             return scores
 
         # Fallback: sentence-transformers
+        model = self._model
+        if model is None:
+            return []
         pairs = [(query, t) for t in texts]
-        scores: list[float] = self._model.predict(pairs, batch_size=len(pairs)).tolist()
-        return scores
+        raw_scores = model.predict(pairs, batch_size=len(pairs))  # type: ignore[arg-type]  # stubs reject list[tuple[str, str]]
+        return [float(v) for v in raw_scores.tolist()]
 
     # -----------------------------------------------------------------------
     # Public API - rerank

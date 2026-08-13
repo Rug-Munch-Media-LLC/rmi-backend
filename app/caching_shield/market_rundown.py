@@ -206,7 +206,7 @@ def classify_article(title: str, summary: str) -> str:
 
     if not scores or max(scores.values()) == 0:
         return "General"
-    return max(scores, key=scores.get)
+    return max(scores, key=lambda k: scores[k])
 
 
 # ═══════════════════════════════════════════════════════════════════════════

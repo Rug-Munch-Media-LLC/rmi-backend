@@ -267,14 +267,16 @@ async def get_reddit_feed(limit: int = 20) -> dict[str, Any]:
 
 async def get_social_feed(limit_twitter: int = 30, limit_reddit: int = 20) -> dict[str, Any]:
     """Get combined social feed - X + Reddit, sorted by recency."""
+    twitter: dict[str, Any] | BaseException
+    reddit: dict[str, Any] | BaseException
     twitter, reddit = await asyncio.gather(
         get_twitter_feed(limit_twitter),
         get_reddit_feed(limit_reddit),
         return_exceptions=True,
     )
 
-    twitter_data = twitter if not isinstance(twitter, Exception) else {"tweets": []}
-    reddit_data = reddit if not isinstance(reddit, Exception) else {"posts": []}
+    twitter_data = twitter if not isinstance(twitter, BaseException) else {"tweets": []}
+    reddit_data = reddit if not isinstance(reddit, BaseException) else {"posts": []}
 
     return {
         "x": twitter_data,

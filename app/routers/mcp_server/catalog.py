@@ -83,7 +83,8 @@ async def mcp_tools_list(request: Request) -> dict[str, str]:
 
     trial_info = None
     try:
-        from app.routers.x402_enforcement import check_trial, get_client_id
+        from app.routers.protection import get_client_id
+        from app.routers.x402_enforcement import check_trial
 
         cid = get_client_id(request)
         remaining = {}
@@ -152,7 +153,7 @@ async def mcp_tools_mcp_router_format(request: Request) -> dict[str, Any]:
 
 
 @router.get("/mcp/capabilities")
-async def mcp_capabilities() -> dict[str, str]:
+async def mcp_capabilities() -> dict[str, Any]:
     data = _get_tools()
     fac_count = _get_facilitator_count()
     return {

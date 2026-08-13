@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
@@ -120,8 +120,8 @@ async def _validate_token_exists(
             return True  # Accept on format if probe fails
         elif chain in ("ethereum", "base", "arbitrum") and evm_client is not None:
             try:
-                code = evm_client.w3.eth.get_code(addr)
-                if code and code != "0x":
+                code = evm_client.w3.eth.get_code(cast("Any", addr))
+                if code and code.hex() != "0x":
                     return True
             except Exception:
                 logger.debug("evm_code_check_failed %s", addr[:12])

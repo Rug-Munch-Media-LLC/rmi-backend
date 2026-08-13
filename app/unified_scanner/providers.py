@@ -416,18 +416,23 @@ async def _resolve_entity_free(address: str, chain: str) -> dict[str, Any]:
         if labels and labels.primary_label:
             return {"label": labels.primary_label, "source": "sentinel", "chains": [chain]}
 
-        from app.wallet_memory.labels import get_label
+        # [REVIEW] was `from app.wallet_memory.labels import get_label` (nonexistent, block
+        # always skipped by ImportError). Now uses the real LabelService.resolve().
+        from app.wallet_memory.labels import LabelService
 
-        label = get_label(address, chain)
-        if label:
-            return {"label": label, "source": "wallet_labels", "chains": [chain]}
+        label_svc = LabelService()
+        label_report = await label_svc.resolve(address, chain)
+        if label_report and label_report.get("primary_label"):
+            return {"label": label_report["primary_label"], "source": "wallet_labels", "chains": [chain]}
 
         return {"label": "unknown", "source": "none", "chains": [chain]}
     except (AttributeError, ImportError):
         return {"label": "unknown", "source": "none", "chains": [chain]}
 
 
-async def _calculate_basic_pnl(address: str, chain: str, tokens: list[Any], native_balance: float = 0) -> dict[str, Any]:
+async def _calculate_basic_pnl(
+    address: str, chain: str, tokens: list[Any], native_balance: float = 0
+) -> dict[str, Any]:
     """Basic PnL calculation - FREE tier."""
     try:
         total_value = native_balance or 0

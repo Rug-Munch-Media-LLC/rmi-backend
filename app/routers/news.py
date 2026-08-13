@@ -647,7 +647,7 @@ async def post_scanner_alert(
     """Internal endpoint for cron jobs to inject scanner findings into news feed."""
     global _NEWS_CACHE
     content_hash = hashlib.sha256(f"internal:{address}:{chain}".encode()).hexdigest()
-    article = {
+    article: dict[str, Any] = {
         "id": f"rmi-{content_hash[:12]}",
         "title": f"RMI Scanner: {token_name} ({chain.upper()}) - Risk {risk_score}/100",
         "url": f"https://rugmunch.io/scanner?address={address}&chain={chain}",

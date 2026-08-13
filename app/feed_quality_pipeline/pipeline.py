@@ -135,7 +135,7 @@ class FeedQualityPipeline:
             return self.ProviderResult(name=name, posts=[], error=error, elapsed_ms=elapsed)
 
     @staticmethod
-    async def _async_wrap_fetch(fetch_fn: Callable) -> Any:
+    async def _async_wrap_fetch(fetch_fn: Callable[..., Any]) -> Any:
         """Wrap a potentially sync fetch function for async execution."""
         if asyncio.iscoroutinefunction(fetch_fn):
             return await fetch_fn()
@@ -256,7 +256,7 @@ class FeedQualityPipeline:
 
     async def process_providers(
         self,
-        providers: list[tuple[str, Callable, str, float]],
+        providers: list[tuple[str, Callable[..., Any], str, float]],
         user_preferences: dict[str, float] | None = None,
         creator_affinities: dict[str, float] | None = None,
     ) -> tuple[list[FeedPost], QualityMetrics]:
@@ -283,7 +283,7 @@ class FeedQualityPipeline:
         all_posts: list[FeedPost] = []
         raw_results: list[FeedQualityPipeline.ProviderResult] = []
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 # Should not happen with exception handling inside fetch_provider
                 logger.error("unexpected_pipeline_error", error=str(result)[:100])
                 continue

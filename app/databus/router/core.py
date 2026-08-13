@@ -74,7 +74,7 @@ async def databus_fetch_get(
 ) -> Any:
     """GET convenience for simple queries. Params passed as query args."""
     # Collect all query params except the known ones
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     for key, value in request.query_params.items():
         if key not in ("admin_key", "force_fresh"):
             kwargs[key] = value

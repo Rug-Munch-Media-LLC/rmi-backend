@@ -4,7 +4,9 @@ News Intelligence — Source Configuration & Keywords
 
 from __future__ import annotations
 
-NEWS_SOURCES = {
+from typing import Any
+
+NEWS_SOURCES: dict[str, dict[str, Any]] = {
     "google_news": {
         "name": "Google News",
         "url": "https://news.google.com/rss/search?q=cryptocurrency+OR+bitcoin+OR+ethereum+OR+defi+OR+blockchain&hl=en-US&gl=US&ceid=US:en",

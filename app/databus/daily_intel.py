@@ -83,7 +83,7 @@ async def _openrouter_chat(model: str, system: str, user: str, max_tokens: int =
 
 async def _gather_all_data() -> dict[str, Any]:
     """Gather comprehensive data from ALL DataBus sources."""
-    data = {
+    data: dict[str, Any] = {
         "market": {},
         "fear_greed": {},
         "news": {},
@@ -394,11 +394,8 @@ async def _publish_to_x(report: str, date_str: str) -> dict[str, Any]:
 
     try:
         result = subprocess.run(
-            ["xurl", "post", tweet_text, "--auth", "oauth2"],
-            capture_output=True,
-            text=True,
-            timeout=20,
-        shell=False)
+            ["xurl", "post", tweet_text, "--auth", "oauth2"], capture_output=True, text=True, timeout=20, shell=False
+        )
         if result.returncode == 0:
             return {"status": "posted", "platform": "x", "length": len(tweet_text)}
         else:

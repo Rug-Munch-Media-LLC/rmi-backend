@@ -20,8 +20,8 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
     try:
         from app.databus.ohlcv_engine import fetch_ohlcv, ingest_trade_data
     except ImportError:
-        fetch_ohlcv = None
-        ingest_trade_data = None
+        fetch_ohlcv = None  # type: ignore[assignment]  # optional module fallback
+        ingest_trade_data = None  # type: ignore[assignment]  # optional module fallback
     try:
         from app.databus.news_provider import (
             get_fear_greed,
@@ -31,11 +31,11 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
             get_trending_coins,
         )
     except ImportError:
-        get_fear_greed = None
-        get_market_brief = None
-        get_market_prices = None
-        get_prediction_markets = None
-        get_trending_coins = None
+        get_fear_greed = None  # type: ignore[assignment]  # optional module fallback
+        get_market_brief = None  # type: ignore[assignment]  # optional module fallback
+        get_market_prices = None  # type: ignore[assignment]  # optional module fallback
+        get_prediction_markets = None  # type: ignore[assignment]  # optional module fallback
+        get_trending_coins = None  # type: ignore[assignment]  # optional module fallback
 
     chains["token_price"] = ProviderChain(
         data_type="token_price",

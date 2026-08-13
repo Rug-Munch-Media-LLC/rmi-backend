@@ -346,8 +346,9 @@ async def build_graph_from_rag(
         coll_stats[coll] = {"docs": len(sample), "edges": edges}
         logger.info(f"KG built for {coll}: {len(sample)} docs, {edges} edges")
 
-    return {
+    result: dict[str, Any] = {
         "nodes_created": total_nodes,
         "edges_created": total_edges,
         "collections": coll_stats,
     }
+    return result

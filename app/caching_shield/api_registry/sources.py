@@ -10,7 +10,7 @@ from typing import Any
 
 from .manager import get_api_manager
 
-BACKEND_SOURCES = {
+BACKEND_SOURCES: dict[str, Any] = {
     # ═══ DEX / Price Data (no auth, public APIs) ═══
     "dexscreener": {
         "type": "free_api",

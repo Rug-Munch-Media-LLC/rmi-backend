@@ -167,14 +167,14 @@ async def _load_exchange_wallets(storage) -> int:
             else:
                 with open(path, newline="", encoding="utf-8-sig") as f:
                     dict_reader = csv.DictReader(f)
-                    for row in dict_reader:
-                        addr = row.get("address", "") or row.get("from_address", "")
+                    for drow in dict_reader:
+                        addr = drow.get("address", "") or drow.get("from_address", "")
                         addr = addr.strip().lower()
                         if not addr or len(addr) < 10:
                             continue
-                        entity = row.get("entity", row.get("name", "")).strip()
-                        balance = row.get("balance", "")
-                        txcount = row.get("txcount", row.get("txn_count", ""))
+                        entity = drow.get("entity", drow.get("name", "")).strip()
+                        balance = drow.get("balance", "")
+                        txcount = drow.get("txcount", drow.get("txn_count", ""))
                         cat = "exchange"
                         if "dex" in filename:
                             cat = "defi"

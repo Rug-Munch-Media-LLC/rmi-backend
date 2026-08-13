@@ -365,8 +365,8 @@ class BridgeHealthMonitor:
 
         # Phase 4: Detect exploit signals
         for key, bridge in bridges_to_scan.items():
-            snapshot = report.bridge_snapshots.get(key)
-            signals = await self._detect_exploit_signals(key, bridge, snapshot)
+            tvl_snapshot: BridgeTVLSnapshot | None = report.bridge_snapshots.get(key)
+            signals = await self._detect_exploit_signals(key, bridge, tvl_snapshot)
             report.exploit_signals.extend(signals)
 
         # Phase 5: Contagion risk

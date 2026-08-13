@@ -19,15 +19,15 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
-from app.mcp.server import (
+from app.mcp._catalog import (
     MCP_PROTOCOL_VERSION,
     MCP_SERVER_VERSION,
     TOOL_CATALOG,
     TOOL_DEPRECATED,
     TOOL_SUCCESSORS,
     TOOL_VERSIONS,
-    call_tool,
 )
+from app.mcp.server import call_tool
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 log = get_logger(__name__)

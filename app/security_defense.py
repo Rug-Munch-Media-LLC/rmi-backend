@@ -431,9 +431,9 @@ class AnomalyDetector:
             # Calculate rolling stats
             times = await r.lrange(rt_key, 0, -1)
             if len(times) >= 10:
-                times = [float(t) for t in times]
-                mean = sum(times) / len(times)
-                variance = sum((t - mean) ** 2 for t in times) / len(times)
+                times_f = [float(t) for t in times]
+                mean = sum(times_f) / len(times_f)
+                variance = sum((t - mean) ** 2 for t in times_f) / len(times_f)
                 std_dev = variance**0.5
 
                 # Check if current is anomalous (3 sigma)
@@ -457,8 +457,8 @@ class AnomalyDetector:
 
             sizes = await r.lrange(size_key, 0, -1)
             if len(sizes) >= 10:
-                sizes = [int(s) for s in sizes]
-                mean_size = sum(sizes) / len(sizes)
+                sizes_f = [int(s) for s in sizes]
+                mean_size = sum(sizes_f) / len(sizes_f)
                 if request_size > mean_size * 10:  # 10x average
                     anomalies.append(
                         {
@@ -525,7 +525,7 @@ class HoneypotSystem:
             details={"honeypot_endpoint": path},
         )
 
-        await BotDetectionEngine._log_security_event(event)
+        await HoneypotSystem._log_security_event(event)
 
         # Auto-ban the IP
         from app.domains.admin.admin_backend import SecurityManager
@@ -533,7 +533,7 @@ class HoneypotSystem:
         await SecurityManager.block_ip(ip, f"Honeypot triggered: {path}", 168)  # 7 days
 
         # Return fake data to keep attacker engaged
-        fake_responses = {
+        fake_responses: dict[str, dict[str, Any]] = {
             "/admin/config.php": {
                 "db_host": "localhost",
                 "db_user": "admin",

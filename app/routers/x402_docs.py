@@ -166,7 +166,7 @@ async def sandbox_create_invoice(tool: str = Query(...), mode: str = Query("test
 
 
 @router.post("/x402/sandbox/verify")
-async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(...)) -> dict[str, bool]:
+async def sandbox_verify_payment(tx_hash: str = Query(...), tool: str = Query(...)) -> dict[str, Any]:
     """Sandbox mode - verify a test payment.
 
     Accepts any tx_hash starting with '0xSANDBOX_' as valid.

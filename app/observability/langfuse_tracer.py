@@ -29,7 +29,7 @@ def trace_agent_call(agent_name: str, input_data: dict[str, Any], output_data: d
     """Trace an agent call in Langfuse."""
     try:
         lf = get_langfuse()
-        trace = lf.trace(name=f"agent:{agent_name}", input=input_data, output=output_data, **kwargs)
+        trace = lf.trace(name=f"agent:{agent_name}", input=input_data, output=output_data, **kwargs)  # type: ignore[attr-defined]  # [REVIEW] langfuse 4.x removed .trace(); call degrades to warning until migrated to v4 API
         return trace
     except Exception as e:
         logger.warning("langfuse_trace_error agent=%s error=%s", agent_name, e)

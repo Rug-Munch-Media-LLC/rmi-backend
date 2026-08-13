@@ -23,7 +23,7 @@ class ContentValidator:
     """
 
     # Patterns that indicate garbage/malformed content
-    GARBAGE_PATTERNS: list[re.Pattern] = [
+    GARBAGE_PATTERNS: list[re.Pattern[str]] = [
         re.compile(r"^[\s\d\W]{1,20}$"),  # Only whitespace/digits/symbols
         re.compile(r"^(Error|Exception|Traceback|undefined|null|None)\s*$", re.I),
         re.compile(r"[\\]{4,}"),  # Escaped garbage
@@ -31,7 +31,7 @@ class ContentValidator:
     ]
 
     # Known spam patterns
-    SPAM_PATTERNS: list[re.Pattern] = [
+    SPAM_PATTERNS: list[re.Pattern[str]] = [
         re.compile(r"(buy\s*now|click\s*here|subscribe|free\s*money)", re.I),
         re.compile(r"https?://[^\s]{100,}"),  # absurdly long URLs
     ]

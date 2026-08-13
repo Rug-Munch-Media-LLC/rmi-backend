@@ -39,7 +39,7 @@ import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -359,13 +359,12 @@ class CloneScanner:
             tasks = [
                 self._search_similar_names(report.name, report.symbol, address, chain),
                 self._check_deployer_history(address, chain),
-                self._check_keyword_matches(report.name, report.symbol),
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
+            keywords = self._check_keyword_matches(report.name, report.symbol)
 
-            similar_tokens = results[0] if not isinstance(results[0], Exception) else []
-            deployer_info = results[1] if not isinstance(results[1], Exception) else {}
-            keywords = results[2] if not isinstance(results[2], Exception) else []
+            similar_tokens = cast("list[SimilarToken]", results[0]) if not isinstance(results[0], BaseException) else []
+            deployer_info = cast("dict[str, Any]", results[1]) if not isinstance(results[1], BaseException) else {}
 
             report.similar_tokens = similar_tokens
             report.same_deployer_other_tokens = deployer_info.get("other_tokens", 0)

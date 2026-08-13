@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -39,7 +39,7 @@ async def connect_wallet(
     user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Connect a wallet to chat for payments."""
-    user_id = user.get("id")
+    user_id = cast("str", user.get("id"))
     if not validate_address(req.address, req.chain):
         raise HTTPException(status_code=400, detail=f"Invalid wallet address for chain: {req.chain}")
 
@@ -73,7 +73,7 @@ async def disconnect_wallet(
     user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Disconnect wallet from chat."""
-    user_id = user.get("id")
+    user_id = cast("str", user.get("id"))
     store = get_store()
     store.remove_connection(user_id)
     return {"status": "disconnected", "message": "Wallet disconnected"}
@@ -84,7 +84,7 @@ async def wallet_info(
     user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get connected wallet info for the current user."""
-    user_id = user.get("id")
+    user_id = cast("str", user.get("id"))
     store = get_store()
     connection = store.get_connection(user_id)
 
@@ -109,7 +109,7 @@ async def wallet_balance(
     user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get wallet balance for connected wallet."""
-    user_id = user.get("id")
+    user_id = cast("str", user.get("id"))
     store = get_store()
     connection = store.get_connection(user_id)
 
@@ -136,7 +136,7 @@ async def wallet_balances(
     user: dict[str, Any] = Depends(require_auth),
 ) -> dict[str, Any]:
     """Get all token balances for connected wallet across chains."""
-    user_id = user.get("id")
+    user_id = cast("str", user.get("id"))
     store = get_store()
     connection = store.get_connection(user_id)
 

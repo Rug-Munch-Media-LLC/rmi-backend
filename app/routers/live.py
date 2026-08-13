@@ -347,7 +347,7 @@ async def post_award_xp(
     """Award XP for watching, chatting, gifting, or sharing."""
     user_id = uuid.UUID(await _get_current_user_id(current_user))
 
-    award_map = {
+    award_map: dict[str, Any] = {
         "watch": award_watch_xp,
         "chat": award_chat_xp,
         "gift": award_gift_xp,

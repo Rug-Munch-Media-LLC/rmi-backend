@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import time
+from typing import Any
 
 from app.core.logging import get_logger
 
@@ -64,10 +65,10 @@ from .ofac import _load_ofac_sanctions  # noqa: E402 — module docstring preced
 # ── Module state ──
 
 _loading = False
-_last_load_counts: dict[str, int] = {}
+_last_load_counts: dict[str, Any] = {}
 
 
-def get_last_load_counts() -> dict[str, int]:
+def get_last_load_counts() -> dict[str, Any]:
     """Return counts from the most recent label import."""
     return _last_load_counts
 
@@ -80,7 +81,7 @@ def is_loading() -> bool:
 # ── Main entry point ──
 
 
-async def load_all_static_labels() -> dict[str, int]:
+async def load_all_static_labels() -> dict[str, Any]:
     """
     Load all static wallet label datasets on boot.
 
@@ -106,7 +107,7 @@ async def load_all_static_labels() -> dict[str, int]:
 
     _loading = True
     start = time.time()
-    counts: dict[str, int] = {}
+    counts: dict[str, Any] = {}
 
     try:
         from .storage import get_storage
