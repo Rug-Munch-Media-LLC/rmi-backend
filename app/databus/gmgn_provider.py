@@ -7,8 +7,18 @@ bundle/sniper detection, KOL tracking, new pair discovery.
 
 Uses GMGN's public (undocumented) JSON API — no API key required.
 The GMGN Agent API key (GMGN_API_KEY) is accepted but optional; when
-present it is sent as a bearer token, otherwise browser-like headers
-are used. Falls back to DexScreener/Birdeye when GMGN is unavailable.
+present it is sent as the ``X-APIKEY`` header (the auth convention used by
+the official GMGN SDK, see ``src/client/OpenApiClient.ts`` in
+GMGNAI/gmgn-skills), otherwise browser-like headers are used. Falls back
+to DexScreener/Birdeye when GMGN is unavailable.
+
+Cloudflare escape: when residential proxies are configured
+(``WEBSHARE_PROXY_LIST`` / ``WEBSHARE_PROXY_USER`` / ``WEBSHARE_PROXY_PASS``)
+the provider routes requests through
+:class:`app.databus.proxy_rotator.ProxyRotator` — proxy-first, and a
+403/5xx/timeout on the proxy egress marks the proxy failed (cooldown) and
+retries once direct. With no proxies configured the provider uses a direct
+client exactly as before.
 
 Endpoint provenance (verified against public open-source usage 2026-08-09):
   - token info:      /defi/quotation/v1/tokens/{chain}/{address}
@@ -27,6 +37,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.databus.proxy_rotator import get_proxy_rotator
 
 logger = get_logger(__name__)
 
@@ -86,8 +97,17 @@ class GMGNProvider:
         self.api_key = GMGN_API_KEY
         self.headers = dict(_BROWSER_HEADERS)
         if self.api_key:
-            self.headers["Authorization"] = f"Bearer {self.api_key}"
+            # GMGN Agent API auth convention (official SDK: X-APIKEY header).
+            self.headers["X-APIKEY"] = self.api_key
+        # Direct client is the always-available fallback egress.
         self.client = httpx.AsyncClient(timeout=20.0, follow_redirects=True)
+        # Proxy-first egress when residential proxies are configured.
+        self._rotator = get_proxy_rotator()
+        self._proxy_url: str | None = None
+        self._proxy_client: httpx.AsyncClient | None = None
+        if self._rotator.enabled:
+            self._proxy_url = self._rotator.get_rotating_proxy()
+            self._proxy_client = self._rotator.get_client(proxy=self._proxy_url)
         # Public API works without a key; _available is only used to decide
         # whether to try GMGN at all (True = always try, fallbacks cover failures).
         self._available = True
@@ -118,7 +138,8 @@ class GMGNProvider:
         try:
             chain_slug = _normalize_chain(chain)
             # GMGN public token quotation endpoint
-            resp = await self.client.get(
+            resp = await self._request(
+                "GET",
                 f"{GMGN_BASE}/defi/quotation/v1/tokens/{chain_slug}/{address}",
                 headers=self.headers,
             )
@@ -183,7 +204,8 @@ class GMGNProvider:
             return None
         try:
             chain_slug = _normalize_chain(chain)
-            resp = await self.client.get(
+            resp = await self._request(
+                "GET",
                 f"{GMGN_BASE}/defi/quotation/v1/trades/{chain_slug}/{address}",
                 headers=self.headers,
                 params={"limit": limit},
@@ -223,7 +245,8 @@ class GMGNProvider:
             return None
         try:
             chain_slug = _normalize_chain(chain)
-            resp = await self.client.get(
+            resp = await self._request(
+                "GET",
                 f"{GMGN_BASE}/vas/api/v1/token_holders/{chain_slug}/{address}",
                 headers=self.headers,
                 params={"orderby": "amount_percentage", "direction": "desc", "limit": 100},
@@ -286,7 +309,8 @@ class GMGNProvider:
             return None
         try:
             chain_slug = _normalize_chain(chain)
-            resp = await self.client.get(
+            resp = await self._request(
+                "GET",
                 f"{GMGN_BASE}/defi/quotation/v1/smartmoney/{chain_slug}/walletNew/{address}",
                 headers=self.headers,
                 params={"period": "7d"},
@@ -339,7 +363,8 @@ class GMGNProvider:
             return None
         try:
             chain_slug = _normalize_chain(chain)
-            resp = await self.client.get(
+            resp = await self._request(
+                "GET",
                 f"{GMGN_BASE}/defi/quotation/v1/rank/{chain_slug}/pump",
                 headers=self.headers,
                 params={
@@ -380,7 +405,10 @@ class GMGNProvider:
     async def _fallback_dexscreener_token(self, address: str, chain: str) -> dict[str, Any]:
         """Fallback token info from DexScreener (free, no key)."""
         try:
-            resp = await self.client.get(f"https://api.dexscreener.com/latest/dex/tokens/{address}")
+            resp = await self._request(
+                "GET",
+                f"https://api.dexscreener.com/latest/dex/tokens/{address}",
+            )
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
                 if pairs:
@@ -411,7 +439,10 @@ class GMGNProvider:
         try:
             import time
 
-            resp = await self.client.get(f"https://api.dexscreener.com/latest/dex/tokens/{address}")
+            resp = await self._request(
+                "GET",
+                f"https://api.dexscreener.com/latest/dex/tokens/{address}",
+            )
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
                 if pairs:
@@ -448,7 +479,8 @@ class GMGNProvider:
     async def _fallback_dexscreener_new_pairs(self, chain: str, limit: int) -> list[dict[str, Any]]:
         """Fallback new pairs from DexScreener search."""
         try:
-            resp = await self.client.get(
+            resp = await self._request(
+                "GET",
                 "https://api.dexscreener.com/latest/dex/search",
                 params={"q": chain.upper() if chain != "solana" else "SOL", "limit": limit},
             )
@@ -479,7 +511,8 @@ class GMGNProvider:
             api_key = os.getenv("BIRDEYE_API_KEY", "")
             if not api_key:
                 return {"address": address, "total_holders": 0, "source": "none"}
-            resp = await self.client.get(
+            resp = await self._request(
+                "GET",
                 "https://public-api.birdeye.so/defi/token_overview",
                 headers={"X-API-KEY": api_key, "accept": "application/json"},
                 params={"address": address},
@@ -500,6 +533,40 @@ class GMGNProvider:
     # ═══════════════════════════════════════════════════════════════
     # HELPERS
     # ═══════════════════════════════════════════════════════════════
+
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Proxy-first HTTP request with a single direct retry.
+
+        When a proxied client is configured it is tried first; on a proxy
+        failure (403/5xx/timeout — Cloudflare IP-block family) the proxy is
+        marked failed (cooldown) and the request is retried once against the
+        direct client. Transport errors propagate to callers, which already
+        guard each fetch with try/except.
+        """
+        if self._proxy_client is not None:
+            try:
+                proxy_resp = await self._proxy_client.request(method, url, headers=headers, params=params)
+            except (httpx.HTTPError, ConnectionError, TimeoutError):
+                self._rotate_proxy()
+                return await self.client.request(method, url, headers=headers, params=params)
+            if proxy_resp.status_code in (403, 429) or proxy_resp.status_code >= 500:
+                self._rotate_proxy()
+                return await self.client.request(method, url, headers=headers, params=params)
+            return proxy_resp
+        return await self.client.request(method, url, headers=headers, params=params)
+
+    def _rotate_proxy(self) -> None:
+        """Mark the current proxy failed and pick the next healthy egress."""
+        self._rotator.mark_failed(self._proxy_url)
+        self._proxy_url = self._rotator.next_after_failure()
+        self._proxy_client = self._rotator.get_client(proxy=self._proxy_url)
 
     def _normalize_trades(self, trades: list[dict[str, Any]], source: str) -> list[dict[str, Any]]:
         """Normalize trade data from any source to a standard format."""
@@ -573,6 +640,8 @@ class GMGNProvider:
     async def close(self) -> None:
         """Clean up resources."""
         await self.client.aclose()
+        if self._proxy_client is not None:
+            await self._proxy_client.aclose()
 
 
 # ── Singleton ──────────────────────────────────────────────

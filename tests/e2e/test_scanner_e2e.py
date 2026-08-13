@@ -1013,7 +1013,7 @@ class TestMEVSandwichDetection:
 
         assert len(KNOWN_MEV_BOTS) >= 1
         # Check at least one bot has the expected structure
-        for addr, info in KNOWN_MEV_BOTS.items():
+        for _addr, info in KNOWN_MEV_BOTS.items():
             assert "name" in info
             assert "chain" in info
             break
@@ -1319,7 +1319,7 @@ class TestOracleManipulationDetection:
 
 
 class TestFlashLoanAttackDetection:
-    """Flash loan attack detection module."""
+    """Flash loan attack detection module (refactored `scan`/`analyze_transaction` API)."""
 
     def test_flash_loan_module_imports(self):
         """FlashLoanAttackDetector imports cleanly."""
@@ -1328,7 +1328,7 @@ class TestFlashLoanAttackDetection:
         detector = FlashLoanAttackDetector(chains=["ethereum"])
         assert detector is not None
         assert hasattr(detector, "scan")
-        assert hasattr(detector, "analyze_block")
+        assert hasattr(detector, "analyze_transaction")
         assert hasattr(detector, "chains")
 
     @pytest.mark.asyncio
@@ -1337,7 +1337,7 @@ class TestFlashLoanAttackDetection:
         from app.flash_loan_attack_detector import FlashLoanAttackDetector
 
         detector = FlashLoanAttackDetector(chains=["ethereum"])
-        with patch.object(detector, "_fetch_blocks", AsyncMock(return_value=[])):
+        with patch.object(detector._data, "fetch_recent_blocks", AsyncMock(return_value=[])):
             report = await detector.scan(blocks_back=10)
         assert report is not None
         assert report.blocks_scanned == 0
@@ -1345,48 +1345,64 @@ class TestFlashLoanAttackDetection:
 
     @pytest.mark.asyncio
     async def test_flash_loan_scan_mocked_blocks(self):
-        """scan() processes mocked block data."""
+        """scan() processes mocked block data via the data layer."""
+        from app.detectors.flash_loan import TransactionTrace
         from app.flash_loan_attack_detector import FlashLoanAttackDetector
 
         detector = FlashLoanAttackDetector(chains=["ethereum"])
-        mock_blocks = [
-            {
-                "number": 1,
-                "transactions": [
-                    {
-                        "hash": "0x1",
-                        "gas_price": 100,
-                        "from": "0xuser",
-                        "to": "0xcontract",
-                        "input": "0x1234",
-                        "value": "0x0",
-                    },
-                ],
-                "timestamp": 1000,
-            }
-        ]
+        mock_trace = TransactionTrace(
+            tx_hash="0x1",
+            chain="ethereum",
+            block_number=1,
+            tx_index=0,
+            from_address="0xuser",
+            to_address="0xcontract",
+            input_data="0x1234",
+        )
 
         with (
-            patch.object(detector, "_fetch_blocks", AsyncMock(return_value=mock_blocks)),
-            patch.object(detector, "_analyze_block_transactions", AsyncMock(return_value=(True, [], []))),
+            patch.object(detector._data, "fetch_recent_blocks", AsyncMock(return_value=[1])),
+            patch.object(detector._data, "fetch_block_transactions", AsyncMock(return_value=[mock_trace])),
+            patch.object(detector, "_analyze_transaction", AsyncMock(return_value=[])),
         ):
             report = await detector.scan(blocks_back=1)
 
         assert report.blocks_scanned == 1
+        assert report.transactions_analyzed == 1
 
-    def test_flash_loan_attack_detector_analyze_block(self):
-        """analyze_block method exists and has correct signature."""
+    @pytest.mark.asyncio
+    async def test_flash_loan_analyze_transaction_detects_attack(self):
+        """analyze_transaction() detects a flash loan from a known signature."""
+        from app.detectors.flash_loan import (
+            AttackSeverity,
+            AttackType,
+            FlashLoanProtocol,
+            TransactionTrace,
+        )
         from app.flash_loan_attack_detector import FlashLoanAttackDetector
 
         detector = FlashLoanAttackDetector(chains=["ethereum"])
-        assert callable(detector.analyze_block)
+        # Aave V3 flashLoanSimple signature (0x42b0b77c) + amount param
+        mock_trace = TransactionTrace(
+            tx_hash="0xabc",
+            chain="ethereum",
+            block_number=1,
+            tx_index=0,
+            from_address="0xattacker",
+            to_address="0xcontract",
+            input_data="0x42b0b77c" + "00" * 32 + "00" * 32,
+        )
 
-        # Should accept a block dict
-        import inspect
+        with patch.object(detector._data, "fetch_transaction", AsyncMock(return_value=mock_trace)):
+            attacks = await detector.analyze_transaction("0xabc", chain="ethereum")
 
-        sig = inspect.signature(detector.analyze_block)
-        params = list(sig.parameters.keys())
-        assert "block" in params or len(params) >= 1
+        assert len(attacks) == 1
+        attack = attacks[0]
+        assert attack.tx_hash == "0xabc"
+        assert attack.attacker_address == "0xattacker"
+        assert attack.attack_type == AttackType.ARBITRAGE
+        assert attack.protocol_used == FlashLoanProtocol.AAVE_V3
+        assert attack.severity in (AttackSeverity.INFO, AttackSeverity.LOW, AttackSeverity.MEDIUM)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1522,15 +1538,15 @@ class TestWashTradingDetection:
 class TestScannerEdgeCases:
     """Edge cases: malformed addresses, unsupported chains, rate limits, cache, empty."""
 
-    TOKEN_ADDRESSES = [
+    TOKEN_ADDRESSES = (
         ("0x123", "Too short hex"),
         ("not-a-hex-address", "Garbage string"),
         ("", "Empty string"),
         ("0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG", "Invalid hex characters"),
-    ]
+    )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("address,desc", TOKEN_ADDRESSES)
+    @pytest.mark.parametrize(("address", "desc"), TOKEN_ADDRESSES)
     async def test_malformed_token_addresses(self, address, desc):
         """Malformed token addresses don't crash the scanner."""
         from app.domains.scanner.service import scan_token
@@ -1709,11 +1725,11 @@ class TestScannerEdgeCases:
 class TestBatchScanning:
     """Batch scanning: multiple tokens processed correctly."""
 
-    TOKENS = [
+    TOKENS = (
         "0x1111111111111111111111111111111111111111",
         "0x2222222222222222222222222222222222222222",
         "0x3333333333333333333333333333333333333333",
-    ]
+    )
 
     @pytest.mark.asyncio
     async def test_batch_scan_multiple_tokens(self):

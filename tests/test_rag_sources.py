@@ -18,10 +18,10 @@ DEEP_DIVE_DOC = ROOT / "docs" / "RAG_SOURCE_DEEP_DIVE.md"
 
 REQUIRED_FIELDS = ("name", "description", "type", "url", "category", "collections", "enabled")
 VALID_TYPES = ("json_api", "html_page")
-VALID_CATEGORIES = ("rug", "exploit", "scam")
-KNOWN_COLLECTIONS = ("known_scams", "scam_patterns", "defi_exploits", "threat_intel")
+VALID_CATEGORIES = ("rug", "exploit", "scam", "education")
+KNOWN_COLLECTIONS = ("known_scams", "scam_patterns", "defi_exploits", "threat_intel", "coding_knowledge")
 
-# New sources wired by this task (P0 in docs/RAG_SOURCE_DEEP_DIVE.md).
+# Sources wired by prior + this task (P0 in the deep-dive docs).
 WIRED_SOURCES = ("metamask_eth_phishing_detect", "defihacklabs_incidents", "ethereum_labels_0x406")
 
 TOP_LEVEL_LISTS = ("news", "security", "research", "onchain")

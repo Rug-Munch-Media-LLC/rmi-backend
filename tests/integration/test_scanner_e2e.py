@@ -1,13 +1,17 @@
 """End-to-end integration tests for the full scanner pipeline.
 
 Pipeline under test: scan request → data layer (ClickHouse own-data + external
-API fallbacks) → risk scoring → RAG ingest → Telegram alert → API response.
+API fallbacks) → SENTINEL deep-forensic phase → risk scoring → RAG ingest →
+Telegram alert → API response.
 
-External dependencies (ClickHouse, Redis, GoPlus/DexScreener HTTP) are mocked;
-all internal logic is real:
+External dependencies (ClickHouse, Redis, GoPlus/DexScreener HTTP, news/RSS,
+RAG embedder, SENTINEL module analyzers) are mocked; all internal logic is real:
 
   - UnifiedTokenScanner phase orchestration + merge methods
-  - compute_score() risk scoring
+  - compute_score() risk scoring (incl. apply_sentinel_scoring)
+  - SENTINEL free-module wiring into ScanResult (dev_reputation, holder_analysis,
+    liquidity_verification — the DataBus ``dev_reputation``/``liquidity_risk``/
+    ``rug_patterns`` chains moved to SENTINEL_FREE_MODULES in the sentinel refactor)
   - DataBus ProviderChain fallback ordering (ClickHouse → GoPlus → DexScreener)
   - deployer fingerprint engine (ClickHouse deployer_events → risk bucket)
   - wallet flow graph engine (evm_transfers → hop expansion → USD graph)
@@ -46,7 +50,13 @@ CP3 = "0x4444444444444444444444444444444444444444"
 
 
 def _critical_databus_responses() -> dict[str, dict[str, Any]]:
-    """DataBus responses producing a CRITICAL scan (safety score ~0)."""
+    """DataBus responses producing a CRITICAL scan (safety score ~0).
+
+    NOTE: ``dev_reputation`` / ``holder_health`` / ``liquidity_risk`` /
+    ``rug_patterns`` were DataBus DEEP chains before the SENTINEL refactor.
+    They are now SENTINEL free modules (see ``_critical_sentinel_response``)
+    and are deliberately NOT included here.
+    """
     return {
         "token_price": {
             "price_usd": 0.0000012,
@@ -67,10 +77,6 @@ def _critical_databus_responses() -> dict[str, dict[str, Any]]:
             "source": "goplus",
         },
         "holder_data": {"top_10_pct": 92.0},
-        "holder_health": {"gini": 0.91},
-        "liquidity_risk": {"locked_pct": 5.0},
-        "dev_reputation": {"risk_score": 95, "risk_label": "CRITICAL"},
-        "rug_patterns": {"match_count": 3},
         "volume_authenticity": {"fake_volume_pct": 82.0},
         "lite_chain_indexer_patterns": {
             "findings": [
@@ -103,12 +109,103 @@ def _safe_databus_responses() -> dict[str, dict[str, Any]]:
             "source": "goplus",
         },
         "holder_data": {"top_10_pct": 18.0},
-        "holder_health": {"gini": 0.4},
-        "liquidity_risk": {"locked_pct": 95.0},
-        "dev_reputation": {"risk_score": 5, "risk_label": "CLEAN"},
-        "rug_patterns": {"match_count": 0},
         "volume_authenticity": {"fake_volume_pct": 4.0},
         "lite_chain_indexer_patterns": {"findings": []},
+    }
+
+
+# ── SENTINEL free-module results ────────────────────────────────────────────
+# After the sentinel refactor the deployer/liquidity/holder deep-forensic
+# signals are SENTINEL free modules (not DataBus chains). The fixture builders
+# below return the dict shape of ``run_sentinel_phase`` — the tests inject them
+# at the phase boundary so the real merge + scoring logic runs on them.
+
+
+def _critical_sentinel_response() -> dict[str, Any]:
+    """SENTINEL free results pushing the scan to CRITICAL.
+
+    - dev_reputation: serial-rugger (reputation_score 10 < 30)
+    - holder_analysis: HHI 6200 (> 5000 → SENTINEL_HHI_CRITICAL)
+    - liquidity_verification: 5% locked + CRITICAL (SENTINEL_LP_LOCK)
+    Three critical signals → SENTINEL_CRITICAL_BOOST.
+    """
+    return {
+        "free": {
+            "holder_analysis": {"hhi": 6200, "risk_level": "critical", "total_holders": 500},
+            "liquidity_verification": {
+                "total_locked_percentage": 5.0,
+                "risk_level": "CRITICAL",
+                "fake_lock_detected": True,
+                "lp_burned": False,
+            },
+            "dev_reputation": {
+                "dev_wallet": DEPLOYER,
+                "reputation_score": 10,
+                "reputation_level": "CRITICAL",
+                "dev_threat_index": 0.9,
+                "rug_rate": 0.8,
+                "total_launches": 5,
+                "serial_patterns": ["SERIAL RUGGER: 4/5 projects rugged"],
+            },
+            "metadata_fingerprint": {"similar_tokens": []},
+            "contract_authority": {"risk_level": "low"},
+            "proxy_detection": {"risk_level": "low", "can_upgrade": False, "is_proxy": False},
+        },
+        "premium": None,
+        "premium_unlocked": False,
+        "premium_modules": [],
+        "premium_preview": [],
+        "errors": {},
+        "modules_run": [
+            "holder_analysis",
+            "liquidity_verification",
+            "dev_reputation",
+            "metadata_fingerprint",
+            "contract_authority",
+            "proxy_detection",
+        ],
+        "deployer_resolved": True,
+    }
+
+
+def _safe_sentinel_response() -> dict[str, Any]:
+    """SENTINEL free results that do NOT move a SAFE scan off safe/low."""
+    return {
+        "free": {
+            "holder_analysis": {"hhi": 1200, "risk_level": "low", "total_holders": 9000},
+            "liquidity_verification": {
+                "total_locked_percentage": 95.0,
+                "risk_level": "LOW",
+                "fake_lock_detected": False,
+                "lp_burned": True,
+            },
+            "dev_reputation": {
+                "dev_wallet": DEPLOYER,
+                "reputation_score": 95,
+                "reputation_level": "CLEAN",
+                "dev_threat_index": 0.0,
+                "rug_rate": 0.0,
+                "total_launches": 1,
+                "serial_patterns": [],
+            },
+            "metadata_fingerprint": {"similar_tokens": []},
+            "contract_authority": {"risk_level": "low"},
+            "proxy_detection": {"risk_level": "low", "can_upgrade": False, "is_proxy": False},
+        },
+        "premium": None,
+        "premium_unlocked": False,
+        "premium_modules": [],
+        "premium_preview": [],
+        "errors": {},
+        "modules_run": [
+            "holder_analysis",
+            "liquidity_verification",
+            "dev_reputation",
+            "metadata_fingerprint",
+            "contract_authority",
+            "proxy_detection",
+        ],
+        "deployer_resolved": True,
     }
 
 
@@ -134,6 +231,7 @@ def _scan_externals(
     redis: Any = None,
     keep_event_bus: bool = False,
     keep_publish_rag: bool = False,
+    sentinel_response: dict[str, Any] | None = None,
 ):
     """Mock every external dependency the scanner touches; run real internal logic.
 
@@ -143,6 +241,13 @@ def _scan_externals(
     - Event bus → mocked unless keep_event_bus=True (it touches Redis).
     - publish_rag_finding → mocked unless keep_publish_rag=True (for the
       dedicated RAG payload test).
+    - SENTINEL phase → canned ``run_sentinel_phase`` response unless
+      ``sentinel_response`` is passed explicitly (default: benign, so a scan
+      never picks up accidental critical sentinel signals).
+    - Slow best-effort background I/O (market context RSS, news sentiment,
+      news card, RAG enricher, event correlation) → mocked so the background
+      task completes inside the scanner's 25s hard budget instead of being
+      deferred (the tests assert on the FINALIZED result).
     """
     with ExitStack() as stack:
         stack.enter_context(
@@ -171,7 +276,42 @@ def _scan_externals(
             stack.enter_context(patch("app.core.redis.get_redis_async", return_value=redis))
         if not keep_event_bus:
             stack.enter_context(patch("app.core.events.get_event_bus", return_value=AsyncMock()))
+
+        # ── SENTINEL phase boundary (was DataBus DEEP chains pre-refactor) ──
+        # Inject canned free-module results so the real sentinel_phase merge +
+        # scoring code runs deterministically. Default benign: no sentinel flags.
+        if sentinel_response is None:
+            sentinel_response = _safe_sentinel_response()
+        stack.enter_context(
+            patch(
+                "app.domains.scanner.unified.sentinel_phase.run_sentinel_phase",
+                new=AsyncMock(return_value=sentinel_response),
+            )
+        )
+
+        # ── Slow best-effort background I/O (keeps the bg task under budget) ──
+        stack.enter_context(
+            patch("app.domains.scanner.unified.market_context.fetch_market_context", new=AsyncMock(return_value=None))
+        )
+        stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.run_news_sentiment", new=AsyncMock()))
+        stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.get_news_card", new=AsyncMock()))
+        stack.enter_context(patch("app.domains.scanner.unified.scanner.run_news_sentiment", new=AsyncMock()))
+        stack.enter_context(patch("app.domains.scanner.unified.scanner.get_news_card", new=AsyncMock()))
+        stack.enter_context(
+            patch(
+                "app.domains.scanner.engines.event_correlation.correlate_news_with_price",
+                new=AsyncMock(return_value=None),
+            )
+        )
+        stack.enter_context(patch("app.rag.intelligence.RAGIntelligenceEnricher", new=_NullRagEnricher))
         yield
+
+
+class _NullRagEnricher:
+    """RAGIntelligenceEnricher stand-in — returns no context immediately."""
+
+    async def enrich_scan_result(self, scan_result: Any) -> None:
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -193,7 +333,10 @@ class TestFullScanPipeline:
         from app.domains.scanner.unified import UnifiedTokenScanner
 
         scanner = UnifiedTokenScanner()
-        with _scan_externals(_critical_databus_responses()):
+        with _scan_externals(
+            _critical_databus_responses(),
+            sentinel_response=_critical_sentinel_response(),
+        ):
             result = await scanner.scan(address=TOKEN, chain="ethereum", tier="free")
 
         # ── Risk scoring ──
@@ -205,9 +348,9 @@ class TestFullScanPipeline:
         # ── Flags ──
         assert "honeypot" in result.risk_flags
         assert "mintable" in result.risk_flags
-        assert "DEV_HIGH_RISK" in result.risk_flags
-        assert "LP_LOCK_LOW" in result.risk_flags
-        assert any(f.startswith("RUG_PATTERN_MATCH") for f in result.risk_flags)
+        assert "SENTINEL_DEV_THREAT" in result.risk_flags
+        assert "SENTINEL_LP_LOCK" in result.risk_flags
+        assert any(f.startswith("SENTINEL_CRITICAL_BOOST") for f in result.risk_flags)
         assert any(f.startswith("ONCHAIN_") for f in result.risk_flags)
 
         # ── Security checks merged from token_security chain ──
@@ -227,7 +370,12 @@ class TestFullScanPipeline:
         assert result.name == "RuggyToken"
         assert result.symbol == "RUG"
         assert result.holders == {"top_10_pct": 92.0}
-        assert result.dev_reputation == {"risk_score": 95, "risk_label": "CRITICAL"}
+        # dev_reputation is now a SENTINEL free module (was a DataBus DEEP
+        # chain pre-refactor) — the serial-rugger signal lands in
+        # result.sentinel["free"]["dev_reputation"].
+        sentinel_free = (result.sentinel or {}).get("free") or {}
+        assert sentinel_free.get("dev_reputation", {}).get("reputation_score") == 10
+        assert sentinel_free.get("dev_reputation", {}).get("dev_wallet") == DEPLOYER
         assert result.lite_chain_indexer_patterns is not None
         assert "token_price" in result.modules_run
         assert result.scan_duration_ms >= 0
@@ -249,7 +397,10 @@ class TestFullScanPipeline:
         app.include_router(router)
         transport = ASGITransport(app=app)
 
-        with _scan_externals(_critical_databus_responses()):
+        with _scan_externals(
+            _critical_databus_responses(),
+            sentinel_response=_critical_sentinel_response(),
+        ):
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
                     "/api/v2/scanner/token/scan",
@@ -289,7 +440,11 @@ class TestScanToRagIngest:
 
         publish_rag = AsyncMock()
         scanner = UnifiedTokenScanner()
-        with _scan_externals(_critical_databus_responses(), publish_rag=publish_rag):
+        with _scan_externals(
+            _critical_databus_responses(),
+            publish_rag=publish_rag,
+            sentinel_response=_critical_sentinel_response(),
+        ):
             result = await scanner.scan(address=TOKEN, chain="ethereum", tier="free")
 
         publish_rag.assert_awaited_once()
@@ -334,7 +489,12 @@ class TestScanToRagIngest:
         redis.setex = AsyncMock()
 
         scanner = UnifiedTokenScanner()
-        with _scan_externals(_critical_databus_responses(), redis=redis, keep_publish_rag=True):
+        with _scan_externals(
+            _critical_databus_responses(),
+            redis=redis,
+            keep_publish_rag=True,
+            sentinel_response=_critical_sentinel_response(),
+        ):
             await scanner.scan(address=TOKEN, chain="ethereum", tier="free")
 
         redis.publish.assert_awaited_once()
@@ -385,7 +545,11 @@ class TestScanToTelegramAlert:
         send_alert = AsyncMock()
         scanner = UnifiedTokenScanner()
         # Real should_send_scanner_alert() gating: critical → True
-        with _scan_externals(_critical_databus_responses(), send_alert=send_alert):
+        with _scan_externals(
+            _critical_databus_responses(),
+            send_alert=send_alert,
+            sentinel_response=_critical_sentinel_response(),
+        ):
             result = await scanner.scan(address=TOKEN, chain="ethereum", tier="free")
 
         assert result.risk_level == "critical"
@@ -660,47 +824,48 @@ class TestDeployerFingerprintPipeline:
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_fingerprint_flows_into_scan_result(self) -> None:
-        """A high-risk deployer fingerprint in dev_reputation affects the scan.
+        """A high-risk deployer fingerprint (SENTINEL dev_reputation) affects the scan.
 
-        The scanner's DEEP phase fetches dev_reputation from DataBus; when that
-        returns fingerprint-shaped data, it lands in ScanResult.dev_reputation
-        and compute_score() raises DEV_HIGH_RISK.
+        Since the sentinel refactor, ``dev_reputation`` is a SENTINEL free
+        module (``DevReputationEngine``) rather than a DataBus DEEP chain.
+        When it returns a high-risk report, it lands in
+        ``result.sentinel["free"]["dev_reputation"]`` and compute_score()
+        raises SENTINEL_DEV_THREAT (deployer dimension).
         """
         from app.domains.scanner.unified import UnifiedTokenScanner
 
-        responses = {
-            "token_price": {
-                "price_usd": 0.01,
-                "market_cap_usd": 5000,
-                "volume_24h": 100,
-                "liquidity_usd": 900,
-                "source": "dexscreener",
-            },
-            "token_metadata": {"name": "NewToken", "symbol": "NEWT", "age_hours": 1.0},
-            "token_security": {
-                "checks": {"honeypot": {"status": "pass"}, "mintable": {"status": "pass"}},
-                "source": "goplus",
-            },
-            # dev_reputation returns a deployer fingerprint (risk_score 90)
-            "dev_reputation": {
-                "deployer_address": DEPLOYER,
-                "risk_score": 90,
-                "risk_label": "REPEAT_RUG",
-                "risk_bucket": "REPEAT_RUG",
-                "total_deployments": 4,
-                "success_rate": 0.25,
-                "source": "own_clickhouse",
-            },
+        # DevReputationReport-shaped SENTINEL free result: serial rugger.
+        fingerprint_sentinel = _critical_sentinel_response()
+        fingerprint_sentinel["free"]["dev_reputation"] = {
+            "dev_wallet": DEPLOYER,
+            "chains": ["ethereum"],
+            "total_launches": 4,
+            "rugged_count": 4,
+            "rug_rate": 1.0,
+            "avg_lifespan_days": 2.5,
+            "retention_rate": 0.0,
+            "serial_patterns": ["SERIAL RUGGER: 4/4 projects rugged"],
+            "cross_chain_addresses": [],
+            "dev_threat_index": 0.9,
+            "reputation_score": 10,
+            "reputation_level": "CRITICAL",
+            "confidence": "HIGH",
+            "warnings": ["SERIAL RUGGER: 4/4 projects rugged"],
         }
 
         scanner = UnifiedTokenScanner()
-        with _scan_externals(responses):
+        with _scan_externals(
+            _critical_databus_responses(),
+            sentinel_response=fingerprint_sentinel,
+        ):
             result = await scanner.scan(address=TOKEN, chain="ethereum", tier="free")
 
-        assert result.dev_reputation is not None
-        assert result.dev_reputation["deployer_address"] == DEPLOYER
-        assert result.dev_reputation["risk_score"] == 90
-        assert "DEV_HIGH_RISK" in result.risk_flags
+        assert result.sentinel is not None
+        sent_dr = result.sentinel["free"]["dev_reputation"]
+        assert sent_dr["dev_wallet"] == DEPLOYER
+        assert sent_dr["reputation_score"] == 10
+        assert sent_dr["rug_rate"] == 1.0
+        assert "SENTINEL_DEV_THREAT" in result.risk_flags
         assert result.risk_level in ("high", "critical")
 
 
@@ -835,13 +1000,17 @@ class TestPipelineWiring:
 
     @pytest.mark.integration
     def test_scanner_phase_chains_defined(self) -> None:
-        """UnifiedTokenScanner defines the 4 dependency-ordered phase chains."""
+        """UnifiedTokenScanner defines the phase chains (post-sentinel-refactor).
+
+        ``dev_reputation`` moved from DEEP_CHAINS (DataBus) into
+        SENTINEL_FREE_MODULES (deep-forensic phase) in the sentinel refactor.
+        """
         from app.domains.scanner.unified import UnifiedTokenScanner
 
         assert "token_security" in UnifiedTokenScanner.CORE_CHAINS
-        assert "dev_reputation" in UnifiedTokenScanner.DEEP_CHAINS
+        assert "dev_reputation" in UnifiedTokenScanner.SENTINEL_FREE_MODULES
         assert "lite_chain_indexer_patterns" in UnifiedTokenScanner.DEEP_CHAINS
-        assert "smart_money" in UnifiedTokenScanner.INTEL_CHAINS
+        assert "token_launches" in UnifiedTokenScanner.INTEL_CHAINS
 
     @pytest.mark.integration
     def test_alert_and_rag_symbols_exist(self) -> None:

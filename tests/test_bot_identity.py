@@ -2,9 +2,10 @@
 
 Verifies the bot self-identifies as "Rug Munch Bot" (spaced) everywhere a
 prose NAME is used — welcome, about, FAQ, help, footer — credits its
-developer (``cryptorugmunch`` / Rug Munch Media), and never mangles the
-Telegram HANDLES (``@RugMunchBot``, ``t.me/RugMunchAlerts``) which are
-identifiers and must stay byte-for-byte.
+developer with the exact attribution ``@cryptorugmunch and the team at
+Rug Munch Media LLC``, and never mangles the Telegram HANDLES
+(``@RugMunchBot``, ``t.me/RugMunchAlerts``) which are identifiers and
+must stay byte-for-byte.
 
 No network and no DB access — every string under test is a pure,
 deterministic formatter.
@@ -62,9 +63,11 @@ def test_about_identity_and_developer_credit() -> None:
     text = about_text()
     assert "Rug Munch Bot" in text
     assert "RugMunch" not in _strip_handles(text)
-    # Developer attribution — required by product owner.
-    assert "cryptorugmunch" in text, "about_text must credit the developer 'cryptorugmunch'"
-    assert "Rug Munch Media" in text, "about_text must credit 'the team at Rug Munch Media'"
+    # Developer attribution — exact phrasing required by product owner:
+    # "Developed by @cryptorugmunch and the team at Rug Munch Media LLC".
+    assert "@cryptorugmunch and the team at Rug Munch Media LLC" in text, (
+        "about_text must carry the exact attribution '@cryptorugmunch and the team at Rug Munch Media LLC'"
+    )
     # Company backstory must be preserved.
     assert "Rug Munch Media LLC" in text
     assert "Wyoming" in text
