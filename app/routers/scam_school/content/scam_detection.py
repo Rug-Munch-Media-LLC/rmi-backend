@@ -22,6 +22,8 @@ scam_detection = {
     "badge_reward": "scam-hunter",
     "color": "#ef4444",
     "icon": "siren",
+    "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Magnifying_glass.svg?width=800",
+    "image_alt": "Magnifying glass icon representing scam detection and investigation",
     "modules": [
         # ── Module 1 ──
         {
@@ -30,6 +32,8 @@ scam_detection = {
             "type": "interactive",
             "duration": 15,
             "xp": 200,
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Warning_icon.svg?width=800",
+            "image_alt": "Warning triangle icon representing the honeypot trap",
             "content": {
                 "slides": [
                     {

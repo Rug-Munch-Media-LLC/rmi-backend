@@ -24,6 +24,8 @@ advanced_forensics = {
     "badge_reward": "forensic-analyst",
     "color": "#f59e0b",
     "icon": "microscope",
+    "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Microscope_icon.svg?width=800",
+    "image_alt": "Microscope icon representing blockchain forensics and intelligence",
     "modules": [
         # ── Module 1 ──
         {
@@ -32,6 +34,8 @@ advanced_forensics = {
             "type": "interactive",
             "duration": 20,
             "xp": 300,
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Internet_map_1024.jpg?width=800",
+            "image_alt": "Map of internet network links, illustrating fund flows across connected addresses",
             "content": {
                 "slides": [
                     {
@@ -100,6 +104,8 @@ advanced_forensics = {
             "type": "interactive",
             "duration": 20,
             "xp": 300,
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Fingerprint.svg?width=800",
+            "image_alt": "Fingerprint icon representing entity attribution and wallet clustering",
             "content": {
                 "slides": [
                     {
@@ -167,6 +173,8 @@ advanced_forensics = {
             "type": "interactive",
             "duration": 20,
             "xp": 300,
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Tor-logo-2011-flat.svg?width=800",
+            "image_alt": "Tor onion logo representing anonymity tools used by mixers and tumblers",
             "content": {
                 "slides": [
                     {
@@ -703,6 +711,8 @@ advanced_forensics = {
             "type": "interactive",
             "duration": 20,
             "xp": 300,
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Scale_of_justice_2.svg?width=800",
+            "image_alt": "Scales of justice icon representing the regulatory and compliance landscape",
             "content": {
                 "slides": [
                     {

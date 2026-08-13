@@ -9,6 +9,18 @@ from typing import Any
 from pydantic import BaseModel
 
 
+class CourseImage(BaseModel):
+    """Optional additive image metadata for Scam School courses/lessons.
+
+    Mirrors the optional ``image`` / ``image_alt`` keys added to the course
+    and module content dicts in ``app/routers/scam_school/content/*.py``.
+    Both fields are optional so content without images remains valid.
+    """
+
+    image: str | None = None
+    image_alt: str | None = None
+
+
 class LessonProgress(BaseModel):
     lesson_id: str
     course_id: str
