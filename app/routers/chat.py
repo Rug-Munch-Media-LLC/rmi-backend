@@ -524,6 +524,38 @@ def _identity_answer(message: str) -> str | None:
     return None
 
 
+# Vague/underspecified question guard: questions with no identifiable token,
+# address, or entity ("what happened with the one token the other day") get a
+# clarification prompt instead of a degenerate LLM answer (e.g. a bare "- ").
+_VAGUE_REFERENTS = (
+    "the one token",
+    "that token",
+    "this token",
+    "the other day",
+    "that thing",
+    "that one",
+    "the coin",
+    "that coin",
+    "this coin",
+)
+
+
+def _vague_question(message: str) -> str | None:
+    """Return a clarification prompt for underspecified questions, else None."""
+    if _IDENTITY_RE.search(message):
+        return None
+    if _EVM_ADDRESS_RE.search(message) or _SOLANA_ADDRESS_RE.search(message) or _SYMBOL_RE.search(message):
+        return None
+    low = message.lower()
+    if any(v in low for v in _VAGUE_REFERENTS):
+        return (
+            "I couldn't identify which token or wallet you're asking about. "
+            "Paste the token's address or ticker ($SYMBOL) and I'll dig into it — "
+            "or ask about a specific chain, wallet, or market event."
+        )
+    return None
+
+
 def _sanitize_history(items: list[dict[str, str]]) -> list[dict[str, str]]:
     """Whitelist roles (user/assistant only) + truncate content.
 
@@ -681,6 +713,31 @@ async def chat(
             "message": identity_answer,
             "model": "canned",
             "provider": "identity",
+            "latency_ms": 0,
+            "usage": {},
+            "x_rag_context": 0,
+        }
+
+    # ── VAGUE-QUESTION FAST-PATH ──
+    # Underspecified questions ("what happened with the one token the other
+    # day") get a clarification prompt — no RAG/web/LLM round-trip, no risk of
+    # a degenerate "- " answer from the local model.
+    vague_answer = _vague_question(req.message)
+    if vague_answer is not None:
+        _save_message(user_id, "user", req.message)
+        _save_message(
+            user_id,
+            "assistant",
+            vague_answer,
+            {"model": "canned", "provider": "vague", "security_scanned": True, "rag_context_count": 0},
+        )
+        _apply_rate_limit_headers(response, request)
+        response.headers["X-RAG-Context"] = "0"
+        return {
+            "id": f"resp-{uuid.uuid4().hex[:8]}",
+            "message": vague_answer,
+            "model": "canned",
+            "provider": "vague",
             "latency_ms": 0,
             "usage": {},
             "x_rag_context": 0,
