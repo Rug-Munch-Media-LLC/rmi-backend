@@ -72,6 +72,9 @@ def _normalize_chain(chain: str) -> str:
         "avax": "avax",
         "fantom": "fantom",
         "ftm": "fantom",
+        "tron": "tron",
+        "trx": "tron",
+        "robinhood": "robinhood",
     }
     return aliases.get(chain.lower(), chain.lower())
 
