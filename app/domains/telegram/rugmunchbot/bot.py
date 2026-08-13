@@ -140,109 +140,29 @@ from app.domains.telegram.rugmunchbot.support.logging import get_logger
 logger = get_logger("rmi_bot")
 
 # ══════════════════════════════════════════════
-# COMMAND MENU (BotFather) — sectioned, v9
-# Telegram's native command list is a flat ordered menu, so "sections" are
-# conveyed by ordering + grouping. Each section mirrors the inline keyboard
-# sections (Scan / Intelligence / Alerts / Wallet / Account / Help) and the
-# /help reference. Admin commands are owner-only and intentionally excluded
-# from the public menu.
+# COMMAND MENU (BotFather) — clean core set, v10
+# Telegram's native command list is a flat ordered menu, so "grouping" is
+# conveyed by ordering. We register the 11 most-used commands in logical
+# order so the composer `/` menu stays fast to scan; the full reference
+# (premium/owner/group commands) lives in /help. Admin commands are
+# owner-only and intentionally excluded from the public menu.
+# Bot API limits: each description ≤ 256 chars, total ≤ 256 chars.
 # ══════════════════════════════════════════════
 _COMMAND_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
     (
-        "Scan",
+        "Core",
         [
-            ("start", "Welcome & quick start guide"),
-            ("scan", "Quick token scan for scams & risks"),
-            ("deepscan", "Full multi-phase deep token scan"),
-            ("sentinelscan", "SENTINEL deep forensic scan (fast)"),
-            ("rugcheck", "Rug pull red flag checklist"),
-            ("deployer", "Deployer fingerprint check"),
-            ("hype", "Quick 0-100 hype score"),
-            ("compare", "Compare two tokens side-by-side"),
-            ("investigate", "Deep investigation report (Pro)"),
-            ("report", "Report a scam address"),
-            ("rugmap", "RugMap bubble map image"),
-        ],
-    ),
-    (
-        "Intelligence",
-        [
-            ("market", "Market overview — BTC/ETH, Fear & Greed"),
-            ("trending", "Trending tokens by chain (e.g. /trending solana)"),
-            ("movers", "Biggest gainers & losers"),
-            ("launches", "New token launches with risk flags"),
-            ("whales", "Whale movement alerts"),
-            ("news", "Latest crypto news"),
-            ("events", "News events & their price impact"),
-            ("sentiment", "Market sentiment & fear/greed index"),
-            ("price", "Token price by contract address"),
-            ("quick", "Quick token price check"),
-            ("dex", "DEX trading pairs & liquidity data"),
-            ("chart", "Chart image for any token"),
-            ("ta", "Technical analysis & signals"),
-            ("holders", "Top holders & concentration (Scout+)"),
-            ("smartmoney", "Detect smart money wallets"),
-            ("trace", "Cross-chain fund flow trace (Hunter+)"),
-            ("dumps", "Detect token dump patterns"),
-            ("flow", "Money flow & fund tracking"),
-            ("polymarket", "Polymarket prediction markets"),
-            ("election", "Election odds & predictions"),
-            ("odds", "Sports & event odds"),
-            ("yield", "DeFi yield farming opportunities"),
-            ("lpcheck", "Liquidity pool health check"),
-            ("defi", "DeFi protocol analytics"),
-            ("mev", "MEV risk advisory & safe swap params"),
-            ("impersonation", "Detect fake tokens & impersonation"),
-            ("deathclock", "Token longevity prediction"),
-            ("cluster", "Wallet clustering & funding paths"),
-            ("honeypot", "Honeypot detector - can you sell?"),
-            ("lphealth", "Liquidity pool health check"),
-            ("laundry", "Money laundering detector"),
-            ("research", "RAG-powered deep research (Hunter+)"),
-            ("ask", "Deep AI answers from RAG + LLM"),
-            ("chat", "Freestyle AI chat — crypto, DeFi & code"),
-        ],
-    ),
-    (
-        "Alerts",
-        [
-            ("alerts", "Price & activity alerts"),
-            ("alert", "Set a price alert (ABOVE/BELOW/CHANGE_5)"),
-            ("watch", "Add token to watchlist"),
-            ("unwatch", "Remove token from watchlist"),
-            ("watchlist", "View your watchlist"),
-            ("whale", "Whale movement alert subscriptions"),
-            ("webhook", "Custom webhooks management (Pro)"),
-        ],
-    ),
-    (
-        "Wallet",
-        [
+            ("scan", "Scan a token for scams & risks"),
             ("wallet", "Wallet forensics & analysis"),
-            ("portfolio", "Scan wallet token holdings"),
-            ("simulate", "Simulate buy/sell trade"),
-        ],
-    ),
-    (
-        "Account",
-        [
-            ("account", "Your dashboard & usage"),
-            ("pricing", "Subscription plans"),
-            ("topup", "Buy extra scans (no expiry)"),
-            ("buystars", "Buy Telegram Stars"),
-            ("refer", "Invite friends, earn scans"),
-            ("scamschool", "Learn about crypto scams"),
-        ],
-    ),
-    (
-        "Help",
-        [
-            ("help", "Full command reference"),
-            ("banuser", "Group admin: ban a user"),
-            ("mygroup", "Your creator coin group"),
-            ("groupinfo", "Group stats (admin)"),
-            ("voicechat", "Manage voice chat (admin)"),
-            ("api", "API access token (Pro)"),
+            ("price", "Token price by address"),
+            ("chart", "Chart & technical analysis"),
+            ("trace", "Cross-chain fund trace"),
+            ("market", "Market overview & trends"),
+            ("news", "Latest crypto news"),
+            ("alerts", "Manage price alerts"),
+            ("chat", "Freestyle AI chat"),
+            ("help", "Full command guide"),
+            ("start", "Welcome & quick start"),
         ],
     ),
 ]
