@@ -164,6 +164,8 @@ GMGN_CHAINS = {
     "base": "base",
     "bsc": "bsc",
     "arbitrum": "arb",
+    "tron": "tron",
+    "robinhood": "robinhood",
 }
 
 
