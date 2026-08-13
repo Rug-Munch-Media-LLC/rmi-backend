@@ -230,23 +230,93 @@ def explorer_url(address: str, chain: str) -> str:
     return f"https://{domain}/address/{address}"
 
 
-def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
-    buttons = []
-    for _key, dex in DEX_REF_LINKS.items():
-        if chain.lower() in dex.get("chains", []):
-            url = dex["url"].format(  # type: ignore[attr-defined]  # PTB None-able fields
-                token=token,
-                chain=chain,
-                chain_id=CHAIN_IDS.get(chain.lower(), 1),
-            )
-            buttons.append(InlineKeyboardButton(f"{dex['emoji']} {dex['name']}", url=url))
-    # Chart trade links — DexScreener (no ref program) + DexTools (ref via
-    # REF_CODES / RMI_REF_DEXTOOLS when configured). GMGN already ships via
-    # DEX_REF_LINKS above, so it is not duplicated here.
-    if chain:
-        buttons.append(InlineKeyboardButton("\U0001f986 DexScreener", url=dexscreener_url(token, chain)))
-        buttons.append(InlineKeyboardButton("\U0001f4c8 DexTools", url=dextools_url(token, chain)))
+# ── DEX trade-button ordering ─────────────────────────────────────────────
+# Highest-value platforms first so the first inline-keyboard row leads with
+# the biggest revenue/utility (GMGN smart-money terminal, Jupiter swap).
+# DEX_REF_LINKS stays the source of truth for what ships; this tuple only
+# sets precedence among chain-eligible platforms (unlisted → sorted last).
+DEX_BUTTON_PRIORITY = (
+    "gmgn",
+    "jupiter",
+    "photon",
+    "banana",
+    "odinbot",
+    "axiom",
+    "padre",
+    "birdeye",
+    "oneinch",
+    "pancakeswap",
+)
+DEX_BUTTONS_PER_ROW = 2
+# Chain-agnostic fallback for empty/unknown chains: Telegram trading bots
+# whose start links embed our ref codes and never depend on the token
+# address. This guarantees a safe minimal set — we never build a token-page
+# URL against the wrong chain.
+UNKNOWN_CHAIN_MINIMAL = ("odinbot", "banana")
+
+
+def _ref_platform_buttons(token: str, chain: str, only: tuple[str, ...] | None = None) -> list[InlineKeyboardButton]:
+    """Chain-filtered ``DEX_REF_LINKS`` buttons in ``DEX_BUTTON_PRIORITY`` order.
+
+    Fills ``{token}`` / ``{chain}`` / ``{chain_id}`` placeholders from the
+    scan's address + chain so every link lands on the token with our ref
+    embedded. ``only`` restricts to a fixed platform subset (used for the
+    unknown-chain minimal set); ``None`` filters by ``dex["chains"]``.
+    """
+    chain_l = (chain or "").lower()
+    ordered = sorted(
+        DEX_REF_LINKS.items(),
+        key=lambda kv: DEX_BUTTON_PRIORITY.index(kv[0]) if kv[0] in DEX_BUTTON_PRIORITY else len(DEX_BUTTON_PRIORITY),
+    )
+    buttons: list[InlineKeyboardButton] = []
+    for key, dex in ordered:
+        if only is not None:
+            if key not in only:
+                continue
+        elif chain_l not in dex.get("chains", []):
+            continue
+        url = dex["url"].format(
+            token=token,
+            chain=chain_l,
+            chain_id=CHAIN_IDS.get(chain_l, 1),
+        )
+        buttons.append(InlineKeyboardButton(f"{dex['emoji']} {dex['name']}", url=url))
     return buttons
+
+
+def dex_button_rows(token: str, chain: str, per_row: int = DEX_BUTTONS_PER_ROW) -> list[list[InlineKeyboardButton]]:
+    """Chain-filtered referral trade buttons grouped into rows of ≤ ``per_row``.
+
+    Renders the full ``DEX_REF_LINKS`` set for the chain in
+    ``DEX_BUTTON_PRIORITY`` order (GMGN/Jupiter lead), with DexScreener +
+    DexTools chart buttons appended after the referral platforms. An
+    empty/unknown chain returns a safe minimal set — the Telegram trading
+    bots (OdinBot / Banana Gun) whose ref-coded start links never depend on
+    the token address — so no token-page URL is ever built for the wrong
+    chain. Pure: no network, no DB.
+    """
+    chain_l = (chain or "").lower()
+    if chain_l in ("", "unknown"):
+        buttons = _ref_platform_buttons(token, chain_l, only=UNKNOWN_CHAIN_MINIMAL)
+    else:
+        buttons = _ref_platform_buttons(token, chain_l)
+        # Chart trade links — DexScreener (no ref program) + DexTools (ref via
+        # REF_CODES / RMI_REF_DEXTOOLS when configured). GMGN already ships via
+        # DEX_REF_LINKS above, so it is not duplicated here.
+        buttons.append(InlineKeyboardButton("\U0001f986 DexScreener", url=dexscreener_url(token, chain_l)))
+        buttons.append(InlineKeyboardButton("\U0001f4c8 DexTools", url=dextools_url(token, chain_l)))
+    per_row = max(1, per_row)
+    return [buttons[i : i + per_row] for i in range(0, len(buttons), per_row)]
+
+
+def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
+    """Flattened referral trade buttons (back-compat) — see ``dex_button_rows``.
+
+    Returns the same chain-filtered full set in priority order as a flat
+    list so existing callers (``keyboards.scan_result_kb`` chunking 2/row)
+    keep working unchanged.
+    """
+    return [button for row in dex_button_rows(token, chain) for button in row]
 
 
 def social_proof_text() -> str:
