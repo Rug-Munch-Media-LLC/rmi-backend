@@ -238,14 +238,18 @@ async def _reader_posts(reader: Callable[[int], Any], limit: int) -> list[dict[s
 def _normalize_timestamp_keys(item: dict[str, Any]) -> dict[str, Any]:
     """Map provider timestamp keys onto the keys ``from_social_post`` reads.
 
-    The in-repo X reader (``get_twitter_feed``) emits ``published``, which
-    ``from_social_post`` does not read — surface it as ``created_at`` so the
-    cast's ISO-8601 timestamp survives. Never mutates the caller's dict.
+    The in-repo X reader (``get_twitter_feed``) emits ``published`` (an RSS
+    ``pubDate`` — RFC 822/2822, e.g. ``Wed, 13 Aug 2026 10:15:00 GMT``),
+    which ``from_social_post`` also reads directly; surfacing it as
+    ``created_at`` additionally keeps older casters working. Accepts either
+    ``published`` or ``pubDate``. Never mutates the caller's dict.
     """
-    if "created_at" not in item and item.get("published"):
-        normalized = dict(item)
-        normalized["created_at"] = item["published"]
-        return normalized
+    if "created_at" not in item:
+        source = item.get("published") or item.get("pubDate")
+        if source:
+            normalized = dict(item)
+            normalized["created_at"] = source
+            return normalized
     return item
 
 
@@ -309,6 +313,25 @@ async def ingest_x_posts(reader: Callable[[int], Any], limit: int = 50) -> list[
     except Exception:
         return []
     return posts
+
+
+async def ingest_x_from_feed(limit: int = 50) -> list[ShillPost]:
+    """Read the in-repo X feed and keep the token-mentioning posts.
+
+    Convenience wrapper over ``ingest_x_posts`` wired to the real reader
+    ``app.caching_shield.social_feed.get_twitter_feed`` (async, returns
+    ``{"tweets": [...]}``). Its tweet dicts carry an RFC 822 ``published``
+    value (RSS ``pubDate``) and a top-level ``handle``/``author`` — both
+    handled by ``parse_timestamp`` / ``ShillPost.from_social_post``, so the
+    parsed ``ts`` is real feed time instead of the old fail-open ``0.0``.
+    The reader import is lazy: a missing or unhealthy social-feed module
+    never blocks ingestion. Fail-open: any error → ``[]``.
+    """
+    try:
+        from app.caching_shield.social_feed import get_twitter_feed
+    except Exception:
+        return []
+    return await ingest_x_posts(get_twitter_feed, limit=limit)
 
 
 # ── Routing ─────────────────────────────────────────────────────────────────

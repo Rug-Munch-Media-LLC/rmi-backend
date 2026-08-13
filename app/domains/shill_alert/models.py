@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -23,33 +24,70 @@ _SOURCES = frozenset({"telegram", "x", "farcaster"})
 
 
 def _parse_iso(text: str) -> float | None:
-    """Parse an ISO-8601 timestamp (with optional trailing Z) to epoch seconds."""
+    """Parse an ISO-8601 timestamp to epoch seconds.
+
+    Accepts an optional trailing ``Z`` (normalized to ``+00:00``), optional
+    fractional seconds, and timezone-less values (assumed UTC — matching
+    ``_dt_epoch``'s naive-datetime convention).
+    """
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
+        return None
+    return _dt_epoch(parsed)
+
+
+def parse_timestamp(value: Any) -> float | None:
+    """Parse *value* into epoch seconds; return ``None`` when unparseable.
+
+    Supports the formats the real X feed and post dicts actually carry:
+
+    - ISO-8601 strings — ``2026-08-13T10:15:00Z``, with or without fractional
+      seconds (``...00.123Z``) and with or without an explicit timezone
+      (naive values are assumed UTC).
+    - RFC 822/2822 date strings — the RSS ``pubDate`` shape
+      (``Wed, 13 Aug 2026 10:15:00 GMT``) via ``email.utils.parsedate_to_datetime``.
+    - Plain epoch int/float values (and numeric strings); millisecond epochs
+      (>1e11) are converted to seconds.
+
+    Never raises. Callers are expected to fail open on ``None`` (e.g.
+    ``_epoch`` maps it to ``ts=0.0``).
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value) / 1000.0 if value > 1e11 else float(value)
+    if isinstance(value, bytes):
+        value = value.decode(errors="ignore")
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    parsed = _parse_iso(text)
+    if parsed is not None:
+        return parsed
+    try:
+        parsed = parsedate_to_datetime(text)
+    except (TypeError, ValueError, OverflowError):
+        parsed = None
+    if parsed is not None:
+        return _dt_epoch(parsed)
+    try:
+        return float(text)
+    except (TypeError, ValueError):
         return None
 
 
 def _epoch(value: Any, default: float = 0.0) -> float:
-    """Coerce an epoch-seconds float or ISO string into epoch seconds.
+    """Coerce an epoch-seconds float or ISO/RFC822 date string to epoch seconds.
 
     Milliseconds (>1e11) are converted to seconds; unparseable values yield
-    ``default`` (never raises).
+    ``default`` (never raises). See ``parse_timestamp`` for the accepted
+    formats.
     """
-    if value is None:
-        return default
-    if isinstance(value, (int, float)):
-        return float(value) / 1000.0 if value > 1e11 else float(value)
-    if isinstance(value, str):
-        text = value.strip()
-        parsed = _parse_iso(text)
-        if parsed is not None:
-            return parsed
-        try:
-            return float(text)
-        except (TypeError, ValueError):
-            return default
-    return default
+    parsed = parse_timestamp(value)
+    return default if parsed is None else parsed
 
 
 def _dt_epoch(value: datetime | None) -> float:
@@ -149,6 +187,8 @@ class ShillPost:
             raw.get("ts")
             or raw.get("timestamp")
             or raw.get("created_at")
+            or raw.get("published")
+            or raw.get("pubDate")
             or raw.get("published_at")
             or raw.get("posted_at")
         )
