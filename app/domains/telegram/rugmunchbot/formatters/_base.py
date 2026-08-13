@@ -358,8 +358,7 @@ def about_text() -> str:
         "<b>Rug Munch Media LLC</b>, a Wyoming-based company \u2014 to "
         "protect retail investors from crypto scams with on-chain "
         "intelligence, scanner forensics, and AI analysis.\n\n"
-        "Developed by <b>cryptorugmunch</b> and the team at "
-        "<b>Rug Munch Media</b>."
+        "Developed by @cryptorugmunch and the team at Rug Munch Media LLC."
     )
 
 
@@ -407,8 +406,8 @@ def welcome_card_text() -> str:
     ``<i>`` / ``<code>`` tags and ``&amp;`` escaping — no raw markdown.
     """
     return (
-        f"\U0001f6e1\ufe0f <b>Rug Munch Bot</b> by the team at "
-        f"<b>Rug Munch Intelligence</b>\n"
+        f"\U0001f6e1\ufe0f <b>Rug Munch Bot</b> \u2014 by @cryptorugmunch and "
+        f"the team at Rug Munch Media LLC\n"
         f"<i>The scam-detection copilot for crypto</i>\n\n"
         f"{social_proof_text()}\n\n"
         f"<b>What I can do</b>\n"

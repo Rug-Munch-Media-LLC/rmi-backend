@@ -90,6 +90,14 @@ def scanner_alerts_enabled() -> bool:
 def _is_severe_flag(flag: str) -> bool:
     """Return True when a risk flag matches a known severe indicator."""
     norm = str(flag).lower()
+    # Positive sentinel signals must never trip the severe gate: e.g.
+    # SENTINEL_LP_LOCKED (LP >90% locked = healthy) is added to risk_flags
+    # by apply_sentinel_scoring, and its substring "lp_lock" collides with
+    # the severe "lp_lock" keyword — a healthy token would otherwise fire
+    # a scanner alert. Negative sentinel signals (SENTINEL_LP_LOCK,
+    # SENTINEL_DEV_THREAT, ...) do NOT end in "_locked" and still match.
+    if norm.startswith("sentinel_") and norm.endswith("_locked"):
+        return False
     return any(kw in norm for kw in SCANNER_ALERT_SEVERE_FLAGS)
 
 

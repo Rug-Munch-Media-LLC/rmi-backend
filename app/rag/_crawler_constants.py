@@ -42,7 +42,7 @@ DEFAULT_MAX_URLS_PER_SWEEP = 25
 INCIDENT_SOURCES_FILE = Path(__file__).parent / "crawl_sources.json"
 
 # Allowed incident categories (rug / exploit / scam).
-INCIDENT_CATEGORIES: tuple[str, ...] = ("rug", "exploit", "scam")
+INCIDENT_CATEGORIES: tuple[str, ...] = ("rug", "exploit", "scam", "education")
 
 # category → target RAG collections. Mirrors the chat router's RAG_COLLECTIONS
 # (app/routers/chat.py) plus the legacy ``known_scams`` collection used by the
@@ -51,6 +51,7 @@ INCIDENT_COLLECTION_BY_CATEGORY: dict[str, tuple[str, ...]] = {
     "rug": ("known_scams", "scam_patterns"),
     "exploit": ("defi_exploits", "threat_intel"),
     "scam": ("scam_patterns", "known_scams"),
+    "education": ("coding_knowledge", "threat_intel"),
 }
 
 # Default category per known source — used by ``normalize_incident`` when a raw
@@ -63,6 +64,14 @@ INCIDENT_CATEGORY_BY_SOURCE: dict[str, str] = {
     "metamask_eth_phishing_detect": "scam",
     "defihacklabs_incidents": "exploit",
     "ethereum_labels_0x406": "scam",
+    # Crypto documentation / knowledge sources (2026-08-14) — category
+    # "education" maps to coding_knowledge + threat_intel. Raw markdown /
+    # RST / AsciiDoc files fetched from stable unauthenticated raw URLs.
+    "consensys_best_practices": "education",
+    "not_so_smart_contracts": "education",
+    "smart_contract_vulnerabilities": "education",
+    "solidity_security_considerations": "education",
+    "openzeppelin_upgradeable_docs": "education",
 }
 
 # Dedup counter keys returned in sweep summaries (distinguish dup levels).
