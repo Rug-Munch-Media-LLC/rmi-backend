@@ -14,17 +14,20 @@ Split from monolithic x402_advanced_tools.py into:
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.routers.x402_advanced_tools.cache import get_cached, invalidate_cache, set_cached
 from app.routers.x402_advanced_tools.confidence import compute_confidence
+from app.routers.x402_advanced_tools.gate import require_x402_advanced_payment
 from app.routers.x402_advanced_tools.history import token_history
 from app.routers.x402_advanced_tools.models import AddressRequest, HistoryRequest, NarrativeRequest
 from app.routers.x402_advanced_tools.narrative import narrative_engine
 from app.routers.x402_advanced_tools.rug_probability import rug_probability
 from app.routers.x402_advanced_tools.stream import sse_alert_stream
 
-router = APIRouter()
+# Fail-closed payment gate (audit F-03): advanced tools at /api/v1/x402/*
+# require a valid x402 payment proof or an explicit admin API key.
+router = APIRouter(dependencies=[Depends(require_x402_advanced_payment)])
 
 # Register routes
 router.add_api_route("/stream/alerts", sse_alert_stream, methods=["GET"])

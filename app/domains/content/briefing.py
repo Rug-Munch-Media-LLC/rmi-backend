@@ -46,6 +46,16 @@ COINGECKO_API = "https://api.coingecko.com/api/v3"
 
 _BRIEFING_TITLE = "RMI Morning Brief"
 
+# Logical Telegram channels for the briefing micro-post (methodology §7):
+# the owner's main channel first, RMI Crypto News as fallback. Resolved via
+# ``telegram_transport.CHANNEL_IDS`` (env ``RMI_MAIN_CHANNEL_ID`` /
+# ``RMI_CRYPTONEWS_CHANNEL_ID``); when neither is configured the step is
+# skipped and logged — it never raises.
+BRIEFING_TELEGRAM_CHANNELS = ("main_channel", "rmicryptonews")
+
+# Telegram soft limit is 4096 chars; keep the compact briefing under it.
+BRIEFING_TELEGRAM_LIMIT = 3900
+
 # Token budget for the LLM briefing call. The local llama.cpp runs ~7 tok/s and
 # ``ai_router.chat_completion`` has a 120s httpx timeout — a 2048-token request
 # would take ≈5min and time out. A Morning Brief is short prose, so 512 tokens
@@ -485,30 +495,40 @@ async def draft_briefing(context: dict[str, Any], *, writer: WriterCallable | No
 
 
 def _numbers_in(text: str) -> set[float]:
-    """Normalized numeric values (money + percent) found in ``text``."""
+    """Normalized numeric values (money + percent) found in ``text``.
+
+    Values are rounded to one decimal place — the coarsest precision the
+    briefing display formats at (percentages render as ``▲0.5%``) — so a
+    displayed value always matches the raw context value it came from
+    (e.g. raw ``0.5051345496638839`` → displayed ``▲0.5%`` → ``0.5``).
+    """
     values: set[float] = set()
     for m in _MONEY_RE.finditer(text):
         raw, suffix = m.group(1), m.group(2)
         with suppress(ValueError):
-            values.add(round(float(raw.replace(",", "")) * {"K": 1e3, "M": 1e6, "B": 1e9}.get(suffix.upper(), 1.0), 4))
+            values.add(round(float(raw.replace(",", "")) * {"K": 1e3, "M": 1e6, "B": 1e9}.get(suffix.upper(), 1.0), 1))
     for m in _PCT_RE.finditer(text):
         with suppress(ValueError):
-            values.add(round(float(m.group(1)), 4))
+            values.add(round(float(m.group(1)), 1))
     return values
 
 
 def _context_grounding(context: dict[str, Any]) -> set[float]:
     """Every numeric value present anywhere in the context (the grounding set).
 
-    Includes bare decimal numbers (e.g. market prices stored as floats) plus
-    money/percent values inside free-text fields. This set is only ever used
+    Includes bare decimal numbers (e.g. market prices stored as floats or
+    numeric strings — CoinGecko returns ``usd_24h_change`` as a string) plus
+    money/percent values inside free-text fields. All values are normalized
+    to one decimal place, matching the display precision of the draft, so a
+    correctly-formatted metric is never flagged. This set is only ever used
     as the *allowed* set — it is deliberately generous.
     """
     texts: list[str] = []
     market = context.get("market") or {}
     for v in market.values():
-        if isinstance(v, (int, float)):
-            texts.append(str(v))
+        if v is None or v == "":
+            continue
+        texts.append(str(v))
     for key in ("top_stories", "movers", "rug_watch", "whale_flows"):
         for item in context.get(key) or []:
             if isinstance(item, dict):
@@ -520,7 +540,7 @@ def _context_grounding(context: dict[str, Any]) -> set[float]:
         grounded |= _numbers_in(t)
         for m in re.finditer(r"\d+(?:\.\d+)?", t):
             with suppress(ValueError):
-                grounded.add(round(float(m.group(0)), 4))
+                grounded.add(round(float(m.group(0)), 1))
     return grounded
 
 
@@ -555,12 +575,105 @@ def review_briefing(draft: str, context: dict[str, Any]) -> dict[str, Any]:
 # ── Publish ─────────────────────────────────────────────────────────────────
 
 
-async def publish_briefing(draft: str) -> dict[str, Any]:
-    """Publish the briefing via Ghost ``create_post`` (post_type="briefing")."""
+async def publish_briefing(
+    draft: str,
+    *,
+    now: datetime | None = None,
+    tags: list[str] | None = None,
+) -> dict[str, Any]:
+    """Publish the briefing via Ghost ``create_post`` (post_type="briefing").
+
+    The Ghost post is titled ``"RMI Morning Brief — {date}"`` (methodology §2),
+    the drafted body is the post content, and ``tags`` (default ``["briefing"]``)
+    are attached on top of the auto-added ``briefing`` tag. ``now`` is
+    injectable for deterministic titles (tests / scheduled runs).
+
+    Returns the Ghost post ``{id, url, ...}`` on success or an
+    ``{"error": ...}`` dict on failure — it never raises (``create_post`` is
+    already fail-open; the session cookie or network may be unavailable).
+    """
     from app.content_platform import create_post
 
+    stamp = (now or datetime.now(UTC)).strftime("%A, %B %d, %Y")
     return await create_post(
         content=draft,
         post_type="briefing",
-        title=f"{_BRIEFING_TITLE} — {datetime.now(UTC).strftime('%A, %B %d, %Y')}",
+        title=f"{_BRIEFING_TITLE} — {stamp}",
+        tags=tags or ["briefing"],
     )
+
+
+def _compact_briefing(draft: str, *, limit: int = BRIEFING_TELEGRAM_LIMIT) -> str:
+    """Compact the briefing for Telegram: head + "The Take" + footer.
+
+    The full draft can exceed Telegram's 4096-char soft limit. The compact
+    version keeps the opening sections (Market Snapshot / movers / rug watch),
+    the "The Take" verdict, and the bot footer — dropping the middle stories.
+    Short drafts pass through unchanged.
+    """
+    text = (draft or "").strip()
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    head_limit = int(limit * 0.7)
+    head = text[:head_limit].rstrip()
+    take = ""
+    for marker in ("🧠 The Take", "The Take"):
+        idx = text.rfind(marker)
+        if idx > len(head):
+            take = text[idx:].strip()
+            break
+    footer = "🔍 RugMunch Bot · /scan any address · rugmunch.io"
+    if take:
+        return f"{head}\n\n…\n\n{take}\n\n{footer}"[:limit]
+    return f"{head}\n\n…\n\n{footer}"[:limit]
+
+
+async def publish_briefing_telegram(
+    draft: str,
+    *,
+    client: Any | None = None,
+    channel_ids: dict[str, int | str | None] | None = None,
+) -> dict[str, Any]:
+    """Post a compact briefing to the news/main Telegram channel (optional).
+
+    Resolves the target chat id from ``channel_ids`` (default: the transport's
+    ``CHANNEL_IDS``, env-driven): ``main_channel`` first, ``rmicryptonews`` as
+    fallback. When neither channel is configured the step is skipped and
+    logged — this function never raises. ``client`` is injectable (the
+    headless client) so tests can capture the send without network.
+
+    Returns ``{"sent", "skipped", "errors"}`` (plus ``reason="no_chat_id"``
+    when skipped).
+    """
+    if channel_ids is None:
+        from app.domains.alerts.telegram_transport import CHANNEL_IDS
+
+        channel_ids = CHANNEL_IDS
+    chat_id = next(
+        (channel_ids.get(c) for c in BRIEFING_TELEGRAM_CHANNELS if channel_ids.get(c) is not None),
+        None,
+    )
+    if chat_id is None:
+        logger.warning(
+            "briefing_telegram_skipped reason=no_chat_id channels=%s",
+            list(BRIEFING_TELEGRAM_CHANNELS),
+        )
+        return {"sent": 0, "skipped": 1, "errors": [], "reason": "no_chat_id"}
+    try:
+        transport: Any
+        if client is None:
+            from app.domains.telegram.headless import get_headless_client
+
+            transport = await get_headless_client()
+        else:
+            transport = client
+        ok = await transport.send_message(chat_id, _compact_briefing(draft), parse_mode=None)
+    except Exception as e:  # fail-open: a broken transport never crashes the run
+        logger.warning("briefing_telegram_send_failed err=%s", str(e)[:160])
+        return {"sent": 0, "skipped": 0, "errors": [str(e)[:200]]}
+    if ok:
+        return {"sent": 1, "skipped": 0, "errors": []}
+    logger.warning("briefing_telegram_send_returned_false chat_id=%s", chat_id)
+    return {"sent": 0, "skipped": 0, "errors": ["send_message returned False"]}

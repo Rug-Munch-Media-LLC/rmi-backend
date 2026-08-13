@@ -13,16 +13,19 @@ from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.errors import AppError, ValidationError
 from app.core.logging import get_logger
+from app.routers.x402_advanced_tools.gate import require_x402_advanced_payment
 
 logger = get_logger("x402.premium")
 
-router = APIRouter()
+# Fail-closed payment gate (audit F-03): premium tools at /api/v1/x402/*
+# require a valid x402 payment proof or an explicit admin API key.
+router = APIRouter(dependencies=[Depends(require_x402_advanced_payment)])
 
 # ═══════════════════════════════════════════════════════════
 # Request Models

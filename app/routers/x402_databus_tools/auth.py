@@ -10,6 +10,7 @@ import json
 import os
 from typing import TYPE_CHECKING, Any
 
+from app.config import settings
 from app.core.errors import PaymentRequiredError
 from app.core.logging import get_logger
 from app.routers.x402_databus_tools.pricing import X402_TOOL_PRICING
@@ -133,35 +134,69 @@ async def verify_x402_payment(request: Request, tool_id: str, price_usd: float) 
             logger.info(f"Idempotent x402 payment hit for key: {idempotency_key}")
             return json.loads(cached_result)
 
-    # Verify via x402 enforcement
+    # Verify via x402 enforcement — FAIL CLOSED (audit F-01).
+    #
+    # verify_payment() takes a parsed payload dict, NOT (request, tool_id,
+    # price). The old call with the wrong signature raised TypeError on every
+    # request, which the broad except below converted into paid: True — any
+    # X-PAYMENT header value bought free access to all 39 databus tools.
+    # Now: any missing/invalid/erroring proof raises PaymentRequiredError
+    # (402). paid: True is returned ONLY when verification confirms payment.
+    #
+    # Explicit offline/dev mode: settings.pry_x402_offline. When enabled —
+    # and only then — a non-empty X-PAYMENT header is accepted without
+    # on-chain verification. Documented dev escape hatch; never prod.
+    if settings.pry_x402_offline:
+        logger.warning(
+            "x402 offline mode ENABLED (pry_x402_offline=true): accepting X-PAYMENT header without verification"
+        )
+        return {"paid": True, "tx": "x402_offline_mode", "amount": price_usd}
+
     try:
-        from app.routers.x402_enforcement import verify_payment
+        from app.routers.x402_enforcement import parse_x_pay_header, verify_payment
 
-        result = await verify_payment(request, tool_id, price_usd)
-        if result.get("verified"):
-            payment_info = {"paid": True, "tx": result.get("tx_hash", ""), "amount": price_usd}
+        payload = parse_x_pay_header(x402_payment)
+        if not payload:
+            # Garbage / unparseable payment proof -> fail closed.
+            raise PaymentRequiredError(
+                "invalid_payment_proof",
+                context={"tool_id": tool_id, "price_usd": price_usd},
+            )
 
-            # Cache successful payment for idempotency (24h TTL)
-            if idempotency_key:
-                import hashlib
-                import json
+        result = await verify_payment(payload)
+        if not result.get("verified"):
+            logger.warning(f"x402 payment verification failed for tool={tool_id}: {result.get('reason', 'unverified')}")
+            raise PaymentRequiredError(
+                "payment_verification_failed",
+                context={"tool_id": tool_id, "reason": result.get("reason", "unverified")},
+            )
 
-                import redis.asyncio as redis_lib
+        payment_info = {"paid": True, "tx": result.get("tx_hash", ""), "amount": price_usd}
 
-                r = redis_lib.Redis(
-                    host=os.getenv("REDIS_HOST", "localhost"),
-                    port=int(os.getenv("REDIS_PORT", "6379")),
-                    password=os.getenv("REDIS_PASSWORD", ""),
-                    decode_responses=True,
-                )
-                idem_hash = hashlib.sha256(f"{idempotency_key}:{tool_id}".encode()).hexdigest()
-                await r.setex(f"x402:idempotent:{idem_hash}", 86400, json.dumps(payment_info))
+        # Cache successful payment for idempotency (24h TTL)
+        if idempotency_key:
+            import hashlib
+            import json
 
-            return payment_info
+            import redis.asyncio as redis_lib
+
+            r = redis_lib.Redis(
+                host=os.getenv("REDIS_HOST", "localhost"),
+                port=int(os.getenv("REDIS_PORT", "6379")),
+                password=os.getenv("REDIS_PASSWORD", ""),
+                decode_responses=True,
+            )
+            idem_hash = hashlib.sha256(f"{idempotency_key}:{tool_id}".encode()).hexdigest()
+            await r.setex(f"x402:idempotent:{idem_hash}", 86400, json.dumps(payment_info))
+
+        return payment_info
+    except PaymentRequiredError:
+        raise
     except (ImportError, Exception) as e:
-        logger.debug(f"x402 enforcement verification: {e}")
-        # If enforcement not available, accept payment header as-is for now
-        # In production, this would be stricter
-        return {"paid": True, "tx": "x402_verified", "amount": price_usd}
-
-    raise PaymentRequiredError("payment_verification_failed")
+        # FAIL CLOSED: a verification error (wrong signature, verifier
+        # exception, network failure) must NEVER yield paid=True.
+        logger.warning(f"x402 payment verification error for tool={tool_id}: {e}")
+        raise PaymentRequiredError(
+            "payment_verification_failed",
+            context={"tool_id": tool_id, "error": str(e)[:200]},
+        ) from e
