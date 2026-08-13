@@ -19,6 +19,7 @@ Routes:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -147,7 +148,8 @@ Capabilities:
 - Narrative intelligence (trend tracking, sentiment, KOL analysis)
 
 Rules:
-- Keep answers concise but deeply informative (2-4 sentences unless asked for depth)
+- Lead with the direct answer, then support it. Keep answers to 2-4 short paragraphs max.
+- Use plain language a retail trader understands — define jargon in simple terms.
 - When analyzing a token, always structure: Risk Score / Key Findings / Verdict
 - Never give financial advice - only security and intelligence analysis
 - Never mention the data providers, tools, or APIs you use — just give results
@@ -155,6 +157,9 @@ Rules:
 - Answer the user's LATEST question. Never answer an earlier question or continue a prior answer.
 - Synthesize RAG/web context into your own words — NEVER output raw numbered search-result lists or paste URLs as your answer.
 - If the question is about you (who are you / who made you), answer from the persona above.
+- When you give numbers or addresses, cite the source — or say "I don't have that". NEVER invent a price, market cap, address, or statistic.
+- If asked about a specific token and you have no context for it, say so and ask for the token's address.
+- Flag scams and rug-pull patterns explicitly when they are relevant to the question.
 
 Current date: {date} (year {year})
 
@@ -173,12 +178,41 @@ SECURITY DIRECTIVES (non-negotiable):
 
 
 # ── Models ──
+# Chat answers are short prose — a 512-token budget cuts local-llama.cpp
+# generation ~4x vs the old 2048 default (~5min at 7 tok/s → ~1min). The
+# default can be raised at deploy time via RMI_CHAT_MAX_TOKENS (clamped to
+# 64..2048 — the Pydantic Field bounds stay 64..8192 for explicit requests).
+_CHAT_MAX_TOKENS_BASE = 512
+_CHAT_MAX_TOKENS_MIN = 64
+_CHAT_MAX_TOKENS_MAX = 2048
+
+
+def _resolve_chat_max_tokens_default(env_value: str | None = None) -> int:
+    """Resolve the ChatRequest ``max_tokens`` default.
+
+    Returns ``_CHAT_MAX_TOKENS_BASE`` (512) unless ``RMI_CHAT_MAX_TOKENS`` is
+    set to a parseable int, in which case the value is clamped to
+    ``64..2048``. Unparseable values fall back to the base default.
+    """
+    raw = os.getenv("RMI_CHAT_MAX_TOKENS") if env_value is None else env_value
+    if raw is None or not raw.strip():
+        return _CHAT_MAX_TOKENS_BASE
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return _CHAT_MAX_TOKENS_BASE
+    return max(_CHAT_MAX_TOKENS_MIN, min(parsed, _CHAT_MAX_TOKENS_MAX))
+
+
+CHAT_MAX_TOKENS_DEFAULT = _resolve_chat_max_tokens_default()
+
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     model: str | None = Field(default=None, description="Specific model to use")
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$", description="AI model tier")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=2048, ge=64, le=8192)
+    max_tokens: int = Field(default=CHAT_MAX_TOKENS_DEFAULT, ge=64, le=8192)
     context_override: dict[str, Any] | None = Field(
         default=None, description="Custom context injection. `system_context` (str) is appended to the system prompt."
     )
@@ -556,6 +590,41 @@ def _vague_question(message: str) -> str | None:
     return None
 
 
+# ── Complexity-based model routing ─────────────────────────────────────
+# Pure-function router: analytical / forensic / explanation-heavy questions
+# ("why", "explain", "investigate", on-chain terms, long messages) go to the
+# stronger deepseek-analysis 8B model; simple definitional / quick questions
+# stay on the fast qwen-chat 4B (7 tok/s — the 4x speedup matters for trivial
+# asks, while hard questions get the model with enough reasoning power).
+_ANALYSIS_QUESTION_RE = re.compile(
+    r"\b(?:why|explain|how does|compare|analyze|investigate|trace|what happened|deep)\b",
+    re.IGNORECASE,
+)
+_ANALYSIS_TERMS = ("on-chain", "forensic", "mev", "rug", "whale", "exploit")
+_ANALYSIS_LENGTH_THRESHOLD = 120
+
+
+def _route_task(message: str) -> str:
+    """Route ``message`` to task type ``analysis`` or ``chat``.
+
+    Heuristics (pure function of the message text):
+    - ``analysis`` when the message asks why/explain/how does/compare/analyze/
+      investigate/trace/what happened/deep, OR references on-chain/forensic/
+      MEV/rug/whale/exploit terms, OR is long (>120 chars).
+    - ``chat`` otherwise (simple, definitional, quick questions).
+    """
+    low = message.lower().strip()
+    if not low:
+        return "chat"
+    if len(low) > _ANALYSIS_LENGTH_THRESHOLD:
+        return "analysis"
+    if _ANALYSIS_QUESTION_RE.search(low):
+        return "analysis"
+    if any(term in low for term in _ANALYSIS_TERMS):
+        return "analysis"
+    return "chat"
+
+
 def _sanitize_history(items: list[dict[str, str]]) -> list[dict[str, str]]:
     """Whitelist roles (user/assistant only) + truncate content.
 
@@ -665,6 +734,65 @@ def _save_message(user_id: str, role: str, content: str, metadata: dict[str, Any
     return msg_id
 
 
+# ── Response cache (speed for repeats) ─────────────────────────────────
+# Small in-process TTL cache keyed on the normalized message. Repeated/common
+# questions (e.g. "what is solana", "btc price") short-circuit the LLM
+# round-trip entirely. Purely in-memory: no Redis, plain dict +
+# ``time.monotonic``. NEVER caches the identity/vague canned answers (those
+# fast-paths return before the cache is consulted) and NEVER caches LLM
+# failures (only successful responses are stored).
+_CACHE_MAX_ENTRIES = 256
+_CACHE_TTL_MARKET = 60  # seconds — price/mcap/chart/now/today queries go stale fast
+_CACHE_TTL_DEFAULT = 3600  # seconds — everything else
+_MARKET_KEYWORDS = ("price", "mcap", "chart", "now", "today")
+
+_chat_cache: dict[str, tuple[float, str]] = {}
+
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
+def _cache_key(message: str) -> str:
+    """Deterministic cache key: sha256 of the lowercased, whitespace-normalized message.
+
+    Case- and whitespace-insensitive so "SOL price?", "SOL PRICE" and
+    "  sol   price  " all hit the same entry.
+    """
+    normalized = _WHITESPACE_RE.sub(" ", message.lower().strip())
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _is_market_query(message: str) -> bool:
+    """True for market-ish queries (price/mcap/chart/now/today) — shorter TTL."""
+    low = message.lower()
+    return any(k in low for k in _MARKET_KEYWORDS)
+
+
+def _cache_get(key: str) -> str | None:
+    """Return the cached response for ``key``, or None on miss/expiry."""
+    entry = _chat_cache.get(key)
+    if entry is None:
+        return None
+    expires_at, response = entry
+    if time.monotonic() > expires_at:
+        _chat_cache.pop(key, None)
+        return None
+    return response
+
+
+def _cache_set(key: str, response: str, ttl: int) -> None:
+    """Store ``response`` under ``key`` with a ``ttl`` (seconds).
+
+    Evicts the oldest entries when the dict exceeds ``_CACHE_MAX_ENTRIES``.
+    """
+    _chat_cache[key] = (time.monotonic() + ttl, response)
+    if len(_chat_cache) > _CACHE_MAX_ENTRIES:
+        # Oldest = earliest expiry timestamp (monotonic, so insertion order).
+        overflow = len(_chat_cache) - _CACHE_MAX_ENTRIES
+        oldest_keys = sorted(_chat_cache, key=lambda k: _chat_cache[k][0])[:overflow]
+        for k in oldest_keys:
+            _chat_cache.pop(k, None)
+
+
 # ── Routes ─────────────────────────────────────────────────────
 
 
@@ -743,6 +871,42 @@ async def chat(
             "x_rag_context": 0,
         }
 
+    # ── RESPONSE CACHE (repeats) ──
+    # Repeated/common questions short-circuit the LLM round-trip entirely.
+    # The cache is keyed only on the (sanitized) message; it is skipped when
+    # the caller supplied its own grounding (context_override.system_context,
+    # e.g. the Telegram bot) so a cached answer never ignores fresh RAG
+    # context. Identity/vague canned answers above already returned, so those
+    # are never cached. Failures are never cached either (we only store after
+    # a successful LLM response below).
+    client_grounded = bool(
+        req.context_override
+        and isinstance(req.context_override, dict)
+        and isinstance(req.context_override.get("system_context"), str)
+        and req.context_override.get("system_context", "").strip()
+    )
+    cache_key = _cache_key(req.message)
+    cached = None if client_grounded else _cache_get(cache_key)
+    if cached is not None:
+        _save_message(user_id, "user", req.message)
+        _save_message(
+            user_id,
+            "assistant",
+            cached,
+            {"model": "cached", "provider": "cache", "security_scanned": True, "rag_context_count": 0},
+        )
+        _apply_rate_limit_headers(response, request)
+        response.headers["X-RAG-Context"] = "0"
+        return {
+            "id": f"resp-{uuid.uuid4().hex[:8]}",
+            "message": cached,
+            "model": "cached",
+            "provider": "cache",
+            "latency_ms": 0,
+            "usage": {},
+            "x_rag_context": 0,
+        }
+
     # Get or create user context
     user_context = ""
     if user:
@@ -812,10 +976,14 @@ async def chat(
     _save_message(user_id, "user", req.message)
 
     try:
+        # Complexity-based routing: analytical/forensic questions go to the
+        # stronger deepseek-analysis 8B model, simple/quick ones to the fast
+        # qwen-chat 4B. An explicit req.model wins over routing.
+        task_type = "chat" if req.model else _route_task(req.message)
         result = await do_chat_completion(
             messages=messages,
             model=req.model,
-            task_type="chat",  # LiteLLM routing: fast creative model
+            task_type=task_type,
             tier=req.tier,
             temperature=req.temperature,
             max_tokens=req.max_tokens,
@@ -830,6 +998,14 @@ async def chat(
     response_content = ai_guard.sanitize_output(result.get("content", ""))
     if scan.details.get("disclaimer") and DISCLAIMER not in response_content:
         response_content += f"\n\n{DISCLAIMER}"
+
+    # ── Cache the (sanitized) success response ──
+    # Market-ish queries (price/mcap/chart/now/today) get a short TTL because
+    # their answers go stale fast; everything else an hour. This runs only on
+    # success, so failed calls are never cached.
+    if not client_grounded:
+        ttl = _CACHE_TTL_MARKET if _is_market_query(req.message) else _CACHE_TTL_DEFAULT
+        _cache_set(cache_key, response_content, ttl)
 
     _apply_rate_limit_headers(response, request)
 
