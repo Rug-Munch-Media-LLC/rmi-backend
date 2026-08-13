@@ -34,6 +34,8 @@ async def list_courses() -> dict[str, Any]:
                 "badge_reward": c["badge_reward"],
                 "color": c["color"],
                 "icon": c["icon"],
+                "image": c.get("image"),
+                "image_alt": c.get("image_alt"),
                 "modules": [
                     {
                         "id": m["id"],

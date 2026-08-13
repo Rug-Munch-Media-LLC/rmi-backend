@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -81,11 +81,18 @@ def prune_plan(
     remove_dead: bool = True,
     keep_stale: bool = True,
     min_verified: int | None = None,
+    stale_after_days: int | None = None,
 ) -> dict[str, Any]:
     """Build a ``{keep, remove, counts}`` pruning plan.
 
     - ``remove_dead=True`` drops every DEAD source.
     - ``keep_stale=True`` (default) retains STALE sources; ``False`` drops them.
+    - ``stale_after_days`` (optional): when set, STALE sources whose
+      ``last_good`` timestamp is older than N days are treated as dead and
+      removed, even when ``keep_stale=True``. ``None`` (default) keeps the
+      current behavior (STALE sources are never age-dropped). STALE sources
+      with a missing/unparseable ``last_good`` are kept (fail-open — we never
+      drop a source we don't have evidence about).
     - Unknown sources are always kept (fail-open).
     - ``min_verified`` raises the keep-floor above the default of 20 sources:
       if removing sources would leave fewer than ``floor = max(20, min_verified)``
@@ -95,10 +102,34 @@ def prune_plan(
     """
     buckets = classify_sources(sources, status)
 
+    stale: list[dict[str, Any]] = buckets["stale"]
+    stale_to_drop: list[dict[str, Any]] = []
+    if stale_after_days is not None:
+        cutoff = datetime.now(UTC) - timedelta(days=stale_after_days)
+        recent_stale: list[dict[str, Any]] = []
+        for source in stale:
+            entry = status.get(source.get("id"))
+            last_good = entry.get("last_good") if isinstance(entry, dict) else None
+            if last_good is None:
+                recent_stale.append(source)  # fail-open: no evidence → keep
+                continue
+            try:
+                parsed = datetime.fromisoformat(last_good)
+            except (TypeError, ValueError):
+                recent_stale.append(source)  # unparseable → fail-open keep
+                continue
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=UTC)
+            if parsed < cutoff:
+                stale_to_drop.append(source)
+            else:
+                recent_stale.append(source)
+        stale = recent_stale
+
     keep: list[dict[str, Any]] = []
     keep.extend(buckets["active"])
     if keep_stale:
-        keep.extend(buckets["stale"])
+        keep.extend(stale)
     keep.extend(buckets["unknown"])
     if not remove_dead:
         keep.extend(buckets["dead"])
@@ -107,7 +138,8 @@ def prune_plan(
     if remove_dead:
         remove.extend(buckets["dead"])
     if not keep_stale:
-        remove.extend(buckets["stale"])
+        remove.extend(stale)
+    remove.extend(stale_to_drop)
 
     floor = max(DEFAULT_FLOOR, min_verified) if min_verified is not None else DEFAULT_FLOOR
     if len(keep) < floor and remove:

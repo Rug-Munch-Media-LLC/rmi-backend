@@ -46,6 +46,29 @@ COINGECKO_API = "https://api.coingecko.com/api/v3"
 
 _BRIEFING_TITLE = "RMI Morning Brief"
 
+# Token budget for the LLM briefing call. The local llama.cpp runs ~7 tok/s and
+# ``ai_router.chat_completion`` has a 120s httpx timeout — a 2048-token request
+# would take ≈5min and time out. A Morning Brief is short prose, so 512 tokens
+# is the default; operators can raise it with ``RMI_BRIEFING_MAX_TOKENS``.
+DEFAULT_BRIEFING_MAX_TOKENS = 512
+
+
+def _briefing_max_tokens() -> int:
+    """Token budget for the briefing LLM call (env-overridable, default 512).
+
+    Reads ``RMI_BRIEFING_MAX_TOKENS``; any missing/unparseable/non-positive
+    value falls back to :data:`DEFAULT_BRIEFING_MAX_TOKENS`.
+    """
+    raw = os.getenv("RMI_BRIEFING_MAX_TOKENS")
+    if raw is None:
+        return DEFAULT_BRIEFING_MAX_TOKENS
+    try:
+        value = int(raw.strip())
+    except (TypeError, ValueError):
+        return DEFAULT_BRIEFING_MAX_TOKENS
+    return max(1, value)
+
+
 # System prompt for the LLM writer (methodology §3 skeleton + §4 voice +
 # grounding rules). Mirrors the RMI Terminal grounding style (chat.py) with
 # the briefing's non-negotiable gates: cite-or-omit, zero hype, addresses on
@@ -304,7 +327,10 @@ async def llm_writer(
     the LLM.
 
     ``completion`` is injectable so tests can assert on the messages without
-    hitting the network.
+    hitting the network. ``max_tokens`` is capped at
+    :func:`_briefing_max_tokens` (default 512, env ``RMI_BRIEFING_MAX_TOKENS``)
+    so the call finishes inside ``ai_router.chat_completion``'s 120s httpx
+    timeout on the ~7 tok/s local llama.cpp.
     """
     completion_call: CompletionCallable
     if completion is None:
@@ -329,7 +355,7 @@ async def llm_writer(
             model=model or "deepseek-analysis",
             task_type="analysis",
             temperature=0.6,
-            max_tokens=2048,
+            max_tokens=_briefing_max_tokens(),
         )
     except Exception as e:  # fail-open: never block publishing on the LLM
         logger.warning("briefing_llm_writer_failed err=%s", str(e)[:160])
