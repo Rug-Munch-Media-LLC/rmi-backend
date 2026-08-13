@@ -1,0 +1,62 @@
+"""Data models for Telegram channel news ingestion."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+
+@dataclass(slots=True)
+class ChannelMessage:
+    """A single message read from a Telegram channel.
+
+    Attributes:
+        channel: Display name of the channel (title), if known.
+        channel_username: Public @username without the leading ``@``.
+        message_id: Telegram message id (unique within the channel).
+        text: Message text (empty for media-only posts).
+        media_type: ``text``, ``photo``, ``video``, ``document``, ... or
+            ``media`` when the exact type is unknown.
+        posted_at: Message send time (aware datetime when available).
+        forwarded_from: Human/peer id the message was forwarded from, if any.
+        views: Post view count when the channel exposes it.
+        reactions: Emoji/document-id → count map when present.
+    """
+
+    channel: str
+    channel_username: str
+    message_id: int
+    text: str = ""
+    media_type: str = "text"
+    posted_at: datetime | None = None
+    forwarded_from: str | None = None
+    views: int | None = None
+    reactions: dict[str, int] | None = None
+
+
+@dataclass(slots=True)
+class NewsArticle:
+    """A normalized news item derived from a channel message.
+
+    Attributes:
+        title: First line of the cleaned message (truncated to 120 chars).
+        body: Full cleaned message text.
+        source_channel: Channel name / username the article came from.
+        source_url: Canonical ``https://t.me/<username>/<message_id>`` URL.
+        category: News category (from the source config).
+        posted_at: Original message time.
+        content_hash: SHA-256 content fingerprint (``app.rag.dedup.content_hash``).
+        entities: Extracted crypto entities ($SYMBOL, EVM, Solana addresses).
+    """
+
+    title: str
+    body: str
+    source_channel: str
+    source_url: str
+    category: str = ""
+    posted_at: datetime | None = None
+    content_hash: str = ""
+    entities: list[str] = field(default_factory=list)
