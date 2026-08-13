@@ -82,6 +82,29 @@ def _strip_think_tags(text: str) -> str:
     return cleaned.strip()
 
 
+# Degenerate-output guard: the local models can emit a bare markdown bullet
+# ("- "), empty output, or punctuation-only on vague, context-free questions.
+# Replace those with a helpful fallback instead of surfacing "- " to users.
+_FALLBACK_RESPONSE = (
+    "I couldn't find enough context to answer that. "
+    "Try pasting a token address or ticker ($SYMBOL), or ask about a specific "
+    "chain, wallet, or market event."
+)
+
+_DEGENERATE_RE = re.compile(r"^\s*[-*\u2022\u00b7\u2013\u2014]+\s*$")
+
+
+def _is_degenerate(text: str) -> bool:
+    """True when an LLM response carries no usable content."""
+    stripped = (text or "").strip()
+    if not stripped:
+        return True
+    if _DEGENERATE_RE.match(stripped):
+        return True
+    # No alphanumeric content at all (pure punctuation/symbols/emoji) — degenerate.
+    return not any(c.isalnum() for c in stripped)
+
+
 def _resolve_model(model: str | None, task_type: str | None) -> str:
     """Resolve to a LOCAL model name. Non-local names are coerced to default."""
     if model and model in LOCAL_MODEL_PORTS:
@@ -276,7 +299,8 @@ async def chat_completion(
                 provider="llama-direct",
             )
             if result:
-                result["content"] = _guard_output(result["content"])
+                content = _guard_output(result["content"])
+                result["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
                 return result
         except Exception as e:
             logger.warning("llama_direct_unreachable", model=resolved_model, error=str(e))
@@ -294,7 +318,8 @@ async def chat_completion(
                 provider="llama-direct-cross",
             )
             if result:
-                result["content"] = _guard_output(result["content"])
+                content = _guard_output(result["content"])
+                result["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
                 return result
         except Exception as e:
             logger.warning("llama_cross_unreachable", model=other, error=str(e))
