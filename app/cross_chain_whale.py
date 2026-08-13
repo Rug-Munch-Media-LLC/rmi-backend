@@ -587,7 +587,7 @@ class CrossChainWhaleTracker:
                 if jup_info:
                     report.token_symbol = jup_info[0].get("symbol", "???")
                     report.token_name = jup_info[0].get("name", "")
-            elif jup_info:
+            elif jup_info and isinstance(jup_info, dict):
                 report.token_symbol = jup_info.get("symbol", "???")
                 report.token_name = jup_info.get("name", "")
 

@@ -50,7 +50,7 @@ class SemanticCache:
     _instance: SemanticCache | None = None
 
     def __init__(self) -> None:
-        self._redis = None
+        self._redis: Any = None
         self._hits = 0
         self._misses = 0
 

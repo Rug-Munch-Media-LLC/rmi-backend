@@ -117,7 +117,7 @@ def score_confidence(
     entity_bonus = _score_entity_match(entity_matches, query)
     components["entity_bonus"] = round(entity_bonus, 2)
     if entity_bonus > 0.5:
-        details.append(f"Exact address/token match found: {', '.join(entity_matches[:3])}")
+        details.append(f"Exact address/token match found: {', '.join((entity_matches or [])[:3])}")
 
     # ── Composite Score ──────────────────────────────────────────
     composite = (

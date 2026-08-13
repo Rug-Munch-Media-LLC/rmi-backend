@@ -8,11 +8,11 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from app.core.shared_utils import is_valid_address
 from app.rug_pull_predictor import (
     RiskLevel,
     SignalResult,
     analyze,
-    is_valid_address,
     predict_rug_pull,
 )
 

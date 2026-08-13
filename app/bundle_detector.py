@@ -128,7 +128,7 @@ class BundleDetector:
 
     def _common_funder_signal(self, result: BundleDetection, txs: list[dict[str, Any]]) -> None:
         """Detect if multiple buyers were funded from the same source wallet."""
-        funder_counts = defaultdict(int)
+        funder_counts: defaultdict[str, int] = defaultdict(int)
         for tx in txs:
             funder = tx.get("from") or tx.get("signer")
             recipient = tx.get("to") or tx.get("recipient")
@@ -138,7 +138,7 @@ class BundleDetector:
         if not funder_counts:
             return
 
-        top_funder = max(funder_counts, key=funder_counts.get)
+        top_funder = max(funder_counts, key=lambda k: funder_counts[k])
         top_count = funder_counts[top_funder]
 
         result.common_funder_address = top_funder

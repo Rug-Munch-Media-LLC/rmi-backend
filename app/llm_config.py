@@ -28,7 +28,7 @@ OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 if os.getenv("LLM_API_KEY_B64"):
     with contextlib.suppress(Exception):
-        os.environ["LLM_API_KEY"] = base64.b64decode(os.getenv("LLM_API_KEY_B64")).decode()
+        os.environ["LLM_API_KEY"] = base64.b64decode(os.getenv("LLM_API_KEY_B64") or "").decode()
 
 LLM_API_KEY = os.getenv("LLM_API_KEY", OPENROUTER_KEY)
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")  # optional, for direct NVIDIA access

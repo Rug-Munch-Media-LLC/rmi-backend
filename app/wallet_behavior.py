@@ -220,7 +220,7 @@ def compute_fingerprint(wallet_data: dict[str, Any]) -> WalletFingerprint:
     # ── Token preferences ──
     for token in tokens_held:
         if isinstance(token, dict):
-            ttype = token.get("type", token.get("category", "unknown"))
+            ttype = token.get("type") or token.get("category") or "unknown"
             fp.token_types[ttype] = fp.token_types.get(ttype, 0) + 1
 
     # ── Risk indicators from risk_factors ──

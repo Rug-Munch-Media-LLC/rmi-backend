@@ -74,7 +74,7 @@ class BlocklistManager:
         self.local_blocklist: set[str] = set()
         self.local_whitelist: set[str] = set()
         self.darkweb_alerts: dict[str, datetime] = {}
-        self.last_updated = None
+        self.last_updated: str | None = None
         self._loaded = False
 
     def load(self) -> bool:

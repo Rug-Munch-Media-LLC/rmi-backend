@@ -37,7 +37,7 @@ async def feed_wallet_transactions(wallet: str, limit: int = 50) -> int:
         return 0
 
     # Get parsed transactions (batch)
-    tx_hashes = [s.get("signature") for s in sigs[:25] if s.get("signature")]
+    tx_hashes = [sig for sig in (s.get("signature") for s in sigs[:25]) if sig]
     txs = await cache.get("transactions_batch", *tx_hashes[:5])
     if txs is None:
         txs = await client.get_transactions(tx_hashes[:25])

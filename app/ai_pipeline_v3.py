@@ -43,7 +43,8 @@ except (ConnectionError, OSError):
 def _cache_get(key: str) -> str | None:
     if REDIS_AVAILABLE:
         try:
-            return _redis.get(f"rmi:ai:{key}")
+            value = _redis.get(f"rmi:ai:{key}")
+            return value.decode() if value is not None else None
         except (ConnectionError, OSError):
             pass
     return None

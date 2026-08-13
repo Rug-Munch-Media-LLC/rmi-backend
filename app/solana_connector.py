@@ -17,7 +17,9 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 try:
-    from solana.rpc.api import Client, Pubkey, Signature
+    from solana.rpc.api import Client
+    from solders.pubkey import Pubkey
+    from solders.signature import Signature
 
     SOLANA_AVAILABLE = True
     logger.info("solana-py SDK imported successfully")
@@ -100,7 +102,7 @@ class SolanaClient:
             return self._stub_account(address)
 
         try:
-            pubkey = Pubkey(address)
+            pubkey = Pubkey.from_string(address)
             response = self.client.get_account_info(pubkey)
 
             if response.value is None:
@@ -125,7 +127,7 @@ class SolanaClient:
             return 0
 
         try:
-            pubkey = Pubkey(address)
+            pubkey = Pubkey.from_string(address)
             response = self.client.get_balance(pubkey)
             return response.value
         except Exception as e:

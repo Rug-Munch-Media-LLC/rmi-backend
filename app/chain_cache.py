@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import OrderedDict
+from dataclasses import asdict
 from typing import Any
 
 from app.core.logging import get_logger
@@ -109,7 +110,7 @@ class ChainCache:
             for addr in HOT_WALLETS:
                 match = registry.classify_address(addr)
                 if match and match.entity_type != "unknown":
-                    await self.set("warm_entity", match.to_dict(), addr, ttl=600)
+                    await self.set("warm_entity", asdict(match), addr, ttl=600)
         except Exception as e:
             logger.debug(f"Entity warm skipped: {e}")
 

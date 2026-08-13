@@ -277,7 +277,7 @@ class AnalyticsEngine:
         widgets_data = []
         for widget in dashboard.widgets:
             metric = self._metrics.get(widget.metric_name)
-            data = {
+            data: dict[str, Any] = {
                 "widget_id": widget.widget_id,
                 "widget_type": widget.widget_type,
                 "title": widget.title,

@@ -18,9 +18,9 @@ logger = get_logger(__name__)
 
 # ── Paths ────────────────────────────────────────────────────
 
-CHARACTER_PATH = "/root/backend/assets/characters/detective-character.png"
-LOGO_PATH = "/root/backend/assets/logos/rugmunch-logo.jpg"
-OUTPUT_DIR = "/root/backend/assets/marketing_generated"
+CHARACTER_PATH = "/path/to/app/assets/characters/detective-character.png"
+LOGO_PATH = "/path/to/app/assets/logos/rugmunch-logo.jpg"
+OUTPUT_DIR = "/path/to/app/assets/marketing_generated"
 DROPBOX_DIR = os.path.expanduser("~/Dropbox/RMI Marketing Graphics")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -43,7 +43,7 @@ BRAND = {
 
 # ── 50+ Marketing Graphics Concepts ──────────────────────────
 
-GRAPHIC_CONCEPTS = [
+GRAPHIC_CONCEPTS: list[dict[str, Any]] = [
     # Feature Showcases (12)
     {
         "type": "feature",
@@ -411,7 +411,7 @@ def add_text_centered(img, text, position, font_size, color, bold=True) -> Any:
             if bold
             else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         )
-        font = ImageFont.truetype(font_path, font_size)
+        font: ImageFont.FreeTypeFont | ImageFont.ImageFont = ImageFont.truetype(font_path, font_size)
     except (ConnectionError, OSError, TimeoutError):
         font = ImageFont.load_default()
 

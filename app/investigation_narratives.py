@@ -28,7 +28,7 @@ OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 if os.getenv("LLM_API_KEY_B64"):
     import base64 as _b64
 
-    os.environ["LLM_API_KEY"] = _b64.b64decode(os.getenv("LLM_API_KEY_B64")).decode()
+    os.environ["LLM_API_KEY"] = _b64.b64decode(os.getenv("LLM_API_KEY_B64") or "").decode()
 LLM_API_KEY = os.getenv("LLM_API_KEY", OPENROUTER_KEY)
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
 AI_BASE = LLM_BASE_URL if LLM_API_KEY else "https://openrouter.ai/api/v1/chat/completions"

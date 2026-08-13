@@ -14,7 +14,7 @@ from telegram.constants import ParseMode
 
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import TIERS
-from app.domains.telegram.rugmunchbot.formatters import (  # type: ignore[attr-defined]  # PTB None-able fields
+from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     fmt_number,
     footer_links,

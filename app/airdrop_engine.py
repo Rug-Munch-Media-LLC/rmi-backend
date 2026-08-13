@@ -27,7 +27,9 @@ import os
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
+
+from eth_typing import ChecksumAddress
 
 from app.core.logging import get_logger
 from app.token_deployer import TokenDeployerFactory, TokenDeployment, get_storage
@@ -258,7 +260,7 @@ class SnapshotEngine:
             {
                 "fromBlock": max(0, block_number - 100000),  # Last ~100k blocks
                 "toBlock": block_number,
-                "address": token_address,
+                "address": cast("ChecksumAddress", token_address),
                 "topics": [transfer_topic],
             }
         )
@@ -322,26 +324,33 @@ class SnapshotEngine:
         from solders.pubkey import Pubkey
 
         client = Client(rpc_url)
+        from solana.rpc.types import MemcmpOpts
+
         mint = Pubkey.from_string(token_address)
 
-        # Get all token accounts for this mint
-        # TODO: installed solana-py lacks get_token_accounts_by_mint_json_parsed —
-        # must use get_program_accounts against the SPL Token program to enumerate
-        # all holders of a mint. Left as-is pending rework; would raise at runtime.
-        response = client.get_token_accounts_by_mint_json_parsed(mint, commitment="confirmed")
+        # Enumerate all token accounts for this mint via the SPL Token program
+        # (this solana-py version lacks get_token_accounts_by_mint_json_parsed).
+        SPL_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        response = client.get_program_accounts(
+            Pubkey.from_string(SPL_TOKEN_PROGRAM),
+            encoding="jsonParsed",
+            filters=[MemcmpOpts(offset=0, bytes=str(mint))],
+        )
 
         holders = []
         total_supply = 0
         excluded = set(excluded_addresses or [])
         min_amount = int(min_holdings)
 
-        for account in response["result"]["value"]:
+        for keyed in response.value:
             try:
-                parsed = account["account"]["data"]["parsed"]["info"]
-                owner = parsed["owner"]
-                amount = int(parsed["tokenAmount"]["amount"])
+                data = keyed.account.data
+                parsed = data.parsed if hasattr(data, "parsed") else {}
+                info = parsed.get("info", {}) if isinstance(parsed, dict) else {}
+                owner = info.get("owner")
+                amount = int((info.get("tokenAmount") or {}).get("amount", 0))
 
-                if amount >= min_amount and owner not in excluded:
+                if owner and amount >= min_amount and owner not in excluded:
                     holders.append(
                         AirdropRecipient(
                             address=owner,
@@ -350,7 +359,7 @@ class SnapshotEngine:
                         )
                     )
                     total_supply += amount
-            except (ConnectionError, OSError, TimeoutError):
+            except (ConnectionError, OSError, TimeoutError, KeyError, TypeError):
                 continue
 
         snapshot = AirdropSnapshot(
