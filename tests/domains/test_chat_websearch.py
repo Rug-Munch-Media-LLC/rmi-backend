@@ -3,9 +3,11 @@
 Covers ``app/core/web_search.py`` + the web-routing in ``app/routers/chat.py``:
   - ``searxng_search``: result mapping, fail-open on network/non-200/bad JSON,
     Redis caching is best-effort.
-  - Routing contract (own-data-first): RAG hit + non-current-events query →
-    NO web call; RAG miss → web call; current-events keyword → web call even
-    with RAG hits; web search down/empty → chat still answers gracefully.
+  - Routing contract (own-data-first + current-events only): RAG hit +
+    non-current-events query → NO web call; RAG miss + non-current-events
+    query → NO web call either (web search is reserved for news-y queries);
+    current-events keyword → web call even with RAG hits; web search
+    down/empty → chat still answers gracefully.
   - Header contract: ``X-Web-Context: N`` set only when web results were
     included; ``X-RAG-Context`` unchanged.
   - Date awareness: the system prompt always carries the current UTC
@@ -251,8 +253,14 @@ def test_rag_hit_skips_web_search(client: TestClient) -> None:
     assert "Web results (live):" not in captured["messages"][0]["content"]
 
 
-def test_rag_miss_plain_query_triggers_web_search(client: TestClient) -> None:
-    """RAG miss (plain query) → web search runs (spec: rag_count == 0 OR newsy)."""
+def test_rag_miss_plain_query_skips_web_search(client: TestClient) -> None:
+    """RAG miss (plain, non-current-events query) → NO web search.
+
+    Web search is reserved for news-y queries. A RAG miss on a definition /
+    identity question must never fire SearXNG — that previously leaked
+    irrelevant numbered search-result lists into the answer (the "Genius
+    lyrics" bug), so no X-Web-Context and no web call here.
+    """
     captured: dict[str, Any] = {}
 
     async def _fake_completion(**kwargs: Any) -> dict[str, Any]:
@@ -272,11 +280,11 @@ def test_rag_miss_plain_query_triggers_web_search(client: TestClient) -> None:
 
     assert resp.status_code == 200
     assert resp.headers.get("X-RAG-Context") == "0"
-    assert resp.headers.get("X-Web-Context") == "1"
-    web_mock.assert_awaited_once()
+    assert resp.headers.get("X-Web-Context") is None
+    web_mock.assert_not_awaited()
     system_msg = captured["messages"][0]["content"]
-    assert "Web results (live):" in system_msg
-    assert "https://w.example/1" in system_msg
+    assert "Web results (live):" not in system_msg
+    assert "https://w.example/1" not in system_msg
 
 
 def test_rag_miss_current_events_triggers_web_search(client: TestClient) -> None:
