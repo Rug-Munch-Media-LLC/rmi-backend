@@ -806,13 +806,22 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
         }
 
     # ── Score posts ──
+    from app.databus.account_alias import canonical_handle
+
     account_map = {a["handle"].lower(): a for a in ALL_CT}
 
     scored = []
     for post in all_posts:
         author = (post.get("author", "") or "").lower().lstrip("@")
-        account = account_map.get(author, {"handle": author, "name": author, "category": "unknown", "weight": 0.5})
+        # Resolve renamed/alias handles to their canonical identity so a
+        # renamed KOL's posts attribute to the same tracked account.
+        canonical = canonical_handle(author)
+        account = account_map.get(
+            canonical,
+            account_map.get(author, {"handle": canonical, "name": canonical, "category": "unknown", "weight": 0.5}),
+        )
         post["account"] = account
+        post["canonical_handle"] = canonical
         post["ct_score"] = score_ct_post(post, account)
         scored.append(post)
 
