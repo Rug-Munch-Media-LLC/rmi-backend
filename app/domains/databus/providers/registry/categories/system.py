@@ -23,8 +23,14 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
     except ImportError:
         ai_call = get_usage_stats = review_content = None  # type: ignore[assignment]  # optional module fallback
     try:
-        from app.databus.rag_ingestion import nightly_rag_index, rag_health_check
+        from app.databus.rag_ingestion import (
+            check_news_staleness,
+            index_databus_news,
+            nightly_rag_index,
+            rag_health_check,
+        )
     except ImportError:
+        check_news_staleness = index_databus_news = None  # type: ignore[assignment]  # optional module fallback
         nightly_rag_index = rag_health_check = None  # type: ignore[assignment]  # optional module fallback
 
     chains["alerts"] = ProviderChain(
@@ -148,6 +154,34 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 "rag_checker",
                 ProviderTier.LOCAL,
                 rag_health_check,
+                weight=5.0,
+                rate_limit_rps=30.0,
+            )
+        ],
+    )
+
+    chains["rag_news_realtime"] = ProviderChain(
+        "rag_news_realtime",
+        description="Realtime DataBus news → RAG news_v2 ingestion (freshest wired source; normalized published_at timestamps)",
+        providers=[
+            Provider(
+                "databus_news_ingest",
+                ProviderTier.LOCAL,
+                index_databus_news,
+                weight=10.0,
+                rate_limit_rps=1.0,
+            )
+        ],
+    )
+
+    chains["news_staleness"] = ProviderChain(
+        "news_staleness",
+        description="News ingestion staleness check - flags multi-day lag in news_v2, reports freshest live source",
+        providers=[
+            Provider(
+                "news_staleness_check",
+                ProviderTier.LOCAL,
+                check_news_staleness,
                 weight=5.0,
                 rate_limit_rps=30.0,
             )

@@ -732,25 +732,42 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     else:
         bridge_context = None
 
-    # Fallback prompt: bridge blocks + scan summary + daily digest. Used only
-    # when the backend tier-1 path is unavailable (best available grounding).
+    # Fallback prompt: bridge blocks + scan summary (message-specific data).
+    # The daily market/news digest is NOT glued to the user message — it is
+    # passed as ``system_context`` so the fallback LLMs treat it as current
+    # data in the SYSTEM prompt instead of part of the question (the
+    # grounding rules already forbid quoting context verbatim).
     prompt = text
     if bridge_context:
         prompt = f"{bridge_context}\n\n{prompt}"
     if scan_summary:
         prompt = f"{scan_summary}\n\n{prompt}"
-    if daily_context:
-        prompt = f"{daily_context}\n\n{prompt}"
 
     # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
+    # The backend injects the current date/time and runs its own RAG
+    # (news_v2) + live web search, so it is already real-time aware; the
+    # daily digest feeds the Zen/local fallback system prompts below.
     result = await _call_backend_chat(text, user.id, history)
     # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with the
     # bridge blocks, reporting rag_count = len(bridge sources).
     deep = _is_deep_question(text)
     if not result:
-        result = await _call_zen_llm(prompt, user.id, history, deep=deep, sources=bridge_sources)
+        result = await _call_zen_llm(
+            prompt,
+            user.id,
+            history,
+            deep=deep,
+            sources=bridge_sources,
+            system_context=daily_context,
+        )
     if not result:
-        result = await _call_local_llm(prompt, user.id, history, sources=bridge_sources)
+        result = await _call_local_llm(
+            prompt,
+            user.id,
+            history,
+            sources=bridge_sources,
+            system_context=daily_context,
+        )
 
     # Stop typing indicator
     typing_task.cancel()

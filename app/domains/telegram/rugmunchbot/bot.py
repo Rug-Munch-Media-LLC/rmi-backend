@@ -139,6 +139,117 @@ from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot")
 
+# ══════════════════════════════════════════════
+# COMMAND MENU (BotFather) — sectioned, v9
+# Telegram's native command list is a flat ordered menu, so "sections" are
+# conveyed by ordering + grouping. Each section mirrors the inline keyboard
+# sections (Scan / Intelligence / Alerts / Wallet / Account / Help) and the
+# /help reference. Admin commands are owner-only and intentionally excluded
+# from the public menu.
+# ══════════════════════════════════════════════
+_COMMAND_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
+    (
+        "Scan",
+        [
+            ("start", "Welcome & quick start guide"),
+            ("scan", "Quick token scan for scams & risks"),
+            ("deepscan", "Full multi-phase deep token scan"),
+            ("sentinelscan", "SENTINEL deep forensic scan (fast)"),
+            ("rugcheck", "Rug pull red flag checklist"),
+            ("deployer", "Deployer fingerprint check"),
+            ("hype", "Quick 0-100 hype score"),
+            ("compare", "Compare two tokens side-by-side"),
+            ("investigate", "Deep investigation report (Pro)"),
+            ("report", "Report a scam address"),
+            ("rugmap", "RugMap bubble map image"),
+        ],
+    ),
+    (
+        "Intelligence",
+        [
+            ("market", "Market overview — BTC/ETH, Fear & Greed"),
+            ("trending", "Trending tokens by chain (e.g. /trending solana)"),
+            ("movers", "Biggest gainers & losers"),
+            ("launches", "New token launches with risk flags"),
+            ("whales", "Whale movement alerts"),
+            ("news", "Latest crypto news"),
+            ("events", "News events & their price impact"),
+            ("sentiment", "Market sentiment & fear/greed index"),
+            ("price", "Token price by contract address"),
+            ("quick", "Quick token price check"),
+            ("dex", "DEX trading pairs & liquidity data"),
+            ("chart", "Chart image for any token"),
+            ("ta", "Technical analysis & signals"),
+            ("holders", "Top holders & concentration (Scout+)"),
+            ("smartmoney", "Detect smart money wallets"),
+            ("trace", "Cross-chain fund flow trace (Hunter+)"),
+            ("dumps", "Detect token dump patterns"),
+            ("flow", "Money flow & fund tracking"),
+            ("polymarket", "Polymarket prediction markets"),
+            ("election", "Election odds & predictions"),
+            ("odds", "Sports & event odds"),
+            ("yield", "DeFi yield farming opportunities"),
+            ("lpcheck", "Liquidity pool health check"),
+            ("defi", "DeFi protocol analytics"),
+            ("mev", "MEV risk advisory & safe swap params"),
+            ("impersonation", "Detect fake tokens & impersonation"),
+            ("deathclock", "Token longevity prediction"),
+            ("cluster", "Wallet clustering & funding paths"),
+            ("honeypot", "Honeypot detector - can you sell?"),
+            ("lphealth", "Liquidity pool health check"),
+            ("laundry", "Money laundering detector"),
+            ("research", "RAG-powered deep research (Hunter+)"),
+            ("ask", "Deep AI answers from RAG + LLM"),
+            ("chat", "Freestyle AI chat — crypto, DeFi & code"),
+        ],
+    ),
+    (
+        "Alerts",
+        [
+            ("alerts", "Price & activity alerts"),
+            ("alert", "Set a price alert (ABOVE/BELOW/CHANGE_5)"),
+            ("watch", "Add token to watchlist"),
+            ("unwatch", "Remove token from watchlist"),
+            ("watchlist", "View your watchlist"),
+            ("whale", "Whale movement alert subscriptions"),
+            ("webhook", "Custom webhooks management (Pro)"),
+        ],
+    ),
+    (
+        "Wallet",
+        [
+            ("wallet", "Wallet forensics & analysis"),
+            ("portfolio", "Scan wallet token holdings"),
+            ("simulate", "Simulate buy/sell trade"),
+        ],
+    ),
+    (
+        "Account",
+        [
+            ("account", "Your dashboard & usage"),
+            ("pricing", "Subscription plans"),
+            ("topup", "Buy extra scans (no expiry)"),
+            ("buystars", "Buy Telegram Stars"),
+            ("refer", "Invite friends, earn scans"),
+            ("scamschool", "Learn about crypto scams"),
+        ],
+    ),
+    (
+        "Help",
+        [
+            ("help", "Full command reference"),
+            ("banuser", "Group admin: ban a user"),
+            ("mygroup", "Your creator coin group"),
+            ("groupinfo", "Group stats (admin)"),
+            ("voicechat", "Manage voice chat (admin)"),
+            ("api", "API access token (Pro)"),
+        ],
+    ),
+]
+
+# Flatten section tuples into the BotFather command list (ordered by section).
+_BOT_COMMANDS: list[BotCommand] = [BotCommand(cmd, desc) for _section, cmds in _COMMAND_SECTIONS for cmd, desc in cmds]
+
 
 def _reg(app: Application[Any, Any, Any, Any, Any, Any], name: str, handler) -> None:
     """Register a command with per-command activity tracking (for /admin_stats).
@@ -284,74 +395,9 @@ async def setup_bot_profile(app: Application[Any, Any, Any, Any, Any, Any]) -> N
         logger.debug("setup_bot_profile_error", exc_info=True)
         logger.warning(f"Could not set short description: {e}")
     try:
-        commands = [
-            BotCommand("start", "Welcome & quick start guide"),
-            BotCommand("help", "Full command reference"),
-            BotCommand("scan", "Quick token scan for scams & risks"),
-            BotCommand("deepscan", "Full multi-phase deep token scan"),
-            BotCommand("sentinelscan", "SENTINEL deep forensic scan (fast)"),
-            BotCommand("deployer", "Deployer fingerprint check"),
-            BotCommand("hype", "Quick 0-100 hype score"),
-            BotCommand("wallet", "Wallet forensics & analysis"),
-            BotCommand("ta", "Technical analysis & signals"),
-            BotCommand("compare", "Compare two tokens side-by-side"),
-            BotCommand("quick", "Quick token price check"),
-            BotCommand("trending", "Trending tokens by chain (e.g. /trending solana)"),
-            BotCommand("rugcheck", "Rug pull red flag checklist"),
-            BotCommand("watch", "Add token to watchlist"),
-            BotCommand("watchlist", "View your watchlist"),
-            BotCommand("alerts", "Price & activity alerts"),
-            BotCommand("sentiment", "Market sentiment & fear/greed index"),
-            BotCommand("research", "RAG-powered deep research (Hunter+)"),
-            BotCommand("ask", "Deep AI answers from RAG + LLM"),
-            BotCommand("chat", "Freestyle AI chat — crypto, DeFi & code"),
-            BotCommand("account", "Your dashboard & usage"),
-            BotCommand("pricing", "Subscription plans"),
-            BotCommand("topup", "Buy extra scans (no expiry)"),
-            BotCommand("buystars", "Buy Telegram Stars"),
-            BotCommand("refer", "Invite friends, earn scans"),
-            BotCommand("scamschool", "Learn about crypto scams"),
-            BotCommand("chart", "Chart image for any token"),
-            BotCommand("portfolio", "Scan wallet token holdings"),
-            BotCommand("mev", "MEV risk advisory & safe swap params"),
-            BotCommand("impersonation", "Detect fake tokens & impersonation"),
-            BotCommand("deathclock", "Token longevity prediction"),
-            BotCommand("launches", "New token launches with risk flags"),
-            BotCommand("cluster", "Wallet clustering & funding paths"),
-            BotCommand("whale", "Whale movement alert subscriptions"),
-            BotCommand("honeypot", "Honeypot detector - can you sell?"),
-            BotCommand("lphealth", "Liquidity pool health check"),
-            BotCommand("laundry", "Money laundering detector"),
-            BotCommand("simulate", "Simulate buy/sell trade"),
-            BotCommand("smartmoney", "Detect smart money wallets"),
-            BotCommand("rugmap", "RugMap bubble map image"),
-            BotCommand("price", "Token price by contract address"),
-            BotCommand("dex", "DEX trading pairs & liquidity data"),
-            BotCommand("holders", "Top holders & concentration (Scout+)"),
-            BotCommand("trace", "Cross-chain fund flow trace (Hunter+)"),
-            BotCommand("investigate", "Deep investigation report (Pro)"),
-            BotCommand("webhook", "Custom webhooks management (Pro)"),
-            BotCommand("api", "API access token (Pro)"),
-            BotCommand("news", "Latest crypto news"),
-            BotCommand("events", "News events & their price impact"),
-            BotCommand("report", "Report a scam address"),
-            BotCommand("mygroup", "Your creator coin group"),
-            BotCommand("groupinfo", "Group stats (admin)"),
-            BotCommand("voicechat", "Manage voice chat (admin)"),
-            BotCommand("market", "Market overview — BTC/ETH, Fear & Greed"),
-            BotCommand("movers", "Biggest gainers & losers"),
-            BotCommand("whales", "Whale movement alerts"),
-            BotCommand("polymarket", "Polymarket prediction markets"),
-            BotCommand("election", "Election odds & predictions"),
-            BotCommand("odds", "Sports & event odds"),
-            BotCommand("yield", "DeFi yield farming opportunities"),
-            BotCommand("lpcheck", "Liquidity pool health check"),
-            BotCommand("defi", "DeFi protocol analytics"),
-            BotCommand("dumps", "Detect token dump patterns"),
-            BotCommand("flow", "Money flow & fund tracking"),
-        ]
+        commands = _BOT_COMMANDS
         await bot.set_my_commands(commands)
-        logger.info("Bot commands registered")
+        logger.info("Bot commands registered (%d across %d sections)", len(commands), len(_COMMAND_SECTIONS))
     except (ValueError, TypeError, KeyError, OSError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.warning(f"Could not set commands: {e}")

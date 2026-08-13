@@ -323,9 +323,20 @@ def _parse_published_at(hit: ScoredHit) -> datetime | None:
 
     Accepts ISO-8601 strings (with or without tz), bare dates, and unix
     epoch numbers. Returns a tz-aware datetime or None.
+
+    Key aliases are tried in order so docs written by every ingestion path
+    get a freshness signal: the crawler (``published_at``), the databus
+    news_intel fetchers (``published``), the nightly indexer (``date``),
+    and ingest-time fallbacks (``timestamp`` / ``fetched_at``).
     """
     meta = hit.metadata or {}
-    raw = meta.get("published_at") or meta.get("date") or meta.get("timestamp")
+    raw = (
+        meta.get("published_at")
+        or meta.get("published")
+        or meta.get("date")
+        or meta.get("timestamp")
+        or meta.get("fetched_at")
+    )
     if raw is None:
         return None
     if isinstance(raw, (int, float)):
