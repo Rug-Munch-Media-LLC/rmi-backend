@@ -18,10 +18,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+import defusedxml.ElementTree as ET  # noqa: N817 — safe XML parsing, mirrors stdlib ET usage
 import httpx
 
 from app.core.logging import get_logger
 from app.databus.cache import CacheLayer, get_cache
+from app.databus.social_feeds import NITTER_INSTANCES
 
 logger = get_logger("databus.social_scraper")
 
@@ -29,11 +31,15 @@ logger = get_logger("databus.social_scraper")
 OUR_HANDLE = "CryptoRugMunch"
 OUR_USER_ID = "1771377421117169668"  # @CryptoRugMunch
 
+# Free, no-auth endpoints for tracked-account post scraping.
+WARPCAST_API = "https://api.warpcast.com/v2"
+
 # Cache TTLs
 CACHE_TTL_TWEET = 86400  # 24h - tweet text doesn't change
 CACHE_TTL_METRICS = 3600  # 1h - engagement changes
 CACHE_TTL_PROFILE = 86400  # 24h
 CACHE_TTL_DISCOVERY = 21600  # 6h - new tweet discovery
+CACHE_TTL_TRACKED = 21600  # 6h - tracked-account post scrape
 
 
 class XWebScraper:
@@ -290,6 +296,127 @@ class XWebScraper:
 
         return report
 
+    # ── Tracked-account post scraping (influencer registry) ──────────
+
+    async def _fetch_farcaster_casts(self, username: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Fetch recent casts for a Farcaster username via Warpcast v2 (free, no auth)."""
+        username = username.lstrip("@")
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                user_resp = await client.get(f"{WARPCAST_API}/user-by-username", params={"username": username})
+                if user_resp.status_code != 200:
+                    return []
+                fid = user_resp.json().get("result", {}).get("user", {}).get("fid")
+                if not fid:
+                    return []
+
+                casts_resp = await client.get(f"{WARPCAST_API}/casts", params={"fid": fid, "limit": min(limit, 50)})
+                if casts_resp.status_code != 200:
+                    return []
+                casts = casts_resp.json().get("result", {}).get("casts", [])
+                return [
+                    {
+                        "text": c.get("text", ""),
+                        "author": username,
+                        "platform": "farcaster",
+                        "created_at": c.get("timestamp", ""),
+                        "likes": c.get("reactions", {}).get("likes_count", 0),
+                        "recasts": c.get("reactions", {}).get("recasts_count", 0),
+                        "url": f"https://warpcast.com/{username}/{c.get('hash', '')[:8]}",
+                        "id": c.get("hash", ""),
+                    }
+                    for c in casts
+                    if c.get("text")
+                ]
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            logger.debug(f"Farcaster cast fetch failed for @{username}: {e}")
+            return []
+
+    async def _fetch_nitter_rss(self, handle: str, limit: int = 10) -> list[dict[str, Any]]:
+        """Fallback: fetch recent posts for an X handle via nitter RSS (free, no auth)."""
+        handle = handle.lstrip("@")
+        for nitter_url in NITTER_INSTANCES:
+            try:
+                url = f"{nitter_url}/{handle}/rss"
+                async with httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.get(url, headers={"User-Agent": "RMI/3.0 NewsBot"})
+                    if resp.status_code != 200:
+                        continue
+                    root = ET.fromstring(resp.content)
+                    posts = []
+                    for item in root.findall(".//item")[:limit]:
+                        title = (item.findtext("title", "") or "").strip()
+                        desc = (item.findtext("description", "") or "").strip()
+                        link = (item.findtext("link", "") or "").strip()
+                        if not title:
+                            continue
+                        posts.append(
+                            {
+                                "text": desc or title,
+                                "title": title,
+                                "author": handle,
+                                "platform": "nitter",
+                                "created_at": "",
+                                "likes": 0,
+                                "retweets": 0,
+                                "replies": 0,
+                                "url": link or f"https://x.com/{handle}",
+                            }
+                        )
+                    if posts:
+                        return posts
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                logger.debug(f"Nitter RSS failed for @{handle} via {nitter_url}: {e}")
+                continue
+        return []
+
+    async def scrape_tracked_accounts(self, limit_per_account: int = 10, max_accounts: int = 50) -> dict[str, Any]:
+        """Scrape recent posts for the tracked influencer accounts.
+
+        Uses Farcaster (Warpcast v2, free) when the account registry lists a
+        ``farcaster`` username, otherwise falls back to nitter RSS. Results
+        are cached 6h. Account list comes from x_intel.TRACKED_ACCOUNTS
+        (curated CT_ACCOUNTS merged with influential_accounts.json).
+        """
+        from app.databus import x_intel
+
+        accounts = x_intel.TRACKED_ACCOUNTS[:max_accounts]
+        cache_key = f"social:tracked:posts:{len(accounts)}:{limit_per_account}"
+        cached, _is_stale = await self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        posts: list[dict[str, Any]] = []
+        farcaster_hits = 0
+        nitter_hits = 0
+        for acc in accounts:
+            fc = (acc.get("farcaster") or "").strip()
+            try:
+                if fc:
+                    batch = await self._fetch_farcaster_casts(fc, limit=limit_per_account)
+                    if batch:
+                        farcaster_hits += 1
+                        posts.extend(batch)
+                        continue
+                batch = await self._fetch_nitter_rss(str(acc.get("handle", "")), limit=limit_per_account)
+                if batch:
+                    nitter_hits += 1
+                    posts.extend(batch)
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+                continue
+
+        result = {
+            "accounts_scanned": len(accounts),
+            "accounts_with_farcaster": sum(1 for a in accounts if (a.get("farcaster") or "").strip()),
+            "farcaster_hits": farcaster_hits,
+            "nitter_hits": nitter_hits,
+            "total_posts": len(posts),
+            "posts": posts[:500],
+            "generated_at": datetime.now(UTC).isoformat(),
+        }
+        await self.cache.set(cache_key, result, ttl=CACHE_TTL_TRACKED)
+        return result
+
 
 # Convenience function for cron jobs
 async def run_social_scan() -> dict[str, Any]:
@@ -313,6 +440,13 @@ async def run_social_scan() -> dict[str, Any]:
     trends = await scraper.get_trending_topics()
     logger.info(f"Social scan: found {len(trends)} trending items")
 
+    # Scrape tracked influencer accounts (Farcaster → nitter fallback)
+    tracked = await scraper.scrape_tracked_accounts()
+    logger.info(
+        f"Social scan: tracked posts={tracked.get('total_posts', 0)} "
+        f"(fc={tracked.get('farcaster_hits', 0)}, nitter={tracked.get('nitter_hits', 0)})"
+    )
+
     # Generate engagement report
     report = await scraper.get_engagement_report()
     logger.info(f"Social scan: engagement report - avg {report.get('avg_likes_per_tweet', 0)} likes/tweet")
@@ -321,5 +455,7 @@ async def run_social_scan() -> dict[str, Any]:
         "tweets_found": len(tweets),
         "mentions_found": len(mentions),
         "trends_found": len(trends),
+        "tracked_accounts_scanned": tracked.get("accounts_scanned", 0),
+        "tracked_posts_found": tracked.get("total_posts", 0),
         "report": report,
     }
