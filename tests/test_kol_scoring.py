@@ -67,3 +67,39 @@ def test_get_and_leaderboard() -> None:
     assert lb["total_tracked"] == 3
     assert lb["leaderboard"][0]["handle"] == "goodtrader"
     assert lb["leaderboard"][-1]["handle"] == "pumpdumper"
+
+
+def test_documented_rug_history_lowers_trust() -> None:
+    """A KOL with 2 documented rugs gets a rug-rate penalty and lower score."""
+    ks.clear_registry()
+    ks.record_call_outcome("rugkiller", "TOKENA", price_at_call=1.0, price_after_24h=1.2)
+    ks.record_call_outcome("rugkiller", "TOKENB", price_at_call=1.0, price_after_24h=0.9)
+
+    baseline = ks.score_kol("rugkiller")
+    assert baseline["rug_rate"] == 0.0
+    assert baseline["documented_rug_count"] == 0
+    assert baseline["score"] > 50.0  # 1 win / 2 calls (+12.5) + small return bonus
+
+    ks.register_kol_rug("rugkiller", {"token_symbol": "RUG1", "outcome": "rugged"})
+    ks.register_kol_rug("rugkiller", {"token_symbol": "RUG2", "outcome": "rugged"})
+
+    penalized = ks.score_kol("rugkiller")
+    # 2 documented rugs / 2 called tokens → full rug rate → -30 penalty.
+    assert penalized["rug_rate"] == 1.0
+    assert penalized["documented_rug_count"] == 2
+    assert penalized["components"]["documented_rug_penalty"] <= -30.0
+    assert penalized["score"] < baseline["score"], penalized
+    assert penalized["score"] == round(baseline["score"] - 30.0, 1)
+
+    hist = ks.get_kol_rug_history("rugkiller")
+    assert hist["found"] is True
+    assert hist["rug_count"] == 2
+    assert hist["rugs"][0]["token_symbol"] == "RUG1"
+
+
+def test_get_kol_rug_history_unknown_handle() -> None:
+    ks.clear_registry()
+    hist = ks.get_kol_rug_history("nobody_tracked")
+    assert hist["found"] is False
+    assert hist["rug_count"] == 0
+    assert hist["rugs"] == []
