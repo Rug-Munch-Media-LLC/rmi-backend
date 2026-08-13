@@ -65,19 +65,16 @@ async def generate_card(card_type: str, data: dict[str, Any]) -> Any:
 async def get_card_templates() -> dict[str, list[dict[str, Any]]]:
     """Get available card templates."""
     try:
-        from typing import cast
-
         from app.card_generator import CARD_TEMPLATES
 
         templates: list[dict[str, Any]] = []
         for key, template in CARD_TEMPLATES.items():
-            tpl = cast("dict[str, Any]", template)
             templates.append(
                 {
                     "id": key,
-                    "name": tpl["name"],
-                    "size": tpl["size"],
-                    "colors": tpl["colors"],
+                    "name": template["name"],
+                    "size": template["size"],
+                    "colors": template["colors"],
                 }
             )
 

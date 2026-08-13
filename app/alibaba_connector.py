@@ -37,7 +37,7 @@ class AlibabaConnector:
 
     def __init__(self) -> None:
         self.api_key = DASHSCOPE_API_KEY
-        self._session = None
+        self._session: httpx.AsyncClient | None = None
 
     def _get_session(self) -> Any:
         if self._session is None:

@@ -217,7 +217,7 @@ def get_market_context() -> dict[str, Any]:
 
         import httpx
 
-        async def _fetch() -> dict[str, int]:
+        async def _fetch() -> dict[str, str | int]:
             async with httpx.AsyncClient(timeout=5) as c:
                 resp = await c.get("https://api.alternative.me/fng/?limit=1")
                 if resp.status_code == 200:

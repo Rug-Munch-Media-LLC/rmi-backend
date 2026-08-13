@@ -366,8 +366,8 @@ def analyze_whitepaper_content(text: str | None) -> dict[str, Any]:
         (r"\[.*\]\(.*\)", "Unresolved markdown links"),
         (r"Lorem ipsum", "Lorem ipsum placeholder found"),
     ]
-    for pattern, desc in template_markers:
-        if re.search(pattern, text, re.I | re.MULTILINE):
+    for marker, desc in template_markers:
+        if re.search(marker, text, re.I | re.MULTILINE):
             score += 10
             flags.append(desc)
 

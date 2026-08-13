@@ -29,7 +29,7 @@ from app.domains.detectors.mev_sandwich_detector import (
 )
 
 if __name__ == "__main__":
-    from app.domains.detectors.mev_sandwich_detector import main as _main
+    from app.domains.detectors.mev_sandwich_detector.cli import main as _main
 
     _main()
 

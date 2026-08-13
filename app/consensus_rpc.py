@@ -363,7 +363,7 @@ class ConsensusRpcClient:
         raw_results: dict[str, Any] = {}  # name → raw_data (for details)
 
         for r in results:
-            if isinstance(r, Exception):
+            if isinstance(r, BaseException):
                 logger.warning(f"Consensus query exception: {r}")
                 continue
             name, data, _latency, error = r
@@ -541,7 +541,7 @@ class ConsensusRpcClient:
         raw_results: dict[str, Any] = {}
 
         for r in results:
-            if isinstance(r, Exception):
+            if isinstance(r, BaseException):
                 continue
             name, data, _latency, error = r
             if error:

@@ -651,7 +651,7 @@ class ToolFingerprinter:
         }
 
         # Run all detectors in parallel
-        tasks = []
+        tasks: list[Any] = []
 
         if transactions:
             tasks.append(self.detect_bundlers(transactions, token_address))

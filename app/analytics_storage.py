@@ -369,7 +369,7 @@ class AnalyticsDatabase:
         """Get entity's network of connected entities."""
         relations = self.redis.get_entity_relations(entity_id)
 
-        network = {"entity_id": entity_id, "direct_relations": relations, "depth": depth}
+        network: dict[str, Any] = {"entity_id": entity_id, "direct_relations": relations, "depth": depth}
 
         # If depth > 0, get relations of related entities
         if depth > 0:

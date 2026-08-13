@@ -124,10 +124,12 @@ async def simulate_solana(token_address: str) -> SimulationResult:
     return result
 
 
-async def _get_quote(client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int) -> dict[str, Any] | None:
+async def _get_quote(
+    client: httpx.AsyncClient, input_mint: str, output_mint: str, amount: int
+) -> dict[str, Any] | None:
     """Get a Jupiter swap quote."""
     try:
-        params = {
+        params: dict[str, str | int] = {
             "inputMint": input_mint,
             "outputMint": output_mint,
             "amount": str(amount),

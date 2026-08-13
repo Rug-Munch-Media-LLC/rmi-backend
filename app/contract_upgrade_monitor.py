@@ -346,7 +346,7 @@ async def detect_proxy(address: str, chain: str, client: httpx.AsyncClient | Non
 
 def _detect_proxy_selectors(abi_json: str) -> list[str]:
     """Detect proxy-related function selectors from contract ABI JSON string."""
-    detected = []
+    detected: list[str] = []
     try:
         abi = json.loads(abi_json) if isinstance(abi_json, str) else abi_json
         if not isinstance(abi, list):
@@ -356,9 +356,9 @@ def _detect_proxy_selectors(abi_json: str) -> list[str]:
                 name = item.get("name", "")
                 sig = f"{name}({','.join(i.get('type', '') for i in item.get('inputs', []))})"
                 # Hash the signature to get 4-byte selector
-                import hashlib
+                from eth_hash.auto import keccak
 
-                selector = "0x" + hashlib.keccak_256(sig.encode()).hexdigest()[:8]
+                selector = "0x" + keccak(sig.encode()).hex()[:8]
                 if selector in DANGEROUS_SELECTORS:
                     detected.append(selector)
     except (json.JSONDecodeError, Exception):  # noqa: S110 — optional dependency

@@ -43,7 +43,7 @@ class GhostunnelManager:
     def __init__(self, ghostunnel_bin: str = "ghostunnel") -> None:
         self.ghostunnel_bin = ghostunnel_bin
         self._available = self._check_available()
-        self.processes: dict[str, subprocess.Popen] = {}
+        self.processes: dict[str, subprocess.Popen[bytes]] = {}
 
     def _check_available(self) -> bool:
         """Check if ghostunnel is installed."""
@@ -127,9 +127,9 @@ class GhostunnelManager:
                 count += 1
         return count
 
-    def get_status(self) -> dict[str, str]:
+    def get_status(self) -> dict[str, dict[str, object]]:
         """Get status of all tunnels."""
-        status = {}
+        status: dict[str, dict[str, object]] = {}
         for addr, process in self.processes.items():
             status[addr] = {
                 "pid": process.pid,

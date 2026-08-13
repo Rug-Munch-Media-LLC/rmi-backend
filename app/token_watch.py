@@ -124,9 +124,9 @@ class TokenWatchService:
     }
 
     def __init__(self) -> None:
-        self._redis = None
+        self._redis: Any = None
         self._running = False
-        self._check_task: asyncio.Task | None = None
+        self._check_task: asyncio.Task[Any] | None = None
 
     async def _get_redis(self) -> Any:
         """Get async Redis client."""

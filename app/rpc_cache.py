@@ -480,7 +480,7 @@ class RpcCache:
         """Close Redis connection if open."""
         if self._redis:
             try:
-                await self._redis.aclose()
+                await self._redis.close()
                 self._redis = None
                 self._redis_available = False
                 logger.info("RpcCache: Redis connection closed")

@@ -142,6 +142,29 @@ class ChainClient:
             return result["result"]
         return []
 
+    async def get_transactions(self, signatures: list[str]) -> list[dict[str, Any]]:
+        """Fetch parsed transactions for a batch of signatures (best-effort)."""
+        txs: list[dict[str, Any]] = []
+        for sig in signatures[:5]:
+            result = await self.rpc_call("getTransaction", [sig, {"maxSupportedTransactionVersion": 0}])
+            if result and "result" in result and result["result"] is not None:
+                txs.append(result["result"])
+        return txs
+
+    async def get_token_accounts(self, address: str) -> list[dict[str, Any]]:
+        """Fetch SPL token accounts owned by an address (jsonParsed)."""
+        result = await self.rpc_call(
+            "getTokenAccountsByOwner",
+            [
+                address,
+                {"programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
+                {"encoding": "jsonParsed"},
+            ],
+        )
+        if result and "result" in result:
+            return result["result"].get("value", [])
+        return []
+
     async def get_balance(self, address: str) -> float:
         result = await self.rpc_call("getBalance", [address])
         if result and "result" in result:

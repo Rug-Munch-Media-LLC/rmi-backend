@@ -297,7 +297,7 @@ async def _enrich_with_embeddings(
     finally:
         if r is not None:
             with contextlib.suppress(Exception):
-                await r.aclose()
+                await r.close()
 
     return results
 

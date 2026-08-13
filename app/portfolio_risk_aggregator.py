@@ -29,9 +29,11 @@ from app.domains.portfolio.portfolio_risk_aggregator import (
 )
 
 if __name__ == "__main__":
-    from app.domains.portfolio.portfolio_risk_aggregator import main as _main
+    import asyncio
 
-    _main()
+    from app.domains.portfolio.portfolio_risk_aggregator.aggregator import main as _main
+
+    asyncio.run(_main())
 
 
 __all__ = [
