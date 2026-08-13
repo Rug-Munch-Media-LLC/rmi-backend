@@ -42,6 +42,9 @@ from app.core.errors import AuthorizationError, ExternalAPIError
 from app.core.logging import get_logger
 from app.core.web_search import searxng_search
 
+# ── Tool-use layer (live data grounding) ──
+from app.domains.chat_tools import _detect_tool_intent, _run_tool_for_intent
+
 # ── AI Security Guard ──
 from app.security.ai_guard import AIGuard
 from app.security.chat_guardrails import get_chat_rate_limiter
@@ -793,6 +796,33 @@ def _cache_set(key: str, response: str, ttl: int) -> None:
             _chat_cache.pop(k, None)
 
 
+# ── Tool-use layer (live data grounding) ───────────────────────────────
+# Price/scan/TA/market questions must be grounded in real numbers instead of
+# hallucinated ones. _fetch_tool_context detects the tool intent, runs the
+# matching executor (best-effort, 8s timeout — see app/domains/chat_tools.py)
+# and returns the raw tool result; the route injects it into the system
+# context via _inject_tool_result so the LLM answers from live data. When
+# there is no intent, or the executor failed/timed out, this returns None and
+# chat proceeds with normal RAG/LLM — tools never block or break chat.
+TOOL_RESULT_LABEL = "TOOL RESULT (live data):"
+
+
+def _inject_tool_result(system_context: str, tool_result: str | None) -> str:
+    """Append the live tool-result block to ``system_context`` (or return it unchanged)."""
+    if not tool_result or not tool_result.strip():
+        return system_context
+    extra = f"{TOOL_RESULT_LABEL}\n{tool_result.strip()}"
+    return f"{system_context}\n\n{extra}" if system_context else extra
+
+
+async def _fetch_tool_context(message: str) -> str | None:
+    """Detect tool intent and run the executor. Returns live data or None."""
+    intent = _detect_tool_intent(message)
+    if intent is None:
+        return None
+    return await _run_tool_for_intent(message, intent)
+
+
 # ── Routes ─────────────────────────────────────────────────────
 
 
@@ -914,6 +944,18 @@ async def chat(
         display = user.get("display_name", user.get("email", "detective"))
         user_context = f"User: {display} (tier: {tier})"
 
+    # ── TOOL-USE LAYER (live data) ──
+    # Price/scan/TA/market questions get real numbers injected into the
+    # system context so the LLM grounds its answer instead of hallucinating.
+    # Best-effort: failed/timeout executors return None and chat proceeds
+    # with normal RAG/LLM below — tools never block or break chat.
+    tool_result: str | None = None
+    try:
+        tool_result = await _fetch_tool_context(req.message)
+    except Exception as e:  # defensive: never let the tool layer break chat
+        logger.debug("chat tool fetch raised in handler: %s", e)
+        tool_result = None
+
     # ── RAG grounding (non-blocking) ──
     # Direct web chat callers get automatic RAG grounding: search the RAG
     # collections for context relevant to the message and inject the top
@@ -969,6 +1011,10 @@ async def chat(
     if client_system_context:
         extra = f"RAG Context:\n{client_system_context.strip()}"
         system_context = f"{system_context}\n\n{extra}" if system_context else extra
+    # Live tool data goes LAST so the LLM grounds its answer in the real
+    # number over any RAG/web context (most authoritative, most recent).
+    if tool_result:
+        system_context = _inject_tool_result(system_context, tool_result)
 
     messages = await _build_messages(user_id, req.message, system_context, req.history)
 
