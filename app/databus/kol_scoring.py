@@ -26,6 +26,7 @@ External data that does not exist yet degrades gracefully:
 from __future__ import annotations
 
 import json
+import os
 import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -56,6 +57,11 @@ KNOWN_RUG_TOKENS: set[str] = set()
 #: Explicit shill-alert counts per handle (in addition to what the shill
 #: detector reports through ``social_intel.DETECTED_CAMPAIGNS``).
 SHILL_ALERTS: dict[str, int] = {}
+
+#: Deleted-call counts per handle — a KOL retracting calls after the fact is
+#: a suspicious signal. Fed by :func:`register_deleted_alert` and by the
+#: ``account_alias.DELETED_POSTS`` registry (via ``social_intel``).
+DELETED_ALERTS: dict[str, int] = {}
 
 #: Handle -> wallet-attribution confidence 0..1 (extendable; auto-read from
 #: ``app.databus.kol_wallets`` when that module exists).
@@ -89,6 +95,7 @@ class KOLScoreRecord:
     avg_return_24h: float
     rug_rate: float
     shill_alert_count: int
+    deleted_alert_count: int
     known_scammer: bool
     wallet_confidence: float
     total_calls: int
@@ -199,6 +206,19 @@ def _shill_alert_count(handle: str) -> int:
     return count
 
 
+def _deleted_alert_count(handle: str) -> int:
+    """Deleted-call count: local registry + account_alias.DELETED_POSTS."""
+    key = handle.lower().lstrip("@")
+    count = DELETED_ALERTS.get(key, 0)
+    try:  # the alias module may be absent — never fatal
+        from app.databus import account_alias
+
+        count += account_alias.deleted_post_count(handle=key)
+    except (ImportError, AttributeError):
+        pass
+    return count
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Scoring
 # ═══════════════════════════════════════════════════════════════════════
@@ -210,6 +230,9 @@ _RETURN_WEIGHT = 10.0  # applied to return normalized to [-1, 1] over ±50%
 _RUG_RATE_WEIGHT = 30.0
 _SHILL_ALERT_WEIGHT = 6.0
 _SHILL_ALERT_CAP = 5
+# Deleted-call penalty — a KOL retracting calls after the fact loses trust.
+_DELETED_ALERT_WEIGHT = float(os.getenv("DELETED_ALERT_WEIGHT", "5"))
+_DELETED_ALERT_CAP = 5
 _SCAMMER_PENALTY = 40.0
 _WALLET_CONF_WEIGHT = 10.0
 _RETURN_CLAMP = 0.5
@@ -272,6 +295,7 @@ def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
     win_rate, avg_return = _call_accuracy(calls)
     rug_rate = _rug_rate(calls)
     shill_count = _shill_alert_count(handle)
+    deleted_count = _deleted_alert_count(handle)
     known_scammer = key in KNOWN_SCAMMER_HANDLES
     wallet_conf = _wallet_attribution_confidence(handle)
 
@@ -280,6 +304,7 @@ def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
     score += _RETURN_WEIGHT * _clamp(avg_return, -_RETURN_CLAMP, _RETURN_CLAMP) / _RETURN_CLAMP
     score -= _RUG_RATE_WEIGHT * rug_rate
     score -= _SHILL_ALERT_WEIGHT * min(shill_count, _SHILL_ALERT_CAP)
+    score -= _DELETED_ALERT_WEIGHT * min(deleted_count, _DELETED_ALERT_CAP)
     if known_scammer:
         score -= _SCAMMER_PENALTY
     score += _WALLET_CONF_WEIGHT * wallet_conf
@@ -297,6 +322,7 @@ def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
             "avg_return_24h": round(avg_return, 4),
             "rug_penalty": round(-_RUG_RATE_WEIGHT * rug_rate, 1),
             "shill_penalty": round(-_SHILL_ALERT_WEIGHT * min(shill_count, _SHILL_ALERT_CAP), 1),
+            "deleted_post_penalty": round(-_DELETED_ALERT_WEIGHT * min(deleted_count, _DELETED_ALERT_CAP), 1),
             "scammer_penalty": round(-_SCAMMER_PENALTY, 1) if known_scammer else 0.0,
             "wallet_confidence_bonus": round(_WALLET_CONF_WEIGHT * wallet_conf, 1),
         },
@@ -304,6 +330,7 @@ def score_kol(handle: str, *, persist: bool = True) -> dict[str, Any]:
         avg_return_24h=round(avg_return, 4),
         rug_rate=round(rug_rate, 4),
         shill_alert_count=shill_count,
+        deleted_alert_count=deleted_count,
         known_scammer=known_scammer,
         wallet_confidence=round(wallet_conf, 4),
         total_calls=len(calls),
@@ -360,6 +387,7 @@ def record_to_dict(record: KOLScoreRecord) -> dict[str, Any]:
         "avg_return_24h": record.avg_return_24h,
         "rug_rate": record.rug_rate,
         "shill_alert_count": record.shill_alert_count,
+        "deleted_alert_count": record.deleted_alert_count,
         "known_scammer": record.known_scammer,
         "wallet_confidence": record.wallet_confidence,
         "total_calls": record.total_calls,
@@ -408,6 +436,12 @@ def register_shill_alert(handle: str, count: int = 1) -> None:
     SHILL_ALERTS[key] = SHILL_ALERTS.get(key, 0) + max(0, int(count))
 
 
+def register_deleted_alert(handle: str, count: int = 1) -> None:
+    """Increment the deleted-call count for a handle (suspicious retraction)."""
+    key = handle.lower().lstrip("@")
+    DELETED_ALERTS[key] = DELETED_ALERTS.get(key, 0) + max(0, int(count))
+
+
 def register_shill_alerts_from_detector(result: dict[str, Any]) -> int:
     """Ingest ``analyze_shill_signals`` output into per-handle alert counts.
 
@@ -442,6 +476,7 @@ def clear_registry() -> None:
     CALL_OUTCOMES.clear()
     KNOWN_RUG_TOKENS.clear()
     SHILL_ALERTS.clear()
+    DELETED_ALERTS.clear()
     WALLET_CONFIDENCE.clear()
     KNOWN_SCAMMER_HANDLES.clear()
 

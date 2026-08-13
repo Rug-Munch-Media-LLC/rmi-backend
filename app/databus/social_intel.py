@@ -35,8 +35,22 @@ GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 KOL_DATABASE: dict[str, dict[str, Any]] = {}  # handle → {calls: [...], metrics: {...}}
 
 
+def _canonical(handle: str) -> str:
+    """Resolve an (possibly alias) handle to its canonical identity.
+
+    Lazily imported from account_alias to keep module load light and avoid
+    cycles; pass-through when the alias module is unavailable.
+    """
+    try:
+        from app.databus.account_alias import canonical_handle
+
+        return canonical_handle(handle)
+    except (ImportError, AttributeError):
+        return str(handle or "").lower().lstrip("@")
+
+
 def _kol_key(handle: str) -> str:
-    return f"kol:{handle.lower().lstrip('@')}"
+    return f"kol:{_canonical(handle)}"
 
 
 def get_tracked_accounts() -> list[dict[str, Any]]:
@@ -98,8 +112,13 @@ async def track_kol_call(
     """Record a KOL making a call on a token.
 
     call_type: buy, sell, shill, warning, analysis
+
+    The handle is resolved to its canonical identity first so alias/renamed
+    handles attribute to the same ``kol_id``; the original handle is kept on
+    the call record as ``handle`` for provenance.
     """
-    key = _kol_key(handle)
+    canonical = _canonical(handle)
+    key = _kol_key(canonical)
     if key not in KOL_DATABASE:
         KOL_DATABASE[key] = {
             "calls": [],
@@ -119,12 +138,13 @@ async def track_kol_call(
 
     call = {
         "handle": handle,
+        "canonical_handle": canonical,
         "token": token,
         "type": call_type,
         "price_at_call": price_at_call,
         "chain": chain,
         "timestamp": datetime.now(UTC).isoformat(),
-        "id": hashlib.sha256(f"{handle}{token}{time.time()}".encode()).hexdigest()[:8],
+        "id": hashlib.sha256(f"{canonical}{token}{time.time()}".encode()).hexdigest()[:8],
     }
 
     KOL_DATABASE[key]["calls"].append(call)
@@ -136,9 +156,57 @@ async def track_kol_call(
     return {"status": "tracked", "call": call}
 
 
+async def track_deleted_call(
+    handle: str,
+    token: str,
+    call_type: str = "buy",
+    chain: str = "solana",
+    **kw,
+) -> dict[str, Any]:
+    """Record a KOL call that was later deleted from X.
+
+    A deleted call is a suspicious signal — the KOL retracted a call after
+    the fact. The deletion is stored in ``account_alias.DELETED_POSTS`` keyed
+    by canonical handle + token, and the matching in-registry call is tagged
+    ``deleted`` so shill detection and scoring can flag it.
+    """
+    from app.databus.account_alias import record_deleted_post
+
+    canonical = _canonical(handle)
+    rec = record_deleted_post(
+        canonical,
+        token,
+        call_type=call_type,
+        chain=chain,
+        original_handle=handle,
+        **kw,
+    )
+
+    key = _kol_key(canonical)
+    data = KOL_DATABASE.get(key)
+    if data:
+        for call in data.get("calls", []):
+            if (
+                str(call.get("token", "")).lower() == str(token).lower()
+                and call.get("type") == call_type
+                and not call.get("deleted")
+            ):
+                call["deleted"] = True
+                call["deleted_at"] = rec["timestamp"]
+                break
+
+    return {"status": "tracked_deleted", "deleted_post": rec}
+
+
 async def get_kol_profile(handle: str, **kw) -> dict[str, Any]:
-    """Get a KOL's performance profile - call history, success rate, risk score."""
-    key = _kol_key(handle)
+    """Get a KOL's performance profile - call history, success rate, risk score.
+
+    The handle is resolved to its canonical identity so alias queries return
+    the merged canonical record. Deleted calls (see :func:`track_deleted_call`)
+    are surfaced as a suspicious signal that raises the risk level.
+    """
+    canonical = _canonical(handle)
+    key = _kol_key(canonical)
     data = KOL_DATABASE.get(key, {"calls": [], "metrics": {}})
     m = data["metrics"]
 
@@ -146,6 +214,7 @@ async def get_kol_profile(handle: str, **kw) -> dict[str, Any]:
     total = m.get("total_calls", 0)
     shills = m.get("shills", 0)
     warnings = m.get("warnings", 0)
+    deleted = len([c for c in data["calls"] if c.get("deleted")])
 
     if total > 0:
         shill_ratio = shills / total
@@ -153,13 +222,20 @@ async def get_kol_profile(handle: str, **kw) -> dict[str, Any]:
         trust_score = max(0, 100 - shill_ratio * 60 - (1 - m.get("win_rate", 0)) * 40)
     else:
         trust_score = 50
+    # Deleted calls are a suspicious retraction signal — discount trust.
+    trust_score = max(0, trust_score - deleted * 5)
+
+    metrics = {
+        **{k: v for k, v in m.items() if k != "tokens_mentioned"},
+        "tokens_mentioned": len(m.get("tokens_mentioned", set())),
+        "deleted_calls": deleted,
+    }
 
     return {
-        "handle": handle,
-        "metrics": {
-            **{k: v for k, v in m.items() if k != "tokens_mentioned"},
-            "tokens_mentioned": len(m.get("tokens_mentioned", set())),
-        },
+        "handle": canonical,
+        "canonical_handle": canonical,
+        "requested_handle": handle if handle != canonical else None,
+        "metrics": metrics,
         "trust_score": round(trust_score, 1),
         "risk_level": "HIGH" if trust_score < 30 else "MEDIUM" if trust_score < 60 else "LOW",
         "recent_calls": data["calls"][-10:],
@@ -265,6 +341,30 @@ async def detect_shill_campaigns(posts: list[dict[str, Any]] | None = None, **kw
                         )
                 except (ConnectionError, OSError, TimeoutError):
                     pass
+
+    # Deleted-post signal: KOLs retracting calls on a token after the fact is
+    # a suspicious retraction pattern — flag it as a shill indicator.
+    try:
+        from app.databus.account_alias import get_deleted_posts
+
+        deleted_by_token: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for rec in get_deleted_posts():
+            tok = str(rec.get("token", ""))
+            if tok:
+                deleted_by_token[tok].append(rec)
+        for token, recs in deleted_by_token.items():
+            campaigns.append(
+                {
+                    "type": "deleted_posts",
+                    "token": token,
+                    "severity": "HIGH" if len(recs) >= 3 else "MEDIUM",
+                    "kols_involved": sorted({str(r.get("handle", "")) for r in recs}),
+                    "deleted_count": len(recs),
+                    "detected_at": datetime.now(UTC).isoformat(),
+                }
+            )
+    except ImportError:
+        pass
 
     # Store detected campaigns
     DETECTED_CAMPAIGNS.extend(campaigns)

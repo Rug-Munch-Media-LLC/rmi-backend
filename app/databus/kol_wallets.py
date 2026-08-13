@@ -12,8 +12,15 @@ of expected strength:
                            Arkham / Lookonchain when keyed) matching the
                            handle / name
   4. airdrop_poap_ens    — probabilistic evidence; NEVER auto-escalated,
-                           requires >= 2 corroborating signals to be
-                           stored as active (else status=unverified).
+                          requires >= 2 corroborating signals to be
+                          stored as active (else status=unverified).
+  5. verified_list       — pre-verified wallet links from
+                          verified_kol_wallets.json (compiled out-of-band).
+                          Entries carry an authoritative confidence tier
+                          (deterministic / strong_heuristic pass the
+                          corroboration gate immediately; probabilistic
+                          still requires >= 2 signals) plus source and
+                          evidence_url for auditability.
 
 Each link carries {address, chain, method, evidence, confidence} and is
 persisted to the `kol_wallet` Postgres table plus mirrored into the local
@@ -58,6 +65,7 @@ class AttributionMethod(StrEnum):
     AIRDROP_POAP_ENS = "airdrop_poap_ens"
     ONCHAIN_ACTIVITY = "onchain_activity"
     MANUAL = "manual"
+    VERIFIED_LIST = "verified_list"
 
 
 @dataclass(slots=True)
@@ -374,6 +382,7 @@ _SIG_LABEL_SUBSTR = "label_substring_handle_match"
 _SIG_FARCASTER = "farcaster_verified"
 _SIG_LENS = "lens_owned"
 _SIG_AIRDROP = "airdrop_poap_claim_label"
+_SIG_VERIFIED_LIST = "verified_list_entry"
 
 
 class KOLWalletAttributor:
@@ -381,6 +390,8 @@ class KOLWalletAttributor:
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._client = client or httpx.AsyncClient(timeout=15.0)
+        # Overridable for tests; None = default app/databus/verified_kol_wallets.json.
+        self._verified_list_path: str | None = None
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -425,6 +436,9 @@ class KOLWalletAttributor:
 
         # Method 4: airdrop / POAP / ENS probabilistic evidence.
         links.extend(await self._airdrop_poap_evidence(candidates, handle, name))
+
+        # Method 5: pre-verified KOL list (compiled concurrently; no-op if absent).
+        links.extend(self._verified_list(handle))
 
         # Corroboration gate: merge + rank; probabilistic needs 2 signals.
         return self._finalize(links, handle)
@@ -633,6 +647,68 @@ class KOLWalletAttributor:
                 pass
         return links
 
+    # ── Method 5: verified KOL list ───────────────────────────────
+
+    def _verified_list(self, handle: str) -> list[WalletLink]:
+        """Method 5: pre-verified wallet links from verified_kol_wallets.json.
+
+        Each entry ({handle, address, chain, confidence, source,
+        evidence_url}) becomes a single-signal link whose authoritative
+        confidence tier drives the corroboration gate in _finalize():
+
+          - deterministic / strong_heuristic → passes immediately (the
+            entry is already corroborated by the out-of-band verification).
+          - probabilistic → still requires >= 2 signals; the entry's
+            verified_list_entry signal can corroborate another
+            probabilistic link on the same (address, chain).
+
+        Missing file (list still being compiled) → no-op.
+        """
+        handle_l = handle.lstrip("@").lower()
+        links: list[WalletLink] = []
+        for entry in load_verified_kol_wallets(self._verified_list_path):
+            if str(entry.get("handle", "")).lstrip("@").lower() != handle_l:
+                continue
+            raw_chain = str(entry.get("chain", "")).strip().lower()
+            address = str(entry.get("address", "")).strip()
+            if not raw_chain:
+                logger.warning("verified list entry missing chain for %s", entry.get("handle"))
+                continue
+            if "solana" in raw_chain:
+                if not is_valid_solana(address):
+                    logger.warning("verified list entry invalid solana address: %s", address)
+                    continue
+            else:
+                if not is_valid_evm(address):
+                    logger.warning("verified list entry invalid EVM address: %s", address)
+                    continue
+                address = address.lower()
+            try:
+                confidence = Confidence(str(entry.get("confidence", "probabilistic")).lower())
+            except ValueError:
+                logger.warning(
+                    "verified list entry unknown confidence %r for %s; skipping",
+                    entry.get("confidence"),
+                    entry.get("handle"),
+                )
+                continue
+            source = str(entry.get("source", "verified_list")).strip()
+            evidence_url = str(entry.get("evidence_url", "")).strip()
+            evidence = f"verified_list[{source}]"
+            if evidence_url:
+                evidence += f" {evidence_url}"
+            links.append(
+                WalletLink(
+                    address=address,
+                    chain=raw_chain,
+                    method=AttributionMethod.VERIFIED_LIST,
+                    confidence=confidence,
+                    evidence=evidence,
+                    signals=[_SIG_VERIFIED_LIST],
+                )
+            )
+        return links
+
     # ── Corroboration / dedupe / ranking ──────────────────────────
 
     def _finalize(self, links: list[WalletLink], handle: str) -> list[WalletLink]:
@@ -644,6 +720,11 @@ class KOLWalletAttributor:
             status=unverified).
           - probabilistic never auto-escalates to deterministic; with 2+
             corroborating signals it may rise to strong_heuristic.
+          - verified_list links carry an authoritative tier: deterministic
+            and strong_heuristic pass immediately (single signal is
+            enough); probabilistic still needs >= 2 signals. Signal
+            merging across (address, chain) lets a verified_list_entry
+            corroborate other probabilistic links on the same address.
         """
         merged: dict[tuple[str, str], WalletLink] = {}
         for link in links:
@@ -769,6 +850,27 @@ def load_accounts(path: str | None = None) -> list[dict[str, Any]]:
         data = json.load(f)
     accounts = data.get("accounts", []) if isinstance(data, dict) else []
     return [a for a in accounts if isinstance(a, dict) and a.get("handle")]
+
+
+def load_verified_kol_wallets(path: str | None = None) -> list[dict[str, Any]]:
+    """Load the verified KOL wallet list (app/databus/verified_kol_wallets.json).
+
+    Expected entry shape: {handle, address, chain, confidence, source,
+    evidence_url}. The file is compiled concurrently with this code, so a
+    missing file is tolerated and returns []. The top level may be a bare
+    list or a dict with a "wallets" / "verified" list.
+    """
+    if path is None:
+        path = os.path.join(os.path.dirname(__file__), "verified_kol_wallets.json")
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        data = json.load(f)
+    if isinstance(data, dict):
+        data = data.get("wallets", data.get("verified", []))
+    if not isinstance(data, list):
+        return []
+    return [e for e in data if isinstance(e, dict) and e.get("handle") and e.get("address")]
 
 
 # ── Dry run / CLI ──────────────────────────────────────────────────
