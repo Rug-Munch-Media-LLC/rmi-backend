@@ -384,15 +384,15 @@
 		{
 			"id": "bitcoin-ops",
 			"name": "Bitcoin Optech",
-			"url": "https://bitcoinops.org/en/feed.xml",
+			"url": "https://bitcoinops.org/feed.xml",
 			"category": "crypto_media",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "independent",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blockchain-berkeley-edu",
@@ -488,15 +488,15 @@
 		{
 			"id": "blog-chainstack-com",
 			"name": "Chainstack",
-			"url": "https://blog.chainstack.com/feed/",
+			"url": "https://chainstack.com/blog/feed/",
 			"category": "crypto_media",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-coinbase-com",
@@ -534,8 +534,8 @@
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": true,
-			"needs_verification": false
+			"verified": false,
+			"needs_verification": true
 		},
 		{
 			"id": "blog-infura-io",
@@ -1008,15 +1008,15 @@
 		{
 			"id": "multicoin-capital",
 			"name": "Multicoin Capital",
-			"url": "https://multicoin.capital/feed/",
+			"url": "https://multicoin.capital/rss.xml",
 			"category": "crypto_media",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "near-org",
@@ -1138,15 +1138,15 @@
 		{
 			"id": "solana-blog",
 			"name": "Solana Blog",
-			"url": "https://solana.com/feed",
+			"url": "https://solana.com/news/rss.xml",
 			"category": "crypto_media",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "src-ac-uk",
@@ -1762,28 +1762,28 @@
 		{
 			"id": "aave-com",
 			"name": "Aave",
-			"url": "https://aave.com/blog/feed",
+			"url": "https://aave.com/blog/rss.xml",
 			"category": "defi",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "bankless",
 			"name": "Bankless",
-			"url": "https://newsletter.banklesshq.com/feed",
+			"url": "https://www.bankless.com/feed",
 			"category": "defi",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-1inch-io",
@@ -1801,28 +1801,28 @@
 		{
 			"id": "blog-balancer-fi",
 			"name": "Balancer",
-			"url": "https://blog.balancer.fi/feed/",
+			"url": "https://medium.com/feed/balancer-protocol",
 			"category": "defi",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-compound-finance",
 			"name": "Compound",
-			"url": "https://blog.compound.finance/feed/",
+			"url": "https://medium.com/feed/compound-finance",
 			"category": "defi",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-curve-fi",
@@ -1905,15 +1905,15 @@
 		{
 			"id": "blog-morpho-org",
 			"name": "Morpho",
-			"url": "https://blog.morpho.org/feed",
+			"url": "https://medium.com/feed/morpho-labs",
 			"category": "defi",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-pendle-finance",
@@ -1944,15 +1944,15 @@
 		{
 			"id": "blog-venus-io",
 			"name": "Venus",
-			"url": "https://blog.venus.io/feed",
+			"url": "https://medium.com/feed/venusprotocol",
 			"category": "defi",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-yearn-fi",
@@ -2061,15 +2061,15 @@
 		{
 			"id": "aljazeera-tech",
 			"name": "Al Jazeera Technology",
-			"url": "https://www.aljazeera.com/xml/rss/technology.xml",
+			"url": "https://www.aljazeera.com/xml/rss/all.xml",
 			"category": "general_finance",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "ap-crypto",
@@ -2087,15 +2087,15 @@
 		{
 			"id": "ars-crypto",
 			"name": "Ars Technica",
-			"url": "https://feeds.arstechnica.com/arstechnica/technology",
+			"url": "https://feeds.arstechnica.com/arstechnica/index",
 			"category": "general_finance",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "bbc-business",
@@ -2139,15 +2139,15 @@
 		{
 			"id": "bloomberg-crypto",
 			"name": "Bloomberg Crypto",
-			"url": "https://feeds.bloomberg.com/markets/crypto.rss",
+			"url": "https://feeds.bloomberg.com/markets/news.rss",
 			"category": "general_finance",
 			"type": "rss",
 			"priority": 1,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "bloomberg-tech",
@@ -2191,15 +2191,15 @@
 		{
 			"id": "forbes-crypto",
 			"name": "Forbes Crypto",
-			"url": "https://www.forbes.com/crypto-blockchain/feed/",
+			"url": "https://www.forbes.com/innovation/feed/",
 			"category": "general_finance",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "forbes-digital-assets",
@@ -2217,28 +2217,28 @@
 		{
 			"id": "fortune-crypto",
 			"name": "Fortune Crypto",
-			"url": "https://fortune.com/tag/cryptocurrency/feed/",
+			"url": "https://fortune.com/feed/",
 			"category": "general_finance",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "ft-markets",
 			"name": "Financial Times Markets",
-			"url": "https://www.ft.com/markets/cryptofinance?format=rss",
+			"url": "https://www.ft.com/cryptofinance?format=rss",
 			"category": "general_finance",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "ft-tech",
@@ -2451,15 +2451,15 @@
 		{
 			"id": "yahoo-crypto",
 			"name": "Yahoo Finance Crypto",
-			"url": "https://finance.yahoo.com/news/topic/crypto/rss",
+			"url": "https://finance.yahoo.com/rss/crypto",
 			"category": "general_finance",
 			"type": "rss",
 			"priority": 1,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "bing-blockchain",
@@ -2724,15 +2724,15 @@
 		{
 			"id": "blog-bitquery-io",
 			"name": "Bitquery",
-			"url": "https://blog.bitquery.io/feed",
+			"url": "https://bitquery.io/feed",
 			"category": "onchain",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-chainalysis-com",
@@ -2750,28 +2750,28 @@
 		{
 			"id": "blog-intotheblock-com",
 			"name": "IntoTheBlock",
-			"url": "https://blog.intotheblock.com/feed/",
+			"url": "https://medium.com/feed/intotheblock",
 			"category": "onchain",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-santiment-net",
 			"name": "Santiment",
-			"url": "https://blog.santiment.net/feed/",
+			"url": "https://medium.com/feed/santiment",
 			"category": "onchain",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "chainalysis",
@@ -2945,15 +2945,15 @@
 		{
 			"id": "esma-europa-eu",
 			"name": "ESMA",
-			"url": "https://www.esma.europa.eu/press-news/rss",
+			"url": "https://www.esma.europa.eu/rss.xml",
 			"category": "regulation",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "fatf-gafi-org",
@@ -2984,15 +2984,15 @@
 		{
 			"id": "sec-crypto",
 			"name": "SEC Crypto RSS",
-			"url": "https://www.sec.gov/cgi-bin/rss?crypto",
+			"url": "https://www.sec.gov/news/pressreleases.rss",
 			"category": "regulation",
 			"type": "rss",
 			"priority": 1,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "sec-gov",
@@ -3023,15 +3023,15 @@
 		{
 			"id": "blog-hexens-io",
 			"name": "Hexens",
-			"url": "https://blog.hexens.io/feed",
+			"url": "https://hexens.io/rss.xml",
 			"category": "security",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "blog-solidified-io",
@@ -3101,15 +3101,15 @@
 		{
 			"id": "dedaub-com",
 			"name": "Dedaub",
-			"url": "https://dedaub.com/blog/feed",
+			"url": "https://medium.com/feed/dedaub",
 			"category": "security",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "feeds-feedburner-com",
@@ -3127,15 +3127,15 @@
 		{
 			"id": "halborn-com",
 			"name": "Halborn",
-			"url": "https://halborn.com/feed/",
+			"url": "https://halborn.com/feed.xml",
 			"category": "security",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "immunefi",
@@ -3166,28 +3166,28 @@
 		{
 			"id": "openzeppelin",
 			"name": "OpenZeppelin Blog",
-			"url": "https://blog.openzeppelin.com/feed",
+			"url": "https://blog.openzeppelin.com/rss.xml",
 			"category": "security",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "osec-io",
 			"name": "OSEC",
-			"url": "https://osec.io/blog/feed",
+			"url": "https://osec.io/rss.xml",
 			"category": "security",
 			"type": "rss",
 			"priority": 3,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "peckshield",
@@ -3205,15 +3205,15 @@
 		{
 			"id": "quantstamp-com",
 			"name": "Quantstamp",
-			"url": "https://quantstamp.com/blog/feed/",
+			"url": "https://quantstamp.com/blog/rss.xml",
 			"category": "security",
 			"type": "rss",
 			"priority": 2,
 			"quality_tier": "established",
 			"language": "en",
 			"requires_api_key": false,
-			"verified": false,
-			"needs_verification": true
+			"verified": true,
+			"needs_verification": false
 		},
 		{
 			"id": "rekt-substack-com",
