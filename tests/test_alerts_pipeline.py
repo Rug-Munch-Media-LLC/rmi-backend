@@ -365,7 +365,14 @@ def test_route_plan_includes_noop_send_stub_by_default() -> None:
 
 
 def test_default_channels_cover_expected_surfaces() -> None:
-    assert set(DEFAULT_CHANNELS) == {"site", "alerts_channel", "rmialerts", "rmicryptonews", "main_channel"}
+    assert set(DEFAULT_CHANNELS) == {
+        "site",
+        "alerts_channel",
+        "rmialerts",
+        "rmialpha",
+        "rmicryptonews",
+        "main_channel",
+    }
 
 
 # ── to_dict shape ──────────────────────────────────────────────────────────
