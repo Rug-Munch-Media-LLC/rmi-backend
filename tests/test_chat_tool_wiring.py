@@ -43,6 +43,7 @@ from app.domains.chat_tools import (
     _exec_news,
     _exec_price,
     _exec_scan,
+    _exec_suspicious,
     _exec_ta,
     _exec_trace,
     _run_tool_for_intent,
@@ -65,6 +66,7 @@ _INTENT_EXECUTOR_TABLE = [
     ("how's the market", "market", _exec_market),
     (f"who funded {_EVM}", "trace", _exec_trace),
     ("latest news", "news", _exec_news),
+    ("shady solana tokens you noticed launching", "suspicious", _exec_suspicious),
 ]
 
 
