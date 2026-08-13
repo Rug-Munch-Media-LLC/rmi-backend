@@ -9,10 +9,97 @@ from typing import Any
 
 from fastapi import APIRouter, Query, Request
 
-from app.routers.market_intel.providers import _cg, _fng
+from app.core.logging import get_logger
+from app.routers.market_intel.providers import MOVER_MIN_CHANGE_PCT, _cg, _fng, _is_stablecoin
 from app.routers.market_intel.utils import _now, _safe_float
 
 router = APIRouter(tags=["market-intel"])
+logger = get_logger(__name__)
+
+# ── Movers timeframe support ───────────────────────────────
+# CoinGecko /coins/markets exposes 1h/24h/7d change windows. There is no 6h
+# window — 6h falls back to the 24h field (see [REVIEW] in the task report).
+MOVERS_TIMEFRAMES = ("1h", "6h", "24h", "7d")
+_MOVERS_TF_FIELD = {
+    "1h": "price_change_percentage_1h_in_currency",
+    "24h": "price_change_percentage_24h",
+    "7d": "price_change_percentage_7d_in_currency",
+}
+_MOVERS_TF_FALLBACK = {"6h": "24h"}
+
+
+def _movers_tf_change(item: dict[str, Any], tf: str) -> float:
+    """Change % for the requested movers timeframe (falls back to 24h)."""
+    field = {"1h": "change_1h", "24h": "change_24h", "7d": "change_7d"}.get(tf, "change_24h")
+    return _safe_float(item.get(field))
+
+
+async def _gmgn_degen_movers(limit: int = 5) -> list[dict[str, Any]]:
+    """Best-effort GMGN fresh-pair supplement for the degen movers feed.
+
+    Fetches fresh pairs (pump rank) and enriches the top few with token info
+    (real 24h change + volume). Fail-open: any error returns an empty list and
+    the caller falls back to the filtered CoinGecko list.
+    """
+    try:
+        from app.databus.gmgn_provider import get_gmgn_provider
+
+        gmgn = get_gmgn_provider()
+        pairs = await gmgn.get_new_pairs(chain="solana", limit=max(limit * 4, 20))
+    except Exception as e:
+        logger.debug("GMGN degen movers fetch failed: %s", e)
+        return []
+
+    movers: list[dict[str, Any]] = []
+    for p in pairs or []:
+        address = p.get("address") or ""
+        symbol = (p.get("symbol") or "").upper()
+        name = p.get("name") or symbol
+        if _is_stablecoin(symbol, name, address):
+            continue
+        liquidity = _safe_float(p.get("liquidity"))
+        if liquidity < 5000:  # skip dust / honeypot-tier pairs
+            continue
+        age = _safe_float(p.get("age_seconds"))
+        if age and age > 24 * 3600:  # only fresh launches
+            continue
+        change_24h: float | None = None
+        volume_24h: float | None = None
+        if len(movers) < 3:  # enrich the top few with real change/volume
+            try:
+                info = await gmgn.get_token_info(address, chain=p.get("chain") or "solana")
+                if info and "error" not in info:
+                    pc = info.get("price_change_24h")
+                    change_24h = round(float(pc), 2) if isinstance(pc, (int, float)) else None
+                    vol = _safe_float(info.get("volume_24h"))
+                    volume_24h = vol or None
+            except Exception:
+                change_24h, volume_24h = None, None
+        movers.append(
+            {
+                "rank": 0,
+                "symbol": symbol,
+                "name": name,
+                "address": address,
+                "chain": p.get("chain") or "solana",
+                "price": _safe_float(p.get("price")),
+                "change_1h": None,
+                "change_24h": change_24h,
+                "change_7d": None,
+                "volume_24h": volume_24h,
+                "market_cap": _safe_float(p.get("market_cap")),
+                "liquidity": liquidity,
+                "holders": 0,
+                "risk_score": 60,
+                "image": "",
+                "source": p.get("source") or "gmgn",
+                "is_new_launch": True,
+                "age_seconds": int(age) if age else 0,
+            }
+        )
+        if len(movers) >= limit:
+            break
+    return movers
 
 
 @router.get("/overview")
@@ -86,15 +173,24 @@ async def get_market_movers(
     request: Request,
     limit: int = Query(10, ge=1, le=100),
     tier: str = Query("free"),
+    timeframe: str = Query("24h", pattern="^(1h|6h|24h|7d)$"),
 ) -> dict[str, Any]:
-    """Top gainers/losers from CoinGecko."""
+    """Top gainers/losers — real movers, no stablecoins/flat majors.
+
+    Sources: CoinGecko /coins/markets (1h/24h/7d windows, 6h falls back to
+    24h) + best-effort GMGN fresh-pair supplement (fail-open). Items are
+    filtered by the stablecoin blacklist and a |change| floor so flat
+    stablecoins/majors never appear as "movers".
+    """
     now = _now()
+    tf = timeframe if timeframe in _MOVERS_TF_FIELD else _MOVERS_TF_FALLBACK.get(timeframe, "24h")
+    cg_field = _MOVERS_TF_FIELD[tf]
     data = await _cg(
         "/coins/markets",
         params={
             "vs_currency": "usd",
-            "order": "price_change_percentage_24h_desc",
-            "per_page": min(limit, 100),
+            "order": "market_cap_desc",
+            "per_page": min(max(limit * 5, 50), 250),
             "page": 1,
             "sparkline": "false",
             "price_change_percentage": "1h,24h,7d",
@@ -104,13 +200,21 @@ async def get_market_movers(
 
     items = []
     if data and isinstance(data, list):
-        for i, c in enumerate(data[:limit]):
+        for i, c in enumerate(data):
+            symbol = (c.get("symbol") or "").upper()
+            name = c.get("name", "")
+            address = c.get("id", "")
+            change = _safe_float(c.get(cg_field))
+            if _is_stablecoin(symbol, name, address):
+                continue
+            if abs(change) < MOVER_MIN_CHANGE_PCT:
+                continue
             items.append(
                 {
                     "rank": c.get("market_cap_rank", i + 1),
-                    "symbol": (c.get("symbol") or "").upper(),
-                    "name": c.get("name", ""),
-                    "address": c.get("id", ""),
+                    "symbol": symbol,
+                    "name": name,
+                    "address": address,
                     "chain": "ethereum"
                     if c.get("id") in ("ethereum", "tether", "usd-coin", "wrapped-bitcoin")
                     else "solana"
@@ -128,10 +232,39 @@ async def get_market_movers(
                         max(int(50 + abs(_safe_float(c.get("price_change_percentage_24h"))) / 2), 0), 100
                     ),
                     "image": c.get("image", ""),
+                    "source": "coingecko",
+                    "timeframe": timeframe,
                 }
             )
 
-    return {"items": items, "total": len(items), "updated_at": now}
+    items.sort(key=lambda x: _movers_tf_change(x, tf), reverse=True)
+
+    gmgn_movers: list[dict[str, Any]] = []
+    try:
+        gmgn_movers = await _gmgn_degen_movers(limit=max(2, min(5, limit)))
+    except Exception as e:
+        logger.debug("GMGN degen movers merge failed: %s", e)
+        gmgn_movers = []
+
+    gainers = (gmgn_movers + [i for i in items if _movers_tf_change(i, tf) > 0])[:limit]
+    losers = [i for i in items if _movers_tf_change(i, tf) < 0]
+    losers.sort(key=lambda x: _movers_tf_change(x, tf))
+    losers = losers[:limit]
+
+    sources = ["coingecko"]
+    if gmgn_movers:
+        sources.append("gmgn")
+
+    return {
+        "items": gmgn_movers + items,
+        "top_gainers": gainers,
+        "top_losers": losers,
+        "degen_movers": gmgn_movers,
+        "total": len(items) + len(gmgn_movers),
+        "timeframe": timeframe,
+        "sources": sources,
+        "updated_at": now,
+    }
 
 
 @router.get("/chains")

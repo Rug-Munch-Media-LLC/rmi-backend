@@ -26,6 +26,7 @@ from app.domains.telegram.rugmunchbot.config import (
     fmt_pct,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
+    dexscreener_url,
     footer_links,
     sep,
     thin_sep,
@@ -36,6 +37,7 @@ from app.domains.telegram.rugmunchbot.handlers._market_helpers import (
     _render_trending_text,
     _resolve_chain,
     _time_ago as _time_ago,  # re-exported — handlers/callback imports from market
+    _window_change,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, token_buttons
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -511,29 +513,47 @@ async def cmd_market(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-async def cmd_movers(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /movers — top 24h gainers & losers from the backend market router."""
-    msg = await update.message.reply_text("\U0001f680 <b>Fetching market movers...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
-    data = await _fetch_market_intel("/api/v1/market/movers", params={"limit": 20})
-    items = (data or {}).get("items") or []
-    if not items:
-        await msg.edit_text(MARKET_UNAVAILABLE, parse_mode=ParseMode.HTML)
-        return
+_MOVERS_TF_LABEL = {"1h": "1H", "6h": "6H", "24h": "24H", "7d": "7D"}
 
-    # Backend orders desc by 24h change; split into gainers/losers from that window.
-    gainers = [i for i in items if (i.get("change_24h") or 0) >= 0][:6]
-    losers = [i for i in items if (i.get("change_24h") or 0) < 0][:6]
 
-    lines = ["\U0001f680 <b>24h Market Movers</b>", sep()]
+def _mover_link(item: dict[str, Any]) -> str:
+    """Tap-through URL for a mover: DexScreener for on-chain tokens,
+    CoinGecko coin page for exchange-listed (CG) entries."""
+    addr = item.get("address") or ""
+    chain = (item.get("chain") or "solana").lower()
+    if item.get("source") == "gmgn" and addr:
+        return dexscreener_url(addr, chain)
+    if addr:
+        return f"https://www.coingecko.com/en/coins/{addr}"
+    return "https://www.coingecko.com/"
+
+
+def _render_movers_lines(
+    gainers: list[dict[str, Any]],
+    losers: list[dict[str, Any]],
+    timeframe: str,
+    sources: list[str] | None = None,
+) -> list[str]:
+    """Render the movers message body (pure — no telegram objects)."""
+    label = _MOVERS_TF_LABEL.get(timeframe, "24H")
+    lines = [f"\U0001f680 <b>{label} Market Movers</b>", sep()]
+    if sources:
+        lines.append(f"\U0001f4e1 Sources: {', '.join(sources)}")
+        lines.append("")
+
     lines.append("\U0001f7e2 <b>TOP GAINERS</b>")
     lines.append(thin_sep())
     for i, item in enumerate(gainers, 1):
         symbol = (item.get("symbol") or "???").upper()[:12]
         name = (item.get("name") or symbol)[:24]
-        change = item.get("change_24h") or 0
+        change = _window_change(item, timeframe)
+        new_badge = " \U0001f195" if item.get("is_new_launch") else ""
+        gmgn_tag = " (GMGN)" if (item.get("source") or "").lower() == "gmgn" else ""
+        link = _mover_link(item)
         lines.append(
-            f"{i}. {_change_emoji(change)} <b>{name}</b> ({symbol})\n"
+            f"{i}. {_change_emoji(change)} <b>{name}</b> ({symbol}){gmgn_tag}{new_badge}\n"
             f"   <b>{fmt_pct(change)}</b> | {_fmt_usd(item.get('price'))} | Vol: {_fmt_usd(item.get('volume_24h'))}"
+            f' | \U0001f517 <a href="{link}">Chart</a>'
         )
     if not gainers:
         lines.append("<i>No gainers in the current window.</i>")
@@ -544,19 +564,59 @@ async def cmd_movers(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     for i, item in enumerate(losers, 1):
         symbol = (item.get("symbol") or "???").upper()[:12]
         name = (item.get("name") or symbol)[:24]
-        change = item.get("change_24h") or 0
+        change = _window_change(item, timeframe)
+        link = _mover_link(item)
         lines.append(
             f"{i}. {_change_emoji(change)} <b>{name}</b> ({symbol})\n"
             f"   <b>{fmt_pct(change)}</b> | {_fmt_usd(item.get('price'))} | Vol: {_fmt_usd(item.get('volume_24h'))}"
+            f' | \U0001f517 <a href="{link}">Chart</a>'
         )
     if not losers:
         lines.append("<i>No losers in the top movers \u2014 market is green \U0001f7e2</i>")
-
     lines.append(footer_links())
+    return lines
+
+
+async def cmd_movers(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /movers [1h|6h|24h|7d] — top gainers/losers (real degen movers)."""
+    timeframe = "24h"
+    if ctx.args and ctx.args[0].lower() in _MOVERS_TF_LABEL:
+        timeframe = ctx.args[0].lower()
+    label = _MOVERS_TF_LABEL.get(timeframe, "24H")
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+        f"\U0001f680 <b>Fetching {label} market movers...</b>", parse_mode=ParseMode.HTML
+    )
+    data = await _fetch_market_intel("/api/v1/market/movers", params={"limit": 20, "timeframe": timeframe})
+    if not data:
+        await msg.edit_text(MARKET_UNAVAILABLE, parse_mode=ParseMode.HTML)
+        return
+
+    # Backend returns explicit lists for the requested window; fall back to
+    # splitting the raw items when only "items" is present (older backends).
+    gainers = list((data.get("top_gainers") or [])[:6])
+    losers = list((data.get("top_losers") or [])[:6])
+    if not gainers and not losers:
+        items = (data or {}).get("items") or []
+        gainers = [i for i in items if _window_change(i, timeframe) >= 0][:6]
+        losers = [i for i in items if _window_change(i, timeframe) < 0][:6]
+
+    lines = _render_movers_lines(gainers, losers, timeframe, data.get("sources"))
+
+    rows: list[list[InlineKeyboardButton]] = []
+    for item in (gainers + losers)[:8]:
+        addr = item.get("address") or ""
+        if not addr:
+            continue
+        chain = (item.get("chain") or "solana").lower()
+        if (item.get("source") or "").lower() == "gmgn":
+            rows.append(token_buttons(addr, chain))
+        else:
+            rows.append([InlineKeyboardButton("\U0001f4c8 Chart", url=f"https://www.coingecko.com/en/coins/{addr}")])
+    rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     await msg.edit_text(
         "\n".join(lines),
         parse_mode=ParseMode.HTML,
-        reply_markup=_menu_kb(),
+        reply_markup=InlineKeyboardMarkup(rows),
         disable_web_page_preview=True,
     )
 

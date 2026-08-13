@@ -24,6 +24,86 @@ from app.routers.market_intel.utils import _safe_float
 logger = get_logger(__name__)
 
 
+# ── Stablecoin / mover filtering ──────────────────────────
+# Flat stablecoins (~0.00% change) must never surface as "movers".
+STABLECOIN_SYMBOLS: set[str] = {
+    "USDT",
+    "USDC",
+    "DAI",
+    "USDS",
+    "TUSD",
+    "FDUSD",
+    "FRAX",
+    "LUSD",
+    "USDD",
+    "USDP",
+    "PYUSD",
+    "GUSD",
+    "BUSD",
+    "CRVUSD",
+    "SUSD",
+}
+
+# Known stablecoin identifiers: CoinGecko ids (the "address"/id field in
+# /coins/markets rows) plus well-known EVM/Solana contract addresses.
+STABLECOIN_ADDRESSES: set[str] = {
+    # CoinGecko ids
+    "tether",
+    "usd-coin",
+    "dai",
+    "usds",
+    "true-usd",
+    "first-digital-usd",
+    "frax",
+    "liquity-usd",
+    "usdd",
+    "usdp",
+    "paypal-usd",
+    "gemini-dollar",
+    "binance-usd",
+    "crvusd",
+    "synthetix-susd",
+    # EVM contract addresses (lowercased)
+    "0xdac17f958d2ee523a2206206994597c13d831ec7",  # USDT (ETH)
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",  # USDC (ETH)
+    "0x6b175474e89094c44da98b954eedeac495271d0f",  # DAI (ETH)
+    "0x8e870d67f660d95d5be530380d0ec0bd388289e1",  # USDP / PAX
+    "0x4fabb145d64652a948d72533023f6e7a623c7c53",  # BUSD (ETH)
+    "0x853d955acef822db058eb8505911ed77f175b99e",  # FRAX (ETH)
+    "0x0000000000085d4780b73119b644ae5ecd22b376",  # TUSD (ETH)
+    "0x5f98805a4e8be255a32880fdec8076726b333b49",  # LUSD (ETH)
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",  # crvUSD (ETH)
+    "0x6c3ea9036406852006290770bedfcaba0e23a0e8",  # PYUSD (ETH)
+    "0x056fd409e1d7a124bd7017459dfea2f387b6d5cd",  # GUSD (ETH)
+    "0xc5f0f7b66764f6ec8c8dff7ba683102295e16409",  # FDUSD (ETH)
+    "0xdc035d45d973e3ec169d2276ddab16f1e407384f",  # USDS (ETH)
+    "0x57ab1ec28d129707052df4df418d58a2d46d5f51",  # sUSD (Synthetix, ETH)
+    # Solana (base58, stored lowercase for case-insensitive compare)
+    "es9vmfrzacermjfrf4h2fyd4kconky11mcce8benwnyb",  # USDT (Solana)
+    "epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwytdt1v",  # USDC (Solana)
+}
+
+# |change| below this % is not a "mover" — flat majors/stablecoins get dropped.
+MOVER_MIN_CHANGE_PCT = 0.5
+
+
+def _is_stablecoin(symbol: str, name: str = "", address: str = "") -> bool:
+    """True for known stablecoins (by symbol, name hint, or known address)."""
+    if (symbol or "").upper() in STABLECOIN_SYMBOLS:
+        return True
+    low_name = (name or "").lower()
+    if "stable" in low_name or "tether" in low_name:
+        return True
+    return bool(address) and address.lower() in STABLECOIN_ADDRESSES
+
+
+def _is_mover(market: dict[str, Any], change_key: str = "change_24h") -> bool:
+    """Market qualifies as a mover: not a stablecoin and above the change floor."""
+    if _is_stablecoin(market.get("symbol", ""), market.get("name", ""), market.get("address", "")):
+        return False
+    return abs(_safe_float(market.get(change_key))) >= MOVER_MIN_CHANGE_PCT
+
+
 # ── HTTP helpers ───────────────────────────────────────────
 async def _aget(url: str, params=None, headers=None, timeout: int = 10) -> Any | None:
     """Async HTTP GET with error handling."""
@@ -158,11 +238,14 @@ async def _hyperliquid_action(limit: int = 10, ttl: int = 60) -> dict[str, Any]:
     if not markets:
         return {}
     active = [m for m in markets if m["volume_24h"] >= 1_000_000]
+    # Real movers only: stablecoins and sub-threshold (flat) markets never
+    # appear in gainers/losers. Funding/volume lists keep the full active set.
+    movers = [m for m in active if _is_mover(m)]
     action_data = {
-        "top_gainers": sorted([m for m in active if m["change_24h"] > 0], key=lambda x: x["change_24h"], reverse=True)[
+        "top_gainers": sorted([m for m in movers if m["change_24h"] > 0], key=lambda x: x["change_24h"], reverse=True)[
             :limit
         ],
-        "top_losers": sorted([m for m in active if m["change_24h"] < 0], key=lambda x: x["change_24h"])[:limit],
+        "top_losers": sorted([m for m in movers if m["change_24h"] < 0], key=lambda x: x["change_24h"])[:limit],
         "long_squeeze_highest_funding": sorted(
             [m for m in active if m["funding_rate"] > 0],
             key=lambda x: x["funding_rate"],
