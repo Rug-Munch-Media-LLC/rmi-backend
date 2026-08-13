@@ -90,6 +90,152 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot")
 
 
+# ══════════════════════════════════════════════
+# /help reference — grouped, scannable (v10)
+# Five primary categories (Scan & Security / Wallet & Tracing /
+# Market & Analysis / News & Alerts / Chat) mirror the composer-menu
+# order and the inline keyboard sections. Account & Extras keeps the
+# remaining self-service + group-admin commands reachable. Owner/admin
+# commands are documented in the admin panel, not here.
+# Rendered with HTML parse mode — every <code> tag is balanced.
+# ══════════════════════════════════════════════
+_HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
+    (
+        "Scan & Security",
+        [
+            ("scan", "<code>address</code> - quick security audit"),
+            ("deepscan", "<code>address</code> - full forensic scan"),
+            ("sentinelscan", "<code>address</code> - SENTINEL 9-module scan"),
+            ("rugcheck", "<code>address</code> - red flag checklist"),
+            ("deployer", "<code>address</code> - deployer fingerprint"),
+            ("hype", "<code>address</code> - 0-100 hype score"),
+            ("compare", "<code>a</code> <code>b</code> - side-by-side compare"),
+            ("investigate", "<code>address</code> - deep report (Pro)"),
+            ("rugmap", "<code>address</code> - bubble map image"),
+            ("honeypot", "<code>address</code> - honeypot detector"),
+            ("impersonation", "<code>address</code> - fake token check"),
+            ("mev", "<code>address</code> - MEV risk & safe swaps"),
+            ("lpcheck", "<code>address</code> - LP health check"),
+            ("lphealth", "<code>address</code> - liquidity pool health"),
+            ("deathclock", "<code>address</code> - survival prediction"),
+            ("laundry", "<code>address</code> - laundering detector"),
+            ("report", "<code>address</code> - report a scam"),
+        ],
+    ),
+    (
+        "Wallet & Tracing",
+        [
+            ("wallet", "<code>address</code> - wallet forensics"),
+            ("portfolio", "<code>address</code> - wallet holdings"),
+            ("simulate", "<code>address</code> - buy/sell simulation"),
+            ("trace", "<code>address</code> - cross-chain fund trace"),
+            ("flow", "<code>address</code> - money flow tracking"),
+            ("dumps", "<code>address</code> - dump pattern detector"),
+            ("cluster", "<code>address</code> - wallet clustering"),
+            ("smartmoney", "<code>address</code> - smart money detection"),
+        ],
+    ),
+    (
+        "Market & Analysis",
+        [
+            ("market", "- market overview (BTC/ETH, F&G)"),
+            ("price", "<code>address</code> - token price"),
+            ("quick", "<code>symbol</code> - instant price check"),
+            ("chart", "<code>address</code> - chart image (OHLCV)"),
+            ("ta", "<code>address</code> - technical analysis"),
+            ("dex", "<code>address</code> - DEX pairs & liquidity"),
+            ("trending", "[chain] - hot tokens right now"),
+            ("movers", "- biggest 24h gainers & losers"),
+            ("launches", "[chain] - new launch feed"),
+            ("whales", "- whale movement alerts"),
+            ("sentiment", "- fear/greed & indicators"),
+            ("holders", "<code>address</code> - top holders (Scout+)"),
+            ("yield", "- DeFi yield opportunities"),
+            ("defi", "<code>protocol</code> - DeFi analytics"),
+            ("polymarket", "- prediction markets"),
+            ("election", "- election odds"),
+            ("odds", "- sports & event odds"),
+        ],
+    ),
+    (
+        "News & Alerts",
+        [
+            ("news", "- latest crypto news"),
+            ("events", "- news events & price impact"),
+            ("alerts", "- manage price & activity alerts"),
+            ("alert", "ABOVE/BELOW/CHANGE_5 <code>addr</code> <code>price</code>"),
+            ("watch", "<code>address</code> - add to watchlist"),
+            ("unwatch", "<code>address</code> - remove from watchlist"),
+            ("watchlist", "- view your watchlist"),
+            ("whale", "<code>address</code> - whale alerts"),
+            ("webhook", "- custom webhook notifications (Pro)"),
+        ],
+    ),
+    (
+        "Chat",
+        [
+            ("chat", "<code>question</code> - freestyle AI chat"),
+            ("chat reset", "- clear conversation context"),
+            ("ask", "<code>question</code> - deep RAG answer"),
+            ("research", "<code>query</code> - deep research (Hunter+)"),
+        ],
+    ),
+    (
+        "Account & Extras",
+        [
+            ("account", "- dashboard & usage stats"),
+            ("pricing", "- subscription plans"),
+            ("topup", "- buy extra scans"),
+            ("buystars", "- buy Telegram Stars"),
+            ("refer", "- invite friends, earn scans"),
+            ("api", "- API access token (Pro)"),
+            ("banuser", "<code>user_id</code> - group ban (admins)"),
+            ("mygroup", "- your creator coin group"),
+            ("groupinfo", "- group stats (admin)"),
+            ("voicechat", "- manage voice chat (admin)"),
+        ],
+    ),
+]
+
+_HELP_EMOJI: dict[str, str] = {
+    "Scan & Security": "\U0001f6e1\ufe0f",
+    "Wallet & Tracing": "\U0001f50d",
+    "Market & Analysis": "\U0001f4c8",
+    "News & Alerts": "\U0001f4f0",
+    "Chat": "\U0001f4ac",
+    "Account & Extras": "\U0001f4b3",
+}
+
+
+def _build_help_text() -> str:
+    """Render the full /help reference (HTML) from _HELP_SECTIONS."""
+    s = sep()
+    d = thin_sep()
+    parts = [f"\U0001f4d6 <b>RugMunch Intelligence - Command Guide</b>\n{s}"]
+    default_emoji = "\U0001f4d6"
+    for header, cmds in _HELP_SECTIONS:
+        emoji = _HELP_EMOJI.get(header, default_emoji)
+        parts.append(f"\n{emoji} <b>{header}</b>\n{d}")
+        for cmd, desc in cmds:
+            parts.append(f"/{cmd} {desc}")
+    parts.append(
+        f"\n{BETA_BANNER}\n\n"
+        f"\U0001f4a1 <b>PRO TIPS</b>\n{d}\n"
+        "\u2022 Paste any <code>0x...</code> address to auto-scan\n"
+        "\u2022 Type <code>$PEPE</code> for instant price check\n"
+        "\u2022 After any scan, tap Chart / RugMap / Share / Deep Scan\n"
+        "\u2022 Use /chat for AI questions about tokens, wallets, DeFi, coding\n"
+        "\u2022 Use inline mode: <code>@RugMunchBot address</code> in any chat\n"
+        "\u2022 See a scam? /report <code>address</code> keeps us all safer\n"
+        "\u2022 Upgrade for wallet forensics, fund tracing & more"
+    )
+    parts.append(footer_links())
+    return "\n".join(parts)
+
+
+HELP_TEXT: str = _build_help_text()
+
+
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None:
@@ -154,101 +300,17 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Full command reference (v9) — grouped by the redesigned menu sections:
-    Scan / Intelligence / Alerts / Wallet / Account / Help."""
+    """Full command reference (v10) — grouped by category:
+    Scan & Security / Wallet & Tracing / Market & Analysis / News & Alerts /
+    Chat, plus Account & Extras."""
     user = update.effective_user
-    d = thin_sep()
-    s = sep()
-    text = (
-        f"\U0001f4d6 <b>RugMunch Intelligence - Command Guide</b>\n"
-        f"{s}\n\n"
-        f"\U0001f50d <b>SCAN</b>\n{d}\n"
-        f"/scan <code>address</code> - Quick security audit (fast, ~25s)\n"
-        f"/deepscan <code>address</code> - Full multi-phase forensic scan\n"
-        f"/sentinelscan <code>address</code> - SENTINEL 9-module forensic scan\n"
-        f"/rugcheck <code>address</code> - Red flag checklist\n"
-        f"/deployer <code>address</code> - Deployer fingerprint check\n"
-        f"/hype <code>address_or_symbol</code> - 0-100 hype score\n"
-        f"/compare <code>addr1</code> <code>addr2</code> - Side-by-side\n"
-        f"/investigate <code>address</code> - Deep report (Pro)\n"
-        f"/rugmap <code>address</code> - Bubble map IMAGE of wallet clusters\n"
-        f"/report <code>address</code> - Report a scam address\n\n"
-        f"\U0001f9e0 <b>INTELLIGENCE</b>\n{d}\n"
-        f"/market - Market overview (BTC/ETH, Fear & Greed)\n"
-        f"/trending [chain] - Hot tokens right now\n"
-        f"/movers - Biggest 24h gainers & losers\n"
-        f"/launches [chain] - New token launch feed\n"
-        f"/whales - Whale movement alerts\n"
-        f"/news - Latest crypto news\n"
-        f"/events - News events & price impact\n"
-        f"/sentiment - Market fear/greed & indicators\n"
-        f"/price <code>address</code> [chain] - Token price by contract\n"
-        f"/quick <code>symbol</code> - Instant price (same as $TOKEN)\n"
-        f"/dex <code>address</code> [chain] - DEX pairs & liquidity\n"
-        f"/chart <code>address</code> - Chart IMAGE (OHLCV)\n"
-        f"/ta <code>address</code> - Technical analysis & signals\n"
-        f"/holders <code>address</code> - Top holder analysis (Scout+)\n"
-        f"/smartmoney <code>address</code> - Smart money detection\n"
-        f"/trace <code>address</code> - Cross-chain fund trace (Hunter+)\n"
-        f"/dumps <code>address</code> - Detect dump patterns\n"
-        f"/flow <code>address</code> - Money flow & fund tracking\n"
-        f"/polymarket - Polymarket prediction markets\n"
-        f"/election - Election odds & predictions\n"
-        f"/odds - Sports & event odds\n"
-        f"/yield - DeFi yield farming opportunities\n"
-        f"/lpcheck <code>address</code> - LP health check\n"
-        f"/defi <code>protocol</code> - DeFi protocol analytics\n"
-        f"/mev <code>address</code> - MEV risk & safe swap params\n"
-        f"/impersonation <code>address</code> - Detect fake tokens\n"
-        f"/deathclock <code>chain addr</code> - Token survival prediction\n"
-        f"/cluster <code>address</code> - Wallet clustering & funding\n"
-        f"/honeypot <code>address</code> - Honeypot detector\n"
-        f"/lphealth <code>address</code> - Liquidity pool health\n"
-        f"/laundry <code>address</code> - Money laundering detector\n\n"
-        f"\U0001f514 <b>ALERTS</b>\n{d}\n"
-        f"/alerts - Manage price & activity alerts\n"
-        f"/alert ABOVE|BELOW|CHANGE_5 <code>addr</code> <code>price</code> - Set an alert\n"
-        f"/watch <code>address</code> [chain] - Add to watchlist\n"
-        f"/unwatch <code>address</code> - Remove from watchlist\n"
-        f"/watchlist - View your watchlist\n"
-        f"/whale <code>address</code> - Whale movement alerts\n"
-        f"/webhook - Custom webhook notifications (Pro)\n\n"
-        f"\U0001f45b <b>WALLET</b>\n{d}\n"
-        f"/wallet <code>address</code> - Wallet forensics & analysis\n"
-        f"/portfolio <code>address</code> - Wallet holdings overview\n"
-        f"/simulate <code>address</code> [amount] - Buy/sell simulation\n\n"
-        f"\U0001f4ac <b>AI CHAT</b>\n{d}\n"
-        f"/chat <code>question</code> - Freestyle AI chat (RAG + LLM)\n"
-        f"/chat reset - Clear conversation context\n"
-        f"/ask <code>question</code> - Deep RAG-grounded answer\n"
-        f"/research <code>query</code> - RAG deep research (Hunter+)\n"
-        f"\u2022 Or just type any message - no command needed!\n\n"
-        f"\U0001f4b3 <b>ACCOUNT</b>\n{d}\n"
-        f"/account - Dashboard & usage stats\n"
-        f"/pricing - Subscription plans\n"
-        f"/topup - Buy extra scans (no expiry)\n"
-        f"/buystars - Buy Telegram Stars\n"
-        f"/refer - Invite friends, earn scans\n"
-        f"/scamschool - Learn about crypto scams\n"
-        f"/api - API access token (Pro)\n"
-        f"{BETA_BANNER}\n\n"
-        f"\U0001f465 <b>GROUPS</b> (admins)\n{d}\n"
-        f"/banuser <code>user_id</code> - Ban a user from your group\n"
-        f"/mygroup - Your creator coin group\n"
-        f"/groupinfo - Group stats (admin)\n"
-        f"/voicechat - Manage voice chat (admin)\n\n"
-        f"\U0001f4a1 <b>PRO TIPS</b>\n{d}\n"
-        f"\u2022 Paste any <code>0x...</code> address to auto-scan\n"
-        f"\u2022 Type <code>$PEPE</code> for instant price check\n"
-        f"\u2022 After any scan, tap Chart / RugMap / Share / Deep Scan\n"
-        f"\u2022 Use /chat for AI questions about tokens, wallets, DeFi, coding\n"
-        f"\u2022 Use inline mode: <code>@RugMunchBot address</code> in any chat\n"
-        f"\u2022 See a scam? /report <code>address</code> keeps us all safer\n"
-        f"\u2022 Upgrade for wallet forensics, fund tracing & more"
-        f"{footer_links()}"
-    )
     kb = welcome_menu_kb(user.id if user else None)
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)  # type: ignore[union-attr]  # PTB None-able fields
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+        HELP_TEXT,
+        parse_mode=ParseMode.HTML,
+        reply_markup=kb,
+        disable_web_page_preview=True,
+    )
 
 
 async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

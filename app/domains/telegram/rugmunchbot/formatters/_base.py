@@ -152,48 +152,47 @@ def dex_buttons(token: str, chain: str) -> list[InlineKeyboardButton]:
 
 
 def social_proof_text() -> str:
-    try:
-        conn = db.get_db()
-        total_users = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
-        total_scans = conn.execute("SELECT SUM(total_scans) as c FROM users").fetchone()["c"] or 0
-        conn.close()
-        users_str = f"{total_users:,}" if total_users else "1,000+"
-        scans_str = f"{total_scans:,}" if total_scans else "50,000+"
-        return f"\U0001f465 {users_str} users | \U0001f50d {scans_str} scans completed"
-    except (ConnectionError, OSError):
-        return "\U0001f465 1,000+ users | \U0001f50d 50,000+ scans completed"
+    """Evidence-first "why trust us" block.
+
+    Only figures verified in the fleet docs: 17 chains / 359M+ on-chain
+    rows (lite-chain-indexer README) and 200+ tools (rmi-backend
+    ARCHITECTURE.md). No invented user/scan counters and no DB access, so
+    this stays a pure, deterministic string formatter.
+    """
+    return (
+        "\U0001f3d7\ufe0f <b>Why trust us</b>\n"
+        "\U0001f517 17 chains indexed \u00b7 359M+ on-chain rows\n"
+        "\U0001f6e0\ufe0f 200+ tools \u00b7 24/7 AI \u2014 free during public beta"
+    )
 
 
 def welcome_card_text() -> str:
-    """v9 welcome card — capability overview shown by /start and the main menu.
+    """Modern capability overview — brand line, "what I can do" list, CTA.
 
-    Covers the five main-menu sections (Scan · Intelligence · Alerts ·
-    Wallet · Help) plus the quick-start tips. Account & AI Chat are
-    reachable from the same menu.
+    Shown by /start, the main menu (``menu_main``) and the welcome card.
+    Every capability bullet maps to real bot commands (see ``cmd_help``
+    for the full reference). HTML-safe for Telegram: only ``<b>`` /
+    ``<i>`` / ``<code>`` tags and ``&amp;`` escaping — no raw markdown.
     """
-    proof = social_proof_text()
     return (
-        f"\U0001f6e1\ufe0f <b>RugMunch Intelligence</b>\n"
-        f"<i>The Bloomberg Terminal of Shitcoins</i>\n\n"
-        f"{proof}\n\n"
-        f"<b>I can scan tokens, analyze wallets, show charts, run "
-        f"RugMaps bubble maps, answer crypto questions via AI chat, track "
-        f"your portfolio, and more.</b>\n"
-        f"\U0001f4cc Try <code>/scan</code> or <code>/chat</code> to get started!\n\n"
-        f"<b>Sections:</b>\n"
-        f"\U0001f50d <b>Scan</b> — audits, deep/SENTINEL, deployer, rug checks\n"
-        f"\U0001f9e0 <b>Intelligence</b> — market, trending, news, AI chat\n"
-        f"\U0001f514 <b>Alerts</b> — price alerts, watchlist, whale alerts\n"
-        f"\U0001f45b <b>Wallet</b> — forensics, portfolio, watchlist\n"
-        f"\u2139\ufe0f <b>Help</b> — full command reference\n\n"
-        f"\U0001f4f3 <b>Free:</b> {TIERS['free']['scans_per_week']} scans + "
-        f"{TIERS['free']['ai_msgs_per_week']} AI msgs/week\n"
+        f"\U0001f6e1\ufe0f <b>Rug Munch Bot</b> by the team at "
+        f"<b>Rug Munch Intelligence</b>\n"
+        f"<i>The scam-detection copilot for crypto</i>\n\n"
+        f"{social_proof_text()}\n\n"
+        f"<b>What I can do</b>\n"
+        f"\U0001f50d <b>Scan</b> \u2014 instant token audits &amp; SENTINEL forensics\n"
+        f"\U0001f45b <b>Wallet</b> \u2014 forensics, portfolio &amp; funding analysis\n"
+        f"\U0001f575\ufe0f <b>Trace</b> \u2014 cross-chain wallet tracing (Arkham-style)\n"
+        f"\U0001f4b0 <b>Price</b> \u2014 live prices, charts &amp; market snapshots\n"
+        f"\U0001f4ca <b>Technical</b> \u2014 RSI, MACD, support &amp; resistance\n"
+        f"\U0001f4f0 <b>News</b> \u2014 live crypto news + RAG AI chat\n"
+        f"\U0001f514 <b>Alerts</b> \u2014 price, watchlist &amp; whale alerts\n"
+        f"\U0001f4da <b>Scam School</b> \u2014 learn the plays &amp; KOL/scammer tracking\n\n"
         f"{BETA_BANNER}\n\n"
-        f"<b>Quick Start:</b>\n"
-        f"\U0001f4cc Paste any contract address \u2192 auto-scan\n"
-        f"\U0001f4cc Type <code>$TOKEN</code> \u2192 instant price\n"
-        f"\U0001f4cc /chat <code>your question</code> \u2192 talk to me\n"
+        f"\U0001f4cc Try <code>/scan</code> <code>address</code> or "
+        f"<code>/chat</code> <code>question</code>\n"
         f"\U0001f4cc Pick a section below \U0001f447"
+        f"{footer_links()}"
     )
 
 

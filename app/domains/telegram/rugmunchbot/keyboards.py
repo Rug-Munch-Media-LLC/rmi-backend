@@ -51,12 +51,14 @@ def token_buttons(address: str, chain: str, *, include_scan: bool = True) -> lis
 
 
 def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButton]]:
-    """Shared main-menu rows (v9 — sectioned).
+    """Shared main-menu rows (v10 — most-used first, no orphan buttons).
 
-    Five primary capability sections, two buttons per row:
+    Six primary capability sections, two buttons per row — most-used
+    actions on top, community links at the bottom:
       Scan         · Intelligence
       Alerts       · Wallet
       Account      · AI Chat
+      Help         · Channel
 
     Every registered capability is reachable from one of the sections:
       Scan          → security audits / deep / SENTINEL / rug checks
@@ -66,6 +68,9 @@ def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButto
       Wallet        → wallet forensics / portfolio / watchlist / simulate
       Account       → dashboard / pricing / referrals / scam school
       Help          → full command reference / community links
+
+    Every callback_data below has a handler in
+    handlers/callback/__init__.py — do NOT rename them.
 
     Owner (@cryptorugmunch) additionally sees an Admin button that
     opens the admin sub-menu — hidden from all other users.
@@ -84,8 +89,11 @@ def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButto
             InlineKeyboardButton("\U0001f916 AI Chat", callback_data="menu_cat_chat"),
         ],
         [
-            InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
+            InlineKeyboardButton("\U0001f4d6 Help", callback_data="menu_cat_help"),
             InlineKeyboardButton("\U0001f4e2 Channel", url=TELEGRAM_CHANNEL),
+        ],
+        [
+            InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
         ],
     ]
     # Owner-only admin button — hidden from everyone else.
