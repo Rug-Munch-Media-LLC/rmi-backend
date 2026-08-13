@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from app.domains.wallet.labels import label_known_entities
 from app.domains.wallet.monitor.config import LABEL_PATTERNS, get_redis
 from app.domains.wallet.monitor.models import LabelSuggestion, WalletTx
 
@@ -35,7 +36,33 @@ class AutoLabeler:
         await pipe.execute()
 
     @classmethod
+    async def known_entity_suggestion(cls, wallet: str, chain: str) -> LabelSuggestion | None:
+        """Suggest a label from the bundled known-entity (CEX) registry.
+
+        Pure in-memory lookup via ``label_known_entities`` — no Redis, no
+        network. Returns a high-confidence suggestion when the address is a
+        known exchange wallet, else None.
+        """
+        tags = label_known_entities(wallet, chain)
+        if not tags:
+            return None
+        entity = next((t for t in tags if t not in ("cex", "exchange", "dex")), tags[0])
+        label = "cex" if "cex" in tags else ("exchange" if "exchange" in tags else entity)
+        return LabelSuggestion(
+            wallet=wallet,
+            chain=chain,
+            suggested_label=label,
+            confidence=1.0,
+            reasoning=f"Matched known entity registry: {entity} ({', '.join(tags)})",
+            pattern_summary={"known_entity": entity, "tags": tags},
+            timestamp=datetime.now(UTC).isoformat(),
+        )
+
+    @classmethod
     async def suggest_label(cls, wallet: str, chain: str) -> LabelSuggestion | None:
+        known = await cls.known_entity_suggestion(wallet, chain)
+        if known is not None:
+            return known
         r = await get_redis()
         if not r:
             return None

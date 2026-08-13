@@ -30,6 +30,38 @@ DEFAULT_COLLECTION = "news_v2"
 DEFAULT_PAGE_TIMEOUT_MS = 45_000
 DEFAULT_MAX_URLS_PER_SWEEP = 25
 
+# ── Public scam/rug/exploit incident sources (RAG enrichment) ────────────────
+
+# Registry of structured scam/exploit data feeds — see crawl_sources.json under
+# the ``incident_sources`` key. Each entry: {name, description, type, url,
+# category, collections, enabled}. ``type: json_api`` sources are fetched and
+# normalized by app.rag.ingest_crypto_knowledge.ingest_incidents_from_sources;
+# ``type: html_page`` entries document page-based sources that need a
+# crawl/parse step before they can be wired (kept disabled until a parser
+# exists).
+INCIDENT_SOURCES_FILE = Path(__file__).parent / "crawl_sources.json"
+
+# Allowed incident categories (rug / exploit / scam).
+INCIDENT_CATEGORIES: tuple[str, ...] = ("rug", "exploit", "scam")
+
+# category → target RAG collections. Mirrors the chat router's RAG_COLLECTIONS
+# (app/routers/chat.py) plus the legacy ``known_scams`` collection used by the
+# alert pipeline / protection router / streaming RAG.
+INCIDENT_COLLECTION_BY_CATEGORY: dict[str, tuple[str, ...]] = {
+    "rug": ("known_scams", "scam_patterns"),
+    "exploit": ("defi_exploits", "threat_intel"),
+    "scam": ("scam_patterns", "known_scams"),
+}
+
+# Default category per known source — used by ``normalize_incident`` when a raw
+# record does not carry an explicit category field.
+INCIDENT_CATEGORY_BY_SOURCE: dict[str, str] = {
+    "defillama_hacks": "exploit",
+    "rekt_news_leaderboard": "exploit",
+    "slowmist_hacked": "scam",
+    "certik_security_alerts": "exploit",
+}
+
 # Dedup counter keys returned in sweep summaries (distinguish dup levels).
 DUP_COUNTERS = ("url_dup", "title_dup", "content_dup", "entity_dup")
 

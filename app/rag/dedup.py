@@ -95,6 +95,15 @@ def url_hash(url: str) -> str:
     return hashlib.sha256(url.encode("utf-8", errors="ignore")).hexdigest()[:32]
 
 
+def doc_id_hash(doc_id: str) -> str:
+    """Stable short hash of an external doc-id for exact doc-id dedup.
+
+    Mirrors ``url_hash`` so doc-ids and URLs share one key space; use it for
+    crawler-returned ``doc_id`` values that are stable across re-ingestion.
+    """
+    return hashlib.sha256((doc_id or "").encode("utf-8", errors="ignore")).hexdigest()[:32]
+
+
 def _prune_zset(r: Any, key: str, ttl_days: int) -> None:
     """Remove members older than *ttl_days* from a timestamp-scored ZSET."""
     try:
@@ -201,6 +210,125 @@ def content_fingerprint(text: str) -> str:
     body = " ".join(lines)[:1000]
     norm = re.sub(r"\s+", " ", body).strip().lower()
     return hashlib.sha256(norm.encode("utf-8", errors="ignore")).hexdigest()
+
+
+# ── Address normalization ────────────────────────────────────────────────
+
+_EVM_ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
+# Solana base58 addresses (no 0/I/O/l, case-sensitive by design).
+_SOLANA_ADDRESS_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+
+
+def is_valid_evm_address(address: str) -> bool:
+    """True when *address* looks like a 0x-prefixed 40-hex EVM address."""
+    return bool(address and _EVM_ADDRESS_RE.match(address.strip()))
+
+
+def to_checksum_address(address: str) -> str:
+    """EIP-55 checksum an EVM address (idempotent).
+
+    Falls back to lowercase when ``eth_utils`` is unavailable so dedup never
+    hard-depends on the optional library. Non-EVM-shaped input is returned
+    unchanged (fail-safe, never raises).
+    """
+    if not is_valid_evm_address(address):
+        return address
+    try:
+        from eth_utils import to_checksum_address as _eth_checksum
+
+        return _eth_checksum(address)
+    except Exception:  # pragma: no cover - optional dependency fallback
+        return address.lower()
+
+
+def normalize_address(address: str, chain: str = "evm") -> str:
+    """Normalize *address* for dedup keying by chain family.
+
+    * EVM (default, plus eth/base/bsc/… aliases): EIP-55 checksum so the same
+      wallet in mixed casing maps to one key.
+    * Solana (``sol``/``solana``): base58 is case-sensitive — preserved
+      verbatim (whitespace trimmed only).
+    * Unknown chain: trimmed as-is (fail-safe, never raises).
+    """
+    if not address:
+        return ""
+    addr = address.strip()
+    c = (chain or "evm").strip().lower()
+    if c in ("sol", "solana"):
+        return addr
+    if c in (
+        "evm",
+        "eth",
+        "ethereum",
+        "base",
+        "bsc",
+        "polygon",
+        "arbitrum",
+        "optimism",
+        "avalanche",
+        "fantom",
+        "gnosis",
+    ):
+        return to_checksum_address(addr)
+    return addr
+
+
+# ── Content hash (exact-block dedup) ─────────────────────────────────────
+
+# Reuse the Level-3 boilerplate strippers (defined above) so content hashing
+# and fingerprinting agree on what "real content" means.
+
+
+def normalize_text(text: str) -> str:
+    """Canonical text form: boilerplate stripped, whitespace collapsed, lower.
+
+    Unlike ``content_fingerprint`` (which truncates to the first 1000 chars),
+    ``normalize_text`` keeps the FULL body — use it for exact/near-identical
+    block detection where truncation would be lossy.
+    """
+    if not text:
+        return ""
+    lines: list[str] = []
+    for ln in text.splitlines():
+        stripped = ln.strip()
+        if not stripped:
+            continue
+        if any(p.search(stripped) for p in _BOILERPLATE_PATTERNS):
+            continue
+        lines.append(stripped)
+    return re.sub(r"\s+", " ", " ".join(lines)).strip().lower()
+
+
+def content_hash(text: str) -> str:
+    """SHA-256 of the fully normalized text — identical blocks collapse.
+
+    Feed ``content_hash`` into the existing ``is_duplicate_content`` /
+    ``mark_content_ingested`` Redis ZSETs to block re-ingestion of
+    byte-identical (modulo whitespace/case/boilerplate) content.
+    """
+    return hashlib.sha256(normalize_text(text).encode("utf-8", errors="ignore")).hexdigest()
+
+
+def tokenize(text: str) -> set[str]:
+    """Normalized word tokens for similarity scoring (lowercased alnum runs)."""
+    return set(re.findall(r"[a-z0-9]+", normalize_text(text)))
+
+
+def near_duplicate(a: str, b: str, threshold: float = 0.9) -> bool:
+    """Pure token-set Jaccard similarity helper for optional soft-dedup.
+
+    Returns True when the token-set Jaccard similarity
+    ``|A ∩ B| / |A + B| >= threshold`` — spelled out: size of the intersection
+    over size of the union of normalized tokens meets the threshold.
+    Empty/entity-free inputs return False (cannot decide → fail-open, matching
+    the module's other checks). No network, no Redis — safe for inline
+    candidate filters.
+    """
+    ta, tb = tokenize(a), tokenize(b)
+    if not ta or not tb:
+        return False
+    jaccard = len(ta & tb) / len(ta | tb)
+    return jaccard >= threshold
 
 
 def is_duplicate_content(fp: str, collection: str) -> bool:
@@ -667,17 +795,25 @@ __all__ = [
     "DedupResult",
     "check_duplicates",
     "content_fingerprint",
+    "content_hash",
+    "doc_id_hash",
     "extract_crypto_entities",
     "is_duplicate_by_entities",
     "is_duplicate_by_title",
     "is_duplicate_content",
     "is_duplicate_url",
+    "is_valid_evm_address",
     "lookup_group_by_fp",
     "lookup_group_by_url",
     "mark_content_ingested",
     "mark_url_ingested",
+    "near_duplicate",
     "new_group_id",
+    "normalize_address",
+    "normalize_text",
     "record_fp_group",
     "record_group_membership",
+    "to_checksum_address",
+    "tokenize",
     "url_hash",
 ]
