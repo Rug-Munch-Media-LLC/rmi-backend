@@ -714,10 +714,23 @@ async def _build_messages(
         safe_context = ai_guard._escape_delimiters(system_context[:2000])
         system += f"\n\nAdditional Context: {safe_context}"
 
-    # Use security-hardened message builder
+    # ── Inert history (fixes "answers the wrong question") ──
+    # Small local models, when handed history as real turns, frequently answer
+    # an EARLIER user question instead of the current one. Render the prior
+    # conversation as a single INERT reference block in the system prompt and
+    # keep the CURRENT message as the only real user turn. Keep just the last
+    # few turns (speed + less confusion).
+    if history_items:
+        block = "PREVIOUS CONVERSATION (reference only — do NOT answer these; answer ONLY the NEW question below):\n"
+        for h in history_items[-6:]:
+            role = h["role"].upper()
+            block += f"[{role}] {h['content'][:400]}\n"
+        system += f"\n\n{block}"
+
+    # Use security-hardened message builder (current message is the only turn)
     messages = ai_guard.build_safe_messages(
         system_prompt=system,
-        history=history_items,
+        history=[],
         user_message=message,
         max_history=CONTEXT_MAX_MESSAGES,
     )
@@ -971,7 +984,7 @@ async def chat(
             client_system_context = cs
 
     rag_context, rag_count = "", 0
-    if not client_system_context:
+    if not client_system_context and not tool_result:
         try:
             rag_context, rag_count = await _search_rag_context(req.message)
         except Exception as e:  # defensive: never let RAG break chat
@@ -987,7 +1000,7 @@ async def chat(
     # own data stays first in context. Best-effort: any failure returns no
     # web context and chat proceeds.
     web_context, web_count = "", 0
-    if not client_system_context:
+    if not client_system_context and not tool_result:
         try:
             if _should_web_search(req.message, rag_count):
                 web_results = await searxng_search(req.message)
