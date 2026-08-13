@@ -66,3 +66,9 @@ langgraph>=1.0.0
 langchain>=1.0.0
 langchain-openai>=1.0.0
 pydantic-ai-slim>=2.0.0  # Pydantic AI agent framework (app/agents)
+
+# ── Rug Munch Scanner (single source of scanner logic) ──────────────────────
+# STAGED migration (see rugmunch-scanner/docs/CONSOLIDATION-STATUS.md).
+# app/scoring/* is now a shim re-exporting from rugmunch_scanner.scoring.
+# UNCOMMENT + add forgejo auth to the Docker build before enabling:
+# rugmunch-scanner @ git+https://git.rugmunch.io/RugMunchMedia/rugmunch-scanner.git
