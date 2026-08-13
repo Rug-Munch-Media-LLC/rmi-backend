@@ -16,7 +16,16 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.domains.scanner.whale_flow_enrich import _smart_money_direction, whale_flow, whale_signal
+from app.domains.scanner.whale_flow_enrich import (
+    _chain_candidates,
+    _compose,
+    _smart_money_direction,
+    _to_float,
+    fetch_smart_money_gmgn,
+    fetch_whale_flow_clickhouse,
+    whale_flow,
+    whale_signal,
+)
 
 TOKEN = "0x1234567890abcdef1234567890abcdef12345678"
 CHAIN = "solana"
@@ -261,3 +270,177 @@ def test_smart_money_direction_none_when_no_data():
     assert bought is None
     assert sold is None
     assert "no smart-money direction data" in evidence
+
+
+# ── Helpers / default fetchers (missing lines) ─────────────────────────────
+
+
+def test_to_float_unparseable_returns_none():
+    assert _to_float("abc") is None
+    assert _to_float(None) is None
+    assert _to_float([]) is None  # type: ignore[arg-type]
+    assert _to_float(3.5) == 3.5
+
+
+def test_chain_candidates_exact_alias_and_empty():
+    assert _chain_candidates("solana") == ["sol", "solana"]
+    assert _chain_candidates("ethereum") == ["eth", "ethereum"]
+    assert _chain_candidates("") == []
+    assert _chain_candidates(None) == []  # type: ignore[arg-type]
+    # Dedupes when the alias equals the chain.
+    assert _chain_candidates("bsc") == ["bsc"]
+
+
+def test_smart_money_direction_skips_non_dict_rows():
+    bought, sold, _ = _smart_money_direction(
+        {"smart_money_activity": ["junk", {"wallet": "0xaa", "buy_7d": 3, "sell_7d": 1}]}
+    )
+    assert bought is True
+    assert sold is False
+
+
+async def test_fetch_whale_flow_clickhouse_fail_open(monkeypatch):
+    # Missing address/chain → neutral without touching ClickHouse.
+    assert await fetch_whale_flow_clickhouse("", "solana") == {
+        "net_flow": None,
+        "whale_tx_count": None,
+        "evidence": "",
+    }
+
+    # ClickHouse unavailable.
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils.get_clickhouse",
+        lambda: None,
+    )
+    result = await fetch_whale_flow_clickhouse(TOKEN, CHAIN)
+    assert result == {"net_flow": None, "whale_tx_count": None, "evidence": "clickhouse unavailable"}
+
+
+async def test_fetch_whale_flow_clickhouse_queries_chain_candidates(monkeypatch):
+    calls: list[str] = []
+
+    class _FakeCH:
+        def execute(self, query, params, **kwargs):
+            calls.append(params["chain"])
+            return [("a", "b", "123", "ts")]  # rows present → stop at first candidate
+
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils.get_clickhouse",
+        lambda: _FakeCH(),
+    )
+    result = await fetch_whale_flow_clickhouse(TOKEN, "solana")
+    assert result["whale_tx_count"] == 1
+    assert calls[0] == "sol"  # alias tried first
+    assert "1 whale transfer" in result["evidence"]
+
+
+async def test_fetch_whale_flow_clickhouse_no_rows_evidence(monkeypatch):
+    class _EmptyCH:
+        def execute(self, query, params, **kwargs):
+            return []
+
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils.get_clickhouse",
+        lambda: _EmptyCH(),
+    )
+    result = await fetch_whale_flow_clickhouse(TOKEN, "ethereum")
+    assert result["whale_tx_count"] == 0
+    assert "no whale transfers in window" in result["evidence"]
+
+
+async def test_fetch_whale_flow_clickhouse_fail_open_on_error(monkeypatch):
+    class _BoomCH:
+        def execute(self, query, params, **kwargs):
+            raise RuntimeError("ch down")
+
+    monkeypatch.setattr(
+        "app.domains.scanner.webhooks.providers.utils.get_clickhouse",
+        lambda: _BoomCH(),
+    )
+    result = await fetch_whale_flow_clickhouse(TOKEN, "solana")
+    assert result == {"net_flow": None, "whale_tx_count": None, "evidence": ""}
+
+
+async def test_fetch_smart_money_gmgn_fail_open(monkeypatch):
+    # Missing address/chain.
+    assert await fetch_smart_money_gmgn("", CHAIN) == {"bought": None, "sold": None, "evidence": ""}
+
+    # GMGN provider unavailable.
+    class _Unavailable:
+        async def get_smart_money(self, address, chain):
+            return {"source": "none"}
+
+    monkeypatch.setattr(
+        "app.databus.gmgn_provider.get_gmgn_provider",
+        lambda: _Unavailable(),
+    )
+    result = await fetch_smart_money_gmgn(TOKEN, CHAIN)
+    assert result == {"bought": None, "sold": None, "evidence": "gmgn unavailable"}
+
+
+async def test_fetch_smart_money_gmgn_fail_open_on_error(monkeypatch):
+    class _Boom:
+        async def get_smart_money(self, address, chain):
+            raise RuntimeError("gmgn down")
+
+    monkeypatch.setattr(
+        "app.databus.gmgn_provider.get_gmgn_provider",
+        lambda: _Boom(),
+    )
+    result = await fetch_smart_money_gmgn(TOKEN, CHAIN)
+    assert result == {"bought": None, "sold": None, "evidence": ""}
+
+
+async def test_fetch_smart_money_gmgn_parses_direction(monkeypatch):
+    class _FakeProvider:
+        async def get_smart_money(self, address, chain):
+            return {"smart_money_activity": [{"wallet": "0xaa", "buy_7d": 5, "sell_7d": 1}]}
+
+    monkeypatch.setattr(
+        "app.databus.gmgn_provider.get_gmgn_provider",
+        lambda: _FakeProvider(),
+    )
+    result = await fetch_smart_money_gmgn(TOKEN, CHAIN)
+    assert result["bought"] is True
+    assert result["sold"] is False
+
+
+# ── _compose / whale_flow outer failure ───────────────────────────────────
+
+
+def test_compose_tolerates_non_dict_inputs():
+    result = _compose(None, None)
+    assert result == {
+        "net_flow": None,
+        "whale_tx_count": None,
+        "smart_money_bought": None,
+        "smart_money_sold": None,
+        "evidence": None,
+    }
+
+    result = _compose(
+        {"net_flow": -1.0, "whale_tx_count": "3", "evidence": "e1"},
+        {"bought": "yes", "sold": False, "evidence": "e2"},
+    )
+    # String whale_tx_count is NOT coerced; non-bool bought is dropped.
+    assert result["whale_tx_count"] is None
+    assert result["smart_money_bought"] is None
+    assert result["evidence"] == "e1 | e2"
+
+
+@pytest.mark.asyncio
+async def test_whale_flow_fail_open_when_fetcher_is_sync_broken():
+    """A sync (non-awaitable) fetcher raises inside gather → caught fail-open."""
+
+    def _sync_broken(address: str, chain: str) -> dict[str, Any]:
+        raise TypeError("not async")
+
+    result = await whale_flow(
+        TOKEN,
+        CHAIN,
+        whale_fetcher=_sync_broken,  # type: ignore[arg-type]
+        smart_money_fetcher=_empty_smart(),
+    )
+    assert result["net_flow"] is None
+    assert result["smart_money_bought"] is None
+    assert whale_signal(result) is None

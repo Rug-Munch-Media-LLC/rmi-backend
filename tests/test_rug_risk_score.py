@@ -18,6 +18,30 @@ from app.domains.scanner.rug_risk_score import (
     REPEAT_DEPLOYER_WEIGHT,
     WASH_TRADING_WEIGHT,
     WEIGHTS,
+    _bad_funder,
+    _bundle_suspect,
+    _coordinated_shill,
+    _fresh_wallet,
+    _kol_pump,
+    _kol_verified,
+    _low_liquidity,
+    _lp_burned_pct,
+    _lp_removed,
+    _lp_unlocked,
+    _probe,
+    _renounced,
+    _repeat_deployer,
+    _rug_history,
+    _signal_bool,
+    _single_pool,
+    _smart_money_exit,
+    _sniper_cluster,
+    _supply_concentrated,
+    _to_pct,
+    _truthy_scalar,
+    _very_young,
+    _volume_concentrated,
+    _whale_exit,
     risk_analysis_text,
     risk_verdict_text,
     rug_risk_score,
@@ -250,3 +274,276 @@ def test_defensive_inputs_never_raise():
 def test_backward_compat_aliases():
     assert BUNDLED_WEIGHT == BUNDLE_WEIGHT
     assert DEPLOYER_REPEAT_WEIGHT == REPEAT_DEPLOYER_WEIGHT
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Direct helper coverage — edge/error branches not hit via the public API
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_truthy_scalar_numeric_and_unknown():
+    assert _truthy_scalar(0) is False
+    assert _truthy_scalar(3.14) is True
+    assert _truthy_scalar([]) is False
+    assert _truthy_scalar({"x": 1}) is True
+
+
+def test_signal_bool_dict_key_and_scalar():
+    assert _signal_bool({"mintable": "1"}, ("mintable",)) is True
+    assert _signal_bool({"other": True}, ("mintable",)) is False
+    assert _signal_bool(None, ("mintable",)) is False
+    assert _signal_bool("true", ("mintable",)) is True
+
+
+def test_to_pct_string_forms():
+    assert _to_pct("85%") == 85.0
+    assert _to_pct(" 42 ") == 42.0
+    assert _to_pct("nope") is None
+    assert _to_pct(33) == 33.0
+
+
+def test_probe_exception_path():
+    class _Bad:
+        def __getitem__(self, key):
+            raise RuntimeError("boom")
+
+    assert _probe({"a": _Bad()}, (("a", "b"),)) is None
+    assert _probe(None, (("a",),)) is None  # type: ignore[arg-type]
+    assert _probe({"a": {"b": 1}}, (("a", "b"),)) == 1
+
+
+def test_whale_exit_variants():
+    assert _whale_exit(-10.0) is True
+    assert _whale_exit(10.0) is False
+    assert _whale_exit("exit") is True
+    assert _whale_exit("outflow") is True
+    assert _whale_exit("dump") is True
+    assert _whale_exit("sell") is True
+    assert _whale_exit("buy") is False
+    assert _whale_exit({"net": -5}) is True
+    assert _whale_exit({"flow": "exit"}) is True
+    assert _whale_exit({"trend": True}) is True
+    assert _whale_exit({"net": 5}) is False
+    assert _whale_exit(None) is False
+
+
+def test_lp_unlocked_dict_and_scalar_forms():
+    assert _lp_unlocked({"unlocked": True}) is True
+    assert _lp_unlocked({"unlocked": False}) is False
+    assert _lp_unlocked({"lp_unlocked": True}) is True
+    # Non-numeric "locked" value is inverted as a truthy flag.
+    assert _lp_unlocked({"locked": "no"}) is True
+    assert _lp_unlocked({"locked": "yes"}) is False
+    # Numeric/bool locked falls through to the pct branch (bool is int subclass).
+    assert _lp_unlocked({"locked": False}) is False
+    assert _lp_unlocked({"pct": 30}) is True
+    assert _lp_unlocked({"pct": 90}) is False
+    assert _lp_unlocked(False) is True
+    assert _lp_unlocked(True) is False
+    assert _lp_unlocked(85) is False
+    assert _lp_unlocked("85%") is False
+    assert _lp_unlocked(None) is False
+    assert _lp_unlocked({}) is False
+
+
+def test_very_young_and_low_liquidity_dict_forms():
+    assert _very_young({"age_seconds": 300}) is True
+    assert _very_young({"launch_age_seconds": 7200}) is False
+    assert _very_young({"age": "nope"}) is False
+    assert _very_young({}) is False
+    assert _low_liquidity({"liquidity_usd": 100}) is True
+    assert _low_liquidity({"pooled_liquidity": 50_000}) is False
+    assert _low_liquidity({"usd": "nope"}) is False
+    assert _low_liquidity({}) is False
+
+
+def test_renounced_variants():
+    assert _renounced(0) is True
+    assert _renounced(1) is False
+    assert _renounced("no") is True
+    assert _renounced("false") is True
+    assert _renounced("not_renounced") is True
+    assert _renounced("yes") is False
+    assert _renounced({"renounced": False}) is True
+    assert _renounced({"owner_renounced": True}) is False
+    assert _renounced({}) is False
+    assert _renounced(None) is False
+
+
+def test_supply_concentrated_variants():
+    assert _supply_concentrated(75) is True
+    assert _supply_concentrated(40) is False
+    assert _supply_concentrated("75%") is True
+    assert _supply_concentrated("nope") is False
+    assert _supply_concentrated({"supply_concentrated": True}) is True
+    assert _supply_concentrated({"top_holder_pct": 80}) is True
+    assert _supply_concentrated({"top10_holder_pct": 30}) is False
+    assert _supply_concentrated({}) is False
+    assert _supply_concentrated(True) is True
+
+
+def test_lp_burned_pct_dict_forms():
+    assert _lp_burned_pct({"lp_burned": True}) is False
+    assert _lp_burned_pct({"lp_burned": False}) is True
+    assert _lp_burned_pct({"lp_burned_pct": 30}) is True
+    assert _lp_burned_pct({"burned_pct": 90}) is False
+    assert _lp_burned_pct({}) is False
+    assert _lp_burned_pct(True) is False
+    assert _lp_burned_pct(30) is True
+
+
+def test_single_pool_variants():
+    assert _single_pool(True) is True
+    assert _single_pool(1) is True
+    assert _single_pool(3) is False
+    assert _single_pool({"single_pool": True}) is True
+    assert _single_pool({"pool_count": 1}) is True
+    assert _single_pool({"pair_count": 5}) is False
+    assert _single_pool({"pairs": ["a"]}) is True
+    assert _single_pool({"pairs": ["a", "b"]}) is False
+    assert _single_pool({}) is False
+    assert _single_pool("yes") is True
+
+
+def test_volume_concentrated_variants():
+    assert _volume_concentrated(55) is True
+    assert _volume_concentrated(10) is False
+    assert _volume_concentrated("45%") is True
+    assert _volume_concentrated("nope") is False
+    assert _volume_concentrated({"volume_concentrated": True}) is True
+    assert _volume_concentrated({"top_maker_share_pct": 60}) is True
+    assert _volume_concentrated({"share": 30}) is False
+    assert _volume_concentrated({}) is False
+
+
+def test_sniper_cluster_variants():
+    assert _sniper_cluster(True) is True
+    assert _sniper_cluster(3) is True
+    assert _sniper_cluster(1) is False
+    assert _sniper_cluster({"sniper_cluster": True}) is True
+    assert _sniper_cluster({"sniper_count": 5}) is True
+    assert _sniper_cluster({"snipers": 1}) is False
+    assert _sniper_cluster({}) is False
+    assert _sniper_cluster("sniper alert") is True
+    assert _sniper_cluster("cluster detected") is True
+
+
+def test_repeat_deployer_variants():
+    assert _repeat_deployer(2) is True
+    assert _repeat_deployer(1) is False
+    assert _repeat_deployer({"repeat_deployer": True}) is True
+    assert _repeat_deployer({"deployer_repeat": False}) is False
+    assert _repeat_deployer({"prior_deployments": 6}) is True
+    assert _repeat_deployer({"prior_deployments": 1}) is False
+    assert _repeat_deployer({}) is False
+    assert _repeat_deployer(True) is True
+
+
+def test_fresh_wallet_variants():
+    assert _fresh_wallet(100) is True
+    assert _fresh_wallet(10_000_000) is False
+    assert _fresh_wallet({"fresh_wallet": True}) is True
+    assert _fresh_wallet({"first_deployment": True}) is True
+    assert _fresh_wallet({"wallet_age_seconds": 60}) is True
+    assert _fresh_wallet({"wallet_age_seconds": 999_999}) is False
+    assert _fresh_wallet({}) is False
+    assert _fresh_wallet("fresh") is True
+    assert _fresh_wallet("new") is True
+    assert _fresh_wallet("old") is False
+
+
+def test_kol_pump_variants():
+    assert _kol_pump([{"pattern": "pump_and_dump"}]) is True
+    assert _kol_pump([{"pattern": "shill_alert"}]) is True
+    assert _kol_pump([{"pattern": "benign"}, "junk"]) is False
+    assert _kol_pump([]) is False
+    assert _kol_pump({"kol_pump": True}) is True
+    assert _kol_pump({"pattern": "shill"}) is True
+    assert _kol_pump({"pattern": "benign"}) is False
+    assert _kol_pump("pump promo") is True
+    assert _kol_pump("silent") is False
+
+
+def test_coordinated_shill_variants():
+    assert _coordinated_shill({"coordinated_shill": True}) is True
+    assert _coordinated_shill({"coordinated": False}) is False
+    assert _coordinated_shill({"alerts": [{"a": 1}]}) is True
+    assert _coordinated_shill({"shill_alerts": []}) is False
+    assert _coordinated_shill({"alerts": 3}) is True
+    assert _coordinated_shill({}) is False
+    assert _coordinated_shill("coordinated shill") is True
+    assert _coordinated_shill("quiet") is False
+
+
+def test_smart_money_exit_variants():
+    assert _smart_money_exit(-5) is True
+    assert _smart_money_exit(5) is False
+    assert _smart_money_exit({"smart_money_sold": True}) is True
+    assert _smart_money_exit({"smart_money_exit": True}) is True
+    assert _smart_money_exit({"net_bought": -3}) is True
+    assert _smart_money_exit({"buy_pressure": 3}) is False
+    assert _smart_money_exit({"net": 0}) is False
+    assert _smart_money_exit({"sold": True}) is True
+    assert _smart_money_exit({}) is False
+    assert _smart_money_exit("exiting") is True
+    assert _smart_money_exit("sold") is True
+
+
+def test_kol_verified_variants():
+    assert _kol_verified(True) is True
+    assert _kol_verified(False) is False
+    assert _kol_verified("") is False
+    assert _kol_verified("alice") is True
+    assert _kol_verified({"kol_handle": "@alice"}) is True
+    assert _kol_verified({"verified": True}) is True
+    assert _kol_verified({"verified": False}) is False
+    assert _kol_verified({"kol_handle": ""}) is False
+    assert _kol_verified({}) is False
+    assert _kol_verified(None) is False
+
+
+def test_signal_boolean_wrappers():
+    assert _lp_removed({"lp_removed": True}) is True
+    assert _bundle_suspect({"bundled": True}) is True
+    assert _rug_history({"has_rugged": True}) is True
+    assert _bad_funder({"mixer_funded": True}) is True
+    assert _lp_removed("no") is False
+    assert _bundle_suspect(None) is False
+
+
+def test_rug_risk_score_verdict_thresholds():
+    assert rug_risk_score({"honeypot": True})["verdict"] == "critical"
+    high = rug_risk_score({"bundled": True, "wash_trading": True, "freezable": True})
+    assert high["verdict"] == "high"
+    med = rug_risk_score({"age_seconds": 300, "pool_count": 1, "liquidity": 5000})
+    assert med["verdict"] == "medium"
+    assert rug_risk_score({"pool_count": 1})["verdict"] == "low"
+
+
+def test_analysis_text_tolerates_malformed_items():
+    result = {
+        "score": 50,
+        "verdict": "high",
+        "analysis": ["junk", {"signal": "honeypot", "weight": "40", "detail": "x"}, None],
+    }
+    text = risk_analysis_text(result)
+    assert "CONTRACT: honeypot (+40)" in text
+    # Malformed entries are skipped, not fatal.
+    assert "Risk Score: 50/100 — HIGH" in text
+
+
+def test_analysis_text_non_dict_result():
+    assert risk_analysis_text("garbage").startswith("Risk Score: 0/100 — LOW")
+    assert risk_analysis_text(None).startswith("Risk Score: 0/100 — LOW")
+
+
+def test_verdict_text_high_and_medium():
+    text = risk_verdict_text({"score": 60, "verdict": "high", "flags": ["mintable", "freezable"]})
+    assert "🟠 HIGH (60/100) — mintable · freezable" in text
+    text2 = risk_verdict_text({"score": 30, "verdict": "medium", "flags": ["single_pool"]})
+    assert "🟡 MEDIUM (30/100)" in text2
+
+
+def test_verdict_text_unknown_verdict_defaults_emoji():
+    text = risk_verdict_text({"score": 90, "verdict": "unknown", "flags": []})
+    assert "🔴 UNKNOWN (90/100)" in text
