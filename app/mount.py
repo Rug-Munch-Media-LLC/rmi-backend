@@ -169,6 +169,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.routers.mev_advisory",  # /api/v1/mev-advisory/*  (2 routes, MEV warning)
     "app.routers.impersonation_detector",  # /api/v1/impersonation/*  (1 route, forensics)
     "app.routers.community_forensics_router",  # /api/v1/community-forensics/*  (7 routes, community forensics: reports, leaderboard, graph verify, cross-chain correlation)
+    "app.routers.kol_intel",  # /api/v1/kol/*  (7 routes, social-intel: scammers, KOL score/leaderboard, wallets, cross-chain, shill-signals)
     "app.routers.rug_recovery",  # /api/v1/rug-recovery/*  (2 routes, recovery indexer)
     "app.routers.laundry_matcher",  # /api/v1/laundry-matcher/*  (2 routes, copycat detect)
     "app.routers.death_clock",  # /api/v1/death-clock/*  (1 route, Token Death Clock)
