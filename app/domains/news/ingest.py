@@ -30,6 +30,7 @@ from app.catalog.models import NewsItem, utcnow
 from app.catalog.service import get_catalog
 from app.core.logging import get_logger
 from app.domains.news.news_service.sources import RSS_FEEDS
+from app.domains.news.ratings import rate_article
 
 logger = get_logger(__name__)
 
@@ -145,6 +146,12 @@ async def ingest_all(
                 chains = _detect_chains(text)
                 tickers = _extract_tickers(text)
                 news_id = _stable_id(entry["source"], entry["url"])
+                # Ground News-style rating card (bias / sentiment / factual / tier)
+                rating = rate_article(
+                    title=entry["title"],
+                    content=entry["summary"],
+                    source=entry["source"],
+                )
                 ni = NewsItem(
                     news_id=news_id,
                     url=HttpUrl(entry["url"]) if entry["url"] else HttpUrl("https://unknown.local"),
@@ -156,6 +163,12 @@ async def ingest_all(
                     ingested_at=utcnow(),
                     chains_mentioned=chains,
                     tokens_mentioned=tickers,
+                    sentiment_score=rating.sentiment_score / 100.0,  # normalize to -1..1 column scale
+                    bias=rating.bias,
+                    sentiment_label=rating.sentiment_label,
+                    factual_rating=rating.factual_rating,
+                    source_tier=rating.source_tier,
+                    rating_confidence=rating.confidence,
                 )
                 items_to_ingest.append(ni)
             except (httpx.HTTPError, KeyError, TypeError) as e:
@@ -180,8 +193,10 @@ async def ingest_all(
                             INSERT INTO news_items (
                                 news_id, url, title, summary, body_markdown,
                                 source, published_at, ingested_at,
-                                chains_mentioned, tokens_mentioned, sentiment_score
-                            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                                chains_mentioned, tokens_mentioned, sentiment_score,
+                                bias, sentiment_label, factual_rating, source_tier,
+                                rating_confidence
+                            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
                             """,
                             ni.news_id,
                             str(ni.url),
@@ -194,6 +209,11 @@ async def ingest_all(
                             ni.chains_mentioned,
                             ni.tokens_mentioned,
                             ni.sentiment_score,
+                            ni.bias,
+                            ni.sentiment_label,
+                            ni.factual_rating,
+                            ni.source_tier,
+                            ni.rating_confidence,
                         )
                         counts["ingested"] += 1
                     except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
@@ -212,7 +232,18 @@ async def ingest_all(
                     content=f"{ni.title}\n{ni.summary}",
                     collection=collection,
                     doc_id=ni.news_id,
-                    metadata={"source": ni.source, "news_id": ni.news_id},
+                    metadata={
+                        "source": ni.source,
+                        "news_id": ni.news_id,
+                        "bias": ni.bias,
+                        "sentiment_label": ni.sentiment_label,
+                        "factual_rating": ni.factual_rating,
+                        "source_tier": ni.source_tier,
+                        "rating_confidence": ni.rating_confidence,
+                        # Keep the article URL citable in RAG metadata — the
+                        # retrieval layer surfaces it for source attribution.
+                        "url": str(ni.url),
+                    },
                 )
                 if rag_result.get("status") == "ok" and rag_result.get("qdrant_point_id"):
                     # Update news_items with rag_embedding_id

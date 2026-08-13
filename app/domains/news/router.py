@@ -92,6 +92,13 @@ class NewsItemOut(BaseModel):
     chains_mentioned: list[str] = Field(default_factory=list)
     tokens_mentioned: list[str] = Field(default_factory=list)
     sentiment_score: float | None = None
+    bias: str | None = None
+    sentiment_label: str | None = None
+    factual_rating: str | None = None
+    source_tier: int | None = None
+    rating_confidence: float | None = None
+    source_count: int | None = None
+    bias_distribution: dict[str, int] = Field(default_factory=dict)
     score: float | None = None  # only set for /trending
 
 
@@ -166,8 +173,16 @@ async def list_news(
     # New table
     if catalog._health.postgres:
         try:
-            cutoff = utcnow() - timedelta(hours=since_hours)
-            query = "SELECT news_id, url, title, summary, source, published_at, sentiment_score, chains_mentioned, tokens_mentioned FROM news_items WHERE published_at > $1"
+            # Multi-day stories need a wide fetch window when clustering;
+            # the returned items are still filtered by since_hours below.
+            fetch_hours = max(since_hours, 72) if clustered else since_hours
+            cutoff = utcnow() - timedelta(hours=fetch_hours)
+            query = (
+                "SELECT news_id, url, title, summary, source, published_at, "
+                "sentiment_score, chains_mentioned, tokens_mentioned, bias, "
+                "sentiment_label, factual_rating, source_tier, rating_confidence "
+                "FROM news_items WHERE published_at > $1"
+            )
             params: list[Any] = [cutoff]
             if chain:
                 query += f" AND ${len(params) + 1} = ANY(chains_mentioned)"
@@ -179,7 +194,11 @@ async def list_news(
                 query += " ORDER BY sentiment_score ASC NULLS LAST"
             else:
                 query += " ORDER BY published_at DESC"
-            query += f" LIMIT {limit} OFFSET {offset}"
+            # For clustering we need a wide pool of candidate items so
+            # multi-day stories can dedupe; pagination limit still applies
+            # to the raw (non-clustered) list.
+            fetch_limit = max(limit, 500) if clustered else limit
+            query += f" LIMIT {fetch_limit} OFFSET {offset}"
             async with catalog._pg_pool.acquire() as conn:
                 rows = await conn.fetch(query, *params)
             for r in rows:
@@ -194,6 +213,11 @@ async def list_news(
                         chains_mentioned=list(r["chains_mentioned"] or []),
                         tokens_mentioned=list(r["tokens_mentioned"] or []),
                         sentiment_score=r["sentiment_score"],
+                        bias=r.get("bias"),
+                        sentiment_label=r.get("sentiment_label"),
+                        factual_rating=r.get("factual_rating"),
+                        source_tier=r.get("source_tier"),
+                        rating_confidence=r.get("rating_confidence"),
                     )
                 )
         except (KeyError, ValueError, TypeError) as e:
@@ -227,6 +251,10 @@ async def list_news(
     if clustered and items:
         from app.domains.news.clusterer import NewsItem, cluster_items, persist_clusters
 
+        # Multi-day stories need a wide window; cluster over the full
+        # requested range (defaults to at least 72h so day-spanning
+        # stories still dedupe into one cluster).
+        cluster_window = max(since_hours, 72) * 60  # minutes
         cluster_items_list = [
             NewsItem(
                 id=it.news_id or "",
@@ -239,7 +267,7 @@ async def list_news(
             )
             for it in items
         ]
-        stories = cluster_items(cluster_items_list)
+        stories = cluster_items(cluster_items_list, window_minutes=cluster_window)
         # persist in background (don't block response)
         try:
             import asyncio
@@ -255,7 +283,7 @@ async def list_news(
                     news_id=s.cluster_id,
                     url=s.source_urls[0] if s.source_urls else "",
                     title=f"[x{s.item_count}] {s.representative_title}",
-                    summary=f"Story across {len(s.sources)} sources. "
+                    summary=f"Story across {s.source_count} sources. "
                     f"Sentiment: {s.sentiment_avg:.2f}. "
                     f"Item IDs: {','.join(s.item_ids[:5])}",
                     source=", ".join(s.sources[:3]),
@@ -263,6 +291,8 @@ async def list_news(
                     chains_mentioned=[],
                     tokens_mentioned=[],
                     sentiment_score=s.sentiment_avg,
+                    source_count=s.source_count,
+                    bias_distribution=s.bias_distribution,
                 )
             )
         return NewsListResponse(items=clustered_items, total=len(clustered_items), offset=offset)
@@ -289,7 +319,8 @@ async def trending_news(
         async with catalog._pg_pool.acquire() as conn:
             rows = await conn.fetch(
                 "SELECT news_id, url, title, summary, source, published_at, "
-                "sentiment_score, chains_mentioned, tokens_mentioned "
+                "sentiment_score, chains_mentioned, tokens_mentioned, bias, "
+                "sentiment_label, factual_rating, source_tier, rating_confidence "
                 "FROM news_items "
                 "WHERE published_at > $1 "
                 "ORDER BY published_at DESC LIMIT 500",
@@ -307,6 +338,11 @@ async def trending_news(
                 chains_mentioned=list(r["chains_mentioned"] or []),
                 tokens_mentioned=list(r["tokens_mentioned"] or []),
                 sentiment_score=r["sentiment_score"],
+                bias=r.get("bias"),
+                sentiment_label=r.get("sentiment_label"),
+                factual_rating=r.get("factual_rating"),
+                source_tier=r.get("source_tier"),
+                rating_confidence=r.get("rating_confidence"),
             )
             item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
             items.append(item)

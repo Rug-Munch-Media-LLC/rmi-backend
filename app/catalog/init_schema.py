@@ -76,6 +76,11 @@ CREATE TABLE IF NOT EXISTS news_items (
     tokens_mentioned TEXT[] DEFAULT ARRAY[]::TEXT[],
     wallets_mentioned TEXT[] DEFAULT ARRAY[]::TEXT[],
     sentiment_score  REAL,
+    bias             TEXT,
+    sentiment_label  TEXT,
+    factual_rating   TEXT,
+    source_tier      INT,
+    rating_confidence REAL,
     ai_analysis      TEXT,
     rag_embedding_id TEXT,
     body_tsv         tsvector
@@ -83,7 +88,17 @@ CREATE TABLE IF NOT EXISTS news_items (
 CREATE INDEX IF NOT EXISTS idx_news_published ON news_items(published_at DESC);
 CREATE INDEX IF NOT EXISTS idx_news_source ON news_items(source);
 CREATE INDEX IF NOT EXISTS idx_news_sentiment ON news_items(sentiment_score);
+CREATE INDEX IF NOT EXISTS idx_news_bias ON news_items(bias);
+CREATE INDEX IF NOT EXISTS idx_news_factual ON news_items(factual_rating);
 CREATE INDEX IF NOT EXISTS idx_news_body_tsv ON news_items USING gin(body_tsv);
+
+-- Migrate pre-existing DBs that created news_items before the rating
+-- columns existed (CREATE TABLE IF NOT EXISTS is a no-op there).
+ALTER TABLE news_items ADD COLUMN IF NOT EXISTS bias TEXT;
+ALTER TABLE news_items ADD COLUMN IF NOT EXISTS sentiment_label TEXT;
+ALTER TABLE news_items ADD COLUMN IF NOT EXISTS factual_rating TEXT;
+ALTER TABLE news_items ADD COLUMN IF NOT EXISTS source_tier INT;
+ALTER TABLE news_items ADD COLUMN IF NOT EXISTS rating_confidence REAL;
 
 -- Auto-update the body_tsv column on insert/update
 CREATE OR REPLACE FUNCTION news_items_tsv_update() RETURNS trigger AS $$

@@ -27,11 +27,11 @@ Architecture:
               │  • Graceful degradation  │
               └──────────┬───────────────┘
                          ▼
-              ┌──────────────────────────┐
-              │   RAG API (/rag/ingest)  │
-              │   Redis vector store     │
-              │   9 collections          │
-              └──────────────────────────┘
+               ┌──────────────────────────┐
+               │  RAG API (v2/ingest)     │
+               │   Redis vector store     │
+               │   9 collections          │
+               └──────────────────────────┘
 
 Backpressure - prevents overload:
   - Max 50 docs per cycle (configurable)
@@ -62,6 +62,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("rag_ingest")
 
 API_BASE = os.getenv("RMI_BACKEND_URL", "http://localhost:8000")
+# Live RAG facade is /api/v1/rag/v2/ingest (app/api/v1/rag/search.py); the
+# old /api/v1/rag/ingest route was removed (see app/github_rag_feeder.py).
+RAG_INGEST_PATH = "/api/v1/rag/v2/ingest"
+# Internal service key — env first, fallback matches repo script convention.
+RMI_KEY = os.getenv("RMI_INTERNAL_KEY", "rmi-internal-2026")
 MAX_DOCS_PER_CYCLE = 50
 MIN_DELAY_SECONDS = 2.0
 MAX_REDIS_MEMORY_MB = 1500
@@ -105,7 +110,7 @@ def _api_post(path: str, payload: dict, timeout: int = 15) -> dict | None:
                 data=body,
                 headers={
                     "Content-Type": "application/json",
-                    "X-RMI-Key": "rmi-internal-2026",
+                    "X-RMI-Key": RMI_KEY,
                 },
             )
             resp = urlopen(req, timeout=timeout)
@@ -224,7 +229,7 @@ async def ingest_github_sources() -> int:
             for doc in docs:
                 if total >= MAX_DOCS_PER_CYCLE:
                     break
-                result = _api_post("/api/v1/rag/ingest", doc)
+                result = _api_post(RAG_INGEST_PATH, doc)
                 if result:
                     total += 1
                 time.sleep(MIN_DELAY_SECONDS)
@@ -242,7 +247,7 @@ async def ingest_news_to_rag() -> int:
             data=json.dumps({"data_type": "news", "limit": 20}).encode(),
             headers={
                 "Content-Type": "application/json",
-                "X-RMI-Key": "rmi-internal-2026",
+                "X-RMI-Key": RMI_KEY,
             },
         )
         resp = urlopen(req, timeout=30)
@@ -267,7 +272,7 @@ async def ingest_news_to_rag() -> int:
                     "content_hash": h,
                 },
             }
-            _api_post("/api/v1/rag/ingest", doc)
+            _api_post(RAG_INGEST_PATH, doc)
             total += 1
             time.sleep(MIN_DELAY_SECONDS)
         logger.info(f"News: {total} articles ingested")
