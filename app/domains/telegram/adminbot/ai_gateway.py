@@ -35,10 +35,12 @@ async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not args:
         await update.message.reply_text(
             "🤖 *AI Gateway*\n\n"
-            "`/ai ask <prompt>` — Ask any AI model\n"
+            "`/ai ask <prompt>` — Ask any AI model (READ-ONLY, no tools)\n"
             "`/ai model` — Switch models\n"
             "`/ai clear` — Clear chat history\n"
-            "`/ai status` — Show usage stats",
+            "`/ai status` — Show usage stats\n\n"
+            "⚠️ `/ai` runs the model with the read-only agent — no shell/tool access.\n"
+            "For tooled (agentic) runs use `/oc` (requires explicit confirmation).",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=admin_ai.model_keyboard() if hasattr(admin_ai, "model_keyboard") else None,
         )
@@ -67,11 +69,11 @@ async def cmd_ai(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not prompt:
             await update.message.reply_text("Usage: `/ai ask <your question>`", parse_mode=ParseMode.MARKDOWN)
             return
-        msg = await update.message.reply_text("🤖 Thinking...")
+        msg = await update.message.reply_text("🤖 Thinking (read-only, no tools)...")
         result = await admin_ai.chat(
             user_id,
             prompt,
-            system_prompt="You are an RMI server admin assistant. Be concise and technical.",
+            system_prompt="You are an RMI server admin assistant. Be concise and technical. Read-only mode: you cannot run commands or modify anything.",
         )
         if result["ok"]:
             content = result["content"][:3500]

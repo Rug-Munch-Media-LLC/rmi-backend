@@ -236,10 +236,15 @@ async def _fetch_market_context() -> dict[str, Any]:
 #
 # Collections searched for every message; ``scanner_v2`` is added when the
 # message mentions a token address. Focused on SECURITY + INTELLIGENCE +
-# NEWS + REGULATION + CODE-SECURITY — the bot's domain. ``scanned_tokens`` is
-# the bot's scan-to-RAG memory (app.rag.scan_memory) and is empty until scans
-# flow in. Search is best-effort: any failure or timeout returns empty context
-# and chat proceeds without RAG (graceful degradation — RAG is an enhancement,
+# NEWS + REGULATION + CODE-SECURITY + DEEP KNOWLEDGE — the bot's domain.
+# ``scanned_tokens`` is the bot's scan-to-RAG memory (app.rag.scan_memory)
+# and is empty until scans flow in. ``wallet_profiles`` / ``token_analysis`` /
+# ``forensic_reports`` / ``contract_audits`` are the P1 deep-knowledge
+# collections (wallet risk profiles, token deep dives, on-chain forensics,
+# audit findings) written by the intel/forensics pipeline — added so chat
+# answers ground in the analyst knowledge base, not just news.
+# Search is best-effort: any failure or timeout returns empty context and
+# chat proceeds without RAG (graceful degradation — RAG is an enhancement,
 # never a gate).
 RAG_COLLECTIONS = [
     "threat_intel",  # unified scanner + SENTINEL high-risk findings
@@ -251,6 +256,10 @@ RAG_COLLECTIONS = [
     "regulation_enforcement",  # regulatory actions + enforcement intel
     "scanned_tokens",  # scan-to-RAG memory (empty until scans flow in)
     "wallet_v2",  # wallet labels, risk profiles, entity clusters
+    "wallet_profiles",  # P1 KB: wallet risk profiles, entity behavior
+    "token_analysis",  # P1 KB: deep token analysis (mechanics, risks)
+    "forensic_reports",  # P1 KB: on-chain forensic investigations (never decays)
+    "contract_audits",  # P1 KB: smart-contract audit findings
     "stablecoin_market",  # DeFiLlama stablecoin market caps ($USDT/$USDC liquidity)
     "whale_transfers",  # whale move events indexed by app.domains.scanner.whale_indexer
 ]

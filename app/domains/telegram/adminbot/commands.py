@@ -202,8 +202,10 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "Examples:\n"
             "`/sh df -h`\n"
             "`/sh docker ps`\n"
-            "`/sh systemctl status rmi-backend`\n\n"
-            "⚠️ All commands are logged. Dangerous commands are blocked.",
+            "`/sh systemctl status rmi-backend`\n"
+            "`/sh journalctl -u rmi-backend -n 50`\n\n"
+            "⚠️ READ-ONLY allowlist only (status/logs/ps/ls/cat/df/free).\n"
+            "No mutations, no redirection, no pipes. All commands are logged.",
             parse_mode=ParseMode.MARKDOWN,
         )
         return
@@ -738,12 +740,12 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     service = args[0]
-    msg = await update.message.reply_text(f"⏳ Deploying {service}...")
-    result = admin_ops.deploy_service(service)
-    await msg.edit_text(
-        f"{'✅' if result['ok'] else '❌'} Deploy {service} ({result.get('duration', 0):.1f}s)\n\n```\n{result.get('output', result.get('error', ''))[:2500]}\n```",
+    await update.message.reply_text(
+        f"⚠️ *Confirm deploy*\n\nDeploy service `{service}`?\n"
+        "Deploying mutates the production compose stack — you will be asked "
+        "to confirm **twice** before anything runs.",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=back_button("deploy"),
+        reply_markup=double_confirm_keyboard("deploy", payload=service),
     )
 
 
@@ -861,9 +863,14 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 @owner_only
 async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.message is None:
+    if update.message is None or update.effective_user is None:
         return
-    """Send a prompt to OpenCode AI — OWNER ONLY."""
+    """Send a prompt to OpenCode AI — OWNER ONLY.
+
+    /oc runs OpenCode WITH TOOL ACCESS (agentic) — a single prompt can
+    trigger shell/tool side effects. It therefore requires an explicit
+    confirmation button before execution (hardened 2026-08-13).
+    """
     if admin_ai is None:
         await update.message.reply_text("⚠️ AI module not available (missing admin_ai.py)")
         return
@@ -873,13 +880,15 @@ async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(
             "🤖 *OpenCode Integration*\n\n"
             "Usage:\n"
-            "`/oc <prompt>` — Run any prompt through OpenCode\n"
+            "`/oc <prompt>` — Run any prompt through OpenCode (WITH tools)\n"
             "`/oc task <task>` — Quick admin task\n"
             "`/oc model <model>` — View/switch model\n\n"
             "Examples:\n"
             "`/oc check disk usage and suggest cleanup`\n"
             "`/oc task restart rmi-backend and check health`\n"
-            "`/oc model`",
+            "`/oc model`\n\n"
+            "⚠️ `/oc` runs with tool access — you will be asked to confirm first.\n"
+            "For read-only queries use `/ai ask` (no tools).",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=admin_ai.model_keyboard(),
         )
@@ -894,28 +903,33 @@ async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=admin_ai.model_keyboard(),
         )
         return
-    elif action == "task" and len(args) > 1:
+
+    user_id = update.effective_user.id
+    if action == "task" and len(args) > 1:
         task = " ".join(args[1:])
-        msg = await update.message.reply_text("🤖 Running admin task via OpenCode...")
-        result = admin_ai.run_quick_task(task)
+        admin_ai.stage_oc_prompt(user_id, task, task=True)
+        summary = f"task: {task}"
     else:
         prompt = " ".join(args)
-        msg = await update.message.reply_text("🤖 Sending to OpenCode AI...")
-        result = admin_ai.run_opencode(prompt, max_turns=3)
+        admin_ai.stage_oc_prompt(user_id, prompt, task=False)
+        summary = prompt
 
-    if result["ok"]:
-        output = result["output"][:3500]
-        model_used = result.get("model", "unknown")
-        duration = result.get("duration", 0)
-        await msg.edit_text(
-            f"🤖 *OpenCode* (`{model_used}`, {duration:.1f}s)\n\n```\n{output}\n```",
-            parse_mode=ParseMode.MARKDOWN,
-        )
-    else:
-        await msg.edit_text(
-            f"❌ OpenCode Error: {result.get('error', 'unknown')[:500]}",
-            parse_mode=ParseMode.MARKDOWN,
-        )
+    await update.message.reply_text(
+        "⚠️ *Confirm tooled OpenCode run*\n\n"
+        f"`{summary[:300]}`\n\n"
+        "This runs OpenCode **WITH tool access** (agentic — can execute "
+        "commands / modify files). `/ai` is the read-only alternative.\n\n"
+        "Confirm?",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("⚠️ Yes, run with tools", callback_data="oc_confirm"),
+                    InlineKeyboardButton("❌ Cancel", callback_data="oc_cancel"),
+                ]
+            ]
+        ),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -976,15 +990,14 @@ async def cmd_git(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_push(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    """Push all repos — OWNER ONLY."""
-    msg = await update.message.reply_text("⏳ Pushing all repos...")
-    result = admin_ops.push_all_repos()
-    output = result.get("output", "") or result.get("error", "")
-    status = "✅" if result["ok"] else "❌"
-    await msg.edit_text(
-        f"{status} Push all repos ({result.get('duration', 0):.1f}s)\n\n```\n{output[:3000]}\n```",
+    """Push all repos — OWNER ONLY. Requires DOUBLE confirmation (hardened 2026-08-13)."""
+    await update.message.reply_text(
+        "⚠️ *Confirm push all*\n\n"
+        "This pushes **all RugMunch repos** to all remotes "
+        "(forgejo / codeberg / gitlab / radicle).\n"
+        "You will be asked to confirm **twice** before anything runs.",
         parse_mode=ParseMode.MARKDOWN,
-        reply_markup=back_button("git_menu"),
+        reply_markup=double_confirm_keyboard("push"),
     )
 
 

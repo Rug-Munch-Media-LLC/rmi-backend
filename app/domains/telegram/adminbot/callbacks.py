@@ -289,6 +289,49 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     parse_mode=ParseMode.MARKDOWN,
                     reply_markup=admin_ai.model_keyboard(),
                 )
+
+        # ── v5: /oc tooled confirmation gate (hardened 2026-08-13) ──
+        elif data == "oc_confirm":
+            if admin_ai is None:
+                await query.edit_message_text("⚠️ AI module not available.", parse_mode=ParseMode.MARKDOWN)
+                return
+            entry = admin_ai.pop_oc_prompt(query.from_user.id)
+            if entry is None:
+                await query.edit_message_text(
+                    "⚠️ Confirmation expired or no pending `/oc` run. Re-run `/oc`.",
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+                return
+            prompt = entry.get("prompt", "")
+            is_task = bool(entry.get("task", False))
+            if admin_audit is not None:
+                admin_audit.log_action(
+                    "ai.opencode.tools",
+                    f"{'task' if is_task else 'prompt'}: {prompt[:200]}",
+                    query.from_user.id,
+                )
+            await query.edit_message_text("🤖 Running tooled OpenCode (confirmed)...")
+            result = admin_ai.run_quick_task(prompt) if is_task else admin_ai.run_opencode(prompt, max_turns=3)
+            if result["ok"]:
+                output = result["output"][:3500]
+                model_used = result.get("model", "unknown")
+                duration = result.get("duration", 0)
+                await query.edit_message_text(
+                    f"🤖 *OpenCode* (`{model_used}`, {duration:.1f}s)\n\n```\n{output}\n```",
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=back_button("main"),
+                )
+            else:
+                await query.edit_message_text(
+                    f"❌ OpenCode Error: {result.get('error', 'unknown')[:500]}",
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=back_button("main"),
+                )
+        elif data == "oc_cancel":
+            if admin_ai is not None:
+                admin_ai.cancel_oc_prompt(query.from_user.id)
+            await query.edit_message_text("❌ OpenCode run cancelled.", parse_mode=ParseMode.MARKDOWN)
+
         elif data == "alert_help":
             await query.edit_message_text(
                 "🔔 *Send Alert*\n\n"
@@ -396,8 +439,28 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     reply_markup=back_button("git_menu"),
                 )
 
-        # ── Push all ──
+        # ── Push all (DOUBLE confirmation, hardened 2026-08-13) ──
         elif data == "push_all":
+            await query.edit_message_text(
+                "⚠️ *Confirm push all*\n\n"
+                "This pushes **all RugMunch repos** to all remotes "
+                "(forgejo / codeberg / gitlab / radicle).\n"
+                "You will be asked to confirm **twice** before anything runs.",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=double_confirm_keyboard("push"),
+            )
+        elif data == "push_confirm":
+            await query.edit_message_text(
+                "⛔️ *FINAL CONFIRMATION*\n\n"
+                "Push all repos to **all 4 remotes**? This updates production "
+                "repositories across the fleet.\n\n"
+                "Are you absolutely sure?",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=double_confirm_keyboard("push", stage=2),
+            )
+        elif data == "push_confirm2":
+            if admin_audit is not None:
+                admin_audit.log_action("git.push.all", "push-all-repos.sh", query.from_user.id)
             await query.edit_message_text("⏳ Pushing all repos...")
             result = admin_ops.push_all_repos()
             output = result.get("output", "") or result.get("error", "")
@@ -407,6 +470,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=back_button("git_menu"),
             )
+        elif data == "push_cancel":
+            await query.edit_message_text("❌ Push cancelled.", parse_mode=ParseMode.MARKDOWN)
 
         # ── Chain status ──
         elif data == "chain":
@@ -494,7 +559,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 "💻 *Shell Execution*\n\n"
                 "Use `/sh <command>` from the chat.\n"
                 "Examples: `/sh df -h`, `/sh docker ps`\n\n"
-                "⚠️ Dangerous commands are blocked.\n"
+                "⚠️ READ-ONLY allowlist only (status/logs/ps/ls/cat/df/free).\n"
+                "No mutations, no redirection, no pipes.\n"
                 "All commands are logged.",
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=back_button("main"),
@@ -726,7 +792,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 reply_markup=back_button("backup"),
             )
 
-        # ── Deploy ──
+        # ── Deploy (DOUBLE confirmation, hardened 2026-08-13) ──
         elif data == "deploy":
             await query.edit_message_text(
                 "🚀 *Deploy Services*",
@@ -746,8 +812,11 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 ),
             )
 
-        elif data.startswith("deploy_"):
-            svc = data.replace("deploy_", "")
+        elif data.startswith("deploy_cancel"):
+            await query.edit_message_text("❌ Deploy cancelled.", parse_mode=ParseMode.MARKDOWN)
+
+        elif data.startswith("deploy_confirm2_"):
+            svc = data.replace("deploy_confirm2_", "")
             if admin_audit is not None:
                 admin_audit.log_action("deploy", svc, query.from_user.id)
             await query.edit_message_text(f"⏳ Deploying {svc}...")
@@ -756,6 +825,27 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 f"{'✅' if result['ok'] else '❌'} Deploy {svc} ({result.get('duration', 0):.1f}s)\n\n```\n{result.get('output', result.get('error', ''))[:2500]}\n```",
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=back_button("deploy"),
+            )
+
+        elif data.startswith("deploy_confirm_"):
+            svc = data.replace("deploy_confirm_", "")
+            await query.edit_message_text(
+                f"⛔️ *FINAL CONFIRMATION*\n\n"
+                f"This deploys service **`{svc}`** with `docker compose up -d`.\n"
+                f"It mutates the production compose stack — there is **no undo**.\n\n"
+                f"Are you absolutely sure?",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=double_confirm_keyboard("deploy", payload=svc, stage=2),
+            )
+
+        elif data.startswith("deploy_"):
+            svc = data.replace("deploy_", "")
+            await query.edit_message_text(
+                f"⚠️ *Confirm deploy*\n\nDeploy service `{svc}`?\n"
+                "Deploying mutates the production compose stack — you will be "
+                "asked to confirm **twice** before anything runs.",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=double_confirm_keyboard("deploy", payload=svc),
             )
 
         # ── Logs ──
@@ -1003,6 +1093,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
         elif data.startswith("term_quick_"):
             cmd_name = data.replace("term_quick_", "")
+            admin_terminal.touch(query.from_user.id)
             result = admin_terminal.run_quick(cmd_name)
             await query.edit_message_text(
                 f"{'✅' if result['ok'] else '❌'} Quick: `{cmd_name}`\n\n```\n{result['output'][:3000]}\n```",

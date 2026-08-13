@@ -47,7 +47,8 @@ async def cmd_terminal(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "• `cd <dir>` — change directory\n"
         "• `pwd` — show current dir\n"
         "• `exit` — leave terminal mode\n\n"
-        "_Commands are allowlist-gated. All commands logged._",
+        f"_Commands are allowlist-gated. Session auto-expires after "
+        f"{admin_terminal.TERMINAL_TIMEOUT // 60} min of inactivity. All commands logged._",
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup(
             [
