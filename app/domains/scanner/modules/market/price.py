@@ -8,6 +8,7 @@ import httpx
 
 from app.domains.scanner.modules._core import (
     PREFER_OWN_DATA,
+    _best_pair,
     _fetch_dexscreener,
     logger,
 )
@@ -60,7 +61,11 @@ async def _get_price_consensus(token_address: str, chain: str, market_price: flo
     try:
         data = await _fetch_dexscreener(token_address, chain)
         if data and data.get("pairs"):
-            pair = data["pairs"][0]
+            # Pick the highest-liquidity pair — the real pool. Pump.fun tokens
+            # can expose both the bonding-curve pair ($0 virtual liquidity,
+            # near-zero volume) and the migrated Raydium pool; pairs[0] is not
+            # guaranteed to be the real one.
+            pair = _best_pair(data["pairs"]) or data["pairs"][0]
             price = float(pair.get("priceUsd", 0) or 0)
             if price > 0:
                 prices["dexscreener"] = price

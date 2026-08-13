@@ -120,8 +120,8 @@ class TestTieredPenaltyScope:
         """Chain-indexer findings (on-chain analysis) penalize the market dimension."""
         out = compute_score(
             _result(
-                modules_run=["chain_indexer"],
-                chain_indexer_patterns={
+                modules_run=["lite_chain_indexer"],
+                lite_chain_indexer_patterns={
                     "findings": [
                         {"pattern": "bundler", "detected": True, "risk_score": 30},
                         {"pattern": "mixer", "detected": True, "risk_score": 20},

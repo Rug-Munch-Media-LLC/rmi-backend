@@ -38,7 +38,9 @@ from app.domains.telegram.rugmunchbot.formatters import (
     BETA_BANNER,
     _price_diff_pct,
     _risk_indicator,
+    about_text,
     detect_chain,
+    faq_text,
     footer_links,
     format_scan_report,
     format_sentinel_deepscan_section,
@@ -113,11 +115,11 @@ def _with_trade_buttons(kb: InlineKeyboardMarkup, address: str, chain: str) -> I
 
 # ══════════════════════════════════════════════
 # /help reference — grouped, scannable (v10)
-# Five primary categories (Scan & Security / Wallet & Tracing /
-# Market & Analysis / News & Alerts / Chat) mirror the composer-menu
-# order and the inline keyboard sections. Account & Extras keeps the
-# remaining self-service + group-admin commands reachable. Owner/admin
-# commands are documented in the admin panel, not here.
+# Six primary categories (Scan & Security / Wallet & Tracing /
+# Market & Analysis / News & Alerts / Chat & Learn / Premium) mirror the
+# composer-menu order and the inline keyboard sections. Account & Extras
+# keeps the remaining self-service + group-admin commands reachable.
+# Owner/admin commands are documented in the admin panel, not here.
 # Rendered with HTML parse mode — every <code> tag is balanced.
 # ══════════════════════════════════════════════
 _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
@@ -133,13 +135,6 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
             ("compare", "<code>a</code> <code>b</code> - side-by-side compare"),
             ("investigate", "<code>address</code> - deep report (Pro)"),
             ("rugmap", "<code>address</code> - bubble map image"),
-            ("honeypot", "<code>address</code> - honeypot detector"),
-            ("impersonation", "<code>address</code> - fake token check"),
-            ("mev", "<code>address</code> - MEV risk & safe swaps"),
-            ("lpcheck", "<code>address</code> - LP health check"),
-            ("lphealth", "<code>address</code> - liquidity pool health"),
-            ("deathclock", "<code>address</code> - survival prediction"),
-            ("laundry", "<code>address</code> - laundering detector"),
             ("report", "<code>address</code> - report a scam"),
         ],
     ),
@@ -152,7 +147,6 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
             ("trace", "<code>address</code> - cross-chain fund trace"),
             ("flow", "<code>address</code> - money flow tracking"),
             ("dumps", "<code>address</code> - dump pattern detector"),
-            ("cluster", "<code>address</code> - wallet clustering"),
             ("smartmoney", "<code>address</code> - smart money detection"),
         ],
     ),
@@ -193,12 +187,27 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         ],
     ),
     (
-        "Chat",
+        "Chat & Learn",
         [
             ("chat", "<code>question</code> - freestyle AI chat"),
             ("chat reset", "- clear conversation context"),
             ("ask", "<code>question</code> - deep RAG answer"),
             ("research", "<code>query</code> - deep research (Hunter+)"),
+            ("faq", "- how the bot works, free? accuracy"),
+            ("scamschool", "- learn the scam playbook"),
+        ],
+    ),
+    (
+        "Premium",
+        [
+            ("honeypot", "<code>address</code> - honeypot detector"),
+            ("impersonation", "<code>address</code> - fake token check"),
+            ("mev", "<code>address</code> - MEV risk & safe swaps"),
+            ("lpcheck", "<code>address</code> - LP health check"),
+            ("lphealth", "<code>address</code> - liquidity pool health"),
+            ("deathclock", "<code>address</code> - survival prediction"),
+            ("laundry", "<code>address</code> - laundering detector"),
+            ("cluster", "<code>address</code> - wallet clustering"),
         ],
     ),
     (
@@ -223,7 +232,8 @@ _HELP_EMOJI: dict[str, str] = {
     "Wallet & Tracing": "\U0001f50d",
     "Market & Analysis": "\U0001f4c8",
     "News & Alerts": "\U0001f4f0",
-    "Chat": "\U0001f4ac",
+    "Chat & Learn": "\U0001f4ac",
+    "Premium": "\U0001f451",
     "Account & Extras": "\U0001f4b3",
 }
 
@@ -299,6 +309,7 @@ def _build_help_text() -> str:
         "\u2022 See a scam? /report <code>address</code> keeps us all safer\n"
         "\u2022 Upgrade for wallet forensics, fund tracing & more"
     )
+    parts.append(f"\n{about_text()}")
     parts.append(footer_links())
     return "\n".join(parts)
 
@@ -372,11 +383,24 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Full command reference (v10) — grouped by category:
     Scan & Security / Wallet & Tracing / Market & Analysis / News & Alerts /
-    Chat, plus Account & Extras."""
+    Chat & Learn / Premium, plus Account & Extras."""
     user = update.effective_user
     kb = welcome_menu_kb(user.id if user else None)
     await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         HELP_TEXT,
+        parse_mode=ParseMode.HTML,
+        reply_markup=kb,
+        disable_web_page_preview=True,
+    )
+
+
+async def cmd_faq(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Lightweight FAQ — plain-language answers to common questions
+    (what can you scan / is it free / what is RMI / how accurate)."""
+    user = update.effective_user
+    kb = welcome_menu_kb(user.id if user else None)
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+        faq_text(),
         parse_mode=ParseMode.HTML,
         reply_markup=kb,
         disable_web_page_preview=True,

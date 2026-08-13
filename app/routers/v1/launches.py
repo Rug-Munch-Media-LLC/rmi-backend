@@ -350,11 +350,17 @@ async def recent_launches(
 
     # Tier 2 — DexScreener (only if own data insufficient)
     if len(items) < limit:
-        items.extend(await _dexscreener_new_pairs(chain, limit - len(items), pump_only))
+        try:
+            items.extend(await _dexscreener_new_pairs(chain, limit - len(items), pump_only))
+        except Exception as exc:
+            logger.debug("dexscreener tier failed: %s", exc)
 
     # Tier 3 — GMGN
     if len(items) < limit:
-        items.extend(await _gmgn_launches(chain, limit - len(items), pump_only))
+        try:
+            items.extend(await _gmgn_launches(chain, limit - len(items), pump_only))
+        except Exception as exc:
+            logger.debug("gmgn tier failed: %s", exc)
 
     items = items[:limit]
 

@@ -770,7 +770,10 @@ async def _compute_wallet_metrics(
     # indexing), every holder looks freshly-born — an artifact we expose to
     # callers instead of letting them print bogus fresh/brand-new %.
     coverage_start = await run_sync(_query_token_coverage_start, token_address, chain)
-    if coverage_start is not None:
+    # Defensive: run_sync is a generic wrapper and the query helper may be
+    # substituted in tests/mocks — only treat datetime-like values as valid
+    # coverage anchors; anything else degrades to "no coverage window".
+    if coverage_start is not None and hasattr(coverage_start, "timestamp"):
         coverage_start_ts = to_iso(coverage_start)
         coverage_days = round((time.time() - coverage_start.timestamp()) / 86400.0, 1)
     else:

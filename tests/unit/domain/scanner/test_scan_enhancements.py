@@ -356,7 +356,7 @@ def metrics_run_sync(
     """run_sync AsyncMock dispatching on the query function identity."""
 
     async def _side_effect(fn: Any, *args: Any, **kwargs: Any) -> Any:
-        if fn is fa._query_holder_first_tx:
+        if fn in (fa._query_holder_first_tx, fa._query_holder_first_tx_in, fa._query_holder_first_tx_out):
             return first_tx_rows or []
         if fn is fa._query_first_funders:
             return first_funder_rows or []
@@ -366,6 +366,8 @@ def metrics_run_sync(
             return tx_count_rows or []
         if fn is fa._query_top_holders:
             return []
+        if fn is fa._query_token_coverage_start:
+            return None
         return []
 
     return _side_effect

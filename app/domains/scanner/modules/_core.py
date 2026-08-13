@@ -173,6 +173,72 @@ async def _fetch_with_fallback(
     return {}, ""
 
 
+# ── Pump.fun detection ────────────────────────────────────────────────
+# Pump.fun (Solana bonding-curve launchpad) burns/locks its LP by design:
+# while on the curve the liquidity sits in the bonding-curve contract, and on
+# graduation the Raydium LP is burned. Reporting such tokens as "LP 0%
+# locked → HIGH rug pull risk" is a FALSE flag, so scanner/liquidity modules
+# use ``is_pumpfun_token`` to short-circuit the LP-lock check.
+PUMPFUN_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+PUMPFUN_AMM_PROGRAM_ID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMefXA"
+
+
+def is_pumpfun_token(
+    token_address: str,
+    chain: str = "solana",
+    pair: dict[str, Any] | None = None,
+    launchpad: str = "",
+) -> bool:
+    """Heuristically detect a Pump.fun token (Solana bonding-curve launch).
+
+    Signals (any match ⇒ ``True``):
+      1. the mint address ends with ``pump`` (pump.fun vanity convention);
+      2. a DexScreener-style pair's ``dexId`` / ``labels`` mention pump, or the
+         pair carries the pump.fun program ID (curve or AMM pool);
+      3. GMGN ``launchpad`` is pump.
+
+    Fail-safe: only ever returns ``True`` for Solana, and never hardcodes
+    LP state for non-pump tokens — callers decide what 100% means.
+    """
+    if not token_address or (chain or "").lower() not in ("solana", "sol"):
+        return False
+    if str(token_address).strip().lower().endswith("pump"):
+        return True
+    if pair:
+        dex_id = str(pair.get("dexId") or "").lower()
+        labels = pair.get("labels") or []
+        program_id = str(pair.get("programId") or pair.get("program_id") or "")
+        if "pump" in dex_id:
+            return True
+        if any("pump" in str(label).lower() for label in labels):
+            return True
+        if program_id in (PUMPFUN_PROGRAM_ID, PUMPFUN_AMM_PROGRAM_ID):
+            return True
+    return bool(launchpad and "pump" in str(launchpad).lower())
+
+
+def _pair_liquidity_usd(pair: dict[str, Any]) -> float:
+    """Extract liquidity USD from a DexScreener-style pair dict (0 on junk)."""
+    try:
+        return float(pair.get("liquidity", {}).get("usd", 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _best_pair(pairs: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Pick the highest-liquidity pair — the REAL pool.
+
+    Pump.fun tokens can have two DexScreener pairs at once: the bonding-curve
+    pair (virtual liquidity, ``liquidity.usd == 0``) and the migrated Raydium
+    pool (real liquidity/volume). ``pairs[0]`` is not guaranteed to be the
+    migrated pool, so liquidity consumers select the max-liquidity pair to
+    surface real numbers instead of $0.
+    """
+    if not pairs:
+        return None
+    return max(pairs, key=_pair_liquidity_usd)
+
+
 # ── 1. GoPlus Security ────────────────────────────────────────────────
 
 # ── DexScreener request cache (prevents N redundant calls per scan) ──

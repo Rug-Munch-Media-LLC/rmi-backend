@@ -357,7 +357,7 @@ class TestRugchartsWhales:
         assert data["total_whale_usd"] == 52_000.0
         assert data["whale_trades"][0]["side"] == "buy"
         assert data["whale_trades"][1]["side"] == "sell"
-        assert body["source"] == "chain_indexer (ClickHouse dex_events)"
+        assert body["source"] == "lite_chain_indexer (ClickHouse dex_events)"
 
     def test_whales_passes_limit_and_min_usd(self, client: TestClient, monkeypatch) -> None:
         """Query params flow into the ClickHouse helper call."""

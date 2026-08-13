@@ -727,6 +727,7 @@ async def test_liquidity_lock_dexscreener():
         ),
         patch("app.domains.scanner.modules._core.PREFER_OWN_DATA", False),
         patch("app.domains.scanner.modules.holders.PREFER_OWN_DATA", False),
+        patch("app.domains.scanner.modules.holders._gmgn_token_info", AsyncMock(return_value=None)),
     ):
         mock_fallback.return_value = (mock_dexscreener, "https://api.dexscreener.com/")
         # Clear DexScreener cache to avoid pollution

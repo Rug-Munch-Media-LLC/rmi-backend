@@ -117,6 +117,7 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_compare,
     cmd_deepscan,
     cmd_deployer,
+    cmd_faq,
     cmd_help,
     cmd_hype,
     cmd_quick,
@@ -362,6 +363,7 @@ def main() -> None:
     # Core commands
     _reg(app, "start", cmd_start)
     _reg(app, "help", cmd_help)
+    _reg(app, "faq", cmd_faq)
     _reg(app, "price", cmd_price)
     _reg(app, "dex", cmd_dex)
     _reg(app, "scan", cmd_scan)

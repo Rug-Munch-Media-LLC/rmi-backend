@@ -399,14 +399,14 @@ class TestDataBusProviders:
     def test_providers_registered_in_lazy_map(self) -> None:
         """Provider functions are discoverable via the DataBus lazy map."""
         from app.domains.databus.providers import (
-            _chain_indexer_hype_score,
-            _chain_indexer_new_token_radar,
-            _chain_indexer_wallet_flow,
+            _lite_chain_indexer_hype_score,
+            _lite_chain_indexer_new_token_radar,
+            _lite_chain_indexer_wallet_flow,
         )
 
-        assert callable(_chain_indexer_wallet_flow)
-        assert callable(_chain_indexer_new_token_radar)
-        assert callable(_chain_indexer_hype_score)
+        assert callable(_lite_chain_indexer_wallet_flow)
+        assert callable(_lite_chain_indexer_new_token_radar)
+        assert callable(_lite_chain_indexer_hype_score)
 
     def test_provider_chains_registered(self) -> None:
         """The three new data types resolve to LOCAL provider chains."""
@@ -420,7 +420,7 @@ class TestDataBusProviders:
     @pytest.mark.asyncio
     async def test_wallet_flow_provider_delegates(self) -> None:
         """The LOCAL DataBus provider wraps engine output."""
-        from app.domains.databus.providers.chains.chain_indexer_own import _chain_indexer_wallet_flow
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import _lite_chain_indexer_wallet_flow
 
         with (
             patch("app.domains.scanner.modules._core.PREFER_OWN_DATA", True),
@@ -439,7 +439,7 @@ class TestDataBusProviders:
                 ),
             ),
         ):
-            out = await _chain_indexer_wallet_flow(wallet=_WALLET, chain="ethereum")
+            out = await _lite_chain_indexer_wallet_flow(wallet=_WALLET, chain="ethereum")
 
         assert out is not None
         assert out["tier"] == "local"
@@ -448,7 +448,7 @@ class TestDataBusProviders:
 
     @pytest.mark.asyncio
     async def test_new_token_radar_provider_delegates(self) -> None:
-        from app.domains.databus.providers.chains.chain_indexer_own import _chain_indexer_new_token_radar
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import _lite_chain_indexer_new_token_radar
 
         with (
             patch("app.domains.scanner.modules._core.PREFER_OWN_DATA", True),
@@ -457,7 +457,7 @@ class TestDataBusProviders:
                 AsyncMock(return_value=[{"token_address": _TOKEN, "chain": "ethereum", "level": "HIGH"}]),
             ),
         ):
-            out = await _chain_indexer_new_token_radar(chain="ethereum", lookback_minutes=5)
+            out = await _lite_chain_indexer_new_token_radar(chain="ethereum", lookback_minutes=5)
 
         assert out is not None
         assert out["tier"] == "local"
@@ -465,7 +465,7 @@ class TestDataBusProviders:
 
     @pytest.mark.asyncio
     async def test_hype_score_provider_delegates(self) -> None:
-        from app.domains.databus.providers.chains.chain_indexer_own import _chain_indexer_hype_score
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import _lite_chain_indexer_hype_score
 
         with (
             patch("app.domains.scanner.modules._core.PREFER_OWN_DATA", True),
@@ -482,7 +482,7 @@ class TestDataBusProviders:
                 ),
             ),
         ):
-            out = await _chain_indexer_hype_score(token_address=_TOKEN, chain="ethereum")
+            out = await _lite_chain_indexer_hype_score(token_address=_TOKEN, chain="ethereum")
 
         assert out is not None
         assert out["tier"] == "local"
@@ -490,13 +490,13 @@ class TestDataBusProviders:
 
     @pytest.mark.asyncio
     async def test_providers_skip_when_disabled(self) -> None:
-        from app.domains.databus.providers.chains.chain_indexer_own import (
-            _chain_indexer_hype_score,
-            _chain_indexer_new_token_radar,
-            _chain_indexer_wallet_flow,
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import (
+            _lite_chain_indexer_hype_score,
+            _lite_chain_indexer_new_token_radar,
+            _lite_chain_indexer_wallet_flow,
         )
 
-        with patch("app.domains.databus.providers.chains.chain_indexer_own.PREFER_OWN_DATA", False):
-            assert await _chain_indexer_wallet_flow(wallet=_WALLET, chain="ethereum") is None
-            assert await _chain_indexer_new_token_radar(chain="ethereum") is None
-            assert await _chain_indexer_hype_score(token_address=_TOKEN, chain="ethereum") is None
+        with patch("app.domains.databus.providers.chains.lite_chain_indexer_own.PREFER_OWN_DATA", False):
+            assert await _lite_chain_indexer_wallet_flow(wallet=_WALLET, chain="ethereum") is None
+            assert await _lite_chain_indexer_new_token_radar(chain="ethereum") is None
+            assert await _lite_chain_indexer_hype_score(token_address=_TOKEN, chain="ethereum") is None

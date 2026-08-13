@@ -19,7 +19,12 @@ import re
 os.environ.setdefault("ENVIRONMENT", "dev")
 
 from app.domains.telegram.rugmunchbot.bot import _BOT_COMMANDS
-from app.domains.telegram.rugmunchbot.handlers.scanning import _HELP_SECTIONS, HELP_TEXT
+from app.domains.telegram.rugmunchbot.formatters import faq_text, welcome_card_text
+from app.domains.telegram.rugmunchbot.handlers.scanning import (
+    _HELP_SECTIONS,
+    HELP_TEXT,
+    cmd_faq,
+)
 from app.domains.telegram.rugmunchbot.keyboards import main_menu_kb, welcome_menu_kb
 
 # ── Command list (BotFather composer menu) ────────────────────────────────
@@ -58,7 +63,9 @@ EXPECTED_HELP_HEADERS = [
     "Wallet & Tracing",
     "Market & Analysis",
     "News & Alerts",
-    "Chat",
+    "Chat & Learn",
+    "Premium",
+    "Account & Extras",
 ]
 
 
@@ -89,6 +96,77 @@ def test_help_text_html_tags_balanced() -> None:
 def test_help_text_sections_unique() -> None:
     headers = [h for h, _ in _HELP_SECTIONS]
     assert len(headers) == len(set(headers))
+
+
+# ── Backstory (About block) ───────────────────────────────────────────────
+
+BACKSTORY_FRAGMENTS = ["Rug Munch Media LLC", "Wyoming", "Rug Munch Intelligence"]
+
+
+def test_welcome_card_contains_backstory() -> None:
+    text = welcome_card_text()
+    for fragment in BACKSTORY_FRAGMENTS:
+        assert fragment in text, f"welcome card is missing backstory fragment: {fragment!r}"
+
+
+def test_help_text_contains_backstory() -> None:
+    for fragment in BACKSTORY_FRAGMENTS:
+        assert fragment in HELP_TEXT, f"help text is missing backstory fragment: {fragment!r}"
+
+
+def test_help_text_commands_grouped_by_requested_categories() -> None:
+    # The requested best-in-class categories must be present as headers.
+    for header in (
+        "Scan & Security",
+        "Wallet & Tracing",
+        "Market & Analysis",
+        "News & Alerts",
+        "Chat & Learn",
+        "Premium",
+    ):
+        assert f"<b>{header}</b>" in HELP_TEXT, f"missing category header: {header}"
+
+
+# ── /faq ──────────────────────────────────────────────────────────────────
+
+FAQ_ITEMS = [
+    "What is Rug Munch Bot?",
+    "What can you scan?",
+    "Is it free?",
+    "What is RMI?",
+    "How accurate are the scans?",
+]
+
+
+def test_faq_handler_registered() -> None:
+    assert callable(cmd_faq), "cmd_faq must be importable and callable (registered in bot.py)"
+
+
+def test_faq_text_renders_answers() -> None:
+    text = faq_text()
+    for item in FAQ_ITEMS:
+        assert item in text, f"FAQ is missing question/answer: {item!r}"
+
+
+def test_faq_text_contains_backstory() -> None:
+    text = faq_text()
+    assert "Rug Munch Media LLC" in text
+    assert "Wyoming" in text
+
+
+def test_faq_text_html_tags_balanced() -> None:
+    for tag in ("b", "code"):
+        opens = len(re.findall(f"<{tag}>", faq_text()))
+        closes = len(re.findall(f"</{tag}>", faq_text()))
+        assert opens == closes, f"unbalanced <{tag}> tags in faq text: {opens} opens vs {closes} closes"
+
+
+def test_faq_text_html_safe() -> None:
+    # After stripping balanced HTML tags, no raw < > may remain.
+    stripped = re.sub(r"</?(b|i|code|a)>", "", faq_text())
+    stripped = re.sub(r'<a href="[^"]*">', "", stripped)
+    assert "<" not in stripped
+    assert ">" not in stripped
 
 
 # ── Main-menu inline keyboard ─────────────────────────────────────────────

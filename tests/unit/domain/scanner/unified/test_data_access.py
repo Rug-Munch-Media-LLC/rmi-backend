@@ -141,7 +141,7 @@ class TestBackends:
     async def test_clickhouse_token_history_no_client(self) -> None:
         with (
             patch(
-                "app.domains.databus.providers.chains.chain_indexer._get_ch_client",
+                "app.domains.databus.providers.chains.lite_chain_indexer._get_ch_client",
                 return_value=None,
             ),
             pytest.raises(DataAccessUnavailable),

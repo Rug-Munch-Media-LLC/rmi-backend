@@ -195,7 +195,10 @@ async def test_liquidity_verification_produces_lock_report() -> None:
     from app.domains.scanners.liquidity_verifier import LiquidityVerifier
     from app.domains.scanners.sentinel_pipeline import run_liquidity_verification
 
-    with patch.object(LiquidityVerifier, "_verify_lock_onchain", new=AsyncMock(return_value=(False, []))):
+    with (
+        patch.object(LiquidityVerifier, "_verify_lock_onchain", new=AsyncMock(return_value=(False, []))),
+        patch.object(LiquidityVerifier, "_detect_pumpfun", new=AsyncMock(return_value=False)),
+    ):
         result = await run_liquidity_verification(TOKEN, "solana")
     assert isinstance(result, dict)
     assert "status" in result

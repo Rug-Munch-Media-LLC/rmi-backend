@@ -72,7 +72,7 @@ def _critical_databus_responses() -> dict[str, dict[str, Any]]:
         "dev_reputation": {"risk_score": 95, "risk_label": "CRITICAL"},
         "rug_patterns": {"match_count": 3},
         "volume_authenticity": {"fake_volume_pct": 82.0},
-        "chain_indexer_patterns": {
+        "lite_chain_indexer_patterns": {
             "findings": [
                 {"pattern": "pump_and_dump", "detected": True, "risk_score": 20},
                 {"pattern": "deployer_cluster", "detected": True, "risk_score": 15},
@@ -108,7 +108,7 @@ def _safe_databus_responses() -> dict[str, dict[str, Any]]:
         "dev_reputation": {"risk_score": 5, "risk_label": "CLEAN"},
         "rug_patterns": {"match_count": 0},
         "volume_authenticity": {"fake_volume_pct": 4.0},
-        "chain_indexer_patterns": {"findings": []},
+        "lite_chain_indexer_patterns": {"findings": []},
     }
 
 
@@ -154,9 +154,13 @@ def _scan_externals(
         stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.persist_result", new=AsyncMock()))
         stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.auto_label_deployer", new=AsyncMock()))
         if publish_rag is not None:
-            stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.publish_rag_finding", new=publish_rag))
+            stack.enter_context(
+                patch("app.domains.scanner.unified._finalize_helpers.publish_rag_finding", new=publish_rag)
+            )
         elif not keep_publish_rag:
-            stack.enter_context(patch("app.domains.scanner.unified._finalize_helpers.publish_rag_finding", new=AsyncMock()))
+            stack.enter_context(
+                patch("app.domains.scanner.unified._finalize_helpers.publish_rag_finding", new=AsyncMock())
+            )
         # Always patch send_scanner_alert: a CRITICAL scan would otherwise make
         # real Telegram HTTP calls in tests. Tests that assert on the alert pass
         # their own mock; everyone else gets a silent default.
@@ -224,7 +228,7 @@ class TestFullScanPipeline:
         assert result.symbol == "RUG"
         assert result.holders == {"top_10_pct": 92.0}
         assert result.dev_reputation == {"risk_score": 95, "risk_label": "CRITICAL"}
-        assert result.chain_indexer_patterns is not None
+        assert result.lite_chain_indexer_patterns is not None
         assert "token_price" in result.modules_run
         assert result.scan_duration_ms >= 0
 
@@ -633,7 +637,7 @@ class TestDeployerFingerprintPipeline:
     @pytest.mark.asyncio
     async def test_databus_provider_wraps_fingerprint(self) -> None:
         """The DataBus provider returns the fingerprint wrapped with source metadata."""
-        from app.domains.databus.providers.chains.chain_indexer_own import _chain_indexer_deployer_fingerprint
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import _lite_chain_indexer_deployer_fingerprint
 
         deployed = _naive_dt(days_ago=2)
         fake = FakeDeployerCHClient(
@@ -645,7 +649,7 @@ class TestDeployerFingerprintPipeline:
             patch("app.domains.scanner.engines.deployer_fingerprint._redis_get", AsyncMock(return_value=None)),
             patch("app.domains.scanner.engines.deployer_fingerprint._redis_set", AsyncMock(return_value=True)),
         ):
-            out = await _chain_indexer_deployer_fingerprint(deployer=DEPLOYER, chain="ethereum")
+            out = await _lite_chain_indexer_deployer_fingerprint(deployer=DEPLOYER, chain="ethereum")
 
         assert out is not None
         assert out["is_local"] is True
@@ -803,7 +807,7 @@ class TestWalletFlowPipeline:
     @pytest.mark.asyncio
     async def test_databus_provider_wraps_wallet_flow(self) -> None:
         """The DataBus provider wraps build_flow_graph with source metadata."""
-        from app.domains.databus.providers.chains.chain_indexer_own import _chain_indexer_wallet_flow
+        from app.domains.databus.providers.chains.lite_chain_indexer_own import _lite_chain_indexer_wallet_flow
 
         fake = FakeFlowCHClient(
             hop1=[
@@ -812,7 +816,7 @@ class TestWalletFlowPipeline:
             ]
         )
         with _mock_flow_externals(fake, usd_value=3000.0):
-            out = await _chain_indexer_wallet_flow(wallet=WALLET, chain="ethereum", hops=1)
+            out = await _lite_chain_indexer_wallet_flow(wallet=WALLET, chain="ethereum", hops=1)
 
         assert out is not None
         assert out["is_local"] is True
@@ -836,7 +840,7 @@ class TestPipelineWiring:
 
         assert "token_security" in UnifiedTokenScanner.CORE_CHAINS
         assert "dev_reputation" in UnifiedTokenScanner.DEEP_CHAINS
-        assert "chain_indexer_patterns" in UnifiedTokenScanner.DEEP_CHAINS
+        assert "lite_chain_indexer_patterns" in UnifiedTokenScanner.DEEP_CHAINS
         assert "smart_money" in UnifiedTokenScanner.INTEL_CHAINS
 
     @pytest.mark.integration
