@@ -74,7 +74,7 @@ async def create_post(
 ) -> dict[str, Any]:
     """Create any type of post on Ghost."""
 
-    tags = (tags or []) + [POST_TYPES[post_type]["tag"]]
+    tags = list(dict.fromkeys((tags or []) + [POST_TYPES[post_type]["tag"]]))
     limit = TYPE_LIMITS.get(post_type, 4000)
     if len(content) > limit:
         content = content[: limit - 3] + "..."

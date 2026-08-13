@@ -40,6 +40,7 @@ from app.domains.content.briefing import (
     draft_briefing,
     gather_briefing_context,
     publish_briefing,
+    publish_briefing_telegram,
     review_briefing,
 )
 from app.domains.news_ingest.ingest import sweep_channels
@@ -157,21 +158,50 @@ async def run_shill_step(articles: list[NewsArticle]) -> list[PlatformAlert]:
     return run_shill_detection(articles_to_shill_posts(articles))
 
 
-async def run_briefing_step(*, dry_run: bool = True, now: datetime | None = None) -> dict[str, Any]:
-    """Run the §6 assembler; publish only when ``dry_run`` is False.
+async def run_briefing_step(
+    *,
+    dry_run: bool = True,
+    now: datetime | None = None,
+    client: Any | None = None,
+) -> dict[str, Any]:
+    """Run the §6 assembler: gather → draft → review → publish.
 
-    Returns ``{"draft", "review", "published"}`` — ``published`` is ``None``
-    in dry-run mode (owner veto) and on any assembler failure the caller's
-    try/except records the error.
+    ``dry_run=True`` (default) gathers, drafts and reviews but skips both
+    publishers (owner veto window, methodology §2). When live, the Ghost
+    ``briefing`` post is published first (``publish_briefing`` →
+    ``content_platform.create_post``), then a compact version is posted to
+    the news/main Telegram channel (``publish_briefing_telegram`` — skipped +
+    logged when no channel id is configured). Both publishers fail open:
+    a raising/broken publisher is recorded in ``publish_error`` /
+    ``telegram_error`` and never crashes the run.
+
+    Returns ``{"draft", "review", "published", "telegram"}`` plus optional
+    ``publish_error`` / ``telegram_error`` strings.
     """
     context = await gather_briefing_context()
     if now is not None:
         context["generated_at"] = now.isoformat(timespec="seconds")
     draft = await draft_briefing(context)
     review = review_briefing(draft, context)
-    result: dict[str, Any] = {"draft": draft, "review": review, "published": None}
-    if not dry_run:
+    result: dict[str, Any] = {
+        "draft": draft,
+        "review": review,
+        "published": None,
+        "telegram": None,
+    }
+    if dry_run:
+        return result
+
+    try:
         result["published"] = await publish_briefing(draft)
+    except Exception as e:  # fail-open: a broken Ghost publisher never crashes the run
+        logger.warning("daily_pipeline_briefing_publish_failed err=%s", _error_text(e))
+        result["publish_error"] = _error_text(e)
+    try:
+        result["telegram"] = await publish_briefing_telegram(draft, client=client)
+    except Exception as e:  # fail-open: a broken Telegram publisher never crashes the run
+        logger.warning("daily_pipeline_briefing_telegram_failed err=%s", _error_text(e))
+        result["telegram_error"] = _error_text(e)
     return result
 
 
@@ -256,6 +286,9 @@ async def run_daily_pipeline(
                 "draft": result.get("draft"),
                 "review": result.get("review"),
                 "published": result.get("published"),
+                "telegram": result.get("telegram"),
+                "publish_error": result.get("publish_error"),
+                "telegram_error": result.get("telegram_error"),
             }
         except Exception as e:
             logger.exception("daily_pipeline_step_failed step=briefing")
