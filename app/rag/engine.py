@@ -17,6 +17,7 @@ Ingest:
 
 from __future__ import annotations
 
+import os
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -44,6 +45,59 @@ _RRF_K = 60
 _QDRANT_URL = settings.qdrant_url.rstrip("/")
 _QDRANT_COLLECTIONS: set[str] = set()
 _QDRANT_PROBED = False
+
+# Primary-store routing: RAG_STORE=qdrant (default) serves search through
+# the unified Qdrant hybrid store (app.rag.qdrant_store); RAG_STORE=legacy
+# keeps the numpy/Redis + BM25-lite pillar path. Qdrant failures fall back
+# to the legacy path automatically.
+_DEFAULT_STORE = os.getenv("RAG_STORE", "qdrant").strip().lower()
+
+# Collection name resolved for the primary Qdrant store when the requested
+# RAG collection does not itself exist in Qdrant (env-driven, default
+# "rag_documents" — mirrors app.rag.qdrant_store._resolve_collection).
+_DEFAULT_QDRANT_COLLECTION = os.getenv("RAG_QDRANT_COLLECTION", "rag_documents").strip() or "rag_documents"
+
+# Resolved collection cache for the primary store path (requested RAG
+# collection → Qdrant collection name).
+_QDRANT_RESOLVED: dict[str, str] = {}
+
+# Lexical stopwords for the query→sparse-vector builder (mirrors the set
+# used by _keyword_search so the two lexical paths stay consistent).
+_SEARCH_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "the",
+        "this",
+        "that",
+        "and",
+        "for",
+        "with",
+        "from",
+        "has",
+        "have",
+        "was",
+        "were",
+        "been",
+        "are",
+        "not",
+        "but",
+        "its",
+        "all",
+        "can",
+        "will",
+        "just",
+        "very",
+        "also",
+        "than",
+        "then",
+        "each",
+        "which",
+        "what",
+        "when",
+        "where",
+        "how",
+        "who",
+    }
+)
 
 
 async def _qdrant_collection_exists(client: httpx.AsyncClient, collection: str) -> bool:
@@ -157,6 +211,145 @@ async def _qdrant_search(
 
 
 # ── Three-pillar search ──────────────────────────────────────────────
+async def _resolve_qdrant_collection(collection: str) -> str:
+    """Map the requested RAG collection to a Qdrant collection name.
+
+    Uses the collection itself when it exists in Qdrant (probe cached once
+    per process by ``_qdrant_collection_exists``), otherwise the default
+    store collection (``RAG_QDRANT_COLLECTION`` / ``rag_documents``).
+    """
+    if collection in _QDRANT_RESOLVED:
+        return _QDRANT_RESOLVED[collection]
+    try:
+        async with httpx.AsyncClient(base_url=_QDRANT_URL, timeout=5.0) as client:
+            resolved = collection if await _qdrant_collection_exists(client, collection) else _DEFAULT_QDRANT_COLLECTION
+    except (httpx.HTTPError, httpx.TimeoutException):
+        resolved = _DEFAULT_QDRANT_COLLECTION
+    _QDRANT_RESOLVED[collection] = resolved
+    return resolved
+
+
+def _build_sparse_query(query: str) -> dict[str, Any] | None:
+    """Lexical sparse vector (``{"indices": [...], "values": [...]}``) from a query.
+
+    Stand-in for a learned sparse encoder (SPLADE) until one is wired into the
+    primary path: tokens are hashed into a 32-bit index space and weighted by
+    a small TF boost so the sparse pillar can fuse with the dense pillar via
+    Qdrant RRF. Returns None for stopword-only/empty queries (dense-only).
+    """
+    import hashlib
+    import re
+
+    tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9_#]*", query.lower())
+    tokens = [t for t in tokens if t not in _SEARCH_STOPWORDS and len(t) > 1]
+    if not tokens:
+        return None
+    counts: dict[str, int] = {}
+    for t in tokens:
+        counts[t] = counts.get(t, 0) + 1
+    indices: list[int] = []
+    values: list[float] = []
+    for t, c in counts.items():
+        indices.append(int(hashlib.sha256(t.encode("utf-8")).hexdigest()[:8], 16))
+        values.append(1.0 + 0.5 * (c - 1))
+    return {"indices": indices, "values": values}
+
+
+async def _qdrant_primary_search(
+    query: str,
+    qvec: list[float],
+    collection: str,
+    top_k: int,
+    min_similarity: float,
+    filters: dict[str, Any] | None,
+) -> tuple[list[Hit], str]:
+    """Qdrant hybrid retrieval (dense + lexical-sparse, RRF) — the primary path.
+
+    Returns ``(hits, backend)`` where ``backend`` is ``"legacy"`` when the
+    caller should run the legacy pillar path instead (Qdrant unreachable,
+    error, or returned nothing). Hits are engine ``Hit`` objects; metadata
+    filters are applied post-retrieval to preserve legacy semantics (the
+    legacy path filtered ``hit.metadata``, not raw payload fields).
+    """
+    from app.rag.qdrant_store import PREFETCH_MULTIPLIER, get_qdrant_store
+
+    try:
+        qdrant_collection = await _resolve_qdrant_collection(collection)
+        store = get_qdrant_store(qdrant_collection)
+        raw = await store.search(
+            vector=qvec,
+            sparse_vector=_build_sparse_query(query),
+            filters=filters or None,
+            limit=top_k * PREFETCH_MULTIPLIER,
+        )
+    except Exception as exc:
+        log.warning("rag_qdrant_primary_error collection=%s err=%s", collection, exc)
+        return [], "legacy"
+
+    if not raw:
+        log.info("rag_qdrant_primary_empty collection=%s falling_back=legacy", collection)
+        return [], "legacy"
+
+    hits: list[Hit] = []
+    for item in raw:
+        score = float(item.get("score", 0.0) or 0.0)
+        if min_similarity > 0 and score < min_similarity:
+            continue
+        hits.append(
+            Hit(
+                doc_id=str(item.get("doc_id", "")),
+                score=score,
+                text=str(item.get("text", "")),
+                metadata=item.get("metadata", {}) or {},
+            )
+        )
+
+    # Post-filter to match legacy exact-match semantics on hit.metadata.
+    filtered = _apply_filters(hits, filters or {})
+    return filtered[:top_k], "qdrant"
+
+
+async def _legacy_pillar_search(
+    query: str,
+    qvec: list[float],
+    collection: str,
+    top_k: int,
+    min_similarity: float,
+    filters: dict[str, Any] | None,
+) -> list[Hit]:
+    """The legacy three-pillar path: numpy ANN + BM25-lite + RRF + Qdrant fallback."""
+    # Pillar 1: ANN vector search
+    idx = get_index(collection)
+    ann_hits = idx.search(qvec, top_k=top_k * 3, min_similarity=min_similarity)
+
+    # Pillar 2: keyword (BM25-lite via Redis text scan on stored docs)
+    keyword_hits = await _keyword_search(query, collection, top_k * 3)
+
+    # Pillar 3: metadata filter (apply to ann+keyword results)
+    _apply_filters(ann_hits + keyword_hits, filters or {})
+
+    # RRF fusion
+    fused = _reciprocal_rank_fusion([ann_hits, keyword_hits], top_k=top_k)
+
+    # Apply filters post-fusion
+    if filters:
+        fused = [h for h in fused if _matches_filters(h, filters)]
+
+    # Qdrant fallback: if the in-process index has no data for this
+    # collection, consult Qdrant (e.g. `news` seeded by news_to_rag.py).
+    # Strictly additive — collections with local data are untouched.
+    if not fused:
+        qdrant_hits = await _qdrant_search(qvec, collection, limit=top_k, score_threshold=min_similarity)
+        if qdrant_hits:
+            fused = qdrant_hits[:top_k]
+            log.info(
+                "rag_search_qdrant_fallback collection=%s hits=%d",
+                collection,
+                len(fused),
+            )
+    return fused
+
+
 async def three_pillar_search(
     query: str,
     collection: str = "scam_intel",
@@ -167,6 +360,14 @@ async def three_pillar_search(
     """Run the three-pillar search and return RRF-fused hits.
 
     Each returned hit: {doc_id, score, text, metadata, source_pillars}
+
+    Primary path (``RAG_STORE=qdrant``, default): the unified Qdrant hybrid
+    store (dense + lexical-sparse prefetches, server-side RRF k=60) replaces
+    the in-process numpy ANN + Redis BM25-lite scan. The Infinity bge-m3
+    embedding (``get_embedding``) still runs here and the bge-reranker
+    rerank still runs AFTER retrieval in ``HybridRetriever._apply_rerank``.
+    On Qdrant failure/empty results the legacy pillar path runs instead.
+    Set ``RAG_STORE=legacy`` to restore the previous numpy/Redis path.
     """
     start = time.monotonic()
 
@@ -179,50 +380,31 @@ async def three_pillar_search(
             "retrieval.top_k": top_k,
         },
     ) as span:
-        # Pillar 1: ANN vector search
+        # Embed once — shared by the Qdrant primary path and the legacy path.
         qvec = await get_embedding(query)
-        idx = get_index(collection)
-        ann_hits = idx.search(qvec, top_k=top_k * 3, min_similarity=min_similarity)
 
-        # Pillar 2: keyword (BM25-lite via Redis text scan on stored docs)
-        keyword_hits = await _keyword_search(query, collection, top_k * 3)
-
-        # Pillar 3: metadata filter (apply to ann+keyword results)
-        _apply_filters(ann_hits + keyword_hits, filters or {})
-
-        # RRF fusion
-        fused = _reciprocal_rank_fusion([ann_hits, keyword_hits], top_k=top_k)
-
-        # Apply filters post-fusion
-        if filters:
-            fused = [h for h in fused if _matches_filters(h, filters)]
-
-        # Qdrant fallback: if the in-process index has no data for this
-        # collection, consult Qdrant (e.g. `news` seeded by news_to_rag.py).
-        # Strictly additive — collections with local data are untouched.
-        if not fused:
-            qdrant_hits = await _qdrant_search(qvec, collection, limit=top_k, score_threshold=min_similarity)
-            if qdrant_hits:
-                fused = qdrant_hits[:top_k]
-                log.info(
-                    "rag_search_qdrant_fallback collection=%s hits=%d",
-                    collection,
-                    len(fused),
-                )
+        if _DEFAULT_STORE == "qdrant":
+            fused, backend = await _qdrant_primary_search(query, qvec, collection, top_k, min_similarity, filters)
+            if backend == "legacy":
+                # Qdrant unavailable or returned nothing → legacy pillars.
+                fused = await _legacy_pillar_search(query, qvec, collection, top_k, min_similarity, filters)
+        else:
+            backend = "legacy"
+            fused = await _legacy_pillar_search(query, qvec, collection, top_k, min_similarity, filters)
 
         took_ms = int((time.monotonic() - start) * 1000)
         log.info(
-            "rag_search_done collection=%s ann=%d kw=%d fused=%d took_ms=%d backend=%s",
+            "rag_search_done collection=%s store=%s fused=%d took_ms=%d backend=%s",
             collection,
-            len(ann_hits),
-            len(keyword_hits),
+            backend,
             len(fused),
             took_ms,
             current_backend(),
         )
         span.set_attribute("openinference.retriever.documents", len(fused))
         span.set_attribute("retrieval.result_count", len(fused))
-        span.set_attribute("retrieval.backend", current_backend())
+        span.set_attribute("retrieval.backend", backend)
+        span.set_attribute("retrieval.store", backend)
     return [
         {
             "doc_id": h.doc_id,
