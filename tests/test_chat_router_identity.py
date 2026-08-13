@@ -80,10 +80,10 @@ async def test_build_messages_ends_with_current_user_message() -> None:
     ]
     messages = await _build_messages("tester", "who made you", None, history)
     assert messages[-1] == {"role": "user", "content": "who made you"}
-    # Trailing assistant turn was dropped by _normalize_history so the model
-    # answers the CURRENT question; the last history user turn precedes it.
-    assert messages[-2] == {"role": "user", "content": "what is solana"}
+    # History is rendered INERT (in the system prompt), so the only real turns
+    # are system + the current user message.
     assert messages[0]["role"] == "system"
+    assert "PREVIOUS CONVERSATION" in messages[0]["content"]
 
 
 async def test_build_messages_merges_consecutive_same_role_turns() -> None:
@@ -93,13 +93,12 @@ async def test_build_messages_merges_consecutive_same_role_turns() -> None:
         {"role": "assistant", "content": "answer"},
     ]
     messages = await _build_messages("tester", "third", None, history)
-    # The two consecutive user turns were merged into one, and the trailing
-    # assistant turn was dropped so the current message is the last turn.
+    # History is inert reference; the current message is the only real user turn.
     assert messages[-1] == {"role": "user", "content": "third"}
-    merged_users = [m for m in messages if m["role"] == "user"]
-    assert len(merged_users) == 2  # merged history user + current user
-    assert "first" in merged_users[0]["content"]
-    assert "second" in merged_users[0]["content"]
+    user_turns = [m for m in messages if m["role"] == "user"]
+    assert len(user_turns) == 1  # current user only
+    assert "first" in messages[0]["content"]
+    assert "second" in messages[0]["content"]
 
 
 async def test_build_messages_drops_trailing_assistant_turn() -> None:
@@ -108,10 +107,11 @@ async def test_build_messages_drops_trailing_assistant_turn() -> None:
         {"role": "assistant", "content": "a rug pull is when..."},
     ]
     messages = await _build_messages("tester", "and how do I avoid it?", None, history)
-    # The dangling assistant turn is dropped so the model answers the CURRENT
-    # question instead of continuing its prior answer.
+    # The dangling assistant turn is dropped (inert reference), so the model
+    # answers the CURRENT question; the prior user question remains as context.
     assert messages[-1] == {"role": "user", "content": "and how do I avoid it?"}
-    assert messages[-2] == {"role": "user", "content": "what is a rug pull"}
+    assert "[USER] what is a rug pull" in messages[0]["content"]
+    assert "a rug pull is when" not in messages[0]["content"]
 
 
 async def test_build_messages_empty_history_ends_with_current() -> None:
