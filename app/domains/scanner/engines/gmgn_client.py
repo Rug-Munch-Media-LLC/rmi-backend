@@ -212,7 +212,7 @@ def get_wallet_tags(wallet: str, chain: str = "sol") -> list[str]:
     return []
 
 
-def get_all_signals(chain: str = "sol") -> dict[str, list[Any]]:
+def get_all_signals(chain: str = "sol") -> dict[str, Any]:
     """Get all market signals aggregated."""
     return {
         "smart_money": get_smart_money_trades(chain, limit=10),

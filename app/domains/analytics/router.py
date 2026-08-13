@@ -61,7 +61,7 @@ class RecordViewRequest(BaseModel):
     post_id: str = Field(..., description="Post UUID")
     creator_id: str = Field(..., description="Creator UUID")
     viewer_fingerprint: str = Field(..., description="Hashed viewer identifier")
-    protocol: str = Field("nostr", description="Protocol: nostr, farcaster, bluesky, mastodon")
+    protocol: str = Field(default="nostr", description="Protocol: nostr, farcaster, bluesky, mastodon")
     watch_time_seconds: float = 0.0
     total_duration: float = 0.0
     dropped_at_seconds: float | None = None
@@ -81,7 +81,7 @@ class RecordEngagementRequest(BaseModel):
     creator_id: str = Field(..., description="Creator UUID")
     viewer_fingerprint: str = Field(..., description="Hashed viewer identifier")
     engagement_type: str = Field(..., description="like, comment, repost, tip, save, bookmark, click, follow")
-    protocol: str = Field("nostr")
+    protocol: str = Field(default="nostr")
     tip_amount_usd: float = 0.0
     tip_token: str = ""
     tip_amount_token: float = 0.0

@@ -68,7 +68,7 @@ async def detect_insiders(
     results = await asyncio.gather(*detectors, return_exceptions=True)
 
     for r in results:
-        if isinstance(r, Exception):
+        if isinstance(r, BaseException):
             logger.warning("Detection method failed: %s", r, exc_info=True)
             continue
         for evidence in r:

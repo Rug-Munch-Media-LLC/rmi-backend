@@ -29,9 +29,9 @@ class UnifiedProvider:
     """Multi-source chain data with fallback cascade."""
 
     def __init__(self) -> None:
-        self._birdeye = None
-        self._solscan = None
-        self._gmgn = None
+        self._birdeye: Any = None
+        self._solscan: Any = None
+        self._gmgn: Any = None
 
     # ── Lazy Connectors ────────────────────────────────────
 
@@ -175,8 +175,8 @@ class UnifiedProvider:
         try:
             import httpx
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
+            async with httpx.AsyncClient(timeout=10.0) as http_client:
+                r = await http_client.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
                 if r.status_code == 200:
                     pairs = r.json().get("pairs", [])
                     if pairs:
@@ -280,8 +280,8 @@ class UnifiedProvider:
         try:
             import httpx
 
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
+            async with httpx.AsyncClient(timeout=8.0) as http_client:
+                r = await http_client.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
                 if r.status_code == 200:
                     pairs = r.json().get("pairs", [])
                     if pairs:
@@ -324,8 +324,8 @@ class UnifiedProvider:
         try:
             import httpx
 
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
+            async with httpx.AsyncClient(timeout=8.0) as http_client:
+                r = await http_client.get(f"https://api.dexscreener.com/latest/dex/tokens/{mint}")
                 if r.status_code == 200:
                     pairs = r.json().get("pairs", [])
                     if pairs:
@@ -365,7 +365,7 @@ class UnifiedProvider:
         if cached:
             return cached
 
-        result = {
+        result: dict[str, Any] = {
             "address": mint,
             "chain": chain,
             "name": "",
@@ -408,7 +408,7 @@ class UnifiedProvider:
             async def _fetch_dex():
                 return await self._fetch_dexscreener_full(mint, chain)
 
-            tasks = []
+            tasks: list[asyncio.Task[Any]] = []
             tasks.append(asyncio.create_task(self.get_token_metadata(mint)))
             tasks.append(asyncio.create_task(self.get_token_price(mint)))
             tasks.append(asyncio.create_task(_fetch_dex()))
@@ -553,7 +553,7 @@ class UnifiedProvider:
             holder_data = await gmgn.get_holder_analysis(mint, chain)
             smart_money = await gmgn.get_smart_money(mint, chain)
 
-            result = {}
+            result: dict[str, Any] = {}
             if holder_data and "error" not in holder_data:
                 result["holders"] = holder_data.get("total_holders")
                 result["top_holders"] = holder_data.get("top_holders", [])[:20]
@@ -582,7 +582,9 @@ class UnifiedProvider:
         except Exception:
             return None
 
-    async def _fetch_geckoterminal_ohlcv(self, mint: str, chain: str = "solana", limit: int = 24) -> list[dict[str, Any]] | None:
+    async def _fetch_geckoterminal_ohlcv(
+        self, mint: str, chain: str = "solana", limit: int = 24
+    ) -> list[dict[str, Any]] | None:
         """Fetch OHLCV data from GeckoTerminal (free, no auth)."""
         try:
             import httpx

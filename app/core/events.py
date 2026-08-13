@@ -109,7 +109,7 @@ class WalletUpdated(BaseEvent):
 
     wallet_address: str = ""
     change_type: str = ""  # "balance", "label", "cluster", "portfolio"
-    diff: dict[str, Any] = field(default_factory=list)
+    diff: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

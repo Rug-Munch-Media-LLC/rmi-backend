@@ -178,7 +178,7 @@ class CrossChainTraceAnalyzer:
 
             # Track known entities
             for addr_key in (t["from_address"], t["to_address"]):
-                lbl = labels.get(addr_key)
+                lbl = labels.get(addr_key, {})
                 if lbl and lbl.get("label_category"):
                     known_entities[addr_key] = lbl["label_name"] or lbl["label_category"]
 

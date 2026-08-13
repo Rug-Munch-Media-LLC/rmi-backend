@@ -191,9 +191,9 @@ def _calculate_safety_score(modules_results: list[dict[str, Any]]) -> int:
         "market_data": 0.4,
     }
 
-    score = 35  # Baseline: unknown = moderately risky (not neutral)
-    clean_bonus = 0
-    risk_penalty = 0
+    score: float = 35  # Baseline: unknown = moderately risky (not neutral)
+    clean_bonus: float = 0
+    risk_penalty: float = 0
     modules_with_data = 0
     severe_risk_count = 0  # Track compounding severe risks
     risk_categories = set()  # Track inter-module correlation

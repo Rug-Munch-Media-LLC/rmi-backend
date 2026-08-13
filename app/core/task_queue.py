@@ -19,7 +19,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/2")
 TASKS = {}
 
 
-def register_task(name: str, fn: Callable) -> None:
+def register_task(name: str, fn: Callable[..., Any]) -> None:
     """Register a background task handler."""
     TASKS[name] = fn
 

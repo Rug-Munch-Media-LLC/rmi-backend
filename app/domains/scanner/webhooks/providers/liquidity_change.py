@@ -98,10 +98,12 @@ class LiquidityChangeProvider:
 
         return events
 
-    def _get_liquidity_watchdog(self) -> object | None:
+    def _get_liquidity_watchdog(self) -> Any | None:
         """Try to import the internal liquidity watchdog (optional)."""
         try:
-            from app.liquidity_watchdog import LiquidityWatchdog
+            from app.liquidity_watchdog import (
+                LiquidityWatchdog,  # type: ignore[attr-defined]  # optional module, class absent — guarded by try/except
+            )
 
             return LiquidityWatchdog()
         except (ImportError, AttributeError):

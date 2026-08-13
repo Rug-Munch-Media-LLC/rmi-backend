@@ -37,6 +37,7 @@ async def _fetch_evm_wallets(token_address: str, chain: str) -> dict[str, Any]:
         key_env = "ETHERSCAN_KEY"
 
     api_key = os.getenv(key_env, "")
+    params: dict[str, Any]
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         # 1) Get contract creator from explorer

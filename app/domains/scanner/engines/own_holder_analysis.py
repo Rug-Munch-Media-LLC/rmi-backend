@@ -468,8 +468,8 @@ def _query_gini_data(
 
         # Gini = (2 * sum(i * yi) / (n * sum(yi))) - (n + 1) / n
         # where yi are sorted ascending balances
-        cum_sum = 0
-        weighted_sum = 0
+        cum_sum = 0.0
+        weighted_sum = 0.0
         for i, b in enumerate(balances):
             i_zero = i + 1  # 1-indexed
             cum_sum += b

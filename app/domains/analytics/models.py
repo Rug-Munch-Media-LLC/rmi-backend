@@ -20,15 +20,15 @@ from pydantic import BaseModel, Field
 class ViewAnalyticsSummary(BaseModel):
     """True view analytics for a creator or post."""
 
-    total_views: int = Field(0, description="Total view events (deduplicated)")
-    unique_viewers: int = Field(0, description="Unique viewers by fingerprint/wallet")
-    total_watch_time_minutes: float = Field(0.0, description="Total minutes watched")
-    average_view_duration_seconds: float = Field(0.0, description="Average view duration")
-    median_view_duration_seconds: float = Field(0.0, description="Median view duration")
-    view_through_rate: float = Field(0.0, description="% who watched to end (0-100)")
-    scroll_by_rate: float = Field(0.0, description="% who scrolled past without watching (0-100)")
-    replay_views: int = Field(0, description="Replay views of live/VOD content")
-    peak_concurrent_viewers: int = Field(0, description="Peak concurrent (live)")
+    total_views: int = Field(default=0, description="Total view events (deduplicated)")
+    unique_viewers: int = Field(default=0, description="Unique viewers by fingerprint/wallet")
+    total_watch_time_minutes: float = Field(default=0.0, description="Total minutes watched")
+    average_view_duration_seconds: float = Field(default=0.0, description="Average view duration")
+    median_view_duration_seconds: float = Field(default=0.0, description="Median view duration")
+    view_through_rate: float = Field(default=0.0, description="% who watched to end (0-100)")
+    scroll_by_rate: float = Field(default=0.0, description="% who scrolled past without watching (0-100)")
+    replay_views: int = Field(default=0, description="Replay views of live/VOD content")
+    peak_concurrent_viewers: int = Field(default=0, description="Peak concurrent (live)")
     drop_off_points: list[DropOffPoint] = Field(default_factory=list)
     daily_trend: list[DataPoint] = Field(default_factory=list)
     period: str = "7d"
@@ -37,17 +37,17 @@ class ViewAnalyticsSummary(BaseModel):
 class DropOffPoint(BaseModel):
     """Where viewers stopped watching."""
 
-    second: float = Field(0.0, description="Timestamp in seconds")
-    percentage: float = Field(0.0, description="% through content")
-    viewers_lost: int = Field(0, description="Viewers who dropped at this point")
-    drop_pct: float = Field(0.0, description="% of total viewers who dropped here")
+    second: float = Field(default=0.0, description="Timestamp in seconds")
+    percentage: float = Field(default=0.0, description="% through content")
+    viewers_lost: int = Field(default=0, description="Viewers who dropped at this point")
+    drop_pct: float = Field(default=0.0, description="% of total viewers who dropped here")
 
 
 class DataPoint(BaseModel):
     """A single time-series data point."""
 
-    date: str = Field("", description="ISO date string")
-    value: float = Field(0.0, description="Metric value")
+    date: str = Field(default="", description="ISO date string")
+    value: float = Field(default=0.0, description="Metric value")
     label: str = ""
 
 
@@ -71,46 +71,46 @@ class ViewAnalyticsDetail(BaseModel):
 class EngagementAnalyticsSummary(BaseModel):
     """Engagement metrics for a creator or post."""
 
-    total_engagements: int = Field(0, description="Total engagement actions")
-    unique_engagers: int = Field(0, description="Unique people who engaged")
+    total_engagements: int = Field(default=0, description="Total engagement actions")
+    unique_engagers: int = Field(default=0, description="Unique people who engaged")
 
     # Likes
-    likes: int = Field(0, description="Unique likes")
-    unique_likers: int = Field(0, description="Unique people who liked")
+    likes: int = Field(default=0, description="Unique likes")
+    unique_likers: int = Field(default=0, description="Unique people who liked")
 
     # Comments
-    comments: int = Field(0, description="Total comments")
-    unique_commenters: int = Field(0, description="Unique people who commented")
-    comment_sentiment_positive: int = Field(0, description="Positive comments")
-    comment_sentiment_neutral: int = Field(0, description="Neutral comments")
-    comment_sentiment_negative: int = Field(0, description="Negative comments")
-    average_sentiment_score: float = Field(0.0, description="-1.0 to 1.0")
+    comments: int = Field(default=0, description="Total comments")
+    unique_commenters: int = Field(default=0, description="Unique people who commented")
+    comment_sentiment_positive: int = Field(default=0, description="Positive comments")
+    comment_sentiment_neutral: int = Field(default=0, description="Neutral comments")
+    comment_sentiment_negative: int = Field(default=0, description="Negative comments")
+    average_sentiment_score: float = Field(default=0.0, description="-1.0 to 1.0")
 
     # Reposts / Shares
-    reposts: int = Field(0, description="Total reposts/shares across protocols")
+    reposts: int = Field(default=0, description="Total reposts/shares across protocols")
 
     # Tips
-    total_tips_usd: float = Field(0.0, description="Total tips in USD")
-    total_tips_token: float = Field(0.0, description="Total tips in token amounts")
-    average_tip_usd: float = Field(0.0, description="Average tip amount in USD")
-    tip_count: int = Field(0, description="Number of tips")
-    tip_velocity: float = Field(0.0, description="Tips per day")
-    top_tip_token: str = Field("", description="Most used tip token")
+    total_tips_usd: float = Field(default=0.0, description="Total tips in USD")
+    total_tips_token: float = Field(default=0.0, description="Total tips in token amounts")
+    average_tip_usd: float = Field(default=0.0, description="Average tip amount in USD")
+    tip_count: int = Field(default=0, description="Number of tips")
+    tip_velocity: float = Field(default=0.0, description="Tips per day")
+    top_tip_token: str = Field(default="", description="Most used tip token")
 
     # Follows
-    followers_gained: int = Field(0, description="Followers gained from this content")
+    followers_gained: int = Field(default=0, description="Followers gained from this content")
 
     # Click-through
-    click_through_rate: float = Field(0.0, description="CTR as % (0-100)")
-    total_clicks: int = Field(0, description="Total link clicks")
+    click_through_rate: float = Field(default=0.0, description="CTR as % (0-100)")
+    total_clicks: int = Field(default=0, description="Total link clicks")
 
     # Saves / Bookmarks
-    saves: int = Field(0, description="Save/bookmark count")
-    save_rate: float = Field(0.0, description="Save rate as % of viewers")
+    saves: int = Field(default=0, description="Save/bookmark count")
+    save_rate: float = Field(default=0.0, description="Save rate as % of viewers")
 
     # Read time (articles)
-    average_read_time_seconds: float = Field(0.0, description="Average time spent reading")
-    read_completion_rate: float = Field(0.0, description="% who finished reading")
+    average_read_time_seconds: float = Field(default=0.0, description="Average time spent reading")
+    read_completion_rate: float = Field(default=0.0, description="% who finished reading")
 
     period: str = "7d"
 
@@ -169,16 +169,17 @@ class ContentInsight(BaseModel):
     """A single data-driven insight about content performance."""
 
     category: str = Field(
-        "", description="media_type, video_length, posting_time, content_category, protocol_timing, recommendation"
+        default="",
+        description="media_type, video_length, posting_time, content_category, protocol_timing, recommendation",
     )
     insight: str = Field(
-        "",
+        default="",
         description='Human-readable insight like "Your posts with images get 2.3x more engagement"',
     )
-    metric: str = Field("", description="The measured metric")
-    improvement_factor: float = Field(0.0, description="Multiplier vs baseline (e.g. 2.3 means 2.3x)")
-    confidence: float = Field(0.0, description="Statistical confidence 0-1")
-    sample_size: int = Field(0, description="Number of data points")
+    metric: str = Field(default="", description="The measured metric")
+    improvement_factor: float = Field(default=0.0, description="Multiplier vs baseline (e.g. 2.3 means 2.3x)")
+    confidence: float = Field(default=0.0, description="Statistical confidence 0-1")
+    sample_size: int = Field(default=0, description="Number of data points")
 
 
 class ContentInsightsResponse(BaseModel):

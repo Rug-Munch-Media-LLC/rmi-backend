@@ -4,9 +4,15 @@ Smart Contract Honeypot Detector
 Detects honeypot smart contracts across EVM chains - tokens that appear
 tradeable but prevent selling through hidden mechanisms.
 
-Backward-compatibility shim: this module now lives in ``app.domains.detectors``.
+DEPRECATED: backward-compatibility shim — canonical implementation lives in
+``app.domains.detectors.smart_contract_honeypot_detector`` (package). Import
+from there instead:
 
-Usage:
+    from app.domains.detectors.smart_contract_honeypot_detector import HoneypotDetector
+
+This shim is kept only for legacy imports (e.g. tests) and will be removed.
+
+Usage (legacy):
     from app.smart_contract_honeypot_detector import HoneypotDetector
 """
 

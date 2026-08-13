@@ -8,7 +8,7 @@ Handles all inline keyboard button presses.
 from __future__ import annotations
 
 import secrets
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Update
@@ -93,6 +93,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         return
     await query.answer()
     data = query.data
+    if data is None:
+        return
     user = query.from_user
     db.get_or_create_user(user.id, user.username, user.first_name)
 
@@ -311,8 +313,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text("\U0001f525 <b>Fetching trending...</b>", parse_mode=ParseMode.HTML)
         from app.domains.telegram.rugmunchbot.handlers.market import render_trending
 
-        text, kb = await render_trending("solana", limit=8, window="24h")
-        if text is None or kb is None:
+        trend_text, trend_kb = await render_trending("solana", limit=8, window="24h")
+        if trend_text is None or trend_kb is None:
             await query.edit_message_text(
                 "\u274c Could not fetch trending data.",
                 parse_mode=ParseMode.HTML,
@@ -320,9 +322,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
             return
         await query.edit_message_text(
-            text,
+            trend_text,
             parse_mode=ParseMode.HTML,
-            reply_markup=kb,
+            reply_markup=trend_kb,
             disable_web_page_preview=True,
         )
     elif data == "trending_refresh":
@@ -330,8 +332,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text("\U0001f504 <b>Refreshing trending...</b>", parse_mode=ParseMode.HTML)
         from app.domains.telegram.rugmunchbot.handlers.market import render_trending
 
-        text, kb = await render_trending("solana", limit=8, window="24h")
-        if text is None or kb is None:
+        trend_text, trend_kb = await render_trending("solana", limit=8, window="24h")
+        if trend_text is None or trend_kb is None:
             await query.edit_message_text(
                 "\u274c Could not refresh trending data.",
                 parse_mode=ParseMode.HTML,
@@ -339,9 +341,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
             return
         await query.edit_message_text(
-            text,
+            trend_text,
             parse_mode=ParseMode.HTML,
-            reply_markup=kb,
+            reply_markup=trend_kb,
             disable_web_page_preview=True,
         )
     elif data == "news_refresh":
@@ -541,17 +543,17 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     elif data.startswith("upgrade_"):
         tier_key = data[8:]
         if tier_key in TIERS:
-            tier = TIERS[tier_key]
+            tier_info = TIERS[tier_key]
             await query.edit_message_text(
-                f"{tier['emoji']} <b>{tier['name']} — ${tier['price_monthly']}/mo</b>\n\n"
-                f"Unlock {tier['scans_per_week']} scans/week, "
-                f"{tier['ai_msgs_per_week']} AI messages/week, and:\n"
-                + "\n".join(f"• {f}" for f in tier["features"][:6])
+                f"{tier_info['emoji']} <b>{tier_info['name']} — ${tier_info['price_monthly']}/mo</b>\n\n"
+                f"Unlock {tier_info['scans_per_week']} scans/week, "
+                f"{tier_info['ai_msgs_per_week']} AI messages/week, and:\n"
+                + "\n".join(f"• {f}" for f in tier_info["features"][:6])
                 + "\n\nSubscribe now and get instant access!",
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [InlineKeyboardButton(f"⭐ Subscribe {tier['name']}", callback_data=f"sub_{tier_key}")],
+                        [InlineKeyboardButton(f"⭐ Subscribe {tier_info['name']}", callback_data=f"sub_{tier_key}")],
                         [InlineKeyboardButton("🔙 Plans", callback_data="menu_pricing")],
                     ]
                 ),
@@ -607,14 +609,18 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.answer("Invalid pack.", show_alert=True)
             return
         try:
+            msg = query.message
+            if msg is None:
+                await query.answer("Message unavailable.", show_alert=True)
+                return
             await ctx.bot.send_invoice(
-                chat_id=query.message.chat_id,
-                title=pack["name"],
+                chat_id=msg.chat.id,
+                title=str(pack["name"]),
                 description=f"Purchase {pack['name']} for your RugMunch account.",
                 payload=f"buystars_{pack_key}",
                 provider_token="",
                 currency="XTR",
-                prices=[LabeledPrice(pack["name"], pack["stars"])],
+                prices=[LabeledPrice(str(pack["name"]), int(pack["stars"]))],
             )
             await query.answer()
         except (httpx.HTTPError, KeyError, TypeError) as e:
@@ -708,8 +714,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
             from app.domains.telegram.rugmunchbot.handlers.market import render_trending
 
-            text, kb = await render_trending(new_chain, limit=8, window="24h")
-            if text is None or kb is None:
+            trend_text, trend_kb = await render_trending(new_chain, limit=8, window="24h")
+            if trend_text is None or trend_kb is None:
                 await query.edit_message_text(
                     "\u274c Could not fetch trending data.",
                     parse_mode=ParseMode.HTML,
@@ -717,9 +723,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 )
                 return
             await query.edit_message_text(
-                text,
+                trend_text,
                 parse_mode=ParseMode.HTML,
-                reply_markup=kb,
+                reply_markup=trend_kb,
                 disable_web_page_preview=True,
             )
         else:
@@ -731,8 +737,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text("\U0001f525 <b>Loading trending...</b>", parse_mode=ParseMode.HTML)
             from app.domains.telegram.rugmunchbot.handlers.market import render_trending
 
-            text, kb = await render_trending(win_chain, limit=8, window=win)
-            if text is None or kb is None:
+            trend_text, trend_kb = await render_trending(win_chain, limit=8, window=win)
+            if trend_text is None or trend_kb is None:
                 await query.edit_message_text(
                     "\u274c Could not fetch trending data.",
                     parse_mode=ParseMode.HTML,
@@ -740,9 +746,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 )
                 return
             await query.edit_message_text(
-                text,
+                trend_text,
                 parse_mode=ParseMode.HTML,
-                reply_markup=kb,
+                reply_markup=trend_kb,
                 disable_web_page_preview=True,
             )
         else:
@@ -775,18 +781,22 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             "user_id": user.id,
             "address": addr,
             "chain": chain,
-            "chat_id": query.message.chat_id,
-            "message_id": query.message.message_id,
+            "chat_id": query.message.chat.id if query.message is not None else 0,
+            "message_id": query.message.message_id if query.message is not None else 0,
         }
         try:
+            msg = query.message
+            if msg is None:
+                await query.answer("Message unavailable.", show_alert=True)
+                return
             await ctx.bot.send_invoice(
-                chat_id=query.message.chat_id,
+                chat_id=msg.chat.id,
                 title="\U0001f52c Deep Token Scan",
                 description=f"Complete forensic analysis of {addr} on {chain}.",
                 payload=f"deep_{token}",
                 provider_token="",
                 currency="XTR",
-                prices=[LabeledPrice("Deep Scan", SCAN_PACKS["deep_scan"]["stars"])],
+                prices=[LabeledPrice("Deep Scan", int(SCAN_PACKS["deep_scan"]["stars"]))],
             )
             await query.answer()
         except (httpx.HTTPError, KeyError, TypeError) as e:
@@ -802,24 +812,28 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         if tier_key == "free":
             await query.answer("Free tier is already active!", show_alert=True)
             return
-        tier = TIERS.get(tier_key)
-        if not tier:
+        sub_tier = TIERS.get(tier_key)
+        if not sub_tier:
             await query.answer("Invalid tier.", show_alert=True)
             return
         try:
+            msg = query.message
+            if msg is None:
+                await query.answer("Message unavailable.", show_alert=True)
+                return
             await ctx.bot.send_invoice(
-                chat_id=query.message.chat_id,
-                title=f"{tier['emoji']} {tier['name']} - 30 Days",
+                chat_id=msg.chat.id,
+                title=f"{sub_tier['emoji']} {sub_tier['name']} - 30 Days",
                 description=(
-                    f"Unlock {tier['name']} tier for 30 days.\n"
-                    f"\u2022 {tier['scans_per_week']} scans/week\n"
-                    f"\u2022 {tier['ai_msgs_per_week']} AI messages/week\n"
+                    f"Unlock {sub_tier['name']} tier for 30 days.\n"
+                    f"\u2022 {sub_tier['scans_per_week']} scans/week\n"
+                    f"\u2022 {sub_tier['ai_msgs_per_week']} AI messages/week\n"
                     f"\u2022 All premium features"
                 ),
                 payload=f"sub_{tier_key}",
                 provider_token="",
                 currency="XTR",
-                prices=[LabeledPrice(f"{tier['name']} - 30 days", tier["price_stars"])],
+                prices=[LabeledPrice(f"{sub_tier['name']} - 30 days", sub_tier["price_stars"])],
             )
             await query.answer()
         except (httpx.HTTPError, KeyError, TypeError) as e:
@@ -836,14 +850,18 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.answer("Invalid pack.", show_alert=True)
             return
         try:
+            msg = query.message
+            if msg is None:
+                await query.answer("Message unavailable.", show_alert=True)
+                return
             await ctx.bot.send_invoice(
-                chat_id=query.message.chat_id,
-                title=pack["name"],
+                chat_id=msg.chat.id,
+                title=str(pack["name"]),
                 description=f"Purchase {pack['name']} \u2014 never expires!",
                 payload=f"topup_{pack_key}",
                 provider_token="",
                 currency="XTR",
-                prices=[LabeledPrice(pack["name"], pack["stars"])],
+                prices=[LabeledPrice(str(pack["name"]), int(pack["stars"]))],
             )
             await query.answer()
         except (httpx.HTTPError, KeyError, TypeError) as e:
@@ -1132,7 +1150,7 @@ async def _inline_market_data(update: Update, ctx, kind: str) -> None:
 
     if kind == "market":
         text = await _inline_market_overview(_fetch_market_intel, _fmt_usd)
-        token_items: list[dict] = []
+        token_items: list[dict[str, Any]] = []
     elif kind == "movers":
         text = await _inline_movers_text(_fetch_market_intel, _fmt_usd, _change_emoji)
         token_items = []
@@ -1264,7 +1282,7 @@ async def _inline_movers_text(fetch, fmt_usd, change_emoji) -> str | None:
     return "\n".join(lines)
 
 
-async def _inline_launches_text(fetch, fmt_usd, change_emoji) -> tuple[str | None, list[dict]]:
+async def _inline_launches_text(fetch, fmt_usd, change_emoji) -> tuple[str | None, list[dict[str, Any]]]:
     """Render the /launches report as text for inline callbacks.
 
     Returns ``(text, token_items)`` so callers can attach per-token buttons.
@@ -1296,7 +1314,7 @@ async def _inline_launches_text(fetch, fmt_usd, change_emoji) -> tuple[str | Non
     return "\n".join(lines), items[:8]
 
 
-async def _inline_whales_text(fetch, fmt_usd) -> tuple[str | None, list[dict]]:
+async def _inline_whales_text(fetch, fmt_usd) -> tuple[str | None, list[dict[str, Any]]]:
     """Render the /whales report as text for inline callbacks.
 
     Returns ``(text, token_items)`` so callers can attach per-token buttons.
@@ -1333,7 +1351,7 @@ async def _inline_news(update: Update, ctx) -> None:
     if query is None:
         return
     await query.edit_message_text("\U0001f4f0 <b>Fetching news...</b>", parse_mode=ParseMode.HTML)
-    articles: list[dict] = []
+    articles: list[dict[str, Any]] = []
     source_label = "Backend"
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -1466,7 +1484,11 @@ async def _dispatch_admin_cb(update: Update, ctx, data: str) -> None:
     )
 
     owner_uid = query.from_user.id
-    chat_id = query.message.chat_id
+    msg = query.message
+    if msg is None:
+        await query.answer("Message unavailable.", show_alert=True)
+        return
+    chat_id = msg.chat.id
 
     if data == "admin_stats":
         await _admin_stats_card(query)

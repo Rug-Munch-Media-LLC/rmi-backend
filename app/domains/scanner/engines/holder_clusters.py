@@ -72,7 +72,7 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.chain_indexer import (
+from app.domains.databus.providers.chains.lite_chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )

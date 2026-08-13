@@ -82,7 +82,9 @@ def route_task(task_type: TaskType, prefer: str = "fast") -> RoutingDecision:
     )
 
 
-async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs) -> dict[str, str] | dict[str, Any]:
+async def smart_route(
+    prompt: str, task_type: str = "fast", prefer: str = "fast", **kwargs
+) -> dict[str, str] | dict[str, Any]:
     """Auto-route a prompt to the best model. Returns response or falls back."""
     decision = route_task(TaskType(task_type), prefer)
 
@@ -92,7 +94,7 @@ async def smart_route(prompt: str, task_type: str = "fast", prefer: str = "fast"
         return {**result, "routing": vars(decision), "fallback_used": False}
 
     # Try fallback
-    if decision.fallback_model:
+    if decision.fallback_model and decision.fallback_provider:
         result = await _call_provider(decision.fallback_provider, decision.fallback_model, prompt, **kwargs)
         if result:
             return {**result, "routing": vars(decision), "fallback_used": True}

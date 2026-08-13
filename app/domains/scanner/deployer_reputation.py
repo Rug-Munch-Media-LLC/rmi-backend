@@ -30,7 +30,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ── Risk signal weights ──────────────────────────────────────────
-SIGNALS = {
+SIGNALS: dict[str, dict[str, Any]] = {
     "first_deployment": {
         "weight": 0.15,
         "description": "First-time deployer (no prior contracts)",
@@ -86,7 +86,7 @@ SIGNALS = {
 # ── Known scammer behavioral fingerprints ────────────────────────
 # Each is a vector of [deployment_count, avg_interval_hours, mixer_funded,
 # verified_pct, code_uniqueness, funding_chain_length]
-KNOWN_PATTERNS = {
+KNOWN_PATTERNS: dict[str, dict[str, Any]] = {
     "rug_pull_factory": {
         "vector": [25, 2, 1, 0, 0.3, 1],
         "description": "Mass token deployer - dozens of unverified tokens, quick exits",

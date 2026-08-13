@@ -3,11 +3,11 @@
 Consolidates the lifecycle that every ClickHouse-backed scanner engine repeats:
 
   1. **ClickHouse client** — lazy, concurrency-safe client for ``wallet_memory``.
-     Delegates to the canonical ``chain_indexer._get_ch_client`` so the whole
+     Delegates to the canonical ``lite_chain_indexer._get_ch_client`` so the whole
      process shares ONE client (the chain-indexer version builds a local
      candidate and only publishes it after ``SELECT 1`` succeeds, avoiding the
      half-initialized-client race that engine-local copies had).
-  2. **Chain normalization** — delegates to ``chain_indexer._normalize_chain``
+  2. **Chain normalization** — delegates to ``lite_chain_indexer._normalize_chain``
      so engine-local ``_CHAIN_MAP`` copies are not maintained in N places.
   3. **In-process TTL cache** — standard get/put/stats/clear semantics with
      per-engine TTL and max-size knobs (mirrors the old module-level
@@ -34,7 +34,7 @@ etc.) and delegate plumbing through a module-level engine instance::
 Migration notes
 ---------------
 - ``deployer_fingerprint`` / ``funding_analysis`` already import the canonical
-  client from ``chain_indexer`` and are NOT converted to this base: their unit
+  client from ``lite_chain_indexer`` and are NOT converted to this base: their unit
   tests patch module-level ``_get_ch_client`` / ``_redis_get`` / ``_redis_set``
   names, and the modules carry explicit deferred-split markers.
 - Cache and result helpers here are thin wrappers around ``engines._common``,
@@ -77,12 +77,12 @@ class BaseEngine:
     # ── ClickHouse client ──────────────────────────────────────────────────
 
     def client(self) -> Any | None:
-        """Return the canonical lazy ClickHouse client (chain_indexer singleton).
+        """Return the canonical lazy ClickHouse client (lite_chain_indexer singleton).
 
         Caches the result on the instance so ``get_cache_stats`` can report
         connectivity without re-probing.
         """
-        from app.domains.databus.providers.chains.chain_indexer import _get_ch_client
+        from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
 
         self._client = _get_ch_client()
         return self._client
@@ -91,7 +91,7 @@ class BaseEngine:
 
     def normalize_chain(self, chain: str) -> str:
         """Normalize a chain name to ClickHouse format (canonical map)."""
-        from app.domains.databus.providers.chains.chain_indexer import _normalize_chain
+        from app.domains.databus.providers.chains.lite_chain_indexer import _normalize_chain
 
         return _normalize_chain(chain)
 

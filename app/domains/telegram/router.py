@@ -25,8 +25,8 @@ router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
 class CreateVoiceChatRequest(BaseModel):
     chat_id: int = Field(..., description="Telegram group chat ID")
-    title: str | None = Field(None, description="Optional voice chat title")
-    is_video: bool = Field(False, description="Video chat vs audio-only")
+    title: str | None = Field(default=None, description="Optional voice chat title")
+    is_video: bool = Field(default=False, description="Video chat vs audio-only")
 
 
 class EndVoiceChatRequest(BaseModel):

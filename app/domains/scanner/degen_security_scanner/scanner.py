@@ -122,7 +122,7 @@ class DegenSecurityScanner:
 
     def _calculate_final_scores(self, report: SecurityReport) -> None:
         """Calculate the ultimate RUG PULL PROBABILITY score."""
-        score = 0
+        score: float = 0.0
 
         # Authority risk (20 pts)
         auth_map = {"LOW": 0, "MEDIUM": 10, "HIGH": 15, "CRITICAL": 20}

@@ -25,7 +25,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import requests
@@ -238,7 +238,7 @@ class DevReputationEngine:
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
-                    return data
+                    return cast("dict[str, Any]", data)
                 return data.get("result", data.get("data", data))
         except (
             httpx.HTTPError,

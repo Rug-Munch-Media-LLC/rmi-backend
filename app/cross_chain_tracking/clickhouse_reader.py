@@ -37,7 +37,7 @@ CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "localhost")
 CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "9000"))
 CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "default")
 CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
-CLICKHOUSE_DB = os.getenv("CHAIN_INDEXER_CLICKHOUSE_DB", "chain_indexer")
+CLICKHOUSE_DB = os.getenv("CHAIN_INDEXER_CLICKHOUSE_DB", "lite_chain_indexer")
 
 # Maximum events to fetch per query
 MAX_BATCH_SIZE = 100_000

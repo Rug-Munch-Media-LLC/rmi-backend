@@ -135,9 +135,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="New token launch detection via chain-indexer ClickHouse deployer_events",
         providers=[
             Provider(
-                "chain_indexer_deployer",
+                "lite_chain_indexer_deployer",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_deployer_history"],
+                _g["_lite_chain_indexer_deployer_history"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse deployer_events — new token launches from indexed chains",
@@ -344,15 +344,15 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
     except ImportError:
         pass
 
-    # ── chain_indexer_patterns — on-chain behavioral scam patterns ──
-    chains["chain_indexer_patterns"] = ProviderChain(
-        "chain_indexer_patterns",
+    # ── lite_chain_indexer_patterns — on-chain behavioral scam patterns ──
+    chains["lite_chain_indexer_patterns"] = ProviderChain(
+        "lite_chain_indexer_patterns",
         description="On-chain behavioral scam patterns via chain-indexer ClickHouse (holder concentration, pump-and-dump, deployer clusters, mixer interactions)",
         providers=[
             Provider(
-                "chain_indexer_pattern_search",
+                "lite_chain_indexer_pattern_search",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_pattern_search"],
+                _g["_lite_chain_indexer_pattern_search"],
                 weight=15.0,
                 is_local=True,
                 description="ClickHouse-powered pattern detection for deployer clusters, holder concentration, pump-and-dump, and mixer interactions",
@@ -366,9 +366,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="Deployer reputation (0-100) from chain-indexer ClickHouse deployer_events (rugpull/honeypot proxies, lifespan, velocity)",
         providers=[
             Provider(
-                "chain_indexer_deployer_reputation",
+                "lite_chain_indexer_deployer_reputation",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_deployer_reputation"],
+                _g["_lite_chain_indexer_deployer_reputation"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse deployer_events — total tokens deployed, rugpull rate, honeypot rate, average token lifespan, velocity",
@@ -382,9 +382,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="Deployer behavioral fingerprint (C7 v1) from chain-indexer ClickHouse — risk buckets (NEW/REPEAT_CLEAN/REPEAT_RUG/FARM/PROLIFIC), survival rate, median lifespan, funder analysis",
         providers=[
             Provider(
-                "chain_indexer_deployer_fingerprint",
+                "lite_chain_indexer_deployer_fingerprint",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_deployer_fingerprint"],
+                _g["_lite_chain_indexer_deployer_fingerprint"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse deployer_events + dex_events + evm_transfers + wallet_labels — deployment stats, 7-day survival rate, median lifespan, funder profile (CEX/fresh/multiple), evidence",
@@ -397,9 +397,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="Whale wallet detection from chain-indexer ClickHouse dex_events (large flows, accumulating vs dumping)",
         providers=[
             Provider(
-                "chain_indexer_whale_detect",
+                "lite_chain_indexer_whale_detect",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_whale_detect"],
+                _g["_lite_chain_indexer_whale_detect"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse dex_events — large transfers >$10K, whale wallets, concentration score, behavior flags",
@@ -412,9 +412,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="Wash-trading / volume authenticity from chain-indexer ClickHouse (dex_events vs evm_transfers)",
         providers=[
             Provider(
-                "chain_indexer_volume_authenticity",
+                "lite_chain_indexer_volume_authenticity",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_volume_authenticity"],
+                _g["_lite_chain_indexer_volume_authenticity"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse dex_events + evm_transfers — DEX vs transfer volume, wash patterns, authentic score",
@@ -427,9 +427,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="Holder age distribution from chain-indexer ClickHouse evm_transfers (fresh wallet farm / sudden influx / stable)",
         providers=[
             Provider(
-                "chain_indexer_holder_age",
+                "lite_chain_indexer_holder_age",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_holder_age"],
+                _g["_lite_chain_indexer_holder_age"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse evm_transfers — first-seen per holder, age buckets, fresh-wallet-farm detection",
@@ -443,9 +443,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="BubbleMaps-style holder clustering — balances from evm_transfers deltas, shared-funder / same-block-buy / bundle cluster passes, wallet_labels entity tags",
         providers=[
             Provider(
-                "chain_indexer_holder_clusters",
+                "lite_chain_indexer_holder_clusters",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_holder_clusters"],
+                _g["_lite_chain_indexer_holder_clusters"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse evm_transfers + dex_events + wallet_labels + deployer_events — holder concentration metrics and cluster map (C2)",
@@ -459,9 +459,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="Time-based attack detection from chain-indexer ClickHouse dex_events — sandwich attacks, pump & dumps, and flash loans (zero external APIs)",
         providers=[
             Provider(
-                "chain_indexer_attack_detection",
+                "lite_chain_indexer_attack_detection",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_attack_detection"],
+                _g["_lite_chain_indexer_attack_detection"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse dex_events — same-block sandwich triads, 24h pump & dump volume/price patterns, same-tx flash-loan repay patterns",
@@ -475,9 +475,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="New token discovery + early warning from chain-indexer ClickHouse deployer_events — fast scan (honeypot + deployer fingerprint + liquidity), CRITICAL/HIGH/WARNING/INFO scoring, Telegram alerts",
         providers=[
             Provider(
-                "chain_indexer_new_token_radar",
+                "lite_chain_indexer_new_token_radar",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_new_token_radar"],
+                _g["_lite_chain_indexer_new_token_radar"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse deployer_events — poll new deployments, auto-scan each pair, score risk, alert CRITICAL/HIGH via alert_hooks",
@@ -597,9 +597,9 @@ def build_security_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChai
         description="Holder concentration map — ClickHouse holders → DexScreener holders → Birdeye",
         providers=[
             Provider(
-                "chain_indexer_holders",
+                "lite_chain_indexer_holders",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_holders"],
+                _g["_lite_chain_indexer_holders"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse evm_transfers aggregation — holder distribution from transfer activity",

@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from typing import Any
 
 from app.core.logging import get_logger
@@ -147,7 +148,7 @@ async def auto_label_deployer(
     )
 
 
-def _log_storage_errors(tasks: list[Any]) -> None:
+def _log_storage_errors(tasks: Sequence[Any]) -> None:
     """Log any exceptions from asyncio.gather storage tasks."""
     for i, t in enumerate(tasks):
         if isinstance(t, Exception):

@@ -237,7 +237,7 @@ def generate_svg(graph_data: dict[str, Any], width: int = 800, height: int = 600
     center_node = next((n for n in nodes if n["id"] == center_id), None)
 
     # Arrange other nodes in circles
-    positions = {}
+    positions: dict[str, tuple[float, float]] = {}
     if center_node:
         positions[center_id] = (cx, cy)
 

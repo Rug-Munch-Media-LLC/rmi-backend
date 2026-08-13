@@ -124,7 +124,7 @@ class CachePutRequest(BaseModel):
     """Body for PUT /cache/{key} — Redis SETEX."""
 
     value: str = Field(..., description="Raw string value to store")
-    ttl: int = Field(300, ge=1, le=2_592_000, description="TTL in seconds (1s - 30d)")
+    ttl: int = Field(default=300, ge=1, le=2_592_000, description="TTL in seconds (1s - 30d)")
 
 
 class KvPutRequest(BaseModel):

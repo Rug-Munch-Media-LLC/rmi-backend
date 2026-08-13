@@ -38,7 +38,7 @@ from typing import Any
 from redis.exceptions import RedisError
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.chain_indexer import _get_ch_client
+from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
 
 logger = get_logger(__name__)
 

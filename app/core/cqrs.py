@@ -159,7 +159,8 @@ class Mediator:
         The handler's type argument is inferred from the class hierarchy.
         """
         # Determine the command/query type from generic bases
-        for base in type(handler).__orig_bases__ if hasattr(type(handler), "__orig_bases__") else []:
+        bases = getattr(type(handler), "__orig_bases__", [])
+        for base in bases if isinstance(bases, (list, tuple)) else []:
             args = getattr(base, "__args__", [])
             if args:
                 arg = args[0]

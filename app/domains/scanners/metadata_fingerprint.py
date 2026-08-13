@@ -137,7 +137,7 @@ class MetadataFingerprinter:
     """
 
     # Known social domains for normalisation
-    _SOCIAL_DOMAINS: ClassVar[dict[str, Any]] = {
+    _SOCIAL_DOMAINS: ClassVar[set[str]] = {
         "twitter.com",
         "x.com",
         "t.me",
@@ -184,7 +184,7 @@ class MetadataFingerprinter:
         social_domains = self._extract_domains(meta.social_links)
 
         # Compare against cached tokens on the same chain
-        similar: list[dict[str, object]] = []
+        similar: list[dict[str, Any]] = []
         for addr, cached in self._cache.items():
             if addr == token_address:
                 continue
@@ -225,7 +225,7 @@ class MetadataFingerprinter:
             confidence=confidence,
         )
 
-    async def compare_tokens(self, addr1: str, addr2: str, chain: str = "solana") -> dict[str, object]:
+    async def compare_tokens(self, addr1: str, addr2: str, chain: str = "solana") -> dict[str, Any]:
         """Compare metadata of two tokens and return a detailed similarity report."""
         meta1 = await self._fetch_metadata(addr1, chain)
         meta2 = await self._fetch_metadata(addr2, chain)
@@ -263,7 +263,7 @@ class MetadataFingerprinter:
     # Similarity computation
     # ------------------------------------------------------------------
 
-    def _compute_similarity(self, meta1: TokenMetadata, meta2: TokenMetadata) -> dict[str, object]:
+    def _compute_similarity(self, meta1: TokenMetadata, meta2: TokenMetadata) -> dict[str, Any]:
         """Compute multi-dimensional similarity between two token metadata sets."""
         # 1. HTML structure hash comparison
         hash1 = hash_html_structure(meta1.website_html)
@@ -351,7 +351,7 @@ class MetadataFingerprinter:
     # ------------------------------------------------------------------
 
     # Known stablecoin / wrapped token symbols - these legitimately have no description
-    STABLECOIN_SYMBOLS: ClassVar[dict[str, Any]] = {
+    STABLECOIN_SYMBOLS: ClassVar[set[str]] = {
         "USDC",
         "USDT",
         "DAI",
@@ -397,7 +397,7 @@ class MetadataFingerprinter:
         sym = symbol.upper().strip()
         return sym in self.STABLECOIN_SYMBOLS or sym.startswith(("W", "ST"))
 
-    def _generate_warnings(self, meta: TokenMetadata, similar: list[dict[str, object]]) -> list[str]:
+    def _generate_warnings(self, meta: TokenMetadata, similar: list[dict[str, Any]]) -> list[str]:
         warnings: list[str] = []
 
         for entry in similar:

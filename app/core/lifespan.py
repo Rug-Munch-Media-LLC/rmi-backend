@@ -90,10 +90,14 @@ async def _start_background_tasks(app: FastAPI) -> None:
 
     # Cache warmer (passes app instance)
     try:
-        from app.databus.core import cache_warm_loop
+        from app.databus import core as _databus_core
 
-        _background_tasks.append(asyncio.create_task(cache_warm_loop(app)))
-        logger.info("background_task_started", task="databus_cache_warmer", interval="")
+        cache_warm_loop = getattr(_databus_core, "cache_warm_loop", None)
+        if cache_warm_loop:
+            _background_tasks.append(asyncio.create_task(cache_warm_loop(app)))
+            logger.info("background_task_started", task="databus_cache_warmer", interval="")
+        else:
+            logger.warning("background_task_failed", task="databus_cache_warmer", error="cache_warm_loop not found")
     except Exception as e:
         logger.warning("background_task_failed", task="databus_cache_warmer", error=str(e))
 

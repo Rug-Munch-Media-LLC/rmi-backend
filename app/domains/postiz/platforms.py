@@ -31,14 +31,14 @@ class PlatformDefinition(BaseModel):
     category: str = Field(
         ..., description="social, video, professional, blogging, forum, messaging, newsletter, decentralized"
     )
-    max_length: int = Field(280, description="Maximum character limit")
+    max_length: int = Field(default=280, description="Maximum character limit")
     media_types: list[str] = Field(default_factory=lambda: ["text"], description="Supported media types")
-    oauth: bool = Field(True, description="OAuth required")
-    webhook: bool = Field(False, description="Webhook posting supported")
-    decentralized: bool = Field(False, description="Decentralized/federated protocol")
-    icon: str = Field("🌐", description="Platform icon emoji")
-    docs_url: str = Field("", description="API docs URL")
-    status: str = Field("active", description="active, beta, planned")
+    oauth: bool = Field(default=True, description="OAuth required")
+    webhook: bool = Field(default=False, description="Webhook posting supported")
+    decentralized: bool = Field(default=False, description="Decentralized/federated protocol")
+    icon: str = Field(default="🌐", description="Platform icon emoji")
+    docs_url: str = Field(default="", description="API docs URL")
+    status: str = Field(default="active", description="active, beta, planned")
 
 
 # ── All platforms ────────────────────────────────────────────────────

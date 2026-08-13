@@ -60,13 +60,13 @@ class PlatformConnectRequest(BaseModel):
     """Request to connect a platform account."""
 
     platform_id: str = Field(..., min_length=1, max_length=50, description="Platform slug (e.g. 'twitter', 'nostr')")
-    oauth_code: str | None = Field(None, description="OAuth authorization code")
-    api_key: str | None = Field(None, description="API key (for platforms without OAuth)")
-    api_secret: str | None = Field(None, description="API secret")
-    access_token: str | None = Field(None, description="Pre-existing access token")
-    instance_url: str | None = Field(None, description="Instance URL (for federated platforms like Mastodon)")
-    webhook_url: str | None = Field(None, description="Webhook URL (for Discord, Slack)")
-    label: str | None = Field(None, max_length=100, description="Human label for this connection")
+    oauth_code: str | None = Field(default=None, description="OAuth authorization code")
+    api_key: str | None = Field(default=None, description="API key (for platforms without OAuth)")
+    api_secret: str | None = Field(default=None, description="API secret")
+    access_token: str | None = Field(default=None, description="Pre-existing access token")
+    instance_url: str | None = Field(default=None, description="Instance URL (for federated platforms like Mastodon)")
+    webhook_url: str | None = Field(default=None, description="Webhook URL (for Discord, Slack)")
+    label: str | None = Field(default=None, max_length=100, description="Human label for this connection")
 
 
 class PlatformConnection(BaseModel):
@@ -76,14 +76,14 @@ class PlatformConnection(BaseModel):
     platform_id: str = Field(..., description="Platform slug")
     platform_name: str = Field(..., description="Platform display name")
     account_name: str = Field(..., description="Connected account name/handle")
-    account_id: str = Field("", description="Platform-specific account ID")
-    avatar_url: str = Field("", description="Account avatar")
+    account_id: str = Field(default="", description="Platform-specific account ID")
+    avatar_url: str = Field(default="", description="Account avatar")
     connected_at: str = Field(..., description="ISO timestamp")
-    expires_at: str | None = Field(None, description="Token expiry")
-    label: str = Field("", description="User-defined label")
-    status: str = Field("active", description="active, expired, revoked")
-    rate_limit_remaining: int = Field(0, description="API calls remaining this window")
-    rate_limit_reset: str = Field("", description="Rate limit reset timestamp")
+    expires_at: str | None = Field(default=None, description="Token expiry")
+    label: str = Field(default="", description="User-defined label")
+    status: str = Field(default="active", description="active, expired, revoked")
+    rate_limit_remaining: int = Field(default=0, description="API calls remaining this window")
+    rate_limit_reset: str = Field(default="", description="Rate limit reset timestamp")
 
 
 class PlatformListResponse(BaseModel):
@@ -133,13 +133,13 @@ class SchedulePostRequest(BaseModel):
     platforms: list[str] = Field(..., min_length=1, max_length=30, description="Target platform IDs")
     media_urls: list[str] = Field(default_factory=list, max_length=20, description="Media URLs")
     tags: list[str] = Field(default_factory=list, max_length=30, description="Hashtags/tags")
-    content_category: str = Field("general", description="Content category for rotation")
-    scheduled_at: str | None = Field(None, description="ISO timestamp for scheduled posting")
-    timezone: str = Field("UTC", description="Timezone for scheduled time")
-    recurring: RecurrencePattern | None = Field(None, description="Recurrence pattern")
-    recurring_cron: str | None = Field(None, description="Custom cron expression")
-    recurring_end: str | None = Field(None, description="Recurrence end date ISO")
-    queue_position: int | None = Field(None, ge=1, description="Position in queue (if not scheduling)")
+    content_category: str = Field(default="general", description="Content category for rotation")
+    scheduled_at: str | None = Field(default=None, description="ISO timestamp for scheduled posting")
+    timezone: str = Field(default="UTC", description="Timezone for scheduled time")
+    recurring: RecurrencePattern | None = Field(default=None, description="Recurrence pattern")
+    recurring_cron: str | None = Field(default=None, description="Custom cron expression")
+    recurring_end: str | None = Field(default=None, description="Recurrence end date ISO")
+    queue_position: int | None = Field(default=None, ge=1, description="Position in queue (if not scheduling)")
     thread: list[str] = Field(default_factory=list, description="Thread continuation posts")
     cross_post_to: list[str] = Field(default_factory=list, max_length=10, description="Additional platforms")
 
@@ -203,7 +203,7 @@ class BulkScheduleRequest(BaseModel):
     """Bulk upload for batch scheduling."""
 
     entries: list[BulkScheduleEntry] = Field(..., min_length=1, max_length=1000)
-    format: str = Field("json", description="json or csv")
+    format: str = Field(default="json", description="json or csv")
 
 
 class BulkScheduleEntry(BaseModel):
@@ -242,12 +242,12 @@ class RecurringCreateRequest(BaseModel):
 
     text: str = Field(..., min_length=1, max_length=64000, description="Post content")
     platforms: list[str] = Field(..., min_length=1, max_length=30, description="Target platform IDs")
-    pattern: RecurrencePattern = Field(RecurrencePattern.weekly, description="Recurrence pattern")
-    recurring_cron: str | None = Field(None, description="Custom cron expression")
-    recurring_end: str | None = Field(None, description="Recurrence end date ISO")
+    pattern: RecurrencePattern = Field(default=RecurrencePattern.weekly, description="Recurrence pattern")
+    recurring_cron: str | None = Field(default=None, description="Custom cron expression")
+    recurring_end: str | None = Field(default=None, description="Recurrence end date ISO")
     media_urls: list[str] = Field(default_factory=list, max_length=20)
     tags: list[str] = Field(default_factory=list, max_length=30)
-    content_category: str = Field("general")
+    content_category: str = Field(default="general")
 
 
 class RecurringPost(BaseModel):
@@ -257,12 +257,12 @@ class RecurringPost(BaseModel):
     text: str
     platforms: list[str]
     pattern: RecurrencePattern
-    cron_expression: str | None = Field(None, description="Cron expression for custom patterns")
+    cron_expression: str | None = Field(default=None, description="Cron expression for custom patterns")
     media_urls: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     content_category: str = "general"
     start_date: str = Field(..., description="ISO date")
-    end_date: str | None = Field(None, description="End date for recurrence")
+    end_date: str | None = Field(default=None, description="End date for recurrence")
     last_posted: str | None = None
     next_post: str | None = None
     times_posted: int = 0
@@ -275,7 +275,7 @@ class GapAnalysisResponse(BaseModel):
 
     gaps: list[GapEntry] = Field(default_factory=list)
     platform_summary: dict[str, GapSummary] = Field(default_factory=dict)
-    overall_health: str = Field("good", description="good, warning, critical")
+    overall_health: str = Field(default="good", description="good, warning, critical")
     recommendations: list[str] = Field(default_factory=list)
 
 
@@ -285,7 +285,7 @@ class GapEntry(BaseModel):
     platform_id: str
     platform_name: str
     days_since_last_post: int
-    status: str = Field("ok", description="ok, warning, critical")
+    status: str = Field(default="ok", description="ok, warning, critical")
     recommended_action: str = ""
 
 
@@ -315,7 +315,7 @@ class PlatformBestTime(BaseModel):
     platform_name: str
     best_time_utc: str = Field(..., description='e.g. "14:00 UTC"')
     best_day: str = Field(..., description='e.g. "Wednesday"')
-    confidence: float = Field(0.0, ge=0, le=1.0)
+    confidence: float = Field(default=0.0, ge=0, le=1.0)
     second_best_time: str = ""
     worst_time: str = ""
     peak_hours: list[int] = Field(default_factory=list)
@@ -428,9 +428,9 @@ class DataPoint(BaseModel):
 class ExportRequest(BaseModel):
     """Analytics export request."""
 
-    format: str = Field("pdf", description="pdf or csv")
-    period: str = Field("30d", description="7d, 30d, 90d, 1y")
-    platforms: list[str] | None = Field(None, description="Filter by platforms")
+    format: str = Field(default="pdf", description="pdf or csv")
+    period: str = Field(default="30d", description="7d, 30d, 90d, 1y")
+    platforms: list[str] | None = Field(default=None, description="Filter by platforms")
     include_charts: bool = True
 
 
@@ -459,12 +459,12 @@ class ComposeRequest(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=30)
     content_category: str = "general"
     thread: list[str] = Field(default_factory=list)
-    link: str | None = Field(None, description="Link to attach")
+    link: str | None = Field(default=None, description="Link to attach")
     link_title: str | None = None
     link_description: str | None = None
     link_image: str | None = None
     poll_options: list[str] = Field(default_factory=list, max_length=4)
-    poll_duration_hours: int = Field(24, ge=1, le=168)
+    poll_duration_hours: int = Field(default=24, ge=1, le=168)
 
 
 class ComposePreview(BaseModel):
@@ -557,7 +557,7 @@ class TemplateCreateRequest(BaseModel):
     """Request to create a post template."""
 
     name: str = Field(..., min_length=1, max_length=200)
-    description: str = Field("", max_length=1000)
+    description: str = Field(default="", max_length=1000)
     text: str = Field(..., min_length=1, max_length=64000)
     platforms: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)

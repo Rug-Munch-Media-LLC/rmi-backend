@@ -25,7 +25,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import httpx
 import requests
@@ -198,7 +198,7 @@ class LiquidityVerifier:
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
-                    return data
+                    return cast("dict[str, Any]", data)
                 return data.get("result", data.get("data", data))
             elif resp.status_code == 429:
                 logger.warning("Moralis rate limited")
@@ -302,7 +302,7 @@ class LiquidityVerifier:
         return chain_lockers.get(address.lower() if not is_solana(chain) else address)
 
     # Known stablecoin / wrapped token symbols - LP lock check is irrelevant
-    STABLECOIN_SYMBOLS: ClassVar[dict[str, Any]] = {
+    STABLECOIN_SYMBOLS: ClassVar[set[str]] = {
         "USDC",
         "USDT",
         "DAI",

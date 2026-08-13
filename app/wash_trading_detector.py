@@ -201,7 +201,7 @@ async def detect_wash_trading(token_address: str, chain: str) -> dict[str, Any]:
     6. Cross-reference holder concentration
     7. Compute wash trading score and generate report
     """
-    result = {
+    result: dict[str, Any] = {
         "token_address": token_address,
         "chain": chain,
         "detected": False,

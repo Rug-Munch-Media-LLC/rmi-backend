@@ -49,10 +49,10 @@ class ScrapedIngestRequest(BaseModel):
         description="Type of scraped data: scraped_intel, scam_report, threat_intel, blockchain_data, entity_profile",
     )
     content: dict[str, Any] = Field(..., description="The scraped content payload as a JSON object")
-    url: str = Field("", max_length=4096, description="Source URL the data was scraped from")
-    token_address: str = Field("", max_length=128, description="Token/entity address the data relates to")
-    chain: str = Field("", max_length=32, description="Blockchain chain identifier")
-    scraped_at: str = Field("", description="ISO-8601 timestamp of when the data was scraped")
+    url: str = Field(default="", max_length=4096, description="Source URL the data was scraped from")
+    token_address: str = Field(default="", max_length=128, description="Token/entity address the data relates to")
+    chain: str = Field(default="", max_length=32, description="Blockchain chain identifier")
+    scraped_at: str = Field(default="", description="ISO-8601 timestamp of when the data was scraped")
 
     @field_validator("content")
     @classmethod

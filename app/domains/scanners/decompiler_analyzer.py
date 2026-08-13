@@ -157,7 +157,7 @@ class DecompilerReport:
 
     # Extracted data
     function_selectors: list[str] = field(default_factory=list)
-    function_signatures: dict[str, str] = field(default_factory=list)
+    function_signatures: dict[str, str] = field(default_factory=dict)
     decompiled_functions: list[str] = field(default_factory=list)
     decompiled_source: str = ""
 

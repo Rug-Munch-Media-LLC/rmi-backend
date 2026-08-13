@@ -50,11 +50,11 @@ async def analyze(token_address: str, chain: str = "solana", **kwargs: Any) -> d
 async def _resolve_token_deployer(token_address: str, chain: str) -> str | None:
     """Find the deployer address for a token via chain-indexer deployer_events."""
     try:
-        from app.domains.databus.providers.chains.chain_indexer import (
-            _chain_indexer_deployer_history,
+        from app.domains.databus.providers.chains.lite_chain_indexer import (
+            _lite_chain_indexer_deployer_history,
         )
 
-        result = await _chain_indexer_deployer_history(
+        result = await _lite_chain_indexer_deployer_history(
             address=token_address,
             chain=chain,
             limit=1,

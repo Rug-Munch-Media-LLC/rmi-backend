@@ -10,9 +10,25 @@ import math
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.scanner.rugmaps.models import BubbleLink, BubbleMap, BubbleNode
+from app.domains.scanner.rugmaps.models import BubbleLink, BubbleMap, BubbleNode, EntityInfo
 
 logger = get_logger(__name__)
+
+
+def _coerce_entity(entity: dict[str, Any] | None) -> EntityInfo | None:
+    """Normalize raw entity dicts (Neo4j/clustering) into EntityInfo.
+
+    The label graph returns plain dicts; BubbleNode.entity is typed as
+    EntityInfo and renderers access ``.name`` / ``.type`` attributes.
+    """
+    if not entity:
+        return None
+    return EntityInfo(
+        name=str(entity.get("name", "")),
+        type=str(entity.get("type", "")),
+        risk_score=float(entity.get("risk_score", 0.0) or 0.0),
+    )
+
 
 # Address allowlists used by phase-3 heuristics. Populated by label imports;
 # empty by default so classification degrades gracefully to "unknown".
@@ -84,7 +100,7 @@ async def add_or_update_node(
         return existing
 
     risk_score, risk = calculate_risk(transactions or [], len(bubble_map.nodes))
-    entity = await get_entity_info(node_id)
+    entity = _coerce_entity(await get_entity_info(node_id))
     radius = calculate_radius(node_id, layer)
     x, y = 0.0, 0.0
 
@@ -111,7 +127,7 @@ async def add_center_node(bubble_map: BubbleMap, address: str, transactions: lis
     """Add or update the center node."""
     center = next((n for n in bubble_map.nodes if n.id == address), None)
     risk_score, risk = calculate_risk(transactions, len(bubble_map.nodes))
-    entity = await get_entity_info(address)
+    entity = _coerce_entity(await get_entity_info(address))
     node_type = await classify_wallet(address, transactions) if transactions else "unknown"
 
     if center:

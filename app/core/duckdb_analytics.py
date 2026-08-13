@@ -66,7 +66,7 @@ class DuckDBAnalytics:
         """
         import duckdb  # imported lazily so import cost only on first use
 
-        config: dict[str, str | bool | int | float] = {}
+        config: dict[str, str | bool | int | float | list[str]] = {}
         if threads is not None:
             config["threads"] = threads
         if memory_limit is not None:
@@ -159,6 +159,18 @@ class DuckDBAnalytics:
         pg_url = os.getenv("PG_URL") or os.getenv("DATABASE_URL") or "postgres://rmi:postgres@localhost:5432/rmi"
         self._attach_postgres(pg_url)
         return self.query(sql)
+
+    def _attach_postgres(self, pg_url: str) -> None:
+        """Attach the configured Postgres DB as 'pg' (READ_ONLY), if not already attached."""
+        if "pg" in self._attached:
+            return
+        try:
+            self._conn.execute(f"ATTACH '{pg_url}' AS pg (TYPE postgres, READ_ONLY)")
+            self._attached.add("pg")
+            log.info("duckdb_postgres_attached")
+        except Exception as e:
+            log.warning("duckdb_postgres_attach_failed err=%s", e)
+            raise
 
     def query_parquet(
         self,

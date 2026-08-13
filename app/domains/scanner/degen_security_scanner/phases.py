@@ -88,7 +88,7 @@ async def phase2_authorities(scanner: DegenSecurityScanner, report: SecurityRepo
     if not report.mint_authority_renounced:
         risk_score += 30
         scanner.critical_warnings.append(
-            f"\U0001f6a8 MINT AUTHORITY ACTIVE: Dev can mint unlimited tokens! Authority: {mint_auth[:20]}..."
+            f"\U0001f6a8 MINT AUTHORITY ACTIVE: Dev can mint unlimited tokens! Authority: {(mint_auth or '')[:20]}..."
         )
         scanner.recommendations.append("Mint authority should be renounced for investor safety")
 

@@ -219,9 +219,9 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
         description="ERC-20 transfer history from chain-indexer ClickHouse (73M+ transfers, 8 EVM chains)",
         providers=[
             Provider(
-                "chain_indexer_clickhouse",
+                "lite_chain_indexer_clickhouse",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_token_transfers"],
+                _g["_lite_chain_indexer_token_transfers"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse evm_transfers — every ERC-20 transfer on 8 chains",
@@ -235,9 +235,9 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
         description="Wallet-to-wallet fund flow graph from ClickHouse evm_transfers — labeled nodes, USD edges (C1, Arkham replacement)",
         providers=[
             Provider(
-                "chain_indexer_wallet_flow",
+                "lite_chain_indexer_wallet_flow",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_wallet_flow"],
+                _g["_lite_chain_indexer_wallet_flow"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse evm_transfers + wallet_labels + dex_events — 1-2 hop labeled USD graph around any wallet",
@@ -250,9 +250,9 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
         description="Token holder analysis from chain-indexer ClickHouse (transfer aggregation)",
         providers=[
             Provider(
-                "chain_indexer_holders",
+                "lite_chain_indexer_holders",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_holders"],
+                _g["_lite_chain_indexer_holders"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse evm_transfers aggregation — holder distribution from transfer activity",
@@ -265,9 +265,9 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
         description="Solana SPL token balance deltas from chain-indexer ClickHouse (16M+ changes)",
         providers=[
             Provider(
-                "chain_indexer_solana",
+                "lite_chain_indexer_solana",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_solana_balance_changes"],
+                _g["_lite_chain_indexer_solana_balance_changes"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse solana_spl_balance_changes — SPL token balance deltas",
@@ -399,9 +399,9 @@ def build_wallet_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
         description="Cross-chain entity resolution — same-deployer and same-funder links from ClickHouse deployer_events + evm_transfers (C4 v1, deploy tx / funder tx evidence)",
         providers=[
             Provider(
-                "chain_indexer_cross_chain_entity",
+                "lite_chain_indexer_cross_chain_entity",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_cross_chain_entity"],
+                _g["_lite_chain_indexer_cross_chain_entity"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse deployer_events + evm_transfers — link a wallet to addresses on other chains with deployer/funder tx evidence (C4)",
