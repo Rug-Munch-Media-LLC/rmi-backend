@@ -245,7 +245,7 @@ class DoubleRatchetSession:
         """Encrypt a message using the Double Ratchet."""
         from datetime import UTC, datetime
 
-        if self.sending_chain is None:
+        if self.sending_chain is None or self.sending_ephemeral_public is None:
             raise ValueError("Sending chain not initialized. Perform key exchange first.")
 
         # Derive message key

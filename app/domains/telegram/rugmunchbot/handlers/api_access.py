@@ -68,9 +68,9 @@ async def cmd_api(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await _create_token(update, user.id)
     elif action == "list":
         await _list_tokens(update, user.id)
-    elif action == "revoke" and len(ctx.args) > 1:
+    elif action == "revoke" and len(ctx.args or []) > 1:
         try:
-            token_id = int(ctx.args[1])
+            token_id = int((ctx.args or [])[1])
             await _revoke_token(update, user.id, token_id)
         except (ValueError, TypeError):
             await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields

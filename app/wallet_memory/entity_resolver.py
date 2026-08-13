@@ -70,7 +70,7 @@ class EntityResolver:
             logger.warning(f"Entity storage lookup failed (degraded): {e}")
             _mark_degraded("neo4j")
 
-        addresses = [{"address": addr, "chain": chain, "confidence": 1.0, "method": "direct"}]
+        addresses: list[dict[str, Any]] = [{"address": addr, "chain": chain, "confidence": 1.0, "method": "direct"}]
 
         # ── Method 1: Same EVM address heuristic ──────────────────
         # EVM addresses are portable: same private key works on all EVM chains
@@ -181,7 +181,7 @@ class EntityResolver:
         chain_counts: dict[str, int] = {}
         for a in addresses:
             chain_counts[a["chain"]] = chain_counts.get(a["chain"], 0) + 1
-        primary_chain = max(chain_counts, key=chain_counts.get) if chain_counts else chain
+        primary_chain = max(chain_counts, key=lambda c: chain_counts[c]) if chain_counts else chain
 
         # Deduplicate
         seen = set()

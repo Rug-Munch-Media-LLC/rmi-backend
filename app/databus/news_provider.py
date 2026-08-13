@@ -20,7 +20,7 @@ import json
 import os
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import redis.asyncio as aioredis
@@ -61,7 +61,7 @@ def _cache_set(key: str, data: dict[str, Any]) -> None:
     CACHE[key] = (data, time.time())
 
 
-async def _get_redis() -> aioredis.Redis | None:
+async def _get_redis() -> aioredis.Redis[Any] | None:
     """Get async Redis connection."""
     try:
         r = aioredis.Redis(
@@ -310,7 +310,7 @@ async def get_prediction_markets(limit: int = 5, tag: str = "crypto", **kw) -> d
 
     try:
         async with httpx.AsyncClient(timeout=10) as c:
-            params = {"limit": limit, "active": "true", "closed": "false"}
+            params: dict[str, Any] = {"limit": limit, "active": "true", "closed": "false"}
             if tag:
                 params["tag"] = tag
             r = await c.get(POLYMARKET_URL, params=params)
@@ -423,7 +423,7 @@ async def _fetch_fast_api_news(limit: int = 20) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=8) as c:
             url = "https://cryptopanic.com/api/free/v1/posts/"
-            params = {"public": "true", "kind": "news", "limit": min(limit, 20)}
+            params: dict[str, Any] = {"public": "true", "kind": "news", "limit": min(limit, 20)}
             if CRYPTOPANIC_API_KEY:
                 url = "https://cryptopanic.com/api/v1/posts/"
                 params["auth_token"] = CRYPTOPANIC_API_KEY
@@ -517,7 +517,7 @@ async def _fetch_rss_articles(
                 if pub_parsed and isinstance(pub_parsed, (tuple, list)) and len(pub_parsed) >= 6:
                     from datetime import timedelta
 
-                    pub_dt = datetime(*pub_parsed[:6], tzinfo=UTC)
+                    pub_dt = datetime(*cast("tuple[int, int, int, int, int, int]", tuple(pub_parsed[:6])), tzinfo=UTC)
                     if datetime.now(UTC) - pub_dt > timedelta(hours=72):
                         continue
                     published = pub_dt.isoformat()

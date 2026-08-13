@@ -93,7 +93,7 @@ class RpcRateLimiter:
     """
 
     def __init__(self, redis_url=None, redis_password=None) -> None:
-        self._redis = None
+        self._redis: Any | None = None
         self._redis_url = redis_url
         self._redis_password = redis_password
         self._redis_failed = False

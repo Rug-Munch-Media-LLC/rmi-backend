@@ -671,11 +671,11 @@ class ContextBuilder:
             elif isinstance(h, dict):
                 normalised.append(
                     ScoredHit(
-                        content=h.get("content", h.get("text", "")),
-                        score=float(h.get("score", h.get("similarity", 0))),
-                        metadata=h.get("metadata", {}),
-                        collection=h.get("collection", ""),
-                        doc_id=h.get("doc_id", h.get("id", "")),
+                        content=h.get("content", h.get("text", "")) or "",
+                        score=float(h.get("score", h.get("similarity", 0)) or 0),
+                        metadata=h.get("metadata", {}) or {},
+                        collection=h.get("collection", "") or "",
+                        doc_id=h.get("doc_id", h.get("id", "")) or "",
                     )
                 )
 

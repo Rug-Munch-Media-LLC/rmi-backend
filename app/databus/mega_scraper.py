@@ -152,7 +152,7 @@ def fetch_generic_feeds(feed_list, prefix="", label="generic") -> Any:
     return results
 
 
-def store_all() -> dict[str, int] | dict[str, str]:
+def store_all() -> dict[str, Any]:
     """Fetch all sources and store in Redis + Postgres."""
     all_articles = []
     all_articles.extend(fetch_generic_feeds(SUBSTACK_FEEDS, "[Substack] ", "substack"))

@@ -84,7 +84,7 @@ async def get_usage(x_api_key: str = Header(...)) -> dict[str, Any]:
 
 
 @router.get("/docs")
-async def api_docs() -> dict[str, str]:
+async def api_docs() -> dict[str, Any]:
     """API documentation - available endpoints."""
     return {
         "base_url": "https://rugmunch.io/api/v1",

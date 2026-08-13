@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from app.core.logging import get_logger
 from app.domains.airdrop.multichain.models import CrossChainHolder, TokenSource
@@ -93,14 +94,13 @@ class MultiChainSnapshotEngine:
         from_block = max(0, current_block - 200000)
 
         try:
-            logs = w3.eth.get_logs(
-                {
-                    "fromBlock": from_block,
-                    "toBlock": current_block,
-                    "address": source.token_address,
-                    "topics": [transfer_topic],
-                }
-            )
+            filter_params: Any = {
+                "fromBlock": from_block,
+                "toBlock": current_block,
+                "address": source.token_address,
+                "topics": [transfer_topic],
+            }
+            logs = w3.eth.get_logs(filter_params)
         except (ConnectionError, TimeoutError, ValueError) as e:
             logger.debug("_get_evm_holders_error", exc_info=True)
             logger.error(f"EVM log query failed: {e}")

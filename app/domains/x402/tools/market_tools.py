@@ -27,7 +27,7 @@ async def get_trending(chain: str = "solana") -> dict[str, Any]:
 
 async def market_overview(chain: str = "solana") -> dict[str, Any]:
     """Alias for get_market_overview."""
-    return get_market_overview(chain)
+    return await get_market_overview(chain)
 
 
 async def token_deep_dive(token_address: str, chain: str = "solana") -> dict[str, Any]:

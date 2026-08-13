@@ -376,7 +376,7 @@ async def token_holder_graph(
     # Bound the native graph build (deep BFS with per-wallet chain fetches
     # can exceed gunicorn's 120s worker timeout) so we fail fast and fall
     # back to DexScreener instead of hanging the request.
-    d = {"nodes": [], "links": [], "stats": {}}
+    d: dict[str, Any] = {"nodes": [], "links": [], "stats": {}}
     map_failed = False
     try:
         result = await asyncio.wait_for(
@@ -667,15 +667,21 @@ async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str
 @router.get("/ai-health")
 async def ai_health_check() -> dict[str, Any]:
     """Check RugMaps AI analysis availability (Ollama-first routing)."""
+    import os
+
     import httpx
 
+    # NOTE: app.rugmaps_ai references these via os.getenv at call time but does
+    # not export module-level constants; read them here so the health check
+    # does not raise ImportError. Defaults mirror app/ai_analysis.py.
     from app.rugmaps_ai import (
-        LITELLM_API_KEY,
-        LITELLM_BASE_URL,
-        OLLAMA_BASE_URLS,
         OLLAMA_COMPLEX_MODEL,
         OLLAMA_FAST_MODEL,
     )
+
+    LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
+    LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "")
+    OLLAMA_BASE_URLS = [u for u in os.getenv("OLLAMA_BASE_URLS", "http://172.22.0.1:11434").split(",") if u]
 
     ollama_ok = False
     ollama_url = ""

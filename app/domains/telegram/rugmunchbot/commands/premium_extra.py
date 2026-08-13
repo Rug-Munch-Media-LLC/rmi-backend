@@ -5,6 +5,8 @@ All free during beta.
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 
 from app.core.logging import get_logger
@@ -13,7 +15,7 @@ from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 logger = get_logger("rmi.premium_extra")
 
 
-async def _backend_get(path: str, params: dict | None = None, timeout: float = 15.0) -> dict | None:
+async def _backend_get(path: str, params: dict[str, Any] | None = None, timeout: float = 15.0) -> dict[str, Any] | None:
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.get(f"{BACKEND_URL}{path}", headers=backend_headers(), params=params or {})
@@ -24,7 +26,7 @@ async def _backend_get(path: str, params: dict | None = None, timeout: float = 1
     return None
 
 
-async def _backend_post(path: str, json: dict | None = None, timeout: float = 20.0) -> dict | None:
+async def _backend_post(path: str, json: dict[str, Any] | None = None, timeout: float = 20.0) -> dict[str, Any] | None:
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(f"{BACKEND_URL}{path}", headers=backend_headers(), json=json or {})
@@ -72,8 +74,7 @@ async def cmd_whale(update, ctx) -> None:
         subs = data.get("subscriptions", []) if data else []
         if not subs:
             await msg.reply_text(
-                "📭 <b>No whale alert subscriptions.</b>\n\n"
-                "Use <code>/whale &lt;address&gt;</code> to subscribe.",
+                "📭 <b>No whale alert subscriptions.</b>\n\nUse <code>/whale &lt;address&gt;</code> to subscribe.",
                 parse_mode="HTML",
             )
             return

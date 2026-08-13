@@ -30,10 +30,14 @@ from app.rag.config import (
     RAG_INGESTION_BATCH_SIZE,
     RAG_SCHEDULER_INTERVAL,
 )
-from app.rag.ingestion_models import Document, IngestionStatus, IngestReport
-from app.rag.processor import DocumentProcessor
-from app.rag.quality import QualityFilter
-from app.rag.rate_limiter import RateLimiter
+from app.rag.ingestion_models import (
+    Document as Document,
+    IngestionStatus as IngestionStatus,
+    IngestReport as IngestReport,
+)
+from app.rag.processor import DocumentProcessor as DocumentProcessor
+from app.rag.quality import QualityFilter as QualityFilter
+from app.rag.rate_limiter import RateLimiter as RateLimiter
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable

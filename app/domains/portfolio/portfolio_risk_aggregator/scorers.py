@@ -35,9 +35,11 @@ class TokenRiskScorer:
             return {"risk_score": 100, "risk_flags": [], "reason": "Native token (zero address)"}
         if self._scanner_available:
             try:
-                from app.unified_scanner import (
-                    scan_token as _scan_token,  # type: ignore[attr-defined]  # PTB None-able fields
-                )
+                from app import unified_scanner as _us
+
+                _scan_token = getattr(_us, "scan_token", None)
+                if _scan_token is None:
+                    raise AttributeError("scan_token not exported")
 
                 result = await _scan_token(chain, address)
                 if result:

@@ -229,12 +229,12 @@ async def list_news(
 
         cluster_items_list = [
             NewsItem(
-                id=it.news_id,
-                title=it.title,
+                id=it.news_id or "",
+                title=it.title or "",
                 body=it.summary or "",
                 source=it.source or "",
                 url=it.url or "",
-                published_at=it.published_at,
+                published_at=it.published_at or utcnow(),
                 sentiment=it.sentiment_score or 0.0,
             )
             for it in items
@@ -308,7 +308,7 @@ async def trending_news(
                 tokens_mentioned=list(r["tokens_mentioned"] or []),
                 sentiment_score=r["sentiment_score"],
             )
-            item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
+            item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
             items.append(item)
     except (KeyError, ValueError, TypeError) as e:
         from app.core.logging import get_logger
@@ -337,7 +337,7 @@ async def trending_news(
                 except (ConnectionError, OSError, TimeoutError):
                     pass
                 item = _adapt_legacy_row(d)
-                item.score = round(trend_score(hours_old, item.source, item.sentiment_score), 4)
+                item.score = round(trend_score(hours_old, item.source or "unknown", item.sentiment_score), 4)
                 items.append(item)
         except (ValueError, KeyError, TypeError) as e:
             from app.core.logging import get_logger

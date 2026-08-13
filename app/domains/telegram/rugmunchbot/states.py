@@ -8,6 +8,7 @@ Keeps all in-memory state in one place for easy visibility.
 from __future__ import annotations
 
 import time
+from typing import Any
 
 from cachetools import TTLCache
 
@@ -56,7 +57,7 @@ async def get_sol_price() -> float:
 # ══════════════════════════════════════════════
 # SPAM PROTECTION
 # ══════════════════════════════════════════════
-_user_last_action: TTLCache = TTLCache(maxsize=10000, ttl=60)
+_user_last_action: TTLCache[int, float] = TTLCache(maxsize=10000, ttl=60)
 SPAM_COOLDOWN = 3
 
 
@@ -79,7 +80,7 @@ def is_owner(uid: int) -> bool:
 # Limits ungrounded LLM calls to ~1 per user per 10s so a flood of free-text
 # messages cannot hammer the backend LLM. Grounded RAG+LLM answers (tier 1)
 # are NOT gated here — they are rarer and more valuable.
-_llm_recent: TTLCache = TTLCache(maxsize=10000, ttl=10)
+_llm_recent: TTLCache[int, bool] = TTLCache(maxsize=10000, ttl=10)
 
 
 def should_skip_llm(user_id: int) -> bool:
@@ -111,4 +112,4 @@ def check_alert_rate_limit(user_id: int) -> bool:
 
 
 # ── Pending deep scan payments (token → details) ──
-_pending_deep_scans: dict[str, dict] = {}
+_pending_deep_scans: dict[str, dict[str, Any]] = {}

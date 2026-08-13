@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import os
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -72,7 +72,7 @@ async def _coindesk_news(limit: int = 20, **kw) -> dict[str, Any] | None:
                                 "source": item.get("source", "CoinDesk"),
                                 "published_at": datetime.fromtimestamp(
                                     item.get("published_on", 0),
-                                    tz=datetime.UTC,
+                                    tz=UTC,
                                 ).isoformat(),
                                 "description": item.get("body", ""),
                                 "category": item.get("categories", "news").lower(),

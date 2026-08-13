@@ -91,6 +91,8 @@ class QualityFilter:
             from app.core.redis import get_redis
 
             r = get_redis()
+            if r is None:
+                return False
             return bool(r.sismember(f"rag:hashes:{collection}", content_hash))
         except Exception as e:
             log.warning("dedup_check_failed: %s", e)

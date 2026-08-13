@@ -102,7 +102,7 @@ def get_best_hour_str(views: list[dict[str, Any]]) -> str:
             pass
     if not hour_counts:
         return "14:00 UTC"
-    best_hour = max(hour_counts, key=hour_counts.get)
+    best_hour = max(hour_counts, key=lambda h: hour_counts[h])
     return f"{best_hour:02d}:00 UTC"
 
 
@@ -196,7 +196,7 @@ def compute_protocol_peak_times(
     result = {}
     for proto, hours in proto_hours.items():
         if hours:
-            peak_hour = max(hours, key=hours.get)
+            peak_hour = max(hours, key=lambda h: hours[h])
             result[proto] = f"{peak_hour:02d}"
     return result
 

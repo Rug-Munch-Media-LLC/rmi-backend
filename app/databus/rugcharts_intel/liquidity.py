@@ -37,7 +37,7 @@ async def liquidity_risk_monitor(address: str = "", chain: str = "solana", **kw)
         logger.warning("error")
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
-    liquidity_data = {
+    liquidity_data: dict[str, Any] = {
         "lp_locked": "unknown",
         "lp_lock_duration": None,
         "lp_amount_usd": 0,

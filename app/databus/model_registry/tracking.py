@@ -45,7 +45,7 @@ class RateLimitTracker:
     def can_call(self, provider: str) -> tuple[bool, str]:
         """Check if we can make a call to this provider without exceeding limits."""
         self._reset_windows()
-        limits = PROVIDER_LIMITS.get(provider, {})
+        limits: dict[str, Any] = PROVIDER_LIMITS.get(provider, {})
         if not limits:
             return True, ""
 
@@ -84,7 +84,7 @@ class RateLimitTracker:
     def budget_remaining(self, provider: str) -> dict[str, Any]:
         """Get remaining budget for a provider."""
         self._reset_windows()
-        limits = PROVIDER_LIMITS.get(provider, {})
+        limits: dict[str, Any] = PROVIDER_LIMITS.get(provider, {})
         rpm = limits.get("rpm", 20)
 
         if provider == "openrouter":

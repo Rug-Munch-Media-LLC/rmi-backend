@@ -202,5 +202,5 @@ class PaymentVerifier:
             }
         except (TypeError, ValueError, KeyError) as e:
             logger.warning("X402 verifier error: %s", e)
-            return None  # type: ignore[return-value] — caller guards with result["verified"]; exceptional malformed-payload path
+            return None  # type: ignore[return-value]  # caller guards with result["verified"]; exceptional malformed-payload path
         return await self._verify_via_payai(payload_data, requirements_data)

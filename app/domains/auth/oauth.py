@@ -134,11 +134,17 @@ async def google_callback(request: Request) -> Any:
     if not tokens:
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?error=token_exchange_failed")
 
-    google_user = await _google_get_user(tokens.get("access_token"))
+    access_token = tokens.get("access_token")
+    if not access_token:
+        return RedirectResponse(f"{FRONTEND_URL}/auth/callback?error=userinfo_failed")
+
+    google_user = await _google_get_user(access_token)
     if not google_user:
         return RedirectResponse(f"{FRONTEND_URL}/auth/callback?error=userinfo_failed")
 
     email = google_user.get("email")
+    if not email:
+        return RedirectResponse(f"{FRONTEND_URL}/auth/callback?error=userinfo_failed")
     user = await _create_or_get_user(email, google_user.get("name", email))
     jwt_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"))
     redirect = RedirectResponse(f"{FRONTEND_URL}/auth/callback?provider=google")
@@ -158,11 +164,17 @@ async def google_callback_post(request: Request) -> JSONResponse:
     if not tokens:
         raise HTTPException(status_code=400, detail="Failed to exchange code")
 
-    google_user = await _google_get_user(tokens.get("access_token"))
+    access_token = tokens.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Failed to get user info")
+
+    google_user = await _google_get_user(access_token)
     if not google_user:
         raise HTTPException(status_code=400, detail="Failed to get user info")
 
     email = google_user.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Failed to get user info")
     user = await _create_or_get_user(email, google_user.get("name", email))
     jwt_token = _create_jwt(user["id"], user["email"], user.get("tier", "FREE"), user.get("role", "USER"))
 

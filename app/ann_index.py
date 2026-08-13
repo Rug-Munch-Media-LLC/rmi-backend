@@ -71,7 +71,7 @@ class ANNIndex:
         self._indexes: dict[str, Any] = {}  # collection -> faiss index
         self._id_maps: dict[str, list[str]] = {}  # collection -> [doc_id, ...]
         self._meta: dict[str, dict[str, Any]] = {}  # collection -> build metadata
-        self._redis = None
+        self._redis: Any = None
 
     @classmethod
     def get_instance(cls) -> ANNIndex:
@@ -169,7 +169,7 @@ class ANNIndex:
 
         if n_valid < MIN_DOCS_FOR_ANN:
             # Flat index - exact search, small collection
-            index = faiss.IndexFlatIP(dims)  # inner product (cosine after norm)
+            index: Any = faiss.IndexFlatIP(dims)  # inner product (cosine after norm)
             index_type = "flat"
         else:
             # Normalize vectors for cosine similarity via inner product
@@ -248,7 +248,7 @@ class ANNIndex:
             index = faiss.read_index(index_path)
             with open(id_map_path, "rb") as f:
                 # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                id_list = pickle.load(f, usedforsecurity=False)
+                id_list = pickle.load(f)
             self._indexes[collection] = index
             self._id_maps[collection] = id_list
             self._meta[collection] = {

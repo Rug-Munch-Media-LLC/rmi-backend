@@ -6,13 +6,15 @@ All AI model configurations, role definitions, and provider limits.
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.core.logging import get_logger
 
 logger = get_logger("model_registry")
 
 # ── Model Registry ─────────────────────────────────────────────────
 
-MODELS = {
+MODELS: dict[str, dict[str, dict[str, Any]]] = {
     # ── RESEARCH & ANALYSIS ──
     "research": {
         "primary": {

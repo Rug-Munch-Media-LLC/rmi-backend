@@ -40,8 +40,8 @@ try:
         admin_bot,
     )
 except ImportError:  # pragma: no cover
-    admin_audit = None
-    admin_bot = None
+    admin_audit = None  # type: ignore[assignment]  # optional module
+    admin_bot = None  # type: ignore[assignment]  # optional module
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -52,7 +52,7 @@ logger = logging.getLogger("admin_bot")
 try:
     from app.domains.telegram.adminbot import admin_ai
 except ImportError:
-    admin_ai = None
+    admin_ai = None  # type: ignore[assignment]  # optional module
 
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -520,20 +520,20 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 "chain-indexer",
                 "lite-indexer",
             ]
-            buttons: list[list[InlineKeyboardButton]] = []
-            row: list[InlineKeyboardButton] = []
+            svc_buttons: list[list[InlineKeyboardButton]] = []
+            svc_row: list[InlineKeyboardButton] = []
             for svc in services:
-                row.append(InlineKeyboardButton(svc, callback_data=f"svc_logs_{svc}"))
-                if len(row) == 2:
-                    buttons.append(row)
-                    row = []
-            if row:
-                buttons.append(row)
-            buttons.append([InlineKeyboardButton("⬅️ Back", callback_data="menu_ops")])
+                svc_row.append(InlineKeyboardButton(svc, callback_data=f"svc_logs_{svc}"))
+                if len(svc_row) == 2:
+                    svc_buttons.append(svc_row)
+                    svc_row = []
+            if svc_row:
+                svc_buttons.append(svc_row)
+            svc_buttons.append([InlineKeyboardButton("⬅️ Back", callback_data="menu_ops")])
             await query.edit_message_text(
                 "📜 *Service Logs* — pick a service:",
                 parse_mode=ParseMode.MARKDOWN,
-                reply_markup=InlineKeyboardMarkup(buttons),
+                reply_markup=InlineKeyboardMarkup(svc_buttons),
             )
         elif data.startswith("svc_logs_"):
             svc = data.replace("svc_logs_", "")
@@ -1055,9 +1055,9 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             if admin_bot is None:
                 await query.edit_message_text("❌ admin_bot module unavailable.", parse_mode=ParseMode.MARKDOWN)
             else:
-                data = await admin_bot.bot_stats()
+                stats = await admin_bot.bot_stats()
                 await query.edit_message_text(
-                    admin_bot.format_bot_stats(data),
+                    admin_bot.format_bot_stats(stats),
                     parse_mode=ParseMode.MARKDOWN,
                     reply_markup=InlineKeyboardMarkup(
                         [
@@ -1141,8 +1141,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
         # ── v5: Reboot (double confirmation) ──
         elif data.startswith("reboot_confirm2_"):
-            delay = data.replace("reboot_confirm2_", "")
-            delay = int(delay) if delay.isdigit() else 60
+            delay_str = data.replace("reboot_confirm2_", "")
+            delay = int(delay_str) if delay_str.isdigit() else 60
             if admin_audit is not None:
                 admin_audit.log_action("system.reboot", f"delay={delay}s", query.from_user.id)
             await query.edit_message_text("⏳ Scheduling reboot...")
@@ -1159,8 +1159,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 ),
             )
         elif data.startswith("reboot_confirm_"):
-            delay = data.replace("reboot_confirm_", "")
-            delay = int(delay) if delay.isdigit() else 60
+            delay_str = data.replace("reboot_confirm_", "")
+            delay = int(delay_str) if delay_str.isdigit() else 60
             await query.edit_message_text(
                 f"⛔️ *FINAL CONFIRMATION*\n\n"
                 f"This schedules a **reboot** of the server in **{delay}s**.\n"

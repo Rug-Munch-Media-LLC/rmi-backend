@@ -110,8 +110,10 @@ class RpcCacheClient:
 
     L1_MAX_SIZE = 1024
 
-    def __init__(self, redis_url: str | None = None, redis_password: str | None = None, rpc_client: Any | None = None) -> None:
-        self._redis = None
+    def __init__(
+        self, redis_url: str | None = None, redis_password: str | None = None, rpc_client: Any | None = None
+    ) -> None:
+        self._redis: Any | None = None
         self._redis_url = redis_url
         self._redis_password = redis_password
         self._redis_failed = False
@@ -189,7 +191,9 @@ class RpcCacheClient:
     @staticmethod
     def deserialize(data: bytes | None) -> Any | None:
         try:
-            if data and data[:1] == b"Z":
+            if data is None:
+                return None
+            if data[:1] == b"Z":
                 data = zlib.decompress(data[1:])
             return json.loads(data.decode("utf-8"))
         except (json.JSONDecodeError, zlib.error, UnicodeDecodeError):
@@ -259,7 +263,9 @@ class RpcCacheClient:
                 self.stats.redis_errors += 1
                 logger.debug(f"RpcCache Redis set error: {e}")
 
-    async def query_with_cache(self, method: str, params: Any, chain: str = "solana", min_agreement: int = 2, bypass_cache: bool = False) -> Any:
+    async def query_with_cache(
+        self, method: str, params: Any, chain: str = "solana", min_agreement: int = 2, bypass_cache: bool = False
+    ) -> Any:
         """Main entry: cache hit -> return; miss -> query RPC -> cache -> return."""
         key = self.make_key(method, params, chain)
         cached = await self.get(method, params, chain, bypass_cache=bypass_cache)
@@ -314,7 +320,9 @@ class RpcCacheClient:
     async def get_token_supply(self, mint: str, chain: str = "solana", bypass_cache: bool = False) -> Any:
         return await self.query_with_cache("getTokenSupply", [mint], chain=chain, bypass_cache=bypass_cache)
 
-    async def get_signatures_for_address(self, address: str, limit: int = 20, chain: str = "solana", bypass_cache: bool = False) -> Any:
+    async def get_signatures_for_address(
+        self, address: str, limit: int = 20, chain: str = "solana", bypass_cache: bool = False
+    ) -> Any:
         return await self.query_with_cache(
             "getSignaturesForAddress",
             [address, {"limit": limit}],
@@ -322,7 +330,9 @@ class RpcCacheClient:
             bypass_cache=bypass_cache,
         )
 
-    async def get_token_account_balance(self, token_account: str, chain: str = "solana", bypass_cache: bool = False) -> Any:
+    async def get_token_account_balance(
+        self, token_account: str, chain: str = "solana", bypass_cache: bool = False
+    ) -> Any:
         return await self.query_with_cache(
             "getTokenAccountBalance", [token_account], chain=chain, bypass_cache=bypass_cache
         )

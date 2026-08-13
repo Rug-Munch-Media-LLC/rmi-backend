@@ -23,7 +23,7 @@ same Docker-compose default as the rest of the backend.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from qdrant_client import AsyncQdrantClient, models
 
@@ -103,7 +103,7 @@ class RugMapsQdrant:
     async def collection_info(self, name: str) -> dict[str, Any]:
         """Return Qdrant collection info dict (or ``{}`` on error)."""
         try:
-            return await self.client.get_collection(name)
+            return cast("dict[str, Any]", await self.client.get_collection(name))
         except Exception as e:
             logger.warning("rugmaps_qdrant_info_error collection=%s err=%s", name, e)
             return {}

@@ -21,11 +21,10 @@ from app.core.logging import get_logger
 from app.services.chat.models import ChatUser
 
 if TYPE_CHECKING:
+    from app.services.chat.models import KeyBundle, SafetyNumber
     from app.services.chat.signal_protocol import (
         DoubleRatchetSession,
-        KeyBundle,
         MegolmSession,
-        SafetyNumber,
     )
 
 logger = get_logger(__name__)

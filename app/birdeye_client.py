@@ -26,7 +26,7 @@ class BirdeyeClient:
     def __init__(self) -> None:
         self.headers = HEADERS
         self.client = httpx.AsyncClient(timeout=30.0)
-        self.last_call = 0
+        self.last_call: float = 0.0
 
     async def _call(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         import time
@@ -66,6 +66,21 @@ class BirdeyeClient:
 
     async def get_price(self, address: str) -> dict[str, Any]:
         return await self._call("/defi/price", {"address": address})
+
+    async def get_ohlcv(self, address: str, resolution: str = "1h", limit: int = 24) -> list[dict[str, Any]]:
+        """Get OHLCV candles for a token via Birdeye defi/ohlcv."""
+        import time
+
+        type_map = {"1h": "1H", "5m": "5m", "15m": "15m", "30m": "30m", "1d": "1D", "4h": "4H"}
+        ohlcv_type = type_map.get(resolution, "1H")
+        now = int(time.time())
+        time_from = now - limit * 3600  # approximate window (1h steps)
+        data = await self._call(
+            "/defi/ohlcv",
+            {"address": address, "type": ohlcv_type, "time_from": time_from, "time_to": now},
+        )
+        items = data.get("data", {}).get("items", []) if isinstance(data.get("data"), dict) else []
+        return [c for c in items if isinstance(c, dict)]
 
     async def get_token_overview(self, address: str) -> dict[str, Any]:
         return await self._call("/defi/token_overview", {"address": address})
@@ -225,7 +240,7 @@ class BirdeyeClient:
             liq = t.get("liquidity", 0) or 0
             if liq < min_liquidity:
                 continue
-            score = 0
+            score = 0.0
             reasons = []
             if liq > 10000:
                 score += 25

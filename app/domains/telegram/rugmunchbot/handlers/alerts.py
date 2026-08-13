@@ -7,7 +7,7 @@ Background price alert checker and alert management commands.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -148,7 +148,7 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.warning("No prices fetched from DexScreener, skipping alert check.")
         return
 
-    triggered: list[dict] = []
+    triggered: list[dict[str, Any]] = []
     for alert in active_alerts:
         addr = alert["token_address"].lower()
         current_price = current_prices.get(addr, 0.0)
@@ -357,7 +357,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    if len(ctx.args) < 2:
+    if len(ctx.args or []) < 2:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f514 <b>Set Price Alert</b>\n\n"
             "Usage: /alert <code>ABOVE|BELOW|CHANGE_5|ANY</code> <code>address</code> <price>\n\n"
@@ -371,9 +371,9 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    direction_raw = ctx.args[0].upper()
-    addr = ctx.args[1]
-    price_str = ctx.args[2] if len(ctx.args) > 2 else None
+    direction_raw = (ctx.args or [])[0].upper()
+    addr = (ctx.args or [])[1]
+    price_str = (ctx.args or [])[2] if len(ctx.args or []) > 2 else None
 
     valid_directions = {"ABOVE", "BELOW", "CHANGE_5", "ANY"}
     if direction_raw not in valid_directions:

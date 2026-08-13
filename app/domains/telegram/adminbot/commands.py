@@ -41,8 +41,8 @@ try:
         admin_bot,
     )
 except ImportError:  # pragma: no cover
-    admin_audit = None
-    admin_bot = None
+    admin_audit = None  # type: ignore[assignment]  # optional module
+    admin_bot = None  # type: ignore[assignment]  # optional module
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 try:
     from app.domains.telegram.adminbot import admin_ai
 except ImportError:
-    admin_ai = None
+    admin_ai = None  # type: ignore[assignment]  # optional module
 
 # ═══════════════════════════════════════════════════════════════════
 # START / HELP
@@ -194,7 +194,7 @@ async def cmd_docker(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "💻 *Shell Execution*\n\n"
@@ -230,7 +230,7 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_service(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         text = admin_ops.service_list()
         await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=service_action_keyboard())
@@ -263,7 +263,7 @@ async def cmd_svc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     stop/restart require confirmation (destructive); start runs directly.
     """
-    args = ctx.args
+    args = ctx.args or []
     if len(args) < 2 or args[0].lower() not in ("start", "stop", "restart"):
         await update.message.reply_text(
             "🛠 *Service Control*\n\n"
@@ -327,7 +327,7 @@ async def cmd_svc_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
     """Tail journalctl for a systemd service: /svc_logs <service> [lines]."""
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "📜 *Service Logs*\n\n"
@@ -440,7 +440,7 @@ async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
     """Restart a systemd service — requires confirmation."""
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "🔄 *Restart Service*\n\n"
@@ -487,7 +487,7 @@ async def cmd_dlogs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
     """Tail docker logs for a container: /dlogs <container> [lines]."""
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "📜 *Docker Logs*\n\n"
@@ -537,7 +537,7 @@ async def cmd_drestart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
     """Restart a docker container — requires confirmation."""
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "🔄 *Restart Container*\n\n"
@@ -591,7 +591,7 @@ async def cmd_dprune(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_backup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    args = ctx.args
+    args = ctx.args or []
     action = args[0] if args else ""
 
     if action == "run":
@@ -646,7 +646,7 @@ async def cmd_backup_run(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if update.message is None:
         return
     """Trigger a backup: /backup_run [type] — requires confirmation."""
-    args = ctx.args
+    args = ctx.args or []
     btype = args[0].lower() if args else "full"
     known = (
         "full",
@@ -716,7 +716,7 @@ async def cmd_admin_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
 async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "🚀 *Deploy Services*",
@@ -756,7 +756,7 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "📋 *View Logs*\n\nPick a service:",
@@ -868,7 +868,7 @@ async def cmd_oc(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("⚠️ AI module not available (missing admin_ai.py)")
         return
 
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "🤖 *OpenCode Integration*\n\n"
@@ -928,7 +928,7 @@ async def cmd_git(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
     """Show git status for a repo — OWNER ONLY."""
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         # Show repo list menu
         buttons = []
@@ -1032,7 +1032,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None:
         return
     """Send an alert to subscribed chats — OWNER ONLY."""
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "🔔 *Send Alert*\n\n"
@@ -1333,7 +1333,7 @@ async def cmd_admin_bot_broadcast(update: Update, ctx: ContextTypes.DEFAULT_TYPE
     if update.message is None:
         return
     """Broadcast a message to all RugMunchBot users — OWNER ONLY."""
-    args = ctx.args
+    args = ctx.args or []
     if not args:
         await update.message.reply_text(
             "📬 *Bot Broadcast*\n\n"
@@ -1398,7 +1398,7 @@ async def cmd_admin_reboot(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
     if update.message is None:
         return
     """Reboot the server — requires DOUBLE confirmation — OWNER ONLY."""
-    args = ctx.args
+    args = ctx.args or []
     delay = int(args[0]) if args and args[0].isdigit() else 60
     delay = max(10, min(delay, 600))
     await update.message.reply_text(

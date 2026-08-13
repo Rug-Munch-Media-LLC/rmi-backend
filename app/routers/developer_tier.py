@@ -63,9 +63,10 @@ def verify_solana_signature(address: str, message: str, signature: str) -> bool:
     try:
         import base64
 
+        import base58
         from nacl.signing import VerifyKey
 
-        pubkey = VerifyKey(base64.b58decode(address))
+        pubkey = VerifyKey(base58.b58decode(address))
         msg_bytes = message.encode("utf-8")
         sig_bytes = base64.b64decode(signature)
         pubkey.verify(msg_bytes, sig_bytes)
@@ -78,7 +79,7 @@ def verify_solana_signature(address: str, message: str, signature: str) -> bool:
 
 # ── Tier Definitions ──────────────────────────────────────────────
 
-TIERS = {
+TIERS: dict[str, dict[str, Any]] = {
     "free": {
         "daily_limit": 100,
         "rate_limit_per_min": 10,
@@ -397,7 +398,8 @@ async def get_wallet_challenge(req: VerifyRequest) -> Any:
     # If they have an API key, generate a challenge for that key
     if req.api_key:
         hashed = hash_api_key(req.api_key)
-        key_data = get_redis().get(f"rmi:dev:key:{hashed}") if get_redis() else None
+        r = get_redis()
+        key_data = r.get(f"rmi:dev:key:{hashed}") if r else None
         if key_data:
             info = json.loads(key_data)
             address = info.get("wallet_address", "")

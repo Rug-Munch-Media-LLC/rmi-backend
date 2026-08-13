@@ -127,7 +127,7 @@ async def untrack_lp(lp_id: str) -> dict[str, Any]:
     summary="List Tracked LPs",
     description="List all liquidity pools currently being monitored for health changes.",
 )
-async def list_tracked() -> dict[str, list[Any]]:
+async def list_tracked() -> dict[str, Any]:
     return {"tracked": list(_tracked_lps.values()), "count": len(_tracked_lps)}
 
 

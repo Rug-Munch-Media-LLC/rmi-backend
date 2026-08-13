@@ -30,7 +30,7 @@ async def admin_processes(request: Request, _=Depends(verify_admin)) -> dict[str
             with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
                 processes.append(
                     {
-                        "pid": proc.info["pid"],  # type: ignore[attr-defined] — psutil Process.info is a dynamic per-iter attrs dict
+                        "pid": proc.info["pid"],  # type: ignore[attr-defined]  # psutil Process.info is a dynamic per-iter attrs dict
                         "name": proc.info["name"],  # type: ignore[attr-defined]
                         "cpu": round(proc.info["cpu_percent"] or 0, 1),  # type: ignore[attr-defined]
                         "memory": round(proc.info["memory_percent"] or 0, 1),  # type: ignore[attr-defined]

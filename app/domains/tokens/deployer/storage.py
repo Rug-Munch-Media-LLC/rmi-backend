@@ -17,8 +17,8 @@ class DeploymentStorage:
     """Store and retrieve deployment records. Uses Redis as primary, Supabase as backup."""
 
     def __init__(self) -> None:
-        self.redis = None
-        self.supabase = None
+        self.redis: Any = None
+        self.supabase: Any = None
         self._init_stores()
 
     def _init_stores(self) -> None:

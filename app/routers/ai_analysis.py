@@ -96,7 +96,7 @@ def _build_analysis_prompt(
         holder_lines = []
         for h in top_holders:
             if isinstance(h, dict):
-                addr = h.get("address", h.get("id", "?"))[:16]
+                addr = str(h.get("address") or h.get("id") or "?")[:16]
                 pct = h.get("pct", h.get("supply_pct", h.get("percentage", "?")))
                 label = h.get("label", h.get("entity", "unknown"))
                 risk = h.get("risk", h.get("risk_score", "?"))

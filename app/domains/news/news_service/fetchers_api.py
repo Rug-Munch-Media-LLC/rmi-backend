@@ -72,7 +72,7 @@ async def fetch_coingecko(svc: NewsService, limit: int = 15) -> list[dict[str, A
 
 async def fetch_cryptopanic(svc: NewsService, limit: int = 15) -> list[dict[str, Any]]:
     try:
-        params = {"public": "true", "kind": "news", "limit": min(limit, 20)}
+        params: dict[str, Any] = {"public": "true", "kind": "news", "limit": min(limit, 20)}
         if CRYPTOPANIC_API_KEY:
             params["auth_token"] = CRYPTOPANIC_API_KEY
             url = "https://cryptopanic.com/api/v1/posts/"

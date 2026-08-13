@@ -325,10 +325,10 @@ async def three_pillar_search(
                     logger.debug(f"Entity lookup failed: {e}")
             if use_kg:
                 try:
-                    from app.knowledge_graph import get_knowledge_graph
+                    from app.knowledge_graph import expand_query_entities, get_knowledge_graph
 
                     kg = await get_knowledge_graph()
-                    kg_results = await kg.expand_query_entities(entity_extraction.all_entities(), max_depth=2)
+                    kg_results = await expand_query_entities(kg, entity_extraction.all_entities(), max_depth=2)
                     if kg_results:
                         for r in kg_results:
                             r["pillar"] = "entity+kg"
@@ -384,7 +384,7 @@ async def three_pillar_search(
             pillar_map[did].append("entity")
     for r in fused:
         did = r.get("id") or r.get("doc_id")
-        r["pillars"] = pillar_map.get(did, ["dense"])
+        r["pillars"] = pillar_map.get(did, ["dense"]) if did else ["dense"]
         r["match_type"] = "+".join(r["pillars"])
 
     # ── MMR deduplication ──

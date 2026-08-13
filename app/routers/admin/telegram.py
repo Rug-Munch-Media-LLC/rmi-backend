@@ -42,7 +42,7 @@ async def telegram_stats(request: Request, _=Depends(verify_admin)) -> Any:
             logger.warning("Could not read bot state")
     try:
         for proc in psutil.process_iter(["pid", "name", "cmdline"]):
-            cmdline = proc.info.get("cmdline") or []  # type: ignore[attr-defined] — psutil Process.info is a dynamic per-iter attrs dict
+            cmdline = proc.info.get("cmdline") or []  # type: ignore[attr-defined]  # psutil Process.info is a dynamic per-iter attrs dict
             if any("telegram" in str(c).lower() for c in cmdline):
                 stats["status"] = "running"
                 stats["pid"] = proc.info["pid"]  # type: ignore[attr-defined]

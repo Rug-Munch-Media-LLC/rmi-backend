@@ -455,7 +455,7 @@ SUMMARY_ONLY_FIELDS = {
 # ── MCP TOOL SCOPING ─────────────────────────────────────────────────────────
 # Each MCP tool can only access the specific data type and fields it's authorized for.
 
-MCP_TOOL_SCOPES = {
+MCP_TOOL_SCOPES: dict[str, dict[str, Any]] = {
     # Tool ID → {data_types: [allowed types], fields: [allowed fields] or "all"}
     "wallet_risk_scan": {
         "data_types": ["risk_scan", "wallet_labels", "threat_check", "bundle_detect"],
@@ -544,7 +544,7 @@ MCP_TOOL_SCOPES = {
 # ── X402 PRICING → ACCESS MAPPING ────────────────────────────────────────────
 # What x402 paid tools can access based on their price tier.
 
-X402_ACCESS_TIERS = {
+X402_ACCESS_TIERS: dict[str, Any] = {
     "free": [
         "token_price",
         "tvl",
@@ -730,7 +730,7 @@ class AccessController:
         """Always strip dangerous fields regardless of access level."""
         if not isinstance(data, dict):
             return data
-        result = {}
+        result: dict[str, Any] = {}
         for k, v in data.items():
             if k.lower() in NEVER_EXPOSE_FIELDS:
                 continue

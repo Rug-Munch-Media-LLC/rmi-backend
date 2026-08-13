@@ -61,9 +61,9 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
     except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         pass
     for key in env_keys:
-        token = os.getenv(key)
-        if token:
-            return token
+        env_token = os.getenv(key)
+        if env_token:
+            return env_token
     return ""
 
 

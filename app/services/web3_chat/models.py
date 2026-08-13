@@ -4,7 +4,6 @@ Web3 Chat Models
 Constants, enums, and data models for Web3-native chat features.
 """
 
-
 from __future__ import annotations
 
 import uuid
@@ -15,7 +14,7 @@ from typing import Any
 
 # ── Constants ─────────────────────────────────────────────────────
 
-SUPPORTED_CHAINS = {
+SUPPORTED_CHAINS: dict[str, dict[str, Any]] = {
     "ethereum": {"chain_id": 1, "native": "ETH", "explorer": "https://etherscan.io/tx/"},
     "solana": {"chain_id": 900, "native": "SOL", "explorer": "https://solscan.io/tx/"},
     "base": {"chain_id": 8453, "native": "ETH", "explorer": "https://basescan.org/tx/"},
@@ -25,7 +24,7 @@ SUPPORTED_CHAINS = {
     "lightning": {"chain_id": 0, "native": "BTC", "explorer": "https://mempool.space/tx/"},
 }
 
-SUPPORTED_TOKENS = {
+SUPPORTED_TOKENS: dict[str, dict[str, Any]] = {
     "ETH": {"decimals": 18, "chains": ["ethereum", "base", "arbitrum", "optimism"]},
     "SOL": {"decimals": 9, "chains": ["solana"]},
     "USDC": {"decimals": 6, "chains": ["ethereum", "solana", "base", "polygon", "arbitrum", "optimism"]},

@@ -150,11 +150,13 @@ class BitqueryProvider:
 
         client = await self._get_client()
 
-        payload = {"query": graphql_query}
+        payload: dict[str, Any] = {"query": graphql_query}
         if variables:
             payload["variables"] = variables
 
-        headers = {"X-API-KEY": self._api_key}
+        headers: dict[str, str] = {}
+        if self._api_key:
+            headers["X-API-KEY"] = self._api_key
         if self._oauth_token:
             headers["Authorization"] = f"Bearer {self._oauth_token}"
 
@@ -208,12 +210,14 @@ class BitqueryProvider:
         if cached:
             # Handle tuple (value, is_stale) from SWR cache
             if isinstance(cached, tuple):
-                cached = cached[0]
-            if cached is not None:
+                cached_value, _is_stale = cached
+            else:
+                cached_value = cached
+            if cached_value is not None:
                 # Check if cache is still fresh
-                cached_time = cached.get("_cached_at", 0)
+                cached_time = cached_value.get("_cached_at", 0)
                 if time.time() - cached_time < ttl:
-                    return cached.get("data")
+                    return cached_value.get("data")
 
         return None
 

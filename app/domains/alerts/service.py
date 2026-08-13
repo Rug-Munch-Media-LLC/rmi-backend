@@ -8,7 +8,10 @@ No FastAPI. No HTTP. Pure Python.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import builtins
 
 from app.core.base_service import BaseService
 from app.core.logging import get_logger
@@ -93,7 +96,7 @@ class AlertService(BaseService[AlertSubscription]):
         token_address: str,
         event_type: AlertType,
         payload: dict[str, Any] | None = None,
-    ) -> list[AlertEvent]:
+    ) -> builtins.list[AlertEvent]:
         """Fire an event for a token. Returns the events that were broadcast."""
         subs = await self._repo.list_by_token(token_address)
         matching = [s for s in subs if s.active and (event_type.value in [t.value for t in s.alert_types])]

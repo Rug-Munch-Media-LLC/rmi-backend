@@ -1410,7 +1410,7 @@ async def _inline_sentiment(update: Update, ctx) -> None:
         # is unreachable do we fall back to alternative.me + CoinGecko direct.
         # DATA_SOURCE is logged by the resolver for reliance tracking.
 
-        async def _external_fng() -> dict | None:
+        async def _external_fng() -> dict[str, Any] | None:
             async with httpx.AsyncClient(timeout=12) as client:
                 fg = await client.get("https://api.alternative.me/fng/?limit=1")
                 if fg.status_code == 200:
@@ -1427,7 +1427,7 @@ async def _inline_sentiment(update: Update, ctx) -> None:
                 f"\U0001f610 Fear & Greed: <b>{fng.get('value')}/100</b> ({fng.get('classification', 'Neutral')})"
             )
 
-        async def _external_global() -> dict | None:
+        async def _external_global() -> dict[str, Any] | None:
             async with httpx.AsyncClient(timeout=12) as client:
                 r = await client.get(f"{COINGECKO}/global")
                 if r.status_code == 200:

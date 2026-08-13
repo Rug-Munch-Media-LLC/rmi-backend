@@ -207,7 +207,7 @@ async def wallet_memory_stats() -> dict[str, str]:
 
 
 @router.get("/health")
-async def wallet_memory_health() -> dict[str, str]:
+async def wallet_memory_health() -> dict[str, Any]:
     """Health check for Wallet Memory Bank."""
     engine = _get_engine()
     # Force lazy connection to actually test
@@ -228,7 +228,7 @@ async def wallet_memory_health() -> dict[str, str]:
 
 
 @router.post("/labels/reload")
-async def reload_static_labels() -> dict[str, str]:
+async def reload_static_labels() -> dict[str, Any]:
     """
     Trigger a full reload of all static wallet labels.
     Re-downloads Solana CSVs if missing, reloads all etherscan CSVs and OFAC data.
@@ -304,7 +304,7 @@ async def get_wallet_labels(
 
 
 @router.post("/labels/batch")
-async def batch_label_lookup(request: dict[str, Any]) -> dict[str, int]:
+async def batch_label_lookup(request: dict[str, Any]) -> dict[str, Any]:
     """Bulk lookup - query up to 100 addresses at once."""
     addresses = request.get("addresses", [])
     chain = request.get("chain", "")
@@ -340,7 +340,7 @@ async def label_freshness_stats() -> Any:
     clean_dir = os.path.join(os.environ.get("RMI_DATA_DIR", "/app/data"), "wallet-labels-clean")
     manifest_path = os.path.join(clean_dir, "manifest.json")
 
-    freshness = {
+    freshness: dict[str, Any] = {
         "clean_data_generated": None,
         "age_hours": None,
         "status": "unknown",

@@ -148,6 +148,7 @@ async def process_block_deployers(
                         continue
                     logger.debug("receipt_fetch_failed", tx=tx_hash[:16], error=str(exc)[:60])
                     return None
+        return None
 
     # Process all tx hashes concurrently with semaphore
     tasks = [_check_receipt(tx) for tx in unique_hashes]
@@ -188,7 +189,7 @@ async def write_deployer_events(
         from clickhouse_driver import Client as CHClient
 
         ch_host = os.getenv("CH_HOST") or os.getenv("CLICKHOUSE_HOST", "127.0.0.1")
-        ch_port = int(os.getenv("CH_PORT") or os.getenv("CLICKHOUSE_PORT", "9000"))
+        ch_port = int(os.getenv("CH_PORT") or os.getenv("CLICKHOUSE_PORT") or "9000")
         ch_user = os.getenv("CH_USER") or os.getenv("CLICKHOUSE_USER", "default")
         ch_pass = os.getenv("CH_PASSWORD") or os.getenv("CLICKHOUSE_PASSWORD") or ""
         ch_db = os.getenv("CH_DATABASE", "wallet_memory")

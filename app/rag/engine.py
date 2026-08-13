@@ -251,6 +251,8 @@ async def _keyword_search(query: str, collection: str, limit: int) -> list[Hit]:
         from app.core.redis import get_redis
 
         r = get_redis()
+        if r is None:
+            return []
         raw = r.hgetall(f"rag:ann:{collection}:docs")
     except Exception as e:
         log.debug("keyword_search_redis_failed: %s", e)

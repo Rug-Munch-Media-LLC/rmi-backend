@@ -24,7 +24,7 @@ from __future__ import annotations
 import asyncio
 import math
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Any
 
 from app.core.logging import get_logger
@@ -292,8 +292,8 @@ class BM25Index:
         self.doc_count = 0
         self.avg_dl = 0.0
         self.doc_lengths: dict[str, int] = {}  # doc_id -> length
-        self.doc_tokens: dict[str, Counter] = {}  # doc_id -> token counts
-        self.df: Counter = Counter()  # token -> document frequency
+        self.doc_tokens: dict[str, Counter[str]] = {}  # doc_id -> token counts
+        self.df: Counter[str] = Counter()  # token -> document frequency
         self._built = False
 
     def add_document(self, doc_id: str, content: str, metadata: dict[str, Any] | None = None) -> None:
@@ -367,7 +367,7 @@ class BM25Index:
         try:
             with open(path, "rb") as f:
                 # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                data = pickle.load(f, usedforsecurity=False)
+                data = pickle.load(f)
             idx = cls(k1=data["k1"], b=data["b"], epsilon=data["epsilon"])
             idx.doc_count = data["doc_count"]
             idx.avg_dl = data["avg_dl"]
@@ -432,11 +432,11 @@ class BM25Index:
                 expanded_tokens.extend(tokenize(" ".join(CRYPTO_EXPANSIONS[token])))
 
         # Score all documents
-        scored = []
+        scored: list[dict[str, Any]] = []
         for doc_id in self.doc_tokens:
             score = self.score_document(doc_id, expanded_tokens)
             if score >= min_score:
-                entry = {
+                entry: dict[str, Any] = {
                     "id": doc_id,
                     "bm25_score": round(score, 6),
                     "collection": doc_id.split(":")[1] if ":" in doc_id else "unknown",
@@ -465,7 +465,7 @@ class BM25Index:
         original_tokens = tokenize(query, remove_stopwords=True, stem=True)
 
         # Build weighted query: original tokens weight=1.0, expansion weight=0.5
-        weighted_tokens: Counter = Counter()
+        weighted_tokens: dict[str, float] = defaultdict(float)
         for token in original_tokens:
             weighted_tokens[token] += 1.0
 
@@ -475,7 +475,7 @@ class BM25Index:
                     weighted_tokens[exp_token] += 0.5
 
         # Score documents using weighted query
-        scored = []
+        scored: list[dict[str, Any]] = []
         for doc_id in self.doc_tokens:
             doc_tf = self.doc_tokens[doc_id]
             dl = self.doc_lengths[doc_id]
@@ -508,7 +508,7 @@ class BM25Index:
                 score *= 1.5
 
             if score > 0.01:
-                entry = {
+                entry: dict[str, Any] = {
                     "id": doc_id,
                     "sparse_score": round(score, 6),
                     "collection": doc_id.split(":")[1] if ":" in doc_id else "unknown",
@@ -612,7 +612,7 @@ async def build_bm25_from_redis(
             logger.warning(f"BM25 indexing for {coll} failed: {e}")
 
     index.build()
-    await r.aclose()
+    await r.aclose()  # type: ignore[attr-defined]  # aclose exists at runtime (redis>=5.2)
 
     logger.info(
         f"BM25 index built: {total_indexed} docs, {len(index.df)} unique terms, avg doc length {index.avg_dl:.1f}"
@@ -669,7 +669,8 @@ async def _save_bm25_async(path: str) -> None:
     """Save BM25 index to disk in executor thread."""
     try:
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _bm25_index.save, path)
+        if _bm25_index is not None:
+            await loop.run_in_executor(None, _bm25_index.save, path)
     except Exception as e:
         logger.debug(f"BM25 disk save failed (non-critical): {e}")
 

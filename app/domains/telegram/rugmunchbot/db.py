@@ -16,6 +16,7 @@ import sqlite3
 import tempfile
 import time
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +231,7 @@ def _is_hashed_token(stored: str) -> bool:
     return len(stored) == 64 and all(c in "0123456789abcdef" for c in stored)
 
 
-def verify_api_token(raw_token: str) -> dict | None:
+def verify_api_token(raw_token: str) -> dict[str, Any] | None:
     """Verify a presented raw token against stored sha256 digests.
 
     Hashes the presented token and compares against every active stored digest
@@ -297,7 +298,7 @@ def migrate_plaintext_api_tokens() -> int:
 # ── User Management ──
 
 
-def get_or_create_user(user_id: int, username: str | None = None, first_name: str | None = None) -> dict:
+def get_or_create_user(user_id: int, username: str | None = None, first_name: str | None = None) -> dict[str, Any]:
     conn = get_db()
     row = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
     if row:
@@ -500,7 +501,7 @@ def add_watchlist(
     return True
 
 
-def get_watchlist(user_id: int) -> list[dict]:
+def get_watchlist(user_id: int) -> list[dict[str, Any]]:
     conn = get_db()
     rows = conn.execute(
         "SELECT * FROM watchlists WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC",
@@ -522,7 +523,7 @@ def remove_watchlist(user_id: int, token_address: str) -> bool:
     return result
 
 
-def get_active_alerts() -> list[dict]:
+def get_active_alerts() -> list[dict[str, Any]]:
     """Return all watchlist entries with active price alerts."""
     conn = get_db()
     rows = conn.execute(
@@ -549,7 +550,7 @@ def mark_alert_triggered(watch_id: int) -> None:
     conn.close()
 
 
-def get_watchlist_for_user(user_id: int, include_triggered: bool = False) -> list[dict]:
+def get_watchlist_for_user(user_id: int, include_triggered: bool = False) -> list[dict[str, Any]]:
     """Get user watchlist with alert metadata.
 
     If include_triggered is True, returns both active and triggered entries.
@@ -657,7 +658,7 @@ def apply_top_up(user_id: int, pack_type: str, amount: int, stars_cost: int, pay
 # ── Stats ──
 
 
-def get_user_stats(user_id: int) -> dict:
+def get_user_stats(user_id: int) -> dict[str, Any]:
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
     watchlist_count = conn.execute(
@@ -713,7 +714,7 @@ def log_admin_action(admin_id: int, action: str, details: str = "") -> None:
     conn.close()
 
 
-def get_admin_logs(limit: int = 20) -> list[dict]:
+def get_admin_logs(limit: int = 20) -> list[dict[str, Any]]:
     conn = get_db()
     rows = conn.execute("SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
@@ -752,7 +753,7 @@ def record_activity(
     conn.close()
 
 
-def get_daily_stats(date: str | None = None) -> dict:
+def get_daily_stats(date: str | None = None) -> dict[str, Any]:
     """Return daily counters for ``date`` (default: today) as a dict with 0 defaults."""
     date = date or _today_str()
     conn = get_db()
@@ -797,7 +798,7 @@ def add_chat_message(user_id: int, role: str, content: str) -> None:
     conn.close()
 
 
-def get_chat_history(user_id: int, limit: int = CHAT_HISTORY_CONTEXT) -> list[dict]:
+def get_chat_history(user_id: int, limit: int = CHAT_HISTORY_CONTEXT) -> list[dict[str, Any]]:
     """Return the last ``limit`` (role, content) pairs, oldest-first."""
     conn = get_db()
     rows = conn.execute(
@@ -818,7 +819,7 @@ def clear_chat_history(user_id: int) -> None:
 # ── Admin user lookup (v5) ──
 
 
-def get_user_by_id(user_id: int) -> dict | None:
+def get_user_by_id(user_id: int) -> dict[str, Any] | None:
     """Return a full user row (or None) — used by /admin_user."""
     conn = get_db()
     row = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
@@ -885,7 +886,7 @@ def get_known_scam_addresses() -> set[str]:
     return {r["addr"] for r in rows if r["addr"]}
 
 
-def list_scam_reports(limit: int = 20) -> list[dict]:
+def list_scam_reports(limit: int = 20) -> list[dict[str, Any]]:
     """Return the most recent scam reports (newest first)."""
     conn = get_db()
     try:

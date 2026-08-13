@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import os
+from typing import Any
 
 logger = logging.getLogger("admin_bot.redis_listener")
 
@@ -119,7 +120,7 @@ async def start_redis_listener(bot_app) -> None:
         await client.aclose()  # type: ignore[attr-defined]  # PTB None-able fields
 
 
-def _format_payload(payload: dict) -> str:
+def _format_payload(payload: dict[str, Any]) -> str:
     """Format a RAG alert payload into a concise Telegram message."""
     level = payload.get("level", "INFO").upper()
     emoji = {"CRITICAL": "🚨", "ERROR": "❌", "WARNING": "⚠️", "INFO": "ℹ️"}.get(level, "ℹ️")

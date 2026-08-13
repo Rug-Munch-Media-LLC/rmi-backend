@@ -1042,7 +1042,7 @@ async def _scam_address_warning(update: Update, address: str) -> None:
 # backend chat is unavailable.
 # ══════════════════════════════════════════════
 
-_INTENT_RULES: list[tuple[re.Pattern, str]] = [
+_INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(
             r"\b(scan|check|audit|rug|scam|honeypot|safu|drain|phish|malicious|"

@@ -207,12 +207,12 @@ def _compute_best_performing(
 
     insights = []
     if content_type_avg:
-        best_type = max(content_type_avg, key=content_type_avg.get)
+        best_type = max(content_type_avg, key=lambda c: content_type_avg[c])
         insights.append(
             f"📊 {best_type.title()} content performs best with {content_type_avg[best_type]:.1f}% engagement rate"
         )
     if time_avg:
-        best_time = max(time_avg, key=time_avg.get)
+        best_time = max(time_avg, key=lambda s: time_avg[s])
         insights.append(f"⏰ Posts at {best_time} UTC get the highest engagement")
 
     return {

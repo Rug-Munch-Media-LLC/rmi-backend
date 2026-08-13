@@ -71,8 +71,8 @@ def _hit_to_dict(hit: Any, collection: str = "") -> dict[str, Any]:
             "doc_id": hit.get("doc_id", ""),
             "content": hit.get("text", hit.get("content", "")),
             "text": hit.get("text", hit.get("content", "")),
-            "similarity": float(hit.get("score", hit.get("similarity", 0.0))),
-            "score": float(hit.get("score", hit.get("similarity", 0.0))),
+            "similarity": float(hit.get("score", hit.get("similarity", 0.0)) or 0.0),
+            "score": float(hit.get("score", hit.get("similarity", 0.0)) or 0.0),
             "collection": hit.get("collection", collection),
             "metadata": hit.get("metadata", {}),
         }
@@ -212,14 +212,14 @@ async def detect_scam_patterns(token_data: dict[str, Any], threshold: float = 0.
             snippets = pattern.get("code_snippets") or []
             if not snippets:
                 continue
-            hits = sum(1 for s in snippets if s.lower() in code_lower)
-            if hits > 0:
+            quick_hits = sum(1 for s in snippets if s.lower() in code_lower)
+            if quick_hits > 0:
                 quick_matches.append(
                     {
                         "pattern": pattern["name"],
                         "severity": pattern.get("severity", "high"),
-                        "quick_match_score": hits / len(snippets),
-                        "matched_snippets": hits,
+                        "quick_match_score": quick_hits / len(snippets),
+                        "matched_snippets": quick_hits,
                     }
                 )
     except Exception as e:

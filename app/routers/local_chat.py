@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import re
 import time
-from typing import Literal
+from typing import Any, Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -30,7 +30,7 @@ DEEPSEEK_MODEL = "deepseek-analysis"
 
 class LocalChatRequest(BaseModel):
     message: str = Field(..., max_length=2000)
-    history: list[dict] = Field(default_factory=list)
+    history: list[dict[str, Any]] = Field(default_factory=list)
     mode: Literal["quick", "deep"] = "quick"
     max_tokens: int = Field(default=1024, ge=64, le=4096)
 

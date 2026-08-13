@@ -65,7 +65,7 @@ async def find_matches(
     chain: str = Query("solana"),
     min_similarity: float = Query(0.3, ge=0, le=1),
     limit: int = Query(10, le=25),
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, Any]:
     """Find tokens similar to the given address. Returns top-N copycat matches."""
     # Get reference token data
     try:

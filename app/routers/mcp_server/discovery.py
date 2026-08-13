@@ -118,7 +118,7 @@ async def mcp_discovery() -> Any:
 
 
 @router.get("/.well-known/ai-plugin.json")
-async def ai_plugin_manifest() -> dict[str, str]:
+async def ai_plugin_manifest() -> dict[str, Any]:
     data = _get_tools()
     count = len(data["prices"])
     return {

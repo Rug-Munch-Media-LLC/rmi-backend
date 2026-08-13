@@ -125,8 +125,6 @@ async def extract_url(
             url=request.url,
             json_schema=request.json_schema,
             timeout=request.timeout,
-            bypass_cloudflare=request.bypass_cloudflare,
-            js_render=request.js_render,
         )
         return ScrapeResponse(
             success=result.success,
@@ -149,12 +147,9 @@ async def search_news(
 ) -> list[dict[str, Any]]:
     """Search news articles via the Pry scraper's search capability."""
     try:
-        results = await client.search_news(
-            query=q,
-            max_results=max_results,
-            days_back=days_back,
-        )
-        return results
+        results = await client.search_news(query=q, limit=max_results)
+        articles = results.get("articles", [])
+        return articles if isinstance(articles, list) else []
     except Exception as exc:
         logger.error("pryscraper_news_search_failed", query=q[:60], exc_info=exc)
         raise UpstreamError(str(exc)[:500]) from exc
@@ -179,7 +174,7 @@ async def pryscraper_stats(
 ) -> dict[str, Any]:
     """Client circuit-breaker statistics."""
     try:
-        return client.get_stats()
+        return await client.stats()
     except Exception as exc:
         return {"status": "error", "error": str(exc)[:200]}
 

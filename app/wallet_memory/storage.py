@@ -87,10 +87,10 @@ def _try_mark_down(store: str) -> None:
 
 # ── Redis connection (lazy) ─────────────────────────────────────────
 
-_redis_client: aioredis.Redis | None = None
+_redis_client: aioredis.Redis[Any] | None = None
 
 
-async def _get_redis() -> aioredis.Redis | None:
+async def _get_redis() -> aioredis.Redis[Any] | None:
     """Lazy-init Redis client. Returns None if unavailable."""
     global _redis_client
     if _redis_client is not None:
@@ -265,8 +265,8 @@ class WalletStorage:
     ENTITY_TTL = 600  # 10 minutes for entity lookups
 
     def __init__(self) -> None:
-        self._ch = None
-        self._redis = None
+        self._ch: Any = None
+        self._redis: aioredis.Redis[Any] | None = None
 
     async def _ensure_connections(self) -> None:
         """Lazy connect on first use."""

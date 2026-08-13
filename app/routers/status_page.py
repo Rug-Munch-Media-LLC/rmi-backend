@@ -404,7 +404,7 @@ async def status_summary() -> Any:
         return JSONResponse(content={"status": "unknown"})
 
     cached = r.get("rmi:status:overall")
-    overall = json.loads(cached) if cached else {"status": "unknown"}
+    overall: dict[str, Any] = json.loads(cached) if cached else {"status": "unknown"}
 
     # Count services by status
     services = overall.get("services", {})

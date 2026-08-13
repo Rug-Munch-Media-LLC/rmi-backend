@@ -18,6 +18,7 @@ import random
 import sys
 from datetime import time as dtime  # noqa: F401 — used by daily_scam_tip if re-enabled
 from functools import wraps
+from typing import Any
 
 import httpx
 from telegram import BotCommand, Update
@@ -139,7 +140,7 @@ from app.domains.telegram.rugmunchbot.states import is_owner
 logger = get_logger("rmi_bot")
 
 
-def _reg(app: Application, name: str, handler) -> None:
+def _reg(app: Application[Any, Any, Any, Any, Any, Any], name: str, handler) -> None:
     """Register a command with per-command activity tracking (for /admin_stats).
 
     Tracks into the Redis-backed fleet analytics (admin_state.track_command,
@@ -158,7 +159,7 @@ def _reg(app: Application, name: str, handler) -> None:
     app.add_handler(CommandHandler(name, tracked))
 
 
-def install_maintenance_gate(app: Application) -> None:
+def install_maintenance_gate(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Globally disable the bot via /admin_toggle (maintenance mode).
 
     Wraps ``Application.process_update`` so every non-owner update is dropped
@@ -198,7 +199,7 @@ def install_maintenance_gate(app: Application) -> None:
         await original_process_update(update)
 
     original_process_update = app.process_update
-    app.process_update = guarded
+    app.process_update = guarded  # type: ignore[method-assign]  # intentional monkeypatch
 
 
 async def _send_ban_notice(update: object) -> None:
@@ -226,7 +227,7 @@ async def _send_ban_notice(update: object) -> None:
             logger.debug("ban inline answer failed", exc_info=True)
 
 
-def install_ban_gate(app: Application) -> None:
+def install_ban_gate(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Block banned users from EVERY command, callback, inline and message.
 
     Wraps ``Application.process_update`` so the ban check runs before any
@@ -264,10 +265,10 @@ def install_ban_gate(app: Application) -> None:
         await original_process_update(update)
 
     original_process_update = app.process_update
-    app.process_update = guarded
+    app.process_update = guarded  # type: ignore[method-assign]  # intentional monkeypatch
 
 
-async def setup_bot_profile(app: Application) -> None:
+async def setup_bot_profile(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Set bot description, about text, and command list via BotFather API."""
     bot = app.bot
     try:
@@ -524,7 +525,7 @@ def main() -> None:
         job_queue.run_repeating(deliver_pending_alerts, interval=30, first=15)
 
     # Startup
-    async def startup(app: Application) -> None:
+    async def startup(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
         await check_backend_health()
         await setup_bot_profile(app)
 

@@ -34,10 +34,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    import redis.asyncio as redis_async
+
 # ═══════════════════════════════════════════════════════════════
 # PROVIDER CONFIG - TTLs, rate limits, credit tracking
 # ═══════════════════════════════════════════════════════════════
-PROVIDER_CONFIG = {
+PROVIDER_CONFIG: dict[str, dict[str, Any]] = {
     "coingecko": {
         "ttl": 120,  # seconds (free tier: 30 calls/min)
         "rate_limit": 30,  # calls per minute
@@ -211,7 +213,7 @@ class RMICache:
     """Centralized cache with Redis primary + dict fallback + credit tracking."""
 
     def __init__(self) -> None:
-        self._redis = None
+        self._redis: redis_async.Redis[str] | None = None
         self._redis_available = False
         self._memory: dict[str, tuple[Any, float]] = {}
         # Credit tracking: {source: {"hits": N, "misses": N, "calls": [], "bytes": N}}
@@ -247,9 +249,12 @@ class RMICache:
             return False
 
     async def _redis_get(self, key: str) -> Any | None:
+        redis_client = self._redis
+        if redis_client is None or not self._redis_available:
+            return None
         try:
             if await self._redis_ping():
-                raw = await self._redis.get(f"rmi:cache:{key}")
+                raw = await redis_client.get(f"rmi:cache:{key}")
                 if raw:
                     return json.loads(raw)
         except (ConnectionError, OSError, json.JSONDecodeError):
@@ -257,9 +262,12 @@ class RMICache:
         return None
 
     async def _redis_set(self, key: str, value: Any, ttl: int) -> None:
+        redis_client = self._redis
+        if redis_client is None or not self._redis_available:
+            return
         try:
             if await self._redis_ping():
-                await self._redis.setex(f"rmi:cache:{key}", ttl, json.dumps(value, default=str))
+                await redis_client.setex(f"rmi:cache:{key}", ttl, json.dumps(value, default=str))
         except (ConnectionError, OSError, json.JSONDecodeError):
             pass
 
@@ -303,7 +311,7 @@ class RMICache:
         self,
         key: str,
         ttl: int | None = None,
-        fetcher: Callable | None = None,
+        fetcher: Callable[..., Any] | None = None,
         source: str = "unknown",
         force: bool = False,
     ) -> Any | None:

@@ -59,7 +59,7 @@ class NewsService:
             return "general"
         text_lower = text.lower()
         scores = {cat: sum(1 for kw in kws if kw in text_lower) for cat, kws in CATEGORY_KEYWORDS.items()}
-        best = max(scores, key=scores.get)
+        best = max(scores, key=lambda c: scores[c])
         return best if scores[best] > 0 else "general"
 
     def _categorize_reddit(self, subreddit: str, text: str) -> str:

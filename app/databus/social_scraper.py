@@ -61,7 +61,7 @@ class XWebScraper:
         cache_key = f"social:x:discovery:{handle}:{since_date or 'latest'}"
 
         # Check cache first
-        cached = await self.cache.get(cache_key)
+        cached, _is_stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -143,7 +143,7 @@ class XWebScraper:
         Get profile data via web search. Returns cached if available.
         """
         cache_key = f"social:x:profile:{handle}"
-        cached = await self.cache.get(cache_key)
+        cached, _is_stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -179,7 +179,7 @@ class XWebScraper:
         Find tweets mentioning @handle.
         """
         cache_key = f"social:x:mentions:{handle}"
-        cached = await self.cache.get(cache_key)
+        cached, _is_stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -208,7 +208,7 @@ class XWebScraper:
     async def get_trending_topics(self) -> list[dict[str, Any]]:
         """Get current crypto trending topics via web search."""
         cache_key = "social:x:trending:crypto"
-        cached = await self.cache.get(cache_key)
+        cached, _is_stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -269,6 +269,10 @@ class XWebScraper:
 
         avg_likes = total_likes / max(1, tweets_with_metrics)
 
+        def _likes_count(t: dict[str, Any]) -> int:
+            match = re.search(r"(\d+)\s+likes?", t.get("description", ""))
+            return int(match.group(1)) if match else 0
+
         report = {
             "handle": handle,
             "total_tweets_discovered": len(tweets),
@@ -278,11 +282,7 @@ class XWebScraper:
             "avg_likes_per_tweet": round(avg_likes, 1),
             "best_tweets": sorted(
                 [t for t in tweets if t and t.get("description")],
-                key=lambda t: (
-                    int(re.search(r"(\d+)\s+likes?", t.get("description", "")).group(1))
-                    if re.search(r"(\d+)\s+likes?", t.get("description", ""))
-                    else 0
-                ),
+                key=_likes_count,
                 reverse=True,
             )[:5],
             "generated_at": datetime.now(UTC).isoformat(),
@@ -292,7 +292,7 @@ class XWebScraper:
 
 
 # Convenience function for cron jobs
-async def run_social_scan() -> dict[str, int]:
+async def run_social_scan() -> dict[str, Any]:
     """Run a full social scan - called by cron every 6 hours."""
     cache = get_cache()
     scraper = XWebScraper(cache)

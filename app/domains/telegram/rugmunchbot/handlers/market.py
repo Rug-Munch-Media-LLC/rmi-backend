@@ -63,7 +63,7 @@ def _time_ago(dt_iso: str | None) -> str:
         return ""
 
 
-async def _fetch_cg_trending_news() -> list[dict] | None:
+async def _fetch_cg_trending_news() -> list[dict[str, Any]] | None:
     """Fallback: fetch CoinGecko trending coins as pseudo-news items."""
     try:
         async with httpx.AsyncClient(timeout=8) as client:
@@ -222,7 +222,7 @@ def _risk_emoji(risk_score: int | float | None) -> str:
         return "⚪"
 
 
-async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) -> list[dict] | None:
+async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) -> list[dict[str, Any]] | None:
     """Fetch trending from DexScreener token boosts, then enrich with token details."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -237,7 +237,7 @@ async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) ->
             # Step 2: Fetch token details for each boosted token (parallel, max 10)
             semaphore = asyncio.Semaphore(10)
 
-            async def fetch_token_details(item: dict) -> dict | None:
+            async def fetch_token_details(item: dict[str, Any]) -> dict[str, Any] | None:
                 if not isinstance(item, dict):
                     return None
                 token_addr = item.get("tokenAddress") or item.get("address")
@@ -312,7 +312,7 @@ async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) ->
         return None
 
 
-async def _fetch_coingecko_trending(chain: str = "solana", limit: int = 15) -> list[dict] | None:
+async def _fetch_coingecko_trending(chain: str = "solana", limit: int = 15) -> list[dict[str, Any]] | None:
     """Fetch trending from CoinGecko."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -346,7 +346,7 @@ async def _fetch_coingecko_trending(chain: str = "solana", limit: int = 15) -> l
         return None
 
 
-async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> list[dict] | None:
+async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> list[dict[str, Any]] | None:
     """Fetch trending tokens from the RugCharts backend."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -375,13 +375,13 @@ def _normalize_address(addr: str) -> str:
 
 
 def _merge_trending_sources(
-    rugcharts: list[dict] | None,
-    dexscreener: list[dict] | None,
-    coingecko: list[dict] | None,
+    rugcharts: list[dict[str, Any]] | None,
+    dexscreener: list[dict[str, Any]] | None,
+    coingecko: list[dict[str, Any]] | None,
     limit: int = 20,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Merge and deduplicate trending tokens from multiple sources."""
-    merged: dict[str, dict] = {}
+    merged: dict[str, dict[str, Any]] = {}
 
     # Priority: RugCharts (has full data) > DexScreener > CoinGecko
     for source_tokens, priority in [
@@ -436,12 +436,12 @@ def _merge_trending_sources(
     return result[:limit]
 
 
-async def _enrich_with_quick_scan(tokens: list[dict], chain: str) -> list[dict]:
+async def _enrich_with_quick_scan(tokens: list[dict[str, Any]], chain: str) -> list[dict[str, Any]]:
     """Add quick risk scan data + DexScreener symbol to trending tokens."""
     if not tokens:
         return tokens
 
-    async def scan_one(token: dict) -> dict:
+    async def scan_one(token: dict[str, Any]) -> dict[str, Any]:
         addr = token.get("address")
         if not addr:
             return token
@@ -488,14 +488,17 @@ async def _enrich_with_quick_scan(tokens: list[dict], chain: str) -> list[dict]:
     return [t for t in enriched if isinstance(t, dict)]
 
 
-async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[dict] | None:
+async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[dict[str, Any]] | None:
     """Fetch and fuse trending from all sources with enrichment."""
     # Fetch from all sources in parallel
     rg_task = _fetch_rugcharts_trending(chain, limit)
     ds_task = _fetch_dexscreener_trending(chain, limit)
     cg_task = _fetch_coingecko_trending(chain, limit)
 
-    rugcharts, dexscreener, coingecko = await asyncio.gather(rg_task, ds_task, cg_task, return_exceptions=True)
+    results = await asyncio.gather(rg_task, ds_task, cg_task, return_exceptions=True)
+    rugcharts = results[0] if not isinstance(results[0], BaseException) else None
+    dexscreener = results[1] if not isinstance(results[1], BaseException) else None
+    coingecko = results[2] if not isinstance(results[2], BaseException) else None
 
     # Handle exceptions
     if isinstance(rugcharts, Exception):
@@ -559,7 +562,7 @@ def _clean_token_name(name: str, symbol: str) -> tuple[str, str]:
     return cleaned[:40], symbol or "???"
 
 
-def _trending_display(token: dict) -> tuple[str, str]:
+def _trending_display(token: dict[str, Any]) -> tuple[str, str]:
     """Return a display-safe (name, symbol), trimming long/garbage values."""
     raw_name = (token.get("name") or "").strip()
     symbol = (token.get("symbol") or "").strip()
@@ -574,7 +577,7 @@ TRENDING_WINDOWS = ("1h", "24h", "7d")
 _WINDOW_FIELD = {"1h": "change_1h", "24h": "change_24h", "7d": "change_7d"}
 
 
-def _window_change(token: dict, window: str) -> float:
+def _window_change(token: dict[str, Any], window: str) -> float:
     """Change % for the requested window, falling back to 24h when absent."""
     key = _WINDOW_FIELD.get(window, "change_24h")
     val = token.get(key)
@@ -586,7 +589,7 @@ def _window_change(token: dict, window: str) -> float:
         return 0.0
 
 
-def _sort_trending(tokens: list[dict], window: str) -> list[dict]:
+def _sort_trending(tokens: list[dict[str, Any]], window: str) -> list[dict[str, Any]]:
     """Rank trending tokens for the requested window (mutation-free)."""
     if window == "1h":
         return sorted(tokens, key=lambda t: float(t.get("volume_24h") or 0), reverse=True)
@@ -595,7 +598,7 @@ def _sort_trending(tokens: list[dict], window: str) -> list[dict]:
     return sorted(tokens, key=lambda t: float(t.get("change_24h") or 0), reverse=True)
 
 
-def _window_note(window: str, tokens: list[dict]) -> str:
+def _window_note(window: str, tokens: list[dict[str, Any]]) -> str:
     """Honest footnote when the window is backed by fallback data."""
     if window == "1h":
         return "🕒 1h window — ranked by volume (hourly deltas pending)"
@@ -604,7 +607,7 @@ def _window_note(window: str, tokens: list[dict]) -> str:
     return ""
 
 
-def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
+def _render_trending_text(tokens: list[dict[str, Any]], chain: str, window: str) -> str:
     """HTML trending list with badges, clickable CAs, risk indicators."""
     tokens = _sort_trending(tokens, window)
     lines = [f"🔥 <b>Trending — {chain.capitalize()} · {window}</b>", sep()]
@@ -652,7 +655,7 @@ def _render_trending_text(tokens: list[dict], chain: str, window: str) -> str:
     return "\n".join(lines)
 
 
-def _build_trending_kb(tokens: list[dict], chain: str, window: str) -> InlineKeyboardMarkup:
+def _build_trending_kb(tokens: list[dict[str, Any]], chain: str, window: str) -> InlineKeyboardMarkup:
     """Trending keyboard: named token buttons + chain/window selectors.
 
     Design: each token gets ONE button with its name → opens scan.
@@ -1008,7 +1011,7 @@ async def cmd_whales(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-def register_market(app: Application) -> None:
+def register_market(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Register market-awareness commands on the bot application.
 
     Wires /market, /trending, /movers, /launches and /whales in one call.

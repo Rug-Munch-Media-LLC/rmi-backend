@@ -151,7 +151,7 @@ async def mcp_jsonrpc(request: Request) -> Any:
 
         import httpx
 
-        url = f"{settings.x402_tools_base}/{internal_name}"
+        url = f"{settings.backend_url}/{internal_name}"
         headers = {"Content-Type": "application/json", "User-Agent": "RMI-MCP-JSONRPC/3.1"}
         for h in (
             "x-pay",

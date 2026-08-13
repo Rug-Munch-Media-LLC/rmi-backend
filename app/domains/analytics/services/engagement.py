@@ -76,7 +76,7 @@ def compute_engagement_analytics(
 
     avg_tip = total_tips_usd / tip_count if tip_count else 0.0
     avg_sentiment = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0.0
-    top_tip_token = max(tip_tokens, key=tip_tokens.get) if tip_tokens else ""
+    top_tip_token = max(tip_tokens, key=lambda t: tip_tokens[t]) if tip_tokens else ""
 
     return {
         "total_engagements": total,

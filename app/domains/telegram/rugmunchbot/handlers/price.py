@@ -8,7 +8,7 @@ New commands:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -115,7 +115,7 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
-async def _own_dex_pairs(address: str, chain: str) -> list[dict] | None:
+async def _own_dex_pairs(address: str, chain: str) -> list[dict[str, Any]] | None:
     """Own-data primary: scanner cache price snapshot shaped like a DEX pair.
 
     Returns ``None`` when the scanner cache has no entry for this token so
@@ -146,7 +146,7 @@ async def _own_dex_pairs(address: str, chain: str) -> list[dict] | None:
     ]
 
 
-async def _external_dex_pairs(address: str) -> list[dict]:
+async def _external_dex_pairs(address: str) -> list[dict[str, Any]]:
     """External fallback: DexScreener token pairs (full pair list)."""
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(f"{DEXSCREENER}/tokens/{address}")

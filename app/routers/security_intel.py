@@ -362,7 +362,6 @@ async def graph_analyze(req: GraphAnalyzeRequest) -> Any:
 @router.post("/crosschain/correlate")
 async def crosschain_correlate(req: CrossChainRequest) -> dict[str, Any]:
     """Find cross-chain wallet correlations."""
-    # type: ignore[call-arg] — CrossChainCorrelator/ChainFingerprint live in Agent 4's slice; runtime API mismatch already tracked in TODO above
     correlator = CrossChainCorrelator(confidence_threshold=0.6)  # type: ignore[call-arg]
 
     # Add fingerprints

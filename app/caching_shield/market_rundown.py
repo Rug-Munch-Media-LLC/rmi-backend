@@ -200,7 +200,7 @@ def analyze_sentiment(text: str) -> dict[str, Any]:
 def classify_article(title: str, summary: str) -> str:
     """Auto-classify article into categories."""
     text = (title + " " + summary).lower()
-    scores = {}
+    scores: dict[str, int] = {}
     for category, keywords in CATEGORY_PATTERNS.items():
         scores[category] = sum(1 for kw in keywords if kw in text)
 

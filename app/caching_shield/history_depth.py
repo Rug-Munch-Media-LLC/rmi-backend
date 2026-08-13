@@ -60,7 +60,7 @@ class HistoryDepthController:
 
     def __init__(self) -> None:
         # Per-address deep scan cooldown: address -> last_deep_scan_ts
-        self._deep_cooldowns: OrderedDict = OrderedDict()
+        self._deep_cooldowns: OrderedDict[str, float] = OrderedDict()
 
     def clamp_limit(
         self,

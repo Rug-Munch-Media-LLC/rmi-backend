@@ -123,7 +123,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            data: dict = {}
+            data: dict[str, Any] = {}
             # Fetch all available intelligence from backend
             try:
                 wallet_resp = await client.get(
@@ -137,7 +137,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 logger.warning(f"trace wallet fetch failed: {e}")
 
             # Fetch additional cross-chain data
-            cross_chain: list = []
+            cross_chain: list[Any] = []
             try:
                 cc_resp = await client.get(
                     f"{BACKEND_URL}/api/v1/cross-chain/{address}",

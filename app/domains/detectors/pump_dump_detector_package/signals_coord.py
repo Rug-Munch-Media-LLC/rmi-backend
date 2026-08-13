@@ -60,7 +60,7 @@ async def detect_coordinated_buys(
         groups.append(
             CoordinatedBuyGroup(
                 wallets=wallets[:20],
-                window_seconds=PUMP_DUMP_THRESHOLDS["coordinated_buy_window_s"],
+                window_seconds=int(PUMP_DUMP_THRESHOLDS["coordinated_buy_window_s"]),
                 total_buy_usd=total_usd,
                 fresh_wallet_count=0,
                 block_number=cluster[0].get("slot", None) or cluster[0].get("blockNumber", None),

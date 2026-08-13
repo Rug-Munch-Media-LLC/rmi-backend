@@ -360,22 +360,23 @@ async def _classify_address(address: str, chain_id: int) -> tuple[str, str]:
     try:
         from app.wallet_label_loader import lookup_wallet_label
 
-        label = await lookup_wallet_label(address)
+        label = lookup_wallet_label(address)
         if label:
-            label_lower = label.lower()
+            label_name = label.get("name", "") if isinstance(label, dict) else str(label or "")
+            label_lower = label_name.lower()
             for cex in CEX_PATTERNS:
                 if cex in label_lower:
-                    return ("cex", label)
+                    return ("cex", label_name)
             for bridge in BRIDGE_PATTERNS:
                 if bridge in label_lower:
-                    return ("bridge", label)
+                    return ("bridge", label_name)
             for mixer in MIXER_PATTERNS:
                 if mixer in label_lower:
-                    return ("mixer", label)
+                    return ("mixer", label_name)
             # Generic label
             if any(kw in label_lower for kw in ["dex", "swap", "exchange", "amm"]):
-                return ("dex", label)
-            return ("known", label)
+                return ("dex", label_name)
+            return ("known", label_name)
     except ImportError:
         pass
     except Exception as e:

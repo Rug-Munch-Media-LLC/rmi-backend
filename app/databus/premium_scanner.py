@@ -77,7 +77,7 @@ async def detect_bundles(address: str, chain: str = "solana", **kw) -> dict[str,
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
         pass
 
-    bundles = []
+    bundles: list[dict[str, Any]] = []
     api_key = kw.get("api_key", "") or kw.get("helius_key", "")
     arkham_key = kw.get("arkham_key", "")
 
@@ -324,7 +324,9 @@ async def map_clusters(address: str, chain: str = "solana", depth: int = 3, **kw
 # ── 3. DEV FINDER ────────────────────────────────────────────────
 
 
-async def _helius_rpc_call(client: httpx.AsyncClient, api_key: str, method: str, params: list[Any] | dict[str, Any]) -> dict[str, Any] | None:
+async def _helius_rpc_call(
+    client: httpx.AsyncClient, api_key: str, method: str, params: list[Any] | dict[str, Any]
+) -> dict[str, Any] | None:
     """Make a Helius RPC call and return the result dict, or None on failure."""
     try:
         json_body = {

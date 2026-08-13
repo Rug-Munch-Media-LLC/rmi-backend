@@ -9,7 +9,7 @@ whale alerts, and smart money detection.
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram.constants import ParseMode
@@ -136,9 +136,9 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         # DATA_SOURCE is logged by the resolver.
         token_name = "Unknown"  # noqa: S105 — config default
         token_symbol = "???"  # noqa: S105 — config default
-        dex_pairs: list[dict] = []
+        dex_pairs: list[dict[str, Any]] = []
 
-        async def _own_token_info() -> list[dict] | None:
+        async def _own_token_info() -> list[dict[str, Any]] | None:
             chain_id = chain if chain not in ("unknown", "") else detect_chain(address)
             body = await backend_get_json(
                 f"/api/v2/scanner/token/price/{chain_id}/{address}",
@@ -162,7 +162,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 }
             ]
 
-        async def _external_token_info() -> list[dict]:
+        async def _external_token_info() -> list[dict[str, Any]]:
             async with httpx.AsyncClient(timeout=20) as client:
                 dex_resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
                 if dex_resp.status_code != 200:

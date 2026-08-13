@@ -60,9 +60,9 @@ class FraudGNNDetector:
     """CPU-only GNN fraud detector using pre-trained sklearn models."""
 
     def __init__(self) -> None:
-        self.model = None
-        self.scaler = None
-        self.model_type = None
+        self.model: Any = None
+        self.scaler: Any = None
+        self.model_type: str | None = None
         self._loaded = False
 
     def _ensure_loaded(self) -> None:
@@ -96,7 +96,7 @@ class FraudGNNDetector:
 
             with open(model_path, "rb") as f:
                 # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                self.model = pickle.load(f, usedforsecurity=False)
+                self.model = pickle.load(f)
 
             # Try loading scaler
             try:
@@ -108,7 +108,7 @@ class FraudGNNDetector:
                 )
                 with open(scaler_path, "rb") as f:
                     # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                    self.scaler = pickle.load(f, usedforsecurity=False)
+                    self.scaler = pickle.load(f)
             except (ConnectionError, OSError, TimeoutError):
                 self.scaler = None
 

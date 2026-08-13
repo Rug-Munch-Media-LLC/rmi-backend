@@ -37,7 +37,7 @@ async def developer_reputation(address: str = "", chain: str = "solana", **kw) -
         logger.warning("error")
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
-    reputation = {
+    reputation: dict[str, Any] = {
         "deployer_address": address,
         "total_tokens_deployed": 0,
         "rug_pull_count": 0,

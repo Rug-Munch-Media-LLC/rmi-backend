@@ -298,6 +298,8 @@ ignore = ["ASYNC109"]
 
 "app/domains/telegram/adminbot/helpers.py" = ["TC002", "TC003"]
 "app/domains/tokens/deployer/evm.py" = ["TC002", "TC003"]
+"app/routers/rugmaps_router.py" = ["N806"]
+"app/services/web3_chat/balances.py" = ["S105"]
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 

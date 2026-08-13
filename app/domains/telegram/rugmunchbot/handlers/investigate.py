@@ -8,7 +8,7 @@ Pro tier. Combines full scanner data + wallet forensics + holder analysis
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram.constants import ParseMode
@@ -49,7 +49,7 @@ _VERDICT_EMOJIS = {
 }
 
 
-def _determine_verdict(scan_result: dict, wallet_data: dict) -> tuple[str, str]:
+def _determine_verdict(scan_result: dict[str, Any], wallet_data: dict[str, Any]) -> tuple[str, str]:
     """Determine overall investigation verdict."""
     risk = scan_result.get("risk_score", 0)
     threats = len(scan_result.get("threats", []))
@@ -158,7 +158,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 scan_result = await scan_token(address, chain)
 
             # Wallet data
-            wallet_data: dict = {}
+            wallet_data: dict[str, Any] = {}
             try:
                 wallet_resp = await client.get(
                     f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
@@ -171,7 +171,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 pass
 
             # Dev wallet forensics (if available)
-            dev_data: dict = {}
+            dev_data: dict[str, Any] = {}
             dev_wallet = scan_result.get("dev_wallet")
             if dev_wallet:
                 try:
@@ -186,7 +186,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     pass
 
             # Cross-chain data
-            cross_chain: list = []
+            cross_chain: list[Any] = []
             try:
                 cc_resp = await client.get(
                     f"{BACKEND_URL}/api/v1/cross-chain/{address}",

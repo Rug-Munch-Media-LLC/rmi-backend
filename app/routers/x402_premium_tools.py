@@ -420,7 +420,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, Any]:
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    f"{settings.x402_tools_base}/reputation_score",  # type: ignore[attr-defined]
+                    f"{settings.backend_url}/reputation_score",
                     json={"address": addr, "chain": chain},
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as resp,
@@ -463,7 +463,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, Any]:
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    f"{settings.x402_tools_base}/forensics",  # type: ignore[attr-defined]
+                    f"{settings.backend_url}/forensics",
                     json={"address": addr, "chain": chain},
                     timeout=aiohttp.ClientTimeout(total=20),
                 ) as resp,

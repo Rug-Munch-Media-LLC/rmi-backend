@@ -16,7 +16,7 @@ def get_platform_list(user_id: str | None = None) -> dict[str, Any]:
     store = get_store()
     connected_ids = store.get_connected_platform_ids()
 
-    platforms_list = []
+    platforms_list: list[dict[str, Any]] = []
     for pid, pdef in PLATFORMS.items():
         is_connected = pid in connected_ids
         conn = None
