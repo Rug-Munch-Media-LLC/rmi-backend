@@ -141,10 +141,15 @@ def _load_known_scammers() -> set[str]:
     if isinstance(raw, list):
         return {str(h).lower().lstrip("@") for h in raw if str(h).strip()}
     if isinstance(raw, dict):
-        handles = raw.get("handles", [])
-        if isinstance(handles, list):
-            return {str(h).lower().lstrip("@") for h in handles if str(h).strip()}
-        return {str(h).lower().lstrip("@") for h in raw if str(h).strip()}
+        result: set[str] = set()
+        for key in ("handles", "addresses"):
+            for h in raw.get(key, []) or []:
+                result.add(str(h).lower().lstrip("@"))
+        for key in ("entries", "accounts"):
+            for item in raw.get(key, []) or []:
+                if isinstance(item, dict) and item.get("handle"):
+                    result.add(str(item["handle"]).lower().lstrip("@"))
+        return {h for h in result if h.strip()}
     return set()
 
 
