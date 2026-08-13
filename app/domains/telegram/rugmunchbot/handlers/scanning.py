@@ -151,7 +151,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "\u2514 \U0001f447 Admin buttons are pinned below the input box"
         )
     kb = welcome_menu_kb(user.id)
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)  # type: ignore[union-attr]  # PTB None-able fields
 
     # v7: attach the persistent admin reply keyboard for the owner in DMs so
     # admin commands stay one tap away on every message.
@@ -162,7 +162,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
         admin_kb_reset(user.id)
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f6e1\ufe0f <b>Admin console</b>\n"
             "Tap a button below for quick admin actions \u2014 they stay pinned here.",
             parse_mode=ParseMode.HTML,
@@ -244,7 +244,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"{footer_links()}"
     )
     kb = welcome_menu_kb(user.id if user else None)
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -255,7 +255,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if check_spam(user.id):
         return
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f50d <b>Token Scanner</b>\n\n"
             "Usage: /scan <code>address</code> [chain]\n\n"
             "<b>Examples:</b>\n"
@@ -272,13 +272,13 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not allowed:
             # Show upgrade nudge when hitting limit
             tier = db.get_user_tier(user.id)
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"),
                 parse_mode=ParseMode.HTML,
                 reply_markup=upgrade_nudge_kb(tier),
             )
             return
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f50d <b>Scanning token...</b>\n<code>{target}</code>\n\n\u23f3 Running multi-source security checks...",
         parse_mode=ParseMode.HTML,
     )
@@ -663,7 +663,7 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f9db <b>Wallet Forensics</b>\n\n"
             "Usage: /wallet <code>address</code>\n\n"
             "<b>Example:</b>\n"
@@ -676,13 +676,13 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
             tier = db.get_user_tier(user.id)
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
     addr = ctx.args[0]
     chain = ctx.args[1] if len(ctx.args) > 1 else None
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         "\U0001f9db <b>Analyzing wallet...</b>\n\u23f3 Querying on-chain data...", parse_mode=ParseMode.HTML
     )
     try:
@@ -867,7 +867,7 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f4ca <b>Technical Analysis</b>\n\nUsage: /ta <code>address_or_symbol</code>",
             parse_mode=ParseMode.HTML,
         )
@@ -876,13 +876,13 @@ async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
             tier = db.get_user_tier(user.id)
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
     target = ctx.args[0]
     explicit_chain = ctx.args[1] if len(ctx.args) > 1 else None
-    msg = await update.message.reply_text("\U0001f4ca <b>Running Technical Analysis...</b>", parse_mode=ParseMode.HTML)
+    msg = await update.message.reply_text("\U0001f4ca <b>Running Technical Analysis...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             r = await client.get(f"{DEXSCREENER}/tokens/{target}")
@@ -995,7 +995,7 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     if len(ctx.args) < 2:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\u2696\ufe0f <b>Compare Tokens</b>\n\nUsage: /compare <code>addr1</code> <code>addr2</code>",
             parse_mode=ParseMode.HTML,
         )
@@ -1004,11 +1004,11 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
             tier = db.get_user_tier(user.id)
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
-    msg = await update.message.reply_text("\u2696\ufe0f <b>Comparing tokens...</b>", parse_mode=ParseMode.HTML)
+    msg = await update.message.reply_text("\u2696\ufe0f <b>Comparing tokens...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     try:
         v2_1, v2_2 = await asyncio.gather(scan_token_v2(ctx.args[0]), scan_token_v2(ctx.args[1]))
         if v2_1 is not None and v2_2 is not None:
@@ -1065,7 +1065,7 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Quick price check - same as $TOKEN but as a command."""
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001fa99 Usage: /quick <code>SYMBOL</code>\nExample: /quick PEPE", parse_mode=ParseMode.HTML
         )
         return
@@ -1097,7 +1097,7 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                             [web_scan_button(addr, chain)],
                         ]
                     )
-                    await update.message.reply_text(
+                    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                         text,
                         parse_mode=ParseMode.HTML,
                         reply_markup=kb,
@@ -1106,7 +1106,7 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     return
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning(f"cmd_quick DexScreener lookup failed for symbol {symbol}: {e}")
-    await update.message.reply_text(f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML)
+    await update.message.reply_text(f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
 
 # ── /deployer — quick deployer fingerprint check ──
@@ -1131,7 +1131,7 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f468\u200d\U0001f4bb <b>Deployer Fingerprint</b>\n\n"
             "Usage: /deployer <code>address</code>\n\n"
             "Runs a v2 security scan and extracts the deployer reputation: "
@@ -1143,13 +1143,13 @@ async def cmd_deployer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
             tier = db.get_user_tier(user.id)
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
     target = ctx.args[0]
     chain = ctx.args[1] if len(ctx.args) > 1 else None
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f468\u200d\U0001f4bb <b>Checking deployer fingerprint...</b>\n<code>{target}</code>",
         parse_mode=ParseMode.HTML,
     )
@@ -1259,7 +1259,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f525 <b>Hype Score</b>\n\n"
             "Usage: /hype <code>address_or_symbol</code>\n\n"
             "Returns a 0-100 hype score based on market activity, "
@@ -1271,12 +1271,12 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
             tier = db.get_user_tier(user.id)
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=upgrade_nudge_kb(tier)
             )
             return
     target = ctx.args[0]
-    msg = await update.message.reply_text("\U0001f525 <b>Measuring hype...</b>", parse_mode=ParseMode.HTML)
+    msg = await update.message.reply_text("\U0001f525 <b>Measuring hype...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     try:
         # Resolve address: if it looks like a symbol, search DexScreener
         address = target

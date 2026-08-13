@@ -21,7 +21,11 @@ grows past ~1200 lines, consider moving tier subsections into
 
 from __future__ import annotations
 
-X402_TOOL_PRICING = {
+from typing import Any
+
+# Explicit annotation: entries mix str/int/float values; without it mypy infers a
+# heterogeneous union and every consumer hits "object has no attribute" errors.
+X402_TOOL_PRICING: dict[str, dict[str, Any]] = {
     # ═══ BASIC TIER ($0.01-0.02) - Quick Scans & Lookups ═══
     "token_price": {
         "price_usd": 0.01,

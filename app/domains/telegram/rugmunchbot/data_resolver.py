@@ -184,7 +184,7 @@ async def resolve_token_price(
         _primary,
         fallback_fn,
         timeout_secs=timeout_secs,
-        is_valid=lambda d: bool(d and d.get("price_usd")),
+        is_valid=lambda d: bool(d and d.get("price_usd")),  # type: ignore[attr-defined]  # PTB None-able fields
     )
 
 
@@ -209,7 +209,7 @@ async def resolve_market_global(
         _primary,
         fallback_fn,
         timeout_secs=timeout_secs,
-        is_valid=lambda d: bool(d and d.get("total_market_cap")),
+        is_valid=lambda d: bool(d and d.get("total_market_cap")),  # type: ignore[attr-defined]  # PTB None-able fields
     )
 
 
@@ -234,7 +234,7 @@ async def resolve_fear_greed(
         _primary,
         fallback_fn,
         timeout_secs=timeout_secs,
-        is_valid=lambda d: bool(d and d.get("value")),
+        is_valid=lambda d: bool(d and d.get("value")),  # type: ignore[attr-defined]  # PTB None-able fields
     )
 
 
@@ -272,4 +272,3 @@ async def resolve_news(
 def _short(exc: Exception) -> str:
     msg = str(exc)
     return msg[:150] if len(msg) > 150 else msg
-

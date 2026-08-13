@@ -19,7 +19,7 @@ async def post_purchase_monitor(token_address: str, chain: str = "sol") -> dict[
     Detect changes AFTER buying: contract modifications, new admin functions,
     fee structure changes, liquidity unlocks, wallet behavior shifts.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "current_state": {},

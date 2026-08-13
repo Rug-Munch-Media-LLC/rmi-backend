@@ -82,28 +82,32 @@ class XTwitterProvider:
                 capture_output=True,
                 text=True,
                 timeout=10,
-            shell=False)
+                shell=False,
+            )
             self._api_key = result.stdout.strip()
             result = subprocess.run(
                 ["python3", "/root/.secrets/vault.py", "get", "rmi/social/x_api_secret"],
                 capture_output=True,
                 text=True,
                 timeout=10,
-            shell=False)
+                shell=False,
+            )
             self._api_secret = result.stdout.strip()
             result = subprocess.run(
                 ["python3", "/root/.secrets/vault.py", "get", "rmi/social/x_oauth2_token"],
                 capture_output=True,
                 text=True,
                 timeout=10,
-            shell=False)
+                shell=False,
+            )
             self._oauth2_token = result.stdout.strip()
             result = subprocess.run(
                 ["python3", "/root/.secrets/vault.py", "get", "rmi/social/x_oauth2_refresh"],
                 capture_output=True,
                 text=True,
                 timeout=10,
-            shell=False)
+                shell=False,
+            )
             self._oauth2_refresh = result.stdout.strip()
             self._loaded = True
             logger.info("X/Twitter credentials loaded from vault")
@@ -131,7 +135,9 @@ class XTwitterProvider:
     def _budget_used(self) -> None:
         self._daily_reads += 1
 
-    async def _api_call(self, method: str, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    async def _api_call(
+        self, method: str, endpoint: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
         """Make an X API call with budget tracking and error handling."""
         if not self._check_budget():
             logger.warning("X API daily read budget exhausted")
@@ -171,7 +177,7 @@ class XTwitterProvider:
     async def get_user(self, username: str) -> dict[str, Any] | None:
         """Get user profile - cached 24h."""
         cache_key = f"social:x:user:{username}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -194,7 +200,7 @@ class XTwitterProvider:
     ) -> list[dict[str, Any]] | None:
         """Get recent tweets from a user - cached 15min hot, 1h warm."""
         cache_key = f"social:x:tweets:{user_id}:{max_results}:{since_id or 'latest'}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -220,7 +226,7 @@ class XTwitterProvider:
     async def get_mentions(self, user_id: str, max_results: int = 100) -> list[dict[str, Any]] | None:
         """Get mentions of user - cached 15min."""
         cache_key = f"social:x:mentions:{user_id}:{max_results}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -241,7 +247,7 @@ class XTwitterProvider:
     async def get_tweet(self, tweet_id: str) -> dict[str, Any] | None:
         """Get a single tweet - cached 24h (tweets don't change)."""
         cache_key = f"social:x:tweet:{tweet_id}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -268,7 +274,7 @@ class XTwitterProvider:
         uncached = []
 
         for tid in tweet_ids[:100]:  # API limit
-            cached = await self.cache.get(f"social:x:metrics:{tid}")
+            cached, _stale = await self.cache.get(f"social:x:metrics:{tid}")
             if cached:
                 results[tid] = cached
             else:
@@ -290,7 +296,7 @@ class XTwitterProvider:
     async def get_followers_count(self, user_id: str) -> int | None:
         """Quick follower count check - cached 1h."""
         cache_key = f"social:x:followers:{user_id}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -307,7 +313,7 @@ class XTwitterProvider:
         self, text: str, reply_to: str | None = None, media_ids: list[str] | None = None
     ) -> dict[str, Any] | None:
         """Post a tweet - requires x402 payment, uses POST budget."""
-        payload = {"text": text}
+        payload: dict[str, Any] = {"text": text}
         if reply_to:
             payload["reply"] = {"in_reply_to_tweet_id": reply_to}
         if media_ids:
@@ -352,7 +358,7 @@ class SocialDataAggregator:
         profile = await self.get_our_profile()
         if not profile:
             return None
-        return await self.x.get_user_mentions(profile["id"], max_results=count)
+        return await self.x.get_mentions(profile["id"], max_results=count)
 
     async def search_mentions(self, query: str, count: int = 10) -> list[dict[str, Any]] | None:
         """
@@ -360,7 +366,7 @@ class SocialDataAggregator:
         Heavily cached (24h). Only use for critical queries.
         """
         cache_key = f"social:x:search:{hashlib.sha256(query.encode()).hexdigest()}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -389,7 +395,7 @@ class SocialDataAggregator:
         Returns 0-100 score with breakdown.
         """
         cache_key = f"social:kol:reputation:{username}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
@@ -403,7 +409,7 @@ class SocialDataAggregator:
         tweet_count = metrics.get("tweet_count", 0)
 
         # Base score calculation
-        score = 50  # Start neutral
+        score = 50.0  # Start neutral
 
         # Follower bonus (logarithmic)
         import math
@@ -437,14 +443,14 @@ class SocialDataAggregator:
         Falls back to web scraping if no cached data.
         """
         cache_key = f"social:sentiment:{username}"
-        cached = await self.cache.get(cache_key)
+        cached, _stale = await self.cache.get(cache_key)
         if cached:
             return cached
 
         # Try to get cached mentions
         profile = await self.x.get_user(username)
         mentions_key = f"social:x:mentions:{profile['id'] if profile else 'unknown'}:20"
-        mentions = await self.cache.get(mentions_key)
+        mentions, _stale = await self.cache.get(mentions_key)
 
         result = {
             "username": username,

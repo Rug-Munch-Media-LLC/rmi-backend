@@ -277,6 +277,8 @@ async def submit_exam(course_id: str, exam_id: str, req: ExamSubmit, request: Re
 async def get_leaderboard(limit: int = Query(50, ge=1, le=100)) -> dict[str, Any]:
     """Get global leaderboard by XP."""
     r = get_redis()
+    if r is None:
+        return {"leaderboard": [], "total_learners": 0}
     all_progress = r.hgetall("rmi:scam_school:progress")
 
     entries = []

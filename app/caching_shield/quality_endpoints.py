@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Request
 
@@ -21,7 +22,7 @@ _start_time = time.time()
 
 
 @router.get("/mcp/health")
-async def mcp_health(request: Request) -> dict[str, str]:
+async def mcp_health(request: Request) -> dict[str, Any]:
     """Agent health check. Returns status + response time so agents can gauge latency."""
     t0 = time.time()
     return {
@@ -34,7 +35,7 @@ async def mcp_health(request: Request) -> dict[str, str]:
 
 
 @router.get("/mcp/status")
-async def mcp_status() -> dict[str, int]:
+async def mcp_status() -> dict[str, Any]:
     """Live system status - cache stats, rate limits, provider health."""
     from app.caching_shield.api_registry import get_api_manager
     from app.caching_shield.tool_registry import TOOL_COUNTS
@@ -54,7 +55,7 @@ async def mcp_status() -> dict[str, int]:
 
 
 @router.get("/mcp/changelog")
-async def mcp_changelog() -> dict[str, str]:
+async def mcp_changelog() -> dict[str, Any]:
     """Version history so agents know what's new."""
     return {
         "current": "3.3.0",
@@ -148,7 +149,7 @@ console.log(`Risk score: ${result.data.score}`);""",
 
 
 @router.get("/mcp/trials")
-async def mcp_trials(request: Request) -> dict[str, int | float]:
+async def mcp_trials(request: Request) -> dict[str, Any]:
     """Check remaining free trials for the requesting agent."""
     fp = request.headers.get(
         "X-Agent-Fingerprint",

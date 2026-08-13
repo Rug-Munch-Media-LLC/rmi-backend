@@ -68,7 +68,7 @@ async def detect_scam_patterns(token_data: dict[str, Any], threshold: float = 0.
         token_sem = token_result.vector
         token_code = [0.0] * 128
 
-    deep_matches = []
+    deep_matches: list[dict[str, Any]] = []
     for pattern in KNOWN_SCAM_PATTERNS:
         pattern_name = pattern["name"]
         if pattern_name in _pattern_cache:

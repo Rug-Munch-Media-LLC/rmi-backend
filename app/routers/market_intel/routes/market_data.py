@@ -32,9 +32,9 @@ async def get_market_launches(
             chain = b.get("chainId", "solana")
             pairs = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
             price = 0
-            mcap = 0
-            vol = 0
-            change = 0
+            mcap = 0.0
+            vol = 0.0
+            change = 0.0
             name = b.get("description", "")[:20] if b.get("description") else addr[:8]
             symbol = addr[:6].upper()
             if pairs and isinstance(pairs, dict) and pairs.get("pairs"):

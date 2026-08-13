@@ -49,7 +49,7 @@ CHAIN_NAMES = {
 
 
 @router.get("/chains")
-async def list_chains() -> dict[str, list[dict[str, str]]]:
+async def list_chains() -> dict[str, Any]:
     return {
         "chains": [
             {"name": "Solana", "id": 0},
@@ -70,7 +70,7 @@ async def list_chains() -> dict[str, list[dict[str, str]]]:
 @router.post("/trace")
 async def trace_wallet_funding(req: TraceRequest) -> Any:
     """Trace funding source for any wallet (Solana or EVM)."""
-    chain = req.chain.lower()
+    chain = (req.chain or "").lower()
     chain_id = req.chain_id or CHAIN_NAMES.get(chain, 1)
 
     if chain == "solana":
@@ -82,7 +82,7 @@ async def trace_wallet_funding(req: TraceRequest) -> Any:
 @router.post("/scan")
 async def full_investigation(req: ScanRequest) -> dict[str, Any]:
     """Full investigation: trace + risk + labels."""
-    chain = req.chain.lower()
+    chain = (req.chain or "").lower()
     chain_id = req.chain_id or CHAIN_NAMES.get(chain, 1)
 
     from app.caching_shield.data_fallback import DataQueryType, get_data_engine
@@ -97,7 +97,7 @@ async def full_investigation(req: ScanRequest) -> dict[str, Any]:
     try:
         from app.wallet_label_loader import lookup_wallet_label
 
-        label = await lookup_wallet_label(req.address)
+        label = lookup_wallet_label(req.address)
         labels = [{"address": req.address, "label": label}] if label else []
     except (AttributeError, ImportError):
         labels = []
@@ -245,7 +245,7 @@ async def fund_flow_sankey(req: GraphRequest) -> dict[str, Any]:
     Shows creator → funders → LPs → sellers flow with amounts.
     Falls back to cytoscape-compatible format if Sankey data is sparse.
     """
-    chain = req.chain.lower()
+    chain = (req.chain or "").lower()
     address = req.address.strip()
 
     # Get fund flow data using existing visualizer

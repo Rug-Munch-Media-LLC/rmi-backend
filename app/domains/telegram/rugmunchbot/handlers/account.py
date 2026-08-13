@@ -88,7 +88,7 @@ async def cmd_account(update: Update, ctx) -> None:
             [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
         ]
     )
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_pricing(update: Update, ctx) -> None:
@@ -117,7 +117,7 @@ async def cmd_pricing(update: Update, ctx) -> None:
         f"\U0001f4e7 Enterprise: {SUPPORT_EMAIL}"
         f"{footer_links()}"
     )
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text, parse_mode=ParseMode.HTML, reply_markup=pricing_kb(), disable_web_page_preview=True
     )
 
@@ -139,7 +139,7 @@ async def cmd_topup(update: Update, ctx) -> None:
         f"\U0001f4b3 Pay with Telegram Stars \u2b50"
         f"{footer_links()}"
     )
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=topup_kb())
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=topup_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_buystars(update: Update, ctx) -> None:
@@ -156,7 +156,7 @@ async def cmd_buystars(update: Update, ctx) -> None:
         f"{BETA_PAYMENTS_LINE}\n\n"
         f"Select a pack below:"
     )
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=buy_stars_kb())
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=buy_stars_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_scamschool(update: Update, ctx) -> None:
@@ -167,7 +167,7 @@ async def cmd_scamschool(update: Update, ctx) -> None:
         f"Select a topic below \U0001f447"
         f"{footer_links()}"
     )
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text, parse_mode=ParseMode.HTML, reply_markup=scamschool_kb(), disable_web_page_preview=True
     )
 
@@ -206,7 +206,7 @@ async def cmd_refer(update: Update, ctx) -> None:
     share_text = quote(
         f"Check out RugMunch Intelligence - the best crypto scam detector on Telegram! \U0001f6e1\ufe0f\n\n{link}"
     )
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text,
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(

@@ -48,7 +48,7 @@ async def cmd_api(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier != "pro" and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔑 <b>API Access</b>\n\n"
             "API tokens let you programmatically access:\n"
             "  • Token security scans\n"
@@ -73,7 +73,7 @@ async def cmd_api(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             token_id = int(ctx.args[1])
             await _revoke_token(update, user.id, token_id)
         except (ValueError, TypeError):
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "❌ Invalid token ID. Usage: /api revoke <code>id</code>",
                 parse_mode=ParseMode.HTML,
             )
@@ -107,7 +107,7 @@ async def cmd_api(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 f"<b>API Base URL:</b>\n<code>{BACKEND_URL}/api/v1</code>\n\n"
                 f"<b>Documentation:</b>\n<code>{WEBSITE_URL}/docs</code>"
             )
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             text,
             parse_mode=ParseMode.HTML,
             reply_markup=api_kb(has_token=bool(tokens)),
@@ -126,7 +126,7 @@ async def _create_token(update: Update, user_id: int) -> None:
 
     if count >= 3:
         conn.close()
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Maximum 3 active API tokens. Revoke one first:\n  /api revoke <code>id</code>\n  /api list",
             parse_mode=ParseMode.HTML,
         )
@@ -144,10 +144,10 @@ async def _create_token(update: Update, user_id: int) -> None:
         (user_id, hashed_token, token_prefix, f"Token #{count + 1}", int(__import__("time").time())),
     )
     conn.commit()
-    token_id = conn.lastrowid
+    token_id = conn.lastrowid  # type: ignore[attr-defined]  # PTB None-able fields
     conn.close()
 
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"✅ <b>API Token Generated!</b>\n\n"
         f"<b>Token:</b>\n"
         f"<code>{raw_token}</code>\n\n"
@@ -174,7 +174,7 @@ async def _list_tokens(update: Update, user_id: int) -> None:
     conn.close()
 
     if not tokens:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔑 <b>API Tokens</b>\n\nNo tokens yet. Generate one:\n  /api create",
             parse_mode=ParseMode.HTML,
         )
@@ -193,7 +193,7 @@ async def _list_tokens(update: Update, user_id: int) -> None:
         text += f"<b>#{tok['id']}</b> — {name}\n  🔑 <code>{token_preview}</code>\n  {status}{last}\n\n"
     text += "Create new: /api create\nRevoke: /api revoke <code>id</code>"
     text += footer_links()
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text,
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
@@ -210,7 +210,7 @@ async def _revoke_token(update: Update, user_id: int, token_id: int) -> None:
 
     if not row:
         conn.close()
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Token not found. Use /api list to see your tokens.",
             parse_mode=ParseMode.HTML,
         )
@@ -223,7 +223,7 @@ async def _revoke_token(update: Update, user_id: int, token_id: int) -> None:
     conn.commit()
     conn.close()
 
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"✅ <b>Token #{token_id} revoked.</b>\n\nThis token can no longer access the API.",
         parse_mode=ParseMode.HTML,
     )

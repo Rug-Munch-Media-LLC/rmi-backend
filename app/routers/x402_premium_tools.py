@@ -53,7 +53,7 @@ class InvestigationRequest(BaseModel):
 
 
 @router.post("/reputation_score")
-async def reputation_score(req: AddressRequest) -> dict[str, str]:
+async def reputation_score(req: AddressRequest) -> dict[str, Any]:
     """Compute a comprehensive 0-100 trust score for any blockchain address.
 
     Combines: wallet labels, scam database hits, deployer history,
@@ -285,7 +285,7 @@ async def reputation_score(req: AddressRequest) -> dict[str, str]:
 
 
 @router.post("/webhook_register")
-async def webhook_register(req: WebhookRegisterRequest) -> dict[str, str]:
+async def webhook_register(req: WebhookRegisterRequest) -> dict[str, Any]:
     """Register a webhook URL for real-time monitoring alerts.
 
     Available events: rug_pull, whale_move, price_crash, new_launch,
@@ -396,7 +396,7 @@ async def webhook_list(address: str | None = None) -> dict[str, Any]:
 
 
 @router.post("/investigation_report")
-async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
+async def investigation_report(req: InvestigationRequest) -> dict[str, Any]:
     """Generate a comprehensive AI-powered investigation report.
 
     Combines: reputation scoring, wallet labeling, scam detection,
@@ -420,7 +420,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    f"{settings.x402_tools_base}/reputation_score",
+                    f"{settings.x402_tools_base}/reputation_score",  # type: ignore[attr-defined]
                     json={"address": addr, "chain": chain},
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as resp,
@@ -463,7 +463,7 @@ async def investigation_report(req: InvestigationRequest) -> dict[str, str]:
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    f"{settings.x402_tools_base}/forensics",
+                    f"{settings.x402_tools_base}/forensics",  # type: ignore[attr-defined]
                     json={"address": addr, "chain": chain},
                     timeout=aiohttp.ClientTimeout(total=20),
                 ) as resp,

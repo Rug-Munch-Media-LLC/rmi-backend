@@ -276,7 +276,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
     tier = db.get_user_tier(user.id)
     if tier in ("free",):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"\U0001f514 <b>Price Alerts</b>\n\n"
             f"Get notified when tokens hit your target price.\n\n"
             f"\u26a0\ufe0f <b>Requires Scout tier</b> or higher.\n"
@@ -294,7 +294,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     ]
 
     if not active_alerts and not triggered_alerts:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f514 <b>Price Alerts</b>\n\n"
             "No alerts set yet.\n\n"
             "To set an alert:\n"
@@ -333,7 +333,7 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     text += "\nSet new: /alert ABOVE <code>addr</code> <price>"
     text += footer_links()
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
 
@@ -346,7 +346,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier in ("free",):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f514 <b>Price Alerts</b>\n\n"
             "Price alerts require <b>Scout tier</b> or higher.\n\n"
             "\U0001f50d <b>Scout ($29.99/mo)</b> \u2014 10 watchlist slots + alerts\n"
@@ -358,7 +358,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     if len(ctx.args) < 2:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f514 <b>Set Price Alert</b>\n\n"
             "Usage: /alert <code>ABOVE|BELOW|CHANGE_5|ANY</code> <code>address</code> <price>\n\n"
             "<b>Examples:</b>\n"
@@ -377,14 +377,14 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     valid_directions = {"ABOVE", "BELOW", "CHANGE_5", "ANY"}
     if direction_raw not in valid_directions:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"\u274c Invalid direction. Use one of: {', '.join(d.lower() for d in valid_directions)}",
             parse_mode=ParseMode.HTML,
         )
         return
 
     if direction_raw in ("ABOVE", "BELOW") and not price_str:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\u274c Please provide a target price for ABOVE/BELOW alerts.\n"
             "Example: /alert ABOVE <code>address</code> 0.005",
             parse_mode=ParseMode.HTML,
@@ -393,7 +393,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     chain = detect_chain(addr)
     if chain == "unknown":
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\u274c Could not detect chain. Ensure it's a valid EVM (0x...) or Solana address.",
             parse_mode=ParseMode.HTML,
         )
@@ -406,7 +406,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             if alert_price <= 0:
                 raise ValueError
         except (ValueError, TypeError):
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "\u274c Invalid price. Use a positive number (e.g., 0.005, 1.50, 42000).",
                 parse_mode=ParseMode.HTML,
             )
@@ -427,7 +427,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         conn.commit()
         conn.close()
         await _subscribe_backend_alerts(user.id, addr)
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"\u2705 <b>Alert Updated</b>\n\n"
             f"Token: <code>{addr}</code>\n"
             f"Rule: {direction_raw.lower()} {fmt_number(alert_price) if alert_price else 'any move'}\n\n"
@@ -440,7 +440,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         if ok:
             await _subscribe_backend_alerts(user.id, addr)
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 f"\u2705 <b>Alert Set</b>\n\n"
                 f"Token: <code>{addr}</code>\n"
                 f"Rule: {direction_raw.lower()} {fmt_number(alert_price) if alert_price else 'any move'}\n\n"
@@ -448,7 +448,7 @@ async def cmd_alert(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 parse_mode=ParseMode.HTML,
             )
         else:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "\u274c Could not set alert. Watchlist limit reached or already exists.",
                 parse_mode=ParseMode.HTML,
             )

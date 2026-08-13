@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -13,6 +13,7 @@ logger = get_logger("darkroom_multichain_airdrop")
 # ── Data Models ───────────────────────────────────────────────
 
 
+@dataclass
 class TokenSource:
     """A token on a specific chain that qualifies for airdrop."""
 
@@ -27,6 +28,7 @@ class TokenSource:
     nft_collection_id: str | None = None
 
 
+@dataclass
 class CrossChainHolder:
     """Aggregated holder data across multiple chains."""
 
@@ -53,6 +55,7 @@ class CrossChainHolder:
         return asdict(self)
 
 
+@dataclass
 class AirdropTier:
     """Tiered reward structure based on holdings."""
 
@@ -64,6 +67,7 @@ class AirdropTier:
     description: str = ""
 
 
+@dataclass
 class MultiChainAirdropCampaign:
     """Full multi-chain airdrop campaign configuration."""
 

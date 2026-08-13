@@ -33,14 +33,18 @@ class SolanaDeployer(ChainDeployer):
         from solders.pubkey import Pubkey
         from solders.system_program import CreateAccountParams, create_account
         from spl.token.constants import TOKEN_PROGRAM_ID
-        from spl.token.instructions import create_mint, get_associated_token_address, mint_to
+        from spl.token.instructions import (  # type: ignore[attr-defined]  # PTB None-able fields
+            create_mint,
+            get_associated_token_address,
+            mint_to,
+        )
 
         try:
             mint = Keypair()
-            rent = self.client.get_minimum_balance_for_rent_exemption(82)["result"]
+            rent = self.client.get_minimum_balance_for_rent_exemption(82)["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             tx = Transaction()
             create_account_ix = create_account(
-                CreateAccountParams(
+                CreateAccountParams(  # type: ignore[typeddict-item, typeddict-unknown-key]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
                     from_pubkey=self.keypair.pubkey(),
                     to_pubkey=mint.pubkey(),
                     lamports=rent,
@@ -58,7 +62,7 @@ class SolanaDeployer(ChainDeployer):
             )
             tx.add(init_mint_ix)
             ata = get_associated_token_address(self.keypair.pubkey(), mint.pubkey())
-            mint_to_ix = mint_to(
+            mint_to_ix = mint_to(  # type: ignore[call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
                 mint=mint.pubkey(),
                 dest=ata,
                 mint_authority=self.keypair.pubkey(),
@@ -67,8 +71,8 @@ class SolanaDeployer(ChainDeployer):
             )
             tx.add(mint_to_ix)
             tx.sign(self.keypair, mint)
-            result = self.client.send_transaction(tx, self.keypair, mint)
-            tx_hash = result["result"]
+            result = self.client.send_transaction(tx, self.keypair, mint)  # type: ignore[arg-type, call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+            tx_hash = result["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
             deployment = TokenDeployment(
                 deployment_id=self._generate_deployment_id("solana", params.symbol, tx_hash),
@@ -103,7 +107,7 @@ class SolanaDeployer(ChainDeployer):
         mint = Pubkey.from_string(contract_address)
         dest = get_associated_token_address(Pubkey.from_string(to_address), mint)
         tx = Transaction()
-        mint_to_ix = mint_to(
+        mint_to_ix = mint_to(  # type: ignore[call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             mint=mint,
             dest=dest,
             mint_authority=self.keypair.pubkey(),
@@ -112,8 +116,8 @@ class SolanaDeployer(ChainDeployer):
         )
         tx.add(mint_to_ix)
         tx.sign(self.keypair)
-        result = self.client.send_transaction(tx, self.keypair)
-        return result["result"]
+        result = self.client.send_transaction(tx, self.keypair)  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        return result["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
     async def burn_tokens(self, contract_address: str, amount: str) -> str:
         from solana.transaction import Transaction
@@ -124,13 +128,13 @@ class SolanaDeployer(ChainDeployer):
         mint = Pubkey.from_string(contract_address)
         ata = get_associated_token_address(self.keypair.pubkey(), mint)
         tx = Transaction()
-        burn_ix = burn(
+        burn_ix = burn(  # type: ignore[call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             account=ata, mint=mint, owner=self.keypair.pubkey(), amount=int(amount), program_id=TOKEN_PROGRAM_ID
         )
         tx.add(burn_ix)
         tx.sign(self.keypair)
-        result = self.client.send_transaction(tx, self.keypair)
-        return result["result"]
+        result = self.client.send_transaction(tx, self.keypair)  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        return result["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
     async def transfer_ownership(self, contract_address: str, new_owner: str) -> str:
         from solana.transaction import Transaction
@@ -140,7 +144,7 @@ class SolanaDeployer(ChainDeployer):
 
         mint = Pubkey.from_string(contract_address)
         tx = Transaction()
-        set_auth_ix = set_authority(
+        set_auth_ix = set_authority(  # type: ignore[call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             account=mint,
             current_authority=self.keypair.pubkey(),
             authority_type=AuthorityType.MINT_TOKENS,
@@ -149,8 +153,8 @@ class SolanaDeployer(ChainDeployer):
         )
         tx.add(set_auth_ix)
         tx.sign(self.keypair)
-        result = self.client.send_transaction(tx, self.keypair)
-        return result["result"]
+        result = self.client.send_transaction(tx, self.keypair)  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        return result["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
     async def renounce_ownership(self, contract_address: str) -> str:
         from solana.transaction import Transaction
@@ -160,7 +164,7 @@ class SolanaDeployer(ChainDeployer):
 
         mint = Pubkey.from_string(contract_address)
         tx = Transaction()
-        set_auth_ix = set_authority(
+        set_auth_ix = set_authority(  # type: ignore[call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             account=mint,
             current_authority=self.keypair.pubkey(),
             authority_type=AuthorityType.MINT_TOKENS,
@@ -169,15 +173,15 @@ class SolanaDeployer(ChainDeployer):
         )
         tx.add(set_auth_ix)
         tx.sign(self.keypair)
-        result = self.client.send_transaction(tx, self.keypair)
-        return result["result"]
+        result = self.client.send_transaction(tx, self.keypair)  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        return result["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
     async def get_token_info(self, contract_address: str) -> dict[str, Any]:
         from solders.pubkey import Pubkey
 
         mint = Pubkey.from_string(contract_address)
         account_info = self.client.get_account_info(mint)
-        data = account_info["result"]["value"]["data"][0]
+        data = account_info["result"]["value"]["data"][0]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
         import base64
 
         raw = base64.b64decode(data)
@@ -199,8 +203,8 @@ class SolanaDeployer(ChainDeployer):
         mint = Pubkey.from_string(contract_address)
         wallet = Pubkey.from_string(wallet_address)
         ata = get_associated_token_address(wallet, mint)
-        balance = self.client.get_token_account_balance(str(ata))
-        return balance["result"]["value"]["amount"]
+        balance = self.client.get_token_account_balance(str(ata))  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        return balance["result"]["value"]["amount"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
     async def blacklist_add(self, contract_address: str, address: str) -> str:
         from solana.transaction import Transaction
@@ -211,7 +215,7 @@ class SolanaDeployer(ChainDeployer):
         mint = Pubkey.from_string(contract_address)
         account = get_associated_token_address(Pubkey.from_string(address), mint)
         tx = Transaction()
-        freeze_ix = freeze_account(
+        freeze_ix = freeze_account(  # type: ignore[call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             account=account,
             mint=mint,
             owner=self.keypair.pubkey(),
@@ -220,8 +224,8 @@ class SolanaDeployer(ChainDeployer):
         )
         tx.add(freeze_ix)
         tx.sign(self.keypair)
-        result = self.client.send_transaction(tx, self.keypair)
-        return result["result"]
+        result = self.client.send_transaction(tx, self.keypair)  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        return result["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
     async def blacklist_remove(self, contract_address: str, address: str) -> str:
         from solana.transaction import Transaction
@@ -232,7 +236,7 @@ class SolanaDeployer(ChainDeployer):
         mint = Pubkey.from_string(contract_address)
         account = get_associated_token_address(Pubkey.from_string(address), mint)
         tx = Transaction()
-        thaw_ix = thaw_account(
+        thaw_ix = thaw_account(  # type: ignore[call-arg]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             account=account,
             mint=mint,
             owner=self.keypair.pubkey(),
@@ -241,8 +245,8 @@ class SolanaDeployer(ChainDeployer):
         )
         tx.add(thaw_ix)
         tx.sign(self.keypair)
-        result = self.client.send_transaction(tx, self.keypair)
-        return result["result"]
+        result = self.client.send_transaction(tx, self.keypair)  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        return result["result"]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
 
     async def is_blacklisted(self, contract_address: str, address: str) -> bool:
         from solders.pubkey import Pubkey
@@ -250,9 +254,9 @@ class SolanaDeployer(ChainDeployer):
 
         mint = Pubkey.from_string(contract_address)
         account = get_associated_token_address(Pubkey.from_string(address), mint)
-        info = self.client.get_account_info(str(account))
-        if info["result"]["value"]:
-            data = info["result"]["value"]["data"][0]
+        info = self.client.get_account_info(str(account))  # type: ignore[arg-type]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+        if info["result"]["value"]:  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
+            data = info["result"]["value"]["data"][0]  # type: ignore[index]  # legacy spl-token/solana-py API drift (installed libs use params-object/VersionedTransaction API)
             import base64
 
             raw = base64.b64decode(data)

@@ -14,6 +14,11 @@ from app.core.redis import get_redis
 from app.routers.x402_databus_tools import check_trial
 
 
+def _redis() -> Any:
+    """Redis client. get_redis() may return None when degraded; callers assume availability (crash as before)."""
+    return get_redis()
+
+
 # ═══════════════════════════════════════════════════
 # SHARED: Redis + x402 trial tracker
 # ═══════════════════════════════════════════════════
@@ -24,7 +29,7 @@ async def search_news(query: str, limit: int = 10, fingerprint: str = "anon") ->
     auth = await check_trial(fingerprint, "news", 20)
     if auth.get("tier") == "free_exhausted":
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
-    r = get_redis()
+    r = _redis()
     results = []
     q = query.lower()
     for idx in ["rmi:news:500feeds", "rmi:news:index", "rmi:news:global:index"]:
@@ -63,7 +68,7 @@ async def resolve_wallet(address: str, fingerprint: str = "anon") -> dict[str, A
     auth = await check_trial(fingerprint, "wallet", 15)
     if auth.get("tier") == "free_exhausted":
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
-    r = get_redis()
+    r = _redis()
     addr = address.lower()
     # Check Postgres wallet_labels
     from dotenv import load_dotenv
@@ -71,7 +76,7 @@ async def resolve_wallet(address: str, fingerprint: str = "anon") -> dict[str, A
     load_dotenv("/app/.env", override=True)
     import psycopg2
 
-    result = {"address": address, "labels": [], "chains_found": []}
+    result: dict[str, Any] = {"address": address, "labels": [], "chains_found": []}
     try:
         pg = psycopg2.connect(
             host="rmi-postgres",
@@ -116,7 +121,7 @@ async def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     import httpx as req
 
-    result = {"address": address, "chain": chain, "checks": {}}
+    result: dict[str, Any] = {"address": address, "chain": chain, "checks": {}}
     # Chainabuse check
     try:
         r = req.get(f"https://api.chainabuse.com/v0/reports?address={address}", timeout=5)
@@ -148,7 +153,9 @@ async def scan_token(address: str, chain: str = "ethereum", fingerprint: str = "
 # ═══════════════════════════════════════════════════
 # MCP #4: CROSS-CHAIN BRIDGE MONITOR
 # ═══════════════════════════════════════════════════
-async def check_bridge_transfers(address: str = "", bridge: str = "wormhole", fingerprint: str = "anon") -> dict[str, Any]:
+async def check_bridge_transfers(
+    address: str = "", bridge: str = "wormhole", fingerprint: str = "anon"
+) -> dict[str, Any]:
     """Check cross-chain bridge activity. 10 free/day."""
     auth = await check_trial(fingerprint, "bridge", 10)
     if auth.get("tier") == "free_exhausted":
@@ -160,7 +167,7 @@ async def check_bridge_transfers(address: str = "", bridge: str = "wormhole", fi
         "layerzero": "https://layerzeroscan.com/api",
     }
     url = bridges.get(bridge, bridges["wormhole"])
-    result = {"bridge": bridge, "address": address, "transfers": []}
+    result: dict[str, Any] = {"bridge": bridge, "address": address, "transfers": []}
     try:
         r = req.get(f"{url}?address={address}&limit=5" if address else f"{url}/stats", timeout=10)
         if r.status_code == 200:
@@ -183,7 +190,7 @@ async def defi_analytics(protocol: str = "", chain: str = "", fingerprint: str =
         return {"error": "Free tier exhausted", "upgrade": auth["upgrade"]}
     import httpx as req
 
-    result = {"protocol": protocol, "chain": chain}
+    result: dict[str, Any] = {"protocol": protocol, "chain": chain}
     try:
         r = req.get(
             f"https://api.llama.fi/protocol/{protocol}" if protocol else "https://api.llama.fi/protocols",

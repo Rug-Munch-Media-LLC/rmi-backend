@@ -18,7 +18,7 @@ async def social_onchain_correlation(token_address: str, chain: str = "sol") -> 
     Map hype cycle: wallet activity spikes correlated with social mentions.
     Influencer wallet tracking. Coordinated pump timing.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "social_signals": {},

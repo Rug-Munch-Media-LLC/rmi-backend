@@ -46,9 +46,9 @@ async def get_market_overview(request: Request) -> dict[str, Any]:
         eth_dom = _safe_float(d.get("market_cap_percentage", {}).get("eth"), eth_dom)
         active = int(d.get("active_cryptocurrencies", active))
 
-    btc_price = 67000
+    btc_price = 67000.0
     btc_change = 0.0
-    eth_price = 3500
+    eth_price = 3500.0
     eth_change = 0.0
     if price_data:
         btc_price = _safe_float(price_data.get("bitcoin", {}).get("usd"), btc_price)
@@ -138,7 +138,7 @@ async def get_market_movers(
 async def get_market_chains(request: Request) -> dict[str, Any]:
     """Chain activity - TPS, gas, active addresses from CoinGecko chain data."""
     now = _now()
-    chains_data = [
+    chains_data: list[dict[str, Any]] = [
         {"chain": "Ethereum", "slug": "ethereum", "tps": 15, "gas_gwei": 12, "status": "warm"},
         {"chain": "Solana", "slug": "solana", "tps": 4000, "gas_gwei": 0.00025, "status": "hot"},
         {"chain": "BSC", "slug": "binancecoin", "tps": 100, "gas_gwei": 1, "status": "warm"},
@@ -204,7 +204,7 @@ async def get_market_onchain(
     now = _now()
     global_data = await _cg("/global", ttl=120)
 
-    mcap_change = 0
+    mcap_change = 0.0
     total_mcap = 3.2e12
     total_vol = 85e9
 
@@ -260,10 +260,10 @@ async def get_market_macro(
         ttl=120,
     )
 
-    btc_price = 67000
-    btc_change = 0
-    eth_price = 3500
-    eth_change = 0
+    btc_price = 67000.0
+    btc_change = 0.0
+    eth_price = 3500.0
+    eth_change = 0.0
 
     if price_data:
         btc_price = _safe_float(price_data.get("bitcoin", {}).get("usd", btc_price))
@@ -312,8 +312,8 @@ async def get_market_sentiment(
             },
             ttl=60,
         )
-        btc_change = 0
-        eth_change = 0
+        btc_change = 0.0
+        eth_change = 0.0
         if btc_data:
             btc_change = _safe_float(btc_data.get("bitcoin", {}).get("usd_24h_change", 0))
             eth_change = _safe_float(btc_data.get("ethereum", {}).get("usd_24h_change", 0))

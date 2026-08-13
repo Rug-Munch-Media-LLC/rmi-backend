@@ -1,10 +1,9 @@
 """
-from typing import Any
 x402 Enrichment — Data Models and Constants
 """
 
-
 from dataclasses import dataclass, field
+from typing import Any
 
 # ── Which tool categories get enrichment ────────────────────────
 # Wallet-centric tools: enrich with labels, scam checking

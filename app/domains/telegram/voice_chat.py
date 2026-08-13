@@ -24,7 +24,7 @@ from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Bot
-    from telegram._utils.types import JSONValue
+    from telegram._utils.types import JSONValue  # type: ignore[attr-defined]  # PTB None-able fields
 
 logger = get_logger("telegram.voice_chat")
 
@@ -95,7 +95,7 @@ async def create_voice_chat(
 
         # Step 2: Create the voice chat using Telegram API
         # Voice chats are created via the underlying API call
-        result: JSONValue = await bot.create_voice_chat(
+        result: JSONValue = await bot.create_voice_chat(  # type: ignore[attr-defined]  # PTB None-able fields
             chat_id=chat_id,
             voice_chat_title=title or "",
             voice_chat_video_chat=is_video,
@@ -157,7 +157,7 @@ async def end_voice_chat(bot: Bot, chat_id: int) -> bool:
     logger.info("end_voice_chat chat_id=%d", chat_id)
 
     try:
-        result: JSONValue = await bot.end_voice_chat(
+        result: JSONValue = await bot.end_voice_chat(  # type: ignore[attr-defined]  # PTB None-able fields
             chat_id=chat_id,
         )
 

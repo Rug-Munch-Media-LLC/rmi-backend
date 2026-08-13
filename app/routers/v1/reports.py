@@ -133,10 +133,10 @@ async def _section_holders(subject_id: str, chain: str) -> dict[str, Any]:
             try:
                 from app.chain_feeder import get_holders_for_token
 
-                holders = await get_holders_for_token(subject_id, limit=20)
+                feed_holders = await get_holders_for_token(subject_id, limit=20)
                 return {
-                    "holder_count": len(holders),
-                    "top_holders": [{"address": h} for h in holders[:10]],
+                    "holder_count": len(feed_holders),
+                    "top_holders": [{"address": h} for h in feed_holders[:10]],
                 }
             except ImportError:
                 logger.debug("ChainFeeder not available for holders")
@@ -212,10 +212,10 @@ async def _section_news(subject_id: str) -> dict[str, Any]:
 
         # Fallback: try news_service
         try:
-            from app.domains.news.news_service import NewsService
+            from app.domains.news.news_service import fetch_all_news
 
-            svc = NewsService()
-            news_items = await svc.get_news_for_subject(subject_id, limit=10)
+            news_result = await fetch_all_news(limit=10)
+            news_items = news_result.get("articles", [])
             return {
                 "articles": len(news_items),
                 "sentiment": "neutral",
@@ -243,9 +243,9 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
     try:
         # Try contract deepscan
         try:
-            from app.contract_deepscan import analyze_contract
+            from app.contract_deepscan import deep_scan_contract
 
-            result = await analyze_contract(subject_id, chain)
+            result = deep_scan_contract(subject_id, chain)
             if result:
                 return {"contract_analysis": result}
         except ImportError:
@@ -258,7 +258,7 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
             from app.caching_shield.service_mcp import ServiceMCP
 
             mcp = ServiceMCP()
-            security = await mcp.goplus_token_security(chain, subject_id)
+            security = await mcp.token_security(chain, subject_id)
             if security:
                 return {"contract_analysis": security}
         except ImportError:
@@ -274,7 +274,7 @@ async def _section_technical(subject_id: str, chain: str) -> dict[str, Any]:
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
-_SECTION_HANDLERS = {
+_SECTION_HANDLERS: dict[str, Any] = {
     "risk": _section_risk,
     "holders": _section_holders,
     "transactions": _section_transactions,
@@ -335,7 +335,7 @@ async def generate_report(request: ReportRequest) -> dict[str, Any]:
     chain = _detect_chain(request.subject_id)
 
     # ── Fan-out: fetch all requested sections in parallel ──────────
-    section_futures: dict[str, asyncio.Task] = {}
+    section_futures: dict[str, asyncio.Task[Any]] = {}
     for section in request.sections:
         handler = _SECTION_HANDLERS.get(section)
         if handler is None:
@@ -350,12 +350,12 @@ async def generate_report(request: ReportRequest) -> dict[str, Any]:
             section_futures[section] = asyncio.create_task(handler(request.subject_id))
 
     sections: dict[str, Any] = {}
-    for section, fut in section_futures.items():
+    for section_name, fut in section_futures.items():
         try:
-            sections[section] = await fut
+            sections[section_name] = await fut
         except Exception as exc:
-            logger.warning("section_%s_failed: %s", section, exc)
-            sections[section] = {"error": "unavailable"}
+            logger.warning("section_%s_failed: %s", section_name, exc)
+            sections[section_name] = {"error": "unavailable"}
 
     # ── Compose response ───────────────────────────────────────────
     import datetime

@@ -148,7 +148,7 @@ async def _fetch_market_overview() -> dict:
     result.update(overview or {})
 
     # Derive market health
-    fg_val = result.get("fear_greed", {}).get("value", 50) if result.get("fear_greed") else 50
+    fg_val = result.get("fear_greed", {}).get("value", 50) if result.get("fear_greed") else 50  # type: ignore[union-attr]  # PTB None-able fields
     if fg_val >= 75:
         result["market_health"] = "extreme_greed"
     elif fg_val >= 60:
@@ -196,7 +196,7 @@ async def cmd_sentiment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier == "free" and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f4c8 <b>Market Sentiment</b>\n\n"
             "This feature requires <b>Scout tier</b> or higher.\n\n"
             "\U0001f50d <b>Scout ($29.99/mo)</b> — Unlock market intelligence",
@@ -208,12 +208,12 @@ async def cmd_sentiment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
             )
             return
 
-    msg = await update.message.reply_text("\U0001f4c8 <b>Analyzing market sentiment...</b>", parse_mode=ParseMode.HTML)
+    msg = await update.message.reply_text("\U0001f4c8 <b>Analyzing market sentiment...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
     try:
         overview = await _fetch_market_overview()

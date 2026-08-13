@@ -55,7 +55,7 @@ _BLOCKED_IP_NETS = (
 
 def _is_blocked_address(addr: ipaddress._BaseAddress) -> bool:
     """True when addr is internal/private/link-local/loopback/multicast/unspecified."""
-    if addr.is_multicast or addr.is_unspecified:
+    if addr.is_multicast or addr.is_unspecified:  # type: ignore[attr-defined]  # PTB None-able fields
         return True
     return any(addr in net for net in _BLOCKED_IP_NETS)
 
@@ -157,7 +157,7 @@ async def cmd_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     tier = db.get_user_tier(user.id)
     if tier != "pro" and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔗 <b>Custom Webhooks</b>\n\n"
             "Webhooks let you receive real-time data pushes to your own server.\n\n"
             "• Token price changes\n"
@@ -185,7 +185,7 @@ async def cmd_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     elif action == "events":
         await _list_events(update, user.id)
     else:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔗 <b>Webhook Management</b>\n\n"
             "Usage: /webhook <code>add</code> <url> [event_type]\n"
             "       /webhook <code>list</code>\n"
@@ -215,7 +215,7 @@ async def _list_events(update: Update, _user_id: int) -> None:
         emoji = WEBHOOK_EVENT_EMOJIS.get(evt, "🔗")
         text += f"  {emoji} <code>{evt}</code>\n     {desc}\n\n"
     text += footer_links()
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb())
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=back_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def _list_webhooks(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
@@ -228,7 +228,7 @@ async def _list_webhooks(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id
     conn.close()
 
     if not rows:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔗 <b>Your Webhooks</b>\n\n"
             "No webhooks configured yet.\n\n"
             "Add one:\n"
@@ -256,7 +256,7 @@ async def _list_webhooks(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id
     text += "Add new: /webhook add <code>url</code> [event]\nRemove: /webhook remove <code>id</code>"
     text += footer_links()
 
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text,
         parse_mode=ParseMode.HTML,
         reply_markup=back_kb(),
@@ -267,7 +267,7 @@ async def _list_webhooks(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id
 async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
     """Register a new webhook URL."""
     if len(ctx.args) < 2:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Usage: /webhook add <code>url</code> [event_type]\n\n"
             "Example: /webhook add https://mybot.com/hook price_change",
             parse_mode=ParseMode.HTML,
@@ -280,7 +280,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     # Validate URL (format + SSRF guard: must resolve to a public address)
     ok, err = _validate_webhook_url(url)
     if not ok:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"❌ {err}",
             parse_mode=ParseMode.HTML,
         )
@@ -288,7 +288,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     try:
         _assert_safe_target(url)
     except ValueError as e:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"❌ {e}",
             parse_mode=ParseMode.HTML,
         )
@@ -296,7 +296,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
 
     # Validate event type
     if event_type and event_type not in WEBHOOK_EVENTS:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"❌ Invalid event type: <code>{event_type}</code>\n\n"
             f"Available: {', '.join(WEBHOOK_EVENTS.keys())}\n"
             f"See /webhook events for details.",
@@ -312,7 +312,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     ).fetchone()["c"]
     if count >= 10:
         conn.close()
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Maximum 10 active webhooks. Remove one first:\n  /webhook remove <code>id</code>",
             parse_mode=ParseMode.HTML,
         )
@@ -348,11 +348,11 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
             (user_id, url, event_type or "all", backend_id, int(time.time())),
         )
         conn.commit()
-        wh_id = conn.lastrowid
+        wh_id = conn.lastrowid  # type: ignore[attr-defined]  # PTB None-able fields
         conn.close()
 
         event_label = WEBHOOK_EVENTS.get(event_type, "All events") if event_type else "All events"
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"✅ <b>Webhook Registered!</b>\n\n"
             f"ID: <b>#{wh_id}</b>\n"
             f"URL: <code>{url[:80]}</code>\n"
@@ -366,7 +366,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     except httpx.HTTPError as e:
         conn.close()
         logger.warning(f"webhook backend registration failed: {e}")
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"✅ <b>Webhook Saved Locally</b>\n\n"
             f"URL: <code>{url[:80]}</code>\n"
             f"Event: {event_type or 'all'}\n\n"
@@ -377,7 +377,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     except (ValueError, KeyError, TypeError) as e:
         logger.debug("webhook_add_error", exc_info=True)
         logger.error(f"webhook add error: {e}")
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Failed to register webhook. Please try again.",
             parse_mode=ParseMode.HTML,
         )
@@ -386,7 +386,7 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
 async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
     """Remove a webhook by ID."""
     if len(ctx.args) < 2 or not ctx.args[1].isdigit():
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Usage: /webhook remove <code>id</code>\nFind IDs with: /webhook list",
             parse_mode=ParseMode.HTML,
         )
@@ -402,7 +402,7 @@ async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_i
 
     if not row:
         conn.close()
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Webhook not found. Use /webhook list to see your webhooks.",
             parse_mode=ParseMode.HTML,
         )
@@ -425,7 +425,7 @@ async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_i
     conn.commit()
     conn.close()
 
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"✅ <b>Webhook #{wh_id} removed.</b>\n\nYou will no longer receive events at this URL.",
         parse_mode=ParseMode.HTML,
     )
@@ -442,7 +442,7 @@ async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id:
         ).fetchone()
         conn.close()
         if not row:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "❌ Webhook not found. Use /webhook list.",
                 parse_mode=ParseMode.HTML,
             )
@@ -459,14 +459,14 @@ async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id:
         ).fetchone()
         conn.close()
         if not row:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "❌ No active webhooks. Add one first:\n  /webhook add <code>url</code>",
                 parse_mode=ParseMode.HTML,
             )
             return
         url = row["url"]
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"📡 <b>Sending test ping...</b>\n<code>{url[:80]}</code>",
         parse_mode=ParseMode.HTML,
     )

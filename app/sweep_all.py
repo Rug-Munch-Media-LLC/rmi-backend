@@ -49,7 +49,7 @@ logger.info("Time:", datetime.now(UTC).isoformat())
 logger.info("Mode:", "DRY RUN" if args.dry_run else "LIVE")
 logger.info("Chain filter:", args.chain or "ALL")
 logger.info("Threshold: ${:.2f}{}".format(args.min, " (BYPASSED)" if args.force else ""))
-logger.info()
+logger.info("")
 
 # ── Find all x402-enabled wallets ──
 x402_wallets = []
@@ -93,7 +93,7 @@ for w in x402_wallets:
     sweepable.append(w)
 
 logger.info("Sweepable wallets: %d" % len(sweepable))
-logger.info()
+logger.info("")
 
 if not sweepable:
     logger.info("Nothing to sweep.")
@@ -106,7 +106,7 @@ for w in sweepable:
     logger.info("  %-6s %s...  \033[33m$%.2f\033[0m" % (w.chain, w.address[:24], balance))
     total += balance
 
-logger.info()
+logger.info("")
 logger.info(f"Total sweepable: \033[33m${total:.2f}\033[0m")
 
 if args.dry_run:
@@ -124,7 +124,7 @@ if confirm != "YES":
 
 # ── Execute ──
 logger.info("\nBroadcasting transactions...")
-results = {"swept": [], "errors": [], "total_usd": 0.0}
+results: dict[str, Any] = {"swept": [], "errors": [], "total_usd": 0.0}
 
 for w in sweepable:
     try:
@@ -152,7 +152,7 @@ for w in sweepable:
             if not w3.is_connected():
                 raise RuntimeError("RPC connection failed")
 
-            balance_wei = w3.eth.get_balance(w.address)
+            balance_wei = w3.eth.get_balance(w.address)  # type: ignore[arg-type]  # web3 accepts plain str address
             if balance_wei == 0:
                 raise RuntimeError("On-chain balance is 0")
 
@@ -161,7 +161,7 @@ for w in sweepable:
                 raise RuntimeError("Balance too low for gas")
 
             sweep_wei = balance_wei - gas_reserve
-            nonce = w3.eth.get_transaction_count(w.address)
+            nonce = w3.eth.get_transaction_count(w.address)  # type: ignore[arg-type]  # web3 accepts plain str address
 
             tx = {
                 "nonce": nonce,
@@ -228,7 +228,7 @@ for w in sweepable:
                     )
                     tx = Transaction().add(ix)
                     tx.sign(keypair)
-                    result_tx = await client.send_transaction(tx, keypair)
+                    result_tx = await client.send_transaction(tx, keypair)  # type: ignore[arg-type]  # solders Keypair accepted at runtime
                     return str(result_tx.value), sweep
 
             import asyncio
@@ -254,7 +254,7 @@ for w in sweepable:
         logger.info("  \033[31mERR\033[0m %-6s %s: %s" % (w.chain, w.address[:12], str(e)[:80]))
 
 # ── Summary ──
-logger.info()
+logger.info("")
 logger.info("=" * 60)
 logger.info("SWEEP COMPLETE")
 logger.info("  Swept:  %d transactions" % len(results["swept"]))

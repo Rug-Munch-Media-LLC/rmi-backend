@@ -98,7 +98,7 @@ async def _get_in(table: str, field: str, values: list[Any], select: str = "*") 
         return r.json() if r.status_code == 200 else []
 
 
-async def _post(table: str, data: dict[str, Any]) -> dict[str, Any]:
+async def _post(table: str, data: dict[str, Any]) -> dict[str, Any] | None:
     """Insert a row."""
     url = f"{_url(table)}"
     headers = dict(_get_headers())
@@ -130,7 +130,7 @@ async def _delete(table: str, match: dict[str, Any]) -> bool:
         return r.status_code in (200, 204)
 
 
-async def _rpc(fn: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+async def _rpc(fn: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Call a stored procedure."""
     url = f"{_get_url()}/rest/v1/rpc/{fn}"
     headers = dict(_get_headers())
@@ -182,8 +182,8 @@ async def create_alert(
     tx_hash: str | None = None,
     user_id: str | None = None,
     metadata: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    data = {
+) -> dict[str, Any] | None:
+    data: dict[str, Any] = {
         "title": title,
         "description": description,
         "severity": severity,
@@ -238,7 +238,7 @@ async def get_wallets(
         return r.json() if r.status_code == 200 else []
 
 
-async def get_wallet(address: str, chain: str = "ethereum") -> dict[str, Any]:
+async def get_wallet(address: str, chain: str = "ethereum") -> dict[str, Any] | None:
     url = f"{_url('wallets')}?select=*&address=eq.{address}&chain=eq.{chain}&limit=1"
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.get(url, headers=_get_headers())
@@ -246,7 +246,7 @@ async def get_wallet(address: str, chain: str = "ethereum") -> dict[str, Any]:
         return data[0] if data else None
 
 
-async def upsert_wallet(address: str, chain: str, **fields) -> dict[str, Any]:
+async def upsert_wallet(address: str, chain: str, **fields) -> dict[str, Any] | None:
     data = {"address": address, "chain": chain, **fields}
     url = f"{_url('wallets')}"
     headers = dict(_get_headers())
@@ -317,7 +317,7 @@ async def add_to_watchlist(
     chain: str = "ethereum",
     tags: list[Any] | None = None,
     item_type: str = "wallet",
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """Add an address to a user's watchlist. item_type: 'token' or 'wallet'."""
     return await _post(
         "watchlist",
@@ -354,12 +354,12 @@ async def get_tokens(chain: str | None = None, limit: int = 50, order_by: str = 
     return await _get("tokens", params, order=order_by, limit=limit)
 
 
-async def get_token(address: str, chain: str = "ethereum") -> dict[str, Any]:
+async def get_token(address: str, chain: str = "ethereum") -> dict[str, Any] | None:
     data = await _get("tokens", {"address": address, "chain": chain}, limit=1)
     return data[0] if data else None
 
 
-async def upsert_token(address: str, chain: str, **fields) -> dict[str, Any]:
+async def upsert_token(address: str, chain: str, **fields) -> dict[str, Any] | None:
     data = {
         "address": address,
         "chain": chain,
@@ -395,8 +395,8 @@ async def create_bulletin_post(
     tags: list[Any] | None = None,
     risk_score: int | None = None,
     source: str | None = None,
-) -> dict[str, Any]:
-    data = {
+) -> dict[str, Any] | None:
+    data: dict[str, Any] = {
         "title": title,
         "content": content,
         "author_id": author_id,
@@ -456,7 +456,7 @@ async def get_user_badges(user_id: str) -> list[Any]:
     return result
 
 
-async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> dict[str, Any]:
+async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> dict[str, Any] | None:
     return await _post(
         "user_badges",
         {
@@ -473,7 +473,7 @@ async def award_badge(user_id: str, badge_id: str, earned_via: str = "auto") -> 
 # ═════════════════════════════════════════════════════════
 
 
-async def get_profile(user_id: str) -> dict[str, Any]:
+async def get_profile(user_id: str) -> dict[str, Any] | None:
     data = await _get("profiles", {"id": user_id}, limit=1)
     return data[0] if data else None
 
@@ -487,12 +487,12 @@ async def update_profile(user_id: str, **fields) -> bool:
 # ═════════════════════════════════════════════════════════
 
 
-async def get_contract_analysis(address: str, chain: str = "ethereum") -> dict[str, Any]:
+async def get_contract_analysis(address: str, chain: str = "ethereum") -> dict[str, Any] | None:
     data = await _get("contract_analyses", {"address": address, "chain": chain}, limit=1)
     return data[0] if data else None
 
 
-async def upsert_contract_analysis(address: str, chain: str, **fields) -> dict[str, Any]:
+async def upsert_contract_analysis(address: str, chain: str, **fields) -> dict[str, Any] | None:
     data = {
         "address": address,
         "chain": chain,
@@ -548,7 +548,7 @@ async def get_market_data(data_type: str | None = None, limit: int = 10) -> list
     return await _get("market_data", params, order="fetched_at.desc", limit=limit)
 
 
-async def store_market_data(source: str, data_type: str, data: dict[str, Any]) -> dict[str, Any]:
+async def store_market_data(source: str, data_type: str, data: dict[str, Any]) -> dict[str, Any] | None:
     return await _post(
         "market_data",
         {
@@ -565,7 +565,7 @@ async def store_market_data(source: str, data_type: str, data: dict[str, Any]) -
 # ═════════════════════════════════════════════════════════
 
 
-async def get_subscription(user_id: str) -> dict[str, Any]:
+async def get_subscription(user_id: str) -> dict[str, Any] | None:
     data = await _get("subscriptions", {"user_id": user_id}, limit=1)
     return data[0] if data else None
 
@@ -581,7 +581,7 @@ async def track_event(
     event_data: dict[str, Any] | None = None,
     page: str | None = None,
     session_id: str | None = None,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     return await _post(
         "analytics_events",
         {
@@ -625,7 +625,7 @@ async def record_x402_payment_supabase(
     payer: str = "unknown",
     tx_hash: str = "",
     status: str = "fulfilled",
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """Insert a payment record into x402_payments table."""
     return await _post(
         "x402_payments",
@@ -661,7 +661,7 @@ async def get_x402_payments(
     return await _get("x402_payments", params, order="created_at.desc", limit=limit)
 
 
-async def get_x402_payment_by_tx(tx_hash: str) -> dict[str, Any]:
+async def get_x402_payment_by_tx(tx_hash: str) -> dict[str, Any] | None:
     """Get a specific payment by tx_hash."""
     data = await _get("x402_payments", {"tx_hash": tx_hash}, limit=1)
     return data[0] if data else None

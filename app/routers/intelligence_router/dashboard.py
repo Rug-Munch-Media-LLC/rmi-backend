@@ -53,8 +53,8 @@ async def intelligence_dashboard() -> dict[str, Any]:
 
     # ── Global data from CoinGecko ───────────────────────────
     global_data = await _cg("/global", ttl=120)
-    total_mcap = 0
-    total_vol = 0
+    total_mcap = 0.0
+    total_vol = 0.0
     active_coins = 0
     markets = 0
     mcap_pct: dict[str, float] = {}
@@ -93,12 +93,12 @@ async def intelligence_dashboard() -> dict[str, Any]:
         },
         ttl=60,
     )
-    btc_price = 0
-    btc_change = 0
-    eth_price = 0
-    eth_change = 0
-    sol_price = 0
-    sol_change = 0
+    btc_price = 0.0
+    btc_change = 0.0
+    eth_price = 0.0
+    eth_change = 0.0
+    sol_price = 0.0
+    sol_change = 0.0
     if price_data:
         btc_price = float(price_data.get("bitcoin", {}).get("usd", 0))
         btc_change = float(price_data.get("bitcoin", {}).get("usd_24h_change", 0))
@@ -109,7 +109,7 @@ async def intelligence_dashboard() -> dict[str, Any]:
 
     # ── DeFi from CoinGecko ──────────────────────────────────
     defi_data = await _cg("/global/defi", ttl=120)
-    defi_tvl = 0
+    defi_tvl = 0.0
     defi_protocols: list[dict[str, Any]] = []
     if defi_data and "data" in defi_data:
         dd = defi_data["data"]

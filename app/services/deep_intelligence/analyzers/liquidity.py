@@ -18,7 +18,7 @@ async def liquidity_lock_authenticity(token_address: str, chain: str = "sol") ->
     Not just "is it locked?" but meaningful analysis of the lock.
     Duration vs project claims, partial unlocks, LP ratio health.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "is_locked": None,

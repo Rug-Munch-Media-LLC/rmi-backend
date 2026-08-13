@@ -33,7 +33,9 @@ class TokenRiskScorer:
             return {"risk_score": 100, "risk_flags": [], "reason": "Native token"}
         if self._scanner_available:
             try:
-                from app.unified_scanner import scan_token as _scan_token
+                from app.unified_scanner import (
+                    scan_token as _scan_token,  # type: ignore[attr-defined]  # PTB None-able fields
+                )
 
                 result = await _scan_token(chain, address)
                 if result:

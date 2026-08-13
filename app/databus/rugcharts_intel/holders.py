@@ -37,7 +37,7 @@ async def holder_health_score(address: str = "", chain: str = "solana", **kw) ->
         logger.warning("error")
 
     api_key = kw.get("api_key", "") or HELIUS_KEY
-    health = {
+    health: dict[str, Any] = {
         "total_holders": 0,
         "gini_coefficient": 0.0,
         "top10_concentration": 0.0,

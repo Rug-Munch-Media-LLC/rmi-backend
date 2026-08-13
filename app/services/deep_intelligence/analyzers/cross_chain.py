@@ -18,7 +18,7 @@ async def cross_chain_identity(address: str, chain: str = "sol") -> dict[str, An
     Same entity, multiple chains. Detect deployer patterns, funding correlation,
     simultaneous launches, shared wallet infrastructure.
     """
-    result = {
+    result: dict[str, Any] = {
         "address": address,
         "source_chain": chain,
         "cross_chain_profiles": [],

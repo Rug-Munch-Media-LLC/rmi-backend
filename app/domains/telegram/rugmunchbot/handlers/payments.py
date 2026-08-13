@@ -34,31 +34,31 @@ _SEP = "\u2501" * 28
 
 async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.pre_checkout_query
-    payload = query.invoice_payload
+    payload = query.invoice_payload  # type: ignore[union-attr]  # PTB None-able fields
     valid_prefixes = ("buystars_", "topup_", "sub_", "deep_")
     if any(payload.startswith(p) for p in valid_prefixes):
-        await query.answer(ok=True)
+        await query.answer(ok=True)  # type: ignore[union-attr]  # PTB None-able fields
     else:
         logger.warning("Unknown invoice payload: %s", payload)
-        await query.answer(ok=False, error_message="Invalid invoice.")
+        await query.answer(ok=False, error_message="Invalid invoice.")  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    payment = update.message.successful_payment
+    payment = update.message.successful_payment  # type: ignore[union-attr]  # PTB None-able fields
     user = update.effective_user
     if user is None:
         return
     db.get_or_create_user(user.id, user.username, user.first_name)
-    payload = payment.invoice_payload
-    charge_id = payment.telegram_payment_charge_id
-    total = payment.total_amount
+    payload = payment.invoice_payload  # type: ignore[union-attr]  # PTB None-able fields
+    charge_id = payment.telegram_payment_charge_id  # type: ignore[union-attr]  # PTB None-able fields
+    total = payment.total_amount  # type: ignore[union-attr]  # PTB None-able fields
 
     if payload.startswith("buystars_"):
         pack_key = payload[9:]
         pack = BUY_STARS_PACKS.get(pack_key)
         stars_to_add = pack["stars"] if pack else total
         db.add_stars(user.id, stars_to_add, "purchase", charge_id)
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"\u2705 <b>Stars Purchased!</b>\n\n"
             f"\u2b50 +{stars_to_add:,} Stars added to your balance.\n"
             f"Use /topup to spend them on scans and subscriptions!",
@@ -87,7 +87,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
             )
             conn.commit()
             conn.close()
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 f"\u2705 <b>Purchase Successful!</b>\n\n"
                 f"+{pack['amount']} bonus {pack['type'].replace('_', ' ')}\n"
                 f"Cost: \u2b50{pack['stars']}\n\n"
@@ -95,7 +95,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                 parse_mode="HTML",
             )
         else:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "\u2705 Payment received but pack not found. Contact support.",
                 parse_mode="HTML",
             )
@@ -106,7 +106,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
         if tier and tier_key != "free":
             db.activate_tier(user.id, tier_key, 30)
             tc = TIERS[tier_key]
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 f"\U0001f389 <b>Welcome to {tc['emoji']} {tc['name']}!</b>\n\n"
                 f"Your {tc['name']} tier is now active for 30 days.\n"
                 f"\u00b7 {tc['scans_per_week']} scans/week\n"
@@ -116,7 +116,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                 parse_mode="HTML",
             )
         else:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "\u2705 Payment received but tier not found. Contact support.",
                 parse_mode="HTML",
             )
@@ -125,7 +125,7 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
         token = payload[5:]
         pending = _pending_deep_scans.pop(token, None)
         if pending and pending["user_id"] == user.id:
-            msg = await update.message.reply_text(
+            msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 f"\U0001f52c <b>Deep Scan Started</b>\n\n"
                 f"Running enhanced analysis on <code>{pending['address']}</code>...",
                 parse_mode="HTML",
@@ -155,14 +155,14 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
                     parse_mode="HTML",
                 )
         else:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "\u2705 Payment received but the scan request expired. Please run /scan again.",
                 parse_mode="HTML",
             )
 
     else:
         db.add_stars(user.id, total, "payment", charge_id)
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"\u2705 <b>Payment Received!</b>\n\n"
             f"\u2b50 {total} Stars added to your balance.\n"
             f"Use /topup to spend them.",

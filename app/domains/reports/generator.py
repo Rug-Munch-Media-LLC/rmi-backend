@@ -416,8 +416,8 @@ async def generate_wallet_report(catalog, chain: str, address: str, model: str =
         },
         "onchain": {
             "subject_id": f"{chain}:{address}",
-            "data": f"tx_count={data.get('wallet').tx_count if data.get('wallet') else '?'}, "
-            f"is_known_exchange={data.get('wallet').is_known_exchange if data.get('wallet') else '?'}",
+            "data": f"tx_count={data.get('wallet').tx_count if data.get('wallet') else '?'}, "  # type: ignore[union-attr]  # PTB None-able fields
+            f"is_known_exchange={data.get('wallet').is_known_exchange if data.get('wallet') else '?'}",  # type: ignore[union-attr]  # PTB None-able fields
         },
         "deployer": {
             "deployer": "n/a (wallet report)",

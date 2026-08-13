@@ -97,7 +97,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     db.get_or_create_user(user.id, user.username, user.first_name)
 
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🕵️ <b>Deep Investigation</b>\n\n"
             "Usage: /investigate <code>address</code>\n\n"
             "Runs a comprehensive investigation combining:\n"
@@ -114,7 +114,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
     tier = db.get_user_tier(user.id)
     if tier != "pro" and not is_owner(user.id):
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🕵️ <b>Deep Investigation</b>\n\n"
             "This feature requires <b>Pro tier</b>.\n\n"
             "👑 <b>Pro ($99.99/mo)</b> — Unlimited investigations + priority\n\n"
@@ -127,7 +127,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     if not is_owner(user.id):
         allowed, _, _ = db.check_rate_limit(user.id, "scan")
         if not allowed:
-            await update.message.reply_text(
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 paywall_text(user.id, "scan"), parse_mode=ParseMode.HTML, reply_markup=paywall_kb()
             )
             return
@@ -135,7 +135,7 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     address = ctx.args[0]
     chain = ctx.args[1].lower() if len(ctx.args) > 1 else detect_chain(address)
 
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"🕵️ <b>Deep Investigation Started</b>\n"
         f"<code>{address}</code>\n\n"
         f"⏳ Phase 1: Running security scan...\n"

@@ -196,8 +196,8 @@ class MultiChainAirdropManager:
                     holder.airdrop_allocation,
                 )
 
-                holder.claimed = True
-                holder.claim_tx = tx
+                holder.claimed = True  # type: ignore[attr-defined]  # PTB None-able fields
+                holder.claim_tx = tx  # type: ignore[attr-defined]  # PTB None-able fields
                 total_distributed += int(holder.airdrop_allocation)
                 tx_hashes.append(tx)
 

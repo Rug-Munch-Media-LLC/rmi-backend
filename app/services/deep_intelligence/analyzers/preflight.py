@@ -18,7 +18,7 @@ async def preflight_simulate(
     """
     Simulate a buy AND sell to show real costs, slippage, taxes, and net P&L.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "wallet": wallet_address,
         "chain": chain,

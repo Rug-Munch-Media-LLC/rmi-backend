@@ -53,20 +53,24 @@ class LocalMCPClient:
                 capture_output=True,
                 text=True,
                 timeout=30,
-            shell=False)
+                shell=False,
+            )
             if r.returncode != 0:
                 raise RuntimeError(f"Clone failed: {r.stderr[:200]}")
 
         # Detect package manager and install deps
         if (server_dir / "package.json").exists():
-            subprocess.run(["npm", "install", "--production"], cwd=server_dir, capture_output=True, timeout=60, shell=False)
+            subprocess.run(
+                ["npm", "install", "--production"], cwd=server_dir, capture_output=True, timeout=60, shell=False
+            )
         elif (server_dir / "requirements.txt").exists():
             subprocess.run(
                 ["pip", "install", "-r", "requirements.txt"],
                 cwd=server_dir,
                 capture_output=True,
                 timeout=60,
-            shell=False)
+                shell=False,
+            )
 
         # Discover tools via MCP stdio handshake
         tools = await self._discover_tools(name, server_dir)
@@ -90,6 +94,8 @@ class LocalMCPClient:
                 stderr=asyncio.subprocess.PIPE,
                 cwd=server_dir,
             )
+            if proc.stdin is None or proc.stdout is None:
+                raise RuntimeError(f"MCP {name}: stdio pipes unavailable")
 
             # MCP initialize
             init_msg = (
@@ -116,11 +122,13 @@ class LocalMCPClient:
             json.loads(line.decode())
 
             # Send initialized notification
-            proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + b"\n")
+            proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}).encode() + b"\n")
             await proc.stdin.drain()
 
             # List tools
-            proc.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}) + b"\n")
+            proc.stdin.write(
+                json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}).encode() + b"\n"
+            )
             await proc.stdin.drain()
             line = await asyncio.wait_for(proc.stdout.readline(), timeout=10)
             tools_resp = json.loads(line.decode())
@@ -293,7 +301,9 @@ async def install_curated_mcps() -> dict[str, Any]:
     return results
 
 
-async def call_expanded_tool(service: str, tool_name: str, args: dict[str, Any] | None = None, ttl: int = 60) -> dict[str, Any] | None:
+async def call_expanded_tool(
+    service: str, tool_name: str, args: dict[str, Any] | None = None, ttl: int = 60
+) -> dict[str, Any] | None:
     """Call a tool from a curated MCP service."""
     args = args or {}
     client = get_local_mcp()

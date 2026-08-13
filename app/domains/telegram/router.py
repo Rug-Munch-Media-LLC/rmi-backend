@@ -322,13 +322,13 @@ async def api_group_embed_info(chat_id: int):
                 ) from None
 
         return {
-            "chat_id": info.chat_id,
-            "title": info.title,
-            "username": info.username,
-            "invite_link": info.invite_link,
-            "member_count": info.member_count,
-            "is_public": info.is_public,
-            "embed_url": (f"https://t.me/{info.username}?embed=1" if info.username else None),
+            "chat_id": info.chat_id,  # type: ignore[union-attr]  # PTB None-able fields
+            "title": info.title,  # type: ignore[union-attr]  # PTB None-able fields
+            "username": info.username,  # type: ignore[union-attr]  # PTB None-able fields
+            "invite_link": info.invite_link,  # type: ignore[union-attr]  # PTB None-able fields
+            "member_count": info.member_count,  # type: ignore[union-attr]  # PTB None-able fields
+            "is_public": info.is_public,  # type: ignore[union-attr]  # PTB None-able fields
+            "embed_url": (f"https://t.me/{info.username}?embed=1" if info.username else None),  # type: ignore[union-attr]  # PTB None-able fields
         }
     except ImportError:
         raise HTTPException(

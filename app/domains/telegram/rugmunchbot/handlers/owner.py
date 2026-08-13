@@ -76,7 +76,7 @@ def _usage_line(uid: int) -> str:
 
 async def cmd_admin(update: Update, ctx) -> None:
     """/admin — admin dashboard with stats and quick actions."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
@@ -98,12 +98,12 @@ async def cmd_admin(update: Update, ctx) -> None:
         f"\U0001f4ac Chat: <b>{db.get_bot_state('chat_enabled', 'on')}</b>\n\n"
         f"<i>Use /admin_stats for full details. Actions are logged.</i>"
     )
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=admin_kb())
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=admin_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_admin_stats(update: Update, ctx) -> None:
     """/admin_stats — users count, active today, messages today, RAG queries, AI tokens."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
@@ -125,7 +125,7 @@ async def cmd_admin_stats(update: Update, ctx) -> None:
     active_today = db.count_active_today()
     ds = db.get_daily_stats()
     tier_str = "\n".join(f"  {t['tier']}: {t['c']}" for t in tiers)
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f4ca <b>Bot Stats</b>\n{thin_sep()}\n"
         f"\U0001f465 Total Users: <b>{total}</b>\n"
         f"\U0001f4c8 Active Today: <b>{active_today}</b>\n"
@@ -146,12 +146,12 @@ async def cmd_admin_stats(update: Update, ctx) -> None:
 
 async def cmd_admin_broadcast(update: Update, ctx) -> None:
     """/admin_broadcast <message> — request confirmation, then broadcast."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
-        await update.message.reply_text("Usage: /admin_broadcast <message>")
+        await update.message.reply_text("Usage: /admin_broadcast <message>")  # type: ignore[union-attr]  # PTB None-able fields
         return
     msg_text = " ".join(ctx.args)
     conn = db.get_db()
@@ -159,7 +159,7 @@ async def cmd_admin_broadcast(update: Update, ctx) -> None:
     conn.close()
     _pending_broadcast[uid] = msg_text
     _log(uid, "admin_broadcast_pending", f"recipients={count} preview={msg_text[:80]}")
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f4e2 <b>Broadcast Preview</b>\n{thin_sep()}\n\n{msg_text}\n\nSend this to <b>{count}</b> active users?",
         parse_mode=ParseMode.HTML,
         reply_markup=admin_confirm_kb("broadcast"),
@@ -201,7 +201,7 @@ async def _do_broadcast(bot: Bot, msg_text: str, owner_uid: int | None = None) -
 
 async def cmd_admin_toggle(update: Update, ctx) -> None:
     """/admin_toggle [on|off] — globally enable/disable the bot (maintenance)."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
@@ -211,7 +211,7 @@ async def cmd_admin_toggle(update: Update, ctx) -> None:
         db.set_bot_state("bot_enabled", new_state)
         _log(uid, "admin_toggle_bot", f"{current}->{new_state}")
         icon = "\U0001f6e1\ufe0f" if new_state == "on" else "\U0001f534"
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"{icon} Bot is now <b>{'ENABLED' if new_state == 'on' else 'DISABLED (maintenance)'}</b>.\n\n"
             + (
                 "All non-owner users will see a maintenance notice."
@@ -221,7 +221,7 @@ async def cmd_admin_toggle(update: Update, ctx) -> None:
             parse_mode=ParseMode.HTML,
         )
         return
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f6e1\ufe0f Bot is currently <b>{current.upper()}</b>.\n\nUse /admin_toggle on|off, or pick an action:",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(
@@ -238,7 +238,7 @@ async def cmd_admin_toggle(update: Update, ctx) -> None:
 
 async def cmd_admin_toggle_chat(update: Update, ctx) -> None:
     """/admin_toggle_chat [on|off] — disable/enable AI chat (commands keep working)."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
@@ -248,13 +248,13 @@ async def cmd_admin_toggle_chat(update: Update, ctx) -> None:
         db.set_bot_state("chat_enabled", new_state)
         _log(uid, "admin_toggle_chat", f"{current}->{new_state}")
         icon = "\U0001f4ac" if new_state == "on" else "\U0001f4f5"
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             f"{icon} AI Chat is now <b>{'ENABLED' if new_state == 'on' else 'DISABLED'}</b>.\n\n"
             "Commands (/scan, /price, /trending ...) keep working either way.",
             parse_mode=ParseMode.HTML,
         )
         return
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f4ac AI Chat is currently <b>{current.upper()}</b>.\n\n"
         "Use /admin_toggle_chat on|off, or pick an action:",
         parse_mode=ParseMode.HTML,
@@ -272,21 +272,21 @@ async def cmd_admin_toggle_chat(update: Update, ctx) -> None:
 
 async def cmd_admin_user(update: Update, ctx) -> None:
     """/admin_user <user_id> — show user details, tier, usage."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
-        await update.message.reply_text("Usage: /admin_user <user_id>")
+        await update.message.reply_text("Usage: /admin_user <user_id>")  # type: ignore[union-attr]  # PTB None-able fields
         return
     try:
         target = int(ctx.args[0])
     except (ValueError, TypeError):
-        await update.message.reply_text("Invalid user_id. Use the numeric Telegram ID.")
+        await update.message.reply_text("Invalid user_id. Use the numeric Telegram ID.")  # type: ignore[union-attr]  # PTB None-able fields
         return
     user = db.get_user_by_id(target)
     if not user:
-        await update.message.reply_text(f"\u274c User <code>{target}</code> not found.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"\u274c User <code>{target}</code> not found.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
         return
     _log(uid, "admin_user_lookup", str(target))
     created = (
@@ -303,7 +303,7 @@ async def cmd_admin_user(update: Update, ctx) -> None:
     if user.get("tier_expires"):
         tier_exp = f" (exp {datetime.fromtimestamp(user['tier_expires'], tz=UTC).strftime('%Y-%m-%d')})"
     status_badge = "\U0001f6ab BANNED" if user.get("is_banned") else "\u2705 Active"
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f464 <b>User {target}</b>\n{thin_sep()}\n"
         f"Username: @{user.get('username') or '?'}\n"
         f"Name: {user.get('first_name') or '?'}\n"
@@ -330,88 +330,88 @@ async def cmd_admin_user(update: Update, ctx) -> None:
 
 async def cmd_admin_set_tier(update: Update, ctx) -> None:
     """/admin_set_tier <user_id> <tier> [days] — change user tier."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
     if len(ctx.args) < 2:
-        await update.message.reply_text("Usage: /admin_set_tier <user_id> <tier> [days]")
+        await update.message.reply_text("Usage: /admin_set_tier <user_id> <tier> [days]")  # type: ignore[union-attr]  # PTB None-able fields
         return
     try:
         target, tier = int(ctx.args[0]), ctx.args[1].lower()
     except (ValueError, TypeError):
-        await update.message.reply_text("Usage: /admin_set_tier <user_id> <tier> [days]")
+        await update.message.reply_text("Usage: /admin_set_tier <user_id> <tier> [days]")  # type: ignore[union-attr]  # PTB None-able fields
         return
     days = int(ctx.args[2]) if len(ctx.args) > 2 else 30
     if tier not in TIERS:
-        await update.message.reply_text(f"Invalid tier. Options: {', '.join(TIERS.keys())}")
+        await update.message.reply_text(f"Invalid tier. Options: {', '.join(TIERS.keys())}")  # type: ignore[union-attr]  # PTB None-able fields
         return
     if not db.get_user_by_id(target):
-        await update.message.reply_text(f"\u274c User <code>{target}</code> not found.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"\u274c User <code>{target}</code> not found.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
         return
     db.set_user_tier(target, tier, days)
     _log(uid, "admin_set_tier", f"user={target} tier={tier} days={days}")
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\u2705 Set user {target} to <b>{tier}</b> ({days} days)", parse_mode=ParseMode.HTML
     )
 
 
 async def cmd_admin_ban(update: Update, ctx) -> None:
     """/admin_ban <user_id> — ban user."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
-        await update.message.reply_text("Usage: /admin_ban <user_id>")
+        await update.message.reply_text("Usage: /admin_ban <user_id>")  # type: ignore[union-attr]  # PTB None-able fields
         return
     try:
         target = int(ctx.args[0])
     except (ValueError, TypeError):
-        await update.message.reply_text("Invalid user_id.")
+        await update.message.reply_text("Invalid user_id.")  # type: ignore[union-attr]  # PTB None-able fields
         return
     if target in (7075336557,):
-        await update.message.reply_text("\u274c Cannot ban the owner.")
+        await update.message.reply_text("\u274c Cannot ban the owner.")  # type: ignore[union-attr]  # PTB None-able fields
         return
     ok = db.set_banned(target, True)
     _log(uid, "admin_ban", str(target))
     if ok:
-        await update.message.reply_text(f"\U0001f6ab Banned user {target}.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"\U0001f6ab Banned user {target}.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     else:
-        await update.message.reply_text(f"\u274c User {target} not found.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"\u274c User {target} not found.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_admin_unban(update: Update, ctx) -> None:
     """/admin_unban <user_id> — unban user."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
     if not ctx.args:
-        await update.message.reply_text("Usage: /admin_unban <user_id>")
+        await update.message.reply_text("Usage: /admin_unban <user_id>")  # type: ignore[union-attr]  # PTB None-able fields
         return
     try:
         target = int(ctx.args[0])
     except (ValueError, TypeError):
-        await update.message.reply_text("Invalid user_id.")
+        await update.message.reply_text("Invalid user_id.")  # type: ignore[union-attr]  # PTB None-able fields
         return
     ok = db.set_banned(target, False)
     _log(uid, "admin_unban", str(target))
     if ok:
-        await update.message.reply_text(f"\u2705 Unbanned user {target}.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"\u2705 Unbanned user {target}.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     else:
-        await update.message.reply_text(f"\u274c User {target} not found.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(f"\u274c User {target} not found.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_admin_logs(update: Update, ctx) -> None:
     """/admin_logs — recent admin actions."""
-    uid = update.effective_user.id
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
     logs = db.get_admin_logs(limit=15)
     if not logs:
-        await update.message.reply_text("\U0001f4dd No admin actions logged yet.", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("\U0001f4dd No admin actions logged yet.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
         return
     lines = ["\U0001f4dd <b>Recent Admin Actions</b>", thin_sep()]
     for entry in logs:
@@ -420,7 +420,7 @@ async def cmd_admin_logs(update: Update, ctx) -> None:
         lines.append(f"\u2022 <code>{ts}</code> <b>{entry.get('action')}</b> {details[:60]}")
     lines.append(thin_sep())
     lines.append(f"<i>Total actions stored: {len(db.get_admin_logs(limit=10000))}</i>")
-    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=admin_kb())
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=admin_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
 # ── Callback helpers (used by handlers/callback.py) ──

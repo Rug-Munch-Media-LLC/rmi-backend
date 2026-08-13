@@ -36,7 +36,7 @@ async def instant_token_report(address: str = "", chain: str = "solana", **kw) -
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
 
-    report = {
+    report: dict[str, Any] = {
         "token": address,
         "chain": chain,
         "generated_at": datetime.now(UTC).isoformat(),

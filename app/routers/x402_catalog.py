@@ -356,12 +356,12 @@ def get_catalog() -> Any:
         for tool_id, pricing in TOOL_PRICES.items():
             desc = pricing.get("description", f"{tool_id} - crypto intelligence tool")
             category = pricing.get("category", "analysis")
-            chains = []
+            tool_chains = []
             # If it's a per-chain variant, show the specific chain
             base_tool = pricing.get("base_tool")
             chain = pricing.get("chain")
             if chain:
-                chains = [chain.upper()]
+                tool_chains = [chain.upper()]
 
             all_tools[tool_id] = {
                 "id": tool_id,
@@ -375,7 +375,7 @@ def get_catalog() -> Any:
                 "method": "POST",
                 "service": "rmi-native",
                 "source": "enforcement",
-                "chains": chains,
+                "chains": tool_chains,
                 "base_tool": base_tool,
                 "chain": chain,
             }
@@ -423,7 +423,7 @@ def get_catalog() -> Any:
     ]
     gateway_base = None
     for c in candidates:
-        if os.path.isdir(c):
+        if c and os.path.isdir(c):  # c can be None when X402_GATEWAY_DIR is unset (was a runtime TypeError)
             gateway_base = c
             break
 

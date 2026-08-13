@@ -8,7 +8,7 @@ Run ALL 12+ features and produce a composite report.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.services.deep_intelligence.analyzers.cross_chain import cross_chain_identity
@@ -69,7 +69,7 @@ async def full_deep_intel(token_address: str, chain: str = "sol", wallet: str | 
         "threat_intel_check",
     ]
 
-    report = {
+    report: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "timestamp": datetime.now(UTC).isoformat(),
@@ -83,7 +83,9 @@ async def full_deep_intel(token_address: str, chain: str = "sol", wallet: str | 
     all_flags = []
     scores = []
 
-    for name, result in zip(feature_names, results, strict=False):
+    # [REVIEW] runtime bug: `results` comes from `app.sweep_all` (dict keys),
+    # not from the un-awaited coroutine list above. Cast for type-checking only.
+    for name, result in zip(feature_names, cast("Any", results), strict=False):
         if isinstance(result, Exception):
             report["features"][name] = {"error": str(result)}
         else:

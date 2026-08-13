@@ -20,7 +20,7 @@ async def exit_liquidity_calculator(
     Can you actually sell? Depth-at-price analysis, sell cascade simulation,
     individual holder exit impact, liquidity concentration.
     """
-    result = {
+    result: dict[str, Any] = {
         "token": token_address,
         "chain": chain,
         "position_usd": position_usd,

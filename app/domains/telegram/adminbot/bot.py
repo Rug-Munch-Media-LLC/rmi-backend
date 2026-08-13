@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from typing import Any
 
 from telegram.ext import (
     Application,
@@ -87,7 +88,7 @@ logging.basicConfig(format="%(asctime)s [%(levelname)s] admin_bot: %(message)s",
 logger = logging.getLogger("admin_bot")
 
 # Background asyncio tasks started in _post_init (kept referenced to avoid GC).
-_listener_tasks: list[asyncio.Task] = []
+_listener_tasks: list[asyncio.Task[Any]] = []
 
 # ═══════════════════════════════════════════════════════════════════
 # ERROR HANDLER
@@ -107,7 +108,7 @@ async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 # ═══════════════════════════════════════════════════════════════════
 
 
-async def _post_init(app: Application) -> None:
+async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Start the Redis listener inside the application's event loop."""
     try:
         from app.domains.telegram.adminbot.redis_listener import start_redis_listener

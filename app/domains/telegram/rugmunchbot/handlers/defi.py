@@ -153,7 +153,7 @@ def _render_yield_text(pools: list[dict], *, stable_only: bool) -> str:
 async def cmd_yield(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /yield [stable] — top yield opportunities from DefiLlama."""
     stable_only = bool(ctx.args and ctx.args[0].lower() in ("stable", "stablecoin"))
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         "\U0001f4b0 <b>Fetching yield opportunities...</b>", parse_mode=ParseMode.HTML
     )
 
@@ -240,7 +240,7 @@ def _render_lpcheck_text(health: dict[str, Any]) -> str:
 async def cmd_lpcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /lpcheck <address> [chain] — LP health from the backend route."""
     if not ctx.args:
-        await update.message.reply_text(
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f6e1\ufe0f <b>LP Health Check</b>\n\n"
             "Usage: /lpcheck <code>address</code> [chain]\n\n"
             "Examples:\n"
@@ -253,7 +253,7 @@ async def cmd_lpcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     address = ctx.args[0].strip()
     chain = _resolve_chain(ctx.args[1] if len(ctx.args) > 1 else None, address)
-    msg = await update.message.reply_text(
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f6e1\ufe0f <b>Checking LP health...</b>\n<code>{address}</code>",
         parse_mode=ParseMode.HTML,
     )
@@ -343,7 +343,7 @@ def _rank_protocols(protocols: list[dict], limit: int = 8) -> list[dict]:
 
 async def cmd_defi(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /defi — DeFi overview from DefiLlama."""
-    msg = await update.message.reply_text("\U0001f3e6 <b>Fetching DeFi overview...</b>", parse_mode=ParseMode.HTML)
+    msg = await update.message.reply_text("\U0001f3e6 <b>Fetching DeFi overview...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
     chains, protocols = await asyncio.gather(
         _fetch_json(CHAINS_URL, cache_key="defi_chains"),

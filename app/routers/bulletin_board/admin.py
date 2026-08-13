@@ -56,7 +56,7 @@ async def admin_list_posts(
     summary="Admin Create Post",
     description="Create a new bulletin board post. Supports Markdown content, categories, tags, meta description, scheduled publishing, and pinning.",
 )
-async def admin_create_post(request: Request, body: CreatePostRequest) -> dict[str, bool]:
+async def admin_create_post(request: Request, body: CreatePostRequest) -> dict[str, Any]:
     """Create a new bulletin board post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -91,7 +91,6 @@ async def admin_create_post(request: Request, body: CreatePostRequest) -> dict[s
         allow_comments=body.allow_comments,
         meta_title=body.meta_title,
         meta_description=body.meta_description,
-        og_image=body.og_image,
     )
 
     await AuditLogger.log(
@@ -129,7 +128,7 @@ async def admin_update_post(
     request: Request,
     post_id: str,
     body: UpdatePostRequest,
-) -> dict[str, bool]:
+) -> dict[str, Any]:
     """Update a post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -175,7 +174,7 @@ async def admin_update_post(
     summary="Admin Delete Post",
     description="Soft-delete (archive) a post. Archived posts are hidden from public views but retained in the database for recovery.",
 )
-async def admin_delete_post(request: Request, post_id: str) -> dict[str, bool]:
+async def admin_delete_post(request: Request, post_id: str) -> dict[str, Any]:
     """Delete (archive) a post."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -205,7 +204,7 @@ async def admin_delete_post(request: Request, post_id: str) -> dict[str, bool]:
     summary="Admin Publish Post",
     description="Immediately publish a draft or scheduled post. Sets the published_at timestamp and makes it visible to the public.",
 )
-async def admin_publish_post(request: Request, post_id: str) -> dict[str, bool]:
+async def admin_publish_post(request: Request, post_id: str) -> dict[str, Any]:
     """Publish a post immediately."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -334,7 +333,7 @@ async def admin_scheduled_posts(request: Request) -> dict[str, Any]:
 
 
 @router.post("/admin/bulletin/process-scheduled")
-async def admin_process_scheduled(request: Request) -> dict[str, bool]:
+async def admin_process_scheduled(request: Request) -> dict[str, Any]:
     """Process scheduled posts (publish ones that are due)."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]
@@ -356,7 +355,7 @@ async def admin_process_scheduled(request: Request) -> dict[str, bool]:
 
 
 @router.post("/admin/bulletin/process-expired")
-async def admin_process_expired(request: Request) -> dict[str, bool]:
+async def admin_process_expired(request: Request) -> dict[str, Any]:
     """Process expired posts (archive ones past expiry)."""
     auth = await require_admin(request, "content.write")
     admin = auth["admin"]

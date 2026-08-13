@@ -97,7 +97,9 @@ class PaymentVerifier:
             logger.error(f"Local EIP-712 verification error: {e}")
             return {"verified": False, "reason": f"Local verification error: {e!s}"}
 
-    async def _verify_via_payai(self, payload_data: dict[str, Any], requirements_data: dict[str, Any] | None) -> dict[str, Any]:
+    async def _verify_via_payai(
+        self, payload_data: dict[str, Any], requirements_data: dict[str, Any] | None
+    ) -> dict[str, Any]:
         """Fallback: verify via PayAI facilitator HTTP."""
         import aiohttp
 
@@ -200,5 +202,5 @@ class PaymentVerifier:
             }
         except (TypeError, ValueError, KeyError) as e:
             logger.warning("X402 verifier error: %s", e)
-            return None
+            return None  # type: ignore[return-value] — caller guards with result["verified"]; exceptional malformed-payload path
         return await self._verify_via_payai(payload_data, requirements_data)

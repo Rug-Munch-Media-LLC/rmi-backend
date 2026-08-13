@@ -36,8 +36,8 @@ from app.domains.telegram.adminbot.helpers import (
 
 try:
     from app.domains.telegram.adminbot import (
-        admin_audit,  # type: ignore[import-untyped]
-        admin_bot,  # type: ignore[import-untyped]
+        admin_audit,
+        admin_bot,
     )
 except ImportError:  # pragma: no cover
     admin_audit = None
@@ -50,7 +50,7 @@ logger = logging.getLogger("admin_bot")
 
 # ── Optional modules ───────────────────────────────────────────────
 try:
-    from app.domains.telegram.adminbot import admin_ai  # type: ignore[import-untyped]
+    from app.domains.telegram.adminbot import admin_ai
 except ImportError:
     admin_ai = None
 

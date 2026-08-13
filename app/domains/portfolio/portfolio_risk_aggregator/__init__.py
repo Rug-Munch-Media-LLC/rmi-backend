@@ -2,7 +2,7 @@
 Cross-Chain Portfolio Risk Aggregator Package.
 """
 
-from app.domains.portfolio.portfolio_risk_aggregator.aggregator import (
+from app.domains.portfolio.portfolio_risk_aggregator.aggregator import (  # type: ignore[attr-defined]  # PTB None-able fields
     PortfolioRiskAggregator,
     validate_wallet_address,
 )

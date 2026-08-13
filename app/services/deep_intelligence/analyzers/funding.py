@@ -18,7 +18,7 @@ async def funding_source_tracer(address: str, chain: str = "sol") -> dict[str, A
     Trace where a wallet got its initial ETH/SOL from.
     Detect: Exchange withdrawals, mixer usage, fresh wallet patterns.
     """
-    result = {
+    result: dict[str, Any] = {
         "address": address,
         "chain": chain,
         "funding_sources": [],
