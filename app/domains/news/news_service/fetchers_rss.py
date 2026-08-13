@@ -32,7 +32,7 @@ async def fetch_rss(
     needs_proxy = use_proxy or url in PROXY_REQUIRED_FEEDS
     for attempt in range(3 if needs_proxy else 1):
         try:
-            client_kwargs = {"timeout": 12.0, "follow_redirects": True}
+            client_kwargs: dict[str, Any] = {"timeout": 12.0, "follow_redirects": True}
             if needs_proxy and attempt > 0:
                 proxy = _get_proxy()
                 if proxy:
@@ -78,8 +78,9 @@ async def fetch_rss(
             desc = entry.get("summary", "") or entry.get("description", "") or title
             pub_parsed = entry.get("published_parsed") or entry.get("updated_parsed")
             if pub_parsed and isinstance(pub_parsed, (tuple, list)) and len(pub_parsed) >= 6:
-                published = datetime(*pub_parsed[:6], tzinfo=UTC).isoformat()
-                pub_dt = datetime(*pub_parsed[:6], tzinfo=UTC)
+                year, month, day, hour, minute, second = pub_parsed[:6]
+                published = datetime(year, month, day, hour, minute, second, tzinfo=UTC).isoformat()
+                pub_dt = datetime(year, month, day, hour, minute, second, tzinfo=UTC)
                 if datetime.now(UTC) - pub_dt > timedelta(hours=72):
                     continue
             else:

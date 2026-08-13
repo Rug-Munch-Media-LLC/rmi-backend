@@ -143,7 +143,7 @@ async def query_wallet_type(address: str) -> str | None:
     return _infer_wallet_type(labels)
 
 
-def _infer_wallet_type(labels: list[dict[str, Any]]) -> str:
+def _infer_wallet_type(labels: list[dict[str, Any]]) -> str | None:
     """Infer wallet type from Neo4j labels."""
     categories = {lb.get("category", "").lower().strip() for lb in labels if lb.get("category")}
     names = {lb.get("name", "").lower().strip() for lb in labels if lb.get("name")}

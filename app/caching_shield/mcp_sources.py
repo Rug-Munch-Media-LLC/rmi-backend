@@ -151,7 +151,7 @@ class MCPDataSources:
 
     async def evm_block_info(self, block_number: int | None = None, chain: str = "ethereum") -> dict[str, Any] | None:
         """Get block info."""
-        args = {"chain": chain}
+        args: dict[str, Any] = {"chain": chain}
         if block_number:
             args["block_number"] = block_number
         return await self._mcp_call(BOAR_URL, "get_block", args, ttl=60)

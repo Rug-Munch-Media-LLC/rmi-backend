@@ -51,7 +51,7 @@ class PredictionMarketService:
 
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http = http_client or httpx.AsyncClient(timeout=15.0)
-        self._redis = None  # Lazy init via _get_redis()
+        self._redis: Any = None  # Lazy init via _get_redis()
 
     def _get_redis(self) -> Any:
         if self._redis is not None:
@@ -83,7 +83,7 @@ class PredictionMarketService:
             except (ConnectionError, OSError, json.JSONDecodeError):
                 pass
 
-        results: list[list[PredictionMarket]] = await asyncio.gather(
+        results = await asyncio.gather(
             polymarket_source.search(self._http, query),
             kalshi_source.search(self._http, query),
             limitless_source.search(self._http, query),
@@ -202,7 +202,7 @@ class PredictionMarketService:
         return digest
 
     async def trending(self, limit: int = 20, source: str | None = None) -> list[PredictionMarket]:
-        tasks = []
+        tasks: list[Any] = []
         if not source or source == "polymarket":
             tasks.append(polymarket_source.trending(self._http, limit))
         else:

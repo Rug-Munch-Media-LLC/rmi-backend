@@ -31,7 +31,7 @@ async def get_market_launches(
             addr = b.get("tokenAddress", "")
             chain = b.get("chainId", "solana")
             pairs = await _ds(f"/latest/dex/search?q={addr}", ttl=120)
-            price = 0
+            price = 0.0
             mcap = 0.0
             vol = 0.0
             change = 0.0

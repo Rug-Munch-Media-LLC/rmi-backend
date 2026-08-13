@@ -147,13 +147,13 @@ try:
 
     # Use a module-level registry so multiple imports don't double-register
     _X402_REGISTRY = REGISTRY
-    _X402_REPLAY_COUNTER = Counter(
+    _X402_REPLAY_COUNTER: Any = Counter(
         "x402_replay_attempts_total",
         "Number of x402 replay attempts blocked by nonce burn",
         ["tool"],
         registry=_X402_REGISTRY,
     )
-    _X402_REVENUE_COUNTER = Counter(
+    _X402_REVENUE_COUNTER: Any = Counter(
         "x402_revenue_total_usd_cents",
         "x402 revenue in USD cents",
         ["tool", "tier"],
@@ -162,7 +162,7 @@ try:
 except (ConnectionError, OSError, TimeoutError):
     # Prometheus not available - use no-op counter stubs
     class _Stub:
-        def labels(self, **kw) -> None:
+        def labels(self, **kw: Any) -> _Stub:
             return self
 
         def inc(self, n: float = 1.0) -> None:

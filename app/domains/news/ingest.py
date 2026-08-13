@@ -119,7 +119,7 @@ async def ingest_all(
         "total_feeds": len(feeds),
     }
     # Batch fetches to avoid overwhelming connections with 200+ feeds
-    results: list[list[dict[str, Any]]] = []
+    results: list[Any] = []
     async with httpx.AsyncClient() as client:
         for i in range(0, len(feeds), 20):
             batch = feeds[i : i + 20]
@@ -139,7 +139,8 @@ async def ingest_all(
                 pub_dt = utcnow()
                 if entry.get("published"):
                     with contextlib.suppress(Exception):
-                        pub_dt = datetime(*entry["published"][:6], tzinfo=UTC)
+                        yr, mo, dy, hr, mi, se = entry["published"][:6]
+                        pub_dt = datetime(yr, mo, dy, hr, mi, se, tzinfo=UTC)
                 text = f"{entry['title']} {entry['summary']}"
                 chains = _detect_chains(text)
                 tickers = _extract_tickers(text)
@@ -207,19 +208,19 @@ async def ingest_all(
     if embed and items_to_ingest:
         try:
             for ni in items_to_ingest[:200]:  # cap RAG embeds (up from 50 for 200+ feeds)
-                r = await cat.rag_ingest(
+                rag_result = await cat.rag_ingest(
                     content=f"{ni.title}\n{ni.summary}",
                     collection=collection,
                     doc_id=ni.news_id,
                     metadata={"source": ni.source, "news_id": ni.news_id},
                 )
-                if r.get("status") == "ok" and r.get("qdrant_point_id"):  # type: ignore[attr-defined]  # PTB None-able fields
+                if rag_result.get("status") == "ok" and rag_result.get("qdrant_point_id"):
                     # Update news_items with rag_embedding_id
                     try:
                         async with cat._pg_pool.acquire() as conn:
                             await conn.execute(
                                 "UPDATE news_items SET rag_embedding_id=$1 WHERE news_id=$2",
-                                r["qdrant_point_id"],
+                                rag_result["qdrant_point_id"],
                                 ni.news_id,
                             )
                     except (ConnectionError, OSError):

@@ -266,7 +266,7 @@ async def _list_webhooks(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id
 
 async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
     """Register a new webhook URL."""
-    if len(ctx.args) < 2:
+    if len(ctx.args or []) < 2:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Usage: /webhook add <code>url</code> [event_type]\n\n"
             "Example: /webhook add https://mybot.com/hook price_change",
@@ -274,8 +274,8 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
         )
         return
 
-    url = ctx.args[1]
-    event_type = ctx.args[2].lower() if len(ctx.args) > 2 else None
+    url = (ctx.args or [])[1]
+    event_type = (ctx.args or [])[2].lower() if len(ctx.args or []) > 2 else None
 
     # Validate URL (format + SSRF guard: must resolve to a public address)
     ok, err = _validate_webhook_url(url)
@@ -385,14 +385,14 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
 
 async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
     """Remove a webhook by ID."""
-    if len(ctx.args) < 2 or not ctx.args[1].isdigit():
+    if len(ctx.args or []) < 2 or not (ctx.args or [])[1].isdigit():
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "❌ Usage: /webhook remove <code>id</code>\nFind IDs with: /webhook list",
             parse_mode=ParseMode.HTML,
         )
         return
 
-    wh_id = int(ctx.args[1])
+    wh_id = int((ctx.args or [])[1])
 
     conn = db.get_db()
     row = conn.execute(
@@ -433,8 +433,8 @@ async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_i
 
 async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
     """Send a test payload to a webhook URL."""
-    if len(ctx.args) >= 2 and ctx.args[1].isdigit():
-        wh_id = int(ctx.args[1])
+    if len(ctx.args or []) >= 2 and (ctx.args or [])[1].isdigit():
+        wh_id = int((ctx.args or [])[1])
         conn = db.get_db()
         row = conn.execute(
             "SELECT * FROM webhooks WHERE id = ? AND user_id = ?",
@@ -448,8 +448,8 @@ async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id:
             )
             return
         url = row["url"]
-    elif len(ctx.args) >= 2:
-        url = ctx.args[1]
+    elif len(ctx.args or []) >= 2:
+        url = (ctx.args or [])[1]
     else:
         # Get first active webhook
         conn = db.get_db()

@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-CONFIG = {
+CONFIG: dict[str, Any] = {
     "ALERT_TTL_SECONDS": int(os.getenv("WALLET_ALERT_TTL", "86400")),
     "WATCHLIST_KEY": "wallet:watchlist",
     "WALLET_LABELS_KEY": "wallet:labels",
@@ -60,7 +60,7 @@ LABEL_PATTERNS = {
 try:
     import redis.asyncio as redis_async
 except ImportError:
-    redis_async = None
+    redis_async = None  # type: ignore[assignment]  # untyped redis import guard
 
 _redis: Any = None
 

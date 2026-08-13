@@ -136,7 +136,9 @@ class X402Service:
         out: list[PaymentFacilitator] = []
         items: list[dict[str, Any]] = []
         if isinstance(raw, dict):
-            items = raw.get("facilitators", raw.get("data", []))
+            raw_items = raw.get("facilitators", raw.get("data", []))
+            if isinstance(raw_items, list):
+                items = raw_items
         elif isinstance(raw, list):
             items = raw
         for f in items:

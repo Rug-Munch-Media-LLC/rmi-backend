@@ -185,7 +185,9 @@ async def init_rag() -> None:
         # Touch the redis client to fail fast if misconfigured
         from app.core.redis import get_redis
 
-        get_redis().ping()
+        r = get_redis()
+        if r is not None:
+            r.ping()
         log.info("rag_init_complete")
     except Exception as e:
         log.warning("rag_init_redis_probe_failed", error=str(e))

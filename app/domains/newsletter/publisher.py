@@ -417,7 +417,7 @@ async def _publish_to_nostr(
 
         # Build a minimal Nostr event (kind 30023 = long-form)
         # In production, use python-nostr or nostr-sdk for proper signing
-        event = {
+        event: dict[str, Any] = {
             "kind": 30023,
             "created_at": int(datetime.now(UTC).timestamp()),
             "tags": [
@@ -734,7 +734,7 @@ async def publish_to_all(
 
     final_results: list[PublishResult] = []
     for platform, result in zip(targets, results, strict=False):
-        if isinstance(result, Exception):
+        if isinstance(result, BaseException):
             final_results.append(PublishResult(platform, False, error_message=str(result)))
         else:
             final_results.append(result)

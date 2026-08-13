@@ -28,7 +28,7 @@ class RequestDeduplicator:
     """
 
     def __init__(self) -> None:
-        self._in_flight: dict[str, asyncio.Future] = {}
+        self._in_flight: dict[str, asyncio.Future[Any]] = {}
         self._dedup_hits = 0
         self._dedup_saved_calls = 0
 
@@ -38,7 +38,7 @@ class RequestDeduplicator:
         args_hash = hashlib.sha256(args_str.encode()).hexdigest()[:16]
         return f"{data_type}:{args_hash}"
 
-    async def get_or_create(self, key: str) -> tuple[asyncio.Future, bool]:
+    async def get_or_create(self, key: str) -> tuple[asyncio.Future[Any], bool]:
         """Get existing future or create a new one.
 
         Returns:

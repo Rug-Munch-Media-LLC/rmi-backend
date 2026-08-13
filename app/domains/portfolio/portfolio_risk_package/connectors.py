@@ -22,6 +22,8 @@ from app.domains.portfolio.portfolio_risk_package.constants import (
 logger = get_logger(__name__)
 
 # Graceful imports
+_Web3: Any
+HTTPProvider: Any
 try:
     from web3 import HTTPProvider, Web3 as _Web3
 
@@ -31,6 +33,7 @@ except ImportError:
     _Web3 = None
     HTTPProvider = None
 
+SolanaClient: Any
 try:
     from solana.rpc.api import Client as SolanaClient
 
@@ -65,9 +68,8 @@ class EVMConnector(ChainConnector):
             self._w3 = _Web3(provider)
             if self.config.get("poa"):
                 try:
-                    from web3.middleware import (
-                        geth_poa_middleware,  # type: ignore[attr-defined]  # PTB None-able fields
-                    )
+                    # geth_poa_middleware removed in web3 v6; ImportError fallback below
+                    from web3.middleware import geth_poa_middleware  # type: ignore[attr-defined]
 
                     self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
                 except ImportError:
@@ -125,7 +127,7 @@ class EVMConnector(ChainConnector):
                     "topics": [
                         transfer_topic,
                         None,
-                        _Web3.to_checksum_address(address).hex()  # type: ignore[attr-defined]  # PTB None-able fields
+                        _Web3.to_checksum_address(address).hex()
                         if address.startswith("0x")
                         else "0x" + address.zfill(64),
                     ],

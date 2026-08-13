@@ -99,7 +99,7 @@ def compute_content_insights(
     # 3. Posting time analysis
     time_slots = compute_metric_by_hour(posts, views_by_post, engagements_by_post)
     if time_slots:
-        best_hour = max(time_slots, key=time_slots.get)
+        best_hour = max(time_slots, key=lambda h: time_slots[h])
         avg_all = sum(time_slots.values()) / len(time_slots) if time_slots else 0
         if avg_all > 0 and time_slots[best_hour] > avg_all:
             pct_improvement = round((time_slots[best_hour] - avg_all) / avg_all * 100)
@@ -124,8 +124,8 @@ def compute_content_insights(
         metric="tips_usd",
     )
     if category_perf and len(category_perf) >= 2:
-        top_cat = max(category_perf, key=category_perf.get)
-        bottom_cat = min(category_perf, key=category_perf.get)
+        top_cat = max(category_perf, key=lambda c: category_perf[c])
+        bottom_cat = min(category_perf, key=lambda c: category_perf[c])
         if category_perf[bottom_cat] > 0:
             factor = round(category_perf[top_cat] / category_perf[bottom_cat], 1)
             if factor > 1.5:

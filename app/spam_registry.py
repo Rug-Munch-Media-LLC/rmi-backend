@@ -85,8 +85,10 @@ class SpamRegistry:
                     with open(cache_file) as f:
                         data = json.load(f)
                     if isinstance(data, dict):
-                        tokens = set(data.get("erc20", data.get("tokens", [])))
-                        nfts = set(data.get("nft", data.get("nfts", [])))
+                        erc20 = data.get("erc20", data.get("tokens", []))
+                        nft = data.get("nft", data.get("nfts", []))
+                        tokens = set(erc20) if isinstance(erc20, list) else set()
+                        nfts = set(nft) if isinstance(nft, list) else set()
                         if tokens:
                             self._spam_tokens[chain_name] = tokens
                         if nfts:
@@ -117,7 +119,8 @@ class SpamRegistry:
                     self._scam_addresses.update(str(a).lower() for a in data if isinstance(a, str))
                 elif isinstance(data, dict):
                     addrs = data.get("addresses", data.get("blacklist", []))
-                    self._scam_addresses.update(str(a).lower() for a in addrs if isinstance(a, str))
+                    if isinstance(addrs, list):
+                        self._scam_addresses.update(str(a).lower() for a in addrs if isinstance(a, str))
                 logger.info(f"Scam Sniffer: {len(self._scam_addresses)} addresses")
             except Exception as e:
                 logger.debug(f"Scam Sniffer load failed: {e}")
@@ -152,7 +155,8 @@ class SpamRegistry:
                     data = json.load(f)
                 if isinstance(data, dict):
                     domains = data.get("domains", data.get("domain-list", []))
-                    self._phishing_domains.update(str(d).lower() for d in domains)
+                    if isinstance(domains, list):
+                        self._phishing_domains.update(str(d).lower() for d in domains)
                 elif isinstance(data, list):
                     self._phishing_domains.update(str(d).lower() for d in data)
                 logger.info(f"Guardian: {len(self._phishing_domains)} phishing domains")
@@ -169,9 +173,11 @@ class SpamRegistry:
                 with open(cache_file) as f:
                     data = json.load(f)
                 if isinstance(data, dict):
-                    for addr in data.get("addresses", data.get("entries", [])):
-                        if isinstance(addr, str):
-                            self._scam_addresses.add(addr.lower())
+                    entries = data.get("addresses", data.get("entries", []))
+                    if isinstance(entries, list):
+                        for addr in entries:
+                            if isinstance(addr, str):
+                                self._scam_addresses.add(addr.lower())
                 elif isinstance(data, list):
                     self._scam_addresses.update(str(a).lower() for a in data)
             except Exception as e:
@@ -232,7 +238,9 @@ class SpamRegistry:
             ],
         }
 
-    def filter_spam_tokens(self, tokens: list[dict[str, Any]], chain: str = "solana") -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def filter_spam_tokens(
+        self, tokens: list[dict[str, Any]], chain: str = "solana"
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Split token list into clean and spam.
         Returns: (clean_tokens, spam_tokens)"""
         self._ensure_loaded()

@@ -123,7 +123,7 @@ async def get_feedback(query_id: str) -> dict[str, Any] | None:
     return None
 
 
-async def get_feedback_counts() -> dict[str, int]:
+async def get_feedback_counts() -> dict[str, int | float]:
     """Get aggregate feedback counts.
 
     Returns:

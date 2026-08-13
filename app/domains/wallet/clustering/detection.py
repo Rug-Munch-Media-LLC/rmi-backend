@@ -14,7 +14,10 @@ Provides the detection algorithms that WalletClusteringEngine uses:
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 from app.domains.wallet.clustering.models import Cluster, WalletProfile
 
@@ -25,8 +28,8 @@ def detect_temporal_clusters(
     time_window_minutes: int = 5,
 ) -> list[Cluster]:
     """Detect clusters based on temporal proximity of transactions."""
-    clusters = []
-    time_groups = defaultdict(list)
+    clusters: list[Cluster] = []
+    time_groups: defaultdict[datetime, list[Any]] = defaultdict(list)
     for tx in transactions:
         if not tx.success:
             continue
@@ -92,7 +95,7 @@ def detect_common_counterparty_clusters(
                 pair = tuple(sorted([wallet_list[i], wallet_list[j]]))
                 wallet_pairs[pair].add(counterparty)
 
-    cluster_map = defaultdict(set)
+    cluster_map: defaultdict[str, set[str]] = defaultdict(set)
     for (w1, w2), counterparties in wallet_pairs.items():
         if len(counterparties) >= min_common_counterparties:
             cluster_map[w1].add(w2)
@@ -100,11 +103,11 @@ def detect_common_counterparty_clusters(
 
     visited = set()
     cluster_id = 0
-    for wallet in cluster_map:
-        if wallet in visited:
+    for wallet_addr in cluster_map:
+        if wallet_addr in visited:
             continue
         cluster_wallets = set()
-        queue = [wallet]
+        queue = [wallet_addr]
         while queue:
             current = queue.pop(0)
             if current in visited:
@@ -163,18 +166,18 @@ def detect_pattern_clusters(
             if sim >= min_transaction_similarity:
                 similarity_matrix[(addresses[i], addresses[j])] = sim
 
-    cluster_map = defaultdict(set)
+    cluster_map: defaultdict[str, set[str]] = defaultdict(set)
     for w1, w2 in similarity_matrix:
         cluster_map[w1].add(w2)
         cluster_map[w2].add(w1)
 
     visited = set()
     cluster_id = 0
-    for wallet in cluster_map:
-        if wallet in visited:
+    for wallet_addr in cluster_map:
+        if wallet_addr in visited:
             continue
         cluster_wallets = set()
-        queue = [wallet]
+        queue = [wallet_addr]
         while queue:
             current = queue.pop(0)
             if current in visited:
@@ -270,7 +273,7 @@ def merge_clusters(clusters: list[Cluster]) -> list[Cluster]:
         all_methods = set()
         all_tokens = set()
         all_counterparties = set()
-        max_confidence = 0
+        max_confidence = 0.0
 
         for idx in group_indices:
             c = clusters[idx]
@@ -287,7 +290,7 @@ def merge_clusters(clusters: list[Cluster]) -> list[Cluster]:
             detection_methods=list(all_methods),
             common_tokens=all_tokens,
             common_counterparties=all_counterparties,
-            center_wallet=_find_center_wallet(all_wallets, wallets={}),
+            center_wallet=_find_center_wallet(all_wallets, {}),
         )
         merged_clusters.append(merged)
 

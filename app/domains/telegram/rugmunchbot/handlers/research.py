@@ -10,7 +10,7 @@ Hunter+ tier feature.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -61,7 +61,7 @@ _TOPIC_SUGGESTIONS = {
 }
 
 
-async def _query_rag(query: str, collections: list[str] | None = None, top_k: int = 5) -> list[dict]:
+async def _query_rag(query: str, collections: list[str] | None = None, top_k: int = 5) -> list[dict[str, Any]]:
     """Query the RAG system across multiple collections."""
     if collections is None:
         collections = _RESEARCH_COLLECTIONS
@@ -103,7 +103,7 @@ async def _query_rag(query: str, collections: list[str] | None = None, top_k: in
     return deduped[:top_k]
 
 
-def _format_research_result(query: str, hits: list[dict]) -> str:
+def _format_research_result(query: str, hits: list[dict[str, Any]]) -> str:
     """Format RAG research results into a readable message."""
     s = sep()
     d = thin_sep()

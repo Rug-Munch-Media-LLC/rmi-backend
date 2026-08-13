@@ -274,7 +274,7 @@ DIMENSION_LABELS = {
 }
 
 
-def format_scoring_breakdown(breakdown: dict) -> str:
+def format_scoring_breakdown(breakdown: dict[str, Any]) -> str:
     """Render the v2 explainable per-dimension scoring breakdown.
 
     Each dimension carries score/max/delta/flags. Output is a compact
@@ -304,7 +304,7 @@ def format_scoring_breakdown(breakdown: dict) -> str:
     return "\n".join(lines)
 
 
-def format_funding_analysis(r: dict) -> str:
+def format_funding_analysis(r: dict[str, Any]) -> str:
     """Render the funding analysis block (exchange-funded / fresh / scam overlap).
 
     Reads the convenience keys populated by the scanner layer:
@@ -362,7 +362,7 @@ def is_bluechip(address: str) -> bool:
     return (address or "").strip().lower() in _bluechip_addresses()
 
 
-def _sentinel_free(sentinel: dict | None) -> dict:
+def _sentinel_free(sentinel: dict[str, Any] | None) -> dict[str, Any]:
     """Extract the free-module bucket from a v2 sentinel dict (best-effort)."""
     if not isinstance(sentinel, dict):
         return {}
@@ -370,7 +370,7 @@ def _sentinel_free(sentinel: dict | None) -> dict:
     return free if isinstance(free, dict) else {}
 
 
-def _module_warnings(free: dict, *keys: str) -> list[str]:
+def _module_warnings(free: dict[str, Any], *keys: str) -> list[str]:
     """Collect warnings across the given sentinel free modules (deduped)."""
     seen: list[str] = []
     for key in keys:
@@ -383,7 +383,7 @@ def _module_warnings(free: dict, *keys: str) -> list[str]:
     return seen
 
 
-def format_sentinel_flags(r: dict) -> str:
+def format_sentinel_flags(r: dict[str, Any]) -> str:
     """Render SENTINEL free-tier flags for the /scan report.
 
     Reads the v2 scanner's ``sentinel`` dict (free/premium module buckets).
@@ -507,7 +507,7 @@ def _risk_level_emoji(level: str) -> str:
     return "\U0001f7e2"  # 🟢
 
 
-def _sentinel_recommendations(risk: float, level: str, red_flags: list) -> list[str]:
+def _sentinel_recommendations(risk: float, level: str, red_flags: list[Any]) -> list[str]:
     """Build DYOR recommendations from sentinel risk signals."""
     lvl = str(level or "").lower()
     recs: list[str] = []
@@ -528,7 +528,7 @@ def _sentinel_recommendations(risk: float, level: str, red_flags: list) -> list[
     return recs[:6]
 
 
-def format_sentinel_deepscan_section(data: dict) -> str:
+def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
     """Render the SENTINEL deep-forensic section.
 
     Consumes the raw response from ``POST /api/v1/x402-tools/sentinel_scan``
@@ -734,7 +734,7 @@ def format_sentinel_deepscan_section(data: dict) -> str:
     return "\n".join(lines)
 
 
-def format_sentinel_scan_report(data: dict) -> str:
+def format_sentinel_scan_report(data: dict[str, Any]) -> str:
     """Standalone /sentinelscan report — SENTINEL deep scan only."""
     return format_sentinel_deepscan_section(data)
 
@@ -742,7 +742,7 @@ def format_sentinel_scan_report(data: dict) -> str:
 # --- Scan-report intel helpers (own-data engines) ---
 
 
-def _bundle_alert_line(r: dict) -> str | None:
+def _bundle_alert_line(r: dict[str, Any]) -> str | None:
     """Red alert banner when the own bundle-launch engine flags a bundled launch.
 
     Reads ``r["bundle_analysis"]`` (``is_bundled`` / ``confidence`` /
@@ -760,7 +760,7 @@ def _bundle_alert_line(r: dict) -> str | None:
     return f"\U0001f6a8 <b>BUNDLED LAUNCH DETECTED</b> \u2014 {conf:.0f}% confidence, {risk}"
 
 
-def _deployer_history_line(r: dict) -> str | None:
+def _deployer_history_line(r: dict[str, Any]) -> str | None:
     """Repeat-deployer track record line, or ``None`` when no profile exists.
 
     Reads ``r["deployer_profile"]`` (own ``deployer_profiles`` engine) which
@@ -792,7 +792,7 @@ def _deployer_history_line(r: dict) -> str | None:
     return f"\U0001f464 <b>Repeat Deployer</b>: {tokens} tokens, {rugged_pct}% rugged, avg life {life_str}"
 
 
-def _format_deployer_section(r: dict) -> list[str]:
+def _format_deployer_section(r: dict[str, Any]) -> list[str]:
     """Format a dedicated deployer info section — always shown in scan output.
 
     Shows: deployer address, launchpad detection, reputation label,
@@ -905,7 +905,7 @@ def _format_deployer_section(r: dict) -> list[str]:
     return lines
 
 
-def _wallet_freshness_line(r: dict) -> str | None:
+def _wallet_freshness_line(r: dict[str, Any]) -> str | None:
     """Wallet freshness + CEX-funding + brand-new line, or ``None`` when no metrics.
 
     Reads ``r["wallet_metrics"]`` (``fresh_wallet_pct`` / ``cex_funded_pct`` /
@@ -929,7 +929,7 @@ def _wallet_freshness_line(r: dict) -> str | None:
     )
 
 
-def format_wallet_composition_section(r: dict, token_created_ts: str | None = None) -> str:
+def format_wallet_composition_section(r: dict[str, Any], token_created_ts: str | None = None) -> str:
     """Full wallet-composition block for /deepscan (own funding_analysis engine).
 
     Combines ``wallet_metrics`` (fresh <30d / CEX-funded / first-tx-this-token)
@@ -995,7 +995,7 @@ def format_wallet_composition_section(r: dict, token_created_ts: str | None = No
     mixer = _f(funding.get("mixer_funded_pct"))
     risk = str(funding.get("risk_assessment") or "").upper()
 
-    lines: list[str] = []
+    lines = []
     if fresh is not None:
         lines.append(f"\U0001f195 Fresh wallets (<30d): <b>{fresh:.1f}%</b>")
     if first_tx is not None:
@@ -1081,7 +1081,7 @@ def _fmt_usd_amount(v) -> str:
 
 
 # --- Format scan report (professional redesign) ---
-def format_scan_report(r: dict) -> str:
+def format_scan_report(r: dict[str, Any]) -> str:
     s = sep()
     d = thin_sep()
 
@@ -1240,7 +1240,7 @@ def format_scan_report(r: dict) -> str:
     return "\n".join(lines)
 
 
-def _format_sentinel_pro(r: dict) -> list[str]:
+def _format_sentinel_pro(r: dict[str, Any]) -> list[str]:
     """Professional sentinel flag rendering with decoded warning codes."""
     sentinel = r.get("sentinel")
     if not isinstance(sentinel, dict):
@@ -1452,7 +1452,7 @@ def _explorer_link(address: str, chain: str) -> str:
     return f'<a href="{url}">\U0001f50d {domain.split(".")[0].title()}</a>'
 
 
-def format_wallet_report(r: dict) -> str:
+def format_wallet_report(r: dict[str, Any]) -> str:
     s = sep()
     d = thin_sep()
     age_str = f"{r['wallet_age_days']} days" if r["wallet_age_days"] else "Unknown"

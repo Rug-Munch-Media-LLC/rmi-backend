@@ -27,7 +27,7 @@ logger = get_logger("x_intel")
 
 # ── TOP CT ACCOUNTS - Curated, diverse, high-signal ────────────────
 
-CT_ACCOUNTS = {
+CT_ACCOUNTS: dict[str, list[dict[str, Any]]] = {
     # ── Tier 1: Must-track (breaking news, high signal) ──
     "crypto_news": [
         {"handle": "WatcherGuru", "name": "Watcher.Guru", "category": "breaking", "weight": 1.0},
@@ -294,7 +294,8 @@ async def _xurl_search(query: str, count: int = 20) -> list[dict[str, Any]]:
             capture_output=True,
             text=True,
             timeout=20,
-        shell=False)
+            shell=False,
+        )
         if result.returncode != 0:
             return []
 
@@ -324,7 +325,8 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict[str, An
             capture_output=True,
             text=True,
             timeout=15,
-        shell=False)
+            shell=False,
+        )
         if result.returncode != 0:
             return []
 
@@ -346,7 +348,8 @@ async def _xurl_user_timeline(handle: str, count: int = 10) -> list[dict[str, An
             capture_output=True,
             text=True,
             timeout=15,
-        shell=False)
+            shell=False,
+        )
 
         if result2.returncode != 0:
             return []
@@ -728,8 +731,8 @@ async def fetch_ct_rundown(limit: int = 30, **kw) -> dict[str, Any] | None:
     for post in scored:
         cat = post["account"].get("category", "unknown")
         # Allow max 3 from same category, max 5 total from same handle
-        same_cat = sum(1 for s in selected if s["account"].get("category") == cat)
-        same_handle = sum(1 for s in selected if s["account"].get("handle") == post["account"].get("handle"))
+        same_cat = len([s for s in selected if s["account"].get("category") == cat])
+        same_handle = len([s for s in selected if s["account"].get("handle") == post["account"].get("handle")])
 
         if same_cat < 3 and same_handle < 3:
             selected.append(post)

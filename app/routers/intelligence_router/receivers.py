@@ -6,6 +6,8 @@ Endpoints that receive data from n8n workflows.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter
 
 from app.core.errors import ServiceUnavailableError
@@ -19,7 +21,7 @@ router = APIRouter()
 
 
 @router.post("/market-update")
-async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
+async def receive_market_update(update: MarketUpdate) -> dict[str, Any]:
     """Receive market intelligence update from n8n workflow."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")
@@ -95,7 +97,7 @@ async def receive_market_update(update: MarketUpdate) -> dict[str, str]:
 
 
 @router.post("/security-update")
-async def receive_security_update(update: MarketUpdate) -> dict[str, str]:
+async def receive_security_update(update: MarketUpdate) -> dict[str, Any]:
     """Receive security intelligence update from n8n workflow."""
     if not _supabase_is_configured():
         raise ServiceUnavailableError("Supabase not configured")

@@ -459,7 +459,7 @@ class UnifiedDataEngine:
         try:
             from app.wallet_label_loader import lookup_wallet_label
 
-            label = await lookup_wallet_label(address)
+            label = lookup_wallet_label(address)
             if label:
                 return {"label": label, "source": "local_labels"}
         except (ImportError, AttributeError):
@@ -590,12 +590,13 @@ class UnifiedDataEngine:
         try:
             from app.wallet_label_loader import lookup_wallet_label
 
-            label = await lookup_wallet_label(address)
+            label = lookup_wallet_label(address)
             if label:
+                label_text = label.get("name", "") if isinstance(label, dict) else str(label or "")
                 return {
                     "label": label,
                     "is_cex": any(
-                        kw in label.lower()
+                        kw in label_text.lower()
                         for kw in [
                             "binance",
                             "coinbase",

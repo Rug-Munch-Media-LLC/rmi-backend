@@ -34,12 +34,12 @@ class PythPriceFeedProvider:
     def __init__(self) -> None:
         self.client = httpx.AsyncClient(timeout=30.0)
 
-    async def get_price_feeds_list(self) -> dict[str, Any]:
+    async def get_price_feeds_list(self) -> list[dict[str, Any]]:
         """
         Get the list of all available price feeds from Pyth Network.
 
         Returns:
-            Dict containing price feeds metadata
+            List of price feed metadata objects
         """
         try:
             response = await self.client.get(f"{PYTH_HERMES_BASE_URL}/v2/price_feeds")
@@ -47,7 +47,7 @@ class PythPriceFeedProvider:
             return response.json()
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.error(f"Error fetching price feeds list: {e}")
-            return {}
+            return []
 
     async def get_latest_price_updates(self, price_feed_ids: list[Any]) -> dict[str, Any]:
         """
@@ -182,7 +182,7 @@ async def _pyth_single_price_feed(price_feed_id: str, **kwargs) -> dict[str, Any
         await provider.close()
 
 
-async def _pyth_parsed_price(price_feed_id: str, **kwargs) -> dict[str, Any]:
+async def _pyth_parsed_price(price_feed_id: str, **kwargs) -> dict[str, Any] | None:
     """Get parsed price data for a single feed"""
     provider = PythPriceFeedProvider()
     try:
@@ -194,7 +194,7 @@ async def _pyth_parsed_price(price_feed_id: str, **kwargs) -> dict[str, Any]:
 
 
 # Example usage functions
-async def get_bitcoin_price_feed() -> dict[str, Any]:
+async def get_bitcoin_price_feed() -> dict[str, Any] | None:
     """
     Get Bitcoin/USD price feed via Pyth Network.
     Uses the verified Pyth price feed ID for BTC/USD.
@@ -204,7 +204,7 @@ async def get_bitcoin_price_feed() -> dict[str, Any]:
     return await _pyth_parsed_price(btc_usd_feed_id)
 
 
-async def get_ethereum_price_feed() -> dict[str, Any]:
+async def get_ethereum_price_feed() -> dict[str, Any] | None:
     """
     Get Ethereum/USD price feed via Pyth Network.
     Uses the verified Pyth price feed ID for ETH/USD.

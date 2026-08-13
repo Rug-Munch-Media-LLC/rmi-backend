@@ -455,12 +455,15 @@ class GMGNClient:
                 continue
 
             # Run parallel analysis
-            narrative, sniper, degen = await asyncio.gather(
+            results = await asyncio.gather(
                 self.smart_money_narrative(addr),
                 self.sniper_radar(addr),
                 self.degen_score(addr),
                 return_exceptions=True,
             )
+            narrative: dict[str, Any] | BaseException = results[0]
+            sniper: dict[str, Any] | BaseException = results[1]
+            degen: dict[str, Any] | BaseException = results[2]
 
             deep_dives.append(
                 {

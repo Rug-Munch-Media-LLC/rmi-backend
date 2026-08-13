@@ -103,7 +103,7 @@ async def paid_get_news(
     topic: str = Query("crypto"),
     limit: int = Query(10, le=50),
 ) -> Any:
-    return await get_news(topic=topic, limit=limit)
+    return await get_news(topic, "solana")
 
 
 @router.get("/get_news_sentiment")
@@ -112,7 +112,7 @@ async def paid_get_news_sentiment(
     topic: str = Query("crypto"),
     limit: int = Query(10, le=50),
 ) -> Any:
-    return await get_news_sentiment(topic=topic, limit=limit)
+    return await get_news_sentiment(topic, "solana")
 
 
 # ── Scanner tools ───────────────────────────────────────────
@@ -122,7 +122,7 @@ async def paid_get_scan_result(
     token: str = Query(...),
     chain: str = Query("ethereum"),
 ) -> Any:
-    return await get_scan_result(token, chain)
+    return await get_scan_result(token)
 
 
 @router.post("/run_scan")

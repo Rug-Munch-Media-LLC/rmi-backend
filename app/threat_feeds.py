@@ -18,8 +18,8 @@ class ThreatIntelFeeds:
     """Aggregates free threat intelligence from multiple open sources."""
 
     def __init__(self) -> None:
-        self._scamdb_cache: dict[str, dict[str, Any]] = {}
-        self._goplus_cache: dict[str, dict[str, Any]] = {}
+        self._scamdb_cache: dict[str, dict[str, Any] | None] = {}
+        self._goplus_cache: dict[str, dict[str, Any] | None] = {}
 
     # ── CryptoScamDB integration ──────────────────────────
 
@@ -124,7 +124,7 @@ class ThreatIntelFeeds:
 
     async def full_check(self, address: str, chain_id: str = "1") -> dict[str, Any]:
         """Run all free threat intel checks against an address."""
-        results = {
+        results: dict[str, Any] = {
             "address": address,
             "sources_checked": 0,
             "any_scam_flag": False,

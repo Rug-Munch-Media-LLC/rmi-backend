@@ -258,7 +258,7 @@ async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any
         return None
 
 
-async def sentinel_scan(address: str, chain: str | None = None) -> dict | None:
+async def sentinel_scan(address: str, chain: str | None = None) -> dict[str, Any] | None:
     """SENTINEL deep forensic scan — POST /api/v1/x402-tools/sentinel_scan.
 
     Runs the full 9-module SENTINEL pipeline (holder HHI, LP lock, dev
@@ -310,7 +310,7 @@ async def sentinel_scan(address: str, chain: str | None = None) -> dict | None:
         return None
 
 
-async def fetch_hype_score(address: str, chain: str | None = None) -> dict | None:
+async def fetch_hype_score(address: str, chain: str | None = None) -> dict[str, Any] | None:
     """Fetch the C5 hype score from the backend DataBus ``hype_score`` provider.
 
     GETs /api/v1/databus/fetch/hype_score and returns the inner ``data``
@@ -356,7 +356,7 @@ async def fetch_hype_score(address: str, chain: str | None = None) -> dict | Non
         return None
 
 
-async def fetch_deployer_fingerprint(deployer: str, chain: str | None = None) -> dict | None:
+async def fetch_deployer_fingerprint(deployer: str, chain: str | None = None) -> dict[str, Any] | None:
     """Fetch the C7 deployer behavioral fingerprint from the backend DataBus.
 
     GETs /api/v1/databus/fetch/deployer_fingerprint and returns the inner
@@ -402,7 +402,7 @@ async def fetch_deployer_fingerprint(deployer: str, chain: str | None = None) ->
         return None
 
 
-async def analyze_wallet_v2(address: str, chain: str | None = None) -> dict | None:
+async def analyze_wallet_v2(address: str, chain: str | None = None) -> dict[str, Any] | None:
     """v2 UnifiedWalletScanner — entity clustering, scam exposure, smart money.
 
     POSTs to /api/v2/scanner/wallet/scan and returns the raw v2 payload
@@ -432,7 +432,7 @@ async def analyze_wallet_v2(address: str, chain: str | None = None) -> dict | No
         return None
 
 
-def v2_token_to_legacy(data: dict) -> dict[str, Any]:
+def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
     """Convert a /api/v2/scanner/token/scan response into the legacy
     report dict shape used by format_scan_report(), preserving the new
     explainable-scoring fields (safety_score, confidence, risk_level,
@@ -518,7 +518,7 @@ def v2_token_to_legacy(data: dict) -> dict[str, Any]:
     }
 
 
-def v2_wallet_to_legacy(data: dict) -> dict:
+def v2_wallet_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
     """Convert a /api/v2/scanner/wallet/scan response into the legacy
     report dict shape used by format_wallet_report(), preserving the new
     v2 intel fields (entity_name, entity_type, persona, scam exposure,
@@ -562,8 +562,8 @@ def v2_wallet_to_legacy(data: dict) -> dict:
     }
 
 
-async def analyze_wallet(address: str, chain: str | None = None) -> dict:
-    result = {
+async def analyze_wallet(address: str, chain: str | None = None) -> dict[str, Any]:
+    result: dict[str, Any] = {
         "address": address,
         "chain": chain or detect_chain(address),
         "balance_usd": 0,
@@ -611,7 +611,7 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
                 result["connected_wallets"] = data.get("connected_wallets", [])[:5]
                 if result["first_seen"]:
                     try:
-                        first = datetime.fromisoformat(result["first_seen"].replace("Z", "+00:00"))  # type: ignore[attr-defined]  # PTB None-able fields
+                        first = datetime.fromisoformat(result["first_seen"].replace("Z", "+00:00"))
                         result["wallet_age_days"] = (datetime.now(UTC) - first).days
                         result["is_fresh"] = result["wallet_age_days"] < 7
                     except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
@@ -629,5 +629,5 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict:
                     result["balance_usd"] = float(data.get("balance", 0)) / 1e9 * sol_price
                     result["tx_count"] = data.get("transaction_count", 0)
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-                result["errors"].append(f"Solana.fm: {e}")  # type: ignore[attr-defined]  # PTB None-able fields
+                result["errors"].append(f"Solana.fm: {e}")
     return result

@@ -278,7 +278,7 @@ async def _run_listener(stop_event: asyncio.Event) -> None:
 
 
 # ── Public API ─────────────────────────────────────────────────────
-async def start_listener() -> asyncio.Task | None:
+async def start_listener() -> asyncio.Task[Any] | None:
     """Start the CertStream listener as a background task.
 
     Returns the Task so caller can cancel on shutdown. Returns None if
@@ -302,7 +302,7 @@ async def start_listener() -> asyncio.Task | None:
     return task
 
 
-async def stop_listener(task: asyncio.Task | None) -> None:
+async def stop_listener(task: asyncio.Task[Any] | None) -> None:
     """Stop a running CertStream listener task."""
     if task is None or task.done():
         return

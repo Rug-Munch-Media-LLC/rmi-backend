@@ -226,7 +226,7 @@ async def _fetch_ohlcv_gecko(
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools/{pair_address}/ohlcv/{tf_unit}"
-            params = {"aggregate": tf_aggregate, "limit": min(limit, 1000), "currency": "usd"}
+            params: dict[str, Any] = {"aggregate": tf_aggregate, "limit": min(limit, 1000), "currency": "usd"}
             r = await client.get(url, params=params)
             if r.status_code == 200:
                 data = r.json()

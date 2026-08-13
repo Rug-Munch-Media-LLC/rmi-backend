@@ -52,11 +52,12 @@ class LabelService:
     def _load_builtin_cex(self) -> None:
         """Load CEX hot wallet labels from chain_registry."""
         try:
-            from app.chain_registry import CEX_HOT_WALLETS
+            from app.chain_registry import CHAINS, get_cex_wallets
 
-            for _chain, wallets in CEX_HOT_WALLETS.items():
-                for addr, label in wallets.items():
-                    self._builtin_cex[addr.lower()] = label
+            for chain_name in CHAINS:
+                for group, addrs in get_cex_wallets(chain_name).items():
+                    for addr in addrs:
+                        self._builtin_cex[addr.lower()] = group
         except (AttributeError, ImportError):
             pass
 
@@ -236,8 +237,8 @@ class LabelService:
             try:
                 etherscan_labels = await self._query_etherscan(addr, chain)
                 all_labels.extend(etherscan_labels)
-                for lbl in etherscan_labels:
-                    cat = lbl.get("category", "").lower()
+                for elbl in etherscan_labels:
+                    cat = elbl.get("category", "").lower()
                     if cat == "exchange":
                         flags["is_exchange"] = True
                     elif cat == "mev":

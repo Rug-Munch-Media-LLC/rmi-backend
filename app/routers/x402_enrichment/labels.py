@@ -155,8 +155,8 @@ async def search_similar_patterns(
                 if not emb or not emb.vector:
                     continue
 
-                hits = await search_multi_collection(  # type: ignore[arg-type] — compat layer types query as str but accepts vectors at runtime
-                    emb.vector,
+                hits = await search_multi_collection(
+                    emb.vector,  # type: ignore[arg-type]  # compat layer types query as str but accepts vectors at runtime
                     collections=["wallet_profiles", "known_scams"],
                     limit=3,
                     min_similarity=SIMILARITY_THRESHOLD,

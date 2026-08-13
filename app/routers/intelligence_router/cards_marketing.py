@@ -34,7 +34,7 @@ async def generate_card(card_type: str, data: dict[str, Any]) -> Any:
             generate_win_card,
         )
 
-        generators = {
+        generators: dict[str, Any] = {
             "big_win": generate_win_card,
             "big_loss": generate_loss_card,
             "kol_scorecard": generate_kol_scorecard,
@@ -65,19 +65,23 @@ async def generate_card(card_type: str, data: dict[str, Any]) -> Any:
 async def get_card_templates() -> dict[str, list[dict[str, Any]]]:
     """Get available card templates."""
     try:
+        from typing import cast
+
         from app.card_generator import CARD_TEMPLATES
 
-        return {
-            "templates": [
+        templates: list[dict[str, Any]] = []
+        for key, template in CARD_TEMPLATES.items():
+            tpl = cast("dict[str, Any]", template)
+            templates.append(
                 {
                     "id": key,
-                    "name": template["name"],
-                    "size": template["size"],
-                    "colors": template["colors"],
+                    "name": tpl["name"],
+                    "size": tpl["size"],
+                    "colors": tpl["colors"],
                 }
-                for key, template in CARD_TEMPLATES.items()
-            ]
-        }
+            )
+
+        return {"templates": templates}
     except Exception as e:
         raise AppError(message=str(e)[:200]) from e
 
@@ -105,7 +109,7 @@ async def generate_marketing_graphic(graphic_type: str, data: dict[str, Any] | N
         result = generate_marketing_graphic(graphic_type, data)
 
         if result.get("status") == "error":
-            raise AppError(message=result.get("error"))
+            raise AppError(message=str(result.get("error") or "generation failed"))
 
         return result
 
@@ -141,7 +145,7 @@ async def generate_stats_graphic(stat_value: str, stat_label: str, context: str 
         result = await generate_stats_card(stat_value, stat_label, context)
 
         if result.get("status") == "error":
-            raise AppError(message=result.get("error"))
+            raise AppError(message=str(result.get("error") or "generation failed"))
 
         return result
 
@@ -164,7 +168,7 @@ async def generate_pricing_graphic(tier_name: str, price: float, features: list[
         result = await generate_pricing_card(tier_name, price, features)
 
         if result.get("status") == "error":
-            raise AppError(message=result.get("error"))
+            raise AppError(message=str(result.get("error") or "generation failed"))
 
         return result
 

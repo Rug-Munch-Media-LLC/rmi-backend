@@ -29,7 +29,7 @@ logger = get_logger("rmi_bot.anti_abuse")
 # (compiled pattern, human-readable category). The message handler returns
 # the category so the bot can show a targeted warning instead of a generic
 # "I don't understand" reply.
-_PROMPT_INJECTION_RULES: list[tuple[re.Pattern, str]] = [
+_PROMPT_INJECTION_RULES: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(
             r"\b(ignore|disregard|forget|override|skip|bypass)\s+"
@@ -94,7 +94,7 @@ _PROMPT_INJECTION_RULES: list[tuple[re.Pattern, str]] = [
 
 # Standalone hard blocklist — a message consisting (mostly) of one of these
 # is rejected outright before any downstream processing.
-_PROMPT_INJECTION_HARD_BLOCKS: list[tuple[re.Pattern, str]] = [
+_PROMPT_INJECTION_HARD_BLOCKS: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(r"^\s*(ignore|disregard|forget)\s+(all\s+)?previous\s+instructions?\s*[.!]?\s*$", re.IGNORECASE),
         "instruction-override",

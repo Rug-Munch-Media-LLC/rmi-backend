@@ -58,7 +58,7 @@ async def _get_onchain_tvl(protocol_name: str, chains: list[str]) -> dict[str, f
                 tasks.append(client.get(f"{DATABUS}/{c}/tvl/{protocol_name.lower()}"))
             responses = await asyncio.gather(*tasks, return_exceptions=True)
             for i, resp in enumerate(responses):
-                if not isinstance(resp, Exception) and resp.status_code == 200:
+                if not isinstance(resp, BaseException) and resp.status_code == 200:
                     data = resp.json().get("data", {})
                     chain_tvls[chains[i]] = data.get("tvl_usd", 0) or 0
     except (httpx.HTTPError, TimeoutError, json.JSONDecodeError) as e:
@@ -139,8 +139,8 @@ async def find_top_mismatches(limit: int = Query(10, le=20)) -> dict[str, Any]:
     mismatches: list[dict[str, Any]] = []
     for slug in top_protocols[: limit * 2]:
         result = await verify_protocol_tvl(slug)
-        disc = result.get("discrepancy", {})
-        if disc.get("risk") in ("CRITICAL", "HIGH"):
+        disc = result.get("discrepancy") or {}
+        if isinstance(disc, dict) and disc.get("risk") in ("CRITICAL", "HIGH"):
             mismatches.append(result)
         if len(mismatches) >= limit:
             break

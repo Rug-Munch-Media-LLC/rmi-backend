@@ -29,7 +29,7 @@ MANIFOLD_BASE = "https://api.manifold.markets/v0"
 class PredictionMarketService:
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http = http_client or httpx.AsyncClient(timeout=15.0)
-        self._redis = None
+        self._redis: Any = None
 
     def _get_redis(self) -> Any:
         if self._redis is not None:
@@ -59,7 +59,7 @@ class PredictionMarketService:
                     return [_dict_to_market(d) for d in json.loads(cached)]
             except Exception:
                 logger.debug("search_cache_read_failed")
-        results: list[list[PredictionMarket]] = await asyncio.gather(
+        results = await asyncio.gather(
             self._search_polymarket(query),
             self._search_kalshi(query),
             self._search_limitless(query),
@@ -168,7 +168,7 @@ class PredictionMarketService:
         return digest
 
     async def trending(self, limit: int = 20, source: str | None = None) -> list[PredictionMarket]:
-        tasks = []
+        tasks: list[Any] = []
         if not source or source == "polymarket":
             tasks.append(self._trending_polymarket(limit))
         else:

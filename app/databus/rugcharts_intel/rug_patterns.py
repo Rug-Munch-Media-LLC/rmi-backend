@@ -100,11 +100,11 @@ async def rug_pattern_matcher(address: str = "", chain: str = "solana", **kw) ->
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("error")
 
-    matches = []
+    matches: list[dict[str, Any]] = []
     api_key = kw.get("api_key", "") or HELIUS_KEY
 
     try:
-        signals = {
+        signals: dict[str, Any] = {
             "is_new": False,
             "lp_locked": False,
             "holder_count": 0,

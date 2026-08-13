@@ -223,7 +223,7 @@ async def invalidate_feed(protocol: str, user_id: str) -> None:
 async def degenfeed_cache_stats() -> dict[str, Any]:
     """Get DegenFeed cache statistics for monitoring."""
     redis = _get_redis()
-    stats = {
+    stats: dict[str, Any] = {
         "redis_available": _redis_available,
         "memory_cache_size": len(_mem_cache._cache),
     }

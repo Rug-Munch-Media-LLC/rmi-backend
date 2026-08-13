@@ -41,30 +41,33 @@ async def get_wallet_balance(address: str, chain: str, token: str | None = None)
 
     try:
         if chain == "ethereum":
-            native = token is None or token.upper() == "ETH"
+            token_name = (token or "ETH").upper()
+            native = token is None or token_name == "ETH"
             if native:
                 # Use eth_getBalance via public RPC
                 balance = await _eth_get_balance(address)
             else:
-                balance = await _erc20_balance(address, chain, token.upper())
+                balance = await _erc20_balance(address, chain, token_name)
             result["balance_raw"] = str(balance)
-            form = balance / 10 ** (SUPPORTED_TOKENS.get(token.upper(), {}).get("decimals", 18) if not native else 18)
+            token_decimals = int(SUPPORTED_TOKENS.get(token_name, {}).get("decimals", 18) or 18) if not native else 18
+            form = balance / (10**token_decimals)
             result["balance_formatted"] = str(form)
             result["usd_value"] = str(form * price)
 
         elif chain == "solana":
-            balance = await _sol_get_balance(address)
-            result["balance_raw"] = str(balance)
-            form = Decimal(str(balance)) / Decimal("1000000000")
+            sol_balance = await _sol_get_balance(address)
+            result["balance_raw"] = str(sol_balance)
+            form = Decimal(str(sol_balance)) / Decimal("1000000000")
             result["balance_formatted"] = str(form)
             result["usd_value"] = str(form * price)
 
         elif chain == "base":
-            native = token is None or token.upper() == "ETH"
+            token_name = (token or "ETH").upper()
+            native = token is None or token_name == "ETH"
             if native:
                 balance = await _base_get_balance(address)
             else:
-                balance = await _erc20_balance(address, chain, token.upper())
+                balance = await _erc20_balance(address, chain, token_name)
             result["balance_raw"] = str(balance)
             form = balance / Decimal("1000000000000000000")
             result["balance_formatted"] = str(form)

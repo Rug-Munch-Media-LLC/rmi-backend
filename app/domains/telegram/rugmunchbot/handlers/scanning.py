@@ -343,7 +343,7 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
-async def _poll_v2_scan_completion(address: str, chain: str, max_wait_s: float = 24.0) -> dict | None:
+async def _poll_v2_scan_completion(address: str, chain: str, max_wait_s: float = 24.0) -> dict[str, Any] | None:
     """Poll the v2 scan status endpoint until background phases complete.
 
     The v2 scan API returns within ~25s while deep phases (wallet metrics,
@@ -369,7 +369,7 @@ async def _poll_v2_scan_completion(address: str, chain: str, max_wait_s: float =
     return None
 
 
-def _merge_completed_scan(result_v2: dict, completed: dict) -> None:
+def _merge_completed_scan(result_v2: dict[str, Any], completed: dict[str, Any]) -> None:
     """Merge late-arriving background-phase data into the fast-path v2 payload.
 
     Only fills keys the fast path left empty — never overwrites. The status
@@ -994,7 +994,7 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None:
         return
-    if len(ctx.args) < 2:
+    if len(ctx.args or []) < 2:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\u2696\ufe0f <b>Compare Tokens</b>\n\nUsage: /compare <code>addr1</code> <code>addr2</code>",
             parse_mode=ParseMode.HTML,
@@ -1010,11 +1010,11 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             return
     msg = await update.message.reply_text("\u2696\ufe0f <b>Comparing tokens...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     try:
-        v2_1, v2_2 = await asyncio.gather(scan_token_v2(ctx.args[0]), scan_token_v2(ctx.args[1]))
+        v2_1, v2_2 = await asyncio.gather(scan_token_v2((ctx.args or [])[0]), scan_token_v2((ctx.args or [])[1]))
         if v2_1 is not None and v2_2 is not None:
             r1, r2 = v2_token_to_legacy(v2_1), v2_token_to_legacy(v2_2)
         else:
-            r1, r2 = await asyncio.gather(scan_token(ctx.args[0]), scan_token(ctx.args[1]))
+            r1, r2 = await asyncio.gather(scan_token((ctx.args or [])[0]), scan_token((ctx.args or [])[1]))
         risk1 = r1["risk_score"]
         risk2 = r2["risk_score"]
         better = []

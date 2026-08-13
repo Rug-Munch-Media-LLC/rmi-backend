@@ -63,7 +63,7 @@ class AlibabaDashScopeConnector:
 
     def __init__(self) -> None:
         self.api_key = DASHSCOPE_API_KEY
-        self._session = None
+        self._session: httpx.AsyncClient | None = None
 
     def _get_session(self) -> Any:
         if self._session is None:
@@ -170,8 +170,12 @@ class AlibabaDashScopeConnector:
             await _dashscope_cb.record_failure(is_server_error=True)
             return {"error": str(e)}
 
-    async def generate_marketing_content(self, content_type: str, topic: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def generate_marketing_content(
+        self, content_type: str, topic: str, details: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Generate marketing content for specific use cases."""
+
+        details = details or {}
 
         # Content type templates
         templates = {
@@ -293,7 +297,9 @@ Tone: Exciting, clear, benefit-focused
             temperature=details.get("temperature", 0.7),
         )
 
-    async def generate_variations(self, base_content: str, num_variations: int = 5, platform: str = "twitter") -> dict[str, Any]:
+    async def generate_variations(
+        self, base_content: str, num_variations: int = 5, platform: str = "twitter"
+    ) -> dict[str, Any]:
         """Generate multiple variations of content."""
 
         prompt = f"""Generate {num_variations} variations of this content for {platform}:

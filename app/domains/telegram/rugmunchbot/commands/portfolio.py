@@ -7,6 +7,8 @@ Supports comma-separated multi-address scanning.
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 
 from app.core.logging import get_logger
@@ -15,13 +17,13 @@ from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 logger = get_logger("rmi.portfolio")
 
 
-async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> dict:
+async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> dict[str, Any]:
     """Fetch Solana token balances from Shyft (free tier).
 
     Returns dict with {balance_usd, top_tokens: [{symbol, name, balance,
     value_usd, mint}]}.
     """
-    result: dict = {
+    result: dict[str, Any] = {
         "balance_usd": 0.0,
         "top_tokens": [],
         "tx_count": 0,
@@ -44,12 +46,12 @@ async def _fetch_solana_portfolio(client: httpx.AsyncClient, address: str) -> di
     return result
 
 
-async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict:
+async def _fetch_evm_portfolio(client: httpx.AsyncClient, address: str) -> dict[str, Any]:
     """Fetch EVM token balances.
 
     Uses backend first, falls back to basic info.
     """
-    result: dict = {
+    result: dict[str, Any] = {
         "balance_usd": 0.0,
         "top_tokens": [],
         "tx_count": 0,

@@ -68,8 +68,8 @@ def _compute_snipe_score(liquidity: float, volume: float, age_min: int, safety: 
         score += 10  # fresh
     if age_min < 15:
         score += 5
-    score += (safety - 50) * 0.3  # safety adjustment
-    return min(100, max(0, int(score)))
+    score = int(score + (safety - 50) * 0.3)  # safety adjustment
+    return min(100, max(0, score))
 
 
 @router.get("/signals")

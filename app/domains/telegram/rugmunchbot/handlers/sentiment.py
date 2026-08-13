@@ -9,7 +9,7 @@ Scout+ tier feature.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot.sentiment")
 
 
-async def _fetch_market_overview() -> dict:
+async def _fetch_market_overview() -> dict[str, Any]:
     """Fetch market overview — own data first, external APIs as fallback.
 
     Hierarchy enforced via data_resolver:
@@ -50,7 +50,7 @@ async def _fetch_market_overview() -> dict:
     DATA_SOURCE is logged by the resolver so reliance on external providers
     (CoinGecko/alternative.me/Etherscan) can be tracked.
     """
-    result = {
+    result: dict[str, Any] = {
         "btc_dominance": None,
         "total_mcap": None,
         "total_volume_24h": None,
@@ -62,7 +62,7 @@ async def _fetch_market_overview() -> dict:
         "btc_dominance_change": None,
     }
 
-    async def _external_overview() -> dict:
+    async def _external_overview() -> dict[str, Any]:
         """Fallback: direct CoinGecko + alternative.me + Etherscan calls."""
         out = dict(result)
         try:
@@ -117,7 +117,7 @@ async def _fetch_market_overview() -> dict:
         return out
 
     # ── Own data first: backend market intel (cached, TTL 120s) ──────────
-    async def _own_overview() -> dict:
+    async def _own_overview() -> dict[str, Any]:
         body = await backend_get_json("/api/v1/market/overview", timeout_secs=5)
         if not body or not body.get("total_market_cap"):
             return {}
@@ -148,7 +148,7 @@ async def _fetch_market_overview() -> dict:
     result.update(overview or {})
 
     # Derive market health
-    fg_val = result.get("fear_greed", {}).get("value", 50) if result.get("fear_greed") else 50  # type: ignore[union-attr]  # PTB None-able fields
+    fg_val = result.get("fear_greed", {}).get("value", 50) if result.get("fear_greed") else 50
     if fg_val >= 75:
         result["market_health"] = "extreme_greed"
     elif fg_val >= 60:

@@ -312,7 +312,7 @@ class DataBusVault:
         self._loaded = False
         self._vault_available = False
         # Provider config: rate limits, quotas
-        self.provider_config = {
+        self.provider_config: dict[str, dict[str, Any]] = {
             "helius": {"rps": 25.0, "burst": 25, "quota": 0},
             "solana_tracker": {"rps": 3.0, "burst": 3, "quota": 2500},
             "birdeye": {"rps": 5.0, "burst": 5, "quota": 0},
@@ -400,11 +400,8 @@ class DataBusVault:
         if self._vault_available:
             try:
                 result = subprocess.run(
-                    ["python3", VAULT_SCRIPT, "get", vault_path],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                shell=False)
+                    ["python3", VAULT_SCRIPT, "get", vault_path], capture_output=True, text=True, timeout=5, shell=False
+                )
                 if result.returncode == 0 and result.stdout.strip():
                     val = result.stdout.strip()
                     if val and val not in ("", "None", "***"):

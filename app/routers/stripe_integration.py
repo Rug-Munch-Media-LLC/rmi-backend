@@ -40,7 +40,7 @@ except ImportError:
 STRIPE_ENABLED = bool(STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY and STRIPE_PACKAGE_INSTALLED)
 
 # Credit packages (USD -> API credits)
-CREDIT_PACKAGES = {
+CREDIT_PACKAGES: dict[str, dict[str, Any]] = {
     "starter": {"price_usd": 1000, "credits": 1000, "label": "Starter Pack - 1,000 credits"},
     "growth": {
         "price_usd": 5000,
@@ -56,7 +56,7 @@ CREDIT_PACKAGES = {
 }
 
 # Monthly subscription tiers
-SUBSCRIPTION_TIERS = {
+SUBSCRIPTION_TIERS: dict[str, dict[str, Any]] = {
     "starter_monthly": {"price_usd": 2900, "credits_per_month": 1000, "label": "Starter - $29/mo"},
     "pro_monthly": {"price_usd": 9900, "credits_per_month": 5000, "label": "Pro - $99/mo"},
     "team_monthly": {"price_usd": 29900, "credits_per_month": 25000, "label": "Team - $299/mo"},
@@ -235,7 +235,7 @@ async def stripe_webhook(request: Request) -> dict[str, bool] | Any:
 
 
 @router.get("/stripe/packages")
-async def list_packages() -> dict[str, dict[str, Any]]:
+async def list_packages() -> dict[str, Any]:
     """List available credit packages and subscription tiers."""
     return {
         "packages": {

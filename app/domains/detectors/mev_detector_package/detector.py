@@ -123,7 +123,9 @@ class MEVSandwichDetector:
         if isinstance(data, list):
             raw_txs = data
         elif isinstance(data, dict):
-            raw_txs = data.get("results", data.get("transactions", []))
+            raw = data.get("results", data.get("transactions", []))
+            if isinstance(raw, list):
+                raw_txs = raw
         transactions = [t for t in raw_txs if isinstance(t, dict)]
         result["txs_checked"] = len(transactions)
 

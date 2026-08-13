@@ -42,19 +42,19 @@ class WalletMonitor:
         self.ws_url = WS_URLS.get(chain, "")
         self.rpc_url = RPC_URLS.get(chain, "")
         self.running = False
-        self._callbacks: list[Callable] = []
+        self._callbacks: list[Callable[..., Any]] = []
         self.alert_engine = AlertEngine(chain)
         self._watched: set[str] = set()
         self._watch_refresh_interval = 30
 
-    def on_alert(self, callback: Callable) -> None:
+    def on_alert(self, callback: Callable[..., Any]) -> None:
         self._callbacks.append(callback)
 
     async def _refresh_watchlist(self) -> None:
         self._watched = await WatchlistManager.all_watched_set(self.chain)
 
     def _is_watched(self, addr: str) -> bool:
-        return addr and addr.lower() in self._watched
+        return bool(addr) and addr.lower() in self._watched
 
     # ─── EVM ────────────────────────────────────────────────────
     async def _listen_evm(self) -> None:

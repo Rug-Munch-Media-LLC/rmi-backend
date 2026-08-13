@@ -30,7 +30,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
 # Webhook configurations per service
-WEBHOOK_CONFIGS = {
+WEBHOOK_CONFIGS: dict[str, dict[str, Any]] = {
     "arkham": {
         "secret_env": "ARKHAM_WEBHOOK_SECRET",
         "verify_header": "X-Arkham-Signature",
@@ -69,7 +69,9 @@ def _redis() -> Any:
     )
 
 
-async def handle_webhook(service: str, payload: dict[str, Any], headers: dict[str, Any], raw_body: bytes = b"") -> dict[str, Any]:
+async def handle_webhook(
+    service: str, payload: dict[str, Any], headers: dict[str, Any], raw_body: bytes = b""
+) -> dict[str, Any]:
     """Universal webhook handler.
 
     1. Validate signature

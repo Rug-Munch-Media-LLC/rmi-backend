@@ -23,7 +23,7 @@ from app.core.logging import get_logger
 logger = get_logger("solana_tracker")
 
 # Key configs
-KEY_CONFIGS = [
+KEY_CONFIGS: list[dict[str, Any]] = [
     {
         "name": "primary",
         "base_url": "https://noble-flint-3959.secure.data.solanatracker.io",
@@ -164,7 +164,9 @@ class SolanaTrackerClient:
                 return key
             return None
 
-    async def _call(self, path: str, params: dict[str, Any] | None = None, ttl: int = TTL_TOKEN) -> dict[str, Any] | None:
+    async def _call(
+        self, path: str, params: dict[str, Any] | None = None, ttl: int = TTL_TOKEN
+    ) -> dict[str, Any] | None:
         cache_key = self._cache_key(path, params or {})
         cached = await self._cache_get(cache_key)
         if cached is not None:
@@ -235,7 +237,7 @@ class SolanaTrackerClient:
         return await self._call(f"/tokens/{mint}/holders", {"limit": min(limit, 50)}, TTL_HOLDERS)
 
     async def get_token_trades(self, mint: str, limit: int = 20, cursor: str | None = None) -> dict[str, Any] | None:
-        params = {"limit": min(limit, 100)}
+        params: dict[str, Any] = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor
         return await self._call(f"/trades/{mint}", params, TTL_TRADES)
@@ -244,8 +246,10 @@ class SolanaTrackerClient:
     async def get_wallet(self, address: str) -> dict[str, Any] | None:
         return await self._call(f"/wallet/{address}", None, TTL_WALLET)
 
-    async def get_wallet_trades(self, address: str, limit: int = 20, cursor: str | None = None) -> dict[str, Any] | None:
-        params = {"limit": min(limit, 100)}
+    async def get_wallet_trades(
+        self, address: str, limit: int = 20, cursor: str | None = None
+    ) -> dict[str, Any] | None:
+        params: dict[str, Any] = {"limit": min(limit, 100)}
         if cursor:
             params["cursor"] = cursor
         return await self._call(f"/wallet/{address}/trades", params, TTL_TRADES)

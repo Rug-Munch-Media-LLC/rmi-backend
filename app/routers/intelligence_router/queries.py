@@ -282,7 +282,7 @@ async def get_my_alerts(
 async def dismiss_alert(
     alert_id: str,
     authorization: str = Header(None),
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Dismiss an intelligence alert."""
     user_id = await _get_current_user_id(authorization)
     if not user_id:

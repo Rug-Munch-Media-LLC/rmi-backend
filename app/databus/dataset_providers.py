@@ -62,7 +62,7 @@ def _load_real_cats() -> dict[str, Any]:
     if not base:
         return {"error": "Real-CATS dataset not found. Clone from https://github.com/sjdseu/Real-CATS"}
 
-    result = {"criminal": [], "benign": [], "stats": {}}
+    result: dict[str, Any] = {"criminal": [], "benign": [], "stats": {}}
 
     for filename, label in REAL_CATS_FILE_LABELS.items():
         filepath = os.path.join(base, filename)
@@ -222,14 +222,14 @@ async def fetch_mbal(
 
     # Find the main dataset file
     main_file = None
-    for f in sorted(os.listdir(base)):
-        if f.startswith("dataset_10m") and f.endswith(".csv"):
-            main_file = os.path.join(base, f)
+    for fname in sorted(os.listdir(base)):
+        if fname.startswith("dataset_10m") and fname.endswith(".csv"):
+            main_file = os.path.join(base, fname)
             break
 
     if not main_file:
         # Fallback: any CSV
-        csv_files = [f for f in os.listdir(base) if f.endswith(".csv")]
+        csv_files = [fname for fname in os.listdir(base) if fname.endswith(".csv")]
         if csv_files:
             main_file = os.path.join(base, csv_files[0])
 

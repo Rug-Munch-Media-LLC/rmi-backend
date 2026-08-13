@@ -40,7 +40,7 @@ class Provider:
 
     name: str
     tier: ProviderTier
-    fetch_fn: Callable = field(repr=False)
+    fetch_fn: Callable[..., Any] = field(repr=False)
     weight: float = 1.0  # Higher = preferred within tier
     rate_limit_rps: float = 1.0
     monthly_quota: int = 0  # 0 = unlimited

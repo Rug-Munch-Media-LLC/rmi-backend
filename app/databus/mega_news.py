@@ -172,9 +172,8 @@ def fetch_all_feeds(db=None) -> dict[str, Any]:
                 description = (
                     item.findtext("description", "") or item.findtext("{http://www.w3.org/2005/Atom}summary", "")
                 ).strip()
-                link = (
-                    item.findtext("link", "") or (item.find("link") is not None and item.find("link").get("href", ""))
-                ).strip()
+                link_el = item.find("link")
+                link = (item.findtext("link", "") or (link_el.get("href", "") if link_el is not None else "")).strip()
                 pub_date = (
                     item.findtext("pubDate", "") or item.findtext("{http://www.w3.org/2005/Atom}updated", "") or ""
                 )

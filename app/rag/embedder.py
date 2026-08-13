@@ -243,6 +243,8 @@ class InfinityEmbedder(EmbedderProtocol):
                         else:
                             raise
 
+            raise RuntimeError(f"Infinity embed failed after {self._max_retries + 1} attempts")
+
         chunk_results = await asyncio.gather(*[_do(c) for c in chunks])
 
         # Flatten
@@ -378,6 +380,8 @@ class BGE_M3_Embedder(EmbedderProtocol):
                             await asyncio.sleep(0.5 * (attempt + 1))
                         else:
                             raise
+
+            raise RuntimeError(f"bge-m3 embed failed after {self._max_retries + 1} attempts")
 
         tasks = [_do(c) for c in chunks]
         chunk_results = await asyncio.gather(*tasks)

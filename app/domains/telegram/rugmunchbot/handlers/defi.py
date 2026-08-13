@@ -103,7 +103,9 @@ _YIELD_MIN_APY = 5.0
 _YIELD_MIN_TVL = 1_000_000
 
 
-def _yield_candidates(pools: list[dict], *, stable_only: bool = False, limit: int = 8) -> list[dict]:
+def _yield_candidates(
+    pools: list[dict[str, Any]], *, stable_only: bool = False, limit: int = 8
+) -> list[dict[str, Any]]:
     """Rank pools by APY, filtering out scam outliers and dust pools.
 
     Guards: reject outlier-flagged pools, pools below a sane APY floor,
@@ -126,7 +128,7 @@ def _yield_candidates(pools: list[dict], *, stable_only: bool = False, limit: in
     return candidates[:limit]
 
 
-def _render_yield_text(pools: list[dict], *, stable_only: bool) -> str:
+def _render_yield_text(pools: list[dict[str, Any]], *, stable_only: bool) -> str:
     lines = [
         "\U0001f4b0 <b>Top Yield Opportunities</b>",
         f"<i>{'Stablecoin pools' if stable_only else 'All pools'} \u00b7 DefiLlama</i>",
@@ -303,7 +305,7 @@ async def cmd_lpcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 # ── /defi: DeFi overview (TVL, chains, protocols) ──────────────────────
 
 
-def _render_defi_text(chains: list[dict], protocols: list[dict]) -> str:
+def _render_defi_text(chains: list[dict[str, Any]], protocols: list[dict[str, Any]]) -> str:
     lines = [
         "\U0001f3e6 <b>DeFi Overview</b>",
         f"<i>DefiLlama \u00b7 {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')} UTC</i>",
@@ -335,7 +337,7 @@ def _render_defi_text(chains: list[dict], protocols: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _rank_protocols(protocols: list[dict], limit: int = 8) -> list[dict]:
+def _rank_protocols(protocols: list[dict[str, Any]], limit: int = 8) -> list[dict[str, Any]]:
     """Top DeFi protocols by TVL, excluding centralized exchanges."""
     defi = [p for p in protocols if (p.get("category") or "") not in _CEX_CATEGORIES]
     return sorted(defi, key=lambda p: float(p.get("tvl") or 0), reverse=True)[:limit]
@@ -367,7 +369,7 @@ async def cmd_defi(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-def register_defi(app: Application) -> None:
+def register_defi(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Register DeFi market-depth commands on the bot application.
 
     Wires /yield, /lpcheck and /defi in one call. The Lead wires this from

@@ -234,7 +234,11 @@ def generate_ai_forensic_breakdown(
     }
 
 
-def get_cluster_report(cluster: Cluster, wallets: dict[str, WalletProfile], connections: dict[str, Any]) -> dict[str, Any] | None:
+def get_cluster_report(
+    cluster: Cluster,
+    wallets: dict[str, WalletProfile],
+    connections: dict[tuple[str, str], Connection],
+) -> dict[str, Any] | None:
     """Get detailed report for a cluster."""
     if not cluster:
         return None

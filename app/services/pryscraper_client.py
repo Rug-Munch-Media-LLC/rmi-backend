@@ -95,7 +95,7 @@ class PryscraperClient:
         timeout_extract: float = 30.0,
         timeout_default: float = 15.0,
     ) -> None:
-        self.base_url = (base_url or os.getenv("PRYSCRAPER_URL", "http://pry:8002")).rstrip("/")
+        self.base_url = (base_url or os.getenv("PRYSCRAPER_URL", "http://pry:8002") or "").rstrip("/")
         self.api_key = api_key or os.getenv("PRY_API_KEY", "")
         self._x402_offline = (
             x402_offline
@@ -179,7 +179,7 @@ class PryscraperClient:
                     if handled:
                         continue  # retry with payment header
                     # Cannot pay — return the 402 body as-is
-                    return await self._error_response(
+                    return self._error_response(
                         "payment_required",
                         f"x402 payment required for {path}. Set PRY_X402_OFFLINE=true for offline mode.",
                         x402_body=resp.json() if resp.content else None,

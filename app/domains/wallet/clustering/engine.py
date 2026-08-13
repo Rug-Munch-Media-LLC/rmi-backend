@@ -72,7 +72,11 @@ class WalletClusteringEngine:
         receiver.transaction_times.append(tx.timestamp)
         receiver.programs_used.add(tx.program)
 
-        pair = tuple(sorted([tx.from_address, tx.to_address]))
+        pair: tuple[str, str]
+        if tx.from_address <= tx.to_address:
+            pair = (tx.from_address, tx.to_address)
+        else:
+            pair = (tx.to_address, tx.from_address)
         if pair not in self.connections:
             self.connections[pair] = Connection(
                 wallet_a=pair[0], wallet_b=pair[1], strength=0.0, connection_types=[], evidence=[]

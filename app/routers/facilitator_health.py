@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/v1/x402/facilitator-health", tags=["facilitator-
 
 # ── Facilitator Definitions ───────────────────────────────────────
 
-FACILITATORS = {
+FACILITATORS: dict[str, dict[str, Any]] = {
     "payai": {
         "name": "PayAI",
         "health_url": "https://facilitator.payai.network/health",

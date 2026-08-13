@@ -18,6 +18,7 @@ Split from monolithic clustering.py into:
 """
 
 import logging
+from typing import Any
 
 from app.domains.wallet.clustering.engine import WalletClusteringEngine, get_clustering_engine
 from app.domains.wallet.clustering.models import Cluster, Connection, Transaction, WalletProfile

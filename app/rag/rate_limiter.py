@@ -28,6 +28,8 @@ class RateLimiter:
             from app.core.redis import get_redis
 
             r = get_redis()
+            if r is None:
+                return True
             now = int(time.time())
             window_start = now - 60
 
@@ -55,6 +57,8 @@ class RateLimiter:
             from app.core.redis import get_redis
 
             r = get_redis()
+            if r is None:
+                return self.max_per_minute
             now = int(time.time())
             r.zremrangebyscore(_INGESTION_COUNTER_KEY, 0, now - 60)
             current = r.zcard(_INGESTION_COUNTER_KEY) or 0
@@ -69,6 +73,8 @@ class RateLimiter:
             from app.core.redis import get_redis
 
             r = get_redis()
+            if r is None:
+                return
             r.delete(_INGESTION_COUNTER_KEY)
         except Exception as e:
             log.debug("rate_limiter_reset_failed: %s", e)

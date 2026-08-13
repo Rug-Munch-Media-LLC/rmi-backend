@@ -69,14 +69,14 @@ class PortfolioRiskAggregator:
         total_value = 0.0
 
         for chain, result in zip(self.chains, results, strict=False):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 profile.scan_errors.append(f"{chain}: {str(result)[:100]}")
                 profile.chain_portfolios[chain] = ChainPortfolio(chain=chain, scan_error=str(result)[:100])
                 continue
             cp = result
             profile.chain_portfolios[chain] = cp
-            total_value += cp.total_value_usd  # type: ignore[union-attr]  # PTB None-able fields
-            all_tokens.extend(cp.holdings)  # type: ignore[union-attr]  # PTB None-able fields
+            total_value += cp.total_value_usd
+            all_tokens.extend(cp.holdings)
 
         for token in all_tokens:
             if total_value > 0:

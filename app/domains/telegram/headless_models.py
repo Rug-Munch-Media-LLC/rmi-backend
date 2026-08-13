@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class GroupType(Enum):
@@ -32,7 +33,7 @@ class GroupConfig:
     slow_mode_seconds: int = 0
     join_by_request: bool = False
     creator_user_id: int | None = None
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

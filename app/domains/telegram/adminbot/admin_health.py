@@ -111,7 +111,7 @@ def emoji_for_load(load1: float, nproc: int) -> str:
     return "🟢"
 
 
-def emoji_for_hours_ago(hours: float) -> str:
+def emoji_for_hours_ago(hours: float | None) -> str:
     """Status emoji for age of last backup."""
     if hours is None:
         return "🔴"
@@ -122,7 +122,7 @@ def emoji_for_hours_ago(hours: float) -> str:
     return "🟢"
 
 
-def emoji_for_cert_days(days: int) -> str:
+def emoji_for_cert_days(days: int | None) -> str:
     """Status emoji for days until certificate expiry."""
     if days is None:
         return "🔴"
@@ -618,9 +618,9 @@ def _bot_systemd_status() -> dict[str, str]:
     return result
 
 
-def _service_summary() -> dict[str, str]:
+def _service_summary() -> dict[str, Any]:
     """Label -> status emoji for the fleet containers + bots."""
-    summary: dict[str, str] = {}
+    summary: dict[str, Any] = {}
     for name, label in FLEET_CONTAINERS:
         c = container_status(name)
         summary[label] = c.get("level", "🟡")

@@ -22,7 +22,7 @@ from app.core.logging import get_logger
 logger = get_logger("earnings")
 
 # Payment wallets we track
-PAYMENT_WALLETS = {
+PAYMENT_WALLETS: dict[str, dict[str, Any]] = {
     "base": {
         "address": "0x1E3AC01d0fdb976179790BDD02823196A92705C9",
         "chain": "base",

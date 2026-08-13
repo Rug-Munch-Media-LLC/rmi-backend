@@ -41,7 +41,7 @@ class WalletAnalysisMixin:
     def _save_vault(self) -> None:
         """Persist vault (provided by WalletDBMixin on the host class)."""
 
-    def get_mnemonic(self, wallet_id: str) -> str:
+    def get_mnemonic(self, wallet_id: str) -> str | None:
         """Fetch mnemonic (provided by WalletDBMixin on the host class)."""
         raise NotImplementedError
 
@@ -276,7 +276,7 @@ class WalletAnalysisMixin:
         if not w3.is_connected():
             raise RuntimeError(f"Failed to connect to RPC: {rpc_url}")
 
-        on_chain_balance_wei = w3.eth.get_balance(wallet.address)
+        on_chain_balance_wei = w3.eth.get_balance(Web3.to_checksum_address(wallet.address))
         if on_chain_balance_wei == 0:
             raise RuntimeError("On-chain balance is 0. Local ledger is out of sync.")
 
@@ -285,7 +285,7 @@ class WalletAnalysisMixin:
             raise RuntimeError("Balance too low to sweep after gas reserve.")
 
         sweep_amount_wei = on_chain_balance_wei - gas_reserve_wei
-        nonce = w3.eth.get_transaction_count(wallet.address)
+        nonce = w3.eth.get_transaction_count(Web3.to_checksum_address(wallet.address))
         gas_price = w3.eth.gas_price
         tx = {
             "nonce": nonce,
@@ -371,7 +371,9 @@ class WalletAnalysisMixin:
             tx = Transaction().add(transfer_ix)
             tx.sign(keypair)
 
-            result_tx = await client.send_transaction(tx, keypair)
+            # tx is already signed; solana-py 0.34 send_transaction takes TxOpts as 2nd arg,
+            # not a Keypair (Keypair would be misread as TxOpts at runtime).
+            result_tx = await client.send_transaction(tx)
             tx_sig = str(result_tx.value)
             logger.info(f"SUCCESS: Broadcasted Solana sweep tx {tx_sig} for {wallet.wallet_id}")
 
@@ -406,7 +408,7 @@ class WalletAnalysisMixin:
                 continue
             checked += 1
 
-            alert = {
+            alert: dict[str, Any] = {
                 "wallet_id": w.wallet_id,
                 "address": w.address,
                 "chain": w.chain,
@@ -449,7 +451,7 @@ class WalletAnalysisMixin:
 
     async def get_revenue_wallet_status(self) -> dict[str, Any]:
         """Return summary of all x402 receiving wallets with current balances."""
-        wallets = []
+        wallets: list[dict[str, Any]] = []
         total_balance_usd = 0.0
         evm_chains = {
             "eth",

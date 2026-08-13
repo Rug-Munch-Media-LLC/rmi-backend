@@ -178,7 +178,7 @@ class ANNIndex:
         if n > 0:
             arr = arr / n
 
-        if doc_id in self._id_to_idx:
+        if doc_id in self._id_to_idx and self._matrix is not None:
             # Update - replace vector in-place
             idx = self._id_to_idx[doc_id]
             self._matrix[idx] = arr

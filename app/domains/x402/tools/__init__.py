@@ -28,7 +28,7 @@ from app.domains.x402.tools.token_tools import get_token_info, get_token_risk
 from app.domains.x402.tools.wallet_tools import get_wallet_analysis, get_wallet_history
 
 # Tool registry
-TOOLS = {
+TOOLS: dict[str, dict[str, Any]] = {
     "get_token_risk": {
         "function": get_token_risk,
         "free_tier": True,

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 try:
     from app.domains.telegram.adminbot import admin_ai
 except ImportError:
-    admin_ai = None
+    admin_ai = None  # type: ignore[assignment]  # optional module
 
 
 @owner_only

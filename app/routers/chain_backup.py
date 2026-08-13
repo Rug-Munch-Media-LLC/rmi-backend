@@ -114,7 +114,8 @@ def _check_rclone_connectivity() -> dict[str, Any]:
             capture_output=True,
             text=True,
             timeout=15,
-        shell=False)
+            shell=False,
+        )
         elapsed_ms = (time.monotonic() - start) * 1000
         if result.returncode == 0:
             obj_lines = [line for line in result.stdout.strip().split("\n") if line.strip()]
@@ -176,12 +177,12 @@ def _get_recent_archives(limit: int = 5) -> list[dict[str, Any]]:
         return []
 
 
-def _human_bytes(b: int) -> str:
+def _human_bytes(b: float) -> str:
     """Format bytes to human-readable string."""
     for unit in ("B", "KB", "MB", "GB", "TB"):
         if abs(b) < 1024:
             return f"{b:.1f} {unit}"
-        b /= 1024
+        b = b / 1024
     return f"{b:.1f} PB"
 
 

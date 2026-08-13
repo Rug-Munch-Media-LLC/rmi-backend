@@ -49,7 +49,7 @@ SUPPORTED_CHAINS = ["sol", "eth", "bsc", "base", "arb", "polygon", "avax"]
 
 
 @router.get("/health")
-async def health() -> dict[str, str]:
+async def health() -> dict[str, str | list[str]]:
     return {
         "status": "healthy",
         "service": "deep-intelligence",

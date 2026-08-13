@@ -5,13 +5,15 @@ Returns all available API versions for client discovery.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter
 
 router = APIRouter(tags=["api-index"])
 
 
 @router.get("/api")
-async def api_index() -> dict[str, list[str]]:
+async def api_index() -> dict[str, Any]:
     """List all available API versions."""
     return {
         "versions": ["v1", "v2"],

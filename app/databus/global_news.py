@@ -199,7 +199,7 @@ def fetch_rss(source, url, limit=30) -> Any:
     return results
 
 
-def fetch_all_global() -> dict[str, int] | dict[str, str]:
+def fetch_all_global() -> dict[str, Any]:
     """Fetch all global news sources."""
     all_articles = []
 

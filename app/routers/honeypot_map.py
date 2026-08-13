@@ -162,7 +162,7 @@ async def get_honeypot_network(
 
 
 @router.get("/stats")
-async def get_honeypot_stats() -> dict[str, str]:
+async def get_honeypot_stats() -> dict[str, Any]:
     """Global honeypot statistics."""
     return {
         "description": "Honeypot contract network intelligence from eth-labels + SENTINEL + Real-CATS",

@@ -80,7 +80,7 @@ class RpcBatcher:
         # Internally: accumulates -> after 50ms or 20 requests -> dispatches batch
     """
 
-    def __init__(self, rpc_query_fn: Callable[..., Awaitable]) -> None:
+    def __init__(self, rpc_query_fn: Callable[..., Awaitable[Any]]) -> None:
         """
         Args:
             rpc_query_fn: async function(provider, method, params) -> result
@@ -88,8 +88,8 @@ class RpcBatcher:
         """
         self._query_fn = rpc_query_fn
         self._pending: dict[str, list[BatchRequest]] = {}  # provider -> pending
-        self._futures: dict[str, dict[int, asyncio.Future]] = {}  # provider -> {id: future}
-        self._timers: dict[str, asyncio.Task] = {}  # provider -> timer task
+        self._futures: dict[str, dict[int, asyncio.Future[Any]]] = {}  # provider -> {id: future}
+        self._timers: dict[str, asyncio.Task[Any]] = {}  # provider -> timer task
         self._lock = asyncio.Lock()
         self._next_id = 0
 

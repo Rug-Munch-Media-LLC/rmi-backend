@@ -12,6 +12,8 @@ Commands:
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 
 from app.core.logging import get_logger
@@ -24,7 +26,7 @@ logger = get_logger("rmi.premium")
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _backend_get(path: str, params: dict | None = None, timeout: float = 15.0) -> dict | None:
+async def _backend_get(path: str, params: dict[str, Any] | None = None, timeout: float = 15.0) -> dict[str, Any] | None:
     """GET to RMI backend, return parsed JSON or None on any failure."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -40,7 +42,7 @@ async def _backend_get(path: str, params: dict | None = None, timeout: float = 1
     return None
 
 
-async def _backend_post(path: str, json: dict | None = None, timeout: float = 20.0) -> dict | None:
+async def _backend_post(path: str, json: dict[str, Any] | None = None, timeout: float = 20.0) -> dict[str, Any] | None:
     """POST to RMI backend, return parsed JSON or None on any failure."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:

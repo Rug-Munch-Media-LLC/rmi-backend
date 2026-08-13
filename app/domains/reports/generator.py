@@ -406,7 +406,7 @@ async def generate_wallet_report(catalog, chain: str, address: str, model: str =
     rag = data.get("rag_findings", [])
     avg_sent = sum(n.sentiment_score or 0 for n in news) / len(news) if news else 0
 
-    sections_ctx = {
+    sections_ctx: dict[str, dict[str, Any]] = {
         "executive_summary": {
             "subject_type": "wallet",
             "subject_id": f"{chain}:{address}",

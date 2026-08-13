@@ -35,7 +35,7 @@ async def mcp_call_tool(tool_id: str, request: Request) -> Any:
 
     import httpx
 
-    url = f"{settings.x402_tools_base}/{tool_id}"
+    url = f"{settings.backend_url}/{tool_id}"
     try:
         headers = {}
         for h in (

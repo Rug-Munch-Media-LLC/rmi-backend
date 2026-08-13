@@ -262,7 +262,7 @@ async def publish_newsletter(
     data: PublishRequest,
     svc: NewsletterService = Depends(get_newsletter_service),
     _user: dict[str, Any] = Depends(require_auth),
-) -> dict[str, Any]:
+) -> PublishResponse:
     """Publish a newsletter to all configured platforms simultaneously."""
     result = await svc.publish_crossplatform(
         newsletter_id=data.newsletter_id,

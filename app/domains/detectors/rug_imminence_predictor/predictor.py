@@ -344,7 +344,7 @@ class RugImminencePredictor:
                 from app.domains.scanners.social_velocity import SocialVelocityAnalyzer
 
                 analyzer = SocialVelocityAnalyzer()
-                velocity = await analyzer.analyze(result.token_address)
+                velocity = await analyzer.analyze([])  # no mention feed wired up; see [REVIEW]
                 result.sources_used.append("social_velocity_analyzer")
                 if velocity:
                     mention_spike = velocity.get("mention_spike_pct", 0)  # type: ignore[attr-defined]
