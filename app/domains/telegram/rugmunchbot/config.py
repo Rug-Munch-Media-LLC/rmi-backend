@@ -153,15 +153,15 @@ async def check_backend_health() -> None:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(f"{BACKEND_URL}/health", headers=backend_headers())
             if r.status_code == 200:
-                from app.core.logging import get_logger
+                from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
                 get_logger("rmi.config").info("Backend reachable at %s", BACKEND_URL)
             else:
-                from app.core.logging import get_logger
+                from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
                 get_logger("rmi.config").warning("Backend at %s returned status %d", BACKEND_URL, r.status_code)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-        from app.core.logging import get_logger
+        from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
         get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", BACKEND_URL, exc)
 

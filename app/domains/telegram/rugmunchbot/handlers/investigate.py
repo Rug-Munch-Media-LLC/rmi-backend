@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from telegram.constants import ParseMode
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
@@ -33,6 +32,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, investigate_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.scanner import scan_token, scan_token_v2, v2_token_to_legacy
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Update

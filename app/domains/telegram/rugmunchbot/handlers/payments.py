@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 from telegram.error import TelegramError
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BUY_STARS_PACKS,
@@ -22,6 +21,7 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.keyboards import scan_result_kb
 from app.domains.telegram.rugmunchbot.scanner import scan_token
 from app.domains.telegram.rugmunchbot.states import _pending_deep_scans
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Update

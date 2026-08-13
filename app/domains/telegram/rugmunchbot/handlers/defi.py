@@ -28,7 +28,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import CommandHandler
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     backend_headers,
@@ -42,6 +41,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     sep,
     thin_sep,
 )
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram.ext import Application, ContextTypes

@@ -35,7 +35,6 @@ from telegram.ext import (
 )
 from telegram.request import HTTPXRequest
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.admin_state import track_command
 from app.domains.telegram.rugmunchbot.alert_worker import deliver_pending_alerts
@@ -136,6 +135,7 @@ from app.domains.telegram.rugmunchbot.handlers.watchlist import (
 )
 from app.domains.telegram.rugmunchbot.handlers.webhook import cmd_webhook
 from app.domains.telegram.rugmunchbot.states import is_owner
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot")
 

@@ -16,7 +16,6 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
@@ -31,6 +30,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import paywall_kb
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes

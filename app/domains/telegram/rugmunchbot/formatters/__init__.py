@@ -17,7 +17,6 @@ re-exported below, so ``from ...formatters import X`` keeps working unchanged.
 
 from __future__ import annotations
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS, fmt_chain, fmt_number, fmt_pct
 from app.domains.telegram.rugmunchbot.formatters._base import (
     BETA_BANNER,
@@ -75,6 +74,7 @@ from app.domains.telegram.rugmunchbot.formatters._wallet import (
     _explorer_link,
     format_wallet_report,
 )
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot")
 

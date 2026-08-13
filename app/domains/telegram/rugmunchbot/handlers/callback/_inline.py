@@ -13,11 +13,11 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, COINGECKO, backend_headers, fmt_number
 from app.domains.telegram.rugmunchbot.data_resolver import resolve_fear_greed, resolve_market_global
 from app.domains.telegram.rugmunchbot.formatters import footer_links, sep, thin_sep
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, token_buttons
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Update

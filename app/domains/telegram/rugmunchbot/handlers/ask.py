@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING
 
 from telegram.constants import ParseMode
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.handlers.chat_ai import chat_ai_response
 from app.domains.telegram.rugmunchbot.keyboards import main_menu_kb
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from telegram import Update

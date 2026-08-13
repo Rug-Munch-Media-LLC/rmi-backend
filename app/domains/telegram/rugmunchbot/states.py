@@ -12,8 +12,8 @@ from typing import Any
 
 from cachetools import TTLCache
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot")
 

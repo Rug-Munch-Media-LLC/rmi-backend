@@ -10,8 +10,8 @@ if TYPE_CHECKING:
 
 import httpx
 
-from app.core.logging import get_logger
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 """Own-data-first data resolver for RugMunchBot.
 
