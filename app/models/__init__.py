@@ -34,6 +34,7 @@ from app.models.analytics import (  # noqa: E402 — module docstring precedes i
     EngagementEvent,
     ViewEvent,
 )
+from app.models.kol import KOLWallet  # noqa: E402 — module docstring precedes import block
 from app.models.kv_migration import (  # noqa: E402 — module docstring precedes import block
     Bookmark,
     ChatMessage,
@@ -71,6 +72,7 @@ __all__ = [
     "CreatorStreak",
     "EngagementEvent",
     "IdentityMapping",
+    "KOLWallet",
     "Label",
     # Newsletter models: import directly from app.domains.newsletter.models
     "LiveBattle",
