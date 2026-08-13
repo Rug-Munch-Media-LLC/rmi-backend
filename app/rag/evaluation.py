@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 from datetime import UTC, datetime
@@ -39,6 +40,18 @@ log = logging.getLogger(__name__)
 EVAL_TIMEOUT_S = 10.0
 EVAL_MAX_CONCURRENCY = 5
 EVAL_TOP_K = 5
+
+# Regression thresholds for the CI gate (env overrides win). Applied to the
+# aggregate metrics of a golden-set run: hit-rate and faithfulness must stay
+# above these floors or ``scripts/rag-eval.sh`` / the ``rag_eval`` pytest
+# marker fail the build.
+from app.rag.config import (  # noqa: E402 — config import after stdlib block
+    RAG_EVAL_FAITHFULNESS_MIN as _DEFAULT_FAITHFULNESS_MIN,
+    RAG_EVAL_HIT_RATE_MIN as _DEFAULT_HIT_RATE_MIN,
+)
+
+EVAL_HIT_RATE_MIN: float = float(os.getenv("RAG_EVAL_HIT_RATE_MIN", str(_DEFAULT_HIT_RATE_MIN)))
+EVAL_FAITHFULNESS_MIN: float = float(os.getenv("RAG_EVAL_FAITHFULNESS_MIN", str(_DEFAULT_FAITHFULNESS_MIN)))
 
 # Crypto-specific golden test set (mirrors rmi-rag's but local to rmi-backend)
 RUGBRAIN_GOLDEN_SET: list[dict[str, str]] = [
@@ -146,6 +159,71 @@ RUGBRAIN_GOLDEN_SET: list[dict[str, str]] = [
             "Mixers (e.g. Tornado Cash) break the on-chain link between sender and receiver "
             "by pooling and redistributing funds. Launderers use chain-hopping, peel chains, "
             "and mixer deposits before cashing out via exchanges, complicating fund tracing."
+        ),
+    },
+    {
+        "question": "What is a liquidity pool rug pull and how is it executed?",
+        "ground_truth": (
+            "A liquidity pool rug pull happens when the deployer removes the LP tokens from "
+            "the DEX pool, leaving holders unable to sell. Execution: mint large supply, add "
+            "liquidity, pump the price, remove liquidity, abandon the token. Detection: "
+            "unlocked LP, burn status, mint authority, holder concentration."
+        ),
+    },
+    {
+        "question": "How does a Ponzi scheme operate in crypto?",
+        "ground_truth": (
+            "A crypto Ponzi scheme pays early investors with new deposits rather than real "
+            "returns. Operators promise fixed high yields, recruit referral chains, and hide "
+            "the absence of underlying revenue. Collapse comes when withdrawals exceed new "
+            "inflow. Red flags: guaranteed returns, referral bonuses, anonymous team."
+        ),
+    },
+    {
+        "question": "What is token tax manipulation and how can it be detected?",
+        "ground_truth": (
+            "Token tax manipulation changes the buy or sell fee mid-life to trap holders. "
+            "Deployers raise sell tax to 100% after hype or flip buy/sell taxes asymmetrically. "
+            "Detection: simulate buy and sell at different times, compare tax values, watch for "
+            "owner-only tax update functions and hidden modifiers."
+        ),
+    },
+    {
+        "question": "How do fake airdrop scams steal user funds?",
+        "ground_truth": (
+            "Fake airdrops lure users to a lookalike claim site that asks for wallet "
+            "connection or a small 'gas' payment. Connecting grants token approval or signs a "
+            "permit, letting the scammer drain the wallet. Prevention: verify official domains, "
+            "never sign unknown messages, revoke unused approvals."
+        ),
+    },
+    {
+        "question": "What is an exit scam in crypto and what are its warning signs?",
+        "ground_truth": (
+            "An exit scam is when a project vanishes with user funds after building trust. "
+            "Warning signs: anonymous or doxxed-fake team, locked or vanishing liquidity, "
+            "sudden social account deletions, withheld withdrawals, marketing spikes right "
+            "before a suspected exit. Detection: monitor LP removal, treasury drains, and "
+            "multi-sig quorum changes."
+        ),
+    },
+    {
+        "question": "How does clipboard malware steal cryptocurrency?",
+        "ground_truth": (
+            "Clipboard malware monitors the system clipboard and replaces copied wallet "
+            "addresses with an attacker-controlled address. A user pasting a withdrawal "
+            "address sends funds to the attacker instead. Detection: verify pasted addresses "
+            "character by character, use hardware wallets with on-device display, and scan "
+            "devices for clipboard-monitoring malware."
+        ),
+    },
+    {
+        "question": "What are the risks of unlimited token approval to malicious contracts?",
+        "ground_truth": (
+            "Unlimited token approval grants a contract the right to spend an unbounded "
+            "amount of your tokens. If the contract is malicious or compromised, transferFrom "
+            "can drain the entire balance at any time. Mitigation: approve only the exact "
+            "amount needed, use allowance-lowering flows, and revoke approvals after use."
         ),
     },
 ]
@@ -313,6 +391,37 @@ def _keyword_context_recall(question: str, context_chunks: list[str]) -> float:
     return found / len(question_words)
 
 
+def _keyword_hit_rate(ground_truth: str, context_chunks: list[str], min_support: float = 0.25) -> float:
+    """Binary hit@k proxy: 1.0 when the retrieved context supports at least
+    *min_support* of the ground-truth keywords, else 0.0.
+
+    Mirrors the classic RAG hit-rate definition (was the relevant document
+    retrieved?) using deterministic keyword overlap since the golden set does
+    not carry per-query relevant doc_ids.
+    """
+    if not ground_truth or not context_chunks:
+        return 0.0
+    return 1.0 if _keyword_faithfulness(ground_truth, context_chunks) >= min_support else 0.0
+
+
+def thresholds_met(metrics: dict[str, Any]) -> tuple[bool, list[str]]:
+    """Check aggregate metrics against the regression thresholds.
+
+    Returns ``(ok, failures)`` where *failures* lists human-readable messages
+    for every metric that fell below its floor (``EVAL_HIT_RATE_MIN``,
+    ``EVAL_FAITHFULNESS_MIN``). Used by ``scripts/rag-eval.sh`` and the
+    ``rag_eval`` pytest marker to fail the build on regression.
+    """
+    failures: list[str] = []
+    hit_rate = float(metrics.get("hit_rate", 0.0) or 0.0)
+    if hit_rate < EVAL_HIT_RATE_MIN:
+        failures.append(f"hit_rate={hit_rate:.3f} < {EVAL_HIT_RATE_MIN}")
+    faithfulness = float(metrics.get("faithfulness", 0.0) or 0.0)
+    if faithfulness < EVAL_FAITHFULNESS_MIN:
+        failures.append(f"faithfulness={faithfulness:.3f} < {EVAL_FAITHFULNESS_MIN}")
+    return (not failures, failures)
+
+
 # ======================================================================
 # RAGAS PATH (lazy import — optional dependency)
 # ======================================================================
@@ -473,6 +582,7 @@ async def _run_one(tc: dict[str, Any], collection: str) -> dict[str, Any]:
             "answer_relevancy": round(_keyword_relevancy(ground_truth, question), 4),
             "context_precision": round(_keyword_context_precision(question, chunks), 4),
             "context_recall": round(_keyword_context_recall(question, chunks), 4),
+            "hit_rate": round(_keyword_hit_rate(ground_truth, chunks), 4),
         },
     }
 
@@ -514,17 +624,22 @@ async def evaluate_rag_pipeline(
     use_ragas = _ragas_metrics_available()
     ragas_metrics = await _evaluate_with_ragas(valid, hits_by_query) if use_ragas else None
 
-    # Default aggregate metrics from heuristics (always computed).
+    # Default aggregate metrics from heuristics (always computed). hit_rate is
+    # deterministic keyword overlap and is preserved even when ragas replaces
+    # the other three metrics (ragas has no hit-rate metric).
     metrics = {
         "faithfulness": round(sum(p["metrics"]["faithfulness"] for p in valid) / n, 4),
         "answer_relevancy": round(sum(p["metrics"]["answer_relevancy"] for p in valid) / n, 4),
         "context_precision": round(sum(p["metrics"]["context_precision"] for p in valid) / n, 4),
         "context_recall": round(sum(p["metrics"]["context_recall"] for p in valid) / n, 4),
+        "hit_rate": round(sum(p["metrics"]["hit_rate"] for p in valid) / n, 4),
     }
     metric_source = "heuristics"
     if ragas_metrics is not None:
-        metrics = ragas_metrics
+        metrics = {**ragas_metrics, "hit_rate": metrics["hit_rate"]}
         metric_source = "ragas"
+
+    ok, failures = thresholds_met(metrics)
 
     return {
         "metrics": metrics,
@@ -535,6 +650,12 @@ async def evaluate_rag_pipeline(
         "queries_run": len(valid),
         "errors": len(per_query) - len(valid),
         "per_query": per_query,
+        "thresholds": {
+            "hit_rate_min": EVAL_HIT_RATE_MIN,
+            "faithfulness_min": EVAL_FAITHFULNESS_MIN,
+        },
+        "thresholds_met": ok,
+        "threshold_failures": failures,
     }
 
 
@@ -590,10 +711,13 @@ def get_evaluation_history(limit: int = 10) -> list[dict[str, Any]]:
 
 
 __all__ = [
+    "EVAL_FAITHFULNESS_MIN",
+    "EVAL_HIT_RATE_MIN",
     "HISTORY_PATH",
     "RUGBRAIN_GOLDEN_SET",
     "evaluate_on_golden_set",
     "evaluate_rag_pipeline",
     "get_evaluation_history",
     "record_evaluation_results",
+    "thresholds_met",
 ]

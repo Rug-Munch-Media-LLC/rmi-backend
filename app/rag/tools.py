@@ -216,7 +216,7 @@ async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
             query=query,
             collection="news_v2",
             top_k=top_k,
-            rerank=False,
+            rerank=True,
         )
         results = [
             {

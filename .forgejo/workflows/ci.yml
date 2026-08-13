@@ -499,6 +499,30 @@ jobs:
           name: slow-test-report
           path: /tmp/slow-tests-*.log
 
+  rag-eval-gate:
+    # RAG regression gate (G3): golden-set size, hit-rate + faithfulness
+    # thresholds, and the rerank/context-budget wiring. Deterministic dry run
+    # (no Redis/Qdrant/Infinity required). BLOCKS on regression.
+    runs-on: docker-x64
+    needs: build-and-test
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Run RAG regression eval gate
+        run: |
+          source .venv/bin/activate
+          bash scripts/rag-eval.sh --dry
+
   pip-audit:
     runs-on: docker-x64
     needs: build-and-test

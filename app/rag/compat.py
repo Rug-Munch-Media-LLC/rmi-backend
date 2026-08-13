@@ -104,7 +104,6 @@ async def search_similar(
             top_k=limit,
             min_similarity=min_similarity,
             expand=False,
-            rerank=False,
         )
         return [_hit_to_dict(h, collection) for h in hits]
     except Exception as e:  # fail-open, like the old service
@@ -149,12 +148,15 @@ async def three_pillar_search(
     mmr_lambda: float = 0.6,
     use_kg: bool = True,
     use_parent_child: bool = True,
-    use_reranker: bool = False,
 ) -> dict[str, Any]:
     """DEPRECATED — three-pillar search with old dict return shape.
 
     Returns ``{"results": [...], "confidence": ...}`` exactly like the old
     ``app.rag_service.three_pillar_search`` so callers keep working.
+
+    Cross-encoder rerank (BAAI/bge-reranker-v2-m3) is MANDATORY: the engine
+    facade reranks every result list and applies the context-token budget
+    internally, so the legacy ``use_reranker`` switch is gone.
     """
     from app.rag.engine import three_pillar_search as _engine_search
 
@@ -314,7 +316,6 @@ async def search_documents(
             collection=collection,
             top_k=limit,
             expand=False,
-            rerank=False,
         )
         return [_hit_to_dict(h, collection) for h in hits]
     except Exception as e:

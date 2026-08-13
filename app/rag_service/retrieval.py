@@ -222,9 +222,15 @@ async def three_pillar_search(
     mmr_lambda: float = 0.6,
     use_kg: bool = True,
     use_parent_child: bool = True,
-    use_reranker: bool = False,
+    use_reranker: bool = True,
 ) -> dict[str, Any]:
-    """Three-pillar hybrid search with KG expansion, MMR dedup, and parent-child retrieval."""
+    """Three-pillar hybrid search with KG expansion, MMR dedup, and parent-child retrieval.
+
+    Cross-encoder rerank (BAAI/bge-reranker-v2-m3) is MANDATORY by default
+    (``use_reranker`` defaults to ``True``); the skip path was removed.
+    Rerank is fail-open — vector-only ranking is used if the reranker is
+    unavailable — but it always runs.
+    """
     if collections is None:
         collections = COLLECTIONS
     limit = min(limit, 100)
@@ -405,9 +411,9 @@ async def three_pillar_search(
         except (ImportError, ConnectionError, OSError) as e:
             logger.debug(f"MMR dedup failed: {e}")
 
-    # ── Cross-encoder reranking ──
+    # ── Cross-encoder reranking (mandatory; fail-open to vector-only) ──
     reranker_applied = False
-    if use_reranker and fused:
+    if fused:
         try:
             from app.cross_encoder_reranker import get_reranker
 

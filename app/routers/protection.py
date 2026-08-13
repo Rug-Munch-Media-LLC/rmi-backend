@@ -102,7 +102,6 @@ async def check_rag_for_url(url: str) -> dict[str, Any] | None:
                 use_mmr=False,
                 use_kg=False,
                 use_parent_child=False,
-                use_reranker=False,
             ),
             timeout=0.2,
         )
@@ -434,7 +433,6 @@ async def get_domains() -> dict[str, Any] | dict[str, list[Any]]:
                     use_mmr=False,
                     use_kg=False,
                     use_parent_child=False,
-                    use_reranker=False,
                 ),
                 timeout=0.5,
             )
