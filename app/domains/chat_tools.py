@@ -141,6 +141,30 @@ _NEWS_KEYWORD_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Prediction-market asks: "show me interesting prediction markets", "what are
+# the odds on X", "polymarket insider trading markets", "will X happen",
+# "bet on ...". "insider" is deliberately broad — it catches the Polymarket
+# "insider trading"-style markets the bot wants to surface. "market" alone
+# stays the market intent (checked first in _detect_tool_intent).
+_INTENT_PREDICTION_PHRASES = (
+    "prediction market",
+    "prediction markets",
+    "polymarket",
+    "bet on",
+    "bets on",
+    "betting on",
+    "odds",
+    "insider",
+    "election market",
+    "election markets",
+    "crypto market odds",
+    "will happen",
+    "will win",
+)
+
+# "will <X> happen?" — prediction-market phrasing with a gap between the words.
+_WILL_HAPPEN_RE = re.compile(r"\bwill\b.{0,60}\bhappen\b", re.IGNORECASE)
+
 # Natural token names → display symbol (price extraction without a $ prefix).
 _TOKEN_NAME_TO_SYMBOL: dict[str, str] = {
     "bitcoin": "BTC",
@@ -222,13 +246,16 @@ _COINGECKO_IDS: dict[str, str] = {
 
 
 def _detect_tool_intent(message: str) -> str | None:
-    """Classify ``message`` into a tool intent: price/scan/ta/market/news/trace/suspicious/None.
+    """Classify ``message`` into a tool intent: price/scan/ta/market/news/trace/suspicious/prediction/None.
 
     Priority: explicit TA keywords > scan (address/symbol + security words)
     > trace (address + forensics phrases, or address + who/what/related/trace)
     > price (phrase + symbol/name, or a lone ``$SYMBOL``) > suspicious (shady /
     new-token LIST asks — checked after scan/trace/price so a single-token
-    security/price query stays scan/price) > market phrases > news keywords.
+    security/price query stays scan/price) > prediction (Polymarket-style
+    market asks, checked BEFORE market so "prediction market"/"election market"
+    phrasing does not fall into the generic market intent) > market phrases >
+    news keywords.
     News is deliberately checked AFTER market so explicit market/fear-greed/
     btc-eth-sol phrasing ("how's the market") stays market, and after
     ta/scan/trace/price so a price/scan query is not reclassified. Returns
@@ -275,6 +302,12 @@ def _detect_tool_intent(message: str) -> str | None:
     # never falls through to the generic market/news fallback.
     if _is_suspicious_list_request(low):
         return "suspicious"
+
+    # Prediction — Polymarket-style markets. Checked BEFORE market so explicit
+    # "prediction market"/"election market"/"crypto market odds" phrasing does
+    # not fall into the generic market intent.
+    if any(p in low for p in _INTENT_PREDICTION_PHRASES) or _WILL_HAPPEN_RE.search(low):
+        return "prediction"
 
     # Market.
     if any(m in low for m in _INTENT_MARKET_PHRASES):
@@ -750,9 +783,21 @@ async def _exec_news(message: str = "") -> str | None:
 # "Give me the shady tokens you've seen launching" must surface REAL tokens
 # the bot has observed, with concrete reasons — never a generic lecture and
 # never fabricated names. Pulls launch records via the in-process detector +
-# GMGN provider (no x402 endpoints), then ranks by the record's own fields:
-# age, liquidity, known-scammer overlap, and honeypot/mintable flags when
-# present. Fail-open → None (chat falls back to RAG/LLM).
+# GMGN provider (no x402 endpoints), then ranks by the consolidated rug-risk
+# score (honeypot / mintable / LP-lock / bundle / age / liquidity /
+# known-scammer overlap) when the pure scorer is available, else the legacy
+# age/liquidity heuristic. Fail-open → None (chat falls back to RAG/LLM).
+
+# Defensive import: the consolidated rug-risk scorer
+# (app/domains/scanner/rug_risk_score) is a pure 0-100 scorer; when it is
+# unavailable (or mid-refactor and not importable), _exec_suspicious falls
+# back to the legacy _launch_suspicion_score. Broad except: a broken module
+# (e.g. SyntaxError while being edited) must never break the chat tool layer.
+try:
+    from app.domains.scanner.rug_risk_score import risk_verdict_text, rug_risk_score
+except Exception:  # defensive: scorer availability is optional
+    rug_risk_score = None  # type: ignore[assignment]
+    risk_verdict_text = None  # type: ignore[assignment]
 
 _SUSPICIOUS_LAUNCH_LIMIT = 30  # detector window to inspect
 _SUSPICIOUS_FRESH_LIMIT = 20  # GMGN fresh pairs to supplement with
@@ -761,6 +806,10 @@ _SUSPICIOUS_YOUNG_SECONDS = 3600  # <1h age is the classic rug window
 _SUSPICIOUS_LIQUIDITY_LOW = 1000.0  # <$1k LP
 _SUSPICIOUS_LIQUIDITY_THIN = 5000.0  # <$5k LP
 _SUSPICIOUS_MC_TINY = 5000.0  # market cap below this is a red flag
+# Top-N newest launches that get per-token security enrichment (honeypot /
+# mintable / LP-lock / bundle network checks are capped in the detector —
+# matches app.databus.token_launch_detector._SECURITY_ENRICH_LIMIT).
+_SUSPICIOUS_ENRICH_MAX = 5
 
 _LAUNCH_ENTITY_KEYS = (
     "address",
@@ -790,21 +839,34 @@ def _is_truthy(value: Any) -> bool:
 
 
 def _suspicious_flags(launch: dict[str, Any]) -> list[str]:
-    """Concrete flag reasons present in the launch record (empty when absent)."""
+    """Concrete flag reasons present in the launch record (empty when absent).
+
+    Reads both the legacy flat fields (``is_honeypot``/``is_mintable``/
+    ``lp_locked`` from GMGN/provider records) and the enriched ``security``
+    sub-dict added by ``TokenLaunchDetector.enrich_launches``. Fields that are
+    absent or unknown (None) never fire a reason — fail-closed.
+    """
     flags: list[str] = []
+    sec = launch.get("security")
+    security = sec if isinstance(sec, dict) else {}
+
     for key in ("is_honeypot", "honeypot", "flagged_honeypot"):
-        if _is_truthy(launch.get(key)):
+        if _is_truthy(launch.get(key)) or _is_truthy(security.get("honeypot")):
             flags.append("honeypot")
             break
     for key in ("is_mintable", "mintable", "mintable_flag"):
-        if _is_truthy(launch.get(key)):
+        if _is_truthy(launch.get(key)) or _is_truthy(security.get("mintable")):
             flags.append("mintable")
             break
+    if security.get("lp_locked") is not None and not _is_truthy(security.get("lp_locked")):
+        flags.append("LP not locked")
     for key in ("lp_locked", "is_lp_locked", "liquidity_locked"):
         val = launch.get(key)
         if val is not None and not _is_truthy(val):
             flags.append("LP not locked")
             break
+    if _is_truthy(security.get("bundle_suspect")):
+        flags.append("bundled snipers")
     raw_flags = launch.get("risk_flags") or launch.get("flags")
     if isinstance(raw_flags, list):
         for item in raw_flags:
@@ -854,6 +916,15 @@ def _launch_scammer_hit(launch: dict[str, Any], scammers: set[str]) -> str | Non
             norm = norm.lower()
         if norm in scammers:
             return "deployer matches known scammer" if key != "address" else "address matches known scammer"
+    # Enriched security sub-dict — the creator/owner resolution wired by the
+    # launch detector ("known creator" reason when it matches a known scammer).
+    sec = launch.get("security")
+    if isinstance(sec, dict):
+        creator = sec.get("creator_address") or sec.get("owner_address")
+        if creator:
+            norm = str(creator).strip().lower() if str(creator).strip().startswith("0x") else str(creator).strip()
+            if norm in scammers:
+                return "creator matches known scammer"
     return None
 
 
@@ -861,10 +932,14 @@ def _launch_suspicion_score(launch: dict[str, Any], scammers: set[str]) -> tuple
     """(suspicion_score, concrete_reason) for a launch record; (0.0, "") when none.
 
     Signals, all derived from the record's own fields:
+      - honeypot / mintable / unlocked-LP / bundled snipers (+60 each) →
+        "honeypot" / "mintable" / "LP not locked" / "bundled snipers" — from
+        the flat provider flags OR the enriched ``security`` sub-dict; these
+        rank ABOVE age/liquidity so concrete scam signals always win.
       - age < 1h                      (+40)  → "age 4m"
       - liquidity 0 / <$1k / <$5k     (+50/35/15) → "0 liquidity" / "LP $850"
       - entity matches known scammer  (+100) → "deployer matches known scammer"
-      - honeypot / mintable / unlocked-LP (+60 each)
+                                              / "creator matches known scammer"
       - market cap < $5k              (+10)  → "MC $1.2k"
     """
     score = 0.0
@@ -908,12 +983,117 @@ def _launch_suspicion_score(launch: dict[str, Any], scammers: set[str]) -> tuple
     return score, "; ".join(deduped)[:120]
 
 
+def _launch_rug_signals(launch: dict[str, Any], scammers: set[str]) -> dict[str, Any]:
+    """Build the consolidated rug-risk signal dict from a launch record.
+
+    Feeds the enriched ``security`` sub-dict (honeypot / mintable /
+    lp_locked / bundle_suspect), the legacy flat provider flags, the record's
+    own age / liquidity / market-cap, and any creator/deployer overlap with
+    known scammers. ``rug_risk_score`` tolerates unknown keys (absent signal =
+    no evidence); a tiny market cap alone is surfaced via the fallback scorer
+    when the consolidated one yields nothing.
+    """
+    sec = launch.get("security")
+    security = sec if isinstance(sec, dict) else {}
+
+    def _pick(*keys: str) -> Any:
+        for key in keys:
+            val = launch.get(key)
+            if val is not None:
+                return val
+        return None
+
+    return {
+        "honeypot": (
+            security.get("honeypot")
+            if security.get("honeypot") is not None
+            else _pick("is_honeypot", "honeypot", "flagged_honeypot")
+        ),
+        "mintable": (
+            security.get("mintable")
+            if security.get("mintable") is not None
+            else _pick("is_mintable", "mintable", "mintable_flag")
+        ),
+        "lp_locked": (
+            security.get("lp_locked")
+            if security.get("lp_locked") is not None
+            else _pick("lp_locked", "is_lp_locked", "liquidity_locked")
+        ),
+        "bundled": (
+            security.get("bundle_suspect")
+            if security.get("bundle_suspect") is not None
+            else _pick("bundle_suspect", "bundled", "is_bundled")
+        ),
+        "deployer_repeat": _pick("deployer_repeat", "repeat_rug", "is_repeat_deployer"),
+        "known_scammer": bool(_launch_scammer_hit(launch, scammers)),
+        "age_seconds": _launch_age_seconds(launch),
+        "liquidity": _to_float(launch.get("liquidity")),
+        "market_cap": _to_float(launch.get("market_cap")),
+    }
+
+
+def _launch_rug_risk(launch: dict[str, Any], scammers: set[str]) -> dict[str, Any] | None:
+    """Consolidated rug-risk result (score/verdict/flags/reasons) or None.
+
+    Prefers the pure ``rug_risk_score`` over the legacy heuristic: returns the
+    scorer's result ONLY when it produced concrete reasons. None (scorer
+    unavailable or silent) means the caller falls back to
+    ``_launch_suspicion_score``.
+    """
+    if rug_risk_score is None:
+        return None
+    try:
+        result = rug_risk_score(_launch_rug_signals(launch, scammers))
+    except Exception as e:
+        logger.debug("chat_tool_rug_risk_failed", error=str(e)[:120])
+        return None
+    if not isinstance(result, dict):
+        return None
+    if not (result.get("reasons") or result.get("flags")):
+        return None
+    return result
+
+
+def _rug_risk_segment(result: dict[str, Any]) -> str:
+    """Render ``score 92/100 CRITICAL — honeypot · mintable`` from a rug-risk result.
+
+    Reuses ``risk_verdict_text``'s canonical flag→text mapping (top 3 flags,
+    ``kol_verified`` hidden unless alone); falls back to a bare
+    ``score N/100 VERDICT`` when there are no flags to show.
+    """
+    if not isinstance(result, dict):
+        return ""
+    score = int(result.get("score") or 0)
+    verdict = str(result.get("verdict") or "low").upper()
+    rendered = risk_verdict_text(result) if risk_verdict_text is not None else ""
+    tail = ""
+    if rendered and "—" in rendered:
+        tail = rendered.split("—", 1)[1].strip()
+        if tail.lower() == "no significant risk flags":
+            tail = ""
+    if not tail:
+        return f"score {score}/100 {verdict}"
+    return f"score {score}/100 {verdict} — {tail}"
+
+
 def _rank_suspicious(launches: list[dict[str, Any]], scammers: set[str]) -> list[tuple[dict[str, Any], str]]:
-    """Rank launches by suspiciousness; only records with a concrete reason."""
+    """Rank launches by consolidated rug-risk (desc); only records with a reason.
+
+    Prefers the pure ``rug_risk_score`` (honeypot/mintable/LP-lock/bundle +
+    age/liquidity + known-scammer overlap) and falls back to the legacy
+    ``_launch_suspicion_score`` heuristic when the consolidated scorer is
+    unavailable or silent. Records with NO concrete reason are dropped.
+    """
     ranked: list[tuple[float, dict[str, Any], str]] = []
     for launch in launches:
         if not isinstance(launch, dict):
             continue
+        result = _launch_rug_risk(launch, scammers)
+        if result is not None:
+            reason = _rug_risk_segment(result)
+            if reason:
+                ranked.append((float(result.get("score") or 0), launch, reason))
+                continue
         score, reason = _launch_suspicion_score(launch, scammers)
         if score > 0 and reason:
             ranked.append((score, launch, reason))
@@ -951,21 +1131,37 @@ def _render_suspicious(ranked: list[tuple[dict[str, Any], str]]) -> str | None:
 
 
 async def _exec_suspicious(message: str = "") -> str | None:
-    """List recent launches that look shady, ranked by concrete signals.
+    """List recent launches that look shady, ranked by the 25-point rug-risk score.
 
     Fetches REAL launches via the in-process detector + GMGN provider (never
-    the x402 endpoints) and ranks by the records' own fields (age, liquidity,
-    known-scammer overlap, honeypot/mintable flags). Fail-open → None when no
-    launch data is available — chat falls back to RAG/LLM. Never invents
-    tokens or reasons.
+    the x402 endpoints), best-effort enriches the newest ones with the
+    detector's security quick-checks (honeypot/mintable/LP-lock/creator/bundle),
+    then ranks by the consolidated rug-risk score — feeding each launch's
+    security fields + age/liquidity/mcap + creator/deployer known-scammer
+    overlap into the pure scorer; falls back to the legacy age/liquidity
+    heuristic when the scorer is unavailable or silent. Records without a
+    concrete reason are dropped. Fail-open → None when no launch data is
+    available — chat falls back to RAG/LLM. Never invents tokens or reasons.
     """
     launches: list[dict[str, Any]] = []
     try:
         from app.databus.token_launch_detector import get_launch_detector
 
-        raw = await get_launch_detector().get_recent_launches(limit=_SUSPICIOUS_LAUNCH_LIMIT)
+        detector = get_launch_detector()
+        raw = await detector.get_recent_launches(limit=_SUSPICIOUS_LAUNCH_LIMIT)
         if isinstance(raw, list):
             launches = raw
+        # Best-effort security enrichment (honeypot/mintable/LP-lock/creator/
+        # bundle). Runs only when the detector instance supports it; a missing
+        # or failing enricher leaves the raw launch list untouched (fail-open).
+        try:
+            enricher = getattr(detector, "enrich_launches", None)
+            if callable(enricher):
+                enriched = await enricher(launches, max_checks=_SUSPICIOUS_ENRICH_MAX)
+                if isinstance(enriched, list):
+                    launches = enriched
+        except Exception as e:
+            logger.debug("chat_tool_suspicious_enrich_failed", error=str(e)[:120])
     except Exception as e:
         logger.debug("chat_tool_suspicious_launches_failed", error=str(e)[:120])
 
@@ -993,6 +1189,37 @@ async def _exec_suspicious(message: str = "") -> str | None:
     return _render_suspicious(_rank_suspicious(launches, scammers))
 
 
+# ── Prediction markets ────────────────────────────────────────────────
+# "Show me interesting prediction markets" / "what are the odds on X" must
+# surface REAL Polymarket data (Gamma API, no key) — never a generic lecture
+# and never fabricated markets. Fail-open → None (chat falls back to RAG/LLM).
+
+
+async def _exec_prediction(message: str = "") -> str | None:
+    """Top interesting Polymarket prediction markets, ranked. Fail-open.
+
+    Calls the in-process ``fetch_trending_markets`` (Gamma API, no key),
+    ranks by volume/liquidity/recency, and renders a compact numbered list.
+    Returns None on any error/empty — chat falls through to RAG/LLM.
+    """
+    try:
+        from app.domains.markets.prediction_markets import (
+            fetch_trending_markets,
+            format_market_list,
+            rank_interesting,
+        )
+
+        markets = await fetch_trending_markets(limit=15)
+        ranked = rank_interesting(markets)
+        if not ranked:
+            return None
+        text = format_market_list(ranked, top_n=8)
+        return text if text.strip() else None
+    except Exception as e:
+        logger.debug("chat_tool_prediction_failed", error=str(e)[:120])
+        return None
+
+
 # ── Dispatcher ─────────────────────────────────────────────────────────
 
 TOOL_TIMEOUT_SECONDS = 8.0
@@ -1005,6 +1232,7 @@ _EXECUTORS: dict[str, Any] = {
     "market": _exec_market,
     "news": _exec_news,
     "suspicious": _exec_suspicious,
+    "prediction": _exec_prediction,
 }
 
 

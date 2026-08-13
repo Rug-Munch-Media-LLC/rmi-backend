@@ -17,10 +17,24 @@ Signals analyzed:
   - Contract bytecode similarity to known scams
 
 Returns a 0-100 risk score with human-readable explanation.
+
+Two APIs live here:
+
+  1. ``score_deployer_risk()`` / ``build_behavioral_fingerprint()`` — the
+     legacy behavioral-fingerprint scoring (re-exported by the
+     ``app/deployer_reputation.py`` compat shim for ``app/streaming_rag.py``).
+
+  2. ``deployer_reputation()`` / ``reputation_signal()`` — the bot-facing
+     API that flags "repeat rug deployer" for RugMunchBot scans. Async,
+     fail-open, injectable fetchers (see below).
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
+from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -315,3 +329,347 @@ def score_deployer_risk(
         "summary": ". ".join(parts),
         "address": address,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Bot-facing deployer reputation API — "repeat rug deployer" flag
+# ═══════════════════════════════════════════════════════════════════════════
+# Pure, testable core + injectable async fetchers. Every default fetcher is
+# fail-open (returns None/False rather than raising), so a missing ClickHouse
+# connection, missing databus JSON, or a query error degrades to a neutral
+# score instead of breaking the scan.
+
+#: Fetcher signatures (all async, all fail-open).
+PriorDeploymentsFetcher = Callable[[str, str], Awaitable[int | None]]
+RugHistoryFetcher = Callable[[str, str], Awaitable[bool]]
+FundingSourceFetcher = Callable[[str, str], Awaitable[str | None]]
+BadActorFetcher = Callable[[str], Awaitable[bool]]
+
+#: Scoring weights — 0-100 risk, higher = riskier, 0 = neutral/clean.
+_DEPLOYMENT_PER_TOKEN = 6.0  # +6 per prior token, capped below
+_DEPLOYMENT_CAP = 40.0
+_REPEAT_DEPLOYER_WEIGHT = 18.0  # 2+ prior tokens
+_BATCH_DEPLOYER_WEIGHT = 12.0  # 10+ prior tokens
+_RUG_HISTORY_WEIGHT = 40.0
+_BAD_ACTOR_FUNDER_WEIGHT = 25.0
+_MAX_SCORE = 100.0
+
+_REPEAT_DEPLOYER_MIN = 2  # prior deployments before we call it a repeat deployer
+_BATCH_DEPLOYER_MIN = 10
+
+#: Databus JSON files used by the default bad-actor lookup.
+_DATABUS_DIR = Path(__file__).resolve().parent.parent.parent / "databus"
+_KNOWN_SCAMMERS_PATH = _DATABUS_DIR / "known_scammers.json"
+_KOL_RUG_HISTORY_PATH = _DATABUS_DIR / "kol_rug_history.json"
+_VERIFIED_KOL_WALLETS_PATH = _DATABUS_DIR / "verified_kol_wallets.json"
+
+#: Lazy-loaded lookup index: address/handle -> bad-actor flags.
+_scam_db: dict[str, Any] | None = None
+
+
+def _norm_lookup_key(value: str) -> str:
+    """Normalize an address/handle for lookup: lowercase EVM 0x, keep base58."""
+    value = (value or "").strip()
+    return value.lower() if value.startswith("0x") else value
+
+
+def _load_scam_db() -> dict[str, Any]:
+    """Load scam/KOL-rug databus files into a lookup index (lazy, fail-open).
+
+    Files are optional: absence or malformed JSON yields empty sets/maps so
+    the default bad-actor lookup degrades to "not flagged" (never raises).
+    """
+    global _scam_db
+    if _scam_db is not None:
+        return _scam_db
+
+    index: dict[str, Any] = {
+        "scammer_addresses": set(),  # direct address matches (future-proof)
+        "scammer_handles": set(),
+        "rug_handles": set(),  # KOL handles with documented rug history
+        "wallet_to_handle": {},  # verified wallet address -> KOL handle
+    }
+
+    try:
+        if _KNOWN_SCAMMERS_PATH.exists():
+            raw = json.loads(_KNOWN_SCAMMERS_PATH.read_text(encoding="utf-8"))
+            accounts = raw.get("accounts") if isinstance(raw, dict) else raw
+            for acct in accounts or []:
+                if not isinstance(acct, dict):
+                    continue
+                handle = _norm_lookup_key(str(acct.get("handle") or ""))
+                if handle:
+                    index["scammer_handles"].add(handle)
+                for key in ("address", "addresses", "wallet"):
+                    value = acct.get(key)
+                    for addr in value if isinstance(value, list) else [value]:
+                        if addr:
+                            index["scammer_addresses"].add(_norm_lookup_key(str(addr)))
+    except (OSError, ValueError, TypeError) as exc:
+        logger.debug("deployer_reputation_known_scammers_unreadable: %s", exc)
+        index["scammer_addresses"] = set()
+        index["scammer_handles"] = set()
+
+    try:
+        if _KOL_RUG_HISTORY_PATH.exists():
+            raw = json.loads(_KOL_RUG_HISTORY_PATH.read_text(encoding="utf-8"))
+            entries = raw.get("kol_rug_history") if isinstance(raw, dict) else raw
+            for entry in entries or []:
+                if not isinstance(entry, dict):
+                    continue
+                handle = _norm_lookup_key(str(entry.get("handle") or entry.get("kol") or ""))
+                if handle and entry.get("rugs"):
+                    index["rug_handles"].add(handle)
+    except (OSError, ValueError, TypeError) as exc:
+        logger.debug("deployer_reputation_kol_rug_history_unreadable: %s", exc)
+        index["rug_handles"] = set()
+
+    try:
+        if _VERIFIED_KOL_WALLETS_PATH.exists():
+            raw = json.loads(_VERIFIED_KOL_WALLETS_PATH.read_text(encoding="utf-8"))
+            wallets = raw.get("wallets") if isinstance(raw, dict) else raw
+            for wallet in wallets or []:
+                if not isinstance(wallet, dict):
+                    continue
+                addr = _norm_lookup_key(str(wallet.get("address") or ""))
+                handle = _norm_lookup_key(str(wallet.get("handle") or ""))
+                if addr and handle:
+                    index["wallet_to_handle"][addr] = handle
+    except (OSError, ValueError, TypeError) as exc:
+        logger.debug("deployer_reputation_verified_kol_wallets_unreadable: %s", exc)
+        index["wallet_to_handle"] = {}
+
+    _scam_db = index
+    return index
+
+
+def _lookup_bad_actor(address: str) -> tuple[bool, str]:
+    """Return ``(flagged, description)`` when address is a known bad actor.
+
+    Checks, in order:
+      1. direct address match in known_scammers address fields
+      2. verified KOL wallet mapping: address belongs to a known-scammer KOL
+      3. verified KOL wallet mapping: address belongs to a KOL with rug history
+      4. address itself is a known-scammer / rug KOL handle (handle-shaped input)
+    """
+    key = _norm_lookup_key(address)
+    if not key:
+        return False, ""
+    db = _load_scam_db()
+    if key in db["scammer_addresses"]:
+        return True, "address listed in known_scammers"
+    handle = db["wallet_to_handle"].get(key)
+    if handle:
+        if handle in db["scammer_handles"]:
+            return True, f"wallet of known scammer {handle}"
+        if handle in db["rug_handles"]:
+            return True, f"wallet of KOL {handle} with documented rug history"
+    if key in db["scammer_handles"]:
+        return True, "handle listed in known_scammers"
+    if key in db["rug_handles"]:
+        return True, "handle has documented rug history"
+    return False, ""
+
+
+async def _default_fetch_prior_deployments(address: str, chain: str) -> int | None:
+    """Count prior token deployments from own ClickHouse (deployer_events).
+
+    Cross-chain count: a repeat deployer on another chain is still a repeat.
+    Returns ``None`` when ClickHouse is unavailable or the query fails.
+    """
+    try:
+        from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
+
+        client = _get_ch_client()
+        if client is None:
+            return None
+        rows = client.execute(
+            """
+            SELECT count(DISTINCT token_address)
+            FROM wallet_memory.deployer_events
+            WHERE deployer = %(deployer)s
+            """,
+            {"deployer": _norm_lookup_key(address)},
+            settings={"max_execution_time": 5},
+        )
+        if rows and rows[0]:
+            return int(rows[0][0] or 0)
+        return 0
+    except Exception as exc:  # fail-open by contract
+        logger.debug("deployer_reputation_prior_deployments_failed: %s", exc)
+        return None
+
+
+async def _default_fetch_rug_history(address: str, chain: str) -> bool:
+    """True when the address matches a known scammer / rug-history KOL."""
+    flagged, _ = _lookup_bad_actor(address)
+    return flagged
+
+
+async def _default_is_bad_actor(address: str) -> bool:
+    """True when the address is a known scammer / rug-history KOL."""
+    flagged, _ = _lookup_bad_actor(address)
+    return flagged
+
+
+async def _default_fetch_funding_source(address: str, chain: str) -> str | None:
+    """First wallet that funded the address (evm_transfers), best-effort.
+
+    Returns the normalized funder address, or ``None`` when the chain is
+    unknown, ClickHouse is unavailable, or the address has no incoming
+    transfer (new wallet).
+    """
+    if not chain:
+        return None
+    try:
+        from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
+
+        client = _get_ch_client()
+        if client is None:
+            return None
+        rows = client.execute(
+            """
+            SELECT from_address
+            FROM wallet_memory.evm_transfers
+            WHERE to_address = %(address)s
+              AND chain = %(chain)s
+              AND from_address NOT IN ('', %(zero)s, %(dead)s)
+            ORDER BY block_timestamp ASC
+            LIMIT 1
+            """,
+            {
+                "address": _norm_lookup_key(address),
+                "chain": (chain or "").lower(),
+                "zero": "0x0000000000000000000000000000000000000000",
+                "dead": "0x000000000000000000000000000000000000dead",
+            },
+            settings={"max_execution_time": 5},
+        )
+        if rows and rows[0]:
+            return _norm_lookup_key(str(rows[0][0] or "")) or None
+        return None
+    except Exception as exc:  # fail-open by contract
+        logger.debug("deployer_reputation_funding_source_failed: %s", exc)
+        return None
+
+
+async def _run_fetch(fetch: Callable[..., Awaitable[Any]] | None, *args: Any) -> Any:
+    """Await an optional fetcher; return ``None`` on any failure (fail-open)."""
+    if fetch is None:
+        return None
+    try:
+        return await fetch(*args)
+    except Exception as exc:  # fail-open: fetcher errors degrade to neutral
+        logger.debug("deployer_reputation_fetch_failed: %s", exc)
+        return None
+
+
+async def deployer_reputation(
+    address: str,
+    chain: str,
+    *,
+    fetch_prior_deployments: PriorDeploymentsFetcher | None = None,
+    fetch_rug_history: RugHistoryFetcher | None = None,
+    fetch_funding_source: FundingSourceFetcher | None = None,
+    is_bad_actor: BadActorFetcher | None = None,
+) -> dict[str, Any]:
+    """Score a deployer's reputation (0-100 risk; higher = riskier).
+
+    Best-effort signals:
+      - prior token deployments (deployer_events) — more = riskier
+      - rug / scam history (known_scammers / kol_rug_history / scam DB)
+      - funding source that is itself a known bad actor
+
+    Fail-open: any fetcher error yields that signal's neutral value; a total
+    failure returns ``{"score": 0, "prior_deployments": None, ...}``.
+
+    Args:
+        address: Deployer wallet address.
+        chain: Source chain (ethereum, bsc, solana, ...).
+        fetch_prior_deployments: async (address, chain) -> int | None
+        fetch_rug_history: async (address, chain) -> bool
+        fetch_funding_source: async (address, chain) -> str | None (funder id)
+        is_bad_actor: async (address) -> bool
+
+    Returns:
+        {
+            "score": float,                 # 0-100, 0 = neutral
+            "prior_deployments": int | None,
+            "repeat_deployer": bool,        # 2+ prior deployments
+            "rug_history": bool,
+            "funding_source": str | None,
+            "evidence": str | None,
+        }
+    """
+    neutral = {
+        "score": 0.0,
+        "prior_deployments": None,
+        "repeat_deployer": False,
+        "rug_history": False,
+        "funding_source": None,
+        "evidence": None,
+    }
+    try:
+        prior, rug, funder = await asyncio.gather(
+            _run_fetch(fetch_prior_deployments or _default_fetch_prior_deployments, address, chain),
+            _run_fetch(fetch_rug_history or _default_fetch_rug_history, address, chain),
+            _run_fetch(fetch_funding_source or _default_fetch_funding_source, address, chain),
+        )
+    except Exception:  # fail-open by contract
+        return dict(neutral)
+
+    prior_count = int(prior) if isinstance(prior, (int, float)) and prior is not None else None
+    rug_flag = bool(rug)
+    funder_id = str(funder) if funder else None
+
+    # A funding source that is itself a known bad actor is a strong signal.
+    funder_bad = False
+    if funder_id:
+        funder_bad = bool(await _run_fetch(is_bad_actor or _default_is_bad_actor, funder_id))
+
+    score = 0.0
+    evidence_parts: list[str] = []
+    if prior_count is not None and prior_count > 0:
+        score += min(prior_count * _DEPLOYMENT_PER_TOKEN, _DEPLOYMENT_CAP)
+        if prior_count >= _REPEAT_DEPLOYER_MIN:
+            score += _REPEAT_DEPLOYER_WEIGHT
+        if prior_count >= _BATCH_DEPLOYER_MIN:
+            score += _BATCH_DEPLOYER_WEIGHT
+        evidence_parts.append(f"deployer launched {prior_count} tokens")
+    if rug_flag:
+        score += _RUG_HISTORY_WEIGHT
+        evidence_parts.append("deployer has rug history")
+    if funder_bad:
+        score += _BAD_ACTOR_FUNDER_WEIGHT
+        evidence_parts.append(f"funded by known bad actor {funder_id}")
+
+    return {
+        "score": round(min(score, _MAX_SCORE), 1),
+        "prior_deployments": prior_count,
+        "repeat_deployer": prior_count is not None and prior_count >= _REPEAT_DEPLOYER_MIN,
+        "rug_history": rug_flag,
+        "funding_source": funder_id,
+        "evidence": "; ".join(evidence_parts) if evidence_parts else None,
+    }
+
+
+def reputation_signal(result: dict[str, Any]) -> str | None:
+    """Render a short human signal for a :func:`deployer_reputation` result.
+
+    Priority: rug history > deployed-tokens count > generic repeat. Returns
+    ``None`` when the deployer is clean / unknown.
+
+    Examples:
+        {"rug_history": True}                         -> "deployer has rug history"
+        {"prior_deployments": 12}                     -> "deployer launched 12 tokens"
+        {"repeat_deployer": True, "prior": None}      -> "repeat deployer"
+        {"prior_deployments": 0}                      -> None
+    """
+    if result.get("rug_history"):
+        return "deployer has rug history"
+    prior = result.get("prior_deployments")
+    if isinstance(prior, (int, float)) and prior >= 1:
+        return f"deployer launched {int(prior)} tokens"
+    if result.get("repeat_deployer"):
+        return "repeat deployer"
+    return None
