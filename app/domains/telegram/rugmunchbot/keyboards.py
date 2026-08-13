@@ -16,6 +16,7 @@ from telegram import (
 
 from app.domains.telegram.rugmunchbot.config import (
     BUY_STARS_PACKS,
+    CHANNELS,
     SCAM_SCHOOL_TOPICS,
     SUPPORT_EMAIL,
     TELEGRAM_CHANNEL,
@@ -364,16 +365,45 @@ def category_account_kb() -> InlineKeyboardMarkup:
 
 
 def category_help_kb() -> InlineKeyboardMarkup:
-    """Help & About submenu."""
-    return InlineKeyboardMarkup(
-        [
-            _menu_row("\U0001f4d6 /help — Full command reference", "run_help"),
-            _menu_row("\U0001f4f1 Telegram Channel", "open_channel"),
-            _menu_row("\U0001f4ac Community Chat", "open_group"),
-            _menu_row("\U0001f310 Website", "open_website"),
-            [InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")],
-        ]
-    )
+    """Help & About submenu.
+
+    Command reference, then the community channels (Alerts / Alpha / News)
+    as direct URL buttons so users can join the feeds without leaving the
+    chat. Channels resolve from ``config.CHANNELS``; a channel with no
+    resolvable link is omitted.
+    """
+    rows = [
+        _menu_row("\U0001f4d6 /help — Full command reference", "run_help"),
+        _menu_row("\U0001f4f1 Telegram Channel", "open_channel"),
+        _menu_row("\U0001f4ac Community Chat", "open_group"),
+        _menu_row("\U0001f310 Website", "open_website"),
+    ]
+    channels_row = []
+    for key, label in (("alerts", "\U0001f4e2 Alerts"), ("alpha", "\U0001f680 Alpha"), ("news", "\U0001f4f0 News")):
+        url = _channel_public_url(key)
+        if url is not None:
+            channels_row.append(InlineKeyboardButton(label, url=url))
+    if channels_row:
+        rows.append(channels_row)
+    rows.append([InlineKeyboardButton("\U0001f519 Back", callback_data="menu_main")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _channel_public_url(key: str) -> str | None:
+    """Telegram link for a ``config.CHANNELS`` channel (None when unresolvable).
+
+    ``alerts`` uses the verified ``TELEGRAM_CHANNEL`` handle; ``alpha`` is
+    the ``@rmialpha`` public handle; other channels fall back to the
+    ``https://t.me/c/<id>`` deep link derived from their numeric chat id.
+    """
+    if key == "alerts":
+        return TELEGRAM_CHANNEL
+    if key == "alpha":
+        return "https://t.me/rmialpha"
+    raw = str(CHANNELS.get(key) or "")
+    if raw.startswith("-100") and raw[4:].isdigit():
+        return f"https://t.me/c/{raw[4:]}"
+    return None
 
 
 def admin_kb() -> InlineKeyboardMarkup:
