@@ -168,7 +168,7 @@ def get_human_catalog() -> dict[str, Any]:
     from app.routers.x402_enforcement import TOOL_PRICES
     from app.tool_tiers import TIER_PRICING, TOOL_TIERS
 
-    catalog = {
+    catalog: dict[str, Any] = {
         "meta": {
             "name": "Rug Munch Intelligence - Crypto Security & Analysis Tools",
             "description": "170 crypto security, intelligence, and market analysis tools accessible via API, MCP, and web interface. AI-powered scam detection, whale tracking, contract auditing, and forensics across 13 blockchains. Basic, Premium, and Elite tiers for every need.",
@@ -202,7 +202,7 @@ def get_human_catalog() -> dict[str, Any]:
     }
 
     for cat_key, cat_info in TOOL_CATEGORIES.items():
-        cat_tools = []
+        cat_tools: list[dict[str, Any]] = []
 
         if cat_key == "mcp-external":
             cat_tools.append(

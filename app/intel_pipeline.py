@@ -112,7 +112,7 @@ async def classify_scam_risk(text: str) -> dict[str, Any]:
             "model": "local_pattern_match",
         }
 
-    top = max(scores, key=scores.get)
+    top = max(scores, key=scores.__getitem__)
     top_score = scores[top]
     is_scam = top in ("scam", "rugpull", "honeypot", "phishing", "ponzi")
 
@@ -206,8 +206,8 @@ WALLET_PATTERNS = {
 
 async def label_wallet(wallet_data: dict[str, Any]) -> dict[str, Any]:
     """Label a wallet based on behavioral patterns and RAG memory."""
-    labels = []
-    confidence_scores = {}
+    labels: list[dict[str, Any]] = []
+    confidence_scores: dict[str, float] = {}
 
     # Check behavioral patterns
     behavior = wallet_data.get("behavior_summary", "")
@@ -252,7 +252,7 @@ async def label_wallet(wallet_data: dict[str, Any]) -> dict[str, Any]:
         "wallet_address": wallet_data.get("address", "unknown"),
         "labels": labels[:5],
         "primary_label": labels[0]["label"] if labels else "unknown",
-        "risk_score": max([line["confidence"] for line in labels]) * 100 if labels else 0,
+        "risk_score": max([float(line["confidence"]) for line in labels]) * 100 if labels else 0,
         "analyzed_at": datetime.now(UTC).isoformat(),
     }
 

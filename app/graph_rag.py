@@ -98,7 +98,7 @@ async def detect_communities(
                     label_counts[n_label] += 1
 
             if label_counts:
-                new_labels[nid] = max(label_counts, key=label_counts.get)
+                new_labels[nid] = max(label_counts, key=label_counts.__getitem__)
             else:
                 new_labels[nid] = labels.get(nid, 0)
         labels = new_labels
@@ -149,7 +149,7 @@ async def detect_communities(
                 "node_types": dict(node_types),
                 "internal_edges": internal_edges // 2,  # Undirected
                 "density": round((internal_edges // 2) / max(len(members) * (len(members) - 1) / 2, 1), 4),
-                "dominant_type": max(node_types, key=node_types.get) if node_types else "unknown",
+                "dominant_type": max(node_types, key=node_types.__getitem__) if node_types else "unknown",
             }
         )
 

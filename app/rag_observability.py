@@ -85,7 +85,7 @@ def trace_embedding(duration_ms: float, dims: int = 1024, model: str = "bge-m3")
     _metrics.embedding_total_ms += duration_ms
     if LANGFUSE_AVAILABLE:
         with suppress(Exception):
-            _langfuse.trace(
+            _langfuse.start_observation(
                 name="rag.embedding",
                 metadata={"duration_ms": duration_ms, "dims": dims, "model": model},
             )
@@ -101,7 +101,7 @@ def trace_retrieval(duration_ms: float, collection: str, results: int, cache_hit
         _metrics.cache_misses += 1
     if LANGFUSE_AVAILABLE:
         with suppress(Exception):
-            _langfuse.trace(
+            _langfuse.start_observation(
                 name="rag.retrieval",
                 metadata={
                     "duration_ms": duration_ms,
@@ -117,7 +117,7 @@ def trace_ingest(docs: int, collection: str) -> None:
     _metrics.ingest_docs += docs
     if LANGFUSE_AVAILABLE:
         with suppress(Exception):
-            _langfuse.trace(
+            _langfuse.start_observation(
                 name="rag.ingest",
                 metadata={"docs": docs, "collection": collection},
             )

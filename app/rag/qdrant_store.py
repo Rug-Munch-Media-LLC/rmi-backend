@@ -40,7 +40,7 @@ from qdrant_client import AsyncQdrantClient, models
 
 from app.config import settings
 from app.core.logging import get_logger
-from app.rag.embeddings import EMBEDDING_DIM
+from app.rag.embeddings import EMBEDDING_DIM, get_embedding
 
 log = get_logger(__name__)
 
@@ -426,11 +426,72 @@ def get_qdrant_store(collection: str | None = None) -> QdrantStore:
     return _store_cache[name]
 
 
+# ── Ingest / write path (consolidation Phase 1) ───────────────────────
+def build_sparse_vector(text: str) -> dict[str, Any] | None:
+    """Lexical sparse vector (``{"indices": [...], "values": [...]}``) for a doc.
+
+    Reuses ``engine._build_sparse_query`` (same stopword set + sha256
+    token→32-bit-index hashing) so ingest-side sparse terms match the
+    query-side sparse terms exactly — Qdrant matches sparse vectors on
+    token index, so both sides must tokenize identically. Returns None for
+    empty/stopword-only text (caller upserts dense-only).
+    """
+    # Lazy import: engine.py imports this module only inside functions, so
+    # a deferred import here cannot create a module-load cycle.
+    from app.rag.engine import _build_sparse_query
+
+    return _build_sparse_query(text)
+
+
+async def upsert_rag_document(
+    doc_id: str,
+    text: str,
+    payload: dict[str, Any] | None = None,
+    *,
+    collection: str | None = None,
+    vector: list[float] | None = None,
+) -> bool:
+    """Embed + upsert one document into the unified Qdrant store.
+
+    Primary Qdrant write path (QDRANT-CONSOLIDATION Phase 1). Given a doc
+    (``doc_id``, ``text``, ``payload``):
+
+      - embeds *text* via the existing Infinity bge-m3 embedder
+        (``app.rag.embeddings.get_embedding``) unless a precomputed
+        *vector* is passed (test seam);
+      - builds a lexical sparse vector with ``build_sparse_vector``
+        (dense-only upsert when the text is stopword-only);
+      - upserts into the store's collection — created on first use via
+        ``QdrantStore.ensure_collection`` (named dense 1024d cosine +
+        named sparse ``sparse``).
+
+    Fail-open: any embedder/store error returns False and never raises —
+    callers keep their legacy numpy/Redis writes as the fallback path
+    (additive write, no removal).
+    """
+    store = get_qdrant_store(collection)
+    try:
+        if vector is None:
+            vector = await get_embedding(text)
+        sparse = build_sparse_vector(text)
+        return await store.upsert(doc_id, vector, sparse_vector=sparse, payload=payload)
+    except Exception as exc:
+        log.warning(
+            "rag_upsert_document_failed collection=%s doc_id=%s err=%s",
+            store.collection_name,
+            doc_id,
+            exc,
+        )
+        return False
+
+
 __all__ = [
     "DENSE_VECTOR_NAME",
     "PREFETCH_MULTIPLIER",
     "RRF_K",
     "SPARSE_VECTOR_NAME",
     "QdrantStore",
+    "build_sparse_vector",
     "get_qdrant_store",
+    "upsert_rag_document",
 ]

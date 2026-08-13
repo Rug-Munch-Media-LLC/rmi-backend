@@ -250,7 +250,7 @@ async def describe_image(
         }
 
         prompt = task_prompts.get(task, task_prompts["describe"])
-        payload = {
+        payload: dict[str, Any] = {
             "model": os.getenv("LLM_MODEL", "deepseek-v4-flash"),
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 300,

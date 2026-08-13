@@ -97,7 +97,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     # 5. M4 - OpenTelemetry tracing
     try:
-        from app.core.tracing import setup_otel
+        from app.core.tracing import setup_otel  # type: ignore[attr-defined]  # optional; guarded by try/except
 
         otel_ok = setup_otel()
         log.info("otel_init ok=%s", otel_ok)
@@ -217,7 +217,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     try:
         from app.core.langfuse import flush_langfuse
         from app.core.observability import flush_sentry
-        from app.core.tracing import shutdown_otel
+        from app.core.tracing import shutdown_otel  # type: ignore[attr-defined]  # optional; guarded by try/except
 
         flush_sentry(timeout=2.0)
         flush_langfuse()

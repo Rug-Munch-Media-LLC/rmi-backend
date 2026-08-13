@@ -697,6 +697,11 @@ async def ingest_document(
             }
             idx.add(chunk_doc_id, vec, chunk_meta, text=c.text)
             mark_ingested(c.content_hash, collection)
+            # Qdrant write path (consolidation Phase 1): additive + fail-open.
+            # New chunks also land in the unified ``rag_documents`` collection
+            # so the Qdrant primary search path stops returning empty (which
+            # previously forced the legacy fallback). Legacy writes above stay.
+            await _qdrant_upsert_chunk(chunk_doc_id, c, chunk_meta, collection)
             added += 1
 
         span.set_attribute("ingest.status", "ok")
@@ -710,6 +715,54 @@ async def ingest_document(
         "chunks": added,
         "skipped": skipped,
     }
+
+
+def _timestamp_epoch(iso_ts: str) -> int:
+    """Parse an ISO timestamp to a unix-epoch int (best-effort → now)."""
+    try:
+        return int(datetime.fromisoformat(iso_ts.replace("Z", "+00:00")).timestamp())
+    except (TypeError, ValueError):
+        return int(time.time())
+
+
+async def _qdrant_upsert_chunk(
+    chunk_doc_id: str,
+    chunk: Chunk,
+    chunk_meta: dict[str, Any],
+    collection: str,
+) -> bool:
+    """Upsert one ingested chunk into the unified Qdrant store (additive).
+
+    Fail-open: returns False on any error — the legacy numpy/Redis write
+    stays authoritative and the caller's ingest status is unaffected.
+    Payload follows the QDRANT-CONSOLIDATION schema: ``content`` (sparse
+    source), top-level filter fields (``chain``, ``address``, ``collection``
+    provenance, unix timestamps) plus the full ``metadata`` object the
+    engine's search path reads back (``app.rag.qdrant_store._point_to_hit``).
+    """
+    from app.rag.qdrant_store import upsert_rag_document
+
+    ts_epoch = _timestamp_epoch(chunk.timestamp)
+    payload: dict[str, Any] = {
+        "doc_id": chunk_doc_id,
+        "source": str(chunk_meta.get("source") or collection),
+        "content_type": chunk.content_type,
+        "content": chunk.text,
+        "collection": collection,
+        "chain": chunk_meta.get("chain"),
+        "address": chunk_meta.get("address"),
+        "created_at": ts_epoch,
+        "updated_at": ts_epoch,
+        "metadata": chunk_meta,
+    }
+    try:
+        ok = await upsert_rag_document(chunk_doc_id, chunk.text, payload)
+    except Exception as exc:  # fail-open contract (never raises into ingest)
+        log.warning("rag_qdrant_chunk_upsert_failed doc_id=%s err=%s", chunk_doc_id, exc)
+        return False
+    if not ok:
+        log.info("rag_qdrant_chunk_upsert_skipped doc_id=%s", chunk_doc_id)
+    return ok
 
 
 # ── Stats ────────────────────────────────────────────────────────────

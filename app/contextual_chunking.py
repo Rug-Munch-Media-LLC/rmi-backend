@@ -29,21 +29,25 @@ import asyncio
 import hashlib
 import os
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 logger = get_logger(__name__)
 
 # ── LLM Config ────────────────────────────────────────────────────────
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
 # Decode base64 LLM key if present, otherwise use plain LLM_API_KEY
-if os.getenv("LLM_API_KEY_B64"):
+_llm_key_b64 = os.getenv("LLM_API_KEY_B64")
+if _llm_key_b64:
     import base64 as _b64
 
-    os.environ["LLM_API_KEY"] = _b64.b64decode(os.getenv("LLM_API_KEY_B64")).decode()
+    os.environ["LLM_API_KEY"] = _b64.b64decode(_llm_key_b64).decode()
 LLM_API_KEY = os.getenv("LLM_API_KEY", OPENROUTER_KEY)
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
 AI_BASE = LLM_BASE_URL if LLM_API_KEY else "https://openrouter.ai/api/v1/chat/completions"
@@ -289,7 +293,7 @@ async def contextualize_chunks(
 
     for i in range(0, total, batch_size):
         batch = chunks[i : i + batch_size]
-        tasks = []
+        tasks: list[Coroutine[Any, Any, str] | None] = []
 
         for chunk in batch:
             if use_llm and LLM_API_KEY:
@@ -306,7 +310,7 @@ async def contextualize_chunks(
                 if tasks[j] is not None:
                     ctx = actual_results[result_idx]
                     result_idx += 1
-                    if isinstance(ctx, Exception) or not ctx:
+                    if isinstance(ctx, BaseException) or not ctx:
                         ctx = _generate_heuristic_context(doc_text, chunk.content, chunk.index, total)
                     chunk.context_text = ctx
                     chunk.contextualized = f"{ctx}\n\n{chunk.content}"
