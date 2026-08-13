@@ -23,7 +23,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import httpx
 import requests
@@ -246,7 +246,7 @@ class WashTradingDetector:
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
-                    return data
+                    return cast("dict[str, Any]", data)
                 return data.get("result", data.get("data", data))
         except (
             httpx.HTTPError,

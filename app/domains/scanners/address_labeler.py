@@ -243,8 +243,8 @@ class AddressLabeler:
                             entries.append(
                                 LabelEntry(
                                     source="walletlabels",
-                                    label=lbl.get("label", lbl.get("name", "")),
-                                    category=lbl.get("category", lbl.get("type", "")),
+                                    label=lbl.get("label", lbl.get("name", "")) or "",
+                                    category=lbl.get("category", lbl.get("type", "")) or "",
                                     confidence=lbl.get("confidence", 1.0),
                                 )
                             )
@@ -290,7 +290,7 @@ class AddressLabeler:
                                 LabelEntry(
                                     source="bluepages",
                                     label=label,
-                                    category=item.get("category", item.get("type", "")),
+                                    category=item.get("category", item.get("type", "")) or "",
                                     confidence=item.get("confidence", 1.0),
                                 )
                             )

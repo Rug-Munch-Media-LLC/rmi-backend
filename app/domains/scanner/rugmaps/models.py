@@ -141,6 +141,10 @@ class BubbleMap:
     total_transactions: int = 0
     unique_wallets: int = 0
 
+    # Computed at render time (set by engine/html_export)
+    stats: dict[str, Any] = field(default_factory=dict)
+    generated_at: str | None = None
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "map_id": self.map_id,

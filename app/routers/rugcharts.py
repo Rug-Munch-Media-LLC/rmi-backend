@@ -351,6 +351,6 @@ async def rugcharts_whales(
             "min_usd": min_usd,
             "limit": limit,
         },
-        source="chain_indexer (ClickHouse dex_events)",
+        source="lite_chain_indexer (ClickHouse dex_events)",
         confidence=0.8 if trades else 0.0,
     )

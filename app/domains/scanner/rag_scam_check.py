@@ -194,7 +194,7 @@ async def check_scam(
             from app.spam_registry import get_spam_registry
 
             registry = get_spam_registry()
-            dep_check = registry.check_address(deployer, chain=chain)
+            dep_check = registry.check_token(deployer, chain=chain)
             if dep_check and dep_check.get("is_known_scam"):
                 result["risk_score"] = min(100, result.get("risk_score", 0) + 40)
                 result["matched_indicators"].append("deployer_in_spam_registry")

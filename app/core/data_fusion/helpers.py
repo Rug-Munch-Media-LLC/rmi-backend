@@ -41,7 +41,7 @@ def _get_freshness(result: dict[str, Any], source_key: str, now: float) -> float
 
 def _extract_numeric(data: dict[str, Any], *keys: str) -> float | None:
     """Extract numeric value from nested dict following key path."""
-    current = data
+    current: Any = data
     for key in keys:
         if isinstance(current, dict):
             current = current.get(key)

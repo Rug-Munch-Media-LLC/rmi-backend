@@ -133,7 +133,7 @@ class SocialVelocityAnalyzer:
             )
 
         # ── Step 1: Parse and sort mentions ──────────────────────────────
-        parsed = []
+        parsed: list[dict[str, Any]] = []
         for m in mentions:
             ts_sec = _parse_timestamp(m.get("timestamp", 0))
             platform = str(m.get("platform", "unknown"))

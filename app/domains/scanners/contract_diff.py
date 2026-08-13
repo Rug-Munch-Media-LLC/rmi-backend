@@ -372,7 +372,7 @@ class ContractDiffAnalyzer:
                 from app.domains.scanners.rag_citations import build_citation_string
 
                 if report.citations and report.warnings:
-                    cit_str = build_citation_string(report.citations)
+                    cit_str = build_citation_string(report.citations, report.warnings[-1])
                     report.warnings[-1] += f" {cit_str}"
             except (AttributeError, ImportError):
                 pass

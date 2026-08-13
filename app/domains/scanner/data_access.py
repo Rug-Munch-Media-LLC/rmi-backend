@@ -54,7 +54,7 @@ async def _lookup_clickhouse(address: str, chain: str, query: str, limit: int = 
     callers pick a concrete query (never raw user input).
     """
     try:
-        from app.domains.databus.providers.chains.chain_indexer import _get_ch_client
+        from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
         from app.domains.scanner.engines._common import run_sync
     except ImportError as exc:
         raise DataAccessUnavailable("clickhouse_import_missing") from exc
@@ -116,14 +116,7 @@ def _rclone_copy(remote_path: str, dest_dir: Path) -> int:
     try:
         import subprocess
 
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            env=env,
-            check=False,
-        shell=False)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env, check=False, shell=False)
     except FileNotFoundError as exc:
         raise DataAccessUnavailable("rclone_not_installed") from exc
     except subprocess.TimeoutExpired as exc:

@@ -366,7 +366,7 @@ class MEVDetector:
             "8453": "https://api.basescan.org/api",
         }
         url = base_urls.get(chain_id, "https://api.etherscan.io/api")
-        params = {
+        params: dict[str, Any] = {
             "module": "account",
             "action": "txlist",
             "address": address,
@@ -401,7 +401,7 @@ class MEVDetector:
             "8453": "https://api.basescan.org/api",
         }
         url = base_urls.get(chain_id, "https://api.etherscan.io/api")
-        params = {
+        params: dict[str, Any] = {
             "module": "account",
             "action": "txlistinternal",
             "address": address,

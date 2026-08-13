@@ -9,7 +9,7 @@ Usage:
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 CLICKHOUSE_HOST = os.getenv("CH_HOST", "rmi-clickhouse")
 CLICKHOUSE_PORT = int(os.getenv("CH_PORT", "9000"))
@@ -33,7 +33,7 @@ _last_flush = 0
 
 
 def _compute_cost(model: str, tokens_in: int, tokens_out: int) -> float:
-    costs = MODEL_COSTS.get(model, {"input": 0, "output": 0})
+    costs = cast("dict[str, float]", MODEL_COSTS.get(model, {"input": 0, "output": 0}))
     input_cost = (tokens_in / 1_000_000) * costs["input"]
     output_cost = (tokens_out / 1_000_000) * costs["output"]
     return round(input_cost + output_cost, 8)

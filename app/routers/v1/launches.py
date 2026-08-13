@@ -54,7 +54,7 @@ def _fetch_recent_deployer_events(
     Sync (clickhouse_driver) — call via asyncio.to_thread.
     """
     try:
-        from app.domains.databus.providers.chains.chain_indexer import (
+        from app.domains.databus.providers.chains.lite_chain_indexer import (
             _get_ch_client,
             _normalize_chain,
         )

@@ -13,7 +13,7 @@ Wallet scoring (cumulative bands, capped at 100):
     - Single-chain pattern      (+10)
 
 Storage:
-    - Primary: lightweight JSON store at ``/srv/data/wallet_correlation.json``
+    - Primary: lightweight JSON store at ``/path/to/data/wallet_correlation.json``
       (override with ``WALLET_CORRELATION_PATH``). Writes are atomic
       (temp file + ``os.replace``) and bounded at ``MAX_STORE_WALLETS``.
     - The existing ``scan_history`` SQLite table only records
@@ -50,13 +50,13 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.chain_indexer import _get_ch_client
+from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
 from app.domains.scanner.engines._common import run_sync
 
 logger = get_logger(__name__)
 
 # ── Constants ───────────────────────────────────────────────────────────────
-STORE_PATH = os.getenv("WALLET_CORRELATION_PATH", "/srv/data/wallet_correlation.json")
+STORE_PATH = os.getenv("WALLET_CORRELATION_PATH", "/path/to/data/wallet_correlation.json")
 STORE_VERSION = 1
 
 EARLY_BUY_BLOCK_WINDOW = 10  # matches bundle_detector "first 10 blocks"

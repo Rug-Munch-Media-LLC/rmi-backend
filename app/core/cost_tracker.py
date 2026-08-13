@@ -4,7 +4,7 @@ Auto-routes to cheapest model that meets quality threshold."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Query
 
@@ -54,9 +54,9 @@ _usage_log: list[dict[str, Any]] = []
 
 def log_usage(model: str, input_tokens: int, output_tokens: int, latency_ms: float) -> None:
     """Log model usage for cost tracking."""
-    costs = MODEL_COSTS.get(model, {"input": 0, "output": 0, "provider": "unknown"})
-    input_cost = (input_tokens / 1_000_000) * costs["input"]
-    output_cost = (output_tokens / 1_000_000) * costs["output"]
+    costs = cast("dict[str, Any]", MODEL_COSTS.get(model, {"input": 0, "output": 0, "provider": "unknown"}))
+    input_cost = (input_tokens / 1_000_000) * float(costs["input"])
+    output_cost = (output_tokens / 1_000_000) * float(costs["output"])
     total_cost = input_cost + output_cost
 
     _usage_log.append(
@@ -77,8 +77,8 @@ def get_cheapest_model(models: list[str]) -> str:
     best = None
     best_cost = float("inf")
     for m in models:
-        c = MODEL_COSTS.get(m, {})
-        cost = c.get("output", 1.0)
+        c = cast("dict[str, Any]", MODEL_COSTS.get(m, {}))
+        cost = float(c.get("output", 1.0))
         if cost < best_cost:
             best_cost = cost
             best = m

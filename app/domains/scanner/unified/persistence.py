@@ -45,7 +45,7 @@ def _to_persist_dict(result: ScanResult) -> dict[str, Any]:
         "risk_flags": result.risk_flags,
         "green_flags": result.green_flags,
         "tier": result.tier,
-        "chain_indexer_patterns": result.chain_indexer_patterns,
+        "lite_chain_indexer_patterns": result.lite_chain_indexer_patterns,
         "funding_analysis": result.funding_analysis,
         "wallet_freshness": result.wallet_freshness,
         "holder_overlap": result.holder_overlap,

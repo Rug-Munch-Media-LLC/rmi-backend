@@ -25,26 +25,31 @@ try:
     from web3 import HTTPProvider, Web3
 
     try:
-        from web3.middleware import geth_poa_middleware  # web3 < v7
+        from web3.middleware import geth_poa_middleware  # type: ignore[attr-defined]  # web3 < v7
     except ImportError:
         from web3.middleware import ExtraDataToPOAMiddleware as geth_poa_middleware  # web3 v7+
-    from web3.types import BlockNumber, FilterParams, TxParams, Wei
+    from web3.types import (  # type: ignore[attr-defined]  # BlockNumber removed in web3 v7
+        BlockNumber,
+        FilterParams,
+        TxParams,
+        Wei,
+    )
 
     WEB3_AVAILABLE = True
 except ImportError:
     logger.warning("web3.py not installed, using stub mode")
     WEB3_AVAILABLE = False
-    Web3 = None
-    HTTPProvider = None
+    Web3 = None  # type: ignore[assignment,misc]  # stub mode: shadow imported type
+    HTTPProvider = None  # type: ignore[assignment,misc]
     geth_poa_middleware = None
-    TxParams = dict
-    Wei = int
-    BlockNumber = int
-    FilterParams = dict
+    TxParams = dict  # type: ignore[assignment,misc]
+    Wei = int  # type: ignore[assignment,misc]
+    BlockNumber = int  # type: ignore[assignment,misc]
+    FilterParams = dict  # type: ignore[assignment,misc]
 
 # ─── CHAIN CONFIGURATIONS ─────────────────────────────────────────
 
-CHAIN_CONFIGS = {
+CHAIN_CONFIGS: dict[str, dict[str, Any]] = {
     "ethereum": {
         "rpc": "https://ethereum-rpc.publicnode.com",
         "chain_id": 1,
@@ -190,25 +195,25 @@ class EVMClient:
         """Get ETH balance of address in wei."""
         address = self.w3.to_checksum_address(address)
         if block is None:
-            block = "latest"
+            block = "latest"  # type: ignore[assignment]  # web3 accepts block tag str at runtime
         return self.w3.eth.get_balance(address, block)
 
     def get_balance_ether(self, address: str) -> float:
         """Get ETH balance in ether (wei * 10^18)."""
         wei = self.get_balance(address)
-        return self.w3.from_wei(wei, "ether")
+        return float(self.w3.from_wei(wei, "ether"))
 
     def get_nonce(self, address: str, block: int | None = None) -> int:
         """Get account nonce."""
         address = self.w3.to_checksum_address(address)
         if block is None:
-            block = "latest"
+            block = "latest"  # type: ignore[assignment]  # web3 accepts block tag str at runtime
         return self.w3.eth.get_transaction_count(address, block)
 
     def get_block(self, block_number: int) -> dict[str, Any] | None:
         """Get block details."""
         try:
-            return self.w3.eth.get_block(block_number)
+            return self.w3.eth.get_block(block_number)  # type: ignore[return-value]  # web3 v7 BlockData is dict-like
         except Exception as e:
             logger.error(f"Error fetching block {block_number}: {e}")
             return None
@@ -216,7 +221,7 @@ class EVMClient:
     def get_transaction(self, tx_hash: str) -> dict[str, Any] | None:
         """Get transaction details."""
         try:
-            return self.w3.eth.get_transaction(tx_hash)
+            return self.w3.eth.get_transaction(tx_hash)  # type: ignore[arg-type,return-value]  # web3 v7 TxData is dict-like
         except Exception as e:
             logger.error(f"Error fetching tx {tx_hash}: {e}")
             return None
@@ -299,7 +304,7 @@ class EVMClient:
 
     def from_wei(self, amount: int, unit: str = "ether") -> float:
         """Convert from wei."""
-        return self.w3.from_wei(amount, unit)
+        return float(self.w3.from_wei(amount, unit))
 
 
 # ─── CLIENT MANAGER ───────────────────────────────────────────────

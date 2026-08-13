@@ -29,8 +29,8 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai-analysis"])
 class ContractAnalysisRequest(BaseModel):
     chain: str = Field(..., description="Blockchain (solana, ethereum, bsc, base, etc.)")
     address: str = Field(..., description="Token contract address")
-    holder_data: dict[str, Any] | None = Field(None, description="Holder distribution data")
-    scanner_data: dict[str, Any] | None = Field(None, description="Scanner results (risk scores, LP analysis)")
+    holder_data: dict[str, Any] | None = Field(default=None, description="Holder distribution data")
+    scanner_data: dict[str, Any] | None = Field(default=None, description="Scanner results (risk scores, LP analysis)")
 
 
 class AnomalyReport(BaseModel):
@@ -58,6 +58,7 @@ class ContractAnalysisResponse(BaseModel):
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/chat")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
 
 OPENROUTER_KEY = (
     os.getenv("DEEPSEEK_API_KEY", "") or os.getenv("LLM_API_KEY", "") or os.getenv("OPENROUTER_API_KEY", "")

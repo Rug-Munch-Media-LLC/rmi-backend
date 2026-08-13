@@ -11,10 +11,10 @@ These are the SAME tables the chain-indexer writes to. The scanner has never
 read from them — until now. This provider bridges that gap.
 
 Architecture:
-  DataBus fetch("token_transfers", ...) → ProviderChain → chain_indexer provider
-  DataBus fetch("token_holders", ...)   → ProviderChain → chain_indexer provider
-  DataBus fetch("new_launches", ...)    → ProviderChain → chain_indexer provider
-  DataBus fetch("solana_balance_changes", ...) → ProviderChain → chain_indexer provider
+  DataBus fetch("token_transfers", ...) → ProviderChain → lite_chain_indexer provider
+  DataBus fetch("token_holders", ...)   → ProviderChain → lite_chain_indexer provider
+  DataBus fetch("new_launches", ...)    → ProviderChain → lite_chain_indexer provider
+  DataBus fetch("solana_balance_changes", ...) → ProviderChain → lite_chain_indexer provider
 
 All queries run asynchronously via asyncio.to_thread since clickhouse_driver is sync.
 Every function returns dict | None following the DataBus provider contract.
@@ -28,7 +28,7 @@ from typing import Any
 
 from app.core.logging import get_logger
 
-logger = get_logger("databus.providers.chain_indexer")
+logger = get_logger("databus.providers.lite_chain_indexer")
 
 # ── Lazy-indexing demand signaling ────────────────────────────────────────
 # The lite-chain-indexer gates DEX/deployer event indexing per chain on
@@ -166,7 +166,7 @@ def _normalize_chain(chain: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _chain_indexer_token_transfers(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_token_transfers(**kwargs: Any) -> dict[str, Any] | None:
     """Query evm_transfers for token transfer history.
 
     Parameters (from DataBus fetch kwargs):
@@ -263,13 +263,13 @@ async def _chain_indexer_token_transfers(**kwargs: Any) -> dict[str, Any] | None
             "token_address": token_address,
             "chain": chain,
         },
-        "source": "chain_indexer (ClickHouse evm_transfers)",
+        "source": "lite_chain_indexer (ClickHouse evm_transfers)",
         "tier": "local",
         "is_local": True,
     }
 
 
-async def _chain_indexer_dex_events(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_dex_events(**kwargs: Any) -> dict[str, Any] | None:
     """Query dex_events for DEX swap/pool events on a token.
 
     Parameters:
@@ -360,13 +360,13 @@ async def _chain_indexer_dex_events(**kwargs: Any) -> dict[str, Any] | None:
             "token_address": token_address,
             "chain": chain,
         },
-        "source": "chain_indexer (ClickHouse dex_events)",
+        "source": "lite_chain_indexer (ClickHouse dex_events)",
         "tier": "local",
         "is_local": True,
     }
 
 
-async def _chain_indexer_deployer_history(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_deployer_history(**kwargs: Any) -> dict[str, Any] | None:
     """Query deployer_events for deployer address history.
 
     Parameters:
@@ -449,13 +449,13 @@ async def _chain_indexer_deployer_history(**kwargs: Any) -> dict[str, Any] | Non
             "deployer": address,
             "chain": chain or "any",
         },
-        "source": "chain_indexer (ClickHouse deployer_events)",
+        "source": "lite_chain_indexer (ClickHouse deployer_events)",
         "tier": "local",
         "is_local": True,
     }
 
 
-async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_solana_balance_changes(**kwargs: Any) -> dict[str, Any] | None:
     """Query solana_spl_balance_changes for SPL token balance deltas.
 
     Parameters:
@@ -526,13 +526,13 @@ async def _chain_indexer_solana_balance_changes(**kwargs: Any) -> dict[str, Any]
             "count": len(changes),
             "mint": mint,
         },
-        "source": "chain_indexer (ClickHouse solana_spl_balance_changes)",
+        "source": "lite_chain_indexer (ClickHouse solana_spl_balance_changes)",
         "tier": "local",
         "is_local": True,
     }
 
 
-async def _chain_indexer_holders(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_holders(**kwargs: Any) -> dict[str, Any] | None:
     """Compute token holder count from evm_transfers unique addresses.
 
     Parameters:
@@ -636,13 +636,13 @@ async def _chain_indexer_holders(**kwargs: Any) -> dict[str, Any] | None:
             "token_address": token_address,
             "chain": chain,
         },
-        "source": "chain_indexer (ClickHouse evm_transfers aggregation)",
+        "source": "lite_chain_indexer (ClickHouse evm_transfers aggregation)",
         "tier": "local",
         "is_local": True,
     }
 
 
-async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
     """Search chain-indexer for on-chain scam patterns (DeFi behavioral).
 
     Provides natural-language-queryable pattern detection:
@@ -685,7 +685,7 @@ async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
             result = await detect_deployer_clusters(deployer, chain)
             return {
                 "data": result,
-                "source": "chain_indexer (pattern: deployer_cluster)",
+                "source": "lite_chain_indexer (pattern: deployer_cluster)",
                 "tier": "local",
                 "is_local": True,
             }
@@ -694,7 +694,7 @@ async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
             result = await detect_holder_concentration(token_address, chain)
             return {
                 "data": result,
-                "source": "chain_indexer (pattern: holder_concentration)",
+                "source": "lite_chain_indexer (pattern: holder_concentration)",
                 "tier": "local",
                 "is_local": True,
             }
@@ -703,7 +703,7 @@ async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
             result = await detect_pump_and_dump(token_address, chain)
             return {
                 "data": result,
-                "source": "chain_indexer (pattern: pump_and_dump)",
+                "source": "lite_chain_indexer (pattern: pump_and_dump)",
                 "tier": "local",
                 "is_local": True,
             }
@@ -712,7 +712,7 @@ async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
             result = await detect_mixer_interactions(deployer, chain)
             return {
                 "data": result,
-                "source": "chain_indexer (pattern: mixer_interaction)",
+                "source": "lite_chain_indexer (pattern: mixer_interaction)",
                 "tier": "local",
                 "is_local": True,
             }
@@ -742,7 +742,7 @@ async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
                 "total_risk_score": min(100, sum(f.get("risk_score", 0) for f in findings)),
                 "ingested_into_rag": ingested,
             },
-            "source": "chain_indexer (pattern: auto)",
+            "source": "lite_chain_indexer (pattern: auto)",
             "tier": "local",
             "is_local": True,
         }
@@ -751,5 +751,5 @@ async def _chain_indexer_pattern_search(**kwargs: Any) -> dict[str, Any] | None:
         logger.debug("chain_pattern_detector not available: %s", e)
         return None
     except Exception as e:
-        logger.warning("chain_indexer_pattern_search failed: %s", e)
+        logger.warning("lite_chain_indexer_pattern_search failed: %s", e)
         return None

@@ -122,7 +122,7 @@ class ScanResult:
     whale_alerts: dict[str, Any] | None = None
     cross_chain: dict[str, Any] | None = None
     launches: dict[str, Any] | None = None
-    chain_indexer_patterns: dict[str, Any] | None = None
+    lite_chain_indexer_patterns: dict[str, Any] | None = None
 
     # Clever wallet analysis (own-data engines — funding_analysis.py)
     funding_analysis: dict[str, Any] | None = None  # exchange-funded / fresh / mixer holder %

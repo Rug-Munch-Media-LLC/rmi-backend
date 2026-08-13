@@ -10,9 +10,9 @@ from pydantic import BaseModel, Field
 class PublicPostRequest(BaseModel):
     """Lightweight model for public discussion posts (no auth required)."""
 
-    title: str = Field("", max_length=200)
+    title: str = Field(default="", max_length=200)
     content: str = Field(..., min_length=1, max_length=5000)
-    author_name: str = Field("Community Member", max_length=100)
+    author_name: str = Field(default="Community Member", max_length=100)
     tags: list[str] = Field(default_factory=list)
 
 

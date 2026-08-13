@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -159,7 +159,7 @@ class WebhookDeliveryService:
             return
         try:
             key = f"{DELIVERY_KEY}:{delivery.event_id}"
-            await r.hset(key, mapping=delivery.model_dump(mode="json"))
+            await r.hset(key, mapping=cast("Any", delivery.model_dump(mode="json")))
             # Expire after 7 days
             await r.expire(key, 604800)
         except (ValueError, TypeError, KeyError, OSError) as exc:

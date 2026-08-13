@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from typing import Any
+from typing import Any, cast
 
 _redis_cache_url = None
 _cache_ttl = None
@@ -16,8 +16,8 @@ try:
     _cache_ttl = _s.llm_cache_ttl
 except Exception:  # noqa: S110 — best-effort cache
     pass
-REDIS_URL = _redis_cache_url or os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
-CACHE_TTL = _cache_ttl or int(os.getenv("LLM_CACHE_TTL", "3600"))
+REDIS_URL: str = cast("str", _redis_cache_url) or os.getenv("REDIS_CACHE_URL", "redis://localhost:6379/1")
+CACHE_TTL: int = cast("int", _cache_ttl) or int(os.getenv("LLM_CACHE_TTL", "3600"))
 
 
 def _cache_key(prompt: str, model: str) -> str:

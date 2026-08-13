@@ -7,6 +7,7 @@ Main run_sentinel_scan orchestrator plus dynamically-generated standalone runner
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
@@ -181,7 +182,7 @@ async def run_sentinel_scan(
     report = SentinelReport(token_address=token_address, chain=chain)
     coros: dict[str, Any] = {}
 
-    core_modules = [
+    core_modules: list[tuple[str, Callable[..., Awaitable[Any]]]] = [
         ("holder_analysis", _holder_analyzer.analyze),
         ("bundle_detection", _bundle_detector.detect_bundles),
         ("exchange_funding", _exchange_funder.analyze),
@@ -254,7 +255,7 @@ async def run_sentinel_scan(
 
     # ── Convert to dicts + extract scores ─────────────────────
     risk_scores: dict[str, float] = {}
-    extractors = {
+    extractors: dict[str, Callable[..., float]] = {
         "holder_analysis": _extract_risk_hhi,
         "bundle_detection": _extract_risk_bundle,
         "exchange_funding": _extract_risk_exchange_fund,

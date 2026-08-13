@@ -210,9 +210,9 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
         description="Composite token hype score (0-100) from free social signals + own on-chain velocity — CoinGecko/DexScreener trending, dex_events volume growth, evm_transfers holder growth, price oracle momentum",
         providers=[
             Provider(
-                "chain_indexer_hype_score",
+                "lite_chain_indexer_hype_score",
                 ProviderTier.LOCAL,
-                _g["_chain_indexer_hype_score"],
+                _g["_lite_chain_indexer_hype_score"],
                 weight=20.0,
                 is_local=True,
                 description="ClickHouse dex_events + evm_transfers + unified trending — weighted composite with 72h exponential decay",

@@ -24,7 +24,7 @@ RMI_KEY = INTERNAL_API_KEY
 
 CHAINS = ["solana", "ethereum", "bsc", "base", "arbitrum"]
 
-SIGNAL_RULES = {
+SIGNAL_RULES: dict[str, dict[str, Any]] = {
     "avoid": {"max_safety": 35, "label": "🔴 AVOID", "desc": "High risk - likely scam or honeypot"},
     "caution": {
         "max_safety": 55,

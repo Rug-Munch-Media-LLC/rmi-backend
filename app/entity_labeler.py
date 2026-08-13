@@ -217,7 +217,7 @@ class EntityLabeler:
         source_code: str | None = None,
     ) -> dict[str, Any]:
         """Comprehensive labeling of an address."""
-        label = {
+        label: dict[str, Any] = {
             "address": address,
             "chain": chain,
             "labels": [],

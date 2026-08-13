@@ -107,12 +107,12 @@ def __getattr__(name: str) -> Any:
         # Intel providers
         "_scraped_intel_provider": "chains.intel_provider",
         # Chain Indexer ClickHouse providers
-        "_chain_indexer_token_transfers": "chains.chain_indexer",
-        "_chain_indexer_dex_events": "chains.chain_indexer",
-        "_chain_indexer_deployer_history": "chains.chain_indexer",
-        "_chain_indexer_solana_balance_changes": "chains.chain_indexer",
-        "_chain_indexer_holders": "chains.chain_indexer",
-        "_chain_indexer_pattern_search": "chains.chain_indexer",
+        "_chain_indexer_token_transfers": "chains.lite_chain_indexer",
+        "_chain_indexer_dex_events": "chains.lite_chain_indexer",
+        "_chain_indexer_deployer_history": "chains.lite_chain_indexer",
+        "_chain_indexer_solana_balance_changes": "chains.lite_chain_indexer",
+        "_chain_indexer_holders": "chains.lite_chain_indexer",
+        "_chain_indexer_pattern_search": "chains.lite_chain_indexer",
         # Free security / wallet / market fallback providers
         "_free_security_clickhouse": "chains.free_security",
         "_free_security_goplus": "chains.free_security",
@@ -135,24 +135,24 @@ def __getattr__(name: str) -> Any:
         "_gmgn_bonded_pairs": "chains.gmgn",
         "_gmgn_token_trades": "chains.gmgn",
         # Chain Indexer own-data providers (Phase 4 — LOCAL tier)
-        "_chain_indexer_deployer_reputation": "chains.chain_indexer_own",
-        "_chain_indexer_whale_detect": "chains.chain_indexer_own",
-        "_chain_indexer_volume_authenticity": "chains.chain_indexer_own",
-        "_chain_indexer_holder_age": "chains.chain_indexer_own",
+        "_chain_indexer_deployer_reputation": "chains.lite_chain_indexer_own",
+        "_chain_indexer_whale_detect": "chains.lite_chain_indexer_own",
+        "_chain_indexer_volume_authenticity": "chains.lite_chain_indexer_own",
+        "_chain_indexer_holder_age": "chains.lite_chain_indexer_own",
         # C6 — time-based attack detection (LOCAL tier, ClickHouse-only)
-        "_chain_indexer_attack_detection": "chains.chain_indexer_own",
+        "_chain_indexer_attack_detection": "chains.lite_chain_indexer_own",
         # C7 — deployer behavioral fingerprint (LOCAL tier, ClickHouse-only)
-        "_chain_indexer_deployer_fingerprint": "chains.chain_indexer_own",
+        "_chain_indexer_deployer_fingerprint": "chains.lite_chain_indexer_own",
         # C1 — wallet-to-wallet flow visualization (LOCAL tier, ClickHouse-only)
-        "_chain_indexer_wallet_flow": "chains.chain_indexer_own",
+        "_chain_indexer_wallet_flow": "chains.lite_chain_indexer_own",
         # C3 — new token radar / early warning (LOCAL tier, ClickHouse-only)
-        "_chain_indexer_new_token_radar": "chains.chain_indexer_own",
+        "_chain_indexer_new_token_radar": "chains.lite_chain_indexer_own",
         # C5 — hype score (LOCAL tier, ClickHouse + free trending)
-        "_chain_indexer_hype_score": "chains.chain_indexer_own",
+        "_chain_indexer_hype_score": "chains.lite_chain_indexer_own",
         # C2 — BubbleMaps-style holder clustering (LOCAL tier, ClickHouse-only)
-        "_chain_indexer_holder_clusters": "chains.chain_indexer_own",
+        "_chain_indexer_holder_clusters": "chains.lite_chain_indexer_own",
         # C4 — cross-chain entity resolution v1 (LOCAL tier, ClickHouse-only)
-        "_chain_indexer_cross_chain_entity": "chains.chain_indexer_own",
+        "_chain_indexer_cross_chain_entity": "chains.lite_chain_indexer_own",
         # F2 price/decimals oracle providers (LOCAL tier)
         "token_price_local": "chains.price_oracle_provider",
         "token_meta_local": "chains.price_oracle_provider",

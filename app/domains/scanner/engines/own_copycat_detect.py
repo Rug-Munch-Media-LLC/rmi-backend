@@ -58,6 +58,7 @@ _COPYCAT_CACHE_MAX = 200
 _ch_client: Any = None
 
 # ── ClickHouse error types (narrowed broad excepts) ───────────────────────
+CH_ERRORS: tuple[type[BaseException], ...]
 try:
     import clickhouse_driver.errors as ch_errors
 

@@ -50,7 +50,7 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.chain_indexer import (
+from app.domains.databus.providers.chains.lite_chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
@@ -187,6 +187,10 @@ async def _compute_hype(token: str, chain: str) -> dict[str, Any]:
     volume_task = asyncio.create_task(_volume_growth(token, chain))
     holder_task = asyncio.create_task(_holder_growth(token, chain))
     price_task = asyncio.create_task(_price_momentum(token, chain))
+    social: Any
+    volume: Any
+    holder: Any
+    price: Any
     social, volume, holder, price = await asyncio.gather(
         social_task, volume_task, holder_task, price_task, return_exceptions=True
     )

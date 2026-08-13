@@ -13,7 +13,7 @@ But the SDK itself uses lazy init - setup_sentry() is called once at startup.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 
@@ -66,7 +66,7 @@ def setup_sentry() -> bool:
     try:
         from app.config import settings as _s
 
-        dsn = _s.glitchtip_dsn or _s.sentry_dsn
+        dsn: str | None = _s.glitchtip_dsn or _s.sentry_dsn
     except Exception:
         dsn = os.getenv("GLITCHTIP_DSN") or os.getenv("SENTRY_DSN")
     if not dsn:
@@ -85,7 +85,7 @@ def setup_sentry() -> bool:
     try:
         from app.config import settings as _s
 
-        env = _s.environment
+        env: str = _s.environment
         traces_sample_rate = _s.sentry_traces_sample_rate
     except Exception:
         env = os.getenv("ENVIRONMENT", DEFAULT_ENV)
@@ -101,8 +101,8 @@ def setup_sentry() -> bool:
             HttpxIntegration(),
             RedisIntegration(),
         ],
-        before_send=_before_send,
-        before_send_transaction=_before_send_transaction,
+        before_send=cast("Any", _before_send),
+        before_send_transaction=cast("Any", _before_send_transaction),
     )
     log.info(f"sentry_initialized dsn={dsn[:30]}... env={env} sample_rate={traces_sample_rate}")
     return True
@@ -161,7 +161,7 @@ def capture_message(message: str, level: str = "info", **extra: Any) -> None:
         with sentry_sdk.push_scope() as scope:
             for k, v in extra.items():
                 scope.set_extra(k, v)
-            sentry_sdk.capture_message(message, level=level)
+            sentry_sdk.capture_message(message, level=cast("Any", level))
     except Exception as e:
         log.warning(f"sentry_message_fail err={e}")
 

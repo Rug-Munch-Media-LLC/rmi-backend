@@ -378,8 +378,8 @@ def compute_score(r: ScanResult) -> dict[str, Any]:
         confidence += 3
 
     # ── Chain-indexer pattern detection ──
-    if r.chain_indexer_patterns:
-        cip = r.chain_indexer_patterns
+    if r.lite_chain_indexer_patterns:
+        cip = r.lite_chain_indexer_patterns
         findings = cip.get("findings", cip.get("data", {}).get("findings", []))
         if findings:
             total_risk = sum(f.get("risk_score", 0) for f in findings)

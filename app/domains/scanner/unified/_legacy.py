@@ -151,7 +151,7 @@ def _from_legacy_dict(data: dict[str, Any]) -> ScanResult | None:
             whale_alerts=None,
             cross_chain=None,
             launches=None,
-            chain_indexer_patterns=None,
+            lite_chain_indexer_patterns=None,
             funding_analysis=data.get("funding_analysis"),
             wallet_freshness=data.get("wallet_freshness"),
             holder_overlap=data.get("holder_overlap"),

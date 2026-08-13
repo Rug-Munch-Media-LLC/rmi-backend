@@ -169,7 +169,7 @@ def get_top_external_modules(limit: int = 5) -> list[dict[str, Any]]:
 
     Returns modules sorted by highest external API dependency.
     """
-    modules = []
+    modules: list[dict[str, Any]] = []
     for mod, sources in _SCANNER_MODULE_METRICS.items():
         total = sum(sources.values())
         external_pct = sources.get("external", 0) / total * 100 if total > 0 else 0

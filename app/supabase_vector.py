@@ -135,8 +135,13 @@ class SupabaseVectorStore:
         logger.info("Using default embedding dimension: %s", self._resolved_dim)
         return self._resolved_dim
 
-    async def _rpc(self, fn: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Execute a Supabase RPC function."""
+    async def _rpc(self, fn: str, params: dict[str, Any] | None = None) -> Any:
+        """Execute a Supabase RPC function.
+
+        Supabase RPCs return untyped JSON: some return objects (e.g. exec_sql),
+        others return arrays (e.g. exec_sql_returning, search_embeddings).
+        Callers must cast/narrow at the call site.
+        """
         url = f"{_get_url()}/rest/v1/rpc/{fn}"
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(url, json=params or {}, headers=_get_headers())

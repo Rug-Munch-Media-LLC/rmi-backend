@@ -308,7 +308,7 @@ class GasTraceAnalyzer:
         url = net["url"]
         api_key = net["key"]
 
-        params = {
+        params: dict[str, Any] = {
             "module": "account",
             "action": "txlist",
             "address": address,
@@ -559,7 +559,7 @@ class GasTraceAnalyzer:
 
         Uses Solscan's account info and transaction/transfer endpoints.
         """
-        result = {"first_seen": "unknown", "first_seen_ts": 0, "tx_count": 0}
+        result: dict[str, Any] = {"first_seen": "unknown", "first_seen_ts": 0, "tx_count": 0}
 
         try:
             # Get account info (includes creation info on Solscan)
@@ -614,7 +614,7 @@ class GasTraceAnalyzer:
 
         Uses txlist to find first transaction and count total TXs.
         """
-        result = {"first_seen": "unknown", "first_seen_ts": 0, "tx_count": 0}
+        result: dict[str, Any] = {"first_seen": "unknown", "first_seen_ts": 0, "tx_count": 0}
 
         net = ETHERSCAN_NETWORKS.get(chain.lower())
         if not net:
@@ -624,7 +624,7 @@ class GasTraceAnalyzer:
         api_key = net["key"]
 
         # Get first transaction (oldest) for first_seen timestamp
-        params = {
+        params: dict[str, Any] = {
             "module": "account",
             "action": "txlist",
             "address": address,

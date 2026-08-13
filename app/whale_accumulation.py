@@ -160,7 +160,7 @@ async def detect_accumulation(token_address: str, chain: str) -> dict[str, Any]:
     4. Cross-reference with known smart money wallets
     5. Compute accumulation score and generate report
     """
-    result = {
+    result: dict[str, Any] = {
         "token_address": token_address,
         "chain": chain,
         "detected": False,

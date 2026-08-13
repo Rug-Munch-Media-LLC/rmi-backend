@@ -239,7 +239,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # subpaths — they must be authenticated regardless of route existence).
         if not protected_subpath:
             try:
-                if not _path_has_route(path, self.app.routes):
+                app_routes = getattr(self.app, "routes", [])
+                if not _path_has_route(path, app_routes):
                     return await call_next(request)  # Let 404 handler return RFC 7807
             except Exception as exc:
                 log.warning("route_check_failed path=%s err=%s", path, exc)

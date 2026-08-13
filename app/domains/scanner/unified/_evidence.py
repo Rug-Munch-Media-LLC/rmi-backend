@@ -107,12 +107,12 @@ def build_evidence(r: ScanResult) -> dict[str, Any]:
             for feature, d in r.premium.items()
             if isinstance(d, dict) and d
         }
-    if r.chain_indexer_patterns and isinstance(r.chain_indexer_patterns, dict):
-        findings = r.chain_indexer_patterns.get("findings")
+    if r.lite_chain_indexer_patterns and isinstance(r.lite_chain_indexer_patterns, dict):
+        findings = r.lite_chain_indexer_patterns.get("findings")
         if findings is None:
-            data = r.chain_indexer_patterns.get("data")
+            data = r.lite_chain_indexer_patterns.get("data")
             findings = data.get("findings") if isinstance(data, dict) else None
-        mkt["chain_indexer"] = findings or []
+        mkt["lite_chain_indexer"] = findings or []
     if mkt:
         ev["market"] = mkt
 

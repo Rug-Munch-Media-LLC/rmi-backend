@@ -16,9 +16,9 @@ logger = get_logger("cross_chain_trace")
 
 
 def _get_ch_client() -> Any | None:
-    """Lazy-init ClickHouse native client — shares config with chain_indexer."""
+    """Lazy-init ClickHouse native client — shares config with lite_chain_indexer."""
     ch_host = _os.getenv("CH_HOST") or _os.getenv("CLICKHOUSE_HOST", "127.0.0.1")
-    ch_port = int(_os.getenv("CH_PORT") or _os.getenv("CLICKHOUSE_PORT", "9000"))
+    ch_port = int(_os.getenv("CH_PORT") or _os.getenv("CLICKHOUSE_PORT", "9000") or "9000")
     ch_user = _os.getenv("CH_USER") or _os.getenv("CLICKHOUSE_USER", "rmi")
     # NOTE: set CLICKHOUSE_PASSWORD (or CH_PASSWORD) env var to the ClickHouse password — never hardcode.
     ch_pass = _os.getenv("CH_PASSWORD") or _os.getenv("CLICKHOUSE_PASSWORD", "")

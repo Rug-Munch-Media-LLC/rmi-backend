@@ -116,7 +116,7 @@ class BundleDetector:
     """
 
     # Known Jito tip program IDs
-    JITO_PROGRAMS: ClassVar[dict[str, Any]] = {
+    JITO_PROGRAMS: ClassVar[set[str]] = {
         "Jito4APyf6rDt1pD1jH3nD3is4v7TwzFNWjjMP7B2RK",
         "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
         "ADuCadRmgjMe6UzXVxR1Kn9CS2CXAf8bjiKkC4xFcegX",
@@ -193,7 +193,9 @@ class BundleDetector:
             return result["result"]
         return None
 
-    async def _fetch_solscan_transactions(self, address: str, page: int = 1, page_size: int = 40) -> list[dict[str, Any]]:
+    async def _fetch_solscan_transactions(
+        self, address: str, page: int = 1, page_size: int = 40
+    ) -> list[dict[str, Any]]:
         """Fetch transaction history from Solscan."""
         try:
             return self._solscan.account_transactions(address, page=page, page_size=page_size) or []

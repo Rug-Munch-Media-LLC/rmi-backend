@@ -29,7 +29,7 @@ N8N_BASE_URL = "https://n8n.rugmunch.io"
 N8N_WEBHOOK_URL = f"{N8N_BASE_URL}/webhook"
 
 # Market Intelligence Workflows
-MARKET_INTEL_WORKFLOWS = {
+MARKET_INTEL_WORKFLOWS: dict[str, dict[str, Any]] = {
     "trending_tokens": {
         "name": "Trending Tokens Collector",
         "schedule": "*/30 * * * *",  # Every 30 minutes
@@ -89,7 +89,7 @@ MARKET_INTEL_WORKFLOWS = {
 }
 
 # Premium Intelligence Workflows
-PREMIUM_INTEL_WORKFLOWS = {
+PREMIUM_INTEL_WORKFLOWS: dict[str, dict[str, Any]] = {
     "smart_money_tracking": {
         "name": "Smart Money Tracker",
         "schedule": "*/30 * * * *",  # Every 30 minutes
@@ -138,7 +138,7 @@ PREMIUM_INTEL_WORKFLOWS = {
 }
 
 # Security Intelligence Workflows
-SECURITY_INTEL_WORKFLOWS = {
+SECURITY_INTEL_WORKFLOWS: dict[str, dict[str, Any]] = {
     "scam_detection": {
         "name": "Real-time Scam Detection",
         "schedule": "*/5 * * * *",  # Every 5 minutes (critical)
@@ -258,10 +258,10 @@ async def execute_market_intelligence_pull(workflow_name: str) -> None:
                 provider = get_unified_provider()
 
                 if "trending" in workflow_name.lower():
-                    trending = await provider.get_dexscreener_trending()
+                    trending = await provider.get_dexscreener_trending()  # type: ignore[attr-defined]  # dynamic provider surface
                     collected_data["data"]["dexscreener_trending"] = trending
                 elif "volume" in workflow_name.lower():
-                    spikes = await provider.get_volume_spikes()
+                    spikes = await provider.get_volume_spikes()  # type: ignore[attr-defined]  # dynamic provider surface
                     collected_data["data"]["dexscreener_spikes"] = spikes
 
             elif source == "helius":

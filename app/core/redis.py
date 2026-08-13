@@ -38,12 +38,12 @@ def _get_redis_url() -> str:
         url = os.getenv("REDIS_URL", "")
     if not url:
         url = "redis://localhost:6379/0"
-    # If URL has no password, try gopass
+    # If URL has no password, fetch from the secrets manager (path via env).
     if "@" not in url:
         try:
             pw = (
-                subprocess.check_output(
-                    ["/usr/bin/gopass", "show", "rmi/redis/password"],
+                subprocess.check_output(  # noqa: S603 — fixed binary, operator-controlled env arg, shell=False
+                    ["/usr/bin/gopass", "show", os.environ.get("REDIS_PASSWORD_GOPASS_PATH", "")],
                     stderr=subprocess.DEVNULL,
                     timeout=5,
                     shell=False,
@@ -62,13 +62,13 @@ def _get_redis_url() -> str:
 
 REDIS_URL = _get_redis_url()
 
-_redis_client: redis.Redis | aioredis.Redis | None = None
+_redis_client: redis.Redis[Any] | aioredis.Redis[Any] | None = None
 _sync_pool: redis.ConnectionPool | None = None
 _async_pool: aioredis.ConnectionPool | None = None
 _degraded: bool = False
 
 
-def get_redis() -> redis.Redis | None:
+def get_redis() -> redis.Redis[Any] | None:
     """Get Redis client with connection pooling. Single source of truth."""
     global _redis_client, _sync_pool, _degraded
     import redis
@@ -99,7 +99,7 @@ def get_redis() -> redis.Redis | None:
         return None
 
 
-def get_redis_async() -> aioredis.Redis | None:
+def get_redis_async() -> aioredis.Redis[Any] | None:
     """Get async Redis client for async operations."""
     global _redis_client, _async_pool
     import redis.asyncio as aioredis

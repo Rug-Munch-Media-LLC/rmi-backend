@@ -32,7 +32,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TIERS
@@ -281,7 +281,7 @@ def resolve_tier_limit(tier: Tier, path: str) -> dict[str, Any]:
 
     # The effective RPM is the MIN of tier RPM and path RPM
     effective_rpm = min(
-        int(tier_config["requests_per_minute"]),
+        int(cast("int | float", tier_config["requests_per_minute"])),
         path_rpm,
     )
 
@@ -291,7 +291,7 @@ def resolve_tier_limit(tier: Tier, path: str) -> dict[str, Any]:
         "requests_per_day": tier_config["requests_per_day"],
         "burst": path_burst,
         "concurrent_requests": tier_config["concurrent_requests"],
-        "features": list(tier_config["features"]),
+        "features": list(cast("list[str]", tier_config["features"])),
         "price_monthly_usd": tier_config["price_monthly_usd"],
     }
 

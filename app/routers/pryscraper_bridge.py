@@ -42,29 +42,29 @@ class ScrapeRequest(BaseModel):
     """Request body for POST /api/v1/scrape."""
 
     url: str = Field(..., description="The URL to scrape")
-    formats: list[str] | None = Field(None, description="Desired output formats")
-    only_main_content: bool = Field(True, description="Extract only the main content")
-    timeout: int = Field(30, ge=5, le=120, description="Scrape timeout in seconds")
-    bypass_cloudflare: bool = Field(True, description="Auto-bypass Cloudflare")
-    js_render: bool = Field(False, description="Render JavaScript before scrape")
+    formats: list[str] | None = Field(default=None, description="Desired output formats")
+    only_main_content: bool = Field(default=True, description="Extract only the main content")
+    timeout: int = Field(default=30, ge=5, le=120, description="Scrape timeout in seconds")
+    bypass_cloudflare: bool = Field(default=True, description="Auto-bypass Cloudflare")
+    js_render: bool = Field(default=False, description="Render JavaScript before scrape")
 
 
 class ExtractRequest(BaseModel):
     """Request body for POST /api/v1/extract."""
 
     url: str = Field(..., description="The URL to extract from")
-    json_schema: dict[str, str] | None = Field(None, description="Structured extraction schema")
-    timeout: int = Field(30, ge=5, le=120, description="Extraction timeout in seconds")
-    bypass_cloudflare: bool = Field(True, description="Auto-bypass Cloudflare")
-    js_render: bool = Field(False, description="Render JavaScript before extraction")
+    json_schema: dict[str, str] | None = Field(default=None, description="Structured extraction schema")
+    timeout: int = Field(default=30, ge=5, le=120, description="Extraction timeout in seconds")
+    bypass_cloudflare: bool = Field(default=True, description="Auto-bypass Cloudflare")
+    js_render: bool = Field(default=False, description="Render JavaScript before extraction")
 
 
 class NewsSearchRequest(BaseModel):
     """Request body for POST /api/v1/news/search."""
 
     query: str = Field(..., description="Search query")
-    max_results: int = Field(10, ge=1, le=50, description="Maximum results to return")
-    days_back: int = Field(7, ge=1, le=30, description="Number of days to search back")
+    max_results: int = Field(default=10, ge=1, le=50, description="Maximum results to return")
+    days_back: int = Field(default=7, ge=1, le=30, description="Number of days to search back")
 
 
 class ScrapeResponse(BaseModel):
@@ -193,10 +193,10 @@ class IngestNewsRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=1024, description="Article title")
     body: str = Field(..., min_length=1, description="Article body / content")
     source_url: str = Field(..., description="Original article URL")
-    source_name: str = Field("", description="Source publication name")
-    published_at: str = Field("", description="ISO-8601 publish timestamp")
+    source_name: str = Field(default="", description="Source publication name")
+    published_at: str = Field(default="", description="ISO-8601 publish timestamp")
     categories: list[str] = Field(default_factory=list, description="Topic categories")
-    sentiment: float = Field(0.0, ge=-1.0, le=1.0, description="Sentiment score -1..1")
+    sentiment: float = Field(default=0.0, ge=-1.0, le=1.0, description="Sentiment score -1..1")
 
 
 @router.post("/rag/ingest-news")

@@ -37,7 +37,7 @@ KNOWN_MIXERS: dict[str, list[str]] = {
 }
 
 
-# ── Lazy ClickHouse client (same pattern as chain_indexer.py) ───────────
+# ── Lazy ClickHouse client (same pattern as lite_chain_indexer.py) ───────────
 _ch_client: Any = None
 
 # ── ClickHouse error types (narrowed broad excepts) ───────────────────────
@@ -716,7 +716,7 @@ async def analyze_and_ingest(
         "total_risk_score": min(100, total_risk),
         "findings": findings,
         "ingested_into_rag": ingested,
-        "source": "chain_indexer (ClickHouse)",
+        "source": "lite_chain_indexer (ClickHouse)",
     }
 
 

@@ -34,7 +34,7 @@ async def _run_query(query: str, params: dict[str, Any] | None = None) -> list[A
 
 
 @router.post("/conversation")
-async def store_conversation(user_id: str, agent_id: str, message: str, role: str = "user") -> bool:
+async def store_conversation(user_id: str, agent_id: str, message: str, role: str = "user") -> dict[str, Any]:
     """Store a conversation message in agent memory graph."""
     query = """
     MERGE (u:User {id: $user_id})

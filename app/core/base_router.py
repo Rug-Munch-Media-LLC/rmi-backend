@@ -27,7 +27,7 @@ log = get_logger(__name__)
 
 # ── Types ────────────────────────────────────────────────────────────────
 
-T = TypeVar("T", covariant=True)
+T = TypeVar("T")
 
 
 class ServiceProtocol(Protocol[T]):

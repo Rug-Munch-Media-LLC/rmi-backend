@@ -23,10 +23,10 @@ from typing import Any
 from app.core.logging import get_logger
 from app.domains.scanner.modules._core import PREFER_OWN_DATA
 
-logger = get_logger("databus.providers.chain_indexer_own")
+logger = get_logger("databus.providers.lite_chain_indexer_own")
 
 
-async def _chain_indexer_deployer_reputation(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_deployer_reputation(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — deployer reputation (0-100) from ClickHouse deployer_events.
 
     Parameters (from DataBus fetch kwargs):
@@ -62,16 +62,16 @@ async def _chain_indexer_deployer_reputation(**kwargs: Any) -> dict[str, Any] | 
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse deployer_events reputation)",
+            "source": "lite_chain_indexer (ClickHouse deployer_events reputation)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_deployer_reputation failed: %s", exc)
+        logger.debug("lite_chain_indexer_deployer_reputation failed: %s", exc)
         return None
 
 
-async def _chain_indexer_deployer_fingerprint(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_deployer_fingerprint(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — deployer behavioral fingerprint (C7 v1).
 
     Parameters (from DataBus fetch kwargs):
@@ -101,16 +101,16 @@ async def _chain_indexer_deployer_fingerprint(**kwargs: Any) -> dict[str, Any] |
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse deployer behavioral fingerprint)",
+            "source": "lite_chain_indexer (ClickHouse deployer behavioral fingerprint)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_deployer_fingerprint failed: %s", exc)
+        logger.debug("lite_chain_indexer_deployer_fingerprint failed: %s", exc)
         return None
 
 
-async def _chain_indexer_whale_detect(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_whale_detect(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — whale wallet detection from ClickHouse dex_events.
 
     Parameters (from DataBus fetch kwargs):
@@ -146,16 +146,16 @@ async def _chain_indexer_whale_detect(**kwargs: Any) -> dict[str, Any] | None:
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse dex_events whale detect)",
+            "source": "lite_chain_indexer (ClickHouse dex_events whale detect)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_whale_detect failed: %s", exc)
+        logger.debug("lite_chain_indexer_whale_detect failed: %s", exc)
         return None
 
 
-async def _chain_indexer_volume_authenticity(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_volume_authenticity(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — wash-trading / volume authenticity from ClickHouse.
 
     Parameters (from DataBus fetch kwargs):
@@ -190,16 +190,16 @@ async def _chain_indexer_volume_authenticity(**kwargs: Any) -> dict[str, Any] | 
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse volume authenticity)",
+            "source": "lite_chain_indexer (ClickHouse volume authenticity)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_volume_authenticity failed: %s", exc)
+        logger.debug("lite_chain_indexer_volume_authenticity failed: %s", exc)
         return None
 
 
-async def _chain_indexer_holder_age(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_holder_age(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — holder age distribution from ClickHouse evm_transfers.
 
     Parameters (from DataBus fetch kwargs):
@@ -229,16 +229,16 @@ async def _chain_indexer_holder_age(**kwargs: Any) -> dict[str, Any] | None:
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse holder age)",
+            "source": "lite_chain_indexer (ClickHouse holder age)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_holder_age failed: %s", exc)
+        logger.debug("lite_chain_indexer_holder_age failed: %s", exc)
         return None
 
 
-async def _chain_indexer_attack_detection(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_attack_detection(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — C6 time-based attack detection from ClickHouse dex_events.
 
     Detects sandwich attacks, pump & dumps, and flash loans PURELY from our
@@ -267,16 +267,16 @@ async def _chain_indexer_attack_detection(**kwargs: Any) -> dict[str, Any] | Non
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse dex_events attack detection)",
+            "source": "lite_chain_indexer (ClickHouse dex_events attack detection)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_attack_detection failed: %s", exc)
+        logger.debug("lite_chain_indexer_attack_detection failed: %s", exc)
         return None
 
 
-async def _chain_indexer_wallet_flow(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_wallet_flow(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — C1 wallet-to-wallet flow visualization.
 
     Builds a labeled, USD-denominated fund-flow graph around a wallet from
@@ -312,16 +312,16 @@ async def _chain_indexer_wallet_flow(**kwargs: Any) -> dict[str, Any] | None:
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse evm_transfers wallet flow)",
+            "source": "lite_chain_indexer (ClickHouse evm_transfers wallet flow)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_wallet_flow failed: %s", exc)
+        logger.debug("lite_chain_indexer_wallet_flow failed: %s", exc)
         return None
 
 
-async def _chain_indexer_new_token_radar(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_new_token_radar(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — C3 new token radar (early warning).
 
     Polls deployer_events for newly deployed tokens, fast-scans each
@@ -356,16 +356,16 @@ async def _chain_indexer_new_token_radar(**kwargs: Any) -> dict[str, Any] | None
                 "chain": chain,
                 "lookback_minutes": lookback_minutes,
             },
-            "source": "chain_indexer (ClickHouse deployer_events new token radar)",
+            "source": "lite_chain_indexer (ClickHouse deployer_events new token radar)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_new_token_radar failed: %s", exc)
+        logger.debug("lite_chain_indexer_new_token_radar failed: %s", exc)
         return None
 
 
-async def _chain_indexer_hype_score(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_hype_score(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — C5 hype score (composite token momentum).
 
     Combines social velocity (CoinGecko + DexScreener via unified trending),
@@ -397,16 +397,16 @@ async def _chain_indexer_hype_score(**kwargs: Any) -> dict[str, Any] | None:
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse hype score)",
+            "source": "lite_chain_indexer (ClickHouse hype score)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_hype_score failed: %s", exc)
+        logger.debug("lite_chain_indexer_hype_score failed: %s", exc)
         return None
 
 
-async def _chain_indexer_holder_clusters(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_holder_clusters(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — C2 BubbleMaps-style holder clustering.
 
     Holder balances computed from evm_transfers deltas (electrs-inspired —
@@ -441,16 +441,16 @@ async def _chain_indexer_holder_clusters(**kwargs: Any) -> dict[str, Any] | None
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse holder clustering)",
+            "source": "lite_chain_indexer (ClickHouse holder clustering)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_holder_clusters failed: %s", exc)
+        logger.debug("lite_chain_indexer_holder_clusters failed: %s", exc)
         return None
 
 
-async def _chain_indexer_cross_chain_entity(**kwargs: Any) -> dict[str, Any] | None:
+async def _lite_chain_indexer_cross_chain_entity(**kwargs: Any) -> dict[str, Any] | None:
     """LOCAL provider — C4 cross-chain entity resolution (v2).
 
     Links a wallet to addresses on other chains via ClickHouse evidence:
@@ -491,10 +491,10 @@ async def _chain_indexer_cross_chain_entity(**kwargs: Any) -> dict[str, Any] | N
 
         return {
             "data": result,
-            "source": "chain_indexer (ClickHouse cross-chain entity)",
+            "source": "lite_chain_indexer (ClickHouse cross-chain entity)",
             "tier": "local",
             "is_local": True,
         }
     except Exception as exc:
-        logger.debug("chain_indexer_cross_chain_entity failed: %s", exc)
+        logger.debug("lite_chain_indexer_cross_chain_entity failed: %s", exc)
         return None

@@ -9,8 +9,40 @@ from __future__ import annotations
 
 import os
 import subprocess
+from typing import TypedDict
 
 import httpx
+
+
+class TierDefinition(TypedDict, total=False):
+    name: str
+    emoji: str
+    scans_per_week: int
+    ai_msgs_per_week: int
+    price_monthly: int | float
+    price_stars: int
+    features: list[str]
+
+
+class StarsPack(TypedDict):
+    name: str
+    emoji: str
+    stars: int
+
+
+class TopUpPack(TypedDict):
+    name: str
+    emoji: str
+    type: str
+    amount: int
+    stars: int
+
+
+class ScanPack(TypedDict):
+    name: str
+    description: str
+    includes: list[str]
+    stars: int
 
 
 # ══════════════════════════════════════════════
@@ -164,7 +196,7 @@ SENTINEL_TIMEOUT = 60.0  # deep forensic scan can take a while (9+ modules)
 # Set to False when billing goes live. This overrides tier checks in db.py.
 BETA_MODE = os.environ.get("RMI_BOT_BETA_MODE", "true").lower() in ("true", "1", "yes")
 
-TIERS = {
+TIERS: dict[str, TierDefinition] = {
     "free": {
         "name": "Free",
         "emoji": "🆓",
@@ -256,7 +288,7 @@ TIERS = {
 # ══════════════════════════════════════════════
 # One-time purchases via Telegram Stars. No expiry -
 # top-up balance carries over forever until used.
-TOP_UP_PACKS = {
+TOP_UP_PACKS: dict[str, TopUpPack] = {
     "scans_10": {
         "name": "10 Extra Scans",
         "emoji": "🔬",
@@ -306,7 +338,7 @@ TOP_UP_PACKS = {
 # ══════════════════════════════════════════════
 # Users pay Telegram Stars (XTR) and receive Stars credited
 # to their local balance. ~$0.01 per Star.
-BUY_STARS_PACKS = {
+BUY_STARS_PACKS: dict[str, StarsPack] = {
     "stars_100": {
         "name": "100 Stars",
         "emoji": "⭐",
@@ -337,7 +369,7 @@ BUY_STARS_PACKS = {
 # ══════════════════════════════════════════════
 # SCAN PACKS (One-time deep analysis purchases)
 # ══════════════════════════════════════════════
-SCAN_PACKS = {
+SCAN_PACKS: dict[str, ScanPack] = {
     "deep_scan": {
         "name": "🔬 Deep Token Scan",
         "description": "Complete forensic analysis of ONE token",

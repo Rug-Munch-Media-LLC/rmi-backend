@@ -21,7 +21,7 @@ OLLAMA = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 REAL_CATS_PATH = Path(os.getenv("REAL_CATS_PATH", str(Path.home() / "rmi/backend/data/real_cats.json")))
 
 # Test prompts for scam classification
-BENCHMARK_TASKS = {
+BENCHMARK_TASKS: dict[str, dict[str, Any]] = {
     "scam_detection": {
         "prompts": [
             {

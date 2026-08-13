@@ -59,7 +59,7 @@ def _clickhouse_configured() -> bool:
     if not CLICKHOUSE_ENABLED:
         return False
     try:
-        from app.domains.databus.providers.chains.chain_indexer import _get_ch_client
+        from app.domains.databus.providers.chains.lite_chain_indexer import _get_ch_client
 
         return _get_ch_client() is not None
     except Exception:

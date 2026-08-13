@@ -19,7 +19,7 @@ from __future__ import annotations
 import datetime
 import statistics
 import time
-from typing import Any
+from typing import Any, cast
 
 from app.core.data_fusion.config import SOURCE_WEIGHTS
 from app.core.data_fusion.helpers import (
@@ -115,7 +115,7 @@ class DataFusion:
             for item in additional:
                 if isinstance(item, dict):
                     now = time.time()
-                    sk = item.get("source", item.get("source_key", "unknown"))
+                    sk = cast("str", item.get("source", item.get("source_key", "unknown")))
                     freshness = _get_freshness(item, sk, now)
                     votes.append(WeightedVote(item, sk, freshness=freshness))
                     f_list = item.get("findings", item.get("flags", []))
@@ -287,7 +287,7 @@ class DataFusion:
                 if isinstance(raw, (int, float)):
                     numeric_weights.setdefault(key, []).append((float(raw), adjusted))
 
-        fused: dict[str, float] = {}
+        fused: dict[str, Any] = {}
         total_confidence = 0.0
 
         for key, values in numeric_weights.items():

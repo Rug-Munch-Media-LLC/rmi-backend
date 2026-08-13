@@ -489,7 +489,7 @@ class SentimentAnalyzer:
         with_age = [m for m in messages if m.account_age_hours is not None]
         if not with_age:
             return 0.0
-        new = sum(1 for m in with_age if m.account_age_hours < 48)
+        new = sum(1 for m in with_age if m.account_age_hours is not None and m.account_age_hours < 48)
         return new / len(with_age)
 
     # ------------------------------------------------------------------

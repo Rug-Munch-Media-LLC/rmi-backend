@@ -170,7 +170,9 @@ class PumpDumpDetector:
 
         return round(vol_1h / avg_hourly, 2)
 
-    def _detect_price_volume_divergence(self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None) -> bool:
+    def _detect_price_volume_divergence(
+        self, dex_data: dict[str, Any] | None, birdeye_data: dict[str, Any] | None
+    ) -> bool:
         """Check if price is pumping but volume/mcap doesn't support it."""
         price_change = 0.0
         mcap = 0.0
@@ -300,7 +302,7 @@ class PumpDumpDetector:
                     block_or_timestamp=ts,
                     total_buy_usd=round(total_usd, 2),
                     fresh_wallet_count=fresh_count,
-                    block_number=int(window_buys[0].get("block", window_buys[0].get("slot", None))),
+                    block_number=int(window_buys[0].get("block", window_buys[0].get("slot", None)) or 0),
                 )
             )
 

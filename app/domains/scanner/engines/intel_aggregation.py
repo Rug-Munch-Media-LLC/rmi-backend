@@ -79,7 +79,7 @@ class AggregatedLabel:
 # ENTITY TYPES — Classification taxonomy
 # ══════════════════════════════════════════════════════════════════════
 
-ENTITY_TYPES = {
+ENTITY_TYPES: dict[str, dict[str, Any]] = {
     "cex": {
         "priority": 1,
         "keywords": [
@@ -257,7 +257,7 @@ class IntelligenceAggregationLayer:
         """List all intelligence sources available right now."""
         sources = [
             # Our data (always available if services are up)
-            "chain_indexer",
+            "lite_chain_indexer",
             "clickhouse_labels",
             "neo4j_entities",
             "redis_cache",

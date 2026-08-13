@@ -25,7 +25,7 @@ class TraceDecodeRequest(BaseModel):
     """Request contract for POST /api/v1/tracing/decode."""
 
     tx_hash: str = Field(..., description="0x-prefixed transaction hash (64 hex chars)")
-    chain: str = Field("ethereum", description="EVM chain name (ethereum, base, polygon, ...)")
+    chain: str = Field(default="ethereum", description="EVM chain name (ethereum, base, polygon, ...)")
 
 
 @router.post(

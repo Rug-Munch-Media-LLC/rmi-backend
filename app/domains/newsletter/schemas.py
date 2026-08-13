@@ -26,15 +26,15 @@ class NewsletterCreate(BaseModel):
 
     title: str = Field(..., min_length=1, max_length=512, description="Newsletter title")
     content_html: str = Field(..., min_length=1, description="HTML body")
-    content_text: str | None = Field(None, description="Plain text fallback")
-    excerpt: str | None = Field(None, max_length=500, description="Short preview")
-    cover_image: str | None = Field(None, max_length=1024, description="Cover image URL")
-    tags: list[str] | None = Field(None, description="Content tags")
-    subject_line: str | None = Field(None, max_length=256, description="Email subject")
-    preheader_text: str | None = Field(None, max_length=256, description="Email preheader")
-    segment: str = Field("all", description="Audience segment: all | paid_only | free_only | by_interest")
-    publish_at: datetime | None = Field(None, description="Scheduled publish time; null = immediate")
-    recurrence: str | None = Field(None, description="daily | weekly | monthly | null = one-off")
+    content_text: str | None = Field(default=None, description="Plain text fallback")
+    excerpt: str | None = Field(default=None, max_length=500, description="Short preview")
+    cover_image: str | None = Field(default=None, max_length=1024, description="Cover image URL")
+    tags: list[str] | None = Field(default=None, description="Content tags")
+    subject_line: str | None = Field(default=None, max_length=256, description="Email subject")
+    preheader_text: str | None = Field(default=None, max_length=256, description="Email preheader")
+    segment: str = Field(default="all", description="Audience segment: all | paid_only | free_only | by_interest")
+    publish_at: datetime | None = Field(default=None, description="Scheduled publish time; null = immediate")
+    recurrence: str | None = Field(default=None, description="daily | weekly | monthly | null = one-off")
 
 
 class NewsletterUpdate(BaseModel):
@@ -103,11 +103,11 @@ class SubscribeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     newsletter_id: str = Field(..., description="Newsletter ID to subscribe to")
-    email: str | None = Field(None, max_length=320, description="Email address")
-    wallet_address: str | None = Field(None, max_length=128, description="Crypto wallet address")
-    protocol: str | None = Field(None, description="nostr | farcaster | bluesky | mastodon | lens")
-    protocol_id: str | None = Field(None, description="Decentralized identity (npub, FID, DID, handle)")
-    tier: str = Field("free", description="free | monthly | annual | founding")
+    email: str | None = Field(default=None, max_length=320, description="Email address")
+    wallet_address: str | None = Field(default=None, max_length=128, description="Crypto wallet address")
+    protocol: str | None = Field(default=None, description="nostr | farcaster | bluesky | mastodon | lens")
+    protocol_id: str | None = Field(default=None, description="Decentralized identity (npub, FID, DID, handle)")
+    tier: str = Field(default="free", description="free | monthly | annual | founding")
     interests: list[str] | None = None
     referrer: str | None = None
 
@@ -185,7 +185,7 @@ class SendRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     newsletter_id: str = Field(..., description="ID of the newsletter to send")
-    test_email: str | None = Field(None, description="Send test to a single email first")
+    test_email: str | None = Field(default=None, description="Send test to a single email first")
 
 
 class ScheduleRequest(BaseModel):
@@ -225,11 +225,11 @@ class PublishRequest(BaseModel):
 
     newsletter_id: str
     platforms: list[str] | None = Field(
-        None,
+        default=None,
         description="Platform list; null = all enabled platforms",
     )
     platforms_extra: dict[str, Any] | None = Field(
-        None,
+        default=None,
         description="Platform-specific overrides (e.g. ghost_tags, medium_canonical)",
     )
 

@@ -139,7 +139,7 @@ class UnifiedTokenScanner:
     DEEP_CHAINS: ClassVar[list[Any]] = [
         "holder_data",
         "volume_authenticity",
-        "chain_indexer_patterns",
+        "lite_chain_indexer_patterns",
     ]
 
     # Phase 3: Premium - requires elite tier (pro gets CORE + DEEP only)
@@ -617,7 +617,7 @@ class UnifiedTokenScanner:
         r.dev_reputation = _ok("dev_reputation")
         r.rug_patterns = _ok("rug_patterns")
         r.volume_auth = _ok("volume_authenticity")
-        r.chain_indexer_patterns = _ok("chain_indexer_patterns")
+        r.lite_chain_indexer_patterns = _ok("lite_chain_indexer_patterns")
 
     def _merge_premium(self, r: ScanResult, data: dict[str, Any]) -> None:
         """Merge premium-tier results."""

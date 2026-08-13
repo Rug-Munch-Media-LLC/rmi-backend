@@ -144,7 +144,7 @@ class SleepCycleAnalyzer:
         return max_gap
 
     @staticmethod
-    def _determine_likely_region(hour_counts: Counter, total: int) -> str:
+    def _determine_likely_region(hour_counts: Counter[int], total: int) -> str:
         """Score each region by how many deployments fall inside its UTC window."""
         best_region = "unknown"
         best_score = 0.0

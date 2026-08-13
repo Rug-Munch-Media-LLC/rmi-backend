@@ -48,7 +48,7 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.chain_indexer import (
+from app.domains.databus.providers.chains.lite_chain_indexer import (
     _get_ch_client,
     _normalize_chain,
 )
@@ -449,6 +449,8 @@ async def _enrich_nodes(node_ids: list[str], chain: str) -> tuple[dict[str, list
 
     label_task = run_sync(_query_batch_labels, node_ids)
     contract_task = run_sync(_query_contract_addresses, node_ids, chain)
+    labels_rows: Any
+    contract_rows: Any
     labels_rows, contract_rows = await asyncio.gather(label_task, contract_task, return_exceptions=True)
 
     if not isinstance(labels_rows, BaseException) and labels_rows:
