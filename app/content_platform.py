@@ -239,7 +239,35 @@ async def create_thread(posts: list[str], post_type: str = "thread") -> dict[str
 
 
 async def generate_briefing() -> dict[str, Any]:
-    """Generate daily intelligence briefing from RAG + news sources."""
+    """Generate daily intelligence briefing — RMI Morning Brief §3/§6 pipeline.
+
+    Runs gather → draft → review → publish through
+    ``app.domains.content.briefing`` and returns a ``{draft, review, published}``
+    summary. Non-breaking: on a catastrophic pipeline failure it falls back to
+    the legacy RAG-snippet stub (``_generate_briefing_legacy``).
+    """
+    from app.domains.content.briefing import draft_briefing, gather_briefing_context, publish_briefing, review_briefing
+
+    try:
+        context = await gather_briefing_context()
+        draft = await draft_briefing(context)
+        review = review_briefing(draft, context)
+        published = await publish_briefing(draft)
+        summary: dict[str, Any] = {
+            "draft": draft,
+            "review": review,
+            "published": published,
+        }
+        if not review["ok"]:
+            summary["warning"] = f"Review flagged {len(review['flags'])} items — verify before publishing"
+        return summary
+    except Exception as e:  # keep the endpoint alive — fall back to legacy stub
+        logger.warning("briefing_pipeline_failed — using legacy fallback err=%s", str(e)[:160])
+        return await _generate_briefing_legacy()
+
+
+async def _generate_briefing_legacy() -> dict[str, Any]:
+    """Legacy daily-briefing stub: raw RAG snippets (pre-§6 behavior)."""
     content_parts = [f"# 🕵️ Daily Intelligence Briefing\n\n*{datetime.now(UTC).strftime('%B %d, %Y')}*\n"]
 
     # Pull from RAG
