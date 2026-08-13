@@ -35,10 +35,10 @@ class TestIdentityCannedReply:
     def test_identity_phrase_returns_persona_answer(self, phrase: str) -> None:
         reply = local_ai_response(phrase, None)
         assert reply is not None
-        assert "RugMunchBot" in reply
+        assert "Rug Munch Bot" in reply
         assert "Rug Munch Intelligence" in reply
         # Must be the identity answer, not the generic capabilities card.
-        assert "RugMunch Capabilities" not in reply
+        assert "Rug Munch Capabilities" not in reply
 
     def test_identity_rule_precedes_capability_rule(self) -> None:
         # "who are you" is ALSO matched by the generic capability regex, so
@@ -50,7 +50,7 @@ class TestIdentityCannedReply:
     def test_capability_question_still_returns_capabilities_card(self) -> None:
         reply = local_ai_response("what can you do?", None)
         assert reply is not None
-        assert "RugMunch Capabilities" in reply
+        assert "Rug Munch Capabilities" in reply
 
 
 class TestGateAgreement:
@@ -69,4 +69,4 @@ class TestGateAgreement:
         assert _is_capability_question(phrase)
         reply = local_ai_response(phrase, None)
         assert reply is not None
-        assert "RugMunchBot" in reply
+        assert "Rug Munch Bot" in reply

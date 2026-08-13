@@ -141,7 +141,7 @@ def category_scan_kb() -> InlineKeyboardMarkup:
         [
             _menu_row("\u26a1 Quick Scan (fast)", "run_scan"),
             _menu_row("\U0001f52c Deep Scan (full forensic)", "run_deepscan"),
-            _menu_row("\U0001f6e1\ufe0f SENTINEL Scan (9-module)", "run_sentinelscan"),
+            _menu_row("\U0001f6e1\ufe0f AEGIS Scan (9-module)", "run_sentinelscan"),
             [
                 InlineKeyboardButton("\U0001f6a8 Rug Check", callback_data="run_rugcheck"),
                 InlineKeyboardButton("\U0001f575\ufe0f Deployer", callback_data="run_deployer"),
@@ -452,7 +452,7 @@ def owner_admin_reply_kb() -> ReplyKeyboardMarkup:
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder="RugMunch Admin console",
+        input_field_placeholder="Rug Munch Admin console",
     )
 
 
@@ -679,7 +679,7 @@ def _share_token_url(address: str, chain: str) -> str:
         "https://t.me/share/url?url="
         + quote(f"{WEBSITE_URL}/scanner?token={address}&chain={chain}")
         + "&text="
-        + quote("Scanned with RugMunch — check this token before you buy!")
+        + quote("Scanned with Rug Munch — check this token before you buy!")
     )
 
 

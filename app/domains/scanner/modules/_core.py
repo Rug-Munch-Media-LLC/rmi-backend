@@ -192,17 +192,26 @@ def is_pumpfun_token(
     """Heuristically detect a Pump.fun token (Solana bonding-curve launch).
 
     Signals (any match ⇒ ``True``):
-      1. the mint address ends with ``pump`` (pump.fun vanity convention);
+      1. the mint address ends with ``pump`` (pump.fun vanity convention) —
+         ONLY when no pair/program evidence contradicts it;
       2. a DexScreener-style pair's ``dexId`` / ``labels`` mention pump, or the
          pair carries the pump.fun program ID (curve or AMM pool);
       3. GMGN ``launchpad`` is pump.
 
     Fail-safe: only ever returns ``True`` for Solana, and never hardcodes
     LP state for non-pump tokens — callers decide what 100% means.
+
+    FAKE-PUMP GUARD: when a pair is supplied, a ``pump`` mint suffix alone is
+    not enough — if the pool carries a program ID that is NOT a pump.fun
+    program (a copycat pool), the token is NOT treated as pump.fun. Name-level
+    detection with no pair/GMGN evidence keeps the legacy suffix signal for
+    backward compatibility; the LP-lock decision uses
+    ``detect_launchpad_token`` which is fully fail-closed.
     """
     if not token_address or (chain or "").lower() not in ("solana", "sol"):
         return False
-    if str(token_address).strip().lower().endswith("pump"):
+    has_suffix = str(token_address).strip().lower().endswith("pump")
+    if has_suffix and pair is None and not launchpad:
         return True
     if pair:
         dex_id = str(pair.get("dexId") or "").lower()
@@ -214,7 +223,137 @@ def is_pumpfun_token(
             return True
         if program_id in (PUMPFUN_PROGRAM_ID, PUMPFUN_AMM_PROGRAM_ID):
             return True
+        # Fake-pump guard: mint-suffix lookalike on a non-pump pool program.
+        if has_suffix and program_id:
+            return False
     return bool(launchpad and "pump" in str(launchpad).lower())
+
+
+# ── Launchpad registry (LP locked/burned by design) ────────────────────────
+# Tokens issued through these launchpads always have their LP locked or burned
+# by the launchpad itself (bonding curve → AMM migration burns LP, or factory
+# liquidity is locked). Reporting such tokens as "LP 0% locked → rug risk" is a
+# FALSE flag, so the liquidity verifier short-circuits on them.
+#
+# Detection signals per launchpad:
+#   programs  — verified on-chain program/factory addresses (authoritative)
+#   dex_ids   — DexScreener ``dexId`` values (stable identifiers)
+#   labels    — DexScreener pair ``labels`` (heuristic but specific)
+#   gmgn      — GMGN ``launchpad`` field (normalized by GMGN; authoritative)
+#   suffixes  — mint vanity suffixes (WEAK signal — see fake-pump guard)
+LAUNCHPAD_SPECS: dict[str, dict[str, Any]] = {
+    "pump.fun": {
+        "name": "pump.fun",
+        "chains": ("solana", "sol"),
+        "programs": (PUMPFUN_PROGRAM_ID, PUMPFUN_AMM_PROGRAM_ID),
+        "dex_ids": ("pumpfun",),
+        "labels": ("pump.fun",),
+        "gmgn": ("pump", "pump.fun"),
+        "suffixes": ("pump",),
+    },
+    "four.meme": {
+        "name": "Four.meme",
+        "chains": ("bsc", "bnb", "binance"),
+        "programs": (),
+        "dex_ids": ("fourmeme",),
+        "labels": ("four.meme", "fourmeme"),
+        "gmgn": ("four.meme", "fourmeme"),
+        "suffixes": (),
+    },
+    "sunswap": {
+        "name": "SunSwap / SunPump",
+        "chains": ("tron", "trx"),
+        "programs": (),
+        "dex_ids": ("sunpump", "sunswap"),
+        "labels": ("sunpump", "sunswap", "sun.io"),
+        "gmgn": ("sunpump", "sunswap"),
+        "suffixes": (),
+    },
+    "zora": {
+        "name": "Zora",
+        "chains": ("base",),
+        "programs": (),
+        "dex_ids": ("zora",),
+        "labels": ("zora",),
+        "gmgn": ("zora",),
+        "suffixes": (),
+    },
+    "bags": {
+        "name": "Bags",
+        "chains": ("solana", "sol"),
+        "programs": (),
+        "dex_ids": ("bags", "bagsfun"),
+        "labels": ("bags.fun",),
+        "gmgn": ("bags", "bags.fun"),
+        "suffixes": (),
+    },
+    "bonk": {
+        "name": "Bonk",
+        "chains": ("solana", "sol"),
+        "programs": (),
+        "dex_ids": ("bonkfun",),
+        "labels": ("bonk.fun",),
+        "gmgn": ("bonk", "bonk.fun"),
+        "suffixes": (),
+    },
+}
+
+# Chains where a launchpad short-circuit may apply (union of spec chains).
+LAUNCHPAD_CHAINS: frozenset[str] = frozenset(chain for spec in LAUNCHPAD_SPECS.values() for chain in spec["chains"])
+
+
+def _labels_match(labels: list[str], needles: tuple[str, ...]) -> bool:
+    """True if any pair label contains one of the launchpad label needles."""
+    return any(needle in label for label in labels for needle in needles)
+
+
+def detect_launchpad_token(
+    token_address: str,
+    chain: str,
+    pair: dict[str, Any] | None = None,
+    launchpad: str = "",
+    creator: str = "",
+) -> str | None:
+    """Return the launchpad key for a token, or ``None`` (fail-closed).
+
+    A token is treated as launchpad-issued only when corroborated by:
+      1. on-chain program evidence (pair ``programId`` or mint ``creator``
+         matching a launchpad program/factory), or
+      2. the GMGN ``launchpad`` label, or
+      3. the DEX pair's ``dexId`` / ``labels``.
+
+    FAKE-LAUNCHPAD GUARD: a mint that merely LOOKS like a launchpad token
+    (e.g. ends in ``pump``) is NOT enough — copycat mints are excluded, so a
+    fake pump honeypot is still routed to the real LP check instead of being
+    assumed locked. Unknown ⇒ ``None`` (never assume a lock).
+    """
+    if not token_address:
+        return None
+    chain_norm = (chain or "").lower()
+    pair = pair or {}
+    program_id = str(pair.get("programId") or pair.get("program_id") or "").strip()
+    dex_id = str(pair.get("dexId") or "").lower().strip()
+    labels = [str(label).lower() for label in (pair.get("labels") or [])]
+    gmgn_label = str(launchpad or "").lower().strip()
+
+    for key, spec in LAUNCHPAD_SPECS.items():
+        if chain_norm not in spec["chains"]:
+            continue
+        # 1) Authoritative on-chain program / creator match.
+        if program_id and program_id in spec["programs"]:
+            return key
+        if creator and creator in spec["programs"]:
+            return key
+        # 2) GMGN launchpad label (normalized by GMGN — authoritative).
+        if gmgn_label and gmgn_label in spec["gmgn"]:
+            return key
+        # 3) DEX pair dexId / labels.
+        if dex_id and dex_id in spec["dex_ids"]:
+            return key
+        if labels and _labels_match(labels, spec["labels"]):
+            return key
+    # 4) Mint-suffix lookalikes are never conclusive without corroboration.
+    return None
 
 
 def _pair_liquidity_usd(pair: dict[str, Any]) -> float:

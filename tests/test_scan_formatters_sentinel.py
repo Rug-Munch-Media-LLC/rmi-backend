@@ -79,7 +79,7 @@ def _sample_report() -> dict:
 class TestVerdictHeader:
     def test_rugmunch_brand_header(self) -> None:
         out = format_scan_report(_sample_report())
-        assert "🛡️ <b>RugMunch Token Scan</b>" in out
+        assert "🛡️ <b>Rug Munch Token Scan</b>" in out
 
     def test_big_risk_score_and_verdict(self) -> None:
         out = format_scan_report(_sample_report())
@@ -121,7 +121,7 @@ class TestSingleSections:
         for heading in (
             "Security Assessment",
             "Market Data",
-            "SENTINEL Forensics",
+            "AEGIS Forensics",
             "Top Holders",
             "<b>Deployer</b>",
             "Advanced Analysis",
@@ -133,7 +133,7 @@ class TestSingleSections:
 class TestSectionOrder:
     def test_verdict_before_market_before_holders_before_footer(self) -> None:
         out = format_scan_report(_sample_report())
-        idx_verdict = out.index("<b>RugMunch Token Scan</b>")
+        idx_verdict = out.index("<b>Rug Munch Token Scan</b>")
         idx_market = out.index("Market Data")
         idx_holders = out.index("Top Holders")
         idx_footer = out.index("Trade:")
@@ -142,10 +142,10 @@ class TestSectionOrder:
     def test_full_section_order(self) -> None:
         out = format_scan_report(_sample_report())
         order = [
-            "<b>RugMunch Token Scan</b>",
+            "<b>Rug Munch Token Scan</b>",
             "Security Assessment",
             "Market Data",
-            "SENTINEL Forensics",
+            "AEGIS Forensics",
             "Top Holders",
             "<b>Deployer</b>",
             "Advanced Analysis",

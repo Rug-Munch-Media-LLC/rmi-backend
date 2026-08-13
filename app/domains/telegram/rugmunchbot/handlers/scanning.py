@@ -56,6 +56,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     welcome_card_text,
 )
 from app.domains.telegram.rugmunchbot.formatters._base import dex_button_rows
+from app.domains.telegram.rugmunchbot.formatters._sentinel import _token_image_url
 from app.domains.telegram.rugmunchbot.handlers._scanning_helpers import (  # noqa: F401  # re-exported for tests
     _DEPLOYER_BUCKET_EMOJI,
     _bucket_emoji,
@@ -113,6 +114,25 @@ def _with_trade_buttons(kb: InlineKeyboardMarkup, address: str, chain: str) -> I
     return InlineKeyboardMarkup(rows)
 
 
+async def _maybe_send_token_image(msg: Any, result: dict[str, Any]) -> None:
+    """Send the token image as a photo reply when the scan has one.
+
+    Reads ``image_uri`` / ``image_url`` / ``logo_url`` off the scan result
+    (see ``formatters._sentinel._token_image_url``). Fail-open: no image URL
+    → text-only reply, no crash; a dead image host / Telegram error is
+    logged and swallowed so the scan reply is never lost.
+    """
+    url = _token_image_url(result)
+    if not url:
+        return
+    try:
+        await msg.reply_photo(
+            photo=url, caption=f"\U0001f5bc\ufe0f {result.get('name', '')} ({result.get('symbol', '')})"
+        )
+    except Exception as e:
+        logger.warning("token image send failed, continuing text-only: %s", e)
+
+
 # ══════════════════════════════════════════════
 # /help reference — grouped, scannable (v10)
 # Six primary categories (Scan & Security / Wallet & Tracing /
@@ -128,7 +148,7 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         [
             ("scan", "<code>address</code> - quick security audit"),
             ("deepscan", "<code>address</code> - full forensic scan"),
-            ("sentinelscan", "<code>address</code> - SENTINEL 9-module scan"),
+            ("sentinelscan", "<code>address</code> - AEGIS 9-module scan"),
             ("rugcheck", "<code>address</code> - red flag checklist"),
             ("deployer", "<code>address</code> - deployer fingerprint"),
             ("hype", "<code>address</code> - 0-100 hype score"),
@@ -288,7 +308,7 @@ def _build_help_text() -> str:
     """Render the full /help reference (HTML) from _HELP_SECTIONS."""
     s = sep()
     d = thin_sep()
-    parts = [f"\U0001f4d6 <b>RugMunch Intelligence - Command Guide</b>\n{s}"]
+    parts = [f"\U0001f4d6 <b>Rug Munch Intelligence - Command Guide</b>\n{s}"]
     default_emoji = "\U0001f4d6"
     for header, cmds in _HELP_SECTIONS:
         emoji = _HELP_EMOJI.get(header, default_emoji)
@@ -494,6 +514,8 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=result_kb,
             disable_web_page_preview=True,
         )
+        # Token image "pops up" as a photo reply (fail-open, text stays).
+        await _maybe_send_token_image(msg, result)
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
         logger.debug("unknown_error", exc_info=True)
         logger.error(f"Scan error: {e}")
@@ -703,6 +725,8 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=result_kb,
             disable_web_page_preview=True,
         )
+        # Token image "pops up" as a photo reply (fail-open, text stays).
+        await _maybe_send_token_image(msg, result)
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
         logger.debug("cmd_deepscan_error", exc_info=True)
         logger.error(f"Deep scan error: {e}")
@@ -729,7 +753,7 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if not ctx.args:
         await update.message.reply_text(
-            "\U0001f52c <b>SENTINEL Deep Scan</b>\n\n"
+            "\U0001f52c <b>AEGIS Deep Scan</b>\n\n"
             "Usage: /sentinelscan <code>address</code> [chain]\n\n"
             "Runs the full 9-module forensic pipeline:\n"
             "\u2460 Holder HHI & concentration\n"
@@ -756,15 +780,14 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
     msg = await update.message.reply_text(
-        "\U0001f52c <b>SENTINEL scanning...</b>\n\n\U0001f4aa Running all 9 forensic modules \u2014 this takes a bit.",
+        "\U0001f52c <b>AEGIS scanning...</b>\n\n\U0001f4aa Running all 9 forensic modules \u2014 this takes a bit.",
         parse_mode=ParseMode.HTML,
     )
     try:
         result = await fetch_sentinel_scan(target, chain)
         if not result:
             await msg.edit_text(
-                "\u274c <b>SENTINEL scan failed</b>\n\n"
-                "Could not reach the forensic pipeline. Please try again shortly.",
+                "\u274c <b>AEGIS scan failed</b>\n\nCould not reach the forensic pipeline. Please try again shortly.",
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
@@ -782,7 +805,7 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("sentinel_scan_error", exc_info=True)
         logger.error(f"SENTINEL scan error: {e}")
         await msg.edit_text(
-            f"\u274c <b>SENTINEL Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
+            f"\u274c <b>AEGIS Scan Failed</b>\n\nError: {str(e)[:200]}\n\nPlease check the address and try again.",
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

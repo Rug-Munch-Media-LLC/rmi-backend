@@ -103,7 +103,7 @@ async def cmd_api(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 "No API tokens yet. Generate one:\n"
                 "  /api create\n\n"
                 "Your API token gives you programmatic access to all "
-                "RugMunch intelligence data.\n\n"
+                "Rug Munch intelligence data.\n\n"
                 f"<b>API Base URL:</b>\n<code>{BACKEND_URL}/api/v1</code>\n\n"
                 f"<b>Documentation:</b>\n<code>{WEBSITE_URL}/docs</code>"
             )

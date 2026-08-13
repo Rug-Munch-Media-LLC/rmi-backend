@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot.chat")
 
 CHAT_WELCOME = (
-    "\U0001f916 <b>RugMunch AI \u2014 Freestyle Chat</b>\n\n"
+    "\U0001f916 <b>Rug Munch AI \u2014 Freestyle Chat</b>\n\n"
     "Ask me anything about <b>crypto</b> \u2014 tokens, wallets, security, "
     "DeFi, trading, coding...\n\n"
     "\U0001f50d <b>Tokens & Security</b> \u2014 audits, honeypots, rug pulls, contracts\n"

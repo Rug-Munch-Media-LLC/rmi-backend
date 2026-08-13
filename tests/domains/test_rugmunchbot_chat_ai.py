@@ -481,7 +481,7 @@ class TestLocalIntent:
         assert "Yo! I'm here" in (chat_ai.local_ai_response("hi there", None) or "")
 
     def test_help(self) -> None:
-        assert "RugMunch Capabilities" in (chat_ai.local_ai_response("what can you do", None) or "")
+        assert "Rug Munch Capabilities" in (chat_ai.local_ai_response("what can you do", None) or "")
 
     def test_price_intent(self) -> None:
         assert "Price & Market Data" in (chat_ai.local_ai_response("show me the price of btc", None) or "")
@@ -618,7 +618,7 @@ class TestChatAiResponse:
         answer_reply = msg.replies[-1][0][0]
         assert "grounded answer" in answer_reply
         # v10 footer: "⚡ Grounded in {N} intelligence sources | RugMunch Bot"
-        assert "Grounded in 2 intelligence sources | RugMunch Bot" in answer_reply
+        assert "Grounded in 2 intelligence sources | Rug Munch Bot" in answer_reply
 
     def test_gibberish_redirect_no_backend_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
         backend = AsyncMock(return_value={"message": "should not be called", "rag_count": 0})
@@ -628,7 +628,7 @@ class TestChatAiResponse:
         result = _run(chat_ai.chat_ai_response(upd, None, "asdf asdf asdf asdf asdf", upd.effective_user))
         assert result is True
         backend.assert_not_called()
-        assert "RugMunch AI" in msg.replies[0][0][0]
+        assert "Rug Munch AI" in msg.replies[0][0][0]
         chat_ai.refund_flood.assert_awaited_once()
 
     def test_backend_down_local_intent_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -163,7 +163,7 @@ async def cmd_scamschool(update: Update, ctx) -> None:
     text = (
         f"\U0001f4da <b>Scam School</b>\n{sep()}\n\n"
         f"Learn how to spot crypto scams <b>before</b> you get rugged.\n\n"
-        f'Free education from <a href="{WEBSITE_URL}">RugMunch Intelligence</a>.\n\n'
+        f'Free education from <a href="{WEBSITE_URL}">Rug Munch Intelligence</a>.\n\n'
         f"Select a topic below \U0001f447"
         f"{footer_links()}"
     )
@@ -204,7 +204,7 @@ async def cmd_refer(update: Update, ctx) -> None:
         f"{footer_links()}"
     )
     share_text = quote(
-        f"Check out RugMunch Intelligence - the best crypto scam detector on Telegram! \U0001f6e1\ufe0f\n\n{link}"
+        f"Check out Rug Munch Intelligence - the best crypto scam detector on Telegram! \U0001f6e1\ufe0f\n\n{link}"
     )
     await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text,

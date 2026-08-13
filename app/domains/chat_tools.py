@@ -165,6 +165,21 @@ _INTENT_PREDICTION_PHRASES = (
 # "will <X> happen?" — prediction-market phrasing with a gap between the words.
 _WILL_HAPPEN_RE = re.compile(r"\bwill\b.{0,60}\bhappen\b", re.IGNORECASE)
 
+# Perp-market asks: "hyperliquid funding rate", "show me perps", "open interest
+# on HYPE". "hype" is deliberately included (the HYPE/Hyperliquid ticker) but
+# this branch sits AFTER price so a "$HYPE" price query stays price, and BEFORE
+# market so "hyperliquid market" routes to perps, not the broad snapshot.
+_INTENT_PERP_PHRASES = (
+    "hyperliquid",
+    "hype",
+    "perps",
+    "perp market",
+    "perp markets",
+    "funding rate",
+    "funding rates",
+    "open interest",
+)
+
 # Natural token names → display symbol (price extraction without a $ prefix).
 _TOKEN_NAME_TO_SYMBOL: dict[str, str] = {
     "bitcoin": "BTC",
@@ -246,7 +261,7 @@ _COINGECKO_IDS: dict[str, str] = {
 
 
 def _detect_tool_intent(message: str) -> str | None:
-    """Classify ``message`` into a tool intent: price/scan/ta/market/news/trace/suspicious/prediction/None.
+    """Classify ``message`` into a tool intent: price/scan/ta/market/news/trace/suspicious/prediction/perp/None.
 
     Priority: explicit TA keywords > scan (address/symbol + security words)
     > trace (address + forensics phrases, or address + who/what/related/trace)
@@ -308,6 +323,12 @@ def _detect_tool_intent(message: str) -> str | None:
     # not fall into the generic market intent.
     if any(p in low for p in _INTENT_PREDICTION_PHRASES) or _WILL_HAPPEN_RE.search(low):
         return "prediction"
+
+    # Perp — Hyperliquid funding/OI asks. Checked AFTER price (a "$HYPE" price
+    # query returns above) and prediction, but BEFORE market so "hyperliquid
+    # market" routes to perps, not the broad market snapshot.
+    if any(p in low for p in _INTENT_PERP_PHRASES):
+        return "perp"
 
     # Market.
     if any(m in low for m in _INTENT_MARKET_PHRASES):
@@ -1220,6 +1241,36 @@ async def _exec_prediction(message: str = "") -> str | None:
         return None
 
 
+# ── Perp markets (Hyperliquid) ────────────────────────────────────────
+# "hyperliquid funding" / "show me perps" must surface REAL Hyperliquid perp
+# data (public info API, no key) — never a generic lecture and never
+# fabricated numbers. Fail-open → None (chat falls back to RAG/LLM).
+
+
+async def _exec_perp(message: str = "") -> str | None:
+    """Top Hyperliquid perp markets by open interest, formatted. Fail-open.
+
+    Calls the in-process ``fetch_hyperliquid_assets`` (public info API, no
+    key), sorts by open interest, and renders a compact numbered list with
+    price, funding, OI and 24h change. Returns None on any error/empty — chat
+    falls through to RAG/LLM.
+    """
+    try:
+        from app.domains.markets.perp_markets import (
+            fetch_hyperliquid_assets,
+            format_hyperliquid_assets,
+        )
+
+        assets = await fetch_hyperliquid_assets()
+        if not assets:
+            return None
+        text = format_hyperliquid_assets(assets, top_n=8)
+        return text if text.strip() else None
+    except Exception as e:
+        logger.debug("chat_tool_perp_failed", error=str(e)[:120])
+        return None
+
+
 # ── Dispatcher ─────────────────────────────────────────────────────────
 
 TOOL_TIMEOUT_SECONDS = 8.0
@@ -1233,6 +1284,7 @@ _EXECUTORS: dict[str, Any] = {
     "news": _exec_news,
     "suspicious": _exec_suspicious,
     "prediction": _exec_prediction,
+    "perp": _exec_perp,
 }
 
 
