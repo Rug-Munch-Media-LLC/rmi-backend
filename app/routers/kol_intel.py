@@ -9,6 +9,7 @@ logic, just composition + graceful degradation:
   GET  /api/v1/kol/wallets/{handle} — Attributed wallets for a KOL
   GET  /api/v1/kol/cross-chain/{handle} — Cross-chain wallet links
   GET  /api/v1/kol/shill-signals    — Detected shill signals (count + alerts)
+  GET  /api/v1/kol/scammer-calls    — Captured scammer-call posts (store-backed)
   GET  /api/v1/kol/health           — Service health
 
 Every handler is wrapped so an upstream databus failure degrades to a
@@ -28,12 +29,17 @@ from starlette.responses import JSONResponse
 
 from app.core.logging import get_logger
 from app.databus import kol_scoring as ks, kol_wallet_linker as kwl, kol_wallets as kw, shill_detector as sd
+from app.domains.shill_alert.call_store import CallStore
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/kol", tags=["social-intel"])
 
 _KNOWN_SCAMMERS_PATH = Path(__file__).resolve().parent.parent / "databus" / "known_scammers.json"
+
+# Lazy file-backed store: the constructor does no I/O, so this is safe at
+# import time. Reads degrade to empty when the file is missing/corrupt.
+_CALL_STORE = CallStore()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -259,3 +265,22 @@ def shill_signals() -> dict[str, Any]:
     except Exception as e:  # graceful degradation contract
         logger.warning("kol_intel_shill_signals_failed: %s", str(e)[:120])
         return {"count": 0, "alerts": [], "patterns": {}, "severity": {}, "source": "shill_detector"}
+
+
+@router.get("/scammer-calls", summary="Captured Scammer-Call Posts")
+def scammer_calls(
+    limit: int = Query(default=50, ge=1, le=500),
+    severity: str = Query(default="", description="Filter by severity (e.g. critical|high|medium|low)"),
+) -> dict[str, Any]:
+    """Return captured scammer-call posts from the append-only call store.
+
+    Reads ``app/databus/scammer_calls.json`` (JSON Lines, newest first)
+    through ``CallStore`` and returns the ``{calls, total}`` shape the
+    frontend expects. Empty/corrupt store degrades to
+    ``{"calls": [], "total": 0}``. Never raises.
+    """
+    try:
+        return _CALL_STORE.to_dict(limit=limit, severity=severity.strip() or None)
+    except Exception as e:  # graceful degradation contract
+        logger.warning("kol_intel_scammer_calls_failed: %s", str(e)[:120])
+        return {"calls": [], "total": 0}

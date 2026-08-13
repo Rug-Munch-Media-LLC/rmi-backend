@@ -15,8 +15,9 @@ Pure decision layer: ``ingest_telegram_posts`` is the only I/O entry point
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.databus.shill_detector import analyze_shill_signals, detect_coordinated_shills
 from app.domains.alerts.models import PlatformAlert
@@ -24,6 +25,9 @@ from app.domains.alerts.publisher import route_alerts
 from app.domains.news_ingest.ingest import channel_username_from_config, read_channel_messages
 from app.domains.news_ingest.normalize import extract_entities
 from app.domains.shill_alert.models import ShillPost
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _VALID_SEVERITIES = frozenset({"critical", "high", "medium", "low"})
 _COORDINATED_CONFIDENCE = 0.8
@@ -192,6 +196,116 @@ async def ingest_telegram_posts(client: Any, channels: list[dict], limit: int = 
             for msg in messages:
                 if msg.text and extract_entities(msg.text):
                     posts.append(ShillPost.from_channel_message(msg))
+    except Exception:
+        return []
+    return posts
+
+
+# ── X / Farcaster ingestion ─────────────────────────────────────────────────
+
+
+def _unwrap_post_list(raw: Any) -> list[Any]:
+    """Coerce a reader result into a list of post dicts.
+
+    Accepts a bare list, or a wrapper dict holding a list under one of the
+    conventional keys (``posts`` / ``casts`` / ``tweets`` / ``items`` /
+    ``data`` / ``results``) — e.g. the in-repo X reader
+    ``app.caching_shield.social_feed.get_twitter_feed`` returns
+    ``{"tweets": [...]}``. Anything else → ``[]``.
+    """
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        for key in ("posts", "casts", "tweets", "items", "data", "results"):
+            value = raw.get(key)
+            if isinstance(value, list):
+                return value
+    return []
+
+
+async def _reader_posts(reader: Callable[[int], Any], limit: int) -> list[dict[str, Any]]:
+    """Call *reader* and normalize its output to a list of post dicts.
+
+    Tolerates sync readers and async (coroutine-returning) readers alike.
+    Non-dict items are dropped; a reader returning garbage yields ``[]``.
+    """
+    raw = reader(max(1, int(limit)))
+    if asyncio.iscoroutine(raw):
+        raw = await raw
+    return [item for item in _unwrap_post_list(raw) if isinstance(item, dict)]
+
+
+def _normalize_timestamp_keys(item: dict[str, Any]) -> dict[str, Any]:
+    """Map provider timestamp keys onto the keys ``from_social_post`` reads.
+
+    The in-repo X reader (``get_twitter_feed``) emits ``published``, which
+    ``from_social_post`` does not read — surface it as ``created_at`` so the
+    cast's ISO-8601 timestamp survives. Never mutates the caller's dict.
+    """
+    if "created_at" not in item and item.get("published"):
+        normalized = dict(item)
+        normalized["created_at"] = item["published"]
+        return normalized
+    return item
+
+
+async def ingest_farcaster_posts(reader: Callable[[int], Any], limit: int = 50) -> list[ShillPost]:
+    """Read Farcaster casts and keep the token-mentioning ones.
+
+    ``reader`` is an injectable duck-typed callable
+    ``reader(limit) -> list[post dict]`` (or a dict wrapping the list under
+    ``casts`` / ``posts`` / ``data``). Expected cast dict shape (any subset):
+
+        {"author": {"username": "handle"}, "text": "...",
+         "timestamp": "ISO-8601", "url": "https://warpcast.com/..."}
+
+    Flat shapes are also accepted (``handle`` / ``username``, ``text``,
+    ``created_at`` / ``published_at``, ``post_url`` / ``permalink``) — see
+    ``ShillPost.from_social_post``. There is no in-repo Farcaster *post*
+    reader today (``socialfi_resolver`` only exposes profile lookups), so
+    pass an adapter over your Farcaster Hub / Neynar reader. Posts are
+    filtered to those mentioning a ``$SYMBOL`` / contract address
+    (``extract_entities``) and mapped via ``ShillPost.from_social_post``
+    with ``source="farcaster"``. Fail-open: any error → ``[]``.
+    """
+    posts: list[ShillPost] = []
+    try:
+        for item in await _reader_posts(reader, limit):
+            text = str(item.get("text") or item.get("content") or "")
+            if text and extract_entities(text):
+                posts.append(ShillPost.from_social_post(item, source="farcaster"))
+    except Exception:
+        return []
+    return posts
+
+
+async def ingest_x_posts(reader: Callable[[int], Any], limit: int = 50) -> list[ShillPost]:
+    """Read X posts and keep the token-mentioning ones.
+
+    ``reader`` is an injectable duck-typed callable
+    ``reader(limit) -> list[post dict]`` (or a dict wrapping the list under
+    ``tweets`` — the exact shape of the in-repo reader
+    ``app.caching_shield.social_feed.get_twitter_feed``, which can be passed
+    directly). Expected X post dict shape (any subset):
+
+        {"handle": "handle", "text": "...",
+         "published": "ISO-8601", "url": "https://x.com/..."}
+
+    Nested ``user.username`` is also accepted.
+    ``app.databus.social_feeds`` additionally exposes a sync Nitter reader
+    (``fetch_nitter``) whose article dicts carry the username under
+    ``source`` — wrap it if you need it. Posts are filtered to those
+    mentioning a ``$SYMBOL`` / contract address (``extract_entities``) and
+    mapped via ``ShillPost.from_social_post`` with ``source="x"``.
+    Fail-open: any error → ``[]``.
+    """
+    posts: list[ShillPost] = []
+    try:
+        for item in await _reader_posts(reader, limit):
+            item = _normalize_timestamp_keys(item)
+            text = str(item.get("text") or item.get("content") or "")
+            if text and extract_entities(text):
+                posts.append(ShillPost.from_social_post(item, source="x"))
     except Exception:
         return []
     return posts
