@@ -1,0 +1,13 @@
+# RMI Daily Briefing — daily at 05:30 UTC (methodology §2: drops well before
+# US market open 13:30 UTC). Persistent=true catches up after downtime.
+
+[Unit]
+Description=Run RMI Daily Briefing daily at 05:30 UTC
+
+[Timer]
+OnCalendar=*-*-* 05:30:00 UTC
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

@@ -8,10 +8,11 @@ methodology (2026-08-13). The pipeline is:
        ``app.routers.chat._fetch_market_context``) and RAG collections
        (news_v2 / market_intel / known_scams / threat_intel / defi_exploits /
        whale_transfers). Never raises.
-    2. ``draft_briefing()`` — renders the fixed §3 skeleton. An injectable
-       async ``writer`` (LLM) can re-write the prose; if no writer is wired
-       (or it fails) a deterministic template fallback produces a real,
-       accurate, source-cited post from the context alone.
+    2. ``draft_briefing()`` — renders the fixed §3 skeleton. The default
+        writer is the local-LLM ``llm_writer`` (production), which re-writes
+        the prose from the gathered context; whenever the LLM is unavailable,
+        disabled, or returns empty, a deterministic template fallback produces
+        a real, accurate, source-cited post from the context alone.
     3. ``review_briefing()`` — pure fact-check: every number in the draft
        must appear in the context (hallucination gate), and metric-bearing
        claim bullets must carry a source reference (URL or address).
@@ -27,6 +28,8 @@ Grounding rules (methodology §3, non-negotiable):
 
 from __future__ import annotations
 
+import json
+import os
 import re
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
@@ -42,6 +45,30 @@ logger = get_logger(__name__)
 COINGECKO_API = "https://api.coingecko.com/api/v3"
 
 _BRIEFING_TITLE = "RMI Morning Brief"
+
+# System prompt for the LLM writer (methodology §3 skeleton + §4 voice +
+# grounding rules). Mirrors the RMI Terminal grounding style (chat.py) with
+# the briefing's non-negotiable gates: cite-or-omit, zero hype, addresses on
+# every mover, exact skeleton order, "N/A" for empty sections.
+BRIEFING_SYSTEM_PROMPT = """You are the RMI Morning Brief writer — a forensic-grade crypto analyst at Rug Munch Intelligence.
+
+Voice (from the RMI brand guide — non-negotiable):
+- Authoritative, not arrogant. Sharp and precise. Evidence-first.
+- Zero hype: no "moon", no "don't miss", no "potential 100x". Say what IS.
+- Crypto-native, but use GM/WAGMI sparingly. Witty but measured.
+- Write concise, readable prose — fresh copy, not templated filler.
+
+Grounding rules (hard gates — never violated):
+- Every metric cites a source or is omitted. Never invent prices, market caps, percentages, volumes, or flows.
+- If a number is not present in the provided context, write "N/A" — never guess.
+- Include the on-chain address on every movers / rug-watch token so a reader can /scan instantly.
+- Rug & Scam Watch names the mechanism (honeypot / mintable / LP pulled), not just the name.
+
+Format:
+- Follow the skeleton section order exactly — do not reorder, rename, drop, or add sections.
+- Fill each section with prose built ONLY from the provided context.
+- If a section has no context data, write "N/A".
+"""
 
 # §3 fixed skeleton — section names in render order.
 SECTIONS = [
@@ -241,6 +268,77 @@ async def gather_briefing_context() -> dict[str, Any]:
 
 WriterCallable = Callable[[dict[str, Any], dict[str, Any]], Awaitable[str]]
 
+CompletionCallable = Callable[..., Awaitable[dict[str, Any]]]
+
+
+def _llm_writer_enabled() -> bool:
+    """Whether ``draft_briefing``'s default writer is the LLM writer.
+
+    Production (``ENVIRONMENT=prod``) uses ``llm_writer`` by default so the
+    Morning Brief is drafted by the local LLM. Dev/test keep the deterministic
+    template (pure, fast, deterministic) unless explicitly overridden with
+    ``RMI_BRIEFING_LLM_WRITER=1``. Explicit ``0``/``false``/``no``/``off``
+    always disables the LLM default.
+    """
+    override = os.getenv("RMI_BRIEFING_LLM_WRITER")
+    if override is not None:
+        return override.strip().lower() not in ("0", "false", "no", "off")
+    return os.getenv("ENVIRONMENT", "dev").strip().lower() in ("prod", "production")
+
+
+async def llm_writer(
+    context: dict[str, Any],
+    skeleton: dict[str, Any],
+    *,
+    model: str | None = None,
+    completion: CompletionCallable | None = None,
+) -> str:
+    """Draft the briefing prose with a local LLM (methodology §6).
+
+    Builds a system prompt with the §3 skeleton, §4 voice, and grounding
+    rules, then asks ``completion`` (default ``ai_router.chat_completion`` →
+    local llama.cpp ``deepseek-analysis``) to write the post filling the
+    skeleton using ONLY the provided context. Returns "" on any failure
+    (completion raises, non-dict result, empty content) so ``draft_briefing``
+    falls back to the deterministic template — publishing is never blocked on
+    the LLM.
+
+    ``completion`` is injectable so tests can assert on the messages without
+    hitting the network.
+    """
+    completion_call: CompletionCallable
+    if completion is None:
+        from app.ai_router import chat_completion as _chat_completion
+
+        completion_call = _chat_completion
+    else:
+        completion_call = completion
+
+    user_prompt = (
+        "# Morning Brief skeleton — fill this, in this exact order\n"
+        f"{json.dumps(skeleton, indent=2, default=str, ensure_ascii=False)}\n\n"
+        "# Gathered context — the ONLY allowed facts (cite-or-omit; missing = N/A)\n"
+        f"{json.dumps(context, indent=2, default=str, ensure_ascii=False)}"
+    )
+    try:
+        result = await completion_call(
+            messages=[
+                {"role": "system", "content": BRIEFING_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            model=model or "deepseek-analysis",
+            task_type="analysis",
+            temperature=0.6,
+            max_tokens=2048,
+        )
+    except Exception as e:  # fail-open: never block publishing on the LLM
+        logger.warning("briefing_llm_writer_failed err=%s", str(e)[:160])
+        return ""
+    if not isinstance(result, dict):
+        return ""
+    content = result.get("content")
+    return content.strip() if isinstance(content, str) else ""
+
 
 def _render_section_lines(name: str, items: list[dict[str, Any]], bullet: str = "•") -> list[str]:
     """Render one context block into display lines (used by the fallback)."""
@@ -336,11 +434,16 @@ async def draft_briefing(context: dict[str, Any], *, writer: WriterCallable | No
     """Assemble the §3 briefing from ``context``.
 
     ``writer`` is an injectable async callable ``(context, skeleton) -> str``
-    (e.g. the LLM writer from methodology §6). It is optional: when absent —
-    or when it raises — a deterministic template fallback renders a real,
-    source-cited post with "N/A" for empty sections.
+    (e.g. the LLM writer from methodology §6). When omitted, the default is
+    ``llm_writer`` in production (``ENVIRONMENT=prod``, or explicitly
+    ``RMI_BRIEFING_LLM_WRITER=1``) and the deterministic template otherwise.
+    Whenever the active writer raises or returns empty — or no writer is
+    active — the deterministic template fallback renders a real, source-cited
+    post with "N/A" for empty sections: publishing is never blocked on the LLM.
     """
     skeleton = _build_skeleton(context)
+    if writer is None and _llm_writer_enabled():
+        writer = llm_writer
     if writer is not None:
         try:
             prose = await writer(context, skeleton)
