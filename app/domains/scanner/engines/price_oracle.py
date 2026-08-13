@@ -67,7 +67,6 @@ from app.domains.scanner.engines._common import (
     run_sync,
 )
 from app.domains.scanner.engines._price_adapters import (
-    _CHAIN_MAP,
     _coingecko_price,
     _decimals_from_dexscreener,
     _defillama_price,
@@ -78,90 +77,22 @@ from app.domains.scanner.engines._price_adapters import (
     _oneinch_price,
     _paraswap_price,
 )
+from app.domains.scanner.engines._price_constants import (
+    _FALLBACK_DECIMALS,
+    _MEM_MAX,
+    _MEM_TTL,
+    _NATIVE_TTL,
+    _PRICE_TTL,
+    _STABLECOINS,
+    _WRAPPED_NATIVE,
+)
+from app.domains.scanner.engines._price_helpers import (
+    _collect_weighted_prices,
+    _normalize_chain,
+    _normalize_token,
+)
 
 logger = get_logger(__name__)
-
-# ── Cache TTLs ─────────────────────────────────────────────────────────────
-_PRICE_TTL = 300  # Redis + token_meta price cache TTL (seconds)
-_MEM_TTL = 60  # in-process price cache TTL (seconds)
-_MEM_MAX = 500  # in-process cache max entries (LRU eviction)
-_NATIVE_TTL = 300  # native price cache TTL (seconds)
-
-# ── Wrapped native token addresses per chain (for native price resolution) ──
-_WRAPPED_NATIVE: dict[str, str] = {
-    "ethereum": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",  # WETH
-    "bsc": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",  # WBNB
-    "polygon": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",  # WMATIC
-    "arbitrum": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",  # WETH
-    "optimism": "0x4200000000000000000000000000000000000006",  # WETH
-    "base": "0x4200000000000000000000000000000000000006",  # WETH
-    "avalanche": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",  # WAVAX
-    "fantom": "0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83",  # WFTM
-    "linea": "0xe5d7c2a44ffddf6b295a15c148167daaaf5cf34f",  # WETH
-    "gnosis": "0xe91d153e0b41518a2ce8dd3d7944fa863463a97d",  # WXDAI
-    "mantle": "0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8",  # WMNT
-    "solana": "So11111111111111111111111111111111111111112",  # WSOL
-}
-
-# ── Stablecoin addresses (multi-chain) used to anchor own-data prices to USD ──
-_STABLECOINS: set[str] = {
-    # ethereum
-    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",  # USDC
-    "0xdac17f958d2ee523a2206206994597c13d831ec7",  # USDT
-    "0x6b175474e89094c44da98b954eedeac495271d0f",  # DAI
-    "0x4fabb145d64652a948d72533023f6e7a623c7c53",  # BUSD
-    "0x853d955acef822db058eb8505911ed77f175b99e",  # FRAX
-    "0x57ab1ec28d129707052df4df418d58a2d46d5f51",  # USDS (sUSDS)
-    # base
-    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",  # USDC
-    "0x50c5725949a6f0c72e6c4a641f24049a917db0cb",  # DAI
-    # arbitrum
-    "0xaf88d065e77c8cc2239327c5edb3a432268e5831",  # USDC
-    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",  # USDT
-    # optimism
-    "0x0b2c639c533813f4aa9d7837caf62653d097ff85",  # USDC
-    "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58",  # USDT
-    "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1",  # DAI
-    # polygon
-    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",  # USDC
-    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",  # USDT
-    "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063",  # DAI
-    # avalanche
-    "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",  # USDC
-    "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",  # USDT
-    # fantom
-    "0x04068da6c83afcfa0e13ba15a6696662335d5b75",  # USDC
-    # bsc
-    "0x55d398326f99059ff775485246999027b3197955",  # USDT
-    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",  # USDC
-    # solana
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
-    "Es9vMFrzaCERmJfrF4H2FYD4KjNkEN6kiFnSkHM6hTzM",  # USDT
-    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",  # USDe
-}
-
-# ── Decimals fallback map (spec: ETH=18, USDC=6, USDT=6, SOL=9) ────────────
-# Layered over own_dex_data.format._get_token_decimals which already covers
-# a wide known-token table + ClickHouse value-pattern estimation.
-_FALLBACK_DECIMALS: dict[str, dict[str, int]] = {
-    "solana": {
-        "So11111111111111111111111111111111111111112": 9,  # WSOL
-        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": 6,  # USDC
-        "Es9vMFrzaCERmJfrF4H2FYD4KjNkEN6kiFnSkHM6hTzM": 6,  # USDT
-        "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": 9,  # USDe
-    },
-    "ethereum": {
-        "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": 18,  # WETH
-        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": 18,  # ETH (native alias)
-    },
-    "bsc": {"0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": 18},  # WBNB
-    "polygon": {"0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": 18},  # WMATIC
-    "arbitrum": {"0x82af49447d8a07e3bd95bd0d56f35241523fbab1": 18},  # WETH
-    "base": {"0x4200000000000000000000000000000000000006": 18},  # WETH
-    "avalanche": {"0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": 18},  # WAVAX
-    "fantom": {"0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83": 18},  # WFTM
-    "solana_native_alias": {},
-}
 
 # ── In-process caches ─────────────────────────────────────────────────────
 _price_mem: dict[str, dict[str, Any]] = {}
@@ -171,23 +102,6 @@ _native_mem: dict[str, dict[str, Any]] = {}
 # ── Lazy clients ──────────────────────────────────────────────────────────
 _ch_client: Any = None
 _redis_client: Any = None
-
-
-def _normalize_chain(chain: str) -> str:
-    """Normalize chain name to ClickHouse / provider format."""
-    return _CHAIN_MAP.get(chain.lower(), chain.lower())
-
-
-def _normalize_token(token_address: str, chain: str) -> str:
-    """Normalize token address for lookups.
-
-    EVM addresses are lowercased; Solana base58 addresses are
-    case-sensitive and preserved as-is.
-    """
-    token_address = str(token_address).strip()
-    if chain == "solana":
-        return token_address
-    return token_address.lower()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -679,49 +593,7 @@ async def _vwap_price_from_swaps(
     if not swaps:
         return None
 
-    prices_weighted: list[tuple[float, float]] = []
-    paired_counts: dict[str, int] = {}
-    token_lower = str(token).lower()
-
-    for swap in swaps:
-        t0 = str(swap.get("token0") or "").lower()
-        t1 = str(swap.get("token1") or "").lower()
-        if not t0 or not t1:
-            continue
-        is_token0 = t0 == token_lower
-        if not is_token0 and t1 != token_lower:
-            continue
-        paired = t1 if is_token0 else t0
-        if not paired:
-            continue
-        paired_counts[paired] = paired_counts.get(paired, 0) + 1
-
-        try:
-            if is_token0:
-                amt_in = float(swap.get("amount0_in") or 0)
-                amt_out = float(swap.get("amount0_out") or 0)
-                paired_in = float(swap.get("amount1_in") or 0)
-                paired_out = float(swap.get("amount1_out") or 0)
-            else:
-                amt_in = float(swap.get("amount1_in") or 0)
-                amt_out = float(swap.get("amount1_out") or 0)
-                paired_in = float(swap.get("amount0_in") or 0)
-                paired_out = float(swap.get("amount0_out") or 0)
-        except (ValueError, TypeError):
-            continue
-
-        weight = amt_in + amt_out
-        if weight <= 0:
-            continue
-        # buy: our token out, paired in; sell: our token in, paired out
-        if amt_out > 0 and paired_in > 0:
-            price = paired_in / amt_out
-        elif amt_in > 0 and paired_out > 0:
-            price = paired_out / amt_in
-        else:
-            continue
-        if 0 < price < 1_000_000_000:
-            prices_weighted.append((price, weight))
+    prices_weighted, paired_counts = _collect_weighted_prices(swaps, token)
 
     if not prices_weighted:
         return None
@@ -1118,51 +990,7 @@ async def _own_price_vwap(token: str, chain: str) -> dict[str, Any] | None:
         return None
 
     pair_cache = _load_pair_cache(chain)
-    prices_weighted: list[tuple[float, float]] = []
-    paired_counts: dict[str, int] = {}
-
-    for swap in swaps:
-        t0 = str(swap.get("token0") or "").lower()
-        t1 = str(swap.get("token1") or "").lower()
-        if not t0 or not t1:
-            cached = pair_cache.get(str(swap.get("contract_address") or "").lower())
-            if cached:
-                t0, t1 = (cached[0].lower(), cached[1].lower())
-        if not t0 or not t1:
-            continue
-
-        is_token0 = t0 == token.lower()
-        paired = t1 if is_token0 else t0
-        if not paired:
-            continue
-        paired_counts[paired] = paired_counts.get(paired, 0) + 1
-
-        try:
-            if is_token0:
-                amt_in = float(swap.get("amount0_in") or 0)
-                amt_out = float(swap.get("amount0_out") or 0)
-                paired_in = float(swap.get("amount1_in") or 0)
-                paired_out = float(swap.get("amount1_out") or 0)
-            else:
-                amt_in = float(swap.get("amount1_in") or 0)
-                amt_out = float(swap.get("amount1_out") or 0)
-                paired_in = float(swap.get("amount0_in") or 0)
-                paired_out = float(swap.get("amount0_out") or 0)
-        except (ValueError, TypeError):
-            continue
-
-        weight = amt_in + amt_out
-        if weight <= 0:
-            continue
-        # buy: our token out, paired in; sell: our token in, paired out
-        if amt_out > 0 and paired_in > 0:
-            price = paired_in / amt_out
-        elif amt_in > 0 and paired_out > 0:
-            price = paired_out / amt_in
-        else:
-            continue
-        if 0 < price < 1_000_000_000:
-            prices_weighted.append((price, weight))
+    prices_weighted, paired_counts = _collect_weighted_prices(swaps, token, pair_cache=pair_cache, strict_match=False)
 
     if not prices_weighted:
         return None
