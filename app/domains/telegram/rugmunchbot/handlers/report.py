@@ -45,7 +45,7 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "<b>Example:</b>\n"
             "/report <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code> "
             "honeypot \u2014 can't sell\n\n"
-            "\U0001f4a1 Reports are reviewed by the RugMunch team and feed "
+            "\U0001f4a1 Reports are reviewed by the Rug Munch team and feed "
             "our shared scam denylist \u2014 you're helping everyone stay safe.",
             parse_mode=ParseMode.HTML,
         )

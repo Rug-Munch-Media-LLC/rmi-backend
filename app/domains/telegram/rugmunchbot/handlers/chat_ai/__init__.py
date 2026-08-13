@@ -424,7 +424,7 @@ async def _injection_warning(update: Update, category: str) -> None:
     )
     try:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            f"\U0001f6e1\ufe0f <b>RugMunch Anti-Abuse</b>\n\n{text}\n\n<i>Message blocked: {category}</i>",
+            f"\U0001f6e1\ufe0f <b>Rug Munch Anti-Abuse</b>\n\n{text}\n\n<i>Message blocked: {category}</i>",
             parse_mode=ParseMode.HTML,
             reply_markup=kb,
         )
@@ -923,7 +923,7 @@ async def _send_answer(
       4. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
          emits into real ``<b>...</b>`` — safe because the content was
          already escaped in step 3.
-    A short "⚡ Grounded in N intelligence sources | RugMunch Bot" footer is
+    A short "⚡ Grounded in N intelligence sources | Rug Munch Bot" footer is
     appended to the last chunk when the backend reported RAG grounding.
     ``rag_count`` is the REAL number of unique RAG hits (from
     ``X-RAG-Context``, or ``len(bridge sources)`` on the fallback path);
@@ -944,7 +944,7 @@ async def _send_answer(
             source_label = "1 intelligence source"
         else:
             source_label = f"{rag_count} intelligence sources"
-        html[-1] = f"{html[-1]}\n\n<i>\u26a1 Grounded in {source_label} | RugMunch Bot</i>"
+        html[-1] = f"{html[-1]}\n\n<i>\u26a1 Grounded in {source_label} | Rug Munch Bot</i>"
 
     kb = _render_bridge_actions(actions) or back_kb()
     last = len(html) - 1

@@ -10,6 +10,8 @@ Supported platforms:
   - PinkLock (multi-chain)
   - Mudra (BSC)
   - Solana LP Burn verification
+  - Launchpad short-circuit: pump.fun, Four.meme, SunSwap/SunPump, Zora,
+    Bags, Bonk (LP locked/burned by design; fake lookalikes fail closed)
 
 Data sources (direct API calls - no self.api_base):
   EVM chains: Etherscan-family APIs (token holders, contract verification)
@@ -32,7 +34,12 @@ import requests
 
 from app.chain_registry import get_known_lockers, is_solana
 from app.core.logging import get_logger
-from app.domains.scanner.modules._core import _best_pair, is_pumpfun_token
+from app.domains.scanner.modules._core import (
+    LAUNCHPAD_CHAINS,
+    LAUNCHPAD_SPECS,
+    _best_pair,
+    detect_launchpad_token,
+)
 from app.domains.scanners._sentinel_registry import sentinel_module
 
 logger = get_logger("liquidity_verifier")
@@ -473,18 +480,25 @@ class LiquidityVerifier:
                 warnings=["Stablecoin/wrapped token - LP lock check not applicable"],
             )
 
-        # Pump.fun short-circuit: LP is burned/locked by design (bonding curve
-        # → Raydium migration burns the LP). Detecting it up-front prevents the
-        # false "LP only 0.0% locked - HIGH rug pull risk" flag that otherwise
-        # appears when the on-chain Helius burn check is unavailable. Only
-        # applies to genuine pump.fun tokens — never hardcoded for others.
-        # Fail-open: a detector regression must never crash the verification.
+        # Launchpad short-circuit: launchpad-issued tokens (pump.fun, Four.meme,
+        # SunSwap/SunPump, Zora, Bags, Bonk, ...) always have their LP locked or
+        # burned by the launchpad (bonding curve → AMM migration burns LP; factory
+        # liquidity is locked). Detecting this up-front prevents the false
+        # "LP only 0.0% locked - HIGH rug pull risk" flag that otherwise appears
+        # when the on-chain LP-burn check is unavailable.
+        #
+        # Fail-closed on FAKE launchpad lookalikes: a mint that merely ends in
+        # "pump" without program/DEX/GMGN corroboration is NOT assumed locked
+        # and falls through to the real LP check below (copycat honeypots still
+        # get flagged). A detector regression must never crash the verification.
         try:
-            is_pumpfun = is_solana(chain) and await self._detect_pumpfun(token_address)
+            launchpad_key = await self._detect_pumpfun(token_address, chain)
         except (ConnectionError, OSError, TimeoutError, RuntimeError, ValueError, TypeError):
-            logger.debug("pumpfun_detect_failed", exc_info=True)
-            is_pumpfun = False
-        if is_pumpfun:
+            logger.debug("launchpad_detect_failed", exc_info=True)
+            launchpad_key = None
+        if launchpad_key:
+            spec = LAUNCHPAD_SPECS.get(launchpad_key) or {}
+            platform_name = spec.get("name", launchpad_key)
             return LockReport(
                 token_address=token_address,
                 chain=chain,
@@ -492,8 +506,8 @@ class LiquidityVerifier:
                 total_locked_percentage=100.0,
                 lock_details=[
                     LockDetail(
-                        locker_address="pump.fun",
-                        platform="PumpFun",
+                        locker_address=launchpad_key,
+                        platform=platform_name,
                         percentage_locked=100.0,
                         is_burned=True,
                     )
@@ -505,7 +519,7 @@ class LiquidityVerifier:
                 lp_burned=True,
                 risk_score=0,
                 risk_level="LOW",
-                warnings=["Pump.fun token - LP burned/locked by the bonding curve (100%)"],
+                warnings=[f"{platform_name} launchpad token - LP locked/burned by design (100%)"],
             )
 
         # Verify the lock on-chain (Solana LP burn via Helius, or EVM holders via Moralis/Etherscan)
@@ -611,35 +625,37 @@ class LiquidityVerifier:
             logger.debug(f"DexScreener pair lookup failed for {token_address}: {e}")
         return None
 
-    async def _gmgn_launchpad(self, token_address: str) -> str:
+    async def _gmgn_launchpad(self, token_address: str, chain: str = "solana") -> str:
         """Return the GMGN ``launchpad`` label for a token, or ``''`` (fail-open)."""
         try:
             from app.databus.gmgn_provider import get_gmgn_provider
 
-            info = await get_gmgn_provider().get_token_info(token_address, "solana")
+            info = await get_gmgn_provider().get_token_info(token_address, chain)
             if isinstance(info, dict):
                 return str(info.get("launchpad") or "")
         except Exception:
             logger.debug("gmgn_launchpad_failed", exc_info=True)
         return ""
 
-    async def _detect_pumpfun(self, token_address: str) -> bool:
-        """Best-effort Pump.fun detection: mint suffix / pair / GMGN launchpad.
+    async def _detect_pumpfun(self, token_address: str, chain: str = "solana") -> str | None:
+        """Best-effort launchpad detection → launchpad key or ``None``.
 
-        Never raises — every source is fail-open. Returns True when any
-        signal matches (mint ends in ``pump``, the DEX pair is pump.fun-created,
-        or GMGN labels the launchpad as pump).
+        Gathers DexScreener pair + GMGN launchpad evidence and runs the shared
+        fail-closed matcher (``detect_launchpad_token``). Never raises.
+
+        Returns ``None`` for non-launchpad tokens AND for mint-only lookalikes
+        (fake pump mints whose pool/creator is not the launchpad program), so
+        callers fall through to the real LP check instead of assuming a lock.
         """
-        if is_pumpfun_token(token_address, "solana"):
-            return True
+        if (chain or "").lower() not in LAUNCHPAD_CHAINS:
+            return None
+        pair = await self._dexscreener_first_pair(token_address)
+        launchpad = await self._gmgn_launchpad(token_address, chain)
         try:
-            pair = await self._dexscreener_first_pair(token_address)
-            if pair and is_pumpfun_token(token_address, "solana", pair=pair):
-                return True
-        except (ConnectionError, OSError, TimeoutError):
-            logger.debug("pumpfun_pair_detect_failed", exc_info=True)
-        launchpad = await self._gmgn_launchpad(token_address)
-        return is_pumpfun_token(token_address, "solana", launchpad=launchpad)
+            return detect_launchpad_token(token_address, chain, pair=pair, launchpad=launchpad)
+        except (ConnectionError, OSError, TimeoutError, RuntimeError, ValueError, TypeError):
+            logger.debug("launchpad_detect_failed", exc_info=True)
+            return None
 
     async def _check_solana_lp_burn(self, token_address: str, pair: dict[str, Any] | None = None) -> bool:
         """Check if Solana LP tokens are burned using Helius.

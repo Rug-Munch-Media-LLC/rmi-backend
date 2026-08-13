@@ -71,7 +71,7 @@ def format_sentinel_flags(r: dict[str, Any]) -> str:
     d = thin_sep()
     if is_bluechip(r.get("address", "")):
         return (
-            "\n\U0001f6e1\ufe0f <b>SENTINEL</b>\n"
+            "\n\U0001f6e1\ufe0f <b>AEGIS</b>\n"
             f"{d}\n"
             "  \u2705 <b>Known blue-chip</b> \u2014 concentration & lock signals suppressed"
         )
@@ -135,8 +135,8 @@ def format_sentinel_flags(r: dict[str, Any]) -> str:
                 break
             flags.append(f"\u26a0\ufe0f {w[:100]}")
     if not flags:
-        flags.append("\u2705 No SENTINEL red flags")
-    lines = ["", "\U0001f6e1\ufe0f <b>SENTINEL</b>", d]
+        flags.append("\u2705 No AEGIS red flags")
+    lines = ["", "\U0001f6e1\ufe0f <b>AEGIS</b>", d]
     lines.extend(f"  {f}" for f in flags)
     return "\n".join(lines)
 
@@ -170,7 +170,7 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
     authority = data.get("contract_authority") or {}
 
     lines: list[str] = [
-        "\U0001f6e1\ufe0f <b>SENTINEL DEEP FORENSIC SCAN</b>",
+        "\U0001f6e1\ufe0f <b>AEGIS DEEP FORENSIC SCAN</b>",
         s,
     ]
     if address:
@@ -348,7 +348,7 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
     lines.append("")
     lines.append(
         "\u26a0\ufe0f <i>Composite risk is 0-100 (higher = riskier). "
-        "SENTINEL data is forensic evidence \u2014 always DYOR.</i>"
+        "AEGIS data is forensic evidence \u2014 always DYOR.</i>"
     )
     _addr = data.get("address", data.get("token", ""))
     _chain = data.get("chain", "solana")
@@ -712,6 +712,43 @@ def _format_risk_signals_section(r: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _token_image_url(r: dict[str, Any]) -> str:
+    """Best-effort token image URL from a scan result (fail-open).
+
+    Accepts any of the keys the scanner/backends may use for the token
+    logo: ``image_uri`` (Pump.fun API), ``image_url`` (DexScreener /
+    generic), ``logo_url`` (Birdeye / legacy). Returns the first
+    http(s) value found, else "".
+    """
+    for key in ("image_uri", "image_url", "logo_url", "image"):
+        val = r.get(key)
+        if isinstance(val, str) and val.strip().startswith(("http://", "https://")):
+            return val.strip()
+    return ""
+
+
+def _token_description(r: dict[str, Any]) -> str:
+    """Best-effort token description from a scan result (fail-open).
+
+    Prefers the top-level ``description`` key (populated by the scanner
+    when available) and falls back to the SENTINEL metadata-fingerprint
+    module's ``description_snippet`` (Pump.fun / DexScreener description,
+    metadata_fingerprint.py).
+    """
+    desc = r.get("description")
+    if isinstance(desc, str) and desc.strip():
+        return desc.strip()
+    try:
+        mf = (r.get("sentinel") or {}).get("free", {}).get("metadata_fingerprint")
+        if isinstance(mf, dict):
+            snippet = mf.get("description_snippet")
+            if isinstance(snippet, str) and snippet.strip():
+                return snippet.strip()
+    except (AttributeError, TypeError):
+        pass
+    return ""
+
+
 def format_scan_report(r: dict[str, Any]) -> str:
     s = sep()
     d = thin_sep()
@@ -742,7 +779,7 @@ def format_scan_report(r: dict[str, Any]) -> str:
     # headline + verdict sentence come from _base.format_verdict_header when
     # the parallel refactor provides it, otherwise from the inline equivalent.
     lines = [
-        "\U0001f6e1\ufe0f <b>RugMunch Token Scan</b>",
+        "\U0001f6e1\ufe0f <b>Rug Munch Token Scan</b>",
         s,
         f"<b>{r['name']}</b> ({r['symbol']}) {chain_str}{age_str}",
         f"<code>{r['address']}</code>",
@@ -815,7 +852,7 @@ def format_scan_report(r: dict[str, Any]) -> str:
     # ── 4. SENTINEL Forensics ──
     sentinel_flags = _format_sentinel_pro(r)
     if sentinel_flags:
-        lines.extend(["", "\U0001f6e1\ufe0f <b>SENTINEL Forensics</b>", d])
+        lines.extend(["", "\U0001f6e1\ufe0f <b>AEGIS Forensics</b>", d])
         lines.extend(sentinel_flags)
 
     # ── 5. Top Holders ──
@@ -857,19 +894,47 @@ def format_scan_report(r: dict[str, Any]) -> str:
         lines.extend(["", "\U0001f52c <b>Advanced Analysis</b>", d])
         lines.extend(adv)
 
-    # ── 8. Socials ──
+    # ── 8. Socials / Description ──
+    # ALWAYS renders a Socials block when the token has any socials or an
+    # image URL (never hidden behind a "NO SOCIALS" placeholder). Lists
+    # Twitter / Telegram / website links plus the token image URL, with a
+    # one-line safety note — external links are attacker-controlled surface
+    # and must be verified before clicking. "NO SOCIALS" only when genuinely
+    # none (no links AND no image).
     socials = r.get("socials", {})
-    if socials:
-        soc_parts = []
-        for stype, surl in socials.items():
-            if stype == "twitter":
-                soc_parts.append(f'<a href="{surl}">\U0001d54f</a>')
-            elif stype == "telegram":
-                soc_parts.append(f'<a href="{surl}">\U0001f4f1</a>')
-            elif stype == "website":
-                soc_parts.append(f'<a href="{surl}">\U0001f310</a>')
-        if soc_parts:
-            lines.extend(["", f"\U0001f517 Socials: {' | '.join(soc_parts)}"])
+    if not isinstance(socials, dict):
+        socials = {}
+    image_url = _token_image_url(r)
+    description = _token_description(r)
+
+    soc_parts: list[str] = []
+    for stype, surl in socials.items():
+        if not isinstance(surl, str) or not surl.strip():
+            continue
+        surl = surl.strip()
+        if stype == "twitter":
+            soc_parts.append(f'<a href="{html.escape(surl, quote=True)}">\U0001d54f Twitter</a>')
+        elif stype == "telegram":
+            soc_parts.append(f'<a href="{html.escape(surl, quote=True)}">\U0001f4f1 Telegram</a>')
+        elif stype == "website":
+            soc_parts.append(f'<a href="{html.escape(surl, quote=True)}">\U0001f310 Website</a>')
+        else:
+            soc_parts.append(
+                f'<a href="{html.escape(surl, quote=True)}">\U0001f517 {html.escape(str(stype).capitalize())}</a>'
+            )
+    if image_url:
+        soc_parts.append(f'<a href="{html.escape(image_url, quote=True)}">\U0001f5bc\ufe0f Image</a>')
+
+    lines.append("")
+    lines.append("\U0001f517 <b>Socials</b>")
+    lines.append(d)
+    if soc_parts:
+        lines.append("  " + " | ".join(soc_parts))
+        lines.append("  \u26a0\ufe0f external links may be malicious \u2014 verify before clicking")
+    else:
+        lines.append("  \u26a0\ufe0f NO SOCIALS")
+    if description:
+        lines.append(f"  \U0001f4dd <i>{html.escape(description[:300])}</i>")
 
     # ── 9. Footer (trade links) ──
     lines.extend(["", s, "\U0001f4b1 <b>Trade:</b>"])
@@ -961,7 +1026,7 @@ def _format_sentinel_pro(r: dict[str, Any]) -> list[str]:
             flags.append(f"⚠️ {decoded}")
 
     if not flags:
-        flags.append("✅ No SENTINEL red flags")
+        flags.append("✅ No AEGIS red flags")
 
     return flags
 

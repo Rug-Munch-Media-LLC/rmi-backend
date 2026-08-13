@@ -27,7 +27,7 @@ _RUN_CARDS: dict[str, str] = {
         "\u23f3 Slower than /scan (up to ~2 min) but far more detailed."
     ),
     "sentinelscan": (
-        "\U0001f6e1\ufe0f <b>SENTINEL Deep Scan</b>\n\n"
+        "\U0001f6e1\ufe0f <b>AEGIS Deep Scan</b>\n\n"
         "Usage: <code>/sentinelscan &lt;address&gt; [chain]</code>\n\n"
         "Runs the full 9-module forensic pipeline: holder HHI, LP lock, "
         "dev reputation, contract authority, proxy, bundle, wash trading "
@@ -179,7 +179,7 @@ _RUN_CARDS: dict[str, str] = {
         "\U0001f6ab <b>Report a Scam</b>\n\n"
         "Usage: <code>/report &lt;address&gt; [reason]</code>\n\n"
         "Flags a token address as a scam. Reports feed the shared "
-        "denylist and go straight to the RugMunch team."
+        "denylist and go straight to the Rug Munch team."
     ),
     "dex": (
         "\U0001f4e6 <b>DEX Pairs & Liquidity</b>\n\n"

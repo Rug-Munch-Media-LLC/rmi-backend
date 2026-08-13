@@ -125,9 +125,9 @@ def footer_links(address: str = "", chain: str = "") -> str:
         )
         return (
             f"\n{sep()}\n{trade}\n{charts}\n"
-            f'\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
+            f'\U0001f50d Rug Munch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
         )
-    return f'\n{sep()}\n\U0001f50d RugMunch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
+    return f'\n{sep()}\n\U0001f50d Rug Munch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
 
 
 def web_scan_button(address: str, chain: str = "") -> InlineKeyboardButton:
@@ -295,7 +295,12 @@ def dex_button_rows(token: str, chain: str, per_row: int = DEX_BUTTONS_PER_ROW) 
 
     Renders the full ``DEX_REF_LINKS`` set for the chain in
     ``DEX_BUTTON_PRIORITY`` order (GMGN/Jupiter lead), with DexScreener +
-    DexTools chart buttons appended after the referral platforms. An
+    DexTools chart buttons appended after the referral platforms. Every
+    token-embedding platform (GMGN/Photon/Birdeye charts, Jupiter/1inch/
+    PancakeSwap swaps) gets the scan's address filled in — see
+    ``_ref_platform_buttons``. Telegram signup bots (OdinBot/Banana Gun)
+    and home-only terminals (Axiom/Padre) carry no per-token URL by design
+    (documented in ``config.DEX_REF_LINKS``). An
     empty/unknown chain returns a safe minimal set — the Telegram trading
     bots (OdinBot / Banana Gun) whose ref-coded start links never depend on
     the token address — so no token-page URL is ever built for the wrong
@@ -352,7 +357,9 @@ def about_text() -> str:
         "<b>RMI (Rug Munch Intelligence)</b> \u2014 a division of "
         "<b>Rug Munch Media LLC</b>, a Wyoming-based company \u2014 to "
         "protect retail investors from crypto scams with on-chain "
-        "intelligence, scanner forensics, and AI analysis."
+        "intelligence, scanner forensics, and AI analysis.\n\n"
+        "Developed by <b>cryptorugmunch</b> and the team at "
+        "<b>Rug Munch Media</b>."
     )
 
 
@@ -381,7 +388,7 @@ def faq_text() -> str:
         "<b>Rug Munch Media LLC</b>, a Wyoming-based company. We build "
         "on-chain intelligence tools that protect retail investors.\n\n"
         "\U0001f3af <b>How accurate are the scans?</b>\n"
-        "Our SENTINEL engine runs 9 forensics modules over 17 indexed chains "
+        "Our AEGIS engine runs 9 forensics modules over 17 indexed chains "
         "(359M+ on-chain rows) with 200+ tools. No tool is 100% \u2014 "
         "always DYOR, and pair a scan with the charts on rugmunch.io.\n\n"
         "\u26a0\ufe0f <b>See a scam?</b>\n"
@@ -405,7 +412,7 @@ def welcome_card_text() -> str:
         f"<i>The scam-detection copilot for crypto</i>\n\n"
         f"{social_proof_text()}\n\n"
         f"<b>What I can do</b>\n"
-        f"\U0001f50d <b>Scan</b> \u2014 instant token audits &amp; SENTINEL forensics\n"
+        f"\U0001f50d <b>Scan</b> \u2014 instant token audits &amp; AEGIS forensics\n"
         f"\U0001f45b <b>Wallet</b> \u2014 forensics, portfolio &amp; funding analysis\n"
         f"\U0001f575\ufe0f <b>Trace</b> \u2014 cross-chain wallet tracing (Arkham-style)\n"
         f"\U0001f4b0 <b>Price</b> \u2014 live prices, charts &amp; market snapshots\n"

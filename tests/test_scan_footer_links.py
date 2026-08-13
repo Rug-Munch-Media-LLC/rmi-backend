@@ -41,7 +41,7 @@ class TestGmgnUrl:
             ("ethereum", "eth"),
             ("base", "base"),
             ("bsc", "bsc"),
-            ("arbitrum", "arb"),
+            ("arbitrum", "arbitrum"),
             ("SOLANA", "sol"),  # case-insensitive
             ("weirdchain", "weirdchain"),  # unknown → passthrough lowercase
         ],
@@ -140,7 +140,7 @@ class TestFooterLinks:
         _clear_refs(monkeypatch)
         out = fb.footer_links()
         assert "/help" in out
-        assert "RugMunch Bot" in out
+        assert "Rug Munch Bot" in out
         assert "GMGN" not in out
         assert "RugCharts" not in out
 

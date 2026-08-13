@@ -120,7 +120,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "\U0001f50d <b>Scan</b>\n\n"
             "Security audits across 25+ chains \u2014 Quick Scan, full "
-            "forensic Deep Scan, SENTINEL 9-module analysis, rug checks, "
+            "forensic Deep Scan, AEGIS 9-module analysis, rug checks, "
             "deployer fingerprint and hype/compare tools.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_scan_kb(),
@@ -172,7 +172,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             "\U0001f6e1\ufe0f <b>Security & Education</b>\n\n"
             "Rug pull checklists, scam education, deep investigations and "
-            "reporting suspicious addresses to the RugMunch team.",
+            "reporting suspicious addresses to the Rug Munch team.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_security_kb(),
         )
@@ -217,7 +217,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     elif data == "menu_cat_help":
         await query.edit_message_text(
             "\u2139\ufe0f <b>Help & About</b>\n\n"
-            "Full command reference, community links and the RugMunch mission: "
+            "Full command reference, community links and the Rug Munch mission: "
             "make crypto safer for everyone.",
             parse_mode=ParseMode.HTML,
             reply_markup=category_help_kb(),
@@ -461,7 +461,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             share_text = (
                 f"\U0001f50d <b>RMI Token Scan</b>\n\n"
                 f"<code>{addr}</code> ({chain.title()})\n\n"
-                f"Scan this token with RugMunchBot:\n"
+                f"Scan this token with Rug Munch Bot:\n"
                 f"https://t.me/RugMunchBot?start=scan_{addr}_{chain}"
             )
             await query.edit_message_text(

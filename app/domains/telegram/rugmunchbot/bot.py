@@ -215,7 +215,7 @@ def install_maintenance_gate(app: Application[Any, Any, Any, Any, Any, Any]) -> 
                 if effective_message is not None:
                     try:
                         await effective_message.reply_text(
-                            "\U0001f527 <b>RugMunch is under maintenance</b>\n\n"
+                            "\U0001f527 <b>Rug Munch is under maintenance</b>\n\n"
                             "We're upgrading the intelligence pipeline \u2014 check back soon!\n"
                             "\U0001f6e1\ufe0f rugmunch.io",
                             parse_mode="HTML",

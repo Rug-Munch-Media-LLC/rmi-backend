@@ -187,7 +187,7 @@ class TestRenderMarkets:
         text = prediction._render_markets(results, "\U0001f52e <b>Prediction Markets</b>")
         assert "8. " in text  # last allowed item
         assert "9. " not in text  # capped at MARKET_LIMIT (8)
-        assert "RugMunch Bot" in text
+        assert "Rug Munch Bot" in text
 
 
 class TestRegisterPrediction:

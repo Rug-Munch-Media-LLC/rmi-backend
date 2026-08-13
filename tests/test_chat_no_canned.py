@@ -69,8 +69,8 @@ class TestSelfImprovementAnswer:
     def test_returns_specific_answer_not_menu(self, phrase: str) -> None:
         reply = local_ai_response(phrase, None)
         assert reply is not None
-        # The bug: capability mention → "RugMunch Capabilities" menu.
-        assert "RugMunch Capabilities" not in reply
+        # The bug: capability mention → "Rug Munch Capabilities" menu.
+        assert "Rug Munch Capabilities" not in reply
         assert "What would genuinely help me" in reply
 
     def test_answer_contains_capability_and_improvement_content(self) -> None:
@@ -89,7 +89,7 @@ class TestSelfImprovementAnswer:
         # Regression: plain capability/help questions keep the command menu.
         reply = local_ai_response(phrase, None)
         assert reply is not None
-        assert "RugMunch Capabilities" in reply
+        assert "Rug Munch Capabilities" in reply
 
 
 class TestRuleOrder:
@@ -98,5 +98,5 @@ class TestRuleOrder:
         # self-improvement rule must be registered first so its answer wins
         # whenever both patterns match.
         self_idx = next(i for i, (_pat, resp) in enumerate(_INTENT_RULES) if "What would genuinely help me" in resp)
-        cap_idx = next(i for i, (_pat, resp) in enumerate(_INTENT_RULES) if "RugMunch Capabilities" in resp)
+        cap_idx = next(i for i, (_pat, resp) in enumerate(_INTENT_RULES) if "Rug Munch Capabilities" in resp)
         assert self_idx < cap_idx

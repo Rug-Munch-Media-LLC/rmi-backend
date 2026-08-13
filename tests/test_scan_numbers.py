@@ -116,15 +116,18 @@ class TestIsPumpfunToken:
 class TestPumpfunLpLock:
     @pytest.mark.asyncio
     async def test_verify_lock_pumpfun_mint_suffix(self) -> None:
-        """A pump.fun mint (ends 'pump') reports 100% LP burned — no CRITICAL flag.
+        """A genuine pump.fun mint (ends 'pump') reports 100% LP burned — no
+        CRITICAL flag, when the GMGN launchpad label corroborates the suffix.
 
-        The mint-suffix signal needs no network, so _detect_pumpfun returns
-        True before any lookup is attempted.
+        The mint suffix alone is a WEAK signal (fail-closed on copycats):
+        GMGN launchpad='pump' corroborates it without needing the DEX pair.
         """
         verifier = LiquidityVerifier()
-        with patch.object(verifier, "_dexscreener_first_pair", AsyncMock()) as mock_pair:
+        with (
+            patch.object(verifier, "_dexscreener_first_pair", AsyncMock(return_value=None)),
+            patch.object(verifier, "_gmgn_launchpad", AsyncMock(return_value="pump")),
+        ):
             report = await verifier.verify_lock(PUMP_MINT, "solana")
-        mock_pair.assert_not_awaited()
         assert report.status == LockStatus.BURNED
         assert report.total_locked_percentage == 100.0
         assert report.lp_burned is True

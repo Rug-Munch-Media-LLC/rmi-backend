@@ -284,7 +284,7 @@ _INJECTION_MESSAGES: dict[str, str] = {
         "I'm designed to follow my original security instructions. I can't be re-prompted to ignore them."
     ),
     "secret-extraction": ("I don't reveal system prompts, API keys or internal configuration."),
-    "role-switch": ("I'm RugMunch's assistant — I don't switch to developer/uncensored modes."),
+    "role-switch": ("I'm Rug Munch's assistant — I don't switch to developer/uncensored modes."),
     "echo-poisoning": ("I don't echo raw prompts or messages — ask me a normal question instead."),
     "wallet-secret-harvest": ("Never share your seed phrase or private keys with anyone — including bots."),
     "wallet-drain-social": (
@@ -301,7 +301,7 @@ _KNOWN_SCAM_WARNING = (
     "\u2022 Don't approve any transactions\n"
     "\u2022 Don't connect your wallet to its site\n"
     "\u2022 If you've bought it, watch for exit liquidity pulls\n\n"
-    "Thanks for checking with RugMunch first!"
+    "Thanks for checking with Rug Munch first!"
 )
 
 
@@ -555,7 +555,7 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
         ),
         (
             "\U0001f44b <b>Yo! I'm here.</b>\n\n"
-            "I'm <b>RugMunchBot</b> \u2014 the AI analyst from the <b>Rug Munch Intelligence</b> platform. "
+            "I'm <b>Rug Munch Bot</b> \u2014 the AI analyst from the <b>Rug Munch Intelligence</b> platform. "
             "I scan tokens for rugs, profile wallets, track whales, and "
             "answer crypto questions backed by 91K+ intel documents across 25+ chains.\n\n"
             "\U0001f6e1\ufe0f <b>Quick start:</b>\n"
@@ -587,7 +587,7 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
             re.IGNORECASE,
         ),
         (
-            "\U0001f916 <b>I'm RugMunchBot</b>\n\n"
+            "\U0001f916 <b>I'm Rug Munch Bot</b>\n\n"
             "Built by <b>Rug Munch Intelligence</b> \u2014 the crypto security "
             "& on-chain intel platform. I scan tokens, profile wallets, track "
             "whales, and answer crypto questions backed by 91K+ intel docs "
@@ -604,7 +604,7 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
             re.IGNORECASE,
         ),
         (
-            "\U0001f916 <b>RugMunch Capabilities</b>\n\n"
+            "\U0001f916 <b>Rug Munch Capabilities</b>\n\n"
             "I'm a multi-chain crypto intelligence bot. Here's what I can do:\n\n"
             "\U0001f50d <code>/scan &lt;addr&gt;</code> \u2014 Full token security audit\n"
             "\U0001f9db <code>/wallet &lt;addr&gt;</code> \u2014 Wallet forensics\n"
@@ -707,7 +707,7 @@ def local_ai_response(text: str, user: Any) -> str | None:
 # ══════════════════════════════════════════════
 
 _REDIRECT_MESSAGE = (
-    "\U0001f916 <b>RugMunch AI</b>\n\n"
+    "\U0001f916 <b>Rug Munch AI</b>\n\n"
     "I can help with token scans, wallet analysis, market data, DeFi, "
     "crypto news and even coding questions. Try:\n\n"
     "\U0001f4ac <code>/chat &lt;question&gt;</code> \u2014 talk to me about anything\n"
