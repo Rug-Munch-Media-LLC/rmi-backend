@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from app.helius_tools.helius_sniper_detector import SniperDetector, SniperReport, SniperWallet
 from app.helius_tools.helius_syndicate_tracker import SyndicateEvent, SyndicateTracker, WalletGraphNode
-from app.helius_tools.helius_whale_watcher import WhaleAlert, WhaleProfile, WhaleWatcher, register_alert_callback
+from app.helius_tools.helius_whale_watcher import WhaleAlert, WhaleProfile, WhaleWatcher
 
 __all__ = [
     "SniperDetector",
@@ -26,5 +26,4 @@ __all__ = [
     "WhaleAlert",
     "WhaleProfile",
     "WhaleWatcher",
-    "register_alert_callback",
 ]

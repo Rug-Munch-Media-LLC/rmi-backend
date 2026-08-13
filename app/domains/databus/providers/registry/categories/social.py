@@ -46,17 +46,17 @@ def build_social_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
             get_weekly_best,
         )
     except ImportError:
-        get_weekly_best = get_academic_papers = get_social_feed = None
-        add_comment = add_reaction = aggregate_all_news = create_bb_post = None
-        get_reactions = None
+        get_weekly_best = get_academic_papers = get_social_feed = None  # type: ignore[assignment]  # optional module fallback
+        add_comment = add_reaction = aggregate_all_news = create_bb_post = None  # type: ignore[assignment]  # optional module fallback
+        get_reactions = None  # type: ignore[assignment]  # optional module fallback
     try:
         from app.databus.x_intel import fetch_ct_rundown, track_ct_accounts
     except ImportError:
-        fetch_ct_rundown = track_ct_accounts = None
+        fetch_ct_rundown = track_ct_accounts = None  # type: ignore[assignment]  # optional module fallback
     try:
         from app.databus.daily_intel import generate_daily_intel
     except ImportError:
-        generate_daily_intel = None
+        generate_daily_intel = None  # type: ignore[assignment]  # optional module fallback
     try:
         from app.databus.social_intel import (
             detect_shill_campaigns,
@@ -68,10 +68,10 @@ def build_social_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
             track_kol_call,
         )
     except ImportError:
-        get_kol_profile = get_kol_leaderboard = None
-        get_social_metrics = None
-        detect_shill_campaigns = get_shill_alerts = scan_scam_channels = None
-        track_kol_call = None
+        get_kol_profile = get_kol_leaderboard = None  # type: ignore[assignment]  # optional module fallback
+        get_social_metrics = None  # type: ignore[assignment]  # optional module fallback
+        detect_shill_campaigns = get_shill_alerts = scan_scam_channels = None  # type: ignore[assignment]  # optional module fallback
+        track_kol_call = None  # type: ignore[assignment]  # optional module fallback
 
     chains["news"] = ProviderChain(
         data_type="news",

@@ -1328,7 +1328,7 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             created = p.get("pairCreatedAt")
             from datetime import UTC, datetime as dt
 
-            age_hours = 0
+            age_hours = 0.0
             if created:
                 with contextlib.suppress(OSError, ValueError, TypeError):
                     age_hours = max(0, (dt.now(UTC) - dt.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600)

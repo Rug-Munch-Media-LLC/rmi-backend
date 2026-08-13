@@ -31,11 +31,11 @@ class KnowledgeGraph:
     Stores nodes and edges in Redis for fast graph traversal.
     """
 
-    def __init__(self, redis: aioredis.Redis | None = None) -> None:
+    def __init__(self, redis: aioredis.Redis[Any] | None = None) -> None:
         self._redis = redis
         self._node_cache: dict[str, dict[str, Any]] = {}
 
-    async def _get_redis(self) -> aioredis.Redis:
+    async def _get_redis(self) -> aioredis.Redis[Any]:
         if self._redis:
             return self._redis
         from app.knowledge_graph.config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
@@ -67,7 +67,7 @@ class KnowledgeGraph:
             "metadata": json.dumps(metadata or {}),
             "updated_at": str(int(time.time())),
         }
-        await r.hset(key, mapping=data)
+        await r.hset(key, mapping=data)  # type: ignore[arg-type]  # redis stub Mapping[_Key,_Value] rejects str-keyed dicts
         self._node_cache[f"{node_type}:{node_id}"] = data
         return key
 
@@ -150,7 +150,7 @@ class KnowledgeGraph:
             "metadata": json.dumps(metadata or {}),
             "created_at": str(int(time.time())),
         }
-        await r.hset(edge_key, mapping=edge_data)
+        await r.hset(edge_key, mapping=edge_data)  # type: ignore[arg-type]  # redis stub Mapping[_Key,_Value] rejects str-keyed dicts
 
         from_edge_key = f"kg:edges:{from_type}:{from_id}"
         await r.zadd(from_edge_key, {edge_key: weight})

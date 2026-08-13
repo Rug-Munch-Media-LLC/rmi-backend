@@ -19,7 +19,7 @@ SUPPORTED_CHAINS = {
     "bsc": {"rpc": "https://bsc.llamarpc.com", "id": 56, "explorer": "bscscan.com"},
 }
 
-PROTOCOL_CONFIGS = {
+PROTOCOL_CONFIGS: dict[str, Any] = {
     "aave_v3": {
         "name": "Aave V3",
         "pools": {

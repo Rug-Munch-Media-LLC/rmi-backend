@@ -227,7 +227,7 @@ async def create_post(post: BulletinPostIn, user: dict[str, Any] = Depends(_requ
 
 
 @router.post("/posts/{post_id}/vote", summary="Vote", description="Upvote or downvote a bulletin board post.")
-async def vote(post_id: int, vote_type: str = Query(..., pattern="^(up|down)$")) -> dict[str, str]:
+async def vote(post_id: int, vote_type: str = Query(..., pattern="^(up|down)$")) -> dict[str, Any]:
     ok = await vote_post(post_id, vote_type)
     if not ok:
         raise NotFoundError("Post not found or vote failed")
@@ -241,7 +241,7 @@ class CommentIn(BaseModel):
 @router.post("/posts/{post_id}/comments")
 async def create_comment(
     post_id: int, comment: CommentIn, user: dict[str, Any] = Depends(_require_public_profile)
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Create a comment on a bulletin post. Requires public profile."""
     # Store comment in Supabase or Redis (using simple dict for now if not in supabase_service)
     # For now, we'll just return success and let the frontend handle local state,

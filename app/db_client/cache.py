@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 try:
     import redis.asyncio as redis
 except ImportError:
-    redis = None
+    redis = None  # type: ignore[assignment]  # module import guarded by try/except
 
 # ═══════════════════════════════════════════════════════════
 # RETRY UTILITIES
@@ -145,7 +145,7 @@ async def sync_redis_to_supabase() -> dict[str, int]:
     Returns counts of synced records per table.
     """
     # Local imports to avoid circular dependency
-    from .client import RmiDatabase as _RmiDatabase
+    from . import RmiDatabase as _RmiDatabase
     from .models import Alert, InvestigationCase, TrenchesPost
 
     counts = {"cases": 0, "trenches_posts": 0, "alerts": 0, "tasks": 0}

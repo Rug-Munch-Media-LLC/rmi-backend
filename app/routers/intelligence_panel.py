@@ -250,7 +250,7 @@ async def get_intelligence_feed(limit: int = Query(20, ge=1, le=50)) -> Any:
 async def get_latest_intelligence() -> Any:
     """Get latest intelligence snapshot for quick updates."""
     _get_pm_intel()
-    latest = {
+    latest: dict[str, Any] = {
         "timestamp": datetime.now(UTC).isoformat(),
     }
 

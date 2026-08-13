@@ -104,7 +104,7 @@ async def dify_apps(
 @dify_router.get("/dify/conversations/{conversation_id}/messages")
 async def dify_messages(
     request: Request, conversation_id: str, _=Depends(verify_admin), limit: int = Query(30, le=100)
-) -> dict[str, list[Any]] | dict[str, str]:
+) -> dict[str, Any]:
     """Get messages for a Dify conversation."""
     dify_url = os.getenv("DIFY_URL", "")
     dify_key = os.getenv("DIFY_API_KEY", "")

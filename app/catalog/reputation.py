@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 log = get_logger(__name__)
 
 # ── Prior adjustments (Bayesian update weights) ────────────────
-PRIOR_WEIGHTS: dict[str, int] = {
+PRIOR_WEIGHTS: dict[str, Any] = {
     "prior_alpha": 1,  # Beta(1,1) = uniform prior
     "prior_beta": 1,
     "news_pessimistic_shift": 2,  # +2 to beta if avg sentiment < -0.3

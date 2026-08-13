@@ -107,12 +107,12 @@ async def _clickhouse_wallet_labels(address: str = "", **kw) -> dict[str, Any] |
                     decode_responses=True,
                     socket_connect_timeout=2,
                 )
-                for lbl in label_dicts:
+                for entry in label_dicts:
                     lchain = chain
                     if not lchain:
-                        lchain = lbl.get("chain", "ethereum")
+                        lchain = entry.get("chain", "ethereum")
                     key = f"rmi:label:{lchain}:{address}"
-                    r.setex(key, 3600, json.dumps(lbl))
+                    r.setex(key, 3600, json.dumps(entry))
                 r.close()
             except (ValueError, ConnectionError, TimeoutError, RuntimeError):
                 logger.debug("write-through to Redis for ClickHouse labels failed")

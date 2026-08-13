@@ -150,7 +150,7 @@ class AgentOrchestrator:
         data = result.output
         return AgentResponse(
             query=query,
-            agent=target,  # type: ignore[arg-type]
+            agent=target,
             data=data,
             summary=_summarize(target, data),
         )

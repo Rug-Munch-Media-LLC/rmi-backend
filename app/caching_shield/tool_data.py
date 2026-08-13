@@ -48,7 +48,7 @@ class ToolData:
         r = await self._layer.fetch("funding_source", address=address, chain_id=chain_id)
         return r.to_dict() if r else {"error": "no data"}
 
-    async def call_tool(self, tool_id: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def call_tool(self, tool_id: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """Generic tool dispatcher - calls unified_layer.fetch with tool_id and params.
 
         This is the primary method for trial execution and MCP tool calls.
@@ -61,7 +61,7 @@ class ToolData:
         params = params or {}
 
         # Fallback: try specific methods for common tools
-        method_map = {
+        method_map: dict[str, Any] = {
             "risk_scan": self.risk_scan,
             "token_price": self.token_price,
             "token_meta": self.token_meta,

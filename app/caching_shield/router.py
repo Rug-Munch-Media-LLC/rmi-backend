@@ -46,7 +46,7 @@ def _verify_admin(request: Request) -> bool:
 
 
 @router.get("/health")
-async def cache_health() -> dict[str, str]:
+async def cache_health() -> dict[str, Any]:
     """Aggregate health check for all caching shield components."""
     cache = get_rpc_cache()
     limiter = get_rate_limiter()
@@ -83,7 +83,7 @@ async def cache_stats() -> Any:
 
 
 @router.post("/clear")
-async def cache_clear(request: Request) -> dict[str, str]:
+async def cache_clear(request: Request) -> dict[str, Any]:
     """Clear L1 in-memory cache. Requires admin key."""
     if not _verify_admin(request):
         raise HTTPException(status_code=401, detail="Invalid admin key")

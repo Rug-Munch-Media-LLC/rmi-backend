@@ -48,8 +48,10 @@ async def deliver_pending_broadcasts(ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def _deliver_one(ctx: ContextTypes.DEFAULT_TYPE, bcast: dict[str, object]) -> None:
-    bcast_id = bcast.get("id") or "?"
+    bcast_id = str(bcast.get("id") or "?")
     message = bcast.get("message") or ""
+    if not isinstance(message, str):
+        message = str(message)
     if not message:
         await update_broadcast(bcast_id, status="failed", error="empty_message")
         return
@@ -68,7 +70,7 @@ async def _deliver_one(ctx: ContextTypes.DEFAULT_TYPE, bcast: dict[str, object])
     await update_broadcast(bcast_id, status="sending", total=total)
 
     for row in rows:
-        uid = row["user_id"]
+        uid = str(row["user_id"])
         try:
             await ctx.bot.send_message(uid, message, parse_mode="HTML")
             sent += 1

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 
@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 # ─── LIQUIDITY POOL CONFIGURATIONS ────────────────────────────────
 
-DEX_CONFIGS = {
+DEX_CONFIGS: dict[str, dict[str, str]] = {
     "uniswap_v3": {
         "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
         "router": "0x68b3465833fb72A70ecDF485E0e4C7bD8665Te7x",
@@ -165,7 +165,8 @@ class ExchangeFlowAnalyzer:
             w3 = self.web3 or Web3(Web3.HTTPProvider(self._get_rpc(chain)))
 
             # Get pool reserve data (Simplified - real implementation would use pool ABI)
-            reserve0 = w3.eth.get_balance(pool_address) if w3.eth.get_code(pool_address) else 0
+            checksum_address = Web3.to_checksum_address(pool_address)
+            reserve0 = w3.eth.get_balance(checksum_address) if w3.eth.get_code(checksum_address) else 0
             reserve1 = 0  # Would fetch from other token
 
             return LiquidityPool(
@@ -198,7 +199,7 @@ class ExchangeFlowAnalyzer:
         """Detect which DEX a pool belongs to."""
         address_lower = address.lower()
 
-        dex_configs = DEX_CONFIGS.get(chain, {})
+        dex_configs = cast("dict[str, dict[str, str]]", DEX_CONFIGS.get(chain, {}))
         for dex, config in dex_configs.items():
             factory = config.get("factory", "").lower()
             if factory and address_lower.startswith(factory[:10]):
@@ -242,7 +243,7 @@ class ExchangeFlowAnalyzer:
         Returns:
             Flow analysis results
         """
-        result = {
+        result: dict[str, Any] = {
             "address": address,
             "chain": chain,
             "exchanges": [],
@@ -267,7 +268,7 @@ class ExchangeFlowAnalyzer:
 
     def compare_flows(self, addresses: list[str], chain: str = "base") -> dict[str, Any]:
         """Compare flows between multiple addresses."""
-        result = {
+        result: dict[str, Any] = {
             "chain": chain,
             "addresses": {},
             "correlations": [],
@@ -283,7 +284,7 @@ class ExchangeFlowAnalyzer:
 
         return result
 
-    def get_reserves(self, pool_address: str, chain: str = "base") -> dict[str, int]:
+    def get_reserves(self, pool_address: str, chain: str = "base") -> dict[str, int | float]:
         """
         Get current pool reserves.
 
@@ -295,6 +296,8 @@ class ExchangeFlowAnalyzer:
             Reserves dict
         """
         pool = self.get_liquidity_pool(pool_address, chain)
+        if pool is None:
+            return {"reserve0": 0, "reserve1": 0, "total_liquidity": 0.0}
         return {
             "reserve0": pool.token0_reserve,
             "reserve1": pool.token1_reserve,
@@ -331,6 +334,6 @@ def compare_flows(addresses: list[str], chain: str = "base") -> dict[str, Any]:
     return _analyzer.compare_flows(addresses, chain)
 
 
-def get_reserves(pool_address: str, chain: str = "base") -> dict[str, int]:
+def get_reserves(pool_address: str, chain: str = "base") -> dict[str, int | float]:
     """Get pool reserves."""
     return _analyzer.get_reserves(pool_address, chain)

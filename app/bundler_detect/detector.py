@@ -237,6 +237,18 @@ class BundlerDetector:
 
         return result
 
+    def _score_launch_timing(
+        self, timing: dict[str, Any], buys: list[dict[str, Any]], holders: list[dict[str, Any]]
+    ) -> float:
+        """[REVIEW] New method — the old call referenced a nonexistent method, so every
+        scan hit `AttributeError` and was marked `risk_label="error"`. Score (0-100) is
+        derived from the launch-timing analysis: concentration ratio dominates, plus a
+        small bonus for many first-block buyers (bundling signal)."""
+        ratio = float(timing.get("buy_concentration_ratio", 0.0) or 0.0)
+        first_block_buyers = int(timing.get("unique_buyers_first_block", 0) or 0)
+        score = min(100.0, ratio * 100 + min(first_block_buyers * 5, 20))
+        return round(score, 2)
+
     def _cluster_wallets(self, buys: list[dict[str, Any]], holders: list[dict[str, Any]]) -> list[HolderCluster]:
         clusters: list[HolderCluster] = []
 

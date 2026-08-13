@@ -96,8 +96,8 @@ class PriceChangeProvider:
     def _get_price_oracle(self) -> Any | None:
         """Try to import the price consensus module (optional dependency)."""
         try:
-            from app.price_consensus import (
-                get_price_with_history,  # type: ignore[attr-defined]  # symbol absent from module — guarded by try/except
+            from app.price_consensus import (  # type: ignore[attr-defined]  # symbol absent from module — guarded by try/except
+                get_price_with_history,
             )
 
             return get_price_with_history

@@ -57,12 +57,10 @@ async def _load_ofac_sanctions(storage) -> int:
     count = 0
     ch_rows = []
     for entry in sanctions:
-        addr = ""
-        if isinstance(entry, dict):
-            addr = entry.get("address", entry.get("Address", ""))
-        if not addr or len(str(addr).strip()) < 10:
+        addr = str(entry.get("address", entry.get("Address", "")) or "")
+        if not addr or len(addr.strip()) < 10:
             continue
-        addr_lower = str(addr).strip().lower()
+        addr_lower = addr.strip().lower()
         entry_json = json.dumps(entry)
 
         await storage.redis_set(f"rmi:label:ofac:{addr_lower}", entry_json)
@@ -70,7 +68,7 @@ async def _load_ofac_sanctions(storage) -> int:
 
         name = ""
         if isinstance(entry, dict):
-            name = entry.get("name", entry.get("Name", entry.get("entity", "")))
+            name = str(entry.get("name", entry.get("Name", entry.get("entity", ""))) or "")
         ch_rows.append(
             (
                 addr_lower,

@@ -18,15 +18,15 @@ logger = get_logger(__name__)
 
 # ── Paths ────────────────────────────────────────────────────
 
-CHARACTER_PATH = "/root/backend/assets/characters/detective-character.png"
-LOGO_PATH = "/root/backend/assets/logos/rugmunch-logo.jpg"
-OUTPUT_DIR = "/root/backend/assets/marketing_generated"
+CHARACTER_PATH = "/path/to/app/assets/characters/detective-character.png"
+LOGO_PATH = "/path/to/app/assets/logos/rugmunch-logo.jpg"
+OUTPUT_DIR = "/path/to/app/assets/marketing_generated"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ── Brand Colors (EXACT - NO DEVIATION) ──────────────────────
 
-BRAND = {
+BRAND: dict[str, str] = {
     "purple": "#2D1B36",
     "purple_light": "#3D2346",
     "gold": "#D4AF37",
@@ -40,7 +40,7 @@ BRAND = {
 
 # ── Marketing Content Types ──────────────────────────────────
 
-CONTENT_TYPES = {
+CONTENT_TYPES: dict[str, dict[str, Any]] = {
     "feature_showcase": {
         "title": "Feature Showcase",
         "size": (1200, 675),
@@ -80,7 +80,7 @@ CONTENT_TYPES = {
 
 # ── Content Copy Templates ───────────────────────────────────
 
-MARKETING_COPY = {
+MARKETING_COPY: dict[str, dict[str, Any]] = {
     "smart_money": {
         "headline": "SMART MONEY TRACKING",
         "subhead": "Follow The Whales, Profit Like Them",
@@ -145,7 +145,7 @@ def add_text_centered(img, text, position, font_size, color, font_path=None) -> 
     draw = ImageDraw.Draw(img)
 
     try:
-        font = ImageFont.truetype(font_path or "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+        font: Any = ImageFont.truetype(font_path or "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
     except (ConnectionError, OSError, TimeoutError):
         font = ImageFont.load_default()
 

@@ -44,7 +44,7 @@ logger = get_logger(__name__)
 # CONFIGURED FEEDS
 # ══════════════════════════════════════════════════════════════════════
 
-FEEDS = [
+FEEDS: list[dict[str, Any]] = [
     {
         "name": "web3isgoinggreat",
         "url": "https://www.web3isgoinggreat.com/feed",
@@ -421,7 +421,7 @@ class IntelPipeline:
         embedder = await get_embedder()
         r = await _get_redis()
         now = datetime.now(UTC)
-        stats = {"feeds": {}, "onchain": {}, "total": 0, "skipped": 0, "errors": 0}
+        stats: dict[str, Any] = {"feeds": {}, "onchain": {}, "total": 0, "skipped": 0, "errors": 0}
 
         # Phase 1: RSS feeds
         for feed_config in FEEDS:

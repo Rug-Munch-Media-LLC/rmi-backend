@@ -8,7 +8,7 @@ Import directly from app.unified_scanner for new code.
 
 from __future__ import annotations
 
-from app.unified_scanner import (
+from app.unified_scanner import (  # type: ignore[attr-defined]  # self-shadowing: package wins at runtime
     CHAINS,
     LAST_KNOWN_LAUNCHES,
     WalletRiskFactors,

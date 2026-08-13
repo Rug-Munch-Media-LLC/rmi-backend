@@ -20,7 +20,7 @@ Every action is written to the admin audit log (db.log_admin_action).
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -178,7 +178,9 @@ async def _do_broadcast(bot: Bot, msg_text: str, owner_uid: int | None = None) -
             await asyncio.sleep(0.05)
         except RetryAfter as e:
             # Flood control: back off as Telegram instructs, retry once, then skip.
-            await asyncio.sleep(e.retry_after.total_seconds() + 1)
+            retry_after = e.retry_after
+            retry_secs = retry_after.total_seconds() if isinstance(retry_after, timedelta) else float(retry_after)
+            await asyncio.sleep(retry_secs + 1)
             try:
                 await bot.send_message(u["user_id"], msg_text, parse_mode=ParseMode.HTML)
                 sent += 1

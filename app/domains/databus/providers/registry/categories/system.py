@@ -17,15 +17,15 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
     try:
         from app.databus.webhooks import handle_webhook
     except ImportError:
-        handle_webhook = None
+        handle_webhook = None  # type: ignore[assignment]  # optional module fallback
     try:
         from app.databus.model_registry import ai_call, get_usage_stats, review_content
     except ImportError:
-        ai_call = get_usage_stats = review_content = None
+        ai_call = get_usage_stats = review_content = None  # type: ignore[assignment]  # optional module fallback
     try:
         from app.databus.rag_ingestion import nightly_rag_index, rag_health_check
     except ImportError:
-        nightly_rag_index = rag_health_check = None
+        nightly_rag_index = rag_health_check = None  # type: ignore[assignment]  # optional module fallback
 
     chains["alerts"] = ProviderChain(
         data_type="alerts",
@@ -205,9 +205,9 @@ def build_system_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
     try:
         from app.databus.news_provider import get_full_news_feed
     except ImportError:
-        get_full_news_feed = None
+        get_full_news_feed = None  # type: ignore[assignment]  # optional module fallback
 
-    if get_full_news_feed:
+    if get_full_news_feed is not None:
         chains["full_news"] = ProviderChain(
             data_type="full_news",
             description="Complete news feed: headlines + market data + fear/greed + polymarket predictions",

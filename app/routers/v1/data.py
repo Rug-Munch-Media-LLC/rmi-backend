@@ -154,6 +154,8 @@ async def _fetch_from_redis(limit: int, address: str | None) -> list[dict[str, A
         scans: list[dict[str, Any]] = []
         for key in keys:
             raw = await r.get(key)
+            if raw is None:
+                continue
             scan = _cache_to_scan(raw, key=key)
             if scan is None:
                 continue

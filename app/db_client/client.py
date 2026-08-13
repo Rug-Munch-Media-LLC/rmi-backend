@@ -17,7 +17,10 @@ logger = get_logger(__name__)
 
 # ── Lazy imports to avoid import-time failures ──
 try:
-    from supabase import Client, create_client
+    from supabase import (  # type: ignore[attr-defined]  # installed supabase stub lacks these exports
+        Client,
+        create_client,
+    )
 except ImportError:
     create_client = None
     Client = None

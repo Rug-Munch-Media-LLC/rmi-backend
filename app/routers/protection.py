@@ -192,7 +192,7 @@ async def feed_url_to_rag(url: str, is_safe: bool) -> None:
     try:
         from app.rag.compat import ingest_document
 
-        doc = {
+        doc: dict[str, Any] = {
             "content": f"URL: {url}\nSafety: {'safe' if is_safe else 'unsafe'}\nScanned by RMI Protection Suite",
             "metadata": {"source": "protection_suite", "url": url, "safe": is_safe},
         }

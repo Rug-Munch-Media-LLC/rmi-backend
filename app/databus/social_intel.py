@@ -305,6 +305,9 @@ async def generate_daily_intel(**kw) -> dict[str, Any]:
     except (AttributeError, ImportError):
         brief = {}
 
+    if brief is None:
+        brief = {}
+
     try:
         from app.databus.news_intel import aggregate_all_news
 
@@ -318,6 +321,9 @@ async def generate_daily_intel(**kw) -> dict[str, Any]:
         ct = await fetch_ct_rundown(limit=10)
     except (AttributeError, ImportError):
         ct = {"rundown": []}
+
+    if ct is None:
+        ct = {}
 
     # Build context for Groq
     market_context = brief.get("brief", "Market data unavailable")

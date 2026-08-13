@@ -101,7 +101,7 @@ async def _get_service_health() -> dict[str, Any]:
         results = await asyncio.gather(*store_checks.values(), return_exceptions=True)
         services = {}
         for (name, _), ref in zip(store_checks.items(), results, strict=False):
-            if isinstance(ref, Exception):
+            if isinstance(ref, BaseException):
                 services[name] = {"healthy": False, "error": str(ref)[:200]}
             else:
                 services[name] = {

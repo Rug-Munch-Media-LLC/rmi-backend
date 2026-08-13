@@ -293,7 +293,7 @@ async def enrich_response(result: dict[str, Any], address: str, chain: str) -> d
 # 3. SMART TIERING - Clear free/premium/admin boundaries
 # ═══════════════════════════════════════════════════════════════════════
 
-TIER_DEFINITIONS = {
+TIER_DEFINITIONS: dict[str, dict[str, Any]] = {
     "free": {
         "name": "Free",
         "rate_limit_rpm": 30,

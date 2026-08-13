@@ -34,6 +34,13 @@ OLLAMA_COMPLEX_MODEL = os.getenv("OLLAMA_COMPLEX_MODEL", "deepseek-r1:8b")
 # Local inference is fast — 30s cap; anything slower means Ollama is wedged, fall back to paid.
 OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "30"))
 
+# LiteLLM proxy + DeepSeek direct fallback (legacy callers; env-gated, empty = disabled)
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
+LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "")
+DEEPSEEK_URL = f"http://{LLAMA_HOST}:{DEEPSEEK_PORT}/v1/chat/completions"
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "")
+OLLAMA_BASE_URLS = [u for u in os.getenv("OLLAMA_BASE_URLS", "http://172.22.0.1:11434").split(",") if u]
+
 # Analysis cache (in-memory + Redis if available)
 _analysis_cache: dict[str, dict[str, Any]] = {}
 CACHE_TTL = 3600  # 1 hour
@@ -588,7 +595,7 @@ Return ONLY valid JSON with these fields:
 
 def _fallback_anomaly_detection(holder_data: dict[str, Any], scanner_data: dict[str, Any] | None) -> dict[str, Any]:
     """Rule-based anomaly detection when AI is unavailable."""
-    anomalies = []
+    anomalies: list[dict[str, Any]] = []
     rug_prob = 0
     honeypot_prob = 0
 

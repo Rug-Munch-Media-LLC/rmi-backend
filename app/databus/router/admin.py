@@ -39,6 +39,8 @@ async def databus_vault_status(request: Request) -> Any:
 
     if not databus.vault:
         await databus.initialize()
+    if databus.vault is None:
+        raise HTTPException(500, "Vault failed to initialize")
     return databus.vault.status()
 
 
@@ -50,15 +52,21 @@ async def databus_vault_capacity(request: Request) -> Any:
 
     if not databus.vault:
         await databus.initialize()
+    if databus.vault is None:
+        raise HTTPException(500, "Vault failed to initialize")
     return databus.vault.capacity_report()
 
 
 @router.post("/vault/reload")
-async def databus_vault_reload(request: Request) -> dict[str, str]:
+async def databus_vault_reload(request: Request) -> dict[str, Any]:
     """Reload keys from vault without restart. Admin key required."""
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
 
+    if databus.vault is None:
+        await databus.initialize()
+    if databus.vault is None:
+        raise HTTPException(500, "Vault failed to initialize")
     await databus.vault.reload()
     return {"status": "reloaded", "providers": len(databus.vault.pools)}
 
@@ -77,6 +85,10 @@ async def databus_vault_add_key(request: Request) -> dict[str, str]:
     if not all([provider, key_name, key_value]):
         raise HTTPException(400, "provider, key_name, key_value required")
 
+    if databus.vault is None:
+        await databus.initialize()
+    if databus.vault is None:
+        raise HTTPException(500, "Vault failed to initialize")
     await databus.vault.add_key(provider, key_name, key_value)
     return {"status": "added", "provider": provider, "key_name": key_name}
 
@@ -87,6 +99,10 @@ async def databus_vault_reset_monthly(request: Request) -> dict[str, str]:
     if not _verify_admin(request):
         raise HTTPException(401, "Admin key required")
 
+    if databus.vault is None:
+        await databus.initialize()
+    if databus.vault is None:
+        raise HTTPException(500, "Vault failed to initialize")
     databus.vault.reset_monthly_counters()
     return {"status": "monthly_counters_reset"}
 

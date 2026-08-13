@@ -139,7 +139,7 @@ class SecurityGate:
             "internal_url",
             "server_path",
         }
-        sanitized = {}
+        sanitized: dict[str, Any] = {}
         for k, v in data.items():
             if k.lower() in dangerous_keys:
                 continue

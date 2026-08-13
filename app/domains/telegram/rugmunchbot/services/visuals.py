@@ -36,8 +36,14 @@ def _add_branding(draw, w, h, font, small_font, symbol=""):
 
 
 def render_candlestick_chart(
-    candles, name, symbol, chain="", timeframe="1d",
-    show_volume=True, show_ma=True, show_rsi=False,
+    candles,
+    name,
+    symbol,
+    chain="",
+    timeframe="1d",
+    show_volume=True,
+    show_ma=True,
+    show_rsi=False,
 ):
     """Render a professional branded candlestick chart to PNG bytes."""
     if not candles or len(candles) < 3:
@@ -112,21 +118,24 @@ def render_candlestick_chart(
 
     # Moving averages
     if show_ma:
+
         def ma(data, period):
             result = []
             for i in range(len(data)):
                 if i < period - 1:
                     result.append(None)
                 else:
-                    result.append(sum(data[i - period + 1:i + 1]) / period)
+                    result.append(sum(data[i - period + 1 : i + 1]) / period)
             return result
+
         for period, color, label in [(7, (255, 183, 77), "MA7"), (25, (100, 181, 246), "MA25")]:
             ma_data = ma(closes, min(period, n))
             for i in range(1, n):
                 if ma_data[i] is not None and ma_data[i - 1] is not None:
                     draw.line(
                         [(x_of(i - 1), y_of(ma_data[i - 1])), (x_of(i), y_of(ma_data[i]))],
-                        fill=color, width=2,
+                        fill=color,
+                        width=2,
                     )
 
     # Candlesticks
@@ -137,7 +146,8 @@ def render_candlestick_chart(
         draw.line([(cx, y_of(highs[i])), (cx, y_of(lows[i]))], fill=color, width=2)
         draw.line(
             [(cx - body_w // 2, y_of(closes[i])), (cx + body_w // 2, y_of(closes[i]))],
-            fill=color, width=4,
+            fill=color,
+            width=4,
         )
 
     # Volume
@@ -148,7 +158,7 @@ def render_candlestick_chart(
             if vh <= 0:
                 continue
             bx = x_of(i) - body_w // 2
-            draw.rectangle([bx, vol_bot - vh, bx + body_w, vol_bot], fill=(*color[:3],))
+            draw.rectangle((bx, vol_bot - vh, bx + body_w, vol_bot), fill=(*color[:3],))
         draw.text((w - pad_r - 60, vol_top - 18), "Volume", font=tiny, fill=text_c)
 
     # Title
@@ -171,7 +181,7 @@ def render_candlestick_chart(
                 legend_x += len(val_label) * 9 + 15
 
     draw.text((pad_l, h - 35), "Price (USD)", font=tiny, fill=text_c)
-    draw.rectangle([pad_l, price_top, w - pad_r, price_bot], outline=grid_c, width=1)
+    draw.rectangle((pad_l, price_top, w - pad_r, price_bot), outline=grid_c, width=1)
     _add_branding(draw, w, h, font, small, symbol)
 
     try:
@@ -300,11 +310,11 @@ def render_cluster_map(nodes, links, name, symbol, chain="", total_holders=0, to
         except (TypeError, ValueError):
             weight = 0
         is_center = node is center
-        radius = 32 if is_center else max(10, min(26, 12 + weight * 0.4))
+        radius: float = 32.0 if is_center else max(10, min(26, 12 + weight * 0.4))
         cx, cy = px(pos)
         col = risk_color(node)
         if is_center:
-            for r in range(radius + 8, radius + 2, -3):
+            for r in range(int(radius) + 8, int(radius) + 2, -3):
                 draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*BRAND_ACCENT, 20))
         draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=col, outline=(220, 225, 230), width=2)
         label = str(node.get("label") or "")[:12] or node_id(node)[:10]
@@ -331,7 +341,7 @@ def render_cluster_map(nodes, links, name, symbol, chain="", total_holders=0, to
 
     # Legend
     legend_y = h - 68
-    draw.rectangle([0, legend_y - 4, w, h], fill=(20, 22, 28))
+    draw.rectangle((0, legend_y - 4, w, h), fill=(20, 22, 28))
     legend_items = [
         ((239, 83, 80), "High Risk"),
         ((255, 183, 77), "Medium"),

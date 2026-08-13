@@ -12,6 +12,7 @@ Usage: /chart <address> [chain]
 from __future__ import annotations
 
 import io
+from typing import Any
 
 import httpx
 
@@ -142,7 +143,7 @@ async def _fetch_cg_price_history(
 
 
 def render_chart_png(
-    candles: list[dict],
+    candles: list[dict[str, Any]],
     name: str,
     symbol: str,
     chain: str = "",
@@ -270,10 +271,10 @@ def render_chart_png(
         if vh <= 0:
             continue
         bx = x_of(i) - body_w // 2
-        draw.rectangle([bx, vol_bot - vh, bx + body_w, vol_bot], fill=color)
+        draw.rectangle((bx, vol_bot - vh, bx + body_w, vol_bot), fill=color)
 
     # Border + titles
-    draw.rectangle([pad_l, price_top, w - pad_r, vol_bot], outline=grid_c, width=1)
+    draw.rectangle((pad_l, price_top, w - pad_r, vol_bot), outline=grid_c, width=1)
     title = f"{name} ({symbol})"
     if chain:
         title += f"  ·  {chain.capitalize()}"
@@ -298,7 +299,7 @@ def render_chart_png(
 
 async def _fetch_rugcharts_ohlcv(
     client: httpx.AsyncClient, chain: str, pair_address: str, timeframe: str = "1h"
-) -> list[dict] | None:
+) -> list[dict[str, Any]] | None:
     """Fetch OHLCV candles from the backend RugCharts engine.
 
     Args:
@@ -309,14 +310,14 @@ async def _fetch_rugcharts_ohlcv(
     if not pair_address:
         return None
     # Map timeframe to API params
-    tf_map = {
+    tf_map: dict[str, dict[str, str | int]] = {
         "15m": {"timeframe": "15m", "limit": 200},
         "1h": {"timeframe": "1h", "limit": 150},
         "4h": {"timeframe": "4h", "limit": 120},
         "1d": {"timeframe": "1d", "limit": 100},
         "1w": {"timeframe": "1w", "limit": 80},
     }
-    params = tf_map.get(timeframe, {"timeframe": "1h", "limit": 100})
+    params: dict[str, str | int] = tf_map.get(timeframe, {"timeframe": "1h", "limit": 100})
     try:
         r = await client.get(
             f"{BACKEND_URL}/api/v1/rugcharts/ohlcv/{chain}/{pair_address}",

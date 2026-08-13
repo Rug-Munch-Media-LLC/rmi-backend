@@ -292,7 +292,7 @@ class WalletIngestionPipeline:
         for page in range(1, self.ETHERSCAN_MAX_PAGES + 1):
             await self._etherscan_limiter.acquire()
 
-            params = {
+            params: dict[str, Any] = {
                 "module": "account",
                 "action": "txlist",
                 "address": address,
@@ -332,7 +332,7 @@ class WalletIngestionPipeline:
 
         # Fetch internal transactions (first page only - these are secondary)
         await self._etherscan_limiter.acquire()
-        int_params = {
+        int_params: dict[str, Any] = {
             "module": "account",
             "action": "txlistinternal",
             "address": address,
@@ -360,7 +360,7 @@ class WalletIngestionPipeline:
 
         # Fetch ERC-20 token transfers
         await self._etherscan_limiter.acquire()
-        token_params = {
+        token_params: dict[str, Any] = {
             "module": "account",
             "action": "tokentx",
             "address": address,
@@ -390,7 +390,9 @@ class WalletIngestionPipeline:
 
     # ── Normalization ──────────────────────────────────────────────
 
-    def _normalize_transactions(self, raw_txs: list[dict[str, Any]], address: str, chain: str) -> list[NormalizedTransaction]:
+    def _normalize_transactions(
+        self, raw_txs: list[dict[str, Any]], address: str, chain: str
+    ) -> list[NormalizedTransaction]:
         """Convert raw API responses into NormalizedTransaction objects."""
         normalized = []
         addr_lower = address.lower().strip()
@@ -725,7 +727,7 @@ class WalletIngestionPipeline:
 
     # ── Cleanup ─────────────────────────────────────────────────────
 
-    async def __aenter__(self) -> None:
+    async def __aenter__(self) -> WalletIngestionPipeline:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:

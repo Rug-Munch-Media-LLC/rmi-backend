@@ -1663,7 +1663,7 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     if message is None or not text.strip():
         return False
 
-    u = cast("dict[str, Any]", db.get_or_create_user(user.id, user.username, user.first_name))
+    u = db.get_or_create_user(user.id, user.username, user.first_name)
     if u.get("is_banned"):
         return True
     if check_spam(user.id):
@@ -1811,7 +1811,7 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     if not text:
         return
 
-    u = cast("dict[str, Any]", db.get_or_create_user(user.id, user.username, user.first_name))
+    u = db.get_or_create_user(user.id, user.username, user.first_name)
     if u.get("is_banned"):
         return
     if check_spam(user.id):

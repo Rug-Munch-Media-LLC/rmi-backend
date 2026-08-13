@@ -7,9 +7,11 @@ audit recency, exploit history, validator count, and upgrade/pause status.
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.bridge_health_monitor.types import TrustModel
 
-BRIDGE_REGISTRY = {
+BRIDGE_REGISTRY: dict[str, Any] = {
     "layerzero": {
         "name": "LayerZero",
         "trust_model": TrustModel.EXTERNAL_VALIDATORS,

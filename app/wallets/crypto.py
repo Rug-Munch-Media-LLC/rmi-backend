@@ -58,7 +58,7 @@ def encrypt_key(plaintext: str, password: str) -> str:
         return plaintext
 
     salt = secrets.token_bytes(16)
-    kdf = Argon2id(salt=salt, length=32, memory_cost=65536, time_cost=3, parallelism=4)
+    kdf = Argon2id(salt=salt, length=32, memory_cost=65536, time_cost=3, parallelism=4)  # type: ignore[call-arg]  # cryptography 49 rust stub hides Argon2id kwargs
     key = kdf.derive(password.encode())
 
     aesgcm = AESGCM(key)
@@ -76,7 +76,7 @@ def decrypt_key(encrypted: str, password: str) -> str:
     data = base64.b64decode(encrypted)
     salt, nonce, ciphertext = data[:16], data[16:28], data[28:]
 
-    kdf = Argon2id(salt=salt, length=32, memory_cost=65536, time_cost=3, parallelism=4)
+    kdf = Argon2id(salt=salt, length=32, memory_cost=65536, time_cost=3, parallelism=4)  # type: ignore[call-arg]  # cryptography 49 rust stub hides Argon2id kwargs
     key = kdf.derive(password.encode())
 
     aesgcm = AESGCM(key)

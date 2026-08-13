@@ -25,7 +25,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             url = "https://api.dexscreener.com/latest/dex/search"
-            params = {"q": chain or "SOL", "limit": limit}
+            params: dict[str, Any] = {"q": chain or "SOL", "limit": limit}
             resp = await client.get(url, params=params)
             if resp.status_code == 200:
                 pairs = resp.json().get("pairs", [])
@@ -36,7 +36,7 @@ async def get_trending_tokens(chain: str | None = None, limit: int = 20) -> dict
                     vol = float(pair.get("volume", {}).get("h24", 0))
                     if liq < 1000:
                         continue
-                    age_hours = 999
+                    age_hours: float = 999
                     if created:
                         age_hours = (now - datetime.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600
                     trending_score = (vol * 0.6 + liq * 0.3) / max(age_hours, 1)

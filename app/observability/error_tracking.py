@@ -32,6 +32,13 @@ from app.core.observability import (  # noqa: E402 — imported after logger ini
 )
 
 
+def flush(timeout: float = 2.0) -> None:
+    """Flush buffered error events (Sentry-compatible)."""
+    from app.core.observability import flush_sentry
+
+    flush_sentry(timeout=timeout)
+
+
 def init_error_tracking(
     dsn: str | None = None,
     environment: str | None = None,

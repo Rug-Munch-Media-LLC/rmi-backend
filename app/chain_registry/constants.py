@@ -137,7 +137,7 @@ def get_rpc_urls(chain_name: str) -> list[str]:
     urls = []
     for url in cfg.rpc_endpoints:
         # Resolve ${VAR} references from environment
-        resolved = re.sub(r"\$\{(\w+)\}", lambda m: os.getenv(m.group(1), m.group(1)), url)
+        resolved = re.sub(r"\$\{(\w+)\}", lambda m: os.getenv(str(m.group(1)), str(m.group(1))), url)
         urls.append(resolved)
     return urls
 

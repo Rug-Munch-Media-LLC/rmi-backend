@@ -94,7 +94,7 @@ def _find_dir(candidates: list[str]) -> str | None:
 
 def _load_real_cats(con, base_dir: str) -> dict[str, Any]:
     """Load Real-CATS dataset into criminal_addresses and benign_addresses."""
-    stats = {"criminal": 0, "benign": 0, "errors": []}
+    stats: dict[str, Any] = {"criminal": 0, "benign": 0, "errors": []}
 
     file_map = {
         "CB.tsv": ("criminal", "bitcoin"),
@@ -159,7 +159,7 @@ def _load_real_cats(con, base_dir: str) -> dict[str, Any]:
 
 def _load_mbal(con, base_dir: str) -> dict[str, Any]:
     """Load MBAL 10M address labels into mbal_labels."""
-    stats = {"loaded": 0, "errors": []}
+    stats: dict[str, Any] = {"loaded": 0, "errors": []}
 
     # Primary dataset - load with column mapping
     primary = os.path.join(base_dir, "dataset_10m_ads.csv")
@@ -317,7 +317,7 @@ class DuckDBAnalytics:
 
     def __init__(self, db_path: str = DB_PATH) -> None:
         self.db_path = db_path
-        self._con = None
+        self._con: Any = None
         self._loaded = False
 
     def connect(self) -> Any:

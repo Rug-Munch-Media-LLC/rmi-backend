@@ -22,7 +22,7 @@ Design:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator
@@ -133,7 +133,7 @@ async def ingest_scraped_intel(
         rag_indexed = False
         if request.data_type in ("scraped_intel", "scam_report", "threat_intel"):
             try:
-                _forward_to_rag(request, record_id)
+                _forward_to_rag(request, cast("int", record_id))
                 rag_indexed = True
             except Exception as exc:
                 logger.warning("rag_forward_failed", id=record_id, error=str(exc)[:200])

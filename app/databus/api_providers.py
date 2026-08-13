@@ -37,7 +37,7 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict[
         async with aiohttp.ClientSession() as session:
             # Wallet balance + DeFi positions
             url = f"{COINSTATS_BASE}/wallet/v1/balance/history/{address}"
-            params = {"chain": chain, "limit": 1}
+            params: dict[str, Any] = {"chain": chain, "limit": 1}
 
             async with session.get(
                 url, params=params, headers=headers, timeout=aiohttp.ClientTimeout(total=15)
@@ -81,7 +81,9 @@ async def fetch_coinstats_wallet(address: str, chain: str = "ethereum") -> dict[
 MOBULA_BASE = "https://api.mobula.io/api/1"
 
 
-async def fetch_mobula_market(asset: str | None = None, blockchain: str | None = None, limit: int = 20) -> dict[str, Any]:
+async def fetch_mobula_market(
+    asset: str | None = None, blockchain: str | None = None, limit: int = 20
+) -> dict[str, Any]:
     """Fetch market data from Mobula - covers long-tail tokens missed by CMC/CG."""
     import aiohttp
 
@@ -93,7 +95,7 @@ async def fetch_mobula_market(asset: str | None = None, blockchain: str | None =
 
             # Multi-data market endpoint
             url = f"{MOBULA_BASE}/market/multi-data"
-            params = {"limit": limit}
+            params: dict[str, Any] = {"limit": limit}
 
             if asset:
                 params["assets"] = asset
@@ -174,7 +176,7 @@ async def fetch_crypto_news(category: str | None = None, source: str | None = No
         async with aiohttp.ClientSession() as session:
             # Try REST API
             url = f"{CRYPTONEWS_BASE}/v1/news"
-            params = {"limit": limit}
+            params: dict[str, Any] = {"limit": limit}
             if category:
                 params["category"] = category
             if source:

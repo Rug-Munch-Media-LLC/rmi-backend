@@ -29,7 +29,7 @@ async def ghost_drafts(
 
         if not GHOST_CONTENT_KEY:
             return {"posts": [], "error": "Ghost content key not configured"}
-        params = {
+        params: dict[str, Any] = {
             "key": GHOST_CONTENT_KEY,
             "limit": limit,
             "filter": "status:draft",

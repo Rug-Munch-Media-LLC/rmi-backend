@@ -243,8 +243,8 @@ def extract_wallet_features(wallet_data: dict[str, Any]) -> np.ndarray:
 
     chains = wallet_data.get("active_chains", []) or []
     chain_list = ["ethereum", "solana", "base", "bsc", "polygon", "arbitrum", "optimism", "avalanche", "fantom", "tron"]
-    for i, ch in enumerate(chain_list):
-        if ch in [c.lower() for c in chains]:
+    for i, chain_name in enumerate(chain_list):
+        if chain_name in [c.lower() for c in chains]:
             vec[40 + i] = 1.0
 
     assoc = str(wallet_data.get("associated_addresses", ""))
