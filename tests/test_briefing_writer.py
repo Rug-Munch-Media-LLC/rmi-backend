@@ -128,7 +128,7 @@ async def test_llm_writer_calls_completion_with_expected_kwargs() -> None:
     assert kwargs["model"] == "deepseek-analysis"
     assert kwargs["task_type"] == "analysis"
     assert kwargs["temperature"] == 0.6
-    assert kwargs["max_tokens"] == 2048
+    assert kwargs["max_tokens"] == 512
 
 
 async def test_llm_writer_respects_explicit_model_override() -> None:
