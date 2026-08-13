@@ -20,6 +20,8 @@ crypto_basics = {
     "badge_reward": "crypto-cadet",
     "color": "#6366f1",
     "icon": "shield",
+    "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Blockchain.svg?width=800",
+    "image_alt": "Illustration of a blockchain: blocks chained together with cryptographic hashes",
     "modules": [
         # ── Module 1 ──
         {
@@ -106,6 +108,8 @@ crypto_basics = {
             "type": "interactive",
             "duration": 14,
             "xp": 140,
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Bitcoin_Block_Data.svg?width=800",
+            "image_alt": "Diagram of a Bitcoin block: header, transactions, and the link to the previous block hash",
             "content": {
                 "slides": [
                     {
@@ -164,6 +168,8 @@ crypto_basics = {
             "type": "interactive",
             "duration": 14,
             "xp": 140,
+            "image": "https://commons.wikimedia.org/wiki/Special:FilePath/Padlock.svg?width=800",
+            "image_alt": "Padlock icon representing secure wallet and private key storage",
             "content": {
                 "slides": [
                     {
