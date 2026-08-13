@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import time
 from typing import Any
 
 logger = logging.getLogger("admin_bot.admin_ai")
@@ -26,8 +27,16 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 OPENCODE_BIN = "/usr/local/bin/opencode"
 OPENCODE_TIMEOUT = 120
 
+# Read-only opencode agent (no write/bash/tool side effects).
+READ_ONLY_AGENT = "plan"
+# Tooled /oc confirmations expire after this many seconds.
+OC_CONFIRM_TTL = 300  # 5 minutes
+
 # Per-user state
 _user_sessions: dict[int, dict[str, Any]] = {}
+
+# Pending /oc (tooled) confirmations: user_id -> {prompt, task, ts}
+_pending_oc: dict[int, dict[str, Any]] = {}
 
 
 def _opencode_path() -> str:
@@ -77,6 +86,31 @@ def get_usage(user_id: int) -> dict[str, Any]:
     return {"model": s["model"], "tokens": s["tokens"], "messages": s["messages"]}
 
 
+# ═══════════════════════════════════════════════
+# TOOLED /OC CONFIRMATION GATE
+# ═══════════════════════════════════════════════
+
+
+def stage_oc_prompt(user_id: int, prompt: str, task: bool = False) -> None:
+    """Stage a tooled opencode prompt awaiting explicit confirmation."""
+    _pending_oc[user_id] = {"prompt": prompt, "task": task, "ts": time.time()}
+
+
+def pop_oc_prompt(user_id: int) -> dict[str, Any] | None:
+    """Pop a pending /oc prompt if confirmed within TTL, else drop it."""
+    entry = _pending_oc.pop(user_id, None)
+    if entry is None:
+        return None
+    if time.time() - entry["ts"] > OC_CONFIRM_TTL:
+        return None
+    return entry
+
+
+def cancel_oc_prompt(user_id: int) -> None:
+    """Discard any pending /oc prompt."""
+    _pending_oc.pop(user_id, None)
+
+
 def list_models() -> str:
     lines = ["🤖 *Available AI Models*\n"]
     for mid, info in MODELS.items():
@@ -107,14 +141,21 @@ def model_keyboard() -> Any:
 # ═══════════════════════════════════════════════
 
 
-def run_opencode(prompt: str, model: str = DEFAULT_MODEL, max_turns: int = 3) -> dict[str, Any]:
+def run_opencode(
+    prompt: str,
+    model: str = DEFAULT_MODEL,
+    max_turns: int = 3,
+    *,
+    read_only: bool = False,
+) -> dict[str, Any]:
     """Run a prompt through OpenCode CLI.
 
     Uses the fleet's model routing — deepseek-v4-flash for quick tasks,
     deepseek-v4-pro for complex reasoning.
-    """
-    import time
 
+    ``read_only=True`` runs the prompt under the read-only ``plan`` agent
+    (no write/bash/tool side effects) — the default for ``/ai``.
+    """
     t0 = time.time()
 
     opencode = _opencode_path()
@@ -138,14 +179,11 @@ def run_opencode(prompt: str, model: str = DEFAULT_MODEL, max_turns: int = 3) ->
         "--format",
         "text",
     ]
+    if read_only:
+        cmd += ["--agent", READ_ONLY_AGENT]
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=OPENCODE_TIMEOUT,
-        shell=False)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=OPENCODE_TIMEOUT, shell=False)
         duration = time.time() - t0
         output = result.stdout.strip() or result.stderr.strip() or "(no output)"
         return {
@@ -209,7 +247,8 @@ async def chat(
     model = session["model"]
 
     full_prompt = f"{system_prompt}\n\nUser: {user_prompt}"
-    result = run_opencode(full_prompt, model=model, max_turns=1)
+    # /ai runs READ-ONLY (plan agent, no tools) + single turn.
+    result = run_opencode(full_prompt, model=model, max_turns=1, read_only=True)
 
     if result["ok"]:
         session["messages"] += 1

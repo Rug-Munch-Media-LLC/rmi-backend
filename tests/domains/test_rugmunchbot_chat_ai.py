@@ -633,6 +633,12 @@ class TestChatAiResponse:
 
     def test_backend_down_local_intent_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
+        # Degradation test: the whole LLM chain is down, so the tier-2 canned
+        # intent reply must take over. Zen/local are explicitly dead here —
+        # otherwise a live llama.cpp server would answer and the test would
+        # be environment-dependent.
+        monkeypatch.setattr(chat_ai, "_call_zen_llm", AsyncMock(return_value=None))
+        monkeypatch.setattr(chat_ai, "_call_local_llm", AsyncMock(return_value=None))
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
         result = _run(chat_ai.chat_ai_response(upd, None, "what is a honeypot?", upd.effective_user))
@@ -641,6 +647,10 @@ class TestChatAiResponse:
 
     def test_backend_down_fallback_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
+        # Same as above: force the Zen/local fallbacks to fail so the honest
+        # unavailability message is edited into the placeholder.
+        monkeypatch.setattr(chat_ai, "_call_zen_llm", AsyncMock(return_value=None))
+        monkeypatch.setattr(chat_ai, "_call_local_llm", AsyncMock(return_value=None))
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
         result = _run(chat_ai.chat_ai_response(upd, None, "explain yield farming", upd.effective_user))

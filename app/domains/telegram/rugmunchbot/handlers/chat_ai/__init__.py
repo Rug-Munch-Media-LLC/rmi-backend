@@ -19,12 +19,19 @@ What was merged here (from the old ``handlers/message.py``):
   * Richer prompt-injection warnings (category-specific, with buttons)
 
 What was kept from the old ``chat_ai.py``:
-  * Backend ``POST /api/v1/chat`` call (auto-RAG with ``news_v2`` grounding,
+  * Backend ``POST /api/v1/chat`` call as the TIER-1 synthesis path (auto-RAG
+    with ``news_v2`` grounding, real ``rag_count`` from ``X-RAG-Context``,
     per-user history via the bot SQLite DB, per-user rate limiting via
     ``X-Forwarded-For``)
+  * Zen/local LLM fallbacks when the backend is unavailable (P0.2: backend
+    first, best available grounding wins)
   * Address-in-question enhancement (scan risk summary prepended to the
     prompt, best-effort)
   * Gibberish gate, weekly quota, flood control, chunked HTML-safe answers
+  * Bridge citations (P0.1): ``_fetch_bridge_context`` returns
+    ``(blocks, sources, actions)``; the Zen/local fallback reports
+    ``rag_count = len(sources)``, the answer surfaces up to 3 source lines,
+    and bridge actions render as inline buttons.
 
 Pipeline order (free text, ``ai_chat_handler``):
   1. guards (user / banned / spam) + ``record_activity(msg=True)``
@@ -36,6 +43,7 @@ Pipeline order (free text, ``ai_chat_handler``):
      /scan -> ``$TOKEN`` price card
   7. ``chat_ai_response`` (shared AI core): chat_enabled gate -> injection ->
      weekly quota -> flood -> gibberish (tier-2/3) -> backend RAG chat
+     (tier-1) -> Zen -> local llama.cpp fallback
 
 ``chat_ai_response`` is shared verbatim by /chat (handlers/chat.py) and
 /ask (handlers/ask.py), so every AI answer flows through the same backend
@@ -108,7 +116,9 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     local_ai_response,
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import (
-    _call_backend_chat,  # noqa: F401  # re-exported (tests import from package)
+    CHAT_ENDPOINT,  # re-exported (public __all__ / tests)
+    CHAT_TIMEOUT,  # re-exported (public __all__)
+    _call_backend_chat,  # re-exported (tests import from package)
     _call_local_llm,
     _call_zen_llm,
 )
@@ -135,10 +145,9 @@ logger = get_logger("rmi_bot.chat_ai")
 # ══════════════════════════════════════════════
 # ENDPOINTS & BUDGETS — BACKEND / BRIDGE
 # ══════════════════════════════════════════════
-# Backend RAG chat (when available, for RAG-grounded answers)
-CHAT_ENDPOINT = f"{BACKEND_URL}/api/v1/chat"
+# Backend RAG chat (tier-1): CHAT_ENDPOINT / CHAT_TIMEOUT live in _llm.py
+# next to _call_backend_chat and are re-exported below (see the import block).
 SCAN_ENDPOINT = f"{BACKEND_URL}/api/v1/bot/scan"
-CHAT_TIMEOUT = 60.0
 SCAN_TIMEOUT = 6.0  # quick scan context is best-effort; never block chat on it
 MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 
@@ -249,13 +258,20 @@ async def _fetch_scan_context(address: str) -> str | None:
 async def _fetch_bridge_context(
     message: str,
     history: list[dict[str, str]] | None = None,
-) -> str | None:
+) -> tuple[str, list[dict[str, str]], list[dict[str, str]]] | None:
     """Live context from the Chat RAG Bridge (port 8095, fail-open).
 
-    Returns one compact block combining the bridge's upstream context:
-    SearXNG web search (live internet), RAG knowledge, market digest,
-    token scanner and exploit rundown. ``None`` on any failure so chat
-    never blocks on it.
+    Returns ``(blocks, sources, actions)``:
+      * ``blocks`` — one compact block combining the bridge's upstream
+        context: SearXNG web search (live internet), RAG knowledge, market
+        digest, token scanner and exploit rundown.
+      * ``sources`` — the bridge's grounding citation metadata
+        (``[{"type": "web"|"rag"|"scanner"|"market", ...}]``) used to render
+        the real "Grounded in N intelligence sources" footer + source lines.
+      * ``actions`` — suggested inline-button actions (deep-dive on a token,
+        exploit rundown) built by the bridge's rundown block.
+
+    ``None`` on any failure so chat never blocks on it.
     """
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(BRIDGE_TIMEOUT, connect=3.0, read=BRIDGE_TIMEOUT)) as client:
@@ -302,7 +318,73 @@ async def _fetch_bridge_context(
                 parts.append(val)
     if not parts:
         return None
-    return "\n\n".join(parts)
+
+    raw_sources = raw.get("sources")
+    sources = raw_sources if isinstance(raw_sources, list) else []
+    sources = [s for s in sources if isinstance(s, dict)]
+    raw_actions = raw.get("actions")
+    actions = raw_actions if isinstance(raw_actions, list) else []
+    actions = [a for a in actions if isinstance(a, dict)]
+
+    return "\n\n".join(parts), sources, actions
+
+
+def _render_bridge_actions(
+    actions: list[dict[str, str]] | None,
+) -> InlineKeyboardMarkup | None:
+    """Map bridge suggested actions to Telegram inline buttons.
+
+    Only existing, safe bot surfaces are wired: ``analyze`` targets become
+    full-scan buttons (callback ``scan_<addr>_<chain>`` — the same convention
+    as the rest of the bot). Unknown action types are skipped rather than
+    rendering dead buttons. Returns ``None`` when there is nothing to show.
+    """
+    if not actions:
+        return None
+    rows: list[list[InlineKeyboardButton]] = []
+    for a in actions:
+        if not isinstance(a, dict):
+            continue
+        action = str(a.get("action") or "")
+        label = str(a.get("label") or "")
+        target = str(a.get("target") or "")
+        if action == "analyze" and target:
+            chain = detect_chain(target)
+            rows.append([InlineKeyboardButton(label, callback_data=f"scan_{target}_{chain}")])
+        # exploit / other action types have no dedicated bot surface yet — skip.
+    return InlineKeyboardMarkup(rows) if rows else None
+
+
+def _append_source_lines(
+    answer: str,
+    sources: list[dict[str, str]] | None,
+    limit: int = 3,
+) -> str:
+    """Append up to ``limit`` compact citation lines from the bridge sources.
+
+    Only ``web`` and ``rag`` sources carry a query worth citing; scanner /
+    market metadata lines are skipped (the answer already attributes them).
+    No URLs are fabricated — bridge sources carry type+query metadata, and
+    the grounding rules already make the model cite outlet/headline inline.
+    Plain text only: ``_send_answer`` HTML-escapes every chunk.
+    """
+    if not sources:
+        return answer
+    lines: list[str] = []
+    for s in sources:
+        if len(lines) >= limit:
+            break
+        if not isinstance(s, dict):
+            continue
+        stype = str(s.get("type") or "")
+        query = str(s.get("query") or "").strip()
+        if stype == "web" and query:
+            lines.append(f"\U0001f310 Web: {query[:90]}")
+        elif stype == "rag" and query:
+            lines.append(f"\U0001f4da RAG: {query[:90]}")
+    if not lines:
+        return answer
+    return f"{answer}\n\n\u2014\n" + "\n".join(lines)
 
 
 async def _injection_warning(update: Update, category: str) -> None:
@@ -628,7 +710,10 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         disable_web_page_preview=True,
     )
 
-    # CONCURRENT: fetch daily context + scan context + LLM call all at once
+    # CONCURRENT: fetch daily context + scan context + bridge context at once.
+    # Bridge context (blocks + sources + actions) grounds the Zen/local
+    # fallback path and feeds the citations; the backend tier-1 call RAGs
+    # itself, so the RAW user text is what reaches it.
     addresses = _extract_addresses(text)
     history = cast("list[dict[str, str]]", db.get_chat_history(user.id))
 
@@ -639,8 +724,16 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
 
     daily_context = await daily_ctx_task
     scan_summary = await scan_ctx_task if scan_ctx_task else None
-    bridge_context = await bridge_ctx_task
+    bridge_ctx = await bridge_ctx_task
+    bridge_sources: list[dict[str, str]] = []
+    bridge_actions: list[dict[str, str]] = []
+    if bridge_ctx:
+        bridge_context, bridge_sources, bridge_actions = bridge_ctx
+    else:
+        bridge_context = None
 
+    # Fallback prompt: bridge blocks + scan summary + daily digest. Used only
+    # when the backend tier-1 path is unavailable (best available grounding).
     prompt = text
     if bridge_context:
         prompt = f"{bridge_context}\n\n{prompt}"
@@ -649,13 +742,15 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     if daily_context:
         prompt = f"{daily_context}\n\n{prompt}"
 
-    # Call cloud LLM first (Zen DeepSeek V4 Flash Free — ~2.5s, production speed),
-    # fall back to local CPU llama.cpp if the cloud path is unavailable.
-    # Deep questions (analyze/explain/risk/...) get a longer, structured answer.
+    # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
+    result = await _call_backend_chat(text, user.id, history)
+    # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with the
+    # bridge blocks, reporting rag_count = len(bridge sources).
     deep = _is_deep_question(text)
-    result = await _call_zen_llm(prompt, user.id, history, deep=deep)
     if not result:
-        result = await _call_local_llm(prompt, user.id, history)
+        result = await _call_zen_llm(prompt, user.id, history, deep=deep, sources=bridge_sources)
+    if not result:
+        result = await _call_local_llm(prompt, user.id, history, sources=bridge_sources)
 
     # Stop typing indicator
     typing_task.cancel()
@@ -673,6 +768,11 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         return True
 
     answer = result["message"]
+    # Fallback answers were grounded by the bridge blocks — append the real
+    # citation lines. Backend auto-RAG answers carry their own X-RAG-Context
+    # count; citing bridge sources there would be dishonest.
+    if result.get("provider") in ("zen", "local") and bridge_sources:
+        answer = _append_source_lines(answer, bridge_sources)
     db.increment_usage(user.id, ai_msg=True)
     db.add_chat_message(user.id, "user", text)
     db.add_chat_message(user.id, "assistant", answer)
@@ -680,16 +780,12 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         await track_ai_query()
         await track_tokens(len(answer) // 4)
 
-    # Replace thinking message with real answer
-    try:
-        await preliminary.edit_text(
-            answer,
-            parse_mode=ParseMode.HTML,
-            reply_markup=back_kb(),
-            disable_web_page_preview=True,
-        )
-    except (TelegramError, ConnectionError, OSError, TimeoutError):
-        await _send_answer(message, answer, result.get("rag_count", 0))
+    # Dismiss the "Thinking…" placeholder, then send the answer as NEW
+    # messages so the grounding footer + bridge action buttons render on the
+    # last chunk (an edit cannot carry the footer/buttons reliably).
+    with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+        await preliminary.edit_text("\u2705", parse_mode=ParseMode.HTML)
+    await _send_answer(message, answer, result.get("rag_count", 0), actions=bridge_actions)
     return True
 
 
@@ -752,7 +848,13 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     await chat_ai_response(update, ctx, text, user)
 
 
-async def _send_answer(message: Message, answer: str, rag_count: int) -> None:
+async def _send_answer(
+    message: Message,
+    answer: str,
+    rag_count: int,
+    *,
+    actions: list[dict[str, str]] | None = None,
+) -> None:
     """Reply with the answer, chunked to Telegram's size limit.
 
     v10 pipeline (all on the RAW text first, then escape):
@@ -767,7 +869,10 @@ async def _send_answer(message: Message, answer: str, rag_count: int) -> None:
     A short "⚡ Grounded in N intelligence sources | RugMunch Bot" footer is
     appended to the last chunk when the backend reported RAG grounding.
     ``rag_count`` is the REAL number of unique RAG hits (from
-    ``X-RAG-Context``); counts above 100 are shown as "hundreds of sources".
+    ``X-RAG-Context``, or ``len(bridge sources)`` on the fallback path);
+    counts above 100 are shown as "hundreds of sources".
+    ``actions`` (bridge-suggested buttons) are rendered as an inline
+    keyboard on the last chunk when present; otherwise the back menu is used.
     """
     raw = _beautify_answer(answer)
     chunks = _chunk_text(raw)
@@ -784,6 +889,7 @@ async def _send_answer(message: Message, answer: str, rag_count: int) -> None:
             source_label = f"{rag_count} intelligence sources"
         html[-1] = f"{html[-1]}\n\n<i>\u26a1 Grounded in {source_label} | RugMunch Bot</i>"
 
+    kb = _render_bridge_actions(actions) or back_kb()
     last = len(html) - 1
     for i, chunk in enumerate(html):
         # Final safety clip: never exceed Telegram's hard 4096-char limit even
@@ -794,7 +900,7 @@ async def _send_answer(message: Message, answer: str, rag_count: int) -> None:
             await message.reply_text(
                 chunk,
                 parse_mode=ParseMode.HTML,
-                reply_markup=back_kb() if i == last else None,
+                reply_markup=kb if i == last else None,
                 disable_web_page_preview=True,
             )
         except (TelegramError, ConnectionError, OSError, TimeoutError) as e:

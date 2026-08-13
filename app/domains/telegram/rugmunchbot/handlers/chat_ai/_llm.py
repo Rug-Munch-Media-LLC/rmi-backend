@@ -1,13 +1,13 @@
-"""LLM-call clients + local-model constants for the chat_ai pipeline (degod).
+"""LLM-call clients + endpoint/budget constants for the chat_ai pipeline.
 
-Extracted from ``chat_ai/__init__.py``: the cloud Zen client, the local
-llama.cpp client (Qwen / DeepSeek) and the backend-chat client, plus the
-local-model endpoint/budget constants that only these clients use.
+Extracted from ``chat_ai/__init__.py``: the backend RAG chat client
+(``POST /api/v1/chat``), the cloud Zen client, the local llama.cpp client
+(Qwen / DeepSeek), plus the endpoint/budget constants these clients use.
 
-Backend/bridge endpoint constants (``CHAT_ENDPOINT``, ``SCAN_ENDPOINT``,
-``BRIDGE_CONTEXT_ENDPOINT``, ...) stay in ``chat_ai/__init__.py`` because
-they serve the context-fetch helpers that remain there and are part of the
-package's public ``__all__`` re-exports.
+Pipeline ordering (see ``chat_ai/__init__.py``): backend auto-RAG is
+tier-1, Zen and local llama.cpp are fallbacks. The Zen/local clients accept
+the bridge ``sources`` list so ``rag_count`` reflects the REAL number of
+grounding sources instead of a hardcoded 0.
 """
 
 from __future__ import annotations
@@ -17,9 +17,19 @@ from typing import Any
 
 import httpx
 
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 logger = get_logger("rmi_bot.chat_ai")
+
+# ══════════════════════════════════════════════
+# ENDPOINTS & BUDGETS — BACKEND RAG CHAT (tier-1)
+# ══════════════════════════════════════════════
+# Backend auto-RAG synthesis: POST /api/v1/chat runs its own RAG grounding
+# (news_v2) and reports the real hit count via the X-RAG-Context header.
+CHAT_ENDPOINT = f"{BACKEND_URL}/api/v1/chat"
+CHAT_TIMEOUT = 60.0
+MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 
 # ══════════════════════════════════════════════
 # ENDPOINTS & BUDGETS — LOCAL MODELS
@@ -42,81 +52,35 @@ async def _call_backend_chat(
     user_id: int,
     history: list[dict[str, str]] | None = None,
 ) -> dict[str, Any] | None:
-    """Chat with local models (Qwen 3 4B for quick, DeepSeek 8B for analysis).
+    """Backend RAG chat — ``POST /api/v1/chat`` (auto-RAG, news_v2 grounding).
 
-    Uses llama.cpp servers running locally. Qwen for fast chat, DeepSeek
-    for deep analysis (thinking output is hidden from the user).
+    Tier-1 synthesis path: the backend runs its own RAG retrieval, so no
+    ``context_override`` is sent (no duplicate context assembly bot-side).
+    The real RAG hit count is parsed from the ``X-RAG-Context`` response
+    header and returned as ``rag_count`` so the "⚡ Grounded in N
+    intelligence sources" footer renders truthfully. Per-user rate limiting
+    is keyed by ``X-Forwarded-For`` (the Telegram user id).
 
     Returns a dict with ``message``, ``rag_count``, ``tokens``, ``model``,
     ``provider`` and ``latency_ms``, or ``None`` on any failure/timeout.
     """
-    # Determine mode based on message complexity
-    is_deep = any(
-        kw in message.lower()
-        for kw in [
-            "analyze",
-            "analysis",
-            "deep",
-            "explain",
-            "why",
-            "how does",
-            "compare",
-            "risk",
-            "detail",
-            "technical",
-            "report",
-        ]
-    )
-
-    if is_deep:
-        url = DEEPSEEK_CHAT_URL
-        model = DEEPSEEK_MODEL
-        timeout = DEEPSEEK_TIMEOUT
-    else:
-        url = QWEN_CHAT_URL
-        model = QWEN_MODEL
-        timeout = QWEN_TIMEOUT
-
-    # Build messages with conversation history
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are Rug Munch, an AI crypto intelligence assistant. "
-                "You help users understand crypto security, detect scams, analyze tokens, "
-                "and answer questions about blockchain, DeFi, and crypto markets. "
-                "Be direct, witty, slightly cynical but genuinely helpful. "
-                "Never give financial advice. Keep answers concise (2-4 sentences). "
-                "If you don't know something, say so honestly. "
-                "IMPORTANT: Do not output any thinking or reasoning. Just give the final answer directly."
-            ),
-        }
-    ]
-    if history:
-        for msg in history[-5:]:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role in ("user", "assistant") and content:
-                messages.append({"role": role, "content": content})
-    messages.append({"role": "user", "content": message[:2000]})
+    payload: dict[str, Any] = {
+        "message": message[:MAX_MESSAGE_CHARS],
+        "history": history or [],
+    }
+    headers = backend_headers()
+    headers["X-Forwarded-For"] = str(user_id)
 
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.post(
-                url,
-                json={
-                    "model": model,
-                    "messages": messages,
-                    "max_tokens": 350,  # room for detailed answers
-                    "temperature": 0.7,
-                    "chat_template_kwargs": {"enable_thinking": False},
-                },
-            )
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(CHAT_TIMEOUT, connect=5.0, read=CHAT_TIMEOUT, write=10.0)
+        ) as client:
+            r = await client.post(CHAT_ENDPOINT, headers=headers, json=payload)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
-        logger.debug("local chat unavailable (user=%s): %s", user_id, e)
+        logger.debug("backend chat unavailable (user=%s): %s", user_id, e)
         return None
     if r.status_code != 200:
-        logger.debug("local chat HTTP %d (user=%s)", r.status_code, user_id)
+        logger.debug("backend chat HTTP %d (user=%s)", r.status_code, user_id)
         return None
     try:
         raw = r.json()
@@ -124,63 +88,19 @@ async def _call_backend_chat(
         return None
     if not isinstance(raw, dict):
         return None
-    choices = raw.get("choices", [])
-    if not choices or not isinstance(choices, list):
-        return None
-    answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
-
-    # Strip thinking output from DeepSeek and Qwen.
-    import re
-
-    answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
-    answer = re.sub(r"<think>.*", "", answer, flags=re.DOTALL)
-    answer = re.sub(r"</?answer>", "", answer)
-    answer = re.sub(r"<think>", "", answer)
-    answer = re.sub(r"</think>", "", answer)
-    paragraphs = [p.strip() for p in answer.split("\n") if p.strip()]
-    if len(paragraphs) > 1:
-        for p in reversed(paragraphs):
-            if not any(
-                p.lower().startswith(prefix)
-                for prefix in [
-                    "okay",
-                    "let me",
-                    "first",
-                    "i need",
-                    "i should",
-                    "i will",
-                    "i can",
-                    "so i",
-                    "well",
-                    "hmm",
-                    "the user",
-                    "the question",
-                    "i think",
-                    "i believe",
-                    "i understand",
-                    "i need to",
-                    "so the",
-                    "the answer",
-                    "the user asked",
-                    "since they're",
-                    "since the",
-                    "so that's",
-                    "i'll",
-                    "let's",
-                    "looking at",
-                ]
-            ):
-                answer = p
-                break
-    answer = answer.strip()
+    answer = (raw.get("message") or "").strip()
     if not answer:
         return None
+    try:
+        rag_count = int(r.headers.get("X-RAG-Context", "0") or "0")
+    except (TypeError, ValueError):
+        rag_count = 0
     return {
         "message": answer,
-        "rag_count": 0,
+        "rag_count": rag_count,
         "tokens": raw.get("usage", {}).get("total_tokens", 0),
-        "model": model,
-        "provider": "local",
+        "model": raw.get("model") or "rmi-backend",
+        "provider": "backend",
         "latency_ms": 0,
     }
 
@@ -191,6 +111,7 @@ async def _call_zen_llm(
     history: list[dict[str, str]] | None = None,
     *,
     deep: bool = False,
+    sources: list[dict[str, str]] | None = None,
 ) -> dict[str, Any] | None:
     """Fast free cloud chat via OpenCode Zen DeepSeek V4 Flash Free.
 
@@ -199,6 +120,9 @@ async def _call_zen_llm(
     disabled so tokens go to the answer, not the reasoning preamble.
     ``deep`` trades a little latency for a longer, more thorough answer
     (analysis/report requests); short queries stay snappy.
+    ``sources`` are the bridge grounding sources prepended to the prompt;
+    ``rag_count = len(sources)`` so the grounding footer renders the REAL
+    count instead of a hardcoded 0.
     Returns the same dict shape as :func:`_call_local_llm`.
     """
     url = os.getenv("ZEN_CHAT_URL", "http://127.0.0.1:18081/zen/v1/chat/completions")
@@ -301,7 +225,7 @@ async def _call_zen_llm(
         return None
     return {
         "message": answer,
-        "rag_count": 0,
+        "rag_count": len(sources or []),
         "tokens": raw.get("usage", {}).get("total_tokens", 0),
         "model": model,
         "provider": "zen",
@@ -313,11 +237,16 @@ async def _call_local_llm(
     message: str,
     user_id: int,
     history: list[dict[str, str]] | None = None,
+    *,
+    sources: list[dict[str, str]] | None = None,
 ) -> dict[str, Any] | None:
     """Local LLM fallback via llama.cpp servers for free chatting.
 
     Qwen 3 4B for quick chat, DeepSeek R1 Distill Qwen 8B for deep analysis.
     Thinking output is stripped from responses.
+    ``sources`` are the bridge grounding sources prepended to the prompt;
+    ``rag_count = len(sources)`` so the grounding footer renders the REAL
+    count instead of a hardcoded 0.
     """
     # Build messages array with conversation history
     messages: list[dict[str, str]] = [
@@ -431,7 +360,7 @@ async def _call_local_llm(
             continue
         return {
             "message": answer,
-            "rag_count": 0,
+            "rag_count": len(sources or []),
             "tokens": raw.get("usage", {}).get("total_tokens", 0),
             "model": model,
             "provider": "local",

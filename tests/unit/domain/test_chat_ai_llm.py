@@ -23,9 +23,11 @@ class _FakeLLMClient:
 
     _status: ClassVar[int] = 200
     _payload: ClassVar[Any] = {"choices": [{"message": {"content": "hello"}}], "usage": {"total_tokens": 7}}
+    _headers: ClassVar[dict[str, str]] = {}
     _raise: ClassVar[Exception | None] = None
 
     calls: ClassVar[list[tuple[str, dict]]] = []
+    call_headers: ClassVar[list[dict | None]] = []
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         pass
@@ -36,13 +38,15 @@ class _FakeLLMClient:
     async def __aexit__(self, *args: object) -> None:
         return None
 
-    async def post(self, url: str, json: dict) -> Any:
-        _FakeLLMClient.calls.append((url, json))
+    async def post(self, url: str, headers: dict | None = None, json: dict | None = None) -> Any:
+        _FakeLLMClient.calls.append((url, json or {}))
+        _FakeLLMClient.call_headers.append(headers)
         if _FakeLLMClient._raise is not None:
             raise _FakeLLMClient._raise
 
         class _Resp:
             status_code = _FakeLLMClient._status
+            headers = _FakeLLMClient._headers
 
             def json(self) -> Any:
                 return _FakeLLMClient._payload
@@ -54,68 +58,55 @@ class _FakeLLMClient:
 def _fake_httpx(monkeypatch: pytest.MonkeyPatch) -> None:
     _FakeLLMClient._status = 200
     _FakeLLMClient._payload = {"choices": [{"message": {"content": "hello"}}], "usage": {"total_tokens": 7}}
+    _FakeLLMClient._headers = {}
     _FakeLLMClient._raise = None
     _FakeLLMClient.calls = []
+    _FakeLLMClient.call_headers = []
     monkeypatch.setattr(_llm.httpx, "AsyncClient", _FakeLLMClient)
 
 
-# ── backend chat (local models) ────────────────────────────────────────────
+# ── backend RAG chat (POST /api/v1/chat, auto-RAG tier-1) ──────────────────
 
 
-async def test_backend_chat_shallow_uses_qwen() -> None:
+async def test_backend_chat_posts_to_chat_endpoint() -> None:
+    _FakeLLMClient._payload = {"message": "grounded answer", "usage": {"total_tokens": 7}, "model": "m"}
+    _FakeLLMClient._headers = {"X-RAG-Context": "3"}
     result = await _llm._call_backend_chat("hi there", 1)
     assert result is not None
-    assert result["provider"] == "local"
-    assert result["model"] == _llm.QWEN_MODEL
+    assert result["provider"] == "backend"
+    assert result["message"] == "grounded answer"
+    assert result["rag_count"] == 3  # real RAG count from X-RAG-Context
     assert result["tokens"] == 7
     url, body = _FakeLLMClient.calls[0]
-    assert url == _llm.QWEN_CHAT_URL
-    assert body["model"] == _llm.QWEN_MODEL
+    assert url == _llm.CHAT_ENDPOINT
+    assert body["message"] == "hi there"
+    assert body["history"] == []
+    # No context_override -> backend auto-RAG (news-aware grounding).
+    assert "context_override" not in body
 
 
-async def test_backend_chat_deep_keyword_uses_deepseek() -> None:
-    for keyword in ("analyze", "why", "compare", "report", "technical"):
-        _FakeLLMClient.calls.clear()
-        result = await _llm._call_backend_chat(f"please {keyword} this token", 1)
-        assert result is not None
-        url, body = _FakeLLMClient.calls[0]
-        assert url == _llm.DEEPSEEK_CHAT_URL
-        assert body["model"] == _llm.DEEPSEEK_MODEL
-
-
-async def test_backend_chat_history_last_five() -> None:
-    history = [{"role": "user", "content": f"m{i}"} for i in range(7)]
-    await _llm._call_backend_chat("q", 1, history=history)
-    _, body = _FakeLLMClient.calls[0]
-    assert len(body["messages"]) == 1 + 5 + 1  # system + 5 history + current
-    assert body["messages"][-1] == {"role": "user", "content": "q"}
+async def test_backend_chat_forwarded_for_header() -> None:
+    _FakeLLMClient._payload = {"message": "ok"}
+    await _llm._call_backend_chat("q", 777, history=[{"role": "user", "content": "first"}])
+    headers = _FakeLLMClient.call_headers[0]
+    assert headers is not None
+    assert headers["X-Forwarded-For"] == "777"
+    assert _FakeLLMClient.calls[0][1]["history"] == [{"role": "user", "content": "first"}]
 
 
 async def test_backend_chat_message_truncated_to_2000() -> None:
+    _FakeLLMClient._payload = {"message": "ok"}
     await _llm._call_backend_chat("x" * 5000, 1)
     _, body = _FakeLLMClient.calls[0]
-    assert body["messages"][-1]["content"] == "x" * 2000
+    assert body["message"] == "x" * 2000
 
 
-async def test_backend_chat_strips_think_blocks() -> None:
-    _FakeLLMClient._payload = {
-        "choices": [{"message": {"content": "<think>internal reasoning</think>final answer"}}],
-        "usage": {},
-    }
+async def test_backend_chat_rag_count_zero_without_header() -> None:
+    _FakeLLMClient._payload = {"message": "ok"}
+    _FakeLLMClient._headers = {}
     result = await _llm._call_backend_chat("q", 1)
     assert result is not None
-    assert "<think>" not in result["message"]
-    assert result["message"] == "final answer"
-
-
-async def test_backend_chat_takes_last_substantive_paragraph() -> None:
-    _FakeLLMClient._payload = {
-        "choices": [{"message": {"content": "Okay, let me think about this.\n\nTHE REAL ANSWER HERE."}}],
-        "usage": {},
-    }
-    result = await _llm._call_backend_chat("q", 1)
-    assert result is not None
-    assert result["message"] == "THE REAL ANSWER HERE."
+    assert result["rag_count"] == 0
 
 
 async def test_backend_chat_non_200_returns_none() -> None:
@@ -124,12 +115,12 @@ async def test_backend_chat_non_200_returns_none() -> None:
 
 
 async def test_backend_chat_network_error_returns_none() -> None:
-    _FakeLLMClient._raise = OSError("llama down")
+    _FakeLLMClient._raise = OSError("backend down")
     assert await _llm._call_backend_chat("q", 1) is None
 
 
 async def test_backend_chat_invalid_payload_returns_none() -> None:
-    for payload in ({"choices": []}, "not a dict", {"choices": [{"message": {}}]}):
+    for payload in ({"message": ""}, "not a dict", {"choices": []}):
         _FakeLLMClient._payload = payload
         assert await _llm._call_backend_chat("q", 1) is None
 
@@ -170,6 +161,15 @@ async def test_zen_llm_response_shape() -> None:
     assert result["tokens"] == 42
 
 
+async def test_zen_llm_reports_real_rag_count_from_sources() -> None:
+    _FakeLLMClient._payload = {"choices": [{"message": {"content": "grounded"}}], "usage": {}}
+    result = await _llm._call_zen_llm(
+        "q", 1, sources=[{"type": "web", "query": "honeypot"}, {"type": "rag", "query": "scam"}]
+    )
+    assert result is not None
+    assert result["rag_count"] == 2  # real bridge grounding count, not hardcoded 0
+
+
 async def test_zen_llm_empty_answer_returns_none() -> None:
     _FakeLLMClient._payload = {"choices": [{"message": {"content": "   "}}], "usage": {}}
     assert await _llm._call_zen_llm("q", 1) is None
@@ -192,6 +192,15 @@ async def test_local_llm_tries_qwen_first() -> None:
     assert result["model"] == _llm.QWEN_MODEL
     url, _ = _FakeLLMClient.calls[0]
     assert url == _llm.QWEN_CHAT_URL
+
+
+async def test_local_llm_reports_real_rag_count_from_sources() -> None:
+    _FakeLLMClient._payload = {"choices": [{"message": {"content": "grounded"}}], "usage": {}}
+    result = await _llm._call_local_llm(
+        "q", 1, sources=[{"type": "rag", "query": "honeypot"}, {"type": "web", "query": "news"}]
+    )
+    assert result is not None
+    assert result["rag_count"] == 2  # real bridge grounding count, not hardcoded 0
 
 
 async def test_local_llm_falls_back_to_deepseek() -> None:

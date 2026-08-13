@@ -57,13 +57,29 @@ _ALLOWED_COMMANDS: frozenset[str] = frozenset(
 
 _sessions: dict[int, dict[str, Any]] = {}
 
+# Auto-expire terminal sessions after this many seconds of inactivity
+# (hardened 2026-08-13 — P0.4: no more unlimited interactive sessions).
+TERMINAL_TIMEOUT: int = 30 * 60  # 30 minutes
+
 
 def enter_terminal(user_id: int) -> None:
-    _sessions[user_id] = {"cwd": "/root", "history": []}
+    _sessions[user_id] = {"cwd": "/root", "history": [], "entered": time.time()}
+
+
+def touch(user_id: int) -> None:
+    """Refresh the idle timer for an active session."""
+    if user_id in _sessions:
+        _sessions[user_id]["entered"] = time.time()
 
 
 def in_terminal(user_id: int) -> bool:
-    return user_id in _sessions
+    session = _sessions.get(user_id)
+    if session is None:
+        return False
+    if time.time() - session.get("entered", 0) > TERMINAL_TIMEOUT:
+        _sessions.pop(user_id, None)
+        return False
+    return True
 
 
 def exit_terminal(user_id: int) -> None:
@@ -97,6 +113,9 @@ def execute(session: dict[str, Any], cmd: str) -> dict[str, Any]:
     stripped = cmd.strip()
     if stripped == "exit":
         return {"exit": True, "output": "", "error": ""}
+
+    # Activity refreshes the idle timer (session expiry handled by in_terminal).
+    session["entered"] = time.time()
 
     # Check allowlist
     err_msg = _check_safe_cmd(stripped)
