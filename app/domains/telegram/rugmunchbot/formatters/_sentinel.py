@@ -536,6 +536,94 @@ def format_wallet_composition_section(r: dict[str, Any], token_created_ts: str |
 
 # ── SENTINEL warning code → human-readable description map ──
 # --- Format scan report (professional redesign) ---
+def _short_addr(addr: str) -> str:
+    """Compact ``0xAb12...34cd`` form for long wallet addresses."""
+    addr = str(addr)
+    if len(addr) <= 12:
+        return addr
+    return f"{addr[:6]}...{addr[-4:]}"
+
+
+def _format_gmgn_section(r: dict[str, Any]) -> list[str]:
+    """Compact GMGN "Smart Money / Holders" section (empty when no data).
+
+    Consumes the ``gmgn`` sub-dict attached by
+    ``app.domains.scanner.gmgn_enrich.enrich_scan_with_gmgn``::
+
+        {
+            "holders": {"top_holder_pct", "holder_count", "insider_count",
+                        "sniper_count", "source"},
+            "smart_money": {"net_bought", "smart_money_count", "kol_count",
+                            "buy_pressure", "total_profit_pnl",
+                            "top_smart_money_wallets": [{"address", "net",
+                                                         "direction"}],
+                            "source"},
+        }
+
+    Returns an empty list when the scan result carries no ``gmgn`` data so
+    the report simply omits the section.
+    """
+    gmgn = r.get("gmgn")
+    if not isinstance(gmgn, dict):
+        return []
+    holders = gmgn.get("holders") if isinstance(gmgn.get("holders"), dict) else {}
+    smart = gmgn.get("smart_money") if isinstance(gmgn.get("smart_money"), dict) else {}
+    if not holders and not smart:
+        return []
+
+    lines: list[str] = ["", "\U0001f4a1 <b>Smart Money / Holders</b>", thin_sep()]
+
+    if holders:
+        pct = holders.get("top_holder_pct")
+        if pct is not None:
+            try:
+                pct_f = float(pct)
+            except (TypeError, ValueError):
+                pct_f = 0.0
+            emoji = "\U0001f534" if pct_f >= 50 else "\U0001f7e1" if pct_f >= 30 else "\U0001f7e2"
+            lines.append(f"  {emoji} Top-10 Supply: <b>{pct_f:.1f}%</b>")
+        hcount = holders.get("holder_count")
+        if hcount is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                lines.append(f"  \U0001f465 Holders: <b>{int(hcount):,}</b>")
+        flags = []
+        if holders.get("insider_count"):
+            flags.append(f"\U0001f575\ufe0f insiders {int(holders['insider_count'])}")
+        if holders.get("sniper_count"):
+            flags.append(f"\U0001f3af snipers {int(holders['sniper_count'])}")
+        if flags:
+            lines.append(f"  {' · '.join(flags)}")
+
+    if smart:
+        net = smart.get("net_bought")
+        sm_count = int(smart.get("smart_money_count") or 0)
+        if net is not None:
+            try:
+                net_f = float(net)
+            except (TypeError, ValueError):
+                net_f = 0.0
+            emoji = "\U0001f7e2" if net_f > 0 else "\U0001f534" if net_f < 0 else "\u26aa"
+            flow = f"{net_f:+.0f}"
+            tracked = f" ({sm_count} tracked)" if sm_count else ""
+            lines.append(f"  {emoji} Smart-Money Net: <b>{flow}</b>{tracked}")
+        wallets = smart.get("top_smart_money_wallets")
+        if isinstance(wallets, list):
+            parts = []
+            for w in wallets[:3]:
+                if not isinstance(w, dict):
+                    continue
+                addr = str(w.get("address") or "")
+                direction = str(w.get("direction") or "MIXED")
+                if not addr:
+                    continue
+                arrow = {"BUY": "\U0001f7e2", "SELL": "\U0001f534", "MIXED": "\U0001f7e1"}.get(direction, "\u26aa")
+                parts.append(f"{arrow} {_short_addr(addr)} {direction}")
+            if parts:
+                lines.append(f"  \U0001f9e0 {' | '.join(parts)}")
+
+    return lines
+
+
 def _verdict_text(risk: float) -> str:
     """One-line plain-language verdict for the 0-100 risk score."""
     if risk >= 80:
@@ -657,6 +745,11 @@ def format_scan_report(r: dict[str, Any]) -> str:
             tag = f" [{h['tag']}]" if h.get("tag") else ""
             cf = " \U0001f4c4" if h.get("is_contract") else ""
             lines.append(f"  {i}. <code>{h['address']}</code> - {h['pct']:.1f}%{tag}{cf}")
+
+    # ── 5b. Smart Money / Holders (GMGN enrichment) ──
+    gmgn_lines = _format_gmgn_section(r)
+    if gmgn_lines:
+        lines.extend(gmgn_lines)
 
     # ── 6. Deployer (always shown; pulled out of Advanced Analysis) ──
     deployer_lines = _format_deployer_section(r)

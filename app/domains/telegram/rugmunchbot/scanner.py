@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 
+from app.domains.scanner.gmgn_enrich import enrich_scan_with_gmgn
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
@@ -218,6 +219,9 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
             result["risk_score"] += 20
 
     result["risk_score"] = min(result["risk_score"], 100)
+    # GMGN holder/smart-money enrichment — best-effort + non-blocking
+    # (hard 6s internal budget, fail-open; never raises).
+    result = await enrich_scan_with_gmgn(result, address, result["chain"])
     # Scan-to-RAG memory: auto-index the summary into Qdrant so future
     # chat queries can recall "have we scanned this token before?" with
     # risk context. Background + fail-open — never blocks the response.
@@ -249,6 +253,9 @@ async def scan_token_v2(address: str, chain: str | None = None) -> dict[str, Any
             if data.get("status") != "ok":
                 logger.warning("scan_token_v2 non-ok status for %s", address)
                 return None
+            # GMGN holder/smart-money enrichment — best-effort + non-blocking
+            # (hard 6s internal budget, fail-open; never raises).
+            data = await enrich_scan_with_gmgn(data, address, chain or detect_chain(address))
             # Scan-to-RAG memory (background, fail-open) — see scan_token.
             if should_index_scan(data, source="scan_v2"):
                 schedule_scan_memory_index(data, source="scan_v2")
@@ -515,6 +522,10 @@ def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
             or (data.get("deep_profile") or {}).get("deployer_profile")
             or (evidence.get("deployer") or {}).get("deployer_profile")
         ),
+        # v2 GMGN holder/smart-money enrichment (attached by
+        # scan_token_v2 via enrich_scan_with_gmgn) — surfaced as the
+        # "Smart Money / Holders" section on /scan.
+        "gmgn": data.get("gmgn"),
     }
 
 
