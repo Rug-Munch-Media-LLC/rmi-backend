@@ -152,6 +152,9 @@ Rules:
 - Never give financial advice - only security and intelligence analysis
 - Never mention the data providers, tools, or APIs you use — just give results
 - If asked about $CRM or cryptorugmunch, be objective but proud of the transparency
+- Answer the user's LATEST question. Never answer an earlier question or continue a prior answer.
+- Synthesize RAG/web context into your own words — NEVER output raw numbered search-result lists or paste URLs as your answer.
+- If the question is about you (who are you / who made you), answer from the persona above.
 
 Current date: {date} (year {year})
 
@@ -454,6 +457,21 @@ def _looks_like_current_events(message: str) -> bool:
     return bool(_CURRENT_EVENTS_RE.search(message))
 
 
+def _should_web_search(message: str, rag_count: int) -> bool:
+    """Decide whether to fire a live web search for ``message``.
+
+    Web search is reserved for queries that explicitly look like current
+    events (news-ish keywords). RAG misses on identity/definition questions
+    must NOT trigger web search — that previously leaked irrelevant
+    search-result lists into chat answers (the "Genius lyrics" bug).
+
+    ``rag_count`` is accepted for signature stability / test clarity but does
+    NOT influence the decision: current-events queries always search the web,
+    everything else never does.
+    """
+    return _looks_like_current_events(message)
+
+
 def _format_web_context(results: list[dict[str, str]], max_chars: int = WEB_CONTEXT_MAX_CHARS) -> str:
     """Render SearXNG hits as a compact "Web results (live)" context block.
 
@@ -476,6 +494,36 @@ def _format_web_context(results: list[dict[str, str]], max_chars: int = WEB_CONT
     return "\n\n".join(parts)
 
 
+# ── Identity fast-path ──────────────────────────────────────────────────
+# Canned persona answers for identity/self questions. Kept as a pure helper
+# (no DB / network / LLM) so chat can short-circuit "who are you"-style
+# questions without a RAG/web/LLM round-trip — and without the risk of
+# leaking irrelevant web snippets as the answer.
+_IDENTITY_RE = re.compile(
+    r"\b(?:"
+    r"who (?:are you|made you|created you|built you|developed you|runs you|is your creator|is behind you)"
+    r"|what are you(?! doing\b| wearing\b| reading\b)"
+    r"|tell me about (?:yourself|you)"
+    r"|introduce yourself"
+    r"|what can you do(?! about\b| with\b| for\b)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_IDENTITY_ANSWER = (
+    "I'm the RMI Terminal, Rug Munch Intelligence's AI engine — I do crypto security analysis, "
+    "on-chain intelligence, wallet forensics, and market intel. "
+    "Ask me about a token, a wallet, or any crypto security question."
+)
+
+
+def _identity_answer(message: str) -> str | None:
+    """Return the canned persona answer for identity/self questions, else None."""
+    if _IDENTITY_RE.search(message):
+        return _IDENTITY_ANSWER
+    return None
+
+
 def _sanitize_history(items: list[dict[str, str]]) -> list[dict[str, str]]:
     """Whitelist roles (user/assistant only) + truncate content.
 
@@ -492,6 +540,34 @@ def _sanitize_history(items: list[dict[str, str]]) -> list[dict[str, str]]:
             content = content[:4000]
         history.append({"role": role, "content": content})
     return history
+
+
+def _normalize_history(items: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Merge consecutive same-role turns and drop a trailing assistant turn.
+
+    Safety net on top of ``ai_guard.build_safe_messages`` (which always
+    appends the CURRENT user message as the LAST turn). Consecutive
+    same-role turns (e.g. ``user, user``) can confuse small local models
+    into answering the earlier message, and a trailing ``assistant`` turn
+    from history would sit directly before the new user turn and invite the
+    model to continue its prior answer instead of answering the new question.
+    """
+    merged: list[dict[str, str]] = []
+    for item in items:
+        role = item.get("role", "")
+        content = item.get("content", "")
+        if role not in ("user", "assistant"):
+            continue
+        if merged and merged[-1]["role"] == role:
+            merged[-1]["content"] = f"{merged[-1]['content']}\n\n{content}"
+        else:
+            merged.append({"role": role, "content": content})
+    # A dangling trailing assistant turn would sit unanswered directly before
+    # the current user message — drop it so the model answers the CURRENT
+    # question instead of continuing the prior answer.
+    if merged and merged[-1]["role"] == "assistant":
+        merged.pop()
+    return merged
 
 
 async def _build_messages(
@@ -518,6 +594,12 @@ async def _build_messages(
     else:
         # Trusted explicit history → keep caller order, cap at context window.
         history_items = _sanitize_history(list(history)[-CONTEXT_MAX_MESSAGES:])
+
+    # History safety net: merge consecutive same-role turns and drop a
+    # dangling trailing assistant turn so the CURRENT user message is the
+    # final turn the model answers (see _normalize_history). build_safe_messages
+    # below always appends the current user message as the LAST message.
+    history_items = _normalize_history(history_items)
 
     # Build system prompt with hardening + current date/year awareness
     now = datetime.now(UTC)
@@ -579,6 +661,31 @@ async def chat(
         )
         raise AuthorizationError(message=f"Security alert: {scan.reason}")
 
+    # ── IDENTITY FAST-PATH ──
+    # Canned persona answer for identity/self questions — no RAG, no web
+    # search, no LLM round-trip. History is still saved so the conversation
+    # stays consistent for follow-ups.
+    identity_answer = _identity_answer(req.message)
+    if identity_answer is not None:
+        _save_message(user_id, "user", req.message)
+        _save_message(
+            user_id,
+            "assistant",
+            identity_answer,
+            {"model": "canned", "provider": "identity", "security_scanned": True, "rag_context_count": 0},
+        )
+        _apply_rate_limit_headers(response, request)
+        response.headers["X-RAG-Context"] = "0"
+        return {
+            "id": f"resp-{uuid.uuid4().hex[:8]}",
+            "message": identity_answer,
+            "model": "canned",
+            "provider": "identity",
+            "latency_ms": 0,
+            "usage": {},
+            "x_rag_context": 0,
+        }
+
     # Get or create user context
     user_context = ""
     if user:
@@ -609,14 +716,17 @@ async def chat(
             rag_context, rag_count = "", 0
 
     # ── Live web search (current-affairs fallback) ──
-    # Own data first: only fall through to SearXNG when RAG came up empty OR
-    # the query looks like current events (news-ish keywords). Web results
-    # are appended AFTER the RAG block so own data stays first in context.
-    # Best-effort: any failure returns no web context and chat proceeds.
+    # Own data first: SearXNG runs ONLY for queries that explicitly look like
+    # current events (news-ish keywords) — never as a blanket fallback when
+    # RAG comes up empty. Identity/definition questions with no RAG hits must
+    # NOT trigger web search (that previously leaked irrelevant search-result
+    # lists into the answer). Web results are appended AFTER the RAG block so
+    # own data stays first in context. Best-effort: any failure returns no
+    # web context and chat proceeds.
     web_context, web_count = "", 0
     if not client_system_context:
         try:
-            if rag_count == 0 or _looks_like_current_events(req.message):
+            if _should_web_search(req.message, rag_count):
                 web_results = await searxng_search(req.message)
                 if web_results:
                     web_context = _format_web_context(web_results)
