@@ -82,20 +82,30 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
 
     Pulls from the wired ``news_intel`` chain (``aggregate_all_news``:
     RSS + CryptoPanic + X + the domains news service, deduped and
-    quality-scored) and routes each article through the canonical RAG
-    ingestion pipeline (BatchIngestor → quality filter → dedup → embed)
-    into ``news_v2`` — the collection the ``get_news`` RAG tool searches.
+    quality-scored) and routes each article through story clustering →
+    the canonical RAG ingestion pipeline (BatchIngestor → quality filter
+    → dedup → embed) into ``news_v2`` — the collection the ``get_news``
+    RAG tool searches.
 
-    Every article is stored with normalized ``published_at`` metadata
-    (plus title / source_url / source_name / categories / sentiment) so
-    the retrieval layer's temporal-decay recency boost ranks fresh events
-    first. Idempotent: chunk-hash dedup skips already-ingested articles.
+    Story dedup contract (T03 clustering):
+      - Articles are MinHash+DBSCAN clustered into stories (persistent,
+        content-derived ``cluster_id``).
+      - ONE RAG doc per story: ``doc_id = news:{cluster_id}`` (stable across
+        runs → Qdrant upserts to the same point), so the same article from
+        20 sources collapses to a single doc.
+      - Every doc carries the Ground News-style card — ``sentiment_label``,
+        ``bias``, ``factual_rating``, ``source_tier`` — plus ``cluster_id``,
+        ``source_count``, ``sources``, ``source_urls``, ``bias_distribution``
+        so retrieval can cite bias + sentiment + "this story has N sources".
+      - Normalized ``published_at`` metadata keeps the retrieval layer's
+        temporal-decay recency boost ranking fresh stories first.
+    Idempotent: chunk-hash dedup + stable doc_id skip already-ingested stories.
     """
+    from app.databus.news_intel import aggregate_all_news
+    from app.domains.news.clusterer import NewsItem as ClusterNewsItem, build_story_rag_docs
     from app.rag.ingestion import BatchIngestor
 
     try:
-        from app.databus.news_intel import aggregate_all_news
-
         feed = await aggregate_all_news(limit=limit)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException, ImportError) as e:
         logger.warning(f"databus news aggregate failed: {e}")
@@ -108,35 +118,70 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
     duplicates = 0
     errors: list[str] = []
 
+    # ── 1. Adapt articles into clusterer items (story dedup input) ──────
+    cluster_items_list: list[ClusterNewsItem] = []
+    article_map: dict[str, dict[str, Any]] = {}
     for article in articles:
         title = str(article.get("title", "") or "").strip()
         url = str(article.get("url", "") or article.get("link", "") or "").strip()
         if not title:
             continue
-        published = _normalize_published(
+        published_iso = _normalize_published(
             article.get("published_at") or article.get("published") or article.get("created_at")
         )
-        content = (f"Title: {title}\n\n{article.get('summary') or article.get('description') or ''}").strip()
-        if not content:
-            continue
-        doc_id = f"news:{hashlib.sha256((url + title).encode()).hexdigest()[:12]}"
-        metadata = {
-            "title": title,
-            "source_url": url,
-            "source_name": str(article.get("source", "") or "")[:200],
-            "published_at": published or now_iso,
-            "categories": article.get("categories", []) or [],
-            "sentiment": article.get("sentiment", {}).get("sentiment", "neutral")
-            if isinstance(article.get("sentiment"), dict)
-            else str(article.get("sentiment", "neutral")),
-            "content_hash": str(article.get("content_hash", "") or ""),
-            "source": "databus",
-        }
+        try:
+            published_dt = datetime.fromisoformat(published_iso) if published_iso else datetime.now(UTC)
+        except ValueError:
+            published_dt = datetime.now(UTC)
+        sent_raw = article.get("sentiment")
+        if isinstance(sent_raw, dict):
+            sent_val = float(sent_raw.get("score") or 0.0)
+        else:
+            try:
+                sent_val = float(sent_raw or 0.0)
+            except (TypeError, ValueError):
+                sent_val = 0.0
+        key = url or f"hash:{hashlib.sha256(title.encode()).hexdigest()[:12]}"
+        cluster_items_list.append(
+            ClusterNewsItem(
+                id=key,
+                title=title,
+                body=str(article.get("summary") or article.get("description") or "")[:500],
+                source=str(article.get("source", "") or "")[:200],
+                url=url,
+                published_at=published_dt,
+                sentiment=sent_val,
+            )
+        )
+        article_map[key] = article
+
+    # ── 2. Cluster into stories → one RAG doc per story ──────────────────
+    story_docs = build_story_rag_docs(cluster_items_list)
+
+    # Union per-story categories so the story doc keeps topic tags.
+    cluster_by_item: dict[str, str] = {}
+    for doc in story_docs:
+        cid = str(doc["metadata"]["cluster_id"])
+        for iid in doc["metadata"]["item_ids"]:
+            cluster_by_item[str(iid)] = cid
+    categories_by_cluster: dict[str, set[str]] = {}
+    for key, article in article_map.items():
+        cid_opt = cluster_by_item.get(key)
+        if cid_opt:
+            cats = article.get("categories", []) or []
+            categories_by_cluster.setdefault(cid_opt, set()).update(str(c) for c in cats)
+
+    # ── 3. Ingest one story doc into RAG ─────────────────────────────────
+    for doc in story_docs:
+        metadata = dict(doc["metadata"])
+        cid = str(metadata["cluster_id"])
+        cats = sorted(categories_by_cluster.get(cid, set()))[:8]
+        metadata["categories"] = cats
         try:
             report = await ingestor.ingest(
-                content=content,
+                content=doc["content"],
                 collection="news_v2",
-                doc_id=doc_id,
+                doc_id=doc["doc_id"],
                 metadata=metadata,
                 source_type="news",
             )
@@ -147,7 +192,7 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
             else:
                 errors.extend(report.errors or [])
         except Exception as e:  # pragma: no cover - defensive
-            errors.append(f"{doc_id}: {e!s}")
+            errors.append(f"{doc['doc_id']}: {e!s}")
 
     return {
         "status": "ok",
@@ -155,6 +200,7 @@ async def index_databus_news(limit: int = 50, **kw) -> dict[str, Any]:
         "fetched": len(articles),
         "ingested": ingested,
         "duplicates": duplicates,
+        "stories": len(story_docs),
         "errors": errors[:10],
         "feed_generated_at": feed.get("generated_at", ""),
         "source": _DATABUS_NEWS_SOURCE,

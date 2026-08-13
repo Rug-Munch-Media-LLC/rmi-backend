@@ -118,6 +118,7 @@ async def ingest_all(
         "duplicate": 0,
         "errors": 0,
         "total_feeds": len(feeds),
+        "rag_stories": 0,
     }
     # Batch fetches to avoid overwhelming connections with 200+ feeds
     results: list[Any] = []
@@ -177,6 +178,7 @@ async def ingest_all(
                 log.debug("item_build_fail: %s", e)
 
     # Save to Postgres
+    new_items: list[NewsItem] = []
     if cat._health.postgres and items_to_ingest:
         try:
             async with cat._pg_pool.acquire() as conn:
@@ -216,6 +218,7 @@ async def ingest_all(
                             ni.rating_confidence,
                         )
                         counts["ingested"] += 1
+                        new_items.append(ni)
                     except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
                         logger.debug("unknown_error", exc_info=True)
                         counts["errors"] += 1
@@ -224,35 +227,41 @@ async def ingest_all(
             logger.debug("unknown_error", exc_info=True)
             log.warning("ingest_postgres_fail: %s", e)
 
-    # Embed into RAG for semantic search
-    if embed and items_to_ingest:
+    # Embed into RAG for semantic search — ONE RAG doc per story cluster
+    # (content-derived cluster_id), so the same article across 20 feeds
+    # collapses to a single doc carrying source_count + the rating card.
+    if embed and new_items:
         try:
-            for ni in items_to_ingest[:200]:  # cap RAG embeds (up from 50 for 200+ feeds)
+            from app.domains.news.clusterer import NewsItem as ClusterNewsItem, build_story_rag_docs
+
+            cluster_input = [
+                ClusterNewsItem(
+                    id=ni.news_id,
+                    title=ni.title or "",
+                    body=ni.summary or "",
+                    source=ni.source or "",
+                    url=str(ni.url),
+                    published_at=ni.published_at,
+                    sentiment=ni.sentiment_score or 0.0,
+                )
+                for ni in new_items
+            ]
+            story_docs = build_story_rag_docs(cluster_input)
+            for doc in story_docs[:200]:  # cap RAG embeds (up from 50 for 200+ feeds)
                 rag_result = await cat.rag_ingest(
-                    content=f"{ni.title}\n{ni.summary}",
+                    content=doc["content"],
                     collection=collection,
-                    doc_id=ni.news_id,
-                    metadata={
-                        "source": ni.source,
-                        "news_id": ni.news_id,
-                        "bias": ni.bias,
-                        "sentiment_label": ni.sentiment_label,
-                        "factual_rating": ni.factual_rating,
-                        "source_tier": ni.source_tier,
-                        "rating_confidence": ni.rating_confidence,
-                        # Keep the article URL citable in RAG metadata — the
-                        # retrieval layer surfaces it for source attribution.
-                        "url": str(ni.url),
-                    },
+                    doc_id=doc["doc_id"],
+                    metadata=doc["metadata"],
                 )
                 if rag_result.get("status") == "ok" and rag_result.get("qdrant_point_id"):
-                    # Update news_items with rag_embedding_id
+                    point_id = rag_result["qdrant_point_id"]
+                    counts["rag_stories"] += 1
                     try:
                         async with cat._pg_pool.acquire() as conn:
-                            await conn.execute(
+                            await conn.executemany(
                                 "UPDATE news_items SET rag_embedding_id=$1 WHERE news_id=$2",
-                                rag_result["qdrant_point_id"],
-                                ni.news_id,
+                                [(point_id, str(iid)) for iid in doc["metadata"].get("item_ids", [])],
                             )
                     except (ConnectionError, OSError):
                         pass
@@ -277,4 +286,5 @@ if __name__ == "__main__":
     print(f"   Raw items: {result.get('items', 0)}")
     print(f"   Newly ingested: {result.get('ingested', 0)}")
     print(f"   Duplicates skipped: {result.get('duplicate', 0)}")
+    print(f"   RAG story docs embedded: {result.get('rag_stories', 0)}")
     print(f"   Errors: {result.get('errors', 0)}")

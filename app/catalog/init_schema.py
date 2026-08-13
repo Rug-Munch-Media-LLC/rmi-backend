@@ -159,6 +159,41 @@ CREATE TABLE IF NOT EXISTS x402_receipts (
 CREATE INDEX IF NOT EXISTS idx_x402_paid_at ON x402_receipts(paid_at DESC);
 CREATE INDEX IF NOT EXISTS idx_x402_tool ON x402_receipts(tool);
 CREATE INDEX IF NOT EXISTS idx_x402_agent ON x402_receipts(agent_id);
+
+-- News comments + reactions (NEWS-PAGE-DESIGN.md §3)
+CREATE TABLE IF NOT EXISTS news_reactions (
+    news_id    TEXT NOT NULL,
+    user_id    TEXT NOT NULL,
+    reaction   TEXT NOT NULL CHECK (reaction IN ('like', 'dislike')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (news_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_news_reactions_news ON news_reactions(news_id);
+CREATE INDEX IF NOT EXISTS idx_news_reactions_user ON news_reactions(user_id);
+
+CREATE TABLE IF NOT EXISTS news_comments (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    news_id    TEXT NOT NULL,
+    user_id    TEXT NOT NULL,
+    parent_id  UUID REFERENCES news_comments(id) ON DELETE CASCADE,
+    body       TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    edited_at  TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_news_comments_news ON news_comments(news_id);
+CREATE INDEX IF NOT EXISTS idx_news_comments_parent ON news_comments(parent_id);
+CREATE INDEX IF NOT EXISTS idx_news_comments_user ON news_comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_news_comments_created ON news_comments(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS news_comment_reactions (
+    comment_id UUID NOT NULL REFERENCES news_comments(id) ON DELETE CASCADE,
+    user_id    TEXT NOT NULL,
+    reaction   TEXT NOT NULL CHECK (reaction IN ('like', 'dislike')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (comment_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_news_comment_reactions_comment ON news_comment_reactions(comment_id);
 """
 
 

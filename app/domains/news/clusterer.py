@@ -34,7 +34,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.core.logging import get_logger
-from app.domains.news.ratings import SOURCE_CREDIBILITY
+from app.domains.news.ratings import SOURCE_CREDIBILITY, rate_article
 
 logger = get_logger(__name__)
 
@@ -224,6 +224,16 @@ class StoryCluster:
     item_ids: list[str]
     source_count: int = 0
     bias_distribution: dict[str, int] = field(default_factory=dict)
+    # Representative article (longest title member) + its rating card.
+    # Enriched at cluster time so RAG docs can cite bias/sentiment/factual
+    # without a second rating pass. Defaults keep hand-built constructors
+    # (tests, callers) working unchanged.
+    representative_body: str = ""
+    representative_url: str = ""
+    sentiment_label: str = "neutral"
+    bias: str = "center"
+    factual_rating: str = "unrated"
+    source_tier: int = 3
 
     def __post_init__(self) -> None:
         if self.source_count == 0 and self.sources:
@@ -242,6 +252,10 @@ class StoryCluster:
             "item_ids": self.item_ids,
             "source_count": self.source_count,
             "bias_distribution": self.bias_distribution,
+            "sentiment_label": self.sentiment_label,
+            "bias": self.bias,
+            "factual_rating": self.factual_rating,
+            "source_tier": self.source_tier,
         }
 
 
@@ -291,6 +305,9 @@ def cluster_items(
         for m in members:
             b = _bias_for_source(m.source)
             bias_dist[b] = bias_dist.get(b, 0) + 1
+        # Rating card for the representative article — lets RAG docs cite
+        # bias / sentiment / factuality / tier per story.
+        rep_rating = rate_article(title=rep.title, content=rep.body, source=rep.source)
         stories.append(
             StoryCluster(
                 cluster_id=_persistent_cluster_key(rep_sig),
@@ -304,6 +321,12 @@ def cluster_items(
                 item_ids=[m.id for m in members],
                 source_count=len(source_set),
                 bias_distribution=bias_dist,
+                representative_body=rep.body,
+                representative_url=rep.url,
+                sentiment_label=rep_rating.sentiment_label,
+                bias=rep_rating.bias,
+                factual_rating=rep_rating.factual_rating,
+                source_tier=rep_rating.source_tier,
             )
         )
 
@@ -497,11 +520,121 @@ async def load_recent_clusters(limit: int = 50) -> list[dict[str, Any]]:
         return []
 
 
+def story_doc_id(cluster_id: str) -> str:
+    """Stable RAG doc_id for a story: ``news:{cluster_id}``.
+
+    Cluster ids are content-derived (persistent), so the same story
+    re-clustered in a later batch maps to the same doc_id → Qdrant upserts
+    to the same point (uuid5-stable). This is what collapses "same article
+    from 20 sources" into one RAG doc.
+    """
+    return f"news:{cluster_id}"
+
+
+def build_story_rag_docs(
+    items: list[NewsItem],
+    window_minutes: int = 4320,
+    eps: float = 0.4,
+    min_samples: int = 2,
+) -> list[dict[str, Any]]:
+    """Cluster *items* into stories and emit ONE RAG-ready doc per story.
+
+    Dedup contract: same headline/story from N sources collapses into a
+    single doc whose ``doc_id`` is ``news:{cluster_id}`` and whose metadata
+    carries ``source_count``, ``sources``, ``source_urls`` and the
+    ``bias_distribution`` — the bot can cite "this story has N sources"
+    and the bias-spectrum panel can render the per-story spread.
+
+    Each returned doc::
+
+        {"doc_id": "news:<cluster_id>",
+         "content": "Title: <representative title>\\n\\n<representative body>",
+         "metadata": {cluster_id, source_count, sources, source_urls,
+                      bias_distribution, sentiment_avg, sentiment_label,
+                      bias, factual_rating, source_tier, item_ids,
+                      news_id, title, source, url, published_at}}
+
+    Items are the clusterer's minimal ``NewsItem`` (id, title, body,
+    source, url, published_at, sentiment) — adapt rows/dicts before calling.
+    """
+    stories = cluster_items(items, window_minutes=window_minutes, eps=eps, min_samples=min_samples)
+    docs: list[dict[str, Any]] = []
+    for s in stories:
+        doc_id = story_doc_id(s.cluster_id)
+        content = f"Title: {s.representative_title}\n\n{s.representative_body or ''}".strip()
+        metadata: dict[str, Any] = {
+            "news_id": doc_id,
+            "title": s.representative_title,
+            "cluster_id": s.cluster_id,
+            "source_count": s.source_count,
+            "sources": s.sources,
+            "source_urls": s.source_urls,
+            "bias_distribution": s.bias_distribution,
+            "sentiment_avg": round(s.sentiment_avg, 3),
+            "sentiment_label": s.sentiment_label,
+            "bias": s.bias,
+            "factual_rating": s.factual_rating,
+            "source_tier": s.source_tier,
+            "item_ids": s.item_ids,
+            "published_at": s.last_updated.isoformat(),
+            "source": s.sources[0] if s.sources else "",
+            "url": s.source_urls[0] if s.source_urls else "",
+        }
+        docs.append({"doc_id": doc_id, "content": content, "metadata": metadata})
+    return docs
+
+
+async def load_story_sources(cluster_id: str) -> dict[str, Any] | None:
+    """Load one story cluster with its full per-source distribution.
+
+    Powers the bias-spectrum panel: given a story's ``cluster_id``, return
+    the distinct sources, per-source URLs, bias distribution and sentiment
+    average. Returns None when the cluster is unknown.
+    """
+    try:
+        import json
+
+        import asyncpg
+
+        from app.core.db_pool import PG_URL
+
+        conn = await asyncpg.connect(PG_URL)
+        try:
+            row = await conn.fetchrow(
+                "SELECT * FROM news_clusters WHERE cluster_id = $1",
+                cluster_id,
+            )
+            if not row:
+                return None
+            return {
+                "cluster_id": row["cluster_id"],
+                "representative_title": row["representative_title"],
+                "first_seen": row["first_seen"].isoformat(),
+                "last_updated": row["last_updated"].isoformat(),
+                "item_count": row["item_count"],
+                "sentiment_avg": row["sentiment_avg"],
+                "source_count": row.get("source_count", 0),
+                "bias_distribution": json.loads(row["bias_distribution"]) if row.get("bias_distribution") else {},
+                "source_urls": json.loads(row["source_urls"]),
+                "sources": json.loads(row["sources"]),
+                "item_ids": json.loads(row["item_ids"]),
+            }
+        finally:
+            await conn.close()
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
+        logger.debug("load_story_sources_error", exc_info=True)
+        logger.warning("news_clusters_load_failed cluster=%s err=%s", cluster_id, exc)
+        return None
+
+
 __all__ = [
     "NewsItem",
     "StoryCluster",
+    "build_story_rag_docs",
     "cluster_items",
     "ensure_schema",
     "load_recent_clusters",
+    "load_story_sources",
     "persist_clusters",
+    "story_doc_id",
 ]
