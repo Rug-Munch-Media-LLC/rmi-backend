@@ -329,6 +329,31 @@ async def _fetch_bridge_context(
     return "\n\n".join(parts), sources, actions
 
 
+async def _gather_fallback_context(
+    daily_ctx_task: asyncio.Task[Any],
+    scan_ctx_task: asyncio.Task[Any] | None,
+    bridge_ctx_task: asyncio.Task[Any],
+) -> tuple[Any, Any, Any]:
+    """Await the fallback context fetches (fail-open) for the Zen/local path.
+
+    The backend tier-1 call runs CONCURRENTLY with these tasks and is awaited
+    FIRST; this helper is only invoked when the backend returned ``None`` and
+    the fallback path actually needs the bridge/daily/scan context. Exceptions
+    are swallowed per-task (``return_exceptions=True``) so a failing fetcher
+    degrades to ``None`` instead of killing the fallback LLM call.
+    """
+    tasks: list[asyncio.Task[Any]] = [daily_ctx_task, bridge_ctx_task]
+    if scan_ctx_task is not None:
+        tasks.append(scan_ctx_task)
+    results = [
+        r if not isinstance(r, BaseException) else None for r in await asyncio.gather(*tasks, return_exceptions=True)
+    ]
+    daily_context = results[0]
+    bridge_ctx = results[1]
+    scan_summary = results[2] if scan_ctx_task is not None else None
+    return daily_context, scan_summary, bridge_ctx
+
+
 def _render_bridge_actions(
     actions: list[dict[str, str]] | None,
 ) -> InlineKeyboardMarkup | None:
@@ -710,48 +735,56 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         disable_web_page_preview=True,
     )
 
-    # CONCURRENT: fetch daily context + scan context + bridge context at once.
-    # Bridge context (blocks + sources + actions) grounds the Zen/local
-    # fallback path and feeds the citations; the backend tier-1 call RAGs
-    # itself, so the RAW user text is what reaches it.
+    # CONCURRENT: fire the backend RAG chat (tier-1) AND the fallback context
+    # fetches at the same time. The backend RAGs itself (news_v2 auto-RAG +
+    # live web search) and does NOT need bridge context — only the Zen/local
+    # fallback path does. Awaiting the backend result FIRST means the common
+    # path never serializes on the ~12s bridge web search. The context tasks
+    # are only awaited when the backend returns None and the fallback path
+    # actually needs them (and are cancelled when the backend answers).
     addresses = _extract_addresses(text)
     history = cast("list[dict[str, str]]", db.get_chat_history(user.id))
 
-    # Start all async work concurrently
+    backend_task = asyncio.create_task(_call_backend_chat(text, user.id, history))
     daily_ctx_task = asyncio.create_task(get_daily_context())
     scan_ctx_task = asyncio.create_task(_fetch_scan_context(addresses[0])) if addresses else None
     bridge_ctx_task = asyncio.create_task(_fetch_bridge_context(text, history))
 
-    daily_context = await daily_ctx_task
-    scan_summary = await scan_ctx_task if scan_ctx_task else None
-    bridge_ctx = await bridge_ctx_task
-    bridge_sources: list[dict[str, str]] = []
-    bridge_actions: list[dict[str, str]] = []
-    if bridge_ctx:
-        bridge_context, bridge_sources, bridge_actions = bridge_ctx
-    else:
-        bridge_context = None
-
-    # Fallback prompt: bridge blocks + scan summary (message-specific data).
-    # The daily market/news digest is NOT glued to the user message — it is
-    # passed as ``system_context`` so the fallback LLMs treat it as current
-    # data in the SYSTEM prompt instead of part of the question (the
-    # grounding rules already forbid quoting context verbatim).
-    prompt = text
-    if bridge_context:
-        prompt = f"{bridge_context}\n\n{prompt}"
-    if scan_summary:
-        prompt = f"{scan_summary}\n\n{prompt}"
-
     # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
     # The backend injects the current date/time and runs its own RAG
-    # (news_v2) + live web search, so it is already real-time aware; the
-    # daily digest feeds the Zen/local fallback system prompts below.
-    result = await _call_backend_chat(text, user.id, history)
-    # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with the
-    # bridge blocks, reporting rag_count = len(bridge sources).
-    deep = _is_deep_question(text)
-    if not result:
+    # (news_v2) + live web search, so it is already real-time aware.
+    result = await backend_task
+
+    # Bridge context/sources/actions only exist on the fallback path; the
+    # backend answer carries its own grounding and never needs them.
+    bridge_sources: list[dict[str, str]] = []
+    bridge_actions: list[dict[str, str]] = []
+
+    if result is None:
+        # Fallback path: gather the context fetches (fail-open) that ground
+        # the Zen/local LLM calls, then build the message-specific prompt.
+        daily_context, scan_summary, bridge_ctx = await _gather_fallback_context(
+            daily_ctx_task, scan_ctx_task, bridge_ctx_task
+        )
+        if bridge_ctx:
+            bridge_context, bridge_sources, bridge_actions = bridge_ctx
+        else:
+            bridge_context = None
+
+        # Fallback prompt: bridge blocks + scan summary (message-specific data).
+        # The daily market/news digest is NOT glued to the user message — it is
+        # passed as ``system_context`` so the fallback LLMs treat it as current
+        # data in the SYSTEM prompt instead of part of the question (the
+        # grounding rules already forbid quoting context verbatim).
+        prompt = text
+        if bridge_context:
+            prompt = f"{bridge_context}\n\n{prompt}"
+        if scan_summary:
+            prompt = f"{scan_summary}\n\n{prompt}"
+
+        # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with
+        # the bridge blocks, reporting rag_count = len(bridge sources).
+        deep = _is_deep_question(text)
         result = await _call_zen_llm(
             prompt,
             user.id,
@@ -760,14 +793,21 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             sources=bridge_sources,
             system_context=daily_context,
         )
-    if not result:
-        result = await _call_local_llm(
-            prompt,
-            user.id,
-            history,
-            sources=bridge_sources,
-            system_context=daily_context,
-        )
+        if not result:
+            result = await _call_local_llm(
+                prompt,
+                user.id,
+                history,
+                sources=bridge_sources,
+                system_context=daily_context,
+            )
+    else:
+        # Backend answered — the bridge/daily context fetches running in the
+        # background are no longer needed. Cancel them so no coroutine dangles.
+        pending = [t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task) if t is not None]
+        for t in pending:
+            t.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
 
     # Stop typing indicator
     typing_task.cancel()

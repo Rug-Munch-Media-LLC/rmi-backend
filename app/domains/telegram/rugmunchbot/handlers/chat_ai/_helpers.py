@@ -519,6 +519,21 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
     ),
     (
         re.compile(
+            r"\b(who made you|who created you|who built you|who developed you|"
+            r"who runs you|who is your creator|who is behind you|who are you)\b",
+            re.IGNORECASE,
+        ),
+        (
+            "\U0001f916 <b>I'm RugMunchBot</b>\n\n"
+            "Built by <b>Rug Munch Intelligence</b> \u2014 the crypto security "
+            "& on-chain intel platform. I scan tokens, profile wallets, track "
+            "whales, and answer crypto questions backed by 91K+ intel docs "
+            "across 25+ chains."
+            f"{footer_links()}"
+        ),
+    ),
+    (
+        re.compile(
             r"\b(help|can you|capabilities|features|commands|what do|what are|"
             r"who are you|tell me about you|about you|about this bot|"
             r"introduce yourself|describe yourself|what can you do|what else can you|"

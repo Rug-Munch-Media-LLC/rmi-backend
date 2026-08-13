@@ -243,4 +243,4 @@ async def test_local_llm_history_capped_at_two() -> None:
     history = [{"role": "user", "content": f"m{i}"} for i in range(5)]
     await _llm._call_local_llm("q", 1, history=history)
     _, body = _FakeLLMClient.calls[0]
-    assert len(body["messages"]) == 1 + 2 + 1  # system + 2 history + current
+    assert len(body["messages"]) == 1 + 1 + 1  # system + 1 inert history block + current
