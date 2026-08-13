@@ -433,7 +433,7 @@ DEX_REF_LINKS = {
         "name": "GMGN.ai",
         "emoji": "📊",
         "url": "https://gmgn.ai/sol/token/{token}?ref=rugmunch",
-        "chains": ["solana", "ethereum", "base"],
+        "chains": ["solana", "ethereum", "base", "bsc", "arbitrum", "tron", "robinhood"],
         "description": "Smart money tracking + trading",
     },
     "odinbot": {
