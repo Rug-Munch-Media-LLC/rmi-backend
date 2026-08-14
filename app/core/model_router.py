@@ -1,5 +1,5 @@
 """Intelligent Model Router - auto-routes to best provider by task type, cost, latency.
-Priority: real-time → Cerebras (9ms), cheap → Ollama ($0), complex → DeepSeek, bulk → Mistral."""
+Priority: fast → DeepSeek Flash (direct API), cheap → Ollama ($0), complex → DeepSeek Pro, bulk → DeepSeek Flash."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 
 class TaskType(Enum):
-    FAST = "fast"  # < 100ms needed - Cerebras, Groq
+    FAST = "fast"  # < 300ms needed - DeepSeek Flash (direct API), Groq
     CHEAP = "cheap"  # cost-sensitive - Ollama, Mistral free tier
     COMPLEX = "complex"  # reasoning needed - DeepSeek V4 Pro
     BULK = "bulk"  # high volume - Mistral Small 4
@@ -20,10 +20,13 @@ class TaskType(Enum):
 
 ROUTING_TABLE = {
     TaskType.FAST: [
-        ("gpt-oss-120b", "cerebras", 0.009, 0.0),  # 9ms, free
-        ("meta-llama/llama-3.3-70b-instruct", "groq", 0.1, 0.0),  # 100ms, free
+        # gpt-oss-120b/cerebras removed 2026-08-14 — free-tier rate limits + OOM'd
+        # the backend repeatedly. DeepSeek Flash (direct API) is the reliable primary.
+        ("deepseek/deepseek-v4-flash", "openrouter", 0.25, 0.14),  # direct DeepSeek API, reliable
+        ("meta-llama/llama-3.3-70b-instruct", "groq", 0.3, 0.0),  # free fallback
     ],
     TaskType.CHEAP: [
+        ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # reliable paid-fallback-first
         ("qwen2.5-coder:7b", "ollama", 2.0, 0.0),  # 2s, free
         ("mistralai/mistral-small", "openrouter", 0.2, 0.0),  # 200ms, free via OpenRouter
     ],
@@ -39,8 +42,8 @@ ROUTING_TABLE = {
         ("google/gemini-2.5-flash", "openrouter", 0.3, 0.0),  # 300ms, free tier via OR
     ],
     TaskType.EMBED: [
+        ("bge-m3", "infinity", 2.0, 0.0),  # 2s, local (infinity-rag)
         ("mistralai/mistral-embed", "openrouter", 0.1, 0.0),  # 100ms, free
-        ("bge-m3", "infinity", 2.0, 0.0),  # 2s, local
     ],
     TaskType.CODE: [
         ("deepseek/deepseek-v4-flash", "openrouter", 0.3, 0.14),  # 300ms, cheap
@@ -108,7 +111,8 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
 
     Provider routing:
       - ollama → LiteLLM (qwen-chat on port 4000) or direct Ollama fallback
-      - deepseek/cerebras/groq/mistral/gemini → via ai_router.chat_completion
+      - deepseek/openrouter → direct DeepSeek API (api.deepseek.com)
+      - groq/mistral/gemini → via ai_router.chat_completion
     """
     import httpx
 
@@ -137,17 +141,37 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
                 )
                 if r.status_code == 200:
                     return {"response": r.json()["response"], "model": model, "provider": "ollama-direct"}
-        elif provider == "deepseek":
-            from app.ai_router import chat_completion
+        elif provider in ("deepseek", "openrouter"):
+            # Direct DeepSeek API (api.deepseek.com) — NOT OpenRouter, NOT Cerebras.
+            # canonical config: llm_config.get_fast_config()/get_analysis_config().
+            from app import llm_config
 
-            result = await chat_completion(
-                messages=[{"role": "user", "content": prompt}],
-                task_type="complex",
-                temperature=kwargs.get("temperature", 0.7),
-                max_tokens=kwargs.get("max_tokens", 2048),
-            )
-            if result and "content" in result:
-                return {"response": result["content"], "model": result.get("model", model), "provider": "deepseek"}
+            cfg = llm_config.get_analysis_config() if "pro" in model else llm_config.get_fast_config()
+            import httpx as _httpx
+
+            async with _httpx.AsyncClient(timeout=90) as _c:
+                _r = await _c.post(
+                    cfg["base_url"],
+                    json={
+                        "model": cfg["model"],
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": kwargs.get("max_tokens", cfg["max_tokens"]),
+                        "temperature": kwargs.get("temperature", cfg["temperature"]),
+                    },
+                    headers={
+                        "Authorization": f"Bearer {cfg['api_key']}",
+                        "Content-Type": "application/json",
+                    },
+                )
+                if _r.status_code == 200:
+                    _d = _r.json()
+                    _msg = _d["choices"][0]["message"]
+                    _content = _msg.get("content") or _msg.get("reasoning_content", "")
+                    return {
+                        "response": _content.strip(),
+                        "model": _d.get("model", cfg["model"]),
+                        "provider": "deepseek-direct",
+                    }
         elif provider == "mistral":
             from app.ai_router import chat_completion
 
@@ -179,7 +203,7 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
             )
             if result and "content" in result:
                 return {"response": result["content"], "model": "qwen-chat", "provider": "litellm-fallback"}
-        elif provider in ("cerebras", "groq"):
+        elif provider == "groq":
             from app.ai_router import chat_completion
 
             result = await chat_completion(
