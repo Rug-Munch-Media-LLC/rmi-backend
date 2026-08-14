@@ -241,6 +241,7 @@ async def _post_chat(
     *,
     proxy_url: str | None = None,
     rotator: Any = None,
+    api_key: str | None = None,
 ) -> dict[str, Any] | None:
     """POST a chat completion; return normalized dict or None on failure.
 
@@ -250,6 +251,9 @@ async def _post_chat(
     proxy→direct fallback as :mod:`app.databus.gmgn_provider`, so a
     blocked/banned residential egress degrades to the datacenter IP instead
     of failing the call.
+
+    ``api_key`` (optional) adds a Bearer Authorization header for the direct
+    DeepSeek API fallback (local llama.cpp needs none).
     """
     payload = {
         "model": model,
@@ -258,11 +262,15 @@ async def _post_chat(
         "max_tokens": max_tokens,
     }
 
+    _headers = {"Content-Type": "application/json"}
+    if api_key:
+        _headers["Authorization"] = f"Bearer {api_key}"
+
     async def _do_post(post_client: Any) -> httpx.Response:
         return await post_client.post(
             url,
             json=payload,
-            headers={"Content-Type": "application/json"},
+            headers=_headers,
         )
 
     proxied = proxy_url is not None and rotator is not None
@@ -422,6 +430,34 @@ async def chat_completion(
                 return result
         except Exception as e:
             logger.warning("llama_cross_unreachable", model=other, error=str(e))
+
+    # ── 3: DeepSeek Flash API (direct api.deepseek.com) fallback ──
+    # Local models are the preferred path (qwen-chat 4B → deepseek-analysis 8B);
+    # when BOTH local llama.cpp servers are down, fall back to the direct
+    # DeepSeek Flash API so the bot never hard-fails on a local-model outage.
+    try:
+        from app import llm_config
+
+        _cfg = llm_config.get_fast_config()
+        if _cfg.get("api_key") and _cfg.get("base_url"):
+            _resp = await _post_chat(
+                client,
+                _cfg["base_url"],
+                _cfg["model"],
+                messages_safe,
+                temperature,
+                max_tokens,
+                provider="deepseek-api",
+                api_key=_cfg["api_key"],
+                proxy_url=proxy_url,
+                rotator=rotator,
+            )
+            if _resp:
+                content = _guard_output(_resp["content"])
+                _resp["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
+                return _resp
+    except Exception as e:
+        logger.warning("deepseek_api_fallback_failed", error=str(e))
 
     from app.core.errors import ExternalAPIError
 
