@@ -115,6 +115,7 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         "OSINT & Forensics",
         [
             ("osint", "<code>username</code> - find public accounts (maigret)"),
+            ("osintall", "<code>target</code> - run ALL OSINT modules at once"),
             ("track", "<code>address</code> - wallet entity/sanction/scam check"),
             ("investigate", "<code>domain</code> - WHOIS/DNS/subdomains/archive"),
             ("email", "<code>email</code> - breach & reputation check"),

@@ -20,7 +20,7 @@ import asyncio
 import html
 import io
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
@@ -531,3 +531,167 @@ async def cmd_face(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
     except (TelegramError, ValueError, TimeoutError, OSError) as exc:
         await msg.edit_text(_error_text("photo", exc), parse_mode=ParseMode.HTML, reply_markup=back_kb())
+
+
+# ─── Aggregate: /osintall ────────────────────────────────────────────
+
+#: Max aggregate findings rendered inline; the rest collapse to "+N more…".
+_MAX_AGGREGATE_FINDINGS = 8
+#: Max per-module errors surfaced in the footer note.
+_MAX_AGGREGATE_ERRORS = 2
+#: Wall-clock budget for the whole aggregate run (shared by every module).
+_AGGREGATE_TIMEOUT = 90
+
+#: Valid explicit ``type`` values accepted by /osintall (mirrors engine).
+_OSINT_TYPES = ("username", "email", "domain", "wallet", "phone", "face")
+
+
+def _format_aggregate_result(result: dict[str, Any]) -> str:
+    """Render the merged ``run_aggregate`` result as a compact HTML message.
+
+    Shows per-module hit counts, the top findings grouped by source/category,
+    then "+N more…" and a short errors note.
+    """
+    target = str(result.get("target") or "?")
+    target_type = str(result.get("target_type") or "unknown")
+    results = result.get("results") or {}
+    findings = result.get("findings") or []
+    errors = result.get("errors") or []
+
+    parts = [
+        f"\U0001f575\ufe0f <b>OSINT Aggregate</b> \u2014 <b>{html.escape(target_type.upper())}</b>",
+        thin_sep(),
+        f"<code>{html.escape(target)}</code>",
+        "",
+    ]
+
+    # Per-module hit counts.
+    if results:
+        parts.append("\U0001f4ca <b>Modules</b>")
+        for key in sorted(results):
+            report = results[key]
+            if not isinstance(report, dict):
+                continue
+            count = len(report.get("findings") or [])
+            module_errors = len(report.get("errors") or [])
+            label = html.escape(str(key))
+            note = f"<b>{count}</b> finding(s)"
+            if module_errors:
+                note += f" \u00b7 {module_errors} err"
+            parts.append(f"\u2022 {label}: {note}")
+    else:
+        parts.append("<i>No modules produced a report.</i>")
+    parts.append("")
+
+    # Top findings, grouped by source/category.
+    parts.append(f"\U0001f50e <b>Findings</b> (top {_MAX_AGGREGATE_FINDINGS})")
+    shown = list(findings)[:_MAX_AGGREGATE_FINDINGS]
+    if not shown:
+        parts.append("<i>No findings collected.</i>")
+    else:
+        for finding in shown:
+            if not isinstance(finding, dict):
+                continue
+            source = html.escape(str(finding.get("source") or "source"))
+            category = str(finding.get("category") or "finding")
+            summary = html.escape(str(finding.get("summary") or ""))
+            confidence = str(finding.get("confidence") or "medium")
+            conf = _CONFIDENCE_EMOJI.get(confidence, "\U0001f7e1")
+            cat = _CATEGORY_EMOJI.get(category, "\u2022")
+            parts.append(f"{cat} {conf} <b>{html.escape(category.title())}</b> \u2014 {summary} <i>({source})</i>")
+        extra = len(findings) - _MAX_AGGREGATE_FINDINGS
+        if extra > 0:
+            parts.append(f"<i>\u2026and {extra} more findings</i>")
+
+    # Errors note.
+    if errors:
+        parts.append("")
+        shown_errors = [html.escape(str(e)) for e in errors[:_MAX_AGGREGATE_ERRORS]]
+        parts.append(f"\u26a0\ufe0f <i>{'; '.join(shown_errors)}</i>")
+        extra_errors = len(errors) - _MAX_AGGREGATE_ERRORS
+        if extra_errors > 0:
+            parts.append(f"<i>\u2026and {extra_errors} more source errors</i>")
+
+    parts.append(footer_links())
+    return "\n".join(parts)
+
+
+async def cmd_osintall(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/osintall <target> [type] — run every applicable OSINT module at once.
+
+    Auto-detects the target type (or takes an explicit type from the second
+    arg), then runs all applicable modules in parallel via the engine's
+    ``run_aggregate`` and merges every finding into one summary.
+    """
+    user = update.effective_user
+    if user is None:
+        return
+    db.get_or_create_user(user.id, user.username, user.first_name)
+
+    if not ctx.args:
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+            "\U0001f575\ufe0f <b>OSINT Aggregate</b>\n\n"
+            "Usage: /osintall <code>target</code> [type]\n\n"
+            "Examples:\n"
+            "  /osintall <code>scam-example.com</code>\n"
+            "  /osintall <code>0xBE0eB53FC46b790099138e3d32C721856d41e865</code> wallet\n\n"
+            "Auto-detects the target type (username / email / domain / wallet / "
+            "phone / face) and runs every applicable module in parallel, then "
+            "merges all findings into one summary.\n\n"
+            "\u23f3 Can take up to 90s.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+        return
+
+    target = ctx.args[0].strip()
+    if not target:
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+            "\u26a0\ufe0f <b>Invalid target</b>\n\n"
+            "Pass a username, email, domain, wallet address, phone or photo description.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+        return
+    target_type = ctx.args[1].strip().lower() if len(ctx.args) > 1 else "auto"
+    if target_type != "auto" and target_type not in _OSINT_TYPES:
+        await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+            f"\u26a0\ufe0f <b>Invalid type</b>\n\nExpected one of: <code>{', '.join(_OSINT_TYPES)}</code>.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+        return
+
+    msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+        f"\U0001f50d <b>Investigating everything...</b>\n<code>{html.escape(target)}</code>\n\n"
+        "\u23f3 Running all applicable OSINT modules (up to 90s)...",
+        parse_mode=ParseMode.HTML,
+    )
+    try:
+        from app.osint.engine import run_aggregate
+    except (ImportError, AttributeError) as exc:
+        logger.warning("osint engine unavailable: %s", exc)
+        await msg.edit_text(
+            "\u26a0\ufe0f <b>OSINT engine unavailable</b>\n\n"
+            "The aggregate OSINT engine is not installed on this server.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )
+        return
+
+    try:
+        result = await asyncio.to_thread(run_aggregate, target, target_type, timeout=_AGGREGATE_TIMEOUT)
+        await msg.edit_text(
+            _format_aggregate_result(result),
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+        )
+    except Exception as exc:  # best-effort aggregate; never crash the handler
+        logger.warning("osintall failed for %s: %s", target, exc)
+        await msg.edit_text(
+            "\u274c <b>OSINT Aggregate Failed</b>\n\n"
+            f"<code>{html.escape(target)}</code>\n\n"
+            "Could not complete the aggregate lookup. Please try again later.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
+        )

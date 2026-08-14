@@ -102,6 +102,7 @@ from app.domains.telegram.rugmunchbot.handlers.osint import (
     cmd_face,
     cmd_investigate,
     cmd_osint,
+    cmd_osintall,
     cmd_phone,
     cmd_track,
 )
@@ -441,6 +442,7 @@ def main() -> None:
 
     # OSINT & Forensics (self-hosted OSINT section)
     _reg(app, "osint", cmd_osint)
+    _reg(app, "osintall", cmd_osintall)
     _reg(app, "track", cmd_track)
     _reg(app, "email", cmd_email)
     _reg(app, "phone", cmd_phone)
