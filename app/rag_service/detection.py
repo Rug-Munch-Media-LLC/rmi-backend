@@ -11,9 +11,10 @@ from app.crypto_embeddings import (
     extract_contract_features,
     get_embedder,
 )
+from app.rag_service import state as rag_state
 from app.rag_service.cache import _get_redis
 from app.rag_service.indexing import _preembed_scam_patterns
-from app.rag_service.state import _pattern_cache, _pattern_cache_loaded
+from app.rag_service.state import _pattern_cache
 
 logger = get_logger(__name__)
 
@@ -22,7 +23,7 @@ async def detect_scam_patterns(token_data: dict[str, Any], threshold: float = 0.
     """Compare a token against all known scam patterns."""
     embedder = await get_embedder()
 
-    if not _pattern_cache_loaded:
+    if not rag_state._pattern_cache_loaded:
         await _preembed_scam_patterns()
 
     code = token_data.get("contract_code", "")

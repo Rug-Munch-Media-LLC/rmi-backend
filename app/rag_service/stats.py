@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from app.crypto_embeddings import COLLECTIONS, get_embedder
+from app.rag_service import state as rag_state
 from app.rag_service.cache import _get_redis
-from app.rag_service.state import _seeded
 
 
 async def get_stats() -> dict[str, Any]:
@@ -48,7 +48,7 @@ async def get_stats() -> dict[str, Any]:
         "embedder": embedder.stats,
         "collections": collection_sizes,
         "total_docs": sum(collection_sizes.values()),
-        "seeded": _seeded,
+        "seeded": rag_state._seeded,
         "ann_index": ann_stats,
         "semantic_cache": cache_stats,
     }
