@@ -19,6 +19,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
+from fastapi import HTTPException
 from jose import jwt as jose_jwt
 
 # Import test-level fixtures from this package's conftest
@@ -133,21 +134,93 @@ class TestJWTCreationAndValidation:
         }
         token = jose_jwt.encode(payload, TEST_JWT_SECRET, algorithm="HS256")
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(HTTPException) as exc_info:
             validate_token(token)
         # Should raise HTTPException 401
-        assert exc_info.errisinstance(Exception)
-        # FastAPI HTTPException carries status_code
-        assert getattr(exc_info.value, "status_code", None) in (401, None)
+        assert exc_info.value.status_code in (401, 403)
 
     def test_jwt_with_empty_token_raises_401(self):
         """validate_token with empty string should raise 401."""
         from app.auth.jwt_validation import validate_token
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(HTTPException) as exc_info:
             validate_token("")
-        status = getattr(exc_info.value, "status_code", None)
+        status = exc_info.value.status_code
         assert status == 401, f"Expected 401, got {status}"
+
+    def test_preauth_token_rejected_by_default(self):
+        """SECURITY (2FA bypass regression): a pending-2FA token (pre_auth /
+        2fa_required claims) must be rejected by validate_token on full-auth."""
+        from app.auth.jwt_validation import validate_token
+
+        now = datetime.now(UTC)
+        payload = {
+            "sub": "user-2fa",
+            "email": "2fa@rugmunch.io",
+            "tier": "FREE",
+            "role": "USER",
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+            "pre_auth": True,
+            "2fa_required": True,
+        }
+        token = jose_jwt.encode(payload, TEST_JWT_SECRET, algorithm="HS256")
+
+        with pytest.raises(Exception, match="2FA verification required") as exc_info:
+            validate_token(token)
+        status = getattr(exc_info.value, "status_code", None)
+        assert status == 401, f"Expected 401 for pending-2FA token, got {status}"
+
+    def test_preauth_token_accepted_with_flag(self):
+        """The 2FA-completion endpoint may validate a pending-2FA token via
+        allow_preauth=True — but that is the only permitted caller."""
+        from app.auth.jwt_validation import validate_token
+
+        now = datetime.now(UTC)
+        payload = {
+            "sub": "user-2fa",
+            "email": "2fa@rugmunch.io",
+            "tier": "FREE",
+            "role": "USER",
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+            "2fa_required": True,
+        }
+        token = jose_jwt.encode(payload, TEST_JWT_SECRET, algorithm="HS256")
+
+        claims = validate_token(token, allow_preauth=True)
+        assert claims["id"] == "user-2fa"
+        assert claims["email"] == "2fa@rugmunch.io"
+
+    def test_is_preauth_token_detects_pending_2fa(self):
+        """is_preauth_token returns True only for validly-signed pre-auth tokens."""
+        from app.auth.jwt_validation import is_preauth_token
+
+        now = datetime.now(UTC)
+        pre_payload = {
+            "sub": "user-2fa",
+            "email": "2fa@rugmunch.io",
+            "tier": "FREE",
+            "role": "USER",
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+            "pre_auth": True,
+        }
+        pre_token = jose_jwt.encode(pre_payload, TEST_JWT_SECRET, algorithm="HS256")
+        full_payload = {
+            "sub": "user-full",
+            "email": "full@rugmunch.io",
+            "tier": "FREE",
+            "role": "USER",
+            "iat": now,
+            "exp": now + timedelta(days=1),
+        }
+        full_token = jose_jwt.encode(full_payload, TEST_JWT_SECRET, algorithm="HS256")
+
+        assert is_preauth_token(pre_token) is True
+        assert is_preauth_token(full_token) is False
+        assert is_preauth_token("not-a-jwt") is False
+        assert is_preauth_token("") is False
 
 
 class TestJWTExpiry:
@@ -187,10 +260,9 @@ class TestJWTExpiry:
         }
         token = jose_jwt.encode(payload, TEST_JWT_SECRET, algorithm="HS256")
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(HTTPException) as exc_info:
             validate_token(token)
-        status = getattr(exc_info.value, "status_code", None)
-        assert status == 401, f"Expected 401 for expired token, got {status}"
+        assert exc_info.value.status_code == 401, f"Expected 401 for expired token, got {exc_info.value.status_code}"
 
     def test_token_expires_at_correct_time(self):
         """Token exp should be set to midnight + expire_days (code truncates to midnight)."""
@@ -249,8 +321,7 @@ class TestAuthMiddlewareAPIKey:
 
     def test_missing_api_key_returns_401(self, client):
         """Protected route without X-API-Key returns 401."""
-        resp = client.get("/api/v1/version")
-        # This might be public — try a known protected path
+        # /version may be public — use a known protected path
         resp2 = client.get("/api/v1/wallet/abc123")
         # At least one should be protected
         assert resp2.status_code == 401, f"Expected 401 for protected route without API key, got {resp2.status_code}"

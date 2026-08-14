@@ -32,13 +32,30 @@ from jose import JWTError, jwt
 logger = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
-# Services configure these via environment variables.
-# rmi-backend's app.config.settings is the primary source of truth.
+# Single source of truth: rmi-backend's app.config.settings (env JWT_*).
+# This mirrors app/domains/auth/jwt.py so the issuer and validator always agree.
+# Standalone consumers of this library (walletpress, pryscraper, degenfeed-web)
+# that copy the module without app.config fall back to RMI_JWT_* env vars.
 
-_JWT_ALGORITHM: str = os.getenv("RMI_JWT_ALGORITHM", "RS256")
-_JWT_SECRET: str = os.getenv("RMI_JWT_SECRET", "")
-_JWT_PUBLIC_KEY: str = os.getenv("RMI_JWT_PUBLIC_KEY", "")
-_JWT_PRIVATE_KEY: str = os.getenv("RMI_JWT_PRIVATE_KEY", "")
+try:
+    from app.config import settings as _app_settings
+
+    _JWT_ALGORITHM: str = _app_settings.jwt_algorithm
+    _JWT_SECRET: str = _app_settings.jwt_secret
+    _JWT_PUBLIC_KEY: str = _app_settings.jwt_public_key
+    _JWT_PRIVATE_KEY: str = _app_settings.jwt_private_key
+    # Mirror app/domains/auth/jwt.py: RS256 configured without keys falls back
+    # to HS256 outside production (keeps issuer and validator in sync).
+    if _JWT_ALGORITHM == "RS256" and not (_JWT_PRIVATE_KEY and _JWT_PUBLIC_KEY):
+        if _app_settings.environment == "prod":
+            raise RuntimeError("JWT_ALGORITHM=RS256 configured but JWT_PRIVATE_KEY or JWT_PUBLIC_KEY not set.")
+        logger.warning("JWT_ALGORITHM=RS256 configured but keys not set. Falling back to HS256.")
+        _JWT_ALGORITHM = "HS256"
+except ImportError:  # pragma: no cover — standalone library use without app.config
+    _JWT_ALGORITHM = os.getenv("RMI_JWT_ALGORITHM", "RS256")
+    _JWT_SECRET = os.getenv("RMI_JWT_SECRET", "")
+    _JWT_PUBLIC_KEY = os.getenv("RMI_JWT_PUBLIC_KEY", "")
+    _JWT_PRIVATE_KEY = os.getenv("RMI_JWT_PRIVATE_KEY", "")
 
 # Cache for loaded keys
 _public_key: str | None = None
@@ -96,17 +113,21 @@ def _get_private_key() -> str | None:
     return _private_key
 
 
-def validate_token(token: str) -> dict[str, Any]:
+def validate_token(token: str, *, allow_preauth: bool = False) -> dict[str, Any]:
     """Validate a JWT and return user claims.
 
     Args:
         token: The JWT string (without 'Bearer ' prefix).
+        allow_preauth: Allow pending-2FA tokens (``pre_auth`` / ``2fa_required``
+            claims). ONLY the 2FA-completion endpoint uses this. Default False
+            rejects pending-2FA tokens, closing the 2FA-bypass hole.
 
     Returns:
         Dict with keys: id, email, tier, role, wallet (optional).
 
     Raises:
-        HTTPException(401): If token is invalid, expired, or malformed.
+        HTTPException(401): If token is invalid, expired, malformed, or a
+            pending-2FA token when full auth is required.
     """
     if not token:
         raise HTTPException(status_code=401, detail="Missing authentication token")
@@ -123,6 +144,13 @@ def validate_token(token: str) -> dict[str, Any]:
         logger.warning("JWT validation failed: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
 
+    # AUDIT-2026-Q3 (2FA bypass): a pending-2FA token is NOT fully authenticated.
+    # Reject it on any full-auth route unless the caller explicitly opts in
+    # (2FA-completion endpoint only).
+    if not allow_preauth and (payload.get("pre_auth") or payload.get("2fa_required")):
+        logger.warning("JWT validation failed: pending-2FA (pre_auth) token used for full auth")
+        raise HTTPException(status_code=401, detail="2FA verification required")
+
     # Extract standard claims
     claims: dict[str, Any] = {
         "id": payload.get("sub", ""),
@@ -136,6 +164,27 @@ def validate_token(token: str) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Token missing subject (sub)")
 
     return claims
+
+
+def is_preauth_token(token: str) -> bool:
+    """Return True if the token is a validly-signed pending-2FA (pre_auth) token.
+
+    Used by the auth middleware's optional-auth path: a pre-auth token is a
+    *legitimate* credential that simply hasn't completed 2FA, so it must not be
+    rejected with 401 on public routes — but it grants no user claims and is
+    never accepted as full auth (see validate_token).
+    """
+    if not token:
+        return False
+    key = _get_public_key()
+    if not key:
+        return False
+    algorithm = "RS256" if _JWT_ALGORITHM == "RS256" else "HS256"
+    try:
+        payload = jwt.decode(token, key, algorithms=[algorithm])
+    except JWTError:
+        return False
+    return bool(payload.get("pre_auth") or payload.get("2fa_required"))
 
 
 def create_token(

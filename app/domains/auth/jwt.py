@@ -64,7 +64,18 @@ def _create_jwt(user_id: str, email: str, tier: str = "FREE", role: str = "USER"
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
-def _verify_jwt(token: str) -> dict[str, Any] | None:
+def _verify_jwt(token: str, *, allow_preauth: bool = False) -> dict[str, Any] | None:
+    """Verify a JWT and return user claims.
+
+    By default, pending-2FA tokens (carrying ``pre_auth`` / ``2fa_required``
+    claims, issued by the email login flow) are REJECTED — they are not fully
+    authenticated and must never unlock full-auth routes. The 2FA-completion
+    endpoint (``POST /2fa/verify``) passes ``allow_preauth=True`` explicitly.
+
+    Args:
+        token: The JWT string.
+        allow_preauth: Allow pending-2FA tokens (2FA-completion endpoint only).
+    """
     try:
         if JWT_ALGORITHM == "RS256" and _JWT_PUBLIC_KEY:
             payload = jwt.decode(token, _JWT_PUBLIC_KEY, algorithms=["RS256"])
@@ -72,6 +83,12 @@ def _verify_jwt(token: str) -> dict[str, Any] | None:
             payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         # Guard against malformed tokens lacking required claims
         if "sub" not in payload:
+            return None
+        # AUDIT-2026-Q3 (2FA bypass): a token with pre_auth / 2fa_required is a
+        # pending-2FA credential. Reject it on full-auth routes unless the
+        # caller explicitly opts in (2FA-completion endpoint only).
+        if not allow_preauth and (payload.get("pre_auth") or payload.get("2fa_required")):
+            logger.warning("preauth_token_rejected")
             return None
         return {
             "id": payload["sub"],
@@ -82,6 +99,26 @@ def _verify_jwt(token: str) -> dict[str, Any] | None:
         }
     except JWTError:
         return None
+
+
+def is_preauth_token(token: str) -> bool:
+    """Return True if the token is a validly-signed pending-2FA (pre_auth) token.
+
+    Used by the auth middleware's optional-auth path: a pre-auth token is a
+    *legitimate* credential that simply hasn't completed 2FA, so it must not
+    be rejected with 401 on public routes — but it grants no user claims and
+    is never accepted as full auth (see _verify_jwt).
+    """
+    if not token:
+        return False
+    try:
+        if JWT_ALGORITHM == "RS256" and _JWT_PUBLIC_KEY:
+            payload = jwt.decode(token, _JWT_PUBLIC_KEY, algorithms=["RS256"])
+        else:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except JWTError:
+        return False
+    return bool(payload.get("pre_auth") or payload.get("2fa_required"))
 
 
 def _derive_user_id(email: str) -> str:

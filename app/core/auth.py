@@ -45,6 +45,7 @@ hits a protected endpoint without an ``X-Consumer-ID`` header.
 
 from __future__ import annotations
 
+import secrets
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -180,6 +181,18 @@ def _consumer_keys_for(request: Request) -> set[str]:
     if not key:
         return set()
     return {key}
+
+
+def _constant_time_in(candidate: str, valid: set[str]) -> bool:
+    """Constant-time membership test: True if candidate equals any valid key.
+
+    Uses secrets.compare_digest (timing-safe) instead of ``in`` set membership,
+    which short-circuits on prefix/length and leaks key equality over the wire.
+    """
+    if not candidate:
+        return False
+    candidate_b = candidate.encode("utf-8")
+    return any(key and secrets.compare_digest(candidate_b, key.encode("utf-8")) for key in valid)
 
 
 def _path_has_route(path: str, routes: list[Any]) -> bool:
@@ -350,6 +363,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request.state.user = user
                 request.state.auth_method = "jwt"
                 return None
+            # A validly-signed pending-2FA (pre_auth) token is a legitimate
+            # credential that hasn't completed 2FA yet. On a PUBLIC route it
+            # must pass through anonymously (the 2FA-completion endpoint at
+            # /api/v1/auth/2fa/verify consumes it). It grants no user claims
+            # and is rejected on protected routes by validate_token.
+            try:
+                from app.auth.jwt_validation import is_preauth_token
+
+                if is_preauth_token(auth_header[7:].strip()):
+                    return None
+            except Exception as exc:
+                log.warning("preauth_check_error path=%s err=%s", request.url.path, exc)
 
         # A credential was presented but is invalid — reject.
         log.warning(
@@ -378,24 +403,28 @@ class AuthMiddleware(BaseHTTPMiddleware):
     def _has_valid_shared_secret(self, request: Request) -> bool:
         """Accept X-API-Key == RMI_AUTH_TOKEN, X-RMI-Key == RMI_INTERNAL_KEY
         (fallback RMI_AUTH_TOKEN), or Bearer matching either — plus any key
-        registered to the request's X-Consumer-ID."""
+        registered to the request's X-Consumer-ID.
+
+        Comparisons use secrets.compare_digest (constant-time) — plain set
+        membership leaks key equality via timing.
+        """
         api_key = (request.headers.get("X-API-Key") or "").strip()
         if api_key:
             valid = {RMI_AUTH_TOKEN} | _consumer_keys_for(request)
-            if api_key in valid:
+            if _constant_time_in(api_key, valid):
                 return True
 
         rmi_key = (request.headers.get("X-RMI-Key") or "").strip()
         if rmi_key:
             valid = {RMI_INTERNAL_KEY, RMI_AUTH_TOKEN} | _consumer_keys_for(request)
-            if rmi_key in valid:
+            if _constant_time_in(rmi_key, valid):
                 return True
 
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:].strip()
             valid = {RMI_AUTH_TOKEN, RMI_INTERNAL_KEY} | _consumer_keys_for(request)
-            if token in valid:
+            if _constant_time_in(token, valid):
                 return True
 
         return False

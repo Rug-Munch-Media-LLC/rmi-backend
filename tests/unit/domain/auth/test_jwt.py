@@ -6,7 +6,7 @@ Mocks JWT_SECRET and uses datetime patching instead of freezegun.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import jwt as pyjwt
@@ -131,6 +131,70 @@ class TestVerifyJWT:
 
         with patch("app.domains.auth.jwt.JWT_SECRET", "test-secret-key-32-chars-long-enough!!"):
             assert _verify_jwt("") is None
+
+    def test_preauth_token_rejected_by_default(self):
+        """SECURITY (2FA bypass regression): a pending-2FA token (pre_auth /
+        2fa_required claims) must NOT verify on full-auth routes."""
+        from app.domains.auth.__init__ import _verify_jwt
+
+        secret = "test-secret-key-32-chars-long-enough!!"
+        with patch("app.domains.auth.jwt.JWT_SECRET", secret):
+            now = datetime.now()
+            payload = {
+                "sub": "user_2fa",
+                "email": "2fa@example.com",
+                "tier": "FREE",
+                "role": "USER",
+                "iat": now,
+                "exp": now + timedelta(minutes=5),
+                "pre_auth": True,
+                "2fa_required": True,
+            }
+            pre_token = pyjwt.encode(payload, secret, algorithm="HS256")
+            assert _verify_jwt(pre_token) is None, "pending-2FA token must be rejected on full-auth routes (2FA bypass)"
+
+    def test_preauth_token_allowed_with_flag(self):
+        """The 2FA-completion endpoint may verify a pending-2FA token by
+        passing allow_preauth=True — but only there."""
+        from app.domains.auth.__init__ import _verify_jwt
+
+        secret = "test-secret-key-32-chars-long-enough!!"
+        with patch("app.domains.auth.jwt.JWT_SECRET", secret):
+            now = datetime.now()
+            payload = {
+                "sub": "user_2fa",
+                "email": "2fa@example.com",
+                "tier": "FREE",
+                "role": "USER",
+                "iat": now,
+                "exp": now + timedelta(minutes=5),
+                "pre_auth": True,
+                "2fa_required": True,
+            }
+            pre_token = pyjwt.encode(payload, secret, algorithm="HS256")
+            result = _verify_jwt(pre_token, allow_preauth=True)
+            assert result is not None
+            assert result["id"] == "user_2fa"
+
+    def test_preauth_token_rejected_even_with_other_claims(self):
+        """A pending-2FA token is rejected regardless of sub/email being set —
+        the pre_auth / 2fa_required claims are what matter."""
+        from app.domains.auth.__init__ import _verify_jwt
+
+        secret = "test-secret-key-32-chars-long-enough!!"
+        with patch("app.domains.auth.jwt.JWT_SECRET", secret):
+            now = datetime.now()
+            payload = {
+                "sub": "user_2fa",
+                "email": "2fa@example.com",
+                "tier": "PRO",
+                "role": "ADMIN",
+                "iat": now,
+                "exp": now + timedelta(minutes=5),
+                "2fa_required": True,
+            }
+            pre_token = pyjwt.encode(payload, secret, algorithm="HS256")
+            assert _verify_jwt(pre_token) is None
 
 
 class TestJWTDeriveUserID:
