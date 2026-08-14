@@ -3,7 +3,8 @@
 Submodules
 ----------
 * ``loaders`` — fetch/parse open labeled datasets (SmartBugs-Wild, Real-CATS,
-  DeFiHackLabs) with local caching and graceful offline failure.
+  DeFiHackLabs, SolRPDS, OpenAML) with local caching and graceful offline
+  failure.
 * ``eval`` — small model-agnostic harness: given a
   ``predict(address_or_contract) -> risk_label`` callback, compute
   precision/recall/F1 against a loaded ground-truth set.
@@ -27,8 +28,10 @@ from app.ml_datasets.loaders import (
     LabeledRecord,
     load_dataset,
     load_defihacklabs,
+    load_openaml,
     load_realcats,
     load_smartbugs,
+    load_solrpds,
 )
 
 __all__ = [
@@ -41,8 +44,10 @@ __all__ = [
     "evaluate",
     "load_dataset",
     "load_defihacklabs",
+    "load_openaml",
     "load_realcats",
     "load_smartbugs",
+    "load_solrpds",
     "precision_recall_f1",
 ]
 

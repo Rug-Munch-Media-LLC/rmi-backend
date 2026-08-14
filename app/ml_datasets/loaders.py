@@ -25,12 +25,21 @@ Datasets
 * **defihacklabs** — 850+ real DeFi exploit incidents with Foundry PoCs
   (SunWeb3Sec/DeFiHackLabs) — a "known-bad" protocol/incident list parsed from
   the repo README (``### YYYYMMDD Protocol - description`` headings).
+* **solrpds** — Solana rug-pull dataset (DeFiLabX/SolRPDS, CC BY 4.0): liquidity
+  pools on Raydium/Jupiter annotated with ``INACTIVITY_STATUS`` (the paper's
+  rug-pull indicator) plus liquidity add/remove profiles; CSV/JSON artifacts
+  covering 2021-11 .. 2024-11.
+* **openaml** — FINOS OpenAML (finos-labs/dtcch-2025-OpenAML, Apache-2.0):
+  ~500k vetted illicit wallet addresses grouped into three AML risk categories
+  (sanctioned, fraud, flagged); gzipped CSV ``blockchain,wallet_address,flag``.
 """
 
 from __future__ import annotations
 
 import csv
+import gzip
 import io
+import json
 import logging
 import os
 import re
@@ -41,7 +50,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +169,21 @@ def _cached_download(url: str, cache_dir: Path, filename: str, timeout: float = 
     tmp.write_bytes(data)
     tmp.replace(dest)
     return dest, False
+
+
+def _clean_str(value: Any) -> str | None:
+    """Strip a raw cell; map empty/``null``/``None``/``nan`` strings to None.
+
+    Both SolRPDS (CSV/JSON) and OpenAML (gzipped CSV) encode missing values as
+    the literal string ``"null"`` — normalize them here so downstream code only
+    sees real values.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text.lower() in ("null", "none", "nan"):
+        return None
+    return text
 
 
 # ── SmartBugs-Wild ───────────────────────────────────────────────────────────
@@ -438,6 +462,286 @@ def _parse_defihacklabs_readme(path: Path, limit: int | None) -> list[LabeledRec
     return out
 
 
+# ── SolRPDS ──────────────────────────────────────────────────────────────────
+
+
+SOLRPDS_INFO = DatasetInfo(
+    name="solrpds",
+    description=(
+        "Solana rug-pull dataset built from 3.69B blockchain transactions "
+        "(2021-11 .. 2024-11). Liquidity pools on Raydium/Jupiter annotated with "
+        "INACTIVITY_STATUS — the paper's key rug-pull indicator — plus liquidity "
+        "add/remove profiles. One CSV/JSON row per (pool x mint)."
+    ),
+    source_url="https://github.com/DeFiLabX/SolRPDS",
+    license="CC BY 4.0 (Creative Commons Attribution 4.0 International; repo README)",
+    citation=(
+        "Alhaidari, A., Kalal, B., Palanisamy, B., Sural, S. (2025). SolRPDS: A Dataset "
+        "for Analyzing Rug Pulls in Solana Decentralized Finance. CODASPY 2025, pp. 293-298. "
+        "arXiv:2504.07132"
+    ),
+    positive_semantics=(
+        "INACTIVITY_STATUS == Inactive (abandoned pool, the paper's rug-pull indicator) "
+        "vs Active (still operating). [REVIEW] confirm label mapping before production use."
+    ),
+)
+SOLRPDS_BASE = "https://raw.githubusercontent.com/DeFiLabX/SolRPDS/main/dataset"
+# year -> (remote CSV path, remote JSON path)
+SOLRPDS_FILES: dict[str, tuple[str, str]] = {
+    "2021": ("CSV/2021.csv", "json/2021.json"),
+    "2022": ("CSV/2022.csv", "json/2022.json"),
+    "2023": ("CSV/2023.csv", "json/2023.json"),
+    "2024": ("CSV/Jan_2024-Nov_2024.csv", "json/Jan_2024-Nov_2024.json"),
+}
+_SOLRPDS_ADDR_COL = "LIQUIDITY_POOL_ADDRESS"
+_SOLRPDS_MINT_COL = "MINT"
+_SOLRPDS_LABEL_COL = "INACTIVITY_STATUS"
+
+
+def load_solrpds(
+    cache_dir: str | Path | None = None,
+    years: tuple[str, ...] = ("2021", "2022", "2023", "2024"),
+    fmt: str = "csv",
+    limit: int | None = None,
+    with_features: bool = False,
+) -> LabeledDataset:
+    """Load SolRPDS rug-pull labeled pools.
+
+    ``years`` selects which annual slices to fetch (default all four);
+    ``fmt`` selects the artifact format: ``"csv"`` (smaller, default) or
+    ``"json"`` — both carry the same columns. Files are a few MB each and are
+    cached under ``<cache>/solrpds_<year>.<ext>``. Set ``with_features=True``
+    to keep the liquidity-profile columns in ``record.extra``.
+    """
+    if fmt not in ("csv", "json"):
+        raise ValueError(f"SolRPDS: fmt must be 'csv' or 'json', got {fmt!r}")
+    unknown = [y for y in years if y not in SOLRPDS_FILES]
+    if unknown:
+        raise ValueError(f"SolRPDS: unknown year(s) {unknown}; available: {sorted(SOLRPDS_FILES)}")
+    cache = _resolve_cache_dir(cache_dir)
+    records: list[LabeledRecord] = []
+    from_cache = True
+    for year in years:
+        remote = SOLRPDS_FILES[year][0 if fmt == "csv" else 1]
+        cache_name = f"solrpds_{Path(remote).name}"
+        path, was_cached = _cached_download(f"{SOLRPDS_BASE}/{remote}", cache, cache_name, timeout=300.0)
+        from_cache = from_cache and was_cached
+        if fmt == "csv":
+            records.extend(_parse_solrpds_csv(path, year=year, limit=limit, with_features=with_features))
+        else:
+            records.extend(_parse_solrpds_json(path, year=year, limit=limit, with_features=with_features))
+        if limit is not None and len(records) >= limit:
+            break
+    if not records:
+        raise DatasetDownloadError("SolRPDS: no records loaded (check 'years'/'fmt' arguments and network access)")
+    if limit is not None:
+        records = records[:limit]
+    return LabeledDataset(info=SOLRPDS_INFO, records=records, from_cache=from_cache)
+
+
+def _parse_solrpds_csv(path: Path, *, year: str, limit: int | None, with_features: bool) -> list[LabeledRecord]:
+    records: list[LabeledRecord] = []
+    with path.open("r", encoding="utf-8", errors="replace", newline="") as fh:
+        reader = csv.DictReader(fh)
+        if reader.fieldnames is None:
+            raise DatasetDownloadError(f"SolRPDS: {path.name} has no header row")
+        for row in reader:
+            rec = _solrpds_row_to_record(row, year=year, with_features=with_features)
+            if rec is None:
+                continue
+            records.append(rec)
+            if limit is not None and len(records) >= limit:
+                break
+    return records
+
+
+def _parse_solrpds_json(path: Path, *, year: str, limit: int | None, with_features: bool) -> list[LabeledRecord]:
+    raw = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    if not isinstance(raw, list):
+        raise DatasetDownloadError(f"SolRPDS: {path.name} is not a JSON array")
+    records: list[LabeledRecord] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        rec = _solrpds_row_to_record(item, year=year, with_features=with_features)
+        if rec is None:
+            continue
+        records.append(rec)
+        if limit is not None and len(records) >= limit:
+            break
+    return records
+
+
+def _solrpds_row_to_record(row: dict[str, Any], *, year: str, with_features: bool) -> LabeledRecord | None:
+    """Normalize one SolRPDS row (shared by the CSV and JSON artifacts)."""
+    pool = _clean_str(row.get(_SOLRPDS_ADDR_COL))
+    status = _clean_str(row.get(_SOLRPDS_LABEL_COL))
+    if not pool or status is None:
+        return None  # no pool address or no inactivity label -> no ground truth
+    positive = status.lower() == "inactive"
+    extra: dict[str, Any] = {
+        "mint": _clean_str(row.get(_SOLRPDS_MINT_COL)),
+        "year": year,
+        "inactivity_status": status,
+    }
+    if with_features:
+        extra.update(
+            {
+                k: v
+                for k, v in row.items()
+                if k not in (_SOLRPDS_ADDR_COL, _SOLRPDS_MINT_COL, _SOLRPDS_LABEL_COL) and _clean_str(v) is not None
+            }
+        )
+    return LabeledRecord(
+        id=f"{pool}:{_clean_str(row.get(_SOLRPDS_MINT_COL)) or '-'}",
+        address=pool,
+        label="rug-pull" if positive else "benign",
+        positive=positive,
+        source=SOLRPDS_INFO.name,
+        extra=extra,
+    )
+
+
+# ── OpenAML ──────────────────────────────────────────────────────────────────
+
+
+OPENAML_INFO = DatasetInfo(
+    name="openaml",
+    description=(
+        "FINOS OpenAML — ~500k vetted wallet addresses grouped by AML risk "
+        "category: sanctioned (OFAC/SEC/stablecoin blocklists), fraud "
+        "(exploit-linked & security incidents), flagged (reported scams & "
+        "phishing, e.g. HashDit). All listed addresses are illicit."
+    ),
+    source_url="https://github.com/finos-labs/dtcch-2025-OpenAML",
+    license="Apache-2.0 (Copyright 2025 FINOS; repo LICENSE)",
+    citation=(
+        "OpenAML: Open and Intelligent Compliance for On-Chain Anti-Money Laundering "
+        "(FINOS / DTCC hackathon; finos-labs/dtcch-2025-OpenAML)"
+    ),
+    positive_semantics="all listed addresses are illicit: sanctioned / fraud / flagged",
+)
+OPENAML_BASE = "https://raw.githubusercontent.com/finos-labs/dtcch-2025-OpenAML/main/Data"
+# category -> (gzipped CSV filename, default label)
+OPENAML_FILES: dict[str, tuple[str, str]] = {
+    "flagged": ("address_flagged.csv.gz", "flagged"),
+    "fraud": ("address_fraud.csv.gz", "fraud"),
+    "sanctioned": ("address_sanctioned.csv.gz", "sanctioned"),
+}
+
+
+def load_openaml(
+    cache_dir: str | Path | None = None,
+    categories: tuple[str, ...] = ("flagged", "fraud", "sanctioned"),
+    limit: int | None = None,
+) -> LabeledDataset:
+    """Load FINOS OpenAML labeled addresses (every record is illicit/positive).
+
+    Each category is a gzipped CSV (``blockchain,wallet_address,flag``) fetched
+    from the repo's ``Data/`` folder and cached under its original filename.
+    EVM (``0x...``) addresses are lowercased for consistent lookups.
+    """
+    unknown = [c for c in categories if c not in OPENAML_FILES]
+    if unknown:
+        raise ValueError(f"OpenAML: unknown category(ies) {unknown}; available: {sorted(OPENAML_FILES)}")
+    cache = _resolve_cache_dir(cache_dir)
+    records: list[LabeledRecord] = []
+    from_cache = True
+    for category in categories:
+        fname, default_label = OPENAML_FILES[category]
+        path, was_cached = _cached_download(f"{OPENAML_BASE}/{fname}", cache, fname, timeout=300.0)
+        from_cache = from_cache and was_cached
+        records.extend(_parse_openaml_csv(path, category=category, default_label=default_label, limit=limit))
+        if limit is not None and len(records) >= limit:
+            break
+    if not records:
+        raise DatasetDownloadError("OpenAML: no records loaded (check 'categories' argument and network access)")
+    if limit is not None:
+        records = records[:limit]
+    return LabeledDataset(info=OPENAML_INFO, records=records, from_cache=from_cache)
+
+
+def _parse_openaml_csv(path: Path, *, category: str, default_label: str, limit: int | None) -> list[LabeledRecord]:
+    with gzip.open(path, "rt", encoding="utf-8", errors="replace", newline="") as fh:
+        text = fh.read()
+    lines = text.splitlines()
+    # The shipped artifacts are headerless (blockchain,wallet_address,flag rows);
+    # the Data/README documents a header. Sniff: if the first line looks like a
+    # header we honor it, otherwise fall back to positional columns.
+    header, rows = _sniff_csv_header(lines)
+    iterable: Iterable[dict[str, Any]]
+    addr_col: str
+    chain_col: str | None
+    label_col: str | None
+    if header:
+        reader = csv.DictReader(io.StringIO("\n".join(lines)))
+        if reader.fieldnames is None:
+            raise DatasetDownloadError(f"OpenAML: {path.name} has no header row")
+        addr_col = next(
+            (c for c in reader.fieldnames if c.strip().lower() in ("wallet_address", "address")),
+            reader.fieldnames[0],
+        )
+        chain_col = next((c for c in reader.fieldnames if c.strip().lower() in ("blockchain", "chain")), None)
+        label_col = next((c for c in reader.fieldnames if c.strip().lower() in ("annotation", "flag", "label")), None)
+        iterable = reader
+    else:
+        # Positional: blockchain,wallet_address,flag (the shipped shape).
+        addr_col, chain_col, label_col = "wallet_address", "blockchain", "flag"
+        iterable = (dict(zip(("blockchain", "wallet_address", "flag"), r, strict=False)) for r in rows)
+    records: list[LabeledRecord] = []
+    for row in iterable:
+        if limit is not None and len(records) >= limit:
+            break
+        rec = _openaml_row_to_record(
+            row,
+            addr_col=addr_col,
+            chain_col=chain_col,
+            label_col=label_col,
+            category=category,
+            default_label=default_label,
+        )
+        if rec is None:
+            continue
+        records.append(rec)
+    return records
+
+
+def _sniff_csv_header(lines: list[str]) -> tuple[bool, list[list[str]]]:
+    """Return ``(has_header, parsed_rows)`` for the first non-empty line."""
+    if not lines:
+        return False, []
+    first = next((ln for ln in lines if ln.strip()), "")
+    lowered = first.lower()
+    has_header = any(k in lowered for k in ("wallet_address", "blockchain", "annotation", "address"))
+    return has_header, [r for r in csv.reader(lines) if r]
+
+
+def _openaml_row_to_record(
+    row: dict[str, Any],
+    *,
+    addr_col: str,
+    chain_col: str | None,
+    label_col: str | None,
+    category: str,
+    default_label: str,
+) -> LabeledRecord | None:
+    addr = _clean_str(row.get(addr_col))
+    if addr is None:
+        return None
+    if addr.lower().startswith("0x"):
+        addr = addr.lower()
+    chain = _clean_str(row.get(chain_col)) if chain_col else None
+    annotation = _clean_str(row.get(label_col)) if label_col else None
+    return LabeledRecord(
+        id=addr,
+        address=addr,
+        label=annotation or default_label,
+        positive=True,  # every OpenAML list is an illicit wallet
+        source=OPENAML_INFO.name,
+        extra={"chain": (chain or "unknown").lower(), "category": category},
+    )
+
+
 # ── Registry ─────────────────────────────────────────────────────────────────
 
 
@@ -448,6 +752,8 @@ DATASET_REGISTRY: dict[str, Callable[..., LabeledDataset]] = {
     "real-cats": load_realcats,
     "defihacklabs": load_defihacklabs,
     "defi-hack-labs": load_defihacklabs,
+    "solrpds": load_solrpds,
+    "openaml": load_openaml,
 }
 
 

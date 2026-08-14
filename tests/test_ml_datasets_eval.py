@@ -10,6 +10,9 @@ the graceful offline-failure contract.
 
 from __future__ import annotations
 
+import gzip
+import json
+
 import pytest
 
 from app.ml_datasets.eval import (
@@ -26,9 +29,14 @@ from app.ml_datasets.loaders import (
     LabeledRecord,
     _cached_download,
     _parse_defihacklabs_readme,
+    _parse_openaml_csv,
     _parse_realcats_tsv,
+    _parse_solrpds_csv,
+    _parse_solrpds_json,
     load_dataset,
+    load_openaml,
     load_realcats,
+    load_solrpds,
 )
 
 # ── Fixtures / helpers ───────────────────────────────────────────────────────
@@ -371,3 +379,159 @@ def test_cached_download_missing_artifact_fails_offline(monkeypatch, tmp_path) -
 def test_load_dataset_unknown_name_raises_key_error(tmp_path) -> None:
     with pytest.raises(KeyError):
         load_dataset("does-not-exist", cache_dir=tmp_path)
+
+
+# ── SolRPDS loader (offline fixtures) ────────────────────────────────────────
+
+_SOLRPDS_HEADER = (
+    "LIQUIDITY_POOL_ADDRESS,MINT,TOTAL_ADDED_LIQUIDITY,TOTAL_REMOVED_LIQUIDITY,"
+    "NUM_LIQUIDITY_ADDS,NUM_LIQUIDITY_REMOVES,ADD_TO_REMOVE_RATIO,"
+    "LAST_POOL_ACTIVITY_TIMESTAMP,FIRST_POOL_ACTIVITY_TIMESTAMP,"
+    "LAST_SWAP_TIMESTAMP,LAST_SWAP_TX_ID,INACTIVITY_STATUS\n"
+)
+
+
+def test_parse_solrpds_csv(tmp_path) -> None:
+    p = tmp_path / "solrpds_2021.csv"
+    p.write_text(
+        _SOLRPDS_HEADER + "poolAAA,mint111,131.4,37.8,4,2,3.47,2021-12-30 22:26:30.000,"
+        "2021-12-30 21:55:04.000,2021-12-30 23:59:52.000,tx1,Active\n"
+        + "poolBBB,mint222,0.27,2.25,4,8,0.12,2021-12-28 13:26:44.000,"
+        '2021-12-21 19:37:17.000,"null","null",Inactive\n',
+        encoding="utf-8",
+    )
+    records = _parse_solrpds_csv(p, year="2021", limit=None, with_features=True)
+    assert len(records) == 2
+    active, inactive = records
+    assert active.address == "poolAAA"
+    assert active.positive is False
+    assert active.label == "benign"
+    assert active.extra["inactivity_status"] == "Active"
+    assert active.extra["LAST_SWAP_TIMESTAMP"] == "2021-12-30 23:59:52.000"
+    assert inactive.address == "poolBBB"
+    assert inactive.positive is True
+    assert inactive.label == "rug-pull"
+    assert inactive.extra["inactivity_status"] == "Inactive"
+    assert "LAST_SWAP_TIMESTAMP" not in inactive.extra  # "null" cells cleaned away
+
+
+def test_parse_solrpds_csv_limit_and_skip_unlabeled(tmp_path) -> None:
+    p = tmp_path / "solrpds_2021.csv"
+    p.write_text(
+        _SOLRPDS_HEADER
+        + "poolA,mintA,1,1,1,1,1,ts,ts,ts,tx,Active\n"
+        + "poolB,mintB,1,1,1,1,1,ts,ts,ts,tx,\n",  # empty label -> no ground truth
+        encoding="utf-8",
+    )
+    records = _parse_solrpds_csv(p, year="2021", limit=1, with_features=False)
+    assert len(records) == 1
+    assert records[0].address == "poolA"
+
+
+def test_parse_solrpds_json(tmp_path) -> None:
+    p = tmp_path / "solrpds_2021.json"
+    p.write_text(
+        json.dumps(
+            [
+                {
+                    "LIQUIDITY_POOL_ADDRESS": "poolAAA",
+                    "MINT": "mint111",
+                    "TOTAL_ADDED_LIQUIDITY": "1",
+                    "INACTIVITY_STATUS": "Active",
+                },
+                {
+                    "LIQUIDITY_POOL_ADDRESS": "poolBBB",
+                    "MINT": "mint222",
+                    "TOTAL_ADDED_LIQUIDITY": "1",
+                    "INACTIVITY_STATUS": "Inactive",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    records = _parse_solrpds_json(p, year="2021", limit=None, with_features=True)
+    assert len(records) == 2
+    assert records[0].positive is False
+    assert records[1].positive is True
+    assert records[1].id == "poolBBB:mint222"
+    assert records[1].extra["year"] == "2021"
+
+
+def test_load_solrpds_offline_from_seeded_cache(tmp_path) -> None:
+    (tmp_path / "solrpds_2021.csv").write_text(
+        _SOLRPDS_HEADER + "poolA,mintA,1,1,1,1,1,ts,ts,ts,tx,Active\npoolB,mintB,1,1,1,1,1,ts,ts,ts,tx,Inactive\n",
+        encoding="utf-8",
+    )
+    ds = load_solrpds(cache_dir=tmp_path, years=("2021",), limit=None)
+    assert ds.from_cache is True  # served from seeded cache, nothing fetched
+    assert len(ds) == 2
+    assert ds.records[1].positive is True
+
+
+def test_load_solrpds_rejects_bad_args(tmp_path) -> None:
+    with pytest.raises(ValueError, match="unknown year"):
+        load_solrpds(cache_dir=tmp_path, years=("1999",))
+    with pytest.raises(ValueError, match="fmt must be"):
+        load_solrpds(cache_dir=tmp_path, fmt="parquet")
+
+
+# ── OpenAML loader (offline fixtures) ────────────────────────────────────────
+
+
+def test_parse_openaml_csv(tmp_path) -> None:
+    p = tmp_path / "address_fraud.csv.gz"
+    with gzip.open(p, "wt", encoding="utf-8", newline="") as fh:
+        fh.write("blockchain,wallet_address,flag\n")
+        fh.write("Ethereum,0x04DBA1194ee10112fE6C3207C0687DEf0e78baCf,Fraud - Bybit hack\n")
+        fh.write("bsc,0xffc19f6e9151dbcfca6e7fa42c7739f367d79d0e,\n")
+    records = _parse_openaml_csv(p, category="fraud", default_label="fraud", limit=None)
+    assert len(records) == 2
+    assert records[0].address == "0x04dba1194ee10112fe6c3207c0687def0e78bacf"  # lowercased
+    assert records[0].positive is True
+    assert records[0].label == "Fraud - Bybit hack"
+    assert records[0].extra["chain"] == "ethereum"
+    assert records[0].extra["category"] == "fraud"
+    assert records[1].label == "fraud"  # default label when flag cell empty
+
+
+def test_parse_openaml_csv_annotation_column_alias(tmp_path) -> None:
+    p = tmp_path / "address_flagged.csv.gz"
+    with gzip.open(p, "wt", encoding="utf-8", newline="") as fh:
+        fh.write("blockchain,wallet_address,annotation\n")
+        fh.write("Linea,0x7cecaef8dccb9fd3e61898e21ba453b8720e1af6,Phishing\n")
+    records = _parse_openaml_csv(p, category="flagged", default_label="flagged", limit=None)
+    assert len(records) == 1
+    assert records[0].label == "Phishing"
+    assert records[0].positive is True
+
+
+def test_parse_openaml_csv_headerless_shipped_shape(tmp_path) -> None:
+    # The shipped artifacts have NO header row: blockchain,wallet_address,flag
+    p = tmp_path / "address_sanctioned.csv.gz"
+    with gzip.open(p, "wt", encoding="utf-8", newline="") as fh:
+        fh.write("Ethereum,0x0128e4fccf5ef86b030b28f0a8a029a3c5397a94,Sanctioned\n")
+        fh.write("bsc,0xffc19f6e9151dbcfca6e7fa42c7739f367d79d0e,Fraud\n")
+    records = _parse_openaml_csv(p, category="sanctioned", default_label="sanctioned", limit=None)
+    assert len(records) == 2
+    assert records[0].address == "0x0128e4fccf5ef86b030b28f0a8a029a3c5397a94"
+    assert records[0].positive is True
+    assert records[0].label == "Sanctioned"
+    assert records[0].extra["chain"] == "ethereum"
+    assert records[0].extra["category"] == "sanctioned"
+    assert records[1].extra["chain"] == "bsc"
+
+
+def test_load_openaml_offline_from_seeded_cache(tmp_path) -> None:
+    with gzip.open(tmp_path / "address_sanctioned.csv.gz", "wt", encoding="utf-8", newline="") as fh:
+        fh.write("blockchain,wallet_address,flag\n")
+        fh.write("Ethereum,0x0128e4fccf5ef86b030b28f0a8a029a3c5397a94,OFAC\n")
+    ds = load_openaml(cache_dir=tmp_path, categories=("sanctioned",), limit=None)
+    assert ds.from_cache is True
+    assert len(ds) == 1
+    assert ds.records[0].positive is True
+    assert ds.records[0].extra["category"] == "sanctioned"
+
+
+def test_load_openaml_rejects_unknown_category(tmp_path) -> None:
+    with pytest.raises(ValueError, match="unknown category"):
+        load_openaml(cache_dir=tmp_path, categories=("laundering",))
