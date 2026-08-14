@@ -34,6 +34,13 @@ def test_parse_proxy_list_embedded_credentials_override_shared() -> None:
     assert urls == ["http://alice:secret@1.2.3.4:8080"]
 
 
+def test_build_proxy_url_embedded_username_without_password() -> None:
+    # userinfo with no ":" → username only, shared password still applies.
+    assert pr.build_proxy_url("alice@1.2.3.4:8080", "shared", "pw") == "http://alice:pw@1.2.3.4:8080"
+    # No shared password: the builder still emits the (harmless) trailing colon.
+    assert pr.build_proxy_url("alice@1.2.3.4:8080") == "http://alice:@1.2.3.4:8080"
+
+
 def test_parse_proxy_list_skips_invalid_entries() -> None:
     urls = pr.parse_proxy_list("not-a-proxy, 1.2.3.4:8080, :9999, 1.2.3.4:abc, ")
     assert urls == ["http://1.2.3.4:8080"]
@@ -59,6 +66,19 @@ def test_build_proxy_url_invalid() -> None:
     assert pr.build_proxy_url("   ") is None
     assert pr.build_proxy_url("1.2.3.4") is None  # no port
     assert pr.build_proxy_url("1.2.3.4:abc") is None  # non-numeric port
+    assert pr.build_proxy_url(":8080") is None  # empty host, numeric port
+
+
+def test_extract_host_falls_back_to_url_on_parse_error() -> None:
+    # Unbalanced IPv6 bracket makes urlsplit raise ValueError → host falls back
+    # to the raw URL (credentials are still never logged; here there are none).
+    rot = pr.ProxyRotator(proxy_list="http://[::1:80")
+    assert rot.enabled
+    assert rot.proxy_count == 1
+    assert rot.get_rotating_proxy() == "http://[::1:80"
+    # Well-formed URLs expose only the hostname.
+    rot2 = pr.ProxyRotator(proxy_list="user:pass@1.2.3.4:8080")
+    assert rot2._entries[0].host == "1.2.3.4"
 
 
 # ── Rotation ─────────────────────────────────────────────────────────

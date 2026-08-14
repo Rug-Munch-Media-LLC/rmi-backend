@@ -351,58 +351,9 @@ class TestTokenPipeline:
             stack.enter_context(
                 patch.object(scan_mod, "_rag_scam_check", AsyncMock(return_value=_m("rag", risk_score=0)))
             )
-            stack.enter_context(
-                patch.object(
-                    scan_mod,
-                    "_check_nansen",
-                    AsyncMock(
-                        return_value={
-                            "check": "nansen",
-                            "result": "unavailable",
-                            "reason": "not configured",
-                        }
-                    ),
-                )
-            )
-            stack.enter_context(
-                patch.object(
-                    scan_mod,
-                    "_check_blowfish",
-                    AsyncMock(
-                        return_value={
-                            "check": "blowfish",
-                            "result": "unavailable",
-                            "reason": "not configured",
-                        }
-                    ),
-                )
-            )
-            stack.enter_context(
-                patch.object(
-                    scan_mod,
-                    "_check_dune",
-                    AsyncMock(
-                        return_value={
-                            "check": "dune",
-                            "result": "unavailable",
-                            "reason": "not configured",
-                        }
-                    ),
-                )
-            )
-            stack.enter_context(
-                patch.object(
-                    scan_mod,
-                    "_check_arkham",
-                    AsyncMock(
-                        return_value={
-                            "check": "arkham",
-                            "result": "unavailable",
-                            "reason": "not configured",
-                        }
-                    ),
-                )
-            )
+            # NOTE: nansen/blowfish/dune/arkham checks were removed from the
+            # ELITE tier pipeline during the scanner refactor (ELITE now runs
+            # price-consensus + RAG only), so no patches are needed for them.
             # Spam registry (local module)
             stack.enter_context(patch("app.spam_registry.get_spam_registry", return_value=spam_reg))
             # Prevent any real HTTP calls
@@ -461,7 +412,9 @@ class TestTokenPipeline:
 
         assert result.token_address == self.TOKEN
         assert len(result.modules_run) >= 15, f"Expected 15+ modules for ELITE, got {len(result.modules_run)}"
-        elite_modules = {"price", "rag", "nansen", "blowfish", "dune", "arkham"}
+        # ELITE tier now runs price-consensus + RAG (nansen/blowfish/dune/arkham
+        # were removed from the pipeline during the scanner refactor).
+        elite_modules = {"price", "rag"}
         module_names = {m["module"] for m in result.modules_run}
         assert elite_modules.intersection(module_names), f"Expected some ELITE modules, got {module_names}"
 
@@ -624,7 +577,8 @@ class TestTokenPipeline:
         """_calculate_safety_score produces correct scores from module results."""
         from app.domains.scanner.service.scoring import _calculate_safety_score
 
-        # All clean + verified = high score
+        # All clean + verified = safe-ish score (scoring baseline is 35 now;
+        # clean modules add weighted bonuses — 3 clean modules land at 43)
         score = _calculate_safety_score(
             [
                 {
@@ -640,7 +594,7 @@ class TestTokenPipeline:
                 {"module": "copycat", "status": "success", "result": {"result": "clean"}},
             ]
         )
-        assert score >= 60
+        assert score >= 40
 
         # Honeypot flagged = low score
         low_score = _calculate_safety_score(
@@ -780,43 +734,35 @@ class TestHoneypotDetection:
                     "chainId": "ethereum",
                     "dexId": "uniswap",
                     "pairAddress": "0xpair",
-                    "baseToken": {"address": "0xtoken", "name": "ScamToken", "symbol": "SCAM"},
+                    "baseToken": {"address": "0xhpfallback1", "name": "ScamToken", "symbol": "SCAM"},
                     "quoteToken": {"address": "0xUSDC", "name": "USDC", "symbol": "USDC"},
                     "priceUsd": "0.001",
                     "txns": {"h24": {"buys": 200, "sells": 0}},
                     "volume": {"h24": 100},
                     "liquidity": {"usd": 50},
                     "priceChange": {"h24": -95},
-                    "pairCreatedAt": int(time.time() * 1000) - 600000,
+                    # Mature pair (>0.5h old) so the sells==0 honeypot rule applies
+                    "pairCreatedAt": int(time.time() * 1000) - 7200_000,  # 2h ago
                 }
             ]
         }
 
-        # Force HoneypotDetector import to fail → falls back to DexScreener
-        import builtins
-
-        _real_import = builtins.__import__
-
-        def _mock_import(name, *args, **kwargs):
-            if "smart_contract_honeypot_detector" in name:
-                raise ImportError(f"No module named {name!r}")
-            return _real_import(name, *args, **kwargs)
-
-        builtins.__import__ = _mock_import
-        try:
-            # Patch at security module level (where _fetch_with_fallback is imported)
-            with patch(
-                "app.domains.scanner.modules.security._fetch_with_fallback",
+        # Force HoneypotDetector import to fail deterministically (works even if
+        # the module was already imported by an earlier test in the session):
+        # setting sys.modules[name] = None makes `from X import Y` raise ImportError.
+        with (
+            patch.dict(sys.modules, {"app.domains.detectors.smart_contract_honeypot_detector": None}),
+            patch(
+                "app.domains.scanner.modules._core._fetch_with_fallback",
                 AsyncMock(return_value=(mock_dexscreener, "https://api.dexscreener.com/")),
-            ):
-                from app.domains.scanner.modules.security import _check_honeypot_is
+            ),
+        ):
+            from app.domains.scanner.modules.security import _check_honeypot_is
 
-                result = await _check_honeypot_is("0xtoken", "ethereum")
-        finally:
-            builtins.__import__ = _real_import
+            result = await _check_honeypot_is("0xhpfallback1", "ethereum")
 
         assert result is not None
-        assert result["is_honeypot"] is True  # buys > 10 and sells == 0
+        assert result["is_honeypot"] is True  # buys > 10, sells == 0, mature pair
         assert result["risk_score"] >= 50
         assert result["source"] == "dexscreener_fallback"
 
@@ -935,7 +881,7 @@ class TestRugPullPrediction:
         assert score <= 20  # Very low safety = rug high probability
 
     def test_rug_owner_renounced_bonus(self):
-        """Ownership renounced → +10 safety score."""
+        """Ownership renounced → safety score above the 35 baseline."""
         from app.domains.scanner.service.scoring import _calculate_safety_score
 
         score = _calculate_safety_score(
@@ -951,10 +897,10 @@ class TestRugPullPrediction:
                 },
             ]
         )
-        assert score == 60  # 50 + 10
+        assert score == 40  # 35 baseline + 8*0.7 ownership bonus
 
     def test_rug_active_owner_proxy_penalty(self):
-        """Active proxy owner → -25 penalty."""
+        """Active proxy owner → 25-point weighted penalty."""
         from app.domains.scanner.service.scoring import _calculate_safety_score
 
         score = _calculate_safety_score(
@@ -971,10 +917,10 @@ class TestRugPullPrediction:
                 },
             ]
         )
-        assert score == 25  # 50 - 25
+        assert score == 17  # 35 baseline - 25*0.7 ownership penalty
 
     def test_rug_concentration_penalty(self):
-        """High holder concentration → risk penalty."""
+        """High holder concentration → weighted risk penalty."""
         from app.domains.scanner.service.scoring import _calculate_safety_score
 
         score = _calculate_safety_score(
@@ -986,7 +932,7 @@ class TestRugPullPrediction:
                 },
             ]
         )
-        assert score == 35  # 50 - 15 (concentration > 50)
+        assert score == 24  # 35 baseline - 15*0.7 holders penalty (concentration > 50)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1135,20 +1081,19 @@ class TestPumpDumpDetection:
         from app.domains.detectors.pump_dump_detector_package.types import (
             FindingSeverity,
             ManipulationFinding,
+            ManipulationType,
         )
 
         findings = [
             ManipulationFinding(
-                type="volume_anomaly",
+                finding_type=ManipulationType.VOLUME_SPIKE,
                 severity=FindingSeverity.HIGH,
                 description="High volume anomaly",
-                signal_strength=0.7,
             ),
             ManipulationFinding(
-                type="price_pump",
+                finding_type=ManipulationType.PRICE_PUMP,
                 severity=FindingSeverity.MEDIUM,
                 description="Price pump detected",
-                signal_strength=0.5,
             ),
         ]
         score = calculate_risk_score(findings)
@@ -1157,24 +1102,51 @@ class TestPumpDumpDetection:
         level = score_to_level(75)
         assert level in ("low", "medium", "high", "critical")
 
-    def test_pump_dump_coordinated_buys(self):
-        """Coordinated buy detection returns structured result."""
+    @pytest.mark.asyncio
+    async def test_pump_dump_coordinated_buys(self):
+        """Coordinated buy detection returns structured result (async API)."""
+        import httpx
+
         from app.domains.detectors.pump_dump_detector_package.signals_coord import (
             detect_coordinated_buys,
         )
 
-        result = detect_coordinated_buys(transactions=[], threshold=0.7)
-        # Should handle empty transactions gracefully
-        assert isinstance(result, dict) or result is None
+        with patch(
+            "app.domains.detectors.pump_dump_detector_package.signals_coord.fetch_trades",
+            AsyncMock(return_value=[]),
+        ):
+            result = await detect_coordinated_buys(
+                httpx.AsyncClient(),
+                token_address="0xtoken",
+                chain="ethereum",
+            )
+        # Empty trades handled gracefully
+        assert isinstance(result, dict)
+        assert result["groups"] == []
+        assert result["findings"] == []
 
-    def test_pump_dump_wash_trading_detection(self):
-        """Wash trading detection returns structured result."""
+    @pytest.mark.asyncio
+    async def test_pump_dump_wash_trading_detection(self):
+        """Wash trading detection returns structured result (async API)."""
+        import httpx
+
         from app.domains.detectors.pump_dump_detector_package.signals_coord import (
             detect_wash_trading,
         )
 
-        result = detect_wash_trading(transactions=[], price_data={})
-        assert isinstance(result, dict) or result is None
+        with patch(
+            "app.domains.detectors.pump_dump_detector_package.signals_coord.fetch_trades",
+            AsyncMock(return_value=[]),
+        ):
+            result = await detect_wash_trading(
+                httpx.AsyncClient(),
+                token_address="0xtoken",
+                chain="ethereum",
+            )
+        # Empty trades handled gracefully
+        assert isinstance(result, dict)
+        assert result["clusters"] == []
+        assert result["findings"] == []
 
     @pytest.mark.asyncio
     async def test_pump_dump_volume_anomaly(self):
@@ -1201,7 +1173,7 @@ class TestPumpDumpDetection:
         ):
             from app.domains.scanner.modules.market import _check_volume_liquidity_ratio
 
-            result = await _check_volume_liquidity_ratio("0xtoken", "ethereum")
+            result = await _check_volume_liquidity_ratio("0xpdvolume", "ethereum")
 
         assert result is not None
         assert result["check"] == "volume_liquidity_ratio"
@@ -1308,9 +1280,10 @@ class TestOracleManipulationDetection:
             OracleManipulationDetector,
         )
 
-        detector = OracleManipulationDetector(chains=["ethereum"])
+        # Refactored constructor takes a single `chain` (not `chains` list).
+        detector = OracleManipulationDetector(chain="ethereum")
         assert hasattr(detector, "scan")
-        assert hasattr(detector, "detect_oracle_attack")
+        assert hasattr(detector, "analyze_pool")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1439,7 +1412,7 @@ class TestWashTradingDetection:
         ):
             from app.domains.scanner.service.volume_analysis import _check_volume_anomaly
 
-            result = await _check_volume_anomaly("0xtoken", "ethereum")
+            result = await _check_volume_anomaly("0xvolwash", "ethereum")
 
         assert result is not None
         assert result["check"] == "volume_anomaly"
@@ -1475,7 +1448,7 @@ class TestWashTradingDetection:
         ):
             from app.domains.scanner.service.volume_analysis import _check_volume_anomaly
 
-            result = await _check_volume_anomaly("0xtoken", "ethereum")
+            result = await _check_volume_anomaly("0xvolhealthy", "ethereum")
 
         assert result is not None
         assert result["check"] == "volume_anomaly"
@@ -1523,7 +1496,7 @@ class TestWashTradingDetection:
         ):
             from app.domains.scanner.modules.market import _check_volume_liquidity_ratio
 
-            result = await _check_volume_liquidity_ratio("0xtoken", "ethereum")
+            result = await _check_volume_liquidity_ratio("0xvoldead", "ethereum")
 
         assert result is not None
         assert result["risk_level"] == "low_activity"
@@ -1588,7 +1561,7 @@ class TestScannerEdgeCases:
         ):
             from app.domains.scanner.service.volume_analysis import _check_volume_anomaly
 
-            result = await _check_volume_anomaly("0xtoken", "ethereum")
+            result = await _check_volume_anomaly("0xvolempty", "ethereum")
 
         assert result is not None
         assert result["result"] in ("unavailable", "error")
@@ -1631,7 +1604,7 @@ class TestScannerEdgeCases:
                     "chainId": "ethereum",
                     "dexId": "uniswap",
                     "pairAddress": "0xpair",
-                    "baseToken": {"address": "0xtoken", "name": "Token", "symbol": "TKN"},
+                    "baseToken": {"address": "0xhpfallback2", "name": "Token", "symbol": "TKN"},
                     "priceUsd": "1.0",
                     "txns": {"h24": {"buys": 100, "sells": 80}},
                     "volume": {"h24": 1000},
@@ -1642,8 +1615,10 @@ class TestScannerEdgeCases:
             ]
         }
 
-        # Simulate ImportError by making _check_goplus_security fail with error
+        # Simulate HoneypotDetector ImportError (deterministic even if the
+        # module is already imported): sys.modules[name] = None → ImportError.
         with (
+            patch.dict(sys.modules, {"app.domains.detectors.smart_contract_honeypot_detector": None}),
             patch(
                 "app.domains.scanner.modules.security._check_goplus_security",
                 AsyncMock(return_value={"check": "goplus", "result": "error", "error": "unavailable"}),
@@ -1655,7 +1630,7 @@ class TestScannerEdgeCases:
         ):
             from app.domains.scanner.modules.security import _check_honeypot_is
 
-            result = await _check_honeypot_is("0xtoken", "ethereum")
+            result = await _check_honeypot_is("0xhpfallback2", "ethereum")
 
         assert result is not None
         assert result["check"] == "honeypot"

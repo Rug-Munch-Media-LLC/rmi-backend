@@ -23,6 +23,15 @@ SlowMist hacked, CertiK alerts), normalizes each record into a consistent
 shape and ingests it into the matching RAG collection(s) (known_scams,
 scam_patterns, defi_exploits, threat_intel). Best-effort: network failures
 log and return empty — never raise.
+
+``--docs`` fetches the raw markdown / reST / AsciiDoc knowledge sources in the
+``education`` category (crawl_sources.json → incident_sources: ConsenSys
+smart-contract-best-practices, crytic/not-so-smart-contracts, kadenzipfel/
+smart-contract-vulnerabilities, Solidity security-considerations, OpenZeppelin
+upgradeable docs), splits each doc into heading-aware chunks, dedupes by URL +
+content hash and ingests into the target collection(s) (coding_knowledge,
+threat_intel). Fail-open: a source that 404s / times out / yields no usable
+chunks is skipped and recorded — never raise.
 """
 
 from __future__ import annotations
@@ -31,6 +40,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -45,7 +55,14 @@ from app.rag._crawler_constants import (
     INCIDENT_COLLECTION_BY_CATEGORY,
     INCIDENT_SOURCES_FILE,
 )
-from app.rag.dedup import is_duplicate_url, mark_url_ingested
+from app.rag.config import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE, RAG_MIN_CHUNK_CHARS
+from app.rag.dedup import (
+    content_hash,
+    is_duplicate_content,
+    is_duplicate_url,
+    mark_content_ingested,
+    mark_url_ingested,
+)
 
 log = get_logger(__name__)
 
@@ -908,6 +925,266 @@ async def ingest_collection(
             return {"collection": collection, "error": str(e)}
 
 
+async def ingest_doc_sources(
+    base_url: str = "http://localhost:8000",
+    sources: list[str] | None = None,
+    dry_run: bool = False,
+    chunk_size: int = RAG_CHUNK_SIZE,
+    chunk_overlap: int = RAG_CHUNK_OVERLAP,
+    min_chunk_chars: int = RAG_MIN_CHUNK_CHARS,
+) -> dict[str, Any]:
+    """Fetch → chunk → dedup → ingest raw markdown/reST/AsciiDoc knowledge.
+
+    Pipeline per enabled ``education`` source in crawl_sources.json:
+      1. ``fetch_doc_source``       — httpx GET the raw doc (best-effort)
+      2. URL dedup                  — dedup.is_duplicate_url (fail-open)
+      3. ``split_doc_into_chunks``  — heading-aware chunking
+      4. content dedup              — per-chunk dedup.content_hash + an
+         in-batch hash set, plus dedup.is_duplicate_content per collection
+         (both fail-open)
+      5. bulk-ingest each configured collection via the existing
+         ``ingest_collection`` path (embedding happens server-side, same as
+         the incident loader)
+      6. mark the URL + chunk content hashes ingested (fail-open)
+
+    Fail-open contract: a source that 404s, times out, returns empty/parses to
+    no usable chunks, or is already known is skipped and recorded in the
+    summary — never raises.
+    """
+    configs = load_doc_sources()
+    if sources is not None:
+        wanted = set(sources)
+        configs = [c for c in configs if c["name"] in wanted]
+    enabled = [c for c in configs if c.get("enabled") is True]
+    if not enabled:
+        log.info("doc_no_enabled_sources")
+        return {"enabled": 0, "reason": "no enabled education sources", "sources": {}}
+
+    summary: dict[str, Any] = {"enabled": len(enabled), "sources": {}, "total_chunks": 0}
+    for source_cfg in enabled:
+        name = str(source_cfg["name"])
+        url = str(source_cfg["url"])
+        try:
+            # Cheapest gate first: cross-time URL dedup (fail-open).
+            if is_duplicate_url(url):
+                summary["sources"][name] = {"url": url, "skipped": "url_already_ingested"}
+                continue
+
+            text = await fetch_doc_source(source_cfg)
+            if text is None:
+                summary["sources"][name] = {"url": url, "error": "fetch_failed"}
+                continue
+
+            chunks = split_doc_into_chunks(
+                text,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                min_chunk_chars=min_chunk_chars,
+            )
+            if not chunks:
+                summary["sources"][name] = {"url": url, "skipped": "no_usable_chunks"}
+                continue
+
+            collections = tuple(source_cfg.get("collections") or ())
+            category = str(source_cfg.get("category") or "education")
+            fresh: list[dict[str, Any]] = []
+            seen_hashes: set[str] = set()
+            for idx, chunk in enumerate(chunks):
+                fp = content_hash(chunk)
+                if fp in seen_hashes:
+                    continue
+                # Cross-time content dedup per target collection (fail-open).
+                if any(is_duplicate_content(fp, col) for col in collections):
+                    continue
+                seen_hashes.add(fp)
+                fresh.append(_doc_payload(source=name, url=url, chunk=chunk, index=idx, category=category))
+
+            ok_total = 0
+            for col in collections:
+                for start in range(0, len(fresh), _BULK_CHUNK_SIZE):
+                    batch = fresh[start : start + _BULK_CHUNK_SIZE]
+                    result = await ingest_collection(base_url, col, batch, dry_run=dry_run)
+                    if not dry_run and "error" not in result:
+                        ok_total += int(result.get("ok", 0) or 0)
+
+            if not dry_run and fresh:
+                mark_url_ingested(url)
+                for item in fresh:
+                    fp = content_hash(item["content"])
+                    for col in collections:
+                        mark_content_ingested(fp, col)
+
+            summary["sources"][name] = {
+                "url": url,
+                "chars": len(text),
+                "chunks": len(chunks),
+                "deduped": len(chunks) - len(fresh),
+                "ingested": len(fresh) if dry_run else ok_total,
+                "collections": list(collections),
+            }
+            summary["total_chunks"] += len(fresh)
+        except Exception as e:  # pragma: no cover - defensive
+            log.warning("doc_source_failed", source=name, error=str(e))
+            summary["sources"][name] = {"url": url, "error": str(e)}
+    return summary
+
+
+def load_doc_sources() -> list[dict[str, Any]]:
+    """Load the ``education`` raw-doc source registry from crawl_sources.json.
+
+    Reuses the validated incident-source loader (required fields + valid
+    category/type) and keeps only the ``education`` category — the sources the
+    raw markdown/reST/AsciiDoc ingest path is responsible for. Never raises.
+    """
+    return [s for s in load_incident_sources() if s.get("category") == "education"]
+
+
+async def fetch_doc_source(source_cfg: dict[str, Any]) -> str | None:
+    """Fetch a raw markdown/reST/AsciiDoc file. Best-effort: None on failure."""
+    url = str(source_cfg.get("url") or "")
+    if not url:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "RMI-RAG-Docs/1.0"})
+            resp.raise_for_status()
+            text = resp.text
+    except httpx.HTTPError as e:
+        log.warning("doc_fetch_failed", source=source_cfg.get("name"), url=url, error=str(e))
+        return None
+    if not text or not text.strip():
+        log.warning("doc_fetch_empty", source=source_cfg.get("name"), url=url)
+        return None
+    return text
+
+
+# ── Heading-aware doc chunking (markdown / reST / AsciiDoc) ────────────────
+# Converts reST underline + AsciiDoc ``=`` headings into markdown ``#`` form so
+# a single splitter handles all three formats. Section boundaries preserve the
+# heading line as context; over-long sections are recursively split at
+# paragraph/sentence/word boundaries (langchain-style greedy packing).
+
+_DOC_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+([^\n]*?)[ \t]*$", re.MULTILINE)
+_RST_UNDERLINE_RE = re.compile(r"^([^\n].*?)\n([=\-~^\"'`:.+*#<>]{3,})[ \t]*$", re.MULTILINE)
+_ADOC_HEADING_RE = re.compile(r"^(=+)[ \t]+([^\n]*?)[ \t]*$", re.MULTILINE)
+
+
+def _normalize_doc_headings(text: str) -> str:
+    """Convert reST underline + AsciiDoc ``=`` headings to markdown ``#`` form.
+
+    Only used to make the heading-aware split format-agnostic; the body text is
+    otherwise preserved verbatim. Markdown docs pass through unchanged.
+    """
+    text = _ADOC_HEADING_RE.sub(lambda m: f"{'#' * min(len(m.group(1)), 6)} {m.group(2)}", text)
+    text = _RST_UNDERLINE_RE.sub(lambda m: f"# {m.group(1)}", text)
+    return text
+
+
+def _split_at_headings(text: str) -> list[tuple[str, str]]:
+    """Split normalized markdown into ``(heading, body)`` sections."""
+    matches = list(_DOC_HEADING_RE.finditer(text))
+    if not matches:
+        return [("", text)]
+    sections: list[tuple[str, str]] = []
+    for i, m in enumerate(matches):
+        heading = m.group(0).strip()
+        body_start = m.end()
+        body_end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        sections.append((heading, text[body_start:body_end].strip()))
+    return sections
+
+
+def _recursive_char_split(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
+    """Greedy character split preferring paragraph → sentence → word breaks."""
+    if not text or not text.strip():
+        return []
+    text = text.strip()
+    if len(text) <= chunk_size:
+        return [text]
+    chunks: list[str] = []
+    start = 0
+    n = len(text)
+    while start < n:
+        end = min(start + chunk_size, n)
+        split_at = -1
+        for sep in ("\n\n", "\n", ". ", " "):
+            pos = text.rfind(sep, start + chunk_size // 2, end)
+            if pos != -1:
+                split_at = pos + len(sep)
+                break
+        if split_at == -1 or split_at <= start:
+            split_at = end
+        piece = text[start:split_at].strip()
+        if piece:
+            chunks.append(piece)
+        if split_at >= n:
+            break
+        next_start = split_at - chunk_overlap if chunk_overlap > 0 else split_at
+        if next_start <= start:
+            next_start = split_at
+        start = next_start
+    return chunks
+
+
+def split_doc_into_chunks(
+    text: str,
+    chunk_size: int = RAG_CHUNK_SIZE,
+    chunk_overlap: int = RAG_CHUNK_OVERLAP,
+    min_chunk_chars: int = RAG_MIN_CHUNK_CHARS,
+) -> list[str]:
+    """Heading-aware split of raw markdown/reST/AsciiDoc into chunk strings.
+
+    Sections are cut at heading boundaries; each chunk keeps its heading line
+    as retrieval context. Over-long sections are recursively split at
+    paragraph/sentence/word boundaries. Noise fragments below
+    ``min_chunk_chars`` and exact duplicate chunks are dropped. Pure — no
+    network, no I/O.
+    """
+    if not text or not text.strip():
+        return []
+    normalized = _normalize_doc_headings(text)
+    out: list[str] = []
+    for heading, body in _split_at_headings(normalized):
+        section = f"{heading}\n{body}" if heading else body
+        section = section.strip()
+        if not section:
+            continue
+        if len(section) <= chunk_size:
+            out.append(section)
+            continue
+        for piece in _recursive_char_split(section, chunk_size, chunk_overlap):
+            if heading and heading not in piece:
+                out.append(f"{heading}\n{piece}")
+            else:
+                out.append(piece)
+    seen: set[str] = set()
+    final: list[str] = []
+    for c in out:
+        stripped = c.strip()
+        if not stripped or len(stripped) < min_chunk_chars:
+            continue
+        if stripped in seen:
+            continue
+        seen.add(stripped)
+        final.append(stripped)
+    return final
+
+
+def _doc_payload(source: str, url: str, chunk: str, index: int, category: str = "education") -> dict[str, Any]:
+    """Build the bulk-ingest item for one doc chunk."""
+    digest = hashlib.sha256(url.encode("utf-8", errors="ignore")).hexdigest()[:12]
+    metadata = {
+        "source": source,
+        "source_url": url,
+        "doc_url": url,
+        "category": category,
+        "content_type": "doc_chunk",
+        "chunk_index": index,
+        "ingested_via": "doc_loader",
+    }
+    return {"doc_id": f"doc:{digest}:{index}", "content": chunk, "metadata": metadata}
+
+
 async def ingest_all(
     base_url: str = "http://localhost:8000",
     collections: list[str] | None = None,
@@ -976,6 +1253,11 @@ def main() -> None:
         action="store_true",
         help="Fetch + ingest public scam/rug/exploit incident sources (DefiLlama hacks, REKT, ...)",
     )
+    parser.add_argument(
+        "--docs",
+        action="store_true",
+        help="Fetch + ingest raw markdown/reST/AsciiDoc education sources (ConsenSys best practices, NotSoSmartContracts, ...)",
+    )
     args = parser.parse_args()
 
     import asyncio
@@ -989,6 +1271,12 @@ def main() -> None:
     if args.incidents:
         results = asyncio.run(ingest_incidents_from_sources(args.base_url, dry_run=args.dry_run))
         print("\n=== Incident Ingestion Results ===")
+        print(json.dumps(results, indent=2))
+        return
+
+    if args.docs:
+        results = asyncio.run(ingest_doc_sources(args.base_url, dry_run=args.dry_run))
+        print("\n=== Doc Source Ingestion Results ===")
         print(json.dumps(results, indent=2))
         return
 
