@@ -1,0 +1,127 @@
+# Mempool Dumpster — real-time Ethereum mempool ingestion into ClickHouse
+#
+# Deploys flashbots/mempool-dumpster (Go mempool collector) and sinks
+# pending transactions into the platform ClickHouse (rmi-clickhouse on the
+# `rmi_network` bridge) for real-time sandwich / snipe / honeypot-buy
+# detection. See README.md for the full runbook.
+#
+# Modes:
+#   Production  : docker compose up -d
+#                 Collector attaches to the EXISTING rmi-clickhouse service
+#                 from the root docker-compose.yml (rmi_network).
+#   Standalone  : docker compose --profile standalone up -d
+#                 Also starts an isolated ClickHouse for testing without
+#                 touching the platform stack.
+#                 Prereq on a fresh host: docker network create rmi_network
+
+name: rmi-mempool-dumpster
+
+services:
+  mempool-dumpster:
+    image: ${MEMPOOL_DUMPSTER_IMAGE:-flashbots/mempool-dumpster:1.3.1}
+    container_name: mempool-dumpster
+    restart: unless-stopped
+    command: /app/mempool-dumpster collect
+    environment:
+      # --- Mempool sources ---------------------------------------------------
+      # Comma-separated ws/wss EL node endpoints (geth, Alchemy, Infura, ...).
+      # At least one is required; the collector needs `newPendingTransactions`.
+      NODES: ${NODES:-}
+      # Optional node used to check whether seen txs were already included.
+      CHECK_NODE: ${CHECK_NODE:-}
+      # Comma-separated alias=url mappings that label sources (e.g. local=ws://...).
+      SRC_ALIASES: ${SRC_ALIASES:-}
+      # Premium feed auths, optional: "token" or "token@url"
+      BLX_AUTH: ${BLX_AUTH:-}               # bloXroute (WebSocket/gRPC)
+      CHAINBOUND_AUTH: ${CHAINBOUND_AUTH:-} # Chainbound Fiber (gRPC)
+      EDEN_AUTH: ${EDEN_AUTH:-}             # Eden Network
+      # --- Output ------------------------------------------------------------
+      # Local CSV/Parquet archive dir (kept even when the ClickHouse sink is
+      # enabled, as a durable fallback).
+      OUT: ${OUT:-/mnt/data}
+      # Free-form location tag recorded in sourcelogs.
+      LOCATION: ${LOCATION:-talos-eu}
+      # --- ClickHouse sink (v1.1.0+) ------------------------------------------
+      # Format: clickhouse://user:password@host:9000/database
+      # Empty => sink disabled, CSV output only.
+      CLICKHOUSE_DSN: ${CLICKHOUSE_DSN:-}
+      CLICKHOUSE_BATCH_SIZE: ${CLICKHOUSE_BATCH_SIZE:-300}
+      # --- API / metrics --------------------------------------------------------
+      API_ADDR: 0.0.0.0:9092      # Transaction API (JSON) — loopback port
+      METRICS_ADDR: 0.0.0.0:9090  # Prometheus metrics — loopback port
+      ENABLE_PPROF: "0"           # Set "1" for debugging only
+    ports:
+      - "127.0.0.1:9092:9092"   # Transaction API (loopback only)
+      - "127.0.0.1:9090:9090"   # Prometheus metrics (loopback only)
+    volumes:
+      - dumpster-data:/mnt/data
+    networks:
+      - rmi_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1'
+
+  # Optional isolated ClickHouse for standalone testing. NOT started by
+  # default (compose profile). The production path reuses the existing
+  # rmi-clickhouse service from the root docker-compose.yml.
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: mempool-dumpster-clickhouse
+    restart: unless-stopped
+    profiles: ["standalone"]
+    environment:
+      CLICKHOUSE_DB: mempool
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-mempool}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-mempool-password-change-me}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+    ports:
+      # Host ports shifted to avoid clashing with the platform rmi-clickhouse
+      # (which already publishes 8123 and 9000 on the host).
+      - "127.0.0.1:8124:8123"   # HTTP interface
+      - "127.0.0.1:9001:9000"   # Native TCP interface
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rmi_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - IPC_LOCK
+      - NET_BIND_SERVICE
+
+networks:
+  # External network created by the platform stack (root docker-compose.yml).
+  # On a fresh host, create it first: docker network create rmi_network
+  rmi_network:
+    name: rmi_network
+    external: true
+
+volumes:
+  dumpster-data:
+  clickhouse-data:
+  clickhouse-logs:
