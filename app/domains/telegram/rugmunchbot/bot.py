@@ -95,8 +95,15 @@ from app.domains.telegram.rugmunchbot.handlers.groups import (
 )
 from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
 from app.domains.telegram.rugmunchbot.handlers.inline import handle_inline
-from app.domains.telegram.rugmunchbot.handlers.investigate import cmd_investigate
 from app.domains.telegram.rugmunchbot.handlers.market import cmd_news, cmd_rugcheck, register_market
+from app.domains.telegram.rugmunchbot.handlers.osint import (
+    cmd_email,
+    cmd_face,
+    cmd_investigate,
+    cmd_osint,
+    cmd_phone,
+    cmd_track,
+)
 from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin,
     cmd_admin_ban,
@@ -428,6 +435,15 @@ def main() -> None:
     _reg(app, "honeypot", cmd_honeypot)
     _reg(app, "lphealth", cmd_lphealth)
     _reg(app, "laundry", cmd_laundry)
+
+    # OSINT & Forensics (self-hosted OSINT section)
+    _reg(app, "osint", cmd_osint)
+    _reg(app, "track", cmd_track)
+    _reg(app, "email", cmd_email)
+    _reg(app, "phone", cmd_phone)
+    _reg(app, "face", cmd_face)
+    # /investigate is the OSINT domain router; non-domain args fall through
+    # to the Pro-tier deep investigation (see handlers.osint.cmd_investigate).
 
     # Owner / admin panel (owner-only — hidden from BotFather list)
     _reg(app, "admin", cmd_admin)
