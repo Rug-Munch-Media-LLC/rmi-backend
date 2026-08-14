@@ -27,9 +27,11 @@ def _register_defaults() -> None:
     # Self-registering intelligence tools — each module owns its register_tool
     # (name, handler, timeout, TTL). Additive imports, safe for parallel agents.
     from app.domains.telegram.rugmunchbot.tools.birdeye import birdeye_market
+    from app.domains.telegram.rugmunchbot.tools.charting import register_tool as _register_charting
     from app.domains.telegram.rugmunchbot.tools.market import market_overview
     from app.domains.telegram.rugmunchbot.tools.market_condition import market_condition
     from app.domains.telegram.rugmunchbot.tools.onchain import smart_money, top_traders
+    from app.domains.telegram.rugmunchbot.tools.pattern_memory import register_tool as _register_pattern_memory
     from app.domains.telegram.rugmunchbot.tools.prediction_markets import register_tool as _register_prediction_markets
     from app.domains.telegram.rugmunchbot.tools.price import price_lookup
     from app.domains.telegram.rugmunchbot.tools.rag_lookup import rag_lookup
@@ -68,6 +70,8 @@ def _register_defaults() -> None:
     _register_trend_algo(registry)
     _register_prediction_markets(registry)
     _register_ta(registry)
+    _register_charting(registry)
+    _register_pattern_memory(registry)
 
 
 _register_defaults()

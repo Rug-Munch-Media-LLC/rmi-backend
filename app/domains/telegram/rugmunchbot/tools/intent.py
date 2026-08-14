@@ -8,6 +8,8 @@ Intents map to tools:
   * trending / hot / what's pumping    -> trending (+ news_headlines, + trend_by_chain when a chain is named)
   * $SYMBOL / price of X               -> price_lookup
   * TA / technical analysis / rsi / macd on X -> technical_analysis (+ price_lookup)
+  * chart / price chart / candlestick chart on X -> chart (ASCII visual, + price_lookup)
+  * have we seen this pattern before / similar patterns -> pattern_recall (Redis memory)
   * who's buying / smart money / top traders -> top_traders (needs address), smart_money, birdeye_market
   * scan / risk / honeypot + address   -> scanner_intel, security_scan, token_meta (image)
   * wallet / holdings / pnl + address  -> wallet_analysis
@@ -60,6 +62,26 @@ _PRICE_WORDS = re.compile(
 _TA_WORDS = re.compile(
     r"\b(technical analysis|technical indicators?|the ta|ta (for|on|of)|"
     r"rsi|macd|ema|candlestick|chart patterns?|support and resistance|support/resistance)\b",
+    re.IGNORECASE,
+)
+# Price-action chart questions — route to the chart tool (tools/charting.py),
+# the ASCII text chart + TA digest. "chart" alone is too common in prose, so
+# it must be part of an explicit chart phrase or next to a $SYMBOL. The TA
+# overlap ("chart patterns") stays with technical_analysis.
+_CHART_WORDS = re.compile(
+    r"\b(price chart|candlestick chart|candle chart|ascii chart|sparkline|"
+    r"chart (please|for|of|on|showing|say|says|look|looks|tell|show)|"
+    r"show me (a |the )?chart|draw (a |the )?chart|chart of|charts for|"
+    r"chart\s+\$[A-Za-z]{2,10})|\$[A-Za-z]{2,10}\s+chart\b",
+    re.IGNORECASE,
+)
+# Pattern-memory questions — route to the pattern_recall tool
+# (tools/pattern_memory.py, Redis-backed "have we seen this before?"). Phrase
+# is deliberately specific so prose like "what pattern is this?" never fires.
+_PATTERN_WORDS = re.compile(
+    r"\b(have we seen (this|that) (pattern|before)|seen (this|that) pattern before|"
+    r"seen this before|similar patterns?|pattern memory|"
+    r"seen (a|this) (pump-and-dump|honeypot|rug|pump|dump|pattern) before)\b",
     re.IGNORECASE,
 )
 _SMART_MONEY_WORDS = re.compile(
@@ -160,7 +182,9 @@ _CONCEPT_WORD_TOOLS: dict[str, tuple[str, ...]] = {
     "market": ("market_overview", "market_condition"),
     "sentiment": ("market_condition",),
     "price": ("price_lookup",),
+    "chart": ("chart",),
     "technical": ("technical_analysis",),
+    "pattern": ("pattern_recall",),
     "security": ("scanner_intel", "security_scan", "token_meta"),
     "wallet": ("wallet_analysis",),
     "news": ("news_headlines", "web_search"),
@@ -202,8 +226,12 @@ def _concept_for_word(word: str) -> str:
         return "market"
     if w in {"sentiment", "bullish", "bearish", "condition", "risk-on", "risk-off"}:
         return "sentiment"
-    if w in {"price", "prices", "chart", "mcap", "worth", "value"}:
+    if w in {"price", "prices", "mcap", "worth", "value"}:
         return "price"
+    if w in {"chart", "charts"}:
+        return "chart"
+    if w in {"pattern", "patterns"}:
+        return "pattern"
     if w in {"ta", "technical", "indicators", "rsi", "macd", "ema"}:
         return "technical"
     if w in {"honeypot", "rug", "risk", "risky", "safe", "security", "scam", "audit", "scan"}:
@@ -364,6 +392,17 @@ def route_tools(text: str) -> list[str]:
     if _TA_WORDS.search(text) and "technical_analysis" not in excluded:
         tools.append("technical_analysis")
 
+    # Price-action chart: "chart for $BONK" / "price chart" / "$BONK chart" —
+    # the ASCII text chart + TA digest (tools/charting.py).
+    if _CHART_WORDS.search(text) and "chart" not in excluded:
+        tools.append("chart")
+
+    # Pattern memory: "have we seen this pattern before" — recall similar
+    # stored patterns from the Redis-backed store (zero-fabrication: only
+    # returns patterns actually seen; degrades gracefully without a token).
+    if _PATTERN_WORDS.search(text) and "pattern_recall" not in excluded:
+        tools.append("pattern_recall")
+
     if _PREDICTION_WORDS.search(text) and "prediction_markets" not in excluded:
         tools.append("prediction_markets")
 
@@ -436,11 +475,17 @@ def tool_kwargs(text: str, names: list[str]) -> dict[str, dict[str, Any]]:
             "wallet_analysis",
             "birdeye_market",
             "technical_analysis",
+            "chart",
+            "pattern_recall",
         ):
             kwargs["address"] = addrs[0] if addrs else ""
             kwargs["chain"] = chain
         # Address takes precedence; a $SYMBOL fills in when no address is given.
-        if name in ("price_lookup", "token_meta", "technical_analysis") and syms and not addrs:
+        if (
+            name in ("price_lookup", "token_meta", "technical_analysis", "chart", "pattern_recall")
+            and syms
+            and not addrs
+        ):
             kwargs["symbol"] = syms[0]
         if name == "trend_by_chain":
             kwargs["chain"] = chain or "all"

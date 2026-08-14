@@ -26,6 +26,8 @@ from __future__ import annotations
 import zlib
 from datetime import date
 
+from app.core.channels_registry import CHANNEL_ROLES
+
 #: (emoji, short phrase, command) — one line each, curated, HTML-safe.
 FOOTER_CTA_POOL: tuple[tuple[str, str, str], ...] = (
     ("\u26a1", "Scan any token", "/scan"),
@@ -76,9 +78,49 @@ def append_footer_cta(text: str, seed: str | int = "") -> str:
     return f"{text}\n{cta}"
 
 
+# ══════════════════════════════════════════════
+# "📢 Our Channels" shill (public handles only)
+# ══════════════════════════════════════════════
+#: User-facing one-liners for the channel shill, keyed by registry role.
+#: Handles + membership come from ``channels_registry.CHANNEL_ROLES`` (the
+#: canonical source) so the shill can never drift from the real channels —
+#: and it renders PUBLIC HANDLES only: no numeric chat ids, no gopass paths.
+#: Deliberately kept as one short line per channel (compact, not a wall).
+CHANNEL_PITCHES: dict[str, str] = {
+    "news": "Crypto news 24/7 \u2014 headlines &amp; digests",
+    "alerts": "Security \u2014 rug alerts &amp; exploits",
+    "alpha": "Whale &amp; alpha signals \u2014 early data",
+    "scans": "Scanner \u2014 suspicious tokens",
+    "main": "Curated main channel \u2014 critical broadcasts",
+    "updates": "Changelog \u2014 product &amp; feature news",
+}
+
+
+def channels_menu_text() -> str:
+    """Compact "📢 Our Channels" block for /start, /help and onboarding.
+
+    Renders every registry channel with a public handle as one line:
+    ``• <a href="https://t.me/<handle>">@handle</a> — one-line pitch``.
+    Pure + deterministic (no network, no DB, no Telegram API) and HTML-safe
+    for ``ParseMode.HTML``: balanced anchors, no raw ``<``/``>``, and the
+    ``@`` in the anchor text is a literal handle — never a chat id.
+    """
+    lines = ["\U0001f4e2 <b>Our Channels</b>", "\u2500" * 24]
+    for definition in CHANNEL_ROLES.values():
+        handle = definition.public_handle
+        if not handle:
+            continue
+        link = f"https://t.me/{handle.lstrip('@')}"
+        pitch = CHANNEL_PITCHES.get(definition.role) or definition.description or ""
+        lines.append(f'\u2022 <a href="{link}">{handle}</a> \u2014 {pitch}')
+    return "\n".join(lines)
+
+
 __all__ = [
+    "CHANNEL_PITCHES",
     "FOOTER_CTA_POOL",
     "append_footer_cta",
+    "channels_menu_text",
     "footer_cta_for",
     "footer_cta_index",
     "rotating_cta_for",
