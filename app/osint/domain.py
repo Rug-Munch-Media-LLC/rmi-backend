@@ -14,6 +14,10 @@ sources and returns a unified :class:`app.osint.OsintReport`:
   (Wayback CDX API).
 * **Tech fingerprint** — HTTP status, final URL, ``Server`` and security
   headers via ``httpx``.
+* **theHarvester** — passive email / hostname harvesting from public search
+  engines (``theHarvester`` CLI; optional — skipped when not installed).
+* **Amass** — passive DNS/subdomain mapping plus address / ASN attribution
+  (``amass enum -passive``; optional — skipped when not installed).
 
 Contract (see :mod:`app.osint`): ``lookup_domain(domain, *, timeout=60) ->
 OsintReport``.
@@ -24,6 +28,10 @@ Error handling — import-safe, per-source degradation:
     sources still run.
   * A failed source (timeout, network error, parse error) -> a line in
     ``report.errors``; the lookup never raises for a source failure.
+  * Optional CLI tools (``theHarvester``, ``amass``) missing or failing ->
+    a line logged via :mod:`logging`; the source is skipped, never raises,
+    and never touches ``report.errors`` (WHOIS/DNS/SSL still produce a
+    complete report).
   * Garbage input (scheme/path/port/IP, unparsable hostname) -> ``ValueError``
     before any network I/O.
 
@@ -39,14 +47,18 @@ Usage::
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import ipaddress
+import json
 import logging
+import os
 import re
 import shutil
 import socket
 import ssl
 import subprocess
+import tempfile
 import time
 from datetime import datetime
 from typing import Any
@@ -84,6 +96,15 @@ _FINGERPRINT_HEADERS: frozenset[str] = frozenset(
 
 #: Upper bound of crt.sh rows processed (popular domains return huge JSON).
 _CRT_ROW_LIMIT: int = 5000
+
+#: theHarvester search sources (comma-separated, no API keys required; see ``theHarvester -h``).
+#: Chosen for speed: the 5-source default finished in ~60s while these three
+#: complete in ~7s, which fits the shared lookup budget. Add keyless sources
+#: (e.g. ``hudsonrock``) if slower, richer harvests are acceptable.
+_THEHARVESTER_SOURCES: str = "crtsh,rapiddns,hackertarget"
+
+#: Per-source result cap passed to theHarvester's ``--limit``.
+_THEHARVESTER_LIMIT: int = 50
 
 # ─── Optional dependency detection (import-safe, per-source degradation) ────
 #: Whether httpx is importable (crt.sh / Wayback / fingerprint sources).
@@ -531,6 +552,426 @@ def _extract_subdomains(domain: str, entries: list[Any]) -> list[str]:
     return sorted(found)
 
 
+# ─── theHarvester (emails / hosts / subdomains) ─────────────────────────
+
+
+def _theharvester_lookup(domain: str, timeout: int, report: OsintReport) -> None:
+    """Harvest emails + hostnames via the ``theHarvester`` CLI (passive search).
+
+    Runs ``theHarvester -d <domain> -b <sources> -l <limit> -q -f <prefix>``,
+    which writes a structured ``<prefix>.json`` (plus an XML copy) that is
+    parsed preferentially; the plain-text stdout sections (``[*] Emails
+    found: N`` / ``[*] Hosts found: N``) are parsed as a fallback for
+    versions or runs where the file is not written.
+
+    Optional source: the binary is resolved with :func:`shutil.which` and any
+    absence/failure is logged and skipped — it never raises and never touches
+    ``report.errors``, so WHOIS/DNS/SSL still produce a complete report.
+    """
+    bin_path = shutil.which("theHarvester")
+    if not bin_path:
+        logger.error("theharvester: binary not found (install with: pip install theHarvester) - skipping")
+        return
+
+    fd, json_path = tempfile.mkstemp(prefix="theharvester-", suffix=".json")
+    os.close(fd)
+    prefix = json_path[: -len(".json")]
+    try:
+        try:
+            # Fixed argv list (no shell); domain is regex-validated upstream and
+            # passed as a single element — S603 is a false positive.
+            result = subprocess.run(  # noqa: S603
+                [
+                    bin_path,
+                    "-d",
+                    domain,
+                    "-b",
+                    _THEHARVESTER_SOURCES,
+                    "-l",
+                    str(_THEHARVESTER_LIMIT),
+                    "-q",
+                    "-f",
+                    prefix,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            logger.error("theharvester: timed out after %ss", timeout)
+            return
+        except Exception as exc:
+            logger.error("theharvester: CLI run failed: %s", exc)
+            return
+        if result.returncode != 0:
+            logger.warning("theharvester: exited with code %s; parsing partial output", result.returncode)
+        emails, hosts = _parse_theharvester_output(domain, json_path, result.stdout or "")
+    finally:
+        for suffix in (".json", ".xml"):
+            with contextlib.suppress(OSError):
+                os.unlink(f"{prefix}{suffix}")
+    _emit_theharvester(domain, report, emails, hosts)
+
+
+def _parse_theharvester_output(domain: str, json_path: str, stdout: str) -> tuple[list[str], list[str]]:
+    """Parse theHarvester output into ``(emails, hosts)`` lists.
+
+    Prefers the structured ``<prefix>.json`` written by ``-f`` (robust across
+    versions); falls back to the plain-text ``[*] Emails found: N`` /
+    ``[*] Hosts found: N`` sections when the file is absent or unparsable.
+    """
+    data: Any = None
+    try:
+        with open(json_path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        data = None
+    if isinstance(data, dict):
+        emails = [str(item) for item in (data.get("emails") or []) if item]
+        hosts = [str(item) for item in (data.get("hosts") or []) if item]
+        if emails or hosts:
+            return _dedupe(emails), _dedupe(hosts)
+    emails = _theharvester_section_items(stdout, "Emails found")
+    hosts = _theharvester_section_items(stdout, "Hosts found")
+    return _dedupe(emails), _dedupe(hosts)
+
+
+def _theharvester_section_items(text: str, section: str) -> list[str]:
+    """Extract the bullet items under a ``[*] <section>: N`` header.
+
+    Tolerates the dashed separator line and blank lines; stops at the next
+    ``[*]`` header or end of output.
+    """
+    pattern = re.compile(
+        rf"^\[\*\]\s+{re.escape(section)}\s*:\s*\d+\s*\n(?:-+\s*\n)?(?P<body>.*?)(?=^\[\*\]|\Z)",
+        re.MULTILINE | re.DOTALL | re.IGNORECASE,
+    )
+    match = pattern.search(text)
+    if not match:
+        return []
+    items: list[str] = []
+    for line in match.group("body").splitlines():
+        line = line.strip()
+        if not line or set(line) <= {"-"}:
+            continue
+        items.append(line)
+    return items
+
+
+def _classify_theharvester_hosts(hosts: list[str], domain: str) -> tuple[list[str], list[str]]:
+    """Split theHarvester host entries into ``(subdomains, other-hosts)``.
+
+    Entries are ``host`` or ``host:ip`` (theHarvester appends a resolved IP
+    when a source resolves names; IPv6 addresses keep extra colons, so only
+    the first segment matters). Names under ``domain`` count as subdomains;
+    the bare domain, wildcards, and unrelated names count as hosts.
+    """
+    subdomains: set[str] = set()
+    others: set[str] = set()
+    suffix = f".{domain}"
+    for entry in hosts:
+        host = entry.split(":", 1)[0].strip().lower().rstrip(".")
+        if not host:
+            continue
+        if host.startswith("*."):
+            host = host[2:]
+        if host == domain or host.endswith(suffix):
+            subdomains.add(host)
+        else:
+            others.add(host)
+    return sorted(subdomains), sorted(others)
+
+
+def _dedupe(items: list[str]) -> list[str]:
+    """Lowercase, dedupe, and sort a list of strings."""
+    return sorted({item.strip().lower() for item in items if item.strip()})
+
+
+def _emit_theharvester(domain: str, report: OsintReport, emails: list[str], hosts: list[str]) -> None:
+    """Turn parsed theHarvester results into findings."""
+    emails = sorted({email for email in emails if re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email)})
+    subdomains, other_hosts = _classify_theharvester_hosts(hosts, domain)
+
+    if emails:
+        _finding(
+            report,
+            source="theharvester",
+            category="email",
+            summary=f"{len(emails)} email address(es) found by theHarvester",
+            confidence="medium",
+            emails=emails,
+        )
+    if subdomains:
+        _finding(
+            report,
+            source="theharvester",
+            category="subdomain",
+            summary=f"{len(subdomains)} subdomain(s) found by theHarvester",
+            confidence="medium",
+            subdomains=subdomains,
+        )
+    if other_hosts:
+        _finding(
+            report,
+            source="theharvester",
+            category="host",
+            summary=f"{len(other_hosts)} related host(s) found by theHarvester",
+            confidence="medium",
+            hosts=other_hosts,
+        )
+    if not (emails or subdomains or other_hosts):
+        _finding(
+            report,
+            source="theharvester",
+            category="recon",
+            summary="theHarvester found no emails, subdomains, or hosts",
+            confidence="medium",
+        )
+
+
+# ─── Amass (passive DNS / subdomain mapping) ──────────────────────────────
+
+
+#: Cached result of sniffing whether the ``amass`` binary supports ``-json``
+#: (amass v3 does; v4 dropped the flag in favour of ``-oA``).
+_AMASS_JSON_SUPPORTED: bool | None = None
+
+#: amass v4 ``-oA`` text output lines are graph edges: ``a --> TYPE --> b``.
+_AMASS_EDGE_RE = re.compile(r"^(?P<left>.+?)\s+-->\s+(?P<type>[A-Za-z0-9_-]+)\s+-->\s+(?P<right>.+)$")
+
+#: ANSI escape sequences amass may emit for colorized output.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _amass_lookup(domain: str, timeout: int, report: OsintReport) -> None:
+    """Passive DNS/subdomain mapping via the ``amass`` CLI (OWASP Amass).
+
+    Version-aware: amass v3 accepts ``enum -passive -d <domain> -json <file>``
+    (JSON-Lines output); amass v4 removed ``-json`` and writes graph-edge text
+    via ``enum -passive -nocolor -d <domain> -oA <prefix>`` instead. Both
+    formats are parsed into subdomain / address (IP/CIDR) / ASN findings.
+
+    Optional source: identical degradation semantics to theHarvester — a
+    missing binary or failed run is logged and skipped, never raises, and
+    never touches ``report.errors``.
+    """
+    bin_path = shutil.which("amass")
+    if not bin_path:
+        logger.error(
+            "amass: binary not found (install with: go install github.com/owasp-amass/amass/v4/...@latest"
+            " or apt install amass on Kali) - skipping"
+        )
+        return
+
+    fd, out_path = tempfile.mkstemp(prefix="amass-", suffix=".json")
+    os.close(fd)
+    out_prefix = out_path[: -len(".json")]
+    try:
+        try:
+            # Fixed argv list (no shell); domain is regex-validated upstream and
+            # passed as a single element — S603 is a false positive.
+            if _amass_supports_json(bin_path):
+                argv = [bin_path, "enum", "-passive", "-d", domain, "-json", out_path]
+            else:
+                argv = [bin_path, "enum", "-passive", "-nocolor", "-d", domain, "-oA", out_prefix]
+            result = subprocess.run(  # noqa: S603
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            logger.error("amass: timed out after %ss", timeout)
+            return
+        except Exception as exc:
+            logger.error("amass: CLI run failed: %s", exc)
+            return
+        if result.returncode != 0:
+            logger.warning("amass: exited with code %s; parsing partial output", result.returncode)
+        try:
+            if _amass_supports_json(bin_path):
+                entries = _read_amass_json(out_path)
+            else:
+                entries = _parse_amass_txt(_read_amass_txt(out_prefix + ".txt"), domain)
+        except OSError as exc:
+            logger.error("amass: could not read output: %s", exc)
+            return
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(out_path)
+        with contextlib.suppress(OSError):
+            os.unlink(out_prefix + ".txt")
+    _emit_amass(domain, report, entries)
+
+
+def _amass_supports_json(bin_path: str) -> bool:
+    """Return whether the ``amass`` binary still supports ``-json`` (v3 vs v4).
+
+    Sniffed once per process from ``amass enum -h`` and cached; on any sniff
+    failure we assume v4-style (``-oA`` is accepted by both v3 and v4).
+    """
+    global _AMASS_JSON_SUPPORTED
+    if _AMASS_JSON_SUPPORTED is None:
+        try:
+            probe = subprocess.run(  # noqa: S603
+                [bin_path, "enum", "-h"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+                shell=False,
+            )
+            _AMASS_JSON_SUPPORTED = "-json" in (probe.stdout or "") or "-json" in (probe.stderr or "")
+        except Exception as exc:
+            logger.error("amass: could not probe version capabilities: %s", exc)
+            _AMASS_JSON_SUPPORTED = False
+    return _AMASS_JSON_SUPPORTED
+
+
+def _read_amass_json(json_path: str) -> list[dict[str, Any]]:
+    """Read amass ``-json`` output (one JSON object per line, invalid lines skipped)."""
+    entries: list[dict[str, Any]] = []
+    with open(json_path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(obj, dict):
+                entries.append(obj)
+    return entries
+
+
+def _read_amass_txt(txt_path: str) -> str:
+    """Read amass ``-oA`` text output, stripping ANSI escape sequences."""
+    with open(txt_path, encoding="utf-8", errors="replace") as handle:
+        return _ANSI_RE.sub("", handle.read())
+
+
+def _parse_amass_txt(text: str, domain: str) -> list[dict[str, Any]]:
+    """Parse amass v4 ``-oA`` text output (graph-edge lines) into normalized entries.
+
+    Each line is ``left --> TYPE --> right`` where either side may carry an
+    ``(AssetType)`` suffix (``FQDN`` / ``IPAddress`` / ``Netblock`` / ``ASN``);
+    bare lines are tolerated. Normalized entries reuse the v3 JSON-Lines keys
+    so both paths share ``_emit_amass``.
+    """
+    entries: list[dict[str, Any]] = []
+    suffix = f".{domain}"
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        match = _AMASS_EDGE_RE.match(line)
+        segments = [match.group("left"), match.group("right")] if match else [line]
+        for segment in segments:
+            name, asset_type = _split_amass_asset(segment)
+            if not name:
+                continue
+            if asset_type == "IPAddress" or _looks_like_ip(name):
+                entries.append({"name": name, "addresses": [{"ip": name, "cidr": ""}]})
+            elif asset_type == "Netblock" or _looks_like_cidr(name):
+                entries.append({"addresses": [{"ip": "", "cidr": name}]})
+            elif asset_type == "ASN" or (name.isdigit() and len(name) <= 10):
+                entries.append({"asn": name})
+            elif name == domain or name.endswith(suffix):
+                entries.append({"name": name})
+    return entries
+
+
+def _split_amass_asset(segment: str) -> tuple[str, str]:
+    """Split ``name (AssetType)`` into ``(name, AssetType)``; tolerate bare names."""
+    segment = segment.strip()
+    if " (" in segment and segment.endswith(")"):
+        name, _, asset_type = segment.rpartition("(")
+        return name.strip().lower().rstrip("."), asset_type.rstrip(")").strip()
+    return segment.strip().lower().rstrip("."), ""
+
+
+def _looks_like_ip(value: str) -> bool:
+    """Heuristic: bare IPv4/IPv6 literal (no DNS lookup needed)."""
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _looks_like_cidr(value: str) -> bool:
+    """Heuristic: bare CIDR block like ``93.184.216.0/24``."""
+    return "/" in value and not value.endswith(".")
+
+
+def _emit_amass(domain: str, report: OsintReport, entries: list[dict[str, Any]]) -> None:
+    """Turn amass entries (JSON-Lines or normalized text) into findings."""
+    subdomains: set[str] = set()
+    addresses: set[tuple[str, str]] = set()  # (ip, cidr)
+    asns: set[tuple[str, str]] = set()  # (asn, description)
+    suffix = f".{domain}"
+
+    for entry in entries:
+        name = entry.get("name")
+        if isinstance(name, str):
+            name = name.strip().lower().rstrip(".")
+            if name.startswith("*."):
+                name = name[2:]
+            if name == domain or name.endswith(suffix):
+                subdomains.add(name)
+        for addr in entry.get("addresses") or []:
+            if isinstance(addr, dict):
+                ip = addr.get("ip")
+                cidr = addr.get("cidr")
+                if isinstance(ip, str) and isinstance(cidr, str) and (ip.strip() or cidr.strip()):
+                    addresses.add((ip.strip(), cidr.strip()))
+        asn = entry.get("asn")
+        desc = entry.get("desc")
+        if asn is not None:
+            asns.add((str(asn), str(desc) if isinstance(desc, str) and desc.strip() else ""))
+
+    if subdomains:
+        _finding(
+            report,
+            source="amass",
+            category="subdomain",
+            summary=f"{len(subdomains)} subdomain(s) discovered by Amass passive enumeration",
+            confidence="medium",
+            subdomains=sorted(subdomains),
+        )
+    if addresses:
+        _finding(
+            report,
+            source="amass",
+            category="address",
+            summary=f"{len(addresses)} address(es) resolved by Amass",
+            confidence="medium",
+            addresses=[{"ip": ip, "cidr": cidr} for ip, cidr in sorted(addresses)],
+        )
+    if asns:
+        _finding(
+            report,
+            source="amass",
+            category="asn",
+            summary=f"{len(asns)} ASN(s) associated with {domain} by Amass",
+            confidence="medium",
+            asns=[{"asn": asn, "desc": desc} for asn, desc in sorted(asns)],
+        )
+    if not (subdomains or addresses or asns):
+        _finding(
+            report,
+            source="amass",
+            category="recon",
+            summary="Amass passive enumeration found no subdomains, addresses, or ASNs",
+            confidence="medium",
+        )
+
+
 # ─── Web archive (Wayback Machine CDX) ───────────────────────────────
 
 
@@ -654,7 +1095,8 @@ def _fingerprint_lookup(domain: str, timeout: int, report: OsintReport) -> None:
 
 
 def lookup_domain(domain: str, *, timeout: int = 60) -> OsintReport:
-    """Investigate a domain across WHOIS, DNS, subdomains, SSL, and archive.
+    """Investigate a domain across WHOIS, DNS, subdomains, SSL, and archive,
+    plus the optional theHarvester and Amass CLI harvesters.
 
     Args:
         domain: Domain or URL to investigate (scheme/path/port are stripped).
@@ -683,4 +1125,8 @@ def lookup_domain(domain: str, *, timeout: int = 60) -> OsintReport:
     _crt_lookup(target, _budget(), report)
     _wayback_lookup(target, _budget(), report)
     _fingerprint_lookup(target, _budget(), report)
+    # Optional passive harvesters run last with whatever budget remains; a
+    # missing binary or failure is logged and skipped (see module docstring).
+    _theharvester_lookup(target, _budget(), report)
+    _amass_lookup(target, _budget(), report)
     return report
