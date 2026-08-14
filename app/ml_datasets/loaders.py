@@ -47,7 +47,7 @@ import tarfile
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -559,10 +559,9 @@ def _parse_solrpds_json(path: Path, *, year: str, limit: int | None, with_featur
     raw = json.loads(path.read_text(encoding="utf-8", errors="replace"))
     if not isinstance(raw, list):
         raise DatasetDownloadError(f"SolRPDS: {path.name} is not a JSON array")
+    items = cast("list[dict[str, Any]]", raw)
     records: list[LabeledRecord] = []
-    for item in raw:
-        if not isinstance(item, dict):
-            continue
+    for item in items:
         rec = _solrpds_row_to_record(item, year=year, with_features=with_features)
         if rec is None:
             continue
