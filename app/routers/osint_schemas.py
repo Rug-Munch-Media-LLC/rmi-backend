@@ -48,6 +48,9 @@ class AggregateReportModel(BaseModel):
 
     ``findings`` defaults to ``[]`` so the ``run_osint`` shape (which omits the
     flat list) validates against the same model as ``run_aggregate``.
+
+    ``cached`` is an API-level flag (not part of the engine report): it is set
+    to ``True`` when the response was served from the Redis OSINT cache.
     """
 
     target: str
@@ -55,6 +58,7 @@ class AggregateReportModel(BaseModel):
     results: dict[str, OsintReportModel] = Field(default_factory=dict)
     findings: list[OsintFindingModel] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
+    cached: bool = False
 
 
 class AggregateRequest(BaseModel):
