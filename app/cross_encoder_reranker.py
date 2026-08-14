@@ -117,7 +117,7 @@ class CrossEncoderReranker:
                 from transformers import AutoTokenizer
 
                 # Use CPU execution provider
-                self._tokenizer = AutoTokenizer.from_pretrained(_onnx_path)
+                self._tokenizer = AutoTokenizer.from_pretrained(_onnx_path)  # nosec B615 - loads tokenizer from local ONNX path bundled in Docker image, not an HF repo
                 self._onnx_session = ort.InferenceSession(
                     _onnx_model,
                     providers=["CPUExecutionProvider"],
@@ -146,8 +146,11 @@ class CrossEncoderReranker:
         """Load the full fp32 cross-encoder (2.1 GB, ~45s)."""
         logger.info("Loading cross-encoder model '%s' (CPU, fp32) ...", _MODEL_NAME)
         start = time.perf_counter()
-        # TODO: pin to specific revision SHA for supply-chain integrity
-        self._model = CrossEncoder(_MODEL_NAME, device="cpu")
+        self._model = CrossEncoder(
+            _MODEL_NAME,
+            device="cpu",
+            revision="953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",  # pinned HF revision (2024-06-24)
+        )
         elapsed = time.perf_counter() - start
         self._load_time_secs = round(elapsed, 2)
         self._model_loaded = True

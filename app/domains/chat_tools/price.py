@@ -58,7 +58,7 @@ def _best_dex_pair(data: Any) -> dict[str, Any] | None:
 
     def _liq(p: Any) -> float:
         liq = p.get("liquidity") if isinstance(p, dict) else None
-        return _to_float(liq.get("usd")) if isinstance(liq, dict) else 0.0
+        return (_to_float(liq.get("usd")) or 0.0) if isinstance(liq, dict) else 0.0
 
     return max(pairs, key=_liq) if pairs else None
 

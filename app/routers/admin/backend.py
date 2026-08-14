@@ -59,7 +59,7 @@ def _resolve_bot_db_path() -> str:
         os.path.join(
             os.path.dirname(__file__), "..", "..", "domains", "telegram", "rugmunchbot", "data", "bot_users.db"
         ),
-        "/tmp/rmi/telegram/bot_users.db",  # noqa: S108 — known bot DB mirror path
+        "/tmp/rmi/telegram/bot_users.db",  # noqa: S108  # nosec B108 — known bot DB mirror path, stable inter-process lookup
     ]
     for path in candidates:
         if path and os.path.exists(path):
@@ -282,9 +282,9 @@ async def list_users(
         params = [like, like, like]
 
     try:
-        total = conn.execute(f"SELECT COUNT(*) AS c FROM users {where}", params).fetchone()["c"] or 0  # noqa: S608
+        total = conn.execute(f"SELECT COUNT(*) AS c FROM users {where}", params).fetchone()["c"] or 0  # noqa: S608  # nosec B608 - where is code literal or ?-placeholder SQL; values bound via params
         rows = conn.execute(
-            f"SELECT * FROM users {where} ORDER BY last_active DESC LIMIT ?",  # noqa: S608
+            f"SELECT * FROM users {where} ORDER BY last_active DESC LIMIT ?",  # noqa: S608  # nosec B608 - where is code literal or ?-placeholder SQL; values bound via params
             [*params, limit],
         ).fetchall()
         users = [dict(r) for r in rows]

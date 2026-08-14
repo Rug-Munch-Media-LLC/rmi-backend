@@ -90,25 +90,27 @@ class FraudGNNDetector:
             model_path = hf_hub_download(
                 repo_id=HF_MODEL_ID,
                 filename="model.pkl",
+                revision="8843a2e5922bc027119ee98c95a01504a1f420a4",  # pinned HF revision (2025-11-20)
                 cache_dir=str(MODEL_DIR / "hf_cache"),
                 local_files_only=False,
             )
 
             with open(model_path, "rb") as f:
                 # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                self.model = pickle.load(f)
+                self.model = pickle.load(f)  # nosec B301 - model from pinned operator-controlled HF repo, not user input
 
             # Try loading scaler
             try:
                 scaler_path = hf_hub_download(
                     repo_id=HF_MODEL_ID,
                     filename="scaler.pkl",
+                    revision="8843a2e5922bc027119ee98c95a01504a1f420a4",  # pinned HF revision (2025-11-20)
                     cache_dir=str(MODEL_DIR / "hf_cache"),
                     local_files_only=False,
                 )
                 with open(scaler_path, "rb") as f:
                     # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                    self.scaler = pickle.load(f)
+                    self.scaler = pickle.load(f)  # nosec B301 - scaler from pinned operator-controlled HF repo, not user input
             except (ConnectionError, OSError, TimeoutError):
                 self.scaler = None
 

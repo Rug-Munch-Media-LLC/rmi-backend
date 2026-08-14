@@ -81,7 +81,7 @@ Write the explanation."""
                 "Content-Type": "application/json",
             },
         )
-        resp = urlopen(req, timeout=15)
+        resp = urlopen(req, timeout=15)  # nosec B310 - OLLAMA_URL is a fixed https constant; body is JSON, no user-controlled URL
         data = json.loads(resp.read())
         return data["choices"][0]["message"]["content"].strip()
     except Exception as e:
@@ -156,7 +156,7 @@ def classify_news(title: str, content: str = "") -> str:
                 "Content-Type": "application/json",
             },
         )
-        resp = urlopen(req, timeout=10)
+        resp = urlopen(req, timeout=10)  # nosec B310 - OLLAMA_URL is a fixed https constant; body is JSON, no user-controlled URL
         data = json.loads(resp.read())
         category = data["choices"][0]["message"]["content"].strip().upper()
         # Normalize

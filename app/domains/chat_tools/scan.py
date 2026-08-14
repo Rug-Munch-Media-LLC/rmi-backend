@@ -24,11 +24,11 @@ async def _exec_scan(message: str) -> str | None:
         return None
     chain = _chain_for_address(address)
     try:
-        from app.domains.scanner.service.scan import _risk_level_from_safety, scan_token
+        from app.domains.scanner.service import scan as _scan_svc
 
-        result = await scan_token(address, chain=chain, tiers=["free"])
+        result = await _scan_svc.scan_token(address, chain=chain, tiers=["free"])
         safety = float(getattr(result, "safety_score", 0) or 0)
-        risk = _risk_level_from_safety(safety) or "UNKNOWN"
+        risk = _scan_svc._risk_level_from_safety(safety) or "UNKNOWN"
         flags = [str(f) for f in (getattr(result, "risk_flags", None) or [])][:5]
         flags_str = ", ".join(flags) if flags else "None"
         return f"{address[:14]}… on {chain}: Safety score {safety:.0f}/100 ({risk}). Flags: {flags_str}."

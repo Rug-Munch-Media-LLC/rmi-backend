@@ -100,7 +100,7 @@ def _call_ollama(system: str, prompt: str, max_tokens: int = 250, temp: float = 
                     "Content-Type": "application/json",
                 },
             )
-            resp = urllib.request.urlopen(req, timeout=12)
+            resp = urllib.request.urlopen(req, timeout=12)  # nosec B310 - OLLAMA_URL is a fixed https constant; body is JSON, no user-controlled URL
             data = json.loads(resp.read())
             result = data["choices"][0]["message"]["content"].strip()
             usage = data.get("usage", {})

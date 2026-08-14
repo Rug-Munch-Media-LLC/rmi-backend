@@ -502,8 +502,8 @@ async def scan_wallet(wallet_address: str, chain: str = "solana", tier: str = "f
     # ── ELITE: ML anomaly + portfolio tracker ──
     if tier == "elite":
         try:
-            from app.ml_anomaly import (
-                detect_wallet_anomaly,  # type: ignore[attr-defined]  # [REVIEW] ml_anomaly exposes WalletAnomalyDetector class, not this function; block skipped by ImportError guard
+            from app.ml_anomaly import (  # type: ignore[attr-defined]  # [REVIEW] ml_anomaly exposes WalletAnomalyDetector class, not this function; block skipped by ImportError guard
+                detect_wallet_anomaly,
             )
 
             anomaly = await detect_wallet_anomaly(wallet_address, chain)

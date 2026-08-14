@@ -110,8 +110,8 @@ class BulletinBoardManager:
 
         # Supabase backup
         try:
-            from supabase import (
-                create_client,  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+            from supabase import (  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+                create_client,
             )
 
             supabase_url = os.getenv("SUPABASE_URL")
@@ -199,8 +199,8 @@ class BulletinBoardManager:
         await r.hset("rmi:bulletin_posts", post_id, json.dumps(post_dict))
 
         try:
-            from supabase import (
-                create_client,  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+            from supabase import (  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+                create_client,
             )
 
             supabase_url = os.getenv("SUPABASE_URL")

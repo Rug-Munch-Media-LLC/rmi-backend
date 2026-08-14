@@ -161,7 +161,7 @@ async def _fetch_views(
           AND ve.created_at >= NOW() - (:period || ' days')::interval
         ORDER BY ve.created_at DESC
         LIMIT 50000
-    """)  # noqa: S608 - verified bound/allowlisted SQL construction
+    """)  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - where_clause from code literals; values bound via named :params
 
     try:
         result = await db.execute(query, params)
@@ -209,7 +209,7 @@ async def _fetch_engagements(
           AND ee.created_at >= NOW() - (:period || ' days')::interval
         ORDER BY ee.created_at DESC
         LIMIT 50000
-    """)  # noqa: S608 - verified bound/allowlisted SQL construction
+    """)  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - where_clause from code literals; values bound via named :params
 
     try:
         result = await db.execute(query, params)

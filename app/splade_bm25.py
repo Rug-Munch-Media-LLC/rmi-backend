@@ -367,7 +367,7 @@ class BM25Index:
         try:
             with open(path, "rb") as f:
                 # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                data = pickle.load(f)
+                data = pickle.load(f)  # nosec B301 - index is self-persisted local artifact written by save(), not user input
             idx = cls(k1=data["k1"], b=data["b"], epsilon=data["epsilon"])
             idx.doc_count = data["doc_count"]
             idx.avg_dl = data["avg_dl"]

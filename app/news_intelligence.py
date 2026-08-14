@@ -66,7 +66,7 @@ def analyze_article(title: str, content: str = "") -> dict[str, Any]:
             data=body,
             headers={"Authorization": f"Bearer {k}", "Content-Type": "application/json"},
         )
-        resp = urllib.request.urlopen(req, timeout=8)
+        resp = urllib.request.urlopen(req, timeout=8)  # nosec B310 - OLLAMA_URL is a fixed https constant; body is JSON, no user-controlled URL
         sentiment = json.loads(resp.read())["choices"][0]["message"]["content"].strip().upper()
         if "BULL" in sentiment:
             sentiment = "bullish"
@@ -145,7 +145,7 @@ def daily_briefing() -> str:
             data=body,
             headers={"Authorization": f"Bearer {k}", "Content-Type": "application/json"},
         )
-        resp = urllib.request.urlopen(req, timeout=15)
+        resp = urllib.request.urlopen(req, timeout=15)  # nosec B310 - OLLAMA_URL is a fixed https constant; body is JSON, no user-controlled URL
         return json.loads(resp.read())["choices"][0]["message"]["content"].strip()
     except json.JSONDecodeError:
         return f"Daily briefing: {topics} are trending in crypto news today."

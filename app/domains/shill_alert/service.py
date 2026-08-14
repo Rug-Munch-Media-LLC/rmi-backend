@@ -177,7 +177,7 @@ def run_shill_detection(
 # ── Telegram ingestion ──────────────────────────────────────────────────────
 
 
-async def ingest_telegram_posts(client: Any, channels: list[dict], limit: int = 50) -> list[ShillPost]:
+async def ingest_telegram_posts(client: Any, channels: list[dict[str, Any]], limit: int = 50) -> list[ShillPost]:
     """Read Telegram channel messages and keep the token-mentioning ones.
 
     Uses ``news_ingest.read_channel_messages`` (injectable client — a

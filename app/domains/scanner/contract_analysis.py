@@ -324,6 +324,7 @@ async def analyze_contract(
 
         # An injected runner short-circuits binary detection (testability);
         # otherwise pick an installed tool that the input supports.
+        tool_name: str | None
         if runner is not None:
             tool_name = tool or "slither"
             run: ToolRunner = runner

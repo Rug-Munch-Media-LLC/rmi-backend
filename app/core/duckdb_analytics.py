@@ -194,7 +194,7 @@ class DuckDBAnalytics:
         if "'" in parquet_path:
             raise ValueError(f"Invalid parquet path (contains quote): {parquet_path!r}")
         # Bind parquet path to a table for the duration of the query
-        bind_sql = f"SELECT * FROM read_parquet('{parquet_path}')"  # noqa: S608 — verified bound/allowlisted SQL construction
+        bind_sql = f"SELECT * FROM read_parquet('{parquet_path}')"  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - parquet_path rejected above if it contains a quote; path is a filesystem/URI, not SQL
         sql = bind_sql if sql is None else f"WITH parquet AS ({bind_sql}) {sql}"
         return self.query(sql, params=params)
 
@@ -281,7 +281,7 @@ class DuckDBAnalytics:
         start = time.monotonic()
         self._conn.execute(f"COPY ({sql}) TO '{output_path}' (FORMAT PARQUET)", params or [])
         elapsed_ms = (time.monotonic() - start) * 1000
-        rows = self.query(f"SELECT count(*) AS n FROM '{output_path}'")  # noqa: S608 — verified bound/allowlisted SQL construction
+        rows = self.query(f"SELECT count(*) AS n FROM '{output_path}'")  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - output_path rejected above if it contains a quote
         n = rows[0]["n"] if rows else 0
         log.info(
             "duckdb_export_parquet rows=%d path=%s took_ms=%.2f",

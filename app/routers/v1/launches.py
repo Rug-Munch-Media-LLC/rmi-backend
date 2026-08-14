@@ -82,7 +82,7 @@ def _fetch_recent_deployer_events(
             WHERE {where_clause}
             ORDER BY block_number DESC
             LIMIT %(limit)s
-            """,  # noqa: S608 — verified bound/allowlisted SQL construction
+            """,  # noqa: S608 — verified bound/allowlisted SQL construction  # nosec B608 - where from code literals; values bound via %(name)s params
             params,
         )
         events = []

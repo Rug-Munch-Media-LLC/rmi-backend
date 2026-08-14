@@ -80,13 +80,13 @@ async def crawl_and_ingest_with_fallback(url: str, collection: str = "news_v2") 
     Returns:
         ``{"doc_id", "chunks", "status"}``.
     """
-    from app.rag.crawler import _doc_id
+    from app.rag import crawler
     from app.rag.engine import ingest_document
 
     content = await extract_with_fallback(url)
     result = await ingest_document(
         collection=collection,
-        doc_id=_doc_id(url),
+        doc_id=crawler._doc_id(url),
         content=content,
         metadata={
             "source_url": url,
@@ -95,7 +95,7 @@ async def crawl_and_ingest_with_fallback(url: str, collection: str = "news_v2") 
         },
     )
     return {
-        "doc_id": result.get("doc_id", _doc_id(url)),
+        "doc_id": result.get("doc_id", crawler._doc_id(url)),
         "chunks": result.get("chunks", 0),
         "status": result.get("status", "unknown"),
     }

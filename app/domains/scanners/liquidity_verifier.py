@@ -57,8 +57,8 @@ from ._config import (  # noqa: F401 re-export
 from ._models import (
     SOLANA_BURN_ADDRESSES,
     LockDetail,
-    LockReport,
-    LockStatus,
+    LockReport as LockReport,  # re-exported for callers (token_launch_detector, sentinel risk)
+    LockStatus as LockStatus,
 )
 
 logger = get_logger("liquidity_verifier")

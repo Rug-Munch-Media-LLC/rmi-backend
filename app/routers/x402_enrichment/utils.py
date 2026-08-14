@@ -279,7 +279,7 @@ def lookup_contract_names(addresses: list[str], chain: str = "ethereum") -> dict
                 "apikey": key,
             }
             url = f"https://api.etherscan.io/v2/api?{urllib.parse.urlencode(params)}"
-            r = urllib.request.urlopen(url, timeout=5)
+            r = urllib.request.urlopen(url, timeout=5)  # nosec B310 - fixed https api.etherscan.io host; params URL-encoded
             d = json.loads(r.read())
             if d.get("status") == "1" and d.get("result"):
                 contract = d["result"][0]

@@ -75,8 +75,11 @@ async def _exec_ta(message: str) -> str | None:
         if not current:
             return None
         change = _to_float(summary.get("price_change_pct")) or 0.0
-        closes = [_to_float(c.get("close")) for c in candles if c.get("close") is not None]
-        closes = [c for c in closes if c is not None]
+        closes: list[float] = []
+        for candle in candles:
+            close = _to_float(candle.get("close"))
+            if close is not None:
+                closes.append(close)
 
         # Prefer the TA domain's summary when available (parallel agent);
         # fall back to inline RSI + change so TA questions still get numbers.

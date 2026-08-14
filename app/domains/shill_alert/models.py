@@ -68,11 +68,11 @@ def parse_timestamp(value: Any) -> float | None:
     if parsed is not None:
         return parsed
     try:
-        parsed = parsedate_to_datetime(text)
+        dt = parsedate_to_datetime(text)
     except (TypeError, ValueError, OverflowError):
-        parsed = None
-    if parsed is not None:
-        return _dt_epoch(parsed)
+        dt = None
+    if dt is not None:
+        return _dt_epoch(dt)
     try:
         return float(text)
     except (TypeError, ValueError):

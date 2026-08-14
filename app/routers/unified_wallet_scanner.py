@@ -216,7 +216,7 @@ class UnifiedWalletScanner:
                 },
                 method="POST",
             )
-            resp = urlopen(req, timeout=8)
+            resp = urlopen(req, timeout=8)  # nosec B310 - URL pre-validated by _validate_https_url (https-only)
             data = json.loads(resp.read())
             r.rag_matches = data.get("hits", [])
             if r.rag_matches:
@@ -376,7 +376,7 @@ class UnifiedWalletScanner:
                 data=body,
                 headers=headers,
             )
-            resp = urlopen(req, timeout=5)
+            resp = urlopen(req, timeout=5)  # nosec B310 - OLLAMA_URL is a fixed https constant; body is JSON, no user-controlled URL
             r.risk_forecast = json.loads(resp.read())["choices"][0]["message"]["content"].strip()
             r.modules_run.append("ai_forecast")
         except (json.JSONDecodeError, KeyError, OSError, Exception) as e:
