@@ -177,11 +177,13 @@ async def _local_wallet_labels(address: str = "", **kw) -> dict[str, Any] | None
             "http://rmi:clickhouse_rmi_prod_2026@rmi-clickhouse:8123?default_format=TabSeparated",
         )
         # NOTE: Addresses are wallet hex/base58 — SQL-safe alphanumeric.
-        # Using format with sanitization limit for internal trusted traffic.
+        # Escape single quotes for the ClickHouse string literal (injection guard):
+        # valid wallet addresses never contain quotes, so escaping is behavior-preserving.
+        addr_esc = addr_lower.replace("'", "''")
         query = (
             "SELECT chain_id, label_name, label_category, source, is_sanctioned "
             "FROM wallet_memory.wallet_labels "
-            f"WHERE address = '{addr_lower}' "
+            f"WHERE address = '{addr_esc}' "  # nosec B608 - addr single-quote-escaped ('' doubling)
             "AND label_name != '' "
             "ORDER BY is_sanctioned DESC, loaded_at DESC "
             "LIMIT 5"
@@ -284,12 +286,14 @@ async def _local_wallet_labels_batch(addresses: list[str] | None = None, **kw) -
             "http://rmi:clickhouse_rmi_prod_2026@rmi-clickhouse:8123?default_format=TabSeparated",
         )
 
-        # Build IN clause with quotes
-        addr_list = ", ".join(f"'{a}'" for a in addrs)
+        # Build IN clause with quotes; each address single-quote-escaped for
+        # the ClickHouse string literal (injection guard, behavior-preserving:
+        # valid wallet addresses never contain single quotes).
+        addr_list = ", ".join("'" + a.replace("'", "''") + "'" for a in addrs)
         query = (
             "SELECT address, chain_id, label_name, label_category, source, is_sanctioned "
             "FROM wallet_memory.wallet_labels "
-            f"WHERE address IN ({addr_list}) "
+            f"WHERE address IN ({addr_list}) "  # nosec B608 - each addr single-quote-escaped ('' doubling)
             "AND label_name != '' "
             "ORDER BY is_sanctioned DESC, loaded_at DESC "
             "LIMIT 500"

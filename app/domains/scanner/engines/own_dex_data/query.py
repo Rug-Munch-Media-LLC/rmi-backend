@@ -175,7 +175,7 @@ async def _query_dex_swaps(
                 WHERE {where_clause}
                 ORDER BY block_timestamp DESC
                 LIMIT 500
-                """,  # noqa: S608 - verified bound/allowlisted SQL construction
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
                     params,
                 ),
             )

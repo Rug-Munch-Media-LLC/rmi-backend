@@ -199,7 +199,7 @@ async def _fetch_news_catalog(
             params.extend([f"%{key}%", f"%{key}%", f"%{key}%"])
         where = f"published_at > $1 AND ({' OR '.join(like_clauses)})" if like_clauses else "published_at > $1"
         query = (
-            f"SELECT news_id, url, title, summary, source, published_at, "
+            f"SELECT news_id, url, title, summary, source, published_at, "  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             f"sentiment_score, tokens_mentioned "
             f"FROM news_items WHERE {where} "
             f"ORDER BY published_at DESC LIMIT {int(limit)}"

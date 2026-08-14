@@ -402,7 +402,7 @@ def _query_dex_wash_stats(
                 count(DISTINCT sender) AS unique_senders
             FROM wallet_memory.dex_events
             WHERE {where_swaps}
-            """,
+            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
         )
 
@@ -413,7 +413,7 @@ def _query_dex_wash_stats(
             WHERE {where_swaps}
             GROUP BY tx_hash
             HAVING n >= 3
-            """,
+            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
         )
 
@@ -425,7 +425,7 @@ def _query_dex_wash_stats(
             GROUP BY sender
             ORDER BY n DESC
             LIMIT 3
-            """,
+            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
         )
 
@@ -440,7 +440,7 @@ def _query_dex_wash_stats(
             GROUP BY sender
             HAVING buys > 3 AND sells > 3
             LIMIT 50
-            """,
+            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
         )
     except (ValueError, RuntimeError, OSError) as exc:
