@@ -1,0 +1,66 @@
+# TrueBlocks — local EVM address-appearance index ("Unchained Index")
+# ===================================================================
+# Self-hosted wallet-history forensics: instead of hammering an archive
+# node with eth_getLogs / getTransactions scans for every investigation,
+# TrueBlocks builds a local index of "which blocks contain address X" and
+# answers `chifra list <addr>` / `chifra export <addr>` from that index.
+#
+# Image: trueblocks/core:v5.0.0 (pinned — latest published stable tag on
+# Docker Hub as of 2026-08-14. NOTE: upstream trueblocks-docker master
+# still references v4.0.0, which is NOT published on Docker Hub; v5.0.0
+# is the current published tag. See README.md [REVIEW] note.)
+# License: GPL-3.0 — run as a standalone binary via this official image;
+#          NOT vendored into our codebase, NOT redistributed.
+#
+# Usage:
+#   cp .env.example .env    # set TB_CHAINS_<chain>_RPCPROVIDER to an
+#                           # ARCHIVE/TRACING node (the daemon refuses to
+#                           # start without a reachable RPC)
+#   docker compose up -d
+#   docker compose exec trueblocks chifra list <0xaddress>
+#
+# Docs: https://github.com/TrueBlocks/trueblocks-docker
+#       https://trueblocks.io/docs/
+
+services:
+  trueblocks:
+    image: trueblocks/core:v5.0.0
+    container_name: rmi-trueblocks
+    restart: unless-stopped
+    # Loopback-only by default (forensics tool, no public exposure).
+    # For remote access use SSH tunnel or `tailscale serve` (see README).
+    ports:
+      - "127.0.0.1:${TB_SERVE_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      # Fixed container paths — tied to the bind mounts below. Do not
+      # override these; chain/RPC config comes from .env (env_file).
+      - TB_SETTINGS_CACHEPATH=/cache
+      - TB_SETTINGS_INDEXPATH=/unchained
+    volumes:
+      # The Unchained Index + per-address monitors. THE DATA THAT MATTERS —
+      # back this directory up (it takes days to rebuild for mainnet).
+      - ./data/unchained:/unchained
+      # RPC response cache (blocks/txs/traces fetched on demand). Safe to
+      # delete; it only speeds up repeat queries.
+      - ./data/cache:/cache
+      # Generated trueblocks.toml + ABI cache (articulation names).
+      - ./data/config:/root/.local/share/trueblocks
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '2'
+          pids: 1024
+    healthcheck:
+      # Daemon process liveness. NOTE: `chifra daemon` hard-exits when the
+      # configured RPC is unreachable — a restart loop (`Restarting` in
+      # `docker compose ps`) almost always means the RPC is down/wrong.
+      test: ["CMD-SHELL", "pgrep -f 'chifra daemon' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
