@@ -102,7 +102,7 @@ def lookup_labels(addresses: list[str]) -> tuple[dict[str, list[WalletLabel]], f
             END,
             loaded_at DESC
         LIMIT {MAX_BATCH_SIZE * 5}
-        """
+        """  # nosec B608 - placeholders are code-literal (a) list bindings; addresses bound via params; LIMIT is constant
         rows = ch.execute(query, addresses)
 
         for row in rows:

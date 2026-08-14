@@ -236,7 +236,7 @@ class BlockchainDataLayer:
                 data=data,
                 headers={"Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310 - URL is operator RPC config/env (per chain), never user input
                 return json_module.loads(resp.read())
         except Exception as e:
             logger.debug("Sync HTTP fallback failed: %s", e)

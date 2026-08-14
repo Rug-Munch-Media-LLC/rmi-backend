@@ -68,8 +68,13 @@ def classify_sources(sources: list[dict[str, Any]], status: dict[str, Any]) -> d
     """
     buckets: dict[str, list[dict[str, Any]]] = {"active": [], "stale": [], "dead": [], "unknown": []}
     for source in sources:
-        entry = status.get(source.get("id"))
-        bucket = _BUCKET_BY_STATUS.get(entry.get("status")) if isinstance(entry, dict) else None
+        source_id = source.get("id")
+        entry = status.get(source_id) if isinstance(source_id, str) else None
+        bucket = None
+        if isinstance(entry, dict):
+            bucket_status = entry.get("status")
+            if isinstance(bucket_status, str):
+                bucket = _BUCKET_BY_STATUS.get(bucket_status)
         buckets[bucket or "unknown"].append(source)
     return buckets
 
@@ -108,7 +113,8 @@ def prune_plan(
         cutoff = datetime.now(UTC) - timedelta(days=stale_after_days)
         recent_stale: list[dict[str, Any]] = []
         for source in stale:
-            entry = status.get(source.get("id"))
+            source_id = source.get("id")
+            entry = status.get(source_id) if isinstance(source_id, str) else None
             last_good = entry.get("last_good") if isinstance(entry, dict) else None
             if last_good is None:
                 recent_stale.append(source)  # fail-open: no evidence → keep

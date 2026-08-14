@@ -11,7 +11,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree as ET
+from defusedxml import ElementTree as SafeET  # protects RSS parsing against XML entity-expansion attacks
 
 import httpx
 
@@ -68,7 +68,7 @@ def fetch_reddit(db_r=None) -> Any:
             if resp.status_code == 429:
                 logger.warning(f"  {source}: rate limited, skipping")
                 continue
-            root = ET.fromstring(resp.content)
+            root = SafeET.fromstring(resp.content)
             items = root.findall(".//{http://www.w3.org/2005/Atom}entry")
             if not items:
                 items = root.findall(".//item")
@@ -114,7 +114,7 @@ def fetch_nitter(db_r=None) -> Any:
                 resp = httpx.get(url, timeout=15, headers={"User-Agent": "RMI/3.0 NewsBot"})
                 if resp.status_code != 200:
                     continue
-                root = ET.fromstring(resp.content)
+                root = SafeET.fromstring(resp.content)
                 for item in root.findall(".//item")[:10]:
                     title = (item.findtext("title", "") or "").strip()
                     desc = (item.findtext("description", "") or "").strip()

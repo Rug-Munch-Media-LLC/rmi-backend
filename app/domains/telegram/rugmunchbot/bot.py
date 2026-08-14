@@ -356,7 +356,7 @@ def main() -> None:
     # PTB 21+ drops the `transport` kwarg in favor of `httpx_kwargs`.
     # S104: binding the outbound source to 0.0.0.0 (all IPv4) is intentional —
     # it forces IPv4 and avoids the broken IPv6 route.
-    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")  # noqa: S104
+    transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")  # noqa: S104  # nosec B104 - outbound source bind forces IPv4 to avoid broken IPv6 route (documented above)
     request = HTTPXRequest(httpx_kwargs={"transport": transport})
 
     app = Application.builder().token(BOT_TOKEN).request(request).build()

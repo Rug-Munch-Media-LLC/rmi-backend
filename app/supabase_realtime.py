@@ -39,7 +39,7 @@ TABLE_CHANNELS = {
 
 class SupabaseRealtimeBridge:
     def __init__(self) -> None:
-        self.redis = None
+        self.redis: aioredis.Redis | None = None
         self._running = False
         self._reconnect_delay = 1
 

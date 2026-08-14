@@ -181,13 +181,32 @@ class HallucinationGuard:
                 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
                 loop = asyncio.get_event_loop()
-                tokenizer, model = await loop.run_in_executor(
-                    None,
-                    lambda mn=model_name: (
-                        AutoTokenizer.from_pretrained(mn),
-                        AutoModelForSequenceClassification.from_pretrained(mn),
-                    ),
-                )
+                # Primary model: pinned HF revision for supply-chain integrity.
+                # Fallback (moritz23/nli-deberta-v3-xsmall) is gated on HF with
+                # no public revision hash; its name is a code constant, so no
+                # user input can steer the download.  # nosec B615
+                if model_name == NLI_MODEL_PRIMARY:
+                    tokenizer, model = await loop.run_in_executor(
+                        None,
+                        lambda: (
+                            AutoTokenizer.from_pretrained(
+                                NLI_MODEL_PRIMARY,
+                                revision="fa2804872c3b4bd748f38c0185cc85775361e735",  # pinned HF revision (2025-04-15)
+                            ),
+                            AutoModelForSequenceClassification.from_pretrained(
+                                NLI_MODEL_PRIMARY,
+                                revision="fa2804872c3b4bd748f38c0185cc85775361e735",
+                            ),
+                        ),
+                    )
+                else:
+                    tokenizer, model = await loop.run_in_executor(
+                        None,
+                        lambda mn=model_name: (
+                            AutoTokenizer.from_pretrained(mn),  # nosec B615 - fallback name is code constant; gated repo has no public revision to pin
+                            AutoModelForSequenceClassification.from_pretrained(mn),  # nosec B615 - fallback name is code constant; gated repo has no public revision to pin
+                        ),
+                    )
                 model.eval()
                 self._tokenizer = tokenizer
                 self._model = model

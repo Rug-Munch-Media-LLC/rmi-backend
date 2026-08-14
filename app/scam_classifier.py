@@ -218,7 +218,7 @@ class ScamClassifier:
             try:
                 with open(MODEL_PATH, "rb") as f:
                     # SECURITY: pickle loads are safe here because models are bundled in Docker image
-                    self.model = pickle.load(f)
+                    self.model = pickle.load(f)  # nosec B301 - model is a bundled local artifact (Docker image), not user input
                 if os.path.exists(FEATURE_NAMES_PATH):
                     with open(FEATURE_NAMES_PATH) as f:
                         meta = json.load(f)

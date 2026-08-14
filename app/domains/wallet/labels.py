@@ -393,7 +393,7 @@ def get_known_entities() -> list[KnownEntity]:
     """
     global _known_entities_cache
     if _known_entities_cache is None:
-        merged: dict[tuple[str, str], KnownEntity] = {}
+        merged: dict[tuple[str, tuple[str, ...]], KnownEntity] = {}
         for entity in [*_load_entities_from_disk(), *KNOWN_ENTITIES_SEED]:
             is_evm = any(_is_evm_chain_key(c) or c == "evm" for c in entity.chains)
             key = (entity.address.lower() if is_evm else entity.address, tuple(sorted(entity.chains)))

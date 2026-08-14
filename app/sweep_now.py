@@ -61,11 +61,12 @@ for w in mgr._wallets.values():
             rpc = os.getenv("ETH_RPC_URL", "https://eth.llamarpc.com")
             acct = Account.from_mnemonic(mnemonic)
             w3 = Web3(Web3.HTTPProvider(rpc))
-            bal = w3.eth.get_balance(w.address)
+            checksum_address = Web3.to_checksum_address(w.address)
+            bal = w3.eth.get_balance(checksum_address)
             if bal <= w3.to_wei(0.0002, "ether"):
                 continue
             sweep = bal - w3.to_wei(0.0001, "ether")
-            nonce = w3.eth.get_transaction_count(w.address)
+            nonce = w3.eth.get_transaction_count(checksum_address)
             tx = {
                 "nonce": nonce,
                 "to": Web3.to_checksum_address(owner),

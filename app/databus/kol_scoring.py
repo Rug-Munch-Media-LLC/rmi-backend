@@ -221,11 +221,13 @@ def _wallet_attribution_confidence(handle: str) -> float:
     if cached is not None:
         return max(0.0, min(1.0, cached))
     try:  # pragma: no cover - defensive, module may not exist yet
-        from app.databus.kol_wallets import get_wallet_confidence
+        from app.databus import kol_wallets
 
-        conf = get_wallet_confidence(handle)
-        if isinstance(conf, (int, float)):
-            return max(0.0, min(1.0, float(conf)))
+        get_wallet_confidence = getattr(kol_wallets, "get_wallet_confidence", None)
+        if get_wallet_confidence is not None:
+            conf = get_wallet_confidence(handle)
+            if isinstance(conf, (int, float)):
+                return max(0.0, min(1.0, float(conf)))
     except (ImportError, AttributeError, TypeError, ValueError):
         pass
     return 0.0

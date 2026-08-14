@@ -401,4 +401,4 @@ Add to your AI agent: {"rmi-intelligence": {"url": "https://YOUR_SERVER/mcp/sse"
 
 if __name__ == "__main__":
     # Run as SSE server on port 9020
-    mcp.run(transport="sse", host="0.0.0.0", port=9020)
+    mcp.run(transport="sse", host="0.0.0.0", port=9020)  # nosec B104 - MCP SSE server intentionally binds all interfaces for container/reverse-proxy access; CLI entrypoint only

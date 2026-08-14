@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from qdrant_client import AsyncQdrantClient, models
 
@@ -170,7 +170,9 @@ class QdrantStore:
     @property
     def client(self) -> AsyncQdrantClient:
         if self._client is None:
-            self._client = AsyncQdrantClient(url=self.url, timeout=self._timeout)
+            # qdrant-client's stub types timeout as int|None but accepts floats at
+            # runtime; keep the caller-facing float timeout without truncation.
+            self._client = AsyncQdrantClient(url=self.url, timeout=cast("int | None", self._timeout))
         return self._client
 
     async def close(self) -> None:

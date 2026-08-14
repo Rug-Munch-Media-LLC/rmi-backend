@@ -84,21 +84,27 @@ async def query_parquet_mcp(
     # -- Build the query ---------------------------------------------------
     bucket_url = f"s3://rmi-parquet/{chain_key}/{table_key}/*/*/*.parquet"
 
-    # Build WHERE clause from filters
+    # Build WHERE clause from filters. Address/block values are bound as
+    # DuckDB parameters (never interpolated) to prevent SQL injection.
     filters: list[str] = []
+    params: list[Any] = []
     if address:
-        filters.append(f"(from_address = '{address}' OR to_address = '{address}')")
+        filters.append("(from_address = ? OR to_address = ?)")
+        params.extend([address, address])
     if from_block is not None:
-        filters.append(f"block_number >= {from_block}")
+        filters.append("block_number >= ?")
+        params.append(int(from_block))
     if to_block is not None:
-        filters.append(f"block_number <= {to_block}")
+        filters.append("block_number <= ?")
+        params.append(int(to_block))
 
     where_clause = ""
     if filters:
         where_clause = "WHERE " + " AND ".join(filters)
 
-    # S608: all inputs validated from constrained sets or clamped ints
-    sql = f"SELECT * FROM read_parquet('{bucket_url}', union_by_name=true) {where_clause} ORDER BY block_number DESC LIMIT {limit}"  # noqa: S608
+    # S608: user-supplied values are bound via ? placeholders; bucket_url is
+    # allowlisted from SUPPORTED_CHAINS/SUPPORTED_TABLES, limit is clamped int
+    sql = f"SELECT * FROM read_parquet('{bucket_url}', union_by_name=true) {where_clause} ORDER BY block_number DESC LIMIT {limit}"  # noqa: S608  # nosec B608 - user values bound as ? params; bucket_url allowlisted
 
     # -- Execute in thread pool (DuckDB calls are synchronous) -------------
     def _execute() -> dict[str, Any]:
@@ -106,7 +112,7 @@ async def query_parquet_mcp(
 
         try:
             db = DuckDBAnalytics()
-            rows = db.query_remote_parquet(bucket_url, sql)
+            rows = db.query_remote_parquet(bucket_url, sql, params=params)
             return {
                 "rows": rows,
                 "count": len(rows),

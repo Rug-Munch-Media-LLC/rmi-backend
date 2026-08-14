@@ -297,9 +297,9 @@ async def bot_users(
     where_sql = (" WHERE " + " AND ".join(where)) if where else ""
     offset = (page - 1) * per_page
     try:
-        total = conn.execute(f"SELECT COUNT(*) AS c FROM users{where_sql}", params).fetchone()["c"] or 0
+        total = conn.execute(f"SELECT COUNT(*) AS c FROM users{where_sql}", params).fetchone()["c"] or 0  # nosec B608 - where_sql from code literals with ? placeholders; values bound via params
         rows = conn.execute(
-            f"SELECT * FROM users{where_sql} ORDER BY last_active DESC LIMIT ? OFFSET ?",
+            f"SELECT * FROM users{where_sql} ORDER BY last_active DESC LIMIT ? OFFSET ?",  # nosec B608 - where_sql from code literals with ? placeholders; values bound via params
             [*params, per_page, offset],
         ).fetchall()
     except sqlite3.Error as exc:

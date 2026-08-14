@@ -234,7 +234,9 @@ def to_checksum_address(address: str) -> str:
     if not is_valid_evm_address(address):
         return address
     try:
-        from eth_utils import to_checksum_address as _eth_checksum
+        # eth-utils' py.typed top-level re-export is invisible to mypy (name
+        # imported into __init__ without an `as` alias) — genuine stub gap.
+        from eth_utils import to_checksum_address as _eth_checksum  # type: ignore[attr-defined]
 
         return _eth_checksum(address)
     except Exception:  # pragma: no cover - optional dependency fallback

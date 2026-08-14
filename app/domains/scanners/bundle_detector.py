@@ -37,16 +37,16 @@ from app.chain_client import ChainClient
 from app.chain_registry import get_explorer_api_config, is_evm, is_solana
 from app.core.logging import get_logger
 from app.domains.scanners._bundle_models import (  # noqa: F401  # re-exported for callers/tests
-    BUNDLER_PROGRAMS,
-    EVM_EXPLORER_KEY_ENVS,
-    EVM_EXPLORER_URLS,
-    JITO_PROGRAMS,
-    BehaviorCluster,
-    BundledWallet,
-    BundleReport,
-    FundingStep,
-    SameBlockSniper,
-    _EarlyBuyer,
+    BUNDLER_PROGRAMS as BUNDLER_PROGRAMS,
+    EVM_EXPLORER_KEY_ENVS as EVM_EXPLORER_KEY_ENVS,
+    EVM_EXPLORER_URLS as EVM_EXPLORER_URLS,
+    JITO_PROGRAMS as JITO_PROGRAMS,
+    BehaviorCluster as BehaviorCluster,
+    BundledWallet as BundledWallet,
+    BundleReport as BundleReport,
+    FundingStep as FundingStep,
+    SameBlockSniper as SameBlockSniper,
+    _EarlyBuyer as _EarlyBuyer,
 )
 from app.domains.scanners._bundle_signals import (  # re-exported for callers/tests
     analyze_compute_budgets,
@@ -76,6 +76,12 @@ class BundleDetector:
 
     Fetches data directly from Helius, DexScreener, and Solscan.
     """
+
+    # Fallback explorer maps (module-level constants from _bundle_models,
+    # surfaced as class attributes so the EVM funding-trace helpers can use
+    # them via ``self``).
+    EVM_EXPLORER_URLS = EVM_EXPLORER_URLS
+    EVM_EXPLORER_KEY_ENVS = EVM_EXPLORER_KEY_ENVS
 
     def __init__(self) -> None:
         self._http = httpx.AsyncClient(timeout=15.0)

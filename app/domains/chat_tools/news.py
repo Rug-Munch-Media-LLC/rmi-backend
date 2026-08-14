@@ -50,14 +50,14 @@ async def _exec_news(message: str = "") -> str | None:
     "Top stories" block capped at 10 items; returns None on failure/empty.
     """
     try:
-        from app.routers.news import _point_to_article, _scroll_news_v2
+        from app.routers import news as _news
 
-        points = await _scroll_news_v2(limit=_NEWS_SCROLL_WINDOW)
+        points = await _news._scroll_news_v2(limit=_NEWS_SCROLL_WINDOW)
         if not points:
             return None
         articles: list[dict[str, Any]] = []
         for p in points:
-            a = _point_to_article(p)
+            a = _news._point_to_article(p)
             if not isinstance(a, dict):
                 continue
             if not str(a.get("title") or "").strip():

@@ -248,7 +248,8 @@ def _norm_bulletin(raw: dict[str, Any]) -> PlatformAlert | None:
 
 def _norm_security_intel(raw: dict[str, Any]) -> PlatformAlert | None:
     """Security dashboard: detection-wrapped or flat alert dicts."""
-    inner = raw.get("detection") if isinstance(raw.get("detection"), dict) else raw
+    detection = raw.get("detection")
+    inner = detection if isinstance(detection, dict) else raw
     title = _first_text(
         inner.get("title"), inner.get("message"), inner.get("name"), inner.get("alert_type"), inner.get("type")
     )

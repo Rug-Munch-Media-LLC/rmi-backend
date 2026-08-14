@@ -110,7 +110,7 @@ async def fetch_multi_chain_deployers(
        AND total_deployments >= %(min_total)s
     ORDER BY total_deployments DESC, chain_count DESC
     LIMIT %(limit)s
-    """  # noqa: S608 - verified bound/allowlisted SQL construction
+    """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - only code-literal where_clause interpolated; all values bound via %(name)s params
 
     try:
         import asyncio
@@ -182,7 +182,7 @@ async def fetch_deployments_for_deployer(
     WHERE {where}
     ORDER BY block_timestamp DESC
     LIMIT %(limit)s
-    """  # noqa: S608 - verified bound/allowlisted SQL construction
+    """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - only code-literal where interpolated; all values bound via %(name)s params
 
     try:
         import asyncio
