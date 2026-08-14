@@ -19,6 +19,7 @@ from typing import Any
 from app.security.ai_guard import AIGuard
 
 from ..chat_db import _get_db
+from ._market_context import build_market_context_block
 from ._prompts import SYSTEM_PROMPT
 
 # Initialize guard (shared with the routes in ``chat.py``)
@@ -104,10 +105,23 @@ async def _build_messages(
     # below always appends the current user message as the LAST message.
     history_items = _normalize_history(history_items)
 
-    # Build system prompt with hardening + current date/year awareness
+    # Build system prompt with hardening + current date/year awareness.
+    # Day-granularity date ONLY: minute-granularity stamps (the prior
+    # "%Y-%m-%d %H:%M UTC") changed the prompt prefix on every message and
+    # broke provider prefix caching. A day stamp is stable for the whole day.
     now = datetime.now(UTC)
-    date_str = now.strftime("%Y-%m-%d %H:%M UTC")
+    date_str = now.strftime("%Y-%m-%d")
     system = SYSTEM_PROMPT.format(date=date_str, year=str(now.year))
+
+    # ── Market context block (ambient market awareness for EVERY answer) ──
+    # Injected here so both the website chat path and the Telegram bot path
+    # (both call _build_messages) always carry live market context. Best-
+    # effort: build_market_context_block() returns "" when the market sources
+    # are down, so chat never waits on, breaks on, or fabricates this block.
+    market_block = await build_market_context_block()
+    if market_block:
+        system += f"\n\n{market_block}"
+
     if system_context:
         # Escape any delimiter tokens in user context
         safe_context = ai_guard._escape_delimiters(system_context[:2000])

@@ -27,6 +27,8 @@ from app.domains.telegram.rugmunchbot.channels.importance import (
     _heuristic_scored,
     score_importance,
     select_important,
+    top_headlines,
+    trending_tokens,
 )
 
 
@@ -156,3 +158,44 @@ class TestSelectImportant:
         out = _heuristic_scored([_article("Exploit")])
         assert out[0].fallback is True
         assert out[0].best_query == "heuristic-fallback"
+
+
+# ── Market-awareness helpers (top_headlines / trending_tokens) ─────────────
+
+
+def _article_with_entities(title: str, entities: list[str]) -> NewsArticle:
+    a = _article(title)
+    a.entities = entities
+    return a
+
+
+class TestMarketAwareness:
+    def test_top_headlines_orders_by_importance(self) -> None:
+        scored = [_scored("Second", 0.3), _scored("First", 0.9), _scored("Third", 0.5)]
+        out = top_headlines(scored, top_n=10)
+        assert [a.title for a in out] == ["First", "Third", "Second"]
+
+    def test_top_headlines_caps_and_preserves_importance_order(self) -> None:
+        scored = [_scored(f"H{i}", 1.0 - i / 10.0) for i in range(5)]
+        assert len(top_headlines(scored, top_n=2)) == 2
+        assert [a.title for a in top_headlines(scored, top_n=2)] == ["H0", "H1"]
+
+    def test_top_headlines_empty(self) -> None:
+        assert top_headlines([], top_n=5) == []
+
+    def test_trending_tokens_counts_and_dedupes(self) -> None:
+        articles = [
+            _article_with_entities("a", ["$BTC", "$SOL"]),
+            _article_with_entities("b", ["$BTC"]),
+            _article_with_entities("c", ["$sol", "$PEPE"]),  # lowercase normalizes
+        ]
+        out = trending_tokens(articles, top_n=8)
+        assert out == ["BTC", "SOL", "PEPE"]  # BTC 2x, then alpha tiebreak
+
+    def test_trending_tokens_caps_top_n(self) -> None:
+        articles = [_article_with_entities(f"a{i}", [f"$T{i}"]) for i in range(5)]
+        assert len(trending_tokens(articles, top_n=2)) == 2
+
+    def test_trending_tokens_empty(self) -> None:
+        assert trending_tokens([], top_n=8) == []
+        assert trending_tokens([_article_with_entities("x", [])], top_n=8) == []

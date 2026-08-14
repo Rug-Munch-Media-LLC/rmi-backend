@@ -16,6 +16,10 @@ from app.rag.dedup import content_hash
 # ── Tunable thresholds ─────────────────────────────────────────────────────
 
 _MIN_NEWS_CHARS: Final = 60  # shorter (and entity-free) → promo/telegraph noise
+#: Terse whale/alpha signals ("Whale moved 5,000 BTC") are high-value and
+#: typically entity-free + short — give the alpha category a lower floor so
+#: routing to the alpha channel is not starved by the news noise gate.
+_MIN_ALPHA_CHARS: Final = 20
 _FORWARD_ONLY_MAX_CHARS: Final = 120  # short forwarded posts are re-share noise
 _TITLE_MAX_CHARS: Final = 120
 
@@ -85,13 +89,14 @@ def strip_junk_lines(text: str) -> str:
     return "\n".join(kept)
 
 
-def _is_noise(text: str, *, forwarded: bool) -> bool:
+def _is_noise(text: str, *, forwarded: bool, category: str = "") -> bool:
     """True when *text* is promo/telegraph noise rather than a news item."""
     if not text or not text.strip():
         return True
     if re.fullmatch(r"\s*(?:t\.me/|https?://)\S+\s*", text):
         return True
-    if len(text) < _MIN_NEWS_CHARS and not extract_entities(text):
+    min_chars = _MIN_ALPHA_CHARS if category == "alpha" else _MIN_NEWS_CHARS
+    if len(text) < min_chars and not extract_entities(text):
         return True
     return forwarded and len(text) < _FORWARD_ONLY_MAX_CHARS
 
@@ -101,13 +106,14 @@ def channel_message_to_article(msg: ChannelMessage, category: str) -> NewsArticl
 
     Strips bot junk, skips forward-only noise and non-news (empty, link-only,
     short entity-free promo) messages. Returns ``None`` for anything that is
-    not a usable news item.
+    not a usable news item. ``category=="alpha"`` relaxes the minimum length
+    gate so terse whale/alpha signals survive normalization.
     """
     if msg is None or not msg.text or not msg.text.strip():
         return None
 
     text = strip_junk_lines(msg.text).strip()
-    if _is_noise(text, forwarded=msg.forwarded_from is not None):
+    if _is_noise(text, forwarded=msg.forwarded_from is not None, category=category):
         return None
 
     lines = text.splitlines()

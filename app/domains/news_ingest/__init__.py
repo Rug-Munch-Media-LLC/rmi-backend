@@ -10,7 +10,14 @@ dedupes on content hash / source URL before handing off to the news pipeline.
 from __future__ import annotations
 
 from app.domains.news_ingest.discovery import discover_followed_channels
-from app.domains.news_ingest.ingest import dedupe_articles, read_channel_messages, sweep_channels
+from app.domains.news_ingest.ingest import (
+    DEFAULT_DEDUP_COLLECTION,
+    dedupe_articles,
+    filter_seen_articles,
+    mark_articles_ingested,
+    read_channel_messages,
+    sweep_channels,
+)
 from app.domains.news_ingest.models import ChannelMessage, NewsArticle
 from app.domains.news_ingest.normalize import channel_message_to_article, extract_entities
 from app.domains.news_ingest.scheduler import (
@@ -21,6 +28,7 @@ from app.domains.news_ingest.scheduler import (
 )
 
 __all__ = [
+    "DEFAULT_DEDUP_COLLECTION",
     "DEFAULT_SWEEPS_PER_DAY",
     "ChannelMessage",
     "NewsArticle",
@@ -29,6 +37,8 @@ __all__ = [
     "dedupe_articles",
     "discover_followed_channels",
     "extract_entities",
+    "filter_seen_articles",
+    "mark_articles_ingested",
     "next_sweep_times",
     "read_channel_messages",
     "sweep_channels",

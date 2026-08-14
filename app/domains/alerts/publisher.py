@@ -9,7 +9,7 @@ the default is a no-op stub.
 Default channels
 -----------------
     site            — all alerts
-    alerts_channel  — @RugMunchAlerts: high+
+    alerts_channel  — @rmialerts: high+
     rmialerts       — critical + high
     rmialpha        — highest-signal early data: launch, syndicate, whale
                       (high+). Alpha = the earliest, most actionable alerts

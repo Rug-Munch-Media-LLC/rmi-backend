@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 from app.domains.news_ingest.ingest import (
     channel_username_from_config,
     dedupe_articles,
+    filter_seen_articles,
+    mark_articles_ingested,
     read_channel_messages,
     sweep_channels,
 )
@@ -152,6 +155,29 @@ def test_channel_message_to_article_forward_substantive_kept() -> None:
     assert article.body == text
 
 
+def test_channel_message_to_article_short_news_dropped() -> None:
+    # Terse, entity-free message shorter than the 60-char news gate → noise.
+    msg = _msg("Whale moved 5,000 BTC to cold storage", username="whalecalls")
+    assert len(msg.text) < 60
+    assert channel_message_to_article(msg, "crypto_news") is None
+
+
+def test_channel_message_to_article_short_alpha_kept() -> None:
+    # The alpha category relaxes the minimum-length gate so terse whale/alpha
+    # signals survive normalization and can route to the alpha channel.
+    msg = _msg("Whale moved 5,000 BTC to cold storage", username="whalecalls")
+    article = channel_message_to_article(msg, "alpha")
+    assert article is not None
+    assert article.category == "alpha"
+    assert article.title.startswith("Whale moved")
+
+
+def test_channel_message_to_article_tiny_alpha_still_dropped() -> None:
+    # Sub-floor junk is still noise even for alpha.
+    assert channel_message_to_article(_msg("BUY NOW"), "alpha") is None
+    assert channel_message_to_article(_msg("JOIN US"), "alpha") is None
+
+
 def test_channel_message_to_article_none_input() -> None:
     assert channel_message_to_article(None, "crypto_news") is None  # type: ignore[arg-type]
 
@@ -201,6 +227,53 @@ def test_dedupe_articles_empty_and_order() -> None:
     assert b is not None
     result = dedupe_articles([b, a])
     assert result == [b, a]
+
+
+# ── filter_seen_articles / mark_articles_ingested (Redis dedup reuse) ──────
+
+
+def _news_article(text: str, *, username: str = "cointelegraph", message_id: int = 1) -> NewsArticle:
+    article = channel_message_to_article(_msg(text, username=username, message_id=message_id), "crypto_news")
+    assert article is not None
+    return article
+
+
+def test_filter_seen_articles_drops_known_content() -> None:
+    first = _news_article("Bitcoin tops $70k as ETFs keep buying\n\n" * 5, message_id=1)
+    second = _news_article("Solana breaks new ATH after upgrade\n\n" * 5, username="solana_news", message_id=2)
+    with patch("app.rag.dedup.is_duplicate_content", side_effect=[True, False]):
+        fresh, skipped = filter_seen_articles([first, second], "tg_news")
+    assert fresh == [second]
+    assert skipped == 1
+
+
+def test_filter_seen_articles_preserves_order_and_keeps_all_fresh() -> None:
+    first = _news_article("Bitcoin tops $70k as ETFs keep buying\n\n" * 5, message_id=1)
+    second = _news_article("Solana breaks new ATH after upgrade\n\n" * 5, username="solana_news", message_id=2)
+    with patch("app.rag.dedup.is_duplicate_content", return_value=False):
+        fresh, skipped = filter_seen_articles([first, second], "tg_news")
+    assert fresh == [first, second]
+    assert skipped == 0
+
+
+def test_filter_seen_articles_fail_open_when_redis_unavailable() -> None:
+    article = _news_article("Ethereum staking yield rises to 4.5% this quarter\n\n" * 4)
+    # is_duplicate_content already fails open internally (returns False); the
+    # filter must never raise and must keep the article.
+    with patch("app.rag.dedup.is_duplicate_content", side_effect=RuntimeError("redis down")):
+        fresh, skipped = filter_seen_articles([article], "tg_news")
+    assert fresh == [article]
+    assert skipped == 0
+
+
+def test_mark_articles_ingested_records_content_hashes() -> None:
+    article = _news_article("Bitcoin tops $70k as ETFs keep buying\n\n" * 5)
+    with patch("app.rag.dedup.mark_content_ingested") as mark:
+        marked = mark_articles_ingested([article], "tg_news")
+    assert marked == 1
+    mark.assert_called_once()
+    assert mark.call_args.args[0] == article.content_hash
+    assert mark.call_args.args[1] == "tg_news"
 
 
 # ── read_channel_messages (fake clients) ───────────────────────────────────

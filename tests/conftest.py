@@ -79,3 +79,20 @@ def auth_headers():
 def csrf_headers(auth_headers):
     """Auth headers plus CSRF token."""
     return {**auth_headers, "X-CSRF-Token": "test-csrf-token"}
+
+
+@pytest.fixture(autouse=True)
+def _no_chat_market_context(monkeypatch):
+    """Keep chat tests hermetic: stub the chat market-context upstreams.
+
+    The chat router injects a live market-context block into every system
+    prompt (app/routers/chat/_market_context.py, best-effort). Stubbing its
+    two upstream fetchers makes the block empty in tests — no real network
+    calls to CoinGecko/alternative.me. This only patches the chat module's
+    own fetchers, never ``market_intel.providers`` (used by market-intel
+    routes and their tests).
+    """
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr("app.routers.chat._market_context._cg", AsyncMock(return_value=None))
+    monkeypatch.setattr("app.routers.chat._market_context._fng", AsyncMock(return_value=None))
