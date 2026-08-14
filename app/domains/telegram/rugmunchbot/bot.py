@@ -85,6 +85,7 @@ from app.domains.telegram.rugmunchbot.handlers.ask import cmd_ask
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.chat import cmd_chat
 from app.domains.telegram.rugmunchbot.handlers.chat_ai import register_chat_ai
+from app.domains.telegram.rugmunchbot.handlers.deepscan import cmd_deepscan
 from app.domains.telegram.rugmunchbot.handlers.defi import register_defi
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.groups import (
@@ -123,7 +124,7 @@ from app.domains.telegram.rugmunchbot.handlers.report import cmd_report
 from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
 from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_compare,
-    cmd_deepscan,
+    cmd_deepscan as cmd_scandeep,
     cmd_deployer,
     cmd_faq,
     cmd_help,
@@ -376,6 +377,8 @@ def main() -> None:
     _reg(app, "dex", cmd_dex)
     _reg(app, "scan", cmd_scan)
     _reg(app, "deepscan", cmd_deepscan)
+    # Previous scanner-based /deepscan is preserved under /scandeep.
+    _reg(app, "scandeep", cmd_scandeep)
     _reg(app, "sentinelscan", sentinel_scan)
     _reg(app, "deployer", cmd_deployer)
     _reg(app, "hype", cmd_hype)
