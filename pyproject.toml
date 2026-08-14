@@ -160,7 +160,7 @@ ignore = ["ASYNC109"]
 
 # Pre-existing violations surfaced by tech-debt sweep (will be cleaned separately)
 "app/domains/scanner/data_access.py" = ['S603', 'ASYNC240']
-"app/domains/scanner/engines/deployer_fingerprint.py" = ['S608']
+"app/domains/scanner/engines/_deployer_fingerprint_queries.py" = ['S608']
 "app/domains/scanner/engines/gmgn_client.py" = ['S603']
 "app/domains/scanner/rugmaps/graph.py" = ['SIM110']
 "app/domains/scanner/service/scoring.py" = ['N806']
