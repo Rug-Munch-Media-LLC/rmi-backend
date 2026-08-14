@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from telegram.constants import ParseMode
 
+from app.domains.telegram.rugmunchbot.handlers._engagement import channels_menu_text
 from app.domains.telegram.rugmunchbot.keyboards import quick_start_kb
 
 if TYPE_CHECKING:
@@ -91,6 +92,7 @@ def welcome_message(name: str = "") -> str:
         f"Paste any token address and I'll tell you if it's safe to buy. "
         f"Ask questions in plain English \u2014 no commands needed.\n\n"
         f"<i>Try me: paste any token address or ask \u201cis $BONK safe?\u201d</i>\n\n"
+        f"{channels_menu_text()}\n\n"
         f"Quick start:"
     )
 

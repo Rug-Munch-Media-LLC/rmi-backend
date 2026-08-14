@@ -9,20 +9,11 @@ Both functions fetch data from multiple sources and return structured results.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from app.domains.scanner.gmgn_enrich import enrich_scan_with_gmgn
-
-# Consolidated risk-signal enrichment (bundle / deployer / wash / whale /
-# authority / social cross-ref). Imported defensively so the bot still works
-# if the module is not deployable on a given host.
-try:  # pragma: no cover - exercised only when scan_enrich is absent
-    from app.domains.scanner.scan_enrich import enrich_scan
-except ImportError:
-    enrich_scan = None
-
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
     DEXSCREENER,
@@ -37,6 +28,18 @@ from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is
 from app.domains.telegram.rugmunchbot.states import get_sol_price
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.rag.scan_memory import schedule_scan_memory_index, should_index_scan
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+# Consolidated risk-signal enrichment (bundle / deployer / wash / whale /
+# authority / social cross-ref). Imported defensively so the bot still works
+# if the module is not deployable on a given host.
+enrich_scan: Callable[[dict[str, Any], str, str], Awaitable[dict[str, Any]]] | None
+try:  # pragma: no cover - exercised only when scan_enrich is absent
+    from app.domains.scanner.scan_enrich import enrich_scan
+except ImportError:
+    enrich_scan = None
 
 logger = get_logger("rmi_bot")
 

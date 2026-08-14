@@ -156,6 +156,22 @@ class TestSectionOrder:
         assert positions == sorted(positions), f"section order violated: {dict(zip(order, positions, strict=True))}"
 
 
+class TestLayoutPolish:
+    def test_no_double_blank_lines_between_sections(self) -> None:
+        # v12: a red-alert banner followed by the next section header used to
+        # render a double blank line — sections must stay single-spaced.
+        out = format_scan_report(_sample_report())
+        assert "\n\n\n" not in out, "no triple-newline runs in scan output"
+
+    def test_sentinel_metric_values_bold(self) -> None:
+        # v12: sentinel flag metric values render bold like the other /scan
+        # sections (HHI / LP / risk levels), not plain text.
+        out = format_scan_report(_sample_report())
+        assert "HHI <b>4200</b>" in out
+        assert "LP Locked: <b>45%</b>" in out
+        assert "Contract authority risk: <b>LOW</b>" not in out  # LOW not flagged
+
+
 class TestDeployerInOwnSection:
     def test_repeat_deployer_line_lives_in_deployer_section(self) -> None:
         out = format_scan_report(_sample_report())

@@ -17,7 +17,7 @@ os.environ.setdefault("ADMIN_CHAT_ID", "7075336557")
 
 import datetime as _dt
 
-from app.domains.telegram.adminbot import admin_bot, admin_docker, admin_health, admin_ops, admin_server
+from app.domains.telegram.adminbot import _ops_backup, admin_bot, admin_docker, admin_health, admin_ops, admin_server
 
 # ═══════════════════════════════════════════════
 # Emoji classifiers
@@ -378,11 +378,11 @@ class TestAdminBotModule:
 class TestBackupReport:
     def test_backup_report_missing_sentinel(self, tmp_path, monkeypatch) -> None:
         # Point sentinels at a nonexistent path so the report shows red lines.
-        monkeypatch.setattr(admin_ops, "_BACKUP_SENTINEL", str(tmp_path / "no-sentinel"))
-        monkeypatch.setattr(admin_ops, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-sentinel-git"))
-        monkeypatch.setattr(admin_ops, "os", __import__("os"))
+        monkeypatch.setattr(_ops_backup, "_BACKUP_SENTINEL", str(tmp_path / "no-sentinel"))
+        monkeypatch.setattr(_ops_backup, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-sentinel-git"))
+        monkeypatch.setattr(_ops_backup, "os", __import__("os"))
         # Ensure /backups dir read is harmless — monkeypatch the dir check.
-        monkeypatch.setattr(admin_ops.os.path, "isdir", lambda p: False)
+        monkeypatch.setattr(_ops_backup.os.path, "isdir", lambda p: False)
         result = admin_ops.backup_report()
         assert result["ok"] is True
         assert "Backup Report" in result["output"]

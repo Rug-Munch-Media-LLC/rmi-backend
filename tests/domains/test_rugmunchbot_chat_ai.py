@@ -221,6 +221,41 @@ class TestBeautifyAnswer:
         raw = chat_ai._beautify_answer("**\U0001f7e2 SAFE \u2014 76/100**\n")
         assert raw == "**\U0001f7e2 SAFE \u2014 76/100**"
 
+    def test_model_separator_not_duplicated(self) -> None:
+        # v12: the model emits its own ──── under a header; our inserted
+        # thin_sep must not stack a second dashed line.
+        raw = chat_ai._beautify_answer("\U0001f4ca Market Read\n\u2500\u2500\u2500\u2500\nEvidence.")
+        lines = raw.split("\n")
+        assert lines[0] == "**\U0001f4ca Market Read**"
+        assert lines[1] == chat_ai.thin_sep()
+        assert lines[2] == "Evidence."
+        sep_lines = [l for l in lines if l.strip() and set(l.strip()) == {"\u2500"}]
+        assert len(sep_lines) == 1, "model separator must be deduped, not stacked"
+
+    def test_leading_emoji_run_collapsed(self) -> None:
+        # v12: repeated identical emojis at the start of a header collapse
+        # (no emoji spam) while the VS16 compound 🛡️ stays intact.
+        raw = chat_ai._beautify_answer("\U0001f4ca\U0001f4ca\U0001f4ca Market Read\nBody.")
+        assert raw.startswith("**\U0001f4ca Market Read**")
+        shield = chat_ai._beautify_answer("\U0001f6e1\ufe0f\U0001f6e1\ufe0f Security\nBody.")
+        assert "**\U0001f6e1\ufe0f Security**" in shield
+
+    def test_header_casing_normalized(self) -> None:
+        # v12: lowercase header first word is capitalized; ALL-CAPS prose is
+        # title-cased; real abbreviations (TA) survive untouched.
+        raw = chat_ai._beautify_answer("\U0001f4ca market read\nBody.")
+        assert raw.startswith("**\U0001f4ca Market read**")
+        caps = chat_ai._beautify_answer("\U0001f4ca MARKET READ\nBody.")
+        assert caps.startswith("**\U0001f4ca Market Read**")
+        abbr = chat_ai._beautify_answer("\U0001f4ca TA\nBody.")
+        assert abbr.startswith("**\U0001f4ca TA**")
+
+    def test_leading_blank_lines_stripped(self) -> None:
+        # v12: a leading blank line (model padding) is trimmed.
+        raw = chat_ai._beautify_answer("\n\n\U0001f4ca Market Read\nBody.")
+        assert not raw.startswith("\n")
+        assert raw.startswith("**\U0001f4ca Market Read**")
+
     def test_is_section_header_heuristics(self) -> None:
         assert chat_ai._is_section_header("\U0001f4ca Market Read")
         assert chat_ai._is_section_header("**\U0001f6e1\ufe0f Security**")

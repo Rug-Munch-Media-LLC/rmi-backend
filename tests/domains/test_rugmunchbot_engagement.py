@@ -176,6 +176,9 @@ class TestMenusExtension:
         assert "Market Condition" in labels
         assert "News" in labels
         assert "Alpha & Whales" in labels
+        # Chart + chart patterns (folded into TA) reflect the chart/TA tools.
+        assert "Chart" in labels
+        assert "chart patterns" in " | ".join(c.description for c in menus.CAPABILITIES)
         # Technical Analysis + Prediction Markets already present (TA /
         # Prediction markets labels keep the pre-existing substring checks).
         assert "TA" in labels
@@ -192,6 +195,7 @@ class TestMenusExtension:
             "run_scan",
             "run_trending",
             "run_price",
+            "run_chart",
             "run_ta",
             "run_polymarket",
             "run_market",

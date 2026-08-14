@@ -313,3 +313,12 @@ class TestMenus:
     def test_capability_by_callback_lookup(self) -> None:
         assert menus.capability_by_callback("run_trending") is not None
         assert menus.capability_by_callback("no_such_cb") is None
+
+    def test_chart_capability_present(self) -> None:
+        # v12: Chart is a first-class capability wired to the existing
+        # run_chart usage card (chart image + indicators).
+        labels = " | ".join(c.label for c in menus.CAPABILITIES)
+        assert "Chart" in labels
+        chart = menus.capability_by_callback("run_chart")
+        assert chart is not None
+        assert chart.label == "Chart"

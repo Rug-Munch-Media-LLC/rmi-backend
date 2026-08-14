@@ -29,7 +29,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.domains.telegram.adminbot import admin_bot, admin_ops
+from app.domains.telegram.adminbot import _ops_backup, admin_bot, admin_ops
 
 TODAY = time.strftime("%Y-%m-%d")
 
@@ -77,7 +77,6 @@ def bot_db(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) ->
         ],
     )
     conn.execute("INSERT INTO daily_stats (date, messages) VALUES (?, ?)", (TODAY, 42))
-    start_of_day = int(time.mktime(time.strptime(TODAY, "%Y-%m-%d")))
     conn.executemany(
         "INSERT INTO scan_history (user_id, token_address, chain, scan_type, risk_score, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?)",
@@ -306,8 +305,8 @@ class TestBackupReport:
         """A fresh sentinel renders a green line with hours-ago."""
         sentinel = tmp_path / "last-successful-backup"
         sentinel.write_text(str(int(time.time()) - 2 * 3600))  # 2h ago
-        monkeypatch.setattr(admin_ops, "_BACKUP_SENTINEL", str(sentinel))
-        monkeypatch.setattr(admin_ops, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-git-sentinel"))
+        monkeypatch.setattr(_ops_backup, "_BACKUP_SENTINEL", str(sentinel))
+        monkeypatch.setattr(_ops_backup, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-git-sentinel"))
         monkeypatch.setattr(admin_ops.os.path, "isdir", lambda p: False)
 
         result = admin_ops.backup_report()
@@ -322,8 +321,8 @@ class TestBackupReport:
         """A 2-day-old sentinel renders yellow (< 7 days)."""
         sentinel = tmp_path / "last-successful-backup"
         sentinel.write_text(str(int(time.time()) - 2 * 86400))
-        monkeypatch.setattr(admin_ops, "_BACKUP_SENTINEL", str(sentinel))
-        monkeypatch.setattr(admin_ops, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-git-sentinel"))
+        monkeypatch.setattr(_ops_backup, "_BACKUP_SENTINEL", str(sentinel))
+        monkeypatch.setattr(_ops_backup, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-git-sentinel"))
         monkeypatch.setattr(admin_ops.os.path, "isdir", lambda p: False)
 
         result = admin_ops.backup_report()
@@ -342,8 +341,8 @@ class TestBackupReport:
         new.write_bytes(b"x")
         os.utime(new, (time.time() - 100, time.time() - 100))
 
-        monkeypatch.setattr(admin_ops, "_BACKUP_SENTINEL", str(tmp_path / "no-sentinel"))
-        monkeypatch.setattr(admin_ops, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-git-sentinel"))
+        monkeypatch.setattr(_ops_backup, "_BACKUP_SENTINEL", str(tmp_path / "no-sentinel"))
+        monkeypatch.setattr(_ops_backup, "_GIT_BACKUP_SENTINEL", str(tmp_path / "no-git-sentinel"))
         monkeypatch.setattr(admin_ops.os.path, "isdir", lambda p: True)
         monkeypatch.setattr(admin_ops.os, "listdir", lambda p: ["old.db", "new.db"])
         monkeypatch.setattr(admin_ops.os.path, "isfile", lambda p: True)
