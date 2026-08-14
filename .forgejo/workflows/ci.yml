@@ -54,6 +54,34 @@ jobs:
             npx commitlint --from=HEAD~1 --to=HEAD
           fi
 
+  changelog-check:
+    # git-cliff gate: on tagged releases, verify a non-empty changelog can be
+    # generated from conventional commits. Operates on a temp file so the
+    # committed CHANGELOG.md (curated) is never clobbered by CI.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: docker-x64
+    container:
+      image: alpine:3.19
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need tags for git-cliff version detection
+      - name: Install git-cliff
+        run: |
+          apk add --no-cache curl tar
+          curl -fsSL https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
+          tar xzf /tmp/git-cliff.tar.gz -C /usr/local/bin --strip-components=1 git-cliff-2.13.1/git-cliff
+          git-cliff --version
+      - name: Generate changelog (to temp file) and verify non-empty
+        run: |
+          git-cliff --config cliff.toml --output /tmp/CHANGELOG.generated.md
+          if [ ! -s /tmp/CHANGELOG.generated.md ]; then
+            echo "❌ git-cliff produced an empty changelog for tag ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "✅ Changelog generated ($(wc -l < /tmp/CHANGELOG.generated.md) lines)"
+          head -40 /tmp/CHANGELOG.generated.md
+
   semgrep:
     runs-on: docker-x64
     container:
@@ -136,6 +164,27 @@ jobs:
             MIG_SQL=$(find migrations -name "*.sql" 2>/dev/null | wc -l)
             echo "  SQL (migrations/): $MIG_SQL files"
           fi
+
+  sql-lint:
+    # sqlfluff SQL lint gate. Root .sqlfluff defaults to postgres; per-dir
+    # .sqlfluff overrides set clickhouse for app/db/clickhouse_migrations/
+    # and infra/. .sqlfluffignore excludes the ClickHouse TTL file whose
+    # MODIFY TTL ... DELETE syntax the clickhouse dialect cannot parse yet.
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sqlfluff
+        run: pip install sqlfluff==4.3.0
+      - name: Lint SQL files (structural rules)
+        run: |
+          sqlfluff lint . --nocolor
+      - name: Report linted files
+        run: |
+          SQL_FILES=$(find . -name "*.sql" -not -path "./.venv/*" -not -path "./.git/*" 2>/dev/null)
+          echo "=== SQL files in repo: $(echo "$SQL_FILES" | grep -c . ) ==="
+          echo "$SQL_FILES"
 
   api-lint:
     runs-on: docker-x64

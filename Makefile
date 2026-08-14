@@ -1,4 +1,4 @@
-.PHONY: help install dev build lint api-lint import-lint oasdiff format check test test-mutation test-mutation-report test-all test-ci typecheck security quality ci perf-smoke perf-load clean
+.PHONY: help install dev build lint api-lint import-lint oasdiff sql-lint changelog format check test test-mutation test-mutation-report test-all test-ci typecheck security quality ci perf-smoke perf-load clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -84,6 +84,14 @@ deps-freshness: ## Check how stale dependencies are
 
 db-lint: ## Lint Postgres migrations with Squawk
 	squawk alembic/versions/*.sql || true
+
+sql-lint: ## Lint all SQL files with sqlfluff (.sqlfluff, per-dir dialect overrides)
+	@command -v sqlfluff >/dev/null 2>&1 || { echo "sqlfluff not installed — run: pip install sqlfluff==4.3.0"; exit 1; }
+	sqlfluff lint . --nocolor
+
+changelog: ## Generate/prepend CHANGELOG.md from conventional commits (git-cliff)
+	@command -v git-cliff >/dev/null 2>&1 || { echo "git-cliff not installed — see https://git-cliff.org"; exit 1; }
+	@test -f CHANGELOG.md && git-cliff --prepend CHANGELOG.md -u || git-cliff --output CHANGELOG.md
 
 clean: ## Remove build artifacts
 	rm -rf dist build *.egg-info .pytest_cache .mypy_cache .ruff_cache

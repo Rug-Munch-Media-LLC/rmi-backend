@@ -1,0 +1,4 @@
+# ClickHouse schema (infra/clickhouse_schema.sql) — override root dialect
+# (see ../.sqlfluff).
+[sqlfluff]
+dialect = clickhouse

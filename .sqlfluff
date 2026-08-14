@@ -1,0 +1,19 @@
+# sqlfluff configuration — SQL lint gate (see `make sql-lint` and the
+# `sql-lint` job in .forgejo/workflows/ci.yml).
+#
+# Dialect layering:
+#   - Root config defaults to `postgres` (Supabase schemas).
+#   - ClickHouse schemas live in app/db/clickhouse_migrations/ and infra/,
+#     each with a per-directory `.sqlfluff` that overrides dialect=clickhouse.
+#   - .sqlfluffignore excludes SQL that the chosen dialect cannot parse yet.
+#
+# Rule selection is deliberately structural (aliasing, references, structure,
+# convention). Capitalisation rules (CP01/CP02/CP03/CP05) are OFF because the
+# existing Supabase/ClickHouse files use mixed case — enable them after a
+# one-time `sqlfluff fix` pass rather than blocking the gate on day one.
+
+[sqlfluff]
+dialect = postgres
+templater = raw
+max_line_length = 120
+rules = AL01, AL02, AL03, AM01, CV01, CV02, CV03, RF01, RF02, ST05, ST06, ST07, ST08
