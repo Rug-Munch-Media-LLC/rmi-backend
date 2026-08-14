@@ -21,18 +21,32 @@ def _extract_token(request: Request) -> str | None:
     return None
 
 
-async def get_current_user(request: Request) -> dict[str, Any] | None:
-    """Verify JWT from cookie or Authorization header."""
+async def get_current_user(request: Request, *, allow_preauth: bool = False) -> dict[str, Any] | None:
+    """Verify JWT from cookie or Authorization header.
+
+    By default (``allow_preauth=False``) pending-2FA tokens are rejected, so
+    protected routes never see a half-authenticated user. The 2FA-completion
+    endpoint (``POST /2fa/verify``) passes ``allow_preauth=True``.
+    """
     token = _extract_token(request)
     if not token:
         return None
-    payload = _verify_jwt(token)
+    payload = _verify_jwt(token, allow_preauth=allow_preauth)
     if not payload:
         return None
     user = _get_user(payload["id"])
     if not user:
         return None
     return user
+
+
+async def get_preauth_user(request: Request) -> dict[str, Any] | None:
+    """Verify JWT accepting pending-2FA (pre_auth) tokens.
+
+    ONLY for the 2FA-completion endpoint (``POST /2fa/verify``). Never use on
+    routes that require full authentication.
+    """
+    return await get_current_user(request, allow_preauth=True)
 
 
 async def require_auth(request: Request) -> dict[str, Any]:

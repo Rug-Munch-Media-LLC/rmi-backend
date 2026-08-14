@@ -17,7 +17,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -531,23 +531,28 @@ class Settings(BaseSettings):
             )
         return v
 
-    @field_validator("jwt_secret")
-    @classmethod
-    def _jwt_secret_must_be_set_in_prod(cls, v: str) -> str:
-        """Reject the dev default in production."""
+    @model_validator(mode="after")
+    def _jwt_secret_must_be_set_in_prod(self) -> Settings:
+        """Reject unset / known-default JWT secrets in production.
+
+        Uses the validated ``environment`` field (which defaults to "prod")
+        rather than a separate os.getenv lookup — previously the guard read
+        ``os.getenv("ENVIRONMENT", "dev")`` while the field default was "prod",
+        so a prod deploy that omitted ENVIRONMENT bypassed the check entirely.
+        """
+        if self.environment != "prod":
+            return self
         _dev_defaults = (
             "dev-secret-CHANGE-ME",
             "dev-secret-please-set-JWT_SECRET-env-var-32chars",
         )
-        if v in _dev_defaults or len(v) < 32:
-            env = os.getenv("ENVIRONMENT", "dev")
-            if env == "prod":
-                raise ValueError(
-                    "jwt_secret must be set to a secure random value (>=32 chars) in production. "
-                    "Generate with: openssl rand -hex 32. "
-                    "Set via secrets manager or JWT_SECRET env var."
-                )
-        return v
+        if not self.jwt_secret or self.jwt_secret in _dev_defaults or len(self.jwt_secret) < 32:
+            raise ValueError(
+                "jwt_secret must be set to a secure random value (>=32 chars) in production. "
+                "Generate with: openssl rand -hex 32. "
+                "Set via secrets manager or JWT_SECRET env var."
+            )
+        return self
 
 
 @lru_cache(maxsize=1)

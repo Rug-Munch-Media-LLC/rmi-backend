@@ -24,6 +24,7 @@ from app.domains.auth.cookie import (  # noqa: E402 — imported after logger in
 )
 from app.domains.auth.deps import (  # noqa: E402 — imported after logger init; kept below module header for readability
     get_current_user,
+    get_preauth_user,
 )
 from app.domains.auth.jwt import (  # noqa: E402 — imported after logger init; kept below module header for readability
     _create_jwt,
@@ -189,9 +190,19 @@ async def twofa_status(request: Request) -> dict[str, Any]:
 
 @router.post("/2fa/verify")
 async def twofa_verify(req: TwoFAVerifyRequest, request: Request) -> dict[str, Any]:
+    """Verify a TOTP code to complete a pending 2FA login.
+
+    This is the 2FA-completion endpoint: it accepts the pending-2FA
+    (pre_auth) token issued by ``POST /login`` for accounts with 2FA
+    enabled. After a successful code check the caller receives the full
+    auth token from ``POST /2fa/login`` (or re-runs login).
+    """
     if not PYOTP_AVAILABLE:
         raise HTTPException(status_code=503, detail="2FA service unavailable")
-    user = await get_current_user(request)
+    # get_preauth_user is the ONLY preauth-tolerant auth path — it accepts
+    # the pre_auth / 2fa_required token that /login issued. All other routes
+    # reject pending-2FA tokens (see app.domains.auth.jwt._verify_jwt).
+    user = await get_preauth_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     if not user.get("totp_enabled") or not user.get("totp_secret"):
