@@ -802,7 +802,7 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         text = (
             f"\U0001f4f0 <b>Crypto News</b>\n\n"
             f"<i>News feed temporarily unavailable.</i>\n\n"
-            f'\U0001f4e2 Follow <a href="{TELEGRAM_CHANNEL}">@RugMunchAlerts</a> for real-time alerts!\n'
+            f'\U0001f4e2 Follow <a href="{TELEGRAM_CHANNEL}">@rmialerts</a> for real-time alerts!\n'
             f'\U0001f310 <a href="{WEBSITE_URL}">rugmunch.io</a>'
         )
 

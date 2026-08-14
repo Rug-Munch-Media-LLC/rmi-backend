@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -299,6 +300,39 @@ def select_important(scored: list[ScoredArticle], top_n: int = 5) -> list[Scored
     return ordered[: max(1, top_n)]
 
 
+# ── Lightweight market-awareness snapshot helpers (pure) ──────────────────
+
+
+def top_headlines(scored: list[ScoredArticle], top_n: int = 5) -> list[NewsArticle]:
+    """Deterministic top-N headlines by rerank importance, best first.
+
+    Pure selection over an already-scored list — no network, no DB. Used by
+    the sweep's market-awareness snapshot (``telegram_news.py``) so the
+    bot's chat can pull "what's moving right now" without re-scoring.
+    """
+    if not scored:
+        return []
+    ordered = sorted(scored, key=lambda s: s.importance, reverse=True)
+    return [s.article for s in ordered[: max(1, top_n)] if s.article is not None]
+
+
+def trending_tokens(articles: list[NewsArticle], top_n: int = 8) -> list[str]:
+    """Most-mentioned ``$SYMBOL`` tokens across a batch of articles.
+
+    Counts the ``$TICKER`` entities already extracted at normalize time
+    (``NewsArticle.entities``), most-mentioned first, alphabetical tiebreak.
+    Pure and dependency-free. Returns ``[]`` when nothing is mentioned.
+    """
+    counts: Counter[str] = Counter()
+    for article in articles or []:
+        for entity in article.entities or []:
+            if entity.startswith("$"):
+                counts[entity[1:].upper()] += 1
+    if not counts:
+        return []
+    return [token for token, _ in counts.most_common(max(1, top_n))]
+
+
 __all__ = [
     "DEFAULT_IMPORTANCE_QUERIES",
     "FOCUS_KEYWORDS",
@@ -308,4 +342,6 @@ __all__ = [
     "ScoredArticle",
     "score_importance",
     "select_important",
+    "top_headlines",
+    "trending_tokens",
 ]

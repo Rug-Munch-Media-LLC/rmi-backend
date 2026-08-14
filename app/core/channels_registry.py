@@ -15,12 +15,12 @@ full human-readable inventory.
 =========  ==================  ==================================  =========================
 Role       Public handle       Gopass entry (path)                 Env var (canonical)
 =========  ==================  ==================================  =========================
-news       — (unverified)      rmi/telegram/CHANNEL_RMI_NEWS       RMI_NEWS_CHANNEL_ID
-alerts     @RugMunchAlerts     rmi/telegram/CHANNEL_CRYPTO_ALERTS  RMI_ALERTS_CHANNEL_ID
+news       @rmicryptonews      rmi/telegram/CHANNEL_RMI_NEWS       RMI_NEWS_CHANNEL_ID
+alerts     @rmialerts          rmi/telegram/CHANNEL_CRYPTO_ALERTS  RMI_ALERTS_CHANNEL_ID
 alpha      @rmialpha           rmi/telegram/CHANNEL_CRYPTO_ALPHA   RMI_ALPHA_CHANNEL_ID
-scans      — (unverified)      rmi/telegram/CHANNEL_COMMUNITY_SCANS RMI_SCANS_CHANNEL_ID
-main       — (unverified)      rmi/telegram/CHANNEL_CRYPTO_RUGMUNCHER RMI_MAIN_CHANNEL_ID
-updates    — (unverified)      rmi/telegram/CHANNEL_RMI_UPDATES    RMI_UPDATES_CHANNEL_ID
+scans      @rmiscans           rmi/telegram/CHANNEL_COMMUNITY_SCANS RMI_SCANS_CHANNEL_ID
+main       @cryptorugmuncher   rmi/telegram/CHANNEL_CRYPTO_RUGMUNCHER RMI_MAIN_CHANNEL_ID
+updates    @rmiupdates         rmi/telegram/CHANNEL_RMI_UPDATES    RMI_UPDATES_CHANNEL_ID
 =========  ==================  ==================================  =========================
 
 Legacy env aliases (read after the canonical var, before the fallback):
@@ -78,17 +78,17 @@ CHANNEL_ROLES: dict[str, ChannelRole] = {
         store_path="rmi/telegram/CHANNEL_RMI_NEWS",
         env_var="RMI_NEWS_CHANNEL_ID",
         legacy_env_vars=("RMI_CRYPTONEWS_CHANNEL_ID",),
-        public_handle=None,
+        public_handle="@rmicryptonews",
         fallback="-1003982391578",
-        description="RMI Crypto News channel — news-worthy alerts and news digests",
+        description="RMI Crypto News 24/7 — news-worthy alerts and news digests",
     ),
     "alerts": ChannelRole(
         role="alerts",
         store_path="rmi/telegram/CHANNEL_CRYPTO_ALERTS",
         env_var="RMI_ALERTS_CHANNEL_ID",
-        public_handle="@RugMunchAlerts",
+        public_handle="@rmialerts",
         fallback="-1003818352164",
-        description="Crypto alerts channel — high-severity alert surface (@RugMunchAlerts)",
+        description="RMI Security — Rug Alerts & Exploits — high-severity alert surface",
     ),
     "alpha": ChannelRole(
         role="alpha",
@@ -96,31 +96,31 @@ CHANNEL_ROLES: dict[str, ChannelRole] = {
         env_var="RMI_ALPHA_CHANNEL_ID",
         public_handle="@rmialpha",
         fallback="-1003762675055",
-        description="RMI Alpha channel — highest-signal early data (launch/syndicate/whale)",
+        description="RMI Whale & Alpha Signals — highest-signal early data (launch/syndicate/whale)",
     ),
     "scans": ChannelRole(
         role="scans",
         store_path="rmi/telegram/CHANNEL_COMMUNITY_SCANS",
         env_var="RMI_SCANS_CHANNEL_ID",
-        public_handle=None,
+        public_handle="@rmiscans",
         fallback="-1003937506770",
-        description="Community scans channel — community-submitted scan results",
+        description="RMI Scanner - Suspicious Tokens — scanner results for suspicious tokens",
     ),
     "main": ChannelRole(
         role="main",
         store_path="rmi/telegram/CHANNEL_CRYPTO_RUGMUNCHER",
         env_var="RMI_MAIN_CHANNEL_ID",
-        public_handle=None,
+        public_handle="@cryptorugmuncher",
         fallback="-1002056885429",
-        description="Main channel — critical-only broadcasts",
+        description="Main (personal/curated) channel — critical-only broadcasts",
     ),
     "updates": ChannelRole(
         role="updates",
         store_path="rmi/telegram/CHANNEL_RMI_UPDATES",
         env_var="RMI_UPDATES_CHANNEL_ID",
-        public_handle=None,
+        public_handle="@rmiupdates",
         fallback=None,
-        description="RMI updates channel — product/feature announcements (mapped, no consumer yet)",
+        description="RMI Changelog — product/feature announcements (mapped, no consumer yet)",
     ),
 }
 

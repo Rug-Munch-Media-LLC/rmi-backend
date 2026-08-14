@@ -17,10 +17,10 @@ fallback (they fail open and are skipped when unconfigured).
 ==============  ================  =============================  =============================================
 Logical channel  Registry role    Env var                        Notes
 ==============  ================  =============================  =============================================
-alerts_channel  alerts (handle)   ``RMI_ALERTS_CHANNEL``         Public @RugMunchAlerts channel
-                                                                 (https://t.me/RugMunchAlerts). Handle
+alerts_channel  alerts (handle)   ``RMI_ALERTS_CHANNEL``         Public @rmialerts channel
+                                                                 (https://t.me/rmialerts). Handle
                                                                  variant of the ``alerts`` role; defaults to
-                                                                 the ``@RugMunchAlerts`` handle; may be a
+                                                                 the ``@rmialerts`` handle; may be a
                                                                  numeric chat id instead.
 rmialerts        alerts           ``RMI_ALERTS_CHANNEL_ID``      Internal RMI alerts channel (high+).
 rmialpha         alpha            ``RMI_ALPHA_CHANNEL_ID``       RMI Alpha channel — highest-signal early
@@ -90,9 +90,9 @@ class ChannelBinding:
 CHANNEL_BINDINGS: tuple[ChannelBinding, ...] = (
     ChannelBinding(
         logical="alerts_channel",
-        description="Public @RugMunchAlerts channel (t.me/RugMunchAlerts) — handle surface of the alerts role",
+        description="Public @rmialerts channel (t.me/rmialerts) — handle surface of the alerts role",
         env_var="RMI_ALERTS_CHANNEL",
-        default="@RugMunchAlerts",
+        default="@rmialerts",
     ),
     ChannelBinding(
         logical="rmialerts",
@@ -140,7 +140,7 @@ def _parse_chat_id(raw: str | None) -> int | str | None:
             return int(value)
         except ValueError:
             return None
-    return value  # Telegram username handle, e.g. "@RugMunchAlerts"
+    return value  # Telegram username handle, e.g. "@rmialerts"
 
 
 def channel_ids_from_env(
@@ -155,7 +155,7 @@ def channel_ids_from_env(
     they deliberately ignore the registry's documented fallback so an
     unconfigured channel stays ``None`` and is skipped at publish time.
     ``alerts_channel`` resolves directly from its env var and falls back to
-    the ``@RugMunchAlerts`` handle. Pass ``use_gopass=False`` for
+    the ``@rmialerts`` handle. Pass ``use_gopass=False`` for
     deterministic env-only resolution (tests / sandbox).
     """
     source = env if env is not None else os.environ

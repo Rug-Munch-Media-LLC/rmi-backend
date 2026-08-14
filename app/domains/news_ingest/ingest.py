@@ -21,6 +21,11 @@ logger = get_logger(__name__)
 # Injectable reader protocol: async (channel_username, limit) -> messages.
 ReadMessagesCallable = Callable[[str, int], Awaitable[list[ChannelMessage]]]
 
+#: Redis dedup-set namespace for TG-sourced articles. Reuses the shared
+#: ``app.rag.dedup`` ZSETs (``rag:dedup:content:<collection>``) so the news
+#: sweep and the RAG pipeline never re-embed content the other already saw.
+DEFAULT_DEDUP_COLLECTION: str = "tg_news"
+
 
 # ── Dedup (pure, no Redis) ────────────────────────────────────────────────
 
@@ -46,6 +51,73 @@ def dedupe_articles(articles: list[NewsArticle]) -> list[NewsArticle]:
         seen.add(key)
         result.append(article)
     return result
+
+
+def _article_fingerprint(article: NewsArticle) -> str:
+    """Stable content fingerprint for the shared Redis dedup sets."""
+    if article is None:
+        return ""
+    return article.content_hash or content_hash(f"{article.title}\n{article.body}")
+
+
+def filter_seen_articles(
+    articles: list[NewsArticle], collection: str = DEFAULT_DEDUP_COLLECTION
+) -> tuple[list[NewsArticle], int]:
+    """Drop articles already recorded in the shared Redis content-hash sets.
+
+    Check-only (never marks): callers mark with :func:`mark_articles_ingested`
+    only after the article was actually persisted, so a transient Postgres
+    outage never permanently hides an un-persisted story.
+
+    Reuses ``app.rag.dedup.is_duplicate_content`` — the same Redis ZSET the
+    RAG pipeline maintains — under a dedicated *collection* namespace
+    (``rag:dedup:content:tg_news``). Fail-open: Redis down / auth-failure
+    treats every article as fresh, matching the rest of the ingest layer.
+
+    Returns ``(fresh, skipped)``; ``fresh`` preserves input order.
+    """
+    from app.rag.dedup import is_duplicate_content
+
+    fresh: list[NewsArticle] = []
+    skipped = 0
+    for article in articles or []:
+        fp = _article_fingerprint(article)
+        if not fp:
+            fresh.append(article)
+            continue
+        try:  # fail-open by contract: dedup must never raise or drop articles
+            duplicate = is_duplicate_content(fp, collection)
+        except Exception:
+            logger.debug("news_ingest:dedup_check_failed", exc_info=True)
+            duplicate = False
+        if duplicate:
+            skipped += 1
+            continue
+        fresh.append(article)
+    if skipped:
+        logger.info("news_ingest:seen_skipped collection=%s fresh=%s skipped=%s", collection, len(fresh), skipped)
+    return fresh, skipped
+
+
+def mark_articles_ingested(articles: list[NewsArticle], collection: str = DEFAULT_DEDUP_COLLECTION) -> int:
+    """Record article content hashes in the shared Redis dedup sets.
+
+    Best-effort (never raises): the ``app.rag.dedup`` markers are fail-open,
+    so a Redis outage only means the next sweep re-reads the same content —
+    the Postgres ``news_id`` guard still blocks duplicate persistence.
+
+    Returns the number of articles marked.
+    """
+    from app.rag.dedup import mark_content_ingested
+
+    marked = 0
+    for article in articles or []:
+        fp = _article_fingerprint(article)
+        if not fp:
+            continue
+        mark_content_ingested(fp, collection)
+        marked += 1
+    return marked
 
 
 # ── Telethon message conversion ────────────────────────────────────────────
@@ -161,7 +233,7 @@ async def read_channel_messages(client: Any, channel_username: str, limit: int =
 # ── Orchestration ──────────────────────────────────────────────────────────
 
 
-def channel_username_from_config(channel: dict) -> str:
+def channel_username_from_config(channel: dict[str, Any]) -> str:
     """Resolve the channel @username from a source-config dict (never raises)."""
     for key in ("username", "channel_username", "id"):
         value = channel.get(key)
@@ -173,7 +245,7 @@ def channel_username_from_config(channel: dict) -> str:
     return ""
 
 
-async def sweep_channels(client: Any, channels: list[dict], limit: int = 50) -> list[NewsArticle]:
+async def sweep_channels(client: Any, channels: list[dict[str, Any]], limit: int = 50) -> list[NewsArticle]:
     """Read → normalize → dedupe across every configured channel.
 
     Each entry of *channels* follows the ``unified_news_sources.json`` schema

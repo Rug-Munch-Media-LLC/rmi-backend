@@ -82,7 +82,7 @@ BOT_USERNAME = "RugMunchBot"
 WEBSITE_URL = "https://rugmunch.io"
 WEB_APP_URL = f"{WEBSITE_URL}/scanner"
 TWITTER_URL = "https://x.com/RugMunch"
-TELEGRAM_CHANNEL = "https://t.me/RugMunchAlerts"
+TELEGRAM_CHANNEL = "https://t.me/rmialerts"
 TELEGRAM_GROUP = "https://t.me/RugMunchChat"
 SUPPORT_EMAIL = "biz@rugmunch.io"
 
@@ -570,7 +570,7 @@ CHAIN_IDS = {
 # operators override per-deployment; the documented fallback chat ids keep
 # /help links and the poster working when neither gopass nor env is available
 # (they are public channel ids, not credentials).
-_CHANNEL_GOPASS_PATHS: dict[str, str] = {role: c.gopass_path for role, c in CHANNEL_ROLES.items()}
+_CHANNEL_GOPASS_PATHS: dict[str, str] = {role: c.store_path for role, c in CHANNEL_ROLES.items()}
 _CHANNEL_ENV_KEYS: dict[str, list[str]] = {role: [c.env_var, *c.legacy_env_vars] for role, c in CHANNEL_ROLES.items()}
 # Documented fallback chat ids — used ONLY when gopass + env are both unset.
 # Roles without a documented fallback (e.g. ``updates``) are not included.

@@ -333,6 +333,219 @@ class TestPostJob:
         bot.send_message.assert_awaited_once()
 
 
+# ── Channel categorization (news / alpha / scam / other) ─────────────────────
+
+
+class TestChannelCategorization:
+    def test_classify_news(self) -> None:
+        assert tg_news.classify_channel_category("CoinTelegraph", "cointelegraph") == "news"
+        assert tg_news.classify_channel_category("RMI Crypto News", "rmicryptonews") == "news"
+        assert tg_news.classify_channel_category("The Block", "theblock") == "news"
+
+    def test_classify_alpha(self) -> None:
+        assert tg_news.classify_channel_category("Whale Calls Signals", "whalecalls") == "alpha"
+        assert tg_news.classify_channel_category("Gem Hunter 100x", "gemhunter") == "alpha"
+        assert tg_news.classify_channel_category("Alpha Signals", "alphasignals") == "alpha"
+
+    def test_classify_scam_reuses_existing_categorization(self) -> None:
+        # Unambiguous scam signals reuse scam_watch's taxonomy (no duplication).
+        assert tg_news.classify_channel_category("Pump Group PND", "pumppro") == "scam"
+        assert tg_news.classify_channel_category("Seed Phrase Recovery", "seedhelp") == "scam"
+        assert tg_news.classify_channel_category("Fake Airdrop Claim", "airdropscam") == "scam"
+
+    def test_classify_other(self) -> None:
+        assert tg_news.classify_channel_category("Random Memes", "randommemes") == "other"
+        assert tg_news.classify_channel_category("", "") == "other"
+
+    def test_classify_own_channels_excluded(self) -> None:
+        assert tg_news.classify_channel_category("RugMunch Alerts", "rmialerts") == "other"
+
+
+# ── Discovered-source categorization (full-account coverage) ─────────────────
+
+
+class _DiscoveryClient:
+    """Fake exposing get_dialogs (discovery) + read_messages (reader protocol)."""
+
+    def __init__(self, dialogs: list[tuple[str, str]], messages: dict[str, list[ChannelMessage]]) -> None:
+        self._dialogs = dialogs
+        self.messages = messages
+
+    async def get_dialogs(self, limit: int = 500) -> Any:
+        items = [
+            SimpleNamespace(entity=SimpleNamespace(username=username, title=title), name=title)
+            for username, title in self._dialogs
+        ]
+        return SimpleNamespace(dialogs=items[:limit])
+
+    async def read_messages(self, channel_username: str, limit: int) -> list[ChannelMessage]:
+        return self.messages.get(channel_username, [])[:limit]
+
+
+class TestDiscoveredSources:
+    def _client(self) -> _DiscoveryClient:
+        return _DiscoveryClient(
+            [
+                ("cointelegraph", "CoinTelegraph"),  # news
+                ("wublockchain", "Wu Blockchain"),  # news
+                ("whalecalls", "Whale Calls Signals"),  # alpha
+                ("gemhunter", "Gem Hunter 100x"),  # alpha
+                ("pumppro", "Pump Group PND"),  # scam → excluded
+                ("randommemes", "Random Memes"),  # other → excluded
+            ],
+            {},
+        )
+
+    async def test_categorizes_and_filters_discovered_channels(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "TG_NEWS_AUTO_DISCOVER", True)
+        sources = await tg_news.resolve_channel_sources(self._client())
+        usernames = {s["username"] for s in sources}
+        assert "cointelegraph" in usernames  # news kept
+        assert "whalecalls" in usernames  # alpha kept
+        assert "pumppro" not in usernames  # scam → scam_watch, not duplicated
+        assert "randommemes" not in usernames  # other → not news-relevant
+        assert {s["username"]: s["category"] for s in sources}["whalecalls"] == "alpha"
+        assert {s["username"]: s["category"] for s in sources}["cointelegraph"] == "crypto_news"
+
+    async def test_discovered_channels_bounded_by_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "TG_NEWS_AUTO_DISCOVER", True)
+        monkeypatch.setattr(tg_news, "TG_NEWS_MAX_CHANNELS", 2)
+        sources = await tg_news.resolve_channel_sources(self._client())
+        assert len(sources) <= 2
+
+    async def test_sweep_reads_categorized_channels(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "TG_NEWS_AUTO_DISCOVER", True)
+        client = _DiscoveryClient(
+            [
+                ("cointelegraph", "CoinTelegraph"),
+                ("whalecalls", "Whale Calls Signals"),
+            ],
+            {
+                "cointelegraph": [
+                    _msg("Bitcoin ETF inflows hit a record high today as institutions pile in", message_id=1)
+                ],
+                "whalecalls": [_msg("Whale moved 5,000 BTC to cold storage", username="whalecalls", message_id=2)],
+            },
+        )
+        articles = await tg_news.sweep_telegram_news(client=client, lookback_hours=6, per_channel_limit=10)
+        assert len(articles) == 2
+        assert {a.category for a in articles} == {"crypto_news", "alpha"}
+
+
+# ── Cache injection + market-awareness snapshot (fail-open) ─────────────────
+
+
+class TestCacheAndSnapshot:
+    async def test_inject_into_news_cache_fail_open_redis_down(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "get_redis_async", lambda: None)
+        n = await tg_news.inject_into_news_cache([_article("Headline")])
+        assert n == 0
+
+    async def test_publish_market_awareness_fail_open_redis_down(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "get_redis_async", lambda: None)
+        scored = [ScoredArticle(article=_article("Headline"), importance=0.9)]
+        ok = await tg_news.publish_market_awareness([_article("Headline")], scored)
+        assert ok is False
+
+    async def test_publish_market_awareness_empty_skips(self) -> None:
+        assert await tg_news.publish_market_awareness([], []) is False
+
+
+# ── Routing: news → news channel, alpha → alpha channel ──────────────────────
+
+
+class TestRouting:
+    def _ctx(self) -> tuple[Mock, AsyncMock]:
+        bot = AsyncMock()
+        ctx = Mock()
+        ctx.bot = bot
+        return ctx, bot
+
+    def _alpha_article(self) -> NewsArticle:
+        return _article(
+            "Whale moves 5k BTC",
+            channel="Whale Calls",
+            username="whalecalls",
+            message_id=9,
+        )
+
+    async def test_posts_news_and_alpha_digests(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        alpha_art = self._alpha_article()
+        alpha_art.category = "alpha"
+        news_art = _article("ETF record inflows", message_id=10)
+        monkeypatch.setattr(
+            channels_scheduler,
+            "_chat_id",
+            lambda channel: "-100news" if channel == "news" else "-100alpha",
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[news_art, alpha_art])),
+            patch.object(
+                tg_news,
+                "persist_articles",
+                new=AsyncMock(return_value={"ingested": 2, "duplicate": 0, "errors": 0}),
+            ),
+            patch.object(tg_news, "inject_into_news_cache", new=AsyncMock(return_value=2)),
+            patch.object(tg_news, "publish_market_awareness", new=AsyncMock(return_value=True)),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        assert bot.send_message.await_count == 2
+        chats = {c.kwargs["chat_id"] for c in bot.send_message.await_args_list}
+        assert chats == {"-100news", "-100alpha"}
+
+    async def test_second_tick_dedupes_both_channels(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        alpha_art = self._alpha_article()
+        alpha_art.category = "alpha"
+        news_art = _article("ETF record inflows", message_id=10)
+        monkeypatch.setattr(
+            channels_scheduler,
+            "_chat_id",
+            lambda channel: "-100news" if channel == "news" else "-100alpha",
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[news_art, alpha_art])),
+            patch.object(
+                tg_news,
+                "persist_articles",
+                new=AsyncMock(return_value={"ingested": 2, "duplicate": 0, "errors": 0}),
+            ),
+            patch.object(tg_news, "inject_into_news_cache", new=AsyncMock(return_value=2)),
+            patch.object(tg_news, "publish_market_awareness", new=AsyncMock(return_value=True)),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+            assert await tg_news.post_tg_news_update(ctx) == 0  # deduped on second tick
+        # Tick 1 posts both channels (2 sends); tick 2 posts nothing.
+        assert bot.send_message.await_count == 2
+
+    async def test_alpha_only_when_news_chat_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        alpha_art = self._alpha_article()
+        alpha_art.category = "alpha"
+        monkeypatch.setattr(
+            channels_scheduler,
+            "_chat_id",
+            lambda channel: "-100alpha" if channel == "alpha" else None,
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[alpha_art])),
+            patch.object(
+                tg_news,
+                "persist_articles",
+                new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0}),
+            ),
+            patch.object(tg_news, "inject_into_news_cache", new=AsyncMock(return_value=1)),
+            patch.object(tg_news, "publish_market_awareness", new=AsyncMock(return_value=True)),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        assert bot.send_message.await_count == 1
+        assert bot.send_message.await_args.kwargs["chat_id"] == "-100alpha"
+
+
 # ── Registration ─────────────────────────────────────────────────────────────
 
 
