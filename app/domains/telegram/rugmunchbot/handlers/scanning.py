@@ -54,6 +54,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.formatters._base import dex_button_rows
 from app.domains.telegram.rugmunchbot.formatters._sentinel import _token_image_url
+from app.domains.telegram.rugmunchbot.handlers._engagement import rotating_cta_for
 from app.domains.telegram.rugmunchbot.handlers._help_text import (  # noqa: F401  # re-exported for callers/tests
     _HELP_EMOJI,
     _HELP_SECTIONS,
@@ -74,9 +75,12 @@ from app.domains.telegram.rugmunchbot.handlers._scanning_helpers import (  # noq
     _ta_vol_arrow,
     format_ta_card,
 )
+from app.domains.telegram.rugmunchbot.handlers.onboarding import is_first_run, send_onboarding_welcome
 from app.domains.telegram.rugmunchbot.keyboards import (
     back_kb,
+    daily_hook_kb,
     deep_scan_result_kb,
+    merge_menu_kb,
     owner_admin_reply_kb,
     scan_result_kb,
     upgrade_nudge_kb,
@@ -163,26 +167,38 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 conn.commit()
             conn.close()
 
-    text = welcome_card_text()
+    # First-run onboarding: punchy welcome + quick-start buttons. Returning
+    # users get the standard welcome card with the daily hook attached.
+    if is_first_run(u):
+        await send_onboarding_welcome(update, ctx)
+    else:
+        text = welcome_card_text()
 
-    # Live daily market awareness: compact "Today's Market" section
-    # (Redis-cached 5 min, fail-open — /start never blocks on market data).
-    market_section = await get_market_section()
-    if market_section:
-        text += f"\n\n{market_section}"
+        # Live daily market awareness: compact "Today's Market" section
+        # (Redis-cached 5 min, fail-open — /start never blocks on market data).
+        market_section = await get_market_section()
+        if market_section:
+            text += f"\n\n{market_section}"
 
-    # Owner-only admin section — visible only to @cryptorugmunch.
-    if is_owner(user.id):
-        text += (
-            "\n\n\U0001f6e1\ufe0f <b>ADMIN</b>\n"
-            "\u2514 /admin \u2014 Dashboard & stats\n"
-            "\u2514 /admin_broadcast \u2014 Send to all users\n"
-            "\u2514 /admin_user \u2014 Look up a user\n"
-            "\u2514 /admin_toggle \u2014 Bot ON/OFF\n"
-            "\u2514 \U0001f447 Admin buttons are pinned below the input box"
-        )
-    kb = welcome_menu_kb(user.id)
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)  # type: ignore[union-attr]  # PTB None-able fields
+        # Returning-user engagement: one rotating, non-spammy footer CTA line
+        # (deterministic per user+day — never more than one line).
+        text += f"\n{rotating_cta_for(user.id)}"
+
+        # Owner-only admin section — visible only to @cryptorugmunch.
+        if is_owner(user.id):
+            text += (
+                "\n\n\U0001f6e1\ufe0f <b>ADMIN</b>\n"
+                "\u2514 /admin \u2014 Dashboard & stats\n"
+                "\u2514 /admin_broadcast \u2014 Send to all users\n"
+                "\u2514 /admin_user \u2014 Look up a user\n"
+                "\u2514 /admin_toggle \u2014 Bot ON/OFF\n"
+                "\u2514 \U0001f447 Admin buttons are pinned below the input box"
+            )
+        kb = welcome_menu_kb(user.id)
+        # Daily hook: one-tap "what's hot right now" + market pulse for
+        # returning users — instant value, zero new callback handlers.
+        kb = merge_menu_kb(kb, daily_hook_kb())
+        await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)  # type: ignore[union-attr]  # PTB None-able fields
 
     # v7: attach the persistent admin reply keyboard for the owner in DMs so
     # admin commands stay one tap away on every message.
@@ -208,8 +224,12 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     Chat & Learn / Premium, plus Account & Extras."""
     user = update.effective_user
     kb = welcome_menu_kb(user.id if user else None)
+    text = HELP_TEXT
+    # Engagement polish: one rotating, non-spammy "what next" CTA line.
+    if user is not None:
+        text += f"\n\n{rotating_cta_for(user.id)}"
     await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-        HELP_TEXT,
+        text,
         parse_mode=ParseMode.HTML,
         reply_markup=kb,
         disable_web_page_preview=True,

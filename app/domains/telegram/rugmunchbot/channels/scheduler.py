@@ -8,15 +8,19 @@ chat id, backend outage, or Telegram errors log and skip — the JobQueue keeps
 running.
 
 Cadence (env-overridable, defaults):
-* news   → every 4h  (``RMI_CHANNEL_NEWS_INTERVAL_HOURS``)
-* alpha  → every 2h  (``RMI_CHANNEL_ALPHA_INTERVAL_HOURS``) — whale moves are
-          collected on the same cadence so whale events surface in the digest
-          within one interval (plus the existing event-driven rails)
-* alerts → every 30m (``RMI_CHANNEL_ALERTS_INTERVAL_MINUTES``)
+* news     → every 4h  (``RMI_CHANNEL_NEWS_INTERVAL_HOURS``)
+* alpha    → every 2h  (``RMI_CHANNEL_ALPHA_INTERVAL_HOURS``) — whale moves
+            are collected on the same cadence so whale events surface in the
+            digest within one interval (plus the existing event-driven rails)
+* alerts   → every 30m (``RMI_CHANNEL_ALERTS_INTERVAL_MINUTES``)
+* tg_news  → every 1h  (``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES``) — ingests
+            public crypto-news Telegram channels via the headless client,
+            persists new articles to the website news table, then posts a
+            fresh digest (see ``channels/telegram_news.py``)
 
 Master switch: ``RMI_CHANNELS_ENABLED`` (default on). Per-channel switches:
 ``RMI_NEWS_CHANNEL_ENABLED`` / ``RMI_ALERTS_CHANNEL_ENABLED`` /
-``RMI_ALPHA_CHANNEL_ENABLED`` (default on).
+``RMI_ALPHA_CHANNEL_ENABLED`` / ``RMI_TG_NEWS_CHANNEL_ENABLED`` (default on).
 """
 
 from __future__ import annotations
@@ -35,6 +39,11 @@ from app.domains.telegram.rugmunchbot.channels.formatters import (
     format_alerts_post,
     format_alpha_post,
     format_news_post,
+)
+from app.domains.telegram.rugmunchbot.channels.telegram_news import (
+    TG_NEWS_ENABLED,
+    TG_NEWS_INTERVAL_MINUTES,
+    post_tg_news_update,
 )
 from app.domains.telegram.rugmunchbot.config import (
     ALERTS_CHANNEL_ENABLED,
@@ -57,8 +66,8 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot.channels")
 
 # First-run delays so the channels go live shortly after boot (not silent for
-# a full interval): news 45s, alerts 75s, alpha 105s.
-_FIRST_RUN_SECONDS = {"news": 45, "alerts": 75, "alpha": 105}
+# a full interval): news 45s, alerts 75s, alpha 105s, tg_news 135s.
+_FIRST_RUN_SECONDS = {"news": 45, "alerts": 75, "alpha": 105, "tg_news": 135}
 
 # Bounded in-memory dedupe: don't re-post the same item on the next tick.
 _posted_keys: dict[str, set[str]] = {}
@@ -220,7 +229,14 @@ def register_channel_jobs(app: Application[Any, Any, Any, Any, Any, Any]) -> Non
             first=_FIRST_RUN_SECONDS["alpha"],
             name="channel_alpha",
         )
-    logger.info("channels:channel jobs registered (news/alerts/alpha)")
+    if TG_NEWS_ENABLED and _chat_id("news"):
+        job_queue.run_repeating(
+            post_tg_news_update,
+            interval=TG_NEWS_INTERVAL_MINUTES * 60,
+            first=_FIRST_RUN_SECONDS["tg_news"],
+            name="channel_tg_news",
+        )
+    logger.info("channels:channel jobs registered (news/alerts/alpha/tg_news)")
 
 
 __all__ = [

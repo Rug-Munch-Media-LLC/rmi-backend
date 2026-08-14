@@ -98,6 +98,14 @@ from app.rag.retrieval import (  # noqa: E402 — module docstring precedes impo
 )
 from app.rag.service import RAGService, init_rag  # noqa: E402 — module docstring precedes import block
 
+# Story fetch + ingest glue (bot story_fetch chain + RAG ingest_url)
+from app.rag.story_ingest import (  # noqa: E402 — module docstring precedes import block
+    StoryFetch,
+    StoryFetchError,
+    fetch_story,
+    ingest_url,
+)
+
 __all__ = [
     "COLLECTIONS",
     # Config
@@ -133,8 +141,11 @@ __all__ = [
     "SearchHit",
     "SearchRequest",
     "SearchResponse",
+    "StoryFetch",
+    "StoryFetchError",
     "build_context",
     "expand_query",
+    "fetch_story",
     "get_ingestor",
     "get_processor",
     "get_rate_limiter",
@@ -144,6 +155,7 @@ __all__ = [
     "ingest_research_post",
     "ingest_scam_pattern",
     "ingest_scan_result",
+    "ingest_url",
     "ingest_wallet_profile",
     "init_rag",
 ]

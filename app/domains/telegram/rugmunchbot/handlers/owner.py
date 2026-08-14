@@ -372,7 +372,7 @@ async def cmd_admin_ban(update: Update, ctx) -> None:
     except (ValueError, TypeError):
         await update.message.reply_text("Invalid user_id.")  # type: ignore[union-attr]  # PTB None-able fields
         return
-    if target in (7075336557,):
+    if target in OWNER_IDS:
         await update.message.reply_text("\u274c Cannot ban the owner.")  # type: ignore[union-attr]  # PTB None-able fields
         return
     ok = db.set_banned(target, True)

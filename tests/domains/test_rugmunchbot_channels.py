@@ -307,16 +307,22 @@ class TestPostingJobs:
 
 
 class TestRegistration:
-    def test_registers_all_three_jobs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_registers_all_jobs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "NEWS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", True)
+        monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: f"-100{channel}")
         fake_jq = FakeJobQueue()
         app = SimpleNamespace(job_queue=fake_jq)
         channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
-        assert {j["name"] for j in fake_jq.jobs} == {"channel_news", "channel_alerts", "channel_alpha"}
+        assert {j["name"] for j in fake_jq.jobs} == {
+            "channel_news",
+            "channel_alerts",
+            "channel_alpha",
+            "channel_tg_news",
+        }
 
     def test_master_switch_disables_all(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", False)
@@ -337,9 +343,10 @@ class TestRegistration:
         monkeypatch.setattr(channels_scheduler, "NEWS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", True)
-        # Only news resolves a chat id → only the news job is registered.
+        monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", True)
+        # Only news resolves a chat id → only the news + tg_news jobs register.
         monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news" if channel == "news" else None)
         fake_jq = FakeJobQueue()
         app = SimpleNamespace(job_queue=fake_jq)
         channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
-        assert [j["name"] for j in fake_jq.jobs] == ["channel_news"]
+        assert [j["name"] for j in fake_jq.jobs] == ["channel_news", "channel_tg_news"]
