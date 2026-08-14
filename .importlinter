@@ -2,20 +2,26 @@
 #
 # What this is
 # ------------
-# import-linter statically analyzes the import graph of the `app` package
-# (top-level imports only) and enforces the layer boundaries declared below.
-# It does NOT import the application — it parses source, so it is fast and
-# safe to run in CI without dependencies installed.
+# import-linter statically analyzes the import graph of the `app` package and
+# enforces the layer boundaries declared below. It does NOT import the
+# application — it parses source, so it is fast and safe to run in CI without
+# dependencies installed.
+#
+# NOTE (grimp 3.15 / import-linter 2.x): the graph builder resolves imports
+# inside function bodies too, not just module-level imports. Function-level
+# lazy imports ARE visible to the gate and ARE enforced (see Contract 4).
 #
 # Run locally:   lint-imports --config .importlinter
 # CI:            .forgejo/workflows/ci.yml  →  `import-linter` job (blocking)
 # Makefile:      make import-lint
 #
 # Design principle: keep the contracts minimal and GREEN. This monolith has
-# grown organically; the three contracts below capture only boundaries that
-# already hold today, so the gate never blocks the repo's own history. New
-# boundaries should be added one at a time, after the code is refactored to
-# satisfy them (never by widening ignore lists).
+# grown organically; the four contracts below capture boundaries that hold
+# today (two via narrow, documented ignores for known lazy-import boundaries
+# that cannot yet be removed safely — see Contract 4). New boundaries should
+# be added one at a time, after the code is refactored to satisfy them.
+# Ignore lists must stay NARROW (exact module pairs) and each entry must be
+# documented; never widen them to silence whole packages.
 
 [importlinter]
 root_packages =
@@ -57,18 +63,62 @@ source_modules =
 forbidden_modules =
     app
 
+# ── Contract 4: Core never imports routers or services ───────────────
+# app.core is foundational infrastructure and must stay the lowest layer.
+# It must not reach UP into app.routers (HTTP handlers) or app.services
+# (business-facing modules). Both directions of this rule already hold at
+# module level; the two exceptions below are KNOWN function-level lazy
+# imports that cannot be safely removed yet (the helpers they reference are
+# defined in the router/service package, so removing them requires a
+# refactor of those modules — out of scope for this gate change).
+#
+# Known boundaries, ignored narrowly (exact module pair — the narrowest
+# scope import-linter 2.x supports; there is no function-level ignore):
+#
+#   1. app.core.middleware.cache_middleware lazily imports
+#      get_cached/set_cached from app.routers.x402_advanced_tools
+#      (runtime cache helpers defined in the router). Kept lazy on purpose:
+#      hoisting it to module level would create a permanent core→routers
+#      edge, so the correct long-term fix is to MOVE the cache helpers into
+#      app.core and have the router import from core. Until then, ignored.
+#
+#   2. app.core.dependencies.get_pryscraper_client lazily imports
+#      PryscraperClient from app.services.pryscraper_client (runtime
+#      singleton creation; also a TYPE_CHECKING-only annotation import).
+#      Correct long-term fix: move PryscraperClient (or its constructor)
+#      below core. Until then, ignored.
+#
+# CLEANUP RULE: when either lazy import is removed/refactored away, DELETE
+# its ignore_imports entry below. unmatched_ignore_imports_alerting is set
+# to `warn` so such a refactor does not hard-break CI — it prints a warning
+# reminding you to remove the now-stale entry.
+[importlinter:core-does-not-import-routers-or-services]
+name = Core layer never imports routers or services
+type = forbidden
+source_modules =
+    app.core
+forbidden_modules =
+    app.routers
+    app.services
+ignore_imports =
+    app.core.middleware -> app.routers.x402_advanced_tools
+    app.core.dependencies -> app.services.pryscraper_client
+unmatched_ignore_imports_alerting = warn
+
 # ── Known boundaries NOT yet enforced (deliberately out of scope) ────
-# The following violations exist today as FUNCTION-LEVEL lazy imports
-# (import-linter only sees top-level imports, so they are invisible to
-# the graph). They are the next candidates once the code is refactored:
+# Next candidate once the code is refactored:
 #
-#   app.core.middleware      -> app.routers.x402_advanced_tools
-#   app.core.dependencies    -> app.services.pryscraper_client
-#   app.core.lifespan        -> app.rag.tracing, app.databus.core
+#   app.core.lifespan -> app.rag.tracing, app.databus.core
 #
-# When those are cleaned up, extend Contract 1 to:
+# This function-level lazy import is not covered by any contract today
+# (app.rag / app.databus are not in Contract 4's forbidden modules). When it
+# is cleaned up, extend Contract 4's forbidden_modules (or migrate to a full
+# layers contract) to:
 #   layers =
 #       app.api
 #       app.routers
 #       app.services
 #       app.core
+# A full-layers form of Contract 4 passes today with the two narrow ignores
+# above, so the only blocker to enforcing app.core.lifespan is removing that
+# lazy import first.

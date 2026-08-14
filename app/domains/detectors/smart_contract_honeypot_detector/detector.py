@@ -6,6 +6,7 @@ import os
 import re
 import time as time_mod
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
 
@@ -13,7 +14,15 @@ from .constants import BENIGN_SELECTORS, EVM_CHAINS, HONEYPOT_THRESHOLDS, KNOWN_
 from .models import FindingSeverity, HoneypotAnalysisResult, HoneypotType, SecurityFinding, TokenInfo
 from .utils import fetch_with_fallback
 
+if TYPE_CHECKING:
+    from app.pyrevm_engine import SellSimulationResult
+
 logger = get_logger(__name__)
+
+# Chains supported by app.pyrevm_engine's internal chain config. Simulations
+# are skipped on other chains so Ethereum-configured probes are never run
+# against unrelated networks (e.g. avalanche).
+_PYREVM_SUPPORTED_CHAINS: frozenset[str] = frozenset({"ethereum", "bsc", "polygon", "arbitrum", "base", "optimism"})
 
 
 class HoneypotDetector:
@@ -52,6 +61,10 @@ class HoneypotDetector:
         await self._analyze_market_data(address, chain, result)
         if deep_scan or self.enable_deep_scan:
             await self._deep_scan(address, chain, result)
+        # Optional dynamic fork-state sell simulation. Guarded so a missing
+        # pyrevm dependency or RPC failure degrades gracefully — the static
+        # scan result is always returned.
+        result.sell_simulation = await self._run_sell_simulation(address, chain)
         result.risk_score = self._compute_risk_score(result)
         result.risk_label = self._risk_score_to_label(result.risk_score)
         result.scan_duration_ms = int((time_mod.monotonic() - start) * 1000)
@@ -359,6 +372,32 @@ class HoneypotDetector:
                     result.chain_data_sources.append(f"rpc_block:{int(latest_hex, 16)}")
         except Exception:
             logger.debug("deep_scan_failed %s", address[:12])
+
+    async def _run_sell_simulation(self, address: str, chain: str) -> SellSimulationResult | None:
+        """Run the optional pyrevm fork-state sell simulation.
+
+        Executes the token's real bytecode locally (state-override pattern via
+        ``app.pyrevm_engine``) to measure sell tax, blacklist and anti-whale
+        restrictions. The call is guarded: a missing ``pyrevm`` dependency or
+        an RPC failure degrades gracefully to ``None`` — the static scan
+        result is still returned untouched.
+
+        Returns:
+            The simulation result, or ``None`` when skipped (unsupported
+            chain), unavailable (missing dependency), or failed (RPC/EVM).
+        """
+        if chain not in _PYREVM_SUPPORTED_CHAINS:
+            return None
+        try:
+            from app.pyrevm_engine import asimulate_sell_round_trip
+        except ImportError:
+            logger.debug("pyrevm_engine_not_available: chain=%s address=%s", chain, address[:12])
+            return None
+        try:
+            return await asimulate_sell_round_trip(address, chain=chain)
+        except Exception:
+            logger.exception("sell_simulation_failed: chain=%s address=%s", chain, address[:12])
+            return None
 
     def _compute_risk_score(self, result: HoneypotAnalysisResult) -> int:
         score = 0
