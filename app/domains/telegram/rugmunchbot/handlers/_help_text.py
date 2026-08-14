@@ -111,6 +111,17 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         ],
     ),
     (
+        "OSINT & Forensics",
+        [
+            ("osint", "<code>username</code> - find public accounts (maigret)"),
+            ("track", "<code>address</code> - wallet entity/sanction/scam check"),
+            ("investigate", "<code>domain</code> - WHOIS/DNS/subdomains/archive"),
+            ("email", "<code>email</code> - breach & reputation check"),
+            ("phone", "<code>phone</code> - carrier & region lookup"),
+            ("face", "<code>photo</code> - face detection + reverse-search hint"),
+        ],
+    ),
+    (
         "Premium",
         [
             ("honeypot", "<code>address</code> - honeypot detector"),
@@ -146,6 +157,7 @@ _HELP_EMOJI: dict[str, str] = {
     "Market & Analysis": "\U0001f4c8",
     "News & Alerts": "\U0001f4f0",
     "Chat & Learn": "\U0001f4ac",
+    "OSINT & Forensics": "\U0001f575\ufe0f",
     "Premium": "\U0001f451",
     "Account & Extras": "\U0001f4b3",
 }
