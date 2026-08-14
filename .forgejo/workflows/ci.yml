@@ -69,7 +69,9 @@ jobs:
       - name: Install git-cliff
         run: |
           apk add --no-cache curl tar
-          curl -fsSL https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-gnu.tar.gz -o /tmp/git-cliff.tar.gz
+          # musl build — the container is alpine (musl libc); the gnu build
+          # fails with "not found" (loader mismatch).
+          curl -fsSL https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-unknown-linux-musl.tar.gz -o /tmp/git-cliff.tar.gz
           tar xzf /tmp/git-cliff.tar.gz -C /usr/local/bin --strip-components=1 git-cliff-2.13.1/git-cliff
           git-cliff --version
       - name: Generate changelog (to temp file) and verify non-empty
