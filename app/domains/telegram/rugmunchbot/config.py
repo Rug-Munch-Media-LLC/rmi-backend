@@ -13,6 +13,8 @@ from typing import TypedDict
 
 import httpx
 
+from app.core.channels_registry import CHANNEL_ROLES
+
 
 class TierDefinition(TypedDict, total=False):
     name: str
@@ -560,33 +562,19 @@ CHAIN_IDS = {
 # CHANNELS
 # ══════════════════════════════════════════════
 # Channel chat ids are resolved with the same gopass → env → fallback pattern
-# as BOT_TOKEN (`_get_token`). Canonical source of truth is gopass
-# (`rmi/telegram/CHANNEL_*`, the same store the headless client uses); the
-# env vars below let operators override per-deployment; the documented
-# fallback chat ids keep /help links and the poster working when neither is
-# available (they are public channel ids, not credentials).
-_CHANNEL_GOPASS_PATHS: dict[str, str] = {
-    "main": "rmi/telegram/CHANNEL_CRYPTO_RUGMUNCHER",
-    "news": "rmi/telegram/CHANNEL_RMI_NEWS",
-    "alerts": "rmi/telegram/CHANNEL_CRYPTO_ALERTS",
-    "alpha": "rmi/telegram/CHANNEL_CRYPTO_ALPHA",
-    "scans": "rmi/telegram/CHANNEL_COMMUNITY_SCANS",
-}
-_CHANNEL_ENV_KEYS: dict[str, list[str]] = {
-    "main": ["RMI_MAIN_CHANNEL_ID"],
-    "news": ["RMI_NEWS_CHANNEL_ID"],
-    "alerts": ["RMI_ALERTS_CHANNEL_ID"],
-    "alpha": ["RMI_ALPHA_CHANNEL_ID"],
-    "scans": ["RMI_SCANS_CHANNEL_ID"],
-}
+# as BOT_TOKEN (`_get_token`). The canonical channel map (role → gopass path →
+# env var → public handle → fallback) lives in app/core/channels_registry.py
+# and is SHARED with the backend alert transport
+# (app/domains/alerts/telegram_transport.py), so the bot and the backend can
+# never drift on which channel a role maps to. The env vars below let
+# operators override per-deployment; the documented fallback chat ids keep
+# /help links and the poster working when neither gopass nor env is available
+# (they are public channel ids, not credentials).
+_CHANNEL_GOPASS_PATHS: dict[str, str] = {role: c.gopass_path for role, c in CHANNEL_ROLES.items()}
+_CHANNEL_ENV_KEYS: dict[str, list[str]] = {role: [c.env_var, *c.legacy_env_vars] for role, c in CHANNEL_ROLES.items()}
 # Documented fallback chat ids — used ONLY when gopass + env are both unset.
-_CHANNEL_DEFAULTS: dict[str, str] = {
-    "main": "-1002056885429",
-    "news": "-1003982391578",
-    "alerts": "-1003818352164",
-    "alpha": "-1003762675055",
-    "scans": "-1003937506770",
-}
+# Roles without a documented fallback (e.g. ``updates``) are not included.
+_CHANNEL_DEFAULTS: dict[str, str] = {role: c.fallback for role, c in CHANNEL_ROLES.items() if c.fallback is not None}
 
 _channel_cache: dict[str, str | None] = {}
 
@@ -596,14 +584,15 @@ def _resolve_channel_id(key: str) -> str | None:
 
     Memoized so the periodic poster does not shell out to gopass on every
     tick. ``reset_channel_cache()`` clears the memo (tests / runtime env
-    reload).
+    reload). Unknown roles and roles without any resolved value return None.
     """
     if key in _channel_cache:
         return _channel_cache[key]
-    if key not in _CHANNEL_DEFAULTS:
+    gopass_path = _CHANNEL_GOPASS_PATHS.get(key)
+    if gopass_path is None:
         return None
-    value = _get_token(_CHANNEL_GOPASS_PATHS[key], _CHANNEL_ENV_KEYS[key])
-    resolved = value or _CHANNEL_DEFAULTS[key]
+    value = _get_token(gopass_path, _CHANNEL_ENV_KEYS.get(key, []))
+    resolved = value or _CHANNEL_DEFAULTS.get(key)
     _channel_cache[key] = resolved
     return resolved
 
@@ -646,12 +635,23 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    """Parse a positive float env var (e.g. 0.5 = 30 minutes)."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return max(0.1, float(raw.strip()))
+    except (TypeError, ValueError):
+        return default
+
+
 CHANNEL_JOBS_ENABLED = _env_bool("RMI_CHANNELS_ENABLED", True)
 NEWS_CHANNEL_ENABLED = _env_bool("RMI_NEWS_CHANNEL_ENABLED", True)
 ALERTS_CHANNEL_ENABLED = _env_bool("RMI_ALERTS_CHANNEL_ENABLED", True)
 ALPHA_CHANNEL_ENABLED = _env_bool("RMI_ALPHA_CHANNEL_ENABLED", True)
 
-NEWS_CHANNEL_INTERVAL_HOURS = _env_int("RMI_CHANNEL_NEWS_INTERVAL_HOURS", 4)
+NEWS_CHANNEL_INTERVAL_HOURS = _env_float("RMI_CHANNEL_NEWS_INTERVAL_HOURS", 4)
 ALPHA_CHANNEL_INTERVAL_HOURS = _env_int("RMI_CHANNEL_ALPHA_INTERVAL_HOURS", 2)
 ALERTS_CHANNEL_INTERVAL_MINUTES = _env_int("RMI_CHANNEL_ALERTS_INTERVAL_MINUTES", 30)
 

@@ -46,25 +46,47 @@ class TestChannelIdsFromEnv:
                 "RMI_ALERTS_CHANNEL_ID": "-1001234567890",
                 "RMI_CRYPTONEWS_CHANNEL_ID": "987654321",
                 "RMI_MAIN_CHANNEL_ID": "-1005555",
-            }
+            },
+            use_gopass=False,
         )
         assert ids["rmialerts"] == -1001234567890
         assert ids["rmicryptonews"] == 987654321
         assert ids["main_channel"] == -1005555
 
     def test_alerts_channel_defaults_to_handle(self) -> None:
-        ids = transport.channel_ids_from_env({})
+        ids = transport.channel_ids_from_env({}, use_gopass=False)
         assert ids["alerts_channel"] == "@RugMunchAlerts"
 
     def test_missing_ids_resolve_to_none(self) -> None:
-        ids = transport.channel_ids_from_env({"RMI_ALERTS_CHANNEL": ""})
+        ids = transport.channel_ids_from_env({"RMI_ALERTS_CHANNEL": ""}, use_gopass=False)
         assert ids["rmialerts"] is None
         assert ids["rmicryptonews"] is None
         assert ids["main_channel"] is None
 
     def test_empty_value_is_none(self) -> None:
-        ids = transport.channel_ids_from_env({"RMI_MAIN_CHANNEL_ID": "   "})
+        ids = transport.channel_ids_from_env({"RMI_MAIN_CHANNEL_ID": "   "}, use_gopass=False)
         assert ids["main_channel"] is None
+
+    def test_news_legacy_env_alias_still_read(self) -> None:
+        # Pre-registry backend name RMI_CRYPTONEWS_CHANNEL_ID keeps working.
+        ids = transport.channel_ids_from_env({"RMI_CRYPTONEWS_CHANNEL_ID": "12345"}, use_gopass=False)
+        assert ids["rmicryptonews"] == 12345
+
+    def test_news_canonical_env_wins_over_legacy_alias(self) -> None:
+        ids = transport.channel_ids_from_env(
+            {"RMI_NEWS_CHANNEL_ID": "111", "RMI_CRYPTONEWS_CHANNEL_ID": "222"},
+            use_gopass=False,
+        )
+        assert ids["rmicryptonews"] == 111
+
+    def test_registry_backed_channel_has_no_fallback(self) -> None:
+        # Registry-backed channels fail open: unset → None (never the bot's
+        # documented fallback id).
+        ids = transport.channel_ids_from_env({}, use_gopass=False)
+        assert ids["rmialerts"] is None
+        assert ids["rmicryptonews"] is None
+        assert ids["main_channel"] is None
+        assert ids["rmialpha"] is None
 
 
 # ── Formatting ─────────────────────────────────────────────────────────────

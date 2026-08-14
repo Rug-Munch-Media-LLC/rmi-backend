@@ -175,7 +175,9 @@ def _apply_rate_limit_headers(response: Response, request: Request) -> None:
 # generation ~4x vs the old 2048 default (~5min at 7 tok/s → ~1min). The
 # default can be raised at deploy time via RMI_CHAT_MAX_TOKENS (clamped to
 # 64..2048 — the Pydantic Field bounds stay 64..8192 for explicit requests).
-_CHAT_MAX_TOKENS_BASE = 512
+# 2026-08-14: raised 512 -> 1536 — 512 was truncating long educational answers
+# (e.g. "how to learn TA") mid-sentence for the bot, which sends no max_tokens.
+_CHAT_MAX_TOKENS_BASE = 1536
 _CHAT_MAX_TOKENS_MIN = 64
 _CHAT_MAX_TOKENS_MAX = 2048
 

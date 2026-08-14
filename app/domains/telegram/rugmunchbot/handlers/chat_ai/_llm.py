@@ -67,6 +67,10 @@ async def _call_backend_chat(
     payload: dict[str, Any] = {
         "message": message[:MAX_MESSAGE_CHARS],
         "history": history or [],
+        # Explicitly request a larger output budget so long answers (e.g.
+        # "how to learn TA") complete instead of truncating mid-sentence.
+        # The backend clamps 64..2048 for the /chat route default.
+        "max_tokens": 2048,
     }
     headers = backend_headers()
     headers["X-Forwarded-For"] = str(user_id)

@@ -7,9 +7,12 @@ recent messages with ``app.domains.news_ingest``, then:
 1. **Persists** newly-seen articles into the website news table
    (``news_items``, the table the ``/api/v1/news/*`` routes serve) — mirroring
    the RSS ingest path in ``app.domains.news.ingest``.
-2. **Posts** a fresh digest to the bot's news channel (same chat id as the
-   existing ``post_news_update`` job; same ``format_news_post`` + ``_safe_send``
-   machinery).
+2. **Posts** the important subset to the bot's news channel (same chat id as
+   the existing ``post_news_update`` job; same ``format_news_post`` +
+   ``_safe_send`` machinery). Importance is the reranker-derived score from
+   ``channels/importance.py`` (Infinity ``BAAI/bge-reranker-v2-m3``); every
+   article is persisted, only those above ``RMI_NEWS_IMPORTANCE_THRESHOLD``
+   are posted (fail-open: heuristic fallback when Infinity is down).
 
 Everything fails open: a missing headless client, a flaky channel, Postgres
 being unreachable, or a Telegram send error logs and skips — the JobQueue keeps
@@ -25,22 +28,26 @@ This is the exact mechanism the alerts domain (``telegram_transport``) and the
 daily pipeline (``app.domains.content.daily_pipeline``) already use.
 
 Setup required before the sweep returns data (documented, never hardcoded):
-* ``pip install telethon`` (not yet in ``requirements.txt`` — [REVIEW]: add it
-  to the runtime deps so the headless client can actually start).
-* Populate the gopass entries the headless client reads in
-  ``app.domains.telegram.headless_credentials``:
-  ``path/to/telegram_api_id``, ``path/to/telegram_api_hash``,
-  ``path/to/telegram_phone`` — [REVIEW]: those are placeholder paths; the
-  owning agent should point them at the real store (e.g. ``rmi/telegram/*``).
-  Until then, the sweep degrades to ``[]`` and logs ``headless_client_unavailable``.
+* ``telethon`` is a runtime dependency (see ``requirements.txt`` /
+  ``pyproject.toml``).
+* gopass entries the headless client reads in
+  ``app.domains.telegram.headless_credentials``: ``rmi/telegram/api_id`` and
+  ``rmi/telegram/api_hash`` exist in the store; ``rmi/telegram/phone`` must be
+  created (``insert a phone entry in the secrets store (see headless_credentials)``). Until the phone entry exists
+  the sweep degrades to ``[]`` and logs ``headless_client_unavailable``.
 
 Channel list
 ------------
-Default 10 well-known public crypto-news channels (``_DEFAULT_CHANNELS``). The
-list is env-overridable with ``RMI_TG_NEWS_CHANNELS`` (comma- or
-pipe-separated @handles) — no secrets involved. Several handles carry
-``[REVIEW]`` notes in ``app/databus/tg_channels.json``; verify them before
-production monitoring.
+The sweep prefers the account's own followed/member public channels, discovered
+at runtime via Telethon ``client.get_dialogs()``
+(``app.domains.news_ingest.discover_followed_channels``) — gated by
+``RMI_TG_NEWS_AUTO_DISCOVER`` (default on). When discovery is disabled,
+returns nothing, or the client is unavailable, the sweep falls back to the
+env-overridable explicit list ``RMI_TG_NEWS_CHANNELS`` (comma- or
+pipe-separated @handles), then to ``_DEFAULT_CHANNELS`` (10 well-known public
+crypto-news channels). Several default handles carry ``[REVIEW]`` notes in
+``app/databus/tg_channels.json``; verify them before production monitoring.
+No secrets involved.
 
 Dedup
 -----
@@ -56,8 +63,9 @@ Three layers:
 Schedule
 --------
 Registered additively in ``channels/scheduler.py`` (``register_channel_jobs``):
-every ``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES`` (default 60) minutes, gated by
-``RMI_TG_NEWS_CHANNEL_ENABLED`` (default on) and a resolvable news chat id.
+every ``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES`` (default 30 — ~2 posts/hour on
+the news channel) minutes, gated by ``RMI_TG_NEWS_CHANNEL_ENABLED`` (default
+on) and a resolvable news chat id.
 """
 
 from __future__ import annotations
@@ -67,9 +75,15 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from app.domains.news_ingest.discovery import discover_followed_channels
 from app.domains.news_ingest.ingest import dedupe_articles, read_channel_messages
 from app.domains.news_ingest.normalize import channel_message_to_article
 from app.domains.telegram.rugmunchbot.channels.formatters import format_news_post
+from app.domains.telegram.rugmunchbot.channels.importance import (
+    IMPORTANCE_THRESHOLD,
+    score_importance,
+    select_important,
+)
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
@@ -129,11 +143,12 @@ def re_split(value: str) -> list[str]:
 
 
 TG_NEWS_ENABLED = _env_bool("RMI_TG_NEWS_CHANNEL_ENABLED", True)
-TG_NEWS_INTERVAL_MINUTES = _env_int("RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES", 60)
+TG_NEWS_INTERVAL_MINUTES = _env_int("RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES", 30)
 TG_NEWS_SWEEP_HOURS = _env_int("RMI_TG_NEWS_SWEEP_HOURS", 6)
 TG_NEWS_PER_CHANNEL_LIMIT = _env_int("RMI_TG_NEWS_PER_CHANNEL_LIMIT", 30)
 TG_NEWS_POST_LIMIT = _env_int("RMI_TG_NEWS_POST_LIMIT", 5)
 TG_NEWS_PERSIST = _env_bool("RMI_TG_NEWS_PERSIST", True)
+TG_NEWS_AUTO_DISCOVER = _env_bool("RMI_TG_NEWS_AUTO_DISCOVER", True)
 TG_NEWS_CHANNELS = _env_list("RMI_TG_NEWS_CHANNELS", list(_DEFAULT_CHANNELS))
 
 
@@ -141,8 +156,41 @@ TG_NEWS_CHANNELS = _env_list("RMI_TG_NEWS_CHANNELS", list(_DEFAULT_CHANNELS))
 
 
 def channel_sources() -> list[dict[str, Any]]:
-    """Source-config dicts (``username`` + ``category``) for the sweep."""
+    """Source-config dicts (``username`` + ``category``) for the sweep.
+
+    Returns the explicit ``RMI_TG_NEWS_CHANNELS`` list (falling back to
+    ``_DEFAULT_CHANNELS``). This is the *fallback* list — when auto-discovery
+    is enabled and the headless client is available,
+    :func:`resolve_channel_sources` prefers the account's own channels.
+    """
     return [{"username": u, "category": "crypto_news", "name": u} for u in TG_NEWS_CHANNELS]
+
+
+async def resolve_channel_sources(client: Any | None = None) -> list[dict[str, Any]]:
+    """Resolve the sweep's channel list, preferring the account's own channels.
+
+    Priority (highest first):
+      1. **Discovered** — the logged-in account's followed/member public
+         channels, enumerated via Telethon ``get_dialogs()``
+         (:func:`app.domains.news_ingest.discover_followed_channels`), gated
+         by ``RMI_TG_NEWS_AUTO_DISCOVER`` (default on).
+      2. **Explicit** — ``RMI_TG_NEWS_CHANNELS`` env list.
+      3. **Default** — ``_DEFAULT_CHANNELS``.
+
+    Fail-open: when auto-discovery is disabled, the client is missing, or
+    discovery returns nothing, the explicit/default list is used.
+    """
+    if TG_NEWS_AUTO_DISCOVER and client is not None:
+        try:
+            discovered = await discover_followed_channels(client)
+        except Exception as exc:  # discovery must never break the sweep
+            logger.warning("tg_news:auto_discover_failed err=%s", str(exc)[:200])
+            discovered = []
+        if discovered:
+            logger.info("tg_news:using_discovered_channels count=%s", len(discovered))
+            return [{"username": username, "category": "crypto_news", "name": title} for username, title in discovered]
+        logger.debug("tg_news:auto_discover_empty_fallback_to_explicit")
+    return channel_sources()
 
 
 # ── Client bootstrap (fail-open) ─────────────────────────────────────────────
@@ -204,15 +252,21 @@ async def sweep_telegram_news(
     exposing ``iter_messages`` or the news_ingest ``read_messages`` protocol —
     used by tests); when omitted the headless singleton is built (fail-open →
     ``[]``).
+
+    The channel list is resolved by :func:`resolve_channel_sources`: the
+    account's own followed/member channels (when ``RMI_TG_NEWS_AUTO_DISCOVER``
+    is on and the client exposes ``get_dialogs``) are primary; the explicit
+    ``RMI_TG_NEWS_CHANNELS`` / ``_DEFAULT_CHANNELS`` list is the fallback.
     """
-    sources = channel_sources()
-    if not sources:
-        logger.info("tg_news:no_sources_configured")
-        return []
     if client is None:
         client = await _build_headless_client()
     if client is None:
         logger.warning("tg_news:sweep_skipped_no_client")
+        return []
+
+    sources = await resolve_channel_sources(client)
+    if not sources:
+        logger.info("tg_news:no_sources_configured")
         return []
 
     lookback = max(1, lookback_hours or TG_NEWS_SWEEP_HOURS)
@@ -398,11 +452,16 @@ def _article_to_post_dict(article: NewsArticle) -> dict[str, Any]:
 
 
 async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
-    """Sweep TG news channels → persist to website → post fresh digest.
+    """Sweep TG news channels → persist to website → post important digest.
 
     Returns 1 when a digest was posted, 0 otherwise. Fails open at every step:
     missing chat id, no client, empty sweep, Postgres outage, or a Telegram
     send error all log and return without raising.
+
+    Importance gate: every swept article is persisted (store everything), but
+    only the articles ``select_important`` keeps (rerank importance >=
+    ``RMI_NEWS_IMPORTANCE_THRESHOLD``, or the top-N under the heuristic
+    fallback when Infinity /rerank is down) are posted to the channel.
     """
     # Lazy import keeps the scheduler ↔ this module import graph acyclic
     # (scheduler.py imports this module at module scope for registration).
@@ -431,8 +490,28 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
         counts["errors"],
     )
 
+    scored = await score_importance(articles)
+    selected = select_important(scored, top_n=TG_NEWS_POST_LIMIT)
+    if not selected:
+        logger.info(
+            "tg_news:importance_gate_none_passed articles=%s threshold=%s fallback=%s",
+            len(articles),
+            IMPORTANCE_THRESHOLD,
+            any(s.fallback for s in scored),
+        )
+        return 0
+    logger.info(
+        "tg_news:importance_selected selected=%s of %s threshold=%s fallback=%s",
+        len(selected),
+        len(scored),
+        IMPORTANCE_THRESHOLD,
+        any(s.fallback for s in scored),
+    )
+
     fresh = [
-        article for article in articles if _remember("tgnews", _dedupe_key("tgnews", _article_to_post_dict(article)))
+        scored_article.article
+        for scored_article in selected
+        if _remember("tgnews", _dedupe_key("tgnews", _article_to_post_dict(scored_article.article)))
     ]
     if not fresh:
         logger.debug("tg_news:all_already_posted")
@@ -449,6 +528,7 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 __all__ = [
+    "TG_NEWS_AUTO_DISCOVER",
     "TG_NEWS_CHANNELS",
     "TG_NEWS_ENABLED",
     "TG_NEWS_INTERVAL_MINUTES",
@@ -458,5 +538,6 @@ __all__ = [
     "channel_sources",
     "persist_articles",
     "post_tg_news_update",
+    "resolve_channel_sources",
     "sweep_telegram_news",
 ]

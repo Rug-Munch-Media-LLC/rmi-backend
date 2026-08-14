@@ -16,6 +16,14 @@ Optimisations (2026-07-24):
   - _id_to_idx dict for O(1) doc_id lookups (was O(N) .index() calls)
   - Batch persist: single pipe flush per add/delete instead of O(N) writes
   - Meta persisted only on first load or dimension change
+
+Fail-open (2026-08-14):
+  - Every Redis touch (``_persist``/``_load``/``delete``/``clear``) guards a
+    ``None`` client from ``app.core.redis.get_redis`` (pool/auth failure
+    returns None instead of raising). With Redis unavailable the in-memory
+    index stays authoritative for the process, the write is logged and
+    skipped, and the Qdrant primary store (``app.rag.qdrant_store``) is
+    unaffected — ``ingest_url`` must never die on a bare AttributeError.
 """
 
 from __future__ import annotations
@@ -37,6 +45,13 @@ _redis_client = None
 
 
 def _get_redis() -> Any:
+    """Return the shared Redis client, or None when Redis is unavailable.
+
+    ``app.core.redis.get_redis`` returns None (never raises) on pool/auth
+    failure. None is intentionally NOT cached here, so a transient Redis
+    outage can recover on a later call. Callers MUST guard ``is None`` —
+    every persistence path in this module does (fail-open).
+    """
     global _redis_client
     if _redis_client is None:
         from app.core.redis import get_redis
@@ -87,41 +102,79 @@ class ANNIndex:
     # ── Persistence (dirty-tracked: only writes changed docs) ─────────
     def _persist(self, changed_ids: set[str] | None = None) -> None:
         """Write dirty docs to Redis. When called from add/delete the
-        changed_ids set limits writes. On flush_all, writes everything."""
-        r = _get_redis()
-        pipe = r.pipeline()
+        changed_ids set limits writes. On flush_all, writes everything.
 
+        Fail-open: ``_get_redis()`` may legitimately return None (Redis
+        unreachable / auth misconfig — ``app.core.redis.get_redis`` returns
+        None instead of raising). A None client is skipped with a warning;
+        the in-memory index stays authoritative for this process and the
+        Qdrant primary write path (``engine._qdrant_upsert_chunk``) is
+        unaffected. A Redis runtime error mid-write is also caught and the
+        dirty set is kept so ``flush_all()`` can retry — this method never
+        raises into the ingest loop.
+        """
         dirty = changed_ids if changed_ids is not None else self._dirty_ids
         if not dirty and not self._meta_dirty:
             return
 
-        for doc_id in dirty:
-            if doc_id not in self._id_to_idx:
-                continue
-            idx = self._id_to_idx[doc_id]
-            entry = {
-                "vector": (self._matrix[idx].tolist() if self._matrix is not None else []),
-                "metadata": self._meta[doc_id].get("metadata", {}),
-                "text": self._meta[doc_id].get("text", ""),
-            }
-            pipe.hset(self._key_docs(), doc_id, json.dumps(entry))
-
-        if self._meta_dirty:
-            pipe.set(
-                self._key_meta(),
-                json.dumps({"count": len(self._ids), "dim": self.dim}),
+        r = _get_redis()
+        if r is None:
+            log.warning(
+                "ann_persist_skipped_redis_unavailable collection=%s dirty=%d",
+                self.collection,
+                len(dirty),
             )
-            self._meta_dirty = False
+            return
 
-        if dirty:
-            pipe.execute()
-            self._dirty_ids -= dirty
+        try:
+            pipe = r.pipeline()
+            for doc_id in dirty:
+                if doc_id not in self._id_to_idx:
+                    continue
+                idx = self._id_to_idx[doc_id]
+                entry = {
+                    "vector": (self._matrix[idx].tolist() if self._matrix is not None else []),
+                    "metadata": self._meta[doc_id].get("metadata", {}),
+                    "text": self._meta[doc_id].get("text", ""),
+                }
+                try:
+                    blob = json.dumps(entry)
+                except (TypeError, ValueError):
+                    # Non-serializable metadata must not abort the ingest —
+                    # skip this doc, keep the rest of the batch.
+                    log.warning(
+                        "ann_persist_skip_doc collection=%s doc_id=%s err=non_serializable",
+                        self.collection,
+                        doc_id,
+                    )
+                    continue
+                pipe.hset(self._key_docs(), doc_id, blob)
+
+            if self._meta_dirty:
+                pipe.set(
+                    self._key_meta(),
+                    json.dumps({"count": len(self._ids), "dim": self.dim}),
+                )
+                self._meta_dirty = False
+
+            if dirty:
+                pipe.execute()
+                self._dirty_ids -= dirty
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            # Fail-open: keep dirty docs so flush_all() can retry; never
+            # raise into the ingest loop (Qdrant primary write unaffected).
+            self._meta_dirty = True
+            log.warning("ann_persist_failed collection=%s err=%s", self.collection, e)
 
     def _load(self) -> None:
         if self._loaded:
             return
+        r = _get_redis()
+        if r is None:
+            log.debug("ann_load_skipped_redis_unavailable collection=%s", self.collection)
+            self._loaded = True
+            return
         try:
-            r = _get_redis()
             raw = r.hgetall(self._key_docs())
         except Exception as e:
             log.warning("ann_load_failed collection=%s err=%s", self.collection, e)
@@ -218,15 +271,25 @@ class ANNIndex:
         self._meta.pop(doc_id, None)
         self._dirty_ids.discard(doc_id)
         self._meta_dirty = True
-        # On delete we rewrite meta entirely
+        # On delete we rewrite meta entirely (fail-open when Redis is gone)
         r = _get_redis()
-        pipe = r.pipeline()
-        pipe.hdel(self._key_docs(), doc_id)
-        pipe.set(
-            self._key_meta(),
-            json.dumps({"count": len(self._ids), "dim": self.dim}),
-        )
-        pipe.execute()
+        if r is None:
+            log.warning(
+                "ann_delete_skipped_redis_unavailable collection=%s doc_id=%s",
+                self.collection,
+                doc_id,
+            )
+            return True
+        try:
+            pipe = r.pipeline()
+            pipe.hdel(self._key_docs(), doc_id)
+            pipe.set(
+                self._key_meta(),
+                json.dumps({"count": len(self._ids), "dim": self.dim}),
+            )
+            pipe.execute()
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            log.warning("ann_delete_persist_failed collection=%s doc_id=%s err=%s", self.collection, doc_id, e)
         return True
 
     def clear(self) -> None:
@@ -237,8 +300,11 @@ class ANNIndex:
         self._loaded = True
         self._dirty_ids.clear()
         self._meta_dirty = False
+        r = _get_redis()
+        if r is None:
+            log.debug("ann_clear_skipped_redis_unavailable collection=%s", self.collection)
+            return
         try:
-            r = _get_redis()
             r.delete(self._key_docs(), self._key_meta())
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             log.warning("ann_clear_failed: %s", e)
