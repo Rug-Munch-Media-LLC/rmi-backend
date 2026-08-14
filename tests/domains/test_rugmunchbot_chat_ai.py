@@ -229,7 +229,7 @@ class TestBeautifyAnswer:
         assert lines[0] == "**\U0001f4ca Market Read**"
         assert lines[1] == chat_ai.thin_sep()
         assert lines[2] == "Evidence."
-        sep_lines = [l for l in lines if l.strip() and set(l.strip()) == {"\u2500"}]
+        sep_lines = [line for line in lines if line.strip() and set(line.strip()) == {"\u2500"}]
         assert len(sep_lines) == 1, "model separator must be deduped, not stacked"
 
     def test_leading_emoji_run_collapsed(self) -> None:
@@ -279,6 +279,64 @@ class TestMarkdownBoldToHtml:
     def test_unbalanced_asterisks_untouched(self) -> None:
         assert chat_ai._markdown_bold_to_html("*stray") == "*stray"
         assert chat_ai._markdown_bold_to_html("**open only") == "**open only"
+
+
+class TestMarkdownToHtml:
+    """Full markdown → HTML conversion (bold + code + italic)."""
+
+    def test_bold_converted(self) -> None:
+        assert chat_ai._markdown_to_html("**bold**") == "<b>bold</b>"
+
+    def test_triple_asterisk_converted(self) -> None:
+        assert chat_ai._markdown_to_html("***bold***") == "<b>bold</b>"
+
+    def test_inline_code_converted(self) -> None:
+        assert chat_ai._markdown_to_html("`0xabc`") == "<code>0xabc</code>"
+
+    def test_inline_code_protects_inner_markdown(self) -> None:
+        # Code runs FIRST: **bold** inside backticks must never become <b>.
+        assert chat_ai._markdown_to_html("use `**bold**`") == "use <code>**bold**</code>"
+
+    def test_italic_converted(self) -> None:
+        assert chat_ai._markdown_to_html("*Live data*") == "<i>Live data</i>"
+
+    def test_underscore_italic_converted(self) -> None:
+        assert chat_ai._markdown_to_html("_Live data_") == "<i>Live data</i>"
+
+    def test_intraword_underscores_not_italic(self) -> None:
+        # Word-boundary guard: snake_case / code identifiers are NOT emphasis.
+        assert chat_ai._markdown_to_html("hello_world_foo") == "hello_world_foo"
+
+    def test_arithmetic_asterisks_not_italic(self) -> None:
+        # Multiplication must not be mangled into <i>.
+        assert chat_ai._markdown_to_html("x * 2 * y") == "x * 2 * y"
+
+    def test_mixed_markers_convert_together(self) -> None:
+        text = "**Bold**, `code`, *italic*"
+        assert chat_ai._markdown_to_html(text) == "<b>Bold</b>, <code>code</code>, <i>italic</i>"
+
+    def test_escaped_inner_stays_escaped(self) -> None:
+        # Runs AFTER html.escape: &amp; must not double-escape to &amp;amp;.
+        assert chat_ai._markdown_to_html("**BTC &amp; ETH**") == "<b>BTC &amp; ETH</b>"
+        assert chat_ai._markdown_to_html("`a &lt; b`") == "<code>a &lt; b</code>"
+        assert chat_ai._markdown_to_html("*x &amp; y*") == "<i>x &amp; y</i>"
+
+    def test_raw_specials_in_inner_get_escaped(self) -> None:
+        # Standalone use on NOT-yet-escaped input must still be safe.
+        out = chat_ai._markdown_to_html("**a < b & c**")
+        assert out == "<b>a &lt; b &amp; c</b>"
+        assert "<script>" not in chat_ai._markdown_to_html("**<script>alert(1)</script>**")
+
+    def test_unmatched_markers_untouched(self) -> None:
+        assert chat_ai._markdown_to_html("`unclosed") == "`unclosed"
+        assert chat_ai._markdown_to_html("*stray") == "*stray"
+        assert chat_ai._markdown_to_html("**open only") == "**open only"
+
+    def test_old_bold_only_alias_unchanged(self) -> None:
+        # Backward-compat alias still converts exactly the old cases.
+        assert chat_ai._markdown_bold_to_html("**bold**") == "<b>bold</b>"
+        assert chat_ai._markdown_bold_to_html("***bold***") == "<b>bold</b>"
+        assert chat_ai._markdown_bold_to_html("*stray") == "*stray"
 
 
 class TestStripThinkBlocks:
@@ -695,15 +753,23 @@ class TestSendAnswer:
 
     def test_bold_and_lists_render_without_broken_tags(self) -> None:
         msg = _FakeMessage()
-        answer = "**Bold** text\n- item\n*star item\n*italic* stays literal"
+        answer = "**Bold** text\n- item\n*star item\n*italic* renders"
         _run(chat_ai._send_answer(msg, answer, 0))
         sent = "".join(r[0][0] for r in msg.replies)
         assert "<b>Bold</b>" in sent
         assert sent.count("<b>") == sent.count("</b>")
         assert "<script>" not in sent
-        # single-star italic stays literal (deliberately not converted — a
-        # naive *italic* rule would corrupt math like "2 * 3 * 4")
-        assert "*italic* stays literal" in sent
+        # single-star italic now converts (full _markdown_to_html), while math
+        # like "2 * 3 * 4" stays literal — the inner span must start/end on a
+        # non-space char.
+        assert "<i>italic</i> renders" in sent
+
+    def test_arithmetic_asterisks_stay_literal(self) -> None:
+        msg = _FakeMessage()
+        _run(chat_ai._send_answer(msg, "2 * 3 * 4 = 24", 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "2 * 3 * 4 = 24" in sent
+        assert "<i>" not in sent
 
     def test_long_answer_splits_on_sentence_boundaries(self) -> None:
         msg = _FakeMessage()
@@ -735,15 +801,22 @@ class TestRawHtmlNormalization:
         _run(chat_ai._send_answer(msg, "<strong>Risk 82/100</strong> addr <code>0xabc</code>", 0))
         sent = "".join(r[0][0] for r in msg.replies)
         assert "<b>Risk 82/100</b>" in sent
-        assert "`0xabc`" in sent
+        # <code> normalizes to `code` then converts to REAL monospace — never
+        # the literal backtick `` `0xabc` `` that used to render.
+        assert "<code>0xabc</code>" in sent
+        assert "`0xabc`" not in sent
         assert sent.count("<b>") == sent.count("</b>")
+        assert sent.count("<code>") == sent.count("</code>")
 
-    def test_italic_maps_to_underscores(self) -> None:
+    def test_italic_maps_to_real_italic(self) -> None:
         msg = _FakeMessage()
         _run(chat_ai._send_answer(msg, "<i>Live data via tools.</i>", 0))
         sent = "".join(r[0][0] for r in msg.replies)
-        assert "<i>" not in sent
-        assert "_Live data via tools._" in sent
+        # <i> normalizes to _italic_ then converts to REAL <i> — never the
+        # literal underscore version that used to render.
+        assert "<i>Live data via tools.</i>" in sent
+        assert "_Live data via tools._" not in sent
+        assert sent.count("<i>") == sent.count("</i>")
 
     def test_escaped_entities_render_as_literal_chars(self) -> None:
         msg = _FakeMessage()
@@ -766,8 +839,9 @@ class TestRawHtmlNormalization:
         assert sent.count("<b>") == sent.count("</b>")
 
     def test_tool_answer_html_renders_not_literal(self) -> None:
-        """The no-LLM tool answer (_format_tool_answer emits real HTML) must
-        render as formatted text, not escaped literal tags."""
+        """The no-LLM tool answer (_format_tool_answer emits MARKDOWN) must
+        render as formatted Telegram HTML — bold token names, monospace
+        addresses, italic footer — never escaped literal markers."""
         msg = _FakeMessage()
         tool_answer = chat_ai._format_tool_answer(
             {
@@ -793,8 +867,13 @@ class TestRawHtmlNormalization:
         _run(chat_ai._send_answer(msg, tool_answer, 0))
         sent = "".join(r[0][0] for r in msg.replies)
         assert "<b>Doge Coin</b>" in sent
+        assert "<code>0xabc</code>" in sent
+        assert "<i>Live data via Rug Munch tools.</i>" in sent
         assert "&lt;b&gt;" not in sent
+        assert "&lt;code&gt;" not in sent
         assert sent.count("<b>") == sent.count("</b>")
+        assert sent.count("<code>") == sent.count("</code>")
+        assert sent.count("<i>") == sent.count("</i>")
 
     def test_long_bold_answer_split_never_unbalanced(self) -> None:
         """A long answer whose **bold** spans contain sentence boundaries must

@@ -185,7 +185,7 @@ def _cut_index(text: str, limit: int) -> int:
     # dangling opener/closer at a part edge. Back up to the span's opening
     # so the whole span leads the next part (balanced). A span that starts
     # too early to back up to keeps the cut — the renderer tolerates the
-    # unbalanced markers as literal text (see _markdown_bold_to_html).
+    # unbalanced markers as literal text (see _markdown_to_html).
     for m in _BOLD_SPAN_RE.finditer(text):
         if m.start() < cut < m.end():
             if m.start() >= limit // 2:
