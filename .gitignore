@@ -80,6 +80,8 @@ secret-rotation*
 !app/rag/crawl_sources.json
 !app/databus/unified_news_sources.json
 !app/databus/tg_channels.json
+# Vendor API response samples drive scripts/gen_vendor_models.py — tracked
+!app/databus/vendor_models/samples/*.json
 .env
 .env.backup-*
 .env.bak
