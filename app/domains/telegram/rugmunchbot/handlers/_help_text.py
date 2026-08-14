@@ -40,7 +40,8 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         "Scan & Security",
         [
             ("scan", "<code>address</code> - quick security audit"),
-            ("deepscan", "<code>address</code> - full forensic scan"),
+            ("deepscan", "<code>address</code> - ML deep scan (fraud-GNN/pyod/pygod, ABI, sell sim)"),
+            ("scandeep", "<code>address</code> - full multi-phase forensic scan"),
             ("sentinelscan", "<code>address</code> - AEGIS 9-module scan"),
             ("rugcheck", "<code>address</code> - red flag checklist"),
             ("deployer", "<code>address</code> - deployer fingerprint"),
