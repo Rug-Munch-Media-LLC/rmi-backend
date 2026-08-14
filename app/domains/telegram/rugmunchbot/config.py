@@ -559,13 +559,105 @@ CHAIN_IDS = {
 # ══════════════════════════════════════════════
 # CHANNELS
 # ══════════════════════════════════════════════
-CHANNELS = {
+# Channel chat ids are resolved with the same gopass → env → fallback pattern
+# as BOT_TOKEN (`_get_token`). Canonical source of truth is gopass
+# (`rmi/telegram/CHANNEL_*`, the same store the headless client uses); the
+# env vars below let operators override per-deployment; the documented
+# fallback chat ids keep /help links and the poster working when neither is
+# available (they are public channel ids, not credentials).
+_CHANNEL_GOPASS_PATHS: dict[str, str] = {
+    "main": "rmi/telegram/CHANNEL_CRYPTO_RUGMUNCHER",
+    "news": "rmi/telegram/CHANNEL_RMI_NEWS",
+    "alerts": "rmi/telegram/CHANNEL_CRYPTO_ALERTS",
+    "alpha": "rmi/telegram/CHANNEL_CRYPTO_ALPHA",
+    "scans": "rmi/telegram/CHANNEL_COMMUNITY_SCANS",
+}
+_CHANNEL_ENV_KEYS: dict[str, list[str]] = {
+    "main": ["RMI_MAIN_CHANNEL_ID"],
+    "news": ["RMI_NEWS_CHANNEL_ID"],
+    "alerts": ["RMI_ALERTS_CHANNEL_ID"],
+    "alpha": ["RMI_ALPHA_CHANNEL_ID"],
+    "scans": ["RMI_SCANS_CHANNEL_ID"],
+}
+# Documented fallback chat ids — used ONLY when gopass + env are both unset.
+_CHANNEL_DEFAULTS: dict[str, str] = {
     "main": "-1002056885429",
     "news": "-1003982391578",
     "alerts": "-1003818352164",
     "alpha": "-1003762675055",
     "scans": "-1003937506770",
 }
+
+_channel_cache: dict[str, str | None] = {}
+
+
+def _resolve_channel_id(key: str) -> str | None:
+    """Resolve one channel chat id: gopass → env → documented fallback.
+
+    Memoized so the periodic poster does not shell out to gopass on every
+    tick. ``reset_channel_cache()`` clears the memo (tests / runtime env
+    reload).
+    """
+    if key in _channel_cache:
+        return _channel_cache[key]
+    if key not in _CHANNEL_DEFAULTS:
+        return None
+    value = _get_token(_CHANNEL_GOPASS_PATHS[key], _CHANNEL_ENV_KEYS[key])
+    resolved = value or _CHANNEL_DEFAULTS[key]
+    _channel_cache[key] = resolved
+    return resolved
+
+
+def reset_channel_cache() -> None:
+    """Clear the memoized channel-id resolutions (tests / env reload)."""
+    _channel_cache.clear()
+
+
+def _channel_id_required(key: str) -> str:
+    """Known channel keys always resolve — defaults guarantee a value."""
+    value = _resolve_channel_id(key)
+    assert value is not None
+    return value
+
+
+CHANNELS: dict[str, str] = {key: _channel_id_required(key) for key in _CHANNEL_DEFAULTS}
+
+
+# ══════════════════════════════════════════════
+# CHANNEL CONTENT SCHEDULING (env-configurable)
+# ══════════════════════════════════════════════
+# Master + per-channel switches and posting intervals for the scheduled
+# channel content jobs (channels/scheduler.py). All values are env-driven so
+# operators can tune cadence without a code deploy.
+def _env_bool(name: str, default: bool = True) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("true", "1", "yes", "on")
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return max(1, int(raw.strip()))
+    except (TypeError, ValueError):
+        return default
+
+
+CHANNEL_JOBS_ENABLED = _env_bool("RMI_CHANNELS_ENABLED", True)
+NEWS_CHANNEL_ENABLED = _env_bool("RMI_NEWS_CHANNEL_ENABLED", True)
+ALERTS_CHANNEL_ENABLED = _env_bool("RMI_ALERTS_CHANNEL_ENABLED", True)
+ALPHA_CHANNEL_ENABLED = _env_bool("RMI_ALPHA_CHANNEL_ENABLED", True)
+
+NEWS_CHANNEL_INTERVAL_HOURS = _env_int("RMI_CHANNEL_NEWS_INTERVAL_HOURS", 4)
+ALPHA_CHANNEL_INTERVAL_HOURS = _env_int("RMI_CHANNEL_ALPHA_INTERVAL_HOURS", 2)
+ALERTS_CHANNEL_INTERVAL_MINUTES = _env_int("RMI_CHANNEL_ALERTS_INTERVAL_MINUTES", 30)
+
+NEWS_CHANNEL_LIMIT = _env_int("RMI_CHANNEL_NEWS_LIMIT", 5)
+ALPHA_CHANNEL_LIMIT = _env_int("RMI_CHANNEL_ALPHA_LIMIT", 5)
+ALERTS_CHANNEL_LIMIT = _env_int("RMI_CHANNEL_ALERTS_LIMIT", 5)
 
 # ══════════════════════════════════════════════
 # RISK VISUALIZATION

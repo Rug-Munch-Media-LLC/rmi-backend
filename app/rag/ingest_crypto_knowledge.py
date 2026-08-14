@@ -9,6 +9,17 @@ Usage:
                                               [--collection scam_intel]
                                               [--dry-run]
                                               [--incidents]
+                                              [--docs]
+                                              [--seed [SEED_FILE]]
+                                              [--force]
+
+Idempotent + resumable: every path (knowledge bases, incidents, docs, seed
+corpus) records per-item dedup marks (URL + content hash) via
+``app.rag.dedup`` before/after ingestion. Re-running the script skips items
+already ingested within the dedup TTL window, so an interrupted run resumes
+from where it stopped. Pass ``--force`` to bypass the marks and re-ingest
+everything. All dedup checks fail open (backend down → proceed), so the
+script never deadlocks on Redis/Qdrant outages.
 
 Collections populated:
     scam_intel       — Common scam patterns, honeypots, rug pulls, flash loans
@@ -32,6 +43,14 @@ upgradeable docs), splits each doc into heading-aware chunks, dedupes by URL +
 content hash and ingests into the target collection(s) (coding_knowledge,
 threat_intel). Fail-open: a source that 404s / times out / yields no usable
 chunks is skipped and recorded — never raise.
+
+``--seed [SEED_FILE]`` ingests the curated seed corpus (default
+``app/rag/seed_corpus/crypto_knowledge.jsonl``) — 50-100 hand-written entries
+covering definitions, scam patterns, TA terms, market concepts and security
+best practices. Entries carry ``source="seed-corpus"`` attribution and are
+routed to the matching legacy collection by category. Each entry is deduped by
+its stable synthetic URL (``https://seed-corpus.invalid/<id>``) plus its
+content hash per target collection — fail-open like the other paths.
 """
 
 from __future__ import annotations
@@ -43,11 +62,11 @@ import os
 import re
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
 
-from app.core.internal_key import INTERNAL_API_KEY
 from app.core.logging import get_logger
 from app.rag._crawler_constants import (
     INCIDENT_CATEGORIES,
@@ -66,13 +85,26 @@ from app.rag.dedup import (
 
 log = get_logger(__name__)
 
+
 # Bearer token kept for CSRF bypass; X-RMI-Key satisfies the auth middleware
 # (Tier 1 shared secret) on the now-protected /api/v1/rag/v2/* write endpoints.
-RAG_WRITE_HEADERS = {
-    "Authorization": "Bearer sk-local",  # bypass CSRF middleware
-    "X-RMI-Key": INTERNAL_API_KEY,  # auth middleware shared secret
-    "Content-Type": "application/json",
-}
+# Resolved lazily so this CLI module can be imported standalone (dry-runs,
+# verification, unit tests) without the full backend env (JWT_SECRET guard in
+# app.config). Write calls raise a clear error when the key is unavailable.
+def _write_headers() -> dict[str, str]:
+    try:
+        from app.core.internal_key import INTERNAL_API_KEY
+    except Exception as e:
+        raise RuntimeError(
+            "Unable to resolve INTERNAL_API_KEY — set RMI_INTERNAL_KEY (and JWT_SECRET) "
+            "or run inside the backend container before writing to the RAG API."
+        ) from e
+    return {
+        "Authorization": "Bearer sk-local",  # bypass CSRF middleware
+        "X-RMI-Key": INTERNAL_API_KEY,  # auth middleware shared secret
+        "Content-Type": "application/json",
+    }
+
 
 # ── Knowledge bases ────────────────────────────────────────────────────
 
@@ -587,6 +619,203 @@ KNOWLEDGE_BASES: dict[str, list[dict[str, Any]]] = {
 }
 
 
+# ── Seed corpus (curated JSONL knowledge base) ──────────────────────────────
+# app/rag/seed_corpus/crypto_knowledge.jsonl — hand-written educational
+# entries (definitions, scam patterns, TA terms, market concepts, security
+# best practices). Every entry: {id, title, content, category, source,
+# tags}. ``source`` is forced to "seed-corpus" at load time so attribution
+# stays consistent regardless of what the file says.
+
+SEED_CORPUS_DEFAULT_PATH: Path = Path(__file__).resolve().parent / "seed_corpus" / "crypto_knowledge.jsonl"
+
+# category → legacy RAG collection. Concepts/terminology land in
+# ``phishing_db`` (DeFi concepts, terminology, security concepts per the
+# module docstring), scam patterns in ``scam_intel``, security best practices
+# in ``contract_audit``, TA terms in ``wallet_labels``.
+SEED_CATEGORY_COLLECTIONS: dict[str, str] = {
+    "definition": "phishing_db",
+    "defi": "phishing_db",
+    "market": "phishing_db",
+    "tokenomics": "phishing_db",
+    "onchain": "phishing_db",
+    "scam": "scam_intel",
+    "security": "contract_audit",
+    "ta": "wallet_labels",
+}
+
+_SEED_REQUIRED_FIELDS = ("id", "title", "content", "category")
+
+
+def load_seed_corpus(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    """Parse + validate the seed-corpus JSONL file. Pure — no network, no I/O
+    beyond reading *path*. Never raises.
+
+    Returns ``(entries, errors)`` where every entry is a validated dict
+    ``{id, title, content, category, source, tags}``. ``source`` is forced to
+    ``"seed-corpus"``. Malformed lines / missing fields / duplicate ids are
+    reported as error strings and skipped.
+    """
+    if not path.is_file():
+        return [], [f"seed_file_missing path={path}"]
+    entries: list[dict[str, Any]] = []
+    errors: list[str] = []
+    seen_ids: set[str] = set()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as e:
+        return [], [f"seed_file_unreadable path={path} err={e}"]
+    for lineno, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue  # allow blank lines + comments
+        try:
+            raw = json.loads(stripped)
+        except json.JSONDecodeError as e:
+            errors.append(f"line {lineno}: invalid JSON ({e})")
+            continue
+        if not isinstance(raw, dict):
+            errors.append(f"line {lineno}: entry is not a JSON object")
+            continue
+        missing = [f for f in _SEED_REQUIRED_FIELDS if not raw.get(f)]
+        if missing:
+            errors.append(f"line {lineno}: missing required field(s) {', '.join(missing)}")
+            continue
+        entry_id = str(raw["id"]).strip()
+        title = str(raw["title"]).strip()
+        content = str(raw["content"]).strip()
+        category = str(raw["category"]).strip()
+        if not entry_id or not title or not content or not category:
+            errors.append(f"line {lineno}: empty required field(s)")
+            continue
+        if entry_id in seen_ids:
+            errors.append(f"line {lineno}: duplicate id {entry_id!r}")
+            continue
+        if category not in SEED_CATEGORY_COLLECTIONS:
+            errors.append(
+                f"line {lineno}: unknown category {category!r} (allowed: {sorted(SEED_CATEGORY_COLLECTIONS)})"
+            )
+            continue
+        seen_ids.add(entry_id)
+        tags = raw.get("tags") or []
+        if isinstance(tags, str):
+            tags = [t.strip() for t in tags.split(",") if t.strip()]
+        if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
+            errors.append(f"line {lineno}: tags must be a list of strings")
+            continue
+        entries.append(
+            {
+                "id": entry_id,
+                "title": title,
+                "content": content,
+                "category": category,
+                "source": "seed-corpus",
+                "tags": tags,
+            }
+        )
+    return entries, errors
+
+
+def _seed_synthetic_url(entry_id: str) -> str:
+    """Stable, non-resolvable dedup URL for a seed entry.
+
+    ``.invalid`` is a reserved TLD (RFC 2606) — never resolves, never routes,
+    and keeps the corpus OSS-safe (no internal hostnames).
+    """
+    return f"https://seed-corpus.invalid/{entry_id}"
+
+
+def _seed_payload(entry: dict[str, Any], collection: str) -> dict[str, Any]:
+    """Build the bulk-ingest item (doc_id/content/metadata) for a seed entry."""
+    synthetic_url = _seed_synthetic_url(str(entry["id"]))
+    digest = hashlib.sha256(str(entry["id"]).encode("utf-8", errors="ignore")).hexdigest()[:12]
+    metadata = {
+        "source": "seed-corpus",
+        "source_name": "seed-corpus",
+        "source_url": synthetic_url,
+        "title": entry["title"],
+        "category": entry["category"],
+        "tags": list(entry.get("tags") or []),
+        "content_type": "seed_knowledge",
+        "ingested_via": "seed_corpus_loader",
+    }
+    return {
+        "doc_id": f"seed:{digest}",
+        "content": f"{entry['title']}\n\n{entry['content']}",
+        "metadata": metadata,
+    }
+
+
+async def ingest_seed_corpus(
+    base_url: str = "http://localhost:8000",
+    seed_file: str | Path | None = None,
+    dry_run: bool = False,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Load → validate → dedup → ingest the curated seed corpus.
+
+    Pipeline:
+      1. ``load_seed_corpus``      — parse + validate JSONL (malformed skipped)
+      2. URL dedup                 — dedup.is_duplicate_url on the stable
+         synthetic URL per entry (fail-open)
+      3. content dedup             — dedup.content_hash + is_duplicate_content
+         per target collection (fail-open)
+      4. map category → collection, bulk-ingest via ``ingest_collection``
+         (chunked at _BULK_CHUNK_SIZE; embedding happens server-side)
+      5. mark URL + content hashes ingested (fail-open, skipped on dry-run)
+
+    ``--force`` bypasses the dedup marks and re-ingests every entry.
+    Never raises: failures are collected in the summary.
+    """
+    path = Path(seed_file) if seed_file is not None else SEED_CORPUS_DEFAULT_PATH
+    entries, errors = load_seed_corpus(path)
+    summary: dict[str, Any] = {
+        "seed_file": str(path),
+        "total_entries": len(entries),
+        "invalid_entries": len(errors),
+        "errors": errors[:20],
+        "skipped_url_duplicates": 0,
+        "skipped_content_duplicates": 0,
+        "force": force,
+        "collections": {},
+        "to_ingest": 0,
+        "ingested": 0,
+    }
+    if not entries:
+        return summary
+
+    payloads_by_collection: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        collection = SEED_CATEGORY_COLLECTIONS.get(str(entry["category"]), "phishing_db")
+        payload = _seed_payload(entry, collection)
+        synthetic_url = str(payload["metadata"]["source_url"])
+        fp = content_hash(payload["content"])
+        if not force and is_duplicate_url(synthetic_url):
+            summary["skipped_url_duplicates"] += 1
+            continue
+        if not force and is_duplicate_content(fp, collection):
+            summary["skipped_content_duplicates"] += 1
+            continue
+        payloads_by_collection.setdefault(collection, []).append(payload)
+
+    summary["to_ingest"] = sum(len(v) for v in payloads_by_collection.values())
+    ok_total = 0
+    for collection, items in payloads_by_collection.items():
+        for start in range(0, len(items), _BULK_CHUNK_SIZE):
+            chunk = items[start : start + _BULK_CHUNK_SIZE]
+            result = await ingest_collection(base_url, collection, chunk, dry_run=dry_run)
+            if not dry_run and "error" not in result:
+                ok_total += int(result.get("ok", 0) or 0)
+        summary["collections"][collection] = len(items)
+
+    if not dry_run:
+        for collection, items in payloads_by_collection.items():
+            for payload in items:
+                mark_url_ingested(str(payload["metadata"].get("source_url") or ""))
+                mark_content_ingested(content_hash(str(payload["content"])), collection)
+    summary["ingested"] = summary["to_ingest"] if dry_run else ok_total
+    return summary
+
+
 # ── Public scam/rug/exploit incident sources (RAG enrichment) ────────────────
 # Sources are declared in crawl_sources.json under ``incident_sources`` and
 # consumed by ``ingest_incidents_from_sources``. Every network touch is
@@ -830,6 +1059,7 @@ async def ingest_incidents_from_sources(
     sources: list[str] | None = None,
     dry_run: bool = False,
     max_per_source: int | None = 1000,
+    force: bool = False,
 ) -> dict[str, Any]:
     """Fetch → normalize → dedup → ingest public scam/exploit incident feeds.
 
@@ -837,7 +1067,8 @@ async def ingest_incidents_from_sources(
       1. ``fetch_incident_source``          — httpx GET (best-effort, [] on failure)
       2. ``normalize_incident``             — canonical record shape, drop invalid
       3. ``dedupe_incidents`` + dedup.is_duplicate_url — unique by URL (in-batch
-         plus the shared Redis URL dedup, fail-open)
+         plus the shared Redis URL dedup, fail-open; ``force=True`` bypasses
+         the cross-time URL dedup)
       4. map category → collection(s), bulk-ingest via the existing
          ``ingest_collection`` path (chunked at 500 items).
 
@@ -861,9 +1092,10 @@ async def ingest_incidents_from_sources(
             batch = dedupe_incidents(normalized)
 
             # Cross-time URL dedup via the shared dedup module (fail-open).
+            # ``force`` bypasses the marks so re-ingestion is possible.
             fresh: list[dict[str, Any]] = []
             for incident in batch:
-                if is_duplicate_url(str(incident["url"])):
+                if not force and is_duplicate_url(str(incident["url"])):
                     continue
                 fresh.append(incident)
 
@@ -917,7 +1149,7 @@ async def ingest_collection(
             resp = await client.post(
                 f"{base_url}/api/v1/rag/v2/bulk-ingest",
                 json={"collection": collection, "items": items},
-                headers=RAG_WRITE_HEADERS,
+                headers=_write_headers(),
             )
             resp.raise_for_status()
             return resp.json()
@@ -932,6 +1164,7 @@ async def ingest_doc_sources(
     chunk_size: int = RAG_CHUNK_SIZE,
     chunk_overlap: int = RAG_CHUNK_OVERLAP,
     min_chunk_chars: int = RAG_MIN_CHUNK_CHARS,
+    force: bool = False,
 ) -> dict[str, Any]:
     """Fetch → chunk → dedup → ingest raw markdown/reST/AsciiDoc knowledge.
 
@@ -966,7 +1199,8 @@ async def ingest_doc_sources(
         url = str(source_cfg["url"])
         try:
             # Cheapest gate first: cross-time URL dedup (fail-open).
-            if is_duplicate_url(url):
+            # ``force`` bypasses the marks so re-ingestion is possible.
+            if not force and is_duplicate_url(url):
                 summary["sources"][name] = {"url": url, "skipped": "url_already_ingested"}
                 continue
 
@@ -994,7 +1228,7 @@ async def ingest_doc_sources(
                 if fp in seen_hashes:
                     continue
                 # Cross-time content dedup per target collection (fail-open).
-                if any(is_duplicate_content(fp, col) for col in collections):
+                if not force and any(is_duplicate_content(fp, col) for col in collections):
                     continue
                 seen_hashes.add(fp)
                 fresh.append(_doc_payload(source=name, url=url, chunk=chunk, index=idx, category=category))
@@ -1189,10 +1423,23 @@ async def ingest_all(
     base_url: str = "http://localhost:8000",
     collections: list[str] | None = None,
     dry_run: bool = False,
+    force: bool = False,
 ) -> dict[str, Any]:
-    """Ingest all knowledge bases into their respective collections."""
+    """Ingest all knowledge bases into their respective collections.
+
+    Idempotent + resumable: every doc gets a stable synthetic URL
+    (``https://kb.invalid/<collection>/<doc_id>``, RFC 2606 reserved TLD) plus
+    a content hash. Docs whose URL or content was already ingested within the
+    dedup TTL window are skipped and counted. ``--force`` bypasses the marks
+    and re-ingests everything. Each item's metadata is augmented with source
+    attribution (``source=curated_kb:<collection>``, ``ingested_via``,
+    ``source_url``) so every vector in the corpus is traceable back to its
+    knowledge base. Fail-open: dedup marks are best-effort (Redis down →
+    proceed), never block ingestion.
+    """
     cols = collections or list(KNOWLEDGE_BASES.keys())
     results: dict[str, Any] = {}
+    total_skipped = 0
 
     for collection in cols:
         items = KNOWLEDGE_BASES.get(collection)
@@ -1200,16 +1447,42 @@ async def ingest_all(
             results[collection] = {"status": "skipped", "reason": "no knowledge base defined"}
             continue
 
-        print(f"\n{'[DRY RUN] ' if dry_run else ''}Ingesting {len(items)} documents into '{collection}'...")
-        result = await ingest_collection(base_url, collection, items, dry_run=dry_run)
+        fresh: list[dict[str, Any]] = []
+        skipped = 0
+        for item in items:
+            doc_id = str(item.get("doc_id") or "")
+            synthetic_url = f"https://kb.invalid/{collection}/{doc_id}"
+            fp = content_hash(str(item["content"]))
+            if not force and (is_duplicate_url(synthetic_url) or is_duplicate_content(fp, collection)):
+                skipped += 1
+                continue
+            meta = dict(item.get("metadata") or {})
+            meta.setdefault("source", f"curated_kb:{collection}")
+            meta.setdefault("source_name", "curated_knowledge_base")
+            meta.setdefault("source_url", synthetic_url)
+            meta.setdefault("ingested_via", "knowledge_base_loader")
+            fresh.append({"doc_id": doc_id, "content": item["content"], "metadata": meta})
+        total_skipped += skipped
+
+        print(
+            f"\n{'[DRY RUN] ' if dry_run else ''}Ingesting {len(fresh)} documents "
+            f"into '{collection}' ({skipped} already-ingested skipped)..."
+        )
+        result = await ingest_collection(base_url, collection, fresh, dry_run=dry_run)
+        if not dry_run and fresh:
+            for payload in fresh:
+                mark_url_ingested(str(payload["metadata"].get("source_url") or ""))
+                mark_content_ingested(content_hash(str(payload["content"])), collection)
+        result["skipped_already_ingested"] = skipped
         results[collection] = result
         status = result.get("status", result.get("error", "unknown"))
         ok_count = result.get("ok", result.get("accepted", 0))
-        print(f"  {collection}: {status} (ok={ok_count}, total={len(items)})")
+        print(f"  {collection}: {status} (ok={ok_count}, total={len(fresh)})")
         # Small delay between collections to avoid rate limiting
         if not dry_run:
             time.sleep(1)
 
+    results["_summary"] = {"total_skipped_already_ingested": total_skipped, "force": force}
     return results
 
 
@@ -1258,6 +1531,19 @@ def main() -> None:
         action="store_true",
         help="Fetch + ingest raw markdown/reST/AsciiDoc education sources (ConsenSys best practices, NotSoSmartContracts, ...)",
     )
+    parser.add_argument(
+        "--seed",
+        nargs="?",
+        const="default",
+        default=None,
+        metavar="SEED_FILE",
+        help="Ingest the curated seed corpus (default: app/rag/seed_corpus/crypto_knowledge.jsonl; pass a path to override)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Bypass dedup marks and re-ingest everything (knowledge bases, seed corpus, incidents, docs)",
+    )
     args = parser.parse_args()
 
     import asyncio
@@ -1275,8 +1561,17 @@ def main() -> None:
         return
 
     if args.docs:
-        results = asyncio.run(ingest_doc_sources(args.base_url, dry_run=args.dry_run))
+        results = asyncio.run(ingest_doc_sources(args.base_url, dry_run=args.dry_run, force=args.force))
         print("\n=== Doc Source Ingestion Results ===")
+        print(json.dumps(results, indent=2))
+        return
+
+    if args.seed is not None:
+        seed_file = None if args.seed == "default" else args.seed
+        results = asyncio.run(
+            ingest_seed_corpus(args.base_url, seed_file=seed_file, dry_run=args.dry_run, force=args.force)
+        )
+        print("\n=== Seed Corpus Ingestion Results ===")
         print(json.dumps(results, indent=2))
         return
 
@@ -1294,7 +1589,7 @@ def main() -> None:
                 if len(items) > 2:
                     print(f"    ... and {len(items) - 2} more")
     else:
-        results = asyncio.run(ingest_all(args.base_url, collections, dry_run=False))
+        results = asyncio.run(ingest_all(args.base_url, collections, dry_run=False, force=args.force))
         print("\n=== Ingestion Results ===")
         print(json.dumps(results, indent=2))
 

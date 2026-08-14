@@ -28,6 +28,7 @@ def _register_defaults() -> None:
     # (name, handler, timeout, TTL). Additive imports, safe for parallel agents.
     from app.domains.telegram.rugmunchbot.tools.birdeye import birdeye_market
     from app.domains.telegram.rugmunchbot.tools.market import market_overview
+    from app.domains.telegram.rugmunchbot.tools.market_condition import market_condition
     from app.domains.telegram.rugmunchbot.tools.onchain import smart_money, top_traders
     from app.domains.telegram.rugmunchbot.tools.prediction_markets import register_tool as _register_prediction_markets
     from app.domains.telegram.rugmunchbot.tools.price import price_lookup
@@ -48,6 +49,7 @@ def _register_defaults() -> None:
     registry.register("web_search", web_search, timeout=12.0, ttl=300.0)
     registry.register("birdeye_market", birdeye_market, timeout=10.0, ttl=120.0)
     registry.register("market_overview", market_overview, timeout=10.0, ttl=60.0)
+    registry.register("market_condition", market_condition, timeout=10.0, ttl=120.0)
     # Direct RAG knowledge lookup (knowledge questions): bounded + fail-open.
     # Registered but NOT routed by tools/intent.py — chat_ai runs it explicitly
     # so the backend auto-RAG stays authoritative on tier-1.
