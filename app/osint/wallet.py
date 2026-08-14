@@ -287,6 +287,9 @@ def _chainabuse_reports(report: OsintReport, address: str, timeout: int) -> None
             report.errors.append(f"chainabuse: {last_error or 'no response'}")
         return
 
+    if payload is None:  # unreachable: for/else above returns first
+        report.errors.append("chainabuse: no payload")
+        return
     findings = _parse_chainabuse_reports(payload)
     report.findings.extend(findings)
     if not findings:
