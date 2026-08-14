@@ -1,0 +1,74 @@
+# import-linter architectural contracts for the rmi-backend `app` package.
+#
+# What this is
+# ------------
+# import-linter statically analyzes the import graph of the `app` package
+# (top-level imports only) and enforces the layer boundaries declared below.
+# It does NOT import the application — it parses source, so it is fast and
+# safe to run in CI without dependencies installed.
+#
+# Run locally:   lint-imports --config .importlinter
+# CI:            .forgejo/workflows/ci.yml  →  `import-linter` job (blocking)
+# Makefile:      make import-lint
+#
+# Design principle: keep the contracts minimal and GREEN. This monolith has
+# grown organically; the three contracts below capture only boundaries that
+# already hold today, so the gate never blocks the repo's own history. New
+# boundaries should be added one at a time, after the code is refactored to
+# satisfy them (never by widening ignore lists).
+
+[importlinter]
+root_packages =
+    app
+
+# ── Contract 1: API layer sits above the core layer ──────────────────
+# app.api is the HTTP entry layer; app.core is foundational infrastructure
+# (database, auth, logging, rate limiting, errors). Core must never reach
+# up into the API layer — keep framework/HTTP coupling out of foundations.
+[importlinter:api-above-core]
+name = API layer sits above core layer (core never imports api)
+type = layers
+layers =
+    app.api
+    app.core
+
+# ── Contract 2: Services never import the HTTP layer ─────────────────
+# app.services are business-facing modules. They must not depend on route
+# definitions / request handlers in app.api or app.routers (inversion of
+# the intended dependency direction: routers/services sit below the API).
+[importlinter:services-do-not-import-api]
+name = Services never import the API/routers layer
+type = forbidden
+source_modules =
+    app.services
+forbidden_modules =
+    app.api
+    app.routers
+
+# ── Contract 3: Adapters are leaf modules ────────────────────────────
+# app.adapters (integration adapters such as binance_web3) are
+# self-contained integration points: they may use stdlib/third-party
+# libraries but must not import any other internal app.* package.
+[importlinter:adapters-are-leaf]
+name = Adapters are leaf modules (no internal app imports)
+type = forbidden
+source_modules =
+    app.adapters
+forbidden_modules =
+    app
+
+# ── Known boundaries NOT yet enforced (deliberately out of scope) ────
+# The following violations exist today as FUNCTION-LEVEL lazy imports
+# (import-linter only sees top-level imports, so they are invisible to
+# the graph). They are the next candidates once the code is refactored:
+#
+#   app.core.middleware      -> app.routers.x402_advanced_tools
+#   app.core.dependencies    -> app.services.pryscraper_client
+#   app.core.lifespan        -> app.rag.tracing, app.databus.core
+#
+# When those are cleaned up, extend Contract 1 to:
+#   layers =
+#       app.api
+#       app.routers
+#       app.services
+#       app.core

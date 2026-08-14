@@ -1,4 +1,4 @@
-.PHONY: help install dev build lint api-lint format check test test-mutation test-mutation-report test-all test-ci typecheck security quality ci perf-smoke perf-load clean
+.PHONY: help install dev build lint api-lint import-lint oasdiff format check test test-mutation test-mutation-report test-all test-ci typecheck security quality ci perf-smoke perf-load clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -20,6 +20,14 @@ lint: ## Lint with ruff (error/flynt/bug/sim/async rules)
 api-lint: ## Lint OpenAPI schema with Spectral
 	python -c "import json; from app.main import app; json.dump(app.openapi(), open('openapi.json','w'), indent=2)"
 	npx @stoplight/spectral-cli lint openapi.json --ruleset .spectral.yaml
+
+import-lint: ## Enforce import-linter architectural contracts (.importlinter)
+	lint-imports --config .importlinter
+
+oasdiff: ## Detect breaking OpenAPI changes (CI: PR head vs base; local: smoke check)
+	@command -v oasdiff >/dev/null 2>&1 || { echo "oasdiff not installed — see https://github.com/oasdiff/oasdiff"; exit 1; }
+	python -c "import json; from app.main import app; json.dump(app.openapi(), open('openapi.json','w'), indent=2)"
+	oasdiff breaking openapi.json openapi.json --fail-on ERR
 
 format: ## Format with ruff (writes)
 	ruff format app/ tests/
