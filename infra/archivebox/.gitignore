@@ -1,0 +1,4 @@
+# ArchiveBox evidence must NEVER be committed to git (hostile/untrusted
+# content + WARC/PDF evidence payloads).
+data/
+.env
