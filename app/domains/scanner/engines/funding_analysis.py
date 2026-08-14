@@ -57,20 +57,22 @@ Usage:
     overlap = await compute_holder_overlap("0xA...", "0xB...", "ethereum")
     metrics = await compute_wallet_metrics("0x...", "ethereum")
 
-NOTE (degodding 2026-08-07): 1,358 lines. Split is deferred (all three metrics share
-ClickHouse query plumbing and the per-token result model). If splitting, extract the
-three metric analyzers (funding sources / freshness / holder overlap) into
-``engines/funding_analysis/_analyzers.py`` keyed by a shared result-merge helper.
-
 NOTE (degodding 2026-08-08): the pure-logic section (funder classification,
 freshness scoring, risk assessment, top-funder / scam-overlap aggregation)
-was extracted into ``engines/_funding_helpers.py`` (wave 5). This module is
-now the public API + ClickHouse computation layer only.
+was extracted into ``engines/_funding_helpers.py`` (wave 5).
+
+NOTE (degodding 2026-08-14): this module is now the public API + a thin
+re-export shim. The fetch / storage layer lives in ``engines/_io.py``
+(in-process cache, Redis wrappers, query/analysis limits, the ``_compute_*``
+ClickHouse orchestrators, ``get_cache_stats`` / ``clear_cache``) and the
+pure scoring math lives in ``engines/_scoring.py``
+(``_aggregate_wallet_metrics``, ``_FRESH_WALLET_AGE_DAYS``). Every name from
+the co-located modules is re-exported here so existing ``fa.*`` references
+(tests, scanners) keep resolving to this module.
 """
 
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import Any, cast
 
@@ -80,20 +82,14 @@ except ImportError:  # pragma: no cover
     CHDriverError = Exception
 
 from app.core.logging import get_logger
-from app.domains.databus.providers.chains.lite_chain_indexer import (
-    _get_ch_client,
-    _new_ch_client,
-    _normalize_chain,
-)
+from app.domains.databus.providers.chains.lite_chain_indexer import _normalize_chain
 from app.domains.scanner.engines._common import (
-    _query_batch_labels,
-    clear_cache as _common_clear_cache,
-    get_cache_stats as _common_get_cache_stats,
-    redis_get,
-    redis_set,
+    _query_batch_labels,  # noqa: F401
+    redis_get,  # noqa: F401
+    redis_set,  # noqa: F401
     run_sync,
-    to_epoch,
-    to_iso,
+    to_epoch,  # noqa: F401
+    to_iso,  # noqa: F401
 )
 from app.domains.scanner.engines._funding_helpers import (
     # Re-exported for tests that reference them as fa.<name> (see
@@ -101,29 +97,29 @@ from app.domains.scanner.engines._funding_helpers import (
     _CEX_FUNDED_PTS,  # noqa: F401
     _FRESH_CLEAN_MIN,  # noqa: F401
     _FRESH_SUSPICIOUS_MIN,  # noqa: F401
-    _OVERLAP_SCAM_PCT,
-    _RISK_DESCRIPTIONS,
+    _OVERLAP_SCAM_PCT,  # noqa: F401
+    _RISK_DESCRIPTIONS,  # noqa: F401
     _aggregate_scam_overlap,
-    _assess_funding_risk,
-    _build_top_funders,
-    _classify_freshness,
-    _classify_funder,
-    _compute_freshness_score,
+    _assess_funding_risk,  # noqa: F401
+    _build_top_funders,  # noqa: F401
+    _classify_freshness,  # noqa: F401
+    _classify_funder,  # noqa: F401
+    _compute_freshness_score,  # noqa: F401
 )
 from app.domains.scanner.engines._funding_queries import (
-    _merge_first_tx_rows,
-    _query_first_funders,
-    _query_funder_tx_counts,
+    _merge_first_tx_rows,  # noqa: F401
+    _query_first_funders,  # noqa: F401
+    _query_funder_tx_counts,  # noqa: F401
     _query_holder_first_tx,  # noqa: F401
-    _query_holder_first_tx_in,
-    _query_holder_first_tx_out,
-    _query_holder_set,
+    _query_holder_first_tx_in,  # noqa: F401
+    _query_holder_first_tx_out,  # noqa: F401
+    _query_holder_set,  # noqa: F401
     _query_known_scam_tokens,
-    _query_token_coverage_start,
-    _query_token_scam_status,
-    _query_top_holders,
-    _query_wallet_first_funder,
-    _query_wallet_stats,
+    _query_token_coverage_start,  # noqa: F401
+    _query_token_scam_status,  # noqa: F401
+    _query_top_holders,  # noqa: F401
+    _query_wallet_first_funder,  # noqa: F401
+    _query_wallet_stats,  # noqa: F401
 )
 from app.domains.scanner.engines._funding_results import (
     _error_result,
@@ -135,33 +131,44 @@ from app.domains.scanner.engines._funding_results import (
     _wallet_metrics_error,
     _wallet_metrics_unavailable,
 )
+from app.domains.scanner.engines._io import (
+    _CACHE,
+    _CACHE_MAX,
+    _CACHE_TTL,
+    _DEAD_ADDR,  # noqa: F401
+    _MAX_HOLDERS,  # noqa: F401
+    _MAX_SCAM_TOKENS,
+    _QUERY_TIMEOUT_SECONDS,  # noqa: F401
+    _ZERO_ADDR,  # noqa: F401
+    REDIS_CACHE_PREFIX,
+    REDIS_TTL_SECONDS,
+    _compute_freshness,
+    _compute_funding,
+    _compute_overlap,
+    _compute_wallet_metrics,
+    _redis_get,
+    _redis_set,
+    clear_cache,
+    get_cache_stats,
+)
+from app.domains.scanner.engines._scoring import (
+    _FRESH_WALLET_AGE_DAYS,  # noqa: F401
+    _aggregate_wallet_metrics,  # noqa: F401
+)
 
-# Legacy module-local names kept for consistency with the other engines.
-_redis_get = redis_get
-_redis_set = redis_set
+__all__ = [
+    "REDIS_CACHE_PREFIX",
+    "REDIS_TTL_SECONDS",
+    "analyze_funding_sources",
+    "analyze_scam_overlap",
+    "clear_cache",
+    "compute_holder_overlap",
+    "compute_wallet_freshness",
+    "compute_wallet_metrics",
+    "get_cache_stats",
+]
 
 logger = get_logger(__name__)
-
-# ── Cache ─────────────────────────────────────────────────────────────────
-REDIS_CACHE_PREFIX = "funding_analysis"
-REDIS_TTL_SECONDS = 600  # 10 minutes — holder funding data changes slowly
-_CACHE: dict[str, dict[str, Any]] = {}
-_CACHE_TTL = 300  # 5 minutes in-process mirror
-_CACHE_MAX = 200
-
-# ── Query / analysis limits (time-boxing) ─────────────────────────────────
-_QUERY_TIMEOUT_SECONDS = 20
-_MAX_HOLDERS = 50  # top-N holders analyzed for funding sources
-_MAX_SCAM_TOKENS = 5  # known-scam tokens cross-referenced for overlap
-
-# ── Classification thresholds ─────────────────────────────────────────────
-# Pure-logic thresholds (funder classification, freshness scoring, risk
-# bands, scam-overlap) now live in ``engines/_funding_helpers.py``.
-_ZERO_ADDR = "0x0000000000000000000000000000000000000000"
-_DEAD_ADDR = "0x000000000000000000000000000000000000dead"
-
-# ── Token-level wallet freshness metrics (compute_wallet_metrics) ────────
-_FRESH_WALLET_AGE_DAYS = 30  # holder wallet < 30 days old => "fresh"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -616,474 +623,3 @@ async def compute_wallet_metrics(
         cex_pct=result.get("cex_funded_pct", 0.0),
     )
     return result
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# COMPUTATION — Metric 1
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _compute_funding(token_address: str, chain: str, holders: list[str] | None) -> dict[str, Any]:
-    """Resolve holders, trace funders, classify, and aggregate percentages."""
-    # ── 1. Resolve top holders ──
-    holder_addrs: list[str] = []
-    if holders:
-        holder_addrs = [h.lower().strip() for h in holders if h and h.lower().strip() not in (_ZERO_ADDR, _DEAD_ADDR)]
-        holder_addrs = list(dict.fromkeys(holder_addrs))[:_MAX_HOLDERS]
-
-    if not holder_addrs:
-        holder_rows = await run_sync(_query_top_holders, token_address, chain, _MAX_HOLDERS)
-        if holder_rows:
-            holder_addrs = [str(r[0] or "").lower() for r in holder_rows if r and r[0]]
-            holder_addrs = [h for h in holder_addrs if h not in (_ZERO_ADDR, _DEAD_ADDR)][:_MAX_HOLDERS]
-
-    if not holder_addrs:
-        return _unavailable_result(token_address, chain, reason="no holder data")
-
-    # ── 2. First incoming transfer per holder (funding source) ──
-    first_in_rows = await run_sync(_query_first_funders, holder_addrs, chain)
-    funder_by_holder: dict[str, dict[str, Any]] = {}
-    for row in first_in_rows or []:
-        h_addr = str(row[0] or "").lower()
-        if not h_addr:
-            continue
-        funder_by_holder[h_addr] = {
-            "funder": str(row[1] or "").lower() or None,
-            "first_tx": str(row[2] or ""),
-            "first_ts": row[3],
-        }
-
-    funders = sorted({info["funder"] for info in funder_by_holder.values() if info.get("funder")})
-
-    # ── 3. Funder labels (wallet_labels + static known_entities) ──
-    labels_map: dict[str, list[dict[str, Any]]] = {}
-    if funders:
-        label_rows = await run_sync(_query_batch_labels, funders)
-        for row in label_rows or []:
-            addr = str(row[0] or "").lower()
-            if not addr:
-                continue
-            labels_map.setdefault(addr, []).append(
-                {
-                    "label_name": row[1],
-                    "label_category": row[2],
-                    "label_subtype": row[3],
-                    "source": row[4],
-                    "is_sanctioned": bool(row[5]) if len(row) > 5 else False,
-                }
-            )
-
-    # ── 4. Funder total tx counts (<=10 txs => fresh wallet) ──
-    tx_count_by_funder: dict[str, int] = {}
-    if funders:
-        tx_rows = await run_sync(_query_funder_tx_counts, funders, chain)
-        for row in tx_rows or []:
-            addr = str(row[0] or "").lower()
-            if addr:
-                tx_count_by_funder[addr] = int(row[1] or 0)
-
-    # ── 5. Classify each holder ──
-    holder_details: list[dict[str, Any]] = []
-    funding_type_counts: dict[str, int] = {"exchange_funded": 0, "fresh_wallet": 0, "mixer_funded": 0, "other": 0}
-    for h_addr in holder_addrs:
-        info = funder_by_holder.get(h_addr, {})
-        funder = info.get("funder")
-        if not funder:
-            funding_type = "other"
-            funder_label: str | None = None
-        else:
-            funding_type, funder_label = _classify_funder(
-                funder,
-                labels_map.get(funder, []),
-                tx_count_by_funder.get(funder, 0),
-                chain,
-            )
-        funding_type_counts[funding_type] += 1
-        holder_details.append(
-            {
-                "holder": h_addr,
-                "funder": funder,
-                "funder_label": funder_label,
-                "funding_type": funding_type,
-                "first_funding_tx": info.get("first_tx"),
-                "first_funding_ts": to_iso(info.get("first_ts")),
-            }
-        )
-
-    analyzed = len(holder_addrs)
-    exchange_pct = round(funding_type_counts["exchange_funded"] / analyzed * 100, 1) if analyzed else 0.0
-    fresh_pct = round(funding_type_counts["fresh_wallet"] / analyzed * 100, 1) if analyzed else 0.0
-    mixer_pct = round(funding_type_counts["mixer_funded"] / analyzed * 100, 1) if analyzed else 0.0
-    other_pct = round(100.0 - exchange_pct - fresh_pct - mixer_pct, 1)
-
-    risk = _assess_funding_risk(exchange_pct, fresh_pct, mixer_pct)
-    top_funders = _build_top_funders(holder_details, labels_map, chain)
-
-    return {
-        "check": "funding_sources",
-        "result": "scanned",
-        "source": "own",
-        "token_address": token_address,
-        "chain": chain,
-        "holders_analyzed": analyzed,
-        "exchange_funded_pct": exchange_pct,
-        "fresh_wallet_pct": fresh_pct,
-        "mixer_funded_pct": mixer_pct,
-        "unknown_pct": other_pct,
-        "top_funders": top_funders,
-        "holder_details": holder_details,
-        "risk_assessment": risk,
-        "risk_description": _RISK_DESCRIPTIONS[risk],
-        "note": "first incoming transfer per holder classified by funder label/tx-count",
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# COMPUTATION — Metric 4 (token-level wallet freshness metrics)
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _compute_wallet_metrics(
-    token_address: str,
-    chain: str,
-    holders: list[str] | None,
-) -> dict[str, Any]:
-    """Resolve holders, fetch wallet age + first funder, aggregate metrics."""
-    # ── 1. Resolve top holders ──
-    holder_addrs: list[str] = []
-    if holders:
-        holder_addrs = [h.lower().strip() for h in holders if h and h.lower().strip() not in (_ZERO_ADDR, _DEAD_ADDR)]
-        holder_addrs = list(dict.fromkeys(holder_addrs))[:_MAX_HOLDERS]
-
-    if not holder_addrs:
-        holder_rows = await run_sync(_query_top_holders, token_address, chain, _MAX_HOLDERS)
-        if holder_rows:
-            holder_addrs = [str(r[0] or "").lower() for r in holder_rows if r and r[0]]
-            holder_addrs = [h for h in holder_addrs if h not in (_ZERO_ADDR, _DEAD_ADDR)][:_MAX_HOLDERS]
-
-    if not holder_addrs:
-        return _wallet_metrics_unavailable(token_address, chain, reason="no holder data")
-
-    # ── 1b. Indexer coverage window for this token (freshness honesty) ──
-    # The first-tx lookup below can only see the indexer's transfer window.
-    # If the token launched before the window started (old token, late
-    # indexing), every holder looks freshly-born — an artifact we expose to
-    # callers instead of letting them print bogus fresh/brand-new %.
-    coverage_start = await run_sync(_query_token_coverage_start, token_address, chain)
-    # Defensive: run_sync is a generic wrapper and the query helper may be
-    # substituted in tests/mocks — only treat datetime-like values as valid
-    # coverage anchors; anything else degrades to "no coverage window".
-    if coverage_start is not None and hasattr(coverage_start, "timestamp"):
-        coverage_start_ts = to_iso(coverage_start)
-        coverage_days = round((time.time() - coverage_start.timestamp()) / 86400.0, 1)
-    else:
-        coverage_start_ts = None
-        coverage_days = None
-
-    # ── 2. First-ever on-chain tx per holder (wallet age + first-tx token) ──
-    # Both directions run concurrently on DEDICATED connections (the shared
-    # client rejects simultaneous queries) — each is a chain-partition scan
-    # with its own timeout budget (the combined UNION ALL query used to
-    # exceed the 10s ClickHouse timeout on busy chains).
-    first_tx_in, first_tx_out = await asyncio.gather(
-        run_sync(_query_holder_first_tx_in, holder_addrs, chain, _new_ch_client()),
-        run_sync(_query_holder_first_tx_out, holder_addrs, chain, _new_ch_client()),
-    )
-    first_tx_rows = _merge_first_tx_rows(first_tx_in, first_tx_out)
-    first_tx_by_holder: dict[str, dict[str, Any]] = {}
-    for row in first_tx_rows or []:
-        addr = str(row[0] or "").lower()
-        if not addr:
-            continue
-        first_tx_by_holder[addr] = {
-            "first_ts": row[1],
-            "first_token": str(row[2] or "").lower() or None,
-            "first_tx_hash": str(row[3] or "") or None,
-        }
-
-    # Without wallet-age data we cannot compute freshness — degrade gracefully.
-    if not first_tx_by_holder:
-        return _wallet_metrics_unavailable(token_address, chain, reason="no wallet age data")
-
-    # ── 3. First funder per holder (CEX funding source) ──
-    first_in_rows = await run_sync(_query_first_funders, holder_addrs, chain)
-    funder_by_holder: dict[str, dict[str, Any]] = {}
-    for row in first_in_rows or []:
-        addr = str(row[0] or "").lower()
-        if not addr:
-            continue
-        funder_by_holder[addr] = {
-            "funder": str(row[1] or "").lower() or None,
-            "first_tx": str(row[2] or ""),
-            "first_ts": row[3],
-        }
-
-    # ── 4. Funder labels + tx counts (CEX / mixer / fresh classification) ──
-    funders = sorted({info["funder"] for info in funder_by_holder.values() if info.get("funder")})
-    labels_map: dict[str, list[dict[str, Any]]] = {}
-    if funders:
-        label_rows = await run_sync(_query_batch_labels, funders)
-        for row in label_rows or []:
-            addr = str(row[0] or "").lower()
-            if not addr:
-                continue
-            labels_map.setdefault(addr, []).append(
-                {
-                    "label_name": row[1],
-                    "label_category": row[2],
-                    "label_subtype": row[3],
-                    "source": row[4],
-                    "is_sanctioned": bool(row[5]) if len(row) > 5 else False,
-                }
-            )
-
-    tx_count_by_funder: dict[str, int] = {}
-    if funders:
-        tx_rows = await run_sync(_query_funder_tx_counts, funders, chain)
-        for row in tx_rows or []:
-            addr = str(row[0] or "").lower()
-            if addr:
-                tx_count_by_funder[addr] = int(row[1] or 0)
-
-    # ── 5. Per-holder detail + aggregation ──
-    holder_details: list[dict[str, Any]] = []
-    now_ts = time.time()
-    for h_addr in holder_addrs:
-        fh = first_tx_by_holder.get(h_addr, {})
-        fi = funder_by_holder.get(h_addr, {})
-        funder = fi.get("funder")
-        if funder:
-            funding_type, funder_label = _classify_funder(
-                funder,
-                labels_map.get(funder, []),
-                tx_count_by_funder.get(funder, 0),
-                chain,
-            )
-        else:
-            funding_type, funder_label = "other", None
-
-        first_ts = to_epoch(fh.get("first_ts"))
-        age_days = max(0.0, (now_ts - first_ts) / 86400.0) if first_ts is not None else 0.0
-
-        holder_details.append(
-            {
-                "holder": h_addr,
-                "age_days": round(age_days, 1),
-                "fresh": age_days < _FRESH_WALLET_AGE_DAYS,
-                "first_seen_at": to_iso(first_ts) if first_ts is not None else None,
-                "first_tx_token": fh.get("first_token"),
-                "first_tx_is_token": bool(fh.get("first_token") and fh["first_token"] == token_address),
-                "funder": funder,
-                "funder_label": funder_label,
-                "funding_type": funding_type,
-            }
-        )
-
-    return _aggregate_wallet_metrics(
-        holder_details,
-        token_address,
-        chain,
-        coverage_start_ts=coverage_start_ts,
-        coverage_days=coverage_days,
-    )
-
-
-def _aggregate_wallet_metrics(
-    holder_details: list[dict[str, Any]],
-    token_address: str,
-    chain: str,
-    coverage_start_ts: str | None = None,
-    coverage_days: float | None = None,
-) -> dict[str, Any]:
-    """Aggregate per-holder freshness details into token-level percentages.
-
-    Pure logic (unit-testable without ClickHouse):
-      - ``fresh_wallet_pct`` — holders with wallet age < 30 days
-      - ``cex_funded_pct`` — holders whose first funder is a CEX wallet
-      - ``first_tx_pct`` — holders whose first-ever on-chain tx is this token
-
-    ``coverage_start_ts`` / ``coverage_days`` describe how far back the
-    indexer's transfer history goes for this token. When the window starts
-    long after the token launched, fresh/brand-new percentages are artifacts
-    of the gap and MUST be caveated by the caller (see the bot formatter).
-    """
-    analyzed = len(holder_details)
-    if not analyzed:
-        return _wallet_metrics_unavailable(token_address, chain, reason="no holder data")
-
-    fresh_count = sum(1 for d in holder_details if d.get("fresh"))
-    cex_count = sum(1 for d in holder_details if d.get("funding_type") == "exchange_funded")
-    first_tx_count = sum(1 for d in holder_details if d.get("first_tx_is_token"))
-
-    return {
-        "check": "wallet_metrics",
-        "result": "scanned",
-        "source": "own",
-        "token_address": token_address,
-        "chain": chain,
-        "holders_analyzed": analyzed,
-        "fresh_wallet_pct": round(fresh_count / analyzed * 100, 1),
-        "cex_funded_pct": round(cex_count / analyzed * 100, 1),
-        "first_tx_pct": round(first_tx_count / analyzed * 100, 1),
-        "fresh_wallet_count": fresh_count,
-        "cex_funded_count": cex_count,
-        "first_tx_count": first_tx_count,
-        "holder_details": holder_details,
-        "coverage_start_ts": coverage_start_ts,
-        "coverage_days": coverage_days,
-        "note": (
-            "fresh_wallet_pct = holders with wallet <30 days old; "
-            "cex_funded_pct = holders whose first funder is a CEX wallet; "
-            "first_tx_pct = holders whose first-ever on-chain tx is this token; "
-            "coverage_start_ts = start of the indexer's transfer window for this token "
-            "(fresh stats unreliable when it postdates the token launch)"
-        ),
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# COMPUTATION — Metric 2
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _compute_freshness(address: str, chain: str) -> dict[str, Any]:
-    """Query wallet stats + first funder, then score freshness."""
-    stats_rows = await run_sync(_query_wallet_stats, address, chain)
-    funder_row = await run_sync(_query_wallet_first_funder, address, chain)
-
-    first_seen_ts: float | None = None
-    total_txs = 0
-    if stats_rows:
-        row = stats_rows[0]
-        first_seen_ts = to_epoch(row[0]) if len(row) > 0 else None
-        total_txs = int(row[1] or 0) if len(row) > 1 else 0
-
-    if first_seen_ts is None and total_txs == 0:
-        return _freshness_unavailable(address, chain, reason="no on-chain activity found")
-
-    funder: str | None = None
-    first_funder_label: str | None = None
-    if funder_row:
-        funder = str(funder_row[0] or "").lower() or None
-        if funder:
-            label_rows = await run_sync(_query_batch_labels, [funder])
-            labels: list[dict[str, Any]] = []
-            for row in label_rows or []:
-                addr = str(row[0] or "").lower()
-                if addr == funder:
-                    labels.append(
-                        {
-                            "label_name": row[1],
-                            "label_category": row[2],
-                            "label_subtype": row[3],
-                            "source": row[4],
-                            "is_sanctioned": bool(row[5]) if len(row) > 5 else False,
-                        }
-                    )
-            funder_type, first_funder_label = _classify_funder(funder, labels, total_txs, chain)
-            funded_by_cex = funder_type == "exchange_funded"
-        else:
-            funded_by_cex = False
-    else:
-        funded_by_cex = False
-
-    age_days = 0.0
-    if first_seen_ts is not None:
-        age_days = max(0.0, (time.time() - first_seen_ts) / 86400.0)
-
-    score = _compute_freshness_score(age_days, total_txs, funded_by_cex)
-    classification = _classify_freshness(score)
-
-    return {
-        "check": "wallet_freshness",
-        "result": "scanned",
-        "source": "own",
-        "address": address,
-        "chain": chain,
-        "age_days": round(age_days, 1),
-        "total_txs": total_txs,
-        "funded_by_cex": funded_by_cex,
-        "first_funder": funder,
-        "first_funder_label": first_funder_label,
-        "first_seen_at": to_iso(first_seen_ts) if first_seen_ts is not None else None,
-        "freshness_score": score,
-        "classification": classification,
-        "note": "age, tx count, and CEX funding weighted into a 0-100 freshness score",
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# COMPUTATION — Metric 3
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _compute_overlap(token_a: str, token_b: str, chain: str) -> dict[str, Any]:
-    """Compute holder-set overlap between two tokens."""
-    holders_a_task = asyncio.create_task(run_sync(_query_holder_set, token_a, chain))
-    holders_b_task = asyncio.create_task(run_sync(_query_holder_set, token_b, chain))
-    scam_task = asyncio.create_task(run_sync(_query_token_scam_status, token_b, chain))
-
-    holders_a_rows, holders_b_rows, token_b_scam = await asyncio.gather(
-        holders_a_task,
-        holders_b_task,
-        scam_task,
-    )
-
-    holders_a = {str(r[0] or "").lower() for r in holders_a_rows or [] if r and r[0]}
-    holders_b = {str(r[0] or "").lower() for r in holders_b_rows or [] if r and r[0]}
-
-    if not holders_a:
-        return _overlap_unavailable(token_a, token_b, chain, reason="no holder data for token_a")
-
-    common = holders_a & holders_b
-    overlap_pct = round(len(common) / len(holders_a) * 100, 1)
-
-    risk = (
-        "HIGH"
-        if (token_b_scam and overlap_pct > _OVERLAP_SCAM_PCT)
-        else ("MEDIUM" if overlap_pct > _OVERLAP_SCAM_PCT else "LOW")
-    )
-
-    return {
-        "check": "holder_overlap",
-        "result": "scanned",
-        "source": "own",
-        "token_a": token_a,
-        "token_b": token_b,
-        "chain": chain,
-        "holders_a": len(holders_a),
-        "holders_b": len(holders_b),
-        "common_holders": len(common),
-        "overlap_pct": overlap_pct,
-        "token_b_is_scam": bool(token_b_scam),
-        "risk_assessment": risk,
-        "note": "overlap = |holders_A ∩ holders_B| / |holders_A|; >30% with known scam = red flag",
-    }
-
-
-# The sync ClickHouse query layer and the graceful-degradation result
-# builders were extracted into co-located modules. Every name is
-# re-exported here so existing ``fa._query_*`` / ``fa._*_result``
-# references (tests, scanners) keep resolving to this module.
-
-# ═══════════════════════════════════════════════════════════════════════════
-# MONITORING
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-def get_cache_stats() -> dict[str, Any]:
-    """Return cache statistics for monitoring."""
-    return _common_get_cache_stats(
-        _CACHE,
-        _CACHE_MAX,
-        _CACHE_TTL,
-        extra={
-            "redis_ttl_seconds": REDIS_TTL_SECONDS,
-            "clickhouse_connected": _get_ch_client() is not None,
-        },
-    )
-
-
-def clear_cache() -> None:
-    """Clear the in-process cache (for testing)."""
-    _common_clear_cache(_CACHE)

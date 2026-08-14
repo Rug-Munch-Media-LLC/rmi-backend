@@ -27,7 +27,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.domains.scanner.engines import funding_analysis as fa, own_bundle_detect as bd
+from app.domains.scanner.engines import _io, funding_analysis as fa, own_bundle_detect as bd
 from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.scoring import BUNDLE_PENALTY, compute_score
 
@@ -395,7 +395,7 @@ class TestComputeWalletMetrics:
 
         with (
             patch.object(
-                fa,
+                _io,
                 "run_sync",
                 new=AsyncMock(
                     side_effect=metrics_run_sync(
@@ -424,7 +424,7 @@ class TestComputeWalletMetrics:
     async def test_unavailable_when_no_first_tx_data(self) -> None:
         """No wallet-age rows → graceful unavailable (no false fresh 100%)."""
         with (
-            patch.object(fa, "run_sync", new=AsyncMock(side_effect=metrics_run_sync(first_tx_rows=[]))),
+            patch.object(_io, "run_sync", new=AsyncMock(side_effect=metrics_run_sync(first_tx_rows=[]))),
             patch.object(fa, "_redis_get", new=AsyncMock(return_value=None)),
             patch.object(fa, "_redis_set", new=AsyncMock(return_value=True)),
         ):
@@ -439,7 +439,7 @@ class TestComputeWalletMetrics:
     async def test_unavailable_when_no_holders(self) -> None:
         """No holder data → graceful unavailable."""
         with (
-            patch.object(fa, "run_sync", new=AsyncMock(side_effect=metrics_run_sync())),
+            patch.object(_io, "run_sync", new=AsyncMock(side_effect=metrics_run_sync())),
             patch.object(fa, "_redis_get", new=AsyncMock(return_value=None)),
             patch.object(fa, "_redis_set", new=AsyncMock(return_value=True)),
         ):
