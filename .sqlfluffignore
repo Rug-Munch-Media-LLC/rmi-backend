@@ -1,0 +1,7 @@
+# sqlfluff ignore list.
+#
+# app/db/clickhouse_migrations/002_add_ttls.sql uses valid ClickHouse
+# `ALTER TABLE ... MODIFY TTL ... DELETE` syntax that the sqlfluff clickhouse
+# dialect cannot parse yet (grammar gap). Excluded so the gate stays green;
+# re-evaluate when sqlfluff adds TTL-expression DELETE support.
+app/db/clickhouse_migrations/002_add_ttls.sql

@@ -1,0 +1,3 @@
+# ClickHouse migrations — override root dialect (see ../.sqlfluff).
+[sqlfluff]
+dialect = clickhouse
