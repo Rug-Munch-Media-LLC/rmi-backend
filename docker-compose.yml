@@ -255,6 +255,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.multistage
+      args:
+        # INSTALL_FACE=1 adds ML face engines (insightface/deepface/dlib) +
+        # pre-baked buffalo_l models (~+1GB image). Default: CLI tools + Haar
+        # cascade only — /osint /track /face still work.
+        INSTALL_FACE: ${INSTALL_FACE:-0}
     container_name: rmi-backend
     restart: unless-stopped
     env_file: .env
