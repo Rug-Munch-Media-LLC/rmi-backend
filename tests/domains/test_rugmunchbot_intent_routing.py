@@ -136,6 +136,56 @@ class TestPredictionMarketsRouting:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# technical_analysis — "what's the TA for X" / "ta for $SYMBOL" / "technical analysis"
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestTechnicalAnalysisRouting:
+    def test_ta_phrases_route_to_technical_analysis(self) -> None:
+        for question in (
+            "what's the TA for $BONK?",
+            "what is the ta of btc",
+            "ta for $BONK",
+            "technical analysis",
+            "show me the technical analysis of $PEPE",
+            "rsi of btc",
+            "macd chart for eth",
+            "support and resistance for sol",
+        ):
+            names = route_tools(question)
+            assert "technical_analysis" in names, f"failed to route technical_analysis: {question}"
+
+    def test_ta_question_also_routes_price_lookup_for_ticker(self) -> None:
+        # A TA question on a $SYMBOL carries both intents: the indicator tool
+        # answers the analysis, the price tool answers the live quote.
+        names = route_tools("ta for $BONK")
+        assert "technical_analysis" in names
+        assert "price_lookup" in names
+
+    def test_bare_ta_token_is_not_routed(self) -> None:
+        # The bare "ta" token in prose must not fire TA routing ("ta" alone
+        # is too ambiguous — the tool cannot resolve a pair without a target).
+        assert "technical_analysis" not in route_tools("is ta a scam?")
+        assert "technical_analysis" not in route_tools("ta")
+
+    def test_ta_exclusion_suppresses_technical_analysis(self) -> None:
+        assert detect_exclusions("skip the technical analysis, just give me the price") == {"technical"}
+        names = route_tools("skip the technical analysis, just give me the price of $BONK")
+        assert "technical_analysis" not in names
+        assert "price_lookup" in names
+
+    def test_ta_kwargs_carry_symbol_when_no_address(self) -> None:
+        kw = tool_kwargs("ta for $BONK", ["technical_analysis"])
+        assert kw["technical_analysis"]["symbol"] == "BONK"
+        assert kw["technical_analysis"]["address"] == ""
+
+    def test_ta_kwargs_carry_address_and_chain(self) -> None:
+        kw = tool_kwargs(f"technical analysis of {EVM} on base", ["technical_analysis"])
+        assert kw["technical_analysis"]["address"] == EVM
+        assert kw["technical_analysis"]["chain"] == "base"
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # market_overview — market overview / how's the market / fear and greed / btc price
 # ══════════════════════════════════════════════════════════════════════════
 

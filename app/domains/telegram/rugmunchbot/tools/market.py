@@ -20,7 +20,7 @@ from typing import Any
 
 from app.domains.telegram.rugmunchbot.config import COINGECKO, _get_token
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
-from app.domains.telegram.rugmunchbot.tools._client import http_get_json
+from app.domains.telegram.rugmunchbot.tools._client import http_get_any, http_get_json
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult, backend_json_get
 
 logger = get_logger("rmi_bot.tools.market")
@@ -211,8 +211,15 @@ async def _coingecko_trending(limit: int = 10) -> list[dict[str, Any]] | None:
 
 
 async def _defillama_top_chains(limit: int = 8) -> list[dict[str, Any]] | None:
-    """Top chains by TVL from DefiLlama (chain-level market context)."""
-    chains = await http_get_json(f"{DEFILLAMA}/chains", timeout=8.0)
+    """Top chains by TVL from DefiLlama (chain-level market context).
+
+    Uses the shared budget-gated :func:`_client.http_get_any` because
+    DefiLlama ``/v2/chains`` returns an ARRAY — ``http_get_json`` is
+    dict-only and would always degrade to ``None``. Mirrors
+    ``market_condition._defillama_top_chains`` (both call the same shared
+    helper; the local duplicate in market_condition.py predates it).
+    """
+    chains = await http_get_any(f"{DEFILLAMA}/chains", timeout=8.0)
     if not isinstance(chains, list):
         return None
     ranked = sorted(

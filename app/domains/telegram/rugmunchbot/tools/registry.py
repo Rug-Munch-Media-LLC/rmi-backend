@@ -17,6 +17,7 @@ data for that right now" instead of guessing.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -183,10 +184,20 @@ class ToolRegistry:
         ``spec`` maps tool name -> per-tool kwargs; ``shared`` is merged into
         every tool's kwargs. Returns {name: result} in the same shape as
         :meth:`run_many`.
+
+        Shared context kwargs (e.g. ``history`` forwarded from the chat layer)
+        are ONLY passed to handlers that accept them — a handler whose
+        signature declares the parameter by name or a var-keyword catch-all
+        (``**_ctx`` / ``**kwargs``). Strict-signature handlers get only their
+        per-tool kwargs, so an unknown shared kwarg can never raise
+        ``TypeError`` inside the handler (which the registry would swallow
+        into ``ok=False`` — a live data miss for every tool on chat paths
+        that forward ``history``).
         """
         tasks: dict[str, Any] = {}
         for name, tool_kwargs in spec.items():
-            merged = {**shared, **tool_kwargs}
+            handler = self._handlers.get(name)
+            merged = self._accepted_kwargs(handler, tool_kwargs, shared)
             tasks[name] = self.run(name, **merged)
         results = await asyncio.gather(*tasks.values(), return_exceptions=True)
         out: dict[str, ToolResult] = {}
@@ -196,6 +207,35 @@ class ToolRegistry:
             else:
                 out[name] = res
         return out
+
+    @staticmethod
+    def _accepted_kwargs(
+        handler: ToolHandler | None, tool_kwargs: dict[str, Any], shared: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Merge per-tool kwargs with shared ctx, keeping accepted params.
+
+        Shared context (``shared``) is forwarded only when the handler can
+        actually receive it: it declares the param by name, or it has a
+        var-keyword parameter (``**_ctx`` / ``**kwargs``). Otherwise the
+        shared kwargs are dropped and only the router's per-tool kwargs are
+        passed — a strict-signature handler (e.g. ``price_lookup``) must
+        never see ``history=...``.
+
+        When the signature cannot be inspected (rare) the conservative
+        choice wins: shared kwargs are NOT forwarded, because we cannot
+        verify the handler tolerates them.
+        """
+        merged = {**shared, **tool_kwargs}
+        if handler is None:
+            return merged
+        try:
+            sig = inspect.signature(handler)
+        except (TypeError, ValueError):
+            return dict(tool_kwargs)
+        for param in sig.parameters.values():
+            if param.kind == inspect.Parameter.VAR_KEYWORD:
+                return merged
+        return {k: v for k, v in merged.items() if k in sig.parameters}
 
     def clear_cache(self, namespace: str | None = None) -> None:
         self._cache.clear(namespace)

@@ -33,10 +33,8 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
-
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
-from app.domains.telegram.rugmunchbot.tools._client import make_client
+from app.domains.telegram.rugmunchbot.tools._client import http_get_any
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult, backend_json_get
 
 logger = get_logger("rmi_bot.tools.prediction_markets")
@@ -46,24 +44,6 @@ KALSHI_MARKETS = "https://api.elections.kalshi.com/trade-api/v2/markets"
 
 # Real field names returned by Gamma markets payload (verified by probe).
 _GAMMA_CHANGE_FIELDS = ("oneWeekPriceChange", "oneMonthPriceChange")
-
-
-async def _http_get_any(
-    url: str,
-    *,
-    params: dict[str, Any] | None = None,
-    headers: dict[str, str] | None = None,
-    timeout: float = 8.0,
-) -> Any:
-    """GET and parse JSON returning dict OR list (http_get_json is dict-only)."""
-    try:
-        async with make_client(timeout) as client:
-            r = await client.get(url, params=params, headers=headers)
-            if r.status_code != 200:
-                return None
-            return r.json()
-    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError):
-        return None
 
 
 def _to_float(value: Any) -> float | None:
@@ -153,7 +133,7 @@ async def _gamma_markets(limit: int) -> list[dict[str, Any]] | None:
     (``get_active_market_stats``): active=true, closed=false,
     order=volume24hr, ascending=false.
     """
-    body = await _http_get_any(
+    body = await http_get_any(
         GAMMA_MARKETS,
         params={
             "limit": limit,
@@ -213,7 +193,7 @@ async def _kalshi_markets(limit: int) -> list[dict[str, Any]] | None:
     ``volume_24h_fp``, ``liquidity_dollars``) — verified by probe. When no
     last price exists we fall back to the mid of yes bid/ask.
     """
-    body = await _http_get_any(
+    body = await http_get_any(
         KALSHI_MARKETS,
         params={"limit": limit, "status": "open"},
         timeout=8.0,

@@ -746,3 +746,55 @@ def api_kb(has_token: bool = False) -> InlineKeyboardMarkup:
         buttons.append([InlineKeyboardButton("🔄 Revoke Token", callback_data="api_revoke")])
     buttons.append([InlineKeyboardButton("🔙 Menu", callback_data="menu_main")])
     return InlineKeyboardMarkup(buttons)
+
+
+# ══════════════════════════════════════════════
+# v11 — ENGAGEMENT (additive, 2026-08-14)
+# First-run quick-start + returning-user daily hook.
+# Every callback reuses an EXISTING surface (run_scan / run_trending /
+# run_market / menu_cat_help) — zero callback-handler changes needed.
+# ══════════════════════════════════════════════
+
+
+def quick_start_kb() -> InlineKeyboardMarkup:
+    """First-run quick-start: 3 one-tap actions on the onboarding welcome.
+
+    Scan a token / What's trending / What can you do? — all three buttons
+    reuse existing callbacks so the onboarding flow needs no new handlers.
+    """
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f50d Scan a token", callback_data="run_scan"),
+                InlineKeyboardButton("\U0001f525 What's trending", callback_data="run_trending"),
+            ],
+            [InlineKeyboardButton("\U0001f4ac What can you do?", callback_data="menu_cat_help")],
+        ]
+    )
+
+
+def daily_hook_kb() -> InlineKeyboardMarkup:
+    """Returning-user daily hook: one-tap "what's hot right now" + market pulse.
+
+    A lightweight daily-digest quick action (button, not a scheduler) that
+    triggers the existing trending / market tools for instant value on return.
+    """
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f525 What's hot right now", callback_data="run_trending"),
+                InlineKeyboardButton("\U0001f4ca Market pulse", callback_data="run_market"),
+            ]
+        ]
+    )
+
+
+def merge_menu_kb(main_kb: InlineKeyboardMarkup, extra_kb: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
+    """Append ``extra_kb`` rows to ``main_kb`` (additive merge, no mutation).
+
+    Keeps existing buttons intact and just adds the engagement rows on top —
+    used by /start to attach the daily hook to the welcome-menu keyboard.
+    """
+    rows = [list(row) for row in main_kb.inline_keyboard]
+    rows.extend(list(row) for row in extra_kb.inline_keyboard)
+    return InlineKeyboardMarkup(rows)

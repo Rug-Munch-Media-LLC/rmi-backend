@@ -53,11 +53,9 @@ import math
 import os
 from typing import Any
 
-import httpx
-
 from app.domains.telegram.rugmunchbot.config import DEXSCREENER
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
-from app.domains.telegram.rugmunchbot.tools._client import http_get_json, make_client
+from app.domains.telegram.rugmunchbot.tools._client import http_get_any, http_get_json
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult, backend_json_get
 
 logger = get_logger("rmi_bot.tools.trend_algo")
@@ -180,24 +178,6 @@ def _to_int(value: Any) -> int | None:
         return None
 
 
-async def _http_get_any(
-    url: str,
-    *,
-    params: dict[str, Any] | None = None,
-    headers: dict[str, str] | None = None,
-    timeout: float = 8.0,
-) -> Any:
-    """GET and parse JSON returning dict OR list (http_get_json is dict-only)."""
-    try:
-        async with make_client(timeout) as client:
-            r = await client.get(url, params=params, headers=headers)
-            if r.status_code != 200:
-                return None
-            return r.json()
-    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError):
-        return None
-
-
 # ── Candidate collection (own data first) ─────────────────────────────────
 
 
@@ -288,7 +268,7 @@ async def _launch_candidates() -> list[dict[str, Any]]:
 
 async def _dex_profile_candidates() -> list[dict[str, Any]]:
     """DexScreener fresh-launch profiles (real addresses + chain seeds)."""
-    body = await _http_get_any(DEXSCREENER_TOKEN_PROFILES, timeout=8.0)
+    body = await http_get_any(DEXSCREENER_TOKEN_PROFILES, timeout=8.0)
     if not isinstance(body, list):
         return []
     out: list[dict[str, Any]] = []

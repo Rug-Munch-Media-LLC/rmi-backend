@@ -32,6 +32,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+crawl = [
+    # Lazy/optional primary story fetcher (app/rag/crawler.py +
+    # tools/story_fetch.py). Imported lazily so the RAG engine and bot
+    # never REQUIRE it — when absent the fetch chain degrades to
+    # FlareSolverr → pryscraper → plain. Requires `playwright install
+    # chromium` after install. Deliberately NOT in the base install.
+    "crawl4ai>=0.8.0,<1.0",
+]
+
 otel = [
     "opentelemetry-api>=1.25.0",
     "opentelemetry-sdk>=1.25.0",

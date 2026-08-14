@@ -34,6 +34,7 @@ def _register_defaults() -> None:
     from app.domains.telegram.rugmunchbot.tools.price import price_lookup
     from app.domains.telegram.rugmunchbot.tools.rag_lookup import rag_lookup
     from app.domains.telegram.rugmunchbot.tools.security import security_scan, wallet_analysis
+    from app.domains.telegram.rugmunchbot.tools.story_fetch import story_fetch
     from app.domains.telegram.rugmunchbot.tools.ta import register_tool as _register_ta
     from app.domains.telegram.rugmunchbot.tools.trend_algo import register_tool as _register_trend_algo
     from app.domains.telegram.rugmunchbot.tools.trending import news_headlines, trending
@@ -47,6 +48,9 @@ def _register_defaults() -> None:
     registry.register("security_scan", security_scan, timeout=8.0, ttl=60.0)
     registry.register("wallet_analysis", wallet_analysis, timeout=20.0, ttl=60.0)
     registry.register("web_search", web_search, timeout=12.0, ttl=300.0)
+    # Pull any story from any site → clean text + title/author/date. ttl=0:
+    # URL content is NOT cached (fresh fetch per call); bounded by timeout.
+    registry.register("story_fetch", story_fetch, timeout=14.0, ttl=0.0)
     registry.register("birdeye_market", birdeye_market, timeout=10.0, ttl=120.0)
     registry.register("market_overview", market_overview, timeout=10.0, ttl=60.0)
     registry.register("market_condition", market_condition, timeout=10.0, ttl=120.0)

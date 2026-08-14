@@ -7,6 +7,7 @@ REAL data; the router only decides WHICH tools are relevant.
 Intents map to tools:
   * trending / hot / what's pumping    -> trending (+ news_headlines, + trend_by_chain when a chain is named)
   * $SYMBOL / price of X               -> price_lookup
+  * TA / technical analysis / rsi / macd on X -> technical_analysis (+ price_lookup)
   * who's buying / smart money / top traders -> top_traders (needs address), smart_money, birdeye_market
   * scan / risk / honeypot + address   -> scanner_intel, security_scan, token_meta (image)
   * wallet / holdings / pnl + address  -> wallet_analysis
@@ -50,6 +51,15 @@ _TRENDING_WORDS = re.compile(
 )
 _PRICE_WORDS = re.compile(
     r"\b(price|worth|value|cost|how much|chart|pump|dump|market cap|mcap|fdv|trading at)\b",
+    re.IGNORECASE,
+)
+# Technical-analysis questions — route to the technical_analysis tool (real
+# RSI-14 / EMA-9/21 / MACD / support-resistance, see tools/ta.py). "ta"
+# alone is risky in prose, so the bare token must be followed by for/on/of;
+# the full phrases and indicator names always match.
+_TA_WORDS = re.compile(
+    r"\b(technical analysis|technical indicators?|the ta|ta (for|on|of)|"
+    r"rsi|macd|ema|candlestick|chart patterns?|support and resistance|support/resistance)\b",
     re.IGNORECASE,
 )
 _SMART_MONEY_WORDS = re.compile(
@@ -150,6 +160,7 @@ _CONCEPT_WORD_TOOLS: dict[str, tuple[str, ...]] = {
     "market": ("market_overview", "market_condition"),
     "sentiment": ("market_condition",),
     "price": ("price_lookup",),
+    "technical": ("technical_analysis",),
     "security": ("scanner_intel", "security_scan", "token_meta"),
     "wallet": ("wallet_analysis",),
     "news": ("news_headlines", "web_search"),
@@ -193,6 +204,8 @@ def _concept_for_word(word: str) -> str:
         return "sentiment"
     if w in {"price", "prices", "chart", "mcap", "worth", "value"}:
         return "price"
+    if w in {"ta", "technical", "indicators", "rsi", "macd", "ema"}:
+        return "technical"
     if w in {"honeypot", "rug", "risk", "risky", "safe", "security", "scam", "audit", "scan"}:
         return "security"
     if w in {"wallet", "holdings", "portfolio", "pnl", "balance"}:
@@ -344,6 +357,13 @@ def route_tools(text: str) -> list[str]:
     if (has_ticker or _PRICE_WORDS.search(text)) and "price_lookup" not in excluded:
         tools.append("price_lookup")
 
+    # Technical analysis: "what's the TA for $BONK" / "ta for $BONK" /
+    # "technical analysis" / "rsi of btc". Routed on the phrase alone (like
+    # price_lookup); without a symbol/address the tool degrades to ok=False
+    # and the chat layer answers "no live data" — never a guess.
+    if _TA_WORDS.search(text) and "technical_analysis" not in excluded:
+        tools.append("technical_analysis")
+
     if _PREDICTION_WORDS.search(text) and "prediction_markets" not in excluded:
         tools.append("prediction_markets")
 
@@ -415,11 +435,12 @@ def tool_kwargs(text: str, names: list[str]) -> dict[str, dict[str, Any]]:
             "top_traders",
             "wallet_analysis",
             "birdeye_market",
+            "technical_analysis",
         ):
             kwargs["address"] = addrs[0] if addrs else ""
             kwargs["chain"] = chain
         # Address takes precedence; a $SYMBOL fills in when no address is given.
-        if name in ("price_lookup", "token_meta") and syms and not addrs:
+        if name in ("price_lookup", "token_meta", "technical_analysis") and syms and not addrs:
             kwargs["symbol"] = syms[0]
         if name == "trend_by_chain":
             kwargs["chain"] = chain or "all"

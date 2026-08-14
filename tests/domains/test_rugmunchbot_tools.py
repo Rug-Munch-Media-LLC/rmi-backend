@@ -635,3 +635,190 @@ class TestRegistryResilience:
         third = await reg.run("counting")
         assert third.ok
         assert len(calls) == 2  # cache cleared → handler ran again
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Regression: shared ctx kwargs (history) must not break strict-signature tools
+# (chat_ai._run_live_tools passes history into run_for_message →
+# run_many_kwargs; previously every strict tool raised TypeError → ok=False).
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestSharedCtxKwargsFilter:
+    async def test_run_many_kwargs_filters_history_for_strict_handlers(self) -> None:
+        from app.domains.telegram.rugmunchbot.tools.registry import ToolRegistry
+
+        reg = ToolRegistry()
+        received: dict[str, dict[str, Any]] = {}
+
+        async def strict(*, address: str = "") -> ToolResult:
+            received["strict"] = {"address": address}
+            return ToolResult(tool="strict", ok=True, data={"address": address})
+
+        async def tolerant(*, address: str = "", **_ctx: Any) -> ToolResult:
+            received["tolerant"] = {"address": address, "history": _ctx.get("history")}
+            return ToolResult(tool="tolerant", ok=True, data={"address": address})
+
+        async def explicit_history(*, query: str = "", history: list[dict[str, str]] | None = None) -> ToolResult:
+            received["explicit_history"] = {"query": query, "history": history}
+            return ToolResult(tool="explicit_history", ok=True, data={"query": query})
+
+        reg.register("strict", strict, ttl=0.0)
+        reg.register("tolerant", tolerant, ttl=0.0)
+        reg.register("explicit_history", explicit_history, ttl=0.0)
+
+        history = [{"role": "user", "content": "what's the price of bonk?"}]
+        results = await reg.run_many_kwargs(
+            {
+                "strict": {"address": "ADDR_BONK"},
+                "tolerant": {"address": "ADDR_WIF"},
+                "explicit_history": {"query": "what's trending"},
+            },
+            history=history,
+        )
+
+        # The strict-signature handler must NOT receive history — no TypeError.
+        assert results["strict"].ok, f"strict handler failed: {results['strict'].error}"
+        assert received["strict"] == {"address": "ADDR_BONK"}
+        # A handler with **_ctx receives shared ctx.
+        assert results["tolerant"].ok
+        assert received["tolerant"]["address"] == "ADDR_WIF"
+        assert received["tolerant"]["history"] == history
+        # A handler that declares history by name receives it.
+        assert results["explicit_history"].ok
+        assert received["explicit_history"]["query"] == "what's trending"
+        assert received["explicit_history"]["history"] == history
+
+    async def test_run_for_message_with_history_keeps_price_lookup_ok(self) -> None:
+        # Production path: chat_ai._run_live_tools calls
+        # ``run_for_message(text, history=...)`` → registry.run_many_kwargs
+        # merges ``history`` into every tool's kwargs. price_lookup has a
+        # strict signature and previously raised TypeError → ok=False for
+        # every live-data answer on the chat path.
+        _FakeAsyncClient._responses = {
+            "dexscreener.com/latest/dex/search": {
+                "pairs": [
+                    {
+                        "chainId": "solana",
+                        "dexId": "raydium",
+                        "pairAddress": "PAIR1",
+                        "baseToken": {"address": "ADDR_BONK", "symbol": "BONK", "name": "Bonk"},
+                        "priceUsd": "0.00002",
+                        "priceChange": {"h1": 1.0, "h24": 5.0},
+                        "volume": {"h24": 12345},
+                        "liquidity": {"usd": 50000},
+                        "marketCap": 900000,
+                        "fdv": 950000,
+                    }
+                ]
+            }
+        }
+        results = await run_for_message(
+            "price of $BONK", history=[{"role": "user", "content": "what's the price of bonk?"}]
+        )
+        assert "price_lookup" in results
+        assert results["price_lookup"].ok, f"price_lookup failed: {results['price_lookup'].error}"
+        assert results["price_lookup"].symbol_set == {"BONK"}
+
+    async def test_history_does_not_poison_cache_key_across_conversations(self) -> None:
+        # The shared ctx filter runs BEFORE the cache key is built, so two
+        # identical queries with different histories share one cache entry.
+        _FakeAsyncClient._responses = {
+            "dexscreener.com/latest/dex/search": {
+                "pairs": [
+                    {
+                        "chainId": "solana",
+                        "dexId": "raydium",
+                        "pairAddress": "PAIR1",
+                        "baseToken": {"address": "ADDR_BONK", "symbol": "BONK", "name": "Bonk"},
+                        "priceUsd": "0.00002",
+                        "priceChange": {},
+                        "volume": {},
+                        "liquidity": {},
+                    }
+                ]
+            }
+        }
+        r1 = await run_for_message("price of $BONK", history=[{"role": "user", "content": "a"}])
+        assert r1["price_lookup"].ok
+        n_calls_after_first = len(_FakeAsyncClient.calls)
+        r2 = await run_for_message("price of $BONK", history=[{"role": "user", "content": "b"}])
+        assert r2["price_lookup"].ok
+        assert r2["price_lookup"].cached is True
+        assert len(_FakeAsyncClient.calls) == n_calls_after_first  # served from cache, no second HTTP call
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Defect 3 — market._defillama_top_chains must parse the DefiLlama ARRAY body
+# (http_get_json is dict-only and always degraded this to None)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestDefillamaTopChains:
+    async def test_defillama_array_body_is_parsed_and_ranked(self) -> None:
+        from app.domains.telegram.rugmunchbot.tools.market import _defillama_top_chains
+
+        _FakeAsyncClient._responses = {
+            "api.llama.fi/v2/chains": [
+                {"name": "Solana", "tvl": 5_000_000_000, "tokenSymbol": "SOL"},
+                {"name": "Ethereum", "tvl": 50_000_000_000, "tokenSymbol": "ETH"},
+                {"name": "Base", "tvl": 1_000_000_000, "tokenSymbol": "BASE"},
+            ]
+        }
+        chains = await _defillama_top_chains(limit=2)
+        assert chains is not None
+        # Ranked by TVL desc, limited to 2.
+        assert [c["name"] for c in chains] == ["Ethereum", "Solana"]
+        assert chains[0]["tvl"] == 50_000_000_000
+        # The request was actually made over the shared AsyncClient.
+        assert any("llama.fi" in c["url"] for c in _FakeAsyncClient.calls)
+
+    async def test_defillama_down_returns_none(self) -> None:
+        from app.domains.telegram.rugmunchbot.tools.market import _defillama_top_chains
+
+        assert await _defillama_top_chains(limit=2) is None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Defect 2 — prediction_markets / trend_algo HTTP calls go through the shared
+# budget gate (_client.http_get_any), so an over-budget provider is never hit.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestToolBudgetGate:
+    @pytest.fixture(autouse=True)
+    def _reset_budget(self) -> None:
+        from app.domains.telegram.rugmunchbot.tools.budget import budget as budget_tracker
+
+        budget_tracker.reset()
+        yield
+        budget_tracker.reset()
+
+    async def test_prediction_markets_gamma_call_is_budget_gated(self) -> None:
+        from app.domains.telegram.rugmunchbot.tools.budget import DEFAULT_PROVIDER_LIMIT, budget as budget_tracker
+        from app.domains.telegram.rugmunchbot.tools.prediction_markets import prediction_markets
+
+        # gamma-api.polymarket.com is unmapped → conservative "unknown" bucket.
+        # Exhaust it so the Gamma GET would be skipped BEFORE any request.
+        for _ in range(DEFAULT_PROVIDER_LIMIT):
+            assert budget_tracker.acquire("unknown") is True
+
+        result = await prediction_markets(limit=5, venue="polymarket")
+        assert not result.ok
+        # The backend (own-API) call is fine — but the over-budget Gamma GET
+        # must NOT have been made (no credit burned on a rate-limited source).
+        assert all("gamma-api" not in c["url"] for c in _FakeAsyncClient.calls)
+        assert budget_tracker.miss_count("unknown") == 1
+
+    async def test_trend_algo_profiles_call_is_budget_gated(self) -> None:
+        from app.domains.telegram.rugmunchbot.tools.budget import budget as budget_tracker
+        from app.domains.telegram.rugmunchbot.tools.trend_algo import _dex_profile_candidates
+
+        for _ in range(budget_tracker.limit("dexscreener")):
+            assert budget_tracker.acquire("dexscreener") is True
+
+        candidates = await _dex_profile_candidates()
+        assert candidates == []
+        assert budget_tracker.miss_count("dexscreener") == 1
+        # No HTTP request was made for the over-budget DexScreener call.
+        assert all("token-profiles" not in c["url"] for c in _FakeAsyncClient.calls)

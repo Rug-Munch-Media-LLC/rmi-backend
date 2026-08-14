@@ -12,8 +12,9 @@ button works with zero callback-handler changes:
   * ``menu_cat_chat`` shows the /chat welcome card (Ask knowledge),
   * ``menu_main`` returns to the main menu.
 
-Capabilities: Scan · Trending by chain · Price · TA · Prediction markets ·
-Market overview · Smart money · Ask knowledge.
+Capabilities: Scan · Trending by chain · Price · Technical analysis ·
+Prediction markets · Market condition · News · Alpha & whales ·
+Smart money · Ask knowledge.
 """
 
 from __future__ import annotations
@@ -34,14 +35,20 @@ class Capability:
 
 # Single source of truth for the capability menu. Append to extend — the
 # keyboard builder and the help card render from this tuple automatically.
+# v11 (2026-08-14): reflects the newest live surfaces — Technical Analysis
+# (TA), Prediction markets, Market Condition, News and Alpha/Whales. Every
+# callback below is handled by the EXISTING dispatchers (``run_*`` inline
+# data or usage cards; ``menu_cat_chat`` for Ask knowledge).
 CAPABILITIES: tuple[Capability, ...] = (
     Capability("\U0001f50d Scan", "Full token risk audit \u2014 paste an address", "run_scan"),
     Capability("\U0001f525 Trending by chain", "Trending tokens, filterable per chain", "run_trending"),
     Capability("\U0001f4b0 Price", "Live price for $SYMBOL or an address", "run_price"),
     Capability("\U0001f4ca TA", "Technical analysis & signals", "run_ta"),
     Capability("\U0001f52e Prediction markets", "Polymarket odds & election markets", "run_polymarket"),
-    Capability("\U0001f310 Market overview", "Global cap, fear & greed, movers", "run_market"),
-    Capability("\U0001f40b Smart money", "Top traders & whale flows", "run_smartmoney"),
+    Capability("\U0001f321\ufe0f Market Condition", "Macro read: cap, fear & greed, movers", "run_market"),
+    Capability("\U0001f4f0 News", "Live crypto headlines & sentiment", "run_news"),
+    Capability("\U0001f40b Alpha & Whales", "Whale flows & big-money moves", "run_whales"),
+    Capability("\U0001f9e0 Smart money", "Top traders & whale flows", "run_smartmoney"),
     Capability("\U0001f4da Ask knowledge", "RAG knowledge-base Q&A", "menu_cat_chat"),
 )
 
