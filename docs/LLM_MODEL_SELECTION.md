@@ -1,10 +1,17 @@
 # LLM Model Selection — CPU-only (llama.cpp / GGUF) — 2026 Review
 
-> **Status:** RESEARCH FINDINGS (read + web only). No code, no commit.
+> **Status:** RESEARCH FINDINGS (read + web only) → **DEPLOYED 2026-08-14** (see STATUS banner below).
 > **Date:** 2026-08-14
 > **Scope:** Replace `deepseek-r1-distill-qwen3-8b-abliterated-i1-q4_k_m` (REASONING model that degenerates on short prompts) with a **non-reasoning** 8B-class abliterated model, and confirm/upgrade the 4B slot (`qwen3-4b-abliterated-q4_k_m`).
 > **Host:** Talos EPYC 9645, 16 vCPU, 62GB RAM, CPU-only llama.cpp. Quality > speed.
 > **Method:** All model/GGUF pages verified live via HuggingFace API on 2026-08-14. HF URLs cited inline. Anything not directly re-verified is flagged `[REVIEW]`.
+>
+> **STATUS: DEPLOYED 2026-08-14** — the recommended swap shipped. Live on Talos:
+>   - `:8085` (`llama-chat`)  → `Huihui-Qwen3.5-4B-Abliterated.Q6_K.gguf`  (alias `qwen-chat`)
+>   - `:8086` (`llama-analysis`) → `Huihui-Qwen3.5-9B-Abliterated.Q6_K.gguf` (alias `deepseek-analysis`)
+> Aliases are retained for caller compatibility; `deepseek-analysis` is a legacy label (model is Qwen3.5 9B, not DeepSeek).
+> Old GGUFs (`qwen3-4b-abliterated-q4_k_m.gguf`, `deepseek-r1-distill-qwen3-8b-abliterated-i1-q4_k_m.gguf`) remain on disk for rollback (removal pending).
+> Sections below are the research record that produced the deployment.
 
 ---
 
@@ -79,7 +86,7 @@ Context: as of Aug 2026 there is **no 2026-generation 8B abliterated Llama/Mistr
 
 ## 3. TOP 4B ABLITERATED PICKS (ranked)
 
-### #1 — `huihui-ai/Huihui-Qwen3.5-4B-abliterated` ⭐ RECOMMENDED (supersedes current qwen3-4b)
+### #1 — `huihui-ai/Huihui-Qwen3.5-4B-abliterated` ⭐ RECOMMENDED (supersedes qwen3-4b; DEPLOYED 2026-08-14)
 - **HF page (verified):** https://huggingface.co/huihui-ai/Huihui-Qwen3.5-4B-abliterated — 4.66B params (BF16 4,659,861,248), **apache-2.0**, `gated: false`, created 2026-03-07, 17.7K dl-mo (highest of any 4B abliterated).
 - Base: `Qwen/Qwen3.5-4B` (official, apache-2.0, ungated, 7.5M dl — verified https://huggingface.co/Qwen/Qwen3.5-4B).
 - **Benchmarks (verified from Qwen3.5-4B model card):** MMLU-Pro **79.1**, MMLU-Redux **88.8**, GPQA Diamond **76.2**, IFEval **89.8**, IFBench 59.2, MultiChallenge 49.0, LongBench v2 50.0, BFCL-V4 50.3, **TAU2-Bench 79.9** (tops the table), MMMLU 76.1. Same hybrid `enable_thinking` template, 262K ctx, DeltaNet hybrid → fast CPU.
@@ -89,8 +96,8 @@ Context: as of Aug 2026 there is **no 2026-generation 8B abliterated Llama/Mistr
 - https://huggingface.co/huihui-ai/Huihui-Qwen3-4B-abliterated-v2 — 4B, apache-2.0, 1.5K dl-mo; v2 fixes v1 garbling. GGUF: `mradermacher/Huihui-Qwen3-4B-abliterated-v2-GGUF` (verified ungated; also `-i1-GGUF` imatrix variant exists). 40K ctx.
 - **Use when:** staying on Qwen3 gen (llama.cpp compat) — but Qwen3.5-4B is strictly newer/better and same price class, so prefer #1.
 
-### #3 — `huihui-ai/Qwen3-4B-abliterated` (v1 — current deployment base)
-- https://huggingface.co/huihui-ai/Qwen3-4B-abliterated — what the fleet runs today (`qwen3-4b-abliterated-q4_k_m`). Superseded by v2, then by Qwen3.5-4B.
+### #3 — `huihui-ai/Qwen3-4B-abliterated` (v1 — previous deployment base, replaced 2026-08-14)
+- https://huggingface.co/huihui-ai/Qwen3-4B-abliterated — what the fleet ran before the 2026-08-14 swap (`qwen3-4b-abliterated-q4_k_m`). Superseded by v2, then by Qwen3.5-4B.
 
 **Answer to "is qwen3-4b-abliterated still the best 4B?":** **No.** `Huihui-Qwen3.5-4B-abliterated` (Mar 2026) is the new best 4B — newer architecture (DeltaNet hybrid, 262K ctx), higher verified benchmarks (IFEval 89.8 vs Qwen3-4B class ≈ 72-78 `[REVIEW]`), and it's the most-downloaded 4B abliterated.
 

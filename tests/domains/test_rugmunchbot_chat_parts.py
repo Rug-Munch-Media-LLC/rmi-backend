@@ -114,6 +114,20 @@ class TestSplitInParts:
         assert len(holders) == 1
         assert url in holders[0]
 
+    def test_bold_span_never_split(self) -> None:
+        """A **bold** span containing sentence boundaries (e.g.
+        "**Risk: 42/100. Check chart.**") must never be cut mid-span — no
+        dangling ** at a part edge."""
+        text = ("intro sentence. " * 10) + "**" + ("y. " * 30) + "**" + ("tail sentence. " * 5)
+        parts = split_in_parts(text, max_chars=200)
+        assert len(parts) > 1
+        for p in parts:
+            assert p.count("**") % 2 == 0, p[-80:]
+        # The whole span lives in exactly one part.
+        spans = [p for p in parts if "**" in p]
+        assert len(spans) == 1
+        assert spans[0].startswith("**y. ")
+
     def test_sample_multi_part_split(self) -> None:
         """Sample: a long answer with a code block + links splits into
         Telegram-sized parts with every fence and link intact."""

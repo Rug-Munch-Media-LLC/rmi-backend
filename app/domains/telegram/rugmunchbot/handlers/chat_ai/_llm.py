@@ -2,7 +2,7 @@
 
 Extracted from ``chat_ai/__init__.py``: the backend RAG chat client
 (``POST /api/v1/chat``), the cloud Zen client, the local llama.cpp client
-(Qwen / DeepSeek), plus the endpoint/budget constants these clients use.
+(Qwen3.5 4B / 9B), plus the endpoint/budget constants these clients use.
 
 Pipeline ordering (see ``chat_ai/__init__.py``): backend auto-RAG is
 tier-1, Zen and local llama.cpp are fallbacks. The Zen/local clients accept
@@ -34,14 +34,14 @@ MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 # ══════════════════════════════════════════════
 # ENDPOINTS & BUDGETS — LOCAL MODELS
 # ══════════════════════════════════════════════
-# Qwen 3 4B for quick chat (fast, conversational)
+# Qwen3.5-4B for quick chat (fast, conversational; alias qwen-chat)
 # Bridge gateway — containers can't reach host 127.0.0.1
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
 QWEN_TIMEOUT = 90.0  # CPU LLM: prompt eval + generation can take 30-60s
 
-# DeepSeek R1 Distill Qwen 8B for deep analysis (hides thinking output)
+# Qwen3.5-9B for deep analysis (alias deepseek-analysis — legacy name; hides thinking output)
 DEEPSEEK_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-analysis"
 DEEPSEEK_TIMEOUT = 120.0
@@ -142,6 +142,9 @@ async def _call_zen_llm(
         "Give a complete, well-rounded answer — cover the key points clearly "
         "and add useful context where it helps. Keep it tight, no fluff. "
         "No financial advice."
+        " Format your answer in Telegram Markdown: use **bold** for emphasis, "
+        "## for headers, and `backticks` for addresses/code. "
+        "NEVER emit raw HTML tags (<b>, <i>, <code>, &amp;, &lt;)."
     )
     if deep:
         system_prompt = (
@@ -149,6 +152,9 @@ async def _call_zen_llm(
             "Give a thorough, comprehensive answer: cover mechanisms, risks, "
             "red flags, and actionable checks. Use clear sections and bullets. "
             "Go deep — the user asked for analysis. Never give financial advice."
+            " Format your answer in Telegram Markdown: use **bold** for emphasis, "
+            "## for headers, and `backticks` for addresses/code. "
+            "NEVER emit raw HTML tags (<b>, <i>, <code>, &amp;, &lt;)."
         )
     # Grounding + guardrails (mirrors prompts.py v10 rules for the cloud path)
     system_prompt += (
@@ -260,7 +266,7 @@ async def _call_local_llm(
 ) -> dict[str, Any] | None:
     """Local LLM fallback via llama.cpp servers for free chatting.
 
-    Qwen 3 4B for quick chat, DeepSeek R1 Distill Qwen 8B for deep analysis.
+    Qwen3.5-4B for quick chat, Qwen3.5-9B for deep analysis (aliases qwen-chat / deepseek-analysis).
     Thinking output is stripped from responses.
     ``sources`` are the bridge grounding sources prepended to the prompt;
     ``rag_count = len(sources)`` so the grounding footer renders the REAL
@@ -271,7 +277,10 @@ async def _call_local_llm(
     # Build messages array with conversation history
     system_content = (
         "You are Rug Munch, a crypto security AI. "
-        "Answer directly and concisely. No financial advice. No thinking output.\n"
+        "Answer directly and concisely. No financial advice. No thinking output. "
+        "Format your answer in Telegram Markdown: use **bold** for emphasis, "
+        "## for headers, and `backticks` for addresses/code. "
+        "NEVER emit raw HTML tags (<b>, <i>, <code>, &amp;, &lt;).\n"
         "\nDATA GROUNDING (non-negotiable):\n"
         "- Answer THE question in the CURRENT QUESTION block — never answer a "
         "different question from the context or history blocks.\n"
@@ -325,7 +334,7 @@ async def _call_local_llm(
     messages.append({"role": "user", "content": f"CURRENT QUESTION: {message[:2000]}"})
 
     # Try each available model in order (Qwen first for speed, DeepSeek for depth).
-    # chat_template_kwargs.enable_thinking=false disables the Qwen3/DeepSeek
+    # chat_template_kwargs.enable_thinking=false disables the Qwen3.5
     # reasoning preamble so all tokens go to the actual answer. Without this the
     # model burns the entire budget on <think> blocks and returns nothing.
     for url, model, timeout in [
@@ -363,7 +372,7 @@ async def _call_local_llm(
             continue
         answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
 
-        # Strip thinking output (DeepSeek and Qwen both emit <think> blocks).
+        # Strip thinking output (legacy DeepSeek/Qwen emitted <think> blocks; Qwen3.5 non-reasoning, kept defensively).
         # Handle BOTH closed <think>...</think> AND unclosed <think> (when the
         # token budget runs out before the model finishes reasoning).
         import re

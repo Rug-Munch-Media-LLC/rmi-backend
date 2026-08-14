@@ -68,8 +68,8 @@ QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen/qwen-2.5-72b-instruct:free")
 
 # ── Direct llama.cpp config (NO litellm proxy, NO paid APIs) ──
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-DEEPSEEK_PORT = 8086  # deepseek-analysis (DeepSeek-R1-8B-Abliterated, reasoning)
-QWEN_PORT = 8085  # qwen-chat (Qwen3-4B-Abliterated, fast)
+DEEPSEEK_PORT = 8086  # deepseek-analysis (Qwen3.5-9B-Abliterated, non-reasoning; legacy alias)
+QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
 
 # Cache
 _analysis_cache: dict[str, dict[str, Any]] = {}

@@ -165,8 +165,8 @@ def _format_web_context(results: list[dict[str, str]], max_chars: int = WEB_CONT
 # ── Complexity-based model routing (pure function of message text) ──────
 # Analytical / forensic / explanation-heavy questions ("why", "explain",
 # "investigate", on-chain terms, long messages) go to the stronger
-# deepseek-analysis 8B model; simple definitional / quick questions stay on
-# the fast qwen-chat 4B.
+# deepseek-analysis 9B (Qwen3.5) model; simple definitional / quick questions stay on
+# the fast qwen-chat 4B (Qwen3.5).
 _ANALYSIS_QUESTION_RE = re.compile(
     r"\b(?:why|explain|how does|compare|analyze|investigate|trace|what happened|deep)\b",
     re.IGNORECASE,

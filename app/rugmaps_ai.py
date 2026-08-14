@@ -23,13 +23,13 @@ logger = get_logger(__name__)
 # runs on the HOST, so the container reaches it via the docker bridge gateway
 # 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-QWEN_PORT = 8085  # qwen-chat (Qwen3-4B-Abliterated, fast)
-DEEPSEEK_PORT = 8086  # deepseek-analysis (DeepSeek-R1-8B-Abliterated, reasoning)
+QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
+DEEPSEEK_PORT = 8086  # deepseek-analysis (Qwen3.5-9B-Abliterated, non-reasoning; legacy alias)
 AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "deepseek-analysis")
-# Fast model → token descriptions, simple labeling (Qwen3-4B; qwen3-work:8b on Talos).
+# Fast model → token descriptions, simple labeling (Qwen3.5-4B llama.cpp :8085; Ollama fallback).
 OLLAMA_FAST_MODEL = os.getenv("OLLAMA_FAST_MODEL", "qwen3:4b")
 # Complex model → cluster interpretation, anomaly detection, rug pull narratives
-# (DeepSeek-R1-Distill-Qwen-8B).
+# (Qwen3.5-9B llama.cpp :8086; Ollama fallback — legacy tag).
 OLLAMA_COMPLEX_MODEL = os.getenv("OLLAMA_COMPLEX_MODEL", "deepseek-r1:8b")
 # Local inference is fast — 30s cap; anything slower means Ollama is wedged, fall back to paid.
 OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "30"))
@@ -263,7 +263,7 @@ async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | N
 def _ollama_model_for_task(task_type: str) -> str:
     """Map a task type to the local Ollama model.
 
-    - fast/chat/label/description → OLLAMA_FAST_MODEL (Qwen3-4B): cheap, fast
+    - fast/chat/label/description → OLLAMA_FAST_MODEL (Qwen3.5-4B): cheap, fast
       labeling and token descriptions.
     - analysis/complex/anomaly/cluster (default) → OLLAMA_COMPLEX_MODEL
       (DeepSeek Distill Qwen-8B): cluster interpretation, anomaly detection,

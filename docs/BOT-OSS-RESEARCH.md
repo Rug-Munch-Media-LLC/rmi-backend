@@ -23,7 +23,7 @@ Honorable mentions: **LightRAG** (graph RAG on our existing Neo4j+Qdrant for ent
 
 | Layer | Today |
 |-------|-------|
-| Chat pipeline | `handlers/chat_ai/chat_ai_response` → bridge context (`chat-rag-bridge.py`) → Zen (DeepSeek V4 Flash Free via LiteLLM) → fallback Qwen3-4B local |
+| Chat pipeline | `handlers/chat_ai/chat_ai_response` → bridge context (`chat-rag-bridge.py`) → Zen (DeepSeek V4 Flash Free via LiteLLM) → fallback Qwen3.5-4B local |
 | Intent routing | **Regex/keyword** `route_tools()` in `tools/intent.py` (deliberate: cheap, deterministic, no LLM round-trip) |
 | Tool registry | Hand-rolled `ToolRegistry` (`tools/registry.py`): ~15 tools (price, market, security, onchain, ta, trending, web, rag_lookup, …), timeout 6s, TTL 60s, fail-open |
 | Embeddings | `BAAI/bge-m3` 1024d via Infinity (`app/rag/embedder.py`) |

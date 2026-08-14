@@ -34,6 +34,7 @@ import pytest
 
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.handlers import chat_ai
+from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 EVM = "0x6982508145454Ce325dDbE47a25d4ec3d2311933"
 SOL = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
@@ -680,6 +681,166 @@ class TestSendAnswer:
         assert all(p.rstrip().endswith("here.") for p in parts)
 
 
+class TestRawHtmlNormalization:
+    """Regression: local models emit RAW HTML (<b>BTC:</b>, &amp;, &lt;code&gt;)
+    instead of Telegram markdown. The renderer must turn it into real, balanced
+    Telegram formatting — never literal garbage or unbalanced tags."""
+
+    def test_raw_html_bold_renders_as_bold(self) -> None:
+        msg = _FakeMessage()
+        _run(chat_ai._send_answer(msg, "<b>BTC:</b> actual volume: $1.2M", 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        # Real bold — not the escaped literal &lt;b&gt; that used to render.
+        assert "<b>BTC:</b>" in sent
+        assert "&lt;b&gt;" not in sent
+        assert sent.count("<b>") == sent.count("</b>")
+
+    def test_strong_and_code_tags_normalized(self) -> None:
+        msg = _FakeMessage()
+        _run(chat_ai._send_answer(msg, "<strong>Risk 82/100</strong> addr <code>0xabc</code>", 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "<b>Risk 82/100</b>" in sent
+        assert "`0xabc`" in sent
+        assert sent.count("<b>") == sent.count("</b>")
+
+    def test_italic_maps_to_underscores(self) -> None:
+        msg = _FakeMessage()
+        _run(chat_ai._send_answer(msg, "<i>Live data via tools.</i>", 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "<i>" not in sent
+        assert "_Live data via tools._" in sent
+
+    def test_escaped_entities_render_as_literal_chars(self) -> None:
+        msg = _FakeMessage()
+        _run(chat_ai._send_answer(msg, "TVL &amp; volume for <b>BTC</b>", 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        # &amp; renders as & — single-escaped, never the double-escaped garbage.
+        assert "&amp;" in sent
+        assert "&amp;amp;" not in sent
+        assert "<b>BTC</b>" in sent
+
+    def test_mixed_markdown_and_raw_html(self) -> None:
+        msg = _FakeMessage()
+        answer = "**Header:** <b>BTC:</b> up 5% &amp; volume high"
+        _run(chat_ai._send_answer(msg, answer, 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "<b>Header:</b>" in sent
+        assert "<b>BTC:</b>" in sent
+        assert "&amp;" in sent
+        assert "&amp;amp;" not in sent
+        assert sent.count("<b>") == sent.count("</b>")
+
+    def test_tool_answer_html_renders_not_literal(self) -> None:
+        """The no-LLM tool answer (_format_tool_answer emits real HTML) must
+        render as formatted text, not escaped literal tags."""
+        msg = _FakeMessage()
+        tool_answer = chat_ai._format_tool_answer(
+            {
+                "price_lookup": ToolResult(
+                    tool="price_lookup",
+                    ok=True,
+                    data={
+                        "pairs": [
+                            {
+                                "name": "Doge Coin",
+                                "symbol": "DOGE",
+                                "chain": "ethereum",
+                                "address": "0xabc",
+                                "price_usd": 0.1234,
+                                "change_24h": 5.5,
+                            }
+                        ]
+                    },
+                )
+            }
+        )
+        assert tool_answer is not None
+        _run(chat_ai._send_answer(msg, tool_answer, 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "<b>Doge Coin</b>" in sent
+        assert "&lt;b&gt;" not in sent
+        assert sent.count("<b>") == sent.count("</b>")
+
+    def test_long_bold_answer_split_never_unbalanced(self) -> None:
+        """A long answer whose **bold** spans contain sentence boundaries must
+        split without leaving a dangling ** at a chunk edge or an unbalanced
+        <b> tag (regression for the mid-tag cut)."""
+        msg = _FakeMessage()
+        answer = "**Risk: 42/100. Check chart.** " * 250  # ~11.5k chars
+        _run(chat_ai._send_answer(msg, answer, 0))
+        parts = [r[0][0] for r in msg.replies]
+        assert len(parts) > 1
+        for p in parts:
+            assert p.count("<b>") == p.count("</b>"), p[-80:]
+            # Every **bold** span survives whole — no dangling marker.
+            assert "**" not in p, p[-80:]
+
+
+class TestGroundingSourcesCount:
+    """The "Grounded in N intelligence sources" footer must count the DISTINCT
+    sources that actually fed the answer (RAG + live tools + web + market),
+    never inflate, and never count failed/empty sources."""
+
+    @staticmethod
+    def _tr(*, tool: str = "price_lookup", ok: bool = True, source: str = "dexscreener") -> ToolResult:
+        return ToolResult(tool=tool, ok=ok, source=source)
+
+    def test_backend_rag_only(self) -> None:
+        assert chat_ai._grounding_sources_count(provider="backend", rag_count=2) == 2
+
+    def test_backend_rag_plus_live_tools(self) -> None:
+        live = {"price_lookup": self._tr(), "security_scan": self._tr()}
+        assert chat_ai._grounding_sources_count(provider="backend", rag_count=2, live_results=live) == 4
+
+    def test_backend_rag_plus_live_web_tool(self) -> None:
+        live = {"web_search": self._tr(tool="web_search", source="searxng")}
+        assert chat_ai._grounding_sources_count(provider="backend", rag_count=3, live_results=live) == 4
+
+    def test_knowledge_fallback_web_not_counted(self) -> None:
+        # A web_search knowledge fallback is NOT live web data — never count it.
+        live = {"web_search": self._tr(tool="web_search", source="knowledge-fallback")}
+        assert chat_ai._grounding_sources_count(provider="backend", rag_count=1, live_results=live) == 1
+
+    def test_failed_tools_not_counted(self) -> None:
+        live = {"price_lookup": self._tr(ok=False)}
+        assert chat_ai._grounding_sources_count(provider="backend", rag_count=1, live_results=live) == 1
+
+    def test_rag_lookup_and_web_excluded_from_tool_bucket(self) -> None:
+        live = {
+            "web_search": self._tr(tool="web_search", source="searxng"),
+            "rag_lookup": self._tr(tool="rag_lookup"),
+            "price_lookup": self._tr(),
+        }
+        # rag bucket(1) + web bucket(1) + price_lookup(1) — no double counting.
+        assert chat_ai._grounding_sources_count(provider="backend", rag_count=1, live_results=live) == 3
+
+    def test_fallback_bridge_sources_counted(self) -> None:
+        sources = [{"type": "rag"}, {"type": "rag"}, {"type": "web"}]
+        assert chat_ai._grounding_sources_count(provider="zen", rag_count=3, bridge_sources=sources) == 3
+
+    def test_fallback_with_market_context_and_tools(self) -> None:
+        sources = [{"type": "rag"}, {"type": "web"}]
+        live = {"price_lookup": self._tr()}
+        assert (
+            chat_ai._grounding_sources_count(
+                provider="local",
+                rag_count=0,
+                bridge_sources=sources,
+                live_results=live,
+                has_market_context=True,
+            )
+            == 4  # rag + web + live tool + market digest
+        )
+
+    def test_fallback_rag_result_counts_when_untyped(self) -> None:
+        rag = ToolResult(tool="rag_lookup", ok=True, source="intel-db")
+        assert chat_ai._grounding_sources_count(provider="zen", rag_count=0, rag_result=rag) == 1
+
+    def test_no_grounding_zero(self) -> None:
+        assert chat_ai._grounding_sources_count(provider="backend", rag_count=0) == 0
+        assert chat_ai._grounding_sources_count(provider="zen", rag_count=0) == 0
+
+
 class TestRouteStructural:
     def test_known_scam_address_blocked(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(chat_ai.anti_abuse, "is_known_scam_address", lambda addr: True)
@@ -752,7 +913,7 @@ class TestChatAiResponse:
         monkeypatch.setattr(
             chat_ai,
             "_call_backend_chat",
-            AsyncMock(return_value={"message": "grounded answer", "rag_count": 2, "tokens": 10}),
+            AsyncMock(return_value={"message": "grounded answer", "rag_count": 2, "tokens": 10, "provider": "backend"}),
         )
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
@@ -765,7 +926,7 @@ class TestChatAiResponse:
         assert "Grounded in 2 intelligence sources | Rug Munch Bot" in answer_reply
 
     def test_gibberish_redirect_no_backend_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        backend = AsyncMock(return_value={"message": "should not be called", "rag_count": 0})
+        backend = AsyncMock(return_value={"message": "should not be called", "rag_count": 0, "provider": "backend"})
         monkeypatch.setattr(chat_ai, "_call_backend_chat", backend)
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
@@ -822,7 +983,13 @@ class TestChatAiResponseQuality:
         monkeypatch.setattr(
             chat_ai,
             "_call_backend_chat",
-            AsyncMock(return_value={"message": "<think>reasoning chain</think>grounded answer", "rag_count": 1}),
+            AsyncMock(
+                return_value={
+                    "message": "<think>reasoning chain</think>grounded answer",
+                    "rag_count": 1,
+                    "provider": "backend",
+                }
+            ),
         )
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
@@ -836,7 +1003,9 @@ class TestChatAiResponseQuality:
         monkeypatch.setattr(
             chat_ai,
             "_call_backend_chat",
-            AsyncMock(return_value={"message": "ioneerioneerioneerioneerioneer", "rag_count": 0}),
+            AsyncMock(
+                return_value={"message": "ioneerioneerioneerioneerioneer", "rag_count": 0, "provider": "backend"}
+            ),
         )
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
@@ -847,7 +1016,11 @@ class TestChatAiResponseQuality:
         assert "put together a proper answer for that" in sent
 
     def test_bare_dash_replaced(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value={"message": "-", "rag_count": 0}))
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "-", "rag_count": 0, "provider": "backend"}),
+        )
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
         _run(chat_ai.chat_ai_response(upd, None, "what is going on?", upd.effective_user))
@@ -859,7 +1032,7 @@ class TestChatAiResponseQuality:
         monkeypatch.setattr(
             chat_ai,
             "_call_backend_chat",
-            AsyncMock(return_value={"message": "-", "rag_count": 7}),
+            AsyncMock(return_value={"message": "-", "rag_count": 7, "provider": "backend"}),
         )
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
@@ -874,7 +1047,7 @@ class TestChatAiResponseQuality:
         monkeypatch.setattr(
             chat_ai,
             "_call_backend_chat",
-            AsyncMock(return_value={"message": long_answer, "rag_count": 3}),
+            AsyncMock(return_value={"message": long_answer, "rag_count": 3, "provider": "backend"}),
         )
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
@@ -888,6 +1061,49 @@ class TestChatAiResponseQuality:
             assert p.rstrip().endswith("here.")
         assert "Grounded in 3 intelligence sources" in parts[-1]
 
+    def test_footer_counts_live_tools_not_just_rag(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Bug 2 regression: the "Grounded in N" footer must count the live
+        tool sources that actually fed the answer, not only RAG hits."""
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "grounded answer", "rag_count": 2, "tokens": 10, "provider": "backend"}),
+        )
+        monkeypatch.setattr(
+            chat_ai,
+            "_run_live_tools",
+            AsyncMock(
+                return_value={
+                    "price_lookup": ToolResult(tool="price_lookup", ok=True, source="dexscreener"),
+                    "security_scan": ToolResult(tool="security_scan", ok=True, source="rugcheck"),
+                }
+            ),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        _run(chat_ai.chat_ai_response(upd, None, "what's the price of $BONK?", upd.effective_user))
+        sent = "".join(r[0][0] for r in msg.replies)
+        # 2 RAG hits + 2 live tools = 4 distinct intelligence sources.
+        assert "Grounded in 4 intelligence sources | Rug Munch Bot" in sent
+
+    def test_footer_does_not_count_failed_tools(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "grounded answer", "rag_count": 2, "tokens": 10, "provider": "backend"}),
+        )
+        monkeypatch.setattr(
+            chat_ai,
+            "_run_live_tools",
+            AsyncMock(return_value={"price_lookup": ToolResult(tool="price_lookup", ok=False, error="down")}),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        _run(chat_ai.chat_ai_response(upd, None, "what's the price of $BONK?", upd.effective_user))
+        sent = "".join(r[0][0] for r in msg.replies)
+        # Failed tools never inflate the count — stays at the RAG hits.
+        assert "Grounded in 2 intelligence sources | Rug Munch Bot" in sent
+
 
 class TestAiChatHandler:
     @pytest.fixture(autouse=True)
@@ -900,7 +1116,7 @@ class TestAiChatHandler:
         monkeypatch.setattr(
             chat_ai,
             "_call_backend_chat",
-            AsyncMock(return_value={"message": "rag answer", "rag_count": 1, "tokens": 10}),
+            AsyncMock(return_value={"message": "rag answer", "rag_count": 1, "tokens": 10, "provider": "backend"}),
         )
         msg = _FakeMessage(text="how do honeypots work?")
         upd = _FakeUpdate(12345, "tester", msg)
@@ -910,7 +1126,7 @@ class TestAiChatHandler:
         assert any("rag answer" in r[0][0] for r in msg.replies)
 
     def test_token_symbol_short_circuits_ai(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        backend = AsyncMock(return_value={"message": "nope", "rag_count": 0})
+        backend = AsyncMock(return_value={"message": "nope", "rag_count": 0, "provider": "backend"})
         monkeypatch.setattr(chat_ai, "_call_backend_chat", backend)
         _patch_dex(
             monkeypatch,

@@ -6,8 +6,9 @@ All consumer chat (Telegram bot, website, rugmaps, rugcharts) routes DIRECTLY
 to the self-hosted llama.cpp servers. NO litellm proxy, NO paid/external APIs.
 
 Local models (llama.cpp, OpenAI-compatible /v1 endpoints):
-  - qwen-chat          (Qwen3-4B-Abliterated,   llama.cpp :8085, 8k ctx)
-  - deepseek-analysis  (DeepSeek-R1-8B-Abliterated, llama.cpp :8086, 8k ctx)
+  - qwen-chat          (Qwen3.5-4B-Abliterated Q6_K, llama.cpp :8085, 8k ctx)
+  - deepseek-analysis  (Qwen3.5-9B-Abliterated Q6_K, llama.cpp :8086, 8k ctx)
+    ^ legacy alias — the underlying model is Qwen3.5 9B, not DeepSeek
 """
 
 from __future__ import annotations
@@ -32,6 +33,11 @@ router = APIRouter(tags=["AI Router"])
 
 # ── Local model registry ──
 # model_name → llama.cpp port on the docker bridge gateway.
+# Model aliases map to Qwen3.5 abliterated GGUFs (swap 2026-08-14):
+#   qwen-chat         → Huihui-Qwen3.5-4B-Abliterated Q6_K   (llama-chat :8085)
+#   deepseek-analysis → Huihui-Qwen3.5-9B-Abliterated Q6_K   (llama-analysis :8086)
+# Alias names are kept stable for caller compatibility; "deepseek-analysis" is a
+# legacy label — the underlying model is Qwen3.5 9B, not DeepSeek.
 LOCAL_MODEL_PORTS = {
     "qwen-chat": 8085,
     "deepseek-analysis": 8086,
@@ -72,7 +78,7 @@ PROVIDERS = {
 
 
 def _strip_think_tags(text: str) -> str:
-    """Strip <think> tags from model output (Qwen3/DeepSeek R1 reasoning).
+    """Strip <think> tags from model output (legacy Qwen3/DeepSeek R1 reasoning; Qwen3.5 non-reasoning shouldn't emit them, kept defensively).
 
     Handles both complete blocks (<think>...</think>) and unterminated blocks
     that get cut off when max_tokens is reached mid-think (strip everything from
@@ -445,7 +451,7 @@ async def chat_completion(
             logger.warning("llama_cross_unreachable", model=other, error=str(e))
 
     # ── 3: DeepSeek Flash API (direct api.deepseek.com) fallback ──
-    # Local models are the preferred path (qwen-chat 4B → deepseek-analysis 8B);
+    # Local models are the preferred path (qwen-chat 4B → deepseek-analysis 9B, both Qwen3.5);
     # when BOTH local llama.cpp servers are down, fall back to the direct
     # DeepSeek Flash API so the bot never hard-fails on a local-model outage.
     try:

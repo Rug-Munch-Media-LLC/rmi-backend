@@ -113,12 +113,14 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     _chunk_text,
     _extract_addresses,
     _format_scan_summary,
+    _grounding_sources_count,
     _is_capability_question,
     _is_deep_question,
     _is_greeting_or_thanks,
     _is_meaningful_question,
     _is_section_header,
     _markdown_bold_to_html,
+    _normalize_llm_markup,
     _split_oversized,
     _tables_to_lists,
     is_degenerate_answer,
@@ -804,6 +806,9 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # cancels rag_task and keeps this None so the backend's own grounding
     # stays authoritative).
     rag_result: ToolResult | None = None
+    # Whether the daily market/news digest or a bridge market block actually
+    # reached the fallback prompt (feeds the truthful grounding footer).
+    has_market_context = False
 
     if result is None:
         # Fallback path: gather the context fetches (fail-open) that ground
@@ -858,6 +863,12 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         tool_block = build_tool_prompt_block(fallback_live_results)
         if tool_block:
             prompt = f"{tool_block}\n\n{prompt}"
+
+        # The fallback answer was grounded by the daily digest (system_context)
+        # and/or a bridge market block — remember it for the grounding footer.
+        has_market_context = bool(daily_context) or any(
+            isinstance(s, dict) and s.get("type") == "market" for s in bridge_sources
+        )
 
         # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with
         # the bridge blocks + live tool data, reporting rag_count = len(sources).
@@ -1031,11 +1042,25 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # last chunk (an edit cannot carry the footer/buttons reliably).
     with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
         await preliminary.edit_text("\u2705", parse_mode=ParseMode.HTML)
+    # Truthful grounding footer: count the DISTINCT intelligence sources that
+    # actually fed the answer (RAG + live tools + web + market context), not
+    # just RAG hits. A replaced degenerate answer has no real grounding.
+    grounding_count = (
+        0
+        if answer_is_degenerate
+        else _grounding_sources_count(
+            provider=str(result.get("provider") or ""),
+            rag_count=int(result.get("rag_count") or 0),
+            bridge_sources=bridge_sources,
+            live_results=live_results,
+            rag_result=rag_result,
+            has_market_context=has_market_context,
+        )
+    )
     parts_sent = await _send_answer(
         message,
         answer,
-        # A replaced degenerate answer has no real grounding to cite.
-        0 if answer_is_degenerate else result.get("rag_count", 0),
+        grounding_count,
         actions=bridge_actions,
     )
 
@@ -1130,7 +1155,7 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 async def _send_answer(
     message: Message,
     answer: str,
-    rag_count: int,
+    grounding_count: int,
     *,
     actions: list[dict[str, str]] | None = None,
 ) -> int:
@@ -1138,42 +1163,47 @@ async def _send_answer(
     number of parts actually sent (0 when there is nothing to send).
 
     v10 pipeline (all on the RAW text first, then escape):
-      1. ``strip_think_blocks`` removes any leaked ``<think>`` reasoning
+      1. ``_normalize_llm_markup`` converts any RAW HTML the model emitted
+         anyway (``<b>`` → ``**``, ``&amp;`` → ``&``) into markdown —
+         defense-in-depth so escape() can never turn a real tag into
+         literal garbage or unbalanced HTML.
+      2. ``strip_think_blocks`` removes any leaked ``<think>`` reasoning
          chains (defense in depth — ``chat_ai_response`` already strips).
-      2. ``_tables_to_lists`` converts markdown pipe tables to compact
+      3. ``_tables_to_lists`` converts markdown pipe tables to compact
          bullet lists (Telegram HTML has no table element).
-      3. ``_beautify_answer`` normalizes emoji section headers and inserts
+      4. ``_beautify_answer`` normalizes emoji section headers and inserts
          thin separators beneath them.
-      4. ``split_in_parts`` (``handlers/chat_ai/_parts.py``) splits at
+      5. ``split_in_parts`` (``handlers/chat_ai/_parts.py``) splits at
          paragraph / section-header boundaries, never mid-sentence, never
-         mid-link, and never mid-code-block.
-      5. Each part is HTML-escaped (LLM output is not trusted HTML).
-      6. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
+         mid-link, never mid-``**bold**`` span, and never mid-code-block.
+      6. Each part is HTML-escaped (LLM output is not trusted HTML).
+      7. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
          emits into real ``<b>...</b>`` — safe because the content was
-         already escaped in step 3.
-      7. ``send_in_parts`` delivers each part as its own message (keyboard on
+         already escaped in step 6.
+      8. ``send_in_parts`` delivers each part as its own message (keyboard on
          the last part; plain-text degrade on parse rejection).
     A short "⚡ Grounded in N intelligence sources | Rug Munch Bot" footer is
-    appended to the last chunk when the backend reported RAG grounding.
-    ``rag_count`` is the REAL number of unique RAG hits (from
-    ``X-RAG-Context``, or ``len(bridge sources)`` on the fallback path);
-    counts above 100 are shown as "hundreds of sources".
+    appended to the last chunk when the answer had real grounding.
+    ``grounding_count`` is the number of DISTINCT intelligence sources that
+    actually fed the answer (RAG hits + live tools + web search + market
+    context — see ``_grounding_sources_count``); counts above 100 are shown
+    as "hundreds of sources".
     ``actions`` (bridge-suggested buttons) are rendered as an inline
     keyboard on the last chunk when present; otherwise the back menu is used.
     """
-    raw = _beautify_answer(_tables_to_lists(strip_think_blocks(answer)))
+    raw = _beautify_answer(_tables_to_lists(strip_think_blocks(_normalize_llm_markup(answer))))
     chunks = split_in_parts(raw, max_chars=CHUNK_MAX_CHARS)
     if not chunks:
         return 0
     escaped = [escape(c) for c in chunks]
     html = [_markdown_bold_to_html(c) for c in escaped]
-    if rag_count > 0:
-        if rag_count > 100:
+    if grounding_count > 0:
+        if grounding_count > 100:
             source_label = "hundreds of intelligence sources"
-        elif rag_count == 1:
+        elif grounding_count == 1:
             source_label = "1 intelligence source"
         else:
-            source_label = f"{rag_count} intelligence sources"
+            source_label = f"{grounding_count} intelligence sources"
         html[-1] = f"{html[-1]}\n\n<i>\u26a1 Grounded in {source_label} | Rug Munch Bot</i>"
 
     kb = _render_bridge_actions(actions) or back_kb()

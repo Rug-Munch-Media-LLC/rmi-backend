@@ -373,8 +373,8 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
 # ── Complexity-based model routing ─────────────────────────────────────
 # Pure-function router: analytical / forensic / explanation-heavy questions
 # ("why", "explain", "investigate", on-chain terms, long messages) go to the
-# stronger deepseek-analysis 8B model; simple definitional / quick questions
-# stay on the fast qwen-chat 4B (7 tok/s — the 4x speedup matters for trivial
+# stronger deepseek-analysis 9B (Qwen3.5) model; simple definitional / quick questions
+# stay on the fast qwen-chat 4B (Qwen3.5) (7 tok/s — the 4x speedup matters for trivial
 # asks, while hard questions get the model with enough reasoning power).
 # ── Helper to save message ──
 def _save_message(user_id: str, role: str, content: str, metadata: dict[str, Any] | None = None) -> Any:
@@ -649,8 +649,8 @@ async def chat(
 
     try:
         # Complexity-based routing: analytical/forensic questions go to the
-        # stronger deepseek-analysis 8B model, simple/quick ones to the fast
-        # qwen-chat 4B. An explicit req.model wins over routing.
+        # stronger deepseek-analysis 9B (Qwen3.5) model, simple/quick ones to the fast
+        # qwen-chat 4B (Qwen3.5). An explicit req.model wins over routing.
         task_type = "chat" if req.model else _route_task(req.message)
         result = await do_chat_completion(
             messages=messages,

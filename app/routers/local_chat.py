@@ -1,6 +1,6 @@
 """
-Local Model Chat — proxies to llama.cpp servers (Qwen 3 4B, DeepSeek 8B).
-Qwen for quick chat, DeepSeek for deep analysis (thinking hidden).
+Local Model Chat — proxies to llama.cpp servers (Qwen3.5-4B, Qwen3.5-9B).
+qwen-chat for quick chat, deepseek-analysis (Qwen3.5-9B) for deep analysis.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class LocalChatResponse(BaseModel):
 
 
 def _strip_thinking(text: str) -> str:
-    """Strip DeepSeek thinking blocks, keep only the final answer."""
+    """Strip reasoning/thinking blocks (legacy DeepSeek/Qwen), keep only the final answer."""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
     text = re.sub(r"</?answer>", "", text)
     return text.strip()
@@ -52,7 +52,7 @@ def _strip_thinking(text: str) -> str:
 
 @router.post("", response_model=LocalChatResponse)
 async def local_chat(req: LocalChatRequest):
-    """Chat with local models. Quick mode uses Qwen 3 4B, deep mode uses DeepSeek 8B."""
+    """Chat with local models. Quick mode uses Qwen3.5-4B, deep mode uses Qwen3.5-9B."""
     start = time.time()
 
     if req.mode == "deep":

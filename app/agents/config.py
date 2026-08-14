@@ -1,7 +1,7 @@
 """Agent configuration for the Pydantic AI agent framework.
 
 Single source of truth for the agent fleet settings. The LLM backend is the
-local llama.cpp server (Qwen3-4B chat / DeepSeek-R1-8B analysis, API at :8085/:8086).
+local llama.cpp server (Qwen3.5-4B chat / Qwen3.5-9B analysis, API at :8085/:8086).
 
 Per repo convention (app/config.py consolidation notice), configuration
 values live in config modules — downstream agent code imports from here

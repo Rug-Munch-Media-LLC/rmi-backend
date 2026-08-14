@@ -85,7 +85,7 @@ async def test_parse_openai_sse_skips_noise_and_done() -> None:
 
 @pytest.mark.asyncio
 async def test_parse_openai_sse_skips_reasoning_delta() -> None:
-    """Reasoning deltas (DeepSeek R1 / Qwen3 think tags) never reach the client."""
+    """Reasoning deltas (legacy DeepSeek R1 / Qwen3 think tags) never reach the client."""
     from app.ai_router import _parse_openai_sse
 
     resp = _FakeResp(
