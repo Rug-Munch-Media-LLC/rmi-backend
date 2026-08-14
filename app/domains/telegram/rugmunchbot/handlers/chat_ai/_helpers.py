@@ -9,10 +9,13 @@ everything it needs from here; behavior is byte-for-byte identical.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.domains.telegram.rugmunchbot.formatters import footer_links, thin_sep
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._parts import _is_fence_line
+
+if TYPE_CHECKING:
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 CHUNK_MAX_CHARS = 3800  # Telegram hard limit is 4096; leave headroom for escape expansion
 MAX_ADDRESS_HINTS = 2  # cap address-triggered scans per message
@@ -46,6 +49,72 @@ _SECTION_EMOJIS: frozenset[str] = frozenset(
 )
 _SECTION_HEADER_MAX = 80  # longer emoji-prefixed lines are content, not headers
 _BOLD_RE = re.compile(r"\*{2,3}([^*\n]+?)\*{2,3}")
+
+
+# ══════════════════════════════════════════════
+# RAW HTML → MARKDOWN NORMALIZATION (defense-in-depth)
+# Local models sometimes emit RAW HTML (<b>BTC:</b>, &amp;, &lt;code&gt;)
+# instead of Telegram markdown — even when the system prompts forbid it.
+# Normalize it to markdown BEFORE escaping so the later escape() +
+# _markdown_bold_to_html turn it into real, balanced HTML instead of
+# literal garbage (or unbalanced tags that Telegram rejects).
+# ══════════════════════════════════════════════
+_HTML_ENTITY_RE = re.compile(r"&(?:lt|gt|amp|quot|#x27);")
+_HTML_ENTITY_MAP: dict[str, str] = {
+    "&lt;": "<",
+    "&gt;": ">",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&#x27;": "'",
+}
+_RAW_HTML_TAG_RE = re.compile(r"</?(?:b|strong|i|em|code|pre)\b[^>]*>")
+_RAW_HTML_TAG_TO_MARKDOWN: dict[str, str] = {
+    "b": "**",
+    "strong": "**",
+    "i": "_",
+    "em": "_",
+    "code": "`",
+    "pre": "`",
+}
+
+
+def _unescape_llm_entities(text: str) -> str:
+    """Unescape HTML entities a model emitted when it "thought" in HTML.
+
+    Single-pass so double-encoded entities degrade safely (``&amp;lt;``
+    becomes ``&lt;``, never a second unescape round).
+    """
+    return _HTML_ENTITY_RE.sub(lambda m: _HTML_ENTITY_MAP[m.group(0)], text)
+
+
+def _raw_html_emphasis_to_markdown(text: str) -> str:
+    """Convert raw HTML emphasis tags to Telegram markdown markers.
+
+    ``<b>``/``<strong>`` → ``**``, ``<i>``/``<em>`` → ``_``,
+    ``<code>``/``<pre>`` → backticks. Tags outside the emphasis set
+    (``<br>``, ``<img>``, …) are left untouched.
+    """
+
+    def _repl(m: re.Match[str]) -> str:
+        tag = m.group(0).strip("<>/").split()[0].lower()
+        return _RAW_HTML_TAG_TO_MARKDOWN.get(tag, m.group(0))
+
+    return _RAW_HTML_TAG_RE.sub(_repl, text)
+
+
+def _normalize_llm_markup(text: str) -> str:
+    """Defense-in-depth: normalize raw HTML an LLM emitted into markdown.
+
+    Runs on the RAW answer BEFORE ``html.escape()``: unescapes entities the
+    model already escaped (``&amp;`` → ``&``), then converts raw emphasis
+    tags to markdown (``<b>BTC:</b>`` → ``**BTC:**``). The subsequent escape
+    + :func:`_markdown_bold_to_html` then produce real, balanced HTML.
+
+    Fenced code blocks are NOT special-cased: a literal ``<b>`` inside a
+    code block is converted too. This is a best-effort heuristic for a rare
+    model failure mode — the system prompts forbid raw HTML outright.
+    """
+    return _raw_html_emphasis_to_markdown(_unescape_llm_entities(text))
 
 
 # ══════════════════════════════════════════════
@@ -255,6 +324,80 @@ def _markdown_bold_to_html(text: str) -> str:
     is never re-introduced. Unbalanced asterisks pass through untouched.
     """
     return _BOLD_RE.sub(r"<b>\1</b>", text)
+
+
+# ══════════════════════════════════════════════
+# GROUNDING FOOTER — DISTINCT INTELLIGENCE SOURCES
+# The old footer counted only RAG hits (rag_count from X-RAG-Context), but
+# answers are grounded by RAG + live web search + bot-side live tools + the
+# daily market digest. Count the DISTINCT source types that ACTUALLY fed the
+# answer — never fabricated, only real data that returned.
+# ══════════════════════════════════════════════
+
+
+def _grounding_sources_count(
+    *,
+    provider: str,
+    rag_count: int,
+    bridge_sources: list[dict[str, str]] | None = None,
+    live_results: dict[str, ToolResult] | None = None,
+    rag_result: ToolResult | None = None,
+    has_market_context: bool = False,
+) -> int:
+    """Truthful count of the DISTINCT intelligence sources behind an answer.
+
+    Buckets (each counts only real data):
+
+    * **RAG** — the backend's real hit count (``X-RAG-Context``) on the
+      ``backend`` path; on the fallback path the rag-typed bridge sources
+      plus one for a direct ``rag_lookup`` hit with no typed sources.
+    * **Web** — web-typed bridge sources, plus a live (non-knowledge-
+      fallback) ``web_search`` tool result. The same bridge search is never
+      double-counted.
+    * **Live tools** — every distinct bot-side tool that returned
+      ``ok=True`` (``web_search`` / ``rag_lookup`` are counted in their own
+      buckets).
+    * **Market** — the daily market/news digest or a bridge market block
+      present in the answer context.
+
+    Only counts what actually returned data: failed tools (``ok=False``),
+    empty source lists, and knowledge-fallback web results contribute zero.
+    """
+    bridge_sources = bridge_sources or []
+    live_results = live_results or {}
+
+    # RAG grounding.
+    if provider == "backend":
+        rag_bucket = max(int(rag_count), 0)
+    else:
+        rag_bucket = sum(1 for s in bridge_sources if isinstance(s, dict) and s.get("type") == "rag")
+        if rag_result is not None and rag_result.ok and rag_bucket == 0:
+            rag_bucket = 1  # direct lookup hit without typed bridge sources
+    count = rag_bucket
+
+    # Web grounding: bridge web sources + a live web_search tool result.
+    # The tool reuses the same bridge search, so it only counts when the
+    # bridge did not already contribute web sources (no double count).
+    web_count = sum(1 for s in bridge_sources if isinstance(s, dict) and s.get("type") == "web")
+    web_tool = live_results.get("web_search")
+    if (
+        web_tool is not None
+        and web_tool.ok
+        and web_tool.source
+        and not str(web_tool.source).startswith("knowledge")
+        and web_count == 0
+    ):
+        web_count = 1
+    count += web_count
+
+    # Live tools: distinct tool types that returned real data.
+    count += sum(1 for name, r in live_results.items() if name not in ("web_search", "rag_lookup") and r.ok)
+
+    # Market context: the daily digest / bridge market block fed the answer.
+    if has_market_context:
+        count += 1
+
+    return count
 
 
 # ══════════════════════════════════════════════

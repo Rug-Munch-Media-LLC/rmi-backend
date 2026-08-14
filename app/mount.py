@@ -128,7 +128,7 @@ ROUTER_MODULES: Final[list[str]] = [
     "app.api.v1.catalog",  # /api/v1/catalog/*
     "app.api.v1.agent.analyze",  # /api/v1/agent/* (Pydantic AI agent fleet)
     "app.api.v1.ai.chart_analysis",  # /api/v1/ai/chart-analysis (AI TA analysis via Qwen)
-    "app.routers.local_chat",  # /api/v1/chat/local (local model chat: Qwen 4B, DeepSeek 8B)
+    "app.routers.local_chat",  # /api/v1/chat/local (local model chat: Qwen3.5-4B, Qwen3.5-9B)
     "app.api.v1.mcp",  # /mcp/* (JSON-RPC + plain JSON)
     # Domain facades (per v4.0 T28-T34)
     "app.domains.news",  # /api/v1/news/*
