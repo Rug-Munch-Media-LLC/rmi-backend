@@ -1,8 +1,10 @@
-"""Wallet-report formatting for the RugMunch bot.
+"""Wallet-report + wallet-composition formatting for the RugMunch bot.
 
 Extracted from ``formatters.py`` during the Batch 11 de-godding pass:
-``format_wallet_report`` + its small helpers. ``formatters.py`` re-exports
-the public name.
+``format_wallet_report`` + its small helpers. The wallet-composition
+section (``format_wallet_composition_section``) moved here from
+``formatters/_sentinel.py`` during the Batch 13 de-godding pass.
+``formatters/__init__.py`` re-exports every public name.
 """
 
 from __future__ import annotations
@@ -17,6 +19,14 @@ from app.domains.telegram.rugmunchbot.formatters._base import (
     sep,
     thin_sep,
 )
+from app.domains.telegram.rugmunchbot.formatters._scan_report import _clip
+
+__all__ = [
+    "_activity_score",
+    "_explorer_link",
+    "format_wallet_composition_section",
+    "format_wallet_report",
+]
 
 
 # --- Wallet report formatting ---
@@ -43,7 +53,8 @@ def _explorer_link(address: str, chain: str) -> str:
 def format_wallet_report(r: dict[str, Any]) -> str:
     s = sep()
     d = thin_sep()
-    age_str = f"{r['wallet_age_days']} days" if r["wallet_age_days"] else "Unknown"
+    age_days = r.get("wallet_age_days")
+    age_str = f"{age_days} days" if age_days else "Unknown"
     tx_count = r.get("tx_count")
     tx_str = (
         f"\U0001f4dd Transactions: <b>{tx_count:,}</b>"
@@ -84,7 +95,7 @@ def format_wallet_report(r: dict[str, Any]) -> str:
         lines.extend(["", "\U0001f517 <b>Connected Wallets</b>", d])
         for w in r["connected_wallets"][:5]:
             lines.append(f"  \u2022 <code>{w}</code>")
-    if r["risk_score"] > 0:
+    if r.get("risk_score", 0) > 0:
         lines.extend(["", risk_bar(r["risk_score"])])
         lines.append(f"  {_risk_gauge(r['risk_score'])}")
 
@@ -114,9 +125,9 @@ def format_wallet_report(r: dict[str, Any]) -> str:
         bp = ", ".join(str(b) for b in r["behavior_patterns"][:4])
         v2_lines.append(f"\U0001f50e Behavior: {bp}")
     if r.get("risk_forecast"):
-        v2_lines.append(f"\U0001f52e Forecast: {r['risk_forecast'][:120]}")
+        v2_lines.append(f"\U0001f52e Forecast: {_clip(r['risk_forecast'], 120)}")
     if v2_lines:
-        lines.extend(["", "\U0001f9e9 <b>v2 Wallet Intel</b>", d])
+        lines.extend(["", "\U0001f9e9 <b>Wallet Intelligence</b>", d])
         lines.extend(v2_lines)
 
     funding_text = format_funding_analysis(r)
@@ -127,3 +138,91 @@ def format_wallet_report(r: dict[str, Any]) -> str:
     _chain = r.get("chain", "solana")
     lines.append(footer_links(_addr, _chain))
     return "\n".join(lines)
+
+
+# --- Wallet composition section (for /deepscan) ---
+
+
+def format_wallet_composition_section(r: dict[str, Any], token_created_ts: str | None = None) -> str:
+    """Full wallet-composition block for /deepscan (own funding_analysis engine).
+
+    Combines ``wallet_metrics`` (fresh <30d / CEX-funded / first-tx-this-token)
+    with the ``funding_analysis`` evidence (mixer-funded %, risk assessment).
+    Returns an empty string when neither payload has data — deepscan simply
+    omits the section.
+
+    Coverage honesty: ``wallet_metrics.coverage_start_ts`` is the start of
+    the indexer's transfer window for this token. When the token's creation
+    time (``token_created_ts``, from DexScreener) predates coverage by >7
+    days, the indexer missed the token's early history and every holder
+    looks <30 days old — fresh/brand-new percentages are artifacts. In that
+    case only the label-based CEX line renders, under a data-coverage caveat.
+    """
+    wm = r.get("wallet_metrics") if isinstance(r.get("wallet_metrics"), dict) else {}
+    if wm.get("result") == "unavailable":  # type: ignore[union-attr]  # PTB None-able fields
+        wm = {}
+    funding = (r.get("evidence") or {}).get("funding_analysis") or {}
+    if not isinstance(funding, dict):
+        funding = {}
+
+    def _f(val: object) -> float | None:
+        try:
+            return float(val)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+
+    cex = _f(wm.get("cex_funded_pct"))  # type: ignore[union-attr]  # PTB None-able fields
+    analyzed = int(wm.get("holders_analyzed") or 0)  # type: ignore[union-attr]  # PTB None-able fields
+    scope = f" (top {analyzed} holders)" if analyzed else ""
+
+    # ── Coverage-gap branch: fresh/brand-new are indexer artifacts ──
+    coverage_iso = wm.get("coverage_start_ts")  # type: ignore[union-attr]  # PTB None-able fields
+    if cex is not None and coverage_iso and token_created_ts:
+        try:
+            import datetime as _dt
+
+            cov = _dt.datetime.fromisoformat(str(coverage_iso).replace("Z", "+00:00"))
+            created = _dt.datetime.fromisoformat(str(token_created_ts).replace("Z", "+00:00"))
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=_dt.UTC)
+            if cov.tzinfo is None:
+                cov = cov.replace(tzinfo=_dt.UTC)
+            gap_days = (cov - created).total_seconds() / 86400.0
+            if gap_days > 7:
+                lines = [
+                    "\U0001f45b <b>Wallet Composition</b>" + scope,
+                    thin_sep(),
+                    (
+                        f"\u26a0\ufe0f Transfer coverage starts "
+                        f"{cov.date().isoformat()} (token created {created.date().isoformat()}) — "
+                        "fresh/brand-new stats skipped, indexer missed early history."
+                    ),
+                ]
+                if cex is not None:
+                    lines.append(f"\U0001f3e6 Exchange-funded (CEX, label-based): <b>{cex:.1f}%</b>")
+                return "\n".join(lines)
+        except (TypeError, ValueError):
+            pass  # unparseable dates — fall through to the full block
+
+    fresh = _f(wm.get("fresh_wallet_pct"))  # type: ignore[union-attr]  # PTB None-able fields
+    first_tx = _f(wm.get("first_tx_pct"))  # type: ignore[union-attr]  # PTB None-able fields
+    mixer = _f(funding.get("mixer_funded_pct"))
+    risk = str(funding.get("risk_assessment") or "").upper()
+
+    lines = []
+    if fresh is not None:
+        lines.append(f"\U0001f195 Fresh wallets (<30d): <b>{fresh:.1f}%</b>")
+    if first_tx is not None:
+        lines.append(f"\u2728 Brand-new (1st tx = this token): <b>{first_tx:.1f}%</b>")
+    if cex is not None:
+        lines.append(f"\U0001f3e6 Exchange-funded (CEX): <b>{cex:.1f}%</b>")
+    if mixer:
+        lines.append(f"\U0001f977 Mixer-funded: <b>{mixer:.1f}%</b>")
+    if risk and risk not in ("", "UNKNOWN"):
+        emoji = {"LOW": "\U0001f7e2", "MEDIUM": "\U0001f7e1", "HIGH": "\U0001f534", "CRITICAL": "\U0001f6a8"}.get(
+            risk, "\u26aa"
+        )
+        lines.append(f"{emoji} Funding risk: <b>{risk}</b>")
+    if not lines:
+        return ""
+    return "\U0001f45b <b>Wallet Composition</b>" + scope + "\n" + thin_sep() + "\n" + "\n".join(lines)
