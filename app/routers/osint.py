@@ -26,10 +26,10 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 
 from app.core.logging import get_logger
 from app.core.rate_limiter import get_rate_limit_dependency
+from app.routers.osint_schemas import AggregateReportModel, AggregateRequest
 
 logger = get_logger(__name__)
 
@@ -50,13 +50,6 @@ try:
 except ImportError as exc:
     # Engine not created yet — endpoints 503 until it lands.
     logger.debug("osint_engine_unavailable err=%s", exc)
-
-
-class OsintAggregateRequest(BaseModel):
-    """POST /api/osint/aggregate body."""
-
-    target: str
-    target_type: str | None = None
 
 
 def _target_types() -> list[str]:
@@ -127,7 +120,7 @@ def get_osint_types() -> dict[str, list[str]]:
     return {"target_types": _target_types()}
 
 
-@osint_router.get("/{target_type}/{target}")
+@osint_router.get("/{target_type}/{target}", response_model=AggregateReportModel)
 def get_osint_report(
     target_type: str,
     target: str,
@@ -138,7 +131,7 @@ def get_osint_report(
         description="Per-module timeout in seconds — OSINT lookups are slow.",
     ),
     _rl: None = Depends(get_rate_limit_dependency("osint", rate=0.2, burst=3)),
-) -> dict[str, Any]:
+) -> AggregateReportModel:
     """Run OSINT on a single target of the given type (e.g. domain, wallet, email)."""
     valid = _target_types()
     if target_type not in valid:
@@ -152,12 +145,12 @@ def get_osint_report(
         raise
     except Exception as exc:
         raise _map_osint_errors(exc) from exc
-    return _to_report_dict(report)
+    return AggregateReportModel.model_validate(_to_report_dict(report))
 
 
-@osint_router.post("/aggregate")
+@osint_router.post("/aggregate", response_model=AggregateReportModel)
 def aggregate_osint(
-    request: OsintAggregateRequest,
+    request: AggregateRequest,
     timeout: int = Query(
         60,
         ge=5,
@@ -165,7 +158,7 @@ def aggregate_osint(
         description="Per-module timeout in seconds — OSINT lookups are slow.",
     ),
     _rl: None = Depends(get_rate_limit_dependency("osint", rate=0.2, burst=3)),
-) -> dict[str, Any]:
+) -> AggregateReportModel:
     """Run OSINT across all modules for a target — combined report."""
     kwargs: dict[str, Any] = {}
     if request.target_type:
@@ -176,4 +169,4 @@ def aggregate_osint(
         raise
     except Exception as exc:
         raise _map_osint_errors(exc) from exc
-    return _to_report_dict(report)
+    return AggregateReportModel.model_validate(_to_report_dict(report))
