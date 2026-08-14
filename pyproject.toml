@@ -35,6 +35,11 @@ dependencies = [
     "pyrevm==0.3.7",  # EVM runtime for contract simulation
     "eth-utils==6.0.0",  # Ethereum utilities — pinned explicitly (transitive via eth-account)
     "heimdall-py==0.9.11",  # Heimdall EVM bytecode decompiler (unverified-contract ABI extraction)
+    "pyod==3.6.4",  # PyOD anomaly detection ensemble (app/pyod_anomaly.py)
+    "dnspython==2.8.0",  # DNS lookups (app/osint/domain.py)
+    "python-whois==0.9.6",  # WHOIS lookups (app/osint/domain.py)
+    "phonenumbers==9.0.37",  # phone validation/carrier (app/osint/phone.py)
+    "rapidocr-onnxruntime==1.4.4",  # OCR (app/ocr_utils.py)
 ]
 
 [project.optional-dependencies]
@@ -225,7 +230,7 @@ ignore = ["ASYNC109"]
 "app/domains/databus/providers/chains/mcp_bridge.py" = ['ASYNC221', 'S603', 'S607']
 "app/domains/labels/models.py" = ['E741']
 "app/domains/labels/sources/metasleuth.py" = ['ASYNC221', 'S607']
-"app/domains/news/router.py" = ['RUF006', 'UP031']
+"app/domains/news/routes/articles.py" = ['RUF006', 'UP031']
 "app/domains/newsletter/publisher.py" = ['S112']
 "app/domains/newsletter/router.py" = ['RUF034']
 "app/domains/scanner/modules.py" = ['F403']
