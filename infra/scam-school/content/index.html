@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scam School — Interactive Lessons</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 3rem auto; padding: 0 1rem; color: #1f2933; line-height: 1.6; }
+    h1 { color: #8b1a1a; }
+    code { background: #f3f4f6; padding: .15rem .4rem; border-radius: 4px; font-size: .9em; }
+    .muted { color: #6b7280; font-size: .9em; }
+  </style>
+</head>
+<body>
+  <h1>Scam School — Interactive Lessons</h1>
+  <p>
+    This is the static host for <strong>H5P interactive lessons</strong> authored in
+    <strong>Lumi</strong> (desktop) and exported as standalone HTML.
+  </p>
+  <p>
+    No lessons are published yet. Export each lesson from Lumi via
+    <em>File &rarr; Export &rarr; All-in-one HTML</em> and drop the file into
+    <code>infra/scam-school/content/</code> on the host, e.g.:
+  </p>
+  <pre><code>mv ~/Lumi/rug-pull-red-flags.html /srv/work/repos/rmi-backend/infra/scam-school/content/</code></pre>
+  <p>
+    The lesson is then reachable at
+    <code>http://127.0.0.1:8091/&lt;filename&gt;</code> and can be linked or
+    iframe-embedded from a CourseLit lesson. See
+    <code>infra/scam-school/README.md</code> &rarr; "Authoring H5P lessons with Lumi".
+  </p>
+  <p class="muted">This placeholder page is served by nginx from ./content (read-only mount).</p>
+</body>
+</html>

@@ -1,0 +1,150 @@
+# Scam School — self-hosted crypto-scam education platform
+# ==================================================================
+# CourseLit (LMS) + H5P/Lumi (interactive lesson authoring), so we can
+# host "how to spot a rug pull / honeypot / phishing" courses.
+#
+# Services:
+#   courselit  -> codelit/courselit-app (creator-economy LMS: course + lesson
+#                 authoring, student accounts, curriculum pages, magic-link
+#                 login). Pinned v0.74.4 — same digest as :latest as of
+#                 2026-08-15.
+#   mongo      -> MongoDB 7.0 backing store. Internal only (never published
+#                 to the host); data persists in the mongo_data volume.
+#   h5p        -> nginx static host for Lumi-exported standalone HTML H5P
+#                 lessons (./content mounted read-only). Lumi desktop exports
+#                 a single self-contained HTML file per interactive lesson —
+#                 no H5P server needed. Lessons are linked/embedded from
+#                 CourseLit course pages.
+#
+# Secrets: NEVER commit .env. Copy .env.example -> .env, set AUTH_SECRET,
+# SUPER_ADMIN_EMAIL and the MongoDB password, then:
+#     docker compose up -d --wait
+#
+# Full runbook: README.md.  Upstream compose: codelitdev/courselit
+# deployment/docker/docker-compose.yml.
+
+name: rmi-scam-school
+
+services:
+  courselit:
+    image: ${COURSELIT_IMAGE:-codelit/courselit-app:0.74.4}
+    container_name: rmi-scam-school-courselit
+    restart: unless-stopped
+    env_file:
+      # Required secrets/config: AUTH_SECRET, SUPER_ADMIN_EMAIL,
+      # DB_CONNECTION_STRING, EMAIL_* (optional). See .env.example.
+      - .env
+    environment:
+      NODE_ENV: production
+      # Container listens on 80; the host binding is the loopback port
+      # published below (COURSELIT_PORT).
+      PORT: "80"
+      # Standalone Mongo in compose: transactions disabled (upstream default).
+      DB_TRANSACTIONS: "false"
+      # SCORM cache — ephemeral /tmp is fine for eval; mount a volume here to
+      # persist across restarts.
+      CACHE_DIR: /tmp
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      # Loopback only — never public. Default 8090: 8000 is the rmi-backend
+      # API, 8010 is kroki, 8091 is the h5p static host in this stack.
+      - "127.0.0.1:${COURSELIT_PORT:-8090}:80"
+    networks:
+      - rmi_network
+    healthcheck:
+      # Node is guaranteed present in this Next.js/node image (wget/curl are
+      # not). Global fetch (Node >= 18) pings the app root; 2xx => healthy.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:80/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s   # first boot runs migrations + creates the super admin
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1'
+
+  # MongoDB backing store for CourseLit. Internal only — no host port, it is
+  # reachable only over rmi_network (DB_CONNECTION_STRING in .env uses the
+  # `mongo` service DNS name).
+  mongo:
+    image: ${MONGO_IMAGE:-mongo:7.0}
+    container_name: rmi-scam-school-mongo
+    restart: unless-stopped
+    env_file:
+      # MONGO_INITDB_ROOT_USERNAME / MONGO_INITDB_ROOT_PASSWORD come from .env
+      # and must match the credentials in DB_CONNECTION_STRING.
+      - .env
+    volumes:
+      - mongo_data:/data/db
+    expose:
+      - "27017"
+    networks:
+      - rmi_network
+    healthcheck:
+      # mongosh ships with mongo:7; adminCommand('ping') proves auth + server.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1'
+
+  # Static host for Lumi-exported H5P interactive lessons. Lumi desktop
+  # exports each lesson as ONE self-contained HTML file (all-in-one export)
+  # that runs with no server — nginx just serves it. Drop exported files in
+  # ./content (mounted read-only), then link/embed them from CourseLit.
+  h5p:
+    image: ${H5P_IMAGE:-nginx:1.30.4-alpine}
+    container_name: rmi-scam-school-h5p
+    restart: unless-stopped
+    volumes:
+      - ./content:/usr/share/nginx/html:ro
+    ports:
+      # Loopback only. Default 8091: 8000 is the rmi-backend API, 8090 is
+      # the CourseLit UI in this stack.
+      - "127.0.0.1:${H5P_PORT:-8091}:80"
+    networks:
+      - rmi_network
+    healthcheck:
+      # busybox wget present in the alpine image; / serves content/index.html.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: '0.25'
+
+volumes:
+  # CourseLit/Mongo state — back this up (mongodump; see README "Operations").
+  mongo_data:
+
+networks:
+  # External network created by the platform stack (root docker-compose.yml).
+  # On a fresh host, create it first: docker network create rmi_network
+  rmi_network:
+    name: rmi_network
+    external: true
