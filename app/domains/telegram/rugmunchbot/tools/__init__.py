@@ -1,0 +1,107 @@
+"""RugMunchBot tool registry — REAL data layer for zero-fabrication chat.
+
+Public surface:
+  * ``registry`` — the shared ToolRegistry with all tools registered.
+  * ``run_for_message(text, **ctx)`` — route + run tools for a user question,
+    returning the raw ToolResults plus the LIVE DATA prompt block.
+  * ``guardrails.sanitize_answer`` — post-processing fabrication guardrail.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools.registry import ToolRegistry, ToolResult
+
+logger = get_logger("rmi_bot.tools")
+
+# Shared registry instance (module-level so the bot, handlers and tests use
+# the same TTL cache).
+registry = ToolRegistry()
+
+
+def _register_defaults() -> None:
+    """Register every tool once. Idempotent-ish: registration replaces
+    handlers, so repeated imports do not duplicate anything."""
+    from app.domains.telegram.rugmunchbot.tools.onchain import smart_money, top_traders
+    from app.domains.telegram.rugmunchbot.tools.price import price_lookup
+    from app.domains.telegram.rugmunchbot.tools.security import security_scan, wallet_analysis
+    from app.domains.telegram.rugmunchbot.tools.trending import news_headlines, trending
+    from app.domains.telegram.rugmunchbot.tools.web import web_search
+
+    registry.register("price_lookup", price_lookup, timeout=6.0, ttl=60.0)
+    registry.register("trending", trending, timeout=6.0, ttl=120.0)
+    registry.register("news_headlines", news_headlines, timeout=6.0, ttl=120.0)
+    registry.register("top_traders", top_traders, timeout=8.0, ttl=120.0)
+    registry.register("smart_money", smart_money, timeout=8.0, ttl=120.0)
+    registry.register("security_scan", security_scan, timeout=8.0, ttl=60.0)
+    registry.register("wallet_analysis", wallet_analysis, timeout=20.0, ttl=60.0)
+    registry.register("web_search", web_search, timeout=12.0, ttl=300.0)
+
+
+_register_defaults()
+
+
+async def run_for_message(text: str, **ctx: Any) -> dict[str, ToolResult]:
+    """Route + run tools for a user question.
+
+    Extracts addresses / ``$SYMBOL`` mentions from the text and passes them
+    to the tools that need them (price_lookup, security_scan, wallet_analysis,
+    top_traders). Extra ``**ctx`` kwargs (e.g. ``history``) are forwarded to
+    every tool.
+
+    Args:
+        text: The user's question.
+        **ctx: Extra kwargs forwarded to tools (e.g. ``history``).
+
+    Returns:
+        ``{tool_name: ToolResult}`` for every tool the router selected.
+    """
+    from app.domains.telegram.rugmunchbot.tools.intent import extract_addresses, route_tools, symbols_in
+
+    names = route_tools(text)
+    if not names:
+        return {}
+
+    addrs = extract_addresses(text)
+    syms = symbols_in(text)
+
+    # Per-tool kwargs: each tool receives the param it understands.
+    per_tool: dict[str, dict[str, Any]] = {}
+    for name in names:
+        kwargs: dict[str, Any] = {}
+        if name in ("price_lookup", "security_scan", "wallet_analysis", "top_traders"):
+            kwargs["address"] = addrs[0] if addrs else ""
+            kwargs["chain"] = ""
+        if name == "price_lookup" and syms and not addrs:
+            kwargs["symbol"] = syms[0]
+        per_tool[name] = kwargs
+
+    return await registry.run_many_kwargs(per_tool, **ctx)
+
+
+def known_symbols(results: dict[str, ToolResult]) -> set[str]:
+    """Union of every symbol the tools actually returned."""
+    out: set[str] = set()
+    for r in results.values():
+        out |= r.symbol_set
+    return out
+
+
+def known_addresses(results: dict[str, ToolResult]) -> set[str]:
+    """Union of every address the tools actually returned."""
+    out: set[str] = set()
+    for r in results.values():
+        out |= r.address_set
+    return out
+
+
+__all__ = [
+    "ToolRegistry",
+    "ToolResult",
+    "known_addresses",
+    "known_symbols",
+    "registry",
+    "run_for_message",
+]
