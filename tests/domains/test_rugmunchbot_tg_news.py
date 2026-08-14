@@ -27,7 +27,7 @@ from app.domains.telegram.rugmunchbot.channels import (
 )
 from app.domains.telegram.rugmunchbot.channels.importance import ScoredArticle
 
-NOW = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
+NOW = datetime.now(UTC)
 
 
 def _msg(
@@ -449,6 +449,94 @@ class TestCacheAndSnapshot:
 
     async def test_publish_market_awareness_empty_skips(self) -> None:
         assert await tg_news.publish_market_awareness([], []) is False
+
+
+# ── RAG ingestion (additive, fail-open) ─────────────────────────────────────
+
+
+class TestRagIngest:
+    async def test_empty_skips(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "TG_NEWS_RAG", True)
+        assert await tg_news.ingest_into_rag([]) == {
+            "stories": 0,
+            "ingested": 0,
+            "duplicates": 0,
+            "errors": 0,
+        }
+
+    async def test_disabled_gate_skips(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "TG_NEWS_RAG", False)
+        assert await tg_news.ingest_into_rag([_article("Headline")]) == {
+            "stories": 0,
+            "ingested": 0,
+            "duplicates": 0,
+            "errors": 0,
+        }
+
+    async def test_fails_open_when_rag_unavailable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "TG_NEWS_RAG", True)
+        import app.rag.ingestion as rag_ingestion
+
+        def _boom(*args: Any, **kwargs: Any) -> Any:
+            raise RuntimeError("embedder down")
+
+        monkeypatch.setattr(rag_ingestion, "BatchIngestor", _boom)
+        counts = await tg_news.ingest_into_rag([_article("Headline")])
+        assert counts["errors"] == 1  # fail-open: whole batch counted as error
+        assert counts["ingested"] == 0
+
+    async def test_ingests_story_docs_into_news_v2(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tg_news, "TG_NEWS_RAG", True)
+
+        class FakeReport:
+            def __init__(self, *, accepted: int = 0, duplicate: int = 0, errors: list[str] | None = None) -> None:
+                self.accepted = accepted
+                self.duplicate = duplicate
+                self.errors = errors or []
+
+        class FakeIngestor:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, str, str]] = []
+
+            async def ingest(
+                self, content: str, collection: str, doc_id: str, metadata: dict[str, Any], source_type: str
+            ) -> FakeReport:
+                self.calls.append((collection, doc_id, source_type))
+                return FakeReport(accepted=1)
+
+        fake = FakeIngestor()
+        import app.rag.ingestion as rag_ingestion
+
+        monkeypatch.setattr(rag_ingestion, "BatchIngestor", lambda: fake)
+        counts = await tg_news.ingest_into_rag([_article("Headline")])
+        assert counts["ingested"] == 1
+        assert counts["errors"] == 0
+        assert fake.calls, "ingestor must be called"
+        assert fake.calls[0][0] == "news_v2"
+        assert fake.calls[0][2] == "news"  # source_type → news chunking
+
+    async def test_post_job_calls_rag_ingest_after_posting(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The scheduler must feed RAG after posting (additive side-effect)."""
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        rag_mock = AsyncMock(return_value={"stories": 1, "ingested": 1, "duplicates": 0, "errors": 0})
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[_article("Fresh headline")])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+            patch.object(tg_news, "ingest_into_rag", new=rag_mock),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        rag_mock.assert_awaited_once()
+        bot.send_message.assert_awaited_once()
+
+    def _ctx(self) -> tuple[Mock, AsyncMock]:
+        bot = AsyncMock()
+        ctx = Mock()
+        ctx.bot = bot
+        return ctx, bot
 
 
 # ── Routing: news → news channel, alpha → alpha channel ──────────────────────
