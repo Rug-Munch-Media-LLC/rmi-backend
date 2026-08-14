@@ -30,6 +30,11 @@ dependencies = [
     "langchain>=1.0.0",
     "langchain-openai>=1.0.0",
     "pydantic-ai-slim>=2.0.0",  # Pydantic AI agent framework (app/agents)
+    # Exact pins (dev: pip install -e .; Docker build uses requirements.txt)
+    "scalar-fastapi==1.8.2",  # Scalar OpenAPI docs UI for FastAPI
+    "pyrevm==0.3.7",  # EVM runtime for contract simulation
+    "eth-utils==6.0.0",  # Ethereum utilities — pinned explicitly (transitive via eth-account)
+    "heimdall-py==0.9.11",  # Heimdall EVM bytecode decompiler (unverified-contract ABI extraction)
 ]
 
 [project.optional-dependencies]
@@ -136,6 +141,7 @@ ignore = ["ASYNC109"]
 "app/domains/databus/providers/chains/local.py" = ['S608']
 # Pre-existing: internal-constant f-string SQL in price oracle (sanitized, trusted internal traffic)
 "app/domains/scanner/engines/price_oracle.py" = ['S608']
+"app/domains/scanner/engines/_sources.py" = ['S608']
 # News-event-to-price correlation: same pattern — parameterized values, trusted internal traffic
 "app/domains/scanner/engines/event_correlation.py" = ['S608']
 # x402 enrichment label lookup: placeholders only, values always bound via ch.execute params
