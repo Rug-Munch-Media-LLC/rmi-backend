@@ -47,7 +47,13 @@ def _register_defaults() -> None:
     registry.register("smart_money", smart_money, timeout=8.0, ttl=120.0)
     registry.register("security_scan", security_scan, timeout=8.0, ttl=60.0)
     registry.register("wallet_analysis", wallet_analysis, timeout=20.0, ttl=60.0)
-    registry.register("web_search", web_search, timeout=12.0, ttl=300.0)
+    # web_search timeout is generous (75s): when the bridge + SearXNG are
+    # down the tool synthesizes a knowledge answer through the local-first
+    # LLM chain (qwen-chat → deepseek-analysis → DeepSeek Flash API, up to
+    # ~50s) so it NEVER hard-fails. The chat pipeline bounds its own wait on
+    # this tool (chat_ai LIVE_TOOLS_WAIT) so the slow fallback can't stall
+    # answers.
+    registry.register("web_search", web_search, timeout=75.0, ttl=300.0)
     # Pull any story from any site → clean text + title/author/date. ttl=0:
     # URL content is NOT cached (fresh fetch per call); bounded by timeout.
     registry.register("story_fetch", story_fetch, timeout=14.0, ttl=0.0)
