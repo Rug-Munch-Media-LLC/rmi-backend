@@ -170,6 +170,94 @@ jobs:
           name: openapi-schema
           path: openapi.json
 
+  oasdiff:
+    # Detects BREAKING OpenAPI changes introduced by a PR.
+    # openapi.json is gitignored and regenerated per run (see api-lint), so
+    # the committed-vs-generated comparison is impossible. Instead we
+    # generate the schema from the app at PR HEAD and at PR BASE (main) and
+    # diff them with the oasdiff binary; --fail-on ERR makes breaking
+    # changes block the pipeline.
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install system deps + uv
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl git ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -r requirements.txt
+      - name: Install oasdiff
+        run: |
+          curl -fsSL https://github.com/oasdiff/oasdiff/releases/download/v1.11.7/oasdiff_1.11.7_linux_amd64.tar.gz -o /tmp/oasdiff.tar.gz
+          tar xzf /tmp/oasdiff.tar.gz -C /usr/local/bin oasdiff
+          oasdiff --version
+      - name: Generate OpenAPI from app (PR head)
+        run: |
+          source .venv/bin/activate
+          python -c "
+          import json, sys
+          sys.path.insert(0, '.')
+          from app.main import app
+          schema = app.openapi()
+          with open('openapi.json', 'w') as f:
+              json.dump(schema, f, indent=2)
+          "
+          cp openapi.json /tmp/openapi-head.json
+      - name: Export base tree (PR base / previous main)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo '')"
+          fi
+          if [ -z "$BASE_SHA" ]; then
+            echo "No base commit available — skipping oasdiff."
+            exit 0
+          fi
+          git fetch origin "$BASE_SHA" 2>/dev/null || true
+          mkdir -p /tmp/rmi-base
+          git archive "$BASE_SHA" | tar -x -C /tmp/rmi-base
+          echo "Base SHA: $BASE_SHA"
+      - name: Generate OpenAPI from app (PR base)
+        run: |
+          cd /tmp/rmi-base
+          "$GITHUB_WORKSPACE/.venv/bin/python" -c "
+          import json, sys
+          sys.path.insert(0, '.')
+          from app.main import app
+          schema = app.openapi()
+          with open('/tmp/openapi-base.json', 'w') as f:
+              json.dump(schema, f, indent=2)
+          "
+      - name: Detect breaking OpenAPI changes
+        run: |
+          if [ ! -f /tmp/openapi-base.json ]; then
+            echo "No base spec generated — skipping breaking-change diff."
+            exit 0
+          fi
+          oasdiff breaking /tmp/openapi-base.json /tmp/openapi-head.json --fail-on ERR -f githubactions
+
+  import-linter:
+    # Enforces architectural layer contracts declared in .importlinter:
+    #   1. app.core never imports app.api (layers)
+    #   2. app.services never imports app.api/app.routers (forbidden)
+    #   3. app.adapters are leaf modules (forbidden)
+    # Static analysis only — no application code is imported.
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install import-linter
+        run: pip install import-linter
+      - name: Enforce architectural contracts
+        run: lint-imports --config .importlinter
+
   bandit:
     runs-on: docker-x64
     container:
