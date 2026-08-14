@@ -160,7 +160,7 @@ async def detect_repeat_deployers(
     HAVING count() > %(min_deployments)s
     ORDER BY total_deployments DESC, tokens_launched DESC
     LIMIT %(limit)s
-    """  # noqa: S608 - verified bound/allowlisted SQL construction
+    """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
 
     try:
         rows = client.execute(
@@ -494,7 +494,7 @@ def _query_deployer_stats(deployer_address: str, chain: str) -> dict[str, Any] |
                 max(block_timestamp) AS last_ts
             FROM wallet_memory.deployer_events
             WHERE {where_clause}
-            """,  # noqa: S608 - verified bound/allowlisted SQL construction
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -549,7 +549,7 @@ def _query_deployer_tokens(
             GROUP BY token_address
             ORDER BY deployed_ts DESC
             LIMIT %(limit)s
-            """,  # noqa: S608 - verified bound/allowlisted SQL construction
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )
@@ -655,7 +655,7 @@ def _query_batch_token_lifecycle(
        AND d.type = 'swap'
        AND (d.token0 = tok.token_address OR d.token1 = tok.token_address{pool_clause})
     GROUP BY tok.token_address, tok.deployed_ts
-    """  # noqa: S608 - verified bound/allowlisted SQL construction
+    """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
 
     try:
         rows = client.execute(
@@ -706,7 +706,7 @@ def _query_profile_row(deployer_address: str, chain: str) -> dict[str, Any] | No
             WHERE deployer_address = %(deployer)s {chain_clause}
             ORDER BY computed_at DESC
             LIMIT 1
-            """,  # noqa: S608 - verified bound/allowlisted SQL construction
+            """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
         )

@@ -77,7 +77,7 @@ def _build_transfer_query(
         WHERE {where_clause}
         ORDER BY block_timestamp DESC, block_number DESC
         LIMIT %(limit)s
-        """,  # noqa: S608 - verified bound/allowlisted SQL construction
+        """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
         params,
     )
 
@@ -147,7 +147,7 @@ async def _fetch_labels(
         FROM wallet_memory.wallet_labels
         WHERE address IN ({placeholders})
         ORDER BY address
-    """  # noqa: S608 - verified bound/allowlisted SQL construction
+    """  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
 
     def _query():
         try:

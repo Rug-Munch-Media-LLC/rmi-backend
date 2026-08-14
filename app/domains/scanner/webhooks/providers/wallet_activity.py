@@ -65,7 +65,7 @@ class WalletActivityProvider:
                        OR to_address IN ({placeholders}))
                 ORDER BY block_timestamp ASC
                 LIMIT 100
-                """,  # noqa: S608 - verified bound/allowlisted SQL construction
+                """,  # noqa: S608 - verified bound/allowlisted SQL construction  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
                 params,
             )
         except (ValueError, ConnectionError, RuntimeError) as exc:
