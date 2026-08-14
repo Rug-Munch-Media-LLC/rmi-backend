@@ -1,0 +1,8 @@
+# Scam School state — never commit
+# .env: secrets (AUTH_SECRET, MongoDB password) — copy from .env.example
+.env
+
+# Lumi-exported H5P lesson HTML — authored content, versioned/backed up
+# separately. The placeholder index.html IS committed (see exception below).
+content/*
+!content/index.html
