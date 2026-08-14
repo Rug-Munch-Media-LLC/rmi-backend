@@ -12,6 +12,14 @@ import json
 import pytest
 
 from app.domains.scanner.social_crossref import (
+    _build_result,
+    _index_kol_addresses,
+    _index_kol_handles,
+    _index_scammer_addresses,
+    _index_scammer_handles,
+    _looks_like_address,
+    _norm_addr,
+    _norm_handle,
     crossref_signal,
     crossref_wallet,
     load_known_scammers,
@@ -264,3 +272,99 @@ def test_full_roundtrip_kol(datasets):
 
 def test_full_roundtrip_clean(datasets):
     assert crossref_signal(crossref("0xabcdef1234567890abcdef1234567890abcdef12", "ethereum", datasets)) is None
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Edge cases: loader shapes, normalization, index builders, fail-open
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_loaders_reject_non_list_accounts_wallets(tmp_path):
+    scam_path = tmp_path / "s.json"
+    kol_path = tmp_path / "k.json"
+    scam_path.write_text(json.dumps({"accounts": "not-a-list"}), encoding="utf-8")
+    kol_path.write_text(json.dumps({"wallets": {"not": "a list"}}), encoding="utf-8")
+    assert load_known_scammers(str(scam_path)) == []
+    assert load_kol_wallets(str(kol_path)) == []
+    # Bare non-dict raw payload → [].
+    assert load_known_scammers(str(kol_path)) == []  # {"not": "a list"} dict w/o accounts key
+
+
+def test_normalization_helpers():
+    assert _norm_addr("") == ""
+    assert _norm_addr(None) == ""
+    assert _norm_addr("   ") == ""
+    assert _norm_addr("0xABC123") == "0xabc123"  # EVM lowercased
+    assert _norm_addr("ABCDef") == "ABCDef"  # base58 exact-case
+    assert _norm_handle("  @ScamLord ") == "scamlord"
+    assert _norm_handle(None) == ""
+    # Address lookalike detection.
+    assert _looks_like_address("0x1234567890abcdef") is True
+    assert _looks_like_address("G5nxEXuFMfV74DSnsrSatqCW32F34XUnBeq3PfDS7w5E") is True
+    assert _looks_like_address("short") is False  # too short
+    assert _looks_like_address("@handle") is False  # handle
+    assert _looks_like_address("has space") is False
+
+
+def test_index_scammer_handles_skips_missing_handle():
+    idx = _index_scammer_handles([{"name": "NoHandle", "aliases": []}, {"aliases": ["orphan"]}])
+    assert idx == {}
+    with_alias = _index_scammer_handles([{"handle": "Main", "aliases": ["alias1", ""]}])
+    assert set(with_alias) == {"main", "alias1"}
+
+
+def test_index_scammer_addresses_skips_bad_values():
+    idx = _index_scammer_addresses(
+        [
+            {"handle": "A", "address": {"nested": True}},  # not str/list → skipped
+            {"handle": "B", "address": 123},  # skipped
+            {"handle": "C", "wallets": ["0xABC", "0xdef"]},  # list indexed + lowercased
+        ]
+    )
+    assert idx == {
+        "0xabc": {"handle": "C", "wallets": ["0xABC", "0xdef"]},
+        "0xdef": {"handle": "C", "wallets": ["0xABC", "0xdef"]},
+    }
+    # Empty normalized address → skipped.
+    assert _index_scammer_addresses([{"handle": "D", "address": ""}]) == {}
+
+
+def test_index_kol_addresses_skips_and_prefers_same_chain():
+    # No address → skipped.
+    assert _index_kol_addresses([{"handle": "X"}], "ethereum") == {}
+    # Same address twice: same-chain attribution wins over the first entry.
+    idx = _index_kol_addresses(
+        [
+            {"handle": "eth1", "chain": "ethereum", "address": "0xAbC"},
+            {"handle": "bsc1", "chain": "bsc", "address": "0xabc"},
+        ],
+        chain="bsc",
+    )
+    assert idx["0xabc"]["handle"] == "bsc1"
+    # Without a chain hint the first entry is kept.
+    idx2 = _index_kol_addresses(
+        [
+            {"handle": "eth1", "chain": "ethereum", "address": "0xabc"},
+            {"handle": "bsc1", "chain": "bsc", "address": "0xabc"},
+        ],
+        chain="",
+    )
+    assert idx2["0xabc"]["handle"] == "eth1"
+    assert _index_kol_handles([{"handle": "H"}]) == {"h": {"handle": "H"}}
+
+
+def test_build_result_shapes():
+    out = _build_result(None, None)
+    assert out == {}
+    kol = _build_result(None, {"handle": "k", "name": "K"})
+    assert kol["kol_handle"] == "k"
+    assert kol["known_scammer"] is False
+    scam = _build_result({"handle": "s", "category": "rug"}, {"handle": "k"})
+    assert scam["known_scammer"] is True
+    assert scam["scammer_category"] == "rug"
+
+
+def test_crossref_fails_open_on_non_dict_entries():
+    # A non-dict entry makes dict(entry) raise → whole call degrades to {}.
+    assert crossref_wallet("scamlord", known_scammers=[None]) == {}
+    assert crossref_wallet("0xabc", kol_wallets=[None]) == {}

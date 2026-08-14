@@ -30,6 +30,9 @@ from app.domains.chat_tools import _detect_tool_intent, _exec_perp
 from app.domains.markets import perp_markets
 from app.domains.markets.perp_markets import (
     _age_seconds,
+    _default_gmgn_provider,
+    _format_price,
+    _to_float,
     fetch_hyperliquid_assets,
     fetch_sunswap_bsc_launches,
     format_hyperliquid_assets,
@@ -361,3 +364,62 @@ async def test_exec_perp_fails_open_on_error() -> None:
 def test_perp_wired_into_executors() -> None:
     assert "perp" in chat_tools._EXECUTORS
     assert chat_tools._EXECUTORS["perp"] is _exec_perp
+
+
+# ── 6. Helper / fetch edge cases ─────────────────────────────────────────
+
+
+def test_to_float_dict_funding_shape() -> None:
+    # Hyperliquid occasionally nests funding under a dict.
+    assert _to_float({"funding": "0.0001"}) == 0.0001
+    assert _to_float({"funding": None, "value": "0.5"}) == 0.5
+    assert _to_float({"funding": None, "value": None}) is None
+    assert _to_float("nan") is None
+    assert _to_float([1]) is None
+
+
+def test_normalize_launch_rejects_non_dict() -> None:
+    assert normalize_launch(None, "bsc") is None
+    assert normalize_launch("not-a-dict", "tron") is None
+
+
+def test_default_gmgn_provider_returns_singleton(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = object()
+    monkeypatch.setattr("app.databus.gmgn_provider.get_gmgn_provider", lambda: fake)
+    assert _default_gmgn_provider() is fake
+
+
+async def test_fetch_hyperliquid_creates_and_closes_own_client() -> None:
+    """Without an injected client: own httpx client created, used, closed."""
+    fake_client = _FakeClient(_meta_asset_ctxs())
+    with mock.patch.object(perp_markets.httpx, "AsyncClient", return_value=fake_client):
+        assets = await fetch_hyperliquid_assets()
+    assert len(assets) == 2
+    assert fake_client.last_url == "https://api.hyperliquid.xyz/info"
+
+
+async def test_fetch_hyperliquid_fails_open_on_malformed_pair() -> None:
+    # payload[0] not a dict.
+    assert await fetch_hyperliquid_assets(client=_FakeClient(["not-meta", "not-ctxs"])) == []  # type: ignore[arg-type]
+    # payload[1] not a list.
+    assert await fetch_hyperliquid_assets(client=_FakeClient([{"universe": []}, "not-ctxs"])) == []  # type: ignore[arg-type]
+
+
+async def test_fetch_sunswap_skips_junk_rows() -> None:
+    pairs = [
+        None,
+        {"symbol": "NOPE"},  # no address → skipped
+        {"address": "0x1", "symbol": "OK", "launchpad": "Four.meme", "creation_timestamp": 1_000_000},
+    ]
+    gmgn = _FakeGMGN({"bsc": pairs, "tron": []})
+    launches = await fetch_sunswap_bsc_launches(client=gmgn)
+    assert len(launches) == 1
+    assert launches[0]["symbol"] == "OK"
+
+
+def test_format_price_sub_one_dollar() -> None:
+    assert _format_price(0.5) == "$0.5000"
+    assert _format_price(0.0001) == "$0.0001"
+    assert _format_price(24.31) == "$24.31"
+    assert _format_price(1234.5) == "$1,234.5"
+    assert _format_price(None) == "?"

@@ -15,6 +15,7 @@ from app.domains.social import (
     FarcasterPublisher,
     MastodonPublisher,
     PlatformAdapter,
+    PostizPublisher,
     SocialPublisher,
     TelegramPublisher,
     XPublisher,
@@ -70,6 +71,7 @@ def test_default_adapters_register_all_platforms():
     assert isinstance(adapters["x"], XPublisher)
     assert isinstance(adapters["mastodon"], MastodonPublisher)
     assert isinstance(adapters["discord"], DiscordPublisher)
+    assert isinstance(adapters["postiz"], PostizPublisher)
 
 
 def test_real_vs_stub_adapters():
@@ -77,6 +79,7 @@ def test_real_vs_stub_adapters():
     # Real transports
     assert adapters["telegram"].implemented is True
     assert adapters["farcaster"].implemented is True
+    assert adapters["postiz"].implemented is True
     # Documented stubs
     assert adapters["x"].implemented is False
     assert adapters["mastodon"].implemented is False
@@ -201,3 +204,116 @@ async def test_return_dict_shape(publisher):
         assert set(entry) == {"ok", "post_id", "error"}
         assert isinstance(entry["ok"], bool)
         assert entry["error"] is None or isinstance(entry["error"], str)
+
+
+# ── PostizPublisher (REAL — routes through the Postiz domain service) ───
+
+
+class FakePostizService:
+    """Test double for app.domains.postiz.services.scheduling.schedule_post."""
+
+    def __init__(self, *, result: dict | None = None, exc: Exception | None = None) -> None:
+        self._result = result if result is not None else {"id": "postiz-post-1"}
+        self._exc = exc
+        self.requests: list[dict] = []
+
+    def __call__(self, request: dict) -> dict:
+        self.requests.append(request)
+        if self._exc is not None:
+            raise self._exc
+        return self._result
+
+
+def _all_postiz_target_ids() -> set[str]:
+    """Every Postiz platform id minus the real-direct-adapter platforms."""
+    from app.domains.postiz.platforms import PLATFORMS
+
+    return {pid for pid in PLATFORMS if pid not in {"telegram", "farcaster"}}
+
+
+def test_postiz_enabled_when_service_available():
+    # The Postiz service exists in this repo, so the real adapter is enabled.
+    assert PostizPublisher().enabled is True
+
+
+def test_postiz_enabled_with_injected_service():
+    # Injection short-circuits the availability probe.
+    assert PostizPublisher(schedule_post=FakePostizService()).enabled is True
+
+
+async def test_postiz_posts_via_service_with_platform_ids():
+    service = FakePostizService()
+    adapter = PostizPublisher(schedule_post=service)
+
+    result = await adapter.post("GM everyone", media_url="https://rugmunch.io/1")
+
+    assert result["ok"] is True
+    assert result["post_id"] == "postiz-post-1"
+    assert len(service.requests) == 1
+    req = service.requests[0]
+    assert req["text"] == "GM everyone"
+    assert req["media_urls"] == ["https://rugmunch.io/1"]
+    # Targets every Postiz platform except those with a real direct adapter.
+    assert set(req["platforms"]) == _all_postiz_target_ids()
+    assert "telegram" not in req["platforms"]
+    assert "farcaster" not in req["platforms"]
+
+
+async def test_postiz_custom_platform_ids_are_lowercased():
+    service = FakePostizService()
+    adapter = PostizPublisher(schedule_post=service, platform_ids=["bluesky", "NOSTR"])
+
+    result = await adapter.post("hi")
+
+    assert result["ok"] is True
+    assert service.requests[0]["platforms"] == ["bluesky", "nostr"]
+
+
+async def test_postiz_fail_open_when_service_raises():
+    service = FakePostizService(exc=RuntimeError("postiz store down"))
+    adapter = PostizPublisher(schedule_post=service)
+
+    result = await adapter.post("hello")
+
+    assert result["ok"] is False
+    assert result["post_id"] is None
+    assert "postiz store down" in result["error"]
+
+
+async def test_postiz_service_missing_returns_error(monkeypatch):
+    import sys
+
+    # Simulate the Postiz domain not being installed.
+    monkeypatch.setitem(sys.modules, "app.domains.postiz.services.scheduling", None)
+
+    result = await PostizPublisher().post("hello")
+
+    assert result["ok"] is False
+    assert "Postiz service unavailable" in result["error"]
+
+
+async def test_publish_everywhere_includes_postiz():
+    service = FakePostizService()
+    telegram = FakeAdapter("telegram", enabled=True)
+    postiz = PostizPublisher(schedule_post=service)
+    publisher = SocialPublisher(adapters={"telegram": telegram, "postiz": postiz})
+
+    results = await publisher.publish_everywhere("GM", media_url="https://x.io")
+
+    assert results["telegram"]["ok"] is True
+    assert results["postiz"]["ok"] is True
+    assert results["postiz"]["post_id"] == "postiz-post-1"
+    assert service.requests[0]["media_urls"] == ["https://x.io"]
+
+
+async def test_postiz_failure_does_not_block_direct_adapters():
+    service = FakePostizService(exc=RuntimeError("postiz down"))
+    telegram = FakeAdapter("telegram", enabled=True)
+    postiz = PostizPublisher(schedule_post=service)
+    publisher = SocialPublisher(adapters={"telegram": telegram, "postiz": postiz})
+
+    results = await publisher.publish_everywhere("GM")
+
+    assert results["postiz"]["ok"] is False
+    assert results["telegram"]["ok"] is True
+    assert telegram.calls == [("GM", None)]  # still posted

@@ -94,48 +94,48 @@
 			},
 			{
 				"name": "consensys_best_practices",
-				"description": "ConsenSys Diligence Smart Contract Security Best Practices (canonical Solidity security guidance: known attacks, development recommendations, secure design). Raw markdown at master; docs/ tree (docs/attacks/*.md, docs/development-recommendations/*.md) expands per-topic. License [REVIEW]: repo has no LICENSE file (historically CC BY-SA 4.0). Wired disabled until a markdown-doc ingest path exists.",
+				"description": "ConsenSys Diligence Smart Contract Security Best Practices (canonical Solidity security guidance: known attacks, development recommendations, secure design). Raw markdown at master; docs/ tree (docs/attacks/*.md, docs/development-recommendations/*.md) expands per-topic. License [REVIEW]: repo has no LICENSE file (historically CC BY-SA 4.0). Enabled via the raw-doc markdown ingest path (ingest_doc_sources).",
 				"type": "html_page",
 				"url": "https://raw.githubusercontent.com/ConsenSysDiligence/smart-contract-best-practices/master/README.md",
 				"category": "education",
 				"collections": ["coding_knowledge", "threat_intel"],
-				"enabled": false
+				"enabled": true
 			},
 			{
 				"name": "not_so_smart_contracts",
-				"description": "Trail of Bits NotSoSmartContracts — real vulnerable contract examples with explanations (reentrancy, honeypots, integer overflow, race conditions, unchecked calls). Apache-2.0; repo archived (read-only → URL stable). Raw markdown README + per-vuln subdir READMEs (honeypots/, reentrancy/). Wired disabled until a markdown-doc ingest path exists.",
+				"description": "Trail of Bits NotSoSmartContracts — real vulnerable contract examples with explanations (reentrancy, honeypots, integer overflow, race conditions, unchecked calls). Apache-2.0; repo archived (read-only → URL stable). Raw markdown README + per-vuln subdir READMEs (honeypots/, reentrancy/). Enabled via the raw-doc markdown ingest path (ingest_doc_sources).",
 				"type": "html_page",
 				"url": "https://raw.githubusercontent.com/crytic/not-so-smart-contracts/master/README.md",
 				"category": "education",
 				"collections": ["coding_knowledge", "threat_intel"],
-				"enabled": false
+				"enabled": true
 			},
 			{
 				"name": "smart_contract_vulnerabilities",
-				"description": "KadenZipfel Smart Contract Vulnerabilities (formerly smart-contract-attack-vectors) — ~30 attack vectors with PoC code + references (reentrancy, tx.origin auth, signature malleability, flash-loan oracle manipulation, DoS). MIT, active. Raw markdown README index + references/*.md per vector. Wired disabled until a markdown-doc ingest path exists.",
+				"description": "KadenZipfel Smart Contract Vulnerabilities (formerly smart-contract-attack-vectors) — ~30 attack vectors with PoC code + references (reentrancy, tx.origin auth, signature malleability, flash-loan oracle manipulation, DoS). MIT, active. Raw markdown README index + references/*.md per vector. Enabled via the raw-doc markdown ingest path (ingest_doc_sources).",
 				"type": "html_page",
 				"url": "https://raw.githubusercontent.com/kadenzipfel/smart-contract-vulnerabilities/master/README.md",
 				"category": "education",
 				"collections": ["coding_knowledge", "threat_intel"],
-				"enabled": false
+				"enabled": true
 			},
 			{
 				"name": "solidity_security_considerations",
-				"description": "Official Solidity documentation 'Security Considerations' chapter (pitfalls, recommendations, smart-contract security guidance from docs.soliditylang.org source). GPL-3.0 (repo license). Raw RST at develop. [REVIEW]: ethereum/solidity GitHub redirect observed (argotorg mirror) but raw URL serves canonical content and git refs resolve. Wired disabled until a markdown/RST ingest path exists.",
+				"description": "Official Solidity documentation 'Security Considerations' chapter (pitfalls, recommendations, smart-contract security guidance from docs.soliditylang.org source). GPL-3.0 (repo license). Raw RST at develop. [REVIEW]: ethereum/solidity GitHub redirect observed (argotorg mirror) but raw URL serves canonical content and git refs resolve. Enabled via the raw-doc RST ingest path (ingest_doc_sources).",
 				"type": "html_page",
 				"url": "https://raw.githubusercontent.com/ethereum/solidity/develop/docs/security-considerations.rst",
 				"category": "education",
 				"collections": ["coding_knowledge"],
-				"enabled": false
+				"enabled": true
 			},
 			{
 				"name": "openzeppelin_upgradeable_docs",
-				"description": "OpenZeppelin Contracts docs — 'Upgradeable' chapter (proxy patterns, upgrade risks, storage collisions, unsafe upgrade flows) feeding proxy-risk rug detection. MIT, active. Raw AsciiDoc at master. Wired disabled until a markdown/AsciiDoc ingest path exists.",
+				"description": "OpenZeppelin Contracts docs — 'Upgradeable' chapter (proxy patterns, upgrade risks, storage collisions, unsafe upgrade flows) feeding proxy-risk rug detection. MIT, active. Raw AsciiDoc at master. Enabled via the raw-doc AsciiDoc ingest path (ingest_doc_sources).",
 				"type": "html_page",
 				"url": "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/master/docs/modules/ROOT/pages/upgradeable.adoc",
 				"category": "education",
 				"collections": ["coding_knowledge", "threat_intel"],
-				"enabled": false
+				"enabled": true
 			}
 		]
 	}

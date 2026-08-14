@@ -24,6 +24,7 @@ farcaster      FarcasterPublisher  REAL — Neynar cast API (same path as newsle
 x              XPublisher          STUB — interface + config only, no client yet
 mastodon       MastodonPublisher   STUB — interface + config only, no client yet
 discord        DiscordPublisher    STUB — interface + config only, no client yet
+postiz         PostizPublisher     REAL — 30+ platforms via the Postiz domain service
 =============  ==================  ======================================================
 
 Per-platform configuration (env vars)
@@ -82,12 +83,12 @@ from app.config import settings as _settings
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Iterable, Mapping
 
 logger = get_logger(__name__)
 
 #: Registry order — the canonical platform keys used everywhere.
-ALL_PLATFORMS: tuple[str, ...] = ("telegram", "farcaster", "x", "mastodon", "discord")
+ALL_PLATFORMS: tuple[str, ...] = ("telegram", "farcaster", "x", "mastodon", "discord", "postiz")
 
 #: Neynar cast API (same endpoint as app/domains/newsletter/publisher.py).
 _NEYNAR_CAST_URL = "https://api.neynar.com/v2/farcaster/cast"
@@ -323,6 +324,91 @@ class DiscordPublisher(PlatformAdapter):
         return _error(f"{type(self).__name__} is a stub — {self.STUB_HINT}")
 
 
+# ── Postiz (REAL — 30+ platforms via the Postiz domain service) ─────────
+
+
+#: Postiz platform ids that already have a REAL direct adapter — excluded from
+#: the Postiz default target so a platform is not posted to twice.
+_DIRECT_ADAPTER_PLATFORM_IDS = frozenset({"telegram", "farcaster"})
+
+
+class PostizPublisher(PlatformAdapter):
+    """Posts through the Postiz domain service — one schedule call targets
+    every Postiz platform (30+) as a single content item.
+
+    No credentials live here: ``enabled`` is True whenever the Postiz
+    service/store can be imported (``app.domains.postiz.services``). By default
+    ``post`` targets every id in ``app.domains.postiz.platforms.PLATFORMS``
+    except the platforms with a real direct adapter (``telegram``,
+    ``farcaster``) so they are not double-posted; pass ``platform_ids`` to
+    override. The service is called with ``scheduled_at`` unset (post
+    immediately) and the created post's ``id`` is returned as ``post_id``.
+
+    The service function is imported lazily so this module stays importable
+    without the Postiz domain; when it is unavailable the adapter fails open.
+    """
+
+    name = "postiz"
+
+    def __init__(
+        self,
+        *,
+        schedule_post: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+        platform_ids: Iterable[str] | None = None,
+    ) -> None:
+        # Injectable service callable (tests/orchestrators); None → lazy import.
+        self._schedule_post = schedule_post
+        self._platform_ids = tuple(platform_ids) if platform_ids else None
+
+    @staticmethod
+    def _service_available() -> bool:
+        """True when the Postiz domain service + store can be loaded."""
+        try:
+            from app.domains.postiz.services.scheduling import schedule_post  # noqa: F401
+            from app.domains.postiz.services.store import get_store
+
+            get_store()
+            return True
+        except Exception:
+            return False
+
+    @property
+    def enabled(self) -> bool:
+        return self._schedule_post is not None or self._service_available()
+
+    def _target_platform_ids(self) -> list[str]:
+        if self._platform_ids is not None:
+            return [p.lower() for p in self._platform_ids]
+        from app.domains.postiz.platforms import PLATFORMS
+
+        return [pid for pid in PLATFORMS if pid not in _DIRECT_ADAPTER_PLATFORM_IDS]
+
+    async def post(self, text: str, *, media_url: str | None = None) -> PostResult:
+        service = self._schedule_post
+        if service is None:
+            try:
+                from app.domains.postiz.services.scheduling import schedule_post as _schedule_service
+            except ImportError as exc:
+                return _error(f"Postiz service unavailable: {exc}")
+            service = _schedule_service
+
+        platform_ids = self._target_platform_ids()
+        if not platform_ids:
+            return _error("Postiz has no target platforms configured")
+
+        request: dict[str, Any] = {
+            "text": text,
+            "platforms": platform_ids,
+            "media_urls": [media_url] if media_url else [],
+        }
+        try:
+            scheduled = service(request)
+        except Exception as exc:
+            logger.error("social.postiz_post_failed", error=str(exc))
+            return _error(f"Postiz schedule failed: {exc}")
+        return _ok((scheduled or {}).get("id"))
+
+
 # ── Registry / orchestrator ─────────────────────────────────────────────
 
 
@@ -336,6 +422,7 @@ def default_adapters() -> dict[str, PlatformAdapter]:
             XPublisher(),
             MastodonPublisher(),
             DiscordPublisher(),
+            PostizPublisher(),
         )
     }
     return adapters

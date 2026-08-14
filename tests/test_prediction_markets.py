@@ -26,6 +26,9 @@ from app.domains import chat_tools
 from app.domains.chat_tools import _detect_tool_intent, _exec_prediction
 from app.domains.markets import prediction_markets
 from app.domains.markets.prediction_markets import (
+    _days_until_end,
+    _market_category,
+    _parse_json_array,
     fetch_trending_markets,
     format_market_list,
     normalize_market,
@@ -311,3 +314,66 @@ async def test_exec_prediction_fails_open_on_error() -> None:
 def test_prediction_wired_into_executors() -> None:
     assert "prediction" in chat_tools._EXECUTORS
     assert chat_tools._EXECUTORS["prediction"] is _exec_prediction
+
+
+# ── 6. Helper / formatting edge cases ────────────────────────────────────
+
+
+def test_parse_json_array_edge_cases() -> None:
+    assert _parse_json_array(["a", "b"]) == ["a", "b"]
+    assert _parse_json_array(123) == []  # non-list, non-str
+    assert _parse_json_array(None) == []
+    assert _parse_json_array("{not json") == []  # JSONDecodeError
+    assert _parse_json_array('"a string"') == []  # parses but not a list
+    assert _parse_json_array('["0.42", "0.58"]') == ["0.42", "0.58"]
+
+
+def test_yes_price_falls_back_to_numeric_outcomes() -> None:
+    # Legacy shape: numeric prices living in ``outcomes`` (not outcomePrices).
+    m = normalize_market(_gamma_market(outcomePrices=None, outcomes='["0.42", "0.58"]'))
+    assert m is not None
+    assert m["yes_price"] == pytest.approx(0.42)
+
+
+def test_market_category_from_market_level() -> None:
+    assert _market_category({"category": "Crypto"}) == "Crypto"
+    # Market-level category beats event category.
+    assert _market_category({"category": "Crypto", "events": [{"category": "Politics"}]}) == "Crypto"
+
+
+def test_market_category_event_and_tag_fallbacks() -> None:
+    # Non-dict event skipped; next event's category used.
+    assert _market_category({"events": [None, {"category": "Politics"}]}) == "Politics"
+    # Dict tag label.
+    assert _market_category({"events": [{"category": "", "tags": [{"label": "Sports"}]}]}) == "Sports"
+    # Plain-string tag.
+    assert _market_category({"events": [{"category": "", "tags": ["Sports"]}]}) == "Sports"
+    # No usable category anywhere → "".
+    assert _market_category({}) == ""
+    assert _market_category({"events": [{}]}) == ""
+
+
+async def test_fetch_creates_and_closes_own_client() -> None:
+    """Without an injected client: own httpx client created, used, closed."""
+    fake_client = _FakeClient([_gamma_market()])
+    with mock.patch.object(prediction_markets.httpx, "AsyncClient", return_value=fake_client):
+        markets = await fetch_trending_markets(limit=3)
+    assert len(markets) == 1
+    assert fake_client.last_params is not None
+    assert fake_client.last_params["limit"] == 3
+
+
+def test_days_until_end_edge_cases() -> None:
+    assert _days_until_end(None) is None
+    assert _days_until_end("") is None
+    assert _days_until_end("   ") is None
+    # Naive datetime (no Z / tz) is treated as UTC, not rejected.
+    assert _days_until_end("2099-12-31T00:00:00") is not None
+    # Unparseable → None.
+    assert _days_until_end("garbage") is None
+    assert _days_until_end("2026-13-99") is None
+
+
+def test_rank_skips_non_dict_entries() -> None:
+    assert rank_interesting([None, "not-a-dict", 42]) == []
+    assert rank_interesting([]) == []

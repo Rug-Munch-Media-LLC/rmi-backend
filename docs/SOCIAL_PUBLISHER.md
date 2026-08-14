@@ -37,6 +37,7 @@ results = await social_publisher.publish_everywhere(
 | X | `XPublisher` | **STUB** | none yet — interface + config only |
 | Mastodon | `MastodonPublisher` | **STUB** | none yet — interface + config only |
 | Discord | `DiscordPublisher` | **STUB** | none yet — interface + config only |
+| Postiz | `PostizPublisher` | **REAL** | Postiz domain service (`app/domains/postiz`) — 30+ platforms |
 
 A stub has `implemented = False`, flips `enabled` when its credentials are
 present, and `post()` returns `{"ok": False, "error": "… is a stub — …"}` until
@@ -79,6 +80,45 @@ go live**: `POST {DISCORD_WEBHOOK_URL}` with
 message id → `post_id`. A bot-token + gateway client is the heavier
 alternative. Suggested home: `app/domains/social/clients/discord_client.py`.
 
+### Postiz (`app/domains/postiz/` — no env config)
+`PostizPublisher` is the "post everywhere" adapter: one call schedules the post
+through the Postiz domain service to **every Postiz platform (30+)** — X/Twitter,
+Facebook, Instagram, LinkedIn, Bluesky, Mastodon, Reddit, Nostr, Lens, YouTube,
+WordPress and more — as a single content item. `enabled` is True whenever the
+Postiz service/store is importable (the in-memory `PostizStore` always exists).
+
+- Target ids are resolved from `app.domains.postiz.platforms.PLATFORMS` (all
+  30+ ids), **minus `telegram` / `farcaster`** — those have real direct
+  adapters and would otherwise be double-posted. Pass `platform_ids=` to the
+  constructor to override.
+- `post()` calls `schedule_post` from
+  `app.domains.postiz.services.scheduling` with `scheduled_at` unset (post
+  immediately); the returned Postiz post `id` becomes `post_id`.
+- Fail-open: the Postiz service is imported lazily and any import/runtime
+  failure returns `{"ok": False, ...}` without touching the other adapters.
+
+## Admin flow (backend site → Postiz router)
+
+The admin site manages Postiz through the existing router at
+`/api/v1/postiz/*` (`app/domains/postiz/router.py`):
+
+1. **Connect platforms** — `POST /api/v1/postiz/platforms/connect`
+   (`{"platform_id": "twitter", ...}`) per account; check status via
+   `GET /api/v1/postiz/platforms`.
+2. **Trigger a post** — `POST /api/v1/postiz/schedule` with
+   `{"text": "...", "platforms": ["bluesky", "nostr", ...], "media_urls": [...]}`
+   and **no `scheduled_at`** → the post is created immediately and appears in
+   the calendar/queue with a UUID (`id`). Or send many at once via
+   `POST /api/v1/postiz/schedule/bulk`.
+3. **Track** — `GET /api/v1/postiz/calendar`, `GET /api/v1/postiz/schedule/queue`,
+   `GET /api/v1/postiz/analytics`.
+
+> **Gap:** the Postiz domain has no true "publish now" endpoint — posts created
+> without `scheduled_at` are recorded with status `draft` (never transitioned to
+> `published`). A thin `POST /api/v1/postiz/publish` that marks a post
+> `published` would complete the loop; today the schedule-without-time call is
+> sufficient to *trigger* posting via the admin site.
+
 ## Where to wire the bot
 
 1. Call `await social_publisher.publish_everywhere(...)` from the alert /
@@ -87,8 +127,10 @@ alternative. Suggested home: `app/domains/social/clients/discord_client.py`.
    Telegram-only behaviour is unchanged when nothing else is configured.
 2. Add new platforms to `ALL_PLATFORMS` / `default_adapters()` when a real
    client lands.
-3. Consider Postiz (`app/domains/postiz/`) for scheduled, human-managed posts
-   — the social publisher is for *bot-authored* posts.
+3. Postiz is already wired: `default_adapters()` includes `PostizPublisher`,
+   so `publish_everywhere()` posts to Telegram/Farcaster directly **and** the
+   30+ Postiz platforms in one call. Use `platforms=["telegram"]` if you want
+   to opt a specific call out of Postiz.
 
 ## Notes
 
