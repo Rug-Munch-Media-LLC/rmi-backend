@@ -138,7 +138,7 @@ def _http_get_bytes(url: str, timeout: float = 120.0) -> bytes:
         return resp.content
     except ImportError:
         req = urllib.request.Request(url, headers={"User-Agent": _UA})  # noqa: S310
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310  # nosec B310 - dataset URLs are operator-defined constants, never user input
             return resp.read()
     except Exception as exc:
         raise DatasetDownloadError(f"GET {url} failed: {exc}") from exc

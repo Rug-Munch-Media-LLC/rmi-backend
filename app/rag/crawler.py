@@ -51,7 +51,7 @@ from app.rag._crawler_constants import (
 from app.rag._crawler_helpers import (  # noqa: F401  (re-exported for callers)
     _article_domain,
     _BoilerplateStripper,
-    _doc_id,
+    _doc_id as _doc_id,
     _extract_markdown,
     _normalise_whitespace,
     _unwrap_result,

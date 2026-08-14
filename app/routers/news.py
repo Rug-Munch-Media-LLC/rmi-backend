@@ -180,10 +180,10 @@ async def _refresh_cache(include_rss: bool, include_reddit: bool, include_intern
 from app.routers.news_helpers import (  # noqa: E402 — module docstring precedes import block
     _count_corroborating,
     _normalize_sentiment_label,
-    _point_to_article,
+    _point_to_article as _point_to_article,
     _qdrant_match_filter,
     _rate_article_dict,
-    _scroll_news_v2,
+    _scroll_news_v2 as _scroll_news_v2,
     _sort_articles_by,
 )
 

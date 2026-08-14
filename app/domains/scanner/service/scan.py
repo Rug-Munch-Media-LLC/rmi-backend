@@ -34,7 +34,7 @@ from app.domains.scanner.service.checks import _rag_scam_check
 from app.domains.scanner.service.scoring import (
     _calculate_safety_score,
     _ingest_scan_to_rag,
-    _risk_level_from_safety,
+    _risk_level_from_safety as _risk_level_from_safety,
 )
 
 logger = get_logger(__name__)
