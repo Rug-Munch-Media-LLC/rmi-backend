@@ -12,6 +12,7 @@ import re
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.formatters import footer_links, thin_sep
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._parts import _is_fence_line
 
 CHUNK_MAX_CHARS = 3800  # Telegram hard limit is 4096; leave headroom for escape expansion
 MAX_ADDRESS_HINTS = 2  # cap address-triggered scans per message
@@ -257,6 +258,91 @@ def _markdown_bold_to_html(text: str) -> str:
 
 
 # ══════════════════════════════════════════════
+# MARKDOWN TABLE → LIST FALLBACK
+# Telegram HTML has no table element; a raw markdown pipe table would render
+# as a wall of literal ``|`` characters. Convert table blocks to compact
+# bullet lists BEFORE escaping. Fenced code blocks are never touched.
+# ══════════════════════════════════════════════
+_TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
+_TABLE_SEP_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$")
+
+
+def _split_table_row(row: str) -> list[str]:
+    """Split a markdown table row into trimmed cells (drop outer pipes)."""
+    return [c.strip() for c in row.strip().strip("|").split("|")]
+
+
+def _is_table_block(rows: list[str]) -> bool:
+    """True when consecutive pipe rows look like a markdown table.
+
+    A separator row (``|---|``) is the definitive signal; a run of 3+ pipe
+    rows without one (some LLMs skip the separator) is treated as a table
+    too. Single stray pipe lines are left alone.
+    """
+    if len(rows) < 2:
+        return False
+    if any(_TABLE_SEP_RE.match(r) for r in rows):
+        return True
+    return len(rows) >= 3
+
+
+def _render_table_block(rows: list[str]) -> list[str]:
+    """Render a markdown table block as compact bullet lines (raw text).
+
+    The header row (first row, when a separator row is present) becomes a
+    ``**a · b**`` line so the bold conversion renders it as a header; each
+    data row becomes ``• a · b · c``. The ``|---|`` separator row is
+    dropped. ``·`` (U+00B7) keeps rows on one line without the pipe-wall
+    look of the original table.
+    """
+    has_separator = len(rows) >= 2 and bool(_TABLE_SEP_RE.match(rows[1]))
+    rendered: list[str] = []
+    for idx, row in enumerate(rows):
+        if _TABLE_SEP_RE.match(row):
+            continue
+        cells = _split_table_row(row)
+        if not cells or any(not c for c in cells):
+            continue
+        if has_separator and idx == 0:
+            rendered.append(f"**{' · '.join(cells)}**")
+        else:
+            rendered.append(f"\u2022 {' · '.join(cells)}")
+    return rendered
+
+
+def _tables_to_lists(text: str) -> str:
+    """Convert markdown table blocks to compact bullet lists (raw text).
+
+    Detect table blocks (consecutive ``|`` rows, with or without a
+    ``|---|`` separator row) and render each row as ``• a · b · c`` with
+    the header bolded. Fenced code blocks are never touched: pipe-shaped
+    lines inside ````` ``` ```` stay verbatim.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    in_fence = False
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        if _is_fence_line(line):
+            in_fence = not in_fence
+        if in_fence or not _TABLE_ROW_RE.match(line):
+            out.append(line)
+            i += 1
+            continue
+        run: list[str] = []
+        while i < n and _TABLE_ROW_RE.match(lines[i]):
+            run.append(lines[i])
+            i += 1
+        if not _is_table_block(run):
+            out.extend(run)
+            continue
+        out.extend(_render_table_block(run))
+    return "\n".join(out)
+
+
+# ══════════════════════════════════════════════
 # GIBBERISH GATE (was handlers/message.py tier-1b gate)
 # ══════════════════════════════════════════════
 
@@ -273,6 +359,48 @@ def _is_meaningful_question(text: str) -> bool:
         return False
     # Repeated single word / character spam: "asdfasdfasdf", "lllll"
     return not (len(set(words)) == 1 and len(words) > 4)
+
+
+# ══════════════════════════════════════════════
+# ANSWER POST-PROCESSING GUARDS (think-strip + degenerate-output)
+# Pure, unit-testable; applied in chat_ai_response before the answer is
+# stored/sent so the user and the chat history never see a reasoning chain
+# or a degenerate token-repetition loop.
+# ══════════════════════════════════════════════
+
+
+def strip_think_blocks(text: str) -> str:
+    """Strip ``<think>...</think>`` reasoning blocks from an LLM answer.
+
+    Local models (deepseek-analysis) emit visible reasoning chains and the
+    backend / zen / local providers can all surface them. Handles BOTH
+    complete blocks and unterminated blocks truncated by ``max_tokens`` —
+    exactly like ``ai_router._strip_think_tags`` (an unclosed ``<think>``
+    drops everything from it onward). Idempotent; safe on plain text.
+    """
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL)
+    return cleaned.strip()
+
+
+_DEGENERATE_REPETITION_RE = re.compile(r"^(.{2,40}?)\1{2,}$", re.DOTALL)
+
+
+def is_degenerate_answer(text: str) -> bool:
+    """True when an LLM answer carries no usable content.
+
+    Covers empty/whitespace, bare bullets/dashes, punctuation/emoji-only
+    output, and token-repetition loops ("ioneerioneerioneer...") the local
+    models degenerate into. Mirrors ``ai_router._is_degenerate`` and adds
+    the repetition-loop detector — the loop carries alphanumerics, so the
+    backend's punctuation-only check never catches it.
+    """
+    stripped = (text or "").strip()
+    if not stripped:
+        return True
+    if not any(c.isalnum() for c in stripped):
+        return True
+    return bool(_DEGENERATE_REPETITION_RE.match(stripped))
 
 
 # ══════════════════════════════════════════════
@@ -732,6 +860,11 @@ _FALLBACK_MESSAGE = (
     "I couldn't reach the intelligence engine right now. Use "
     "<code>/scan &lt;address&gt;</code> for direct analysis, or try again "
     "in a moment."
+)
+
+_DEGENERATE_MESSAGE = (
+    "I couldn't put together a proper answer for that. "
+    "Try rephrasing, or paste a token address / $SYMBOL for a direct scan."
 )
 
 _SLOW_DOWN = "\U0001f422 <b>Slow down!</b>\n\nYou're sending messages too fast. Please wait {retry}s and try again."

@@ -24,11 +24,19 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 from typing import Any, ClassVar
+from urllib.parse import urlsplit
 
 import pytest
 
 from app.domains.telegram.rugmunchbot import tools
-from app.domains.telegram.rugmunchbot.tools import _client, known_addresses, known_symbols, registry, run_for_message
+from app.domains.telegram.rugmunchbot.tools import (
+    _client,
+    known_addresses,
+    known_symbols,
+    registry,
+    run_for_message,
+    web,
+)
 from app.domains.telegram.rugmunchbot.tools.guardrails import (
     NO_LIVE_DATA_MESSAGE,
     fabrication_note,
@@ -469,6 +477,133 @@ class TestNoLiveData:
         assert not result.ok
         # The caller-facing constant the handler uses for the failure path.
         assert NO_LIVE_DATA_MESSAGE == "I don't have live data for that right now."
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# web_search — NEVER a hard "failed query": knowledge fallback for
+# conceptual questions, honest no-live-data for market/time-sensitive ones.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestWebSearchLiveDataIntent:
+    """Intent detection: time-sensitive/market/news vs conceptual."""
+
+    def test_live_data_queries_detected(self) -> None:
+        # These MUST be answered honestly ("no live data") — never from the
+        # LLM's training knowledge, which would fabricate current numbers.
+        assert web._is_live_data_query("what's the current price of bitcoin")
+        assert web._is_live_data_query("how much is solana worth right now")
+        assert web._is_live_data_query("latest crypto news")
+        assert web._is_live_data_query("market cap of $BONK today")
+        assert web._is_live_data_query("what happened in the market today")
+        assert web._is_live_data_query("breaking: fed rate decision")
+
+    def test_conceptual_queries_not_detected(self) -> None:
+        # These are safe to answer from the LLM's trained knowledge.
+        assert not web._is_live_data_query("what is solana")
+        assert not web._is_live_data_query("explain proof of stake")
+        assert not web._is_live_data_query("how does MEV work")
+        assert not web._is_live_data_query("what is a rug pull")
+        assert not web._is_live_data_query("how do smart contracts work")
+
+
+class TestWebSearchKnowledgeFallback:
+    """web_search with bridge + SearXNG down — always a usable answer."""
+
+    async def test_web_down_conceptual_query_returns_knowledge_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # No routes configured → bridge + SearXNG both 404 → zero live results.
+        async def _fake_chat_completion(**kwargs: Any) -> dict[str, Any]:
+            return {"content": "Solana is a high-performance proof-of-stake blockchain.", "model": "qwen-chat"}
+
+        monkeypatch.setattr("app.ai_router.chat_completion", _fake_chat_completion)
+        result = await web.web_search(query="what is solana")
+        # The hard "failed query" is GONE: ok=True with a knowledge answer.
+        assert result.ok
+        assert result.error is None
+        assert result.source == "knowledge-fallback"
+        data = result.data
+        assert isinstance(data, dict)
+        assert data.get("knowledge") is True
+        assert data.get("live") is False
+        context = str(data.get("context") or "")
+        assert "answering from knowledge" in context
+        assert "Solana" in context
+        # Knowledge answers carry no tool-verified symbols/addresses.
+        assert result.symbols == []
+        assert result.addresses == []
+
+    async def test_web_down_price_query_returns_honest_no_live_data(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The knowledge LLM must NOT be called for a live-data question —
+        # answering "current price" from training knowledge would fabricate.
+        async def _fake_chat_completion(**kwargs: Any) -> dict[str, Any]:  # pragma: no cover — must not run
+            raise AssertionError("knowledge LLM must not be called for live-data queries")
+
+        monkeypatch.setattr("app.ai_router.chat_completion", _fake_chat_completion)
+        result = await web.web_search(query="what's the current price of bitcoin")
+        assert result.ok  # usable answer, NOT ok=False
+        assert result.source == "knowledge-fallback"
+        data = result.data
+        assert isinstance(data, dict)
+        assert data.get("knowledge") is False
+        context = str(data.get("context") or "")
+        assert "answering from knowledge" not in context
+        assert "live" in context.lower()  # the honest no-live-data message
+        assert result.symbols == []
+        assert result.addresses == []
+
+    async def test_web_down_llm_chain_down_still_returns_usable_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Conceptual question + knowledge LLM chain also down → still an
+        # honest usable answer, never a hard failure.
+        async def _fake_chat_completion(**kwargs: Any) -> dict[str, Any]:
+            # ai_router's canned degenerate-response text = "no usable content".
+            return {"content": "I couldn't find enough context to answer that."}
+
+        monkeypatch.setattr("app.ai_router.chat_completion", _fake_chat_completion)
+        result = await web.web_search(query="what is a honeypot")
+        assert result.ok
+        assert result.source == "knowledge-fallback"
+        data = result.data
+        assert isinstance(data, dict)
+        assert "knowledge model" in str(data.get("context") or "")
+        assert result.symbols == []
+        assert result.addresses == []
+
+    async def test_web_up_bridge_returns_live_search_normal(self) -> None:
+        # Normal path: bridge answers → live web context, no fallback.
+        bridge_netloc = urlsplit(web.BRIDGE_CONTEXT_ENDPOINT).netloc
+        _FakeAsyncClient._responses = {
+            bridge_netloc: {
+                "blocks": {"web_context": "Solana ETF filing news — live web snippet"},
+                "sources": [{"type": "web", "query": "solana news"}],
+            }
+        }
+        result = await web.web_search(query="latest solana news")
+        assert result.ok
+        assert result.source == "bridge:/chat/context"
+        data = result.data
+        assert isinstance(data, dict)
+        assert "live web snippet" in str(data.get("context") or "")
+
+    async def test_web_bridge_down_searxng_up_returns_direct_results(self) -> None:
+        # Bridge down, SearXNG direct up → normal live results via layer 2.
+        searxng_netloc = urlsplit(web.SEARXNG_URL).netloc
+        _FakeAsyncClient._responses = {
+            searxng_netloc: {
+                "results": [
+                    {"title": "Solana breaks new high", "url": "https://example.com/1", "content": "snip 1"},
+                    {"title": "Solana dev activity", "url": "https://example.com/2", "content": "snip 2"},
+                ]
+            }
+        }
+        result = await web.web_search(query="solana news")
+        assert result.ok
+        assert result.source == "searxng"
+        data = result.data
+        assert isinstance(data, dict)
+        results = data.get("results")
+        assert isinstance(results, list)
+        assert len(results) == 2
+        assert results[0]["title"] == "Solana breaks new high"
 
 
 # ══════════════════════════════════════════════════════════════════════════

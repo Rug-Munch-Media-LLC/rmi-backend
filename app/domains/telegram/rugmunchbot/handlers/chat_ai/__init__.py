@@ -100,6 +100,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import (
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     _CHAT_DISABLED,
+    _DEGENERATE_MESSAGE,
     _FALLBACK_MESSAGE,
     _INJECTION_MESSAGES,
     _KNOWN_SCAM_WARNING,
@@ -119,7 +120,10 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     _is_section_header,
     _markdown_bold_to_html,
     _split_oversized,
+    _tables_to_lists,
+    is_degenerate_answer,
     local_ai_response,
+    strip_think_blocks,
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import (
     CHAT_ENDPOINT,  # re-exported (public __all__ / tests)
@@ -171,6 +175,17 @@ MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 # context and exploit rundown blocks (fail-open upstream).
 BRIDGE_CONTEXT_ENDPOINT = os.getenv("BRIDGE_CONTEXT_ENDPOINT", "http://127.0.0.1:8095/chat/context")
 BRIDGE_TIMEOUT = 12.0  # web search can take a few seconds; never block chat on it
+
+# Bounded wait for bot-side live tools on the FALLBACK path. Kept at the
+# pre-change worst case (~20s = wallet_analysis timeout) so web_search's
+# knowledge fallback (up to ~50s when the bridge + SearXNG are down) can
+# never stall the fallback answer. Late-arriving results are re-joined by
+# the guardrail's bounded shield and the no-LLM tool answer window below.
+LIVE_TOOLS_WAIT = 20.0
+# Extra window for the still-running tools (notably web_search's knowledge
+# fallback) when the ENTIRE LLM chain is down and the tool answer is the
+# only thing we can send — better a real answer than the generic fallback.
+TOOL_ANSWER_EXTRA_WAIT = 15.0
 
 
 # ══════════════════════════════════════════════
@@ -810,9 +825,17 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             rag_result = await rag_task
 
         # Live tool data — the ONLY numbers the fallback LLMs may cite.
-        # (Named ``fallback_*`` — the guardrail below re-assigns the
+        # (Named ``fallback_*`` because the guardrail below re-assigns the
         # ``live_results`` name; mypy flags the shadow otherwise.)
-        fallback_live_results = await live_tools_task
+        # Bounded wait (shielded): web_search's knowledge fallback can take
+        # up to ~50s when the bridge + SearXNG are down — it must never
+        # stall the fallback answer. Whatever finished in time is real data;
+        # late results are re-joined by the guardrail shield and the no-LLM
+        # tool-answer window below.
+        try:
+            fallback_live_results = await asyncio.wait_for(asyncio.shield(live_tools_task), timeout=LIVE_TOOLS_WAIT)
+        except (TimeoutError, asyncio.CancelledError):
+            fallback_live_results = {}
 
         # Fallback prompt: bridge blocks + scan summary + LIVE tool data
         # (message-specific real data). The daily market/news digest is NOT
@@ -857,8 +880,17 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             )
 
         # LLM chain completely down but tools returned REAL data → answer
-        # from the tools themselves (no LLM, no guessing).
+        # from the tools themselves (no LLM, no guessing). Give the
+        # still-running tools (notably web_search's knowledge fallback) a
+        # short extra window so their usable answer renders instead of the
+        # generic fallback message — the knowledge answer is labeled and
+        # never fabricated, so it is safe to surface here.
         if not result:
+            if not live_tools_task.done():
+                with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+                    fallback_live_results = await asyncio.wait_for(
+                        asyncio.shield(live_tools_task), timeout=TOOL_ANSWER_EXTRA_WAIT
+                    )
             tool_answer = _format_tool_answer(fallback_live_results)
             if tool_answer:
                 result = {"message": tool_answer, "rag_count": len(bridge_sources), "provider": "tools"}
@@ -888,6 +920,27 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         return True
 
     answer = result["message"]
+
+    # ── THINK-STRIPPING (post-processing) ─────────────────────────────────
+    # Local models (deepseek-analysis) emit visible <think>...</think>
+    # reasoning chains; the backend / zen / local providers can all surface
+    # them. Strip here — the single funnel every provider's answer flows
+    # through — so the user, the stored chat history, and the fabrication
+    # guardrail never see the chain. Handles complete + unterminated blocks
+    # (exactly like ai_router._strip_think_tags).
+    answer = strip_think_blocks(answer)
+
+    # ── DEGENERATE-OUTPUT GUARD (post-processing) ─────────────────────────
+    # A local model can degenerate into a bare "-", punctuation-only output,
+    # or a token-repetition loop ("ioneerioneerioneer..."). Never surface
+    # that — replace it with the helpful fallback message. Runs BEFORE the
+    # fabrication guardrail: garbage carries no symbols worth verifying.
+    # (``answer_is_degenerate`` also suppresses the grounding footer below.)
+    answer_is_degenerate = is_degenerate_answer(answer)
+    if answer_is_degenerate:
+        logger.warning("AI chat degenerate answer replaced (user=%s provider=%s)", user.id, result.get("provider"))
+        answer = _DEGENERATE_MESSAGE
+
     # Fallback answers were grounded by the bridge blocks — append the real
     # citation lines. Backend auto-RAG answers carry their own X-RAG-Context
     # count; citing bridge sources there would be dishonest.
@@ -924,7 +977,16 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     stripped_addrs: list[str] = []
     was_fallback = result is None or result.get("provider") == "tools"
     if live_results:
-        tools_ok = any(r.ok for r in live_results.values())
+        # web_search's synthesized fallbacks (knowledge answer / honest
+        # no-live-data) are NOT corroborating live data — they carry no
+        # tool-verified symbols, so counting them would flip tools_ok and
+        # make the guardrail strip every ticker from a backend-grounded
+        # answer (empty known set). They ARE usable answers, so they still
+        # suppress the no-live-data note below.
+        tools_ok = any(
+            r.ok and not (r.tool == "web_search" and str(r.source).startswith("knowledge"))
+            for r in live_results.values()
+        )
         if was_fallback or tools_ok:
             known_syms = known_symbols(live_results)
             known_addrs = known_addresses(live_results)
@@ -942,9 +1004,20 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         # Honest no-live-data signal (FALLBACK path only): the question routed
         # to tools but every source was down/rate-limited → the bot must not
         # guess. The backend path has its own grounding + its own tool layer,
-        # so appending this there would be a false "no data".
-        if was_fallback and not tools_ok:
+        # so appending this there would be a false "no data". Suppressed when
+        # ANY tool produced a usable answer — including a web_search
+        # knowledge/no-live-data fallback (the honest message already lives
+        # inside that result, and the answer is not a dead end).
+        if was_fallback and not any(r.ok for r in live_results.values()):
             answer = f"{answer}\n\n{NO_LIVE_DATA_MESSAGE}"
+
+    # Last-chance degenerate guard: the fabrication guardrail can strip a
+    # short answer down to nothing (e.g. an answer that was only "$FAKE").
+    # Never send an empty/broken reply — replace with the helpful fallback.
+    if is_degenerate_answer(answer):
+        logger.warning("AI chat answer degenerated after guardrail (user=%s)", user.id)
+        answer = _DEGENERATE_MESSAGE
+        answer_is_degenerate = True
 
     db.increment_usage(user.id, ai_msg=True)
     db.add_chat_message(user.id, "user", text)
@@ -958,7 +1031,13 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # last chunk (an edit cannot carry the footer/buttons reliably).
     with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
         await preliminary.edit_text("\u2705", parse_mode=ParseMode.HTML)
-    parts_sent = await _send_answer(message, answer, result.get("rag_count", 0), actions=bridge_actions)
+    parts_sent = await _send_answer(
+        message,
+        answer,
+        # A replaced degenerate answer has no real grounding to cite.
+        0 if answer_is_degenerate else result.get("rag_count", 0),
+        actions=bridge_actions,
+    )
 
     # ── Structured answer trace (JSON line via structlog) ────────────────
     # One machine-parseable event per answer: question, intent detected,
@@ -1059,16 +1138,20 @@ async def _send_answer(
     number of parts actually sent (0 when there is nothing to send).
 
     v10 pipeline (all on the RAW text first, then escape):
-      1. ``_beautify_answer`` normalizes emoji section headers and inserts
+      1. ``strip_think_blocks`` removes any leaked ``<think>`` reasoning
+         chains (defense in depth — ``chat_ai_response`` already strips).
+      2. ``_tables_to_lists`` converts markdown pipe tables to compact
+         bullet lists (Telegram HTML has no table element).
+      3. ``_beautify_answer`` normalizes emoji section headers and inserts
          thin separators beneath them.
-      2. ``split_in_parts`` (``handlers/chat_ai/_parts.py``) splits at
+      4. ``split_in_parts`` (``handlers/chat_ai/_parts.py``) splits at
          paragraph / section-header boundaries, never mid-sentence, never
          mid-link, and never mid-code-block.
-      3. Each part is HTML-escaped (LLM output is not trusted HTML).
-      4. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
+      5. Each part is HTML-escaped (LLM output is not trusted HTML).
+      6. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
          emits into real ``<b>...</b>`` — safe because the content was
          already escaped in step 3.
-      5. ``send_in_parts`` delivers each part as its own message (keyboard on
+      7. ``send_in_parts`` delivers each part as its own message (keyboard on
          the last part; plain-text degrade on parse rejection).
     A short "⚡ Grounded in N intelligence sources | Rug Munch Bot" footer is
     appended to the last chunk when the backend reported RAG grounding.
@@ -1078,7 +1161,7 @@ async def _send_answer(
     ``actions`` (bridge-suggested buttons) are rendered as an inline
     keyboard on the last chunk when present; otherwise the back menu is used.
     """
-    raw = _beautify_answer(answer)
+    raw = _beautify_answer(_tables_to_lists(strip_think_blocks(answer)))
     chunks = split_in_parts(raw, max_chars=CHUNK_MAX_CHARS)
     if not chunks:
         return 0
@@ -1134,9 +1217,11 @@ __all__ = [
     "_split_oversized",
     "ai_chat_handler",
     "chat_ai_response",
+    "is_degenerate_answer",
     "local_ai_response",
     "register_chat_ai",
     "send_in_parts",
     "split_in_parts",
+    "strip_think_blocks",
     "thin_sep",
 ]

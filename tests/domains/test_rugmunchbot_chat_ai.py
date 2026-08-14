@@ -245,6 +245,108 @@ class TestMarkdownBoldToHtml:
         assert chat_ai._markdown_bold_to_html("**open only") == "**open only"
 
 
+class TestStripThinkBlocks:
+    """Regression: deepseek-analysis (and the backend routing to it) emits
+    <think>...</think> reasoning chains; they must never reach the user."""
+
+    def test_complete_block_removed(self) -> None:
+        assert chat_ai.strip_think_blocks("Answer.\n<think>hidden chain</think>\nMore.") == "Answer.\n\nMore."
+
+    def test_unterminated_block_removed(self) -> None:
+        # max_tokens can cut the model off mid-think: everything from the
+        # unclosed <think> onward is reasoning and must be dropped.
+        assert chat_ai.strip_think_blocks("Answer.\n<think>cut off by max_tokens") == "Answer."
+
+    def test_whole_answer_is_think_block(self) -> None:
+        assert chat_ai.strip_think_blocks("<think>ioneerioneer</think>") == ""
+
+    def test_no_think_block_unchanged(self) -> None:
+        text = "Plain answer with <b>bold</b> markup."
+        assert chat_ai.strip_think_blocks(text) == text
+
+    def test_multiple_blocks_removed(self) -> None:
+        out = chat_ai.strip_think_blocks("<think>a</think>One<think>b</think>Two<think>c</think>")
+        assert out == "OneTwo"
+
+    def test_idempotent(self) -> None:
+        src = "<think>a</think>visible"
+        assert chat_ai.strip_think_blocks(chat_ai.strip_think_blocks(src)) == chat_ai.strip_think_blocks(src)
+
+
+class TestDegenerateAnswer:
+    """Regression: local models can degenerate into bare "-", punctuation-only
+    output, or a "ioneerioneerioneer..." token-repetition loop. All must be
+    detected so the pipeline replaces them instead of surfacing garbage."""
+
+    def test_bare_dash(self) -> None:
+        assert chat_ai.is_degenerate_answer("-") is True
+        assert chat_ai.is_degenerate_answer("- ") is True
+        assert chat_ai.is_degenerate_answer("*") is True
+
+    def test_empty_and_whitespace(self) -> None:
+        assert chat_ai.is_degenerate_answer("") is True
+        assert chat_ai.is_degenerate_answer("   ") is True
+
+    def test_punctuation_only(self) -> None:
+        assert chat_ai.is_degenerate_answer("...") is True
+        assert chat_ai.is_degenerate_answer("!!??") is True
+        assert chat_ai.is_degenerate_answer("\u2014 \u2014 \u2014") is True
+
+    def test_emoji_only(self) -> None:
+        assert chat_ai.is_degenerate_answer("\U0001f525\U0001f525\U0001f525") is True
+
+    def test_repetition_loop(self) -> None:
+        # The exact degeneration seen live: "ioneerioneer..." — carries
+        # alphanumerics so a punctuation-only check (backend-side) misses it.
+        assert chat_ai.is_degenerate_answer("ioneerioneerioneerioneerioneer") is True
+        assert chat_ai.is_degenerate_answer("ioneerioneerioneer") is True
+
+    def test_repeated_word_loop(self) -> None:
+        assert chat_ai.is_degenerate_answer("asdfasdfasdfasdf") is True
+
+    def test_real_answer_not_degenerate(self) -> None:
+        assert chat_ai.is_degenerate_answer("$BONK is up 12% on strong volume.") is False
+        assert chat_ai.is_degenerate_answer("Yes.") is False
+        assert chat_ai.is_degenerate_answer("42") is False
+        assert chat_ai.is_degenerate_answer("I couldn't find enough context to answer that.") is False
+
+
+class TestTablesToLists:
+    """Regression: Telegram HTML has no table element — a raw markdown pipe
+    table renders as a wall of literal pipes. Convert to compact bullets."""
+
+    def test_standard_table_to_bullets(self) -> None:
+        src = "| Token | Price | 24h |\n| --- | --- | --- |\n| BONK | $0.00002 | +5% |\n| WIF | $1.20 | -2% |"
+        out = chat_ai._tables_to_lists(src)
+        assert "|" not in out
+        assert "**Token · Price · 24h**" in out  # header bolded
+        assert "• BONK · $0.00002 · +5%" in out
+        assert "• WIF · $1.20 · -2%" in out
+        assert "---" not in out  # separator row dropped
+
+    def test_table_without_separator_converted(self) -> None:
+        src = "| A | B |\n| 1 | 2 |\n| 3 | 4 |"
+        out = chat_ai._tables_to_lists(src)
+        assert "|" not in out
+        assert "• A · B" in out
+
+    def test_prose_untouched(self) -> None:
+        src = "Plain paragraph with a | pipe inside it."
+        assert chat_ai._tables_to_lists(src) == src
+
+    def test_code_fence_untouched(self) -> None:
+        src = "```\n| col | col |\n| --- | --- |\n```\n\nReal table:\n| a | b |\n| --- | --- |\n| 1 | 2 |"
+        out = chat_ai._tables_to_lists(src)
+        # the fenced block is preserved verbatim...
+        assert "| col | col |" in out
+        assert "| --- | --- |" in out
+        # ...the real table is converted
+        assert "• 1 · 2" in out
+
+    def test_single_pipe_line_untouched(self) -> None:
+        assert chat_ai._tables_to_lists("just | one line") == "just | one line"
+
+
 class TestIsMeaningfulQuestion:
     def test_normal_question(self) -> None:
         assert chat_ai._is_meaningful_question("how do honeypots work?") is True
@@ -536,6 +638,48 @@ class TestLookupTokenSymbol:
         assert msg.replies == []
 
 
+class TestSendAnswer:
+    """Rendering layer (v10 pipeline: strip → tables → beautify → split →
+    escape → bold). Verifies no broken tags and the table fallback."""
+
+    def test_table_converted_to_list(self) -> None:
+        msg = _FakeMessage()
+        answer = "| Token | Risk |\n| --- | --- |\n| BONK | Low |"
+        _run(chat_ai._send_answer(msg, answer, 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "| Token | Risk |" not in sent
+        assert "BONK · Low" in sent
+
+    def test_think_blocks_stripped_at_render(self) -> None:
+        msg = _FakeMessage()
+        _run(chat_ai._send_answer(msg, "<think>hidden</think>visible", 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "hidden" not in sent
+        assert "visible" in sent
+
+    def test_bold_and_lists_render_without_broken_tags(self) -> None:
+        msg = _FakeMessage()
+        answer = "**Bold** text\n- item\n*star item\n*italic* stays literal"
+        _run(chat_ai._send_answer(msg, answer, 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "<b>Bold</b>" in sent
+        assert sent.count("<b>") == sent.count("</b>")
+        assert "<script>" not in sent
+        # single-star italic stays literal (deliberately not converted — a
+        # naive *italic* rule would corrupt math like "2 * 3 * 4")
+        assert "*italic* stays literal" in sent
+
+    def test_long_answer_splits_on_sentence_boundaries(self) -> None:
+        msg = _FakeMessage()
+        long_answer = "This is a complete sentence with padding here. " * 200  # ~12.5k chars
+        parts_sent = _run(chat_ai._send_answer(msg, long_answer, 0))
+        assert parts_sent > 1
+        parts = [r[0][0] for r in msg.replies]
+        assert all(len(p) <= 4000 for p in parts)
+        # every part ends on a sentence boundary — never mid-sentence
+        assert all(p.rstrip().endswith("here.") for p in parts)
+
+
 class TestRouteStructural:
     def test_known_scam_address_blocked(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(chat_ai.anti_abuse, "is_known_scam_address", lambda addr: True)
@@ -662,6 +806,87 @@ class TestChatAiResponse:
         placeholder = msg.returned[0]
         assert len(placeholder.edits) == 1
         assert "AI brain temporarily unavailable" in placeholder.edits[0][0][0]
+
+
+class TestChatAiResponseQuality:
+    """End-to-end answer-quality regressions through chat_ai_response:
+    think-stripping, degenerate-output replacement, long-answer truncation."""
+
+    @pytest.fixture(autouse=True)
+    def _patch_boundaries(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai, "check_spam", lambda uid: False)
+        monkeypatch.setattr(chat_ai, "check_flood", AsyncMock(return_value=(True, 0, None)))
+        monkeypatch.setattr(chat_ai, "refund_flood", AsyncMock())
+
+    def test_think_blocks_stripped_before_send(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "<think>reasoning chain</think>grounded answer", "rag_count": 1}),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        _run(chat_ai.chat_ai_response(upd, None, "how do honeypots work?", upd.effective_user))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "grounded answer" in sent
+        assert "<think>" not in sent
+        assert "reasoning chain" not in sent
+
+    def test_degenerate_repetition_loop_replaced(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "ioneerioneerioneerioneerioneer", "rag_count": 0}),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        _run(chat_ai.chat_ai_response(upd, None, "what is going on?", upd.effective_user))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "ioneer" not in sent
+        # HTML-escaped in transit (' → &#x27;), so assert on a stable substring.
+        assert "put together a proper answer for that" in sent
+
+    def test_bare_dash_replaced(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value={"message": "-", "rag_count": 0}))
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        _run(chat_ai.chat_ai_response(upd, None, "what is going on?", upd.effective_user))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "put together a proper answer for that" in sent
+
+    def test_degenerate_answer_has_no_grounding_footer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # A replaced degenerate answer must not claim "Grounded in N sources".
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "-", "rag_count": 7}),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        _run(chat_ai.chat_ai_response(upd, None, "what is going on?", upd.effective_user))
+        sent = "".join(r[0][0] for r in msg.replies)
+        assert "Grounded in" not in sent
+
+    def test_long_backend_answer_split_into_parts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Regression for the max_tokens 512 → 1536 fix: the splitter must get
+        # the FULL answer and split on boundaries, never cut mid-sentence.
+        long_answer = "Sentence with padding here. " * 400  # ~25k chars
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": long_answer, "rag_count": 3}),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        _run(chat_ai.chat_ai_response(upd, None, "explain this long topic?", upd.effective_user))
+        parts = [r[0][0] for r in msg.replies if "Sentence with padding" in r[0][0]]
+        assert len(parts) > 1
+        assert all(len(p) <= 4000 for p in parts)
+        # every answer part (except the last, which carries the footer) ends
+        # on a complete sentence — no mid-sentence truncation
+        for p in parts[:-1]:
+            assert p.rstrip().endswith("here.")
+        assert "Grounded in 3 intelligence sources" in parts[-1]
 
 
 class TestAiChatHandler:

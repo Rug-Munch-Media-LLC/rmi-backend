@@ -83,12 +83,20 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
     Used when the whole LLM chain is down but the tools returned live data —
     the bot still answers with REAL numbers instead of guessing. Returns
     ``None`` when there is nothing usable to render.
+
+    ``web_search`` results are included too: its synthesized fallbacks
+    (knowledge answer / honest no-live-data message) are usable, labeled
+    answers — never fabricated — so they render instead of the generic
+    fallback message. Live tool data keeps the "Live data" footer; a
+    web-only fallback gets a knowledge footer instead.
     """
     lines: list[str] = []
+    has_live = False
     price = results.get("price_lookup")
     if price is not None and price.ok and isinstance(price.data, dict):
         pairs = price.data.get("pairs") or []
         if pairs:
+            has_live = True
             p = pairs[0]
             addr = p.get("address", "")
             lines.append(
@@ -104,6 +112,7 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
     if trending is not None and trending.ok and isinstance(trending.data, dict):
         tokens = trending.data.get("tokens") or []
         if tokens:
+            has_live = True
             lines.append("\U0001f525 <b>Trending</b>")
             for t in tokens[:8]:
                 addr = t.get("address", "")
@@ -115,14 +124,25 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
     if security is not None and security.ok and isinstance(security.data, dict):
         score = security.data.get("risk_score")
         if score is not None:
+            has_live = True
             emoji = "\U0001f7e2" if score < 40 else ("\U0001f7e1" if score < 70 else "\U0001f534")
             lines.append(f"\U0001f50d <b>Risk: {emoji} {score}/100</b>")
             if security.data.get("is_honeypot") is not None:
                 lines.append(f"honeypot: {security.data['is_honeypot']}")
             lines.append("")
+    # web_search synthesized fallback (knowledge / honest no-live-data):
+    # already labeled in the context — render as-is, never as live data.
+    web = results.get("web_search")
+    if web is not None and web.ok and isinstance(web.data, dict):
+        context = str(web.data.get("context") or "").strip()
+        if context:
+            lines.append(f"{context}\n")
     if not lines:
         return None
-    lines.append("<i>Live data via Rug Munch tools.</i>")
+    if has_live:
+        lines.append("<i>Live data via Rug Munch tools.</i>")
+    else:
+        lines.append("<i>Rug Munch knowledge — live web unavailable.</i>")
     return "\n".join(lines)
 
 

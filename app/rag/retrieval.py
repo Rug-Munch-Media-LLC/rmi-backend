@@ -65,8 +65,12 @@ class ContextWindow:
 
 # ── QueryExpander ────────────────────────────────────────────────────
 
-# Simple crypto/security synonym map for query expansion.
+# Simple crypto/security synonym map for query expansion. Covers the seed
+# corpus domains: scam/security taxonomy, DeFi, TA, tokenomics and market
+# microstructure. Values are appended space-separated to the query, so
+# single words help both the dense embedding and the lexical sparse pillar.
 _QUERY_SYNONYMS: dict[str, list[str]] = {
+    # ── scam / security ─────────────────────────────────────────────
     "rug": ["rugpull", "exit_scam", "liquidity_grab"],
     "scam": ["fraud", "scheme", "fake", "malicious"],
     "honeypot": ["cannot_sell", "tax_trap", "sell_restricted"],
@@ -78,6 +82,80 @@ _QUERY_SYNONYMS: dict[str, list[str]] = {
     "sanction": ["ofac", "blacklist", "banned", "restricted"],
     "laundry": ["mixer", "tumbler", "coinjoin", "obfuscation"],
     "flash": ["flash_loan", "uncollateralized_loan", "arbitrage"],
+    "reentrancy": ["reentrant", "recursive_call", "external_call"],
+    "oracle": ["price_feed", "data_feed", "manipulation"],
+    "approval": ["allowance", "approve", "spender", "revoke"],
+    "mint": ["supply_creation", "inflation", "new_supply"],
+    "frontrun": ["front_running", "tx_ordering", "mempool", "sandwich"],
+    "upgrade": ["upgradeable", "proxy", "implementation_swap"],
+    "tax": ["fee", "transfer_fee", "buy_sell_fee"],
+    "lock": ["lockup", "locked_liquidity", "timelock"],
+    # ── defi ────────────────────────────────────────────────────────
+    "liquidity": ["liquidity_pool", "depth", "reserves", "lp"],
+    "yield": ["apy", "rewards", "interest", "earnings"],
+    "lp": ["liquidity_provider", "liquidity_pool", "reserves"],
+    "mev": ["maximal_extractable_value", "sandwich", "front_running"],
+    "arb": ["arbitrage", "price_difference", "spread_trade"],
+    "arbitrage": ["price_difference", "spread_trade", "cross_venue"],
+    "farm": ["yield_farming", "incentives", "reward_pool"],
+    "lending": ["borrow", "collateral", "loan", "supply_rate"],
+    "borrow": ["lending", "collateral", "debt", "health_factor"],
+    "stablecoin": ["pegged", "peg", "collateralized", "algorithmic"],
+    "tvl": ["total_value_locked", "deposits", "locked_assets"],
+    "amm": ["automated_market_maker", "constant_product", "swap_pool"],
+    "bridge": ["cross_chain", "wrapped_asset", "bridge_exploit"],
+    "stake": ["staking", "delegate", "lock_tokens", "rewards"],
+    "liquidat": ["liquidation", "cascade", "health_factor", "collateral_call"],
+    "liquidation": ["cascade", "health_factor", "collateral_call", "margin_call"],
+    "liquidations": ["liquidation", "cascade", "health_factor"],
+    # ── ta ──────────────────────────────────────────────────────────
+    "rsi": ["relative_strength_index", "momentum", "overbought", "oversold"],
+    "macd": ["moving_average_convergence", "momentum", "histogram"],
+    "support": ["demand_zone", "floor", "buy_wall", "liquidity_zone"],
+    "resistance": ["supply_zone", "ceiling", "sell_wall", "liquidity_zone"],
+    "divergence": ["momentum_conflict", "reversal_warning"],
+    "momentum": ["rate_of_change", "velocity", "trend_strength"],
+    "trend": ["uptrend", "downtrend", "structure", "higher_highs"],
+    "breakout": ["consolidation", "range_break", "liquidity_sweep"],
+    "volume": ["participation", "turnover", "wash_trade", "fake_volume"],
+    "candle": ["candlestick", "wick", "engulfing", "rejection"],
+    # ── tokenomics ──────────────────────────────────────────────────
+    "vesting": ["cliff", "unlock_schedule", "lockup", "emission"],
+    "emission": ["inflation", "mint_rate", "rewards_schedule", "supply_growth"],
+    "supply": ["circulation", "float", "max_supply", "total_supply"],
+    "burn": ["deflation", "token_removal", "buyback_burn"],
+    "buyback": ["repurchase", "treasury", "burn"],
+    "inflation": ["dilution", "emission", "supply_growth", "minting"],
+    "allocation": ["distribution", "insider_bucket", "team_tokens"],
+    "airdrop": ["claim", "sybil", "distribution_event"],
+    "staking": ["lock", "rewards", "delegate", "ve_tokens"],
+    # ── market microstructure ───────────────────────────────────────
+    "slippage": ["price_impact", "spread", "execution_cost"],
+    "spread": ["bid_ask", "market_maker", "execution_cost"],
+    "depth": ["market_depth", "order_book", "liquidity"],
+    "maker": ["market_maker", "limit_order", "liquidity_provider"],
+    "taker": ["market_order", "crossing_spread", "liquidity_remover"],
+    "leverage": ["margin", "liquidation", "notional", "open_interest"],
+    "funding": ["funding_rate", "perpetual", "basis"],
+    "oi": ["open_interest", "derivative_positions", "crowded_trade"],
+    "order": ["order_book", "limit_order", "stop_order", "iceberg"],
+    "orders": ["order_book", "limit_order", "stop_order"],
+}
+
+# Multi-word phrase expansions: bigram keys (underscore-joined tokens) →
+# space-separated synonym phrases. Matched against consecutive query tokens
+# so e.g. "order block" recalls "supply demand zone institutional zone".
+_QUERY_PHRASES: dict[str, str] = {
+    "order_block": "supply demand zone institutional zone",
+    "flash_loan": "uncollateralized loan instant arbitrage exploit",
+    "impermanent_loss": "liquidity provider divergence holding",
+    "order_book": "bid ask depth resting orders",
+    "open_interest": "derivative positions leverage outstanding contracts",
+    "funding_rate": "perpetual premium basis longs pay shorts",
+    "rug_pull": "liquidity removal mint dump exit scam",
+    "pump_dump": "artificial volume wash trade coordinated",
+    "smart_contract": "program blockchain code audit vulnerability",
+    "token_supply": "circulation float emission max supply",
 }
 
 # Common crypto misspellings / variants for fuzzy expansion.
@@ -95,12 +173,19 @@ class QueryExpander:
     Strategy:
       1. Tokenise the query into lowercased terms.
       2. For each known term, append synonyms from the internal map.
-      3. Return the original query plus an "expanded" version with OR-groups.
+      3. For each consecutive token pair, append phrase synonyms from the
+         bigram map (e.g. ``order block`` → ``supply demand zone ...``).
+      4. Return the original query plus an "expanded" version with the
+         extra terms appended (space-separated, capped at ``max_terms``).
+
+    Expansion is a recall lever only — the original query is always kept
+    verbatim, so precision is never sacrificed.
     """
 
     def __init__(self) -> None:
         self.synonyms = _QUERY_SYNONYMS
         self.variants = _QUERY_VARIANTS
+        self.phrases = _QUERY_PHRASES
 
     def expand(self, query: str, max_terms: int = RAG_EXPANSION_TERMS) -> str:
         """Return an expanded query with additional search terms."""
@@ -109,6 +194,14 @@ class QueryExpander:
 
         tokens = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", query.lower())
         extra_terms: list[str] = []
+        # Bigram phrase expansion FIRST (more specific than single tokens):
+        # consecutive token pairs (underscore-joined) hit the phrase map,
+        # e.g. tokens "order","block" → "order_block" → "supply demand zone".
+        for i in range(len(tokens) - 1):
+            bigram = f"{tokens[i]}_{tokens[i + 1]}"
+            if bigram in self.phrases:
+                extra_terms.extend(self.phrases[bigram].split())
+        # Then single-token synonyms and variants.
         for t in tokens:
             if t in self.synonyms:
                 extra_terms.extend(self.synonyms[t])
@@ -507,9 +600,13 @@ class HybridRetriever:
             top_k: Maximum results to return.
             min_similarity: Minimum similarity threshold (0-1).
             filters: Metadata filters (exact-match).
-            expand: Whether to expand the query with synonyms.
+            expand: Whether to expand the query with synonyms (incl. bigram
+                phrase expansion).
             rerank: Whether to rerank candidates with the Infinity
                 cross-encoder (BAAI/bge-reranker-v2-m3) before returning.
+                The underlying ``three_pillar_search`` ALREADY runs the
+                mandatory cross-encoder rerank, so this pass only fires when
+                the engine could not (single hit / reranker unreachable).
                 Fail-open: if the reranker is unreachable the pre-rerank
                 order is returned unchanged.
 
@@ -546,6 +643,19 @@ class HybridRetriever:
             # 3. Re-score and sort
             scored = self._scorer.rescore(raw, query)
 
+            # 3a. The underlying three_pillar_search already runs the
+            # MANDATORY cross-encoder rerank (engine._rerank_hits, fail-open)
+            # and stamps each hit with metadata["rerank_score"]. Preserve that
+            # canonical rerank order: re-sorting by a heuristic blend would
+            # undo the cross-encoder's work. Only the legacy path that did not
+            # rerank (single hit, reranker unreachable, or no engine) falls
+            # through to the optional second pass below.
+            engine_reranked = any((h.metadata or {}).get("rerank_score") is not None for h in scored)
+            if engine_reranked:
+                scored.sort(key=lambda s: -float((s.metadata or {}).get("rerank_score", 0.0)))
+                for h in scored:
+                    h.final_score = float((h.metadata or {}).get("rerank_score", h.final_score))
+
             # 3b. Graph-enhanced retrieval (best-effort): if the knowledge
             # graph is available and the query mentions entities, enrich
             # vector results with entity-verified neighbors (graph boost).
@@ -563,8 +673,12 @@ class HybridRetriever:
             except Exception as exc:
                 log.debug("graph_enrich_skipped err=%s", exc)
 
-            # 4. Optional cross-encoder rerank via Infinity (fail-open)
-            if rerank and len(scored) > 1:
+            # 4. Optional cross-encoder rerank via Infinity (fail-open).
+            # Skipped when the engine's mandatory rerank already ran
+            # (rerank_score present) — avoids a duplicate Infinity call per
+            # query. Graph-enriched hits added in step 3b ride along on the
+            # engine rerank order (they carry an entity-match boost).
+            if rerank and not engine_reranked and len(scored) > 1:
                 scored = await self._apply_rerank(query, scored, top_k)
 
             # 5. News-specific ranking boosts (freshness + entity overlap).
