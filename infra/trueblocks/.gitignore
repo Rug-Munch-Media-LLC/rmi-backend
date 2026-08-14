@@ -1,0 +1,2 @@
+# TrueBlocks index + cache are large, local state — never commit them.
+data/
