@@ -24,9 +24,16 @@ registry = ToolRegistry()
 def _register_defaults() -> None:
     """Register every tool once. Idempotent-ish: registration replaces
     handlers, so repeated imports do not duplicate anything."""
+    # Self-registering intelligence tools — each module owns its register_tool
+    # (name, handler, timeout, TTL). Additive imports, safe for parallel agents.
+    from app.domains.telegram.rugmunchbot.tools.birdeye import birdeye_market
+    from app.domains.telegram.rugmunchbot.tools.market import market_overview
     from app.domains.telegram.rugmunchbot.tools.onchain import smart_money, top_traders
+    from app.domains.telegram.rugmunchbot.tools.prediction_markets import register_tool as _register_prediction_markets
     from app.domains.telegram.rugmunchbot.tools.price import price_lookup
+    from app.domains.telegram.rugmunchbot.tools.rag_lookup import rag_lookup
     from app.domains.telegram.rugmunchbot.tools.security import security_scan, wallet_analysis
+    from app.domains.telegram.rugmunchbot.tools.trend_algo import register_tool as _register_trend_algo
     from app.domains.telegram.rugmunchbot.tools.trending import news_headlines, trending
     from app.domains.telegram.rugmunchbot.tools.web import web_search
 
@@ -38,9 +45,19 @@ def _register_defaults() -> None:
     registry.register("security_scan", security_scan, timeout=8.0, ttl=60.0)
     registry.register("wallet_analysis", wallet_analysis, timeout=20.0, ttl=60.0)
     registry.register("web_search", web_search, timeout=12.0, ttl=300.0)
+    registry.register("birdeye_market", birdeye_market, timeout=10.0, ttl=120.0)
+    registry.register("market_overview", market_overview, timeout=10.0, ttl=60.0)
+    # Direct RAG knowledge lookup (knowledge questions): bounded + fail-open.
+    # Registered but NOT routed by tools/intent.py — chat_ai runs it explicitly
+    # so the backend auto-RAG stays authoritative on tier-1.
+    registry.register("rag_lookup", rag_lookup, timeout=8.0, ttl=300.0)
+
+    _register_trend_algo(registry)
+    _register_prediction_markets(registry)
 
 
 _register_defaults()
+from app.domains.telegram.rugmunchbot.tools import scanner as _scanner_extra  # noqa: E402, F401, I001 — self-registers scanner_intel + token_meta (single additive import; must run after `registry` exists)
 
 
 async def run_for_message(text: str, **ctx: Any) -> dict[str, ToolResult]:

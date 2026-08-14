@@ -1,13 +1,17 @@
-"""price_lookup tool — REAL token price/market data.
+"""price_lookup tool — REAL token price/market data with a rotating fallback chain.
 
-Sources (in order):
+Sources (in order — rotate until one returns data so prices are available
+at all times):
   1. Our backend ``/api/v1/databus/token/{address}`` — DataBus aggregate
      (DexScreener + Birdeye + GMGN + our scanners), cached by the backend.
-  2. DexScreener search API (``/search/?q=<symbol>``) — direct, free.
-  3. DexScreener token endpoint (``/tokens/{address}``) — direct, free.
+  2. DexScreener token endpoint (``/tokens/{address}``) — direct, free.
+  3. Birdeye ``/defi/price`` (direct, key from env/gopass) — token price.
+  4. CoinGecko ``/search`` + ``/coins/{id}`` (free + optional demo key).
+  5. CoinPaprika ``/search`` + ``/tickers/{id}`` — free, no key.
+  6. CoinCap ``/assets`` search — free, no key.
 
 Every number in the returned payload comes from one of those live sources.
-If all sources fail the tool returns ``ok=False`` — the chat layer must say
+If ALL sources fail the tool returns ``ok=False`` — the chat layer must say
 "I don't have live data for that right now".
 """
 
@@ -18,6 +22,8 @@ from typing import Any
 from app.domains.telegram.rugmunchbot.config import DEXSCREENER
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import http_get_json
+from app.domains.telegram.rugmunchbot.tools.birdeye import birdeye_price
+from app.domains.telegram.rugmunchbot.tools.market import symbol_quote_fallback
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult, backend_json_get
 
 logger = get_logger("rmi_bot.tools.price")
@@ -66,7 +72,8 @@ async def price_lookup(*, address: str = "", symbol: str = "", chain: str = "") 
     """Resolve real price/market data for a token address or ``$SYMBOL``.
 
     Prefer the address path (exact). Symbol search returns the top matching
-    pair from DexScreener.
+    pair from DexScreener; if that fails the fallback chain rotates through
+    Birdeye → CoinGecko → CoinPaprika → CoinCap so prices stay available.
     """
     if address:
         # 1. Our backend DataBus aggregate (own data first).
@@ -94,6 +101,17 @@ async def price_lookup(*, address: str = "", symbol: str = "", chain: str = "") 
                 addresses=[p["address"] for p in pairs if p.get("address")],
                 source="dexscreener:/tokens/{address}",
             )
+        # 3. Birdeye direct price (key from env/gopass; rotates on failure).
+        quote = await birdeye_price(address, chain or "solana")
+        if quote and quote.get("price_usd") is not None:
+            return ToolResult(
+                tool="price_lookup",
+                ok=True,
+                data={"query_address": address, "chain": chain or "solana", "quote": quote},
+                symbols=[],
+                addresses=[address],
+                source="birdeye:/defi/price",
+            )
 
     if symbol:
         q = symbol.strip().upper()
@@ -109,9 +127,20 @@ async def price_lookup(*, address: str = "", symbol: str = "", chain: str = "") 
                 addresses=[p["address"] for p in pairs if p.get("address")],
                 source="dexscreener:/search",
             )
+        # 4-6. CoinGecko → CoinPaprika → CoinCap rotation for $SYMBOL queries.
+        quote = await symbol_quote_fallback(q)
+        if quote and quote.get("price_usd") is not None:
+            return ToolResult(
+                tool="price_lookup",
+                ok=True,
+                data={"query_symbol": symbol, "quote": quote},
+                symbols=[quote.get("symbol") or symbol],
+                addresses=[],
+                source=f"{quote.get('source', 'fallback')}",
+            )
 
     return ToolResult(
         tool="price_lookup",
         ok=False,
-        error="no live price data (backend + DexScreener unavailable or no match)",
+        error="no live price data (backend + DexScreener + Birdeye + CoinGecko/CoinPaprika/CoinCap unavailable or no match)",
     )

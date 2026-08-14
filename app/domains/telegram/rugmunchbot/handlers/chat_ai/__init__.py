@@ -61,6 +61,7 @@ import asyncio
 import contextlib
 import os
 import re
+import time
 from html import escape
 from typing import TYPE_CHECKING, Any, cast
 
@@ -122,6 +123,8 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import (
     _call_local_llm,
     _call_zen_llm,
 )
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._parts import send_in_parts, split_in_parts
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._trace import trace_answer
 from app.domains.telegram.rugmunchbot.handlers.message import (
     admin_kb_is_sent,
     admin_kb_mark_sent,
@@ -135,9 +138,10 @@ from app.domains.telegram.rugmunchbot.keyboards import (
 )
 from app.domains.telegram.rugmunchbot.states import check_spam
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
-from app.domains.telegram.rugmunchbot.tools import known_addresses, known_symbols, run_for_message
+from app.domains.telegram.rugmunchbot.tools import known_addresses, known_symbols, registry, run_for_message
 from app.domains.telegram.rugmunchbot.tools.guardrails import NO_LIVE_DATA_MESSAGE, fabrication_note, sanitize_answer
 from app.domains.telegram.rugmunchbot.tools.intent import build_tool_prompt_block
+from app.domains.telegram.rugmunchbot.tools.rag_lookup import should_rag_lookup
 
 if TYPE_CHECKING:
     from telegram import Message
@@ -613,6 +617,7 @@ async def _reply_local_intent(message: Message, text: str, user: Any) -> bool:
     local_response = local_ai_response(text, user)
     if not local_response:
         return False
+    t0 = time.monotonic()
     logger.info("AI chat tier=2 (local intent) user=%s text=%.60s", user.id, text)
     db.increment_usage(user.id, ai_msg=True)
     try:
@@ -630,6 +635,14 @@ async def _reply_local_intent(message: Message, text: str, user: Any) -> bool:
     except (TelegramError, ConnectionError, OSError, TimeoutError):
         logger.debug("chat_ai local intent reply failed", exc_info=True)
         return False
+    trace_answer(
+        question=text,
+        user_id=user.id,
+        intent="chat",
+        route="local_intent",
+        latency_ms=(time.monotonic() - t0) * 1000,
+        ok=True,
+    )
     return True
 
 
@@ -670,6 +683,21 @@ async def _run_live_tools(text: str, history: list[dict[str, str]] | None = None
     except Exception as exc:
         logger.debug("live tool run failed (text %.60s): %s", text, exc)
         return {}
+
+
+async def _run_rag_lookup(text: str) -> ToolResult | None:
+    """Run the direct RAG knowledge lookup (best-effort, bounded, fail-open).
+
+    Searches the intel DB for knowledge questions BEFORE any web/LLM
+    fallback. Returns ``None`` only on an unexpected registry failure; the
+    tool itself reports ``ok=False`` when the query is not knowledge-style
+    or the search failed. Never raises.
+    """
+    try:
+        return await registry.run("rag_lookup", query=text)
+    except Exception as exc:
+        logger.debug("rag_lookup tool run failed (text %.60s): %s", text, exc)
+        return None
 
 
 def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
@@ -773,9 +801,21 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         )
         return True
 
+    # End-to-end answer latency is measured from here (all paths that send an
+    # answer trace it via :func:`trace_answer`).
+    pipeline_start = time.monotonic()
+
     # Gibberish gate — don't burn LLM tokens on noise.
     if not _is_meaningful_question(text):
         await _reply_redirect(message, user, flood_receipt)
+        trace_answer(
+            question=text,
+            user_id=user.id,
+            intent="chat",
+            route="redirect",
+            latency_ms=(time.monotonic() - pipeline_start) * 1000,
+            ok=True,
+        )
         return True
 
     # Tier-2: ONLY instant-reply for greetings, thanks, and capability inquiries.
@@ -822,6 +862,10 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # the fallback path is grounded in real numbers and the guardrail can
     # verify the final answer. Bounded + fail-open — never blocks chat.
     live_tools_task = asyncio.create_task(_run_live_tools(text, history))
+    # Direct RAG knowledge lookup (knowledge questions only): searches the
+    # intel DB BEFORE any web/LLM fallback. On the tier-1 path the backend
+    # RAGs itself, so this task is cancelled when the backend answers.
+    rag_task = asyncio.create_task(_run_rag_lookup(text)) if should_rag_lookup(text) else None
 
     # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
     # The backend injects the current date/time and runs its own RAG
@@ -832,6 +876,10 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # backend answer carries its own grounding and never needs them.
     bridge_sources: list[dict[str, str]] = []
     bridge_actions: list[dict[str, str]] = []
+    # Direct RAG lookup result — only set on the fallback path (backend path
+    # cancels rag_task and keeps this None so the backend's own grounding
+    # stays authoritative).
+    rag_result: ToolResult | None = None
 
     if result is None:
         # Fallback path: gather the context fetches (fail-open) that ground
@@ -844,8 +892,18 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         else:
             bridge_context = None
 
+        # Direct RAG knowledge lookup (bot-side, fail-open): searches the
+        # intel DB for knowledge questions BEFORE the web/LLM fallback — the
+        # missing grounding layer when the bridge is down. Real hits are
+        # prepended FIRST (own data before web) and their sources feed the
+        # honest grounding footer (rag_count = len(sources)).
+        if rag_task is not None:
+            rag_result = await rag_task
+
         # Live tool data — the ONLY numbers the fallback LLMs may cite.
-        live_results = await live_tools_task
+        # (Named ``fallback_*`` — the guardrail below re-assigns the
+        # ``live_results`` name; mypy flags the shadow otherwise.)
+        fallback_live_results = await live_tools_task
 
         # Fallback prompt: bridge blocks + scan summary + LIVE tool data
         # (message-specific real data). The daily market/news digest is NOT
@@ -853,12 +911,19 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         # the fallback LLMs treat it as current data in the SYSTEM prompt
         # instead of part of the question.
         prompt = text
+        if rag_result is not None and rag_result.ok and isinstance(rag_result.data, dict):
+            rag_context_block = str(rag_result.data.get("context") or "")
+            rag_sources = rag_result.data.get("sources") or []
+            if isinstance(rag_sources, list):
+                bridge_sources = bridge_sources + [s for s in rag_sources if isinstance(s, dict)]
+            if rag_context_block:
+                prompt = f"{rag_context_block}\n\n{prompt}"
         if bridge_context:
             prompt = f"{bridge_context}\n\n{prompt}"
         if scan_summary:
             prompt = f"{scan_summary}\n\n{prompt}"
 
-        tool_block = build_tool_prompt_block(live_results)
+        tool_block = build_tool_prompt_block(fallback_live_results)
         if tool_block:
             prompt = f"{tool_block}\n\n{prompt}"
 
@@ -885,7 +950,7 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         # LLM chain completely down but tools returned REAL data → answer
         # from the tools themselves (no LLM, no guessing).
         if not result:
-            tool_answer = _format_tool_answer(live_results)
+            tool_answer = _format_tool_answer(fallback_live_results)
             if tool_answer:
                 result = {"message": tool_answer, "rag_count": len(bridge_sources), "provider": "tools"}
     else:
@@ -893,7 +958,7 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         # background are no longer needed. Cancel them so no coroutine dangles.
         # NOTE: live_tools_task is NOT cancelled — the guardrail below needs
         # its results to verify the backend answer (bounded; self-terminates).
-        pending = [t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task) if t is not None]
+        pending = [t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task, rag_task) if t is not None]
         for t in pending:
             t.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
@@ -939,6 +1004,15 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         live_results = await asyncio.wait_for(asyncio.shield(live_tools_task), timeout=2.0)
     except (TimeoutError, asyncio.CancelledError, Exception):
         live_results = live_tools_task.result() if live_tools_task.done() and not live_tools_task.cancelled() else {}
+    # On the fallback path the direct RAG lookup is REAL grounding — merge it
+    # so its content symbols/addresses protect RAG-cited tickers and its
+    # success counts as corroboration. Never merged on the backend path
+    # (rag_result stays None there; the backend's own grounding is
+    # authoritative).
+    if rag_result is not None and rag_result.ok:
+        live_results["rag_lookup"] = rag_result
+    stripped_syms: list[str] = []
+    stripped_addrs: list[str] = []
     was_fallback = result is None or result.get("provider") == "tools"
     if live_results:
         tools_ok = any(r.ok for r in live_results.values())
@@ -975,7 +1049,34 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # last chunk (an edit cannot carry the footer/buttons reliably).
     with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
         await preliminary.edit_text("\u2705", parse_mode=ParseMode.HTML)
-    await _send_answer(message, answer, result.get("rag_count", 0), actions=bridge_actions)
+    parts_sent = await _send_answer(message, answer, result.get("rag_count", 0), actions=bridge_actions)
+
+    # ── Structured answer trace (JSON line via structlog) ────────────────
+    # One machine-parseable event per answer: question, intent detected,
+    # tools called, data sources hit, fabricated tokens (must be 0), latency,
+    # LLM used — greppable directly in the bot logs.
+    data_sources: list[str] = []
+    for r in live_results.values():
+        if r.ok and r.source:
+            data_sources.append(r.source)
+    if result.get("provider") == "backend" and result.get("rag_count"):
+        data_sources.append("backend-rag")
+    data_sources.extend(str(s.get("type")) for s in bridge_sources if isinstance(s, dict) and s.get("type"))
+    trace_answer(
+        question=text,
+        user_id=user.id,
+        intent="analysis" if _is_deep_question(text) else "chat",
+        route=str(result.get("provider") or ""),
+        tools=sorted(live_results.keys()),
+        sources=data_sources,
+        fabricated_symbols=stripped_syms,
+        fabricated_addresses=stripped_addrs,
+        latency_ms=(time.monotonic() - pipeline_start) * 1000,
+        llm=str(result.get("model") or ""),
+        provider=str(result.get("provider") or ""),
+        rag_count=int(result.get("rag_count") or 0),
+        parts=parts_sent,
+    )
     return True
 
 
@@ -1044,18 +1145,22 @@ async def _send_answer(
     rag_count: int,
     *,
     actions: list[dict[str, str]] | None = None,
-) -> None:
-    """Reply with the answer, chunked to Telegram's size limit.
+) -> int:
+    """Reply with the answer, split into Telegram-sized parts. Returns the
+    number of parts actually sent (0 when there is nothing to send).
 
     v10 pipeline (all on the RAW text first, then escape):
       1. ``_beautify_answer`` normalizes emoji section headers and inserts
          thin separators beneath them.
-      2. ``_chunk_text`` splits at paragraph / section-header boundaries —
-         never mid-sentence when a sentence boundary exists.
-      3. Each chunk is HTML-escaped (LLM output is not trusted HTML).
+      2. ``split_in_parts`` (``handlers/chat_ai/_parts.py``) splits at
+         paragraph / section-header boundaries, never mid-sentence, never
+         mid-link, and never mid-code-block.
+      3. Each part is HTML-escaped (LLM output is not trusted HTML).
       4. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
          emits into real ``<b>...</b>`` — safe because the content was
          already escaped in step 3.
+      5. ``send_in_parts`` delivers each part as its own message (keyboard on
+         the last part; plain-text degrade on parse rejection).
     A short "⚡ Grounded in N intelligence sources | Rug Munch Bot" footer is
     appended to the last chunk when the backend reported RAG grounding.
     ``rag_count`` is the REAL number of unique RAG hits (from
@@ -1065,9 +1170,9 @@ async def _send_answer(
     keyboard on the last chunk when present; otherwise the back menu is used.
     """
     raw = _beautify_answer(answer)
-    chunks = _chunk_text(raw)
+    chunks = split_in_parts(raw, max_chars=CHUNK_MAX_CHARS)
     if not chunks:
-        return
+        return 0
     escaped = [escape(c) for c in chunks]
     html = [_markdown_bold_to_html(c) for c in escaped]
     if rag_count > 0:
@@ -1080,26 +1185,14 @@ async def _send_answer(
         html[-1] = f"{html[-1]}\n\n<i>\u26a1 Grounded in {source_label} | Rug Munch Bot</i>"
 
     kb = _render_bridge_actions(actions) or back_kb()
-    last = len(html) - 1
-    for i, chunk in enumerate(html):
-        # Final safety clip: never exceed Telegram's hard 4096-char limit even
-        # when entity expansion pushed a chunk over.
-        if len(chunk) > 4000:
-            chunk = chunk[:4000]
-        try:
-            await message.reply_text(
-                chunk,
-                parse_mode=ParseMode.HTML,
-                reply_markup=kb if i == last else None,
-                disable_web_page_preview=True,
-            )
-        except (TelegramError, ConnectionError, OSError, TimeoutError) as e:
-            logger.debug("chat_ai reply failed chunk=%d: %s", i, e)
-            # Degrade: send without parse mode so the user still gets the text.
-            try:
-                await message.reply_text(chunk)
-            except (TelegramError, ConnectionError, OSError, TimeoutError):
-                return
+    await send_in_parts(
+        message,
+        html,
+        parse_mode=ParseMode.HTML,
+        reply_markup=kb,
+        disable_web_page_preview=True,
+    )
+    return len(html)
 
 
 def register_chat_ai(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
@@ -1127,11 +1220,14 @@ __all__ = [
     "MAX_ADDRESS_HINTS",
     "SCAN_ENDPOINT",
     "SCAN_TIMEOUT",
+    "_chunk_text",
     "_is_section_header",
     "_split_oversized",
     "ai_chat_handler",
     "chat_ai_response",
     "local_ai_response",
     "register_chat_ai",
+    "send_in_parts",
+    "split_in_parts",
     "thin_sep",
 ]
