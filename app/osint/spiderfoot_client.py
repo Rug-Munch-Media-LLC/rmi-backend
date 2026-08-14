@@ -193,8 +193,8 @@ def _source_from_module(module: str) -> str:
     return name or "spiderfoot"
 
 
-def _confidence_from_values(confidence: Any, risk: Any, false_positive: Any) -> str:
-    """Derive high/medium/low from SpiderFoot confidence %, risk, and fp flag."""
+def _confidence_from_values(confidence: Any, false_positive: Any) -> str:
+    """Derive high/medium/low from SpiderFoot confidence % and the fp flag."""
     if str(false_positive).strip() in ("1", "True", "true"):
         return "low"
     try:
@@ -240,6 +240,19 @@ def _request_json(
     return response.json()
 
 
+def _as_list(value: Any) -> list[Any]:
+    """Coerce an API response to a list.
+
+    Every endpoint this client uses (startscan / scanstatus /
+    scaneventresults / scanerrors) returns a JSON array. Non-list responses
+    (unexpected server behaviour) are treated as empty.
+    """
+    if isinstance(value, list):
+        narrowed: list[Any] = value
+        return narrowed
+    return []
+
+
 def _start_scan(client: httpx.Client, target: str, scanname: str, usecase: str) -> str:
     """Start a scan and return its scan ID."""
     payload = {
@@ -250,10 +263,12 @@ def _start_scan(client: httpx.Client, target: str, scanname: str, usecase: str) 
         "usecase": usecase,
     }
     result = _request_json(client, "POST", "/startscan", data=payload)
-    if not isinstance(result, list) or len(result) < 2 or result[0] != "SUCCESS":
-        message = result[1] if isinstance(result, list) and len(result) > 1 else "unknown error"
+    # SpiderFoot answers ["SUCCESS", scanId] or ["ERROR", msg].
+    items = _as_list(result)
+    if len(items) < 2 or items[0] != "SUCCESS":
+        message = items[1] if len(items) > 1 else "unknown error"
         raise RuntimeError(f"SpiderFoot failed to start scan: {message}")
-    scan_id = result[1]
+    scan_id = items[1]
     if not isinstance(scan_id, str) or not scan_id:
         raise RuntimeError("SpiderFoot returned an empty scan ID")
     return scan_id
@@ -263,19 +278,23 @@ def _scan_status(client: httpx.Client, scan_id: str) -> tuple[str, str]:
     """Return ``(status, target)`` for a scan; empty tuple on unknown scan."""
     result = _request_json(client, "GET", "/scanstatus", params={"id": scan_id})
     # [name, target, created, started, ended, status, riskmatrix]
-    if not isinstance(result, list) or len(result) < 6:
+    items = _as_list(result)
+    if len(items) < 6:
         return "", ""
-    status = result[5]
-    target = result[1]
+    status = items[5]
+    target = items[1]
     return (str(status) if status else "", str(target) if target else "")
 
 
 def _scan_results(client: httpx.Client, scan_id: str) -> list[list[Any]]:
     """Fetch all event rows for a scan (raw list-of-lists)."""
     result = _request_json(client, "GET", "/scaneventresults", params={"id": scan_id, "eventType": "ALL"})
-    if not isinstance(result, list):
-        return []
-    return [row for row in result if isinstance(row, list)]
+    rows: list[list[Any]] = []
+    for row in _as_list(result):
+        if isinstance(row, list):
+            entry: list[Any] = row
+            rows.append(entry)
+    return rows
 
 
 def _scan_errors(client: httpx.Client, scan_id: str) -> list[str]:
@@ -285,10 +304,8 @@ def _scan_errors(client: httpx.Client, scan_id: str) -> list[str]:
     except Exception as exc:
         logger.warning("spiderfoot: could not fetch scan errors: %s", exc)
         return []
-    if not isinstance(result, list):
-        return []
     messages: list[str] = []
-    for item in result:
+    for item in _as_list(result):
         text = str(item).strip()
         if text and text not in messages:
             messages.append(text)
@@ -309,7 +326,8 @@ def _row_to_finding(row: list[Any]) -> OsintFinding | None:
     data_text = _clean_text(row[1])
     source_data = _clean_text(row[2])
     false_positive = str(row[8]).strip() in ("1", "True", "true")
-    confidence = _confidence_from_values(row[4], row[6], row[8])
+    confidence = _confidence_from_values(row[4], row[8])
+    risk = _clean_text(row[6])
 
     summary = data_text
     if not summary:
@@ -320,6 +338,8 @@ def _row_to_finding(row: list[Any]) -> OsintFinding | None:
         "module": module,
         "false_positive": false_positive,
     }
+    if risk:
+        details["risk"] = risk
     if source_data:
         details["source_data"] = source_data
     last_seen = _clean_text(row[0])
