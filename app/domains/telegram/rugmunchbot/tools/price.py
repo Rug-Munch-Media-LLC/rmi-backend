@@ -54,17 +54,34 @@ def _extract_pair(p: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _extract_pairs(items: object) -> list[dict[str, Any]]:
+    """Extract valid pair dicts from a raw JSON value (None results dropped).
+
+    Mirrors ``[_extract_pair(p) for p in items if isinstance(p, dict)]`` with
+    the ``None`` results filtered out — mypy-clean and crash-safe.
+    """
+    if not isinstance(items, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for p in items:
+        if isinstance(p, dict):
+            pair = _extract_pair(p)
+            if pair is not None:
+                out.append(pair)
+    return out
+
+
 def _parse_backend_detail(body: dict[str, Any]) -> list[dict[str, Any]]:
     """Parse the DataBus ``/token/{address}`` payload into pairs list."""
     pairs = body.get("pairs")
     if isinstance(pairs, list):
-        return [_extract_pair(p) for p in pairs if isinstance(p, dict)]
+        return _extract_pairs(pairs)
     # Some payloads nest under ``data``.
     data = body.get("data")
     if isinstance(data, dict):
         pairs = data.get("pairs")
         if isinstance(pairs, list):
-            return [_extract_pair(p) for p in pairs if isinstance(p, dict)]
+            return _extract_pairs(pairs)
     return []
 
 
@@ -90,8 +107,7 @@ async def price_lookup(*, address: str = "", symbol: str = "", chain: str = "") 
             )
         # 2. Direct DexScreener token endpoint (address is exact).
         body = await http_get_json(f"{DEXSCREENER}/tokens/{address}", timeout=6.0)
-        pairs = [_extract_pair(p) for p in (body or {}).get("pairs", []) if isinstance(p, dict)]
-        pairs = [p for p in pairs if p is not None]
+        pairs = _extract_pairs((body or {}).get("pairs", []))
         if pairs:
             return ToolResult(
                 tool="price_lookup",
@@ -116,8 +132,7 @@ async def price_lookup(*, address: str = "", symbol: str = "", chain: str = "") 
     if symbol:
         q = symbol.strip().upper()
         body = await http_get_json(f"{DEXSCREENER}/search", params={"q": q}, timeout=6.0)
-        pairs = [_extract_pair(p) for p in (body or {}).get("pairs", []) if isinstance(p, dict)]
-        pairs = [p for p in pairs if p is not None]
+        pairs = _extract_pairs((body or {}).get("pairs", []))
         if pairs:
             return ToolResult(
                 tool="price_lookup",

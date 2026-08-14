@@ -33,6 +33,7 @@ def _register_defaults() -> None:
     from app.domains.telegram.rugmunchbot.tools.price import price_lookup
     from app.domains.telegram.rugmunchbot.tools.rag_lookup import rag_lookup
     from app.domains.telegram.rugmunchbot.tools.security import security_scan, wallet_analysis
+    from app.domains.telegram.rugmunchbot.tools.ta import register_tool as _register_ta
     from app.domains.telegram.rugmunchbot.tools.trend_algo import register_tool as _register_trend_algo
     from app.domains.telegram.rugmunchbot.tools.trending import news_headlines, trending
     from app.domains.telegram.rugmunchbot.tools.web import web_search
@@ -54,6 +55,7 @@ def _register_defaults() -> None:
 
     _register_trend_algo(registry)
     _register_prediction_markets(registry)
+    _register_ta(registry)
 
 
 _register_defaults()
@@ -63,10 +65,10 @@ from app.domains.telegram.rugmunchbot.tools import scanner as _scanner_extra  # 
 async def run_for_message(text: str, **ctx: Any) -> dict[str, ToolResult]:
     """Route + run tools for a user question.
 
-    Extracts addresses / ``$SYMBOL`` mentions from the text and passes them
-    to the tools that need them (price_lookup, security_scan, wallet_analysis,
-    top_traders). Extra ``**ctx`` kwargs (e.g. ``history``) are forwarded to
-    every tool.
+    ``route_tools`` selects the tools (deterministic regex/keyword intent
+    routing) and ``tool_kwargs`` maps each selected tool to the address /
+    symbol / chain / kind kwargs it understands. Extra ``**ctx`` kwargs (e.g.
+    ``history``) are forwarded to every tool.
 
     Args:
         text: The user's question.
@@ -75,26 +77,13 @@ async def run_for_message(text: str, **ctx: Any) -> dict[str, ToolResult]:
     Returns:
         ``{tool_name: ToolResult}`` for every tool the router selected.
     """
-    from app.domains.telegram.rugmunchbot.tools.intent import extract_addresses, route_tools, symbols_in
+    from app.domains.telegram.rugmunchbot.tools.intent import route_tools, tool_kwargs
 
     names = route_tools(text)
     if not names:
         return {}
 
-    addrs = extract_addresses(text)
-    syms = symbols_in(text)
-
-    # Per-tool kwargs: each tool receives the param it understands.
-    per_tool: dict[str, dict[str, Any]] = {}
-    for name in names:
-        kwargs: dict[str, Any] = {}
-        if name in ("price_lookup", "security_scan", "wallet_analysis", "top_traders"):
-            kwargs["address"] = addrs[0] if addrs else ""
-            kwargs["chain"] = ""
-        if name == "price_lookup" and syms and not addrs:
-            kwargs["symbol"] = syms[0]
-        per_tool[name] = kwargs
-
+    per_tool = tool_kwargs(text, names)
     return await registry.run_many_kwargs(per_tool, **ctx)
 
 
