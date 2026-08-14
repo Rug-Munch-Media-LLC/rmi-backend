@@ -586,8 +586,16 @@ async def chat(
         if isinstance(cs, str) and cs.strip():
             client_system_context = cs
 
+    # Current-events queries are owned by the live web-search wiring: a
+    # generic tool result (e.g. the news headline feed) must not shadow
+    # query-specific RAG + live web results. For those queries RAG + web
+    # search run even when the tool layer returned data; for data queries
+    # (price/scan/ta/market/...) the tool result IS the grounding, so RAG
+    # and web search are skipped to avoid double-grounding.
+    current_events_query = _should_web_search(req.message, 0)
+
     rag_context, rag_count = "", 0
-    if not client_system_context and not tool_result:
+    if not client_system_context and (not tool_result or current_events_query):
         try:
             rag_context, rag_count = await _search_rag_context(req.message)
         except Exception as e:  # defensive: never let RAG break chat
@@ -603,7 +611,7 @@ async def chat(
     # own data stays first in context. Best-effort: any failure returns no
     # web context and chat proceeds.
     web_context, web_count = "", 0
-    if not client_system_context and not tool_result:
+    if not client_system_context and (not tool_result or current_events_query):
         try:
             if _should_web_search(req.message, rag_count):
                 web_results = await searxng_search(req.message)

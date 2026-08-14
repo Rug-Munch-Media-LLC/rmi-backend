@@ -175,7 +175,8 @@ class TestAnalyzeCandles:
         a = analyze_candles(candles)
         assert a is not None
         assert a["volume_trend"] == "Rising"
-        assert a["volume_ratio"] is not None and a["volume_ratio"] > 1.5
+        assert a["volume_ratio"] is not None
+        assert a["volume_ratio"] > 1.5
 
     def test_volume_declining_flag(self) -> None:
         candles = []
@@ -191,11 +192,14 @@ class TestAnalyzeCandles:
 
     def test_rsi_label_bands(self) -> None:
         over = analyze_candles(_uptrend())
-        assert over is not None and over["rsi_label"] == "Overbought"
+        assert over is not None
+        assert over["rsi_label"] == "Overbought"
         under = analyze_candles(_downtrend())
-        assert under is not None and under["rsi_label"] == "Oversold"
+        assert under is not None
+        assert under["rsi_label"] == "Oversold"
         flat = analyze_candles([_candle(i, 1.0) for i in range(60)])
-        assert flat is not None and flat["rsi_label"] == "Neutral"
+        assert flat is not None
+        assert flat["rsi_label"] == "Neutral"
 
     def test_support_resistance_from_recent_window(self) -> None:
         candles = _uptrend(40)
@@ -254,7 +258,8 @@ class TestFormatTACard:
         assert "<code>0xabc123</code>" in text
         assert "Trend: BULLISH" in text
         assert "RSI-14: <b>62.3</b>" in text
-        assert "EMA-9:" in text and "EMA-21:" in text
+        assert "EMA-9:" in text
+        assert "EMA-21:" in text
         assert "MACD:" in text
         assert "Volume:" in text
         assert "Key Levels" in text

@@ -37,7 +37,8 @@ async def top_traders(*, address: str = "", limit: int = 10) -> ToolResult:
     if not body:
         return ToolResult(tool="top_traders", ok=False, error="no live data (backend token detail unavailable)")
 
-    data = body.get("data") if isinstance(body.get("data"), dict) else body
+    raw = body.get("data")
+    data = raw if isinstance(raw, dict) else body
     top_holders = _first_nonempty(
         data.get("top_holders"),
         data.get("holders"),

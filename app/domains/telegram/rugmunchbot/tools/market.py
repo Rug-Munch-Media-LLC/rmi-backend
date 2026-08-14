@@ -65,7 +65,8 @@ async def coingecko_quote(symbol: str) -> dict[str, Any] | None:
     )
     if not detail:
         return None
-    md = detail.get("market_data") if isinstance(detail.get("market_data"), dict) else {}
+    raw_md = detail.get("market_data")
+    md = raw_md if isinstance(raw_md, dict) else {}
     return {
         "symbol": sym,
         "name": detail.get("name") or match.get("name"),

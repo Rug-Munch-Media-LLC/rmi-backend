@@ -140,14 +140,20 @@ class TestFetchDailyData:
         assert data["fear_greed_label"] == "Greed"
         assert len(data["news"]) == 3
         assert data["news"][0].startswith("Bitcoin ETFs")
-        assert data["trending"] == ["PEPE +12.3%", "DOGE +4.2%", "SOL +2.1%"]
+        # _trending_label renders "Name (SYM) +x.x%" since the "token addresses
+        # always included in trending answers" change (commit 049b21c3).
+        assert data["trending"] == ["Pepe (PEPE) +12.3%", "Dogecoin (DOGE) +4.2%", "Solana (SOL) +2.1%"]
         assert len(data["launches"]) == 5
-        # name+symbol chain rendering
-        assert data["launches"][0] == "MoonRocket (MR) [solana]"
+        # name+symbol chain rendering — launch labels always carry the
+        # full token address since the "addresses always included" change
+        # (commit 049b21c3).
+        assert data["launches"][0] == "MoonRocket (MR) [solana] — <code>abc123...</code>"
         # empty name but symbol set -> symbol
-        assert data["launches"][2] == "BASED [base]"
-        # fully empty name/symbol -> short address
-        assert data["launches"][3] == "00000000\u2026 [ethereum]"
+        assert data["launches"][2] == "BASED [base] — <code>ghl789...</code>"
+        # fully empty name/symbol -> short address (first 12 chars)
+        assert (
+            data["launches"][3] == "000000000000... [ethereum] — <code>0000000000000000000000000000000000000000</code>"
+        )
 
     async def test_prices_fall_back_to_macro_when_overview_has_no_prices(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Older /market/overview responses (no btc_price/eth_price fields) must

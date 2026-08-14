@@ -251,7 +251,8 @@ async def _backend_top_traders_fallback(address: str, limit: int = 10) -> ToolRe
     body = await backend_json_get(f"/api/v1/databus/token/{address}", timeout=8.0)
     if not body:
         return None
-    data = body.get("data") if isinstance(body.get("data"), dict) else body
+    raw = body.get("data")
+    data = raw if isinstance(raw, dict) else body
     holders = data.get("top_holders") or data.get("holders") or []
     smart = data.get("smart_money") or []
     payload: dict[str, Any] = {"kind": "top_traders", "address": address}
@@ -294,12 +295,12 @@ async def birdeye_market(
 
     if kind == "price":
         if address:
-            direct = await birdeye_price(address, chain)
-            if direct and direct.get("price_usd") is not None:
+            price = await birdeye_price(address, chain)
+            if price and price.get("price_usd") is not None:
                 return ToolResult(
                     tool="birdeye_market",
                     ok=True,
-                    data={"kind": "price", "address": address, "chain": chain, "price": direct},
+                    data={"kind": "price", "address": address, "chain": chain, "price": price},
                     symbols=[],
                     addresses=[address],
                     source="birdeye:/defi/price",
@@ -315,14 +316,14 @@ async def birdeye_market(
         )
 
     if kind == "smart_money":
-        direct = await birdeye_smart_money(chain, limit)
-        if direct:
+        tokens = await birdeye_smart_money(chain, limit)
+        if tokens:
             return ToolResult(
                 tool="birdeye_market",
                 ok=True,
-                data={"kind": "smart_money", "chain": chain, "tokens": direct},
-                symbols=[t["symbol"] for t in direct if t.get("symbol")],
-                addresses=[t["address"] for t in direct if t.get("address")],
+                data={"kind": "smart_money", "chain": chain, "tokens": tokens},
+                symbols=[t["symbol"] for t in tokens if t.get("symbol")],
+                addresses=[t["address"] for t in tokens if t.get("address")],
                 source="birdeye:/smart-money/v1/token/list",
             )
         fallback = await _backend_smart_money_fallback(chain, limit)
@@ -336,14 +337,14 @@ async def birdeye_market(
 
     if kind == "top_traders":
         if address:
-            direct = await birdeye_top_traders(address, chain, limit)
-            if direct:
+            traders = await birdeye_top_traders(address, chain, limit)
+            if traders:
                 return ToolResult(
                     tool="birdeye_market",
                     ok=True,
-                    data={"kind": "top_traders", "address": address, "chain": chain, "traders": direct},
+                    data={"kind": "top_traders", "address": address, "chain": chain, "traders": traders},
                     symbols=[],
-                    addresses=[address, *[t["wallet"] for t in direct if t.get("wallet")]],
+                    addresses=[address, *[t["wallet"] for t in traders if t.get("wallet")]],
                     source="birdeye:/defi/v2/tokens/top_traders",
                 )
             fallback = await _backend_top_traders_fallback(address, limit)
@@ -377,12 +378,12 @@ async def birdeye_market(
 
     if kind == "liquidity_history":
         if address:
-            direct = await birdeye_liquidity_history(address)
-            if direct:
+            snapshots = await birdeye_liquidity_history(address)
+            if snapshots:
                 return ToolResult(
                     tool="birdeye_market",
                     ok=True,
-                    data={"kind": "liquidity_history", "address": address, "snapshots": direct},
+                    data={"kind": "liquidity_history", "address": address, "snapshots": snapshots},
                     symbols=[],
                     addresses=[address],
                     source="birdeye:/defi/v3/liquidity/history/token",

@@ -93,6 +93,11 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
     web_scan_button,
 )
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import (
+    _append_source_lines,
+    _format_tool_answer,
+    _render_bridge_actions,
+)
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     _CHAT_DISABLED,
     _FALLBACK_MESSAGE,
@@ -141,6 +146,7 @@ from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools import known_addresses, known_symbols, registry, run_for_message
 from app.domains.telegram.rugmunchbot.tools.guardrails import NO_LIVE_DATA_MESSAGE, fabrication_note, sanitize_answer
 from app.domains.telegram.rugmunchbot.tools.intent import build_tool_prompt_block
+from app.domains.telegram.rugmunchbot.tools.menus import capability_menu_kb
 from app.domains.telegram.rugmunchbot.tools.rag_lookup import should_rag_lookup
 
 if TYPE_CHECKING:
@@ -363,64 +369,6 @@ async def _gather_fallback_context(
     return daily_context, scan_summary, bridge_ctx
 
 
-def _render_bridge_actions(
-    actions: list[dict[str, str]] | None,
-) -> InlineKeyboardMarkup | None:
-    """Map bridge suggested actions to Telegram inline buttons.
-
-    Only existing, safe bot surfaces are wired: ``analyze`` targets become
-    full-scan buttons (callback ``scan_<addr>_<chain>`` — the same convention
-    as the rest of the bot). Unknown action types are skipped rather than
-    rendering dead buttons. Returns ``None`` when there is nothing to show.
-    """
-    if not actions:
-        return None
-    rows: list[list[InlineKeyboardButton]] = []
-    for a in actions:
-        if not isinstance(a, dict):
-            continue
-        action = str(a.get("action") or "")
-        label = str(a.get("label") or "")
-        target = str(a.get("target") or "")
-        if action == "analyze" and target:
-            chain = detect_chain(target)
-            rows.append([InlineKeyboardButton(label, callback_data=f"scan_{target}_{chain}")])
-        # exploit / other action types have no dedicated bot surface yet — skip.
-    return InlineKeyboardMarkup(rows) if rows else None
-
-
-def _append_source_lines(
-    answer: str,
-    sources: list[dict[str, str]] | None,
-    limit: int = 3,
-) -> str:
-    """Append up to ``limit`` compact citation lines from the bridge sources.
-
-    Only ``web`` and ``rag`` sources carry a query worth citing; scanner /
-    market metadata lines are skipped (the answer already attributes them).
-    No URLs are fabricated — bridge sources carry type+query metadata, and
-    the grounding rules already make the model cite outlet/headline inline.
-    Plain text only: ``_send_answer`` HTML-escapes every chunk.
-    """
-    if not sources:
-        return answer
-    lines: list[str] = []
-    for s in sources:
-        if len(lines) >= limit:
-            break
-        if not isinstance(s, dict):
-            continue
-        stype = str(s.get("type") or "")
-        query = str(s.get("query") or "").strip()
-        if stype == "web" and query:
-            lines.append(f"\U0001f310 Web: {query[:90]}")
-        elif stype == "rag" and query:
-            lines.append(f"\U0001f4da RAG: {query[:90]}")
-    if not lines:
-        return answer
-    return f"{answer}\n\n\u2014\n" + "\n".join(lines)
-
-
 async def _injection_warning(update: Update, category: str) -> None:
     """Reply to a prompt-injection attempt with a targeted warning."""
     text = _INJECTION_MESSAGES.get(category, "I couldn't process that message. Ask me a normal question instead.")
@@ -607,12 +555,19 @@ async def _route_structural(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text
 # ══════════════════════════════════════════════
 
 
-async def _reply_local_intent(message: Message, text: str, user: Any) -> bool:
+async def _reply_local_intent(
+    message: Message,
+    text: str,
+    user: Any,
+    *,
+    menu_kb: InlineKeyboardMarkup | None = None,
+) -> bool:
     """Tier-2 canned reply (no backend needed).
 
     Used for gibberish that is not worth an LLM call and as an offline
     fallback when the backend chat is unavailable. Returns True when a
-    canned answer was sent.
+    canned answer was sent. ``menu_kb`` optionally replaces the default back
+    keyboard (e.g. the capability menu for "what can you do" questions).
     """
     local_response = local_ai_response(text, user)
     if not local_response:
@@ -629,7 +584,7 @@ async def _reply_local_intent(message: Message, text: str, user: Any) -> bool:
         await message.reply_text(
             local_response,
             parse_mode=ParseMode.HTML,
-            reply_markup=back_kb(),
+            reply_markup=menu_kb or back_kb(),
             disable_web_page_preview=True,
         )
     except (TelegramError, ConnectionError, OSError, TimeoutError):
@@ -698,55 +653,6 @@ async def _run_rag_lookup(text: str) -> ToolResult | None:
     except Exception as exc:
         logger.debug("rag_lookup tool run failed (text %.60s): %s", text, exc)
         return None
-
-
-def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
-    """Render REAL tool data as a plain answer (no LLM involved).
-
-    Used when the whole LLM chain is down but the tools returned live data —
-    the bot still answers with REAL numbers instead of guessing. Returns
-    ``None`` when there is nothing usable to render.
-    """
-    lines: list[str] = []
-    price = results.get("price_lookup")
-    if price is not None and price.ok and isinstance(price.data, dict):
-        pairs = price.data.get("pairs") or []
-        if pairs:
-            p = pairs[0]
-            addr = p.get("address", "")
-            lines.append(
-                f"\U0001fa99 <b>{p.get('name', p.get('symbol', ''))}</b> ({p.get('symbol', '')}) "
-                f"{fmt_chain(p.get('chain', ''))}\n<code>{addr}</code>"
-            )
-            if p.get("price_usd") is not None:
-                lines.append(f"\U0001f4b0 {fmt_number(p['price_usd'])} | 24h: {fmt_pct(p.get('change_24h'))}")
-            if p.get("market_cap"):
-                lines.append(f"\U0001f4c8 MCap: {fmt_number(p.get('market_cap'))}")
-            lines.append("")
-    trending = results.get("trending")
-    if trending is not None and trending.ok and isinstance(trending.data, dict):
-        tokens = trending.data.get("tokens") or []
-        if tokens:
-            lines.append("\U0001f525 <b>Trending</b>")
-            for t in tokens[:8]:
-                addr = t.get("address", "")
-                sym = t.get("symbol", "?")
-                chg = f" | {fmt_pct(t.get('change_24h'))}" if t.get("change_24h") is not None else ""
-                lines.append(f"\u2022 ${sym} {fmt_chain(t.get('chain', ''))}{chg} — <code>{addr}</code>")
-            lines.append("")
-    security = results.get("security_scan")
-    if security is not None and security.ok and isinstance(security.data, dict):
-        score = security.data.get("risk_score")
-        if score is not None:
-            emoji = "\U0001f7e2" if score < 40 else ("\U0001f7e1" if score < 70 else "\U0001f534")
-            lines.append(f"\U0001f50d <b>Risk: {emoji} {score}/100</b>")
-            if security.data.get("is_honeypot") is not None:
-                lines.append(f"honeypot: {security.data['is_honeypot']}")
-            lines.append("")
-    if not lines:
-        return None
-    lines.append("<i>Live data via Rug Munch tools.</i>")
-    return "\n".join(lines)
 
 
 async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text: str, user: Any) -> bool:
@@ -820,8 +726,11 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
 
     # Tier-2: ONLY instant-reply for greetings, thanks, and capability inquiries.
     # Everything else goes to the LLM — the bot should answer what the user asks.
+    # Capability questions ("what can you do?") attach the capability menu so
+    # the bot's surface is discoverable right from the first answer.
+    capability_menu = capability_menu_kb() if _is_capability_question(text) else None
     if (_is_greeting_or_thanks(text) or _is_capability_question(text)) and await _reply_local_intent(
-        message, text, user
+        message, text, user, menu_kb=capability_menu
     ):
         return True
 

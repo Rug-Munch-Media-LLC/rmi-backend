@@ -57,13 +57,15 @@ async def _bridge_context(query: str, history: list[dict[str, str]] | None = Non
     )
     if not body:
         return "", []
-    blocks = body.get("blocks") if isinstance(body.get("blocks"), dict) else {}
+    raw_blocks = body.get("blocks")
+    blocks = raw_blocks if isinstance(raw_blocks, dict) else {}
     parts: list[str] = []
     for key in ("web_context", "rag_context", "market_context", "scanner_context", "rundown_context"):
         val = (blocks.get(key) or "").strip()
         if val:
             parts.append(val)
-    sources = body.get("sources") if isinstance(body.get("sources"), list) else []
+    raw_sources = body.get("sources")
+    sources = raw_sources if isinstance(raw_sources, list) else []
     sources = [s for s in sources if isinstance(s, dict)]
     return "\n\n".join(parts), sources
 
