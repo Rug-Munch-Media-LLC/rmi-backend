@@ -670,6 +670,7 @@ def lookup_domain(domain: str, *, timeout: int = 60) -> OsintReport:
         raise ValueError("timeout must be >= 1")
     target = normalize_domain(domain)
     report = OsintReport(target=target, target_type="domain")
+    logger.debug("domain OSINT lookup for %s (timeout=%ss)", target, timeout)
 
     deadline = time.monotonic() + timeout
 
