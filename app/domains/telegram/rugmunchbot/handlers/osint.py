@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import html
 import io
-import os
 import re
 from typing import TYPE_CHECKING
 
@@ -34,6 +33,7 @@ from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.osint import OsintNotAvailable, OsintReport
 from app.osint.domain import lookup_domain
 from app.osint.email import lookup_email
+from app.osint.face import HAARCASCADE_MODEL_PATH, YUNET_MODEL_PATH
 from app.osint.phone import lookup_phone
 from app.osint.wallet import lookup_wallet
 from app.osint_tools import OsintNotAvailable as ToolsOsintNotAvailable, OsintResult, lookup_username
@@ -113,18 +113,18 @@ except ImportError:  # pragma: no cover — optional dependency
 
 
 def _detect_faces(image: bytes) -> tuple[int, str | None]:
-    """Detect faces in an image with OpenCV's Haar cascade.
+    """Detect faces in an image with OpenCV's committed models.
 
-    Returns ``(face_count, warning)``. ``warning`` is set (and the count is
-    0) when OpenCV or the cascade model is unavailable so callers can show a
-    helpful message plus the reverse-search hint.
+    Uses ``cv2.FaceDetectorYN`` (YuNet ONNX — the only face detector in
+    opencv-python 5.x, which dropped ``CascadeClassifier``) and falls back to
+    ``cv2.CascadeClassifier`` (Haar XML — classic OpenCV 4.x). Both models are
+    committed under ``app/osint/models/`` (opencv 5.x ships no cascades in
+    ``cv2.data.haarcascades``). Returns ``(face_count, warning)``; ``warning``
+    is set (and the count is 0) when OpenCV or both models are unavailable so
+    callers can show a helpful message plus the reverse-search hint.
     """
     if cv2 is None:
         return 0, "face detection is not installed on this server (opencv-python missing)"
-    cascade_dir = cv2.data.haarcascades  # type: ignore[attr-defined]
-    cascade_path = os.path.join(cascade_dir, "haarcascade_frontalface_default.xml")
-    if not os.path.isfile(cascade_path):
-        return 0, "face detection model not available on this server"
     try:
         import numpy as np
 
@@ -132,10 +132,33 @@ def _detect_faces(image: bytes) -> tuple[int, str | None]:
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             return 0, "could not decode the photo"
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        cascade = cv2.CascadeClassifier(cascade_path)  # type: ignore[attr-defined]  # cv2 stub omits CascadeClassifier
-        faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-        return len(faces), None
+
+        # Preferred: YuNet (OpenCV 5.x). DNN wants BGR, contiguous.
+        if YUNET_MODEL_PATH.is_file() and hasattr(cv2, "FaceDetectorYN"):
+            try:
+                detector = cv2.FaceDetectorYN.create(
+                    str(YUNET_MODEL_PATH),
+                    "",
+                    (img.shape[1], img.shape[0]),
+                    score_threshold=0.9,
+                    nms_threshold=0.3,
+                    top_k=5000,
+                )
+                _ok, faces = detector.detect(np.ascontiguousarray(img))
+                if faces is not None and len(faces):
+                    return len(faces), None
+            except Exception as exc:
+                logger.warning("yunet detection failed, trying haar: %s", exc)
+
+        # Fallback: Haar cascade (classic OpenCV 4.x).
+        if HAARCASCADE_MODEL_PATH.is_file() and hasattr(cv2, "CascadeClassifier"):
+            cascade = cv2.CascadeClassifier(str(HAARCASCADE_MODEL_PATH))
+            if not cascade.empty():
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+                return len(faces), None
+
+        return 0, "face detection model not available on this server"
     except Exception as exc:
         logger.warning("face detection failed: %s", exc)
         return 0, "face detection failed for this photo"
