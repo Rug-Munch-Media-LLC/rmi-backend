@@ -3,7 +3,7 @@
 Contract (see :mod:`app.osint`): ``lookup_face(image_path, *, timeout=120) ->
 OsintReport``.
 
-Runs three face-detection/recognition engines in strict fallback order — the
+Runs four face-detection/recognition engines in strict fallback order — the
 first engine that finds at least one face wins, and each engine failure
 (missing package, model-download error, zero faces detected) falls through to
 the next:
@@ -12,13 +12,19 @@ the next:
    first use; requires ``onnxruntime``), 512-d embeddings.
 2. ``deepface``         — Facenet512 embeddings (VGG-Face selectable), 512-d.
 3. ``face_recognition`` — dlib-based HOG detector, 128-d encodings.
+4. ``compreface``       — self-hosted CompreFace (remote REST API, see
+   ``app.osint.compreface_client`` + ``infra/compreface/``). Detection +
+   subject matching against a collection; matched faces carry ``subject`` /
+   ``similarity`` in the finding data. Only enabled when ``COMPREFACE_URL``
+   and ``COMPREFACE_API_KEY`` are set.
 
-All three are heavy optional dependencies. The module imports cleanly without
-any of them and raises :class:`OsintNotAvailable` only when a lookup is
-attempted with none installed. Models auto-download on first use and can take
-minutes on a cold start; ``timeout`` is accepted for interface parity with the
-other OSINT modules but engine calls are synchronous CPU/network work and may
-exceed it on first use.
+The first three are heavy optional dependencies; ``compreface`` needs only the
+(already-shipped) httpx client plus a reachable CompreFace server. The module
+imports cleanly without any of them and raises :class:`OsintNotAvailable` only
+when a lookup is attempted with none installed. Models auto-download on first
+use and can take minutes on a cold start; ``timeout`` is accepted for
+interface parity with the other OSINT modules but engine calls are synchronous
+CPU/network work and may exceed it on first use.
 
 Reverse-image search: the report always carries a ``reverse_search`` finding
 with ready-to-open URLs for Google Lens, Google search-by-image, Bing Visual
@@ -66,10 +72,19 @@ __all__ = ["lookup_face"]
 # ─── Tunables ────────────────────────────────────────────────────────
 
 #: Engine fallback order — the first engine that detects >= 1 face wins.
+#: ``compreface`` is the remote REST tier: it needs a configured, reachable
+#: CompreFace server (``COMPREFACE_URL`` + ``COMPREFACE_API_KEY``) and is the
+#: only engine that can also *identify* subjects, not just detect faces.
 #: ``opencv`` is the cheap cv2 fallback (committed models, no package install /
-#: model download): it runs only when the heavy engines are missing or found
-#: zero faces.
-_ENGINE_ORDER: Final[tuple[str, ...]] = ("insightface", "deepface", "face_recognition", "opencv")
+#: model download): it runs only when the heavier engines are missing, found
+#: zero faces, or CompreFace is unconfigured/unreachable.
+_ENGINE_ORDER: Final[tuple[str, ...]] = (
+    "insightface",
+    "deepface",
+    "face_recognition",
+    "compreface",
+    "opencv",
+)
 
 #: Committed Haar cascade for the cheap cv2 fallback. opencv-python 5.x ships
 #: no cascade XMLs in ``cv2.data.haarcascades`` AND drops the classic
@@ -112,15 +127,26 @@ _REVERSE_SEARCH_TEMPLATES: Final[dict[str, str]] = {
 
 
 def _engine_available(name: str) -> bool:
-    """Return True if the (optional) engine package is importable.
+    """Return True if the (optional) engine is usable.
 
     ``opencv`` is special: it needs only ``cv2`` plus at least one committed
     model file (YuNet ONNX or Haar XML) — no pip install, no model download.
+    ``compreface`` is a remote service: availability is a *configuration*
+    check (``COMPREFACE_URL`` + ``COMPREFACE_API_KEY`` set), not an import —
+    reachability is only known at call time and is handled gracefully there
+    (see :mod:`app.osint.compreface_client`).
     """
     if name == "opencv":
         return importlib.util.find_spec("cv2") is not None and (
             YUNET_MODEL_PATH.is_file() or HAARCASCADE_MODEL_PATH.is_file()
         )
+    if name == "compreface":
+        try:
+            from app.osint.compreface_client import is_configured
+        except ImportError as exc:  # pragma: no cover — module ships in-app
+            logger.debug("compreface client unavailable: %s", exc)
+            return False
+        return is_configured()
     return importlib.util.find_spec(name) is not None
 
 
@@ -353,7 +379,50 @@ def _detect_face_recognition(image_path: str) -> list[dict[str, Any]]:
     return results
 
 
-# ─── Engine 4: opencv (cv2, cheap fallback) ──────────────────────────
+# ─── Engine 4: compreface (self-hosted remote REST) ──────────────────
+
+
+def _detect_compreface(image_path: str) -> list[dict[str, Any]]:
+    """Detect + match faces via self-hosted CompreFace (``infra/compreface/``).
+
+    This is the only engine that can *identify* a face against a subject
+    collection, not just detect it. It runs the recognition endpoint, which
+    internally runs the detector and returns every detected face — matched
+    faces carry the top ``subject`` + ``similarity`` plus the full
+    ``all_subjects`` prediction list; unmatched faces (or an empty collection)
+    fall back to bounding-box-only results.
+
+    Raises:
+        CompreFaceNotAvailable: when the service is unconfigured or
+            unreachable. Deliberately NOT swallowed here — the caller records
+            it in ``report.errors`` and falls through to the next engine
+            (mirrors how a broken local engine is reported).
+    """
+    try:
+        from app.osint.compreface_client import recognize
+    except ImportError as exc:  # pragma: no cover — client module ships in-app
+        logger.debug("compreface client unavailable: %s", exc)
+        return []
+
+    matches = recognize(image_path, prediction_count=1, det_prob_threshold=0.5)
+    results: list[dict[str, Any]] = []
+    for match in matches:
+        face: dict[str, Any] = {
+            "bbox": match.get("bbox") or {},
+            "embedding": {},
+            "landmarks": [],
+            "det_score": match.get("probability"),
+        }
+        subject = match.get("subject")
+        if subject:
+            face["subject"] = subject
+            face["similarity"] = match.get("similarity")
+            face["subjects"] = match.get("all_subjects") or []
+        results.append(face)
+    return results
+
+
+# ─── Engine 5: opencv (cv2, cheap fallback) ──────────────────────────
 
 
 def _detect_opencv(image_path: str) -> list[dict[str, Any]]:
@@ -439,6 +508,7 @@ _ENGINES: Final[dict[str, Any]] = {
     "insightface": _detect_insightface,
     "deepface": _detect_deepface,
     "face_recognition": _detect_face_recognition,
+    "compreface": _detect_compreface,
     "opencv": _detect_opencv,
 }
 
@@ -473,7 +543,9 @@ def lookup_face(image_path: str, *, timeout: int = 120) -> OsintReport:
         ready-to-open URLs (or a note that the image must be hosted first).
 
     Raises:
-        OsintNotAvailable: if none of the three face engines is installed.
+        OsintNotAvailable: if no face engine is available (none of the
+            optional packages installed, no committed opencv model, and no
+            CompreFace server configured).
         OsintError: if the local image file does not exist or is undecodable.
     """
     report = OsintReport(target=image_path, target_type="face")
@@ -486,7 +558,9 @@ def lookup_face(image_path: str, *, timeout: int = 120) -> OsintReport:
     if not available:
         raise OsintNotAvailable(
             "no face-recognition engine installed; run: pip install insightface deepface face_recognition "
-            "(or install opencv-python with the committed Haar cascade model)"
+            "(or install opencv-python with the committed Haar cascade model, "
+            "or set COMPREFACE_URL + COMPREFACE_API_KEY for a CompreFace server — "
+            "see infra/compreface/README.md)"
         )
 
     engines_tried: list[str] = []
@@ -500,6 +574,10 @@ def lookup_face(image_path: str, *, timeout: int = 120) -> OsintReport:
             if not _engine_available(name):
                 if name == "opencv":
                     failures.append("opencv: cv2 not installed or no committed face model under app/osint/models/")
+                elif name == "compreface":
+                    failures.append(
+                        "compreface: COMPREFACE_URL / COMPREFACE_API_KEY not set (see infra/compreface/README.md)"
+                    )
                 else:
                     failures.append(f"{name}: package not installed")
                 continue

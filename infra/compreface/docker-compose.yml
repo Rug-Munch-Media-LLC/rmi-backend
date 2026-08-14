@@ -1,0 +1,132 @@
+# CompreFace — self-hosted face recognition (4th face engine)
+# ==============================================================
+# Minimal deployment of the official Exadel CompreFace 1.2.0 stack for the
+# OSINT face module (app/osint/face.py via app/osint/compreface_client.py).
+# Includes the three CompreFace application services (core + admin + api) plus
+# the Postgres backing store they require. The nginx UI gateway
+# (compreface-fe) is deliberately omitted — we consume the REST API directly.
+#
+# Service names MUST stay as-is: the Java services resolve
+# `compreface-postgres-db` and `compreface-core` by default
+# (POSTGRES_URL / PYTHON_URL defaults in application.yml).
+#
+# Ports (loopback only — never expose publicly):
+#   127.0.0.1:8000 -> compreface-api:8080   recognition/detection REST API
+#   127.0.0.1:8001 -> compreface-admin:8080  admin management API (API keys)
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d --wait
+#   docker compose ps                      # wait until compreface-core is healthy
+#   open http://127.0.0.1:8001/admin/...   # (or use the curl flow in README)
+#
+# Docs: https://github.com/exadel-inc/CompreFace (docs/Rest-API-description.md)
+
+services:
+  compreface-postgres-db:
+    image: exadel/compreface-postgres-db:${COMPREFACE_VERSION:-1.2.0}
+    container_name: rmi-compreface-postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-frs}
+    volumes:
+      # Subject/face metadata + saved subject images. Back this volume up —
+      # it is the enrolled-face collection.
+      - postgres-data:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-frs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  compreface-core:
+    # ML engine (FaceNet) — no host port; reached by compreface-api at
+    # http://compreface-core:3000. Healthcheck confirms models loaded.
+    image: exadel/compreface-core:${COMPREFACE_VERSION:-1.2.0}
+    container_name: rmi-compreface-core
+    restart: unless-stopped
+    environment:
+      ML_PORT: "3000"
+      UWSGI_PROCESSES: ${COMPREFACE_UWSGI_PROCESSES:-2}
+      UWSGI_THREADS: ${COMPREFACE_UWSGI_THREADS:-1}
+      MAX_DETECT_SIZE: ${COMPREFACE_MAX_DETECT_SIZE:-640}
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '2'
+    healthcheck:
+      # Models load at container startup; give it time (start_period).
+      test: ["CMD-SHELL", "curl --fail http://localhost:3000/healthcheck || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  compreface-api:
+    # User-facing REST API: /api/v1/recognition/*, /api/v1/detection/*.
+    image: exadel/compreface-api:${COMPREFACE_VERSION:-1.2.0}
+    container_name: rmi-compreface-api
+    restart: unless-stopped
+    depends_on:
+      compreface-postgres-db:
+        condition: service_healthy
+      compreface-core:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${COMPREFACE_API_PORT:-8000}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_URL: jdbc:postgresql://compreface-postgres-db:5432/${POSTGRES_DB:-frs}
+      API_JAVA_OPTS: ${COMPREFACE_API_JAVA_OPTS:--Xmx4g}
+      SAVE_IMAGES_TO_DB: "true"
+      MAX_FILE_SIZE: ${COMPREFACE_MAX_FILE_SIZE:-5MB}
+      MAX_REQUEST_SIZE: ${COMPREFACE_MAX_REQUEST_SIZE:-10M}
+      CONNECTION_TIMEOUT: "10000"
+      READ_TIMEOUT: "60000"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+          cpus: '2'
+
+  compreface-admin:
+    # Management API: /admin/* — users, applications, face services (API keys).
+    image: exadel/compreface-admin:${COMPREFACE_VERSION:-1.2.0}
+    container_name: rmi-compreface-admin
+    restart: unless-stopped
+    depends_on:
+      compreface-postgres-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${COMPREFACE_ADMIN_PORT:-8001}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_URL: jdbc:postgresql://compreface-postgres-db:5432/${POSTGRES_DB:-frs}
+      ADMIN_JAVA_OPTS: ${COMPREFACE_ADMIN_JAVA_OPTS:--Xmx1g}
+      ENABLE_EMAIL_SERVER: "false"
+      MAX_FILE_SIZE: ${COMPREFACE_MAX_FILE_SIZE:-5MB}
+      MAX_REQUEST_SIZE: ${COMPREFACE_MAX_REQUEST_SIZE:-10M}
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '1'
+
+volumes:
+  postgres-data:
