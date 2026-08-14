@@ -1,0 +1,114 @@
+# Kroki — self-hosted diagram server (Mermaid, D2, PlantUML, GraphViz, ...)
+#
+# Renders text-based diagrams (architecture, exploit-flow, sequence, C4) to
+# SVG/PNG via a local HTTP API so docs, issues and Markdown can embed diagrams
+# from http://127.0.0.1:8010 instead of shipping image files or depending on
+# the public kroki.io service. See README.md for the full runbook.
+#
+# Diagram type coverage (v0.32.1):
+#   Bundled in yuzutech/kroki (no companion needed):
+#     D2, PlantUML (incl. C4 model), GraphViz/dot, Structurizr, Vega(-Lite),
+#     WaveDrom, Nomnoml, Erd, Pikchr, Svgbob, UMlet, GoAT, BlockDiag family
+#     (ActDiag/SeqDiag/NwDiag/RackDiag/PacketDiag), Bytefield, Ditaa,
+#     Symbolator, WireViz, TikZ.
+#   Companion container (required — NOT bundled):
+#     Mermaid         -> yuzutech/kroki-mermaid      (this file starts it)
+#   Optional companions (comment back in):
+#     Excalidraw      -> yuzutech/kroki-excalidraw  (port 8004)
+#     BPMN            -> yuzutech/kroki-bpmn        (port 8003)
+#     diagrams.net    -> yuzutech/kroki-diagramsnet (experimental)
+
+name: rmi-kroki
+
+services:
+  kroki:
+    image: ${KROKI_IMAGE:-yuzutech/kroki:0.32.1}
+    container_name: kroki
+    restart: unless-stopped
+    depends_on:
+      - kroki-mermaid
+    environment:
+      # Listen inside the container; the host binding is the loopback port
+      # published below (KROKI_LISTEN_PORT). Keep this 0.0.0.0:8000.
+      KROKI_LISTEN: 0.0.0.0:8000
+      # SECURE = strictest profile (sandbox for PlantUML, no external
+      # !include fetch). Lower only for trusted-local experimentation.
+      KROKI_SAFE_MODE: ${KROKI_SAFE_MODE:-SECURE}
+      # --- Limits -------------------------------------------------------------
+      # Long encoded diagram URLs exceed 4096; docs recommend <= 8192.
+      KROKI_MAX_URI_LENGTH: ${KROKI_MAX_URI_LENGTH:-8192}
+      KROKI_MAX_BODY_SIZE: ${KROKI_MAX_BODY_SIZE:-1mb}
+      KROKI_COMMAND_TIMEOUT: ${KROKI_COMMAND_TIMEOUT:-5s}
+      KROKI_CONVERT_TIMEOUT: ${KROKI_CONVERT_TIMEOUT:-20s}
+      KROKI_DELEGATE_TIMEOUT_MS: ${KROKI_DELEGATE_TIMEOUT_MS:-30000}
+      # --- Mermaid companion wiring (internal rmi_network DNS) ----------------
+      KROKI_MERMAID_HOST: kroki-mermaid
+      KROKI_MERMAID_PORT: 8002
+    ports:
+      # Loopback only — never public. Default 8010: 8000 collides with the
+      # rmi-backend API and 8005 with the `pry` service on this fleet.
+      - "127.0.0.1:${KROKI_LISTEN_PORT:-8010}:8000"
+    tmpfs:
+      # Bundled diagram CLIs (plantuml, d2, ...) write scratch files to /tmp;
+      # the official docs require the exec option.
+      - /tmp:exec
+    networks:
+      - rmi_network
+    healthcheck:
+      # GNU wget is present in the gateway image. Plain GET (not --spider):
+      # Kroki's Vert.x server returns an error for HEAD requests, which makes
+      # wget --spider exit non-zero despite a healthy server.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1'
+
+  # Mermaid companion — NOT bundled in the gateway image. Serves flowchart /
+  # sequence / Gantt rendering on port 8002 (internal only, never published to
+  # the host). Includes its own /health route that renders a sample diagram to
+  # prove the Chromium worker is alive.
+  kroki-mermaid:
+    image: ${KROKI_MERMAID_IMAGE:-yuzutech/kroki-mermaid:0.32.1}
+    container_name: kroki-mermaid
+    restart: unless-stopped
+    environment:
+      KROKI_MERMAID_MAX_TEXT_SIZE: ${KROKI_MERMAID_MAX_TEXT_SIZE:-50000}
+      KROKI_MERMAID_MAX_CONCURRENCY: ${KROKI_MERMAID_MAX_CONCURRENCY:-6}
+    expose:
+      - "8002"
+    networks:
+      - rmi_network
+    healthcheck:
+      # Alpine/busybox wget (no --spider); /health does a real render so a 200
+      # means the worker is actually usable.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8002/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: '1'
+
+networks:
+  # External network created by the platform stack (root docker-compose.yml).
+  # On a fresh host, create it first: docker network create rmi_network
+  rmi_network:
+    name: rmi_network
+    external: true
