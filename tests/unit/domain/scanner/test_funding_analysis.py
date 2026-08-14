@@ -28,7 +28,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.domains.scanner.engines import funding_analysis as fa
+from app.domains.scanner.engines import _io, funding_analysis as fa
 from app.domains.scanner.unified.model import ScanResult
 from app.domains.scanner.unified.scoring import compute_score
 
@@ -201,7 +201,7 @@ class TestComputeOverlap:
         """>30% overlap with a known scam token → HIGH risk."""
         with (
             patch.object(
-                fa,
+                _io,
                 "run_sync",
                 new=AsyncMock(
                     side_effect=overlap_run_sync(
@@ -212,7 +212,7 @@ class TestComputeOverlap:
                     )
                 ),
             ),
-            patch.object(fa, "_query_token_scam_status", new=AsyncMock(return_value=True)),
+            patch.object(_io, "_query_token_scam_status", new=AsyncMock(return_value=True)),
         ):
             result = await fa._compute_overlap("0xAA", "0xBB", "ethereum")
 
@@ -227,7 +227,7 @@ class TestComputeOverlap:
     async def test_low_overlap_no_risk(self) -> None:
         with (
             patch.object(
-                fa,
+                _io,
                 "run_sync",
                 new=AsyncMock(
                     side_effect=overlap_run_sync(
@@ -238,7 +238,7 @@ class TestComputeOverlap:
                     )
                 ),
             ),
-            patch.object(fa, "_query_token_scam_status", new=AsyncMock(return_value=True)),
+            patch.object(_io, "_query_token_scam_status", new=AsyncMock(return_value=True)),
         ):
             result = await fa._compute_overlap("0xAA", "0xBB", "ethereum")
 
@@ -249,11 +249,11 @@ class TestComputeOverlap:
     async def test_empty_holders_a_unavailable(self) -> None:
         with (
             patch.object(
-                fa,
+                _io,
                 "run_sync",
                 new=AsyncMock(side_effect=overlap_run_sync({"0xAA": [], "0xBB": [("0x1",)]})),
             ),
-            patch.object(fa, "_query_token_scam_status", new=AsyncMock(return_value=False)),
+            patch.object(_io, "_query_token_scam_status", new=AsyncMock(return_value=False)),
         ):
             result = await fa._compute_overlap("0xAA", "0xBB", "ethereum")
 
@@ -391,7 +391,7 @@ def overlap_run_sync(rows_by_token: dict[str, list[tuple]]) -> Any:
         # Identity check first: the test also patches _query_token_scam_status
         # with an AsyncMock whose __name__ is "AsyncMock", which the name
         # check below would miss.
-        if fn is fa._query_token_scam_status or getattr(fn, "__name__", "") == "_query_token_scam_status":
+        if fn is _io._query_token_scam_status or getattr(fn, "__name__", "") == "_query_token_scam_status":
             return True
         return []
 
