@@ -10,15 +10,14 @@ from typing import Any
 
 from app.core.logging import get_logger
 from app.crypto_embeddings import EmbeddingResult, get_embedder
+from app.rag_service import state as rag_state
 from app.rag_service.cache import _get_redis
-from app.rag_service.state import _pattern_cache, _pattern_cache_loaded, _seeded
 
 logger = get_logger(__name__)
 
 
 async def _preembed_scam_patterns() -> None:
     """Pre-embed all KNOWN_SCAM_PATTERNS and cache results."""
-    global _pattern_cache, _pattern_cache_loaded
     from app.crypto_embeddings import KNOWN_SCAM_PATTERNS
 
     embedder = await get_embedder()
@@ -26,7 +25,7 @@ async def _preembed_scam_patterns() -> None:
 
     for pattern in KNOWN_SCAM_PATTERNS:
         pattern_name = pattern["name"]
-        if pattern_name in _pattern_cache:
+        if pattern_name in rag_state._pattern_cache:
             continue
 
         redis_key = f"rag:pattern_cache:{pattern_name}"
@@ -34,7 +33,7 @@ async def _preembed_scam_patterns() -> None:
             cached_data = await r.get(redis_key)
             if cached_data:
                 cached = json.loads(cached_data)
-                _pattern_cache[pattern_name] = EmbeddingResult(
+                rag_state._pattern_cache[pattern_name] = EmbeddingResult(
                     vector=cached["vector"],
                     dims=cached["dims"],
                     model=cached["model"],
@@ -52,7 +51,7 @@ async def _preembed_scam_patterns() -> None:
                 indicators=pattern.get("indicators", []),
                 severity=pattern.get("severity", "high"),
             )
-            _pattern_cache[pattern_name] = result
+            rag_state._pattern_cache[pattern_name] = result
             with contextlib.suppress(json.JSONDecodeError):
                 await r.setex(
                     redis_key,
@@ -70,7 +69,7 @@ async def _preembed_scam_patterns() -> None:
         except Exception as e:
             logger.warning(f"Failed to pre-embed pattern {pattern_name}: {e}")
 
-    _pattern_cache_loaded = True
+    rag_state._pattern_cache_loaded = True
 
 
 async def _embed_by_collection(embedder, collection: str, content: str, metadata: dict[str, Any]) -> EmbeddingResult:
@@ -202,12 +201,11 @@ async def ingest_document(
 
 async def seed_known_scams() -> dict[str, Any]:
     """Seed the RAG database with known scam patterns."""
-    global _seeded
     from app.crypto_embeddings import KNOWN_SCAM_PATTERNS
 
     r = await _get_redis()
     existing = await r.scard("rag:idx:known_scams")
-    if existing > 0 and _seeded:
+    if existing > 0 and rag_state._seeded:
         return {"status": "already_seeded", "count": existing}
 
     embedder = await get_embedder()
@@ -240,7 +238,7 @@ async def seed_known_scams() -> dict[str, Any]:
         except Exception as e:
             logger.error(f"Failed to seed {pattern['name']}: {e}")
 
-    _seeded = True
+    rag_state._seeded = True
     return {"status": "seeded", "count": count, "patterns": [p["name"] for p in KNOWN_SCAM_PATTERNS]}
 
 

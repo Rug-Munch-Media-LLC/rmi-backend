@@ -49,23 +49,30 @@ _SELF_IMPROVEMENT_ANSWER = (
 # markdown tables that got cut mid-block and rendered as a wall of pipes.
 # This rule fires BEFORE the creator rule and the generic capability-menu
 # rule so every identity phrasing gets the full, table-free self-description.
+# EXCEPTION: "who are you" is claimed by the dedicated identity/creator rule
+# (persona answer), not this one — it is deliberately absent from the regex
+# above so the persona answer wins over the capabilities card.
 # HTML-safe (balanced <b>/<code>, no raw < >, no tables) — sent with
 # ParseMode.HTML by _reply_local_intent.
 # ══════════════════════════════════════════════
 
 _SELF_DESCRIPTION_RE = re.compile(
     r"\b(?:"
-    r"who are you|who '?re you|who r you|"
+    # NOTE: "who are you" is intentionally NOT here — it must win the persona /
+    # creator answer, so it is left to the identity rule (see _INTENT_RULES).
+    # Plain capability-word questions ("what are your capabilities") are left
+    # to the generic capability-menu rule for the same reason.
+    r"who '?re you|who r you|"
     r"tell me about (?:yourself|you|this bot)|"
     r"about (?:yourself|you|this bot)|"
     r"introduce yourself|describe yourself|"
     r"what can you do|what do you do|what else can you (?:do|help with)|"
-    r"what are your (?:best )?(?:qualities|strengths|skills|features|capabilities|abilities)|"
-    r"what '?re your (?:qualities|strengths|skills|features|capabilities|abilities)|"
-    r"what is your (?:best )?(?:quality|strength|skill|feature|capabilit\w+)|"
-    r"what '?s your (?:best )?(?:quality|strength|skill|feature|capabilit\w+)|"
+    r"what are your (?:best )?(?:qualities|strengths|skills|features|abilities)|"
+    r"what '?re your (?:qualities|strengths|skills|features|abilities)|"
+    r"what is your (?:best )?(?:quality|strength|skill|feature)|"
+    r"what '?s your (?:best )?(?:quality|strength|skill|feature)|"
     r"what are you (?:good at|capable of)|"
-    r"your best qualities|your strengths|your skills|your capabilities"
+    r"your best qualities|your strengths|your skills"
     r")\b",
     re.IGNORECASE,
 )
@@ -374,6 +381,7 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
     ),
 ]
 
+
 def local_ai_response(text: str, user: Any) -> str | None:
     """Tier 2: Match user intent against keyword patterns."""
     text_lower = text.lower().strip()
@@ -383,6 +391,7 @@ def local_ai_response(text: str, user: Any) -> str | None:
                 return None
             return response
     return None
+
 
 __all__ = [
     "_INTENT_RULES",
