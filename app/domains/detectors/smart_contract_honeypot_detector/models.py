@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.pyrevm_engine import SellSimulationResult
 
 
 class FindingSeverity(Enum):
@@ -121,6 +124,9 @@ class HoneypotAnalysisResult:
     chain_data_sources: list[str] = field(default_factory=list)
     scan_timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     scan_duration_ms: int = 0
+    # Optional pyrevm fork-state sell-simulation output (None when skipped or
+    # when the pyrevm dependency / RPC is unavailable — static scan still runs).
+    sell_simulation: SellSimulationResult | None = None
 
     def has_critical_findings(self) -> bool:
         return any(f.severity == FindingSeverity.CRITICAL for f in self.findings)
@@ -186,7 +192,7 @@ class HoneypotAnalysisResult:
         return "\n".join(lines)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "token": self.token.to_dict(),
             "risk_score": self.risk_score,
             "risk_label": self.risk_label,
@@ -200,3 +206,6 @@ class HoneypotAnalysisResult:
             "chain_data_sources": self.chain_data_sources,
             "scan_timestamp": self.scan_timestamp,
         }
+        if self.sell_simulation is not None:
+            payload["sell_simulation"] = asdict(self.sell_simulation)
+        return payload
