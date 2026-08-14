@@ -48,19 +48,32 @@ Notes:
   - success_rate uses *matured* tokens (deployed >= 7 days ago) as the
     denominator; tokens too young to judge never count against the deployer.
 
-NOTE (degodding 2026-08-13): the pure risk/classifier helpers (``_assign_risk_bucket``,
-``_compute_risk_score``, ``_confidence``, ``_classify_cex``) and the result builders
-(``_unavailable_result`` / ``_error_result``) were extracted into
-``engines/_deployer_fingerprint_helpers.py`` and are re-exported here. The ClickHouse
-query layer stays in this module (tests patch ``deployer_fingerprint._get_ch_client``
-end-to-end).
+NOTE (degodding 2026-08-14): this module is the public API + a thin re-export
+shim. The implementation is split by concern:
+
+  - ``_deployer_fingerprint_helpers.py`` — pure risk/classifier helpers
+    (``_assign_risk_bucket``, ``_compute_risk_score``, ``_confidence``,
+    ``_classify_cex``) and the result builders (``_unavailable_result`` /
+    ``_error_result``).
+  - ``_deployer_fingerprint_queries.py`` — the ClickHouse query layer
+    (``_query_*``) and query constants (``_NATIVE_TOKEN_MARKERS`` /
+    ``_QUERY_TIMEOUT_SECONDS``). The client is resolved lazily through this
+    shim so tests patching ``deployer_fingerprint._get_ch_client`` keep
+    intercepting end-to-end.
+  - ``_deployer_fingerprint_profiles.py`` — funder-profile enrichment
+    (``_build_funder_profile``) + launchpad / structural resolution
+    (``_resolve_launchpad_context``, ``_resolve_structural_eoa``,
+    ``_is_known_launchpad_factory``, ``_launchpad_name``).
+  - ``_deployer_fingerprint_compute.py`` — ``_compute_fingerprint`` (the
+    query orchestrator + token-outcome / evidence assembly).
+
+Every name is re-exported here so ``deployer_fingerprint.<name>`` references
+(tests, scanners, patch targets) keep resolving to this module.
 """
 
 from __future__ import annotations
 
-import asyncio
 import time
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 try:
@@ -70,7 +83,10 @@ except ImportError:  # pragma: no cover
 
 from app.core.logging import get_logger
 from app.domains.databus.providers.chains.lite_chain_indexer import (
-    _get_ch_client,
+    # ``as`` alias marks the re-export so mypy strict (implicit_reexport=False)
+    # keeps treating ``deployer_fingerprint._get_ch_client`` as exportable —
+    # the query submodule resolves the client lazily through this shim.
+    _get_ch_client as _get_ch_client,
     _normalize_chain,
 )
 from app.domains.scanner.engines._common import (
@@ -78,9 +94,8 @@ from app.domains.scanner.engines._common import (
     get_cache_stats as _common_get_cache_stats,
     redis_get,
     redis_set,
-    run_sync,
-    to_iso,
 )
+from app.domains.scanner.engines._deployer_fingerprint_compute import _compute_fingerprint
 from app.domains.scanner.engines._deployer_fingerprint_helpers import (  # noqa: F401
     _CEX_KEYWORDS,
     # Re-exported for tests that reference them as deployer_fingerprint.<name>
@@ -92,6 +107,29 @@ from app.domains.scanner.engines._deployer_fingerprint_helpers import (  # noqa:
     _confidence,
     _error_result,
     _unavailable_result,
+)
+from app.domains.scanner.engines._deployer_fingerprint_profiles import (
+    # Re-exported for tests / callers that reference them as
+    # deployer_fingerprint.<name>.
+    _build_funder_profile,  # noqa: F401
+    _is_known_launchpad_factory,
+    _launchpad_name,
+    _resolve_launchpad_context,
+    _resolve_structural_eoa,
+)
+from app.domains.scanner.engines._deployer_fingerprint_queries import (  # noqa: F401
+    _NATIVE_TOKEN_MARKERS,
+    # Re-exported for tests / callers that reference them as
+    # deployer_fingerprint.<name>.
+    _QUERY_TIMEOUT_SECONDS,
+    _query_deployer_stats,
+    _query_first_incoming,
+    _query_funder,
+    _query_funder_label,
+    _query_funder_tx_count,
+    _query_per_token_deployments,
+    _query_same_funder_deployers,
+    _query_token_dex_stats,
 )
 
 # Legacy module-local names kept so existing unit tests that patch
@@ -108,24 +146,6 @@ REDIS_CACHE_PREFIX = "fingerprint"
 _FINGERPRINT_CACHE: dict[str, dict[str, Any]] = {}
 _FINGERPRINT_CACHE_TTL = 600  # 10 minutes in-process mirror
 _FINGERPRINT_CACHE_MAX = 200
-
-# ── Risk buckets / CEX keywords / result builders live in
-# ``_deployer_fingerprint_helpers.py`` (pure logic, re-exported above).
-
-# Tokens used to represent native chain currency (ETH/MATIC) in evm_transfers
-_NATIVE_TOKEN_MARKERS = frozenset(
-    {
-        "0x0000000000000000000000000000000000000000",
-        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-        "0x0000000000000000000000000000000000001010",  # Polygon native
-        "eth",
-        "native",
-        "",
-    }
-)
-
-# ClickHouse query execution guard — every query is bounded
-_QUERY_TIMEOUT_SECONDS = 10
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -269,726 +289,6 @@ async def fingerprint_deployer(deployer_address: str, chain: str = "ethereum") -
         deployments=result.get("total_deployments"),
     )
     return result
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# COMPUTATION
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _resolve_launchpad_context(deployer_address: str, chain_norm: str) -> dict[str, Any] | None:
-    """Resolve a known launchpad factory to its real creator EOA.
-
-    Delegates to ``launchpad_resolver.resolve_launchpad_deployer`` (lazy import
-    to keep this engine's import graph light). When the caller has no token
-    context, we anchor resolution on the factory's most recent recorded deploy
-    transaction from ``deployer_events``.
-
-    Returns ``None`` when the factory is not in the registry or the creator
-    cannot be traced.
-    """
-    try:
-        from app.domains.scanner.engines.launchpad_resolver import (
-            _query_factory_latest_deploy_tx,
-            resolve_launchpad_deployer,
-        )
-
-        deploy_tx = await run_sync(_query_factory_latest_deploy_tx, deployer_address, chain_norm)
-        return await resolve_launchpad_deployer("", chain_norm, deployer_address, deploy_tx=deploy_tx)
-    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
-        logger.debug("deployer_fingerprint_launchpad_resolve_failed: %s", exc)
-        return None
-
-
-async def _resolve_structural_eoa(deployer_address: str, chain_norm: str) -> dict[str, Any] | None:
-    """Structurally resolve a factory/contract deployer to its real creator EOA.
-
-    No registry required: if the lite indexer already resolved ``deployer_eoa``
-    for any event under this deployer (``tx.from`` of the creation tx at ingest
-    time), that EOA is the real creator. Returns a launchpad-style context dict
-    or ``None`` when the deployer is a plain EOA (its eoa equals itself) or the
-    indexer has no data for it.
-    """
-    try:
-        from app.domains.scanner.engines.launchpad_resolver import (
-            _has_resolved_deployer_eoa,
-            _query_deployer_eoa_by_deployer,
-        )
-
-        if not await run_sync(_has_resolved_deployer_eoa, deployer_address, chain_norm):
-            return None
-        eoa = await run_sync(_query_deployer_eoa_by_deployer, deployer_address, chain_norm)
-        if not eoa or eoa.lower() == deployer_address.lower():
-            return None
-        return {
-            "real_deployer": eoa.lower(),
-            "launchpad": None,
-            "confidence": 1.0,
-            "evidence_tx": None,
-            "method": "deployer_eoa",
-        }
-    except (ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError, CHDriverError) as exc:
-        logger.debug("deployer_fingerprint_structural_resolve_failed: %s", exc)
-        return None
-
-
-def _is_known_launchpad_factory(deployer_address: str, chain_norm: str) -> bool:
-    """True when the deployer address is a registered launchpad factory.
-
-    Non-lazy import is avoided at module load; the lookup itself is cheap.
-    """
-    try:
-        from app.domains.scanner.engines.launchpad_resolver import lookup_launchpad
-
-        return lookup_launchpad(chain_norm or "ethereum", deployer_address) is not None
-    except (ImportError, ValueError):
-        return False
-
-
-def _launchpad_name(deployer_address: str, chain_norm: str) -> str | None:
-    """Return the launchpad label for a factory address (or None)."""
-    try:
-        from app.domains.scanner.engines.launchpad_resolver import lookup_launchpad
-
-        return lookup_launchpad(chain_norm or "ethereum", deployer_address)
-    except (ImportError, ValueError):
-        return None
-
-
-async def _compute_fingerprint(deployer_address: str, chain_norm: str) -> dict[str, Any]:
-    """Run all ClickHouse queries and assemble the fingerprint result."""
-    now_naive = datetime.now(UTC).replace(tzinfo=None)
-
-    # ── Round 1 (parallel, independent) ──
-    stats_task = asyncio.create_task(run_sync(_query_deployer_stats, deployer_address, chain_norm))
-    tokens_task = asyncio.create_task(run_sync(_query_per_token_deployments, deployer_address, chain_norm))
-    funder_task = asyncio.create_task(run_sync(_query_funder, deployer_address, chain_norm))
-    stats, tokens, funder = await asyncio.gather(stats_task, tokens_task, funder_task)
-
-    if not stats or stats.get("tokens_deployed", 0) == 0:
-        return _unavailable_result(deployer_address, chain_norm, reason="no deployer history")
-
-    total_deployments = int(stats.get("tokens_deployed", 0) or 0)
-    first_seen = stats.get("first_ts")
-    last_seen = stats.get("last_ts")
-    chains_used = stats.get("chains_used", [])
-
-    # ── Round 2: per-token DEX survival (needs token list) ──
-    dex_stats = await run_sync(_query_token_dex_stats, tokens, chain_norm)
-
-    # ── Round 3: funder profile (needs funder address) ──
-    funder_profile = await _build_funder_profile(funder, chain_norm, deployer_address)
-
-    # ── Assemble token outcomes ──
-    token_outcomes: list[dict[str, Any]] = []
-    survived_count = 0
-    matured_count = 0
-    lifespans: list[float] = []
-    evidence: list[dict[str, Any]] = []
-
-    for tok in tokens:
-        dex = dex_stats.get(tok["token_address"].lower()) or {}
-        deployed_ts = tok.get("deployed_ts")
-        first_dex_ts = dex.get("first_dex_ts")
-        last_swap_ts = dex.get("last_swap_ts")
-        swap_count = int(dex.get("swap_count", 0) or 0)
-
-        # Lifespan: last swap minus the pair-created proxy (first DEX activity),
-        # falling back to the deployment timestamp when no swaps exist.
-        lifespan_hours: float | None = None
-        if last_swap_ts is not None:
-            base_ts = first_dex_ts or deployed_ts
-            if base_ts is not None:
-                try:
-                    lifespan_hours = round(max((last_swap_ts - base_ts).total_seconds() / 3600, 0.0), 1)
-                except (TypeError, ValueError):
-                    lifespan_hours = None
-
-        # Survived 7 days: had DEX activity at least 7 days after deployment
-        survived_7d = False
-        if deployed_ts is not None and last_swap_ts is not None:
-            try:
-                survived_7d = last_swap_ts >= deployed_ts + timedelta(days=7)
-            except (TypeError, ValueError):
-                survived_7d = False
-
-        # Only tokens old enough to be judged count toward success rate
-        matured = False
-        if deployed_ts is not None:
-            try:
-                matured = deployed_ts + timedelta(days=7) <= now_naive
-            except (TypeError, ValueError):
-                matured = False
-
-        if matured:
-            matured_count += 1
-            if survived_7d:
-                survived_count += 1
-        if lifespan_hours is not None:
-            lifespans.append(lifespan_hours)
-
-        token_outcomes.append(
-            {
-                "token_address": tok["token_address"],
-                "chain": tok.get("chain") or chain_norm,
-                "deployed_at": to_iso(tok.get("deployed_ts")),
-                "deploy_tx": tok.get("deploy_tx"),
-                "first_dex_ts": to_iso(first_dex_ts),
-                "last_swap_ts": to_iso(last_swap_ts),
-                "swap_count": swap_count,
-                "lifespan_hours": lifespan_hours,
-                "survived_7d": survived_7d,
-                "matured": matured,
-            }
-        )
-
-    success_rate: float | None = None
-    if matured_count > 0:
-        success_rate = round(survived_count / matured_count, 3)
-
-    median_lifespan_hours: float | None = None
-    if lifespans:
-        lifespans_sorted = sorted(lifespans)
-        n = len(lifespans_sorted)
-        if n % 2 == 1:
-            median_lifespan_hours = round(lifespans_sorted[n // 2], 1)
-        else:
-            median_lifespan_hours = round((lifespans_sorted[n // 2 - 1] + lifespans_sorted[n // 2]) / 2, 1)
-
-    # Deployment velocity (deployments per week)
-    deployments_per_week = 0.0
-    if first_seen is not None and last_seen is not None and last_seen > first_seen:
-        try:
-            span_weeks = max((last_seen - first_seen).total_seconds() / (7 * 86400), 0.01)
-            deployments_per_week = round(total_deployments / span_weeks, 3)
-        except (TypeError, ValueError):
-            deployments_per_week = 0.0
-
-    # ── Risk bucket + score ──
-    metrics: dict[str, Any] = {
-        "total_deployments": total_deployments,
-        "first_seen": first_seen,
-        "survived_count": survived_count,
-        "matured_count": matured_count,
-        "success_rate": success_rate,
-        "any_rug": any(not t["survived_7d"] for t in token_outcomes if t["matured"]),
-        "funder_profile": funder_profile,
-    }
-    risk_bucket = _assign_risk_bucket(metrics, now_naive)
-    risk_score = _compute_risk_score(risk_bucket, metrics)
-
-    # Evidence: sample tokens (max 5) + funder proof
-    for t in sorted(token_outcomes, key=lambda x: x["deployed_at"] or "", reverse=True)[:5]:
-        evidence.append(
-            {
-                "kind": "token",
-                "token_address": t["token_address"],
-                "chain": t["chain"],
-                "deployed_at": t["deployed_at"],
-                "deploy_tx": t["deploy_tx"],
-                "survived_7d": t["survived_7d"],
-                "lifespan_hours": t["lifespan_hours"],
-                "last_swap_ts": t["last_swap_ts"],
-            }
-        )
-    if funder_profile.get("funder_address"):
-        evidence.append(
-            {
-                "kind": "funder",
-                "funder_address": funder_profile["funder_address"],
-                "funding_tx": funder_profile.get("funding_tx"),
-                "funding_ts": funder_profile.get("funding_ts"),
-                "funding_token": funder_profile.get("funding_token"),
-                "funder_is_cex": funder_profile.get("funder_is_cex"),
-                "funder_is_fresh": funder_profile.get("funder_is_fresh"),
-                "same_funder_multiple": funder_profile.get("same_funder_multiple"),
-            }
-        )
-
-    return {
-        "check": "deployer_fingerprint",
-        "result": "scanned",
-        "source": "own",
-        "deployer": deployer_address,
-        "chain": chain_norm or "any",
-        "risk_bucket": risk_bucket,
-        "risk_score": risk_score,
-        "total_deployments": total_deployments,
-        "chains_used": chains_used,
-        "first_seen": to_iso(first_seen),
-        "last_seen": to_iso(last_seen),
-        "deployments_per_week": deployments_per_week,
-        "survived_7d": survived_count,
-        "matured_tokens": matured_count,
-        "success_rate": success_rate,
-        "median_lifespan_hours": median_lifespan_hours,
-        "funder_profile": funder_profile,
-        "evidence": evidence,
-        "confidence": _confidence(total_deployments, matured_count, funder_profile),
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# RISK ASSIGNMENT
-# ═══════════════════════════════════════════════════════════════════════════
-# ``_assign_risk_bucket`` / ``_compute_risk_score`` / ``_confidence`` were
-# extracted into ``_deployer_fingerprint_helpers.py`` (pure logic, no CH /
-# Redis access) and are re-exported at the top of this module.
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# FUNDER PROFILE
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def _build_funder_profile(
-    funder: dict[str, Any] | None,
-    chain_norm: str,
-    deployer_address: str,
-) -> dict[str, Any]:
-    """Enrich the raw funder row with label, freshness, and multiplicity."""
-    profile: dict[str, Any] = {
-        "funder_address": None,
-        "funding_tx": None,
-        "funding_ts": None,
-        "funding_token": None,
-        "funding_native": False,
-        "funder_is_cex": False,
-        "cex_label": None,
-        "funder_is_fresh": None,
-        "funder_tx_count": None,
-        "same_funder_multiple": None,
-    }
-
-    if not funder:
-        return profile
-
-    funder_addr = funder.get("from_address")
-    if not funder_addr or funder_addr.lower() == deployer_address:
-        return profile
-
-    profile["funder_address"] = funder_addr
-    profile["funding_tx"] = funder.get("first_tx")
-    profile["funding_ts"] = to_iso(funder.get("first_ts"))
-    profile["funding_token"] = funder.get("first_token")
-    profile["funding_native"] = bool(funder.get("is_native"))
-
-    # Parallel enrichment queries (all bounded, graceful on failure)
-    label_task = asyncio.create_task(run_sync(_query_funder_label, funder_addr))
-    tx_count_task = asyncio.create_task(run_sync(_query_funder_tx_count, funder_addr))
-    overlap_task = asyncio.create_task(run_sync(_query_same_funder_deployers, funder_addr, chain_norm))
-    labels_result: Any
-    tx_count_result: Any
-    overlap_result: Any
-    labels_result, tx_count_result, overlap_result = await asyncio.gather(
-        label_task, tx_count_task, overlap_task, return_exceptions=True
-    )
-
-    labels: list[dict[str, Any]] = []
-    if not isinstance(labels_result, BaseException) and labels_result:
-        labels = labels_result
-    tx_count: int | None = None
-    if not isinstance(tx_count_result, BaseException):
-        tx_count = tx_count_result
-    overlap: int = 0
-    if not isinstance(overlap_result, BaseException) and overlap_result is not None:
-        overlap = overlap_result
-
-    # CEX classification from wallet_labels
-    is_cex, cex_label = _classify_cex(labels)
-    profile["funder_is_cex"] = is_cex
-    profile["cex_label"] = cex_label
-    profile["funder_labels"] = [
-        {
-            "label_name": lbl.get("label_name"),
-            "label_category": lbl.get("label_category"),
-            "source": lbl.get("source"),
-        }
-        for lbl in labels[:5]
-    ]
-
-    # Freshness: < 10 total transactions
-    if tx_count is not None:
-        profile["funder_tx_count"] = int(tx_count)
-        profile["funder_is_fresh"] = int(tx_count) < 10
-
-    # Same funder used by 2+ known deployers
-    profile["same_funder_multiple"] = int(overlap or 0) >= 2
-
-    return profile
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# CLICKHOUSE QUERIES (all sync, bounded by max_execution_time)
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-def _query_deployer_stats(deployer_address: str, chain: str) -> dict[str, Any] | None:
-    """Aggregate deployment stats from deployer_events."""
-    client = _get_ch_client()
-    if client is None:
-        return None
-
-    where_parts = ["deployer = %(deployer)s"]
-    params: dict[str, Any] = {"deployer": deployer_address}
-    if chain:
-        where_parts.append("chain = %(chain)s")
-        params["chain"] = chain
-    where_clause = " AND ".join(where_parts)
-
-    try:
-        rows = client.execute(
-            f"""
-            SELECT
-                count() AS total_deployments,
-                uniqExact(token_address) AS tokens_deployed,
-                groupUniqArray(chain) AS chains_used,
-                min(block_timestamp) AS first_ts,
-                max(block_timestamp) AS last_ts
-            FROM wallet_memory.deployer_events
-            WHERE {where_clause}
-            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
-            params,
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_deployer_stats_failed: %s", exc)
-        return None
-
-    if not rows or not rows[0]:
-        return None
-
-    row = rows[0]
-    return {
-        "total_deployments": int(row[0] or 0),
-        "tokens_deployed": int(row[1] or 0),
-        "chains_used": sorted({str(c) for c in (row[2] or [])}),
-        "first_ts": row[3],
-        "last_ts": row[4],
-    }
-
-
-def _query_per_token_deployments(deployer_address: str, chain: str) -> list[dict[str, Any]]:
-    """Return per-token deployment records from deployer_events (bounded)."""
-    client = _get_ch_client()
-    if client is None:
-        return []
-
-    where_parts = ["deployer = %(deployer)s"]
-    params: dict[str, Any] = {"deployer": deployer_address, "limit": 100}
-    if chain:
-        where_parts.append("chain = %(chain)s")
-        params["chain"] = chain
-    where_clause = " AND ".join(where_parts)
-
-    try:
-        rows = client.execute(
-            f"""
-            SELECT
-                token_address,
-                any(chain) AS chain,
-                min(block_timestamp) AS deployed_ts,
-                argMin(tx_hash, block_timestamp) AS deploy_tx
-            FROM wallet_memory.deployer_events
-            WHERE {where_clause}
-            GROUP BY token_address
-            ORDER BY deployed_ts DESC
-            LIMIT %(limit)s
-            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
-            params,
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_per_token_deployments_failed: %s", exc)
-        return []
-
-    tokens: list[dict[str, Any]] = []
-    for row in rows:
-        tokens.append(
-            {
-                "token_address": row[0].lower(),
-                "chain": row[1],
-                "deployed_ts": row[2],
-                "deploy_tx": row[3],
-            }
-        )
-    return tokens
-
-
-def _query_token_dex_stats(
-    tokens: list[dict[str, Any]],
-    chain: str,
-) -> dict[str, dict[str, Any]]:
-    """Compute per-token first/last swap + count from dex_events.
-
-    ``pair_created_ts`` is proxied by the earliest DEX swap timestamp (the
-    chain-indexers persist only ``type = 'swap'`` rows). Historical rows with
-    empty token0/token1 are covered via the pair→tokens cache.
-    """
-    client = _get_ch_client()
-    if client is None or not tokens:
-        return {}
-
-    try:
-        from app.domains.scanner.engines.own_dex_data.client import (
-            _get_pools_for_token,
-            _load_pair_cache,
-        )
-    except ImportError:
-        # Importers available; fall back to None when the module is missing
-        _get_pools_for_token = None  # type: ignore[assignment]
-        _load_pair_cache = None  # type: ignore[assignment]
-
-    token_addrs = [t["token_address"] for t in tokens]
-    pools: set[str] = set()
-    if _get_pools_for_token is not None and _load_pair_cache is not None:
-        try:
-            for t in tokens:
-                pair_cache = _load_pair_cache(t.get("chain") or chain or "")
-                pools.update(_get_pools_for_token(pair_cache, t["token_address"]))
-        except (ValueError, OSError):
-            pass
-
-    params: dict[str, Any] = {
-        "tokens": tuple(token_addrs),
-        "pools": tuple(sorted(pools)) if pools else (),
-    }
-    where_parts = ["type = 'swap'"]
-    if chain:
-        where_parts.append("chain = %(chain)s")
-        params["chain"] = chain
-    pool_clause = ""
-    if pools:
-        pool_clause = " OR contract_address IN %(pools)s"
-    where_clause = " AND ".join(where_parts)
-
-    try:
-        rows = client.execute(
-            f"""
-            SELECT
-                token_address,
-                min(block_timestamp) AS first_dex_ts,
-                max(block_timestamp) AS last_swap_ts,
-                count() AS swap_count
-            FROM wallet_memory.dex_events
-            WHERE {where_clause}
-              AND (token0 IN %(tokens)s OR token1 IN %(tokens)s{pool_clause})
-            GROUP BY token_address
-            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
-            params,
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_token_dex_stats_failed: %s", exc)
-        return {}
-
-    result: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        result[row[0].lower()] = {
-            "first_dex_ts": row[1],
-            "last_swap_ts": row[2],
-            "swap_count": int(row[3] or 0),
-        }
-    return result
-
-
-def _query_funder(deployer_address: str, chain: str) -> dict[str, Any] | None:
-    """Find the first wallet that funded the deployer (evm_transfers).
-
-    Prefers native (ETH-like) transfers; falls back to the first ERC-20
-    incoming transfer on record.
-    """
-    client = _get_ch_client()
-    if client is None:
-        return None
-
-    where_parts = ["to_address = %(deployer)s"]
-    params: dict[str, Any] = {"deployer": deployer_address}
-    if chain:
-        where_parts.append("chain = %(chain)s")
-        params["chain"] = chain
-    where_clause = " AND ".join(where_parts)
-
-    # ── Preferred: native currency transfer (ETH / MATIC marker) ──
-    native = _query_first_incoming(client, where_clause, params, native_only=True)
-    if native:
-        return native
-
-    # ── Fallback: any first incoming transfer ──
-    return _query_first_incoming(client, where_clause, params, native_only=False)
-
-
-def _query_first_incoming(
-    client: Any,
-    where_clause: str,
-    params: dict[str, Any],
-    native_only: bool,
-) -> dict[str, Any] | None:
-    """Single first-incoming-transfer query (native filter optional)."""
-    try:
-        if native_only:
-            rows = client.execute(
-                f"""
-                SELECT
-                    from_address,
-                    min(block_timestamp) AS first_ts,
-                    argMin(tx_hash, block_timestamp) AS first_tx,
-                    argMin(token_address, block_timestamp) AS first_token
-                FROM wallet_memory.evm_transfers
-                WHERE {where_clause}
-                  AND lower(token_address) IN %(native_markers)s
-                GROUP BY from_address
-                ORDER BY first_ts ASC
-                LIMIT 1
-                """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
-                {**params, "native_markers": tuple(_NATIVE_TOKEN_MARKERS)},
-                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-            )
-        else:
-            rows = client.execute(
-                f"""
-                SELECT
-                    from_address,
-                    min(block_timestamp) AS first_ts,
-                    argMin(tx_hash, block_timestamp) AS first_tx,
-                    argMin(token_address, block_timestamp) AS first_token
-                FROM wallet_memory.evm_transfers
-                WHERE {where_clause}
-                GROUP BY from_address
-                ORDER BY first_ts ASC
-                LIMIT 1
-                """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
-                params,
-                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-            )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_funder_query_failed: %s", exc)
-        return None
-
-    if not rows:
-        return None
-
-    row = rows[0]
-    return {
-        "from_address": row[0].lower(),
-        "first_ts": row[1],
-        "first_tx": row[2],
-        "first_token": (row[3] or "").lower() if row[3] else None,
-        "is_native": native_only,
-    }
-
-
-def _query_funder_label(funder_address: str) -> list[dict[str, Any]]:
-    """Look up wallet_labels for the funder (CEX / entity classification)."""
-    client = _get_ch_client()
-    if client is None:
-        return []
-
-    try:
-        rows = client.execute(
-            """
-            SELECT address, chain_id, label_name, label_category, label_subtype, source
-            FROM wallet_memory.wallet_labels
-            WHERE address = %(addr)s
-            ORDER BY loaded_at DESC
-            LIMIT 20
-            """,
-            {"addr": funder_address},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_funder_label_failed: %s", exc)
-        return []
-
-    labels: list[dict[str, Any]] = []
-    for row in rows:
-        labels.append(
-            {
-                "address": row[0],
-                "chain_id": row[1],
-                "label_name": row[2] or "",
-                "label_category": row[3] or "",
-                "label_subtype": row[4] or "",
-                "source": row[5] or "",
-            }
-        )
-    return labels
-
-
-def _query_funder_tx_count(funder_address: str) -> int | None:
-    """Count total transactions for the funder (bounded at 11 for freshness)."""
-    client = _get_ch_client()
-    if client is None:
-        return None
-
-    try:
-        rows = client.execute(
-            """
-            SELECT count()
-            FROM (
-                SELECT 1 AS x
-                FROM wallet_memory.evm_transfers
-                WHERE from_address = %(addr)s OR to_address = %(addr)s
-                LIMIT 11
-            )
-            """,
-            {"addr": funder_address},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_funder_tx_count_failed: %s", exc)
-        return None
-
-    return int(rows[0][0]) if rows and rows[0] else None
-
-
-def _query_same_funder_deployers(funder_address: str, chain: str) -> int:
-    """Count known deployers funded by the same wallet (2+ = multiple)."""
-    client = _get_ch_client()
-    if client is None:
-        return 0
-
-    try:
-        deployer_rows = client.execute(
-            """
-            SELECT DISTINCT deployer
-            FROM wallet_memory.deployer_events
-            {chain_clause}
-
-            LIMIT 5000
-            """.format(  # nosec B608 - values bound via %(chain)s; only code-literal chain_clause interpolated
-                chain_clause="WHERE chain = %(chain)s" if chain else ""
-            ),  # where_clause/chain_clause built from code literals; values parameterized
-            {"chain": chain} if chain else {},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_same_funder_deployer_list_failed: %s", exc)
-        return 0
-
-    if not deployer_rows:
-        return 0
-    deployers = tuple({r[0].lower() for r in deployer_rows})
-    if len(deployers) > 5000:
-        deployers = tuple(list(deployers)[:5000])
-
-    try:
-        rows = client.execute(
-            """
-            SELECT count(DISTINCT to_address) AS n
-            FROM wallet_memory.evm_transfers
-            WHERE from_address = %(funder)s
-              AND to_address != %(funder)s
-              AND to_address IN %(deployers)s
-            """,
-            {"funder": funder_address, "deployers": deployers},
-            settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
-        )
-    except (ValueError, RuntimeError, OSError) as exc:
-        logger.debug("fingerprint_same_funder_overlap_failed: %s", exc)
-        return 0
-
-    return int(rows[0][0]) if rows and rows[0] else 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════
