@@ -9,11 +9,15 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import httpx
 
 from app.core.channels_registry import CHANNEL_ROLES
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
 
 
 class TierDefinition(TypedDict, total=False):
@@ -69,10 +73,23 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
     return ""
 
 
-BOT_TOKEN = _get_token(
-    "rmi/rugmunchbot/bot_token",
-    ["RUGMUNCH_BOT_TOKEN", "TELEGRAM_RUGMUNCH_BOT_TOKEN", "TELEGRAM_BOT_TOKEN"],
-)
+def _resolve_bot_token() -> str:
+    """Resolve the bot token (gopass → env) lazily on first access.
+
+    Deferred via module ``__getattr__`` (see bottom of this module) so that
+    importing config never spawns a gopass subprocess. ``BOT_TOKEN`` is NOT
+    bound here — ``from ...config import BOT_TOKEN`` triggers this on demand
+    and the value is memoized into the module namespace.
+    """
+    return _get_token(
+        "rmi/rugmunchbot/bot_token",
+        ["RUGMUNCH_BOT_TOKEN", "TELEGRAM_RUGMUNCH_BOT_TOKEN", "TELEGRAM_BOT_TOKEN"],
+    )
+
+
+# BOT_TOKEN intentionally NOT bound at import time — resolved lazily via
+# module __getattr__ at the bottom of this file (same gopass → env semantics,
+# deferred until first attribute access).
 OWNER_IDS = {int(x.strip()) for x in os.getenv("TELEGRAM_ALLOWED_USERS", "7075336557").split(",") if x.strip()}
 BOT_USERNAME = "RugMunchBot"
 
@@ -141,12 +158,34 @@ def _get_api_key() -> str:
     return _get_token("rmi/backend/rmi_auth_token", ["RMI_AUTH_TOKEN"])
 
 
-API_KEY = _get_api_key()
+_api_key_value: str | None = None
+
+
+def _resolve_api_key() -> str:
+    """Memoized backend X-API-Key — resolves lazily on first use.
+
+    Importing this module never shells out to gopass; the first
+    ``backend_headers()`` call (or ``API_KEY`` attribute access via module
+    ``__getattr__``) triggers resolution. The value is cached for the process,
+    matching the old import-time snapshot semantics. (Note: ``API_KEY`` cannot
+    be referenced directly from this module's functions — module ``__getattr__``
+    does not fire for function-scope globals — so callers use this helper.)
+    """
+    global _api_key_value
+    if _api_key_value is None:
+        _api_key_value = _get_api_key()
+    return _api_key_value
+
+
+# API_KEY intentionally NOT bound at import time — resolved lazily via
+# _resolve_api_key() (module __getattr__ at the bottom of this file). The
+# gopass fallback never runs at import.
 
 
 def backend_headers() -> dict[str, str]:
     """Headers for bot→backend calls. X-API-Key authenticates AND bypasses CSRF."""
-    return {"X-API-Key": API_KEY} if API_KEY else {}
+    key = _resolve_api_key()
+    return {"X-API-Key": key} if key else {}
 
 
 async def check_backend_health() -> None:
@@ -431,7 +470,23 @@ SCAN_PACKS: dict[str, ScanPack] = {
 # The `{token}` / `{chain}` / `{chain_id}` placeholders are filled by
 # formatters/_base.py `_ref_platform_buttons` for every platform. Tests:
 # tests/test_ref_links_chart.py locks in that the address always appears.
-DEX_REF_LINKS = {
+
+
+class DexRefLink(TypedDict):
+    """One referral trade-button entry in ``DEX_REF_LINKS``.
+
+    ``url`` is a template with ``{token}`` / ``{chain}`` / ``{chain_id}``
+    placeholders filled at render time by ``formatters/_base.py``.
+    """
+
+    name: str
+    emoji: str
+    url: str
+    chains: list[str]
+    description: str
+
+
+DEX_REF_LINKS: dict[str, DexRefLink] = {
     "jupiter": {
         "name": "Jupiter",
         "emoji": "🪐",
@@ -609,7 +664,49 @@ def _channel_id_required(key: str) -> str:
     return value
 
 
-CHANNELS: dict[str, str] = {key: _channel_id_required(key) for key in _CHANNEL_DEFAULTS}
+def _resolve_channels() -> dict[str, str]:
+    """Resolve the channel map (gopass → env → fallback) lazily on first access.
+
+    Deferred via module ``__getattr__`` (below) so that importing this module
+    never shells out to gopass for the channel ids. Returns the same snapshot
+    the eager binding did; memoized into the module namespace on first access.
+    """
+    return {key: _channel_id_required(key) for key in _CHANNEL_DEFAULTS}
+
+
+# ══════════════════════════════════════════════
+# LAZY SECRET ACCESS (PEP 562 module __getattr__)
+# ══════════════════════════════════════════════
+# BOT_TOKEN / API_KEY / CHANNELS resolve via gopass subprocess. Binding them at
+# import time made ANY import of this module spawn subprocesses — a startup/CI
+# hazard. They now resolve on first attribute access and are memoized into the
+# module namespace, so ``from ...config import BOT_TOKEN`` returns the identical
+# value as before — just on demand instead of at import. Env-var-driven names
+# (OWNER_IDS, BACKEND_URL, ...) remain eager; only the subprocess path is lazy.
+
+# Type-only declarations for the lazy names — annotations do NOT create runtime
+# bindings (that is the point: no gopass subprocess at import), but they keep
+# static analyzers (ruff F821 / mypy) aware of the public names resolved by
+# module __getattr__ below.
+BOT_TOKEN: str
+API_KEY: str
+CHANNELS: dict[str, str]
+
+_LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
+    "BOT_TOKEN": _resolve_bot_token,
+    "API_KEY": _resolve_api_key,
+    "CHANNELS": _resolve_channels,
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve lazy config names on first access (PEP 562), then memoize."""
+    resolver = _LAZY_RESOLVERS.get(name)
+    if resolver is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = resolver()
+    globals()[name] = value
+    return value
 
 
 # ══════════════════════════════════════════════

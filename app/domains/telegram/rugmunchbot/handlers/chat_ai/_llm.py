@@ -1,24 +1,45 @@
-"""LLM-call clients + endpoint/budget constants for the chat_ai pipeline.
+"""LLM-call clients + endpoint/budget constants + fallback orchestration.
 
-Extracted from ``chat_ai/__init__.py``: the backend RAG chat client
-(``POST /api/v1/chat``), the cloud Zen client, the local llama.cpp client
-(Qwen3.5 4B / 9B), plus the endpoint/budget constants these clients use.
+Extracted from ``chat_ai/__init__.py`` (Batch 11: clients; Batch 12: the
+fallback orchestration): the backend RAG chat client (``POST /api/v1/chat``),
+the cloud Zen client, the local llama.cpp client (Qwen3.5 4B / 9B), the
+endpoint/budget constants these clients use, and ``_build_fallback_answer``
++ ``_gather_fallback_context`` — the backend-less answer path that assembles
+the fail-open bridge/daily/scan context + live tool data into the Zen → local
+llama.cpp fallback chain.
 
 Pipeline ordering (see ``chat_ai/__init__.py``): backend auto-RAG is
 tier-1, Zen and local llama.cpp are fallbacks. The Zen/local clients accept
 the bridge ``sources`` list so ``rag_count`` reflects the REAL number of
 grounding sources instead of a hardcoded 0.
+
+MONKEYPATCH CONTRACT: the pipeline tests replace ``chat_ai._call_zen_llm``
+and ``chat_ai._call_local_llm`` on the package, so the fallback chain resolves
+those two through the package module at call time instead of its own globals.
 """
 
 from __future__ import annotations
 
+import asyncio
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
+import app.domains.telegram.rugmunchbot.handlers.chat_ai as chat_ai
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._classify import _is_deep_question
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import _format_tool_answer
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._live_tools import (
+    LIVE_TOOLS_WAIT,
+    TOOL_ANSWER_EXTRA_WAIT,
+    _run_live_tools_bounded,
+)
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools.intent import build_tool_prompt_block
+
+if TYPE_CHECKING:
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 logger = get_logger("rmi_bot.chat_ai")
 
@@ -432,3 +453,143 @@ async def _call_local_llm(
             "latency_ms": 0,
         }
     return None
+
+
+async def _gather_fallback_context(
+    daily_ctx_task: asyncio.Task[Any],
+    scan_ctx_task: asyncio.Task[Any] | None,
+    bridge_ctx_task: asyncio.Task[Any],
+) -> tuple[Any, Any, Any]:
+    """Await the fallback context fetches (fail-open) for the Zen/local path.
+
+    The backend tier-1 call runs CONCURRENTLY with these tasks and is awaited
+    FIRST; this helper is only invoked when the backend returned ``None`` and
+    the fallback path actually needs the bridge/daily/scan context. Exceptions
+    are swallowed per-task (``return_exceptions=True``) so a failing fetcher
+    degrades to ``None`` instead of killing the fallback LLM call.
+    """
+    tasks: list[asyncio.Task[Any]] = [daily_ctx_task, bridge_ctx_task]
+    if scan_ctx_task is not None:
+        tasks.append(scan_ctx_task)
+    results = [
+        r if not isinstance(r, BaseException) else None for r in await asyncio.gather(*tasks, return_exceptions=True)
+    ]
+    daily_context = results[0]
+    bridge_ctx = results[1]
+    scan_summary = results[2] if scan_ctx_task is not None else None
+    return daily_context, scan_summary, bridge_ctx
+
+async def _build_fallback_answer(
+    text: str,
+    user: Any,
+    history: list[dict[str, str]],
+    *,
+    daily_ctx_task: asyncio.Task[Any],
+    scan_ctx_task: asyncio.Task[Any] | None,
+    bridge_ctx_task: asyncio.Task[Any],
+    live_tools_task: asyncio.Task[dict[str, ToolResult]],
+    rag_task: asyncio.Task[ToolResult | None] | None,
+) -> tuple[dict[str, Any] | None, list[dict[str, str]], list[dict[str, str]], ToolResult | None, bool]:
+    """Backend-less answer path: gather the fail-open context fetches that
+    ground the Zen → local llama.cpp fallback chain.
+
+    Returns ``(result, bridge_sources, bridge_actions, rag_result,
+    has_market_context)``. The bridge/daily/scan context and the direct RAG
+    lookup are gathered first (each fails open to ``None``), then the prompt
+    is assembled from bridge blocks + scan summary + LIVE tool data, and the
+    cloud Zen / local CPU chain runs with ``rag_count = len(sources)``. When
+    the whole LLM chain is down but tools returned REAL data, a tools-only
+    answer is produced. ``result`` is ``None`` only when every path failed
+    (the caller then falls through to the canned tier-2 reply).
+    """
+    bridge_sources: list[dict[str, str]] = []
+    bridge_actions: list[dict[str, str]] = []
+    rag_result: ToolResult | None = None
+    has_market_context = False
+
+    daily_context, scan_summary, bridge_ctx = await _gather_fallback_context(
+        daily_ctx_task, scan_ctx_task, bridge_ctx_task
+    )
+    if bridge_ctx:
+        bridge_context, bridge_sources, bridge_actions = bridge_ctx
+    else:
+        bridge_context = None
+
+    # Direct RAG knowledge lookup (bot-side, fail-open): searches the intel
+    # DB for knowledge questions BEFORE the web/LLM fallback — the missing
+    # grounding layer when the bridge is down. Real hits are prepended FIRST
+    # (own data before web) and their sources feed the honest grounding
+    # footer (rag_count = len(sources)).
+    if rag_task is not None:
+        rag_result = await rag_task
+
+    # Live tool data — the ONLY numbers the fallback LLMs may cite. Bounded
+    # wait (shielded): web_search's knowledge fallback can take up to ~50s
+    # when the bridge + SearXNG are down — it must never stall the fallback
+    # answer. Whatever finished in time is real data; late results are
+    # re-joined by the guardrail shield and the no-LLM tool-answer window
+    # below.
+    fallback_live_results = await _run_live_tools_bounded(live_tools_task, LIVE_TOOLS_WAIT)
+
+    # Fallback prompt: bridge blocks + scan summary + LIVE tool data
+    # (message-specific real data). The daily market/news digest is NOT glued
+    # to the user message — it is passed as ``system_context`` so the
+    # fallback LLMs treat it as current data in the SYSTEM prompt instead of
+    # part of the question.
+    prompt = text
+    if rag_result is not None and rag_result.ok and isinstance(rag_result.data, dict):
+        rag_context_block = str(rag_result.data.get("context") or "")
+        rag_sources = rag_result.data.get("sources") or []
+        if isinstance(rag_sources, list):
+            bridge_sources = bridge_sources + [s for s in rag_sources if isinstance(s, dict)]
+        if rag_context_block:
+            prompt = f"{rag_context_block}\n\n{prompt}"
+    if bridge_context:
+        prompt = f"{bridge_context}\n\n{prompt}"
+    if scan_summary:
+        prompt = f"{scan_summary}\n\n{prompt}"
+
+    tool_block = build_tool_prompt_block(fallback_live_results)
+    if tool_block:
+        prompt = f"{tool_block}\n\n{prompt}"
+
+    # The fallback answer was grounded by the daily digest (system_context)
+    # and/or a bridge market block — remember it for the grounding footer.
+    has_market_context = bool(daily_context) or any(
+        isinstance(s, dict) and s.get("type") == "market" for s in bridge_sources
+    )
+
+    # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with the
+    # bridge blocks + live tool data, reporting rag_count = len(sources).
+    deep = _is_deep_question(text)
+    result = await chat_ai._call_zen_llm(
+        prompt,
+        user.id,
+        history,
+        deep=deep,
+        sources=bridge_sources,
+        system_context=daily_context,
+    )
+    if not result:
+        result = await chat_ai._call_local_llm(
+            prompt,
+            user.id,
+            history,
+            sources=bridge_sources,
+            system_context=daily_context,
+        )
+
+    # LLM chain completely down but tools returned REAL data → answer from
+    # the tools themselves (no LLM, no guessing). Give the still-running
+    # tools (notably web_search's knowledge fallback) a short extra window so
+    # their usable answer renders instead of the generic fallback message —
+    # the knowledge answer is labeled and never fabricated, so it is safe to
+    # surface here.
+    if not result:
+        if not live_tools_task.done():
+            fallback_live_results = await _run_live_tools_bounded(live_tools_task, TOOL_ANSWER_EXTRA_WAIT)
+        tool_answer = _format_tool_answer(fallback_live_results)
+        if tool_answer:
+            result = {"message": tool_answer, "rag_count": len(bridge_sources), "provider": "tools"}
+
+    return result, bridge_sources, bridge_actions, rag_result, has_market_context
