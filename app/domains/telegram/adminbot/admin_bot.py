@@ -124,6 +124,12 @@ async def bot_stats() -> dict[str, Any]:
         logger.warning("admin_bot: daily analytics failed: %s", exc)
 
     return {
+        # Module contract: every public op returns ok/output/error/duration.
+        # bot_stats fails open by design (zero counts when DB/Redis is down),
+        # so ok is always True; callers render via format_bot_stats.
+        "ok": True,
+        "output": "",
+        "error": "",
         **counts,
         "messages_today": messages_today,
         "enabled": bool(state.get("enabled", True)),

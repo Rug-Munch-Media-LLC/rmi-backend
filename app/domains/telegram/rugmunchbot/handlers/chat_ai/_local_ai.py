@@ -353,7 +353,7 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
     ),
     (
         re.compile(
-            r"\b(help|can you|capabilities|features|commands|what do|what are|"
+            r"\b(help|can you|capabilities|capability|features|commands|what do|what are|"
             r"who are you|tell me about you|about you|about this bot|"
             r"introduce yourself|describe yourself|what can you do|what else can you|"
             r"show me what you|guide|tutorial|docs|documentation)\b",
