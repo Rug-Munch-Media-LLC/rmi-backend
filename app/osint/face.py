@@ -66,7 +66,20 @@ __all__ = ["lookup_face"]
 # ─── Tunables ────────────────────────────────────────────────────────
 
 #: Engine fallback order — the first engine that detects >= 1 face wins.
-_ENGINE_ORDER: Final[tuple[str, ...]] = ("insightface", "deepface", "face_recognition")
+#: ``opencv`` is the cheap cv2 fallback (committed models, no package install /
+#: model download): it runs only when the heavy engines are missing or found
+#: zero faces.
+_ENGINE_ORDER: Final[tuple[str, ...]] = ("insightface", "deepface", "face_recognition", "opencv")
+
+#: Committed Haar cascade for the cheap cv2 fallback. opencv-python 5.x ships
+#: no cascade XMLs in ``cv2.data.haarcascades`` AND drops the classic
+#: ``cv2.CascadeClassifier`` API, so the module tracks both the Haar XML
+#: (used by ``cv2.CascadeClassifier`` on classic OpenCV 4.x installs) and the
+#: YuNet ONNX model (used by ``cv2.FaceDetectorYN`` on OpenCV 5.x). Both live
+#: in-repo at ``app/osint/models/`` and are shared with the Telegram bot
+#: handler (``handlers/osint.py``).
+HAARCASCADE_MODEL_PATH: Final[Path] = Path(__file__).resolve().parent / "models" / "haarcascade_frontalface_default.xml"
+YUNET_MODEL_PATH: Final[Path] = Path(__file__).resolve().parent / "models" / "face_detection_yunet_2023mar.onnx"
 
 #: deepface recognition model (Facenet512 = 512-d; VGG-Face = 2622-d).
 _DEEPFACE_MODEL: Final[str] = "Facenet512"
@@ -99,7 +112,15 @@ _REVERSE_SEARCH_TEMPLATES: Final[dict[str, str]] = {
 
 
 def _engine_available(name: str) -> bool:
-    """Return True if the (optional) engine package is importable."""
+    """Return True if the (optional) engine package is importable.
+
+    ``opencv`` is special: it needs only ``cv2`` plus at least one committed
+    model file (YuNet ONNX or Haar XML) — no pip install, no model download.
+    """
+    if name == "opencv":
+        return importlib.util.find_spec("cv2") is not None and (
+            YUNET_MODEL_PATH.is_file() or HAARCASCADE_MODEL_PATH.is_file()
+        )
     return importlib.util.find_spec(name) is not None
 
 
@@ -332,11 +353,93 @@ def _detect_face_recognition(image_path: str) -> list[dict[str, Any]]:
     return results
 
 
+# ─── Engine 4: opencv (cv2, cheap fallback) ──────────────────────────
+
+
+def _detect_opencv(image_path: str) -> list[dict[str, Any]]:
+    """Cheap OpenCV face detection using the committed models (no downloads).
+
+    Prefers ``cv2.FaceDetectorYN`` (YuNet ONNX — the only face detector in
+    opencv-python 5.x, which dropped ``CascadeClassifier``) and falls back to
+    ``cv2.CascadeClassifier`` (Haar XML — classic OpenCV 4.x). Runs only when
+    the heavy engines are unavailable or found zero faces. Returns
+    bounding-box-only results (no embeddings) so a face count / locations are
+    still produced on any machine with ``cv2`` + the committed models.
+    """
+    try:
+        import cv2
+    except ImportError as exc:  # pragma: no cover — availability checked by caller
+        logger.debug("cv2 not installed: %s", exc)
+        return []
+    img = _load_rgb(image_path)
+    if img is None:
+        return []
+
+    # Preferred: YuNet (OpenCV 5.x). BGR conversion + contiguous copy for DNN.
+    if YUNET_MODEL_PATH.is_file() and hasattr(cv2, "FaceDetectorYN"):
+        try:
+            detector = cv2.FaceDetectorYN.create(
+                str(YUNET_MODEL_PATH),
+                "",
+                (img.shape[1], img.shape[0]),
+                score_threshold=0.9,
+                nms_threshold=0.3,
+                top_k=5000,
+            )
+            _ok, faces = detector.detect(np.ascontiguousarray(img[:, :, ::-1]))
+            rects: list[tuple[float, float, float, float]] = []
+            if faces is not None and len(faces):
+                # YuNet rows are [x, y, w, h, landmarks..., score] — convert to
+                # (x1, y1, x2, y2) for _bbox_payload.
+                rects = [
+                    (float(f[0]), float(f[1]), float(f[0]) + float(f[2]), float(f[1]) + float(f[3])) for f in faces
+                ]
+            if rects:
+                return [
+                    {
+                        "bbox": _bbox_payload(x, y, x2, y2),
+                        "embedding": {},
+                        "landmarks": [],
+                        "det_score": None,
+                    }
+                    for (x, y, x2, y2) in rects
+                ]
+        except Exception as exc:
+            logger.warning("yunet detection failed, trying haar: %s", exc)
+
+    # Fallback: Haar cascade (classic OpenCV 4.x).
+    if HAARCASCADE_MODEL_PATH.is_file() and hasattr(cv2, "CascadeClassifier"):
+        try:
+            cascade = cv2.CascadeClassifier(str(HAARCASCADE_MODEL_PATH))
+            if cascade.empty():
+                logger.warning("haarcascade model failed to load: %s", HAARCASCADE_MODEL_PATH)
+                return []
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            rects_haar = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            return [
+                {
+                    "bbox": _bbox_payload(float(x), float(y), float(x + w), float(y + h)),
+                    "embedding": {},
+                    "landmarks": [],
+                    "det_score": None,
+                }
+                for (x, y, w, h) in rects_haar
+            ]
+        except Exception as exc:
+            logger.warning("haarcascade detection failed: %s", exc)
+            return []
+
+    if not YUNET_MODEL_PATH.is_file() and not HAARCASCADE_MODEL_PATH.is_file():
+        logger.warning("no face model committed under app/osint/models/")
+    return []
+
+
 #: Engine dispatch — first entry in _ENGINE_ORDER with a non-empty result wins.
 _ENGINES: Final[dict[str, Any]] = {
     "insightface": _detect_insightface,
     "deepface": _detect_deepface,
     "face_recognition": _detect_face_recognition,
+    "opencv": _detect_opencv,
 }
 
 
@@ -382,7 +485,8 @@ def lookup_face(image_path: str, *, timeout: int = 120) -> OsintReport:
     available = [name for name in _ENGINE_ORDER if _engine_available(name)]
     if not available:
         raise OsintNotAvailable(
-            "no face-recognition engine installed; run: pip install insightface deepface face_recognition"
+            "no face-recognition engine installed; run: pip install insightface deepface face_recognition "
+            "(or install opencv-python with the committed Haar cascade model)"
         )
 
     engines_tried: list[str] = []
@@ -394,7 +498,10 @@ def lookup_face(image_path: str, *, timeout: int = 120) -> OsintReport:
     else:
         for name in _ENGINE_ORDER:
             if not _engine_available(name):
-                failures.append(f"{name}: package not installed")
+                if name == "opencv":
+                    failures.append("opencv: cv2 not installed or no committed face model under app/osint/models/")
+                else:
+                    failures.append(f"{name}: package not installed")
                 continue
             engines_tried.append(name)
             try:

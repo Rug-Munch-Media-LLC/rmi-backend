@@ -76,6 +76,11 @@ secret-rotation*
 *.tar
 *.tar.gz
 *.zip
+# Face-detection models ARE tracked (app/osint/models/): opencv 5.x ships no
+# cascades, so the Haar XML + YuNet ONNX live in-repo. Negate the wildcards
+# above for exactly these committed files.
+!app/osint/models/*.xml
+!app/osint/models/*.onnx
 !renovate.json
 !app/rag/crawl_sources.json
 !app/databus/unified_news_sources.json
