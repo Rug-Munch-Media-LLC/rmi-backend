@@ -18,7 +18,12 @@
 		"https://blog.openzeppelin.com/rss.xml",
 		"https://slowmist.medium.com/feed",
 		"https://immunefi.com/blog/feed",
-		"https://blog.trailofbits.com/feed"
+		"https://blog.trailofbits.com/feed",
+		"https://secureum.substack.com/feed",
+		"https://blog.theredguild.org/feed",
+		"https://blocksecteam.medium.com/feed",
+		"https://medium.com/feed/@certik",
+		"https://medium.com/feed/@cyfrin"
 	],
 	"research": [
 		"https://messari.io/feed",
@@ -138,5 +143,18 @@
 				"enabled": true
 			}
 		]
-	}
+	},
+	"defi": ["https://finematics.com/feed/", "https://blog.lido.fi/feed"],
+	"tokenomics": ["https://medium.com/feed/@tokenterminal"],
+	"technical_analysis": ["https://www.babypips.com/feed"],
+	"exchange_market": [
+		"https://blog.bitfinex.com/feed/",
+		"https://blog.kraken.com/feed"
+	],
+	"education": [
+		"https://101blockchains.com/feed/",
+		"https://blog.ethereum.org/feed.xml"
+	],
+	"mev": ["https://medium.com/feed/@EigenPhi"],
+	"scam_patterns": ["https://rugdoc.io/feed/"]
 }

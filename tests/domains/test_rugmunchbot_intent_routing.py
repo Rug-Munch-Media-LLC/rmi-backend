@@ -20,7 +20,16 @@ from typing import Any
 import pytest
 
 from app.domains.telegram.rugmunchbot.tools import registry, run_for_message
-from app.domains.telegram.rugmunchbot.tools.intent import extract_chain, route_tools, tool_kwargs
+from app.domains.telegram.rugmunchbot.tools.intent import (
+    compare_pairs,
+    detect_comparison,
+    detect_exclusions,
+    detect_negations,
+    extract_chain,
+    route_tools,
+    symbols_in,
+    tool_kwargs,
+)
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 EVM = "0x6982508145454Ce325dDbE47a25d4ec3d2311933"
@@ -241,6 +250,174 @@ class TestToolKwargs:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# market_condition — how's the market / sentiment / bullish-bearish / risk
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestMarketConditionRouting:
+    def test_market_condition_phrases_route_to_market_condition(self) -> None:
+        for question in (
+            "how's the market",
+            "how is the market right now",
+            "market sentiment",
+            "what's the sentiment?",
+            "what's the sentiment right now",
+            "is the market bullish or bearish right now?",
+            "is the market bullish or bearish?",
+            "bullish or bearish",
+            "risk on",
+            "risk off",
+            "risk-on/risk-off",
+            "is now a good time to enter?",
+            "is it a good time to enter",
+            "good time to buy",
+            "should I buy",
+            "worth buying",
+        ):
+            names = route_tools(question)
+            assert "market_condition" in names, f"failed to route market_condition: {question}"
+
+    def test_hows_the_market_routes_overview_plus_condition(self) -> None:
+        names = route_tools("how's the market")
+        assert "market_overview" in names
+        assert "market_condition" in names
+
+    def test_plain_market_overview_stays_overview_only(self) -> None:
+        # Exact-match contract: "market overview" must keep routing ONLY
+        # market_overview (the tool_kwargs exact-equality test depends on it).
+        assert route_tools("market overview") == ["market_overview"]
+        assert "market_condition" not in route_tools("market overview")
+
+    def test_bare_bullish_is_not_market_condition(self) -> None:
+        # A bare "bullish" without market context is a TOKEN question —
+        # do not misroute it to the macro read.
+        assert "market_condition" not in route_tools("is $BONK bullish?")
+        assert "price_lookup" in route_tools("is $BONK bullish?")
+
+    def test_market_condition_takes_no_kwargs(self) -> None:
+        kw = tool_kwargs("what's the sentiment?", route_tools("what's the sentiment?"))
+        assert kw == {"market_condition": {}}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# buy-advice — should I buy X / is now a good time (macro read + token price)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestBuyAdviceRouting:
+    def test_buy_advice_routes_market_condition_plus_price(self) -> None:
+        names = route_tools("should I buy $BONK?")
+        assert "market_condition" in names
+        assert "price_lookup" in names
+        kw = tool_kwargs("should I buy $BONK?", names)
+        assert kw["price_lookup"]["symbol"] == "BONK"
+
+    def test_good_time_to_enter_routes_market_condition(self) -> None:
+        assert "market_condition" in route_tools("is now a good time to enter?")
+
+    def test_buy_advice_does_not_route_smart_money(self) -> None:
+        # "should I buy" is advice, not a "who's buying" feed question.
+        names = route_tools("should I buy $BONK?")
+        assert "smart_money" not in names
+        assert "birdeye_market" not in names
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# comparison — compare X vs Y (both $SYMBOLs extracted, price data routed)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestComparisonRouting:
+    def test_compare_phrases_route_to_price_lookup(self) -> None:
+        for question in (
+            "compare $BONK vs $WIF",
+            "compare $BONK versus $WIF",
+            "which is better $BONK or $WIF",
+            "$BONK vs $WIF",
+        ):
+            names = route_tools(question)
+            assert "price_lookup" in names, f"failed to route price_lookup: {question}"
+            assert detect_comparison(question)
+
+    def test_compare_pairs_extracts_both_symbols(self) -> None:
+        assert compare_pairs("compare $BONK vs $WIF") == [("BONK", "WIF")]
+        assert symbols_in("compare $BONK vs $WIF") == ["BONK", "WIF"]
+        assert compare_pairs("compare $BONK vs $WIF on solana") == [("BONK", "WIF")]
+
+    def test_no_comparison_without_connector(self) -> None:
+        assert not detect_comparison("price of $BONK")
+        assert compare_pairs("price of $BONK") == []
+
+    def test_price_kwargs_use_first_symbol(self) -> None:
+        kw = tool_kwargs("compare $BONK vs $WIF", ["price_lookup"])
+        assert kw["price_lookup"]["symbol"] == "BONK"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# negation & exclusion — "what's NOT trending" / "don't show me trending"
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestNegationAndExclusion:
+    def test_negation_metadata_captures_concept(self) -> None:
+        assert detect_negations("what's NOT trending?") == {"trending"}
+        assert detect_negations("is $BONK not a honeypot?") == {"security"}
+        assert detect_negations("the market is not bullish") == {"sentiment"}
+
+    def test_pure_negation_keeps_routing(self) -> None:
+        # "what's NOT trending" still needs the trending feed — the LLM
+        # answers the negative from real data.
+        assert "trending" in route_tools("what's NOT trending?")
+
+    def test_property_negation_keeps_security_routing(self) -> None:
+        # "is X not a honeypot?" is still a security question — the scan
+        # data is required to answer it.
+        names = route_tools(f"is {EVM} not a honeypot?")
+        assert "security_scan" in names
+        assert "scanner_intel" in names
+
+    def test_exclusion_suppresses_its_tool(self) -> None:
+        assert detect_exclusions("don't show me trending") == {"trending"}
+        assert "trending" not in route_tools("don't show me trending")
+
+    def test_exclusion_keeps_other_intents(self) -> None:
+        names = route_tools("except the news, what's trending?")
+        assert "trending" in names
+        assert "news_headlines" not in names
+        assert "web_search" not in names
+
+    def test_exclusion_suppresses_market_tools(self) -> None:
+        assert detect_exclusions("without the market stuff") == {"market"}
+        names = route_tools("without the market stuff, what's the sentiment?")
+        assert "market_condition" not in names
+        assert "market_overview" not in names
+
+    def test_negative_market_phrase_still_routes_market_condition(self) -> None:
+        # "is the market NOT bullish?" — negation metadata only; the market
+        # question itself still routes the macro read.
+        names = route_tools("is the market not bullish?")
+        assert "market_condition" in names
+        assert detect_negations("is the market not bullish?") == {"sentiment"}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# multi-intent — one question, several tools
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestMultiIntent:
+    def test_buy_advice_plus_sentiment_routes_both(self) -> None:
+        names = route_tools("should I buy $BONK? what's the sentiment?")
+        assert "price_lookup" in names
+        assert "market_condition" in names
+
+    def test_trending_plus_price_routes_both(self) -> None:
+        names = route_tools("what's trending? and what's the price of $BONK")
+        assert "trending" in names
+        assert "price_lookup" in names
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # run_for_message end-to-end with mocked handlers — kwargs reach the tools
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -323,3 +500,21 @@ class TestRunForMessageWiring:
         assert received["birdeye_market"]["kind"] == "smart_money"
         assert received["birdeye_market"]["chain"] == "base"
         assert received["smart_money"]["chain"] == "base"
+
+    async def test_sentiment_question_delivers_no_kwargs_to_market_condition(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        received: dict[str, dict[str, Any]] = {}
+
+        async def fake_market_condition(**kwargs: Any) -> ToolResult:
+            received["market_condition"] = kwargs
+            return ToolResult(tool="market_condition", ok=True, data={"verdict": "neutral"})
+
+        handlers = dict(registry._handlers)
+        handlers["market_condition"] = fake_market_condition
+        monkeypatch.setattr(registry, "_handlers", handlers)
+
+        results = await run_for_message("what's the sentiment?")
+        assert "market_condition" in results
+        # market_condition takes no address/symbol/chain kwargs — empty map.
+        assert received["market_condition"] == {}
