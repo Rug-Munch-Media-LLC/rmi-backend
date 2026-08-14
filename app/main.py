@@ -10,6 +10,7 @@ Phase 1 of AUDIT-2026-Q3.md, item P1.1.
 from __future__ import annotations
 
 from app.factory import create_app
+from app.routers.osint import osint_router
 
 # Initialize distributed tracing (non-blocking — silently disabled if no OTLP endpoint)
 try:
@@ -28,6 +29,10 @@ except Exception:  # noqa: S110 — optional dependency
     pass  # Error tracking is non-critical
 
 app = create_app()
+
+# OSINT section router — guarded engine import inside the router module, so
+# this registration never breaks app boot (503 until app.osint.engine lands).
+app.include_router(osint_router, prefix="/api/osint", tags=["osint"])
 
 # Scalar docs UI (modern) at /scalar, alongside the default /docs Swagger UI.
 # Optional dependency — guarded so the app boots even when scalar-fastapi
