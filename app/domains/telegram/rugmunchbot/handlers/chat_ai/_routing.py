@@ -78,7 +78,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import (
     CHUNK_MAX_CHARS,
     _beautify_answer,
     _format_scan_summary,
-    _markdown_bold_to_html,
+    _markdown_to_html,
     _normalize_llm_markup,
     _tables_to_lists,
 )
@@ -774,9 +774,10 @@ async def _send_answer(
          paragraph / section-header boundaries, never mid-sentence, never
          mid-link, never mid-``**bold**`` span, and never mid-code-block.
       6. Each part is HTML-escaped (LLM output is not trusted HTML).
-      7. ``_markdown_bold_to_html`` converts the **bold** metrics the persona
-         emits into real ``<b>...</b>`` — safe because the content was
-         already escaped in step 6.
+      7. ``_markdown_to_html`` converts the markdown the persona / tool
+         answers emit — ``**bold**``, `` `code` ``, ``*italic*`` — into real
+         ``<b>...</b>`` / ``<code>...</code>`` / ``<i>...</i>``, safe because
+         the content was already escaped in step 6.
       8. ``send_in_parts`` delivers each part as its own message (keyboard on
          the last part; plain-text degrade on parse rejection).
     A short "⚡ Grounded in N intelligence sources | Rug Munch Bot" footer is
@@ -793,7 +794,7 @@ async def _send_answer(
     if not chunks:
         return 0
     escaped = [escape(c) for c in chunks]
-    html = [_markdown_bold_to_html(c) for c in escaped]
+    html = [_markdown_to_html(c) for c in escaped]
     if grounding_count > 0:
         if grounding_count > 100:
             source_label = "hundreds of intelligence sources"

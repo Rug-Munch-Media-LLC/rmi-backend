@@ -71,6 +71,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     _is_meaningful_question as _is_meaningful_question,
     _is_section_header,
     _markdown_bold_to_html as _markdown_bold_to_html,
+    _markdown_to_html as _markdown_to_html,
     _normalize_llm_markup as _normalize_llm_markup,
     _split_oversized,
     _tables_to_lists as _tables_to_lists,

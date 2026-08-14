@@ -12,6 +12,7 @@ re-imports everything it needs from here; behavior is byte-for-byte identical.
 from __future__ import annotations
 
 import re
+from html import escape as _html_escape, unescape as _html_unescape
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.formatters import thin_sep
@@ -50,11 +51,27 @@ _SECTION_HEADER_MAX = 80  # longer emoji-prefixed lines are content, not headers
 _BOLD_RE = re.compile(r"\*{2,3}([^*\n]+?)\*{2,3}")
 
 # ══════════════════════════════════════════════
+# MARKDOWN → HTML EMPHASIS (see _markdown_to_html)
+# Conversion order matters so nothing clobbers: inline code runs FIRST
+# (backtick content is never re-processed by the bold/italic passes), bold
+# runs before italic (the asterisks of a **bold** span are never seen as
+# single-asterisk italics), and italic runs last. Each marker requires a
+# balanced pair — unmatched markers pass through as literal text.
+# ══════════════════════════════════════════════
+_INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+# Single-asterisk italic; the inner span must start/end on a non-space char
+# so arithmetic like ``x * 2 * y`` and stray ``* item`` bullets never match.
+_ITALIC_RE = re.compile(r"\*([^*\s][^*\n]*?[^*\s])\*")
+# Underscore italic is word-boundary guarded (intraword ``_snake_case_`` is
+# NOT emphasis, matching standard markdown) and needs non-space ends too.
+_UNDERSCORE_ITALIC_RE = re.compile(r"(?<![A-Za-z0-9])_([^_\s][^_\n]*?[^_\s])_(?![A-Za-z0-9])")
+
+# ══════════════════════════════════════════════
 # RAW HTML → MARKDOWN NORMALIZATION (defense-in-depth)
 # Local models sometimes emit RAW HTML (<b>BTC:</b>, &amp;, &lt;code&gt;)
 # instead of Telegram markdown — even when the system prompts forbid it.
 # Normalize it to markdown BEFORE escaping so the later escape() +
-# _markdown_bold_to_html turn it into real, balanced HTML instead of
+# _markdown_to_html turn it into real, balanced HTML instead of
 # literal garbage (or unbalanced tags that Telegram rejects).
 # ══════════════════════════════════════════════
 _HTML_ENTITY_RE = re.compile(r"&(?:lt|gt|amp|quot|#x27);")
@@ -106,7 +123,7 @@ def _normalize_llm_markup(text: str) -> str:
     Runs on the RAW answer BEFORE ``html.escape()``: unescapes entities the
     model already escaped (``&amp;`` → ``&``), then converts raw emphasis
     tags to markdown (``<b>BTC:</b>`` → ``**BTC:**``). The subsequent escape
-    + :func:`_markdown_bold_to_html` then produce real, balanced HTML.
+    + :func:`_markdown_to_html` then produce real, balanced HTML.
 
     Fenced code blocks are NOT special-cased: a literal ``<b>`` inside a
     code block is converted too. This is a best-effort heuristic for a rare
@@ -353,7 +370,7 @@ def _beautify_answer(answer: str) -> str:
       ``────`` in a row), repeated leading emojis collapse (no emoji spam),
       and header casing is normalized conservatively (v12).
     - All other lines are preserved verbatim (code blocks, lists, spacing).
-    Markdown ``**bold**`` is left in place for :func:`_markdown_bold_to_html`
+    Markdown ``**bold**`` is left in place for :func:`_markdown_to_html`
     which runs AFTER escaping in :func:`_send_answer`.
     """
     lines = answer.split("\n")
@@ -392,14 +409,57 @@ def _beautify_answer(answer: str) -> str:
     return "\n".join(out)
 
 
-def _markdown_bold_to_html(text: str) -> str:
-    """Convert ``**bold**`` / ``***bold***`` to ``<b>bold</b>``.
+def _escape_inner(text: str) -> str:
+    """Canonicalize the inner content of a markdown emphasis span.
 
-    MUST run AFTER ``html.escape()`` so the wrapped content is already
-    entity-safe and only the asterisk pairs are replaced — LLM-supplied HTML
-    is never re-introduced. Unbalanced asterisks pass through untouched.
+    ``html.escape(html.unescape(text))``: raw specials (``<``, ``&``) get
+    escaped, while already-escaped entities (``&amp;``, ``&lt;``) are
+    preserved — so the conversion is safe standalone AND idempotent on the
+    pre-escaped chunks the pipeline feeds it (no ``&amp;amp;`` double-escape).
     """
-    return _BOLD_RE.sub(r"<b>\1</b>", text)
+    return _html_escape(_html_unescape(text))
+
+
+def _bold_italic_to_html(text: str) -> str:
+    """Convert bold/italic markdown markers (no inline-code spans present).
+
+    Bold runs first so a ``**bold**`` span's asterisks are never seen by the
+    single-asterisk italic pass; the underscore-italic pass is word-boundary
+    guarded so ``_snake_case_`` is left alone. Unmatched markers stay literal.
+    """
+    text = _BOLD_RE.sub(lambda m: f"<b>{_escape_inner(m.group(1))}</b>", text)
+    text = _ITALIC_RE.sub(lambda m: f"<i>{_escape_inner(m.group(1))}</i>", text)
+    text = _UNDERSCORE_ITALIC_RE.sub(lambda m: f"<i>{_escape_inner(m.group(1))}</i>", text)
+    return text
+
+
+def _markdown_to_html(text: str) -> str:
+    """Convert markdown emphasis markers to balanced Telegram HTML.
+
+    Ordered so nothing clobbers:
+      1. inline code `` `X` `` → ``<code>X</code>`` — first, so backtick
+         content (which may contain ``**`` or ``*``) is never re-processed
+         by the bold/italic passes.
+      2. bold ``**X**`` / ``***X***`` → ``<b>X</b>``
+      3. italic ``*X*`` / ``_X_`` → ``<i>X</i>``
+    Each marker's INNER content is :func:`_escape_inner` canonicalized, and
+    unmatched markers (a lone ``*``, an unclosed backtick) pass through as
+    literal text. MUST run AFTER ``html.escape()`` on the LLM path so raw
+    LLM-supplied HTML is never re-introduced.
+    """
+    out: list[str] = []
+    pos = 0
+    for m in _INLINE_CODE_RE.finditer(text):
+        out.append(_bold_italic_to_html(text[pos : m.start()]))
+        out.append(f"<code>{_escape_inner(m.group(1))}</code>")
+        pos = m.end()
+    out.append(_bold_italic_to_html(text[pos:]))
+    return "".join(out)
+
+
+# Backward-compatible alias: the old bold-only converter is a strict subset
+# of the full markdown→HTML pass (bold markers convert identically).
+_markdown_bold_to_html = _markdown_to_html
 
 
 # ══════════════════════════════════════════════
@@ -494,6 +554,7 @@ __all__ = [
     "_format_scan_summary",
     "_is_section_header",
     "_markdown_bold_to_html",
+    "_markdown_to_html",
     "_normalize_llm_markup",
     "_split_oversized",
     "_tables_to_lists",

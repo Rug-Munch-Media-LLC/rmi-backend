@@ -78,11 +78,17 @@ def _append_source_lines(
 
 
 def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
-    """Render REAL tool data as a plain answer (no LLM involved).
+    """Render REAL tool data as a markdown answer (no LLM involved).
 
     Used when the whole LLM chain is down but the tools returned live data —
     the bot still answers with REAL numbers instead of guessing. Returns
     ``None`` when there is nothing usable to render.
+
+    Emits MARKDOWN (``**bold**``, `` `code` ``, ``*italic*``), never raw HTML:
+    the answer flows through ``_send_answer``'s untrusted-LLM pipeline
+    (normalize → escape → :func:`_markdown_to_html`), which converts the
+    markers to real Telegram HTML but would escape any literal ``<b>`` tag
+    into visible ``&lt;b&gt;`` garbage.
 
     ``web_search`` results are included too: its synthesized fallbacks
     (knowledge answer / honest no-live-data message) are usable, labeled
@@ -100,8 +106,8 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
             p = pairs[0]
             addr = p.get("address", "")
             lines.append(
-                f"\U0001fa99 <b>{p.get('name', p.get('symbol', ''))}</b> ({p.get('symbol', '')}) "
-                f"{fmt_chain(p.get('chain', ''))}\n<code>{addr}</code>"
+                f"\U0001fa99 **{p.get('name', p.get('symbol', ''))}** ({p.get('symbol', '')}) "
+                f"{fmt_chain(p.get('chain', ''))}\n`{addr}`"
             )
             if p.get("price_usd") is not None:
                 lines.append(f"\U0001f4b0 {fmt_number(p['price_usd'])} | 24h: {fmt_pct(p.get('change_24h'))}")
@@ -113,12 +119,14 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
         tokens = trending.data.get("tokens") or []
         if tokens:
             has_live = True
-            lines.append("\U0001f525 <b>Trending</b>")
+            # Whole-line **bold** so _beautify_answer's header pass unwraps it
+            # cleanly into a bold section header + thin separator.
+            lines.append("**\U0001f525 Trending**")
             for t in tokens[:8]:
                 addr = t.get("address", "")
                 sym = t.get("symbol", "?")
                 chg = f" | {fmt_pct(t.get('change_24h'))}" if t.get("change_24h") is not None else ""
-                lines.append(f"\u2022 ${sym} {fmt_chain(t.get('chain', ''))}{chg} — <code>{addr}</code>")
+                lines.append(f"\u2022 ${sym} {fmt_chain(t.get('chain', ''))}{chg} — `{addr}`")
             lines.append("")
     security = results.get("security_scan")
     if security is not None and security.ok and isinstance(security.data, dict):
@@ -126,7 +134,7 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
         if score is not None:
             has_live = True
             emoji = "\U0001f7e2" if score < 40 else ("\U0001f7e1" if score < 70 else "\U0001f534")
-            lines.append(f"\U0001f50d <b>Risk: {emoji} {score}/100</b>")
+            lines.append(f"**\U0001f50d Risk: {emoji} {score}/100**")
             if security.data.get("is_honeypot") is not None:
                 lines.append(f"honeypot: {security.data['is_honeypot']}")
             lines.append("")
@@ -140,9 +148,9 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
     if not lines:
         return None
     if has_live:
-        lines.append("<i>Live data via Rug Munch tools.</i>")
+        lines.append("*Live data via Rug Munch tools.*")
     else:
-        lines.append("<i>Rug Munch knowledge — live web unavailable.</i>")
+        lines.append("*Rug Munch knowledge — live web unavailable.*")
     return "\n".join(lines)
 
 
