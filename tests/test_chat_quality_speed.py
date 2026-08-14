@@ -6,8 +6,9 @@ Covers ``app/routers/chat.py``:
     cache (deterministic keys, expiry, cap eviction).
   - ``_resolve_chat_max_tokens_default``: ``RMI_CHAT_MAX_TOKENS`` env override
     parsing (valid / invalid / clamped).
-  - ``ChatRequest.max_tokens`` default is 512 (was 2048 — 4x faster local
-    llama.cpp generation).
+  - ``ChatRequest.max_tokens`` default is 1536 (2048 -> 512 speed pass, then
+    512 -> 1536 on 2026-08-14 so long educational answers are not truncated
+    mid-sentence; the deploy-time env override still clamps to 64..2048).
   - ``SYSTEM_PROMPT`` contains the new cite-or-omit / never-invent rules.
 
 No DB, network, or LLM calls are made — everything tested is a pure function
@@ -18,7 +19,7 @@ from __future__ import annotations
 
 import os
 
-# Ensure the ChatRequest default is the base 512 when this module is imported
+# Ensure the ChatRequest default is the base 1536 when this module is imported
 # (the module reads RMI_CHAT_MAX_TOKENS at import time).
 os.environ.pop("RMI_CHAT_MAX_TOKENS", None)
 
@@ -47,24 +48,24 @@ def _clear_cache() -> None:
 # ── 1. Token budget: ChatRequest default + env override ────────────────
 
 
-def test_chat_request_default_max_tokens_is_512() -> None:
-    assert ChatRequest(message="hello").max_tokens == 512
+def test_chat_request_default_max_tokens_is_1536() -> None:
+    assert ChatRequest(message="hello").max_tokens == 1536
 
 
 @pytest.mark.parametrize(
     ("env_value", "expected"),
     [
-        (None, 512),  # unset → base default
-        ("", 512),
-        ("   ", 512),
+        (None, 1536),  # unset → base default
+        ("", 1536),
+        ("   ", 1536),
         ("1024", 1024),  # valid override
         ("2048", 2048),  # at the clamp ceiling
         ("8192", 2048),  # clamped down to 2048
         ("999999", 2048),  # clamped down to 2048
         ("10", 64),  # clamped up to 64
         ("-5", 64),  # clamped up to 64
-        ("abc", 512),  # invalid → fall back to base
-        ("512.5", 512),  # not an int → fall back to base
+        ("abc", 1536),  # invalid → fall back to base
+        ("512.5", 1536),  # not an int → fall back to base
     ],
 )
 def test_resolve_chat_max_tokens_default_parsing(env_value: str | None, expected: int) -> None:
@@ -75,9 +76,9 @@ def test_resolve_chat_max_tokens_default_reads_env(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("RMI_CHAT_MAX_TOKENS", "768")
     assert _resolve_chat_max_tokens_default() == 768
     monkeypatch.delenv("RMI_CHAT_MAX_TOKENS")
-    assert _resolve_chat_max_tokens_default() == 512
+    assert _resolve_chat_max_tokens_default() == 1536
     monkeypatch.setenv("RMI_CHAT_MAX_TOKENS", "not-an-int")
-    assert _resolve_chat_max_tokens_default() == 512
+    assert _resolve_chat_max_tokens_default() == 1536
 
 
 # ── 2. SYSTEM_PROMPT quality rules ─────────────────────────────────────

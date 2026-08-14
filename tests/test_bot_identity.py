@@ -4,7 +4,7 @@ Verifies the bot self-identifies as "Rug Munch Bot" (spaced) everywhere a
 prose NAME is used — welcome, about, FAQ, help, footer — credits its
 developer with the exact attribution ``@cryptorugmunch and the team at
 Rug Munch Media LLC``, and never mangles the Telegram HANDLES
-(``@RugMunchBot``, ``t.me/RugMunchAlerts``) which are identifiers and
+(``@RugMunchBot``, ``t.me/rmialerts``) which are identifiers and
 must stay byte-for-byte.
 
 No network and no DB access — every string under test is a pure,
@@ -29,10 +29,12 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import HELP_TEXT
 
 # Handles / URLs that MUST remain exactly as-is (they are identifiers,
 # not display names — never "fix" them into the spaced prose name).
+# NOTE: the alerts-channel handle was renamed RugMunchAlerts -> rmialerts
+# (2026-08-14, operator-verified — see docs/CHANNELS.md + channels_registry).
 HANDLE_TOKENS = (
     "@RugMunchBot",
-    "@RugMunchAlerts",
-    "t.me/RugMunchAlerts",
+    "@rmialerts",
+    "t.me/rmialerts",
     "RugMunchBot?start",
 )
 
@@ -93,7 +95,7 @@ def test_footer_identity_spaced_name() -> None:
 def test_footer_handles_preserved() -> None:
     footer = footer_links()
     assert "@RugMunchBot" in footer, "the @RugMunchBot handle must be preserved"
-    assert "t.me/RugMunchAlerts" in footer, "the t.me/RugMunchAlerts channel link must be preserved"
+    assert "t.me/rmialerts" in footer, "the t.me/rmialerts channel link must be preserved"
 
 
 def test_footer_handle_not_renamed() -> None:

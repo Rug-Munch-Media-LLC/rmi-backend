@@ -48,6 +48,7 @@ def _extract_addresses(text: str) -> list[str]:
             break
     return addresses
 
+
 # ══════════════════════════════════════════════
 # GIBBERISH GATE (was handlers/message.py tier-1b gate)
 # ══════════════════════════════════════════════
@@ -65,6 +66,7 @@ def _is_meaningful_question(text: str) -> bool:
         return False
     # Repeated single word / character spam: "asdfasdfasdf", "lllll"
     return not (len(set(words)) == 1 and len(words) > 4)
+
 
 _SELF_IMPROVEMENT_RE = re.compile(
     r"(?:"
@@ -87,6 +89,7 @@ _SELF_IMPROVEMENT_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
+
 
 def _is_greeting_or_thanks(text: str) -> bool:
     """Check if the message is a greeting or thanks (canned reply worthy)."""
@@ -111,7 +114,7 @@ def _is_capability_question(text: str) -> bool:
     """
     return bool(
         re.search(
-            r"\b(help|can you|capabilities|features|commands|what do|what are|"
+            r"\b(help|can you|capabilities|capability|features|commands|what do|what are|"
             r"who are you|who created you|who made you|who built you|who "
             r"developed you|who runs you|who is your creator|who is behind you|"
             r"tell me about you|about you|about this bot|"
@@ -151,6 +154,7 @@ def _is_deep_question(text: str) -> bool:
             low,
         )
     )
+
 
 __all__ = [
     "MAX_ADDRESS_HINTS",
