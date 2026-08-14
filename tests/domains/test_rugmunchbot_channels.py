@@ -89,6 +89,17 @@ class TestChannelResolution:
     def test_unknown_key_returns_none(self) -> None:
         assert bot_config._resolve_channel_id("bogus") is None
 
+    def test_updates_role_resolves_from_registry_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _env_only_resolution(monkeypatch)
+        monkeypatch.setenv("RMI_UPDATES_CHANNEL_ID", "-1000003")
+        assert bot_config._resolve_channel_id("updates") == "-1000003"
+
+    def test_updates_role_resolves_none_without_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _env_only_resolution(monkeypatch)
+        monkeypatch.delenv("RMI_UPDATES_CHANNEL_ID", raising=False)
+        # updates has no documented fallback → resolves to None (not in CHANNELS)
+        assert bot_config._resolve_channel_id("updates") is None
+
 
 # ── Formatters ────────────────────────────────────────────────────────────
 
@@ -322,6 +333,7 @@ class TestRegistration:
             "channel_alerts",
             "channel_alpha",
             "channel_tg_news",
+            "channel_scam_watch",
         }
 
     def test_master_switch_disables_all(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -345,8 +357,13 @@ class TestRegistration:
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", True)
         # Only news resolves a chat id → only the news + tg_news jobs register.
+        # scam_watch feeds the scanner and needs no chat id, so it registers too.
         monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news" if channel == "news" else None)
         fake_jq = FakeJobQueue()
         app = SimpleNamespace(job_queue=fake_jq)
         channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
-        assert [j["name"] for j in fake_jq.jobs] == ["channel_news", "channel_tg_news"]
+        assert [j["name"] for j in fake_jq.jobs] == [
+            "channel_news",
+            "channel_tg_news",
+            "channel_scam_watch",
+        ]

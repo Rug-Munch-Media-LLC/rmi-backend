@@ -262,6 +262,19 @@ async def _post_chat(
         "max_tokens": max_tokens,
     }
 
+    # ── LOCAL llama.cpp latency levers (llama-direct / llama-direct-cross) ──
+    # * cache_prompt: ask the server to reuse the KV cache for the stable
+    #   prefix (system prompt + history) across turns. The server decides the
+    #   final prefix reuse based on its slot state, but explicit opt-in avoids
+    #   any client-default ambiguity. No-op for the DeepSeek API fallback.
+    # * enable_thinking=false: Qwen3/DeepSeek chat templates render an empty
+    #   <think> marker (and skip the reasoning preamble) so tokens go to the
+    #   answer, not a think chain. Unknown kwargs are ignored by OpenAI-style
+    #   servers, so only send it on the local llama.cpp path to be safe.
+    if provider.startswith("llama"):
+        payload["cache_prompt"] = True
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
+
     _headers = {"Content-Type": "application/json"}
     if api_key:
         _headers["Authorization"] = f"Bearer {api_key}"

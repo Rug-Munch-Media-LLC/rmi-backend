@@ -25,6 +25,7 @@ from app.domains.telegram.rugmunchbot.channels import (
     scheduler as channels_scheduler,
     telegram_news as tg_news,
 )
+from app.domains.telegram.rugmunchbot.channels.importance import ScoredArticle
 
 NOW = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
 
@@ -269,6 +270,20 @@ class TestPersist:
 # ── Scheduled job ────────────────────────────────────────────────────────────
 
 
+def _stub_importance(monkeypatch: pytest.MonkeyPatch, importance: float = 0.95) -> None:
+    """Stub the rerank importance gate: every article scores *importance*.
+
+    Keeps the post-job tests deterministic (no live Infinity /rerank call)
+    while exercising the wiring through ``score_importance`` →
+    ``select_important`` → post path.
+    """
+
+    async def _fake_score(articles: list[NewsArticle], focus_keywords: Any = None) -> list[ScoredArticle]:
+        return [ScoredArticle(article=a, importance=importance, best_query="stub") for a in articles]
+
+    monkeypatch.setattr(tg_news, "score_importance", _fake_score)
+
+
 class TestPostJob:
     def _ctx(self) -> tuple[Mock, AsyncMock]:
         bot = AsyncMock()
@@ -278,6 +293,7 @@ class TestPostJob:
 
     async def test_posts_fresh_digest_and_dedupes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
         monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
         with (
             patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[_article("Fresh headline")])),
@@ -305,6 +321,7 @@ class TestPostJob:
 
     async def test_persist_failure_still_posts_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
         ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
         monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
         with (
             patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[_article("Headline")])),

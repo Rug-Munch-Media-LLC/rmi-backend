@@ -25,6 +25,7 @@ dependencies = [
     "python-multipart>=0.0.17",
     "duckdb>=0.10.0",
     "tiktoken>=0.7.0",  # RAG chunking token counting (falls back to heuristic if absent)
+    "telethon>=1.35.0",  # MTProto user-session client for headless Telegram reads (app/domains/telegram/headless_client.py)
     "langgraph>=1.0.0",  # Agentic RAG orchestration (app/rag/graph.py)
     "langchain>=1.0.0",
     "langchain-openai>=1.0.0",

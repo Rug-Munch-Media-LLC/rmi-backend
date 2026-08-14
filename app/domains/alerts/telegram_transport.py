@@ -8,24 +8,29 @@ aborts the batch — the error is logged and the remaining messages continue.
 Channel resolution
 ------------------
 Logical channel names (the keys of ``publisher.DEFAULT_CHANNELS``) map to
-Telegram chat ids via environment variables. A channel with no configured id
-is skipped (logged, not raised).
+Telegram chat ids via the shared channel registry
+(``app.core.channels_registry``) — the SAME registry the RugMunchBot uses, so
+the two sides can never drift. Resolution order is gopass → env → fallback;
+registry-backed channels deliberately do NOT use the registry's documented
+fallback (they fail open and are skipped when unconfigured).
 
-===============  =============================  =============================================
-Logical channel  Env var                        Notes
-===============  =============================  =============================================
-alerts_channel   ``RMI_ALERTS_CHANNEL``         Public @RugMunchAlerts channel
-                                                (https://t.me/RugMunchAlerts). Defaults to
-                                                the ``@RugMunchAlerts`` handle; may be a
-                                                numeric chat id instead.
-rmialerts        ``RMI_ALERTS_CHANNEL_ID``      Internal RMI alerts channel (high+).
-rmialpha         ``RMI_ALPHA_CHANNEL_ID``       RMI Alpha channel — highest-signal early
-                                                data (launch/syndicate/whale, high+). No
-                                                default: skipped when unset.
-rmicryptonews    ``RMI_CRYPTONEWS_CHANNEL_ID``  RMI Crypto News channel (news-worthy alerts).
-main_channel     ``RMI_MAIN_CHANNEL_ID``        Main channel (critical only).
-site             (none)                         No Telegram surface — always skipped.
-===============  =============================  =============================================
+==============  ================  =============================  =============================================
+Logical channel  Registry role    Env var                        Notes
+==============  ================  =============================  =============================================
+alerts_channel  alerts (handle)   ``RMI_ALERTS_CHANNEL``         Public @RugMunchAlerts channel
+                                                                 (https://t.me/RugMunchAlerts). Handle
+                                                                 variant of the ``alerts`` role; defaults to
+                                                                 the ``@RugMunchAlerts`` handle; may be a
+                                                                 numeric chat id instead.
+rmialerts        alerts           ``RMI_ALERTS_CHANNEL_ID``      Internal RMI alerts channel (high+).
+rmialpha         alpha            ``RMI_ALPHA_CHANNEL_ID``       RMI Alpha channel — highest-signal early
+                                                                 data (launch/syndicate/whale, high+).
+rmicryptonews    news             ``RMI_NEWS_CHANNEL_ID``        RMI Crypto News channel (news-worthy
+                                                                 alerts). Legacy env alias
+                                                                 ``RMI_CRYPTONEWS_CHANNEL_ID`` still read.
+main_channel     main             ``RMI_MAIN_CHANNEL_ID``        Main channel (critical only).
+site             (none)           (none)                         No Telegram surface — always skipped.
+==============  ================  =============================  =============================================
 
 Message formatting uses Telegram HTML parse mode (``parse_mode="html"``).
 All user/detector-supplied text is HTML-escaped before embedding.
@@ -40,6 +45,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from app.core.channels_registry import CHANNEL_ROLES, resolve_channel_id
 from app.core.logging import get_logger
 from app.domains.alerts.models import PlatformAlert
 from app.domains.alerts.publisher import route_alerts
@@ -66,42 +72,60 @@ _INT_RE = re.compile(r"^-?\d+$")
 
 @dataclass(frozen=True)
 class ChannelBinding:
-    """How one logical channel resolves to a Telegram chat id."""
+    """How one logical channel resolves to a Telegram chat id.
+
+    A binding is either registry-backed (``role`` set — resolves through
+    ``app.core.channels_registry`` with gopass → env → fallback) or
+    env-direct (``env_var`` + optional ``default``, used for the public
+    @-handle surface of the alerts role).
+    """
 
     logical: str
-    env_var: str
     description: str
+    role: str | None = None
+    env_var: str | None = None
     default: int | str | None = None
 
 
 CHANNEL_BINDINGS: tuple[ChannelBinding, ...] = (
     ChannelBinding(
         logical="alerts_channel",
+        description="Public @RugMunchAlerts channel (t.me/RugMunchAlerts) — handle surface of the alerts role",
         env_var="RMI_ALERTS_CHANNEL",
-        description="Public @RugMunchAlerts channel (t.me/RugMunchAlerts)",
         default="@RugMunchAlerts",
     ),
     ChannelBinding(
         logical="rmialerts",
-        env_var="RMI_ALERTS_CHANNEL_ID",
+        role="alerts",
         description="Internal RMI alerts channel (high+)",
     ),
     ChannelBinding(
         logical="rmialpha",
-        env_var="RMI_ALPHA_CHANNEL_ID",
+        role="alpha",
         description="RMI Alpha channel (highest-signal early data: launch/syndicate/whale, high+)",
     ),
     ChannelBinding(
         logical="rmicryptonews",
-        env_var="RMI_CRYPTONEWS_CHANNEL_ID",
+        role="news",
         description="RMI Crypto News channel (news-worthy alerts)",
     ),
     ChannelBinding(
         logical="main_channel",
-        env_var="RMI_MAIN_CHANNEL_ID",
+        role="main",
         description="Main channel (critical only)",
     ),
 )
+
+
+def _binding_env_display(binding: ChannelBinding) -> str | None:
+    """Canonical env var name for a binding (for logs / docs)."""
+    if binding.env_var:
+        return binding.env_var
+    if binding.role:
+        definition = CHANNEL_ROLES.get(binding.role)
+        if definition:
+            return definition.env_var
+    return None
 
 
 def _parse_chat_id(raw: str | None) -> int | str | None:
@@ -119,25 +143,42 @@ def _parse_chat_id(raw: str | None) -> int | str | None:
     return value  # Telegram username handle, e.g. "@RugMunchAlerts"
 
 
-def channel_ids_from_env(env: Mapping[str, str] | None = None) -> dict[str, int | str | None]:
-    """Resolve logical channel name → Telegram chat id from env vars.
+def channel_ids_from_env(
+    env: Mapping[str, str] | None = None,
+    *,
+    use_gopass: bool = True,
+) -> dict[str, int | str | None]:
+    """Resolve logical channel name → Telegram chat id.
 
-    A channel whose env var is unset/empty falls back to its documented
-    default (only ``alerts_channel`` has one); if no id resolves the value is
-    ``None`` and the channel is skipped at publish time.
+    Registry-backed channels resolve through the shared channel registry
+    (``app.core.channels_registry``) with the gopass → env → fallback order;
+    they deliberately ignore the registry's documented fallback so an
+    unconfigured channel stays ``None`` and is skipped at publish time.
+    ``alerts_channel`` resolves directly from its env var and falls back to
+    the ``@RugMunchAlerts`` handle. Pass ``use_gopass=False`` for
+    deterministic env-only resolution (tests / sandbox).
     """
     source = env if env is not None else os.environ
     ids: dict[str, int | str | None] = {}
     for binding in CHANNEL_BINDINGS:
-        raw = source.get(binding.env_var)
-        if not raw and binding.default is not None:
-            raw = str(binding.default)
+        raw: str | None
+        if binding.role is not None:
+            raw = resolve_channel_id(
+                binding.role,
+                env=source,
+                use_gopass=use_gopass,
+                include_fallback=False,
+            )
+        else:
+            raw = source.get(binding.env_var) if binding.env_var else None
+            if not raw and binding.default is not None:
+                raw = str(binding.default)
         parsed = _parse_chat_id(raw)
         if parsed is None:
             logger.warning(
                 "telegram_channel_not_configured",
                 channel=binding.logical,
-                env_var=binding.env_var,
+                env_var=_binding_env_display(binding),
             )
         ids[binding.logical] = parsed
     return ids
