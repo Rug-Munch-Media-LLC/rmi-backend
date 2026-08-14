@@ -1,0 +1,48 @@
+# ArchiveBox — evidence-capture archiver for rug/scam investigations
+# ==================================================================
+# Self-hosted internet archiving: saves a URL -> WARC + PDF + full-page
+# PNG + singlefile HTML + raw DOM + headers, with a web UI and CLI/API.
+# Evidence preservation: pages often disappear (site takedown, 403, rug
+# pull) — this stores a permanent, timestamped snapshot before it does.
+#
+# Image: archivebox/archivebox:0.7.4 (pinned; :latest/:stable currently
+# resolve to the same digest as of 2026-08-14 — see README.md)
+#
+# Usage:
+#   cp .env.example .env   # edit secrets FIRST (ADMIN_PASSWORD, SECRET_KEY)
+#   docker compose up -d --wait
+#   open http://127.0.0.1:8000
+#
+# Docs: https://github.com/ArchiveBox/ArchiveBox/wiki/Docker
+
+services:
+  archivebox:
+    image: archivebox/archivebox:0.7.4
+    container_name: rmi-archivebox
+    restart: unless-stopped
+    # Loopback-only by default (evidence tool, no public exposure).
+    # For remote access use SSH tunnel or `tailscale serve` (see README).
+    ports:
+      - "127.0.0.1:${ARCHIVEBOX_PORT:-8000}:8000"
+    env_file:
+      - .env
+    volumes:
+      # Entire archive store (WARC/PDF/PNG/HTML + sqlite index + config).
+      # Back this directory up — it is the evidence itself.
+      - ./data:/data
+    shm_size: "1gb"   # Chrome runs more efficiently with a sane shared-memory pool
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '2'
+          pids: 2048   # avoids low systemd task caps with Chrome + parallel extractors
+    healthcheck:
+      # Django admin login page responds once the server is up.
+      test: ["CMD-SHELL", "curl --silent --fail http://127.0.0.1:8000/admin/login/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 20s
+      retries: 15
+      start_period: 60s   # first boot runs migrations + quick-init
