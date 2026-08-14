@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import re
 
-# $SYMBOL mentions (uppercase 2-10 chars, e.g. $BONK, $PEPE) — the ticker
-# form LLMs most commonly fabricate.
-TOKEN_RE = re.compile(r"\$([A-Za-z0-9]{2,12})\b")
+# $SYMBOL mentions (uppercase 2-12 LETTERS, e.g. $BONK, $PEPE) — the ticker
+# form LLMs most commonly fabricate. Letters only: a leading "$" followed by
+# digits is a USD amount ("$50 million"), never a ticker, and the intent
+# router (formatters._base.SYMBOL_RE) only recognizes letters-only tickers —
+# the guardrail must never strip something the router would not treat as one.
+TOKEN_RE = re.compile(r"\$([A-Za-z]{2,12})\b")
 # EVM / Solana on-chain addresses.
 EVM_RE = re.compile(r"\b0x[a-fA-F0-9]{40}\b")
 SOL_RE = re.compile(r"\b[1-9A-HJ-NP-Za-km-z]{32,44}\b")
@@ -70,14 +73,19 @@ def sanitize_answer(
     stripped_symbols: list[str] = []
     for sym in extract_symbols(answer):
         if sym not in known_symbols:
-            stripped_symbols.append(sym)
+            if sym not in stripped_symbols:
+                stripped_symbols.append(sym)
             # Remove the fabricated $SYMBOL token (keep surrounding prose).
-            answer = re.sub(rf"\${re.escape(sym)}\b", "", answer)
+            # Case-insensitive: the answer may write $pepe while the known
+            # set is upper-cased — a case-sensitive sub would report the
+            # symbol as stripped while leaving the fabrication visible.
+            answer = re.sub(rf"\${re.escape(sym)}\b", "", answer, flags=re.IGNORECASE)
 
     stripped_addresses: list[str] = []
     for addr in extract_addresses(answer):
         if addr not in known_addresses:
-            stripped_addresses.append(addr)
+            if addr not in stripped_addresses:
+                stripped_addresses.append(addr)
             answer = answer.replace(addr, "[address not verified]")
 
     # Collapse double spaces / stray "$" left by removal.
@@ -89,8 +97,10 @@ def fabrication_note(stripped_symbols: list[str], stripped_addresses: list[str])
     """Honest note appended when the guardrail stripped fabricated claims."""
     parts: list[str] = []
     if stripped_symbols:
-        tickers = ", ".join(f"${s}" for s in stripped_symbols[:5])
-        parts.append(f"some token symbols ({tickers}) were not verified against live data and were removed")
+        unique = [s for s in dict.fromkeys(stripped_symbols) if s][:5]  # dedup, cap at 5
+        tickers = ", ".join(f"${s}" for s in unique)
+        if tickers:
+            parts.append(f"some token symbols ({tickers}) were not verified against live data and were removed")
     if stripped_addresses:
         parts.append("some addresses were not verified against live data")
     if not parts:

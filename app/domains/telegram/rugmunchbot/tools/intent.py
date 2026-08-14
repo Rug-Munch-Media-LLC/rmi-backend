@@ -16,6 +16,10 @@ Intents map to tools:
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 from app.domains.telegram.rugmunchbot.formatters._base import TOKEN_RE as SYMBOL_RE
 from app.domains.telegram.rugmunchbot.tools.guardrails import EVM_RE, SOL_RE
@@ -105,11 +109,12 @@ def route_tools(text: str) -> list[str]:
     return list(dict.fromkeys(tools))
 
 
-def build_tool_prompt_block(results: dict[str, object]) -> str:
+def build_tool_prompt_block(results: Mapping[str, object]) -> str:
     """Render tool results as a compact LIVE DATA block for the LLM prompt.
 
     Only REAL tool data is included (ok=True). The block labels the source
     so the model attributes and never presents tool data as its own memory.
+    ``Mapping`` (covariant) so callers can pass ``dict[str, ToolResult]``.
     """
     lines: list[str] = ["LIVE MARKET DATA (fetched just now from real APIs):"]
     for name in sorted(results):
