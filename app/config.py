@@ -123,6 +123,13 @@ class Settings(BaseSettings):
         description="Separate Redis DB for LLM cache. Set REDIS_CACHE_URL env var.",
     )
     llm_cache_ttl: int = 3600
+    osint_cache_ttl: int = Field(
+        default=3600,
+        description=(
+            "TTL seconds for OSINT lookup cache (sherlock/maigret/theHarvester/"
+            "Amass/SpiderFoot are expensive). Set OSINT_CACHE_TTL env var."
+        ),
+    )
 
     # ── Web search (self-hosted SearXNG) ─────────────────────────────────
     searxng_url: str = Field(

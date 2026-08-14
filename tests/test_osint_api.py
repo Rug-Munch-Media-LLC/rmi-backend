@@ -21,6 +21,7 @@ Covers:
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -370,3 +371,119 @@ class TestAggregate:
         """Non-object body -> Pydantic 422."""
         resp = client.post("/api/osint/aggregate", json="nonsense", headers=auth_headers)
         assert resp.status_code == 422, resp.text
+
+
+# ── Redis cache (thin router layer) ──────────────────────────────────────────
+
+
+class _FakeRedis:
+    """Minimal in-memory stand-in for the redis client (get/set, bytes store)."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, bytes] = {}
+
+    def get(self, key: str) -> bytes | None:
+        return self.store.get(key)
+
+    def set(self, key: str, value: str, ex: int | None = None) -> None:
+        self.store[key] = value.encode()
+
+
+class TestCache:
+    @pytest.fixture
+    def fake_redis(self, monkeypatch: pytest.MonkeyPatch) -> _FakeRedis:
+        """Install an in-memory redis into ``app.core.redis.get_redis``.
+
+        The router imports ``get_redis`` lazily at call time, so patching the
+        source module attribute is enough to intercept cache traffic.
+        """
+        redis_client = _FakeRedis()
+        monkeypatch.setattr("app.core.redis.get_redis", lambda: redis_client)
+        return redis_client
+
+    def test_cache_hit_skips_engine_and_marks_cached(
+        self, client: TestClient, fake_engine: SimpleNamespace, fake_redis: _FakeRedis
+    ) -> None:
+        """A cached report is served without calling the engine, with cached=true."""
+        fake_redis.store["osint:email:victim@example.com"] = json.dumps(
+            {"target": "victim@example.com", "target_type": "email", "results": {}, "findings": [], "errors": []}
+        ).encode()
+
+        def _explode(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("engine must not run on a cache hit")
+
+        fake_engine.run_osint = _explode
+        resp = client.get("/api/osint/email/victim@example.com")
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["cached"] is True
+        assert body["target"] == "victim@example.com"
+        assert body["target_type"] == "email"
+
+    def test_cache_miss_runs_engine_then_second_call_is_hit(
+        self, client: TestClient, fake_engine: SimpleNamespace, fake_redis: _FakeRedis
+    ) -> None:
+        """First lookup runs the engine and stores the result; the second is served."""
+        report = _report("victim@example.com", "email")
+        fake_engine.run_osint = lambda target, target_type, **_: report
+
+        first = client.get("/api/osint/email/victim@example.com")
+        assert first.status_code == 200, first.text
+        assert first.json()["cached"] is False
+        assert "osint:email:victim@example.com" in fake_redis.store
+
+        fake_engine.run_osint = lambda *a, **k: (_ for _ in ()).throw(AssertionError("cache should have served this"))
+        second = client.get("/api/osint/email/victim@example.com")
+        assert second.status_code == 200, second.text
+        assert second.json()["cached"] is True
+
+    def test_cache_key_is_normalized(
+        self, client: TestClient, fake_engine: SimpleNamespace, fake_redis: _FakeRedis
+    ) -> None:
+        """Targets are stripped + lowercased, so casing variants share one key."""
+        report = _report("VICTIM@Example.COM", "email")
+        fake_engine.run_osint = lambda target, target_type, **_: report
+
+        resp = client.get("/api/osint/email/VICTIM@Example.COM")
+        assert resp.status_code == 200, resp.text
+        assert "osint:email:victim@example.com" in fake_redis.store
+        assert "osint:email:VICTIM@Example.COM" not in fake_redis.store
+
+    def test_face_lookup_is_never_cached(
+        self, client: TestClient, fake_engine: SimpleNamespace, fake_redis: _FakeRedis
+    ) -> None:
+        """Face (image) lookups are excluded from the cache entirely."""
+        report = _report("face-ref-1", "face")
+        fake_engine.run_osint = lambda target, target_type, **_: report
+
+        resp = client.get("/api/osint/face/face-ref-1")
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["cached"] is False
+        assert "osint:face:face-ref-1" not in fake_redis.store
+
+    def test_redis_down_degrades_gracefully(
+        self, client: TestClient, fake_engine: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Redis unavailable -> cache skipped, lookup still runs, never crashes."""
+        monkeypatch.setattr("app.core.redis.get_redis", lambda: None)
+        report = _report("victim@example.com", "email")
+        fake_engine.run_osint = lambda target, target_type, **_: report
+
+        resp = client.get("/api/osint/email/victim@example.com")
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["cached"] is False
+
+    def test_aggregate_is_cached_by_type_or_auto(
+        self, client: TestClient, fake_engine: SimpleNamespace, fake_redis: _FakeRedis, auth_headers: dict[str, str]
+    ) -> None:
+        """Aggregate lookups cache under the explicit type (or 'auto')."""
+        report = _report("scam-example.com", "domain")
+        fake_engine.run_aggregate = lambda target, *, timeout, target_type=None: report
+
+        resp = client.post(
+            "/api/osint/aggregate", json={"target": "scam-example.com", "target_type": "domain"}, headers=auth_headers
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["cached"] is False
+        assert "osint:domain:scam-example.com" in fake_redis.store
