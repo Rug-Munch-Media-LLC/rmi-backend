@@ -135,10 +135,15 @@ from app.domains.telegram.rugmunchbot.keyboards import (
 )
 from app.domains.telegram.rugmunchbot.states import check_spam
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools import known_addresses, known_symbols, run_for_message
+from app.domains.telegram.rugmunchbot.tools.guardrails import NO_LIVE_DATA_MESSAGE, fabrication_note, sanitize_answer
+from app.domains.telegram.rugmunchbot.tools.intent import build_tool_prompt_block
 
 if TYPE_CHECKING:
     from telegram import Message
     from telegram.ext import Application, ContextTypes
+
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 logger = get_logger("rmi_bot.chat_ai")
 
@@ -652,6 +657,70 @@ async def _reply_redirect(message: Message, user: Any, flood_receipt: str | None
         logger.debug("chat_ai redirect reply failed", exc_info=True)
 
 
+async def _run_live_tools(text: str, history: list[dict[str, str]] | None = None) -> dict[str, ToolResult]:
+    """Run the tool registry for a user question (best-effort, bounded).
+
+    Returns ``{tool_name: ToolResult}`` — possibly empty when no tools
+    match the question. Every result is REAL API data (or a short-TTL cache
+    of one); a tool that fails degrades to ``ok=False`` (the caller must not
+    guess). Never raises.
+    """
+    try:
+        return await run_for_message(text, history=history or [])
+    except Exception as exc:
+        logger.debug("live tool run failed (text %.60s): %s", text, exc)
+        return {}
+
+
+def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
+    """Render REAL tool data as a plain answer (no LLM involved).
+
+    Used when the whole LLM chain is down but the tools returned live data —
+    the bot still answers with REAL numbers instead of guessing. Returns
+    ``None`` when there is nothing usable to render.
+    """
+    lines: list[str] = []
+    price = results.get("price_lookup")
+    if price is not None and price.ok and isinstance(price.data, dict):
+        pairs = price.data.get("pairs") or []
+        if pairs:
+            p = pairs[0]
+            addr = p.get("address", "")
+            lines.append(
+                f"\U0001fa99 <b>{p.get('name', p.get('symbol', ''))}</b> ({p.get('symbol', '')}) "
+                f"{fmt_chain(p.get('chain', ''))}\n<code>{addr}</code>"
+            )
+            if p.get("price_usd") is not None:
+                lines.append(f"\U0001f4b0 {fmt_number(p['price_usd'])} | 24h: {fmt_pct(p.get('change_24h'))}")
+            if p.get("market_cap"):
+                lines.append(f"\U0001f4c8 MCap: {fmt_number(p.get('market_cap'))}")
+            lines.append("")
+    trending = results.get("trending")
+    if trending is not None and trending.ok and isinstance(trending.data, dict):
+        tokens = trending.data.get("tokens") or []
+        if tokens:
+            lines.append("\U0001f525 <b>Trending</b>")
+            for t in tokens[:8]:
+                addr = t.get("address", "")
+                sym = t.get("symbol", "?")
+                chg = f" | {fmt_pct(t.get('change_24h'))}" if t.get("change_24h") is not None else ""
+                lines.append(f"\u2022 ${sym} {fmt_chain(t.get('chain', ''))}{chg} — <code>{addr}</code>")
+            lines.append("")
+    security = results.get("security_scan")
+    if security is not None and security.ok and isinstance(security.data, dict):
+        score = security.data.get("risk_score")
+        if score is not None:
+            emoji = "\U0001f7e2" if score < 40 else ("\U0001f7e1" if score < 70 else "\U0001f534")
+            lines.append(f"\U0001f50d <b>Risk: {emoji} {score}/100</b>")
+            if security.data.get("is_honeypot") is not None:
+                lines.append(f"honeypot: {security.data['is_honeypot']}")
+            lines.append("")
+    if not lines:
+        return None
+    lines.append("<i>Live data via Rug Munch tools.</i>")
+    return "\n".join(lines)
+
+
 async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text: str, user: Any) -> bool:
     """Run the merged AI chat pipeline. Returns True when a reply was sent.
 
@@ -749,6 +818,10 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     daily_ctx_task = asyncio.create_task(get_daily_context())
     scan_ctx_task = asyncio.create_task(_fetch_scan_context(addresses[0])) if addresses else None
     bridge_ctx_task = asyncio.create_task(_fetch_bridge_context(text, history))
+    # Bot-side live tools (REAL data): run concurrently with the backend so
+    # the fallback path is grounded in real numbers and the guardrail can
+    # verify the final answer. Bounded + fail-open — never blocks chat.
+    live_tools_task = asyncio.create_task(_run_live_tools(text, history))
 
     # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
     # The backend injects the current date/time and runs its own RAG
@@ -771,19 +844,26 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         else:
             bridge_context = None
 
-        # Fallback prompt: bridge blocks + scan summary (message-specific data).
-        # The daily market/news digest is NOT glued to the user message — it is
-        # passed as ``system_context`` so the fallback LLMs treat it as current
-        # data in the SYSTEM prompt instead of part of the question (the
-        # grounding rules already forbid quoting context verbatim).
+        # Live tool data — the ONLY numbers the fallback LLMs may cite.
+        live_results = await live_tools_task
+
+        # Fallback prompt: bridge blocks + scan summary + LIVE tool data
+        # (message-specific real data). The daily market/news digest is NOT
+        # glued to the user message — it is passed as ``system_context`` so
+        # the fallback LLMs treat it as current data in the SYSTEM prompt
+        # instead of part of the question.
         prompt = text
         if bridge_context:
             prompt = f"{bridge_context}\n\n{prompt}"
         if scan_summary:
             prompt = f"{scan_summary}\n\n{prompt}"
 
+        tool_block = build_tool_prompt_block(live_results)
+        if tool_block:
+            prompt = f"{tool_block}\n\n{prompt}"
+
         # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with
-        # the bridge blocks, reporting rag_count = len(bridge sources).
+        # the bridge blocks + live tool data, reporting rag_count = len(sources).
         deep = _is_deep_question(text)
         result = await _call_zen_llm(
             prompt,
@@ -801,9 +881,18 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
                 sources=bridge_sources,
                 system_context=daily_context,
             )
+
+        # LLM chain completely down but tools returned REAL data → answer
+        # from the tools themselves (no LLM, no guessing).
+        if not result:
+            tool_answer = _format_tool_answer(live_results)
+            if tool_answer:
+                result = {"message": tool_answer, "rag_count": len(bridge_sources), "provider": "tools"}
     else:
         # Backend answered — the bridge/daily context fetches running in the
         # background are no longer needed. Cancel them so no coroutine dangles.
+        # NOTE: live_tools_task is NOT cancelled — the guardrail below needs
+        # its results to verify the backend answer (bounded; self-terminates).
         pending = [t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task) if t is not None]
         for t in pending:
             t.cancel()
@@ -830,6 +919,50 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # count; citing bridge sources there would be dishonest.
     if result.get("provider") in ("zen", "local") and bridge_sources:
         answer = _append_source_lines(answer, bridge_sources)
+
+    # ── ZERO-FABRICATION GUARDRAIL (post-processing) ────────────────────
+    # Strip/reject any token symbol or address the bot did NOT receive from
+    # a tool call. When no tool matched the question (general knowledge),
+    # there is nothing to verify against and the backend's own grounding
+    # rules apply — nothing is stripped.
+    #
+    # Backend path: the backend answer is grounded by ITS OWN tool layer +
+    # RAG, so we only strip when our bot-side tools independently returned
+    # data for this question (corroboration). If our tools all failed, the
+    # backend's grounding is authoritative.
+    #
+    # Fallback path: bot-side tools are the ONLY real-data grounding, so the
+    # guardrail is strict — strip everything not returned by a tool, and
+    # say "no live data" when every tool failed.
+    live_results: dict[str, ToolResult] = {}
+    try:
+        live_results = await asyncio.wait_for(asyncio.shield(live_tools_task), timeout=2.0)
+    except (TimeoutError, asyncio.CancelledError, Exception):
+        live_results = live_tools_task.result() if live_tools_task.done() and not live_tools_task.cancelled() else {}
+    was_fallback = result is None or result.get("provider") == "tools"
+    if live_results:
+        tools_ok = any(r.ok for r in live_results.values())
+        if was_fallback or tools_ok:
+            known_syms = known_symbols(live_results)
+            known_addrs = known_addresses(live_results)
+            answer, stripped_syms, stripped_addrs = sanitize_answer(answer, known_syms, known_addrs)
+            if stripped_syms or stripped_addrs:
+                note = fabrication_note(stripped_syms, stripped_addrs)
+                if note:
+                    answer = f"{answer}{note}"
+                    logger.info(
+                        "guardrail stripped fabricated data user=%s syms=%s addrs=%s",
+                        user.id,
+                        stripped_syms[:5],
+                        stripped_addrs[:2],
+                    )
+        # Honest no-live-data signal (FALLBACK path only): the question routed
+        # to tools but every source was down/rate-limited → the bot must not
+        # guess. The backend path has its own grounding + its own tool layer,
+        # so appending this there would be a false "no data".
+        if was_fallback and not tools_ok:
+            answer = f"{answer}\n\n{NO_LIVE_DATA_MESSAGE}"
+
     db.increment_usage(user.id, ai_msg=True)
     db.add_chat_message(user.id, "user", text)
     db.add_chat_message(user.id, "assistant", answer)
