@@ -14,8 +14,10 @@ lookup endpoint exposes a ``timeout`` query param (default 60s, matching the
 module contract in :mod:`app.osint`).
 
 Composition contract (see :mod:`app.osint`):
-    * ``run_osint(target, target_type, *, timeout=60) -> OsintReport``
-    * ``run_aggregate(target, *, target_type=None, timeout=60) -> OsintReport``
+    * ``run_osint(target, target_type="auto", *, timeout=120) -> dict``
+      — per-module ``results`` plus a flat ``findings`` list and ``errors``
+    * ``run_aggregate(target, target_type="auto", *, timeout=120) -> dict``
+      — same shape; all applicable modules run in parallel
     * ``TARGET_TYPES: list[str]`` (capability listing; fallback below)
 """
 

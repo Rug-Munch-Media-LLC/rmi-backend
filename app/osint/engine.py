@@ -167,9 +167,12 @@ def run_osint(target: str, target_type: str = "auto", *, timeout: int = 120) -> 
     Resolves ``target_type`` (auto-detection when ``"auto"``), dispatches to the
     matching module (plus SpiderFoot for ``domain``/``username``), and returns::
 
-        {"target", "target_type", "results": {module: report.to_dict()}, "errors": [...]}
+        {"target", "target_type", "results": {module: report.to_dict()},
+         "findings": [...], "errors": [...]}
 
-    Every module failure is collected in ``errors`` — this never raises.
+    ``findings`` is the same flat, deduped list that :func:`run_aggregate`
+    emits, so both entry points share one response shape. Every module failure
+    is collected in ``errors`` — this never raises.
     """
     resolved = detect_target_type(target, target_type)
     if resolved not in TARGET_TYPES:
@@ -177,9 +180,11 @@ def run_osint(target: str, target_type: str = "auto", *, timeout: int = 120) -> 
             "target": target,
             "target_type": resolved,
             "results": {},
+            "findings": [],
             "errors": [f"unknown target_type: {resolved!r}"],
         }
     results: dict[str, dict[str, Any]] = {}
+    reports: dict[str, OsintReport] = {}
     errors: list[str] = []
     for key in _applicable_modules(resolved):
         _, report, error = _run_module(key, target, resolved, timeout)
@@ -189,8 +194,15 @@ def run_osint(target: str, target_type: str = "auto", *, timeout: int = 120) -> 
         if report is None:  # unreachable; keeps mypy narrowing honest
             errors.append(f"{key}: no report produced")
             continue
+        reports[key] = report
         results[key] = report.to_dict()
-    return {"target": target, "target_type": resolved, "results": results, "errors": errors}
+    return {
+        "target": target,
+        "target_type": resolved,
+        "results": results,
+        "findings": _merge_findings(reports.values()),
+        "errors": errors,
+    }
 
 
 def run_aggregate(target: str, target_type: str = "auto", *, timeout: int = 120) -> dict[str, Any]:

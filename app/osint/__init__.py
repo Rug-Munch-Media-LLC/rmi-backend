@@ -65,8 +65,18 @@ class OsintReport:
     def found(self) -> int:
         return len(self.findings)
 
-    def add(self, source: str, category: str, summary: str, **data: Any) -> None:
-        self.findings.append(OsintFinding(source=source, category=category, summary=summary, data=data))
+    def add(
+        self,
+        source: str,
+        category: str,
+        summary: str,
+        *,
+        confidence: str = "medium",  # high | medium | low
+        **data: Any,
+    ) -> None:
+        self.findings.append(
+            OsintFinding(source=source, category=category, summary=summary, confidence=confidence, data=data)
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
