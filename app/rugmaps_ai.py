@@ -1,7 +1,7 @@
 """
-RugMaps AI Analysis — DIRECT llama.cpp (local models, NO paid APIs).
+RugMaps AI Analysis — LiteLLM qwen-analysis (local llama.cpp) + DeepSeek-chat paid fallback.
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
-Routing order: llama.cpp qwen-analysis → llama.cpp qwen-chat → rule-based.
+Routing order: LiteLLM qwen-analysis → DeepSeek-chat → rule-based.
 """
 
 from __future__ import annotations
@@ -24,22 +24,14 @@ logger = get_logger(__name__)
 # 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
-DEEPSEEK_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
+QWEN_ANALYSIS_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
 AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "qwen-analysis")
-# Fast model → token descriptions, simple labeling (Qwen3.5-4B llama.cpp :8085; Ollama fallback).
-OLLAMA_FAST_MODEL = os.getenv("OLLAMA_FAST_MODEL", "qwen3:4b")
-# Complex model → cluster interpretation, anomaly detection, rug pull narratives
-# (Qwen3.5-9B llama.cpp :8086; Ollama fallback — legacy tag).
-OLLAMA_COMPLEX_MODEL = os.getenv("OLLAMA_COMPLEX_MODEL", "deepseek-r1:8b")
-# Local inference is fast — 30s cap; anything slower means Ollama is wedged, fall back to paid.
-OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "30"))
 
 # LiteLLM proxy + DeepSeek direct fallback (legacy callers; env-gated, empty = disabled)
 LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
 LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "")
-DEEPSEEK_URL = f"http://{LLAMA_HOST}:{DEEPSEEK_PORT}/v1/chat/completions"
+QWEN_ANALYSIS_URL = f"http://{LLAMA_HOST}:{QWEN_ANALYSIS_PORT}/v1/chat/completions"
 DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY", "")
-OLLAMA_BASE_URLS = [u for u in os.getenv("OLLAMA_BASE_URLS", "http://172.22.0.1:11434").split(",") if u]
 
 # Analysis cache (in-memory + Redis if available)
 _analysis_cache: dict[str, dict[str, Any]] = {}
@@ -233,7 +225,7 @@ async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | N
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
-                DEEPSEEK_URL,
+                QWEN_ANALYSIS_URL,
                 headers={
                     "Authorization": f"Bearer {DEEPSEEK_KEY}",
                     "Content-Type": "application/json",
@@ -260,80 +252,13 @@ async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | N
     return None
 
 
-def _ollama_model_for_task(task_type: str) -> str:
-    """Map a task type to the local Ollama model.
-
-    - fast/chat/label/description → OLLAMA_FAST_MODEL (Qwen3.5-4B): cheap, fast
-      labeling and token descriptions.
-    - analysis/complex/anomaly/cluster (default) → OLLAMA_COMPLEX_MODEL
-      (DeepSeek Distill Qwen-8B): cluster interpretation, anomaly detection,
-      rug pull narratives.
-    """
-    if task_type in ("fast", "chat", "label", "description", "simple"):
-        return OLLAMA_FAST_MODEL
-    return OLLAMA_COMPLEX_MODEL
-
-
-async def _call_ollama_for_rugmaps(
-    prompt: str, task_type: str = "analysis", max_tokens: int = 800
-) -> tuple[str | None, str]:
-    """Call local Talos Ollama first (zero-cost, no external API).
-
-    Tries every configured base URL in order. Returns ``(content, model_id)``;
-    ``model_id`` is ``"ollama/<model>"`` (even on failure, so callers can log
-    what was attempted).
-    """
-    model = _ollama_model_for_task(task_type)
-    for base_url in OLLAMA_BASE_URLS:
-        try:
-            async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
-                resp = await client.post(
-                    f"{base_url}/api/chat",
-                    json={
-                        "model": model,
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": (
-                                    "You are a blockchain forensic expert. "
-                                    "Return ONLY valid JSON, no markdown, no code blocks."
-                                ),
-                            },
-                            {"role": "user", "content": prompt},
-                        ],
-                        "stream": False,
-                        "options": {"temperature": 0.3, "num_predict": max_tokens},
-                    },
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    content = (data.get("message", {}) or {}).get("content", "")
-                    if content and content.strip():
-                        content = content.strip()
-                        logger.info("rugmaps_ai_ollama", model=model, base_url=base_url, task_type=task_type)
-                        return content, f"ollama/{model}"
-                else:
-                    logger.warning(
-                        "ollama_rugmaps_non_200", base_url=base_url, status=resp.status_code, body=resp.text[:200]
-                    )
-        except Exception as e:
-            logger.warning("ollama_rugmaps_call_failed", base_url=base_url, error=str(e))
-    return None, f"ollama/{model}"
-
-
-async def _call_ai_with_ollama_priority(
-    prompt: str, task_type: str = "analysis", max_tokens: int = 800
-) -> tuple[str | None, str]:
-    """Route RugMaps AI: local Ollama → LiteLLM → direct DeepSeek.
+async def _call_ai_priority(prompt: str, task_type: str = "analysis", max_tokens: int = 800) -> tuple[str | None, str]:
+    """Route RugMaps AI: LiteLLM → direct DeepSeek.
 
     Returns ``(content, model_id)`` where ``model_id`` is one of
-    ``"ollama/<model>"``, ``"litellm/<model>"``, ``"deepseek/deepseek-chat"``
-    or ``"none"`` — the caller logs it so we can track what served each response.
+    ``"litellm/<model>"``, ``"deepseek/deepseek-chat"`` or ``"none"`` — the
+    caller logs it so we can track what served each response.
     """
-    content, model = await _call_ollama_for_rugmaps(prompt, task_type=task_type, max_tokens=max_tokens)
-    if content:
-        return content, model
-
     content = await _call_litellm_for_rugmaps(prompt, task_type=task_type, max_tokens=max_tokens)
     if content:
         return content, f"litellm/{AI_MODEL}"
@@ -436,7 +361,7 @@ Return ONLY valid JSON with these fields:
   "summary": "<2-3 sentence concise analysis of the cluster findings>"
 }}"""
 
-    content, ai_model = await _call_ai_with_ollama_priority(prompt, task_type="analysis", max_tokens=600)
+    content, ai_model = await _call_ai_priority(prompt, task_type="analysis", max_tokens=600)
 
     if content:
         parsed = _parse_ai_json(content)
@@ -579,7 +504,7 @@ Return ONLY valid JSON with these fields:
   "recommendation": "<one sentence action recommendation>"
 }}"""
 
-    content, ai_model = await _call_ai_with_ollama_priority(prompt, task_type="analysis", max_tokens=800)
+    content, ai_model = await _call_ai_priority(prompt, task_type="analysis", max_tokens=800)
 
     if content:
         parsed = _parse_ai_json(content)
@@ -743,8 +668,8 @@ Based on our data, provide a JSON analysis with these fields:
 
 Return ONLY valid JSON, no markdown, no code blocks."""
 
-    # Try local Ollama first, then LiteLLM, then direct DeepSeek
-    content, ai_model = await _call_ai_with_ollama_priority(prompt, task_type="analysis", max_tokens=800)
+    # Try LiteLLM first, then direct DeepSeek
+    content, ai_model = await _call_ai_priority(prompt, task_type="analysis", max_tokens=800)
 
     if content:
         parsed = _parse_ai_json(content)
