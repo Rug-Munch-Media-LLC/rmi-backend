@@ -89,6 +89,7 @@ def _grounding_sources_count(
 
     return count
 
+
 # ══════════════════════════════════════════════
 # ANSWER POST-PROCESSING GUARDS (think-strip + degenerate-output)
 # Pure, unit-testable; applied in chat_ai_response before the answer is
@@ -129,6 +130,7 @@ def is_degenerate_answer(text: str) -> bool:
     if not any(c.isalnum() for c in stripped):
         return True
     return bool(_DEGENERATE_REPETITION_RE.match(stripped))
+
 
 __all__ = [
     "_grounding_sources_count",

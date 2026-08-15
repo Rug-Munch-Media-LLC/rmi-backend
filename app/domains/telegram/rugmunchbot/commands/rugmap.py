@@ -11,6 +11,7 @@ Usage: /rugmap <address> [chain]
 
 from __future__ import annotations
 
+import asyncio
 import io
 from typing import Any, cast
 
@@ -288,18 +289,26 @@ async def cmd_rugmap(update, ctx) -> None:
             except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
                 logger.debug("DexScreener fallback failed: %s", exc)
 
-        # ── Use branded visual engine ──
+        # ── Use branded visual engine. Pillow rendering is CPU-bound — run it
+        # in a worker thread so the bot event loop never stalls on image draw.
         from app.domains.telegram.rugmunchbot.services.visuals import render_cluster_map
 
         # Holder stats for the map footer (top_holders entries carry pct).
         total_holders = len(top_holders)
         top10_pct = sum(float(h.get("pct") or 0) for h in top_holders[:10])
 
-        png = (
-            render_cluster_map(nodes or [], links or [], name, symbol, chain, total_holders, top10_pct)
-            if nodes
-            else None
-        )
+        png = None
+        if nodes:
+            png = await asyncio.to_thread(
+                render_cluster_map,
+                nodes or [],
+                links or [],
+                name,
+                symbol,
+                chain,
+                total_holders,
+                top10_pct,
+            )
         if png:
             risk_line = ""
             if graph and graph.get("risk_level"):

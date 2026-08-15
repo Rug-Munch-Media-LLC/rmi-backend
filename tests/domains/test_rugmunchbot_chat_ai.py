@@ -603,11 +603,16 @@ class _FakeMessage:
         self.replies.append((args, kwargs))
         ph = types.SimpleNamespace()
         ph.edits: list[tuple[tuple, dict]] = []
+        ph.deletes: list[tuple[tuple, dict]] = []
 
         async def edit_text(*a: object, **k: object) -> None:
             ph.edits.append((a, k))
 
+        async def delete(*a: object, **k: object) -> None:
+            ph.deletes.append((a, k))
+
         ph.edit_text = edit_text
+        ph.delete = delete
         self.returned.append(ph)
         return ph
 
@@ -676,6 +681,24 @@ class TestLocalIntent:
     def test_greeting(self) -> None:
         assert "Yo! I'm here" in (chat_ai.local_ai_response("hi there", None) or "")
 
+    # Presence checks ("are you there" / "anyone home") must hit the fast
+    # warm 1-2 line canned reply — never the slow LLM/RAG path.
+    PRESENCE_PHRASES: ClassVar[list[str]] = [
+        "are you there",
+        "you there",
+        "anyone there",
+        "anyone home",
+        "you alive",
+        "u there",
+        "there?",
+    ]
+
+    @pytest.mark.parametrize("phrase", PRESENCE_PHRASES)
+    def test_presence_check_gets_fast_warm_reply(self, phrase: str) -> None:
+        reply = chat_ai.local_ai_response(phrase, None)
+        assert reply is not None
+        assert "I'm here" in reply
+
     def test_help(self) -> None:
         assert "Rug Munch Capabilities" in (chat_ai.local_ai_response("what can you do", None) or "")
 
@@ -687,6 +710,31 @@ class TestLocalIntent:
 
     def test_no_match(self) -> None:
         assert chat_ai.local_ai_response("explain yield farming", None) is None
+
+
+class TestPresenceGateAgreement:
+    """Presence checks ("are you there") must pass the tier-2 greeting gate so
+    they hit the fast warm canned reply (and agree with it), instead of
+    falling through to the slow LLM/RAG path."""
+
+    PRESENCE_PHRASES: ClassVar[list[str]] = TestLocalIntent.PRESENCE_PHRASES
+
+    @pytest.mark.parametrize("phrase", PRESENCE_PHRASES)
+    def test_gate_catches_presence_check(self, phrase: str) -> None:
+        assert chat_ai._is_greeting_or_thanks(phrase) is True
+
+    @pytest.mark.parametrize("phrase", PRESENCE_PHRASES)
+    def test_gate_and_canned_reply_agree(self, phrase: str) -> None:
+        assert chat_ai._is_greeting_or_thanks(phrase) is True
+        reply = chat_ai.local_ai_response(phrase, None)
+        assert reply is not None
+        assert "I'm here" in reply
+
+    def test_gate_does_not_match_bare_there(self) -> None:
+        # "\bthere\b" alone is far too broad — only the presence phrasings
+        # ("anyone there", "there?") count, never "is there a scam here?".
+        assert chat_ai._is_greeting_or_thanks("is there a scam here?") is False
+        assert chat_ai._is_greeting_or_thanks("what is there to do") is False
 
 
 class TestLookupTokenSymbol:
@@ -1038,6 +1086,12 @@ class TestChatAiResponse:
         assert "grounded answer" in answer_reply
         # v10 footer: "⚡ Grounded in {N} intelligence sources | RugMunch Bot"
         assert "Grounded in 2 intelligence sources | Rug Munch Bot" in answer_reply
+        # Bug fix: the "Thinking..." placeholder is DELETED once the real
+        # answer is sent — never edited to a bare ✅ (that reads as a glitch
+        # and doubles as a stray message).
+        placeholder = msg.returned[0]
+        assert len(placeholder.deletes) == 1
+        assert placeholder.edits == []
 
     def test_gibberish_redirect_no_backend_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
         backend = AsyncMock(return_value={"message": "should not be called", "rag_count": 0, "provider": "backend"})
@@ -1079,8 +1133,11 @@ class TestChatAiResponse:
         assert msg.replies[0][0][0].startswith("\U0001f916")
         assert len(msg.returned) == 1
         placeholder = msg.returned[0]
-        assert len(placeholder.edits) == 1
-        assert "AI brain temporarily unavailable" in placeholder.edits[0][0][0]
+        # The interim "Still digging" note may have fired first (slow
+        # pipeline) — the FINAL placeholder state must be the honest
+        # unavailability message.
+        assert len(placeholder.edits) >= 1
+        assert "AI brain temporarily unavailable" in placeholder.edits[-1][0][0]
 
 
 class TestChatAiResponseQuality:
@@ -1260,5 +1317,83 @@ class TestAiChatHandler:
         upd.effective_chat = types.SimpleNamespace(id=999, type="private")
         ctx = types.SimpleNamespace(args=[])
         _run(chat_ai.ai_chat_handler(upd, ctx))
-        backend.assert_not_called()
+        # The $TOKEN lookup now runs CONCURRENTLY with the pipeline (never
+        # serializing 10s before it). When the price card lands first it IS
+        # the answer — the AI answer is never surfaced even though the
+        # pipeline started.
         assert any("DOGE" in r[0][0] for r in msg.replies)
+        assert not any("nope" in r[0][0] for r in msg.replies)
+
+
+class TestInterimPlaceholder:
+    """Bug fix: the "Still digging" interim note (wired ~5s after the
+    placeholder) must keep slow backend queries from looking stalled — and a
+    cancelled task must never touch the placeholder."""
+
+    def test_edit_placeholder_if_slow(self) -> None:
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        async def _scenario() -> None:
+            msg = _FakeMessage()
+            ph = await msg.reply_text("x")
+            await _routing._edit_placeholder_if_slow(ph, delay=0.01)
+            assert len(ph.edits) == 1
+            assert "Still digging" in ph.edits[0][0][0]
+
+        _run(_scenario())
+
+    def test_cancelled_placeholder_task_never_edits(self) -> None:
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        async def _scenario() -> None:
+            msg = _FakeMessage()
+            ph = await msg.reply_text("x")
+            task = asyncio.create_task(_routing._edit_placeholder_if_slow(ph, delay=10))
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            assert ph.edits == []
+
+        _run(_scenario())
+
+
+class TestTokenCardDecision:
+    """Bug fix: the $TOKEN DexScreener lookup runs CONCURRENTLY with the AI
+    pipeline — _token_card_won decides at the send point whether the price
+    card already won (and never stalls the AI answer)."""
+
+    def test_none_never_wins(self) -> None:
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        assert _run(_routing._token_card_won(None)) is False
+
+    def test_finished_card_wins(self) -> None:
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        async def _scenario() -> bool:
+            async def _card() -> bool:
+                return True
+
+            task = asyncio.create_task(_card())
+            await asyncio.sleep(0.01)  # let the lookup finish
+            return await _routing._token_card_won(task)
+
+        assert _run(_scenario()) is True
+
+    def test_pending_card_loses_within_budget(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        monkeypatch.setattr(_routing, "TOKEN_CARD_DECIDE_WAIT", 0.02)
+
+        async def _scenario() -> bool:
+            async def _slow() -> bool:
+                await asyncio.sleep(10)
+                return True
+
+            task = asyncio.create_task(_slow())
+            try:
+                return await _routing._token_card_won(task)
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+        assert _run(_scenario()) is False

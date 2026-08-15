@@ -8,6 +8,7 @@ Pro tier. Combines full scanner data + wallet forensics + holder analysis
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -85,6 +86,58 @@ def _determine_verdict(scan_result: dict[str, Any], wallet_data: dict[str, Any])
         return "SAFE", "Clean — no significant risks detected"
 
 
+async def _run_scan(address: str, chain: str) -> dict[str, Any]:
+    """Security scan — v2 explainable first, legacy fallback."""
+    scan_v2 = await scan_token_v2(address, chain)
+    if scan_v2 is not None:
+        scan_result = v2_token_to_legacy(scan_v2)
+        if chain:
+            scan_result["chain"] = chain
+        return scan_result
+    return await scan_token(address, chain)
+
+
+async def _fetch_wallet_tokens(client: httpx.AsyncClient, address: str) -> dict[str, Any]:
+    """Fetch wallet token holdings from the backend (best-effort)."""
+    try:
+        wallet_resp = await client.get(
+            f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
+            headers=backend_headers(),
+            timeout=10,
+        )
+        if wallet_resp.status_code == 200:
+            return wallet_resp.json()
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
+        pass
+    return {}
+
+
+async def _fetch_cross_chain(client: httpx.AsyncClient, address: str, chain: str) -> list[Any]:
+    """Fetch cross-chain profile from the backend (best-effort)."""
+    try:
+        cc_resp = await client.get(
+            f"{BACKEND_URL}/api/v1/cross-chain/{address}",
+            params={"chain": chain},
+            headers=backend_headers(),
+            timeout=10,
+        )
+        if cc_resp.status_code == 200:
+            profile = cc_resp.json()
+            primary = profile.get("primary_chain", chain)
+            return [
+                {
+                    "source_chain": primary,
+                    "dest_chain": m.get("chain", ""),
+                    "address": m.get("address", ""),
+                    "confidence": m.get("confidence", 0),
+                }
+                for m in profile.get("addresses", [])
+            ]
+    except (httpx.HTTPError, ConnectionError, TimeoutError):
+        pass
+    return []
+
+
 async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Deep investigation: Full token + wallet + holder + trace analysis.
 
@@ -148,29 +201,23 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         # Phase 1-4: Run all analysis in parallel
         async with httpx.AsyncClient(timeout=45) as client:
-            # Security scan — v2 explainable first, legacy fallback
-            scan_v2 = await scan_token_v2(address, chain)
-            if scan_v2 is not None:
-                scan_result = v2_token_to_legacy(scan_v2)
-                if chain:
-                    scan_result["chain"] = chain
-            else:
-                scan_result = await scan_token(address, chain)
+            # Scan + wallet + cross-chain run concurrently (previously
+            # sequential — up to ~75s worst case). Dev-wallet forensics wait
+            # on the scan result (dev_wallet comes from the scan).
+            scan_result, wallet_data, cross_chain = await asyncio.gather(
+                _run_scan(address, chain),
+                _fetch_wallet_tokens(client, address),
+                _fetch_cross_chain(client, address, chain),
+                return_exceptions=True,
+            )
+            if isinstance(scan_result, BaseException):
+                raise scan_result
+            if not isinstance(wallet_data, dict):
+                wallet_data = {}
+            if not isinstance(cross_chain, list):
+                cross_chain = []
 
-            # Wallet data
-            wallet_data: dict[str, Any] = {}
-            try:
-                wallet_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if wallet_resp.status_code == 200:
-                    wallet_data = wallet_resp.json()
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
-
-            # Dev wallet forensics (if available)
+            # Dev wallet forensics (if available) — waits on the scan result
             dev_data: dict[str, Any] = {}
             dev_wallet = scan_result.get("dev_wallet")
             if dev_wallet:
@@ -184,30 +231,6 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                         dev_data = dev_resp.json()
                 except (httpx.HTTPError, ConnectionError, TimeoutError):
                     pass
-
-            # Cross-chain data
-            cross_chain: list[Any] = []
-            try:
-                cc_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/cross-chain/{address}",
-                    params={"chain": chain},
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if cc_resp.status_code == 200:
-                    profile = cc_resp.json()
-                    primary = profile.get("primary_chain", chain)
-                    cross_chain = [
-                        {
-                            "source_chain": primary,
-                            "dest_chain": m.get("chain", ""),
-                            "address": m.get("address", ""),
-                            "confidence": m.get("confidence", 0),
-                        }
-                        for m in profile.get("addresses", [])
-                    ]
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
 
         # Build investigation report
         verdict, verdict_desc = _determine_verdict(scan_result, wallet_data)

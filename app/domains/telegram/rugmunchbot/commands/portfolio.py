@@ -7,6 +7,7 @@ Supports comma-separated multi-address scanning.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -112,26 +113,34 @@ async def cmd_portfolio(update, ctx) -> None:
     )
 
     async with httpx.AsyncClient(timeout=25) as client:
-        for addr_idx, address in enumerate(addresses):
-            try:
-                # Detect chain and fetch portfolio
-                if is_sol(address):
-                    portfolio = await _fetch_solana_portfolio(client, address)
-                elif is_evm(address):
-                    portfolio = await _fetch_evm_portfolio(client, address)
-                else:
-                    await msg.reply_text(
-                        f"❌ Unrecognized address format: <code>{address}</code>",
-                        parse_mode="HTML",
-                    )
-                    continue
+        # Fetch every address concurrently (was a sequential per-address loop
+        # — up to 3 x 10s worst case). Unrecognized formats yield None.
+        async def _fetch_portfolio(address: str) -> dict[str, Any] | None:
+            if is_sol(address):
+                return await _fetch_solana_portfolio(client, address)
+            if is_evm(address):
+                return await _fetch_evm_portfolio(client, address)
+            return None
 
+        # Re-arm typing — the parallel fetch takes as long as the slowest
+        # address, so the indicator would otherwise expire mid-wait.
+        await msg.chat.send_action("typing")
+        portfolios = await asyncio.gather(*(_fetch_portfolio(a) for a in addresses))
+
+        for addr_idx, (address, portfolio) in enumerate(zip(addresses, portfolios, strict=True), 1):
+            if portfolio is None:
+                await msg.reply_text(
+                    f"❌ Unrecognized address format: <code>{address}</code>",
+                    parse_mode="HTML",
+                )
+                continue
+            try:
                 top_tokens = portfolio.get("top_tokens", [])
                 balance = portfolio.get("balance_usd", 0)
                 tx_count = portfolio.get("tx_count", 0)
 
                 # Build display lines
-                label = f"👛 <b>Portfolio #{addr_idx + 1}:</b> <code>{address}</code>"
+                label = f"👛 <b>Portfolio #{addr_idx}:</b> <code>{address}</code>"
 
                 lines = [label, ""]
 

@@ -287,7 +287,12 @@ async def _post_guardrail(
     # Fallback path (tools-only answers): bot-side tools are the ONLY
     # real-data grounding, so the guardrail is strict — strip everything not
     # returned by a tool, and say "no live data" when every tool failed.
-    live_results = await _run_live_tools_bounded(live_tools_task, 2.0, reuse_done=True)
+    # Re-join the live-tools task for the guardrail WITHOUT stalling the
+    # answer. The tools were started at the top of the pipeline, so by the
+    # time the answer is ready most are done (wait_for returns instantly for
+    # a finished task). A ~0.3s budget catches late arrivals; the old
+    # hardcoded 2.0s re-join added a full 2s to every answer's latency.
+    live_results = await _run_live_tools_bounded(live_tools_task, 0.3, reuse_done=True)
     # On the fallback path the direct RAG lookup is REAL grounding — merge it
     # so its content symbols/addresses protect RAG-cited tickers and its
     # success counts as corroboration. Never merged on the backend path

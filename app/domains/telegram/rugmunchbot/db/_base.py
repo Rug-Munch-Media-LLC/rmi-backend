@@ -6,18 +6,32 @@ DB path resolution (``_resolve_db_path``). The ``DB_PATH`` attribute itself is
 owned by the package shim (``db/__init__.py``) so tests can keep patching it
 via ``monkeypatch.setattr(db, "DB_PATH", ...)`` — ``get_db`` reads the path
 dynamically from the package namespace at call time.
+
+Async usage: the sync ``sqlite3`` API cannot be awaited. Async callers should
+use :func:`get_db_async` (connection open off the event loop) and
+:func:`run_db` (execute a sync DB callable via ``asyncio.to_thread``) so the
+bot event loop is never blocked by disk I/O. The sync ``get_db`` /
+``init_db`` signatures are unchanged — the ``db/*`` submodules and the
+import-time bootstrap still use them.
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import os
 import sqlite3
 import sys
 import tempfile
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger("app.domains.telegram.rugmunchbot.db")
+
+T = TypeVar("T")
 
 
 def _resolve_db_path() -> str:
@@ -58,13 +72,54 @@ def _db_path() -> str:
     return _DEFAULT_DB_PATH
 
 
-def get_db() -> sqlite3.Connection:
+def _connect(check_same_thread: bool = True) -> sqlite3.Connection:
+    """Open a SQLite connection with the standard bot setup."""
     path = _db_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
+
+def get_db() -> sqlite3.Connection:
+    """Open a SQLite connection (sync, same-thread affinity preserved).
+
+    Public signature unchanged — the ``db/*`` submodules create, use and
+    close connections on the calling thread exactly as before.
+    """
+    return _connect(check_same_thread=True)
+
+
+async def get_db_async() -> sqlite3.Connection:
+    """Open a SQLite connection without blocking the event loop.
+
+    The sync factory (``sqlite3.connect`` + WAL pragma, which can do disk
+    I/O) is moved to a worker thread via ``asyncio.to_thread``. The
+    connection is opened with ``check_same_thread=False`` because it is
+    created on a worker thread and then used from the event loop thread via
+    :func:`run_db` — sqlite3 serializes access internally, so the single
+    writer + concurrent readers model the bot already uses is preserved.
+    """
+    return await asyncio.to_thread(_connect, False)
+
+
+async def run_db(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    """Run a sync DB callable off the event loop (``asyncio.to_thread``).
+
+    Keeps the bot's async handlers non-blocking when they touch the sync
+    sqlite3 layer::
+
+        conn = await get_db_async()
+        try:
+            row = await run_db(conn.execute, "SELECT ...", (user_id,))
+            await run_db(conn.commit)
+        finally:
+            await run_db(conn.close)
+
+    ``fn`` is called with ``*args`` / ``**kwargs`` verbatim.
+    """
+    return await asyncio.to_thread(fn, *args, **kwargs)
 
 
 def init_db() -> None:

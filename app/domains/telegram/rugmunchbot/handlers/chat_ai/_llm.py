@@ -37,6 +37,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._live_tools import (
 )
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools.intent import build_tool_prompt_block
+from app.domains.telegram.rugmunchbot.zen_router import ZenRouter, ZenRouterError, build_router
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -73,6 +74,24 @@ DEEPSEEK_TIMEOUT = 60.0  # halved: a 2-minute silent wait before failing to the 
 # starts, so a healthy Zen (answers in ~2-3s) still wins alone — local only
 # joins when Zen is still running (slow/hung) and races it via FIRST_COMPLETED.
 ZEN_HEAD_START_S = 2.0
+
+# ── Multi-account Zen router (ZEN_ACCOUNTS) ─────────────────────────────
+# When the operator configures ZEN_ACCOUNTS (or ZEN1_URL/…), the Zen tier
+# routes through zen_router.ZenRouter: round-robin across accounts, each
+# behind its own rotating residential proxy IP, with 429/403/timeout failover
+# and a ~60s per-account cooldown. When unset, the legacy single-account
+# egress-proxy path below is used unchanged (backward-compatible).
+_ZEN_ROUTER: ZenRouter | None = None
+_ZEN_ROUTER_TRIED = False
+
+
+def _get_zen_router() -> ZenRouter | None:
+    """Lazily build (once) the multi-account Zen router from env."""
+    global _ZEN_ROUTER, _ZEN_ROUTER_TRIED
+    if not _ZEN_ROUTER_TRIED:
+        _ZEN_ROUTER = build_router()
+        _ZEN_ROUTER_TRIED = True
+    return _ZEN_ROUTER
 
 
 async def _call_backend_chat(
@@ -148,8 +167,14 @@ async def _call_zen_llm(
 ) -> dict[str, Any] | None:
     """Fast free cloud chat via OpenCode Zen DeepSeek V4 Flash Free.
 
-    Reaches the Zen main account through the fleet egress proxy
-    (127.0.0.1:18081 — the proxy handles account auth). ``thinking`` is
+    When ``ZEN_ACCOUNTS`` (or ``ZEN1_URL``/…) is configured this goes through
+    the multi-account :class:`zen_router.ZenRouter`: least-recently-used
+    account selection, each account behind its own rotating Webshare
+    residential proxy IP, with 429/403/timeout failover and a ~60s per-account
+    cooldown (~3k free chats/day across 3 accounts instead of ~10). Without
+    that env, the legacy single-account path is used: the fleet egress proxy
+    (127.0.0.1:18081 — the proxy handles account auth).
+    ``thinking`` is
     disabled so tokens go to the answer, not the reasoning preamble.
     ``deep`` trades a little latency for a longer, more thorough answer
     (analysis/report requests); short queries stay snappy.
@@ -246,28 +271,44 @@ async def _call_zen_llm(
         }
     )
 
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=5.0, read=timeout, write=10.0)) as client:
-            r = await client.post(
-                url,
-                json={
-                    "model": model,
-                    "messages": messages,
-                    "max_tokens": 2000 if deep else 500,  # API is fast — give it room
-                    "temperature": 0.7,
-                    "thinking": {"type": "disabled"},
-                },
-            )
-    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
-        logger.debug("Zen LLM unavailable (user=%s): %s", user_id, e)
-        return None
-    if r.status_code != 200:
-        logger.debug("Zen LLM HTTP %d (user=%s)", r.status_code, user_id)
-        return None
-    try:
-        raw = r.json()
-    except ValueError:
-        return None
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": 2000 if deep else 500,  # API is fast — give it room
+        "temperature": 0.7,
+        "thinking": {"type": "disabled"},
+    }
+
+    router = _get_zen_router()
+    if router is not None:
+        # Multi-account Zen tier (ZEN_ACCOUNTS): round-robin across accounts,
+        # each behind its own rotating residential proxy IP, with 429/403/
+        # timeout failover. When every account is exhausted it raises
+        # ZenRouterExhausted and we fall through to the local tier.
+        try:
+            raw = await router.chat_completion(payload, timeout=timeout)
+        except ZenRouterError as e:
+            logger.debug("Zen LLM unavailable (user=%s): %s", user_id, e)
+            return None
+    else:
+        # Legacy single-account path (ZEN_ACCOUNTS unset): the fleet egress
+        # proxy at 127.0.0.1:18081 handles account auth — no Authorization
+        # header is sent here (backward-compatible).
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout, connect=5.0, read=timeout, write=10.0)
+            ) as client:
+                r = await client.post(url, json=payload)
+        except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
+            logger.debug("Zen LLM unavailable (user=%s): %s", user_id, e)
+            return None
+        if r.status_code != 200:
+            logger.debug("Zen LLM HTTP %d (user=%s)", r.status_code, user_id)
+            return None
+        try:
+            raw = r.json()
+        except ValueError:
+            return None
     choices = raw.get("choices", []) if isinstance(raw, dict) else []
     if not choices or not isinstance(choices, list):
         return None

@@ -121,6 +121,12 @@ MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 BRIDGE_CONTEXT_ENDPOINT = os.getenv("BRIDGE_CONTEXT_ENDPOINT", "http://127.0.0.1:8095/chat/context")
 BRIDGE_TIMEOUT = 12.0  # web search can take a few seconds; never block chat on it
 
+# $TOKEN price card decision budget: after the AI answer is ready, the
+# concurrently-running DexScreener lookup (fired by ai_chat_handler) gets
+# this short window to land before we commit to the AI answer. The old flow
+# serialized a 10s HTTP call before the pipeline even started.
+TOKEN_CARD_DECIDE_WAIT = 1.0
+
 # ══════════════════════════════════════════════
 # OWNER ADMIN CONSOLE (ported from handlers/message.py)
 # Persistent reply keyboard pinned below the input box in private chats.
@@ -389,18 +395,62 @@ async def _lookup_token_symbol(text: str, message: Message) -> bool:
     return False
 
 
+async def _token_card_won(token_lookup_task: asyncio.Task[bool] | None) -> bool:
+    """True when the concurrent ``$TOKEN`` DexScreener lookup sent a price card.
+
+    Called only after the AI answer is ready. Waits at most
+    ``TOKEN_CARD_DECIDE_WAIT`` for the lookup so a slow DexScreener never
+    stalls the AI answer; an already-finished lookup returns instantly. The
+    caller decides from the result: a landed price card IS the answer, so the
+    AI answer is skipped. Fail-open — a broken lookup never blocks chat.
+    """
+    if token_lookup_task is None:
+        return False
+    try:
+        return bool(await asyncio.wait_for(asyncio.shield(token_lookup_task), timeout=TOKEN_CARD_DECIDE_WAIT))
+    except Exception:
+        # Timeout or unexpected failure: the card loses the race to the AI
+        # answer. (CancelledError is a BaseException and propagates — this
+        # coroutine was cancelled by its caller and must unwind cleanly.)
+        return False
+
+
+async def _cancel_token_lookup(token_lookup_task: asyncio.Task[bool] | None) -> None:
+    """Cancel the concurrent ``$TOKEN`` lookup when another path already replied.
+
+    Keeps the lookup from firing a late price card after a canned greeting /
+    guard reply, and prevents a dangling task on the early-return paths.
+    """
+    if token_lookup_task is not None and not token_lookup_task.done():
+        token_lookup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await token_lookup_task
+
+
 # ══════════════════════════════════════════════
 # FEATURE ROUTING (free text only, NO AI quota)
 # ══════════════════════════════════════════════
 
 
-async def _route_structural(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text: str, user: Any) -> bool:
+async def _route_structural(
+    update: Update,
+    ctx: ContextTypes.DEFAULT_TYPE,
+    text: str,
+    user: Any,
+    *,
+    skip_token_lookup: bool = False,
+) -> bool:
     """Free-text feature routing that does NOT consume the AI quota.
 
     Ported from the old ``handlers/message.py handle_message`` so features
     survive the dedup: known-scam block, bare-address auto-scan, and the
     ``$TOKEN`` instant price card. Returns True when the message was fully
     handled (a reply was sent) and the caller should stop.
+
+    ``skip_token_lookup``: :func:`ai_chat_handler` fires the ``$TOKEN``
+    DexScreener lookup CONCURRENTLY with the AI pipeline (so a slow
+    DexScreener never serializes 10s before chat) and passes this flag so the
+    lookup is not run twice. Direct callers keep the synchronous behavior.
 
     The old natural-language-address-extraction block is NOT ported: it was
     dead code (EVM_RE/SOL_RE are whole-string anchored, so it could never
@@ -430,6 +480,10 @@ async def _route_structural(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text
         return True
 
     # 3. $TOKEN symbol lookup → instant DexScreener price card.
+    #    ai_chat_handler fires this CONCURRENTLY with the AI pipeline
+    #    (skip_token_lookup=True) so a slow DexScreener never blocks chat.
+    if skip_token_lookup:
+        return False
     return bool(await _lookup_token_symbol(text, message))
 
 
@@ -464,9 +518,12 @@ async def _send_and_trace_answer(
     """Dismiss the "Thinking…" placeholder, send the answer as NEW messages
     (grounding footer + bridge action buttons on the last chunk) and emit the
     structured answer trace (JSON line via structlog).
+
+    The placeholder is DELETED (never edited to a bare ✅ — that reads as a
+    glitch and doubles as a stray message once the real answer lands).
     """
     with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
-        await preliminary.edit_text("\u2705", parse_mode=ParseMode.HTML)
+        await preliminary.delete()
     # Truthful grounding footer: count the DISTINCT intelligence sources that
     # actually fed the answer (RAG + live tools + web + market context), not
     # just RAG hits. A replaced degenerate answer has no real grounding.
@@ -517,13 +574,25 @@ async def _send_and_trace_answer(
     )
 
 
-async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text: str, user: Any) -> bool:
+async def chat_ai_response(
+    update: Update,
+    ctx: ContextTypes.DEFAULT_TYPE,
+    text: str,
+    user: Any,
+    *,
+    token_lookup_task: asyncio.Task[bool] | None = None,
+) -> bool:
     """Run the merged AI chat pipeline. Returns True when a reply was sent.
 
     Shared by the free-text tail of :func:`ai_chat_handler`, /chat
     (handlers/chat.py) and /ask (handlers/ask.py). Enforces the weekly
     AI-message quota per tier, per-user flood limits, and answers through
     the backend RAG chat (auto-RAG with news_v2).
+
+    ``token_lookup_task`` is the concurrently-fired ``$TOKEN`` DexScreener
+    lookup (from :func:`ai_chat_handler`): when the price card lands before
+    the AI answer is ready, it IS the answer and the AI answer is skipped.
+    ``None`` for /chat and /ask (no structural routing there).
 
     Same signature as the old ``handlers.message.ai_chat_response`` it
     replaces, so callers could be switched without rework.
@@ -545,6 +614,7 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     # Pre-LLM guards: chat_enabled toggle -> injection -> quota -> flood ->
     # gibberish (tier-3 redirect). True = message already handled.
     if await _run_entry_guards(update, message, user, text, pipeline_start=pipeline_start):
+        await _cancel_token_lookup(token_lookup_task)
         return True
 
     # Tier-2: ONLY instant-reply for greetings, thanks, and capability inquiries.
@@ -555,6 +625,7 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
     if (_is_greeting_or_thanks(text) or _is_capability_question(text)) and await _reply_local_intent(
         message, text, user, menu_kb=capability_menu
     ):
+        await _cancel_token_lookup(token_lookup_task)
         return True
 
     # Thumbs up — instant acknowledgment
@@ -575,6 +646,11 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
+
+    # Interim "still digging" note: fired ~5s after the placeholder so a slow
+    # backend query doesn't look stalled. Cancelled the moment the answer is
+    # ready (below), so a fast response never gets clobbered by the edit.
+    placeholder_task = asyncio.create_task(_edit_placeholder_if_slow(preliminary))
 
     # CONCURRENT: fire the backend RAG chat (tier-1) AND the fallback context
     # fetches at the same time. The backend RAGs itself (news_v2 auto-RAG +
@@ -639,9 +715,21 @@ async def chat_ai_response(update: Update, ctx: ContextTypes.DEFAULT_TYPE, text:
             t.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
 
-    # Stop typing indicator
+    # Stop typing indicator + interim placeholder task
     typing_task.cancel()
-    await asyncio.gather(typing_task, return_exceptions=True)
+    placeholder_task.cancel()
+    await asyncio.gather(typing_task, placeholder_task, return_exceptions=True)
+
+    # $TOKEN price card vs AI answer: the DexScreener lookup was fired
+    # CONCURRENTLY at the top (ai_chat_handler) so the pipeline never
+    # serialized on it. If the price card already landed it IS the answer —
+    # skip the AI answer and clean up the placeholder. Otherwise cancel the
+    # still-running lookup so a late price card never duplicates the answer.
+    if await _token_card_won(token_lookup_task):
+        with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+            await preliminary.delete()
+        return True
+    await _cancel_token_lookup(token_lookup_task)
 
     if not result:
         if await _reply_local_intent(message, text, user):
@@ -740,13 +828,25 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await _injection_warning(update, injection)
         return
 
+    # $TOKEN price card: fire the DexScreener lookup CONCURRENTLY with the AI
+    # pipeline instead of serializing a 10s HTTP call before it (the old
+    # behavior delayed every "$TOKEN" message by up to 10s). The card wins if
+    # it lands before the AI answer is ready (chat_ai_response decides);
+    # structural routing cancels it when the message was already handled.
+    token_lookup_task = asyncio.create_task(_lookup_token_symbol(text, message)) if TOKEN_RE.search(text) else None
+
     # Feature routing that does NOT consume the AI quota: known-scam block,
-    # bare-address auto-scan, $TOKEN instant price card.
-    if await _route_structural(update, ctx, text, user):
+    # bare-address auto-scan. The $TOKEN lookup runs concurrently (above), so
+    # _route_structural skips it here.
+    if await _route_structural(update, ctx, text, user, skip_token_lookup=True):
+        if token_lookup_task is not None:
+            token_lookup_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await token_lookup_task
         return
 
     # Free text → shared AI core (quota + flood + backend RAG chat).
-    await chat_ai_response(update, ctx, text, user)
+    await chat_ai_response(update, ctx, text, user, token_lookup_task=token_lookup_task)
 
 
 async def _send_answer(
@@ -836,9 +936,11 @@ def register_chat_ai(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
 __all__ = [
     "SCAN_ENDPOINT",
     "SCAN_TIMEOUT",
+    "TOKEN_CARD_DECIDE_WAIT",
     "_lookup_token_symbol",
     "_route_structural",
     "_send_answer",
+    "_token_card_won",
     "ai_chat_handler",
     "chat_ai_response",
     "register_chat_ai",
