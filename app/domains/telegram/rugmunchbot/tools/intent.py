@@ -43,6 +43,7 @@ the address regexes / plausibility gate can never drift apart again.
 
 from __future__ import annotations
 
+import json
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -535,6 +536,12 @@ def _compact_list(value: list[object], cap: int = 10) -> str:
     the old ``str(value)[:500]`` truncation cut mid-JSON and hid the fields
     the LLM must cite (risk_flags / sketch_score / score). Each dict item is
     projected onto its signal fields; non-dict items fall back to str().
+
+    Signal fields mirror the ACTUAL payload keys produced by
+    ``tools/trend_algo.py``, ``tools/price.py`` and ``tools/security.py``
+    (both canonical and legacy spellings) so the 4B sees the concrete
+    numbers it must quote: price, mcap, liquidity, holders, age, buy/sell
+    split, risk score/flags — not just symbol + change.
     """
     if not value:
         return "[]"
@@ -542,18 +549,36 @@ def _compact_list(value: list[object], cap: int = 10) -> str:
     for item in value[:cap]:
         if isinstance(item, dict):
             keys = (
+                "rank",
                 "symbol",
                 "name",
                 "chain",
                 "address",
                 "price_usd",
+                "price_change_24h",
                 "change_24h",
                 "volume_24h",
+                "liquidity_usd",
+                "market_cap",
+                "mcap",
+                "fdv",
+                "holders",
+                "holder_count",
+                "age_hours",
+                "age_days",
+                "buys_24h",
+                "sells_24h",
+                "buy_ratio_24h",
                 "score",
                 "sketch_score",
-                "risk_flags",
                 "risk_score",
-                "rank",
+                "risk_source",
+                "risk_flags",
+                "is_honeypot",
+                "is_mintable",
+                "is_rug_pull",
+                "deployer_funded_by",
+                "dex",
             )
             parts = [f"{k}={item[k]}" for k in keys if item.get(k) is not None]
             out.append("{" + ", ".join(parts) + "}")
@@ -571,7 +596,7 @@ def build_tool_prompt_block(results: Mapping[str, object]) -> str:
     so the model attributes and never presents tool data as its own memory.
     ``Mapping`` (covariant) so callers can pass ``dict[str, ToolResult]``.
     """
-    lines: list[str] = ["LIVE MARKET DATA (fetched just now from real APIs):"]
+    lines: list[str] = ["LIVE MARKET DATA (real, fetched just now):"]
     for name in sorted(results):
         result = results[name]
         if getattr(result, "ok", False) is False:
@@ -587,8 +612,12 @@ def build_tool_prompt_block(results: Mapping[str, object]) -> str:
             for k, v in payload.items():
                 if isinstance(v, list):
                     lines.append(f"    {k}: {_compact_list(v)}")
+                elif isinstance(v, dict):
+                    # Compact JSON (no whitespace) — denser than str() and
+                    # unambiguous for the LLM to read as data.
+                    lines.append(f"    {k}: {json.dumps(v, separators=(',', ':'), ensure_ascii=False)[:400]}")
                 else:
-                    text = str(v) if not isinstance(v, dict) else str(v)[:500]
+                    text = str(v)
                     lines.append(f"    {k}: {text[:500]}")
         else:
             lines.append(f"    {str(payload)[:800]}")

@@ -179,6 +179,11 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
                     ],
                     "max_tokens": 256,
                     "temperature": 0.7,
+                    # llama.cpp latency levers (same as ai_router + bot
+                    # _call_local_llm): prefix-cache the stable system prompt
+                    # and skip the Qwen3.5 reasoning preamble.
+                    "cache_prompt": True,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
             )
             if resp.status_code == 200:

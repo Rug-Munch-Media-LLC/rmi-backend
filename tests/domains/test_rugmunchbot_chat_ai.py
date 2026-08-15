@@ -728,8 +728,9 @@ class TestCallBackendChat:
         # production model gets grounding bullets + anti-hallucination rules.
         ctx = captured["json"]["context_override"]["system_context"]
         assert "PERSONA — Rug Munch Intelligence Analyst" in ctx
-        assert "DATA GROUNDING RULES" in ctx
+        assert "DATA GROUNDING" in ctx  # v12 slim pass renamed from "DATA GROUNDING RULES"
         assert "ANTI-PATTERNS" in ctx
+        assert "ANSWER QUALITY" in ctx
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1233,7 +1234,7 @@ class TestGroundingSourcesCount:
 
     def test_fallback_bridge_sources_counted(self) -> None:
         sources = [{"type": "rag"}, {"type": "rag"}, {"type": "web"}]
-        assert chat_ai._grounding_sources_count(provider="zen", rag_count=3, bridge_sources=sources) == 3
+        assert chat_ai._grounding_sources_count(provider="local", rag_count=3, bridge_sources=sources) == 3
 
     def test_fallback_with_market_context_and_tools(self) -> None:
         sources = [{"type": "rag"}, {"type": "web"}]
@@ -1251,11 +1252,11 @@ class TestGroundingSourcesCount:
 
     def test_fallback_rag_result_counts_when_untyped(self) -> None:
         rag = ToolResult(tool="rag_lookup", ok=True, source="intel-db")
-        assert chat_ai._grounding_sources_count(provider="zen", rag_count=0, rag_result=rag) == 1
+        assert chat_ai._grounding_sources_count(provider="local", rag_count=0, rag_result=rag) == 1
 
     def test_no_grounding_zero(self) -> None:
         assert chat_ai._grounding_sources_count(provider="backend", rag_count=0) == 0
-        assert chat_ai._grounding_sources_count(provider="zen", rag_count=0) == 0
+        assert chat_ai._grounding_sources_count(provider="local", rag_count=0) == 0
 
 
 class TestRouteStructural:
@@ -1362,10 +1363,9 @@ class TestChatAiResponse:
     def test_backend_down_local_intent_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
         # Degradation test: the whole LLM chain is down, so the tier-2 canned
-        # intent reply must take over. Zen/local are explicitly dead here —
+        # intent reply must take over. Local is explicitly dead here —
         # otherwise a live llama.cpp server would answer and the test would
         # be environment-dependent.
-        monkeypatch.setattr(chat_ai, "_call_zen_llm", AsyncMock(return_value=None))
         monkeypatch.setattr(chat_ai, "_call_local_llm", AsyncMock(return_value=None))
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
@@ -1375,9 +1375,8 @@ class TestChatAiResponse:
 
     def test_backend_down_fallback_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
-        # Same as above: force the Zen/local fallbacks to fail so the honest
+        # Same as above: force the local fallback to fail so the honest
         # unavailability message is edited into the placeholder.
-        monkeypatch.setattr(chat_ai, "_call_zen_llm", AsyncMock(return_value=None))
         monkeypatch.setattr(chat_ai, "_call_local_llm", AsyncMock(return_value=None))
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)

@@ -89,7 +89,7 @@ def mock_completion(monkeypatch):
         return {
             "content": "The token is trending bullish.",
             "model": "qwen3-coder",
-            "_provider": "zen",
+            "_provider": "local",
             "_latency_ms": 42,
             "usage": {"prompt_tokens": 10, "completion_tokens": 5},
         }
@@ -125,7 +125,7 @@ class TestChatEndpoint:
         body = resp.json()
         assert body["message"] == "The token is trending bullish."
         assert body["model"] == "qwen3-coder"
-        assert body["provider"] == "zen"
+        assert body["provider"] == "local"
         assert body["id"].startswith("resp-")
 
     def test_chat_sets_rag_context_header(self, client: TestClient, monkeypatch) -> None:
