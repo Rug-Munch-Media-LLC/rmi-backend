@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 import httpx
 from telegram.constants import ParseMode
 
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
+
 if TYPE_CHECKING:
     from telegram import Update
     from telegram.ext import ContextTypes

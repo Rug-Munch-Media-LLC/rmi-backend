@@ -30,6 +30,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb
 from app.domains.telegram.rugmunchbot.states import check_alert_rate_limit
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client, http_get_json
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -83,20 +84,17 @@ async def _fetch_prices_batch(addresses: list[str]) -> dict[str, float]:
         ext: dict[str, float] = {}
         if not missing:
             return ext
-        try:
-            batch = ",".join(missing)
-            async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(f"{DEXSCREENER}/tokens/{batch}")
-                if r.status_code == 200:
-                    data = r.json()
-                    pairs = data.get("pairs", [])
-                    for pair in pairs:
-                        addr = pair.get("baseToken", {}).get("address", "").lower()
-                        price = float(pair.get("priceUsd", 0))
-                        if addr and price > 0 and addr not in ext:
-                            ext[addr] = price
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            logger.warning(f"Batch price fetch error: {e}")
+        batch = ",".join(missing)
+        data = await http_get_json(f"{DEXSCREENER}/tokens/{batch}", timeout=10)
+        if data is None:
+            logger.warning("Batch price fetch error")
+            return ext
+        pairs = data.get("pairs", [])
+        for pair in pairs:
+            addr = pair.get("baseToken", {}).get("address", "").lower()
+            price = float(pair.get("priceUsd", 0))
+            if addr and price > 0 and addr not in ext:
+                ext[addr] = price
         return ext
 
     # Own data first: try the scanner cache for the whole batch. If ANY address
@@ -243,17 +241,17 @@ async def _subscribe_backend_alerts(user_id: int, token_address: str, event_type
     subscription cannot be created (e.g. backend down).
     """
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"{BACKEND_URL}/api/v1/scanner/webhooks/telegram",
-                json={
-                    "user_id": user_id,
-                    "event_types": event_types or ALERT_EVENT_TYPES,
-                    "token_addresses": [token_address],
-                },
-                headers=backend_headers(),
-                timeout=10,
-            )
+        client = get_shared_client(10)
+        resp = await client.post(
+            f"{BACKEND_URL}/api/v1/scanner/webhooks/telegram",
+            json={
+                "user_id": user_id,
+                "event_types": event_types or ALERT_EVENT_TYPES,
+                "token_addresses": [token_address],
+            },
+            headers=backend_headers(),
+            timeout=10,
+        )
         if resp.status_code in (200, 201):
             logger.info("alert_subscribed_backend user=%s token=%s", user_id, token_address[:10])
             return True

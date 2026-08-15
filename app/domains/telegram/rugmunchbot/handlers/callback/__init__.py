@@ -69,6 +69,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     welcome_menu_kb,
 )
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import http_get_json
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -350,17 +351,15 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text("\U0001f4f0 <b>Refreshing news...</b>", parse_mode=ParseMode.HTML)
         articles = []
         source_label = "Backend"
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(
-                    f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5",
-                    headers=backend_headers(),
-                )
-                if r.status_code == 200:
-                    body = r.json()
-                    articles = body.get("items", [])
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            logger.warning("news_refresh backend failed: %s", e)
+        body = await http_get_json(
+            f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5",
+            headers=backend_headers(),
+            timeout=10,
+        )
+        if body:
+            articles = body.get("items", [])
+        else:
+            logger.warning("news_refresh backend failed")
         if not articles:
             from app.domains.telegram.rugmunchbot.handlers.market import (
                 _fetch_cg_trending_news,

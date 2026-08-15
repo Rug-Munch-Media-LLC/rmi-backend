@@ -42,6 +42,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client, http_get_any
 
 if TYPE_CHECKING:
     from telegram.ext import Application, ContextTypes
@@ -82,19 +83,13 @@ async def _fetch_json(url: str, *, cache_key: str | None = None, timeout_secs: f
         cached = _cache_get(cache_key)
         if cached is not None:
             return cached
-    try:
-        async with httpx.AsyncClient(timeout=timeout_secs) as client:
-            r = await client.get(url, headers={"Accept": "application/json"})
-            if r.status_code != 200:
-                logger.debug("DefiLlama %s status %s", url, r.status_code)
-                return None
-            payload = r.json()
-            if cache_key:
-                _cache_set(cache_key, payload)
-            return payload
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-        logger.debug("DefiLlama %s failed: %s", url, exc)
+    payload = await http_get_any(url, headers={"Accept": "application/json"}, timeout=timeout_secs)
+    if payload is None:
+        logger.debug("DefiLlama %s failed", url)
         return None
+    if cache_key:
+        _cache_set(cache_key, payload)
+    return payload
 
 
 # ── /yield: top yield opportunities ────────────────────────────────────
@@ -261,20 +256,20 @@ async def cmd_lpcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        async with httpx.AsyncClient(timeout=12) as client:
-            r = await client.get(
-                f"{BACKEND_URL}/api/v1/lp-health/check/{address}",
-                params={"chain": chain},
-                headers=backend_headers(),
+        client = get_shared_client(12)
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/lp-health/check/{address}",
+            params={"chain": chain},
+            headers=backend_headers(),
+        )
+        if r.status_code != 200:
+            await msg.edit_text(
+                "\u26a0\ufe0f <b>LP Check Unavailable</b>\n\n"
+                "The backend could not verify this pool right now.\nPlease try again in a moment.",
+                parse_mode=ParseMode.HTML,
             )
-            if r.status_code != 200:
-                await msg.edit_text(
-                    "\u26a0\ufe0f <b>LP Check Unavailable</b>\n\n"
-                    "The backend could not verify this pool right now.\nPlease try again in a moment.",
-                    parse_mode=ParseMode.HTML,
-                )
-                return
-            health = r.json()
+            return
+        health = r.json()
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("lp-health %s failed: %s", address, exc)
         await msg.edit_text(

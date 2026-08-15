@@ -73,6 +73,7 @@ from app.domains.telegram.rugmunchbot.scanner import (
 )
 from app.domains.telegram.rugmunchbot.states import check_spam
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client, http_get_json
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -138,21 +139,17 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             result = v2_token_to_legacy(result_v2)
             # Supplement with DexScreener data if v2 liquidity is 0
             if not result.get("liquidity"):
-                try:
-                    async with httpx.AsyncClient(timeout=10) as client:
-                        r = await client.get(f"{DEXSCREENER}/tokens/{target}")
-                        if r.status_code == 200:
-                            pairs = r.json().get("pairs", [])
-                            if pairs:
-                                p = pairs[0]
-                                liq = p.get("liquidity", {})
-                                if liq.get("usd"):
-                                    result["liquidity"] = float(liq["usd"])
-                                if not result.get("name") or result["name"] == "Unknown":
-                                    result["name"] = p.get("baseToken", {}).get("name", "Unknown")
-                                    result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
-                except Exception:
-                    pass
+                body = await http_get_json(f"{DEXSCREENER}/tokens/{target}", timeout=10)
+                if body:
+                    pairs = body.get("pairs", [])
+                    if pairs:
+                        p = pairs[0]
+                        liq = p.get("liquidity", {})
+                        if liq.get("usd"):
+                            result["liquidity"] = float(liq["usd"])
+                        if not result.get("name") or result["name"] == "Unknown":
+                            result["name"] = p.get("baseToken", {}).get("name", "Unknown")
+                            result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
         else:
             # v2 unavailable → fall back to legacy multi-source scanner
             result = await scan_token(target, chain)
@@ -210,8 +207,8 @@ async def _poll_v2_scan_completion(address: str, chain: str, max_wait_s: float =
     await asyncio.sleep(4)  # head start for the background phases
     while time.monotonic() < deadline:
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(url, headers=backend_headers())
+            client = get_shared_client(10)
+            r = await client.get(url, headers=backend_headers())
             if r.status_code == 200:
                 data = r.json()
                 if isinstance(data, dict) and data.get("background_status") == "complete":
@@ -325,20 +322,20 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         chain_norm = chain or result.get("chain") or detect_chain(target)
         token_created_ts: str | None = None
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                g_r, i_r = await asyncio.gather(
-                    client.get(
-                        f"{BACKEND_URL}/api/v1/rugmaps/token-graph",
-                        params={"token_address": target, "chain": chain_norm, "limit": 30},
-                        headers=backend_headers(),
-                        timeout=12,
-                    ),
-                    client.get(
-                        f"{DEXSCREENER}/tokens/{target}",
-                        timeout=10,
-                    ),
-                    return_exceptions=True,
-                )
+            client = get_shared_client(15)
+            g_r, i_r = await asyncio.gather(
+                client.get(
+                    f"{BACKEND_URL}/api/v1/rugmaps/token-graph",
+                    params={"token_address": target, "chain": chain_norm, "limit": 30},
+                    headers=backend_headers(),
+                    timeout=12,
+                ),
+                client.get(
+                    f"{DEXSCREENER}/tokens/{target}",
+                    timeout=10,
+                ),
+                return_exceptions=True,
+            )
             if isinstance(g_r, httpx.Response) and g_r.status_code == 200:
                 gd = g_r.json()
                 nodes = gd.get("nodes") or []
@@ -614,42 +611,40 @@ async def cmd_quick(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     symbol = ctx.args[0].upper().lstrip("$")
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{DEXSCREENER}/search/?q={symbol}")
-            if r.status_code == 200:
-                pairs = _ds_pairs(r.json())
-                if pairs:
-                    p = pairs[0]
-                    addr = p.get("baseToken", {}).get("address", "")
-                    chain = p.get("chainId", "")
-                    price = float(p.get("priceUsd", 0))
-                    h24 = p.get("priceChange", {}).get("h24") or 0
-                    vol = float(p.get("volume", {}).get("h24") or 0)
-                    mcap = float(p.get("marketCap") or 0)
-                    name = p.get("baseToken", {}).get("name", symbol)
-                    text = (
-                        f"\U0001fa99 <b>{name}</b> ({symbol}) {fmt_chain(chain)}\n"
-                        f"<code>{addr}</code>\n\n"
-                        f"\U0001f4b0 {fmt_number(price)} | \U0001f504 24h: {fmt_pct(h24)}\n"
-                        f"\U0001f4c8 MCap: {fmt_number(mcap)} | \U0001f4a7 Vol: {fmt_number(vol)}"
-                        f"{footer_links()}"
-                    )
-                    kb = InlineKeyboardMarkup(
-                        [
-                            [InlineKeyboardButton("\U0001f50d Full Scan", callback_data=f"scan_{addr}_{chain}")],
-                            [web_scan_button(addr, chain)],
-                        ]
-                    )
-                    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-                        text,
-                        parse_mode=ParseMode.HTML,
-                        reply_markup=kb,
-                        disable_web_page_preview=True,
-                    )
-                    return
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-        logger.warning(f"cmd_quick DexScreener lookup failed for symbol {symbol}: {e}")
+    body = await http_get_json(f"{DEXSCREENER}/search/?q={symbol}", timeout=10)
+    if body:
+        pairs = _ds_pairs(body)
+        if pairs:
+            p = pairs[0]
+            addr = p.get("baseToken", {}).get("address", "")
+            chain = p.get("chainId", "")
+            price = float(p.get("priceUsd", 0))
+            h24 = p.get("priceChange", {}).get("h24") or 0
+            vol = float(p.get("volume", {}).get("h24") or 0)
+            mcap = float(p.get("marketCap") or 0)
+            name = p.get("baseToken", {}).get("name", symbol)
+            text = (
+                f"\U0001fa99 <b>{name}</b> ({symbol}) {fmt_chain(chain)}\n"
+                f"<code>{addr}</code>\n\n"
+                f"\U0001f4b0 {fmt_number(price)} | \U0001f504 24h: {fmt_pct(h24)}\n"
+                f"\U0001f4c8 MCap: {fmt_number(mcap)} | \U0001f4a7 Vol: {fmt_number(vol)}"
+                f"{footer_links()}"
+            )
+            kb = InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton("\U0001f50d Full Scan", callback_data=f"scan_{addr}_{chain}")],
+                    [web_scan_button(addr, chain)],
+                ]
+            )
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+                text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=kb,
+                disable_web_page_preview=True,
+            )
+            return
+    else:
+        logger.warning(f"cmd_quick DexScreener lookup failed for symbol {symbol}")
     await update.message.reply_text(f"\u274c Could not find token: <b>{symbol}</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
 
@@ -812,57 +807,57 @@ async def cmd_hype(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         # Resolve address: if it looks like a symbol, search DexScreener
         address = target
         chain = ""
-        async with httpx.AsyncClient(timeout=15) as client:
-            if not (is_evm(target) or is_sol(target)):
-                r = await client.get(f"{DEXSCREENER}/search/?q={target}")
-                if r.status_code == 200:
-                    pairs = _ds_pairs(r.json())
-                    if pairs:
-                        address = pairs[0].get("baseToken", {}).get("address", "")
-                        chain = pairs[0].get("chainId", "")
-            if not address:
-                await msg.edit_text(f"\u274c Could not resolve token: <b>{target}</b>", parse_mode=ParseMode.HTML)
-                return
+        client = get_shared_client(15)
+        if not (is_evm(target) or is_sol(target)):
+            r = await client.get(f"{DEXSCREENER}/search/?q={target}")
+            if r.status_code == 200:
+                pairs = _ds_pairs(r.json())
+                if pairs:
+                    address = pairs[0].get("baseToken", {}).get("address", "")
+                    chain = pairs[0].get("chainId", "")
+        if not address:
+            await msg.edit_text(f"\u274c Could not resolve token: <b>{target}</b>", parse_mode=ParseMode.HTML)
+            return
 
-            # Boosts (paid hype signal)
-            boosts = 0
-            try:
-                br = await client.get(f"{DEXSCREENER}/token-boosts/top/v1")
-                if br.status_code == 200:
-                    boost_list = br.json()
-                    if isinstance(boost_list, list):
-                        for b in boost_list:
-                            if b.get("tokenAddress", "").lower() == address.lower():
-                                boosts = int(b.get("boostCount", 0) or 0)
-                                break
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-                pass
+        # Boosts (paid hype signal)
+        boosts = 0
+        try:
+            br = await client.get(f"{DEXSCREENER}/token-boosts/top/v1")
+            if br.status_code == 200:
+                boost_list = br.json()
+                if isinstance(boost_list, list):
+                    for b in boost_list:
+                        if b.get("tokenAddress", "").lower() == address.lower():
+                            boosts = int(b.get("boostCount", 0) or 0)
+                            break
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+            pass
 
-            # Pair data
-            tr = await client.get(f"{DEXSCREENER}/tokens/{address}")
-            if tr.status_code != 200:
-                await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
-                return
-            pairs = _ds_pairs(tr.json())
-            if not pairs:
-                await msg.edit_text("\u274c No trading pairs found.", parse_mode=ParseMode.HTML)
-                return
-            p = pairs[0]
-            name = p.get("baseToken", {}).get("name", "???")
-            symbol = p.get("baseToken", {}).get("symbol", "???")
-            chain = chain or p.get("chainId", "")
-            price = float(p.get("priceUsd", 0))
-            h1 = float(p.get("priceChange", {}).get("h1") or 0)
-            h24 = float(p.get("priceChange", {}).get("h24") or 0)
-            vol24 = float(p.get("volume", {}).get("h24") or 0)
-            liq = float(p.get("liquidity", {}).get("usd") or 0)
-            created = p.get("pairCreatedAt")
-            from datetime import UTC, datetime as dt
+        # Pair data
+        tr = await client.get(f"{DEXSCREENER}/tokens/{address}")
+        if tr.status_code != 200:
+            await msg.edit_text("\u274c Token not found.", parse_mode=ParseMode.HTML)
+            return
+        pairs = _ds_pairs(tr.json())
+        if not pairs:
+            await msg.edit_text("\u274c No trading pairs found.", parse_mode=ParseMode.HTML)
+            return
+        p = pairs[0]
+        name = p.get("baseToken", {}).get("name", "???")
+        symbol = p.get("baseToken", {}).get("symbol", "???")
+        chain = chain or p.get("chainId", "")
+        price = float(p.get("priceUsd", 0))
+        h1 = float(p.get("priceChange", {}).get("h1") or 0)
+        h24 = float(p.get("priceChange", {}).get("h24") or 0)
+        vol24 = float(p.get("volume", {}).get("h24") or 0)
+        liq = float(p.get("liquidity", {}).get("usd") or 0)
+        created = p.get("pairCreatedAt")
+        from datetime import UTC, datetime as dt
 
-            age_hours = 0.0
-            if created:
-                with contextlib.suppress(OSError, ValueError, TypeError):
-                    age_hours = max(0, (dt.now(UTC) - dt.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600)
+        age_hours = 0.0
+        if created:
+            with contextlib.suppress(OSError, ValueError, TypeError):
+                age_hours = max(0, (dt.now(UTC) - dt.fromtimestamp(created / 1000, tz=UTC)).total_seconds() / 3600)
 
         # ── C5 hype score from backend (preferred) ──
         # Composite 0-100 with per-signal breakdown: social velocity, volume

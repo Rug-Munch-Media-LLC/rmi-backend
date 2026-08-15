@@ -7,34 +7,35 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
-
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import http_get_json, http_post_json
 
 logger = get_logger("rmi.premium_v2")
 
 
 async def _backend_get(path: str, params: dict[str, Any] | None = None, timeout: float = 15.0) -> dict[str, Any] | None:
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.get(f"{BACKEND_URL}{path}", headers=backend_headers(), params=params or {})
-            if r.status_code == 200:
-                return r.json()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-        logger.debug("backend GET %s failed: %s", path, exc)
-    return None
+    body = await http_get_json(
+        f"{BACKEND_URL}{path}",
+        headers=backend_headers(),
+        params=params or {},
+        timeout=timeout,
+    )
+    if body is None:
+        logger.debug("backend GET %s failed", path)
+    return body
 
 
 async def _backend_post(path: str, json: dict[str, Any] | None = None, timeout: float = 20.0) -> dict[str, Any] | None:
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.post(f"{BACKEND_URL}{path}", headers=backend_headers(), json=json or {})
-            if r.status_code == 200:
-                return r.json()
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-        logger.debug("backend POST %s failed: %s", path, exc)
-    return None
+    body = await http_post_json(
+        f"{BACKEND_URL}{path}",
+        headers=backend_headers(),
+        json=json or {},
+        timeout=timeout,
+    )
+    if body is None:
+        logger.debug("backend POST %s failed", path)
+    return body
 
 
 def _fmt_usd(v: float | None) -> str:

@@ -31,6 +31,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import paywall_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -67,32 +68,32 @@ async def _query_rag(query: str, collections: list[str] | None = None, top_k: in
         collections = _RESEARCH_COLLECTIONS
 
     all_hits = []
-    async with httpx.AsyncClient(timeout=30) as client:
-        for collection in collections:
-            try:
-                r = await client.post(
-                    f"{BACKEND_URL}/api/v1/rag/v2/search",
-                    headers=backend_headers(),
-                    json={
-                        "query": query,
-                        "collection": collection,
-                        "top_k": top_k,
-                        "min_similarity": 0.0,
-                        "filters": {},
-                    },
-                )
-                if r.status_code == 200:
-                    data = r.json()
-                    hits = data.get("hits", [])
-                    for h in hits:
-                        # Keep the backend's truthful resolved-collection
-                        # label when present; only fall back to the requested
-                        # name for unlabeled hits.
-                        h.setdefault("collection", collection)
-                    all_hits.extend(hits)
-            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
-                logger.debug("RAG query failed for %s: %s", collection, e)
-                continue
+    client = get_shared_client(30)
+    for collection in collections:
+        try:
+            r = await client.post(
+                f"{BACKEND_URL}/api/v1/rag/v2/search",
+                headers=backend_headers(),
+                json={
+                    "query": query,
+                    "collection": collection,
+                    "top_k": top_k,
+                    "min_similarity": 0.0,
+                    "filters": {},
+                },
+            )
+            if r.status_code == 200:
+                data = r.json()
+                hits = data.get("hits", [])
+                for h in hits:
+                    # Keep the backend's truthful resolved-collection
+                    # label when present; only fall back to the requested
+                    # name for unlabeled hits.
+                    h.setdefault("collection", collection)
+                all_hits.extend(hits)
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("RAG query failed for %s: %s", collection, e)
+            continue
 
     # Deduplicate by content
     seen = set()

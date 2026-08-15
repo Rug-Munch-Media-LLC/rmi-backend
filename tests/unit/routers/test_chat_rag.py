@@ -247,7 +247,12 @@ def test_chat_works_without_rag_when_search_returns_empty(client: TestClient) ->
 
 
 def test_chat_degrades_gracefully_when_rag_raises(client: TestClient) -> None:
-    """RAG search raising must never break the chat response."""
+    """RAG search raising must never break the chat response.
+
+    NB: the message must carry a concrete token referent ($SYMBOL) so the
+    vague-question guard (_vague_question, e.g. "this token") does not
+    short-circuit with a canned clarification before the RAG search runs.
+    """
 
     async def _fake_completion(**kwargs: Any) -> dict[str, Any]:
         return _completion_result("Fallback answer.")
@@ -259,7 +264,7 @@ def test_chat_degrades_gracefully_when_rag_raises(client: TestClient) -> None:
         patch.object(chat_mod, "do_chat_completion", new=AsyncMock(side_effect=_fake_completion)),
         patch.object(chat_mod, "_search_rag_context", new=AsyncMock(side_effect=_rag_down)),
     ):
-        resp = client.post("/api/v1/chat", json={"message": "is this token safe?"})
+        resp = client.post("/api/v1/chat", json={"message": "is $PEPE safe?"})
 
     assert resp.status_code == 200
     assert resp.headers.get("X-RAG-Context") == "0"

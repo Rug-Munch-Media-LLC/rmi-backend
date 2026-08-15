@@ -49,6 +49,7 @@ from app.core.redis import get_redis_async
 from app.domains.telegram.rugmunchbot.config import fmt_number
 from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import http_get_json
 
 logger = get_logger("rmi_bot.daily_context")
 
@@ -292,21 +293,18 @@ async def _enrich_token_name(item: dict[str, Any]) -> dict[str, Any]:
         return item
 
     try:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{addr}")
-            if r.status_code == 200:
-                pairs = r.json().get("pairs", [])
-                if pairs:
-                    p = pairs[0]
-                    base = p.get("baseToken", {})
-                    if not name:
-                        item["name"] = base.get("name", "")
-                    if not symbol:
-                        item["symbol"] = base.get("symbol", "")
-                    if not item.get("chain"):
-                        item["chain"] = p.get("chainId", "")
+        body = await http_get_json(f"https://api.dexscreener.com/latest/dex/tokens/{addr}", timeout=5)
+        if body:
+            pairs = body.get("pairs", [])
+            if pairs:
+                p = pairs[0]
+                base = p.get("baseToken", {})
+                if not name:
+                    item["name"] = base.get("name", "")
+                if not symbol:
+                    item["symbol"] = base.get("symbol", "")
+                if not item.get("chain"):
+                    item["chain"] = p.get("chainId", "")
     except Exception:
         pass
     return item

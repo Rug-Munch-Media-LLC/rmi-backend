@@ -19,6 +19,7 @@ import httpx
 
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER, WEBSITE_URL, backend_headers
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 logger = get_logger("rmi.rugmap")
 
@@ -248,46 +249,46 @@ async def cmd_rugmap(update, ctx) -> None:
         chain = explicit_chain
         graph: dict[str, Any] | None = None
 
-        async with httpx.AsyncClient(timeout=25) as client:
-            # v6: fetch the token graph from the RugMaps engine first.
-            graph_chain = chain or _guess_chain(address)
-            graph = await _fetch_token_graph(client, address, graph_chain)
-            if graph:
-                nodes = graph.get("nodes") or []
-                links = graph.get("links") or []
-                chain = graph.get("chain") or graph_chain
-            else:
-                nodes, links = [], []
+        client = get_shared_client(25)
+        # v6: fetch the token graph from the RugMaps engine first.
+        graph_chain = chain or _guess_chain(address)
+        graph = await _fetch_token_graph(client, address, graph_chain)
+        if graph:
+            nodes = graph.get("nodes") or []
+            links = graph.get("links") or []
+            chain = graph.get("chain") or graph_chain
+        else:
+            nodes, links = [], []
 
-            # Try DataBus
-            try:
-                r = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/token/{address}",
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if r.status_code == 200:
-                    data = r.json()
-                    bundle_detected = data.get("bundle_detected", False)
-                    fresh_wallet_pct = data.get("fresh_wallet_pct", 0)
-                    smart_money = data.get("smart_money", [])
-                    top_holders = data.get("top_holders", [])
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-                logger.debug("RMI backend call failed: %s", exc)
+        # Try DataBus
+        try:
+            r = await client.get(
+                f"{BACKEND_URL}/api/v1/databus/token/{address}",
+                headers=backend_headers(),
+                timeout=10,
+            )
+            if r.status_code == 200:
+                data = r.json()
+                bundle_detected = data.get("bundle_detected", False)
+                fresh_wallet_pct = data.get("fresh_wallet_pct", 0)
+                smart_money = data.get("smart_money", [])
+                top_holders = data.get("top_holders", [])
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+            logger.debug("RMI backend call failed: %s", exc)
 
-            # DexScreener for basic info
-            try:
-                r = await client.get(f"{DEXSCREENER}/tokens/{address}")
-                if r.status_code == 200:
-                    pairs = r.json().get("pairs", [])
-                    if pairs:
-                        p = pairs[0]
-                        symbol = p.get("baseToken", {}).get("symbol", "???")
-                        name = p.get("baseToken", {}).get("name", "Unknown")
-                        liquidity = float(p.get("liquidity", {}).get("usd", 0))
-                        chain = chain or p.get("chainId", "")
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-                logger.debug("DexScreener fallback failed: %s", exc)
+        # DexScreener for basic info
+        try:
+            r = await client.get(f"{DEXSCREENER}/tokens/{address}")
+            if r.status_code == 200:
+                pairs = r.json().get("pairs", [])
+                if pairs:
+                    p = pairs[0]
+                    symbol = p.get("baseToken", {}).get("symbol", "???")
+                    name = p.get("baseToken", {}).get("name", "Unknown")
+                    liquidity = float(p.get("liquidity", {}).get("usd", 0))
+                    chain = chain or p.get("chainId", "")
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+            logger.debug("DexScreener fallback failed: %s", exc)
 
         # ── Use branded visual engine. Pillow rendering is CPU-bound — run it
         # in a worker thread so the bot event loop never stalls on image draw.
