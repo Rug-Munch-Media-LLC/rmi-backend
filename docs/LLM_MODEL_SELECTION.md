@@ -10,7 +10,7 @@
 >   - `:8085` (`llama-chat`)  → `Huihui-Qwen3.5-4B-Abliterated.Q6_K.gguf`  (alias `qwen-chat`)
 >   - `:8086` (`llama-analysis`) → `Huihui-Qwen3.5-9B-Abliterated.Q6_K.gguf` (alias `qwen-analysis`)
 > Alias `qwen-analysis` (Qwen3.5 9B) is the analysis-tier local model on llama.cpp :8086.
-> Old GGUFs (`qwen3-4b-abliterated-q4_k_m.gguf`, `deepseek-r1-distill-qwen3-8b-abliterated-i1-q4_k_m.gguf`) remain on disk for rollback (removal pending).
+> Old GGUFs (`qwen3-4b-abliterated-q4_k_m.gguf`, `deepseek-r1-distill-qwen3-8b-abliterated-i1-q4_k_m.gguf`) were removed from disk after the 2026-08-14 deployment — no longer available for rollback.
 > Sections below are the research record that produced the deployment.
 
 ---

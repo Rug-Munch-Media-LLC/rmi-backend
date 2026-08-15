@@ -113,6 +113,15 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
                 lines.append(f"\U0001f4b0 {fmt_number(p['price_usd'])} | 24h: {fmt_pct(p.get('change_24h'))}")
             if p.get("market_cap"):
                 lines.append(f"\U0001f4c8 MCap: {fmt_number(p.get('market_cap'))}")
+            extra = []
+            if p.get("liquidity_usd") is not None:
+                extra.append(f"Liq {fmt_number(p['liquidity_usd'])}")
+            if p.get("volume_24h") is not None:
+                extra.append(f"Vol {fmt_number(p['volume_24h'])}")
+            if p.get("fdv"):
+                extra.append(f"FDV {fmt_number(p['fdv'])}")
+            if extra:
+                lines.append("\U0001f4a7 " + " | ".join(extra))
             lines.append("")
     trending = results.get("trending")
     if trending is not None and trending.ok and isinstance(trending.data, dict):
@@ -141,7 +150,9 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
                     sym = t.get("symbol", "?")
                     flags = t.get("risk_flags") or []
                     flag_str = f" — {', '.join(flags)}" if flags else ""
-                    lines.append(f"\u2022 ${sym} {fmt_chain(t.get('chain', ''))}{flag_str} — `{addr}`")
+                    liq = t.get("liquidity_usd")
+                    liq_str = f" | Liq {fmt_number(liq)}" if liq is not None else ""
+                    lines.append(f"\u2022 ${sym} {fmt_chain(t.get('chain', ''))}{liq_str}{flag_str} — `{addr}`")
             else:
                 lines.append("**\U0001f525 Trending (scored)**")
                 for t in tokens[:8]:

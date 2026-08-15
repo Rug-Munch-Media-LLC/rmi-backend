@@ -99,6 +99,11 @@ async def local_chat(req: LocalChatRequest):
                     "messages": messages,
                     "max_tokens": min(req.max_tokens, LOCAL_CHAT_MAX_TOKENS),
                     "temperature": 0.7,
+                    # llama.cpp latency levers (same as ai_router + bot
+                    # _call_local_llm): prefix-cache the stable system prompt
+                    # and skip the Qwen3.5 reasoning preamble.
+                    "cache_prompt": True,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
             )
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:

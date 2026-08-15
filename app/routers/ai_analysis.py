@@ -56,8 +56,6 @@ class ContractAnalysisResponse(BaseModel):
 
 # ── AI Provider Configuration ────────────────────────────────────
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/chat")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b")
 LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
 
 OPENROUTER_KEY = (
@@ -410,36 +408,7 @@ def _detect_anomalies_rule_based(
     return anomalies, clusters, risk_score, risk_level
 
 
-# ── AI Analysis (Qwen via Ollama or OpenRouter) ──────────────────
-
-
-async def _call_qwen_ollama(prompt: str) -> dict[str, Any] | None:
-    """Call Qwen via local Ollama instance."""
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                OLLAMA_URL,
-                json={
-                    "model": OLLAMA_MODEL,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a blockchain security expert. Return ONLY valid JSON, no markdown, no explanations outside the JSON.",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": False,
-                    "options": {"temperature": 0.2, "num_predict": 1500},
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                content = data.get("message", {}).get("content", "")
-                return _parse_ai_response(content)
-            logger.warning(f"Ollama returned {resp.status_code}")
-    except Exception as e:
-        logger.warning(f"Ollama call failed: {e}")
-    return None
+# ── AI Analysis (llama.cpp local or OpenRouter) ──────────────────
 
 
 async def _call_qwen_openrouter(prompt: str) -> dict[str, Any] | None:
@@ -515,7 +484,7 @@ async def _run_ai_analysis(
     holder_data: dict[str, Any] | None,
     scanner_data: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, str]:
-    """Try AI analysis, falling through providers: LiteLLM → Ollama → OpenRouter."""
+    """Try AI analysis via local llama.cpp (qwen-analysis → qwen-chat)."""
     prompt = _build_analysis_prompt(chain, address, holder_data, scanner_data)
 
     # ── Primary: llama.cpp qwen-analysis (local, reasoning) ──
@@ -557,6 +526,11 @@ async def _call_llama_analysis(prompt: str, port: int, model: str) -> dict[str, 
                     # Clamp to LOCAL_MODEL_MAX_TOKENS — 1500 raw tokens was
                     # ~2min of CPU generation on the 9B model.
                     "max_tokens": min(LOCAL_MODEL_MAX_TOKENS, 1500),
+                    # llama.cpp latency levers (same as ai_router + bot
+                    # _call_local_llm): prefix-cache the stable system prompt
+                    # and skip the Qwen3.5 reasoning preamble.
+                    "cache_prompt": True,
+                    "chat_template_kwargs": {"enable_thinking": False},
                 },
             )
             if resp.status_code == 200:
@@ -577,8 +551,8 @@ async def contract_analysis(request: ContractAnalysisRequest) -> ContractAnalysi
     """AI-powered contract analysis with anomaly detection.
 
     Accepts holder/distribution data and scanner results, runs AI analysis
-    via Qwen (Ollama or OpenRouter), and falls back to rule-based detection
-    if AI is unavailable.
+    via local llama.cpp (qwen-analysis/qwen-chat), and falls back to
+    rule-based detection if AI is unavailable.
 
     Returns a comprehensive risk report with identified anomalies and clusters.
     """
@@ -718,7 +692,6 @@ def _build_rule_summary(risk_score: int, risk_level: str, anomalies: list[dict[s
 @router.get("/ai-health")
 async def ai_analysis_health() -> dict[str, Any]:
     """Check AI analysis availability across all providers."""
-    ollama_ok = False
     openrouter_ok = bool(OPENROUTER_KEY)
     litellm_ok = False
 
@@ -732,29 +705,12 @@ async def ai_analysis_health() -> dict[str, Any]:
     except Exception as e:
         logger.warning("ai_health_litellm_check_failed", error=str(e))
 
-    # Check Ollama
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(
-                OLLAMA_URL.replace("/api/chat", "/api/tags")
-                if "/api/chat" in OLLAMA_URL
-                else "http://localhost:11434/api/tags"
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                models = [m.get("name", "") for m in data.get("models", [])]
-                ollama_ok = any("qwen" in m.lower() for m in models)
-    except Exception as e:
-        logger.warning("ai_health_ollama_check_failed", error=str(e))
-
-    overall = "ok" if (litellm_ok or ollama_ok or openrouter_ok) else "degraded"
+    overall = "ok" if (litellm_ok or openrouter_ok) else "degraded"
 
     return {
         "status": overall,
         "litellm_available": litellm_ok,
         "litellm_url": LITELLM_BASE_URL,
-        "ollama_available": ollama_ok,
-        "ollama_model": OLLAMA_MODEL,
         "openrouter_available": openrouter_ok,
         "openrouter_model": QWEN_MODEL,
         "fallback": "rule-based",

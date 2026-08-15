@@ -119,6 +119,13 @@ def test_system_prompt_keeps_identity_and_grounding_rules() -> None:
         "how do i buy solana",
         "What Is Bitcoin",
         "  what is ethereum  ",
+        # Tightened 2026-08-15: risk-rank / market / quick-check asks are fast
+        # (grounded by live tool data on the 4B), not deep 9B analysis.
+        "what is a rug pull?",  # definitional — fast (was: "rug" term → analysis)
+        "check for rug risk on this coin",  # quick security check — fast
+        "whale moved 10k eth to an exchange",  # market-flow read — fast
+        "riskiest picks of the day",
+        "what are the sketchiest tokens on solana with rug potential",
     ],
 )
 def test_route_task_chat_for_simple_questions(message: str) -> None:
@@ -138,12 +145,14 @@ def test_route_task_chat_for_simple_questions(message: str) -> None:
         "what happened to $PEPE yesterday",
         "deep dive on solana security",
         "is there MEV on this DEX",
-        "what is a rug pull?",  # "rug" term → analysis per heuristic
-        "check for rug risk on this coin",
-        "whale moved 10k eth to an exchange",
         "was that a known exploit",
         "tell me about on-chain forensics",
         "WHY DID BTC CRASH",
+        # Tightened 2026-08-15: genuine contract/forensics asks go deep.
+        "is this contract a honeypot",
+        "analyze this smart contract",
+        "who is the deployer of this token",
+        "check the tokenomics before i aped in",
     ],
 )
 def test_route_task_analysis_for_analytical_questions(message: str) -> None:

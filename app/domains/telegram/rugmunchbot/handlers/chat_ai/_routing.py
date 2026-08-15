@@ -535,7 +535,7 @@ async def chat_ai_response(
     try:
         # CONCURRENT: fire the backend RAG chat (tier-1) AND the fallback context
         # fetches at the same time. The backend RAGs itself (news_v2 auto-RAG +
-        # live web search) and does NOT need bridge context — only the Zen/local
+        # live web search) and does NOT need bridge context — only the local
         # fallback path does. Awaiting the backend result FIRST means the common
         # path never serializes on the ~12s bridge web search. The context tasks
         # are only awaited when the backend returns None and the fallback path
@@ -575,7 +575,7 @@ async def chat_ai_response(
 
         if result is None:
             # Fallback path: gather the context fetches (fail-open) that ground
-            # the Zen/local LLM calls, then build the message-specific prompt.
+            # the local LLM calls, then build the message-specific prompt.
             result, bridge_sources, bridge_actions, rag_result, has_market_context = await _build_fallback_answer(
                 text,
                 user,

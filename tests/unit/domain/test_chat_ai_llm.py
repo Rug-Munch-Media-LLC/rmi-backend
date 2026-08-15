@@ -1,6 +1,6 @@
 """Unit tests for the degodded ``handlers/chat_ai/_llm.py`` module.
 
-Covers the three LLM call clients (backend/local/Qwen, DeepSeek, Zen) with
+Covers the LLM call clients (backend/local/Qwen, DeepSeek) with
 ``httpx.AsyncClient`` faked at the module boundary — no network I/O.
 """
 
@@ -85,9 +85,13 @@ async def test_backend_chat_posts_to_chat_endpoint() -> None:
     # production model gets the grounding bullets + anti-hallucination rules
     # + response-formatting (not just the generic backend SYSTEM_PROMPT).
     assert body["context_override"]["system_context"] == _llm.PERSONA_CONTEXT
-    assert "DATA GROUNDING RULES" in body["context_override"]["system_context"]
+    # v12 slim pass renamed the sections ("DATA GROUNDING RULES" →
+    # "DATA GROUNDING", "RESPONSE FORMATTING" → "FORMATTING") — assert the
+    # current names plus the new ANSWER QUALITY block.
+    assert "DATA GROUNDING" in body["context_override"]["system_context"]
     assert "ANTI-PATTERNS" in body["context_override"]["system_context"]
-    assert "RESPONSE FORMATTING" in body["context_override"]["system_context"]
+    assert "FORMATTING" in body["context_override"]["system_context"]
+    assert "ANSWER QUALITY" in body["context_override"]["system_context"]
 
 
 async def test_backend_chat_forwarded_for_header() -> None:
@@ -128,66 +132,6 @@ async def test_backend_chat_invalid_payload_returns_none() -> None:
     for payload in ({"message": ""}, "not a dict", {"choices": []}):
         _FakeLLMClient._payload = payload
         assert await _llm._call_backend_chat("q", 1) is None
-
-
-# ── Zen cloud client ───────────────────────────────────────────────────────
-
-
-async def test_zen_llm_deep_flag() -> None:
-    _FakeLLMClient.calls.clear()
-    await _llm._call_zen_llm("question", 1, deep=False)
-    _, body = _FakeLLMClient.calls[0]
-    assert body["max_tokens"] == 500
-    # Triplicated fallback prompts consolidated: fast + deep + local now
-    # share ONE condensed system prompt; `deep` only changes the budget.
-    assert body["messages"][0]["content"] == _llm.FALLBACK_SYSTEM_PROMPT
-    _FakeLLMClient.calls.clear()
-    await _llm._call_zen_llm("question", 1, deep=True)
-    _, body = _FakeLLMClient.calls[0]
-    assert body["max_tokens"] == 2000
-    assert body["messages"][0]["content"] == _llm.FALLBACK_SYSTEM_PROMPT
-    assert body["thinking"] == {"type": "disabled"}
-
-
-async def test_zen_llm_history_reference_only_block() -> None:
-    history = [{"role": "assistant", "content": "old truncated answer..."}, {"role": "user", "content": "prior q"}]
-    await _llm._call_zen_llm("new q", 1, history=history)
-    _, body = _FakeLLMClient.calls[0]
-    roles = [m["role"] for m in body["messages"]]
-    assert roles == ["system", "user", "user"]
-    assert "PREVIOUS CONVERSATION" in body["messages"][1]["content"]
-    assert "CURRENT QUESTION: new q" in body["messages"][-1]["content"]
-
-
-async def test_zen_llm_response_shape() -> None:
-    _FakeLLMClient._payload = {"choices": [{"message": {"content": "grounded"}}], "usage": {"total_tokens": 42}}
-    result = await _llm._call_zen_llm("q", 1)
-    assert result is not None
-    assert result["provider"] == "zen"
-    assert result["message"] == "grounded"
-    assert result["tokens"] == 42
-
-
-async def test_zen_llm_reports_real_rag_count_from_sources() -> None:
-    _FakeLLMClient._payload = {"choices": [{"message": {"content": "grounded"}}], "usage": {}}
-    result = await _llm._call_zen_llm(
-        "q", 1, sources=[{"type": "web", "query": "honeypot"}, {"type": "rag", "query": "scam"}]
-    )
-    assert result is not None
-    assert result["rag_count"] == 2  # real bridge grounding count, not hardcoded 0
-
-
-async def test_zen_llm_empty_answer_returns_none() -> None:
-    _FakeLLMClient._payload = {"choices": [{"message": {"content": "   "}}], "usage": {}}
-    assert await _llm._call_zen_llm("q", 1) is None
-
-
-async def test_zen_llm_errors_return_none() -> None:
-    _FakeLLMClient._raise = _llm.httpx.HTTPError("boom")
-    assert await _llm._call_zen_llm("q", 1) is None
-    _FakeLLMClient._raise = None
-    _FakeLLMClient._status = 429
-    assert await _llm._call_zen_llm("q", 1) is None
 
 
 # ── local LLM fallback ─────────────────────────────────────────────────────
@@ -293,7 +237,7 @@ async def test_local_llm_deep_question_tries_deepseek_first() -> None:
 
 
 def test_local_context_too_large_defers() -> None:
-    """A prompt beyond the 16k-ctx budget must be flagged (routes to Zen)."""
+    """A prompt beyond the 16k-ctx budget must be flagged."""
     assert _llm._local_context_too_large("x" * 100, None, None) is False
     assert _llm._local_context_too_large("x" * (4 * _llm.LOCAL_CTX_LIMIT_TOKENS), None, None) is True
 
@@ -319,7 +263,7 @@ class _HealthProbeClient(_FakeLLMClient):
 
 
 async def test_local_host_loaded_both_busy() -> None:
-    """Both llama servers reporting slots_idle == 0 → host loaded → Zen."""
+    """Both llama servers reporting slots_idle == 0 → host loaded."""
     _HealthProbeClient._slots = [0, 0]
     _llm.httpx.AsyncClient = _HealthProbeClient  # type: ignore[assignment]
     try:

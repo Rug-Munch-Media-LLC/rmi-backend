@@ -168,15 +168,21 @@ def _format_web_context(results: list[dict[str, str]], max_chars: int = WEB_CONT
 
 
 # ── Complexity-based model routing (pure function of message text) ──────
-# Analytical / forensic / explanation-heavy questions ("why", "explain",
-# "investigate", on-chain terms, long messages) go to the stronger
-# qwen-analysis 9B (Qwen3.5) model; simple definitional / quick questions stay on
-# the fast qwen-chat 4B (Qwen3.5).
+# Analytical / forensic / contract-level questions ("why", "explain",
+# "investigate", on-chain terms, honeypot/deployer/tokenomics, long
+# messages) go to the stronger qwen-analysis 9B (Qwen3.5) model; simple /
+# definitional / quick questions stay on the fast qwen-chat 4B (Qwen3.5).
+# Tightened 2026-08-15 (kept in sync with the bot's _route_local_model in
+# handlers/chat_ai/_llm.py): removed "rug"/"whale" term triggers so
+# "riskiest/sketchiest ... rug potential" list asks stay on the fast 4B;
+# added explicit contract/forensics terms ("contract", "deployer",
+# "honeypot", "tokenomics", "audit") so genuine asks use the 9B.
 _ANALYSIS_QUESTION_RE = re.compile(
-    r"\b(?:why|explain|how does|compare|analyze|investigate|trace|what happened|deep)\b",
+    r"\b(?:why|explain|how does|compare|analyze|investigate|trace|what happened|deep|"
+    r"contract|deployer|honeypot|tokenomics|audit)\b",
     re.IGNORECASE,
 )
-_ANALYSIS_TERMS = ("on-chain", "forensic", "mev", "rug", "whale", "exploit")
+_ANALYSIS_TERMS = ("on-chain", "forensic", "mev", "exploit")
 _ANALYSIS_LENGTH_THRESHOLD = 120
 
 
@@ -185,9 +191,11 @@ def _route_task(message: str) -> str:
 
     Heuristics (pure function of the message text):
     - ``analysis`` when the message asks why/explain/how does/compare/analyze/
-      investigate/trace/what happened/deep, OR references on-chain/forensic/
-      MEV/rug/whale/exploit terms, OR is long (>120 chars).
-    - ``chat`` otherwise (simple, definitional, quick questions).
+      investigate/trace/what happened/deep, or references on-chain/forensic/
+      MEV/exploit terms, or names contract/forensics concepts (contract,
+      deployer, honeypot, tokenomics, audit), or is long (>120 chars).
+    - ``chat`` otherwise (simple, definitional, quick questions, risk-rank
+      list asks like "riskiest picks of the day").
     """
     low = message.lower().strip()
     if not low:
