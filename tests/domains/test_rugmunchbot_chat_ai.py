@@ -1393,6 +1393,26 @@ class TestChatAiResponse:
         assert len(placeholder.edits) >= 1
         assert "AI brain temporarily unavailable" in placeholder.edits[-1][0][0]
 
+    def test_unexpected_pipeline_error_fails_open_with_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Fail-open boundary: an unexpected exception in the LLM/guardrail
+        section must not kill the turn — the user gets the canned fallback
+        and the pipeline returns cleanly (single-turn isolation)."""
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
+        monkeypatch.setattr(
+            _routing,
+            "_build_fallback_answer",
+            AsyncMock(side_effect=RuntimeError("unexpected crash")),
+        )
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        result = _run(chat_ai.chat_ai_response(upd, None, "explain yield farming", upd.effective_user))
+        assert result is True
+        placeholder = msg.returned[0]
+        assert len(placeholder.edits) >= 1
+        assert "AI brain temporarily unavailable" in placeholder.edits[-1][0][0]
+
     def test_token_card_flag_sent_skips_ai_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """P2 race fix: when the $TOKEN price card already landed (shared
         sent flag set), chat_ai_response must NOT also send the AI answer —

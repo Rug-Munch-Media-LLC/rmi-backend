@@ -120,13 +120,19 @@ def _point_to_hit(point: Any) -> dict[str, Any]:
 
     Mirrors ``engine._qdrant_search`` payload conventions: ``content`` /
     ``text`` for the body and a ``metadata`` object (``source`` promoted into
-    metadata when present at the top level).
+    metadata when present at the top level). The payload's top-level
+    ``severity`` (used by the labeled ``contract_security`` / ``audit_findings``
+    corpora) is promoted into metadata so downstream formatters can label
+    hits with the severity — otherwise it would be silently dropped.
     """
     payload = getattr(point, "payload", None) or {}
     metadata = dict(payload.get("metadata") or {})
     source = payload.get("source", "")
     if source and "source" not in metadata:
         metadata["source"] = source
+    severity = payload.get("severity")
+    if severity and "severity" not in metadata:
+        metadata["severity"] = severity
     return {
         "doc_id": str(getattr(point, "id", "")),
         "score": float(getattr(point, "score", 0.0) or 0.0),
