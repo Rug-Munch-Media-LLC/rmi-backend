@@ -171,17 +171,26 @@ def _apply_rate_limit_headers(response: Response, request: Request) -> None:
 
 
 # ── Models ──
-# Chat answers are short prose — a 512-token budget cuts local-llama.cpp
-# generation ~4x vs the old 2048 default (~5min at 7 tok/s → ~1min). The
-# default can be raised at deploy time via RMI_CHAT_MAX_TOKENS (clamped to
-# 64..2048 — the Pydantic Field bounds stay 64..8192 for explicit requests).
+# Chat answers are short prose — a 320-token budget cuts local-llama.cpp
+# generation ~5.5x vs the old 768 default (measured 2026-08-15 on the live
+# CPU host: 4B qwen-chat with the real ~2100-token bot prompt took 87-136s
+# at max_tokens=768, 24-27s at 320, 15s at 200 — generation dominates, so
+# the token budget is THE latency lever). The default can be raised at
+# deploy time via RMI_CHAT_MAX_TOKENS (clamped to 64..2048 — the Pydantic
+# Field bounds stay 64..8192 for explicit requests).
 # 2026-08-14: raised 512 -> 1536 — 512 was truncating long educational answers
 # (e.g. "how to learn TA") mid-sentence for the bot, which sends no max_tokens.
 # 2026-08-15: 1536 -> 768 — context fetches (tool/RAG/web) now run in parallel
 # via asyncio.gather and the tool-result block is capped at 1200 chars, so the
 # prompt stays lean while the model gets fresher grounding; 768 keeps long
 # educational answers from truncating while bounding generation latency.
-_CHAT_MAX_TOKENS_BASE = 768
+# 2026-08-15: 768 -> 320 — the bot sends max_tokens explicitly (768) and the
+# 4B model needed 87-136s per answer on CPU, blowing past the 30s llama.cpp
+# client timeout and the bot's 60s backend timeout, forcing the slow fallback
+# chain. 320 tokens ≈ 1300 chars — a full Telegram answer for most queries
+# (long answers are chunked bot-side at 3800 chars). Long educational answers
+# may truncate at 320; raise per-deploy via RMI_CHAT_MAX_TOKENS if needed.
+_CHAT_MAX_TOKENS_BASE = 320
 _CHAT_MAX_TOKENS_MIN = 64
 _CHAT_MAX_TOKENS_MAX = 2048
 
@@ -231,7 +240,9 @@ class StreamRequest(BaseModel):
     model: str | None = Field(default=None)
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(default=2048, ge=64, le=8192)
+    # 2026-08-15: 2048 -> 512 — the streaming path also runs local llama.cpp
+    # on CPU; 512 tokens bounds a streamed answer to ~40s instead of ~3min.
+    max_tokens: int = Field(default=512, ge=64, le=8192)
 
 
 # ── Market context fetcher ──

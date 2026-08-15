@@ -48,6 +48,15 @@ DEFAULT_MODEL = "qwen-chat"
 # 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 
+# ── Local llama.cpp read timeout (CPU latency budget) ──────────────────
+# The proxy rotator's default client timeout (30s) is a DATA-fetch budget;
+# CPU generation is far slower. Measured 2026-08-15 on the live host: the
+# real ~2100-token bot prompt takes 24-27s at max_tokens=320 (and a cold
+# first pass can double that with prompt processing), so a 30s read timeout
+# would kill every answer mid-generation. Local llama.cpp is a private
+# destination (never proxied) — a dedicated longer timeout is safe.
+LLAMA_TIMEOUT = 120.0
+
 # ── Task → Model routing map ──
 TASK_MODEL_MAP = {
     "chat": "qwen-chat",
@@ -247,6 +256,7 @@ async def _post_chat(
     proxy_url: str | None = None,
     rotator: Any = None,
     api_key: str | None = None,
+    timeout: float | None = None,
 ) -> dict[str, Any] | None:
     """POST a chat completion; return normalized dict or None on failure.
 
@@ -259,6 +269,11 @@ async def _post_chat(
 
     ``api_key`` (optional) adds a Bearer Authorization header for the direct
     DeepSeek API fallback (local llama.cpp needs none).
+
+    ``timeout`` (optional) overrides the client's default read timeout for
+    THIS request — used for local llama.cpp, where CPU generation far
+    exceeds the rotator's 30s data-fetch budget. ``None`` keeps the
+    client-default timeout (proxied cloud calls stay on the 30s budget).
     """
     payload = {
         "model": model,
@@ -284,12 +299,12 @@ async def _post_chat(
     if api_key:
         _headers["Authorization"] = f"Bearer {api_key}"
 
+    _request_kwargs: dict[str, Any] = {"json": payload, "headers": _headers}
+    if timeout is not None:
+        _request_kwargs["timeout"] = httpx.Timeout(timeout, connect=10.0)
+
     async def _do_post(post_client: Any) -> httpx.Response:
-        return await post_client.post(
-            url,
-            json=payload,
-            headers=_headers,
-        )
+        return await post_client.post(url, **_request_kwargs)
 
     proxied = proxy_url is not None and rotator is not None
 
@@ -366,7 +381,7 @@ async def chat_completion(
     task_type: str | None = None,
     tier: str | None = None,
     temperature: float = 0.7,
-    max_tokens: int = 2048,
+    max_tokens: int = 512,
 ) -> dict[str, Any]:
     """Call a LOCAL llama.cpp model directly via task-based routing.
 
@@ -406,6 +421,15 @@ async def chat_completion(
     first_url = f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[resolved_model]}/v1/chat/completions"
     client, proxy_url = _build_ai_client(rotator, first_url)
 
+    # Chat-tier tasks are HARD-CAPPED to the fast 4B (qwen-chat): on a
+    # timeout/error we skip the cross-model 9B fallback entirely and go
+    # straight to the DeepSeek API fallback. The 9B is reserved for explicit
+    # analysis/forensics tasks (task_type analysis/complex/code/chart/
+    # contract), where it is the PRIMARY model and the 4B is the fast cross
+    # fallback. Escalating a simple chat query to the 4x-slower 9B only
+    # guarantees the answer takes 2+ minutes on CPU.
+    chat_tier = resolved_model == "qwen-chat"
+
     async with client:
         # ── 1: Direct llama.cpp for the resolved model ──
         try:
@@ -419,6 +443,7 @@ async def chat_completion(
                 provider="llama-direct",
                 proxy_url=proxy_url,
                 rotator=rotator,
+                timeout=LLAMA_TIMEOUT,
             )
             if result:
                 content = _guard_output(result["content"])
@@ -427,27 +452,34 @@ async def chat_completion(
         except Exception as e:
             logger.warning("llama_direct_unreachable", model=resolved_model, error=str(e))
 
-        # ── 2: Cross-model local fallback ──
-        other = _other_local(resolved_model)
-        other_url = f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions"
-        try:
-            result = await _post_chat(
-                client,
-                other_url,
-                other,
-                messages_safe,
-                temperature,
-                max_tokens,
-                provider="llama-direct-cross",
-                proxy_url=proxy_url,
-                rotator=rotator,
-            )
-            if result:
-                content = _guard_output(result["content"])
-                result["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
-                return result
-        except Exception as e:
-            logger.warning("llama_cross_unreachable", model=other, error=str(e))
+        # ── 2: Cross-model local fallback (analysis tier only) ──
+        # qwen-chat (chat tier) never escalates to qwen-analysis: the 9B is
+        # the slow model and a chat query that timed out on the 4B would only
+        # time out AGAIN (slower) on the 9B — the DeepSeek API fallback below
+        # answers faster than a CPU 9B can. The reverse direction is kept:
+        # an analysis-tier 9B failure falls back to the fast 4B.
+        if not chat_tier:
+            other = _other_local(resolved_model)
+            other_url = f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions"
+            try:
+                result = await _post_chat(
+                    client,
+                    other_url,
+                    other,
+                    messages_safe,
+                    temperature,
+                    max_tokens,
+                    provider="llama-direct-cross",
+                    proxy_url=proxy_url,
+                    rotator=rotator,
+                    timeout=LLAMA_TIMEOUT,
+                )
+                if result:
+                    content = _guard_output(result["content"])
+                    result["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
+                    return result
+            except Exception as e:
+                logger.warning("llama_cross_unreachable", model=other, error=str(e))
 
     # ── 3: DeepSeek Flash API (direct api.deepseek.com) fallback ──
     # Local models are the preferred path (qwen-chat 4B → qwen-analysis 9B, both Qwen3.5);
@@ -520,16 +552,23 @@ async def _stream_from(
 ) -> AsyncGenerator[str, None] | None:
     """Open an SSE stream; yield think-stripped tokens, or None on failure."""
     try:
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        # Same local llama.cpp latency levers as _post_chat: prefix-cache the
+        # stable system-prompt prefix and disable the Qwen3/DeepSeek reasoning
+        # preamble so tokens go straight to the answer.
+        if provider.startswith("llama"):
+            payload["cache_prompt"] = True
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
         async with client.stream(
             "POST",
             url,
-            json={
-                "model": model,
-                "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "stream": True,
-            },
+            json=payload,
             headers={"Content-Type": "application/json"},
         ) as resp:
             if resp.status_code != 200:
@@ -560,7 +599,7 @@ async def stream_chat_completion(
     task_type: str | None = None,
     tier: str | None = None,
     temperature: float = 0.7,
-    max_tokens: int = 2048,
+    max_tokens: int = 512,
 ) -> AsyncGenerator[str, None]:
     """Stream a LOCAL llama.cpp response token-by-token (SSE-compatible).
 
@@ -583,7 +622,11 @@ async def stream_chat_completion(
             messages_safe[i]["content"] = cleaned
             break
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    # Chat tier is hard-capped to the fast 4B (see chat_completion) — a
+    # streaming chat query never escalates to the slow 9B.
+    chat_tier = resolved_model == "qwen-chat"
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(LLAMA_TIMEOUT, connect=10.0)) as client:
         # ── 1: Direct llama.cpp (streaming) ──
         produced = False
         gen = _stream_from(
@@ -602,23 +645,24 @@ async def stream_chat_completion(
             if produced:
                 return
 
-        # ── 2: Cross-model local fallback (streaming) ──
-        other = _other_local(resolved_model)
-        produced = False
-        gen = _stream_from(
-            client,
-            f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions",
-            other,
-            messages_safe,
-            temperature,
-            max_tokens,
-            provider="llama-direct-cross",
-        )
-        if gen is not None:
-            async for token in gen:
-                produced = True
-                yield token
-            if produced:
-                return
+        # ── 2: Cross-model local fallback (analysis tier only, streaming) ──
+        if not chat_tier:
+            other = _other_local(resolved_model)
+            produced = False
+            gen = _stream_from(
+                client,
+                f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions",
+                other,
+                messages_safe,
+                temperature,
+                max_tokens,
+                provider="llama-direct-cross",
+            )
+            if gen is not None:
+                async for token in gen:
+                    produced = True
+                    yield token
+                if produced:
+                    return
 
     yield ("[ERROR Local AI models unavailable. Check llama-chat (8085) / llama-analysis (8086) services.]")
