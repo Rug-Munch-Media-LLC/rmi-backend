@@ -160,3 +160,4 @@ bot_users.db
 .coverage
 .coverage.*
 a.out
+app/domains/telegram/data/
