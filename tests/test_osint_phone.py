@@ -18,7 +18,22 @@ pytest.importorskip("phonenumbers")
 import phonenumbers
 from phonenumbers import PhoneNumberType
 
+import app.osint.phone as osint_phone
 from app.osint.phone import lookup_phone
+
+
+@pytest.fixture(autouse=True)
+def _no_network_ignorant_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep these unit tests hermetic.
+
+    ``lookup_phone`` runs an optional Ignorant phone-to-social probe that hits
+    live Amazon / Instagram / Snapchat endpoints when the ``ignorant`` package
+    is installed. Snapchat is network-flaky in CI (sporadically returns an
+    ``xsrf_token`` error), which pollutes ``report.errors`` and breaks the
+    "pure libphonenumber, no network" contract this file is testing. Patch the
+    probe out so the assertions below are deterministic.
+    """
+    monkeypatch.setattr(osint_phone, "_ignorant_social_check", lambda *args, **kwargs: None)
 
 
 def test_lookup_phone_valid_us_number() -> None:
