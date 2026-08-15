@@ -35,6 +35,27 @@ DEFAULT_TOOL_TIMEOUT = 6.0
 DEFAULT_TOOL_TTL = 60.0
 MAX_RETRIES = 1
 
+# Failures (``ok=False``) are cached for a SHORT window so a transient
+# timeout / rate-limit does not poison the full TTL: a 30s backend blip would
+# otherwise make ``scanner_intel`` report "no live data" for the full 300s
+# policy TTL and ``price_lookup`` for 60s. 5-10s negative window (caching
+# audit); 8s chosen as a middle ground between retry frequency and
+# source-hammering.
+NEGATIVE_TTL = 8.0
+
+
+def _negative_namespace(name: str) -> str:
+    """Cache namespace for transient failures.
+
+    Deliberately NOT a key in ``budget.TTL_POLICY``: stable-data overrides
+    live there, and ``effective_ttl`` would promote a short negative TTL back
+    up to the tool's full policy TTL (e.g. ``scanner_intel`` 300s) — the very
+    poisoning the negative cache exists to prevent. The ``:neg`` suffix keeps
+    this namespace out of the policy so failures really expire after
+    ``NEGATIVE_TTL`` seconds.
+    """
+    return f"{name}:neg"
+
 
 @dataclass
 class ToolResult:
@@ -136,13 +157,24 @@ class ToolRegistry:
         key = self.cache_key(name, kwargs)
         if ttl > 0:
             cached = self._cache.get(name, key)
+            if cached is None:
+                # A failure cached by an earlier run lives in the negative
+                # namespace (short TTL) — serve it so we don't re-hammer the
+                # down source, but only for the short negative window.
+                cached = self._cache.get(_negative_namespace(name), key)
             if cached is not None:
                 cached.cached = True
                 return cached
 
         result = await self._run_with_retry(name, handler, timeout, **kwargs)
         if ttl > 0:
-            self._cache.set(name, key, result, ttl)
+            if result.ok:
+                self._cache.set(name, key, result, ttl)
+            else:
+                # Negative cache: a transient failure must NOT occupy the full
+                # tool TTL. Store it under the ``:neg`` namespace with a short
+                # TTL so the next call retries the live source after ~8s.
+                self._cache.set(_negative_namespace(name), key, result, NEGATIVE_TTL)
         return result
 
     async def _run_with_retry(self, name: str, handler: ToolHandler, timeout: float, **kwargs: Any) -> ToolResult:
