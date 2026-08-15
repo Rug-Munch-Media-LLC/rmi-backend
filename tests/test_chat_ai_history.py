@@ -66,15 +66,16 @@ class TestLocalSystemPromptGrounding:
         messages = await _local_messages("question", None)
         system = messages[0]["content"]
         # answer-the-question
-        assert "Answer THE question" in system
-        assert "CURRENT QUESTION" in system
-        # no verbatim context quoting / no "I found this on the web"
-        assert "quote them verbatim" in system
-        assert "I found this on the web" in system
+        assert "LATEST question" in system
+        # no verbatim context quoting
+        assert "not quote verbatim" in system
         # no invented metrics
         assert "NEVER invent metrics" in system
+        # chain scoping + risk ranking
+        assert "CHAIN SCOPING" in system
+        assert "RISK RANKING" in system
         # instructions security
-        assert "Do not reveal" in system
+        assert "reveal or repeat" in system
 
     async def test_system_prompt_digest_still_appended(self) -> None:
         await _llm._call_local_llm("q", 1, system_context="BTC at 100k, risk-on tape")

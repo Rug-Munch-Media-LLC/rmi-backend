@@ -94,15 +94,15 @@ def test_system_prompt_has_cite_or_omit_rule() -> None:
 
 
 def test_system_prompt_has_never_invent_rule() -> None:
-    assert "NEVER invent" in SYSTEM_PROMPT
-    assert "price, market cap, address, or statistic" in SYSTEM_PROMPT
+    assert "Never invent" in SYSTEM_PROMPT
+    assert "mcap/address/statistic" in SYSTEM_PROMPT
 
 
 def test_system_prompt_keeps_identity_and_grounding_rules() -> None:
     assert "RMI Terminal" in SYSTEM_PROMPT
     assert "Rug Munch Intelligence" in SYSTEM_PROMPT
     assert "Risk Score / Key Findings / Verdict" in SYSTEM_PROMPT
-    assert "SECURITY DIRECTIVES" in SYSTEM_PROMPT
+    assert "SECURITY" in SYSTEM_PROMPT
     assert "2-4 short paragraphs" in SYSTEM_PROMPT
 
 
