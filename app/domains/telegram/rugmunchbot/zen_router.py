@@ -43,6 +43,11 @@ Behavior:
 
 No secrets are logged. ``api_key`` values are only ever sent as an
 ``Authorization: Bearer`` header to their own account's ``base_url``.
+
+Import-time safety: importing this module builds NO router state and reads NO
+env — :func:`build_router` is the lazy constructor and is only invoked on
+first use (``_llm.py``'s ``_get_zen_router()``); the module logger is created
+on demand too.
 """
 
 from __future__ import annotations
@@ -51,6 +56,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -59,6 +65,8 @@ from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from structlog.stdlib import BoundLogger
 
 __all__ = [
     "DEFAULT_COOLDOWN_S",
@@ -73,8 +81,6 @@ __all__ = [
     "build_router",
 ]
 
-logger = get_logger("rmi_bot.zen_router")
-
 ZEN_ACCOUNTS_ENV = "ZEN_ACCOUNTS"
 ZEN_COOLDOWN_S_ENV = "ZEN_COOLDOWN_S"
 ZEN_MAX_RETRIES_ENV = "ZEN_MAX_RETRIES"
@@ -82,6 +88,13 @@ ZEN_MAX_RETRIES_ENV = "ZEN_MAX_RETRIES"
 DEFAULT_COOLDOWN_S = 60.0
 DEFAULT_MAX_RETRIES = 1
 _MAX_NUMBERED_ACCOUNTS = 10
+
+
+@lru_cache
+def _get_logger() -> BoundLogger:
+    """Lazily create the module logger — importing this module has no side
+    effects (no structlog config / logging setup runs at import)."""
+    return get_logger("rmi_bot.zen_router")
 
 
 class ZenRouterError(Exception):
@@ -205,10 +218,10 @@ class ZenRouter:
             ) as client:
                 r = await client.post(account.base_url, headers=headers, json=payload)
         except (httpx.HTTPError, OSError, TimeoutError) as e:
-            logger.warning("zen_account_unavailable (account=%s): %s", label, e)
+            _get_logger().warning("zen_account_unavailable (account=%s): %s", label, e)
             raise _AccountUnavailable(f"connection error: {e}") from e
         if r.status_code in (429, 403) or r.status_code >= 500:
-            logger.warning("zen_account_rate_limited (account=%s): http %d", label, r.status_code)
+            _get_logger().warning("zen_account_rate_limited (account=%s): http %d", label, r.status_code)
             raise _AccountUnavailable(f"http {r.status_code}")
         if r.status_code != 200:
             # 4xx that is not 403 — malformed request / wrong path. Retrying

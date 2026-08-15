@@ -33,6 +33,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import paywall_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -72,69 +73,67 @@ async def _fetch_market_overview() -> dict[str, Any]:
         """
         out = dict(result)
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
+            client = get_shared_client(10)
 
-                async def _fetch_coingecko() -> dict[str, Any]:
-                    # CoinGecko global data
-                    r = await client.get(f"{COINGECKO}/global")
-                    if r.status_code == 200:
-                        data = r.json().get("data", {})
-                        return {
-                            "btc_dominance": data.get("market_cap_percentage", {}).get("btc"),
-                            "total_mcap": data.get("total_market_cap", {}).get("usd"),
-                            "total_volume_24h": data.get("total_volume", {}).get("usd"),
+            async def _fetch_coingecko() -> dict[str, Any]:
+                # CoinGecko global data
+                r = await client.get(f"{COINGECKO}/global")
+                if r.status_code == 200:
+                    data = r.json().get("data", {})
+                    return {
+                        "btc_dominance": data.get("market_cap_percentage", {}).get("btc"),
+                        "total_mcap": data.get("total_market_cap", {}).get("usd"),
+                        "total_volume_24h": data.get("total_volume", {}).get("usd"),
+                    }
+                return {}
+
+            async def _fetch_fear_greed() -> dict[str, Any]:
+                # Fear & Greed Index
+                fg = await client.get("https://api.alternative.me/fng/?limit=1")
+                if fg.status_code == 200:
+                    fg_data = fg.json().get("data", [{}])[0]
+                    return {
+                        "fear_greed": {
+                            "value": int(fg_data.get("value", 50)),
+                            "classification": fg_data.get("value_classification", "Neutral"),
                         }
-                    return {}
+                    }
+                return {}
 
-                async def _fetch_fear_greed() -> dict[str, Any]:
-                    # Fear & Greed Index
-                    fg = await client.get("https://api.alternative.me/fng/?limit=1")
-                    if fg.status_code == 200:
-                        fg_data = fg.json().get("data", [{}])[0]
+            async def _fetch_gas() -> dict[str, Any]:
+                # ETH Gas (proxy for network activity)
+                gas = await client.get("https://api.etherscan.io/v2/api?chainid=1&module=gastracker&action=gasoracle")
+                if gas.status_code == 200:
+                    gas_data = gas.json().get("result", {})
+                    return {"eth_gas": gas_data.get("ProposeGasPrice")}
+                return {}
+
+            async def _fetch_own_sentiment() -> dict[str, Any]:
+                # Try own backend sentiment data (best-effort enrichment)
+                own = await client.get(
+                    f"{BACKEND_URL}/api/v1/market/sentiment",
+                    headers=backend_headers(),
+                    timeout=5,
+                )
+                if own.status_code == 200:
+                    own_data = own.json()
+                    if isinstance(own_data, dict):
                         return {
-                            "fear_greed": {
-                                "value": int(fg_data.get("value", 50)),
-                                "classification": fg_data.get("value_classification", "Neutral"),
-                            }
+                            "sentiment": own_data.get("sentiment", out["sentiment"]),
+                            "btc_dominance_change": own_data.get("btc_dominance_change"),
                         }
-                    return {}
+                return {}
 
-                async def _fetch_gas() -> dict[str, Any]:
-                    # ETH Gas (proxy for network activity)
-                    gas = await client.get(
-                        "https://api.etherscan.io/v2/api?chainid=1&module=gastracker&action=gasoracle"
-                    )
-                    if gas.status_code == 200:
-                        gas_data = gas.json().get("result", {})
-                        return {"eth_gas": gas_data.get("ProposeGasPrice")}
-                    return {}
-
-                async def _fetch_own_sentiment() -> dict[str, Any]:
-                    # Try own backend sentiment data (best-effort enrichment)
-                    own = await client.get(
-                        f"{BACKEND_URL}/api/v1/market/sentiment",
-                        headers=backend_headers(),
-                        timeout=5,
-                    )
-                    if own.status_code == 200:
-                        own_data = own.json()
-                        if isinstance(own_data, dict):
-                            return {
-                                "sentiment": own_data.get("sentiment", out["sentiment"]),
-                                "btc_dominance_change": own_data.get("btc_dominance_change"),
-                            }
-                    return {}
-
-                # Parallel first-success merge: failures contribute nothing.
-                for partial in await asyncio.gather(
-                    _fetch_coingecko(),
-                    _fetch_fear_greed(),
-                    _fetch_gas(),
-                    _fetch_own_sentiment(),
-                    return_exceptions=True,
-                ):
-                    if isinstance(partial, dict):
-                        out.update(partial)
+            # Parallel first-success merge: failures contribute nothing.
+            for partial in await asyncio.gather(
+                _fetch_coingecko(),
+                _fetch_fear_greed(),
+                _fetch_gas(),
+                _fetch_own_sentiment(),
+                return_exceptions=True,
+            ):
+                if isinstance(partial, dict):
+                    out.update(partial)
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.warning("Market overview external fetch failed: %s", e)
         return out

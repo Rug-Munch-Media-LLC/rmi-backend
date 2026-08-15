@@ -6,48 +6,21 @@ self-improvement/deep-question detectors, and the self-improvement regex the
 tier-2 canned rules share with ``_local_ai.py``. Pure regex/string logic —
 no ``Update``/``Context`` state, no handler registration. ``_helpers.py``
 re-imports everything it needs from here; behavior is byte-for-byte identical.
+
+Shared free-text classification primitives (address + symbol extraction,
+``MAX_ADDRESS_HINTS``) live in ``tools/classify.py`` — the canonical home
+both this module and the tool-intent router (``tools/intent.py``) import
+from, so the address regexes / plausibility gate can never drift apart again.
 """
 
 from __future__ import annotations
 
 import re
 
-# cap address-triggered scans per message
-MAX_ADDRESS_HINTS = 2
-
-# ══════════════════════════════════════════════
-# ADDRESS DETECTION (free-text search, mirrors app/routers/chat.py)
-# ══════════════════════════════════════════════
-_EVM_ADDR_RE = re.compile(r"\b0x[a-fA-F0-9]{40}\b")
-_SOL_ADDR_RE = re.compile(r"\b[1-9A-HJ-NP-Za-km-z]{32,44}\b")
-
-
-def _plausible_solana(addr: str) -> bool:
-    """Base58 address-likeness: real Solana addresses almost always mix digits
-    or uppercase with lowercase, so this filters word-shaped false positives
-    ("supercalifragilisticexpialidocious") without dropping genuine tokens."""
-    return any(ch.isdigit() or ch.isupper() for ch in addr)
-
-
-def _extract_addresses(text: str) -> list[str]:
-    """Return token addresses (EVM 0x... / Solana base58) found in free text.
-
-    Capped at ``MAX_ADDRESS_HINTS`` so a single message cannot trigger a scan
-    storm. Solana matches that overlap an EVM match are skipped.
-    """
-    addresses: list[str] = []
-    for m in _EVM_ADDR_RE.finditer(text):
-        addresses.append(m.group(0))
-        if len(addresses) >= MAX_ADDRESS_HINTS:
-            return addresses
-    for m in _SOL_ADDR_RE.finditer(text):
-        addr = m.group(0)
-        if addr not in addresses and _plausible_solana(addr):
-            addresses.append(addr)
-        if len(addresses) >= MAX_ADDRESS_HINTS:
-            break
-    return addresses
-
+from app.domains.telegram.rugmunchbot.tools.classify import (
+    MAX_ADDRESS_HINTS,
+    _extract_addresses,
+)
 
 # ══════════════════════════════════════════════
 # GIBBERISH GATE (was handlers/message.py tier-1b gate)

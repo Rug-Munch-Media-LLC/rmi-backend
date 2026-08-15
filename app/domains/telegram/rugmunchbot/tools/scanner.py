@@ -60,7 +60,7 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.formatters import detect_chain, is_evm, is_sol
 from app.domains.telegram.rugmunchbot.states import get_sol_price
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
-from app.domains.telegram.rugmunchbot.tools._client import http_get_json
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client, http_get_json
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult, backend_json_post
 from app.domains.telegram.rugmunchbot.tools.token_meta import token_meta
 from app.rag.scan_memory import schedule_scan_memory_index, should_index_scan
@@ -404,138 +404,138 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
         "news_sentiment": None,
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        # DexScreener
-        try:
-            r = await client.get(f"{DEXSCREENER}/tokens/{address}")
-            if r.status_code == 200:
-                data = r.json()
-                pairs = data.get("pairs", [])
-                if pairs:
-                    p = pairs[0]
-                    result["name"] = p.get("baseToken", {}).get("name", "Unknown")
-                    result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
-                    # Null-safe numeric coercion: a null priceUsd (delisted /
-                    # no-pair payloads) must never crash the scan reply.
-                    result["price"] = _safe_float(p.get("priceUsd"))
-                    result["mcap"] = _safe_float(p.get("marketCap") or p.get("fdv") or 0)
-                    result["fdv"] = _safe_float(p.get("fdv") or result["mcap"])
-                    vol = p.get("volume", {})
-                    result["volume_24h"] = _safe_float(vol.get("h24") or 0)
-                    liq = p.get("liquidity", {})
-                    result["liquidity"] = _safe_float(liq.get("usd") or 0)
-                    pc = p.get("priceChange", {})
-                    result["price_change_1h"] = pc.get("h1") or 0
-                    result["price_change_24h"] = pc.get("h24") or 0
-                    result["price_change_7d"] = pc.get("d7") or 0
-                    result["pair_address"] = p.get("pairAddress", "")
-                    result["dex"] = p.get("dexId", "")
-                    result["chain"] = p.get("chainId", result["chain"])
-                    result["created_at"] = p.get("pairCreatedAt")
-                    socials = p.get("info", {}).get("socials", [])
-                    result["socials"] = {s.get("type"): s.get("url") for s in socials}
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            result["errors"].append(f"DexScreener: {e}")
+    client = get_shared_client(15)
+    # DexScreener
+    try:
+        r = await client.get(f"{DEXSCREENER}/tokens/{address}")
+        if r.status_code == 200:
+            data = r.json()
+            pairs = data.get("pairs", [])
+            if pairs:
+                p = pairs[0]
+                result["name"] = p.get("baseToken", {}).get("name", "Unknown")
+                result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
+                # Null-safe numeric coercion: a null priceUsd (delisted /
+                # no-pair payloads) must never crash the scan reply.
+                result["price"] = _safe_float(p.get("priceUsd"))
+                result["mcap"] = _safe_float(p.get("marketCap") or p.get("fdv") or 0)
+                result["fdv"] = _safe_float(p.get("fdv") or result["mcap"])
+                vol = p.get("volume", {})
+                result["volume_24h"] = _safe_float(vol.get("h24") or 0)
+                liq = p.get("liquidity", {})
+                result["liquidity"] = _safe_float(liq.get("usd") or 0)
+                pc = p.get("priceChange", {})
+                result["price_change_1h"] = pc.get("h1") or 0
+                result["price_change_24h"] = pc.get("h24") or 0
+                result["price_change_7d"] = pc.get("d7") or 0
+                result["pair_address"] = p.get("pairAddress", "")
+                result["dex"] = p.get("dexId", "")
+                result["chain"] = p.get("chainId", result["chain"])
+                result["created_at"] = p.get("pairCreatedAt")
+                socials = p.get("info", {}).get("socials", [])
+                result["socials"] = {s.get("type"): s.get("url") for s in socials}
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        result["errors"].append(f"DexScreener: {e}")
 
-        # GoPlus Security (EVM)
-        if is_evm(address):
-            try:
-                chain_id_map = {
-                    "ethereum": "1",
-                    "bsc": "56",
-                    "polygon": "137",
-                    "arbitrum": "42161",
-                    "avalanche": "43114",
-                    "base": "8453",
-                    "optimism": "10",
-                    "fantom": "250",
-                }
-                cid = chain_id_map.get(result["chain"].lower(), "1")
-                r = await client.get(f"{GOPLUS}/token_security/{cid}?contract_addresses={address}")
-                if r.status_code == 200:
-                    sec = r.json().get("result", {}).get(address.lower(), {})
-                    if sec:
-                        result["contract_verified"] = sec.get("is_open_source") == "1"
-                        result["honeypot"] = sec.get("is_honeypot") == "1"
-                        result["buy_tax"] = _safe_float(sec.get("buy_tax"))
-                        result["sell_tax"] = _safe_float(sec.get("sell_tax"))
-                        result["mintable"] = sec.get("is_mintable") == "1"
-                        result["can_blacklist"] = (
-                            sec.get("is_blacklisted") == "1" or sec.get("can_take_back_ownership") == "1"
+    # GoPlus Security (EVM)
+    if is_evm(address):
+        try:
+            chain_id_map = {
+                "ethereum": "1",
+                "bsc": "56",
+                "polygon": "137",
+                "arbitrum": "42161",
+                "avalanche": "43114",
+                "base": "8453",
+                "optimism": "10",
+                "fantom": "250",
+            }
+            cid = chain_id_map.get(result["chain"].lower(), "1")
+            r = await client.get(f"{GOPLUS}/token_security/{cid}?contract_addresses={address}")
+            if r.status_code == 200:
+                sec = r.json().get("result", {}).get(address.lower(), {})
+                if sec:
+                    result["contract_verified"] = sec.get("is_open_source") == "1"
+                    result["honeypot"] = sec.get("is_honeypot") == "1"
+                    result["buy_tax"] = _safe_float(sec.get("buy_tax"))
+                    result["sell_tax"] = _safe_float(sec.get("sell_tax"))
+                    result["mintable"] = sec.get("is_mintable") == "1"
+                    result["can_blacklist"] = (
+                        sec.get("is_blacklisted") == "1" or sec.get("can_take_back_ownership") == "1"
+                    )
+                    result["owner_renounced"] = sec.get("is_owner_renounced") != "0"
+                    lp_locks = sec.get("lp_holders", [])
+                    locked_pct = sum(_safe_float(h.get("percent")) for h in lp_locks if h.get("is_locked") == 1)
+                    result["lp_locked"] = locked_pct
+                    holders_data = sec.get("holders", [])
+                    result["holders"] = len(holders_data) if holders_data else 0
+                    for h in holders_data[:10]:
+                        result["top_holders"].append(
+                            {
+                                "address": h.get("address", ""),
+                                "pct": _safe_float(h.get("percent")) * 100,
+                                "is_contract": h.get("is_contract") == 1,
+                                "tag": h.get("tag", ""),
+                            }
                         )
-                        result["owner_renounced"] = sec.get("is_owner_renounced") != "0"
-                        lp_locks = sec.get("lp_holders", [])
-                        locked_pct = sum(_safe_float(h.get("percent")) for h in lp_locks if h.get("is_locked") == 1)
-                        result["lp_locked"] = locked_pct
-                        holders_data = sec.get("holders", [])
-                        result["holders"] = len(holders_data) if holders_data else 0
-                        for h in holders_data[:10]:
-                            result["top_holders"].append(
-                                {
-                                    "address": h.get("address", ""),
-                                    "pct": _safe_float(h.get("percent")) * 100,
-                                    "is_contract": h.get("is_contract") == 1,
-                                    "tag": h.get("tag", ""),
-                                }
-                            )
-                        if result["honeypot"]:
-                            result["threats"].append("HONEYPOT DETECTED")
-                            result["risk_score"] += 40
-                        if not result["contract_verified"]:
-                            result["threats"].append("Contract not verified")
-                            result["risk_score"] += 15
-                        if result["mintable"]:
-                            result["threats"].append("Mintable supply")
-                            result["risk_score"] += 20
-                        if result["can_blacklist"]:
-                            result["threats"].append("Owner can blacklist")
-                            result["risk_score"] += 15
-                        if not result["owner_renounced"]:
-                            result["threats"].append("Ownership not renounced")
-                            result["risk_score"] += 10
-                        if result["buy_tax"] and result["buy_tax"] > 0.1:
-                            result["threats"].append(f"High buy tax: {result['buy_tax'] * 100:.1f}%")
-                            result["risk_score"] += 10
-                        if result["sell_tax"] and result["sell_tax"] > 0.1:
-                            result["threats"].append(f"High sell tax: {result['sell_tax'] * 100:.1f}%")
-                            result["risk_score"] += 15
-                        if locked_pct < 0.5 and result["mcap"] > 10000:
-                            result["threats"].append(f"Low LP lock: {locked_pct * 100:.0f}%")
-                            result["risk_score"] += 15
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-                result["errors"].append(f"GoPlus: {e}")
-
-        # Honeypot.is (EVM fallback)
-        if is_evm(address) and result["honeypot"] is None:
-            try:
-                r = await client.get(f"{HONEYPOT}/IsHoneypot?address={address}")
-                if r.status_code == 200:
-                    hp = r.json()
-                    result["honeypot"] = hp.get("isHoneypot", False)
                     if result["honeypot"]:
-                        result["threats"].append("HONEYPOT (honeypot.is)")
+                        result["threats"].append("HONEYPOT DETECTED")
                         result["risk_score"] += 40
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-                result["errors"].append(f"Honeypot.is: {e}")
-
-        # RMI Backend
-        try:
-            r = await client.get(f"{BACKEND_URL}/api/v1/databus/token/{address}", headers=backend_headers(), timeout=10)
-            if r.status_code == 200:
-                rmi = r.json()
-                if rmi.get("bundle_detected"):
-                    result["bundle_detected"] = True
-                    result["threats"].append("Bundle activity detected")
-                    result["risk_score"] += 20
-                if rmi.get("fresh_wallet_pct"):
-                    result["fresh_wallet_pct"] = rmi["fresh_wallet_pct"]
-                    if rmi["fresh_wallet_pct"] > 50:
-                        result["threats"].append(f"High fresh wallet ratio: {rmi['fresh_wallet_pct']:.0f}%")
+                    if not result["contract_verified"]:
+                        result["threats"].append("Contract not verified")
+                        result["risk_score"] += 15
+                    if result["mintable"]:
+                        result["threats"].append("Mintable supply")
+                        result["risk_score"] += 20
+                    if result["can_blacklist"]:
+                        result["threats"].append("Owner can blacklist")
+                        result["risk_score"] += 15
+                    if not result["owner_renounced"]:
+                        result["threats"].append("Ownership not renounced")
                         result["risk_score"] += 10
-                if rmi.get("dev_wallet"):
-                    result["dev_wallet"] = rmi["dev_wallet"]
+                    if result["buy_tax"] and result["buy_tax"] > 0.1:
+                        result["threats"].append(f"High buy tax: {result['buy_tax'] * 100:.1f}%")
+                        result["risk_score"] += 10
+                    if result["sell_tax"] and result["sell_tax"] > 0.1:
+                        result["threats"].append(f"High sell tax: {result['sell_tax'] * 100:.1f}%")
+                        result["risk_score"] += 15
+                    if locked_pct < 0.5 and result["mcap"] > 10000:
+                        result["threats"].append(f"Low LP lock: {locked_pct * 100:.0f}%")
+                        result["risk_score"] += 15
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            result["errors"].append(f"RMI Backend: {e}")
+            result["errors"].append(f"GoPlus: {e}")
+
+    # Honeypot.is (EVM fallback)
+    if is_evm(address) and result["honeypot"] is None:
+        try:
+            r = await client.get(f"{HONEYPOT}/IsHoneypot?address={address}")
+            if r.status_code == 200:
+                hp = r.json()
+                result["honeypot"] = hp.get("isHoneypot", False)
+                if result["honeypot"]:
+                    result["threats"].append("HONEYPOT (honeypot.is)")
+                    result["risk_score"] += 40
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+            result["errors"].append(f"Honeypot.is: {e}")
+
+    # RMI Backend
+    try:
+        r = await client.get(f"{BACKEND_URL}/api/v1/databus/token/{address}", headers=backend_headers(), timeout=10)
+        if r.status_code == 200:
+            rmi = r.json()
+            if rmi.get("bundle_detected"):
+                result["bundle_detected"] = True
+                result["threats"].append("Bundle activity detected")
+                result["risk_score"] += 20
+            if rmi.get("fresh_wallet_pct"):
+                result["fresh_wallet_pct"] = rmi["fresh_wallet_pct"]
+                if rmi["fresh_wallet_pct"] > 50:
+                    result["threats"].append(f"High fresh wallet ratio: {rmi['fresh_wallet_pct']:.0f}%")
+                    result["risk_score"] += 10
+            if rmi.get("dev_wallet"):
+                result["dev_wallet"] = rmi["dev_wallet"]
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        result["errors"].append(f"RMI Backend: {e}")
 
     # Volume authenticity
     if result["volume_24h"] > 0 and result["mcap"] > 0:
@@ -633,26 +633,26 @@ async def sentinel_scan(address: str, chain: str | None = None) -> dict[str, Any
     """
     chain_norm = chain or detect_chain(address)
     try:
-        async with httpx.AsyncClient(timeout=SENTINEL_TIMEOUT) as client:
-            r = await client.post(
-                SENTINEL_URL,
-                json={"address": address, "chain": chain_norm},
-                headers=backend_headers(),
-                timeout=SENTINEL_TIMEOUT,
-            )
-            if r.status_code != 200:
-                logger.warning("sentinel_scan status %s for %s", r.status_code, address)
-                return None
-            data = r.json()
-            if not isinstance(data, dict):
-                logger.warning("sentinel_scan non-dict response for %s", address)
-                return None
-            data.setdefault("address", address)
-            data.setdefault("chain", chain_norm)
-            data["_source"] = "sentinel"
-            # Scan-to-RAG memory (background, fail-open) — see scan_token.
-            schedule_scan_memory_index(data, source="sentinel")
-            return data
+        client = get_shared_client(SENTINEL_TIMEOUT)
+        r = await client.post(
+            SENTINEL_URL,
+            json={"address": address, "chain": chain_norm},
+            headers=backend_headers(),
+            timeout=SENTINEL_TIMEOUT,
+        )
+        if r.status_code != 200:
+            logger.warning("sentinel_scan status %s for %s", r.status_code, address)
+            return None
+        data = r.json()
+        if not isinstance(data, dict):
+            logger.warning("sentinel_scan non-dict response for %s", address)
+            return None
+        data.setdefault("address", address)
+        data.setdefault("chain", chain_norm)
+        data["_source"] = "sentinel"
+        # Scan-to-RAG memory (background, fail-open) — see scan_token.
+        schedule_scan_memory_index(data, source="sentinel")
+        return data
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("sentinel_scan failed for %s: %s", address, e)
         return None
@@ -680,25 +680,23 @@ async def fetch_hype_score(address: str, chain: str | None = None) -> dict[str, 
     DexScreener-based hype computation.
     """
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            params: dict[str, str] = {"address": address}
-            if chain:
-                params["chain"] = chain
-            r = await client.get(
-                f"{BACKEND_URL}/api/v1/databus/fetch/hype_score",
-                params=params,
-                headers=backend_headers(),
-                timeout=20,
-            )
-            if r.status_code != 200:
-                logger.warning("fetch_hype_score status %s for %s", r.status_code, address)
-                return None
-            payload = r.json()
-            data = payload.get("data") or payload
-            if not isinstance(data, dict) or data.get("result") != "scanned":
-                logger.warning("fetch_hype_score non-scanned result for %s", address)
-                return None
-            return data
+        params: dict[str, str] = {"address": address}
+        if chain:
+            params["chain"] = chain
+        payload = await http_get_json(
+            f"{BACKEND_URL}/api/v1/databus/fetch/hype_score",
+            params=params,
+            headers=backend_headers(),
+            timeout=20,
+        )
+        if payload is None:
+            logger.warning("fetch_hype_score failed for %s", address)
+            return None
+        data = payload.get("data") or payload
+        if not isinstance(data, dict) or data.get("result") != "scanned":
+            logger.warning("fetch_hype_score non-scanned result for %s", address)
+            return None
+        return data
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("fetch_hype_score failed for %s: %s", address, e)
         return None
@@ -726,25 +724,23 @@ async def fetch_deployer_fingerprint(deployer: str, chain: str | None = None) ->
     deployer evidence.
     """
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            params: dict[str, str] = {"deployer": deployer}
-            if chain:
-                params["chain"] = chain
-            r = await client.get(
-                f"{BACKEND_URL}/api/v1/databus/fetch/deployer_fingerprint",
-                params=params,
-                headers=backend_headers(),
-                timeout=20,
-            )
-            if r.status_code != 200:
-                logger.warning("fetch_deployer_fingerprint status %s for %s", r.status_code, deployer)
-                return None
-            payload = r.json()
-            data = payload.get("data") or payload
-            if not isinstance(data, dict) or data.get("result") != "scanned":
-                logger.warning("fetch_deployer_fingerprint non-scanned result for %s", deployer)
-                return None
-            return data
+        params: dict[str, str] = {"deployer": deployer}
+        if chain:
+            params["chain"] = chain
+        payload = await http_get_json(
+            f"{BACKEND_URL}/api/v1/databus/fetch/deployer_fingerprint",
+            params=params,
+            headers=backend_headers(),
+            timeout=20,
+        )
+        if payload is None:
+            logger.warning("fetch_deployer_fingerprint failed for %s", deployer)
+            return None
+        data = payload.get("data") or payload
+        if not isinstance(data, dict) or data.get("result") != "scanned":
+            logger.warning("fetch_deployer_fingerprint non-scanned result for %s", deployer)
+            return None
+        return data
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("fetch_deployer_fingerprint failed for %s: %s", deployer, e)
         return None
@@ -804,51 +800,51 @@ async def analyze_wallet(address: str, chain: str | None = None) -> dict[str, An
         "fresh_wallet_pct": None,
         "holder_overlap_pct": None,
     }
-    async with httpx.AsyncClient(timeout=15) as client:
+    client = get_shared_client(15)
+    try:
+        r = await client.get(
+            f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens", headers=backend_headers(), timeout=10
+        )
+        if r.status_code == 200:
+            data = r.json()
+            for k in [
+                "balance_usd",
+                "tx_count",
+                "first_seen",
+                "is_exchange",
+                "is_contract",
+                "risk_score",
+                "flags",
+                "funding_source",
+                "pnl_estimate",
+            ]:
+                if k in data:
+                    result[k] = data[k]
+            result["top_tokens"] = data.get("top_tokens", [])[:10]
+            result["recent_txs"] = data.get("recent_txs", [])[:5]
+            result["connected_wallets"] = data.get("connected_wallets", [])[:5]
+            if result["first_seen"]:
+                try:
+                    first = datetime.fromisoformat(result["first_seen"].replace("Z", "+00:00"))
+                    result["wallet_age_days"] = (datetime.now(UTC) - first).days
+                    result["is_fresh"] = result["wallet_age_days"] < 7
+                except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
+                    logger.debug("analyze_wallet_error", exc_info=True)
+                    logger.warning(f"Failed to parse first_seen for {address}: {e}")
+            return result
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+        logger.warning(f"analyze_wallet RMI backend failed for {address}: {e}")
+    if is_sol(address):
         try:
-            r = await client.get(
-                f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens", headers=backend_headers(), timeout=10
-            )
+            r = await client.get(f"{SOLANAFM_API}/accounts/{address}")
             if r.status_code == 200:
                 data = r.json()
-                for k in [
-                    "balance_usd",
-                    "tx_count",
-                    "first_seen",
-                    "is_exchange",
-                    "is_contract",
-                    "risk_score",
-                    "flags",
-                    "funding_source",
-                    "pnl_estimate",
-                ]:
-                    if k in data:
-                        result[k] = data[k]
-                result["top_tokens"] = data.get("top_tokens", [])[:10]
-                result["recent_txs"] = data.get("recent_txs", [])[:5]
-                result["connected_wallets"] = data.get("connected_wallets", [])[:5]
-                if result["first_seen"]:
-                    try:
-                        first = datetime.fromisoformat(result["first_seen"].replace("Z", "+00:00"))
-                        result["wallet_age_days"] = (datetime.now(UTC) - first).days
-                        result["is_fresh"] = result["wallet_age_days"] < 7
-                    except (httpx.HTTPError, ValueError, TypeError, KeyError) as e:
-                        logger.debug("analyze_wallet_error", exc_info=True)
-                        logger.warning(f"Failed to parse first_seen for {address}: {e}")
-                return result
+                sol_price = await get_sol_price()
+                # Null-safe: a null Solana.fm balance must not crash /wallet.
+                result["balance_usd"] = _safe_float(data.get("balance")) / 1e9 * sol_price
+                result["tx_count"] = data.get("transaction_count", 0)
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            logger.warning(f"analyze_wallet RMI backend failed for {address}: {e}")
-        if is_sol(address):
-            try:
-                r = await client.get(f"{SOLANAFM_API}/accounts/{address}")
-                if r.status_code == 200:
-                    data = r.json()
-                    sol_price = await get_sol_price()
-                    # Null-safe: a null Solana.fm balance must not crash /wallet.
-                    result["balance_usd"] = _safe_float(data.get("balance")) / 1e9 * sol_price
-                    result["tx_count"] = data.get("transaction_count", 0)
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-                result["errors"].append(f"Solana.fm: {e}")
+            result["errors"].append(f"Solana.fm: {e}")
     return result
 
 

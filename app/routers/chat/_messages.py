@@ -123,8 +123,11 @@ async def _build_messages(
         system += f"\n\n{market_block}"
 
     if system_context:
-        # Escape any delimiter tokens in user context
-        safe_context = ai_guard._escape_delimiters(system_context[:2000])
+        # Escape any delimiter tokens in user context. Cap is sized for the
+        # Telegram bot's PERSONA_CONTEXT block (~4.7k chars: grounding bullets
+        # + anti-hallucination rules + response-formatting must reach the
+        # model intact) plus room for server-side RAG/web context.
+        safe_context = ai_guard._escape_delimiters(system_context[:6000])
         system += f"\n\nAdditional Context: {safe_context}"
 
     # ── Inert history (fixes "answers the wrong question") ──

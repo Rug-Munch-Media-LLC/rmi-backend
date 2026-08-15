@@ -12,6 +12,7 @@ import httpx
 
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import http_get_json
 
 """Own-data-first data resolver for RugMunchBot.
 
@@ -138,17 +139,15 @@ async def backend_get_json(
     Returns the parsed JSON object, or ``None`` on network/HTTP/parse failure.
     """
     try:
-        async with httpx.AsyncClient(timeout=timeout_secs) as client:
-            r = await client.get(
-                f"{BACKEND_URL}{path}",
-                params=params,
-                headers=backend_headers(),
-            )
-            if r.status_code != 200:
-                logger.debug("backend_get_json %s status %s", path, r.status_code)
-                return None
-            body = r.json()
-            return body if isinstance(body, dict) else None
+        body = await http_get_json(
+            f"{BACKEND_URL}{path}",
+            params=params,
+            headers=backend_headers(),
+            timeout=timeout_secs,
+        )
+        if body is None:
+            logger.debug("backend_get_json %s status non-200", path)
+        return body
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("backend_get_json %s failed: %s", path, _short(exc))
         return None

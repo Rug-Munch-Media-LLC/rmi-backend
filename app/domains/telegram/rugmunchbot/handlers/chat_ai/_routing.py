@@ -333,12 +333,49 @@ async def _edit_placeholder_if_slow(placeholder: Message, delay: float = 5.0) ->
 # ══════════════════════════════════════════════
 
 
-async def _lookup_token_symbol(text: str, message: Message) -> bool:
+class _TokenCardFlag:
+    """Shared mutable holder for the ``$TOKEN`` card-sent signal (P2 fix).
+
+    ``_lookup_token_symbol`` sets ``sent = True`` the moment a price card is
+    delivered. The AI pipeline checks the flag right before sending any
+    reply, so a card that lands inside the ``_token_card_won`` decide-wait
+    (or just after its timeout raced with ``_cancel_token_lookup``) can never
+    double-send with the AI answer.
+    """
+
+    __slots__ = ("sent",)
+
+    def __init__(self) -> None:
+        self.sent = False
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Best-effort numeric coercion for DexScreener payload fields (P2 fix).
+
+    DexScreener can return ``None``, absent or non-numeric values (e.g.
+    ``"N/A"``) for price / volume / market cap — a raw ``float(...)`` would
+    crash the ``$TOKEN`` card. Fail-open to ``default`` on any malformed
+    input.
+    """
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+async def _lookup_token_symbol(text: str, message: Message, sent_flag: _TokenCardFlag | None = None) -> bool:
     """Instant ``$TOKEN`` price card via DexScreener.
 
     Returns True when a price card was sent; False when there is no symbol
     or the lookup failed so the caller falls through to the AI pipeline
     (matches the old handle_message behavior).
+
+    ``sent_flag``: optional shared holder (see :class:`_TokenCardFlag`);
+    ``sent`` is set True the moment a card is delivered so the AI pipeline
+    can detect a card that landed inside the decide-wait / after its
+    timeout and never double-send (P2 race fix).
     """
     token_match = TOKEN_RE.search(text)
     if not token_match:
@@ -355,10 +392,10 @@ async def _lookup_token_symbol(text: str, message: Message) -> bool:
                     p = pairs[0]
                     addr = p.get("baseToken", {}).get("address", "")
                     chain = p.get("chainId", "")
-                    price = float(p.get("priceUsd", 0))
+                    price = _safe_float(p.get("priceUsd", 0))
                     h24 = p.get("priceChange", {}).get("h24") or 0
-                    vol = float(p.get("volume", {}).get("h24") or 0)
-                    mcap = float(p.get("marketCap") or 0)
+                    vol = _safe_float(p.get("volume", {}).get("h24") or 0)
+                    mcap = _safe_float(p.get("marketCap") or 0)
                     name = p.get("baseToken", {}).get("name", symbol)
                     quick_text = (
                         f"\U0001fa99 <b>{name}</b> ({symbol}) {fmt_chain(chain)}\n"
@@ -383,6 +420,8 @@ async def _lookup_token_symbol(text: str, message: Message) -> bool:
                             ),
                             disable_web_page_preview=True,
                         )
+                        if sent_flag is not None:
+                            sent_flag.sent = True
                         return True
     except (
         ConnectionError,
@@ -582,6 +621,7 @@ async def chat_ai_response(
     user: Any,
     *,
     token_lookup_task: asyncio.Task[bool] | None = None,
+    token_card_flag: _TokenCardFlag | None = None,
 ) -> bool:
     """Run the merged AI chat pipeline. Returns True when a reply was sent.
 
@@ -595,8 +635,14 @@ async def chat_ai_response(
     the AI answer is ready, it IS the answer and the AI answer is skipped.
     ``None`` for /chat and /ask (no structural routing there).
 
+    ``token_card_flag`` is the shared ``sent`` signal owned by the same
+    lookup (see :class:`_TokenCardFlag`): checked right before any reply so
+    a card that lands just after the decide-wait never double-sends (P2
+    race fix). ``None`` for /chat and /ask.
+
     Same signature as the old ``handlers.message.ai_chat_response`` it
-    replaces, so callers could be switched without rework.
+    replaces, so callers could be switched without rework (both new params
+    are optional keyword-only).
     """
     message = update.message
     if message is None or not text.strip():
@@ -653,130 +699,183 @@ async def chat_ai_response(
     # ready (below), so a fast response never gets clobbered by the edit.
     placeholder_task = asyncio.create_task(_edit_placeholder_if_slow(preliminary))
 
-    # CONCURRENT: fire the backend RAG chat (tier-1) AND the fallback context
-    # fetches at the same time. The backend RAGs itself (news_v2 auto-RAG +
-    # live web search) and does NOT need bridge context — only the Zen/local
-    # fallback path does. Awaiting the backend result FIRST means the common
-    # path never serializes on the ~12s bridge web search. The context tasks
-    # are only awaited when the backend returns None and the fallback path
-    # actually needs them (and are cancelled when the backend answers).
-    addresses = _extract_addresses(text)
-    history = cast("list[dict[str, str]]", db.get_chat_history(user.id))
+    # P1 (task-lifecycle leak fix): every task created below must be
+    # cancelled in the finally block — an early exception (backend RAG
+    # failure, guardrail crash, send failure) must never leak a dangling
+    # coroutine: the backend RAG call, the bridge/daily/scan context fetches,
+    # the live tools, the direct RAG lookup and the caller-owned $TOKEN card
+    # lookup (a late card firing on an exception path would be a stray
+    # message). typing_task / placeholder_task are created above and are
+    # cancelled too.
+    backend_task: asyncio.Task[Any] | None = None
+    daily_ctx_task: asyncio.Task[Any] | None = None
+    scan_ctx_task: asyncio.Task[Any] | None = None
+    bridge_ctx_task: asyncio.Task[Any] | None = None
+    live_tools_task: asyncio.Task[Any] | None = None
+    rag_task: asyncio.Task[Any] | None = None
+    try:
+        # CONCURRENT: fire the backend RAG chat (tier-1) AND the fallback context
+        # fetches at the same time. The backend RAGs itself (news_v2 auto-RAG +
+        # live web search) and does NOT need bridge context — only the Zen/local
+        # fallback path does. Awaiting the backend result FIRST means the common
+        # path never serializes on the ~12s bridge web search. The context tasks
+        # are only awaited when the backend returns None and the fallback path
+        # actually needs them (and are cancelled when the backend answers).
+        addresses = _extract_addresses(text)
+        history = cast("list[dict[str, str]]", db.get_chat_history(user.id))
 
-    backend_task = asyncio.create_task(chat_ai._call_backend_chat(text, user.id, history))
-    daily_ctx_task = asyncio.create_task(get_daily_context())
-    scan_ctx_task = asyncio.create_task(_fetch_scan_context(addresses[0])) if addresses else None
-    bridge_ctx_task = asyncio.create_task(_fetch_bridge_context(text, history))
-    # Bot-side live tools (REAL data): run concurrently with the backend so
-    # the fallback path is grounded in real numbers and the guardrail can
-    # verify the final answer. Bounded + fail-open — never blocks chat.
-    live_tools_task = asyncio.create_task(chat_ai._run_live_tools(text, history))
-    # Direct RAG knowledge lookup (knowledge questions only): searches the
-    # intel DB BEFORE any web/LLM fallback. On the tier-1 path the backend
-    # RAGs itself, so this task is cancelled when the backend answers.
-    rag_task = asyncio.create_task(_run_rag_lookup(text)) if should_rag_lookup(text) else None
+        backend_task = asyncio.create_task(chat_ai._call_backend_chat(text, user.id, history))
+        daily_ctx_task = asyncio.create_task(get_daily_context())
+        scan_ctx_task = asyncio.create_task(_fetch_scan_context(addresses[0])) if addresses else None
+        bridge_ctx_task = asyncio.create_task(_fetch_bridge_context(text, history))
+        # Bot-side live tools (REAL data): run concurrently with the backend so
+        # the fallback path is grounded in real numbers and the guardrail can
+        # verify the final answer. Bounded + fail-open — never blocks chat.
+        live_tools_task = asyncio.create_task(chat_ai._run_live_tools(text, history))
+        # Direct RAG knowledge lookup (knowledge questions only): searches the
+        # intel DB BEFORE any web/LLM fallback. On the tier-1 path the backend
+        # RAGs itself, so this task is cancelled when the backend answers.
+        rag_task = asyncio.create_task(_run_rag_lookup(text)) if should_rag_lookup(text) else None
 
-    # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
-    # The backend injects the current date/time and runs its own RAG
-    # (news_v2) + live web search, so it is already real-time aware.
-    result = await backend_task
+        # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
+        # The backend injects the current date/time and runs its own RAG
+        # (news_v2) + live web search, so it is already real-time aware.
+        result = await backend_task
 
-    # Bridge context/sources/actions only exist on the fallback path; the
-    # backend answer carries its own grounding and never needs them.
-    bridge_sources: list[dict[str, str]] = []
-    bridge_actions: list[dict[str, str]] = []
-    # Direct RAG lookup result — only set on the fallback path (backend path
-    # cancels rag_task and keeps this None so the backend's own grounding
-    # stays authoritative).
-    rag_result: ToolResult | None = None
-    # Whether the daily market/news digest or a bridge market block actually
-    # reached the fallback prompt (feeds the truthful grounding footer).
-    has_market_context = False
+        # Bridge context/sources/actions only exist on the fallback path; the
+        # backend answer carries its own grounding and never needs them.
+        bridge_sources: list[dict[str, str]] = []
+        bridge_actions: list[dict[str, str]] = []
+        # Direct RAG lookup result — only set on the fallback path (backend path
+        # cancels rag_task and keeps this None so the backend's own grounding
+        # stays authoritative).
+        rag_result: ToolResult | None = None
+        # Whether the daily market/news digest or a bridge market block actually
+        # reached the fallback prompt (feeds the truthful grounding footer).
+        has_market_context = False
 
-    if result is None:
-        # Fallback path: gather the context fetches (fail-open) that ground
-        # the Zen/local LLM calls, then build the message-specific prompt.
-        result, bridge_sources, bridge_actions, rag_result, has_market_context = await _build_fallback_answer(
-            text,
-            user,
-            history,
-            daily_ctx_task=daily_ctx_task,
-            scan_ctx_task=scan_ctx_task,
-            bridge_ctx_task=bridge_ctx_task,
-            live_tools_task=live_tools_task,
-            rag_task=rag_task,
-        )
-    else:
-        # Backend answered — the bridge/daily context fetches running in the
-        # background are no longer needed. Cancel them so no coroutine dangles.
-        # NOTE: live_tools_task is NOT cancelled — the guardrail below needs
-        # its results to verify the backend answer (bounded; self-terminates).
-        pending = [t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task, rag_task) if t is not None]
-        for t in pending:
-            t.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
-
-    # Stop typing indicator + interim placeholder task
-    typing_task.cancel()
-    placeholder_task.cancel()
-    await asyncio.gather(typing_task, placeholder_task, return_exceptions=True)
-
-    # $TOKEN price card vs AI answer: the DexScreener lookup was fired
-    # CONCURRENTLY at the top (ai_chat_handler) so the pipeline never
-    # serialized on it. If the price card already landed it IS the answer —
-    # skip the AI answer and clean up the placeholder. Otherwise cancel the
-    # still-running lookup so a late price card never duplicates the answer.
-    if await _token_card_won(token_lookup_task):
-        with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
-            await preliminary.delete()
-        return True
-    await _cancel_token_lookup(token_lookup_task)
-
-    if not result:
-        if await _reply_local_intent(message, text, user):
-            return True
-        with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
-            await preliminary.edit_text(
-                _FALLBACK_MESSAGE,
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
+        if result is None:
+            # Fallback path: gather the context fetches (fail-open) that ground
+            # the Zen/local LLM calls, then build the message-specific prompt.
+            result, bridge_sources, bridge_actions, rag_result, has_market_context = await _build_fallback_answer(
+                text,
+                user,
+                history,
+                daily_ctx_task=daily_ctx_task,
+                scan_ctx_task=scan_ctx_task,
+                bridge_ctx_task=bridge_ctx_task,
+                live_tools_task=live_tools_task,
+                rag_task=rag_task,
             )
+        else:
+            # Backend answered — the bridge/daily context fetches running in the
+            # background are no longer needed. Cancel them so no coroutine dangles.
+            # NOTE: live_tools_task is NOT cancelled — the guardrail below needs
+            # its results to verify the backend answer (bounded; self-terminates).
+            pending = [t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task, rag_task) if t is not None]
+            for t in pending:
+                t.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+
+        # Stop typing indicator + interim placeholder task
+        typing_task.cancel()
+        placeholder_task.cancel()
+        await asyncio.gather(typing_task, placeholder_task, return_exceptions=True)
+
+        # $TOKEN price card vs AI answer: the DexScreener lookup was fired
+        # CONCURRENTLY at the top (ai_chat_handler) so the pipeline never
+        # serialized on it. If the price card already landed it IS the answer —
+        # skip the AI answer and clean up the placeholder. Otherwise cancel the
+        # still-running lookup so a late price card never duplicates the answer.
+        if await _token_card_won(token_lookup_task):
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await preliminary.delete()
+            return True
+        await _cancel_token_lookup(token_lookup_task)
+
+        # P2 race guard: the $TOKEN card can land just after the decide-wait
+        # timed out (the shielded lookup keeps running for a beat after
+        # _token_card_won returns, and _cancel_token_lookup can race it). If it
+        # did, the card IS the answer — never double-send an AI reply.
+        if token_card_flag is not None and token_card_flag.sent:
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await preliminary.delete()
+            return True
+
+        if not result:
+            if await _reply_local_intent(message, text, user):
+                return True
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await preliminary.edit_text(
+                    _FALLBACK_MESSAGE,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=back_kb(),
+                )
+            return True
+
+        answer = result["message"]
+
+        # ── POST-PROCESSING FUNNEL ────────────────────────────────────────────
+        # think-strip -> degenerate guard -> bridge citations -> zero-fabrication
+        # guardrail -> honest no-live-data note -> last-chance degenerate guard.
+        answer, live_results, stripped_syms, stripped_addrs, answer_is_degenerate = await _post_guardrail(
+            answer,
+            user_id=user.id,
+            provider=str(result.get("provider") or ""),
+            bridge_sources=bridge_sources,
+            live_tools_task=live_tools_task,
+            rag_result=rag_result,
+        )
+
+        # Last-chance P2 guard: a $TOKEN card can still land while the
+        # guardrail finishes (it awaits live tools). The card wins — the AI
+        # answer is skipped so the user never gets card + answer.
+        if token_card_flag is not None and token_card_flag.sent:
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await preliminary.delete()
+            return True
+
+        await _persist_answer(user.id, text, answer)
+
+        await _send_and_trace_answer(
+            message,
+            preliminary,
+            answer,
+            user_id=user.id,
+            text=text,
+            pipeline_start=pipeline_start,
+            result=result,
+            bridge_sources=bridge_sources,
+            bridge_actions=bridge_actions,
+            live_results=live_results,
+            rag_result=rag_result,
+            has_market_context=has_market_context,
+            answer_is_degenerate=answer_is_degenerate,
+            stripped_syms=stripped_syms,
+            stripped_addrs=stripped_addrs,
+        )
         return True
-
-    answer = result["message"]
-
-    # ── POST-PROCESSING FUNNEL ────────────────────────────────────────────
-    # think-strip -> degenerate guard -> bridge citations -> zero-fabrication
-    # guardrail -> honest no-live-data note -> last-chance degenerate guard.
-    answer, live_results, stripped_syms, stripped_addrs, answer_is_degenerate = await _post_guardrail(
-        answer,
-        user_id=user.id,
-        provider=str(result.get("provider") or ""),
-        bridge_sources=bridge_sources,
-        live_tools_task=live_tools_task,
-        rag_result=rag_result,
-    )
-
-    await _persist_answer(user.id, text, answer)
-
-    await _send_and_trace_answer(
-        message,
-        preliminary,
-        answer,
-        user_id=user.id,
-        text=text,
-        pipeline_start=pipeline_start,
-        result=result,
-        bridge_sources=bridge_sources,
-        bridge_actions=bridge_actions,
-        live_results=live_results,
-        rag_result=rag_result,
-        has_market_context=has_market_context,
-        answer_is_degenerate=answer_is_degenerate,
-        stripped_syms=stripped_syms,
-        stripped_addrs=stripped_addrs,
-    )
-    return True
+    finally:
+        # Cancel every task that is still running (done tasks are no-ops) so
+        # no coroutine dangles on an early exception.
+        pending_tasks = [
+            t
+            for t in (
+                typing_task,
+                placeholder_task,
+                backend_task,
+                daily_ctx_task,
+                scan_ctx_task,
+                bridge_ctx_task,
+                live_tools_task,
+                rag_task,
+                token_lookup_task,
+            )
+            if t is not None and not t.done()
+        ]
+        for t in pending_tasks:
+            t.cancel()
+        await asyncio.gather(*pending_tasks, return_exceptions=True)
 
 
 async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -797,8 +896,11 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     u = db.get_or_create_user(user.id, user.username, user.first_name)
     if u.get("is_banned"):
         return
-    if chat_ai.check_spam(user.id):
-        return
+    # NOTE: the per-user spam gate lives in chat_ai_response (single
+    # check_spam call). Calling it HERE too was the P0 bug: the first call
+    # STAMPS _user_last_action[user.id] = now (states.check_spam), then the
+    # second call milliseconds later sees now - last < 3 → True → every
+    # non-owner free-text reply was silently dropped.
     db.record_activity(msg=True)
 
     # Owner admin console (v7): in private chats the owner gets a persistent
@@ -834,7 +936,15 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     # behavior delayed every "$TOKEN" message by up to 10s). The card wins if
     # it lands before the AI answer is ready (chat_ai_response decides);
     # structural routing cancels it when the message was already handled.
-    token_lookup_task = asyncio.create_task(_lookup_token_symbol(text, message)) if TOKEN_RE.search(text) else None
+    # token_card_flag is the shared card-sent signal (P2 race fix) that lets
+    # the AI pipeline detect a card landing just after the decide-wait and
+    # never double-send card + AI answer.
+    token_card_flag = _TokenCardFlag() if TOKEN_RE.search(text) else None
+    token_lookup_task = (
+        asyncio.create_task(_lookup_token_symbol(text, message, sent_flag=token_card_flag))
+        if token_card_flag is not None
+        else None
+    )
 
     # Feature routing that does NOT consume the AI quota: known-scam block,
     # bare-address auto-scan. The $TOKEN lookup runs concurrently (above), so
@@ -847,7 +957,9 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     # Free text → shared AI core (quota + flood + backend RAG chat).
-    await chat_ai_response(update, ctx, text, user, token_lookup_task=token_lookup_task)
+    await chat_ai_response(
+        update, ctx, text, user, token_lookup_task=token_lookup_task, token_card_flag=token_card_flag
+    )
 
 
 async def _send_answer(
