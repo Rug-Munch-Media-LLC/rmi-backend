@@ -22,6 +22,7 @@ docker exec rmi-clickhouse clickhouse-client --multiquery \
 |---|------|-------------|------|
 | 001 | `001_initial_schema_snapshot.sql` | All 7 wallet_memory tables (CREATE IF NOT EXISTS) | 2026-07-21 |
 | 002 | `002_add_ttls.sql` | 6-month TTL DELETE on all tables | 2026-07-21 |
+| 003 | `003_add_exploits.sql` | `defi.exploits` — DeFi exploit/hack incident dataset | 2026-08-15 |
 
 ## Rules
 
