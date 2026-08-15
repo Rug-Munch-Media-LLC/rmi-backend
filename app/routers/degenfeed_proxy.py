@@ -26,8 +26,10 @@ Rate limit headers are returned in every response.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field
 
@@ -156,18 +158,35 @@ async def _proxy_to_degenfeed(
     path: str,
     body: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Proxy a request to the DegenFeed service.
+    """Proxy a request to the DegenFeed protocol service.
 
-    In production, this calls the actual DegenFeed protocol service.
-    For now, returns mock data to enable frontend development.
-
-    TODO(@degenfeed): Replace mock with actual service call when
-    DegenFeed protocol services are deployed.
+    The backend base URL is read from the ``DEGENFEED_URL`` env var (e.g.
+    ``http://127.0.0.1:8200``). When it is not configured the router returns a
+    503 instead of fabricating mock data, so clients never receive fake
+    responses. Upstream failures surface as 502/503 with the error logged.
     """
-    # ── Mock implementation for frontend development ──────────────
-    # This will be replaced with actual HTTP calls to DegenFeed service
-    log.debug("DegenFeed proxy: %s %s (mock)", method, path)
-    return {"_mock": True, "_path": path, "_method": method}
+    base_url = os.getenv("DEGENFEED_URL", "").rstrip("/")
+    if not base_url:
+        raise HTTPException(
+            status_code=503,
+            detail="DegenFeed service not configured (set DEGENFEED_URL)",
+        )
+
+    url = f"{base_url}{path}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            if method == "POST":
+                resp = await client.post(url, json=body or {})
+            else:
+                resp = await client.get(url, params=body or {})
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as exc:
+        log.error("DegenFeed upstream error %s %s: %s", method, url, exc)
+        raise HTTPException(status_code=502, detail=f"DegenFeed upstream error: {exc.response.status_code}") from exc
+    except httpx.RequestError as exc:
+        log.error("DegenFeed upstream unreachable %s %s: %s", method, url, exc)
+        raise HTTPException(status_code=503, detail="DegenFeed service unavailable") from exc
 
 
 # ── Endpoints ────────────────────────────────────────────────────
@@ -211,7 +230,7 @@ async def get_feed(
             cached=True,
         )
 
-    # Proxy to DegenFeed service (mock for now)
+    # Proxy to DegenFeed service (503 when DEGENFEED_URL is not configured)
     data = await _proxy_to_degenfeed("GET", f"/{protocol}/feed", {"user_id": user_id, "page": page})
 
     # Build response

@@ -61,7 +61,12 @@ class HeadlessTelegramClient:
         """
         global _telethon_available
 
-        if _telethon_available is None:
+        # Re-probe on every failed availability check (not just the first):
+        # the bot may boot before telethon is pip-installed (seen in prod —
+        # the process started 5.5h before the dep landed, cached False, and
+        # every tg_news sweep then failed forever until a restart). Once a
+        # probe succeeds the positive result is kept (no import churn).
+        if _telethon_available is not True:
             try:
                 import telethon  # noqa: F401 — availability probe
 

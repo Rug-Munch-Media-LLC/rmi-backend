@@ -27,23 +27,31 @@ fully auditable):
     score = 100 * ( w_vol * S_vol
                   + w_liq * S_liq
                   + w_growth * S_growth
+                  + w_momentum * S_momentum
                   + w_age * S_age ) * (1 - risk_penalty)
 
-    weights:  w_vol=0.40, w_liq=0.25, w_growth=0.20, w_age=0.15
+    weights:  w_vol=0.25, w_liq=0.15, w_growth=0.15,
+              w_momentum=0.20, w_age=0.25
 
-    S_vol    = 1 - exp(-volume_24h / 1_000_000)          # $1M reference
-    S_liq    = 1 - exp(-liquidity_usd / 250_000)          # $250k reference
-    S_growth = 0.5 * clamp01((buy_ratio - 0.40) / 0.60)   # buy pressure h24
-             + 0.5 * (1 - exp(-(buys+sells) / 2_000))     # trade activity h24
-    S_age    = 1 - min(age_hours / 72, 1)  (unknown age -> 0.5 neutral)
+    S_vol      = 1 - exp(-volume_24h / 1_000_000)          # $1M reference
+    S_liq      = 1 - exp(-liquidity_usd / 250_000)          # $250k reference
+    S_growth   = 0.5 * clamp01((buy_ratio - 0.40) / 0.60)   # buy pressure h24
+               + 0.5 * (1 - exp(-(buys+sells) / 2_000))     # trade activity h24
+    S_momentum = 1 - exp(-abs(price_change_24h) / 100)      # |%| mover — BOTH
+                                                             # directions count
+                                                             # (juicy rugs too)
+    S_age      = 1 - min(age_hours / 72, 1)  (unknown age -> 0.5 neutral)
 
     risk_penalty (from OUR scanner; 0 when unscanned):
       honeypot / rug-pull                    -> 1.0  (excluded)
       risk_score>=50                         -> clamp01((score-50)/50)*0.60
 
-Only REAL symbols / addresses (from the sources above) are ever returned.
-If a candidate has no resolvable pair or no real symbol it is dropped —
-never invented.
+Age and |mover| weights are deliberately high: fresh launches (pump.fun /
+newly deployed) and the biggest % movers (up AND down) are what degens
+trade. Volume/liquidity alone would bias toward established infra tokens
+nobody trades. Only REAL symbols / addresses (from the sources above) are
+ever returned. If a candidate has no resolvable pair or no real symbol it
+is dropped — never invented.
 """
 
 from __future__ import annotations
@@ -73,23 +81,37 @@ _LAUNCHES_LIMIT = 80
 _VOL_REF_USD = 1_000_000.0
 _LIQ_REF_USD = 250_000.0
 _TRADES_REF = 2_000.0
+_MOMENTUM_REF_PCT = 100.0  # |24h %| reference — a 100% move (either way)
 _AGE_DECAY_HOURS = 72.0
-_W_VOL = 0.40
-_W_LIQ = 0.25
-_W_GROWTH = 0.20
-_W_AGE = 0.15
+_W_VOL = 0.25
+_W_LIQ = 0.15
+_W_GROWTH = 0.15
+_W_MOMENTUM = 0.20
+_W_AGE = 0.25
 _RISK_FLOOR = 50.0
 _RISK_MAX_PENALTY = 0.60
 
 _FORMULA: dict[str, Any] = {
-    "score": "100 * (w_vol*S_vol + w_liq*S_liq + w_growth*S_growth + w_age*S_age) * (1 - risk_penalty)",
-    "weights": {"volume_24h": _W_VOL, "liquidity": _W_LIQ, "holder_growth": _W_GROWTH, "age": _W_AGE},
+    "score": "100 * (w_vol*S_vol + w_liq*S_liq + w_growth*S_growth + w_momentum*S_momentum + w_age*S_age) * (1 - risk_penalty)",
+    "weights": {
+        "volume_24h": _W_VOL,
+        "liquidity": _W_LIQ,
+        "holder_growth": _W_GROWTH,
+        "momentum_24h": _W_MOMENTUM,
+        "age": _W_AGE,
+    },
     "S_vol": "1 - exp(-volume_24h / 1_000_000)",
     "S_liq": "1 - exp(-liquidity_usd / 250_000)",
     "S_growth": "0.5*clamp01((buy_ratio-0.40)/0.60) + 0.5*(1 - exp(-(buys+sells)/2_000))",
+    "S_momentum": "1 - exp(-abs(price_change_24h) / 100)  # |%| mover, up AND down",
     "S_age": "1 - min(age_hours/72, 1)  (unknown -> 0.5)",
     "risk_penalty": "1.0 if honeypot/rug-pull else clamp01((risk_score-50)/50)*0.60 (0 if unscanned)",
-    "note": "holder_growth is proxied by h24 buy pressure + trade activity (single-snapshot holder count cannot measure growth).",
+    "note": (
+        "holder_growth is proxied by h24 buy pressure + trade activity; "
+        "momentum_24h rewards the biggest |%| movers in both directions "
+        "(green pumps AND red rugs) — fresh launches and movers outrank "
+        "established infra tokens that nobody trades."
+    ),
 }
 
 # DexScreener chain id normalisation (aliases -> canonical DexScreener id)
@@ -377,10 +399,12 @@ def _score_token(metrics: dict[str, Any], risk: dict[str, Any] | None) -> dict[s
     sells = metrics.get("sells_24h") or 0
     total = float(buys + sells)
     buy_ratio = (buys / total) if total > 0 else 0.5
+    price_change_24h = metrics.get("price_change_24h") or 0.0
 
     s_vol = _exp_norm(float(volume_24h), _VOL_REF_USD)
     s_liq = _exp_norm(float(liquidity_usd), _LIQ_REF_USD)
     s_growth = 0.5 * _clamp01((buy_ratio - 0.40) / 0.60) + 0.5 * _exp_norm(total, _TRADES_REF)
+    s_momentum = _exp_norm(abs(float(price_change_24h)), _MOMENTUM_REF_PCT)
     age_h = metrics.get("age_hours")
     s_age = (1.0 - min(max(float(age_h), 0.0) / _AGE_DECAY_HOURS, 1.0)) if age_h is not None else 0.5
 
@@ -392,7 +416,7 @@ def _score_token(metrics: dict[str, Any], risk: dict[str, Any] | None) -> dict[s
     else:
         risk_penalty = 0.0
 
-    raw = _W_VOL * s_vol + _W_LIQ * s_liq + _W_GROWTH * s_growth + _W_AGE * s_age
+    raw = _W_VOL * s_vol + _W_LIQ * s_liq + _W_GROWTH * s_growth + _W_MOMENTUM * s_momentum + _W_AGE * s_age
     final = round(100.0 * raw * (1.0 - risk_penalty), 1)
 
     return {
@@ -401,6 +425,7 @@ def _score_token(metrics: dict[str, Any], risk: dict[str, Any] | None) -> dict[s
             "volume_score": round(s_vol * 100.0, 1),
             "liquidity_score": round(s_liq * 100.0, 1),
             "growth_score": round(s_growth * 100.0, 1),
+            "momentum_score": round(s_momentum * 100.0, 1),
             "age_score": round(s_age * 100.0, 1),
         },
         "risk_penalty": round(risk_penalty * 100.0, 1),

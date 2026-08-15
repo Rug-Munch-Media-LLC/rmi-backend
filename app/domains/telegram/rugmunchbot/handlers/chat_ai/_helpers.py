@@ -32,7 +32,9 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._local_ai import (
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import (
     CHUNK_MAX_CHARS,
+    MAX_ANSWER_CHARS,
     _beautify_answer,
+    _cap_answer,
     _chunk_text,
     _format_scan_summary,
     _is_section_header,
@@ -199,6 +201,7 @@ _STILL_DIGGING = (
 __all__ = [
     "CHUNK_MAX_CHARS",
     "MAX_ADDRESS_HINTS",
+    "MAX_ANSWER_CHARS",
     "_CHAT_DISABLED",
     "_DEGENERATE_MESSAGE",
     "_FALLBACK_MESSAGE",
@@ -221,6 +224,7 @@ __all__ = [
     "_THINKING_PRICE",
     "_THINKING_SCAM",
     "_beautify_answer",
+    "_cap_answer",
     "_chunk_text",
     "_extract_addresses",
     "_format_scan_summary",

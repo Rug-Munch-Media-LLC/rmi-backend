@@ -133,12 +133,12 @@ async def test_zen_llm_deep_flag() -> None:
     await _llm._call_zen_llm("question", 1, deep=False)
     _, body = _FakeLLMClient.calls[0]
     assert body["max_tokens"] == 500
-    assert "on-chain analyst" not in body["messages"][0]["content"]
+    assert "on-chain investigator" not in body["messages"][0]["content"]
     _FakeLLMClient.calls.clear()
     await _llm._call_zen_llm("question", 1, deep=True)
     _, body = _FakeLLMClient.calls[0]
     assert body["max_tokens"] == 2000
-    assert "on-chain analyst" in body["messages"][0]["content"]
+    assert "on-chain investigator" in body["messages"][0]["content"]
     assert body["thinking"] == {"type": "disabled"}
 
 

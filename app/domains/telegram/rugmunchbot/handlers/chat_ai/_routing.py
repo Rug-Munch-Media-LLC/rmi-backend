@@ -77,6 +77,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import _build_fallba
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import (
     CHUNK_MAX_CHARS,
     _beautify_answer,
+    _cap_answer,
     _format_scan_summary,
     _markdown_to_html,
     _normalize_llm_markup,
@@ -875,9 +876,11 @@ async def _send_answer(
          mid-link, never mid-``**bold**`` span, and never mid-code-block.
       6. Each part is HTML-escaped (LLM output is not trusted HTML).
       7. ``_markdown_to_html`` converts the markdown the persona / tool
-         answers emit — ``**bold**``, `` `code` ``, ``*italic*`` — into real
-         ``<b>...</b>`` / ``<code>...</code>`` / ``<i>...</i>``, safe because
-         the content was already escaped in step 6.
+         answers emit — ``**bold**``, `` `code` ``, ``*italic*``, plus block
+         constructs (``##`` headers, ``---`` separators, ``1.`` lists, pipe
+         tables) — into real ``<b>...</b>`` / ``<code>...</code>`` /
+         ``<i>...</i>``, safe because the content was already escaped in
+         step 6.
       8. ``send_in_parts`` delivers each part as its own message (keyboard on
          the last part; plain-text degrade on parse rejection).
     A short "⚡ Grounded in N intelligence sources | Rug Munch Bot" footer is
@@ -890,6 +893,10 @@ async def _send_answer(
     keyboard on the last chunk when present; otherwise the back menu is used.
     """
     raw = _beautify_answer(_tables_to_lists(strip_think_blocks(_normalize_llm_markup(answer))))
+    # No 1000-word walls: a rambling answer is trimmed to a sane length at a
+    # paragraph/sentence boundary (with an ellipsis) BEFORE the Telegram
+    # chunker — a simple query must never become a multi-part monologue.
+    raw = _cap_answer(raw)
     chunks = split_in_parts(raw, max_chars=CHUNK_MAX_CHARS)
     if not chunks:
         return 0

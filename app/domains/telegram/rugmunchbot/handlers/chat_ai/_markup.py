@@ -21,6 +21,13 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._parts import _is_fence_l
 # Telegram hard limit is 4096; leave headroom for escape expansion.
 CHUNK_MAX_CHARS = 3800
 
+# Answer length cap applied in ``_send_answer`` BEFORE ``split_in_parts``:
+# a simple query must never turn into a 1000-word wall spread over multiple
+# messages. 3200 chars ≈ 450-530 words — room for a thorough deep analysis,
+# nowhere near a wall. Capped answers are trimmed at a paragraph/sentence
+# boundary and end with an ellipsis so truncation is honest.
+MAX_ANSWER_CHARS = 3200
+
 # ══════════════════════════════════════════════
 # v10 RESPONSE BEAUTIFIER (see _beautify_answer / _markdown_bold_to_html)
 # Section emojis match the persona's RESPONSE FORMATTING block (prompts.py).
@@ -65,6 +72,21 @@ _ITALIC_RE = re.compile(r"\*([^*\s][^*\n]*?[^*\s])\*")
 # Underscore italic is word-boundary guarded (intraword ``_snake_case_`` is
 # NOT emphasis, matching standard markdown) and needs non-space ends too.
 _UNDERSCORE_ITALIC_RE = re.compile(r"(?<![A-Za-z0-9])_([^_\s][^_\n]*?[^_\s])_(?![A-Za-z0-9])")
+
+# ══════════════════════════════════════════════
+# MARKDOWN BLOCK CONSTRUCTS (see _markdown_to_html)
+# Telegram HTML has no header/table/HR elements — convert the block-level
+# markdown local models emit (``## Header``, ``---``, pipe tables, numbered
+# lists) into Telegram-safe HTML. ``_HEADER_RE`` matches ATX headers (1-3
+# ``#``), stripping optional trailing ``#``s; ``_ORDERED_LIST_RE`` turns
+# ``1. item`` into ``1) item`` (Telegram renders ``1.`` as a literal dot);
+# ``_ESCAPED_HTML_TAG_RE`` is the defense-in-depth twin of
+# ``_RAW_HTML_TAG_RE`` for tags that arrive already entity-escaped
+# (``&lt;code&gt;`` — a double-escaped model or a pre-escaped caller).
+# ══════════════════════════════════════════════
+_HEADER_RE = re.compile(r"^#{1,3}\s+(.+?)\s*#*\s*$")
+_ORDERED_LIST_RE = re.compile(r"^(\s*)(\d{1,3})\.(\s)")
+_ESCAPED_HTML_TAG_RE = re.compile(r"&lt;/?\s*(b|strong|i|em|code|pre)\s*&gt;")
 
 # ══════════════════════════════════════════════
 # RAW HTML → MARKDOWN NORMALIZATION (defense-in-depth)
@@ -433,20 +455,152 @@ def _bold_italic_to_html(text: str) -> str:
     return text
 
 
+def _escaped_html_emphasis_to_markdown(text: str) -> str:
+    """Convert entity-escaped HTML emphasis tags back to markdown markers.
+
+    Defense-in-depth twin of :func:`_raw_html_emphasis_to_markdown` for tags
+    that arrive already escaped (``&lt;code&gt;`` — e.g. a model that
+    double-escaped, or a direct caller that pre-escaped the text). Runs on
+    the ESCAPED text inside :func:`_markdown_to_html`, so the conversion can
+    never re-introduce raw HTML: the tags become backtick/``**`` markers and
+    the emphasis passes below re-emit real, escaped ``<code>``/``<b>`` tags.
+    """
+    return _ESCAPED_HTML_TAG_RE.sub(
+        lambda m: _RAW_HTML_TAG_TO_MARKDOWN.get(m.group(1).lower(), m.group(0)),
+        text,
+    )
+
+
+def _markdown_line_to_html(line: str) -> str:
+    """Convert one non-fence line's block-level markdown to Telegram HTML.
+
+    - separator lines (``---`` / ``────`` / ``___``) → the thin separator
+      (Telegram has no ``<hr>`` element);
+    - ATX headers (``## Header`` / ``### Header``) → ``<b>Header</b>``
+      (bold is the closest Telegram-safe header);
+    - numbered-list items (``1. item``) → ``1) item`` (``1.`` renders as a
+      literal dot otherwise).
+
+    Emphasis markers inside a header are converted inline so ``## **Market
+    Overview**`` never double-bolds; all other lines pass through untouched.
+    """
+    if _is_separator_line(line):
+        return thin_sep()
+    m = _HEADER_RE.match(line)
+    if m:
+        inner = m.group(1).strip()
+        # A header that is ONE whole bold span (`## **Market Overview**`)
+        # unwraps before the bold wrapper so it never double-bolds; mid-line
+        # bold (`## **BTC** Price`) stays inline and nests harmlessly.
+        if re.fullmatch(r"\*{2,3}.+?\*{2,3}", inner):
+            inner = _unwrap_bold(inner)
+        return f"<b>{_bold_italic_to_html(_escape_inner(inner))}</b>"
+    return _ORDERED_LIST_RE.sub(r"\1\2)\3", line)
+
+
+def _markdown_blocks_to_html(text: str) -> str:
+    """Line-level markdown → HTML pass (headers, HRs, lists, tables).
+
+    Handles the block constructs Telegram has no native element for, BEFORE
+    the emphasis passes in :func:`_markdown_to_html`:
+
+    - ``## / ###`` headers → ``<b>`` lines
+    - ``---`` / ``────`` separators → the thin separator line
+    - ``1.`` / ``2.`` numbered lists → ``1)`` / ``2)``
+    - pipe tables → compact bullet blocks (same rendering as
+      :func:`_tables_to_lists`, so a table that slipped past the raw-text
+      pass — a direct caller, or a table embedded after escaping — still
+      renders cleanly instead of a ``|`` wall)
+
+    Fenced code blocks are never touched: their lines pass through verbatim.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    in_fence = False
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        if _is_fence_line(line):
+            in_fence = not in_fence
+        if in_fence:
+            out.append(line)
+            i += 1
+            continue
+        if _TABLE_ROW_RE.match(line):
+            run: list[str] = []
+            while i < n and _TABLE_ROW_RE.match(lines[i]):
+                run.append(lines[i])
+                i += 1
+            if _is_table_block(run):
+                out.extend(_render_table_block(run))
+                continue
+            out.extend(_markdown_line_to_html(ln) for ln in run)
+            continue
+        out.append(_markdown_line_to_html(line))
+        i += 1
+    return "\n".join(out)
+
+
+def _cap_answer(text: str, max_chars: int = MAX_ANSWER_CHARS) -> str:
+    """Cap an answer to ``max_chars`` before Telegram chunking.
+
+    A 1000-word wall for a simple query is never acceptable: when ``text``
+    exceeds the cap it is trimmed at the last natural boundary inside the
+    window (paragraph → sentence → word) and an ellipsis is appended so the
+    truncation is honest. Never cuts mid-sentence, mid-link, mid-``**bold**``
+    span, or mid-HTML tag. Returns the text unchanged when it already fits.
+    """
+    if len(text) <= max_chars:
+        return text
+    cut = text.rfind("\n\n", 0, max_chars)
+    if cut < max_chars // 2:
+        cut = _last_sentence_boundary(text, max_chars)
+    if cut < max_chars // 2:
+        cut = text.rfind(" ", 0, max_chars)
+    if cut < max_chars // 2:
+        cut = max_chars
+    # Never cut inside a **bold** span: a sentence boundary inside one would
+    # leave a dangling opener in the clipped text. Back up to the span's
+    # opening so the whole span survives or is dropped whole (a span that
+    # starts too early to back up to keeps the cut — the renderer tolerates
+    # the unmatched marker as literal text).
+    for m in _BOLD_RE.finditer(text):
+        if m.start() < cut < m.end():
+            if m.start() >= max_chars // 2:
+                cut = m.start()
+            break
+    clipped = text[:cut].rstrip()
+    # Never end mid-tag (<br, <b, <i...): back up to before the dangling '<'.
+    lt = clipped.rfind("<")
+    if lt != -1 and clipped.find(">", lt) == -1:
+        clipped = clipped[:lt].rstrip()
+    return clipped + "\u2026"
+
+
 def _markdown_to_html(text: str) -> str:
     """Convert markdown emphasis markers to balanced Telegram HTML.
 
     Ordered so nothing clobbers:
-      1. inline code `` `X` `` → ``<code>X</code>`` — first, so backtick
-         content (which may contain ``**`` or ``*``) is never re-processed
-         by the bold/italic passes.
-      2. bold ``**X**`` / ``***X***`` → ``<b>X</b>``
-      3. italic ``*X*`` / ``_X_`` → ``<i>X</i>``
+      0. entity-escaped + raw HTML emphasis tags (``&lt;code&gt;`` /
+         ``<code>``) → markdown markers — the same defense-in-depth as
+         :func:`_normalize_llm_markup` for tags that survived to this
+         stage (double-escaped model output, pre-escaped callers).
+      1. block constructs: ``## / ###`` headers → ``<b>``, ``---`` → thin
+         separator, ``1.`` lists → ``1)``, pipe tables → bullet blocks.
+      2. inline code `` `X` `` → ``<code>X</code>`` — before bold/italic so
+         backtick content (which may contain ``**`` or ``*``) is never
+         re-processed.
+      3. bold ``**X**`` / ``***X***`` → ``<b>X</b>``
+      4. italic ``*X*`` / ``_X_`` → ``<i>X</i>``
     Each marker's INNER content is :func:`_escape_inner` canonicalized, and
     unmatched markers (a lone ``*``, an unclosed backtick) pass through as
     literal text. MUST run AFTER ``html.escape()`` on the LLM path so raw
     LLM-supplied HTML is never re-introduced.
     """
+    text = _escaped_html_emphasis_to_markdown(text)
+    text = _raw_html_emphasis_to_markdown(text)
+    text = _markdown_blocks_to_html(text)
     out: list[str] = []
     pos = 0
     for m in _INLINE_CODE_RE.finditer(text):
@@ -549,7 +703,9 @@ def _tables_to_lists(text: str) -> str:
 
 __all__ = [
     "CHUNK_MAX_CHARS",
+    "MAX_ANSWER_CHARS",
     "_beautify_answer",
+    "_cap_answer",
     "_chunk_text",
     "_format_scan_summary",
     "_is_section_header",

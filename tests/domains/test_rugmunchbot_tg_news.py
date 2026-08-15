@@ -13,6 +13,8 @@ and the catalog is mocked.
 
 from __future__ import annotations
 
+import sys
+import types
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -669,3 +671,69 @@ class TestRegistration:
         app = SimpleNamespace(job_queue=fake_jq)
         channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
         assert "channel_tg_news" not in {j["name"] for j in fake_jq.jobs}
+
+
+# ── Headless-client availability probe (regression: boot-before-install) ────
+
+
+class TestHeadlessProbe:
+    """The telethon availability probe must re-probe after a failed check.
+
+    Regression for the prod incident where the bot booted BEFORE telethon was
+    pip-installed into the venv: the old ``if _telethon_available is None``
+    guard cached the negative result forever, so every tg_news sweep logged
+    ``headless_client_unavailable`` and returned [] even after the dependency
+    was installed — until a manual service restart. The fix re-probes on every
+    failed check (positive results stay cached).
+    """
+
+    async def test_reprobes_when_telethon_installed_after_boot(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import app.domains.telegram.headless_client as hc
+
+        # Simulate the boot-time state: telethon was missing at first probe.
+        monkeypatch.setattr(hc, "_telethon_available", False)
+        # Make the probe pass now (telethon importable after install).
+        monkeypatch.setattr(hc, "get_api_credentials", lambda: ("+15550000000", 12345, "hash"))
+        monkeypatch.setattr(hc, "get_session_path", lambda: "/tmp/hc_probe_test")  # noqa: S108
+
+        class FakeTelegramClient:
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                self.started = False
+
+            async def start(self, phone: str = "") -> None:
+                self.started = True
+
+            async def get_me(self) -> Any:
+                return SimpleNamespace(username="probe", first_name="Probe", id=1)
+
+            def is_connected(self) -> bool:
+                return True
+
+            async def disconnect(self) -> None:
+                return None
+
+        # Patch the telethon module so `import telethon` succeeds and
+        # TelegramClient resolves to the fake (no network I/O).
+        fake_mod = types.ModuleType("telethon")
+        fake_mod.TelegramClient = FakeTelegramClient
+        monkeypatch.setitem(sys.modules, "telethon", fake_mod)
+
+        client = hc.HeadlessTelegramClient()
+        await client.start()
+
+        assert hc._telethon_available is True, "probe must re-check after a prior failure"
+        assert client._client is not None
+        assert getattr(client._client, "started", False) is True
+
+    async def test_negative_probe_raises_when_still_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import app.domains.telegram.headless_client as hc
+
+        monkeypatch.setattr(hc, "_telethon_available", False)
+        # Make `import telethon` raise ImportError (None sentinel in
+        # sys.modules is treated as "import failed" by the import system).
+        monkeypatch.setitem(sys.modules, "telethon", None)
+
+        client = hc.HeadlessTelegramClient()
+        with pytest.raises(RuntimeError, match="Telethon not installed"):
+            await client.start()
+        assert hc._telethon_available is False

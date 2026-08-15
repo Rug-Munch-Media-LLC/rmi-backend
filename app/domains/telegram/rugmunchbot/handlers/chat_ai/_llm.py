@@ -191,22 +191,27 @@ async def _call_zen_llm(
     timeout = 45.0 if deep else 20.0  # cloud — observed ~2.5s, generous headroom
 
     system_prompt = (
-        "You are Rug Munch, a crypto security AI. "
-        "Give a complete, well-rounded answer — cover the key points clearly "
-        "and add useful context where it helps. Keep it tight, no fluff. "
-        "No financial advice."
-        " Format your answer in Telegram Markdown: use **bold** for emphasis, "
-        "## for headers, and `backticks` for addresses/code. "
+        "You are Rug Munch, a sharp crypto analyst. "
+        "Answer in 150-300 words max, short paragraphs, 3-6 bullets, no "
+        "filler, no restating the question. Put the most important signal "
+        "first. Use **bold** for key numbers. End with a 1-line bottom line. "
+        "Use headers sparingly — only when a multi-part answer genuinely "
+        "needs sections. No financial advice."
+        " Format your answer in Telegram Markdown: use **bold** for "
+        "emphasis, and `backticks` for addresses/code. "
         "NEVER emit raw HTML tags (<b>, <i>, <code>, &amp;, &lt;)."
     )
     if deep:
         system_prompt = (
-            "You are Rug Munch, a crypto security AI and on-chain analyst. "
-            "Give a thorough, comprehensive answer: cover mechanisms, risks, "
-            "red flags, and actionable checks. Use clear sections and bullets. "
-            "Go deep — the user asked for analysis. Never give financial advice."
-            " Format your answer in Telegram Markdown: use **bold** for emphasis, "
-            "## for headers, and `backticks` for addresses/code. "
+            "You are Rug Munch, a sharp crypto analyst and on-chain "
+            "investigator. Answer in 150-300 words max: cover mechanisms, "
+            "risks, red flags, and actionable checks. Short paragraphs, "
+            "3-6 bullets, no filler, no restating the question. Put the most "
+            "important signal first. Use **bold** for key numbers. End with "
+            "a 1-line bottom line. Headers sparingly. Never give financial "
+            "advice."
+            " Format your answer in Telegram Markdown: use **bold** for "
+            "emphasis, and `backticks` for addresses/code. "
             "NEVER emit raw HTML tags (<b>, <i>, <code>, &amp;, &lt;)."
         )
     # Grounding + guardrails (mirrors prompts.py v10 rules for the cloud path)
@@ -345,10 +350,13 @@ async def _call_local_llm(
     """
     # Build messages array with conversation history
     system_content = (
-        "You are Rug Munch, a crypto security AI. "
-        "Answer directly and concisely. No financial advice. No thinking output. "
+        "You are Rug Munch, a sharp crypto analyst. "
+        "Answer in 150-300 words max, short paragraphs, 3-6 bullets, no "
+        "filler, no restating the question. Put the most important signal "
+        "first. Use **bold** for key numbers. End with a 1-line bottom line. "
+        "Headers sparingly. No financial advice. No thinking output. "
         "Format your answer in Telegram Markdown: use **bold** for emphasis, "
-        "## for headers, and `backticks` for addresses/code. "
+        "and `backticks` for addresses/code. "
         "NEVER emit raw HTML tags (<b>, <i>, <code>, &amp;, &lt;).\n"
         "\nDATA GROUNDING (non-negotiable):\n"
         "- Answer THE question in the CURRENT QUESTION block — never answer a "

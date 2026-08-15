@@ -338,6 +338,82 @@ class TestMarkdownToHtml:
         assert chat_ai._markdown_bold_to_html("***bold***") == "<b>bold</b>"
         assert chat_ai._markdown_bold_to_html("*stray") == "*stray"
 
+    # ── Block constructs (v13): Telegram has no header/HR/table elements ──
+
+    def test_markdown_header_converted(self) -> None:
+        # `## Header` / `### Header` used to leak as literal text — now <b>.
+        assert chat_ai._markdown_to_html("## Market Overview") == "<b>Market Overview</b>"
+        assert chat_ai._markdown_to_html("### Price Action") == "<b>Price Action</b>"
+        # trailing `#`s and inner emphasis are handled too
+        assert chat_ai._markdown_to_html("## **Market Overview**") == "<b>Market Overview</b>"
+        # 4+ hashes are NOT headers — left literal
+        assert chat_ai._markdown_to_html("#### not a header") == "#### not a header"
+
+    def test_separator_converted_to_thin_sep(self) -> None:
+        # A lone `---` used to leak as literal dashes — now the thin separator.
+        out = chat_ai._markdown_to_html("intro\n---\noutro")
+        assert "---" not in out
+        assert "\u2500" in out
+
+    def test_pipe_table_converted_to_bullets(self) -> None:
+        # A `| table |` that reaches _markdown_to_html directly (no
+        # _tables_to_lists in front) still renders as bullets, never a `|` wall.
+        src = "| Token | Price | 24h |\n| --- | --- | --- |\n| BONK | $0.00002 | +5% |\n| WIF | $1.20 | -2% |"
+        out = chat_ai._markdown_to_html(src)
+        assert "|" not in out
+        assert "<b>Token · Price · 24h</b>" in out
+        assert "• BONK · $0.00002 · +5%" in out
+        assert "• WIF · $1.20 · -2%" in out
+
+    def test_ordered_list_converted_to_parenthesis(self) -> None:
+        # `1. item` renders as a literal dot in Telegram — now `1) item`.
+        assert chat_ai._markdown_to_html("1. first\n2. second\n3. third") == "1) first\n2) second\n3) third"
+        # decimals like "1.5x" are NOT list markers
+        assert chat_ai._markdown_to_html("1.5x growth continues") == "1.5x growth continues"
+
+    def test_literal_code_tag_converted(self) -> None:
+        # The guardrail replaces fabricated addresses inside tags, leaving a
+        # literal <code>…</code> the LLM emitted — it must become REAL
+        # monospace, never escaped garbage or a raw tag.
+        assert chat_ai._markdown_to_html("<code>[address not verified]</code>") == "<code>[address not verified]</code>"
+        # entity-escaped variant (a model that double-escaped, or pre-escaped
+        # input) converts identically
+        assert chat_ai._markdown_to_html("&lt;code&gt;[address not verified]&lt;/code&gt;") == (
+            "<code>[address not verified]</code>"
+        )
+        # balanced tags, no raw HTML re-introduced
+        out = chat_ai._markdown_to_html("<code>&lt;script&gt;alert(1)&lt;/script&gt;</code>")
+        assert "<script>" not in out
+        assert "<code>&lt;script&gt;alert(1)&lt;/script&gt;</code>" in out
+
+
+class TestCapAnswer:
+    """Regression: a 1000-word rambling answer must be trimmed to a sane
+    length at a natural boundary before the Telegram chunker."""
+
+    def test_short_answer_unchanged(self) -> None:
+        assert chat_ai._cap_answer("short answer") == "short answer"
+
+    def test_long_answer_capped_with_ellipsis(self) -> None:
+        long_answer = "Word " * 5000
+        out = chat_ai._cap_answer(long_answer)
+        assert len(out) <= chat_ai.MAX_ANSWER_CHARS
+        assert out.endswith("\u2026")
+
+    def test_cap_prefers_sentence_boundary(self) -> None:
+        long_answer = "Sentence with padding here. " * 400
+        out = chat_ai._cap_answer(long_answer)
+        # trimmed at a sentence end + honest ellipsis — never mid-word
+        assert len(out) <= chat_ai.MAX_ANSWER_CHARS
+        assert out.endswith("\u2026")
+        assert "here." in out
+
+    def test_cap_never_ends_mid_tag(self) -> None:
+        long_answer = "text " * 900 + "<br>" + " more text" * 400
+        out = chat_ai._cap_answer(long_answer)
+        assert len(out) <= chat_ai.MAX_ANSWER_CHARS
+        assert not out.endswith("<br>")
+
 
 class TestStripThinkBlocks:
     """Regression: deepseek-analysis (and the backend routing to it) emits
@@ -819,15 +895,57 @@ class TestSendAnswer:
         assert "2 * 3 * 4 = 24" in sent
         assert "<i>" not in sent
 
-    def test_long_answer_splits_on_sentence_boundaries(self) -> None:
+    def test_long_answer_capped_before_send(self) -> None:
+        # A 1000-word wall must never become a multi-part monologue: the
+        # answer cap trims it to a single sane-length part (with an ellipsis)
+        # BEFORE the Telegram chunker. The exact raw-length bound is asserted
+        # directly on _cap_answer (TestCapAnswer); here we verify the send
+        # path delivers ONE trimmed part, never a wall of parts.
         msg = _FakeMessage()
         long_answer = "This is a complete sentence with padding here. " * 200  # ~12.5k chars
         parts_sent = _run(chat_ai._send_answer(msg, long_answer, 0))
-        assert parts_sent > 1
+        assert parts_sent == 1
         parts = [r[0][0] for r in msg.replies]
-        assert all(len(p) <= 4000 for p in parts)
-        # every part ends on a sentence boundary — never mid-sentence
-        assert all(p.rstrip().endswith("here.") for p in parts)
+        assert len(parts) == 1
+        assert len(parts[0]) < len(long_answer)
+        # honest truncation marker — never a mid-sentence hard cut
+        assert parts[0].endswith("\u2026")
+
+    def test_live_leak_regression_no_raw_markdown_or_html(self) -> None:
+        """The live-reported leaks — `##`/`###` headers, `---` separators,
+        pipe tables, a literal `<code>[address not verified]</code>` tag and
+        numbered lists — must render as real Telegram formatting, never as
+        raw markdown/HTML text or a `|` wall."""
+        msg = _FakeMessage()
+        answer = (
+            "## 📊 Market Overview\n"
+            "---\n"
+            "| Token | 24h |\n"
+            "| --- | --- |\n"
+            "| BONK | +5% |\n"
+            "1. first\n"
+            "2. second\n"
+            "addr <code>[address not verified]</code>"
+        )
+        _run(chat_ai._send_answer(msg, answer, 0))
+        sent = "".join(r[0][0] for r in msg.replies)
+        # headers → real bold, separator → thin line, table → bullets
+        assert "<b>📊 Market Overview</b>" in sent
+        assert "##" not in sent
+        assert "###" not in sent
+        assert "---" not in sent
+        assert "\u2500" in sent
+        assert "BONK · +5%" in sent
+        assert "|" not in sent.replace("1)", "").replace("2)", "")
+        # ordered list → 1) / 2), never a literal "1." dot
+        assert "1) first" in sent
+        assert "2) second" in sent
+        # literal <code> tag → real monospace, never escaped garbage
+        assert "<code>[address not verified]</code>" in sent
+        assert "&lt;code&gt;" not in sent
+        # balanced tags throughout — Telegram never rejects the part
+        assert sent.count("<b>") == sent.count("</b>")
+        assert sent.count("<code>") == sent.count("</code>")
 
 
 class TestRawHtmlNormalization:
@@ -923,19 +1041,21 @@ class TestRawHtmlNormalization:
         assert sent.count("<code>") == sent.count("</code>")
         assert sent.count("<i>") == sent.count("</i>")
 
-    def test_long_bold_answer_split_never_unbalanced(self) -> None:
+    def test_long_bold_answer_capped_never_unbalanced(self) -> None:
         """A long answer whose **bold** spans contain sentence boundaries must
-        split without leaving a dangling ** at a chunk edge or an unbalanced
-        <b> tag (regression for the mid-tag cut)."""
+        never reach Telegram with a dangling ** marker or an unbalanced <b>
+        tag — the answer cap trims at a natural boundary and the renderer
+        keeps every surviving span balanced (regression for the mid-tag cut)."""
         msg = _FakeMessage()
         answer = "**Risk: 42/100. Check chart.** " * 250  # ~11.5k chars
         _run(chat_ai._send_answer(msg, answer, 0))
         parts = [r[0][0] for r in msg.replies]
-        assert len(parts) > 1
-        for p in parts:
-            assert p.count("<b>") == p.count("</b>"), p[-80:]
-            # Every **bold** span survives whole — no dangling marker.
-            assert "**" not in p, p[-80:]
+        assert len(parts) == 1
+        assert len(parts[0]) < len(answer)
+        assert parts[0].count("<b>") == parts[0].count("</b>"), parts[0][-80:]
+        # Every **bold** span that survived the cap is whole — no dangling
+        # marker, no mid-span cut.
+        assert "**" not in parts[0], parts[0][-80:]
 
 
 class TestGroundingSourcesCount:
@@ -1211,9 +1331,11 @@ class TestChatAiResponseQuality:
         sent = "".join(r[0][0] for r in msg.replies)
         assert "Grounded in" not in sent
 
-    def test_long_backend_answer_split_into_parts(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Regression for the max_tokens 512 → 1536 fix: the splitter must get
-        # the FULL answer and split on boundaries, never cut mid-sentence.
+    def test_long_backend_answer_capped_not_mid_sentence(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Regression for the max_tokens 512 → 1536 fix + the answer cap: the
+        # renderer must get the FULL answer but trim it to a sane length at a
+        # natural boundary (paragraph/sentence) — never cut mid-sentence, and
+        # never turn a simple query into a multi-part 1000-word wall.
         long_answer = "Sentence with padding here. " * 400  # ~25k chars
         monkeypatch.setattr(
             chat_ai,
@@ -1224,13 +1346,10 @@ class TestChatAiResponseQuality:
         upd = _FakeUpdate(12345, "tester", msg)
         _run(chat_ai.chat_ai_response(upd, None, "explain this long topic?", upd.effective_user))
         parts = [r[0][0] for r in msg.replies if "Sentence with padding" in r[0][0]]
-        assert len(parts) > 1
-        assert all(len(p) <= 4000 for p in parts)
-        # every answer part (except the last, which carries the footer) ends
-        # on a complete sentence — no mid-sentence truncation
-        for p in parts[:-1]:
-            assert p.rstrip().endswith("here.")
-        assert "Grounded in 3 intelligence sources" in parts[-1]
+        assert len(parts) == 1
+        # honest truncation marker just before the grounding footer — the
+        # cap trimmed the raw answer, never a mid-sentence hard cut
+        assert "\u2026\n\n<i>\u26a1 Grounded in 3 intelligence sources" in parts[0]
 
     def test_footer_counts_live_tools_not_just_rag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Bug 2 regression: the "Grounded in N" footer must count the live
