@@ -130,25 +130,28 @@ async def _local_host_loaded() -> bool:
     BOTH report ``slots_idle == 0`` (every slot processing). Fails OPEN to
     ``False`` on any error/timeout so a probe hiccup never blocks the local
     tier (and unit-test httpx fakes without ``get`` just fall through).
+    Probes run CONCURRENTLY (was sequential — 2 x 0.5s of serial latency per
+    fallback call).
     """
-    urls = (f"http://{LLAMA_HOST}:8085/health", f"http://{LLAMA_HOST}:8086/health")
-    loaded = True
-    for url in urls:
+
+    async def _probe(url: str) -> bool:
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(0.5, connect=0.3, read=0.5)) as client:
                 r = await client.get(url)
             if r.status_code != 200:
-                loaded = False
-                continue
+                return False
             data = r.json() if isinstance(r.json(), dict) else {}
             # slots_idle == 0 on a server → every slot busy → host loaded.
             # Missing field defaults to 1 (assume free slot → not loaded).
-            if int(data.get("slots_idle", 1)) > 0:
-                loaded = False
+            return int(data.get("slots_idle", 1)) == 0
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, TypeError, AttributeError):
-            # Unreachable/broken probe — never block local on it.
+            # Unreachable/broken probe — never block local on it. Fails OPEN
+            # to False at the caller (any non-loaded probe → not loaded).
             return False
-    return loaded
+
+    urls = (f"http://{LLAMA_HOST}:8085/health", f"http://{LLAMA_HOST}:8086/health")
+    results = await asyncio.gather(*(_probe(url) for url in urls))
+    return all(results)
 
 
 # Zen-vs-local overlap: Zen gets this head-start before the local CPU fallback
@@ -199,10 +202,13 @@ async def _call_backend_chat(
     payload: dict[str, Any] = {
         "message": message[:MAX_MESSAGE_CHARS],
         "history": history or [],
-        # Output budget for the backend RAG synthesis. 768 is enough for a
-        # full Telegram answer (long ones are chunked bot-side anyway) and
-        # cuts backend generation latency; the /chat route accepts 64..8192.
-        "max_tokens": 768,
+        # Output budget for the backend RAG synthesis. 320 is the backend
+        # ChatRequest default (2026-08-15: 768 -> 320) — measured on the live
+        # CPU host, the real ~2100-token prompt takes 87-136s on the 4B at
+        # max_tokens=768 but only 24-27s at 320. Long answers are chunked
+        # bot-side (3800 chars) so a shorter budget still renders fully; the
+        # /chat route accepts 64..8192.
+        "max_tokens": 320,
         # The #1 intelligence gap: without this, ~90% of answers use the
         # generic backend SYSTEM_PROMPT, not the sharp grounded persona.
         "context_override": {"system_context": PERSONA_CONTEXT},
@@ -470,6 +476,10 @@ async def _call_local_llm(
                         "messages": messages,
                         "max_tokens": 200,  # generation dominates CPU latency; answers are chunked anyway
                         "temperature": 0.7,
+                        # Same llama.cpp latency levers as ai_router._post_chat:
+                        # prefix-cache the stable system-prompt prefix and skip
+                        # the Qwen3.5 reasoning preamble.
+                        "cache_prompt": True,
                         "chat_template_kwargs": {"enable_thinking": False},
                     },
                 )

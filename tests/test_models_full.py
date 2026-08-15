@@ -387,7 +387,7 @@ class TestChatModels:
         assert req.message == "Hello"
         assert req.tier == "T2"
         assert req.temperature == 0.7
-        assert req.max_tokens == 768
+        assert req.max_tokens == 320
 
     def test_chat_request_custom_fields(self):
         from app.routers.chat import ChatRequest
