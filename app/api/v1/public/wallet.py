@@ -6,6 +6,7 @@ Used by degenfeed, rugmunchbot, and other RugMunch apps.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -13,6 +14,8 @@ from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
+
+logger = logging.getLogger(__name__)
 
 
 class WalletResolveResponse(BaseModel):
@@ -89,19 +92,18 @@ async def verify_wallet_signature(
                 "reason": "Invalid signature — message was not signed by this wallet",
             }
         except ImportError:
-            return {
-                "verified": True,
-                "address": request.address,
-                "chain": request.chain,
-                "method": "delegated",
-                "note": "Server crypto libs unavailable. Client should verify via @solana/web3.js.",
-            }
-        except Exception as e:
+            logger.warning("wallet_verify_solana_libs_missing address=%s", request.address)
+            raise HTTPException(
+                status_code=503,
+                detail="Signature verification temporarily unavailable",
+            ) from None
+        except Exception:
+            logger.warning("wallet_verify_solana_error address=%s", request.address, exc_info=True)
             return {
                 "verified": False,
                 "address": request.address,
                 "chain": request.chain,
-                "reason": f"Verification error: {str(e)[:200]}",
+                "reason": "Signature verification error",
             }
 
     if request.chain in (
@@ -135,19 +137,18 @@ async def verify_wallet_signature(
                 "reason": "Recovered address mismatch",
             }
         except ImportError:
-            return {
-                "verified": True,
-                "address": request.address,
-                "chain": request.chain,
-                "method": "delegated",
-                "note": "Server crypto libs unavailable. Client should verify via ethers.js verifyMessage().",
-            }
-        except Exception as e:
+            logger.warning("wallet_verify_evm_libs_missing address=%s", request.address)
+            raise HTTPException(
+                status_code=503,
+                detail="Signature verification temporarily unavailable",
+            ) from None
+        except Exception:
+            logger.warning("wallet_verify_evm_error address=%s", request.address, exc_info=True)
             return {
                 "verified": False,
                 "address": request.address,
                 "chain": request.chain,
-                "reason": f"EVM error: {str(e)[:200]}",
+                "reason": "Signature verification error",
             }
 
     return {

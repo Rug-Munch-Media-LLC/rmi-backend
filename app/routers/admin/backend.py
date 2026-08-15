@@ -25,6 +25,7 @@ from app.domains.admin.backend import (
     SecurityManager,
     SessionManager,
     SystemHealthMonitor,
+    require_admin,
 )
 
 logger = get_logger("rmi_admin_backend_api")
@@ -46,6 +47,20 @@ async def verify_session(request: Request) -> dict[str, Any]:
     if not session:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
     return session
+
+
+async def require_admin_session(request: Request) -> dict[str, Any]:
+    """Require an ADMIN-role admin session (RBAC) and return session data.
+
+    Wraps require_admin (app.domains.admin.backend.auth_decorator), which
+    enforces role ordering (min_role), permission checks, IP blocking, admin
+    account activity, per-admin rate limiting, and audit logging on top of
+    session validation. Returns the session dict so handlers keep their
+    existing shape (admin_id / admin_email). Prevents privilege escalation:
+    a VIEWER/SUPPORT/MODERATOR session can no longer mutate privileged state.
+    """
+    result = await require_admin(request, min_role=AdminRole.ADMIN)
+    return result["session"]
 
 
 # ══════════════════════════════════════════════
@@ -301,7 +316,7 @@ async def list_users(
 async def ban_user(
     user_id: int,
     req: BanUserRequest | None = None,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Ban a bot user."""
     conn = _open_bot_db()
@@ -352,7 +367,7 @@ async def blocked_ips(session: dict[str, Any] = Depends(verify_session)) -> dict
 @backend_router.post("/security/block-ip")
 async def block_ip(
     req: BlockIPRequest,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Block an IP address."""
     ok = await SecurityManager.block_ip(req.ip, req.reason, req.duration_hours)
@@ -372,7 +387,7 @@ async def block_ip(
 @backend_router.post("/security/unblock-ip")
 async def unblock_ip(
     req: UnblockIPRequest,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Unblock an IP address."""
     ok = await SecurityManager.unblock_ip(req.ip)
@@ -415,7 +430,7 @@ async def list_admins(session: dict[str, Any] = Depends(verify_session)) -> dict
 @backend_router.post("/admins")
 async def create_admin(
     req: CreateAdminRequest,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Create a new admin user."""
     try:
@@ -467,7 +482,7 @@ async def list_api_keys(session: dict[str, Any] = Depends(verify_session)) -> di
 @backend_router.post("/api-keys")
 async def create_api_key(
     req: CreateAPIKeyRequest,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Create a new API key."""
     import hashlib
@@ -505,7 +520,7 @@ async def create_api_key(
 @backend_router.post("/api-keys/{key_id}/revoke")
 async def revoke_api_key(
     key_id: str,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Revoke an API key."""
     try:
@@ -557,7 +572,7 @@ async def list_webhooks(session: dict[str, Any] = Depends(verify_session)) -> di
 @backend_router.post("/webhooks")
 async def create_webhook(
     req: CreateWebhookRequest,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Create a new webhook."""
     hook_id = f"wh_{secrets.token_hex(8)}"
@@ -614,7 +629,7 @@ async def list_announcements(
 @backend_router.post("/content/announcements")
 async def create_announcement(
     req: AnnouncementRequest,
-    session: dict[str, Any] = Depends(verify_session),
+    session: dict[str, Any] = Depends(require_admin_session),
 ) -> dict[str, Any]:
     """Create an announcement."""
     data = {
