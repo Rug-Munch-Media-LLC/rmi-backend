@@ -17,7 +17,7 @@ import hashlib
 import sys
 from typing import TYPE_CHECKING, Any
 
-from app.domains.news_ingest.ingest import DEFAULT_DEDUP_COLLECTION, mark_articles_ingested
+from app.domains.news_ingest.ingest import DEFAULT_DEDUP_COLLECTION, extract_canonical_url, mark_articles_ingested
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
@@ -76,9 +76,13 @@ def _article_to_news_item(article: NewsArticle) -> Any | None:
 
         rating = rate_article(title=article.title, content=article.body, source=article.source_channel)
         published = article.posted_at if article.posted_at is not None else utcnow()
+        # ``news_id`` stays derived from the stable t.me URL (dedup key), but
+        # the stored ``url`` prefers the canonical source URL so the website
+        # links readers to the original article, not the channel page.
+        canonical_url = extract_canonical_url(article) or article.source_url
         return NewsItem(
             news_id=_news_id_for(article),
-            url=HttpUrl(article.source_url),
+            url=HttpUrl(canonical_url),
             title=article.title,
             summary=article.body,
             body_markdown=article.body,

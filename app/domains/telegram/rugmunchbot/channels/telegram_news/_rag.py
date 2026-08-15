@@ -32,6 +32,7 @@ import sys
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from app.domains.news_ingest.ingest import extract_canonical_url, extract_image_url
 from app.domains.telegram.rugmunchbot.channels.telegram_news._persist import _news_id_for
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
@@ -75,7 +76,7 @@ async def ingest_into_rag(articles: list[NewsArticle]) -> dict[str, Any]:
                 title=article.title or "",
                 body=article.body or "",
                 source=article.source_channel or "",
-                url=article.source_url or "",
+                url=extract_canonical_url(article) or article.source_url,
                 published_at=article.posted_at or datetime.now(UTC),
                 sentiment=0.0,  # the clusterer derives the rating card itself
             )
@@ -83,9 +84,25 @@ async def ingest_into_rag(articles: list[NewsArticle]) -> dict[str, Any]:
         ]
         story_docs = build_story_rag_docs(cluster_input)
         counts["stories"] = len(story_docs)
+        # Enrich each story doc with an image URL when one of its member
+        # articles carried one (inline image link or the sweep-populated
+        # ``media`` field; the website's ``NewsArticle.image_url`` field reads
+        # it from Qdrant metadata).
+        image_by_url = {
+            article.source_url: extract_image_url(article) or getattr(article, "media", None) or ""
+            for article in articles
+            if extract_image_url(article) or getattr(article, "media", None)
+        }
         ingestor = BatchIngestor()
         for doc in story_docs:
             try:
+                metadata = dict(doc.get("metadata") or {})
+                if not metadata.get("image_url"):
+                    for member_url in metadata.get("source_urls") or []:
+                        if image_by_url.get(member_url):
+                            metadata["image_url"] = image_by_url[member_url]
+                            break
+                doc["metadata"] = metadata
                 report = await ingestor.ingest(
                     content=doc["content"],
                     collection=_RAG_NEWS_COLLECTION,

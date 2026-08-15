@@ -18,7 +18,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-from app.domains.telegram.rugmunchbot.channels.formatters import format_news_post
+from app.domains.telegram.rugmunchbot.channels.formatters import format_breaking_post, format_news_post
 from app.domains.telegram.rugmunchbot.channels.importance import select_important
 from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
     _article_to_post_dict,
@@ -45,9 +45,9 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     outage, or a Telegram send error all log and return without raising.
 
     Pipeline order (efficiency contract):
-    ``read (bounded) → normalize → dedupe (content hash, in-batch + Redis
-    cross-run) → store (news_items + Redis dedup mark) → reranker importance
-    → route``.
+    ``read (bounded) → normalize → dedupe (multi-key: canonical URL / t.me
+    URL / normalized title / content hash, in-batch + Redis cross-run) →
+    store (news_items + Redis dedup mark) → reranker importance → route``.
 
     Routing: **news**-categorized articles are persisted and posted to the
     news channel; **alpha**-categorized articles are persisted and posted to
@@ -56,6 +56,14 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     ``select_important`` keeps (rerank importance >=
     ``RMI_NEWS_IMPORTANCE_THRESHOLD``, or the top-N under the heuristic
     fallback when Infinity /rerank is down) are posted — per category.
+
+    Post variety on the news channel: when the top selected story carries a
+    breaking marker (🚨/BREAKING/URGENT/JUST IN/FLASH in its title,
+    ``is_breaking_article``) it is posted **solo immediately** with its
+    official link (``format_breaking_post``); otherwise the top 3-5 stories
+    form a numbered digest (``format_news_post``). The selection is sorted
+    by rerank importance, secondarily by the deterministic
+    ``lightweight_importance`` score.
 
     Additive side-effects (all fail-open):
     * freshly-persisted TG items are merged into the website full-feed Redis
@@ -107,20 +115,37 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     if news_chat_id:
         news_scored = [s for s in scored if _category_is_news(s.article.category)]
         selected = select_important(news_scored, top_n=TG_NEWS_POST_LIMIT)
-        fresh = [
-            scored_article.article
-            for scored_article in selected
-            if _remember("tgnews", _dedupe_key("tgnews", _article_to_post_dict(scored_article.article)))
-        ]
-        if fresh:
-            ok = await _safe_send(
-                ctx.bot,
-                news_chat_id,
-                format_news_post([_article_to_post_dict(a) for a in fresh[:TG_NEWS_POST_LIMIT]]),
-            )
-            if ok:
-                logger.info("tg_news:posted_news count=%s", min(len(fresh), TG_NEWS_POST_LIMIT))
-                posted += 1
+        # Secondary sort by the deterministic lightweight importance score
+        # (stable) so the digest is ordered best-first even when the rerank
+        # scores tie (e.g. heuristic fallback or stub tests).
+        selected = sorted(selected, key=lambda s: s.importance, reverse=True)
+
+        # Post variety: a top story carrying a breaking marker (🚨/BREAKING/
+        # URGENT/JUST IN/FLASH in its title) is posted SOLO immediately with
+        # its official link; otherwise the top 3-5 form a numbered digest.
+        if selected and _tg.is_breaking_article(selected[0].article):
+            top = selected[0].article
+            post = _article_to_post_dict(top)
+            if _remember("tgnews", _dedupe_key("tgnews", post)):
+                ok = await _safe_send(ctx.bot, news_chat_id, format_breaking_post(post))
+                if ok:
+                    logger.info("tg_news:posted_breaking title=%s", top.title[:80])
+                    posted += 1
+        else:
+            fresh = [
+                scored_article.article
+                for scored_article in selected
+                if _remember("tgnews", _dedupe_key("tgnews", _article_to_post_dict(scored_article.article)))
+            ]
+            if fresh:
+                ok = await _safe_send(
+                    ctx.bot,
+                    news_chat_id,
+                    format_news_post([_article_to_post_dict(a) for a in fresh[:TG_NEWS_POST_LIMIT]]),
+                )
+                if ok:
+                    logger.info("tg_news:posted_news count=%s", min(len(fresh), TG_NEWS_POST_LIMIT))
+                    posted += 1
 
     # Route: alpha category → alpha channel (additive; no alpha chat id → skip)
     if alpha_chat_id:

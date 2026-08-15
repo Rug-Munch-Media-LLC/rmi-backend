@@ -127,6 +127,37 @@ class TestNewsFormatter:
         assert "x&amp;y" in text
 
 
+class TestBreakingFormatter:
+    def test_renders_solo_breaking_with_official_link(self) -> None:
+        text = channels_formatters.format_breaking_post(
+            {
+                "title": "SEC approves spot Bitcoin ETF",
+                "summary": "The agency green-lit the long-awaited product in a surprise move.",
+                "source": "CoinDesk",
+                "url": "https://coindesk.com/news/sec-approves-etf",
+            }
+        )
+        assert "BREAKING" in text
+        assert "SEC approves spot Bitcoin ETF" in text
+        assert 'href="https://coindesk.com/news/sec-approves-etf"' in text
+        assert "@RugMunchBot" in text  # footer preserved
+        assert "RugMunch News" not in text  # solo post, not the digest
+
+    def test_escapes_and_clips_breaking_content(self) -> None:
+        text = channels_formatters.format_breaking_post(
+            {
+                "title": "<b>evil</b> headline",
+                "summary": "x" * 5000,
+                "source": "x&y",
+                "url": "",
+            }
+        )
+        assert "<b>evil</b>" not in text
+        assert "&lt;b&gt;evil&lt;/b&gt;" in text
+        assert "x&amp;y" in text
+        assert len(text) <= 4096  # Telegram soft limit
+
+
 class TestAlertsFormatter:
     def test_renders_risk_digest_with_scan_links(self) -> None:
         text = channels_formatters.format_alerts_post(

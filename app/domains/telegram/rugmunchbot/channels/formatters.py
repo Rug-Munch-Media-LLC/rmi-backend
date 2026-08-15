@@ -2,6 +2,7 @@
 
 One formatter per channel:
 * ``format_news_post``   — news channel (curated headlines, source-cited).
+* ``format_breaking_post`` — news channel (solo 🚨 BREAKING story + official link).
 * ``format_alerts_post`` — alerts channel (scanner risk digest, /scan links).
 * ``format_alpha_post``  — alpha channel (whale moves + smart money + launches).
 
@@ -20,6 +21,8 @@ from typing import Any
 from app.domains.telegram.rugmunchbot.formatters import footer_links, sep, short_addr
 
 _MAX_BODY_CHARS = 4090
+#: Length of the summary shown under a solo breaking post.
+_BREAKING_SUMMARY_CHARS = 600
 
 
 def _esc(value: object) -> str:
@@ -63,6 +66,33 @@ def format_news_post(items: list[dict[str, Any]]) -> str:
             rating_bits.append(f"factual {_esc(item['factual_rating'])}")
         suffix = f" — {source}" + (f" ({', '.join(rating_bits)})" if rating_bits else "")
         lines.append(f"   <i>{suffix}</i>")
+    lines.extend(["", f"🕐 {_now_stamp()}", footer_links()])
+    return _clip("\n".join(lines))
+
+
+def format_breaking_post(item: dict[str, Any]) -> str:
+    """Solo breaking-news post: one high-importance story + official link.
+
+    Used when the top ranked story carries a breaking marker (🚨/BREAKING/
+    URGENT/JUST IN/FLASH). Links to the official source URL when one exists
+    (falls back to the channel post URL), clips the summary, and keeps the
+    same footer as the digest. The Telegram photo media of the original post
+    is not attached here — see [REVIEW] notes in ``channels/telegram_news``.
+    """
+    title = _esc(item.get("title") or "Untitled")
+    url = (item.get("url") or "").strip()
+    summary = _esc((item.get("summary") or item.get("description") or "").strip())
+    if summary:
+        summary = _clip(summary, _BREAKING_SUMMARY_CHARS)
+    source = _esc(item.get("source") or "unknown")
+    headline = title if not url else f'<a href="{html.escape(url, quote=True)}">{title}</a>'
+    lines = ["🚨 <b>BREAKING</b>", sep(), ""]
+    lines.append(headline)
+    if summary:
+        lines.append("")
+        lines.append(summary)
+    lines.append("")
+    lines.append(f"🔗 <i>Full story: {source}</i>")
     lines.extend(["", f"🕐 {_now_stamp()}", footer_links()])
     return _clip("\n".join(lines))
 
@@ -173,4 +203,4 @@ def format_alpha_post(
     return _clip("\n".join(lines))
 
 
-__all__ = ["format_alerts_post", "format_alpha_post", "format_news_post"]
+__all__ = ["format_alerts_post", "format_alpha_post", "format_breaking_post", "format_news_post"]

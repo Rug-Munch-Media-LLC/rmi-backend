@@ -335,6 +335,71 @@ class TestPostJob:
         bot.send_message.assert_awaited_once()
 
 
+class TestPostVariety:
+    """Breaking top story → solo post; otherwise a numbered digest."""
+
+    def _ctx(self) -> tuple[Mock, AsyncMock]:
+        bot = AsyncMock()
+        ctx = Mock()
+        ctx.bot = bot
+        return ctx, bot
+
+    async def test_breaking_top_story_posts_solo(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        breaking = _article("🚨 BREAKING: SEC approves spot Bitcoin ETF")
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[breaking])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        bot.send_message.assert_awaited_once()
+        text = bot.send_message.await_args.kwargs["text"]
+        assert "BREAKING" in text
+        assert "SEC approves spot Bitcoin ETF" in text
+        assert "RugMunch News" not in text  # solo post, not the digest header
+
+    async def test_breaking_solo_links_official_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        breaking = _article(
+            "JUST IN: BlackRock files for new ETF",
+            body="JUST IN: BlackRock files for a new spot ETF. Details: https://coindesk.com/news/blackrock-etf",
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[breaking])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        text = bot.send_message.await_args.kwargs["text"]
+        assert 'href="https://coindesk.com/news/blackrock-etf"' in text
+
+    async def test_non_breaking_top_story_posts_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        first = _article("ETF record inflows continue", message_id=10)
+        second = _article("Solana upgrade ships on schedule", username="solana_news", message_id=11)
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[first, second])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 2, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        bot.send_message.assert_awaited_once()
+        text = bot.send_message.await_args.kwargs["text"]
+        assert "RugMunch News" in text  # digest header
+        assert "ETF record inflows continue" in text
+        assert "Solana upgrade ships on schedule" in text
+
+
 # ── Channel categorization (news / alpha / scam / other) ─────────────────────
 
 

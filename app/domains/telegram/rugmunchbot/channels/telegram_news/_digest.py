@@ -17,6 +17,7 @@ import sys
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from app.domains.news_ingest.ingest import extract_canonical_url, extract_image_url
 from app.domains.telegram.rugmunchbot.channels.importance import top_headlines, trending_tokens
 from app.domains.telegram.rugmunchbot.channels.telegram_news._persist import _news_id_for
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -34,14 +35,22 @@ logger = get_logger("rmi_bot.channels.tg_news")
 
 
 def _article_to_post_dict(article: NewsArticle) -> dict[str, Any]:
-    """Shape a ``NewsArticle`` for ``format_news_post``."""
+    """Shape a ``NewsArticle`` for ``format_news_post`` / ``format_breaking_post``.
+
+    ``url`` prefers the canonical source URL (the original article link found
+    inside the message) so digests and breaking posts link users to the real
+    story instead of the channel's ``t.me`` page. ``image_url`` is populated
+    when the article carries a media reference (inline image link, or the
+    sweep-populated ``media`` field — og:image / photo reference).
+    """
     return {
         "title": article.title,
         "summary": article.body,
-        "url": article.source_url,
+        "url": extract_canonical_url(article) or article.source_url,
         "source": article.source_channel,
         "sentiment_label": "",
         "factual_rating": "",
+        "image_url": extract_image_url(article) or getattr(article, "media", None) or "",
     }
 
 
@@ -94,11 +103,17 @@ async def _redis_json_set(key: str, data: dict[str, Any], ttl: int) -> bool:
 
 
 def _article_to_feed_item(article: NewsArticle) -> dict[str, Any]:
-    """Shape a TG article for the website full-feed cache (with attribution)."""
+    """Shape a TG article for the website full-feed cache (with attribution).
+
+    ``url`` prefers the canonical source URL so the website links to the
+    original story; ``image_url`` carries an inline image link when the
+    message text includes one (the website's ``NewsArticle.image_url``
+    field). Both fall back gracefully to the channel post URL / empty.
+    """
     return {
         "id": _news_id_for(article),
         "title": article.title,
-        "url": article.source_url,
+        "url": extract_canonical_url(article) or article.source_url,
         "description": article.body[:300],
         "source": article.source_channel,
         "published_at": (article.posted_at or datetime.now(UTC)).isoformat(),
@@ -106,6 +121,7 @@ def _article_to_feed_item(article: NewsArticle) -> dict[str, Any]:
         "sentiment": "neutral",
         "kind": _TG_ARTICLE_KIND,
         "tier": "telegram",
+        "image_url": extract_image_url(article) or getattr(article, "media", None) or "",
     }
 
 

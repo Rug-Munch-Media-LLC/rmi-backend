@@ -799,6 +799,26 @@ def _resolve_alerts_channel_limit() -> int:
 
 
 # ══════════════════════════════════════════════
+# FAILURE ALERTING (n8n webhook)
+# ══════════════════════════════════════════════
+# ``RMI_ALERT_WEBHOOK_URL`` — OPTIONAL n8n webhook URL for live failure
+# notifications. The channel jobs and the TG-news lanes fail open by
+# contract (a tick error, a headless-client skip, a Postgres outage during
+# news persistence, or a dead/unreachable news-channel username all log and
+# skip), which historically meant live degradations were silent. When this
+# env var is set, ``support/alerting.notify_failure`` POSTs one JSON event
+# (``{event, detail, ts}``) fire-and-forget with a 5s timeout; unset/empty
+# = alerting disabled (no-op, safe default). Resolved lazily (never at
+# import); ``support/alerting.py`` reads the same env var at call time.
+
+
+@lru_cache
+def _resolve_alert_webhook_url() -> str:
+    """Optional n8n failure-alert webhook URL (unset/empty = alerting off)."""
+    return os.getenv("RMI_ALERT_WEBHOOK_URL", "").strip()
+
+
+# ══════════════════════════════════════════════
 # LAZY ACCESS (PEP 562 module __getattr__)
 # ══════════════════════════════════════════════
 # EVERY secrets/env-driven name resolves on first attribute access, never at
@@ -834,6 +854,7 @@ ALERTS_CHANNEL_INTERVAL_MINUTES: int
 NEWS_CHANNEL_LIMIT: int
 ALPHA_CHANNEL_LIMIT: int
 ALERTS_CHANNEL_LIMIT: int
+RMI_ALERT_WEBHOOK_URL: str
 
 _LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
     "BOT_TOKEN": _resolve_bot_token,
