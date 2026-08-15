@@ -4,6 +4,13 @@ RugMunchBot -- Price and DEX command handlers.
 New commands:
   /price <address> [chain]    — Get token price (by contract address)
   /dex <address> [chain]      — Show DEX trading pairs & liquidity
+
+Both commands share ONE price/quote service
+(``services/pricing.py``) instead of each growing its own fallback chain.
+They pass the user input as ``address=`` — the command contract is "contract
+address", so the address chain (scanner cache → DataBus → DexScreener →
+Birdeye) is forced exactly like the legacy handlers did. The Redis
+cache-aside (TTL 45s) is preserved below.
 """
 
 from __future__ import annotations
@@ -15,8 +22,7 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 
-from app.domains.telegram.rugmunchbot.config import DEXSCREENER, WEBSITE_URL
-from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json, resolve_with_fallback
+from app.domains.telegram.rugmunchbot.config import WEBSITE_URL
 from app.domains.telegram.rugmunchbot.formatters import (
     detect_chain,
     fmt_chain,
@@ -26,8 +32,8 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
+from app.domains.telegram.rugmunchbot.services.pricing import resolve
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
-from app.domains.telegram.scanner_bridge import ScannerBridge
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -113,9 +119,12 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if cached is not None:
             result = cached
         else:
-            bridge = ScannerBridge()
-            result = await bridge.get_price(address, chain)
-            if result["price_usd"] > 0:
+            # Shared pricing service (scanner cache → backend DataBus →
+            # DexScreener → Birdeye). Only positive snapshots are cached so
+            # a "no data" result never poisons the key.
+            snapshot = await resolve(address=address, chain=chain)
+            result = snapshot.to_dict()
+            if snapshot.ok:
                 await _cache_set_price(address, chain, result)
 
         if result["price_usd"] > 0:
@@ -168,47 +177,6 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
-async def _own_dex_pairs(address: str, chain: str) -> list[dict[str, Any]] | None:
-    """Own-data primary: scanner cache price snapshot shaped like a DEX pair.
-
-    Returns ``None`` when the scanner cache has no entry for this token so
-    the resolver falls back to DexScreener.
-    """
-    chain_id = chain if chain not in ("unknown", "") else "ethereum"
-    body = await backend_get_json(
-        f"/api/v2/scanner/token/price/{chain_id}/{address}",
-        timeout_secs=5,
-    )
-    if not body or not body.get("cached") or not body.get("data"):
-        return None
-    d = body["data"]
-    price = float(d.get("price_usd") or 0)
-    if price <= 0:
-        return None
-    return [
-        {
-            "dexId": "scanner",
-            "chainId": d.get("chain", chain_id),
-            "priceUsd": price,
-            "liquidity": {"usd": float(d.get("liquidity_usd") or 0)},
-            "volume": {"h24": float(d.get("volume_24h_usd") or 0)},
-            "marketCap": float(d.get("market_cap_usd") or 0),
-            "pairAddress": address,
-            "baseToken": {"name": d.get("name", "Unknown"), "symbol": d.get("symbol", "???")},
-        }
-    ]
-
-
-async def _external_dex_pairs(address: str) -> list[dict[str, Any]]:
-    """External fallback: DexScreener token pairs (full pair list)."""
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
-        if resp.status_code != 200:
-            return []
-        data = resp.json()
-        return data.get("pairs", [])
-
-
 async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show DEX trading pairs and liquidity for a token.
 
@@ -236,16 +204,12 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        # Own data first: scanner cache snapshot (price/mcap/liq/vol from our
-        # scanners); DexScreener is only the external fallback for the full
-        # pair list. DATA_SOURCE is logged by the resolver.
-        pairs = await resolve_with_fallback(
-            f"dex_pairs:{address[:10]}",
-            lambda: _own_dex_pairs(address, chain),
-            lambda: _external_dex_pairs(address),
-            timeout_secs=8,
-            is_valid=lambda pl: bool(pl),
-        )
+        # Shared pricing service: scanner-cache snapshot → backend DataBus →
+        # DexScreener. ``pairs`` are RAW DexScreener-shaped dicts — the
+        # renderer below reads dexId/chainId/priceUsd/liquidity/volume/
+        # pairAddress directly (same contract the old resolver returned).
+        snapshot = await resolve(address=address, chain=chain)
+        pairs = snapshot.pairs or []
 
         if not pairs:
             await msg.edit_text(

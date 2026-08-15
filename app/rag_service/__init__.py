@@ -23,6 +23,7 @@ This shim will be removed in a future release (target: Q1 2027).
 from __future__ import annotations
 
 import warnings
+from typing import Any
 
 warnings.warn(
     "app.rag_service is deprecated. Use app.rag (v3 M3 engine) instead. See docstring for migration guide.",
@@ -42,13 +43,8 @@ from app.crypto_embeddings import (  # noqa: E402 — module docstring precedes 
 
 logger = get_logger(__name__)
 
-# Shared state
-_seeded = False
-_pattern_cache: dict[str, EmbeddingResult] = {}
-_pattern_cache_loaded = False
-_redis_pool = None
-
 # Re-exports
+from app.rag_service import state  # noqa: E402 — module docstring precedes import block
 from app.rag_service.cache import _get_redis  # noqa: E402 — module docstring precedes import block
 from app.rag_service.detection import (  # noqa: E402 — module docstring precedes import block
     detect_scam_patterns,
@@ -74,6 +70,20 @@ from app.rag_service.retrieval import (  # noqa: E402 — module docstring prece
 from app.rag_service.stats import (  # noqa: E402 — module docstring precedes import block
     get_stats,
 )
+
+
+def __getattr__(name: str) -> Any:
+    """Forward shared-state names to app.rag_service.state (PEP 562).
+
+    The module-level duplicates were removed 2026-08-15; the live state lives in
+    state.py and is mutated there (indexing.py, detection.py, cache.py). A plain
+    ``from app.rag_service.state import X`` re-export would snapshot immutable
+    values (bools/None) at import time, so forward attribute access instead.
+    """
+    if name in {"_seeded", "_pattern_cache", "_pattern_cache_loaded", "_redis_pool"}:
+        return getattr(state, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "COLLECTIONS",

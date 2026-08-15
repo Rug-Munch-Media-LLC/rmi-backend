@@ -269,11 +269,24 @@ def _is_section_header(line: str) -> bool:
     prose, not a header — e.g. "📊 This token's chart broke out of a wedge
     that's been building since March" stays content. Prefix matching handles
     multi-code-point emojis (🛡️ = U+1F6E1 + VS16).
+
+    What follows the emoji must be a TITLE, not data: a line containing a
+    pipe (``💰 $0.0001 | 24h: +45%`` — a ``_format_tool_answer`` price line)
+    or digit-heavy content (``📈 MCap: $50,000,000``) is a tool answer, never
+    a header — only pure emoji + short non-numeric title lines are headers.
     """
     core = line.strip().lstrip("*").strip()
     if not core or len(core) > _SECTION_HEADER_MAX:
         return False
-    return any(core.startswith(emoji) for emoji in _SECTION_EMOJIS)
+    for emoji in _SECTION_EMOJIS:
+        if core.startswith(emoji):
+            rest = core[len(emoji) :].strip()
+            if "|" in rest:
+                return False
+            digits = sum(ch.isdigit() for ch in rest)
+            letters = sum(ch.isalpha() for ch in rest)
+            return digits <= letters
+    return False
 
 
 def _unwrap_bold(line: str) -> str:

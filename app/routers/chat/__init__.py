@@ -273,12 +273,15 @@ async def _fetch_market_context() -> dict[str, Any]:
 # Collections searched for every message; ``scanner_v2`` is added when the
 # message mentions a token address. Focused on SECURITY + INTELLIGENCE +
 # NEWS + REGULATION + CODE-SECURITY + DEEP KNOWLEDGE — the bot's domain.
-# ``scanned_tokens`` is the bot's scan-to-RAG memory (app.rag.scan_memory)
-# and is empty until scans flow in. ``wallet_profiles`` / ``token_analysis`` /
-# ``forensic_reports`` / ``contract_audits`` are the P1 deep-knowledge
-# collections (wallet risk profiles, token deep dives, on-chain forensics,
-# audit findings) written by the intel/forensics pipeline — added so chat
-# answers ground in the analyst knowledge base, not just news.
+# Only REAL, populated Qdrant collections are fanned out (see
+# ``app/routers/chat/_rag.py``): legacy P1-KB names with no Qdrant
+# collection (``wallet_profiles`` / ``token_analysis`` / ``forensic_reports``)
+# and currently-empty collections (``scanned_tokens`` / ``whale_transfers``)
+# are NOT searched per-message. When other code paths request those names
+# directly, ``app.rag._qdrant._resolve_qdrant_collection`` maps them to the
+# live corpus via ``_COLLECTION_ALIASES`` and every hit is stamped with the
+# ACTUAL resolved collection (``metadata["resolved_collection"]``), so the
+# ``Source:`` labels are truthful.
 # Search is best-effort: any failure or timeout returns empty context and
 # chat proceeds without RAG (graceful degradation — RAG is an enhancement,
 # never a gate).

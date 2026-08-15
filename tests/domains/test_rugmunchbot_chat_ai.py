@@ -262,6 +262,25 @@ class TestBeautifyAnswer:
         assert not chat_ai._is_section_header("not a header")
         assert not chat_ai._is_section_header("")
 
+    def test_tool_answer_data_lines_never_headers(self) -> None:
+        """Bug fix: a tool answer line starting with a section emoji must not
+        become a bold header + separator. Pipe-separated data (the
+        ``_format_tool_answer`` price line) and digit-heavy content are data,
+        not titles."""
+        assert not chat_ai._is_section_header("\U0001f4b0 $0.0001 | 24h: +45%")
+        assert not chat_ai._is_section_header("\U0001f4c8 MCap: $50,000,000")
+        # short non-numeric titles still ARE headers
+        assert chat_ai._is_section_header("\U0001f4ca Market Read")
+
+    def test_tool_answer_price_line_left_plain(self) -> None:
+        """Bug fix: the beautifier must NOT rewrite the price_lookup line
+        ``💰 $0.0001 | 24h: +45%`` into a bold header + thin separator — it
+        stays a plain data line."""
+        price_line = "\U0001f4b0 $0.0001 | 24h: +45%"
+        assert chat_ai._beautify_answer(price_line) == price_line
+        assert "**\U0001f4b0" not in chat_ai._beautify_answer(price_line)
+        assert "\u2500" not in chat_ai._beautify_answer(price_line)
+
 
 class TestMarkdownBoldToHtml:
     def test_bold_converted(self) -> None:
@@ -385,6 +404,66 @@ class TestMarkdownToHtml:
         out = chat_ai._markdown_to_html("<code>&lt;script&gt;alert(1)&lt;/script&gt;</code>")
         assert "<script>" not in out
         assert "<code>&lt;script&gt;alert(1)&lt;/script&gt;</code>" in out
+
+    def test_tool_answer_price_line_stays_plain(self) -> None:
+        """Bug fix: ``💰 $0.0001 | 24h: +45%`` (the _format_tool_answer price
+        line) must render as a plain line — never a bold header + separator.
+        The beautifier already stopped treating it as a header; the HTML pass
+        must leave it untouched too."""
+        price_line = "\U0001f4b0 $0.0001 | 24h: +45%"
+        assert chat_ai._markdown_to_html(price_line) == price_line
+        assert "<b>" not in chat_ai._markdown_to_html(price_line)
+
+
+class TestRunLiveToolsBounded:
+    """Bug fix: ``_run_live_tools_bounded`` must never swallow
+    ``CancelledError``. A cancelled answer pipeline must unwind — it must NOT
+    keep executing with an empty ``{}`` result. ``reuse_done`` still returns
+    an already-finished task's result instantly."""
+
+    @staticmethod
+    async def _slow() -> dict:
+        await asyncio.sleep(10)
+        return {"price_lookup": "late"}
+
+    def test_cancellation_propagates(self) -> None:
+        async def _scenario() -> None:
+            task = asyncio.create_task(self._slow())
+            waiter = asyncio.create_task(chat_ai._run_live_tools_bounded(task, 5))
+            await asyncio.sleep(0.05)  # let the bounded wait begin
+            waiter.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await waiter
+            # The shielded tool task itself must keep running (never
+            # cancelled by the propagation) so the guardrail can re-join it.
+            assert not task.cancelled()
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+        _run(_scenario())
+
+    def test_reuse_done_returns_finished_result_instantly(self) -> None:
+        async def _scenario() -> None:
+            async def _fast() -> dict:
+                return {"price_lookup": "data"}
+
+            task = asyncio.create_task(_fast())
+            await asyncio.sleep(0.01)  # let the task finish
+            result = await chat_ai._run_live_tools_bounded(task, 5, reuse_done=True)
+            assert result == {"price_lookup": "data"}
+
+        _run(_scenario())
+
+    def test_timeout_returns_empty_without_reuse(self) -> None:
+        async def _scenario() -> None:
+            task = asyncio.create_task(self._slow())
+            result = await chat_ai._run_live_tools_bounded(task, 0.01)
+            assert result == {}
+            assert not task.cancelled()  # shielded: task still running
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+        _run(_scenario())
 
 
 class TestCapAnswer:

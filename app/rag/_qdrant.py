@@ -47,6 +47,26 @@ _DEFAULT_QDRANT_COLLECTION = os.getenv("RAG_QDRANT_COLLECTION", "rag_documents")
 # collection → Qdrant collection name).
 _QDRANT_RESOLVED: dict[str, str] = {}
 
+# Requested RAG collection → ACTUAL Qdrant collection name for legacy /
+# P1-KB names whose content now lives in a real, populated collection under
+# a different name. Consulted BEFORE the existence probe so a request for
+# ``wallet_profiles`` lands on the live ``wallet_v2`` corpus instead of
+# silently falling back to ``rag_documents`` while callers label the hits
+# with the requested name. Callers MUST label hits with the RESOLVED name
+# (see ``_qdrant_primary_search`` / ``_qdrant_search`` stamping
+# ``metadata["resolved_collection"]``) so ``sources`` is truthful.
+_COLLECTION_ALIASES: dict[str, str] = {
+    # ``hacks`` / ``hacks_v2`` — Rekt News historical leaderboard corpus
+    # (source dead 2026; superseded by the DeFiLlama hacks API). The same
+    # incident universe is covered by the live exploit DB, so route to it.
+    "hacks": "defi_exploits",
+    "hacks_v2": "defi_exploits",
+    # P1-KB names with real, populated equivalents:
+    "wallet_profiles": "wallet_v2",  # wallet risk profiles → wallet labels/entity clusters
+    "token_analysis": "threat_intel",  # legacy SENTINEL scanner results → unified scanner findings
+    "forensic_reports": "defi_exploits",  # exploit post-mortems → DeFi incident DB (root-cause)
+}
+
 # Lexical stopwords for the query→sparse-vector builder (mirrors the set
 # used by the legacy _keyword_search so the two lexical paths stay consistent).
 _SEARCH_STOPWORDS: frozenset[str] = frozenset(
@@ -187,7 +207,14 @@ async def _qdrant_search(
                         doc_id=str(point.get("id", "")),
                         score=float(point.get("score", 0.0) or 0.0),
                         text=p.get("content", ""),
-                        metadata={**meta, "source": p.get("source", meta.get("source", ""))},
+                        metadata={
+                            **meta,
+                            "source": p.get("source", meta.get("source", "")),
+                            # Truthful provenance: the ACTUAL collection that
+                            # was searched (alias-resolved by the caller),
+                            # never a requested name that does not exist.
+                            "resolved_collection": collection,
+                        },
                     )
                 )
             return hits
@@ -197,19 +224,44 @@ async def _qdrant_search(
 
 
 async def _resolve_qdrant_collection(collection: str) -> str:
-    """Map the requested RAG collection to a Qdrant collection name.
+    """Map the requested RAG collection to the ACTUAL Qdrant collection name.
 
-    Uses the collection itself when it exists in Qdrant (probe cached once
-    per process by ``_qdrant_collection_exists``), otherwise the default
-    store collection (``RAG_QDRANT_COLLECTION`` / ``rag_documents``).
+    Resolution order:
+      1. explicit alias table (``_COLLECTION_ALIASES``) — legacy / P1-KB
+         names whose content lives in a real collection under a different
+         name (``wallet_profiles`` → ``wallet_v2``, ``hacks`` →
+         ``defi_exploits``);
+      2. the collection itself when it exists in Qdrant (probe cached once
+         per process by ``_qdrant_collection_exists``, aliases included);
+      3. the default store collection (``RAG_QDRANT_COLLECTION`` /
+         ``rag_documents``) — logged as a warning. Callers MUST label hits
+         with the RESOLVED name (``metadata["resolved_collection"]``),
+         never the requested name, so ``sources`` stays truthful.
+
+    The result is cached per requested name.
     """
     if collection in _QDRANT_RESOLVED:
         return _QDRANT_RESOLVED[collection]
+    target = _COLLECTION_ALIASES.get(collection, collection)
     try:
         async with httpx.AsyncClient(base_url=_QDRANT_URL, timeout=5.0) as client:
-            resolved = collection if await _qdrant_collection_exists(client, collection) else _DEFAULT_QDRANT_COLLECTION
+            if await _qdrant_collection_exists(client, target):
+                resolved = target
+            else:
+                resolved = _DEFAULT_QDRANT_COLLECTION
+                log.warning(
+                    "rag_collection_resolve_fallback requested=%s target=%s resolved=%s",
+                    collection,
+                    target,
+                    resolved,
+                )
     except (httpx.HTTPError, httpx.TimeoutException):
         resolved = _DEFAULT_QDRANT_COLLECTION
+        log.warning(
+            "rag_collection_resolve_probe_failed requested=%s resolved=%s",
+            collection,
+            resolved,
+        )
     _QDRANT_RESOLVED[collection] = resolved
     return resolved
 
@@ -289,6 +341,7 @@ async def _qdrant_upsert_chunk(
 
 
 __all__ = [
+    "_COLLECTION_ALIASES",
     "_DEFAULT_QDRANT_COLLECTION",
     "_QDRANT_COLLECTIONS",
     "_QDRANT_PROBED",
