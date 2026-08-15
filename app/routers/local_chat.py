@@ -24,8 +24,13 @@ router = APIRouter(prefix="/api/v1/chat/local", tags=["local-chat"])
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
-DEEPSEEK_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
-DEEPSEEK_MODEL = "qwen-analysis"
+QWEN_ANALYSIS_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
+QWEN_ANALYSIS_MODEL = "qwen-analysis"
+
+# CPU llama.cpp models can't serve huge outputs (~7 tok/s) — clamp to a sane
+# ceiling. Clients may still request up to 4096 (schema stays compatible);
+# the real request is capped here via min().
+LOCAL_CHAT_MAX_TOKENS = 1024
 
 
 class LocalChatRequest(BaseModel):
@@ -56,8 +61,8 @@ async def local_chat(req: LocalChatRequest):
     start = time.time()
 
     if req.mode == "deep":
-        url = DEEPSEEK_URL
-        model = DEEPSEEK_MODEL
+        url = QWEN_ANALYSIS_URL
+        model = QWEN_ANALYSIS_MODEL
         timeout = 30.0
     else:
         url = QWEN_URL
@@ -92,7 +97,7 @@ async def local_chat(req: LocalChatRequest):
                 json={
                     "model": model,
                     "messages": messages,
-                    "max_tokens": req.max_tokens,
+                    "max_tokens": min(req.max_tokens, LOCAL_CHAT_MAX_TOKENS),
                     "temperature": 0.7,
                 },
             )
@@ -114,7 +119,7 @@ async def local_chat(req: LocalChatRequest):
 
     answer = choices[0].get("message", {}).get("content", "").strip()
 
-    # Strip thinking output from DeepSeek
+    # Strip thinking output from qwen-analysis
     if req.mode == "deep":
         answer = _strip_thinking(answer)
 
