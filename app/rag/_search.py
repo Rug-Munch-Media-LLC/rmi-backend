@@ -95,7 +95,13 @@ async def _qdrant_primary_search(
                 doc_id=str(item.get("doc_id", "")),
                 score=score,
                 text=str(item.get("text", "")),
-                metadata=item.get("metadata", {}) or {},
+                metadata={
+                    **dict(item.get("metadata", {}) or {}),
+                    # Truthful provenance: the ACTUAL Qdrant collection the
+                    # hit came from (alias-resolved). Downstream ``sources``
+                    # labeling must use this, never the requested name.
+                    "resolved_collection": qdrant_collection,
+                },
             )
         )
 
@@ -132,14 +138,20 @@ async def _legacy_pillar_search(
 
     # Qdrant fallback: if the in-process index has no data for this
     # collection, consult Qdrant (e.g. `news` seeded by news_to_rag.py).
-    # Strictly additive — collections with local data are untouched.
+    # The requested name is resolved to the ACTUAL Qdrant collection first
+    # (alias table + existence probe) so a legacy/P1-KB name like
+    # ``wallet_profiles`` lands on the live ``wallet_v2`` corpus instead of
+    # searching a nonexistent collection. Strictly additive — collections
+    # with local data are untouched.
     if not fused:
-        qdrant_hits = await _qdrant_search(qvec, collection, limit=top_k, score_threshold=min_similarity)
+        qdrant_collection = await _resolve_qdrant_collection(collection)
+        qdrant_hits = await _qdrant_search(qvec, qdrant_collection, limit=top_k, score_threshold=min_similarity)
         if qdrant_hits:
             fused = qdrant_hits[:top_k]
             log.info(
-                "rag_search_qdrant_fallback collection=%s hits=%d",
+                "rag_search_qdrant_fallback requested=%s resolved=%s hits=%d",
                 collection,
+                qdrant_collection,
                 len(fused),
             )
     return fused

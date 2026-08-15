@@ -106,7 +106,10 @@ async def search_rag(query: str, collections: Iterable[str] | None = None, top_k
                     if isinstance(raw_hits, list):
                         hits = [dict(h) for h in raw_hits if isinstance(h, dict)]
                         for h in hits:
-                            h["collection"] = collection
+                            # Keep the backend's truthful resolved-collection
+                            # label when present; only fall back to the
+                            # requested name for unlabeled hits.
+                            h.setdefault("collection", collection)
                         return hits
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
             logger.debug("RAG search failed for %s: %s", collection, e)

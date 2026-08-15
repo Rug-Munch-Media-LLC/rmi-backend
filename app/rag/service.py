@@ -156,20 +156,30 @@ class RAGService:
 
     @staticmethod
     def _wrap_hit(raw: Any, collection: str) -> SearchHit:
-        """Normalize a raw hit (dict or object) to Pydantic SearchHit."""
+        """Normalize a raw hit (dict or object) to Pydantic SearchHit.
+
+        The hit's ``collection`` reflects the ACTUAL collection the data came
+        from (``metadata["resolved_collection"]`` stamped by the engine's
+        Qdrant paths), falling back to the requested name only when no
+        resolved label exists (in-process legacy hits genuinely come from
+        the requested collection). This keeps ``sources`` truthful: a hit
+        never claims a collection that was not actually searched.
+        """
         if isinstance(raw, dict):
+            metadata = raw.get("metadata", {}) or {}
             return SearchHit(
                 content=raw.get("content", raw.get("text", "")),
                 score=float(raw.get("score", raw.get("similarity", 0)) or 0),
-                metadata=raw.get("metadata", {}) or {},
-                collection=raw.get("collection", collection),
+                metadata=metadata,
+                collection=str(metadata.get("resolved_collection") or raw.get("collection", collection)),
                 doc_id=raw.get("id", raw.get("doc_id", "")),
             )
+        metadata = getattr(raw, "metadata", {}) or {}
         return SearchHit(
             content=getattr(raw, "content", getattr(raw, "text", "")),
             score=float(getattr(raw, "score", 0) or 0),
-            metadata=getattr(raw, "metadata", {}) or {},
-            collection=getattr(raw, "collection", collection),
+            metadata=metadata,
+            collection=str(metadata.get("resolved_collection") or getattr(raw, "collection", collection)),
             doc_id=getattr(raw, "id", ""),
         )
 

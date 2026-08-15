@@ -75,13 +75,21 @@ async def _run_live_tools_bounded(
     re-joined by the guardrail; this never raises. ``reuse_done`` mirrors the
     guardrail's re-read of an already-finished task: when the wait failed but
     the task actually completed, its result is returned instead of ``{}``.
+
+    Cancellation is never swallowed: when THIS coroutine is cancelled
+    (pipeline abort / shutdown), the ``CancelledError`` propagates so the
+    answer pipeline unwinds instead of continuing with an empty result. The
+    shielded tool task itself keeps running for the guardrail to re-join.
     """
+    # An already-finished task returns instantly (never re-awaited) — the
+    # guardrail hot path. Guarded BEFORE the wait so a real cancellation
+    # below is never mistaken for a rejoin case.
+    if reuse_done and task.done() and not task.cancelled():
+        return task.result()
     try:
         return await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
     except asyncio.CancelledError:
-        if reuse_done and task.done() and not task.cancelled():
-            return task.result()
-        return {}
+        raise
     except Exception:
         if reuse_done and task.done() and not task.cancelled():
             return task.result()

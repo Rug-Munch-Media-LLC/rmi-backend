@@ -42,24 +42,28 @@ __all__ = [
 ]
 
 # ── RAG collections (searched for every message) ─────────────────────────
+# ONLY real, populated Qdrant collections are fanned out. Phantom legacy
+# names (``token_analysis``, ``wallet_profiles``, ``forensic_reports``) have
+# no Qdrant collection — they would silently resolve to ``rag_documents``
+# while the ``sources`` label claimed the requested name. Empty collections
+# (``scanned_tokens``, ``whale_transfers``) return nothing and only waste
+# concurrent requests. Those names are handled by
+# ``app.rag._qdrant._COLLECTION_ALIASES`` when requested directly by other
+# code paths (aliases land on the live corpus and hits are labeled with the
+# ACTUAL resolved collection via ``metadata["resolved_collection"]``).
 RAG_COLLECTIONS = [
-    "threat_intel",  # unified scanner + SENTINEL high-risk findings
-    "scam_intel",  # legacy scam intelligence
-    "news_v2",  # news articles and market intelligence
-    "defi_exploits",  # historical DeFi exploits / protocol hacks
-    "coding_knowledge",  # code-level security knowledge (solidity, audits)
-    "scam_patterns",  # scam pattern documentation + rug_timeline alias
-    "regulation_enforcement",  # regulatory actions + enforcement intel
-    "scanned_tokens",  # scan-to-RAG memory (empty until scans flow in)
-    "wallet_v2",  # wallet labels, risk profiles, entity clusters
-    "wallet_profiles",  # P1 KB: wallet risk profiles, entity behavior
-    "token_analysis",  # P1 KB: deep token analysis (mechanics, risks)
-    "forensic_reports",  # P1 KB: on-chain forensic investigations (never decays)
-    "contract_audits",  # P1 KB: smart-contract audit findings
-    "stablecoin_market",  # DeFiLlama stablecoin market caps ($USDT/$USDC liquidity)
-    "whale_transfers",  # whale move events indexed by app.domains.scanner.whale_indexer
+    "threat_intel",  # unified scanner + SENTINEL high-risk findings (alias → threat_intel_v2, 11.9K pts, live)
+    "scam_intel",  # legacy scam intelligence (alias → scam_intel_v2, 600 pts, live)
+    "news_v2",  # news articles and market intelligence (9.6K pts, live)
+    "defi_exploits",  # historical DeFi exploits / protocol hacks (13.6K pts, live)
+    "coding_knowledge",  # code-level security knowledge (1.8K pts)
+    "scam_patterns",  # scam pattern documentation + rug_timeline alias (9.9K pts, historical)
+    "regulation_enforcement",  # regulatory actions + enforcement intel (16 pts, live)
+    "wallet_v2",  # wallet labels, risk profiles, entity clusters (13.5K pts, live)
+    "contract_audits",  # smart-contract audit findings (502 pts)
+    "stablecoin_market",  # DeFiLlama stablecoin market caps (329 pts)
 ]
-RAG_TOKEN_COLLECTIONS = ["scanner_v2"]
+RAG_TOKEN_COLLECTIONS = ["scanner_v2"]  # scan-to-RAG memory (191 pts — added when a token address is present)
 RAG_TOP_K = 10
 RAG_SEARCH_TIMEOUT = 5.0  # overall budget (seconds) — web chat stays snappy
 RAG_CONTEXT_MAX_CHARS = 1800  # keeps the combined system context under the 2000-char cap

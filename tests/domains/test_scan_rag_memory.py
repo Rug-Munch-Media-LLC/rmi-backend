@@ -8,7 +8,8 @@ Covers:
   - live indexing into Qdrant with a mocked HTTP client
   - fail-open behavior when Qdrant / embedding is down
   - ensure_collection create-on-demand
-  - scanner.py hooks: scan_token / scan_token_v2 / sentinel_scan schedule
+  - scanner engine hooks (canonical ``tools/scanner.py``, re-exported by the
+    ``scanner.py`` shim): scan_token / scan_token_v2 / sentinel_scan schedule
     a background index with the expected source + result dict
 """
 
@@ -423,29 +424,6 @@ class FakeScanClient:
         return FakeResponse(200, {"status": "ok"})
 
 
-class FakeV2Client:
-    """Stand-in returning a successful v2 scanner payload."""
-
-    async def __aenter__(self) -> FakeV2Client:
-        return self
-
-    async def __aexit__(self, *args: object) -> bool:
-        return False
-
-    async def post(self, url: str, *args: object, **kwargs: object) -> FakeResponse:
-        return FakeResponse(
-            200,
-            {
-                "status": "ok",
-                "token": "0xV2HookToken123456789",
-                "chain": "ethereum",
-                "name": "HookCoin",
-                "safety_score": 80.0,
-                "evidence": {"holders": {"holder_count": 100}},
-            },
-        )
-
-
 class FakeSentinelClient:
     """Stand-in returning a successful SENTINEL report."""
 
@@ -488,8 +466,11 @@ class TestScannerHooks:
             }
         ]
         with (
-            patch("app.domains.telegram.rugmunchbot.scanner.httpx.AsyncClient", return_value=FakeScanClient(pairs)),
-            patch("app.domains.telegram.rugmunchbot.scanner.schedule_scan_memory_index") as mock_sched,
+            patch(
+                "app.domains.telegram.rugmunchbot.tools.scanner.httpx.AsyncClient",
+                return_value=FakeScanClient(pairs),
+            ),
+            patch("app.domains.telegram.rugmunchbot.tools.scanner.schedule_scan_memory_index") as mock_sched,
         ):
             result = await bot_scanner.scan_token("0xTokenAddress1234567890", "ethereum")
 
@@ -498,8 +479,11 @@ class TestScannerHooks:
 
     async def test_scan_token_skips_index_when_not_found(self) -> None:
         with (
-            patch("app.domains.telegram.rugmunchbot.scanner.httpx.AsyncClient", return_value=FakeScanClient(pairs=[])),
-            patch("app.domains.telegram.rugmunchbot.scanner.schedule_scan_memory_index") as mock_sched,
+            patch(
+                "app.domains.telegram.rugmunchbot.tools.scanner.httpx.AsyncClient",
+                return_value=FakeScanClient(pairs=[]),
+            ),
+            patch("app.domains.telegram.rugmunchbot.tools.scanner.schedule_scan_memory_index") as mock_sched,
         ):
             result = await bot_scanner.scan_token("0xTokenAddress1234567890", "ethereum")
 
@@ -507,9 +491,23 @@ class TestScannerHooks:
         mock_sched.assert_not_called()
 
     async def test_scan_token_v2_schedules_background_index(self) -> None:
+        # scan_token_v2 posts through the canonical engine's shared client
+        # (tools.scanner.backend_json_post), so the v2 HTTP call is mocked at
+        # that seam rather than at httpx.AsyncClient.
+        payload = {
+            "status": "ok",
+            "token": "0xV2HookToken123456789",
+            "chain": "ethereum",
+            "name": "HookCoin",
+            "safety_score": 80.0,
+            "evidence": {"holders": {"holder_count": 100}},
+        }
         with (
-            patch("app.domains.telegram.rugmunchbot.scanner.httpx.AsyncClient", return_value=FakeV2Client()),
-            patch("app.domains.telegram.rugmunchbot.scanner.schedule_scan_memory_index") as mock_sched,
+            patch(
+                "app.domains.telegram.rugmunchbot.tools.scanner.backend_json_post",
+                new=AsyncMock(return_value=payload),
+            ),
+            patch("app.domains.telegram.rugmunchbot.tools.scanner.schedule_scan_memory_index") as mock_sched,
         ):
             data = await bot_scanner.scan_token_v2("0xV2HookToken123456789", "ethereum")
 
@@ -517,19 +515,12 @@ class TestScannerHooks:
         mock_sched.assert_called_once_with(data, source="scan_v2")
 
     async def test_scan_token_v2_non_ok_status_skips_index(self) -> None:
-        class FakeFailClient:
-            async def __aenter__(self) -> FakeFailClient:
-                return self
-
-            async def __aexit__(self, *args: object) -> bool:
-                return False
-
-            async def post(self, url: str, *args: object, **kwargs: object) -> FakeResponse:
-                return FakeResponse(200, {"status": "error"})
-
         with (
-            patch("app.domains.telegram.rugmunchbot.scanner.httpx.AsyncClient", return_value=FakeFailClient()),
-            patch("app.domains.telegram.rugmunchbot.scanner.schedule_scan_memory_index") as mock_sched,
+            patch(
+                "app.domains.telegram.rugmunchbot.tools.scanner.backend_json_post",
+                new=AsyncMock(return_value={"status": "error"}),
+            ),
+            patch("app.domains.telegram.rugmunchbot.tools.scanner.schedule_scan_memory_index") as mock_sched,
         ):
             data = await bot_scanner.scan_token_v2("0xV2HookToken123456789", "ethereum")
 
@@ -538,8 +529,11 @@ class TestScannerHooks:
 
     async def test_sentinel_scan_schedules_background_index(self) -> None:
         with (
-            patch("app.domains.telegram.rugmunchbot.scanner.httpx.AsyncClient", return_value=FakeSentinelClient()),
-            patch("app.domains.telegram.rugmunchbot.scanner.schedule_scan_memory_index") as mock_sched,
+            patch(
+                "app.domains.telegram.rugmunchbot.tools.scanner.httpx.AsyncClient",
+                return_value=FakeSentinelClient(),
+            ),
+            patch("app.domains.telegram.rugmunchbot.tools.scanner.schedule_scan_memory_index") as mock_sched,
         ):
             data = await bot_scanner.sentinel_scan("0xSentinelHook123456789", "bsc")
 
