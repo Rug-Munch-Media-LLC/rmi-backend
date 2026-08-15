@@ -49,7 +49,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from typing import Any, Final
+from typing import Any, Final, cast
 
 try:
     import httpx
@@ -125,14 +125,17 @@ def _num(value: Any, default: float = 0.0) -> float:
 def _subdict(mapping: dict[str, Any], key: str) -> dict[str, Any]:
     """Return ``mapping[key]`` when it is a dict, else an empty dict."""
     value = mapping.get(key)
-    return value if isinstance(value, dict) else {}
+    if not isinstance(value, dict):
+        return {}
+    return cast("dict[str, Any]", value)
 
 
 def _token_symbol(token: Any) -> str:
     """Short symbol/name for a base/quote token object."""
-    if isinstance(token, dict):
-        return str(token.get("symbol") or token.get("name") or "?")
-    return "?"
+    if not isinstance(token, dict):
+        return "?"
+    name = cast("Any", token.get("symbol") or token.get("name") or "?")
+    return str(name)
 
 
 def _fmt_usd(value: float) -> str:
@@ -467,10 +470,13 @@ def _parse_pairs(payload: Any) -> list[dict[str, Any]]:
     """Extract the ``pairs`` list from a DexScreener payload, tolerating garbage."""
     if not isinstance(payload, dict):
         return []
-    pairs = payload.get("pairs")
-    if not isinstance(pairs, list):
+    body = cast("dict[str, Any]", payload)
+    raw = body.get("pairs")
+    if not isinstance(raw, list):
         return []
-    return [p for p in pairs if isinstance(p, dict)]
+    # mypy sees list[Unknown] as already list[Any]-compatible (redundant-cast);
+    # pyright keeps the element type Unknown unless we force list[Any] here.
+    return [cast("dict[str, Any]", p) for p in cast("list[Any]", raw) if isinstance(p, dict)]  # type: ignore[redundant-cast]
 
 
 def _fetch_pairs(address: str, chain: str, timeout: int) -> tuple[list[dict[str, Any]], str | None]:
@@ -494,6 +500,7 @@ def _fetch_pairs(address: str, chain: str, timeout: int) -> tuple[list[dict[str,
                 pairs = [p for p in _parse_pairs(resp.json()) if str(p.get("chainId", "")).lower() == chain]
                 if pairs:
                     return pairs, None
+            logger.debug("dexscreener: no pairs for %s on %s", address, chain)
             return [], f"no pairs for chain={chain!r} (HTTP {resp.status_code})"
 
         resp = httpx.get(f"{DEXSCREENER_API}/tokens/{address}", timeout=timeout)
@@ -501,9 +508,12 @@ def _fetch_pairs(address: str, chain: str, timeout: int) -> tuple[list[dict[str,
             pairs = _parse_pairs(resp.json())
             if pairs:
                 return pairs, None
+            logger.debug("dexscreener: empty payload for %s", address)
             return [], "no pairs found (HTTP 200, empty payload)"
+        logger.debug("dexscreener: HTTP %s for %s", resp.status_code, address)
         return [], f"HTTP {resp.status_code}"
     except (httpx.HTTPError, OSError) as exc:
+        logger.debug("dexscreener fetch failed for %s on %s: %s", address, chain, exc)
         return [], str(exc)
 
 
@@ -568,6 +578,13 @@ def lookup_pair_activity(pair_address: str, *, chain: str = "auto", timeout: int
             worst_score = score
             worst_level = level
 
+    logger.debug(
+        "dexscreener wash-trade analysis for %s: risk=%s score=%.1f pairs=%d",
+        address,
+        worst_level,
+        worst_score,
+        len(ranked),
+    )
     _add_finding(
         report,
         source="dexscreener",
