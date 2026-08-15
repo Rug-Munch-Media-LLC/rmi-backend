@@ -116,6 +116,54 @@ class TestTrendByChainRouting:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# risk-ranked trending — "riskiest / sketchiest picks" -> rank="risk"
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class TestRiskRankRouting:
+    def test_riskiest_sketchiest_phrases_detect_risk_rank(self) -> None:
+        from app.domains.telegram.rugmunchbot.tools.intent import detect_risk_rank
+
+        for question in (
+            "give me your riskiest sketchiest picks of the day",
+            "what are the sketchiest tokens trending?",
+            "riskiest tokens on solana right now",
+            "which trending tokens are most likely to rug?",
+            "red flags among today's gainers",
+            "most dangerous trending coins",
+            "what's looking scammy today?",
+        ):
+            assert detect_risk_rank(question), f"failed to detect risk rank: {question}"
+        assert not detect_risk_rank("what's trending on solana?")
+        assert not detect_risk_rank("what's the price of $BONK?")
+
+    def test_riskiest_trending_routes_trend_by_chain_with_risk_rank(self) -> None:
+        names = route_tools("give me your riskiest sketchiest picks of the day on solana")
+        assert "trending" in names
+        assert "trend_by_chain" in names
+        kw = tool_kwargs("give me your riskiest sketchiest picks of the day on solana", names)
+        assert kw["trend_by_chain"]["chain"] == "solana"
+        assert kw["trend_by_chain"]["rank"] == "risk"
+        # The raw feed stays chain-scoped too.
+        assert kw["trending"]["chain"] == "solana"
+
+    def test_riskiest_without_chain_routes_risk_rank_cross_chain(self) -> None:
+        # "riskiest sketchiest picks" without a chain still gets a risk-first
+        # ranking (cross-chain "all") instead of a raw %-change dump.
+        names = route_tools("riskiest sketchiest picks of the day")
+        assert "trend_by_chain" in names
+        kw = tool_kwargs("riskiest sketchiest picks of the day", names)
+        assert kw["trend_by_chain"]["chain"] == "all"
+        assert kw["trend_by_chain"]["rank"] == "risk"
+
+    def test_plain_chain_trending_keeps_trend_rank(self) -> None:
+        names = route_tools("what's trending on solana?")
+        assert "trend_by_chain" in names
+        kw = tool_kwargs("what's trending on solana?", names)
+        assert kw["trend_by_chain"]["rank"] == "trend"
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # prediction_markets — prediction markets / polymarket / odds
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -263,9 +311,26 @@ class TestToolKwargs:
     def test_trend_by_chain_gets_chain(self) -> None:
         kw = tool_kwargs("what's hot on solana?", ["trend_by_chain"])
         assert kw["trend_by_chain"]["chain"] == "solana"
+        assert kw["trend_by_chain"]["rank"] == "trend"
         # No chain named -> the tool's cross-chain "all" default.
         kw = tool_kwargs("what's trending?", ["trend_by_chain"])
         assert kw["trend_by_chain"]["chain"] == "all"
+
+    def test_trending_tool_gets_requested_chain(self) -> None:
+        # The user's "solana" must reach the trending tool so the raw feed is
+        # chain-filtered, not labeled-but-ignored (the original bug: a solana
+        # question returned $BAG/$Z/$CASHELON from other chains).
+        kw = tool_kwargs("what's trending on solana?", ["trending"])
+        assert kw["trending"]["chain"] == "solana"
+        # No chain named -> honest cross-chain "all" (no filter, correct label).
+        kw = tool_kwargs("what's trending?", ["trending"])
+        assert kw["trending"]["chain"] == "all"
+
+    def test_trending_without_chain_gets_all(self) -> None:
+        names = route_tools("what's trending?")
+        kw = tool_kwargs("what's trending?", names)
+        assert kw["trending"]["chain"] == "all"
+        assert "trend_by_chain" not in names
 
     def test_birdeye_kind_depends_on_address_presence(self) -> None:
         kw = tool_kwargs("smart money", ["birdeye_market"])
@@ -528,7 +593,10 @@ class TestRunForMessageWiring:
         results = await run_for_message("what's hot on solana?")
         assert "trend_by_chain" in results
         assert received["trend_by_chain"]["chain"] == "solana"
-        assert received["trending"] == {}
+        # The raw trending feed is now chain-scoped too — "solana" filters the
+        # cross-chain feed instead of returning $BAG/$Z/$CASHELON noise.
+        assert received["trending"]["chain"] == "solana"
+        assert received["trending"]["limit"] == 10
 
     async def test_smart_money_question_delivers_kind_to_birdeye(self, monkeypatch: pytest.MonkeyPatch) -> None:
         received: dict[str, dict[str, Any]] = {}

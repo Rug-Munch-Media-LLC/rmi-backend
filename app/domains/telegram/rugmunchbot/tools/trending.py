@@ -20,8 +20,74 @@ from app.domains.telegram.rugmunchbot.tools.registry import ToolResult, backend_
 
 logger = get_logger("rmi_bot.tools.trending")
 
+# Chain-name aliases -> canonical DexScreener-style chain id. Mirrors
+# tools/intent.py + tools/trend_algo.py (keep in sync). Used to filter the
+# cross-chain feed down to the chain the user actually asked about.
+_CHAIN_ALIASES: dict[str, str] = {
+    "ethereum": "ethereum",
+    "eth": "ethereum",
+    "solana": "solana",
+    "sol": "solana",
+    "arbitrum": "arbitrum",
+    "arb": "arbitrum",
+    "binance-smart-chain": "bsc",
+    "binance": "bsc",
+    "bsc": "bsc",
+    "bnb": "bsc",
+    "polygon": "polygon",
+    "matic": "polygon",
+    "optimism": "optimism",
+    "op": "optimism",
+    "avalanche": "avalanche",
+    "avax": "avalanche",
+    "berachain": "berachain",
+    "bera": "berachain",
+    "hyperliquid": "hyperliquid",
+    "zksync": "zksync",
+    "robinhood": "robinhood",
+    "injective": "injective",
+    "fantom": "fantom",
+    "ftm": "fantom",
+    "linea": "linea",
+    "blast": "blast",
+    "sonic": "sonic",
+    "scroll": "scroll",
+    "mantle": "mantle",
+    "tron": "tron",
+    "trx": "tron",
+    "ton": "ton",
+    "base": "base",
+    "sei": "sei",
+    "sui": "sui",
+    "aptos": "aptos",
+    "mode": "mode",
+}
 
-async def _fetch_market_trending(limit: int = 10) -> tuple[list[dict[str, Any]], str] | None:
+
+def _normalize_chain(chain: str) -> str:
+    """Return canonical chain id ('' / 'all' / 'multi' stay as-is)."""
+    key = (chain or "").strip().lower()
+    if key in ("", "all", "any", "multi"):
+        return key
+    return _CHAIN_ALIASES.get(key, key)
+
+
+def _filter_tokens_by_chain(tokens: list[dict[str, Any]], chain: str) -> list[dict[str, Any]]:
+    """Keep only tokens on the requested chain (pure, deterministic).
+
+    ``chain`` '' / 'all' / 'multi' -> passthrough (cross-chain feed).
+    Otherwise a token is kept when its normalized ``chain`` field equals the
+    requested chain. CoinGecko entries carry ``chain == "multi"`` and no
+    on-chain address, so they are dropped for a chain-scoped question (they
+    are not scanable and not on the requested chain).
+    """
+    want = _normalize_chain(chain)
+    if want in ("", "all", "multi"):
+        return list(tokens)
+    return [t for t in tokens if _normalize_chain(str(t.get("chain") or "")) == want]
+
+
+async def _fetch_market_trending(chain: str = "all", limit: int = 10) -> tuple[list[dict[str, Any]], str] | None:
     body = await backend_json_get("/api/v1/market/trending", params={"limit": limit}, timeout=6.0)
     if not body:
         return None
@@ -46,12 +112,13 @@ async def _fetch_market_trending(limit: int = 10) -> tuple[list[dict[str, Any]],
                 "source": it.get("source") or "backend",
             }
         )
+    tokens = _filter_tokens_by_chain(tokens, chain)
     if not tokens:
         return None
     return tokens, "backend:/api/v1/market/trending"
 
 
-async def _fetch_token_boosts(limit: int = 10) -> tuple[list[dict[str, Any]], str] | None:
+async def _fetch_token_boosts(chain: str = "all", limit: int = 10) -> tuple[list[dict[str, Any]], str] | None:
     body = await http_get_json(DEXSCREENER_TOKEN_BOOSTS, timeout=6.0)
     if not isinstance(body, list) or not body:
         return None
@@ -69,21 +136,32 @@ async def _fetch_token_boosts(limit: int = 10) -> tuple[list[dict[str, Any]], st
                 "source": "dexscreener:token-boosts",
             }
         )
+    tokens = _filter_tokens_by_chain(tokens, chain)
     if not tokens:
         return None
     return tokens, "dexscreener:token-boosts"
 
 
-async def trending(*, chain: str = "solana", limit: int = 10) -> ToolResult:
-    """Fetch real trending tokens (backend fused source first)."""
-    tokens, source = (await _fetch_market_trending(limit)) or (await _fetch_token_boosts(limit)) or (None, "")
+async def trending(*, chain: str = "all", limit: int = 10) -> ToolResult:
+    """Fetch real trending tokens, chain-filtered (backend fused source first).
+
+    Args:
+        chain: canonical chain id ("solana", "ethereum", "base", ...) or
+            "all" for the raw cross-chain feed. The user's requested chain
+            must arrive here via the intent router (tool_kwargs) — this tool
+            FILTERS the live sources, it never fabricates a chain.
+        limit: max tokens to return.
+    """
+    tokens, source = (
+        (await _fetch_market_trending(chain, limit)) or (await _fetch_token_boosts(chain, limit)) or (None, "")
+    )
     if tokens is None:
         return ToolResult(tool="trending", ok=False, error="no live trending data (backend + DexScreener unavailable)")
 
     return ToolResult(
         tool="trending",
         ok=True,
-        data={"chain": chain, "limit": limit, "tokens": tokens},
+        data={"chain": _normalize_chain(chain), "limit": limit, "tokens": tokens},
         symbols=[t["symbol"] for t in tokens if t.get("symbol")],
         addresses=[t["address"] for t in tokens if t.get("address")],
         source=source,
