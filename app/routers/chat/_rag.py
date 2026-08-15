@@ -61,6 +61,8 @@ RAG_COLLECTIONS = [
     "regulation_enforcement",  # regulatory actions + enforcement intel (16 pts, live)
     "wallet_v2",  # wallet labels, risk profiles, entity clusters (13.5K pts, live)
     "contract_audits",  # smart-contract audit findings (502 pts)
+    "contract_security",  # verdict-labeled good/bad contract patterns + security patterns (221 pts, live)
+    "audit_findings",  # labeled audit findings w/ severity + remediation (10 pts, live)
     "stablecoin_market",  # DeFiLlama stablecoin market caps (329 pts)
 ]
 RAG_TOKEN_COLLECTIONS = ["scanner_v2"]  # scan-to-RAG memory (191 pts — added when a token address is present)
@@ -121,7 +123,11 @@ def _format_rag_context(hits: list[dict[str, Any]], max_chars: int = RAG_CONTEXT
     """Render top RAG hits as a compact, LLM-friendly context block.
 
     Each hit is labeled with its collection + score so the LLM can weigh
-    source quality. Truncates to ``max_chars`` total.
+    source quality. When a hit carries a security label (``verdict`` from the
+    labeled good/bad contract corpus, or a hit-level/metadata ``severity``),
+    that label is appended so the model can distinguish secure-reference
+    (verdict=good) from flagged (verdict=bad / severity=critical) evidence.
+    Truncates to ``max_chars`` total.
     """
     parts: list[str] = []
     total = 0
@@ -132,7 +138,18 @@ def _format_rag_context(hits: list[dict[str, Any]], max_chars: int = RAG_CONTEXT
         snippet = content[:RAG_HIT_MAX_CHARS]
         col = h.get("collection") or "unknown"
         score = float(h.get("score") or 0.0)
-        block = f"[{i}] Source: {col} (score: {score:.3f})\n{snippet}"
+        block = f"[{i}] Source: {col} (score: {score:.3f})"
+        labels: list[str] = []
+        metadata = h.get("metadata") or {}
+        verdict = h.get("verdict") or metadata.get("verdict")
+        if verdict:
+            labels.append(f"verdict={verdict}")
+        severity = h.get("severity") or metadata.get("severity")
+        if severity:
+            labels.append(f"severity={severity}")
+        if labels:
+            block += f" [{' | '.join(labels)}]"
+        block += f"\n{snippet}"
         if total + len(block) > max_chars:
             break
         parts.append(block)

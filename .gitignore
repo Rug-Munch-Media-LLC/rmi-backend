@@ -161,3 +161,7 @@ bot_users.db
 .coverage.*
 a.out
 app/domains/telegram/data/
+
+# Runtime data written under /app/data in the container (spam registry, wallet
+# DBs, bm25 index, scraped OSINT/ML datasets) — never commit
+app/data/

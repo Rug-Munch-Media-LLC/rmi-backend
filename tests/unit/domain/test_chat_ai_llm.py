@@ -6,6 +6,7 @@ Covers the LLM call clients (backend/local/Qwen, DeepSeek) with
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, ClassVar
 
 import pytest
@@ -188,6 +189,95 @@ async def test_local_llm_falls_back_to_deepseek() -> None:
 async def test_local_llm_all_fail_returns_none() -> None:
     _FakeLLMClient._status = 500
     assert await _llm._call_local_llm("hello", 1) is None
+
+
+# ── reliability hardening: bounded retry + total budget (2026-08-15) ──────
+
+
+async def test_local_llm_retries_transient_error_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A transient transport failure is retried once (bounded) and succeeds.
+
+    The retry must NOT spin: exactly one extra POST on the failing model, and
+    the second model is never touched once the retry recovers.
+    """
+    monkeypatch.setattr(_llm, "LOCAL_LLM_RETRY_BACKOFF", 0.0)  # keep the test fast
+    failures = {"count": 0}
+
+    class _FlakyClient(_FakeLLMClient):
+        async def post(self, url: str, json: dict) -> Any:  # type: ignore[override]
+            if failures["count"] == 0:
+                failures["count"] += 1
+                _FakeLLMClient.calls.append((url, json))
+                raise OSError("connection reset")
+            return await _FakeLLMClient.post(self, url, json=json)
+
+    _FakeLLMClient._payload = {"choices": [{"message": {"content": "recovered"}}], "usage": {}}
+    _FakeLLMClient.calls.clear()
+    _llm.httpx.AsyncClient = _FlakyClient  # type: ignore[assignment]
+    try:
+        result = await _llm._call_local_llm("hello", 1)
+    finally:
+        _llm.httpx.AsyncClient = _FakeLLMClient  # type: ignore[assignment]
+    assert result is not None
+    assert result["message"] == "recovered"
+    # qwen failed once (retried) then succeeded — only the one model ran.
+    assert len(_FakeLLMClient.calls) == 2
+    assert _FakeLLMClient.calls[0][0] == _llm.QWEN_CHAT_URL
+    assert _FakeLLMClient.calls[1][0] == _llm.QWEN_CHAT_URL
+
+
+async def test_local_llm_transient_errors_exhaust_retries_then_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every transient failure exhausts the bounded retry and fails open to None."""
+    monkeypatch.setattr(_llm, "LOCAL_LLM_RETRY_BACKOFF", 0.0)
+    _FakeLLMClient._raise = OSError("llama down")
+    _FakeLLMClient.calls.clear()
+    result = await _llm._call_local_llm("hello", 1)
+    assert result is None
+    # "hello" routes to chat → qwen first, deepseek fallback; each model gets
+    # the bounded retry → 2 attempts x 2 models = 4 POSTs (never more).
+    assert len(_FakeLLMClient.calls) == 4
+
+
+async def test_local_llm_http_500_not_retried() -> None:
+    """HTTP status failures are NOT retried — one POST per model only."""
+    _FakeLLMClient._status = 500
+    _FakeLLMClient.calls.clear()
+    result = await _llm._call_local_llm("hello", 1)
+    assert result is None
+    assert len(_FakeLLMClient.calls) == 2  # qwen + deepseek, no retries
+
+
+async def test_local_llm_total_budget_timeout_fails_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stalled llama server cannot block the turn past LOCAL_LLM_TOTAL_BUDGET."""
+    monkeypatch.setattr(_llm, "LOCAL_LLM_TOTAL_BUDGET", 0.1)
+
+    class _StalledClient(_FakeLLMClient):
+        async def post(self, url: str, json: dict) -> Any:  # type: ignore[override]
+            _FakeLLMClient.calls.append((url, json))
+            await asyncio.sleep(5)  # never answers; cancelled by the budget
+
+            class _Resp:
+                status_code = 200
+
+                def json(self) -> Any:
+                    return {"choices": [{"message": {"content": "never"}}]}
+
+            return _Resp()
+
+    _FakeLLMClient.calls.clear()
+    _llm.httpx.AsyncClient = _StalledClient  # type: ignore[assignment]
+    try:
+        result = await _llm._call_local_llm("hello", 1)
+    finally:
+        _llm.httpx.AsyncClient = _FakeLLMClient  # type: ignore[assignment]
+    assert result is None  # budget timeout → fail-open, never raises
+    assert len(_FakeLLMClient.calls) == 1  # the first POST started, then the budget fired
 
 
 async def test_local_llm_history_capped_at_two() -> None:

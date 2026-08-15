@@ -93,6 +93,67 @@ _LOCAL_ANALYSIS_LENGTH_THRESHOLD = 120  # chars — mirrors backend _route_task
 # as chars/4 (a conservative English token proxy).
 LOCAL_CTX_LIMIT_TOKENS = 16_000
 
+# ── Local-LLM reliability budget (2026-08-15) ─────────────────────────────
+# The llama.cpp servers are CPU-bound and shared: a loaded host can stall a
+# request for the full read timeout. Each model POST gets ONE bounded retry
+# (LOCAL_LLM_RETRIES) with a short backoff for transient transport failures
+# only — never for HTTP status codes (a 5xx means the server answered;
+# retrying a loaded CPU server usually makes it worse). The outer
+# LOCAL_LLM_TOTAL_BUDGET caps the WHOLE model chain so a turn never blocks
+# >~60s: a budget timeout fails open to None (→ tools-only / canned answer).
+LOCAL_LLM_RETRIES = 1
+LOCAL_LLM_RETRY_BACKOFF = 0.75  # seconds between retry attempts
+LOCAL_LLM_TOTAL_BUDGET = 60.0  # outer deadline for the whole local model chain
+
+# Transient transport failures worth a retry: connection refused/reset,
+# read/connect timeout (httpx.TimeoutException + NetworkError both derive
+# from httpx.TransportError). Builtins cover bare socket/timeout errors.
+_TRANSIENT_ERRORS = (httpx.TransportError, ConnectionError, OSError, TimeoutError)
+
+
+async def _post_with_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    *,
+    json: dict[str, Any],
+    timeout: float,
+    what: str,
+) -> httpx.Response | None:
+    """POST ``url`` with bounded retry on transient transport failures.
+
+    Returns the response, or ``None`` when every attempt failed transiently
+    (the caller falls through to the next model / the tools-only path).
+    Each attempt is independently deadline-bounded by ``timeout`` (an
+    ``asyncio.wait_for`` hard cap on top of the httpx phase timeouts).
+    ``asyncio.CancelledError`` propagates so the pipeline can unwind.
+    """
+    for attempt in range(LOCAL_LLM_RETRIES + 1):
+        try:
+            return await asyncio.wait_for(client.post(url, json=json), timeout=timeout)
+        except asyncio.CancelledError:
+            raise
+        except _TRANSIENT_ERRORS as exc:
+            if attempt >= LOCAL_LLM_RETRIES:
+                logger.debug(
+                    "local LLM %s failed after %d attempts (url=%s): %s",
+                    what,
+                    attempt + 1,
+                    url,
+                    exc,
+                )
+                return None
+            logger.debug(
+                "local LLM %s attempt %d/%d transient (url=%s): %s — retrying in %.2fs",
+                what,
+                attempt + 1,
+                LOCAL_LLM_RETRIES + 1,
+                url,
+                exc,
+                LOCAL_LLM_RETRY_BACKOFF,
+            )
+            await asyncio.sleep(LOCAL_LLM_RETRY_BACKOFF)
+    return None
+
 
 def _route_local_model(message: str) -> str:
     """Route ``message`` to a local model tier: ``"chat"`` (4B qwen-chat) or
@@ -197,7 +258,14 @@ async def _call_backend_chat(
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(CHAT_TIMEOUT, connect=5.0, read=CHAT_TIMEOUT, write=10.0)
         ) as client:
-            r = await client.post(CHAT_ENDPOINT, headers=headers, json=payload)
+            # Hard total deadline on top of the httpx phase timeouts: httpx
+            # bounds each PHASE (connect/write/read) separately, so the raw
+            # worst case is connect(5) + write(10) + read(60) = 75s. The
+            # wait_for guarantees a turn never blocks > CHAT_TIMEOUT total.
+            r = await asyncio.wait_for(
+                client.post(CHAT_ENDPOINT, headers=headers, json=payload),
+                timeout=CHAT_TIMEOUT,
+            )
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
         logger.debug("backend chat unavailable (user=%s): %s", user_id, e)
         return None
@@ -227,7 +295,7 @@ async def _call_backend_chat(
     }
 
 
-async def _call_local_llm(
+async def _call_local_llm_impl(
     message: str,
     user_id: int,
     history: list[dict[str, str]] | None = None,
@@ -244,11 +312,16 @@ async def _call_local_llm(
     count instead of a hardcoded 0.
     ``system_context`` is a real-time digest (daily market/news context)
     appended to the SYSTEM prompt so the model treats it as current data.
+
+    This is the implementation behind :func:`_call_local_llm` — the public
+    wrapper applies ``LOCAL_LLM_TOTAL_BUDGET`` so the whole chain is
+    deadline-bounded even when the servers stall.
     """
     # ONE shared condensed prompt for the local fallback path — see
     # prompts.FALLBACK_SYSTEM_PROMPT.
     system_content = FALLBACK_SYSTEM_PROMPT
-    # Real-time market/news digest → SYSTEM prompt (see _call_local_llm).
+    # Real-time market/news digest → SYSTEM prompt (passed in by the fallback
+    # orchestrator as ``system_context``).
     if system_context:
         system_content += (
             "\n\nCURRENT MARKET DIGEST (today's real-time context — cite it "
@@ -308,7 +381,12 @@ async def _call_local_llm(
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout, connect=5.0, read=timeout, write=10.0)
             ) as client:
-                r = await client.post(
+                # Bounded retry on transient transport failures (1 retry,
+                # short backoff) — a loaded/restarting llama server is the
+                # common cause and usually recovers within a second. HTTP
+                # status codes are NOT retried (see _post_with_retry).
+                r = await _post_with_retry(
+                    client,
                     url,
                     json={
                         "model": model,
@@ -321,9 +399,13 @@ async def _call_local_llm(
                         "cache_prompt": True,
                         "chat_template_kwargs": {"enable_thinking": False},
                     },
+                    timeout=timeout,
+                    what=model,
                 )
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
             logger.debug("local LLM %s unavailable (user=%s): %s", model, user_id, e)
+            continue
+        if r is None:
             continue
         if r.status_code != 200:
             logger.debug("local LLM %s HTTP %d (user=%s)", model, r.status_code, user_id)
@@ -397,6 +479,46 @@ async def _call_local_llm(
             "latency_ms": 0,
         }
     return None
+
+
+async def _call_local_llm(
+    message: str,
+    user_id: int,
+    history: list[dict[str, str]] | None = None,
+    *,
+    sources: list[dict[str, str]] | None = None,
+    system_context: str | None = None,
+) -> dict[str, Any] | None:
+    """Local LLM fallback chain, deadline-bounded (fail-open).
+
+    Public entry point (monkeypatch contract: the pipeline tests patch
+    ``chat_ai._call_local_llm`` on the package). Applies the
+    ``LOCAL_LLM_TOTAL_BUDGET`` outer deadline to :func:`_call_local_llm_impl`
+    so a stalled llama.cpp host can never block a turn past ~60s — the
+    timeout degrades to ``None`` (tools-only / canned answer), never raises.
+    """
+    try:
+        return await asyncio.wait_for(
+            _call_local_llm_impl(
+                message,
+                user_id,
+                history,
+                sources=sources,
+                system_context=system_context,
+            ),
+            timeout=LOCAL_LLM_TOTAL_BUDGET,
+        )
+    except asyncio.CancelledError:
+        # The pipeline/shutdown cancelled this coroutine — unwind cleanly.
+        raise
+    except TimeoutError as exc:
+        logger.warning(
+            "local LLM chain exceeded %.1fs budget (user=%s): %s",
+            LOCAL_LLM_TOTAL_BUDGET,
+            user_id,
+            exc,
+        )
+        return None
 
 
 async def _gather_fallback_context(
@@ -494,7 +616,13 @@ async def _build_fallback_answer(
     if scan_summary:
         prompt = f"{scan_summary}\n\n{prompt}"
 
-    tool_block = build_tool_prompt_block(fallback_live_results)
+    tool_block: str = ""
+    try:
+        tool_block = build_tool_prompt_block(fallback_live_results)
+    except Exception as exc:
+        # The tool-prompt builder is owned by the quality agent; a failure
+        # there must never kill the fallback path — degrade to no tool block.
+        logger.debug("fallback tool prompt block failed (user=%s): %s", user.id, exc)
     if tool_block:
         prompt = f"{tool_block}\n\n{prompt}"
 
@@ -506,14 +634,21 @@ async def _build_fallback_answer(
 
     # Fallback: local CPU llama.cpp (qwen-chat 4B / qwen-analysis 9B, routed
     # by intent) — grounded with the bridge blocks + live tool data,
-    # reporting rag_count = len(sources).
-    result = await chat_ai._call_local_llm(
-        prompt,
-        user.id,
-        history,
-        sources=bridge_sources,
-        system_context=daily_context,
-    )
+    # reporting rag_count = len(sources). Fail-open: an unexpected failure in
+    # the local chain (even a crash inside the client) degrades to ``None``
+    # so the tools-only / canned paths below still run — the user ALWAYS gets
+    # an answer when any real data survived.
+    try:
+        result = await chat_ai._call_local_llm(
+            prompt,
+            user.id,
+            history,
+            sources=bridge_sources,
+            system_context=daily_context,
+        )
+    except Exception as exc:
+        logger.warning("fallback local LLM chain error (user=%s): %s", user.id, exc)
+        result = None
 
     # LLM chain completely down but tools returned REAL data → answer from
     # the tools themselves (no LLM, no guessing). Give the still-running
@@ -522,10 +657,19 @@ async def _build_fallback_answer(
     # the knowledge answer is labeled and never fabricated, so it is safe to
     # surface here.
     if not result:
-        if not live_tools_task.done():
-            fallback_live_results = await _run_live_tools_bounded(live_tools_task, TOOL_ANSWER_EXTRA_WAIT)
-        tool_answer = _format_tool_answer(fallback_live_results)
+        try:
+            if not live_tools_task.done():
+                fallback_live_results = await _run_live_tools_bounded(live_tools_task, TOOL_ANSWER_EXTRA_WAIT)
+            tool_answer = _format_tool_answer(fallback_live_results)
+        except Exception as exc:
+            logger.warning("fallback tools-only answer failed (user=%s): %s", user.id, exc)
+            tool_answer = None
         if tool_answer:
             result = {"message": tool_answer, "rag_count": len(bridge_sources), "provider": "tools"}
+        else:
+            logger.warning(
+                "fallback chain fully down — no LLM and no tool answer (user=%s)",
+                user.id,
+            )
 
     return result, bridge_sources, bridge_actions, rag_result, has_market_context

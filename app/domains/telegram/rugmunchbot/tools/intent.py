@@ -529,6 +529,65 @@ def tool_kwargs(text: str, names: list[str]) -> dict[str, dict[str, Any]]:
     return per_tool
 
 
+# ── Number formatting for the LLM prompt ────────────────────────────────
+# The tool payloads carry raw floats (price_usd=1.23e-05, market_cap=8400).
+# A small local model misreads scientific notation and bare large numbers,
+# so the compact prompt block renders the USD signal fields in human terms:
+# $0.0000123 / $1.2M / $840K, and percentage fields at 1 decimal (+12.3%).
+# Scope is deliberately narrow (price/mcap/liquidity/volume/fdv + pct) —
+# counts, ratios, scores and ages keep their raw values. This is the
+# MODEL-FACING projection only — the tools' ToolResult.data keeps the raw
+# values untouched.
+
+_USD_FIELDS = frozenset({"price_usd", "market_cap", "mcap", "fdv", "liquidity_usd", "volume_24h"})
+_PCT_FIELDS = frozenset({"price_change_24h", "change_24h"})
+
+
+def _fmt_scaled(v: float, unit: str) -> str:
+    """``v`` (already divided by the scale) + unit, up to 2 decimals,
+    trailing zeros stripped: 1.20 -> '1.2', 840.00 -> '840', 12.50 -> '12.5'."""
+    return f"{v:.2f}".rstrip("0").rstrip(".") + unit
+
+
+def _fmt_usd(v: float) -> str:
+    """Compact USD: $1.2M / $840K / $3.14 / $0.0042 / $0.0000123."""
+    sign = "-" if v < 0 else ""
+    a = abs(v)
+    if a >= 1e12:
+        return f"{sign}${_fmt_scaled(a / 1e12, 'T')}"
+    if a >= 1e9:
+        return f"{sign}${_fmt_scaled(a / 1e9, 'B')}"
+    if a >= 1e6:
+        return f"{sign}${_fmt_scaled(a / 1e6, 'M')}"
+    if a >= 1e3:
+        return f"{sign}${_fmt_scaled(a / 1e3, 'K')}"
+    if a >= 1:
+        return f"{sign}${a:,.2f}"
+    if a >= 0.01:
+        return f"{sign}${a:.4f}"
+    if a > 0:
+        # Expand tiny prices to a plain decimal the model can read literally
+        # (never scientific notation like 1.23e-05).
+        return f"{sign}${a:.10f}".rstrip("0").rstrip(".")
+    return "$0"
+
+
+def _fmt_signal(key: str, value: Any) -> str:
+    """Format one signal value for the LLM prompt; strings/bools pass through.
+
+    Only USD fields (price/mcap/liquidity/volume/fdv) and percentage fields
+    are reformatted; every other signal keeps its raw value.
+    """
+    if isinstance(value, bool) or value is None or not isinstance(value, (int, float)):
+        return str(value)
+    v = float(value)
+    if key in _USD_FIELDS:
+        return _fmt_usd(v)
+    if key in _PCT_FIELDS:
+        return "0.0%" if v == 0 else f"{v:+.1f}%"
+    return str(value)
+
+
 def _compact_list(value: list[object], cap: int = 10) -> str:
     """Render a list payload as compact lines (one per item when possible).
 
@@ -541,7 +600,10 @@ def _compact_list(value: list[object], cap: int = 10) -> str:
     ``tools/trend_algo.py``, ``tools/price.py`` and ``tools/security.py``
     (both canonical and legacy spellings) so the 4B sees the concrete
     numbers it must quote: price, mcap, liquidity, holders, age, buy/sell
-    split, risk score/flags — not just symbol + change.
+    split, risk score/flags — not just symbol + change. Numeric fields are
+    human-formatted via :func:`_fmt_signal` (``$0.0000123`` / ``$1.2M`` /
+    ``+12.3%``) so the model never misreads raw floats or scientific
+    notation.
     """
     if not value:
         return "[]"
@@ -580,7 +642,7 @@ def _compact_list(value: list[object], cap: int = 10) -> str:
                 "deployer_funded_by",
                 "dex",
             )
-            parts = [f"{k}={item[k]}" for k in keys if item.get(k) is not None]
+            parts = [f"{k}={_fmt_signal(k, item[k])}" for k in keys if item.get(k) is not None]
             out.append("{" + ", ".join(parts) + "}")
         else:
             out.append(str(item)[:200])
@@ -613,11 +675,23 @@ def build_tool_prompt_block(results: Mapping[str, object]) -> str:
                 if isinstance(v, list):
                     lines.append(f"    {k}: {_compact_list(v)}")
                 elif isinstance(v, dict):
-                    # Compact JSON (no whitespace) — denser than str() and
-                    # unambiguous for the LLM to read as data.
-                    lines.append(f"    {k}: {json.dumps(v, separators=(',', ':'), ensure_ascii=False)[:400]}")
+                    # Compact key=value lines with the same number formatting
+                    # as _compact_list (a flat security/wallet payload is a
+                    # dict, not a list — price_usd/liquidity_usd/volume_24h
+                    # must render human-readable there too). Nested dicts fall
+                    # back to compact JSON.
+                    inner_parts = [
+                        f"{ik}={_fmt_signal(ik, iv)}"
+                        if not isinstance(iv, (dict, list))
+                        else (f"{ik}={json.dumps(iv, separators=(',', ':'), ensure_ascii=False)[:200]}")
+                        for ik, iv in v.items()
+                    ]
+                    lines.append(f"    {k}: {{{', '.join(inner_parts)}}}")
                 else:
-                    text = str(v)
+                    # Scalars: human-format known numeric signals (a flat
+                    # security/wallet payload carries price_usd / risk_score /
+                    # holders at top level), else plain str().
+                    text = _fmt_signal(k, v)
                     lines.append(f"    {k}: {text[:500]}")
         else:
             lines.append(f"    {str(payload)[:800]}")

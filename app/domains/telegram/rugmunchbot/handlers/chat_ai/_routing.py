@@ -95,6 +95,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._live_tools import _run_r
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import _build_fallback_answer
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import _format_scan_summary
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._persistence import _persist_answer
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._trace import trace_answer
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools.menus import capability_menu_kb
@@ -477,54 +478,22 @@ async def chat_ai_response(
     # answer trace it via :func:`trace_answer`).
     pipeline_start = time.monotonic()
 
-    # Pre-LLM guards: chat_enabled toggle -> injection -> quota -> flood ->
-    # gibberish (tier-3 redirect). True = message already handled.
-    if await _run_entry_guards(update, message, user, text, pipeline_start=pipeline_start):
-        await _cancel_token_lookup(token_lookup_task)
-        return True
-
-    # Tier-2: ONLY instant-reply for greetings, thanks, and capability inquiries.
-    # Everything else goes to the LLM — the bot should answer what the user asks.
-    # Capability questions ("what can you do?") attach the capability menu so
-    # the bot's surface is discoverable right from the first answer.
-    capability_menu = capability_menu_kb() if _is_capability_question(text) else None
-    if (_is_greeting_or_thanks(text) or _is_capability_question(text)) and await _reply_local_intent(
-        message, text, user, menu_kb=capability_menu
-    ):
-        await _cancel_token_lookup(token_lookup_task)
-        return True
-
-    # Thumbs up — instant acknowledgment
-    with contextlib.suppress(Exception):
-        from telegram import ReactionTypeEmoji
-
-        await message.set_reaction([ReactionTypeEmoji(emoji="👍")])
-
-    # Start typing indicator — Telegram typing expires after ~5s, so we
-    # keep it alive in a background task until the answer is ready.
-    typing_task = asyncio.create_task(_keep_typing(message.chat))
-
-    # Preliminary "thinking" message — keeps user engaged
-    preliminary = await message.reply_text(
-        "\U0001f916 <b>Thinking...</b>\n\n"
-        f"\U0001f4ac <i>{escape(text[:150])}</i>\n\n"
-        "\u23f1\ufe0f Working on a detailed answer...",
-        parse_mode=ParseMode.HTML,
-        disable_web_page_preview=True,
-    )
-
-    # Interim "still digging" note: fired ~5s after the placeholder so a slow
-    # backend query doesn't look stalled. Cancelled the moment the answer is
-    # ready (below), so a fast response never gets clobbered by the edit.
-    placeholder_task = asyncio.create_task(_edit_placeholder_if_slow(preliminary))
-
+    # Task-lifecycle holders: the whole turn runs inside ONE try/except/
+    # finally. The except is the fail-open boundary — an unexpected exception
+    # in any single turn is logged, the placeholder becomes the honest canned
+    # fallback, and the finally cancels every task that is still running.
+    # The bot is a long-lived service: a turn that raises must NEVER take
+    # down the process or leave a dangling "Thinking..." bubble / coroutine.
+    typing_task: asyncio.Task[Any] | None = None
+    placeholder_task: asyncio.Task[Any] | None = None
+    preliminary: Message | None = None
     # P1 (task-lifecycle leak fix): every task created below must be
     # cancelled in the finally block — an early exception (backend RAG
     # failure, guardrail crash, send failure) must never leak a dangling
     # coroutine: the backend RAG call, the bridge/daily/scan context fetches,
     # the live tools, the direct RAG lookup and the caller-owned $TOKEN card
     # lookup (a late card firing on an exception path would be a stray
-    # message). typing_task / placeholder_task are created above and are
+    # message). typing_task / placeholder_task are created below and are
     # cancelled too.
     backend_task: asyncio.Task[Any] | None = None
     daily_ctx_task: asyncio.Task[Any] | None = None
@@ -533,6 +502,50 @@ async def chat_ai_response(
     live_tools_task: asyncio.Task[Any] | None = None
     rag_task: asyncio.Task[Any] | None = None
     try:
+        # Pre-LLM guards: chat_enabled toggle -> injection -> quota -> flood ->
+        # gibberish (tier-3 redirect). True = message already handled.
+        if await _run_entry_guards(update, message, user, text, pipeline_start=pipeline_start):
+            await _cancel_token_lookup(token_lookup_task)
+            return True
+
+        # Tier-2: ONLY instant-reply for greetings, thanks, and capability inquiries.
+        # Everything else goes to the LLM — the bot should answer what the user asks.
+        # Capability questions ("what can you do?") attach the capability menu so
+        # the bot's surface is discoverable right from the first answer.
+        capability_menu = capability_menu_kb() if _is_capability_question(text) else None
+        if (_is_greeting_or_thanks(text) or _is_capability_question(text)) and await _reply_local_intent(
+            message, text, user, menu_kb=capability_menu
+        ):
+            await _cancel_token_lookup(token_lookup_task)
+            return True
+
+        # Thumbs up — instant acknowledgment
+        with contextlib.suppress(Exception):
+            from telegram import ReactionTypeEmoji
+
+            await message.set_reaction([ReactionTypeEmoji(emoji="👍")])
+
+        # Start typing indicator — Telegram typing expires after ~5s, so we
+        # keep it alive in a background task until the answer is ready.
+        typing_task = asyncio.create_task(_keep_typing(message.chat))
+
+        # Preliminary "thinking" message — keeps user engaged
+        preliminary = await message.reply_text(
+            "\U0001f916 <b>Thinking...</b>\n\n"
+            f"\U0001f4ac <i>{escape(text[:150])}</i>\n\n"
+            "\u23f1\ufe0f Working on a detailed answer...",
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+        )
+        # Narrowed here: after a successful send the placeholder always exists
+        # for the rest of the turn (the except handler guards the None case).
+        assert preliminary is not None
+
+        # Interim "still digging" note: fired ~5s after the placeholder so a slow
+        # backend query doesn't look stalled. Cancelled the moment the answer is
+        # ready (below), so a fast response never gets clobbered by the edit.
+        placeholder_task = asyncio.create_task(_edit_placeholder_if_slow(preliminary))
+
         # CONCURRENT: fire the backend RAG chat (tier-1) AND the fallback context
         # fetches at the same time. The backend RAGs itself (news_v2 auto-RAG +
         # live web search) and does NOT need bridge context — only the local
@@ -597,9 +610,10 @@ async def chat_ai_response(
             await asyncio.gather(*pending, return_exceptions=True)
 
         # Stop typing indicator + interim placeholder task
-        typing_task.cancel()
-        placeholder_task.cancel()
-        await asyncio.gather(typing_task, placeholder_task, return_exceptions=True)
+        typing_placeholder = [t for t in (typing_task, placeholder_task) if t is not None]
+        for t in typing_placeholder:
+            t.cancel()
+        await asyncio.gather(*typing_placeholder, return_exceptions=True)
 
         # $TOKEN price card vs AI answer: the DexScreener lookup was fired
         # CONCURRENTLY at the top (ai_chat_handler) so the pipeline never
@@ -630,6 +644,17 @@ async def chat_ai_response(
                     parse_mode=ParseMode.HTML,
                     reply_markup=back_kb(),
                 )
+            # Per-turn error visibility: the whole synthesis chain failed
+            # (backend + local + tools) — emit an explicit error trace so the
+            # outage is greppable with latency, not just a placeholder edit.
+            trace_answer(
+                question=text,
+                user_id=user.id,
+                intent="chat",
+                route="error",
+                ok=False,
+                latency_ms=(time.monotonic() - pipeline_start) * 1000,
+            )
             return True
 
         answer = result["message"]
@@ -673,6 +698,40 @@ async def chat_ai_response(
             stripped_syms=stripped_syms,
             stripped_addrs=stripped_addrs,
         )
+        return True
+    except Exception as exc:
+        # ── FAIL-OPEN BOUNDARY (single-turn isolation) ─────────────────────
+        # An unexpected exception in ONE turn must never kill the bot process
+        # or the event loop (the bot is a long-lived service), and must never
+        # leave the user with a dangling "Thinking..." bubble. Log it with
+        # stack, emit an error trace (latency + ok=False), swap the
+        # placeholder for the honest canned fallback, and let the finally
+        # cancel every still-running task. CancelledError is a BaseException
+        # and is NOT caught here — a shutdown-cancelled pipeline unwinds.
+        logger.exception("chat_ai pipeline error (user=%s): %s", user.id, exc)
+        trace_answer(
+            question=text,
+            user_id=user.id,
+            intent="chat",
+            route="error",
+            ok=False,
+            latency_ms=(time.monotonic() - pipeline_start) * 1000,
+        )
+        fallback_text = _FALLBACK_MESSAGE
+        if preliminary is not None:
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await preliminary.edit_text(
+                    fallback_text,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=back_kb(),
+                )
+        else:
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await message.reply_text(
+                    fallback_text,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=back_kb(),
+                )
         return True
     finally:
         # Cancel every task that is still running (done tasks are no-ops) so
@@ -768,17 +827,28 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     # Feature routing that does NOT consume the AI quota: known-scam block,
     # bare-address auto-scan. The $TOKEN lookup runs concurrently (above), so
     # _route_structural skips it here.
-    if await _route_structural(update, ctx, text, user, skip_token_lookup=True):
-        if token_lookup_task is not None:
+    try:
+        if await _route_structural(update, ctx, text, user, skip_token_lookup=True):
+            if token_lookup_task is not None:
+                token_lookup_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await token_lookup_task
+            return
+
+        # Free text → shared AI core (quota + flood + backend RAG chat). The
+        # core fails open on its own; anything escaping here is structural
+        # routing (admin console / scan / $TOKEN lookup) — log it and cancel
+        # the concurrent lookup so no late price card or dangling task
+        # survives the failed turn (single-turn isolation for the service).
+        await chat_ai_response(
+            update, ctx, text, user, token_lookup_task=token_lookup_task, token_card_flag=token_card_flag
+        )
+    except Exception:
+        logger.exception("ai_chat_handler error (user=%s) text=%.60s", user.id, text)
+        if token_lookup_task is not None and not token_lookup_task.done():
             token_lookup_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await token_lookup_task
-        return
-
-    # Free text → shared AI core (quota + flood + backend RAG chat).
-    await chat_ai_response(
-        update, ctx, text, user, token_lookup_task=token_lookup_task, token_card_flag=token_card_flag
-    )
 
 
 def register_chat_ai(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
