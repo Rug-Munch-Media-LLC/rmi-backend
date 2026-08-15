@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
+
+from app.core.logging import get_logger
 
 from .manager import BulletinBoardManager
 
 if TYPE_CHECKING:
     from .models import Post
+
+logger = get_logger(__name__)
 
 BADGES = {
     "first_post": {"name": "First Words", "icon": "💬", "desc": "Made your first post", "tier": "bronze"},
@@ -31,6 +36,55 @@ BADGES = {
 }
 BADGE_TIERS = {"bronze": "#CD7F32", "silver": "#C0C0C0", "gold": "#FFD700", "diamond": "#B9F2FF"}
 X402_BB_POST_PRICE = "$1.00"
+
+# Solana USDC (mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v). 6 decimals,
+# so $1.00 == 1_000_000 raw units — the minimum bot membership payment.
+USDC_MINT_SOLANA = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+X402_USDC_MIN_RAW = 1_000_000
+
+
+def _x402_payment_address() -> str:
+    """Solana address that receives bot-membership USDC (configured by ops).
+
+    Membership is fail-closed: without this env var no payment can be
+    verified, so no bot posting is granted.
+    """
+    return os.getenv("BB_X402_PAYMENT_ADDRESS", "").strip()
+
+
+def _tx_pays_usdc(tx: dict[str, Any], payment_address: str, min_raw: int) -> bool:
+    """True when ``tx`` is a successful USDC transfer of >= ``min_raw`` to ``payment_address``.
+
+    Parses the RPC `getTransaction` result's pre/post token balance deltas for
+    the USDC mint owned by the payment address. A matching account must gain
+    at least ``min_raw`` raw units (the account may be newly created, in which
+    case the pre-balance is treated as zero).
+    """
+    meta = tx.get("meta") or {}
+    if meta.get("err") is not None:
+        return False
+    pre = {b.get("accountIndex"): b for b in meta.get("preTokenBalances") or []}
+    post = {b.get("accountIndex"): b for b in meta.get("postTokenBalances") or []}
+    pay = payment_address.lower()
+    for idx, entry in post.items():
+        if entry.get("mint") != USDC_MINT_SOLANA or (entry.get("owner") or "").lower() != pay:
+            continue
+        try:
+            post_amount = int(entry["uiTokenAmount"]["amount"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        pre_amount = 0
+        if idx in pre:
+            pre_entry = pre[idx]
+            if pre_entry.get("mint") != USDC_MINT_SOLANA or (pre_entry.get("owner") or "").lower() != pay:
+                continue
+            try:
+                pre_amount = int(pre_entry["uiTokenAmount"]["amount"])
+            except (KeyError, TypeError, ValueError):
+                continue
+        if post_amount - pre_amount >= min_raw:
+            return True
+    return False
 
 
 async def get_user_badges(user_id: str) -> list[Any]:
@@ -70,17 +124,67 @@ async def get_user_reputation(user_id: str) -> dict[str, Any]:
 
 
 async def verify_x402_bot(tx_hash: str, bot_addr: str) -> bool:
+    """Verify a real on-chain x402 bot membership payment.
+
+    Requirements (all must hold):
+      * ``tx_hash`` has not been used before (Redis replay guard).
+      * The transaction exists on Solana, executed successfully, and the
+        bot's wallet is the fee payer / signer.
+      * The transaction moves >= $1 USDC to the configured payment address
+        (``BB_X402_PAYMENT_ADDRESS``).
+
+    The tx is fetched from the chain RPC the backend already uses
+    (Helius → QuickNode via ``app.chain_client``). This fails CLOSED: when
+    the payment address is unset, the RPC is unavailable, or the tx does not
+    match, no membership is granted — the previous honor-system that accepted
+    any tx_hash is removed.
+    """
+    r = await BulletinBoardManager._get_redis()
     try:
-        r = await BulletinBoardManager._get_redis()
+        # Replay guard: a tx_hash can only be redeemed once
         if await r.get(f"bb:x402:tx:{tx_hash}"):
-            await r.close()
             return False
+
+        payment_address = _x402_payment_address()
+        if not payment_address:
+            logger.warning("x402 bot-post rejected: BB_X402_PAYMENT_ADDRESS not configured")
+            return False
+
+        try:
+            from app.chain_client import get_chain_client
+
+            txs = await get_chain_client().get_transactions([tx_hash])
+        except Exception as exc:  # RPC down / circuit open — fail closed, never grant
+            logger.warning("x402 bot-post: on-chain verification unavailable: %s", exc)
+            return False
+
+        if not txs:
+            logger.warning("x402 bot-post rejected: tx not found on chain: %s", tx_hash[:16])
+            return False
+
+        tx = txs[0]
+        # The bot must be the fee payer / signer of the payment tx
+        message = (tx.get("transaction") or {}).get("message") or {}
+        account_keys = message.get("accountKeys") or []
+        if not account_keys or account_keys[0].lower() != bot_addr.lower():
+            logger.warning("x402 bot-post rejected: signer mismatch for tx %s", tx_hash[:16])
+            return False
+
+        if not _tx_pays_usdc(tx, payment_address, X402_USDC_MIN_RAW):
+            logger.warning(
+                "x402 bot-post rejected: no USDC >= $1 to payment address in tx %s",
+                tx_hash[:16],
+            )
+            return False
+
         await r.setex(f"bb:x402:tx:{tx_hash}", 86400, bot_addr)
         await r.setex(f"bb:x402:bot:{bot_addr}", 2592000, "1")
-        await r.close()
         return True
     except (ConnectionError, OSError, TimeoutError):
+        logger.warning("x402 bot-post: verification failed (store unavailable) for tx %s", tx_hash[:16])
         return False
+    finally:
+        await r.close()
 
 
 async def ingest_post_to_rag(post: Post) -> dict[str, Any]:
