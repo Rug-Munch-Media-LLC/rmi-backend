@@ -79,8 +79,10 @@ _SELF_DESCRIPTION_RE = re.compile(
 
 _SELF_DESCRIPTION_ANSWER = (
     "\U0001f575\ufe0f <b>Rug Munch Capabilities</b> \u2014 who I am &amp; what I can do\n\n"
-    "I'm <b>Rug Munch Bot</b> \u2014 the crypto security &amp; on-chain "
-    "intelligence analyst from <b>Rug Munch Intelligence</b>, built to "
+    "I'm <b>Rug Munch Bot</b> \u2014 built by <b>@cryptorugmunch</b> &amp; "
+    "the team at <b>Rug Munch Intelligence</b>, owned &amp; operated by "
+    "<b>Rug Munch Media LLC</b> (Wyoming, USA) \u2014 the crypto security "
+    "&amp; on-chain intelligence analyst, built to "
     "protect retail investors from scams. I never invent numbers: every "
     "metric I quote is grounded in real scan data, live market feeds, or "
     "the intel library.\n\n"
@@ -340,7 +342,9 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
         ),
         (
             "\U0001f44b <b>Yo! I'm here.</b>\n\n"
-            "I'm <b>Rug Munch Bot</b> \u2014 the AI analyst from the <b>Rug Munch Intelligence</b> platform. "
+            "I'm <b>Rug Munch Bot</b> \u2014 built by <b>@cryptorugmunch</b> "
+            "&amp; the team at <b>Rug Munch Intelligence</b>, owned &amp; "
+            "operated by <b>Rug Munch Media LLC</b> (Wyoming, USA). "
             "I scan tokens for rugs, profile wallets, track whales, and "
             "answer crypto questions backed by 91K+ intel documents across 25+ chains.\n\n"
             "\U0001f6e1\ufe0f <b>Quick start:</b>\n"
@@ -368,13 +372,15 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(
             r"\b(who made you|who created you|who built you|who developed you|"
-            r"who runs you|who is your creator|who is behind you|who are you)\b",
+            r"who runs you|who owns you|who is your creator|who is behind you|who are you)\b",
             re.IGNORECASE,
         ),
         (
             "\U0001f916 <b>I'm Rug Munch Bot</b>\n\n"
-            "Built by <b>Rug Munch Intelligence</b> \u2014 the crypto security "
-            "& on-chain intel platform. I scan tokens, profile wallets, track "
+            "Made by <b>@cryptorugmunch</b> and the team at <b>Rug Munch "
+            "Intelligence</b> \u2014 the crypto security &amp; on-chain intel "
+            "platform \u2014 and owned &amp; operated by <b>Rug Munch Media "
+            "LLC</b> (Wyoming, USA). I scan tokens, profile wallets, track "
             "whales, and answer crypto questions backed by 91K+ intel docs "
             "across 25+ chains."
             f"{footer_links()}"

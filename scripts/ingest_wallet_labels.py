@@ -60,6 +60,11 @@ import logging
 
 import httpx
 
+try:
+    import yaml
+except ImportError:  # pragma: no cover — pyyaml ships in the rmi-backend venv
+    yaml = None
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -797,27 +802,86 @@ async def ingest_cryptoscamdb(ch: Any, redis: Any | None) -> dict[str, int]:
 
     totals: dict[str, int] = {"wallet_labels": 0, "scam_addresses": 0}
 
+    label_rows: list[dict] = []
+    scam_rows: list[dict] = []
+
+    # Primary: GitHub urls.yaml (master). The public API is intermittently 502
+    # and data/blacklist.json never existed upstream (old URL 404'd).
+    github_url = "https://raw.githubusercontent.com/CryptoScamDB/blacklist/master/data/urls.yaml"
+    chain_alias = {"eth": "ethereum", "btc": "bitcoin", "bnb": "bsc"}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(github_url)
+            if resp.status_code == 200:
+                if yaml is None:
+                    logger.error("  pyyaml not installed — cannot parse CryptoScamDB YAML")
+                else:
+                    entries = yaml.safe_load(resp.text)
+                    if isinstance(entries, list):
+                        logger.info(f"  Got {len(entries)} entries from GitHub urls.yaml")
+                        for entry in entries:
+                            if not isinstance(entry, dict):
+                                continue
+                            name = entry.get("name", "")
+                            category = entry.get("category", "scam")
+                            addresses = entry.get("addresses", {})
+                            if not isinstance(addresses, dict):
+                                continue
+                            for chain, chain_addrs in addresses.items():
+                                if not isinstance(chain_addrs, list):
+                                    continue
+                                for addr in chain_addrs:
+                                    if not addr or len(addr) < 10:
+                                        continue
+                                    label_rows.append(
+                                        {
+                                            "address": addr.lower(),
+                                            "chain_id": chain_alias.get(chain.lower(), chain.lower()),
+                                            "label_name": name or f"CryptoScamDB {category}",
+                                            "label_category": "scam",
+                                            "label_subtype": category,
+                                            "source": "cryptoscamdb",
+                                            "is_sanctioned": False,
+                                        }
+                                    )
+                                    scam_rows.append(
+                                        {
+                                            "address": addr.lower(),
+                                            "chain_id": chain_alias.get(chain.lower(), chain.lower()),
+                                            "source": "cryptoscamdb",
+                                            "threat_type": category,
+                                            "confidence": 0.9,
+                                            "evidence": f"CryptoScamDB: {name}",
+                                        }
+                                    )
+            else:
+                logger.warning(f"  CryptoScamDB GitHub returned {resp.status_code}")
+    except Exception as e:
+        logger.warning(f"  CryptoScamDB GitHub fetch failed: {e}")
+
+    # Fallback: API (intermittently 502)
     api_urls = [
         "https://api.cryptoscamdb.org/v1/scams",
         "https://api.cryptoscamdb.org/v1/all",
     ]
 
     data = None
-    async with httpx.AsyncClient(timeout=30) as client:
-        for url in api_urls:
-            try:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    logger.info(f"  Got response from {url}")
-                    break
-                else:
-                    logger.warning(f"  {url} returned {resp.status_code}")
-            except Exception as e:
-                logger.debug(f"  {url} failed: {e}")
+    if not label_rows:
+        async with httpx.AsyncClient(timeout=30) as client:
+            for url in api_urls:
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        logger.info(f"  Got response from {url}")
+                        break
+                    else:
+                        logger.warning(f"  {url} returned {resp.status_code}")
+                except Exception as e:
+                    logger.debug(f"  {url} failed: {e}")
 
-    if not data:
-        logger.warning("  CryptoScamDB API unavailable")
+    if not data and not label_rows:
+        logger.warning("  CryptoScamDB unavailable (API 502 + GitHub fallback)")
         return totals
 
     # Parse response
@@ -828,9 +892,6 @@ async def ingest_cryptoscamdb(ch: Any, redis: Any | None) -> dict[str, int]:
         scams = data
 
     logger.info(f"  Found {len(scams)} scam entries")
-
-    label_rows = []
-    scam_rows = []
 
     for scam in scams:
         if not isinstance(scam, dict):

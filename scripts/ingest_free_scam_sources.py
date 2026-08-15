@@ -62,11 +62,11 @@ async def ingest_metamask_blacklist():
             resp = await client.get(METAMASK_LIST_URL)
             if resp.status_code != 200:
                 logger.error(f"Failed to fetch MetaMask list: {resp.status_code}")
-                return 0, 0
+                return 0, 0, False
             data = resp.json()
         except Exception as e:
             logger.error(f"MetaMask list fetch error: {e}")
-            return 0, 0
+            return 0, 0, False
 
     blacklist = data.get("blacklist", [])
     logger.info(f"MetaMask blacklist: {len(blacklist)} entries")
@@ -114,7 +114,7 @@ async def ingest_metamask_blacklist():
         if (batch_idx + 1) % 20 == 0:
             await asyncio.sleep(0.1)
 
-    return ingested, errors
+    return ingested, errors, True
 
 
 async def try_cryptoscamdb():
@@ -194,12 +194,17 @@ async def main():
     total_errors = 0
 
     # 1. MetaMask blacklist (always accessible)
-    mm_ingested, mm_errors = await ingest_metamask_blacklist()
+    mm_ingested, mm_errors, mm_fetch_ok = await ingest_metamask_blacklist()
     total_ingested += mm_ingested
     total_errors += mm_errors
     logger.info(f"MetaMask: {mm_ingested} docs ingested, {mm_errors} errors")
 
-    # 2. CryptoScamDB (may be down)
+    if not mm_fetch_ok:
+        # Fail loud: the primary source 404'd — surface it instead of failed=0.
+        logger.error("FATAL: MetaMask phishing blacklist fetch failed")
+        sys.exit(1)
+
+    # 2. CryptoScamDB (may be down; dedicated ingest_cryptoscamdb.py fails loud)
     scams = await try_cryptoscamdb()
     if scams:
         csdb_ingested, csdb_errors = await ingest_cryptoscamdb(scams)
