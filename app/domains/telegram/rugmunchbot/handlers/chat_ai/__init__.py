@@ -60,7 +60,9 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import (
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import (
     CHUNK_MAX_CHARS,
     MAX_ADDRESS_HINTS,
+    MAX_ANSWER_CHARS,
     _beautify_answer as _beautify_answer,
+    _cap_answer as _cap_answer,
     _chunk_text,
     _extract_addresses as _extract_addresses,
     _format_scan_summary as _format_scan_summary,
@@ -116,6 +118,7 @@ __all__ = [
     "CHAT_TIMEOUT",
     "CHUNK_MAX_CHARS",
     "MAX_ADDRESS_HINTS",
+    "MAX_ANSWER_CHARS",
     "SCAN_ENDPOINT",
     "SCAN_TIMEOUT",
     "_chunk_text",

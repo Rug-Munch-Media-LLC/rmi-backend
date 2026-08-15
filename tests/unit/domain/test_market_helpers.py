@@ -211,15 +211,30 @@ def test_merge_trending_filters_unknown_names() -> None:
     assert _merge_trending_sources([], tokens, []) == []
 
 
-def test_merge_trending_coingecko_id_key_and_limit() -> None:
+def test_merge_trending_drops_addressless_entries() -> None:
+    """CoinGecko-style entries (coingecko_id only, NO contract address) are
+    dropped — they would otherwise render as '[address not verified]' and
+    crowd out real meme movers."""
     cg = [
         {"coingecko_id": "btc", "name": "Bitcoin", "symbol": "BTC", "volume_24h": 1000, "source": "coingecko"},
         {"coingecko_id": "eth", "name": "Ether", "symbol": "ETH", "volume_24h": 900, "source": "coingecko"},
         {"coingecko_id": "sol", "name": "Solana", "symbol": "SOL", "volume_24h": 800, "source": "coingecko"},
     ]
-    merged = _merge_trending_sources(None, None, cg, limit=2)
+    assert _merge_trending_sources(None, None, cg, limit=2) == []
+
+
+def test_merge_trending_fresh_launch_limit_and_priority() -> None:
+    """Fresh-launch (token-profiles) entries carry real addresses and rank
+    at the same priority as RugCharts — a newly deployed meme beats an old
+    infra token with the same data quality."""
+    fresh = [
+        {"address": "0xf1", "name": "PumpFresh", "symbol": "PMP", "created_at": 0, "source": "dexscreener:profiles"},
+        {"address": "0xf2", "name": "MemeNew", "symbol": "NEW", "created_at": 0, "source": "dexscreener:profiles"},
+        {"address": "0xf3", "name": "RugJuice", "symbol": "RUG", "created_at": 0, "source": "dexscreener:profiles"},
+    ]
+    merged = _merge_trending_sources(None, None, fresh, limit=2)
     assert len(merged) == 2
-    assert merged[0]["name"] == "Bitcoin"  # sorted by quality then volume
+    assert all(t.get("address") for t in merged)  # real addresses only
 
 
 def test_merge_trending_sorts_by_quality_then_volume() -> None:
@@ -231,6 +246,36 @@ def test_merge_trending_sorts_by_quality_then_volume() -> None:
 
 def test_merge_trending_none_inputs() -> None:
     assert _merge_trending_sources(None, None, None) == []
+
+
+def test_merge_trending_fresh_launch_and_mover_bonuses() -> None:
+    """Fresh launches (new) and big |24h %| movers outrank stale flat tokens:
+    freshness bonus (+2 <24h) and mover bonus (+2 >=100%) are added to the
+    quality score, so a new pump beats an old quiet token with equal data."""
+    old_flat = {
+        "address": "0xold",
+        "name": "OldCoin",
+        "symbol": "OLD",
+        "volume_24h": 500_000,
+        "liquidity_usd": 1_000_000,
+        "change_24h": 0.5,
+        "created_at": 30 * 24 * 3600 * 1000,  # 30d old
+        "source": "dexscreener",
+    }
+    new_pump = {
+        "address": "0xnew",
+        "name": "FreshPump",
+        "symbol": "FRESH",
+        "volume_24h": 100_000,
+        "liquidity_usd": 100_000,
+        "change_24h": 250.0,
+        "created_at": 2 * 3600 * 1000,  # 2h old
+        "source": "dexscreener:profiles",
+    }
+    merged = _merge_trending_sources(None, [old_flat], [new_pump], limit=2)
+    assert len(merged) == 2
+    # fresh + mover bonuses lift the new pump above the old flat coin
+    assert merged[0]["address"] == "0xnew"
 
 
 # ── name cleaning ──────────────────────────────────────────────────────────
@@ -294,6 +339,35 @@ def test_sort_trending_is_mutation_free() -> None:
     original = list(tokens)
     _sort_trending(tokens, "1h")
     assert tokens == original
+
+
+def test_sort_trending_surfaces_losers_both_directions() -> None:
+    """Degen ranking: biggest |24h %| movers win — juicy red rugs surface
+    alongside green pumps, not just gainers."""
+    tokens = [
+        {"name": "Pump", "change_24h": 500.0},
+        {"name": "Rug", "change_24h": -90.0},
+        {"name": "Flat", "change_24h": 1.0},
+        {"name": "MidGreen", "change_24h": 40.0},
+        {"name": "MidRed", "change_24h": -45.0},
+    ]
+    order = [t["name"] for t in _sort_trending(tokens, "24h")]
+    assert order[0] == "Pump"  # +500% first
+    assert order[1] == "Rug"  # -90% dump is the next biggest mover
+    # both a negative and a positive mover make the top ranks
+    assert "MidRed" in order[:4]
+    assert "MidGreen" in order[:4]
+    assert order[-1] == "Flat"  # flat token sinks
+
+
+def test_sort_trending_7d_surfaces_losers() -> None:
+    tokens = [
+        {"name": "Green7d", "change_7d": 80.0},
+        {"name": "Red7d", "change_7d": -75.0},
+        {"name": "NoChange", "change_7d": 0.0},
+    ]
+    order = [t["name"] for t in _sort_trending(tokens, "7d")]
+    assert order[:2] == ["Green7d", "Red7d"]
 
 
 def test_window_note() -> None:

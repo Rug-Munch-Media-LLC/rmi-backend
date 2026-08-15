@@ -13,9 +13,8 @@ Includes:
 
 from __future__ import annotations
 
+import os
 from typing import Any
-
-import httpx
 
 from app.core.logging import get_logger
 
@@ -110,12 +109,18 @@ CHAIN_CONFIGS: dict[str, dict[str, Any]] = {
 
 # ─── MORALIS API KEY ──────────────────────────────────────────────
 
-MORALIS_API_KEY = ""
-try:
-    with open("/root/.secrets/moralis_api_key") as f:
-        MORALIS_API_KEY = f.read().strip()
-except (ConnectionError, TimeoutError, httpx.HTTPError):
-    logger.warning("Moralis API key not found at /root/.secrets/moralis_api_key")
+# Env-gated: empty default is harmless — callers fall back to public RPCs when
+# no key is set. Prefer the MORALIS_API_KEY env var (consistent with
+# app/moralis_connector.py); the legacy secrets file is only a fallback.
+MORALIS_API_KEY = os.getenv("MORALIS_API_KEY", "")
+
+if not MORALIS_API_KEY:
+    try:
+        with open("/root/.secrets/moralis_api_key") as f:
+            MORALIS_API_KEY = f.read().strip()
+    except OSError:
+        # Missing/unreadable file is fine — module must import cleanly.
+        logger.warning("Moralis API key not found (set MORALIS_API_KEY or create /root/.secrets/moralis_api_key)")
 
 # ─── MORALIS RPC ENDPOINTS ────────────────────────────────────────
 

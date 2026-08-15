@@ -204,38 +204,117 @@ async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) ->
         return None
 
 
-async def _fetch_coingecko_trending(chain: str = "solana", limit: int = 15) -> list[dict[str, Any]] | None:
-    """Fetch trending from CoinGecko."""
+async def _fetch_dexscreener_fresh_launches(chain: str = "solana", limit: int = 12) -> list[dict[str, Any]] | None:
+    """Freshly deployed tokens from DexScreener token-profiles (pump.fun etc.).
+
+    ``/token-profiles/latest/v1`` is the same feed the trending algorithm
+    uses to seed fresh launches — real ``tokenAddress`` values, mostly
+    pump.fun on Solana. Each profile is enriched with live pair data so the
+    entry carries a real address, price, 24h change, volume, liquidity and
+    creation time (for the fresh-launch age badge).
+    """
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get("https://api.coingecko.com/api/v3/search/trending")
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get("https://api.dexscreener.com/token-profiles/latest/v1")
             if r.status_code != 200:
                 return None
-            data = r.json()
-            coins = data.get("coins", [])
-            if not coins:
+            profiles = r.json()
+            if not isinstance(profiles, list) or not profiles:
                 return None
-            tokens = []
-            for c in coins[:limit]:
-                item = c.get("item", {})
-                if not item:
-                    continue
-                # CoinGecko doesn't give contract addresses directly
-                # We'll use the id for matching later
-                tokens.append(
-                    {
-                        "coingecko_id": item.get("id"),
-                        "name": item.get("name") or "Unknown",
-                        "symbol": (item.get("symbol") or "???").upper(),
-                        "score": item.get("score", 0),
-                        "market_cap_rank": item.get("market_cap_rank"),
-                        "source": "coingecko",
-                    }
-                )
-            return tokens if tokens else None
+
+            semaphore = asyncio.Semaphore(10)
+
+            async def fetch_profile_details(item: dict[str, Any]) -> dict[str, Any] | None:
+                if not isinstance(item, dict):
+                    return None
+                token_addr = item.get("tokenAddress") or ""
+                if not token_addr:
+                    return None
+                item_chain = (item.get("chainId") or "").lower()
+                if chain and chain != "all" and item_chain != chain.lower():
+                    return None
+
+                async with semaphore:
+                    try:
+                        r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_addr}", timeout=8)
+                        if r.status_code != 200:
+                            return None
+                        pairs = r.json().get("pairs", [])
+                        if not pairs:
+                            return None
+                        p = pairs[0]
+                        bt = p.get("baseToken", {})
+                        name = bt.get("name") or ""
+                        symbol = bt.get("symbol") or ""
+                        if not name or not symbol:
+                            return None
+                        return {
+                            "address": token_addr,
+                            "chain": p.get("chainId", item_chain),
+                            "name": name,
+                            "symbol": symbol,
+                            "price_usd": float(p.get("priceUsd") or 0),
+                            "volume_24h": float(p.get("volume", {}).get("h24") or 0),
+                            "liquidity_usd": float(p.get("liquidity", {}).get("usd") or 0),
+                            "change_24h": float(p.get("priceChange", {}).get("h24") or 0),
+                            "change_1h": float(p.get("priceChange", {}).get("h1") or 0),
+                            "change_7d": float(p.get("priceChange", {}).get("d7") or 0),
+                            "created_at": p.get("pairCreatedAt"),
+                            "dex": p.get("dexId"),
+                            "source": "dexscreener:profiles",
+                            "is_new_launch": True,
+                        }
+                    except Exception:
+                        return None
+
+            tasks = [fetch_profile_details(item) for item in profiles[: limit * 2]]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            tokens = [r for r in results if isinstance(r, dict) and r is not None]
+            return tokens[:limit] if tokens else None
+
     except Exception as exc:
-        logger.debug("coingecko trending fetch failed: %s", exc)
+        logger.debug("dexscreener fresh-launch fetch failed: %s", exc)
         return None
+
+
+async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[dict[str, Any]] | None:
+    """Fetch and fuse trending from degen sources with enrichment.
+
+    Sources (no CoinGecko search-score — it has no contract addresses and is
+    dominated by CEX-listed infra tokens nobody trades):
+      1. RugCharts backend feed (our own data, real addresses).
+      2. DexScreener token-boosts (paid attention, real addresses).
+      3. DexScreener token-profiles — pump.fun / newly deployed, real addresses.
+    """
+    # Fetch from all sources in parallel
+    rg_task = _fetch_rugcharts_trending(chain, limit)
+    ds_task = _fetch_dexscreener_trending(chain, limit)
+    fresh_task = _fetch_dexscreener_fresh_launches(chain, limit)
+
+    results = await asyncio.gather(rg_task, ds_task, fresh_task, return_exceptions=True)
+    rugcharts = results[0] if not isinstance(results[0], BaseException) else None
+    dexscreener = results[1] if not isinstance(results[1], BaseException) else None
+    fresh_launches = results[2] if not isinstance(results[2], BaseException) else None
+
+    # Handle exceptions
+    if isinstance(rugcharts, Exception):
+        rugcharts = None
+    if isinstance(dexscreener, Exception):
+        dexscreener = None
+    if isinstance(fresh_launches, Exception):
+        fresh_launches = None
+
+    # Merge sources (fresh launches = highest priority alongside rugcharts)
+    fused = _merge_trending_sources(rugcharts, dexscreener, fresh_launches, limit)
+
+    if not fused:
+        return None
+
+    # Enrich with quick risk scans
+    enriched = await _enrich_with_quick_scan(fused, chain)
+
+    return enriched
 
 
 async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> list[dict[str, Any]] | None:
@@ -313,46 +392,15 @@ async def _enrich_with_quick_scan(tokens: list[dict[str, Any]], chain: str) -> l
     return [t for t in enriched if isinstance(t, dict)]
 
 
-async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[dict[str, Any]] | None:
-    """Fetch and fuse trending from all sources with enrichment."""
-    # Fetch from all sources in parallel
-    rg_task = _fetch_rugcharts_trending(chain, limit)
-    ds_task = _fetch_dexscreener_trending(chain, limit)
-    cg_task = _fetch_coingecko_trending(chain, limit)
-
-    results = await asyncio.gather(rg_task, ds_task, cg_task, return_exceptions=True)
-    rugcharts = results[0] if not isinstance(results[0], BaseException) else None
-    dexscreener = results[1] if not isinstance(results[1], BaseException) else None
-    coingecko = results[2] if not isinstance(results[2], BaseException) else None
-
-    # Handle exceptions
-    if isinstance(rugcharts, Exception):
-        rugcharts = None
-    if isinstance(dexscreener, Exception):
-        dexscreener = None
-    if isinstance(coingecko, Exception):
-        coingecko = None
-
-    # Merge sources
-    fused = _merge_trending_sources(rugcharts, dexscreener, coingecko, limit)
-
-    if not fused:
-        return None
-
-    # Enrich with quick risk scans
-    enriched = await _enrich_with_quick_scan(fused, chain)
-
-    return enriched
-
-
 # ══════════════════════════════════════════════
 # /trending Redis cache — fused token list, TTL 60-120s
-# The fused trending pipeline fans out to RugCharts + DexScreener +
-# CoinGecko and then enriches each token with a backend quick scan (up to
-# ~20 external calls). The cache serves the SAME fused token list for the
-# TTL window so repeated /trending taps (and the inline callback paths,
-# which call ``render_trending`` with the same key) do not re-hammer the
-# sources. Fail-open: Redis down → live fetch every time.
+# The fused trending pipeline fans out to RugCharts + DexScreener boosts +
+# DexScreener fresh-launch profiles and then enriches each token with a
+# backend quick scan (up to ~20 external calls). The cache serves the SAME
+# fused token list for the TTL window so repeated /trending taps (and the
+# inline callback paths, which call ``render_trending`` with the same key)
+# do not re-hammer the sources. Fail-open: Redis down → live fetch every
+# time.
 # ══════════════════════════════════════════════
 _TRENDING_TTL = 90  # within the 60-120s requirement
 _TRENDING_KEY_PREFIX = "trending:"  # spec key: trending:{chain}:{window}

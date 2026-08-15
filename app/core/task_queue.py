@@ -1,4 +1,12 @@
-"""Redis-backed Background Task Queue - retry with exponential backoff, visibility."""
+"""Redis-backed Background Task Queue - retry with exponential backoff, visibility.
+
+DEPRECATED (2026-08): No task handlers are registered anywhere in the
+codebase — ``register_task`` has zero callers and no module under ``app/`` or
+``tests/`` imports this package, so ``TASKS`` is always empty. Kept only for
+compatibility with external scripts that may enqueue tasks; do not build new
+functionality on it. Prefer Temporal workflows (``app.temporal``) for new
+background work.
+"""
 
 from __future__ import annotations
 
