@@ -101,7 +101,7 @@ def _grounding_sources_count(
 def strip_think_blocks(text: str) -> str:
     """Strip ``<think>...</think>`` reasoning blocks from an LLM answer.
 
-    Local models (deepseek-analysis) emit visible reasoning chains and the
+    Local models (qwen-analysis) emit visible reasoning chains and the
     backend / zen / local providers can all surface them. Handles BOTH
     complete blocks and unterminated blocks truncated by ``max_tokens`` —
     exactly like ``ai_router._strip_think_tags`` (an unclosed ``<think>``

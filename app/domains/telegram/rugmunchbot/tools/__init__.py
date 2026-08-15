@@ -91,7 +91,7 @@ def _register_defaults(registry_: ToolRegistry) -> None:
     registry_.register("wallet_analysis", wallet_analysis, timeout=20.0, ttl=60.0)
     # web_search timeout is generous (75s): when the bridge + SearXNG are
     # down the tool synthesizes a knowledge answer through the local-first
-    # LLM chain (qwen-chat → deepseek-analysis → DeepSeek Flash API, up to
+    # LLM chain (qwen-chat → qwen-analysis → DeepSeek Flash API, up to
     # ~50s) so it NEVER hard-fails. The chat pipeline bounds its own wait on
     # this tool (chat_ai LIVE_TOOLS_WAIT) so the slow fallback can't stall
     # answers.

@@ -377,7 +377,7 @@ async def _post_guardrail(
     footer and the structured answer trace.
     """
     # ── THINK-STRIPPING (post-processing) ─────────────────────────────────
-    # Local models (deepseek-analysis) emit visible <think>...</think>
+    # Local models (qwen-analysis) emit visible <think>...</think>
     # reasoning chains; the backend / zen / local providers can all surface
     # them. Strip here — the single funnel every provider's answer flows
     # through — so the user, the stored chat history, and the fabrication

@@ -496,7 +496,7 @@ class TestCapAnswer:
 
 
 class TestStripThinkBlocks:
-    """Regression: deepseek-analysis (and the backend routing to it) emits
+    """Regression: qwen-analysis (and the backend routing to it) emits
     <think>...</think> reasoning chains; they must never reach the user."""
 
     def test_complete_block_removed(self) -> None:

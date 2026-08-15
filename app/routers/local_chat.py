@@ -1,6 +1,6 @@
 """
 Local Model Chat — proxies to llama.cpp servers (Qwen3.5-4B, Qwen3.5-9B).
-qwen-chat for quick chat, deepseek-analysis (Qwen3.5-9B) for deep analysis.
+qwen-chat for quick chat, qwen-analysis (Qwen3.5-9B) for deep analysis.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
 DEEPSEEK_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
-DEEPSEEK_MODEL = "deepseek-analysis"
+DEEPSEEK_MODEL = "qwen-analysis"
 
 
 class LocalChatRequest(BaseModel):

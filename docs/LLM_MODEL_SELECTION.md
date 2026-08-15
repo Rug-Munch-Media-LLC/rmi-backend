@@ -8,8 +8,8 @@
 >
 > **STATUS: DEPLOYED 2026-08-14** — the recommended swap shipped. Live on Talos:
 >   - `:8085` (`llama-chat`)  → `Huihui-Qwen3.5-4B-Abliterated.Q6_K.gguf`  (alias `qwen-chat`)
->   - `:8086` (`llama-analysis`) → `Huihui-Qwen3.5-9B-Abliterated.Q6_K.gguf` (alias `deepseek-analysis`)
-> Aliases are retained for caller compatibility; `deepseek-analysis` is a legacy label (model is Qwen3.5 9B, not DeepSeek).
+>   - `:8086` (`llama-analysis`) → `Huihui-Qwen3.5-9B-Abliterated.Q6_K.gguf` (alias `qwen-analysis`)
+> Alias `qwen-analysis` (Qwen3.5 9B) is the analysis-tier local model on llama.cpp :8086.
 > Old GGUFs (`qwen3-4b-abliterated-q4_k_m.gguf`, `deepseek-r1-distill-qwen3-8b-abliterated-i1-q4_k_m.gguf`) remain on disk for rollback (removal pending).
 > Sections below are the research record that produced the deployment.
 
