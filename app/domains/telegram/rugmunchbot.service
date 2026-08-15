@@ -1,19 +1,90 @@
+# RugMunchBot systemd unit — source of truth
+# ===========================================
+# Syncs to the live node with (run as root on Talos; /etc is sandbox-denied
+# for agents, so this is a manual/Lead step):
+#
+#   sudo install -m 0644 -o root -g root \
+#     /srv/work/repos/rmi-backend/app/domains/telegram/rugmunchbot.service \
+#     /etc/systemd/system/rugmunchbot.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl restart rugmunchbot
+#   systemctl status rugmunchbot --no-pager
+#
+# Reconciles repo unit <-> live config drift found 2026-08-15:
+#   - Restart=on-failure   -> Restart=always + RestartSec=10   (match live)
+#   - + EnvironmentFile=/srv/secrets/rugmunchbot.env           (match live)
+#   - MemoryMax 512M -> 768M  (live peak 507.6M = 0% headroom, OOM risk)
+#   - + CPUQuota=100%, + TimeoutStopSec=10, + hardening (see [Service])
+#   - No drop-in exists on the live node (rugmunchbot.service.d/ absent);
+#     EnvironmentFile lives in the main unit, carried here directly.
+#
+# SECURITY: bot token is NEVER set via Environment=/EnvironmentFile.
+# secure_launcher fetches rmi/rugmunchbot/bot_token from gopass at startup
+# and unsets it before the poll loop. /srv/secrets/rugmunchbot.env carries
+# non-token runtime config only.
+#
+# [REVIEW] Non-root User= : ops(1000)/runner(1001) exist in /etc/passwd, but
+# the bot reads the token from the ROOT-owned gopass store + gpg keyring
+# (/root/.local/share/gopass, /root/.gnupg, HOME=/root). Switching User=
+# requires migrating gopass+gnupg to the service account, making
+# /srv/secrets/rugmunchbot.env readable by it, and a rollout window — do NOT
+# flip blindly. Matches rmiadminbot.service, which also runs as root for the
+# same reason. Separate migration task, needs Lead approval.
+# [REVIEW] ProtectHome=true re-exposes /root via ReadWritePaths (incl.
+# /root/.config/gopass for gopass config read). Verify token fetch survives
+# at deploy time: journalctl -u rugmunchbot -e | grep -i 'FATAL\|gopass'
+
 [Unit]
 Description=RugMunchBot — Telegram Bot (Secure Launcher)
 After=network-online.target
 Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=300
 
 [Service]
 Type=simple
 WorkingDirectory=/srv/work/repos/rmi-backend
 ExecStart=/srv/work/repos/rmi-backend/.venv/bin/python -m app.domains.telegram.secure_launcher rugmunchbot
-Restart=on-failure
-RestartSec=5
+SyslogIdentifier=rugmunchbot
+
+# Restart policy — matches live config (healthy unit: Restart=always)
+Restart=always
+RestartSec=10
+TimeoutStopSec=10
+
+# Runtime environment — matches live config; token itself stays in gopass
+EnvironmentFile=/srv/secrets/rugmunchbot.env
 Environment=HOME=/root
+
+# Resource limits — MemoryMax raised 512M -> 768M (live peak 507.6M had 0%
+# headroom; 768M gives ~34% headroom). CPUQuota=100% = one full core.
+MemoryMax=768M
+MemoryHigh=640M
+CPUQuota=100%
+
+# User= ops  # [REVIEW] see header — requires gopass/gnupg migration first
+
+# Sandboxing
 PrivateTmp=yes
-NoNewPrivileges=yes
-ReadWritePaths=/srv/work/repos/rmi-backend /root/.local/share/gopass /root/.gnupg
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/work/repos/rmi-backend /root/.local/share/gopass /root/.gnupg /root/.config/gopass
 ProtectProc=invisible
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+# Bot needs no kernel privileges (outbound HTTPS only) — drop everything
+CapabilityBoundingSet=
+AmbientCapabilities=
 
 [Install]
 WantedBy=multi-user.target
