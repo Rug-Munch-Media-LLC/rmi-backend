@@ -123,7 +123,7 @@ def _is_capability_question(text: str) -> bool:
         re.search(
             r"\b(help|can you|capabilities|capability|features|commands|what do|what are|"
             r"who are you|who created you|who made you|who built you|who "
-            r"developed you|who runs you|who is your creator|who is behind you|"
+            r"developed you|who runs you|who owns you|who is your creator|who is behind you|"
             r"tell me about you|about you|about this bot|"
             r"introduce yourself|describe yourself|what can you do|what else can you|"
             r"show me what you|guide|tutorial|docs|documentation)\b",

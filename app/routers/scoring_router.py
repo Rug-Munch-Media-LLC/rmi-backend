@@ -100,10 +100,8 @@ async def rate_token(req: RateTokenRequest) -> dict[str, Any]:
     pump.fun) and returns wallet labels.
     """
     try:
-        # Shims re-export via `import *` from rugmunch_scanner (not installed
-        # in type-check env) so mypy cannot resolve the attributes.
-        from app.scoring.deployer_tracker import DeployerTracker  # type: ignore[attr-defined]
-        from app.scoring.token_rater import compute_rating  # type: ignore[attr-defined]
+        from app.scoring.deployer_tracker import DeployerTracker
+        from app.scoring.token_rater import compute_rating
 
         logger.info("rate_token_request", address=req.address[:12], chain=req.chain)
 
@@ -148,7 +146,7 @@ async def rate_token(req: RateTokenRequest) -> dict[str, Any]:
         wallet_labels: list[dict[str, Any]] | None = None
         if claimed_deployer:
             try:
-                from app.scoring.wallet_labeler import WalletLabeler  # type: ignore[attr-defined]
+                from app.scoring.wallet_labeler import WalletLabeler
 
                 labeler = WalletLabeler()
                 labels_result = await labeler.get_deployer_labels(req.chain, claimed_deployer)
@@ -183,7 +181,7 @@ async def get_deployer(chain: str, address: str) -> dict[str, Any]:
     if so, attempts to resolve the real creator.
     """
     try:
-        from app.scoring.deployer_tracker import (  # type: ignore[attr-defined]
+        from app.scoring.deployer_tracker import (
             get_deployer_profile,
             resolve_deployer,
         )
@@ -236,7 +234,7 @@ async def get_wallet(chain: str, address: str) -> dict[str, Any]:
     wallet has deployed tokens.
     """
     try:
-        from app.scoring.wallet_labeler import WalletLabeler  # type: ignore[attr-defined]
+        from app.scoring.wallet_labeler import WalletLabeler
 
         logger.info("wallet_labels_request", chain=chain, address=address[:12])
 

@@ -304,11 +304,11 @@ async def ingest_solana_flagged_tokens() -> dict[str, int]:
             resp = await client.get(token_list_url)
             if resp.status_code != 200:
                 logger.error(f"Solana token list fetch failed: {resp.status_code}")
-                return {"ingested": 0, "errors": 0}
+                return {"ingested": 0, "errors": 0, "fetch_ok": False}
             data = resp.json()
     except Exception as e:
         logger.error(f"Solana token list error: {e}")
-        return {"ingested": 0, "errors": 0}
+        return {"ingested": 0, "errors": 0, "fetch_ok": False}
 
     tokens = data.get("tokens", [])
     # Filter for scam/spam/suspicious flags in name, symbol, or tags
@@ -351,7 +351,7 @@ async def ingest_solana_flagged_tokens() -> dict[str, int]:
         else:
             errors += 1
 
-    return {"ingested": ingested, "errors": errors}
+    return {"ingested": ingested, "errors": errors, "fetch_ok": True}
 
 
 # ─── Source 5: MetaMask Phishing Domains (batched, supplementary) ────
@@ -366,11 +366,11 @@ async def ingest_metamask_domains() -> dict[str, int]:
             resp = await client.get(config_url)
             if resp.status_code != 200:
                 logger.error(f"MetaMask list fetch failed: {resp.status_code}")
-                return {"ingested": 0, "errors": 0}
+                return {"ingested": 0, "errors": 0, "fetch_ok": False}
             data = resp.json()
     except Exception as e:
         logger.error(f"MetaMask list error: {e}")
-        return {"ingested": 0, "errors": 0}
+        return {"ingested": 0, "errors": 0, "fetch_ok": False}
 
     blacklist = data.get("blacklist", [])
     logger.info(f"MetaMask blacklist: {len(blacklist)} domains (batching 50/doc)")
@@ -408,7 +408,7 @@ async def ingest_metamask_domains() -> dict[str, int]:
             logger.info(f"  MetaMask: {batch_idx + 1}/{total_batches} batches | ingested: {ingested}")
             await asyncio.sleep(0.05)
 
-    return {"ingested": ingested, "errors": errors}
+    return {"ingested": ingested, "errors": errors, "fetch_ok": True}
 
 
 # ─── Source 6: ScamSniffer GitHub Repo (phishing domains + addresses) ────
@@ -421,16 +421,21 @@ async def ingest_scamsniffer_github() -> dict[str, int]:
     7-day delay vs real-time but excellent for historical pattern analysis.
     """
     base_url = "https://raw.githubusercontent.com/scamsniffer/scam-database/main"
+    # Current upstream layout (verified 2026-08): blacklist/ contains domains.json,
+    # address.json (singular), combined.json + all.json. The old addresses.json /
+    # urls.json files were removed upstream — address.json replaced addresses.json
+    # and combined.json (domain -> [addresses]) replaced urls.json.
     files_to_fetch = [
-        "blacklist/domains.json",
-        "blacklist/addresses.json",
-        "blacklist/urls.json",
+        "blacklist/domains.json",  # list of phishing domain strings
+        "blacklist/address.json",  # list of malicious wallet address strings
+        "blacklist/combined.json",  # dict: phishing domain -> [wallet addresses]
     ]
 
     ingested = 0
     errors = 0
     total_domains = 0
     total_addresses = 0
+    fetch_failed = False
 
     for file_path in files_to_fetch:
         url = f"{base_url}/{file_path}"
@@ -438,18 +443,25 @@ async def ingest_scamsniffer_github() -> dict[str, int]:
             async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.get(url)
                 if resp.status_code != 200:
-                    logger.warning(f"ScamSniffer {file_path}: HTTP {resp.status_code}")
+                    logger.error(f"ScamSniffer {file_path}: HTTP {resp.status_code}")
+                    fetch_failed = True
                     continue
                 data = resp.json()
         except Exception as e:
-            logger.warning(f"ScamSniffer {file_path} error: {e}")
-            continue
-
-        if not isinstance(data, list):
-            logger.warning(f"ScamSniffer {file_path}: unexpected format {type(data)}")
+            logger.error(f"ScamSniffer {file_path} error: {e}")
+            fetch_failed = True
             continue
 
         item_type = file_path.split("/")[-1].replace(".json", "")
+        if isinstance(data, dict) and item_type == "combined":
+            # combined.json: domain -> [addresses]; flatten into display strings
+            data = [f"{domain}: {', '.join(addrs)}" for domain, addrs in data.items()]
+
+        if not isinstance(data, list):
+            logger.error(f"ScamSniffer {file_path}: unexpected format {type(data)}")
+            fetch_failed = True
+            continue
+
         logger.info(f"ScamSniffer {item_type}: {len(data)} entries")
 
         # Batch ingest
@@ -503,19 +515,20 @@ async def ingest_scamsniffer_github() -> dict[str, int]:
                     "severity": "critical",
                 }
                 total_addresses += len(batch)
-            else:  # urls
+            else:  # combined (replaces retired urls.json: domain -> [addresses])
                 content = (
-                    f"ScamSniffer Malicious URLs (Batch {batch_idx + 1}/{total_batches}):\n"
+                    f"ScamSniffer Phishing Domain Address Mappings (Batch {batch_idx + 1}/{total_batches}):\n"
                     f"{chr(10).join(batch)}\n"
-                    f"Source: ScamSniffer scam-database GitHub."
+                    f"Source: ScamSniffer scam-database GitHub. Verified phishing domains and the drainer "
+                    f"addresses they are linked to."
                 )
                 metadata = {
                     "source": "scamsniffer_github",
-                    "item_type": "url",
+                    "item_type": "combined",
                     "batch_index": batch_idx,
                     "total_batches": total_batches,
                     "item_count": len(batch),
-                    "category": "malicious_url",
+                    "category": "malicious_domain_address",
                     "severity": "high",
                 }
 
@@ -536,6 +549,7 @@ async def ingest_scamsniffer_github() -> dict[str, int]:
         "errors": errors,
         "domains": total_domains,
         "addresses": total_addresses,
+        "fetch_ok": not fetch_failed,
     }
 
 
@@ -545,19 +559,21 @@ async def ingest_scamsniffer_github() -> dict[str, int]:
 async def ingest_phishdestroy() -> dict[str, int]:
     """Ingest PhishDestroy destroylist - 140K curated crypto/web3 scam domains.
 
-    MIT licensed. Available as domains.txt, domains.csv, active_domains.json.
-    We fetch the plain text list and batch it.
+    MIT licensed. Available as list.txt / list.json (the old active_domains.json /
+    domains.txt files were renamed upstream — verified 2026-08). We fetch the
+    plain text list and batch it.
     """
     urls = {
-        "domains_txt": "https://raw.githubusercontent.com/PhishDestroy/destroylist/main/domains.txt",
-        "active_json": "https://raw.githubusercontent.com/PhishDestroy/destroylist/main/active_domains.json",
+        "domains_txt": "https://raw.githubusercontent.com/PhishDestroy/destroylist/main/list.txt",
+        "active_json": "https://raw.githubusercontent.com/PhishDestroy/destroylist/main/list.json",
     }
 
     ingested = 0
     errors = 0
     total_domains = 0
+    fetch_ok = False
 
-    # Try active_domains.json first (structured)
+    # Try list.json first (structured, ~190K domains)
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(urls["active_json"])
@@ -570,7 +586,9 @@ async def ingest_phishdestroy() -> dict[str, int]:
                 else:
                     domains = []
 
-                logger.info(f"PhishDestroy active_domains.json: {len(domains)} domains")
+                if domains:
+                    fetch_ok = True
+                logger.info(f"PhishDestroy list.json: {len(domains)} domains")
 
                 batch_size = 50
                 total_batches = (len(domains) + batch_size - 1) // batch_size
@@ -605,16 +623,18 @@ async def ingest_phishdestroy() -> dict[str, int]:
                         logger.info(f"  PhishDestroy: {batch_idx + 1}/{total_batches} | ingested: {ingested}")
                         await asyncio.sleep(0.05)
     except Exception as e:
-        logger.warning(f"PhishDestroy active_domains.json failed: {e}")
+        logger.error(f"PhishDestroy list.json failed: {e}")
 
-    # Fallback to domains.txt
+    # Fallback to list.txt
     if total_domains == 0:
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.get(urls["domains_txt"])
                 if resp.status_code == 200:
                     domains = [d.strip() for d in resp.text.splitlines() if d.strip()]
-                    logger.info(f"PhishDestroy domains.txt: {len(domains)} domains")
+                    if domains:
+                        fetch_ok = True
+                    logger.info(f"PhishDestroy list.txt: {len(domains)} domains")
 
                     batch_size = 50
                     total_batches = (len(domains) + batch_size - 1) // batch_size
@@ -649,10 +669,12 @@ async def ingest_phishdestroy() -> dict[str, int]:
                             logger.info(f"  PhishDestroy: {batch_idx + 1}/{total_batches} | ingested: {ingested}")
                             await asyncio.sleep(0.05)
         except Exception as e:
-            logger.warning(f"PhishDestroy domains.txt failed: {e}")
+            logger.error(f"PhishDestroy list.txt failed: {e}")
 
+    if not fetch_ok:
+        logger.error("PhishDestroy: all upstream files failed to fetch")
     logger.info(f"PhishDestroy total: {total_domains} domains ingested")
-    return {"ingested": ingested, "errors": errors, "domains": total_domains}
+    return {"ingested": ingested, "errors": errors, "domains": total_domains, "fetch_ok": fetch_ok}
 
 
 # ─── Main ─────────────────────────────────────────────────────────────
@@ -740,6 +762,18 @@ async def main():
     logger.info("=" * 60)
     logger.info(f"FINAL SUMMARY: {total_stats}")
     logger.info("=" * 60)
+
+    # Fail loud: any upstream (network) source that could not be fetched must
+    # surface as a non-zero exit so scanner-db-sync.sh reports a failure instead
+    # of silently recording failed=0 with 0 records ingested.
+    fetch_failures = [
+        name
+        for name, result in total_stats["sources"].items()
+        if isinstance(result, dict) and result.get("fetch_ok") is False
+    ]
+    if fetch_failures:
+        logger.error(f"FATAL: upstream fetch failed for source(s): {', '.join(fetch_failures)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

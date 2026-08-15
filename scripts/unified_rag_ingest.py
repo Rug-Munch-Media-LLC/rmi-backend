@@ -58,6 +58,11 @@ import time
 from datetime import UTC, datetime
 from urllib.request import Request, urlopen
 
+try:
+    import yaml
+except ImportError:  # pragma: no cover — pyyaml ships in the rmi-backend venv
+    yaml = None
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("rag_ingest")
 
@@ -89,9 +94,13 @@ GITHUB_SOURCES = [
     },
     {
         "name": "CryptoScamDB",
-        "url": "https://raw.githubusercontent.com/cryptoscamdb/blacklist/main/blacklist.json",
+        # API (api.cryptoscamdb.org) has been intermittently 502 — the canonical
+        # dataset is the GitHub blacklist data/urls.yaml on master. There is no
+        # blacklist.json anywhere upstream (old URL 404'd).
+        "url": "https://raw.githubusercontent.com/CryptoScamDB/blacklist/master/data/urls.yaml",
         "collection": "known_scams",
         "parser": "cryptoscamdb",
+        "is_yaml": True,
     },
 ]
 
@@ -187,19 +196,59 @@ def parse_metamask_phish(data: dict) -> list[dict]:
 
 
 def parse_cryptoscamdb(data: dict) -> list[dict]:
-    """CryptoScamDB format varies."""
+    """CryptoScamDB format varies.
+
+    API: list of dicts with {name, category, addresses: [...]}.
+    GitHub urls.yaml: list of dicts with {name, url, category, addresses: {chain: [...]}}.
+    """
     entries = data if isinstance(data, list) else data.get("entries", data.get("scams", []))
     docs = []
     for entry in entries[:MAX_DOCS_PER_CYCLE]:
-        addr = entry if isinstance(entry, str) else entry.get("address", entry.get("id", str(entry)))
-        name = entry.get("name", "") if isinstance(entry, dict) else ""
-        docs.append(
-            {
-                "collection": "known_scams",
-                "content": f"CryptoScamDB: {name} - {addr}" if name else f"CryptoScamDB entry: {addr}",
-                "metadata": {"address": str(addr), "source": "cryptoscamdb", "name": name},
-            }
-        )
+        if not isinstance(entry, dict):
+            addr = entry if isinstance(entry, str) else str(entry)
+            docs.append(
+                {
+                    "collection": "known_scams",
+                    "content": f"CryptoScamDB entry: {addr}",
+                    "metadata": {"address": addr, "source": "cryptoscamdb"},
+                }
+            )
+            continue
+        name = entry.get("name", "")
+        url = entry.get("url", "")
+        category = entry.get("category", "")
+        addresses = entry.get("addresses", [])
+        if isinstance(addresses, dict):
+            # urls.yaml: {chain: [addr, ...]}
+            addresses = [
+                addr for chain_addrs in addresses.values() for addr in chain_addrs if isinstance(chain_addrs, list)
+            ]
+        if not addresses:
+            addr = url or name or str(entry)
+            docs.append(
+                {
+                    "collection": "known_scams",
+                    "content": f"CryptoScamDB: {name} - {category} ({url})" if name else f"CryptoScamDB entry: {url}",
+                    "metadata": {
+                        "address": addr,
+                        "source": "cryptoscamdb",
+                        "name": name,
+                        "category": category,
+                        "url": url,
+                    },
+                }
+            )
+            continue
+        for addr in addresses:
+            docs.append(
+                {
+                    "collection": "known_scams",
+                    "content": f"CryptoScamDB flagged address: {addr} ({name})"
+                    if name
+                    else f"CryptoScamDB flagged address: {addr}",
+                    "metadata": {"address": str(addr), "source": "cryptoscamdb", "name": name, "category": category},
+                }
+            )
     return docs
 
 
@@ -220,7 +269,13 @@ async def ingest_github_sources() -> int:
         try:
             req = Request(source["url"], headers={"User-Agent": "RMI-RAG-Ingest/2.0"})
             resp = urlopen(req, timeout=30)
-            data = json.loads(resp.read())
+            raw = resp.read()
+            if source.get("is_yaml"):
+                if yaml is None:
+                    raise RuntimeError("pyyaml not installed — cannot parse YAML source")
+                data = yaml.safe_load(raw.decode("utf-8"))
+            else:
+                data = json.loads(raw)
             parser = PARSERS.get(source["parser"])
             if not parser:
                 continue

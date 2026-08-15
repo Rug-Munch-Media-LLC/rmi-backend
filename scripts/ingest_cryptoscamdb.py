@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Ingest CryptoScamDB entries into RAG known_scams collection.
-API: https://api.cryptoscamdb.org/v1/scams
+API: https://api.cryptoscamdb.org/v1/scams (often 502 — verified 2026-08).
+Fallback: the project's canonical dataset, GitHub blacklist data/urls.yaml
+(master branch). The old main/blacklist.json path never existed upstream.
 """
 
 import asyncio
@@ -9,6 +11,11 @@ import hashlib
 import logging
 import os
 import sys
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover — pyyaml ships in the rmi-backend venv
+    yaml = None
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -18,6 +25,7 @@ API_URLS = [
     "https://api.cryptoscamdb.org/v1/scams",
     "https://api.cryptoscamdb.org/v1/all",
 ]
+GITHUB_YAML_URL = "https://raw.githubusercontent.com/CryptoScamDB/blacklist/master/data/urls.yaml"
 RAG_API = "http://localhost:8000/api/v1/rag/ingest"
 COLLECTION = "known_scams"
 
@@ -41,15 +49,21 @@ async def ingest_via_api(content: str, metadata: dict) -> bool:
 async def main():
     import httpx
 
-    # Try each API URL
+    # Try each API URL, then the GitHub YAML dataset as final fallback.
     data = None
-    for url in API_URLS:
+    for url in [*API_URLS, GITHUB_YAML_URL]:
         try:
             logger.info(f"Fetching from {url}...")
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(url)
                 if resp.status_code == 200:
-                    data = resp.json()
+                    if url == GITHUB_YAML_URL:
+                        if yaml is None:
+                            logger.error("pyyaml not installed — cannot parse GitHub YAML fallback")
+                            sys.exit(1)
+                        data = yaml.safe_load(resp.text)
+                    else:
+                        data = resp.json()
                     logger.info(f"Got response from {url}")
                     break
                 else:
@@ -58,8 +72,8 @@ async def main():
             logger.warning(f"Failed to fetch {url}: {e}")
 
     if not data:
-        logger.error("All CryptoScamDB API endpoints failed")
-        return
+        logger.error("All CryptoScamDB endpoints failed (API 502 + GitHub fallback)")
+        sys.exit(1)
 
     # Extract scam entries (API returns nested structure)
     scams = []
@@ -89,6 +103,11 @@ async def main():
         description = scam.get("description", "")
         url = scam.get("url", "")
         addresses = scam.get("addresses", [])
+        if isinstance(addresses, dict):
+            # GitHub urls.yaml shape: {chain: [addr, ...]} — flatten chain values
+            addresses = [
+                addr for chain_addrs in addresses.values() for addr in chain_addrs if isinstance(chain_addrs, list)
+            ]
 
         if not addresses:
             # Create one doc for URL-based scam

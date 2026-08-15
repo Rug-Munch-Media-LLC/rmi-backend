@@ -24,6 +24,7 @@ IDENTITY_PHRASES = [
     "who built you",
     "who developed you",
     "who runs you",
+    "who owns you",
     "who is your creator",
     "who is behind you",
     "who are you",
@@ -51,6 +52,15 @@ class TestIdentityCannedReply:
         reply = local_ai_response("what can you do?", None)
         assert reply is not None
         assert "Rug Munch Capabilities" in reply
+
+    def test_identity_answer_states_full_attribution(self) -> None:
+        # The persona answer must always state the full identity: name,
+        # creator handle + team, and the owning entity.
+        reply = local_ai_response("who made you", None)
+        assert reply is not None
+        assert "@cryptorugmunch" in reply
+        assert "Rug Munch Intelligence" in reply
+        assert "Rug Munch Media LLC" in reply
 
 
 class TestGateAgreement:

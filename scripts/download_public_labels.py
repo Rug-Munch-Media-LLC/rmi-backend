@@ -45,6 +45,11 @@ from typing import Any
 
 import httpx
 
+try:
+    import yaml
+except ImportError:  # pragma: no cover — pyyaml ships in the rmi-backend venv
+    yaml = None
+
 # ── Add parent dir to path for app imports ────────────────────────────
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -501,8 +506,9 @@ async def download_cryptoscamdb() -> list[LabelEntry]:
     """
     Fetch known scam addresses from CryptoScamDB GitHub blacklist.
 
-    Primary source: GitHub raw JSON:
-      https://raw.githubusercontent.com/CryptoScamDB/blacklist/master/data/blacklist.json
+    Primary source: GitHub raw YAML:
+      https://raw.githubusercontent.com/CryptoScamDB/blacklist/master/data/urls.yaml
+      (data/blacklist.json never existed upstream — old URL 404'd)
 
     Fallback: CryptoScamDB API (often 502)
     """
@@ -513,45 +519,53 @@ async def download_cryptoscamdb() -> list[LabelEntry]:
     labels: list[LabelEntry] = []
     http = await get_http()
 
-    # Primary: GitHub blacklist JSON
-    github_url = "https://raw.githubusercontent.com/CryptoScamDB/blacklist/master/data/blacklist.json"
+    # Primary: GitHub blacklist YAML (data/urls.yaml on master). The old
+    # data/blacklist.json path never existed upstream (404) and the public API
+    # is intermittently 502 — this YAML is the maintained canonical dataset.
+    github_url = "https://raw.githubusercontent.com/CryptoScamDB/blacklist/master/data/urls.yaml"
 
     try:
         resp = await http.get(github_url, timeout=60)
         if resp.status_code == 200:
-            data = resp.json()
-            if isinstance(data, list):
-                logger.info("CryptoScamDB: %d entries from GitHub blacklist", len(data))
-                for entry in data:
-                    if not isinstance(entry, dict):
-                        continue
-                    address = entry.get("address", "")
-                    chain = entry.get("chain", "ethereum")
-                    category = entry.get("category", "scam")
-                    name = entry.get("name", "CryptoScamDB Flagged")
-                    description = entry.get("description", "")
-
-                    if not address or len(address) < 10:
-                        continue
-
-                    label_name = name
-                    if description:
-                        label_name = f"{name} — {description[:100]}"
-
-                    labels.append(
-                        LabelEntry(
-                            address=address,
-                            chain_id=normalize_chain(chain),
-                            label_name=label_name,
-                            label_category="scam",
-                            label_subtype=category,
-                            source="cryptoscamdb",
-                            is_sanctioned=False,
-                            confidence=0.95,
-                        )
-                    )
+            if yaml is None:
+                logger.error("pyyaml not installed — cannot parse CryptoScamDB YAML")
             else:
-                logger.warning("CryptoScamDB GitHub: expected list, got %s", type(data).__name__)
+                data = yaml.safe_load(resp.text)
+                if isinstance(data, list):
+                    logger.info("CryptoScamDB: %d entries from GitHub urls.yaml", len(data))
+                    for entry in data:
+                        if not isinstance(entry, dict):
+                            continue
+                        name = entry.get("name", "CryptoScamDB Flagged")
+                        category = entry.get("category", "scam")
+                        description = entry.get("description", "")
+                        # urls.yaml shape: {chain: [addr, ...]}
+                        addresses = entry.get("addresses", {})
+                        if not isinstance(addresses, dict):
+                            continue
+                        for chain, chain_addrs in addresses.items():
+                            if not isinstance(chain_addrs, list):
+                                continue
+                            for address in chain_addrs:
+                                if not address or len(address) < 10:
+                                    continue
+                                label_name = name
+                                if description:
+                                    label_name = f"{name} — {description[:100]}"
+                                labels.append(
+                                    LabelEntry(
+                                        address=address,
+                                        chain_id=normalize_chain(chain),
+                                        label_name=label_name,
+                                        label_category="scam",
+                                        label_subtype=category,
+                                        source="cryptoscamdb",
+                                        is_sanctioned=False,
+                                        confidence=0.95,
+                                    )
+                                )
+                else:
+                    logger.warning("CryptoScamDB GitHub: expected list, got %s", type(data).__name__)
         else:
             logger.warning("CryptoScamDB GitHub returned %s", resp.status_code)
     except Exception as e:
