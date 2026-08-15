@@ -68,8 +68,12 @@ QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen/qwen-2.5-72b-instruct:free")
 
 # ── Direct llama.cpp config (NO litellm proxy, NO paid APIs) ──
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-DEEPSEEK_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
+QWEN_ANALYSIS_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
 QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
+
+# CPU llama.cpp models can't serve huge outputs (~7 tok/s) — clamp local-model
+# max_tokens to a sane ceiling. 1500 tokens was ~2min of generation on the 9B.
+LOCAL_MODEL_MAX_TOKENS = 1024
 
 # Cache
 _analysis_cache: dict[str, dict[str, Any]] = {}
@@ -515,7 +519,7 @@ async def _run_ai_analysis(
     prompt = _build_analysis_prompt(chain, address, holder_data, scanner_data)
 
     # ── Primary: llama.cpp qwen-analysis (local, reasoning) ──
-    result = await _call_llama_analysis(prompt, DEEPSEEK_PORT, "qwen-analysis")
+    result = await _call_llama_analysis(prompt, QWEN_ANALYSIS_PORT, "qwen-analysis")
     if result:
         return result, "llama/qwen-analysis"
 
@@ -550,7 +554,9 @@ async def _call_llama_analysis(prompt: str, port: int, model: str) -> dict[str, 
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": 0.2,
-                    "max_tokens": 1500,
+                    # Clamp to LOCAL_MODEL_MAX_TOKENS — 1500 raw tokens was
+                    # ~2min of CPU generation on the 9B model.
+                    "max_tokens": min(LOCAL_MODEL_MAX_TOKENS, 1500),
                 },
             )
             if resp.status_code == 200:
@@ -719,7 +725,9 @@ async def ai_analysis_health() -> dict[str, Any]:
     # Check LiteLLM
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(f"{LITELLM_BASE_URL.replace('/v1', '')}/health")
+            # /health requires auth (401 without a key → false "unavailable");
+            # /health/liveliness is unauthenticated and 200 when the proxy is up.
+            resp = await client.get(f"{LITELLM_BASE_URL.replace('/v1', '')}/health/liveliness")
             litellm_ok = resp.status_code == 200
     except Exception as e:
         logger.warning("ai_health_litellm_check_failed", error=str(e))
