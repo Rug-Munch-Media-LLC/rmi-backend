@@ -348,7 +348,7 @@ async def token_holder_graph(
     skip_cache: bool = Query(False),
 ) -> Any | dict[str, Any]:
     """Generate a token holder graph with AI analysis and RAG caching.
-    Uses local Ollama (Qwen) first, DeepSeek paid fallback, + our FAISS
+    Uses local llama.cpp qwen-analysis first, DeepSeek paid fallback, + our FAISS
     indexes + wallet labels + semantic cache.
     Falls back to DexScreener pair data when on-chain holder graph is empty."""
     import asyncio
@@ -449,7 +449,7 @@ async def token_holder_graph(
         node["tags"] = entity.get("tags") or []
         node["risk_level"] = label_data.get("risk_level", "unknown")
 
-    # Generate AI analysis (Ollama-first + fallback to our data engine).
+    # Generate AI analysis (LLM-first + fallback to our data engine).
     graph_data = {
         "node_count": len(enriched_nodes),
         "link_count": min(len(links), limit * 2),
@@ -458,10 +458,10 @@ async def token_holder_graph(
         "stats": d.get("stats", {}),
     }
 
-    # Generate AI analysis (Ollama-first + fallback to our data engine).
-    # Bound the LLM call: generate_ai_analysis chains Ollama (30s), LiteLLM
-    # (httpx timeout 120s), then a DeepSeek fallback (30s) — unbounded it can
-    # hold the request for a long time and blow the frontend/proxy timeout
+    # Generate AI analysis (LLM-first + fallback to our data engine).
+    # Bound the LLM call: generate_ai_analysis chains LiteLLM (httpx timeout
+    # 120s), then a DeepSeek fallback (30s) — unbounded it can hold the
+    # request for a long time and blow the frontend/proxy timeout
     # (HTTP 000 >25s). A 15s cap makes the endpoint fail fast to rule-based
     # (non-AI) graph data instead.
     try:
@@ -602,7 +602,7 @@ class HolderClusterRequest(BaseModel):
 async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict[str, Any]:
     """AI-powered wallet cluster analysis for suspicious patterns.
 
-    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → qwen-analysis
+    Uses local llama.cpp qwen-analysis first, then a DeepSeek-chat fallback
     to identify bundled launches, sniper coordination, wash trading rings,
     insider clusters, and dev-linked wallets.
     """
@@ -646,7 +646,7 @@ class ContractAnomalyRequest(BaseModel):
 async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str, Any]:
     """AI-powered contract anomaly detection for rug pull indicators.
 
-    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → qwen-analysis
+    Uses local llama.cpp qwen-analysis first, then a DeepSeek-chat fallback
     to review token holder distribution, contract behavior, and on-chain
     patterns for honeypots, rug pulls, and manipulation indicators.
     """
@@ -666,7 +666,7 @@ async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str
 
 @router.get("/ai-health")
 async def ai_health_check() -> dict[str, Any]:
-    """Check RugMaps AI analysis availability (Ollama-first routing)."""
+    """Check RugMaps AI analysis availability (LiteLLM-first routing)."""
     import os
 
     import httpx
@@ -674,11 +674,6 @@ async def ai_health_check() -> dict[str, Any]:
     # NOTE: app.rugmaps_ai references these via os.getenv at call time but does
     # not export module-level constants; read them here so the health check
     # does not raise ImportError. Defaults mirror app/ai_analysis.py.
-    from app.rugmaps_ai import (
-        OLLAMA_COMPLEX_MODEL,
-        OLLAMA_FAST_MODEL,
-    )
-
     LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
     LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "")
     OLLAMA_BASE_URLS = [u for u in os.getenv("OLLAMA_BASE_URLS", "http://172.22.0.1:11434").split(",") if u]
@@ -712,10 +707,8 @@ async def ai_health_check() -> dict[str, Any]:
         "service": "rugmaps-ai",
         "ollama_available": ollama_ok,
         "ollama_url": ollama_url,
-        "ollama_fast_model": OLLAMA_FAST_MODEL,
-        "ollama_complex_model": OLLAMA_COMPLEX_MODEL,
         "litellm_available": litellm_ok,
         "litellm_url": LITELLM_BASE_URL,
-        "model": "ollama-first -> litellm/qwen-analysis",
+        "model": "litellm/qwen-analysis -> deepseek-chat",
         "fallback": "deepseek-direct + rule-based",
     }
