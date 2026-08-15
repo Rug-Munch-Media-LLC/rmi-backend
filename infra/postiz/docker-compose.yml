@@ -1,0 +1,129 @@
+# Postiz — self-hosted social-media scheduling/publishing for @cryptorugmunch
+# ==========================================================================
+# Buffer/Hootsuite alternative (gitroomhq/postiz-app). Composes and schedules
+# posts for the @cryptorugmunch account and cross-posts to the Telegram
+# channel @cryptorugmuncher and other platforms.
+#
+# Scope (minimal, per fleet frugality rule):
+#   postiz  -> ghcr.io/gitroomhq/postiz-app:latest  (web UI + backend)
+#   postgres -> postgres:17-alpine                  (Postiz data)
+#   redis    -> redis:7.2                           (cache + job state)
+# All three are loopback-bound (127.0.0.1) and exposed only on this host.
+#
+# [REVIEW] Temporal scheduler stack:
+#   The official compose (postiz-docker-compose repo) additionally ships a
+#   Temporal + Elasticsearch scheduler stack (temporal, temporal-postgresql,
+#   temporal-elasticsearch, temporal-admin-tools, temporal-ui, spotlight).
+#   Postiz >= v2.12.0 uses Temporal for scheduled publishing. The minimal
+#   docs deployment ("You will also need Postgres and Redis running") works
+#   without it; if scheduled posts don't fire, add the Temporal stack —
+#   see README.md "Temporal scheduler stack" section.
+#
+# Usage:
+#   cp .env.example .env        # edit secrets FIRST (JWT_SECRET, DB password)
+#   docker compose up -d --wait
+#   open http://127.0.0.1:4007
+#
+# Docs: https://docs.postiz.com/installation/docker
+
+name: rmi-postiz
+
+services:
+  postiz:
+    image: ${POSTIZ_IMAGE:-ghcr.io/gitroomhq/postiz-app:latest}
+    container_name: rmi-postiz
+    restart: unless-stopped
+    # Loopback-only by default (internal publishing tool). For remote access
+    # use an SSH tunnel or Cloudflare Tunnel (see README).
+    ports:
+      - "127.0.0.1:${POSTIZ_PORT:-4007}:5000"
+    env_file:
+      - .env
+    environment:
+      # Container-internal service addresses (must NOT be loopback here —
+      # the app resolves these inside the compose network).
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postiz-user}:${POSTGRES_PASSWORD:-postiz-password}@postiz-postgres:5432/${POSTGRES_DB:-postiz-db}
+      REDIS_URL: redis://postiz-redis:6379
+      IS_GENERAL: "true"
+    volumes:
+      # App data + uploaded media. Back these up — they hold account tokens
+      # and the publishing history (see README "Backup").
+      - postiz-config:/config/
+      - postiz-uploads:/uploads/
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1'
+    healthcheck:
+      # Postiz serves the web UI on :5000 inside the container; exit non-zero
+      # while the app is still booting (migrations on first run).
+      test: ["CMD", "node", "-e", "const r=require('http').get('http://localhost:5000/',res=>process.exit(res.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.setTimeout(4000,()=>{r.destroy();process.exit(1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s   # first boot runs DB migrations
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    container_name: rmi-postiz-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postiz-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postiz-password}
+      POSTGRES_DB: ${POSTGRES_DB:-postiz-db}
+    volumes:
+      - postgres-volume:/var/lib/postgresql/data
+    # No published ports — only reachable from the postiz service on the
+    # internal compose network.
+    expose:
+      - "5432"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '1'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postiz-user} -d ${POSTGRES_DB:-postiz-db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  postiz-redis:
+    image: redis:7.2
+    container_name: rmi-postiz-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - postiz-redis-data:/data
+    expose:
+      - "6379"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres-volume:
+  postiz-redis-data:
+  postiz-config:
+  postiz-uploads:
