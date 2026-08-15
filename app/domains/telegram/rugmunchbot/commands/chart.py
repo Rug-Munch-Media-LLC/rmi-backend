@@ -11,6 +11,7 @@ Usage: /chart <address> [chain]
 
 from __future__ import annotations
 
+import asyncio
 import io
 from typing import Any
 
@@ -410,10 +411,13 @@ async def cmd_chart(update, ctx) -> None:
         # Fallback to 1h if requested timeframe unavailable
         if not candles and timeframe != "1h":
             candles = await _fetch_rugcharts_ohlcv(client, chain, pair_address, "1h")
-        # Use branded visual engine
+        # Use branded visual engine. Pillow rendering is CPU-bound — run it in
+        # a worker thread so the bot event loop never stalls on image draw.
         from app.domains.telegram.rugmunchbot.services.visuals import render_candlestick_chart
 
-        png = render_candlestick_chart(candles, name, symbol, chain, timeframe) if candles else None
+        png = None
+        if candles:
+            png = await asyncio.to_thread(render_candlestick_chart, candles, name, symbol, chain, timeframe)
         if png:
             caption = (
                 f"📊 <b>{name}</b> ({symbol})\n<code>{address}</code>\n\n💰 Price: <b>${price:.10f}</b>".rstrip(

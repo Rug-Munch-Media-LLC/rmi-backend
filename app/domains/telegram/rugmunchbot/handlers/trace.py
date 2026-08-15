@@ -8,6 +8,7 @@ funding sources, exchange interactions, and connected wallets.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -124,41 +125,48 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             data: dict[str, Any] = {}
-            # Fetch all available intelligence from backend
-            try:
-                wallet_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
-                    headers=backend_headers(),
-                    timeout=15,
-                )
-                if wallet_resp.status_code == 200:
-                    data = wallet_resp.json()
-            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
-                logger.warning(f"trace wallet fetch failed: {e}")
-
-            # Fetch additional cross-chain data
             cross_chain: list[Any] = []
-            try:
-                cc_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/cross-chain/{address}",
-                    params={"chain": chain},
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if cc_resp.status_code == 200:
-                    profile = cc_resp.json()
-                    primary = profile.get("primary_chain", chain)
-                    cross_chain = [
-                        {
-                            "source_chain": primary,
-                            "dest_chain": m.get("chain", ""),
-                            "address": m.get("address", ""),
-                            "confidence": m.get("confidence", 0),
-                        }
-                        for m in profile.get("addresses", [])
-                    ]
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
+
+            async def _fetch_wallet() -> dict[str, Any]:
+                try:
+                    wallet_resp = await client.get(
+                        f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
+                        headers=backend_headers(),
+                        timeout=15,
+                    )
+                    if wallet_resp.status_code == 200:
+                        return wallet_resp.json()
+                except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+                    logger.warning(f"trace wallet fetch failed: {e}")
+                return {}
+
+            async def _fetch_cross_chain() -> list[Any]:
+                try:
+                    cc_resp = await client.get(
+                        f"{BACKEND_URL}/api/v1/cross-chain/{address}",
+                        params={"chain": chain},
+                        headers=backend_headers(),
+                        timeout=10,
+                    )
+                    if cc_resp.status_code == 200:
+                        profile = cc_resp.json()
+                        primary = profile.get("primary_chain", chain)
+                        return [
+                            {
+                                "source_chain": primary,
+                                "dest_chain": m.get("chain", ""),
+                                "address": m.get("address", ""),
+                                "confidence": m.get("confidence", 0),
+                            }
+                            for m in profile.get("addresses", [])
+                        ]
+                except (httpx.HTTPError, ConnectionError, TimeoutError):
+                    pass
+                return []
+
+            # Wallet tokens + cross-chain run concurrently (previously
+            # sequential — up to 25s worst case).
+            data, cross_chain = await asyncio.gather(_fetch_wallet(), _fetch_cross_chain())
 
             s = sep()
             d = thin_sep()

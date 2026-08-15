@@ -6,7 +6,7 @@ All endpoints are optimized for fast responses with Redis caching.
 
 Endpoints:
   POST /api/v1/bot/scan   — Fast token scan (reads Redis cache, fallback to DexScreener)
-  POST /api/v1/bot/ask    — AI Q&A (Ollama Qwen local, fast answers)
+  POST /api/v1/bot/ask    — AI Q&A (local Qwen3.5-4B llama.cpp, fast answers)
   GET  /api/v1/bot/pulse  — Market pulse (BTC, ETH, SOL price + Greed/Fear + top movers)
   GET  /api/v1/bot/health — Health check
 """
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -29,6 +30,12 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/bot", tags=["bot"])
 
 BOT_CACHE_TTL = 60  # 1 minute for bot requests
+
+# Local Qwen3.5-4B via llama.cpp :8085 ("qwen-chat" alias — Qwen3.5-4B-Abliterated).
+# Backend runs in Docker; llama.cpp runs on the host → docker bridge gateway, not 127.0.0.1.
+LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
+QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
+QWEN_CHAT_MODEL = "qwen-chat"
 
 
 # ── Models ──
@@ -138,7 +145,7 @@ async def bot_scan(req: BotScanRequest) -> dict[str, Any]:
 
 @router.post("/ask")
 async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
-    """AI Q&A — uses local Ollama Qwen for fast, free answers."""
+    """AI Q&A — uses local llama.cpp Qwen3.5-4B for fast, free answers."""
     query = req.query.strip()
 
     # Check Redis cache for common questions
@@ -154,31 +161,39 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
     except Exception:  # noqa: S110 — best-effort cache
         pass
 
-    # Try local Ollama Qwen first (fastest, free)
+    # Try local llama.cpp Qwen3.5-4B first (fastest, free)
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                "http://localhost:11434/api/generate",
+                QWEN_CHAT_URL,
                 json={
-                    "model": "qwen3:4b",
-                    "prompt": (
-                        "You are the RMI Terminal, a crypto intelligence AI. "
-                        f"Answer concisely in 2-4 sentences.\n\nQuestion: {query}"
-                    ),
-                    "stream": False,
-                    "options": {"num_predict": 256, "temperature": 0.7},
+                    "model": QWEN_CHAT_MODEL,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are the RMI Terminal, a crypto intelligence AI. Answer concisely in 2-4 sentences."
+                            ),
+                        },
+                        {"role": "user", "content": query},
+                    ],
+                    "max_tokens": 256,
+                    "temperature": 0.7,
                 },
             )
             if resp.status_code == 200:
                 data = resp.json()
-                answer = data.get("response", "").strip()
+                choices = data.get("choices") or []
+                answer = ""
+                if choices:
+                    answer = (choices[0].get("message") or {}).get("content", "").strip()
                 if answer:
                     result = {
                         "answer": answer,
                         "query_type": "general",
                         "sources": [],
                         "verified": True,
-                        "provider": "ollama-qwen3-4b",
+                        "provider": "llama-qwen-chat",
                     }
                     # Cache for 5 minutes
                     try:
@@ -193,8 +208,6 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
 
     # Fallback to OpenRouter if available
     try:
-        import os
-
         or_key = os.getenv("OPENROUTER_API_KEY", "")
         if or_key:
             async with httpx.AsyncClient(timeout=30.0) as client:

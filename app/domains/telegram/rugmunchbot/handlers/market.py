@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -344,13 +345,77 @@ async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[
     return enriched
 
 
+# ══════════════════════════════════════════════
+# /trending Redis cache — fused token list, TTL 60-120s
+# The fused trending pipeline fans out to RugCharts + DexScreener +
+# CoinGecko and then enriches each token with a backend quick scan (up to
+# ~20 external calls). The cache serves the SAME fused token list for the
+# TTL window so repeated /trending taps (and the inline callback paths,
+# which call ``render_trending`` with the same key) do not re-hammer the
+# sources. Fail-open: Redis down → live fetch every time.
+# ══════════════════════════════════════════════
+_TRENDING_TTL = 90  # within the 60-120s requirement
+_TRENDING_KEY_PREFIX = "trending:"  # spec key: trending:{chain}:{window}
+
+
+def _redis_client() -> Any:
+    """Async Redis client (lazy import — fail-open when unavailable)."""
+    from app.core.redis import get_redis_async
+
+    return get_redis_async()
+
+
+async def _cache_get_trending(chain: str, window: str) -> list[dict[str, Any]] | None:
+    """Load the cached fused trending token list (None on any miss)."""
+    r = _redis_client()
+    if r is None:
+        return None
+    try:
+        raw = await r.get(f"{_TRENDING_KEY_PREFIX}{chain}:{window}")
+        if not raw:
+            return None
+        data = json.loads(raw if isinstance(raw, str) else raw.decode("utf-8", "replace"))
+        return data if isinstance(data, list) else None
+    except Exception:  # fail-open by contract
+        logger.debug("trending:cache_get_failed chain=%s window=%s", chain, window, exc_info=True)
+        return None
+
+
+async def _cache_set_trending(chain: str, window: str, tokens: list[dict[str, Any]]) -> None:
+    """Write the fused trending token list to Redis. Fail-open."""
+    r = _redis_client()
+    if r is None:
+        return
+    try:
+        await r.set(
+            f"{_TRENDING_KEY_PREFIX}{chain}:{window}",
+            json.dumps(tokens, default=str),
+            ex=_TRENDING_TTL,
+        )
+    except Exception:  # fail-open by contract
+        logger.debug("trending:cache_set_failed chain=%s window=%s", chain, window, exc_info=True)
+
+
 async def render_trending(
     chain: str = "solana", limit: int = 20, window: str = "24h"
 ) -> tuple[str | None, InlineKeyboardMarkup | None]:
-    """Fetch + render fused trending text and its action keyboard."""
+    """Fetch + render fused trending text and its action keyboard.
+
+    Cache-aside on the fused token list (key ``trending:{chain}:{window}``,
+    TTL 90s). The window does not change the underlying token list, but the
+    spec key includes it so each window keeps its own entry; the caller's
+    ``limit`` is applied on read so a ``limit=8`` inline path of a cached
+    ``limit=20`` list still renders the top 8 exactly.
+    """
+    cached = await _cache_get_trending(chain, window)
+    if cached is not None:
+        cached_tokens = cached[:limit]
+        return _render_trending_text(cached_tokens, chain, window), _build_trending_kb(cached_tokens, chain, window)
+
     tokens = await _fetch_fused_trending(chain, limit)
     if not tokens:
         return None, None
+    await _cache_set_trending(chain, window, tokens)
     return _render_trending_text(tokens, chain, window), _build_trending_kb(tokens, chain, window)
 
 

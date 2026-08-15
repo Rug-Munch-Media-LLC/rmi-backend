@@ -8,7 +8,6 @@ whale alerts, and smart money detection.
 
 from __future__ import annotations
 
-import contextlib
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -202,17 +201,6 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         top_holders = []
         if backend_holders:
             top_holders = backend_holders[:20]
-        elif dex_pairs:
-            # Try to extract holders from GoPlus via DexScreener metadata
-            pair = dex_pairs[0]
-            pair_addr = pair.get("pairAddress", "")
-            # Get pair info for holder data
-            with contextlib.suppress(httpx.HTTPError, ConnectionError, TimeoutError):
-                async with httpx.AsyncClient(timeout=20) as client:
-                    await client.get(
-                        f"https://api.dexscreener.com/orders/v1/{chain}/{pair_addr}",
-                        timeout=5,
-                    )
 
         # Build report
         s = sep()

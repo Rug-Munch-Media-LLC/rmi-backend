@@ -177,7 +177,11 @@ def _apply_rate_limit_headers(response: Response, request: Request) -> None:
 # 64..2048 — the Pydantic Field bounds stay 64..8192 for explicit requests).
 # 2026-08-14: raised 512 -> 1536 — 512 was truncating long educational answers
 # (e.g. "how to learn TA") mid-sentence for the bot, which sends no max_tokens.
-_CHAT_MAX_TOKENS_BASE = 1536
+# 2026-08-15: 1536 -> 768 — context fetches (tool/RAG/web) now run in parallel
+# via asyncio.gather and the tool-result block is capped at 1200 chars, so the
+# prompt stays lean while the model gets fresher grounding; 768 keeps long
+# educational answers from truncating while bounding generation latency.
+_CHAT_MAX_TOKENS_BASE = 768
 _CHAT_MAX_TOKENS_MIN = 64
 _CHAT_MAX_TOKENS_MAX = 2048
 
@@ -567,13 +571,7 @@ async def chat(
     # system context so the LLM grounds its answer instead of hallucinating.
     # Best-effort: failed/timeout executors return None and chat proceeds
     # with normal RAG/LLM below — tools never block or break chat.
-    tool_result: str | None = None
-    try:
-        tool_result = await _fetch_tool_context(req.message)
-    except Exception as e:  # defensive: never let the tool layer break chat
-        logger.debug("chat tool fetch raised in handler: %s", e)
-        tool_result = None
-
+    #
     # ── RAG grounding (non-blocking) ──
     # Direct web chat callers get automatic RAG grounding: search the RAG
     # collections for context relevant to the message and inject the top
@@ -596,33 +594,75 @@ async def chat(
     # and web search are skipped to avoid double-grounding.
     current_events_query = _should_web_search(req.message, 0)
 
-    rag_context, rag_count = "", 0
-    if not client_system_context and (not tool_result or current_events_query):
+    # The tool / RAG / web context fetches used to run sequentially; they now
+    # run concurrently via asyncio.gather. RAG joins the parallel batch only
+    # for current-events queries, where it runs regardless of the tool result
+    # — for data queries its gating depends on the tool result (a live tool
+    # result suppresses RAG/web to avoid double-grounding), so it runs after
+    # the tool fetch completes below.
+    rag_runs_unconditionally = not client_system_context and current_events_query
+
+    async def _safe_tool_fetch() -> str | None:
+        try:
+            return await _fetch_tool_context(req.message)
+        except Exception as e:  # defensive: never let the tool layer break chat
+            logger.debug("chat tool fetch raised in handler: %s", e)
+            return None
+
+    async def _safe_rag_fetch() -> tuple[str, int]:
+        try:
+            return await _search_rag_context(req.message)
+        except Exception as e:  # defensive: never let RAG break chat
+            logger.debug("RAG context search raised in chat handler: %s", e)
+            return "", 0
+
+    async def _web_fetch() -> tuple[str, int]:
+        # SearXNG runs ONLY for queries that explicitly look like current
+        # events (news-ish keywords) — never as a blanket fallback when RAG
+        # comes up empty (that previously leaked irrelevant search-result
+        # lists into the answer). Best-effort: any failure returns no web
+        # context and chat proceeds.
+        try:
+            if _should_web_search(req.message, 0):
+                web_results = await searxng_search(req.message)
+                if web_results:
+                    return _format_web_context(web_results), len(web_results)
+        except Exception as e:  # defensive: never let web search break chat
+            logger.debug("Web search raised in chat handler: %s", e)
+        return "", 0
+
+    async def _empty_fetch() -> tuple[str, int]:
+        return "", 0
+
+    tool_result, rag_out, web_out = await asyncio.gather(
+        _safe_tool_fetch(),
+        _safe_rag_fetch() if rag_runs_unconditionally else _empty_fetch(),
+        _web_fetch() if (not client_system_context and current_events_query) else _empty_fetch(),
+        return_exceptions=True,
+    )
+    # The safe wrappers never raise, but return_exceptions=True widens the
+    # static types to BaseException — normalize for the gating below.
+    if isinstance(tool_result, BaseException):
+        tool_result = None
+
+    # Re-apply the original gating on the parallel results: a live tool result
+    # IS the grounding for data queries, so RAG + web context fetched in
+    # parallel are discarded (current-events queries keep both).
+    if tool_result and not current_events_query:
+        rag_context, rag_count = "", 0
+        web_context, web_count = "", 0
+    else:
+        rag_context, rag_count = rag_out if isinstance(rag_out, tuple) else ("", 0)
+        web_context, web_count = web_out if isinstance(web_out, tuple) else ("", 0)
+
+    # RAG that could not join the parallel batch (data queries: gated on the
+    # tool result) runs now — a tool miss still grounds the answer in RAG.
+    if not rag_runs_unconditionally and not client_system_context and not tool_result:
         try:
             rag_context, rag_count = await _search_rag_context(req.message)
         except Exception as e:  # defensive: never let RAG break chat
             logger.debug("RAG context search raised in chat handler: %s", e)
             rag_context, rag_count = "", 0
-
-    # ── Live web search (current-affairs fallback) ──
-    # Own data first: SearXNG runs ONLY for queries that explicitly look like
-    # current events (news-ish keywords) — never as a blanket fallback when
-    # RAG comes up empty. Identity/definition questions with no RAG hits must
-    # NOT trigger web search (that previously leaked irrelevant search-result
-    # lists into the answer). Web results are appended AFTER the RAG block so
-    # own data stays first in context. Best-effort: any failure returns no
-    # web context and chat proceeds.
-    web_context, web_count = "", 0
-    if not client_system_context and (not tool_result or current_events_query):
-        try:
-            if _should_web_search(req.message, rag_count):
-                web_results = await searxng_search(req.message)
-                if web_results:
-                    web_context = _format_web_context(web_results)
-                    web_count = len(web_results)
-        except Exception as e:  # defensive: never let web search break chat
-            logger.debug("Web search raised in chat handler: %s", e)
-            web_context, web_count = "", 0
 
     # Merge RAG/system context — server-side RAG search first, then live web
     # results, then any caller-supplied context_override (used by the

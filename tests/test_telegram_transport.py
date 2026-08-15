@@ -55,7 +55,7 @@ class TestChannelIdsFromEnv:
 
     def test_alerts_channel_defaults_to_handle(self) -> None:
         ids = transport.channel_ids_from_env({}, use_gopass=False)
-        assert ids["alerts_channel"] == "@RugMunchAlerts"
+        assert ids["alerts_channel"] == "@rmialerts"
 
     def test_missing_ids_resolve_to_none(self) -> None:
         ids = transport.channel_ids_from_env({"RMI_ALERTS_CHANNEL": ""}, use_gopass=False)

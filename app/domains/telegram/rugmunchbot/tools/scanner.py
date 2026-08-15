@@ -32,9 +32,21 @@ from app.domains.telegram.rugmunchbot.config import DEXSCREENER
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import http_get_json
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult, backend_json_post
-from app.domains.telegram.rugmunchbot.tools.token_meta import resolve_token_meta, token_meta
+from app.domains.telegram.rugmunchbot.tools.token_meta import token_meta
 
 logger = get_logger("rmi_bot.tools.scanner")
+
+
+async def _token_meta_dict(address: str, chain: str, symbol: str = "") -> dict[str, Any]:
+    """Resolve the token identity block through the cached ``token_meta`` tool.
+
+    ``scanner_intel`` previously called ``resolve_token_meta`` directly,
+    bypassing the token_meta cache — every scan re-resolved identity over the
+    network. Routing through the public tool reuses the Redis identity/price
+    cache (600s / 60s) so repeated scans of the same token are cheap.
+    """
+    tr = await token_meta(address=address, chain=chain, symbol=symbol)
+    return tr.data if isinstance(tr.data, dict) else {}
 
 
 def _detect_chain(address: str) -> str:
@@ -313,7 +325,7 @@ async def scanner_intel(*, address: str = "", chain: str = "") -> ToolResult:
     # report fabricated "medium risk" for a token that does not exist.
     if isinstance(body, dict) and body.get("status") == "ok" and (body.get("name") or body.get("symbol")):
         intel = _flatten_v2(body, address, chain)
-        meta = await resolve_token_meta(address=address, chain=chain, symbol=str(body.get("symbol") or ""))
+        meta = await _token_meta_dict(address, chain, symbol=str(body.get("symbol") or ""))
         intel["token"] = meta
         return ToolResult(
             tool="scanner_intel",
@@ -333,7 +345,7 @@ async def scanner_intel(*, address: str = "", chain: str = "") -> ToolResult:
         timeout=10.0,
     )
     if isinstance(body, dict) and body.get("risk_score") is not None and not body.get("error"):
-        meta = await resolve_token_meta(address=address, chain=chain)
+        meta = await _token_meta_dict(address, chain)
         # v1 serves whatever sits in the scanner cache — including a garbage
         # entry persisted by a failed v2 attempt on a non-existent address.
         # Require real token identity (resolved name/symbol) before presenting.
@@ -354,7 +366,7 @@ async def scanner_intel(*, address: str = "", chain: str = "") -> ToolResult:
     pairs = (body or {}).get("pairs") if isinstance(body, dict) else None
     if isinstance(pairs, list) and pairs:
         intel = _flatten_dexscreener(address, chain)
-        meta = await resolve_token_meta(address=address, chain=chain)
+        meta = await _token_meta_dict(address, chain)
         intel["token"] = meta
         return ToolResult(
             tool="scanner_intel",

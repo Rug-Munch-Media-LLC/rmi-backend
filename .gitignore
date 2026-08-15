@@ -159,3 +159,4 @@ bot_users.db
 # pytest coverage artifacts
 .coverage
 .coverage.*
+a.out

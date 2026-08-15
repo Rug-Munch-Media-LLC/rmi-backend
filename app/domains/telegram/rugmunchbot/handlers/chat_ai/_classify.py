@@ -91,16 +91,23 @@ _SELF_IMPROVEMENT_RE = re.compile(
 )
 
 
+_GREETING_THANKS_RE = re.compile(
+    r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|gm|gn|"
+    r"what'?s up|ping|wake up|"
+    # Presence checks ("are you there" / "anyone home") are greetings too —
+    # they must hit the fast warm canned reply instead of the slow LLM/RAG
+    # path.
+    r"are you there|you there|anyone there|anyone home|you alive|u there|"
+    r"thank|thanks|ty|thx|appreciate|good bot|nice|great)\b"
+    # Bare "there?" is a presence check. Plain "\bthere\b" is far too broad
+    # ("is there a scam here?"), so require the literal question mark.
+    r"|\bthere\?"
+)
+
+
 def _is_greeting_or_thanks(text: str) -> bool:
     """Check if the message is a greeting or thanks (canned reply worthy)."""
-    return bool(
-        re.search(
-            r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|gm|gn|"
-            r"what'?s up|ping|wake up|"
-            r"thank|thanks|ty|thx|appreciate|good bot|nice|great)\b",
-            text.lower(),
-        )
-    )
+    return bool(_GREETING_THANKS_RE.search(text.lower()))
 
 
 def _is_capability_question(text: str) -> bool:

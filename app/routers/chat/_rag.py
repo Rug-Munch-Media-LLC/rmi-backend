@@ -27,6 +27,7 @@ __all__ = [
     "RAG_TOKEN_COLLECTIONS",
     "RAG_TOP_K",
     "TOOL_RESULT_LABEL",
+    "TOOL_RESULT_MAX_CHARS",
     "WEB_CONTEXT_MAX_CHARS",
     "WEB_HIT_MAX_CHARS",
     "_MAX_TOKEN_HINTS",
@@ -223,11 +224,16 @@ def _is_market_query(message: str) -> bool:
 
 # ── Tool-use context injection ───────────────────────────────────────────
 TOOL_RESULT_LABEL = "TOOL RESULT (live data):"
+TOOL_RESULT_MAX_CHARS = 1200  # cap the injected tool block — keeps the prompt lean
 
 
 def _inject_tool_result(system_context: str, tool_result: str | None) -> str:
-    """Append the live tool-result block to ``system_context`` (or return it unchanged)."""
+    """Append the live tool-result block to ``system_context`` (or return it unchanged).
+
+    The block is capped at ``TOOL_RESULT_MAX_CHARS`` chars so a verbose
+    executor payload cannot blow the system-prompt budget.
+    """
     if not tool_result or not tool_result.strip():
         return system_context
-    extra = f"{TOOL_RESULT_LABEL}\n{tool_result.strip()}"
+    extra = f"{TOOL_RESULT_LABEL}\n{tool_result.strip()[:TOOL_RESULT_MAX_CHARS]}"
     return f"{system_context}\n\n{extra}" if system_context else extra

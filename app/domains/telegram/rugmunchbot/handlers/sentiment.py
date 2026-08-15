@@ -9,6 +9,7 @@ Scout+ tier feature.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -63,43 +64,53 @@ async def _fetch_market_overview() -> dict[str, Any]:
     }
 
     async def _external_overview() -> dict[str, Any]:
-        """Fallback: direct CoinGecko + alternative.me + Etherscan calls."""
+        """Fallback: direct CoinGecko + alternative.me + Etherscan calls.
+
+        The four external calls run concurrently (previously sequential —
+        up to ~40s worst case); each is best-effort and contributes
+        whichever fields it returns (first-success merge).
+        """
         out = dict(result)
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                # CoinGecko global data
-                r = await client.get(f"{COINGECKO}/global")
-                if r.status_code == 200:
-                    data = r.json().get("data", {})
-                    out["btc_dominance"] = data.get("market_cap_percentage", {}).get("btc")
-                    out["total_mcap"] = data.get("total_market_cap", {}).get("usd")
-                    out["total_volume_24h"] = data.get("total_volume", {}).get("usd")
 
-                # Fear & Greed Index
-                try:
+                async def _fetch_coingecko() -> dict[str, Any]:
+                    # CoinGecko global data
+                    r = await client.get(f"{COINGECKO}/global")
+                    if r.status_code == 200:
+                        data = r.json().get("data", {})
+                        return {
+                            "btc_dominance": data.get("market_cap_percentage", {}).get("btc"),
+                            "total_mcap": data.get("total_market_cap", {}).get("usd"),
+                            "total_volume_24h": data.get("total_volume", {}).get("usd"),
+                        }
+                    return {}
+
+                async def _fetch_fear_greed() -> dict[str, Any]:
+                    # Fear & Greed Index
                     fg = await client.get("https://api.alternative.me/fng/?limit=1")
                     if fg.status_code == 200:
                         fg_data = fg.json().get("data", [{}])[0]
-                        out["fear_greed"] = {
-                            "value": int(fg_data.get("value", 50)),
-                            "classification": fg_data.get("value_classification", "Neutral"),
+                        return {
+                            "fear_greed": {
+                                "value": int(fg_data.get("value", 50)),
+                                "classification": fg_data.get("value_classification", "Neutral"),
+                            }
                         }
-                except Exception:  # noqa: S110 — intentional best-effort
-                    pass
+                    return {}
 
-                # ETH Gas (proxy for network activity)
-                try:
+                async def _fetch_gas() -> dict[str, Any]:
+                    # ETH Gas (proxy for network activity)
                     gas = await client.get(
                         "https://api.etherscan.io/v2/api?chainid=1&module=gastracker&action=gasoracle"
                     )
                     if gas.status_code == 200:
                         gas_data = gas.json().get("result", {})
-                        out["eth_gas"] = gas_data.get("ProposeGasPrice")
-                except Exception:  # noqa: S110 — best-effort rate limiting
-                    pass
+                        return {"eth_gas": gas_data.get("ProposeGasPrice")}
+                    return {}
 
-                # Try own backend sentiment data (best-effort enrichment)
-                try:
+                async def _fetch_own_sentiment() -> dict[str, Any]:
+                    # Try own backend sentiment data (best-effort enrichment)
                     own = await client.get(
                         f"{BACKEND_URL}/api/v1/market/sentiment",
                         headers=backend_headers(),
@@ -108,10 +119,22 @@ async def _fetch_market_overview() -> dict[str, Any]:
                     if own.status_code == 200:
                         own_data = own.json()
                         if isinstance(own_data, dict):
-                            out["sentiment"] = own_data.get("sentiment", out["sentiment"])
-                            out["btc_dominance_change"] = own_data.get("btc_dominance_change")
-                except Exception:  # noqa: S110 — intentional best-effort
-                    pass
+                            return {
+                                "sentiment": own_data.get("sentiment", out["sentiment"]),
+                                "btc_dominance_change": own_data.get("btc_dominance_change"),
+                            }
+                    return {}
+
+                # Parallel first-success merge: failures contribute nothing.
+                for partial in await asyncio.gather(
+                    _fetch_coingecko(),
+                    _fetch_fear_greed(),
+                    _fetch_gas(),
+                    _fetch_own_sentiment(),
+                    return_exceptions=True,
+                ):
+                    if isinstance(partial, dict):
+                        out.update(partial)
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.warning("Market overview external fetch failed: %s", e)
         return out

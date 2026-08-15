@@ -8,6 +8,7 @@ New commands:
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -32,6 +33,51 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot.price")
+
+# /price Redis cache — TTL 30-60s. The price snapshot is JSON-serializable
+# ({price_usd, change_24h, volume_24h, source}); only positive prices are
+# cached so a "no data" result never poisons the key. Fail-open: Redis down
+# → live fetch every time.
+_PRICE_TTL = 45  # within the 30-60s requirement
+_PRICE_KEY_PREFIX = "price:"
+
+
+def _redis_client() -> Any:
+    """Async Redis client (lazy import — fail-open when unavailable)."""
+    from app.core.redis import get_redis_async
+
+    return get_redis_async()
+
+
+async def _cache_get_price(address: str, chain: str) -> dict[str, Any] | None:
+    """Load the cached price snapshot (None on any miss)."""
+    r = _redis_client()
+    if r is None:
+        return None
+    try:
+        raw = await r.get(f"{_PRICE_KEY_PREFIX}{chain}:{address}")
+        if not raw:
+            return None
+        data = json.loads(raw if isinstance(raw, str) else raw.decode("utf-8", "replace"))
+        return data if isinstance(data, dict) else None
+    except Exception:  # fail-open by contract
+        logger.debug("price:cache_get_failed address=%.20s", address, exc_info=True)
+        return None
+
+
+async def _cache_set_price(address: str, chain: str, result: dict[str, Any]) -> None:
+    """Write a positive price snapshot to Redis. Fail-open."""
+    r = _redis_client()
+    if r is None:
+        return
+    try:
+        await r.set(
+            f"{_PRICE_KEY_PREFIX}{chain}:{address}",
+            json.dumps(result, default=str),
+            ex=_PRICE_TTL,
+        )
+    except Exception:  # fail-open by contract
+        logger.debug("price:cache_set_failed address=%.20s", address, exc_info=True)
 
 
 async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -62,8 +108,15 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        bridge = ScannerBridge()
-        result = await bridge.get_price(address, chain)
+        # Cache-aside: same address+chain served from Redis for 45s.
+        cached = await _cache_get_price(address, chain)
+        if cached is not None:
+            result = cached
+        else:
+            bridge = ScannerBridge()
+            result = await bridge.get_price(address, chain)
+            if result["price_usd"] > 0:
+                await _cache_set_price(address, chain, result)
 
         if result["price_usd"] > 0:
             text = (

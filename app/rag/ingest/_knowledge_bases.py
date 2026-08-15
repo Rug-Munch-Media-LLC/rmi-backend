@@ -124,6 +124,77 @@ SCAM_INTEL: list[dict[str, Any]] = [
         ),
         "metadata": {"severity": "low", "category": "privacy", "chain": "all"},
     },
+    {
+        "doc_id": "scam:governance_attack",
+        "content": (
+            "GOVERNANCE ATTACK: On-chain governance subverted to move funds or change protocol "
+            "parameters. Mechanisms: (1) Flash-loan governance attack — attacker borrows enough "
+            "voting tokens for one block, passes a malicious proposal, then repays the loan in "
+            "the same transaction (Beanstalk Farms, April 2022, ~$182M). (2) Vote buying / "
+            "bribery in veTokenomics gauge votes. (3) Quorum manipulation with low-turnout "
+            "votes. (4) Proposal spam burying a malicious transfer. (5) Timelock bypass when "
+            "upgrades are executable immediately. Detection: check proposal quorum vs "
+            "flash-loanable supply, timelock duration, and who holds vote weight. Mitigation: "
+            "timelocks, quorum floors, vote-weight vesting, emergency pause. Severity: CRITICAL."
+        ),
+        "metadata": {"severity": "critical", "category": "governance", "chain": "evm"},
+    },
+    {
+        "doc_id": "scam:read_only_reentrancy",
+        "content": (
+            "READ-ONLY REENTRANCY: A view/pure function is re-entered mid-transaction and "
+            "returns stale state to another protocol, which then acts on the wrong data. The "
+            "vulnerable contract appears safe because only read functions are involved, but the "
+            "attacker mutates state in a separate call and re-enters the read path to get "
+            "inconsistent balances. Exploits: Platypus Finance (Feb 2023, ~$8.5M) and Curve "
+            "Vyper aftermath (July 2023). Detection: trace view functions that read balances "
+            "during external callbacks; check lending/vault integrations that price from "
+            "balanceOf of a contract that calls back. Mitigation: snapshot pricing, "
+            "reentrancy guards on read paths that feed economic decisions. Severity: HIGH."
+        ),
+        "metadata": {"severity": "high", "category": "reentrancy", "chain": "evm"},
+    },
+    {
+        "doc_id": "scam:permit_phishing",
+        "content": (
+            "PERMIT SIGNATURE PHISHING: EIP-2612 permit lets a token holder authorize spending "
+            "with a signed message instead of an approve() transaction. Phishing sites request "
+            "a harmless-looking signature ('sign to claim', 'sign to verify wallet') and then "
+            "submit the permit themselves, draining tokens gaslessly. Because the victim never "
+            "sends a transfer transaction, the theft looks like it came from nowhere. "
+            "Detection: watch for permit signatures collected by malicious dApps; educate users "
+            "that signing typed data can move funds. Mitigation: only sign typed data on "
+            "verified sites, use hardware wallets that display the signing payload, revoke "
+            "stale approvals. Severity: HIGH."
+        ),
+        "metadata": {"severity": "high", "category": "phishing", "chain": "evm"},
+    },
+    {
+        "doc_id": "scam:fake_nft_mint",
+        "content": (
+            "FAKE NFT MINT / COLLECTION: Scam mints impersonate a popular NFT project or "
+            "celebrity drop, collecting mint fees or approvals and delivering nothing. "
+            "Mechanics: (1) Fake collection with a lookalike name/symbol and a different "
+            "contract address. (2) Mint site that drains wallet approvals instead of minting. "
+            "(3) Pre-minted supply dumped on secondary markets. Detection: verify collection "
+            "address against official sources, check the mint contract for withdraw functions, "
+            "check deployer history for repeated fake mints. Severity: HIGH."
+        ),
+        "metadata": {"severity": "high", "category": "impersonation", "chain": "evm"},
+    },
+    {
+        "doc_id": "scam:jit_liquidity_rug",
+        "content": (
+            "JIT LIQUIDITY / CONCENTRATED-LIQUIDITY RUG: On Uniswap v3-style AMMs, a rug is "
+            "not limited to removing LP — the deployer can (1) add concentrated liquidity in a "
+            "narrow range, collect fees, then remove it (JIT liquidity tax on every swap), or "
+            "(2) create a pool with one-sided liquidity so buys fill at inflated prices. "
+            "Detection: check tick-range positions and their owner, verify liquidity is "
+            "distributed across ranges, and watch for positions opened/closed in the same "
+            "block around large swaps. Severity: HIGH."
+        ),
+        "metadata": {"severity": "high", "category": "liquidity", "chain": "evm"},
+    },
 ]
 
 DEPLOYER_HISTORY: list[dict[str, Any]] = [
@@ -227,6 +298,109 @@ DEPLOYER_HISTORY: list[dict[str, Any]] = [
         ),
         "metadata": {"severity": "critical", "incident": "multichain", "date": "2023-07"},
     },
+    {
+        "doc_id": "history:beanstalk_governance",
+        "content": (
+            "BEANSTALK FLASH-LOAN GOVERNANCE ATTACK (April 2022): Beanstalk, an algorithmic "
+            "stablecoin protocol, was drained of ~$182M via the first major flash-loan "
+            "governance attack. Mechanism: (1) Attacker took a flash loan of Beans and ETH. "
+            "(2) Used the borrowed capital to acquire a majority of governance voting weight "
+            "(Stalk) in one block. (3) Passed a malicious proposal that transferred protocol "
+            "funds to the attacker. (4) Repaid the flash loan in the same transaction. Key "
+            "lessons: (1) Governance quorum must exceed what a flash loan can buy. (2) "
+            "Timelocks give the community a window to respond. (3) Vote weight based on "
+            "instantaneously borrowable supply is manipulable. Severity: HISTORICAL-CRITICAL."
+        ),
+        "metadata": {"severity": "critical", "incident": "beanstalk", "date": "2022-04"},
+    },
+    {
+        "doc_id": "history:euler_finance",
+        "content": (
+            "EULER FINANCE EXPLOIT (March 2023): Lending protocol Euler was drained of ~$197M "
+            "in one transaction. Mechanism: (1) Attacker used flash loans to inflate a "
+            "collateral asset's value in the protocol by donating tokens directly (donation "
+            "without share minting), a donation-based accounting flaw. (2) Borrowed against "
+            "the inflated collateral value. (3) Withdrew the borrowed assets, leaving the "
+            "protocol undercollateralized. Key lessons: (1) Balance-donation inflation is an "
+            "accounting bug class that also affects ERC-4626-style vaults. (2) Flash loans "
+            "amplify small accounting flaws. (3) Funds were largely returned after negotiation "
+            "with whitehats and the attacker. Severity: HISTORICAL-CRITICAL."
+        ),
+        "metadata": {"severity": "critical", "incident": "euler", "date": "2023-03"},
+    },
+    {
+        "doc_id": "history:nomad_bridge",
+        "content": (
+            "NOMAD BRIDGE EXPLOIT (August 2022): Cross-chain bridge Nomad was drained of "
+            "~$190M via a mass copy-paste exploit. Mechanism: (1) A 'trusted root' optimization "
+            "was introduced without initializing the trusted root — it was left at zero. (2) "
+            "The zero root meant the message verification check passed trivially for arbitrary "
+            "messages. (3) The first exploiter's transaction was publicly copyable; hundreds of "
+            "addresses replayed it with their own recipients, draining the bridge. Key "
+            "lessons: (1) Uninitialized critical state is a bridge-killing bug. (2) Public "
+            "exploits can be mass-replayed by copycats. (3) Verify bridge initialization "
+            "state and message validation thoroughly. Severity: HISTORICAL-CRITICAL."
+        ),
+        "metadata": {"severity": "critical", "incident": "nomad", "date": "2022-08"},
+    },
+    {
+        "doc_id": "history:mango_markets",
+        "content": (
+            "MANGO MARKETS ORACLE MANIPULATION (October 2022): Solana perp DEX Mango Markets "
+            "was drained of ~$114M. Mechanism: (1) Attacker deposited ~$5M USDC. (2) Used a "
+            "large MNGO-PERP position to move the MNGO oracle price up ~1300%. (3) Borrowed "
+            "against the inflated collateral value using the protocol's own perp as the "
+            "manipulation tool — no flash loan needed. Key lessons: (1) Perp markets whose "
+            "oracle is derived from their own order book/pool can be self-manipulated. (2) "
+            "Collateral value derived from manipulable spot/perp prices is dangerous. (3) "
+            "Liquidation thresholds must account for oracle manipulability. Severity: "
+            "HISTORICAL-CRITICAL."
+        ),
+        "metadata": {"severity": "critical", "incident": "mango", "date": "2022-10"},
+    },
+    {
+        "doc_id": "history:curve_vyper",
+        "content": (
+            "CURVE VYPER COMPILER BUG (July 2023): A Vyper compiler bug (versions 0.2.15-0.2.16) "
+            "broke the @nonreentrant decorator — the reentrancy lock flag was not properly set, "
+            "so guarded functions were re-entrant. Curve pools deployed with the buggy compiler "
+            "(alETH/ETH, pETH/ETH, msETH/ETH, CRV/ETH) were drained for over $60M total. "
+            "Key lessons: (1) Compiler-level bugs can bypass reentrancy guards in production "
+            "contracts. (2) Verify the exact compiler version + settings behind deployed "
+            "bytecode. (3) Read-only reentrancy variants appeared in the aftermath, showing "
+            "the attack surface extends beyond write functions. Severity: HISTORICAL-CRITICAL."
+        ),
+        "metadata": {"severity": "critical", "incident": "curve_vyper", "date": "2023-07"},
+    },
+    {
+        "doc_id": "history:platypus_reentrancy",
+        "content": (
+            "PLATYPUS FINANCE READ-ONLY REENTRANCY (February 2023): Solana-side Avalanche "
+            "stablecoin AMM Platypus was drained of ~$8.5M. Mechanism: (1) Attacker used a "
+            "flash loan in one transaction. (2) Re-entered a read-only balance function of "
+            "the pool mid-callback and minted LP tokens against stale balances. (3) Withdrew "
+            "the inflated LP for profit. Key lessons: (1) Read-only reentrancy: view functions "
+            "that feed pricing can be exploited even when write functions are guarded. (2) "
+            "Protocols that price deposits from balanceOf of another contract must snapshot. "
+            "(3) Flash loans turn small accounting inconsistencies into large drains. "
+            "Severity: HISTORICAL-HIGH."
+        ),
+        "metadata": {"severity": "high", "incident": "platypus", "date": "2023-02"},
+    },
+    {
+        "doc_id": "history:kyberswap_elastic",
+        "content": (
+            "KYBERSWAP ELASTIC EXPLOIT (November 2023): KyberSwap Elastic AMM pools were "
+            "drained of ~$48M. Mechanism: (1) Exploited a tick-crossing precision issue in "
+            "the concentrated-liquidity swap loop. (2) A crafted swap sequence manipulated "
+            "the math across tick boundaries to extract tokens beyond what the pool should "
+            "pay. (3) Multiple pools were drained in one transaction. Key lessons: (1) "
+            "Concentrated-liquidity tick math is precision-sensitive and must be "
+            "invariant-tested. (2) Complex swap loops are a rich audit surface. (3) "
+            "Cross-pool composability can amplify a single bug. Severity: HISTORICAL-CRITICAL."
+        ),
+        "metadata": {"severity": "critical", "incident": "kyberswap", "date": "2023-11"},
+    },
 ]
 
 CONTRACT_AUDIT: list[dict[str, Any]] = [
@@ -311,6 +485,123 @@ CONTRACT_AUDIT: list[dict[str, Any]] = [
             "also prevents legitimate exits."
         ),
         "metadata": {"category": "tax", "severity": "medium"},
+    },
+    {
+        "doc_id": "audit:reentrancy_pattern",
+        "content": (
+            "REENTRANCY AUDIT PATTERN: The classic EVM exploit (2016 DAO hack, ~$60M). The "
+            "vulnerable shape makes an external call BEFORE updating state, so a malicious "
+            "recipient can re-enter the function while balances are stale:\n"
+            "```solidity\n"
+            "function withdraw(uint256 amount) external {\n"
+            "    require(balances[msg.sender] >= amount);\n"
+            '    (bool ok, ) = msg.sender.call{value: amount}(""); // interaction FIRST\n'
+            "    balances[msg.sender] -= amount;                     // effect LAST\n"
+            "}\n"
+            "```\n"
+            "Variants: cross-function reentrancy (re-entering a different function with a "
+            "shared flag), ERC-777/ERC-1155 callback reentrancy via tokensReceived/on"
+            "ERC1155Received, and read-only reentrancy (view functions feeding stale "
+            "balances to other protocols). Mitigations: checks-effects-interactions, "
+            "nonReentrant guards, pull-over-push payments. Audit: flag every external call "
+            "before a state update and every custom fallback/recipient hook. Severity: "
+            "CRITICAL."
+        ),
+        "metadata": {"category": "vulnerability_pattern", "severity": "critical", "pattern": "reentrancy"},
+    },
+    {
+        "doc_id": "audit:integer_overflow_pattern",
+        "content": (
+            "INTEGER OVERFLOW/UNDERFLOW AUDIT PATTERN: Pre-0.8 Solidity silently wrapped on "
+            "arithmetic overflow, letting balances become astronomically large or "
+            "underflow to near-max:\n"
+            "```solidity\n"
+            "// Solidity < 0.8: wraps silently\n"
+            "function transfer(address to, uint256 amount) external {\n"
+            "    balances[msg.sender] -= amount; // underflow if amount > balance\n"
+            "    balances[to] += amount;         // overflow wraps\n"
+            "}\n"
+            "```\n"
+            "Solidity 0.8+ reverts by default, but unchecked blocks, unsafe casts, and "
+            "non-EVM chains still wrap. Audit: check arithmetic on balances, allowances, "
+            "and token amounts; look for unchecked{} blocks, casts, and custom VMs. "
+            "Severity: HIGH."
+        ),
+        "metadata": {"category": "vulnerability_pattern", "severity": "high", "pattern": "integer_overflow"},
+    },
+    {
+        "doc_id": "audit:tx_origin_pattern",
+        "content": (
+            "TX.ORIGIN AUTHORIZATION AUDIT PATTERN: tx.origin returns the account that "
+            "STARTED the transaction, not the immediate caller, so a phishing contract "
+            "can pass an owner check:\n"
+            "```solidity\n"
+            "function withdrawAll() external {\n"
+            "    require(tx.origin == owner); // attacker's contract passes this\n"
+            "    payable(owner).transfer(address(this).balance);\n"
+            "}\n"
+            "```\n"
+            "Victim calls attacker's contract; attacker's contract calls withdrawAll(); "
+            "tx.origin is the victim, so the check passes. Use msg.sender for "
+            "authorization. tx.origin is only acceptable for explicit anti-phishing "
+            "conditions. Audit: grep for tx.origin in require/if conditions. Severity: "
+            "HIGH."
+        ),
+        "metadata": {"category": "vulnerability_pattern", "severity": "high", "pattern": "tx_origin"},
+    },
+    {
+        "doc_id": "audit:unchecked_external_call_pattern",
+        "content": (
+            "UNCHECKED EXTERNAL CALL AUDIT PATTERN: Low-level calls return a success "
+            "boolean instead of reverting; ignoring it lets a contract continue as if the "
+            "call succeeded:\n"
+            "```solidity\n"
+            '(bool success, ) = recipient.call{value: amount}("");\n'
+            "// success ignored — accounting proceeds as if the payment landed\n"
+            "```\n"
+            "This corrupts balances and lets attackers complete flows that should have "
+            "failed. Also related: transfer()/send() with fixed 2300 gas can brick "
+            "payments as gas costs rise. Audit: every external interaction must handle "
+            "failure explicitly; prefer high-level interface calls that revert. Severity: "
+            "HIGH."
+        ),
+        "metadata": {"category": "vulnerability_pattern", "severity": "high", "pattern": "unchecked_call"},
+    },
+    {
+        "doc_id": "audit:delegatecall_pattern",
+        "content": (
+            "DELEGATECALL AUDIT PATTERN: delegatecall executes the callee's code in the "
+            "CALLER's storage context, so pointing it at an untrusted address lets that "
+            "address rewrite any storage variable — owner, balances, everything. The 2016 "
+            "Parity wallet hack destroyed ~$150M of ETH this way:\n"
+            "```solidity\n"
+            "function execute(address target, bytes calldata data) external {\n"
+            "    target.delegatecall(data); // runs in THIS contract's storage\n"
+            "}\n"
+            "```\n"
+            "Audit: guard the target address, keep proxy storage collision-free, and "
+            "never let users supply arbitrary delegatecall targets. Severity: CRITICAL."
+        ),
+        "metadata": {"category": "vulnerability_pattern", "severity": "critical", "pattern": "delegatecall"},
+    },
+    {
+        "doc_id": "audit:access_control_pattern",
+        "content": (
+            "ACCESS CONTROL AUDIT PATTERN: Privileged functions callable by anyone because "
+            "the owner/admin modifier is missing. Ranks first in OWASP's smart-contract "
+            "top 10 and caused the largest dollar losses of any vulnerability class in "
+            "2024-2025 incident data:\n"
+            "```solidity\n"
+            "function mint(address to, uint256 amount) external { // no onlyOwner\n"
+            "    _mint(to, amount); // anyone can mint unlimited supply\n"
+            "}\n"
+            "```\n"
+            "Audit: enumerate every state-changing function, verify a role check exists, "
+            "and test that unprivileged callers revert. Also check proxy admins, "
+            "upgrade paths, and roles that can bypass a renounced owner. Severity: "
+            "CRITICAL."
+        ),
+        "metadata": {"category": "vulnerability_pattern", "severity": "critical", "pattern": "access_control"},
     },
 ]
 
@@ -404,6 +695,110 @@ PHISHING_DB: list[dict[str, Any]] = [
             "Algorithmic with low collateral, opaque reserves, no redemption guarantee."
         ),
         "metadata": {"category": "defi", "topic": "stablecoin", "severity": "medium"},
+    },
+    {
+        "doc_id": "defi:uniswap_v3_mechanics",
+        "content": (
+            "UNISWAP V3 / CONCENTRATED LIQUIDITY MECHANICS: LPs provide liquidity inside "
+            "custom price ranges (ticks) instead of 0-to-infinity, earning higher fees per "
+            "dollar when in range. Key mechanics: (1) Ticks: discrete price boundaries; "
+            "positions are NFTs with custom ranges. (2) Tick ranges: liquidity is only "
+            "active inside the range; when price exits, the position becomes single-sided. "
+            "(3) TWAP oracles: v3 observes accumulated prices for TWAP, but short windows "
+            "over thin ranges are manipulable. (4) JIT liquidity: bots add and remove "
+            "concentrated liquidity in the same block as a large swap to capture fees. "
+            "(5) Fee tiers: 0.05%, 0.3%, 1% routes change swap economics. Gotchas for "
+            "token analysis: check liquidity distribution across ticks, not just TVL; "
+            "check who holds active-range positions. Severity: informational."
+        ),
+        "metadata": {"category": "defi", "topic": "uniswap", "severity": "high"},
+    },
+    {
+        "doc_id": "defi:curve_stableswap",
+        "content": (
+            "CURVE STABLE-SWAP POOL MECHANICS: Curve-style pools use a hybrid "
+            "constant-sum/constant-product curve optimized for assets with similar value "
+            "(stablecoins, liquid staking derivatives). Key mechanics: (1) Amplification "
+            "coefficient (A) controls how flat the curve is near the peg; higher A = "
+            "more efficient near peg, more vulnerable to imbalance. (2) Price stays near "
+            "1:1 while pools are balanced; large imbalance moves price sharply. (3) "
+            "Lending integrations (crvUSD, LLAMMA) price from Curve pools, so pool "
+            "manipulation can cascade into liquidations. Gotchas: spot price from a thin "
+            "Curve pool is flash-loan manipulable (Harvest Finance 2020); the 2023 "
+            "Vyper bug hit Curve pools specifically. Check pool depth on both sides and "
+            "whether TWAP or deviation guards protect any integration. Severity: high."
+        ),
+        "metadata": {"category": "defi", "topic": "curve", "severity": "high"},
+    },
+    {
+        "doc_id": "defi:liquidation_auctions",
+        "content": (
+            "LIQUIDATION AUCTIONS AND CASCADES: Lending protocols close underwater "
+            "positions by selling collateral, often at a discount via auction or a "
+            "liquidation bonus. Mechanics: (1) Health factor < 1 triggers liquidation. "
+            "(2) Liquidators race to close first and earn the bonus — MEV bots dominate. "
+            "(3) Cascades: one liquidation drives price down, triggering more "
+            "liquidations sharing the same price feed. (4) Bad debt: when collateral "
+            "cannot cover the loan, the protocol eats the loss, hitting lenders. "
+            "Gotchas: partial liquidation (Aave v3) dampens cascades; eMode "
+            "correlated-asset baskets liquidate together; auction-style (Maker) has "
+            "different dynamics than instant bonus liquidations. For token analysis, "
+            "large borrowed positions against a volatile token are cascade fuel. "
+            "Severity: high."
+        ),
+        "metadata": {"category": "defi", "topic": "liquidation", "severity": "high"},
+    },
+    {
+        "doc_id": "defi:erc4626_vaults",
+        "content": (
+            "ERC-4626 VAULT MECHANICS: The tokenized-vault standard (yield vaults, "
+            "staking wrappers) prices shares as assets-per-share: shares = deposit / "
+            "pricePerShare. Key mechanics: (1) Donation-inflatable balance: a large "
+            "donation before/after deposits inflates pricePerShare, hurting late or "
+            "early depositors (first-depositor / share-inflation attack). (2) "
+            "Rounding: deposit rounds shares down and withdrawal rounds assets down, "
+            "which over many ops can drain a vault (extreme case: the 2021 Yearn "
+            "v1 weirding / 'morphing' incidents). (3) fee accounting: fees accrue "
+            "inside pricePerShare, so share price is not flat. Gotchas: verify "
+            "minimum first deposit, virtual shares/offset (OpenZeppelin v5), and "
+            "donation resistance before trusting a vault. Severity: high."
+        ),
+        "metadata": {"category": "defi", "topic": "vault", "severity": "high"},
+    },
+    {
+        "doc_id": "defi:solana_program_mechanics",
+        "content": (
+            "SOLANA PROGRAM / ACCOUNT MODEL MECHANICS: Solana programs (smart contracts) "
+            "receive all state as explicit accounts, so account validation IS the "
+            "security model. Key mechanics: (1) Every account must be checked for "
+            "program ownership, key match, and signer status — missing checks let "
+            "attackers pass fake mints or token accounts. (2) CPIs call other programs; "
+            "reentrancy-style issues come from state changed between CPI and later "
+            "checks. (3) Token-2022 extensions (transfer fees, transfer hooks, "
+            "confidential transfers) add programmable behavior on every transfer. "
+            "(4) Priority fees + Jito bundles determine MEV ordering. (5) Rent and "
+            "close-account mechanics differ from EVM storage. Gotchas: verify mint "
+            "authority, freeze authority, and extension list before trusting a Solana "
+            "token; simulate the full instruction set. Severity: high."
+        ),
+        "metadata": {"category": "defi", "topic": "solana", "severity": "high"},
+    },
+    {
+        "doc_id": "defi:governance_mechanics",
+        "content": (
+            "ON-CHAIN GOVERNANCE MECHANICS: DAO governance moves protocol parameters and "
+            "treasury funds through proposals. Key mechanics: (1) Quorum: minimum votes "
+            "for a proposal to pass; quorum that a flash loan can buy is attackable. "
+            "(2) Timelock: delay between proposal passing and execution — the community "
+            "window to respond; no timelock means instant execution. (3) Vote weight: "
+            "token holdings, veTokens, or delegated votes; instant-borrowable weight is "
+            "manipulable. (4) Gauge/bribe mechanics in veTokenomics direct emissions. "
+            "(5) Emergency pause/guardian roles can halt protocol activity. Gotchas: "
+            "Beanstalk 2022 showed flash-loan governance; low-turnout proposals get "
+            "buried; proposals bundling innocuous changes with a transfer get rubber-"
+            "stamped. Severity: high."
+        ),
+        "metadata": {"category": "defi", "topic": "governance", "severity": "high"},
     },
 ]
 

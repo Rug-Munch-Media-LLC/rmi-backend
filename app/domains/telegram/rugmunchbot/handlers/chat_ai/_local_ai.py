@@ -112,6 +112,27 @@ _SELF_DESCRIPTION_ANSWER = (
 )
 
 # ══════════════════════════════════════════════
+# PRESENCE CHECKS ("are you there" / "anyone home")
+# A presence check is NOT a question — it gets an instant 1-2 line warm
+# acknowledgment instead of the full capabilities card, and never falls
+# through to the slow LLM/RAG path. Registered BEFORE the greeting rule so
+# presence phrasings ("you there", "u there", "there?") win over the long
+# "Yo! I'm here" capabilities card.
+# ══════════════════════════════════════════════
+
+_PRESENCE_RE = re.compile(
+    r"\b(are you there|you there|anyone there|anyone home|you alive|u there)\b"
+    # Bare "there?" is a presence check; \bthere\b alone is far too broad.
+    r"|\bthere\?"
+)
+
+_PRESENCE_ANSWER = (
+    "\U0001f44b <b>I'm here!</b>\n\n"
+    "Drop a token address to scan, ask a price (<code>$TOKEN</code>), or "
+    "ask any DeFi/security question \u2014 I'll dig right in."
+)
+
+# ══════════════════════════════════════════════
 # TIER-2 LOCAL INTENT MATCHING (ported from handlers/message.py)
 # Canned, zero-backend answers for greetings / feature intents. Used for
 # gibberish that is not worth an LLM call and as an offline fallback when the
@@ -302,11 +323,19 @@ _INTENT_RULES: list[tuple[re.Pattern[str], str]] = [
             f"{footer_links()}"
         ),
     ),
+    # Presence checks must win over the generic greeting card (fast warm
+    # 1-2 line reply).
+    (
+        _PRESENCE_RE,
+        _PRESENCE_ANSWER,
+    ),
     (
         re.compile(
             r"\b(hello|hi|hey|yo|sup|howdy|good morning|good evening|"
             r"gm|gn|what'?s up|welcome|are you (there|alive|up|online|working)|"
-            r"you (there|alive|up|online|working)|ping|wake up|respond)\b",
+            r"you (there|alive|up|online|working)|anyone (there|home)|u there|"
+            r"ping|wake up|respond)\b"
+            r"|\bthere\?",
             re.IGNORECASE,
         ),
         (
@@ -395,6 +424,7 @@ def local_ai_response(text: str, user: Any) -> str | None:
 
 __all__ = [
     "_INTENT_RULES",
+    "_PRESENCE_ANSWER",
     "_SELF_DESCRIPTION_ANSWER",
     "_SELF_IMPROVEMENT_ANSWER",
     "local_ai_response",
