@@ -1,34 +1,22 @@
-"""Proxy-enabled HTTP fetcher for 429/403-blocked news sources.
+"""Fetch HTTP content with layered fallbacks.
 
-Targets the sources flagged ``DEAD`` in ``news_sources_status.json`` with
-HTTP 429 (reddit-*) and HTTP 403 (coingecko-buzz / defillama / messari /
-*-substack) — plain direct requests no longer work for them.
+Tries direct requests first, then optional configured alternatives (solver
+service, outbound proxy, headless browser) until one succeeds. Configuration
+is fully env-driven; no credentials are hardcoded:
 
-Escalation ladder (stops at the first success):
-  1. Direct httpx with a browser User-Agent
-  2. FlareSolverr (default http://127.0.0.1:8192/v1) — Cloudflare/WAF bypass
-  3. Residential HTTP proxy (``WEBSHARE_PROXY_URL`` / ``WEBSHARE_PROXY_LIST``)
-     for 429/403 rate-limited hosts — egress IP rotation
-  4. Crawl4AI headless browser — last resort (lazy import; requires
-     ``crawl4ai`` + Playwright chromium, same as ``app/rag/crawler.py``)
+    PROXY_URL                 single proxy     http://user:pass@host:port
+    PROXY_LIST                proxy list       space/newline/comma separated URLs
+                              (see the proxy list loader module)
+    FLARESOLVERR_URL          solver service   default http://127.0.0.1:8192/v1
+    PROXY_SCRAPER_ENABLED     master switch    default "1"
+    PROXY_SCRAPER_ALLOW_CRAWL4AI  headless fallback toggle, default "1"
+    PROXY_SCRAPER_MAX_BYTES   cap response body, default 2_000_000
+    PROXY_SCRAPER_TIMEOUT_DIRECT / _FLARE / _PROXY  seconds, 20/60/45
 
-Configuration is fully env-driven; no credentials are hardcoded:
-
-   WEBSHARE_PROXY_URL      single proxy     http://user:pass@host:port
-   WEBSHARE_PROXY_LIST     rotation list    space/newline/comma separated URLs
-                         (falls back to gopass rmi/infra/webshare_proxy_list
-                          when unset — see app/databus/webshare_proxies.py)
-   FLARESOLVERR_URL        default          http://127.0.0.1:8192/v1
-   PROXY_SCRAPER_ENABLED   master switch    default "1"
-   PROXY_SCRAPER_ALLOW_CRAWL4AI  last-resort toggle, default "1"
-   PROXY_SCRAPER_MAX_BYTES cap response body, default 2_000_000
-   PROXY_SCRAPER_TIMEOUT_DIRECT / _FLARE / _PROXY  seconds, 20/60/45
-
-The proxy credentials are NOT committed to the repo — the module reads them
-from the environment, or from gopass (``rmi/infra/webshare_proxy_list``) via
-:mod:`app.databus.webshare_proxies`, at call time and the proxy tier is
-skipped (with a log line) when none are available, so direct / FlareSolverr /
-Crawl4AI still work.
+The proxy list is NOT committed to the repo — the module reads it from the
+environment at call time (see the proxy list loader) and the proxy tier is
+skipped (with a log line) when none are available, so the other fetch paths
+still work.
 
 Proxy URLs are redacted (userinfo stripped) everywhere they are logged.
 """
@@ -63,11 +51,11 @@ PROXY_SCRAPER_TIMEOUT_DIRECT: Final[float] = float(os.getenv("PROXY_SCRAPER_TIME
 PROXY_SCRAPER_TIMEOUT_FLARE: Final[float] = float(os.getenv("PROXY_SCRAPER_TIMEOUT_FLARE", "60"))
 PROXY_SCRAPER_TIMEOUT_PROXY: Final[float] = float(os.getenv("PROXY_SCRAPER_TIMEOUT_PROXY", "45"))
 
-# Status codes that mean "try a different egress path" (rate limit / WAF).
+# Status codes that trigger a different fetch path.
 ESCALATE_STATUS: Final[frozenset[int]] = frozenset({403, 429, 401, 503})
 
-# Marker substrings for WAF challenge pages served with a 200 (Cloudflare
-# "Just a moment", PerimeterX/DataDome variants). Only trusted on small bodies.
+# Marker substrings for challenge pages served with a 200 status.
+# Only trusted on small bodies.
 _WAF_MARKERS: Final[tuple[str, ...]] = (
     "cf-chl-",
     "challenge-platform",
@@ -101,9 +89,9 @@ class FetchResult:
     ok: bool
     content: str = ""
     status_code: int | None = None
-    method: str = ""  # winner tier: direct | flaresolverr | proxy | crawl4ai
+    method: str = ""  # fetch path used: direct | flaresolverr | proxy | crawl4ai
     error: str = ""
-    ladder: list[str] = field(default_factory=list)  # every tier attempted
+    ladder: list[str] = field(default_factory=list)  # every fetch path attempted
 
 
 def _redact(proxy_url: str) -> str:
@@ -122,7 +110,7 @@ def _redact(proxy_url: str) -> str:
 
 
 def _is_waf_block(status: int | None, body: str) -> bool:
-    """Heuristic for WAF challenge pages served with a 200 status."""
+    """Heuristic for challenge pages served with a 200 status."""
     if status in ESCALATE_STATUS:
         return True
     if status != 200:
@@ -134,13 +122,11 @@ def _is_waf_block(status: int | None, body: str) -> bool:
 
 
 class ProxyScraper:
-    """Async fetcher with a four-tier escalation ladder.
+    """Async fetcher with layered fallbacks.
 
     Build once per process (or per sweep); ``fetch()`` is safe to call
-    concurrently. Proxy egress is rotated round-robin across the list from
-    ``WEBSHARE_PROXY_LIST`` / ``WEBSHARE_PROXY_URL`` (gopass
-    ``rmi/infra/webshare_proxy_list`` fallback via
-    :func:`app.databus.webshare_proxies.load_proxies`).
+    concurrently. Proxies are used round-robin from the list returned by the
+    proxy list loader.
     """
 
     def __init__(
@@ -151,7 +137,7 @@ class ProxyScraper:
     ) -> None:
         self._flare_url = flare_url or FLARESOLVERR_URL
         self._enabled = enabled and PROXY_SCRAPER_ENABLED
-        # Resolve egress proxies at init; credentials come from env / gopass.
+        # Resolve proxies at init; they come from the environment.
         if proxies is None:
             proxies = load_proxies()
         self._proxies = proxies
@@ -167,7 +153,7 @@ class ProxyScraper:
     # ── Public API ─────────────────────────────────────────────────────────
 
     async def fetch(self, url: str) -> FetchResult:
-        """Fetch ``url``, escalating through the ladder until one tier works."""
+        """Fetch ``url``, trying fetch paths in order until one succeeds."""
         if not self._enabled:
             return FetchResult(url=url, ok=False, error="proxy scraper disabled (PROXY_SCRAPER_ENABLED=0)")
 
@@ -179,13 +165,13 @@ class ProxyScraper:
         ladder = ["direct"]
         direct_hint = f"HTTP {status}" if status is not None else "request error"
 
-        # 2) FlareSolverr — Cloudflare/WAF bypass.
+        # 2) Solver service fallback.
         content, status = await self._fetch_flaresolverr(url)
         if content is not None:
             ladder.append("flaresolverr")
             return FetchResult(url=url, ok=True, content=content, status_code=status, method="flaresolverr")
 
-        # 3) Residential proxy — 429/403 rate-limit escape (rotating egress).
+        # 3) Outbound proxy fallback (when configured).
         if self._proxy_cycle is not None:
             content, status = await self._fetch_via_proxy(url)
             if content is not None:
@@ -193,7 +179,7 @@ class ProxyScraper:
                 return FetchResult(url=url, ok=True, content=content, status_code=status, method="proxy")
             ladder.append("proxy")
 
-        # 4) Crawl4AI headless — last resort.
+        # 4) Headless browser extraction — last resort.
         if PROXY_SCRAPER_ALLOW_CRAWL4AI:
             content = await self._fetch_crawl4ai(url)
             if content is not None:
@@ -202,9 +188,7 @@ class ProxyScraper:
 
         errors: list[str] = [f"direct {direct_hint}"]
         if self._proxy_cycle is None:
-            errors.append(
-                "proxy not configured (set WEBSHARE_PROXY_URL / WEBSHARE_PROXY_LIST or gopass rmi/infra/webshare_proxy_list)"
-            )
+            errors.append("proxy not configured (set PROXY_URL / PROXY_LIST)")
         return FetchResult(
             url=url,
             ok=False,
@@ -213,7 +197,7 @@ class ProxyScraper:
             ladder=ladder,
         )
 
-    # ── Tiers ──────────────────────────────────────────────────────────────
+    # ── Fetch paths ────────────────────────────────────────────────────────
 
     async def _fetch_direct(self, url: str) -> tuple[str | None, int | None]:
         try:
@@ -247,12 +231,12 @@ class ProxyScraper:
             return None, None
 
     async def _fetch_via_proxy(self, url: str) -> tuple[str | None, int | None]:
-        """Fetch through a rotating residential proxy. Fails fast when none set."""
+        """Fetch through the configured outbound proxy. Fails fast when none set."""
         proxy_url = self._next_proxy()
         if proxy_url is None:
             log.info(
                 "proxy_scraper_no_proxy",
-                hint="set WEBSHARE_PROXY_URL / WEBSHARE_PROXY_LIST or gopass rmi/infra/webshare_proxy_list",
+                hint="set PROXY_URL / PROXY_LIST",
             )
             return None, None
         try:
@@ -307,7 +291,7 @@ def get_scraper() -> ProxyScraper:
 
 
 async def fetch(url: str) -> FetchResult:
-    """Fetch ``url`` with the default env-configured ladder."""
+    """Fetch ``url`` with the default env-configured fetch paths."""
     return await get_scraper().fetch(url)
 
 
