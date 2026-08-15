@@ -34,6 +34,7 @@ import pytest
 
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.handlers import chat_ai
+from app.domains.telegram.rugmunchbot.handlers.chat_ai import _guards
 from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 EVM = "0x6982508145454Ce325dDbE47a25d4ec3d2311933"
@@ -681,7 +682,7 @@ class TestCallBackendChat:
         assert _run(chat_ai._call_backend_chat("question", 12345)) is None
 
     def test_payload_contract(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Verify the wire format: no context_override + explicit history."""
+        """Verify the wire format: persona context_override + explicit history."""
         captured: dict = {}
 
         class _FakeResponse:
@@ -723,8 +724,12 @@ class TestCallBackendChat:
             {"role": "user", "content": "first"},
             {"role": "assistant", "content": "answer"},
         ]
-        # No context_override -> backend auto-RAG (news-aware grounding).
-        assert "context_override" not in captured["json"]
+        # Tier-1 ships the sharp grounded persona via context_override so the
+        # production model gets grounding bullets + anti-hallucination rules.
+        ctx = captured["json"]["context_override"]["system_context"]
+        assert "PERSONA — Rug Munch Intelligence Analyst" in ctx
+        assert "DATA GROUNDING RULES" in ctx
+        assert "ANTI-PATTERNS" in ctx
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -933,6 +938,57 @@ class TestLookupTokenSymbol:
         msg = _FakeMessage()
         assert _run(chat_ai._lookup_token_symbol("$DOGE", msg)) is False
         assert msg.replies == []
+
+    def test_null_or_nonnumeric_price_fields_no_crash(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """P2 fix: DexScreener null / 'N/A' price fields must NOT crash the
+        $TOKEN card — _safe_float fails open to 0.0 instead of raising
+        TypeError/ValueError in float() (regression for the P0-adjacent
+        float() crash)."""
+        _patch_dex(
+            monkeypatch,
+            pairs=[
+                {
+                    "baseToken": {"address": "0xabc", "name": "Null Coin"},
+                    "chainId": "ethereum",
+                    "priceUsd": None,
+                    "priceChange": {"h24": None},
+                    "volume": {"h24": None},
+                    "marketCap": "N/A",
+                }
+            ],
+        )
+        msg = _FakeMessage()
+        result = _run(chat_ai._lookup_token_symbol("$NULL", msg))
+        assert result is True
+        assert len(msg.replies) == 1
+        text = msg.replies[0][0][0]
+        assert "Null Coin" in text
+
+    def test_lookup_sets_shared_sent_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """P2 fix: _lookup_token_symbol stamps the shared _TokenCardFlag the
+        moment a price card is delivered, so the AI pipeline can detect a card
+        landing just after the decide-wait and never double-send."""
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        flag = _routing._TokenCardFlag()
+        assert flag.sent is False
+        _patch_dex(
+            monkeypatch,
+            pairs=[
+                {
+                    "baseToken": {"address": "0xabc", "name": "Doge Coin"},
+                    "chainId": "ethereum",
+                    "priceUsd": "0.1234",
+                    "priceChange": {"h24": 0},
+                    "volume": {"h24": 0},
+                    "marketCap": 0,
+                }
+            ],
+        )
+        msg = _FakeMessage()
+        result = _run(chat_ai._lookup_token_symbol("$DOGE", msg, sent_flag=flag))
+        assert result is True
+        assert flag.sent is True
 
 
 class TestSendAnswer:
@@ -1338,6 +1394,30 @@ class TestChatAiResponse:
         assert len(placeholder.edits) >= 1
         assert "AI brain temporarily unavailable" in placeholder.edits[-1][0][0]
 
+    def test_token_card_flag_sent_skips_ai_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """P2 race fix: when the $TOKEN price card already landed (shared
+        sent flag set), chat_ai_response must NOT also send the AI answer —
+        the user gets card + answer otherwise (double-send at the
+        decide-wait boundary)."""
+        from app.domains.telegram.rugmunchbot.handlers.chat_ai import _routing
+
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "ai answer", "rag_count": 1, "tokens": 10, "provider": "backend"}),
+        )
+        flag = _routing._TokenCardFlag()
+        flag.sent = True  # the card landed while the pipeline was running
+        msg = _FakeMessage()
+        upd = _FakeUpdate(12345, "tester", msg)
+        result = _run(chat_ai.chat_ai_response(upd, None, "$DOGE pump?", upd.effective_user, token_card_flag=flag))
+        assert result is True
+        # The "Thinking..." placeholder is the ONLY reply — and it is
+        # deleted. The AI answer is never surfaced.
+        assert not any("ai answer" in r[0][0] for r in msg.replies)
+        assert len(msg.returned) == 1
+        assert len(msg.returned[0].deletes) == 1
+
 
 class TestChatAiResponseQuality:
     """End-to-end answer-quality regressions through chat_ai_response:
@@ -1522,6 +1602,39 @@ class TestAiChatHandler:
         assert any("DOGE" in r[0][0] for r in msg.replies)
         assert not any("nope" in r[0][0] for r in msg.replies)
 
+    def test_free_text_not_spam_dropped_single_gate(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """P0 regression: ai_chat_handler must NOT call check_spam itself —
+        the gate lives only in chat_ai_response. The old double call stamped
+        _user_last_action, then the second call (ms later) returned True and
+        silently dropped EVERY non-owner free-text reply."""
+        from app.domains.telegram.rugmunchbot import states as bot_states
+
+        # Use the REAL check_spam (not the fixture's always-False lambda) so
+        # the stamp-and-recheck behavior that caused the drop is exercised.
+        calls: list[int] = []
+
+        def counting_check_spam(user_id: int) -> bool:
+            calls.append(user_id)
+            return bot_states.check_spam(user_id)
+
+        monkeypatch.setattr(chat_ai, "check_spam", counting_check_spam)
+        monkeypatch.setattr(
+            chat_ai,
+            "_call_backend_chat",
+            AsyncMock(return_value={"message": "rag answer", "rag_count": 1, "tokens": 10, "provider": "backend"}),
+        )
+        user_id = 987654321  # unique non-owner id, never stamped by other tests
+        bot_states._user_last_action.pop(user_id, None)
+        msg = _FakeMessage(text="how do honeypots work?")
+        upd = _FakeUpdate(user_id, "tester", msg)
+        upd.effective_chat = types.SimpleNamespace(id=999, type="private")
+        ctx = types.SimpleNamespace(args=[])
+        _run(chat_ai.ai_chat_handler(upd, ctx))
+        # The spam gate is evaluated exactly ONCE (inside chat_ai_response).
+        assert len(calls) == 1
+        # And the free-text answer is actually delivered — not dropped.
+        assert any("rag answer" in r[0][0] for r in msg.replies)
+
 
 class TestInterimPlaceholder:
     """Bug fix: the "Still digging" interim note (wired ~5s after the
@@ -1595,3 +1708,157 @@ class TestTokenCardDecision:
                 await asyncio.gather(task, return_exceptions=True)
 
         assert _run(_scenario()) is False
+
+
+class TestNumericVerification:
+    """Zero-fabrication NUMBERS layer (chat_ai/_guards.py): a hallucinated
+    "$420.69" / "+999%" claim must be flagged inline with "⚠ unverified"
+    while a claim matching the tools' real data passes untouched (and a
+    no-data answer is left exactly as-is)."""
+
+    @staticmethod
+    def _price_result(*, price: float, symbol: str = "BONK", change_24h: float = 2.3) -> ToolResult:
+        return ToolResult(
+            tool="price_lookup",
+            ok=True,
+            data={
+                "query_symbol": symbol,
+                "pairs": [
+                    {
+                        "symbol": symbol,
+                        "price_usd": price,
+                        "change_24h": change_24h,
+                        "market_cap": 1_234_567_890.0,
+                    }
+                ],
+            },
+            symbols=[symbol],
+            source="dexscreener",
+        )
+
+    def test_hallucinated_price_flagged(self) -> None:
+        answer, flagged = _guards._verify_numeric_claims("$BONK is trading at $420.69 today.", [0.00001234])
+        assert "$420.69 ⚠ unverified" in answer
+        assert flagged == ["$420.69"]
+
+    def test_real_price_passes_unchanged(self) -> None:
+        answer = "$BONK is trading at $0.00001234 today."
+        out, flagged = _guards._verify_numeric_claims(answer, [0.00001234])
+        assert out == answer
+        assert flagged == []
+
+    def test_hallucinated_percent_flagged(self) -> None:
+        answer, flagged = _guards._verify_numeric_claims("$BONK is up +999% this week.", [2.3, -1.5])
+        assert "+999% ⚠ unverified" in answer
+        assert flagged == ["+999%"]
+
+    def test_real_percent_passes(self) -> None:
+        answer = "$BONK is up +2.3% and down -1.5% yesterday."
+        out, flagged = _guards._verify_numeric_claims(answer, [2.3, -1.5])
+        assert out == answer
+        assert flagged == []
+
+    def test_no_data_returns_answer_unchanged(self) -> None:
+        answer = "$420.69 is up +999%."
+        out, flagged = _guards._verify_numeric_claims(answer, [])
+        assert out == answer
+        assert flagged == []
+
+    def test_suffix_amounts_verified(self) -> None:
+        # $2.5B claim vs 2.5e9 fetched market cap → verified; $2.6B → flagged.
+        answer = "$BONK mcap is $2.5B and FDV is $2.6B."
+        out, flagged = _guards._verify_numeric_claims(answer, [2_500_000_000.0])
+        assert "$2.5B" in out
+        assert "$2.5B ⚠ unverified" not in out
+        assert "$2.6B ⚠ unverified" in out
+        assert flagged == ["$2.6B"]
+
+    def test_tolerance_absorbs_llm_rounding(self) -> None:
+        # ~0.3% and ~0.0006% rounding must NOT be flagged (REL_TOL = 2%).
+        answer = "$BONK is at $0.0000123, BTC at $1,234.57."
+        out, flagged = _guards._verify_numeric_claims(answer, [0.00001234, 1234.5678])
+        assert out == answer
+        assert flagged == []
+
+    def test_commas_and_plain_amounts(self) -> None:
+        answer = "raised $12,345,678 and the token costs $0.50."
+        out, flagged = _guards._verify_numeric_claims(answer, [12345678.0, 0.5])
+        assert out == answer
+        assert flagged == []
+
+    def test_ticker_dollar_not_treated_as_amount(self) -> None:
+        # "$BONK" is a ticker, not a money claim — never flagged.
+        answer = "$BONK and $PEPE both moved."
+        out, flagged = _guards._verify_numeric_claims(answer, [0.00001234])
+        assert out == answer
+        assert flagged == []
+
+    def test_unsigned_percent_out_of_scope(self) -> None:
+        # Spec scopes the pass to "+X%/-X%"; unsigned prose % is untouched.
+        answer = "BONK is up 12% and 42% of supply is locked."
+        out, flagged = _guards._verify_numeric_claims(answer, [2.3])
+        assert out == answer
+        assert flagged == []
+
+    def test_already_flagged_claim_not_double_flagged(self) -> None:
+        out, _ = _guards._verify_numeric_claims("$420.69 ⚠ unverified", [0.00001234])
+        assert out.count("⚠ unverified") == 1
+
+    def test_collect_numeric_facts_from_tools(self) -> None:
+        live = {
+            "price_lookup": self._price_result(price=0.00001234),
+            "market_overview": ToolResult(
+                tool="market_overview",
+                ok=True,
+                data={
+                    "prices": {"bitcoin": 67890.12, "ethereum": 3456.78},
+                    "global_market_cap_usd": 2_500_000_000_000.0,
+                    "fear_greed": {"value": 72},
+                },
+                symbols=["BTC", "ETH", "SOL"],
+                source="coingecko",
+            ),
+            "web_search": ToolResult(
+                tool="web_search",
+                ok=True,
+                data={"summary": "BTC went to 67890.12"},  # synthesized — must NOT count
+                source="knowledge-fallback",
+            ),
+            "failed": ToolResult(tool="scanner_intel", ok=False, data={"risk_score": 99}, error="down"),
+        }
+        facts = _guards._collect_numeric_facts(live)
+        assert 0.00001234 in facts
+        assert 67890.12 in facts
+        assert 3456.78 in facts
+        assert 2_500_000_000_000.0 in facts
+        assert 72 in facts
+        # price pair (3) + market_overview (4); knowledge fallback + failed tool contribute nothing.
+        assert len(facts) == 7
+
+    def test_post_guardrail_flags_hallucinated_price(self) -> None:
+        """End-to-end through _post_guardrail (tools path): a real fetched
+        price + real move pass untouched while a hallucinated price gets the
+        inline flag."""
+
+        async def _scenario() -> str:
+            async def _done() -> dict[str, ToolResult]:
+                return {"price_lookup": self._price_result(price=0.00001234, change_24h=45.0)}
+
+            task = asyncio.create_task(_done())
+            await asyncio.sleep(0.01)  # let the task finish
+            out, _results, _syms, _addrs, _deg = await _guards._post_guardrail(
+                answer="💰 $BONK is at $0.00001234, up +45% — some say $420.69 next.",
+                user_id=1,
+                provider="tools",
+                bridge_sources=[],
+                live_tools_task=task,
+                rag_result=None,
+            )
+            return out
+
+        out = _run(_scenario())
+        assert "$0.00001234" in out
+        assert "$0.00001234 ⚠ unverified" not in out  # real fetched price passes
+        assert "+45%" in out
+        assert "+45% ⚠ unverified" not in out  # real fetched move passes
+        assert "$420.69 ⚠ unverified" in out  # hallucination flagged inline

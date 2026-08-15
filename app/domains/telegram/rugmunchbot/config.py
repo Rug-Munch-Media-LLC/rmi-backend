@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from functools import lru_cache
 from typing import TYPE_CHECKING, TypedDict
 
 import httpx
@@ -90,7 +91,15 @@ def _resolve_bot_token() -> str:
 # BOT_TOKEN intentionally NOT bound at import time — resolved lazily via
 # module __getattr__ at the bottom of this file (same gopass → env semantics,
 # deferred until first attribute access).
-OWNER_IDS = {int(x.strip()) for x in os.getenv("TELEGRAM_ALLOWED_USERS", "7075336557").split(",") if x.strip()}
+
+
+@lru_cache
+def _resolve_owner_ids() -> set[int]:
+    """Lazy owner/operator ids — env ``TELEGRAM_ALLOWED_USERS`` read on first
+    access only (no env read at import)."""
+    return {int(x.strip()) for x in os.getenv("TELEGRAM_ALLOWED_USERS", "7075336557").split(",") if x.strip()}
+
+
 BOT_USERNAME = "RugMunchBot"
 
 # ══════════════════════════════════════════════
@@ -126,9 +135,27 @@ BOT_SHORT_DESCRIPTION = (
 # Bot runs on HOST (not in Docker). Backend runs in Docker.
 #   - Host → backend: http://localhost:8000
 #   - Inside Docker → backend: http://rmi-backend:8000
-_IN_DOCKER = os.getenv("DOCKER_CONTAINER") or os.path.exists("/.dockerenv")
-BACKEND_HOST = "rmi-backend:8000" if _IN_DOCKER else "localhost:8000"
-BACKEND_URL = os.getenv("RMI_BACKEND_URL", f"http://{BACKEND_HOST}")
+# All three below are resolved lazily on first access (no env read / no
+# filesystem probe at import).
+
+
+@lru_cache
+def _resolve_in_docker() -> bool:
+    """Lazy Docker detection — first access only (no env/fs probe at import)."""
+    return bool(os.getenv("DOCKER_CONTAINER")) or os.path.exists("/.dockerenv")
+
+
+@lru_cache
+def _resolve_backend_host() -> str:
+    """Lazy backend host: ``rmi-backend`` in Docker, ``localhost`` otherwise."""
+    return "rmi-backend:8000" if _resolve_in_docker() else "localhost:8000"
+
+
+@lru_cache
+def _resolve_backend_url() -> str:
+    """Lazy backend base URL (env ``RMI_BACKEND_URL`` override)."""
+    return os.getenv("RMI_BACKEND_URL", f"http://{_resolve_backend_host()}")
+
 
 # ══════════════════════════════════════════════
 # BACKEND AUTH (X-API-Key)
@@ -190,21 +217,22 @@ def backend_headers() -> dict[str, str]:
 
 async def check_backend_health() -> None:
     """Ping backend /health on startup. Logs WARNING if unreachable."""
+    backend_url = _resolve_backend_url()
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(f"{BACKEND_URL}/health", headers=backend_headers())
+            r = await client.get(f"{backend_url}/health", headers=backend_headers())
             if r.status_code == 200:
                 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
-                get_logger("rmi.config").info("Backend reachable at %s", BACKEND_URL)
+                get_logger("rmi.config").info("Backend reachable at %s", backend_url)
             else:
                 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
-                get_logger("rmi.config").warning("Backend at %s returned status %d", BACKEND_URL, r.status_code)
+                get_logger("rmi.config").warning("Backend at %s returned status %d", backend_url, r.status_code)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
-        get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", BACKEND_URL, exc)
+        get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", backend_url, exc)
 
 
 # Alert engine
@@ -218,6 +246,7 @@ COINGECKO = "https://api.coingecko.com/api/v3"  # price history & trending
 GOPLUS = "https://api.gopluslabs.com/api/v1"  # EVM token security scanner
 HONEYPOT = "https://api.honeypot.is/v2"  # primary EVM security scanner
 
+
 # ══════════════════════════════════════════════
 # SENTINEL DEEP FORENSIC SCAN
 # ══════════════════════════════════════════════
@@ -225,7 +254,12 @@ HONEYPOT = "https://api.honeypot.is/v2"  # primary EVM security scanner
 # Returns composite risk score (0-100), per-module breakdown, red flags, and
 # aggregated findings. See app/domains/scanners/sentinel_pipeline/config.py
 # (SentinelReport) for the response schema.
-SENTINEL_URL = os.getenv("SENTINEL_URL", f"{BACKEND_URL}/api/v1/x402-tools/sentinel_scan")
+@lru_cache
+def _resolve_sentinel_url() -> str:
+    """Lazy sentinel endpoint (env override or derived from backend URL)."""
+    return os.getenv("SENTINEL_URL", f"{_resolve_backend_url()}/api/v1/x402-tools/sentinel_scan")
+
+
 SENTINEL_TIMEOUT = 60.0  # deep forensic scan can take a while (9+ modules)
 
 # ══════════════════════════════════════════════
@@ -235,7 +269,13 @@ SENTINEL_TIMEOUT = 60.0  # deep forensic scan can take a while (9+ modules)
 # Prevents day-one dump abuse and smooths API load.
 # BETA MODE: all premium features unlocked for everyone during public beta.
 # Set to False when billing goes live. This overrides tier checks in db.py.
-BETA_MODE = os.environ.get("RMI_BOT_BETA_MODE", "true").lower() in ("true", "1", "yes")
+
+
+@lru_cache
+def _resolve_beta_mode() -> bool:
+    """Lazy beta-mode flag (env ``RMI_BOT_BETA_MODE``) — read on first access."""
+    return os.environ.get("RMI_BOT_BETA_MODE", "true").lower() in ("true", "1", "yes")
+
 
 TIERS: dict[str, TierDefinition] = {
     "free": {
@@ -675,41 +715,6 @@ def _resolve_channels() -> dict[str, str]:
 
 
 # ══════════════════════════════════════════════
-# LAZY SECRET ACCESS (PEP 562 module __getattr__)
-# ══════════════════════════════════════════════
-# BOT_TOKEN / API_KEY / CHANNELS resolve via gopass subprocess. Binding them at
-# import time made ANY import of this module spawn subprocesses — a startup/CI
-# hazard. They now resolve on first attribute access and are memoized into the
-# module namespace, so ``from ...config import BOT_TOKEN`` returns the identical
-# value as before — just on demand instead of at import. Env-var-driven names
-# (OWNER_IDS, BACKEND_URL, ...) remain eager; only the subprocess path is lazy.
-
-# Type-only declarations for the lazy names — annotations do NOT create runtime
-# bindings (that is the point: no gopass subprocess at import), but they keep
-# static analyzers (ruff F821 / mypy) aware of the public names resolved by
-# module __getattr__ below.
-BOT_TOKEN: str
-API_KEY: str
-CHANNELS: dict[str, str]
-
-_LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
-    "BOT_TOKEN": _resolve_bot_token,
-    "API_KEY": _resolve_api_key,
-    "CHANNELS": _resolve_channels,
-}
-
-
-def __getattr__(name: str) -> Any:
-    """Resolve lazy config names on first access (PEP 562), then memoize."""
-    resolver = _LAZY_RESOLVERS.get(name)
-    if resolver is None:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    value = resolver()
-    globals()[name] = value
-    return value
-
-
-# ══════════════════════════════════════════════
 # CHANNEL CONTENT SCHEDULING (env-configurable)
 # ══════════════════════════════════════════════
 # Master + per-channel switches and posting intervals for the scheduled
@@ -743,18 +748,125 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
-CHANNEL_JOBS_ENABLED = _env_bool("RMI_CHANNELS_ENABLED", True)
-NEWS_CHANNEL_ENABLED = _env_bool("RMI_NEWS_CHANNEL_ENABLED", True)
-ALERTS_CHANNEL_ENABLED = _env_bool("RMI_ALERTS_CHANNEL_ENABLED", True)
-ALPHA_CHANNEL_ENABLED = _env_bool("RMI_ALPHA_CHANNEL_ENABLED", True)
+@lru_cache
+def _resolve_channel_jobs_enabled() -> bool:
+    return _env_bool("RMI_CHANNELS_ENABLED", True)
 
-NEWS_CHANNEL_INTERVAL_HOURS = _env_float("RMI_CHANNEL_NEWS_INTERVAL_HOURS", 4)
-ALPHA_CHANNEL_INTERVAL_HOURS = _env_int("RMI_CHANNEL_ALPHA_INTERVAL_HOURS", 2)
-ALERTS_CHANNEL_INTERVAL_MINUTES = _env_int("RMI_CHANNEL_ALERTS_INTERVAL_MINUTES", 30)
 
-NEWS_CHANNEL_LIMIT = _env_int("RMI_CHANNEL_NEWS_LIMIT", 5)
-ALPHA_CHANNEL_LIMIT = _env_int("RMI_CHANNEL_ALPHA_LIMIT", 5)
-ALERTS_CHANNEL_LIMIT = _env_int("RMI_CHANNEL_ALERTS_LIMIT", 5)
+@lru_cache
+def _resolve_news_channel_enabled() -> bool:
+    return _env_bool("RMI_NEWS_CHANNEL_ENABLED", True)
+
+
+@lru_cache
+def _resolve_alerts_channel_enabled() -> bool:
+    return _env_bool("RMI_ALERTS_CHANNEL_ENABLED", True)
+
+
+@lru_cache
+def _resolve_alpha_channel_enabled() -> bool:
+    return _env_bool("RMI_ALPHA_CHANNEL_ENABLED", True)
+
+
+@lru_cache
+def _resolve_news_channel_interval_hours() -> float:
+    return _env_float("RMI_CHANNEL_NEWS_INTERVAL_HOURS", 4)
+
+
+@lru_cache
+def _resolve_alpha_channel_interval_hours() -> int:
+    return _env_int("RMI_CHANNEL_ALPHA_INTERVAL_HOURS", 2)
+
+
+@lru_cache
+def _resolve_alerts_channel_interval_minutes() -> int:
+    return _env_int("RMI_CHANNEL_ALERTS_INTERVAL_MINUTES", 30)
+
+
+@lru_cache
+def _resolve_news_channel_limit() -> int:
+    return _env_int("RMI_CHANNEL_NEWS_LIMIT", 5)
+
+
+@lru_cache
+def _resolve_alpha_channel_limit() -> int:
+    return _env_int("RMI_CHANNEL_ALPHA_LIMIT", 5)
+
+
+@lru_cache
+def _resolve_alerts_channel_limit() -> int:
+    return _env_int("RMI_CHANNEL_ALERTS_LIMIT", 5)
+
+
+# ══════════════════════════════════════════════
+# LAZY ACCESS (PEP 562 module __getattr__)
+# ══════════════════════════════════════════════
+# EVERY secrets/env-driven name resolves on first attribute access, never at
+# import: importing this module spawns no gopass subprocess, reads no secret
+# file (/srv/secrets/rmi_auth_token), reads no env var, and probes no
+# filesystem (/srv/secrets, /.dockerenv). The first access runs the
+# ``@lru_cache`` resolver and the value is memoized into the module namespace,
+# so ``from ...config import X`` returns the identical snapshot as the old
+# eager binding — just on demand instead of at import.
+
+# Type-only declarations for the lazy names — annotations do NOT create runtime
+# bindings (that is the point: no side effects at import), but they keep static
+# analyzers (ruff F821 / mypy) aware of the public names resolved by module
+# __getattr__ below. NOTE: inside this module's own functions use the
+# ``_resolve_*`` helpers — module __getattr__ does NOT fire for function-scope
+# globals.
+BOT_TOKEN: str
+API_KEY: str
+CHANNELS: dict[str, str]
+OWNER_IDS: set[int]
+_IN_DOCKER: bool
+BACKEND_HOST: str
+BACKEND_URL: str
+SENTINEL_URL: str
+BETA_MODE: bool
+CHANNEL_JOBS_ENABLED: bool
+NEWS_CHANNEL_ENABLED: bool
+ALERTS_CHANNEL_ENABLED: bool
+ALPHA_CHANNEL_ENABLED: bool
+NEWS_CHANNEL_INTERVAL_HOURS: float
+ALPHA_CHANNEL_INTERVAL_HOURS: int
+ALERTS_CHANNEL_INTERVAL_MINUTES: int
+NEWS_CHANNEL_LIMIT: int
+ALPHA_CHANNEL_LIMIT: int
+ALERTS_CHANNEL_LIMIT: int
+
+_LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
+    "BOT_TOKEN": _resolve_bot_token,
+    "API_KEY": _resolve_api_key,
+    "CHANNELS": _resolve_channels,
+    "OWNER_IDS": _resolve_owner_ids,
+    "_IN_DOCKER": _resolve_in_docker,
+    "BACKEND_HOST": _resolve_backend_host,
+    "BACKEND_URL": _resolve_backend_url,
+    "SENTINEL_URL": _resolve_sentinel_url,
+    "BETA_MODE": _resolve_beta_mode,
+    "CHANNEL_JOBS_ENABLED": _resolve_channel_jobs_enabled,
+    "NEWS_CHANNEL_ENABLED": _resolve_news_channel_enabled,
+    "ALERTS_CHANNEL_ENABLED": _resolve_alerts_channel_enabled,
+    "ALPHA_CHANNEL_ENABLED": _resolve_alpha_channel_enabled,
+    "NEWS_CHANNEL_INTERVAL_HOURS": _resolve_news_channel_interval_hours,
+    "ALPHA_CHANNEL_INTERVAL_HOURS": _resolve_alpha_channel_interval_hours,
+    "ALERTS_CHANNEL_INTERVAL_MINUTES": _resolve_alerts_channel_interval_minutes,
+    "NEWS_CHANNEL_LIMIT": _resolve_news_channel_limit,
+    "ALPHA_CHANNEL_LIMIT": _resolve_alpha_channel_limit,
+    "ALERTS_CHANNEL_LIMIT": _resolve_alerts_channel_limit,
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve lazy config names on first access (PEP 562), then memoize."""
+    resolver = _LAZY_RESOLVERS.get(name)
+    if resolver is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = resolver()
+    globals()[name] = value
+    return value
+
 
 # ══════════════════════════════════════════════
 # RISK VISUALIZATION

@@ -34,6 +34,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, investigate_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.scanner import scan_token, scan_token_v2, v2_token_to_legacy
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -200,37 +201,37 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
     try:
         # Phase 1-4: Run all analysis in parallel
-        async with httpx.AsyncClient(timeout=45) as client:
-            # Scan + wallet + cross-chain run concurrently (previously
-            # sequential — up to ~75s worst case). Dev-wallet forensics wait
-            # on the scan result (dev_wallet comes from the scan).
-            scan_result, wallet_data, cross_chain = await asyncio.gather(
-                _run_scan(address, chain),
-                _fetch_wallet_tokens(client, address),
-                _fetch_cross_chain(client, address, chain),
-                return_exceptions=True,
-            )
-            if isinstance(scan_result, BaseException):
-                raise scan_result
-            if not isinstance(wallet_data, dict):
-                wallet_data = {}
-            if not isinstance(cross_chain, list):
-                cross_chain = []
+        client = get_shared_client(45)
+        # Scan + wallet + cross-chain run concurrently (previously
+        # sequential — up to ~75s worst case). Dev-wallet forensics wait
+        # on the scan result (dev_wallet comes from the scan).
+        scan_result, wallet_data, cross_chain = await asyncio.gather(
+            _run_scan(address, chain),
+            _fetch_wallet_tokens(client, address),
+            _fetch_cross_chain(client, address, chain),
+            return_exceptions=True,
+        )
+        if isinstance(scan_result, BaseException):
+            raise scan_result
+        if not isinstance(wallet_data, dict):
+            wallet_data = {}
+        if not isinstance(cross_chain, list):
+            cross_chain = []
 
-            # Dev wallet forensics (if available) — waits on the scan result
-            dev_data: dict[str, Any] = {}
-            dev_wallet = scan_result.get("dev_wallet")
-            if dev_wallet:
-                try:
-                    dev_resp = await client.get(
-                        f"{BACKEND_URL}/api/v1/databus/wallet/{dev_wallet}/tokens",
-                        headers=backend_headers(),
-                        timeout=10,
-                    )
-                    if dev_resp.status_code == 200:
-                        dev_data = dev_resp.json()
-                except (httpx.HTTPError, ConnectionError, TimeoutError):
-                    pass
+        # Dev wallet forensics (if available) — waits on the scan result
+        dev_data: dict[str, Any] = {}
+        dev_wallet = scan_result.get("dev_wallet")
+        if dev_wallet:
+            try:
+                dev_resp = await client.get(
+                    f"{BACKEND_URL}/api/v1/databus/wallet/{dev_wallet}/tokens",
+                    headers=backend_headers(),
+                    timeout=10,
+                )
+                if dev_resp.status_code == 200:
+                    dev_data = dev_resp.json()
+            except (httpx.HTTPError, ConnectionError, TimeoutError):
+                pass
 
         # Build investigation report
         verdict, verdict_desc = _determine_verdict(scan_result, wallet_data)

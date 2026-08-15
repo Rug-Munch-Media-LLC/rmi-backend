@@ -81,8 +81,13 @@ async def test_backend_chat_posts_to_chat_endpoint() -> None:
     assert url == _llm.CHAT_ENDPOINT
     assert body["message"] == "hi there"
     assert body["history"] == []
-    # No context_override -> backend auto-RAG (news-aware grounding).
-    assert "context_override" not in body
+    # Tier-1 ships the sharp grounded persona via context_override so the
+    # production model gets the grounding bullets + anti-hallucination rules
+    # + response-formatting (not just the generic backend SYSTEM_PROMPT).
+    assert body["context_override"]["system_context"] == _llm.PERSONA_CONTEXT
+    assert "DATA GROUNDING RULES" in body["context_override"]["system_context"]
+    assert "ANTI-PATTERNS" in body["context_override"]["system_context"]
+    assert "RESPONSE FORMATTING" in body["context_override"]["system_context"]
 
 
 async def test_backend_chat_forwarded_for_header() -> None:
@@ -133,12 +138,14 @@ async def test_zen_llm_deep_flag() -> None:
     await _llm._call_zen_llm("question", 1, deep=False)
     _, body = _FakeLLMClient.calls[0]
     assert body["max_tokens"] == 500
-    assert "on-chain investigator" not in body["messages"][0]["content"]
+    # Triplicated fallback prompts consolidated: fast + deep + local now
+    # share ONE condensed system prompt; `deep` only changes the budget.
+    assert body["messages"][0]["content"] == _llm.FALLBACK_SYSTEM_PROMPT
     _FakeLLMClient.calls.clear()
     await _llm._call_zen_llm("question", 1, deep=True)
     _, body = _FakeLLMClient.calls[0]
     assert body["max_tokens"] == 2000
-    assert "on-chain investigator" in body["messages"][0]["content"]
+    assert body["messages"][0]["content"] == _llm.FALLBACK_SYSTEM_PROMPT
     assert body["thinking"] == {"type": "disabled"}
 
 
@@ -244,3 +251,95 @@ async def test_local_llm_history_capped_at_two() -> None:
     await _llm._call_local_llm("q", 1, history=history)
     _, body = _FakeLLMClient.calls[0]
     assert len(body["messages"]) == 1 + 1 + 1  # system + 1 inert history block + current
+
+
+# ── Complexity router (local-first) ──────────────────────────────────────
+
+
+def test_route_local_model_simple_chat() -> None:
+    """Greeting/price/scan/short questions route to 4B (chat)."""
+    for q in ("hello", "what's the price of btc", "scan this token", "gm", "ok"):
+        assert _llm._route_local_model(q) == "chat", q
+
+
+def test_route_local_model_deep_analysis() -> None:
+    """Investigate/compare/trace/explain/long questions route to 9B (analysis)."""
+    for q in (
+        "investigate this wallet",
+        "explain how mev works",
+        "why did this token dump",
+        "compare these two tokens",
+        "trace the funds on-chain",
+    ):
+        assert _llm._route_local_model(q) == "analysis", q
+    # Long messages route to analysis (mirrors backend _route_task length gate).
+    assert _llm._route_local_model("x" * 200) == "analysis"
+
+
+async def test_local_llm_simple_question_tries_qwen_first() -> None:
+    """A simple/grounded question routes to the fast 4B (qwen-chat) first."""
+    _FakeLLMClient.calls.clear()
+    await _llm._call_local_llm("what's the price of sol?", 1)
+    url, _ = _FakeLLMClient.calls[0]
+    assert url == _llm.QWEN_CHAT_URL
+
+
+async def test_local_llm_deep_question_tries_deepseek_first() -> None:
+    """A deep/analysis question routes to the 9B (deepseek-analysis) first."""
+    _FakeLLMClient.calls.clear()
+    await _llm._call_local_llm("investigate this wallet's funding sources", 1)
+    url, _ = _FakeLLMClient.calls[0]
+    assert url == _llm.DEEPSEEK_CHAT_URL
+
+
+def test_local_context_too_large_defers() -> None:
+    """A prompt beyond the 16k-ctx budget must be flagged (routes to Zen)."""
+    assert _llm._local_context_too_large("x" * 100, None, None) is False
+    assert _llm._local_context_too_large("x" * (4 * _llm.LOCAL_CTX_LIMIT_TOKENS), None, None) is True
+
+
+# ── host-load probe ──────────────────────────────────────────────────────
+
+
+class _HealthProbeClient(_FakeLLMClient):
+    """httpx fake with ``get`` support for the /health host-load probe."""
+
+    _slots: ClassVar[list[int]] = []
+
+    async def get(self, url: str) -> Any:
+        slot = _HealthProbeClient._slots.pop(0)
+
+        class _Resp:
+            status_code = 200
+
+            def json(self) -> dict:
+                return {"slots_idle": slot}
+
+        return _Resp()
+
+
+async def test_local_host_loaded_both_busy() -> None:
+    """Both llama servers reporting slots_idle == 0 → host loaded → Zen."""
+    _HealthProbeClient._slots = [0, 0]
+    _llm.httpx.AsyncClient = _HealthProbeClient  # type: ignore[assignment]
+    try:
+        assert await _llm._local_host_loaded() is True
+    finally:
+        _llm.httpx.AsyncClient = _FakeLLMClient  # type: ignore[assignment]
+
+
+async def test_local_host_loaded_one_free() -> None:
+    """One server with a free slot → not loaded → local still runs."""
+    _HealthProbeClient._slots = [0, 1]
+    _llm.httpx.AsyncClient = _HealthProbeClient  # type: ignore[assignment]
+    try:
+        assert await _llm._local_host_loaded() is False
+    finally:
+        _llm.httpx.AsyncClient = _FakeLLMClient  # type: ignore[assignment]
+
+
+async def test_local_host_loaded_probe_error_fails_open() -> None:
+    """A probe error (e.g. httpx fake without ``get``) must fail open → False."""
+    _FakeLLMClient._raise = OSError("probe down")
+    assert await _llm._local_host_loaded() is False
+    _FakeLLMClient._raise = None

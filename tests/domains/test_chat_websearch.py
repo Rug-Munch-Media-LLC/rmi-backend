@@ -423,7 +423,10 @@ def test_client_context_override_skips_server_web_search(client: TestClient) -> 
 def test_system_prompt_has_date_awareness_and_year(client: TestClient) -> None:
     captured: dict[str, Any] = {}
     now = datetime.now(UTC)
-    expected_date = now.strftime("%Y-%m-%d %H:%M UTC")
+    # Day-granularity ONLY (per-minute stamps broke provider prefix caching —
+    # the llama audit flagged them as the prefix-cache killer). The date is a
+    # stable-for-the-day session header, never a per-message timestamp.
+    expected_date = now.strftime("%Y-%m-%d")
 
     async def _fake_completion(**kwargs: Any) -> dict[str, Any]:
         captured["messages"] = kwargs["messages"]
@@ -440,6 +443,8 @@ def test_system_prompt_has_date_awareness_and_year(client: TestClient) -> None:
     system_msg = captured["messages"][0]["content"]
     assert f"Current date: {expected_date}" in system_msg
     assert f"(year {now.year})" in system_msg
+    # No per-minute granularity anywhere in the system prompt (prefix-cache killer).
+    assert f" {now.strftime('%H:%M')} UTC" not in system_msg
     assert "You know today's date." in system_msg
     assert "use the web search results provided" in system_msg
 

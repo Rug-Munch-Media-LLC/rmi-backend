@@ -34,6 +34,11 @@ Intent understanding helpers (all deterministic, all unit-tested):
     (extracts the ($BONK, $WIF) pair; routing keeps price_lookup).
   * multi-intent — a single question may route several tools; order is stable
     and the caller may run them concurrently.
+
+Shared free-text classification primitives (address + ``$SYMBOL`` extraction)
+live in ``tools/classify.py`` — the canonical home both this router and the
+chat question classifier (``handlers/chat_ai/_classify.py``) import from, so
+the address regexes / plausibility gate can never drift apart again.
 """
 
 from __future__ import annotations
@@ -44,8 +49,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-from app.domains.telegram.rugmunchbot.formatters._base import TOKEN_RE as SYMBOL_RE
-from app.domains.telegram.rugmunchbot.tools.guardrails import EVM_RE, SOL_RE
+from app.domains.telegram.rugmunchbot.tools.classify import (
+    SYMBOL_RE,
+    extract_addresses,
+    has_symbol,
+    symbols_in,
+)
 
 _TRENDING_WORDS = re.compile(
     r"\b(trending|hot|pump|pumping|movers|gainers|top tokens?|what'?s? (hot|pumping|moving)|new launches|launching)\b",
@@ -318,25 +327,6 @@ def compare_pairs(text: str) -> list[tuple[str, str]]:
         if before and after:
             out.append((before[-1], after[0]))
     return out
-
-
-def extract_addresses(text: str) -> list[str]:
-    """EVM/Solana addresses present in the question (deduped)."""
-    found: list[str] = []
-    for m in EVM_RE.finditer(text):
-        found.append(m.group(0))
-    for m in SOL_RE.finditer(text):
-        if m.group(0) not in found:
-            found.append(m.group(0))
-    return found
-
-
-def has_symbol(text: str) -> bool:
-    return bool(SYMBOL_RE.search(text))
-
-
-def symbols_in(text: str) -> list[str]:
-    return [m.group(1).upper() for m in SYMBOL_RE.finditer(text)]
 
 
 def extract_chain(text: str) -> str:

@@ -40,6 +40,7 @@ from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
 from app.domains.telegram.rugmunchbot.prompts import PERSONA_CONTEXT
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import http_post_json
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -89,28 +90,28 @@ async def search_rag(query: str, collections: Iterable[str] | None = None, top_k
 
     async def _search_one(collection: str) -> list[dict[str, Any]]:
         try:
-            async with httpx.AsyncClient(timeout=RAG_SEARCH_TIMEOUT) as client:
-                r = await client.post(
-                    f"{BACKEND_URL}/api/v1/rag/v2/search",
-                    headers=backend_headers(),
-                    json={
-                        "query": query,
-                        "collection": collection,
-                        "top_k": top_k,
-                        "min_similarity": 0.0,
-                        "filters": {},
-                    },
-                )
-                if r.status_code == 200:
-                    raw_hits = r.json().get("hits", [])
-                    if isinstance(raw_hits, list):
-                        hits = [dict(h) for h in raw_hits if isinstance(h, dict)]
-                        for h in hits:
-                            # Keep the backend's truthful resolved-collection
-                            # label when present; only fall back to the
-                            # requested name for unlabeled hits.
-                            h.setdefault("collection", collection)
-                        return hits
+            body = await http_post_json(
+                f"{BACKEND_URL}/api/v1/rag/v2/search",
+                headers=backend_headers(),
+                json={
+                    "query": query,
+                    "collection": collection,
+                    "top_k": top_k,
+                    "min_similarity": 0.0,
+                    "filters": {},
+                },
+                timeout=RAG_SEARCH_TIMEOUT,
+            )
+            if body:
+                raw_hits = body.get("hits", [])
+                if isinstance(raw_hits, list):
+                    hits = [dict(h) for h in raw_hits if isinstance(h, dict)]
+                    for h in hits:
+                        # Keep the backend's truthful resolved-collection
+                        # label when present; only fall back to the
+                        # requested name for unlabeled hits.
+                        h.setdefault("collection", collection)
+                    return hits
         except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
             logger.debug("RAG search failed for %s: %s", collection, e)
         return []
@@ -202,19 +203,17 @@ async def chat_synthesis(
         headers["X-Forwarded-For"] = str(user_id)
 
     try:
-        async with httpx.AsyncClient(timeout=timeout_secs) as client:
-            r = await client.post(f"{BACKEND_URL}/api/v1/chat", headers=headers, json=payload)
-            if r.status_code == 200:
-                body = r.json()
-                text = (body.get("message") or "").strip()
-                if text:
-                    # Track AI token spend for /admin_stats (best effort).
-                    usage = body.get("usage") or {}
-                    tokens = int(usage.get("total_tokens") or usage.get("totalTokens") or 0)
-                    if tokens:
-                        db.record_activity(tokens=tokens)
-                    return text
-            logger.debug("chat synthesis HTTP %d (user=%s)", r.status_code, user_id)
+        body = await http_post_json(f"{BACKEND_URL}/api/v1/chat", headers=headers, json=payload, timeout=timeout_secs)
+        if body:
+            text = (body.get("message") or "").strip()
+            if text:
+                # Track AI token spend for /admin_stats (best effort).
+                usage = body.get("usage") or {}
+                tokens = int(usage.get("total_tokens") or usage.get("totalTokens") or 0)
+                if tokens:
+                    db.record_activity(tokens=tokens)
+                return text
+        logger.debug("chat synthesis HTTP non-200 (user=%s)", user_id)
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
         logger.debug("chat synthesis failed (user=%s): %s", user_id, e)
     return None

@@ -42,6 +42,11 @@ from app.domains.telegram.rugmunchbot.handlers._market_helpers import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, token_buttons
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import (
+    get_shared_client,
+    http_get_any,
+    http_get_json,
+)
 
 if TYPE_CHECKING:
     from telegram.ext import Application, ContextTypes
@@ -51,30 +56,26 @@ logger = get_logger("rmi_bot")
 
 async def _fetch_cg_trending_news() -> list[dict[str, Any]] | None:
     """Fallback: fetch CoinGecko trending coins as pseudo-news items."""
-    try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            r = await client.get("https://api.coingecko.com/api/v3/search/trending")
-            if r.status_code != 200:
-                return None
-            coins = r.json().get("coins", [])
-            if not coins:
-                return None
-            items = []
-            for c in coins[:5]:
-                item = c.get("item", {})
-                items.append(
-                    {
-                        "title": f"{item.get('name', 'Unknown')} ({item.get('symbol', '?')}) trending now",
-                        "source": "Trending",
-                        "published_at": None,
-                        "url": f"https://www.coingecko.com/en/coins/{item.get('id', '')}",
-                        "score": item.get("score", 0) or 0,
-                    }
-                )
-            return items
-    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-        logger.debug("CoinGecko trending fallback failed: %s", exc)
+    body = await http_get_json("https://api.coingecko.com/api/v3/search/trending", timeout=8)
+    if not body:
+        logger.debug("CoinGecko trending fallback failed")
         return None
+    coins = body.get("coins", [])
+    if not coins:
+        return None
+    items = []
+    for c in coins[:5]:
+        item = c.get("item", {})
+        items.append(
+            {
+                "title": f"{item.get('name', 'Unknown')} ({item.get('symbol', '?')}) trending now",
+                "source": "Trending",
+                "published_at": None,
+                "url": f"https://www.coingecko.com/en/coins/{item.get('id', '')}",
+                "score": item.get("score", 0) or 0,
+            }
+        )
+    return items
 
 
 async def cmd_rugcheck(update, ctx) -> None:
@@ -117,87 +118,84 @@ async def cmd_rugcheck(update, ctx) -> None:
 async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) -> list[dict[str, Any]] | None:
     """Fetch trending from DexScreener token boosts, then enrich with token details."""
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            # Step 1: Get boosted tokens
-            r = await client.get("https://api.dexscreener.com/token-boosts/top/v1")
-            if r.status_code != 200:
+        client = get_shared_client(15)
+        # Step 1: Get boosted tokens
+        boosted = await http_get_any("https://api.dexscreener.com/token-boosts/top/v1", timeout=15)
+        if not isinstance(boosted, list):
+            return None
+
+        # Step 2: Fetch token details for each boosted token (parallel, max 10)
+        semaphore = asyncio.Semaphore(10)
+
+        async def fetch_token_details(item: dict[str, Any]) -> dict[str, Any] | None:
+            if not isinstance(item, dict):
                 return None
-            boosted = r.json()
-            if not isinstance(boosted, list):
+            token_addr = item.get("tokenAddress") or item.get("address")
+            if not token_addr:
+                return None
+            # Filter by chain if specified
+            item_chain = item.get("chainId", "").lower()
+            if chain and chain != "all" and item_chain != chain.lower():
                 return None
 
-            # Step 2: Fetch token details for each boosted token (parallel, max 10)
-            semaphore = asyncio.Semaphore(10)
-
-            async def fetch_token_details(item: dict[str, Any]) -> dict[str, Any] | None:
-                if not isinstance(item, dict):
-                    return None
-                token_addr = item.get("tokenAddress") or item.get("address")
-                if not token_addr:
-                    return None
-                # Filter by chain if specified
-                item_chain = item.get("chainId", "").lower()
-                if chain and chain != "all" and item_chain != chain.lower():
-                    return None
-
-                async with semaphore:
-                    try:
-                        r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_addr}", timeout=8)
-                        if r.status_code != 200:
-                            return None
-                        data = r.json()
-                        pairs = data.get("pairs", [])
-                        if not pairs:
-                            return None
-                        p = pairs[0]
-                        bt = p.get("baseToken", {})
-                        name = bt.get("name") or "Unknown"
-                        symbol = bt.get("symbol") or "???"
-                        # Skip obvious garbage and low-quality tokens
-                        garbage_patterns = [
-                            "crawled",
-                            "smol",
-                            "anaem",
-                            "dev leave",
-                            "robinhood",
-                            "mow",
-                            "pengu mow",  # known low-quality meme tokens
-                        ]
-                        if any(g in name.lower() for g in garbage_patterns):
-                            return None
-                        if any(g in symbol.lower() for g in garbage_patterns):
-                            return None
-                        # Minimum quality thresholds
-                        liquidity = float(p.get("liquidity", {}).get("usd") or 0)
-                        volume_24h = float(p.get("volume", {}).get("h24") or 0)
-                        # Skip tokens with very low liquidity (<$1000) or volume (<$5000)
-                        if liquidity < 1000 or volume_24h < 5000:
-                            return None
-                        return {
-                            "address": token_addr,
-                            "chain": p.get("chainId", chain),
-                            "name": name,
-                            "symbol": symbol,
-                            "price_usd": float(p.get("priceUsd") or 0),
-                            "volume_24h": float(p.get("volume", {}).get("h24") or 0),
-                            "liquidity_usd": float(p.get("liquidity", {}).get("usd") or 0),
-                            "change_24h": float(p.get("priceChange", {}).get("h24") or 0),
-                            "change_1h": float(p.get("priceChange", {}).get("h1") or 0),
-                            "change_7d": float(p.get("priceChange", {}).get("d7") or 0),
-                            "created_at": p.get("pairCreatedAt"),
-                            "dex": p.get("dexId"),
-                            "info": p.get("info", {}),
-                            "source": "dexscreener",
-                        }
-                    except Exception:
+            async with semaphore:
+                try:
+                    r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_addr}", timeout=8)
+                    if r.status_code != 200:
                         return None
+                    data = r.json()
+                    pairs = data.get("pairs", [])
+                    if not pairs:
+                        return None
+                    p = pairs[0]
+                    bt = p.get("baseToken", {})
+                    name = bt.get("name") or "Unknown"
+                    symbol = bt.get("symbol") or "???"
+                    # Skip obvious garbage and low-quality tokens
+                    garbage_patterns = [
+                        "crawled",
+                        "smol",
+                        "anaem",
+                        "dev leave",
+                        "robinhood",
+                        "mow",
+                        "pengu mow",  # known low-quality meme tokens
+                    ]
+                    if any(g in name.lower() for g in garbage_patterns):
+                        return None
+                    if any(g in symbol.lower() for g in garbage_patterns):
+                        return None
+                    # Minimum quality thresholds
+                    liquidity = float(p.get("liquidity", {}).get("usd") or 0)
+                    volume_24h = float(p.get("volume", {}).get("h24") or 0)
+                    # Skip tokens with very low liquidity (<$1000) or volume (<$5000)
+                    if liquidity < 1000 or volume_24h < 5000:
+                        return None
+                    return {
+                        "address": token_addr,
+                        "chain": p.get("chainId", chain),
+                        "name": name,
+                        "symbol": symbol,
+                        "price_usd": float(p.get("priceUsd") or 0),
+                        "volume_24h": float(p.get("volume", {}).get("h24") or 0),
+                        "liquidity_usd": float(p.get("liquidity", {}).get("usd") or 0),
+                        "change_24h": float(p.get("priceChange", {}).get("h24") or 0),
+                        "change_1h": float(p.get("priceChange", {}).get("h1") or 0),
+                        "change_7d": float(p.get("priceChange", {}).get("d7") or 0),
+                        "created_at": p.get("pairCreatedAt"),
+                        "dex": p.get("dexId"),
+                        "info": p.get("info", {}),
+                        "source": "dexscreener",
+                    }
+                except Exception:
+                    return None
 
-            # Fetch details for top boosted tokens
-            tasks = [fetch_token_details(item) for item in boosted[: limit * 2]]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Fetch details for top boosted tokens
+        tasks = [fetch_token_details(item) for item in boosted[: limit * 2]]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            tokens = [r for r in results if isinstance(r, dict) and r is not None]
-            return tokens[:limit] if tokens else None
+        tokens = [r for r in results if isinstance(r, dict) and r is not None]
+        return tokens[:limit] if tokens else None
 
     except Exception as exc:
         logger.debug("dexscreener trending fetch failed: %s", exc)
@@ -214,64 +212,61 @@ async def _fetch_dexscreener_fresh_launches(chain: str = "solana", limit: int = 
     creation time (for the fresh-launch age badge).
     """
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.get("https://api.dexscreener.com/token-profiles/latest/v1")
-            if r.status_code != 200:
+        client = get_shared_client(15)
+        profiles = await http_get_any("https://api.dexscreener.com/token-profiles/latest/v1", timeout=15)
+        if not isinstance(profiles, list) or not profiles:
+            return None
+
+        semaphore = asyncio.Semaphore(10)
+
+        async def fetch_profile_details(item: dict[str, Any]) -> dict[str, Any] | None:
+            if not isinstance(item, dict):
                 return None
-            profiles = r.json()
-            if not isinstance(profiles, list) or not profiles:
+            token_addr = item.get("tokenAddress") or ""
+            if not token_addr:
+                return None
+            item_chain = (item.get("chainId") or "").lower()
+            if chain and chain != "all" and item_chain != chain.lower():
                 return None
 
-            semaphore = asyncio.Semaphore(10)
-
-            async def fetch_profile_details(item: dict[str, Any]) -> dict[str, Any] | None:
-                if not isinstance(item, dict):
-                    return None
-                token_addr = item.get("tokenAddress") or ""
-                if not token_addr:
-                    return None
-                item_chain = (item.get("chainId") or "").lower()
-                if chain and chain != "all" and item_chain != chain.lower():
-                    return None
-
-                async with semaphore:
-                    try:
-                        r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_addr}", timeout=8)
-                        if r.status_code != 200:
-                            return None
-                        pairs = r.json().get("pairs", [])
-                        if not pairs:
-                            return None
-                        p = pairs[0]
-                        bt = p.get("baseToken", {})
-                        name = bt.get("name") or ""
-                        symbol = bt.get("symbol") or ""
-                        if not name or not symbol:
-                            return None
-                        return {
-                            "address": token_addr,
-                            "chain": p.get("chainId", item_chain),
-                            "name": name,
-                            "symbol": symbol,
-                            "price_usd": float(p.get("priceUsd") or 0),
-                            "volume_24h": float(p.get("volume", {}).get("h24") or 0),
-                            "liquidity_usd": float(p.get("liquidity", {}).get("usd") or 0),
-                            "change_24h": float(p.get("priceChange", {}).get("h24") or 0),
-                            "change_1h": float(p.get("priceChange", {}).get("h1") or 0),
-                            "change_7d": float(p.get("priceChange", {}).get("d7") or 0),
-                            "created_at": p.get("pairCreatedAt"),
-                            "dex": p.get("dexId"),
-                            "source": "dexscreener:profiles",
-                            "is_new_launch": True,
-                        }
-                    except Exception:
+            async with semaphore:
+                try:
+                    r = await client.get(f"https://api.dexscreener.com/latest/dex/tokens/{token_addr}", timeout=8)
+                    if r.status_code != 200:
                         return None
+                    pairs = r.json().get("pairs", [])
+                    if not pairs:
+                        return None
+                    p = pairs[0]
+                    bt = p.get("baseToken", {})
+                    name = bt.get("name") or ""
+                    symbol = bt.get("symbol") or ""
+                    if not name or not symbol:
+                        return None
+                    return {
+                        "address": token_addr,
+                        "chain": p.get("chainId", item_chain),
+                        "name": name,
+                        "symbol": symbol,
+                        "price_usd": float(p.get("priceUsd") or 0),
+                        "volume_24h": float(p.get("volume", {}).get("h24") or 0),
+                        "liquidity_usd": float(p.get("liquidity", {}).get("usd") or 0),
+                        "change_24h": float(p.get("priceChange", {}).get("h24") or 0),
+                        "change_1h": float(p.get("priceChange", {}).get("h1") or 0),
+                        "change_7d": float(p.get("priceChange", {}).get("d7") or 0),
+                        "created_at": p.get("pairCreatedAt"),
+                        "dex": p.get("dexId"),
+                        "source": "dexscreener:profiles",
+                        "is_new_launch": True,
+                    }
+                except Exception:
+                    return None
 
-            tasks = [fetch_profile_details(item) for item in profiles[: limit * 2]]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        tasks = [fetch_profile_details(item) for item in profiles[: limit * 2]]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            tokens = [r for r in results if isinstance(r, dict) and r is not None]
-            return tokens[:limit] if tokens else None
+        tokens = [r for r in results if isinstance(r, dict) and r is not None]
+        return tokens[:limit] if tokens else None
 
     except Exception as exc:
         logger.debug("dexscreener fresh-launch fetch failed: %s", exc)
@@ -320,21 +315,20 @@ async def _fetch_fused_trending(chain: str = "solana", limit: int = 20) -> list[
 async def _fetch_rugcharts_trending(chain: str = "solana", limit: int = 8) -> list[dict[str, Any]] | None:
     """Fetch trending tokens from the RugCharts backend."""
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.get(
-                f"{BACKEND_URL}/api/v1/rugcharts/trending",
-                params={"chain": chain, "limit": limit},
-                headers=backend_headers(),
-            )
-            if r.status_code != 200:
-                logger.debug("rugcharts trending status %s", r.status_code)
-                return None
-            body = r.json()
-            data = body.get("data") or body
-            tokens = data.get("tokens") or []
-            for t in tokens:
-                t["source"] = "rugcharts"
-            return tokens if tokens else None
+        body = await http_get_json(
+            f"{BACKEND_URL}/api/v1/rugcharts/trending",
+            params={"chain": chain, "limit": limit},
+            headers=backend_headers(),
+            timeout=15,
+        )
+        if body is None:
+            logger.debug("rugcharts trending status non-200")
+            return None
+        data = body.get("data") or body
+        tokens = data.get("tokens") or []
+        for t in tokens:
+            t["source"] = "rugcharts"
+        return tokens if tokens else None
     except Exception as exc:
         logger.debug("rugcharts trending fetch failed: %s", exc)
         return None
@@ -350,33 +344,33 @@ async def _enrich_with_quick_scan(tokens: list[dict[str, Any]], chain: str) -> l
         if not addr:
             return token
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                # Fetch risk scan
-                r = await client.post(
-                    f"{BACKEND_URL}/api/v1/bot/scan",
-                    headers=backend_headers(),
-                    json={"address": addr, "chain": chain},
-                )
-                if r.status_code == 200:
-                    data = r.json()
-                    if isinstance(data, dict) and not data.get("error"):
-                        token["risk_score"] = data.get("risk_score")
-                        token["holders"] = data.get("holders")
-                        token["liquidity_usd"] = data.get("liquidity") or token.get("liquidity_usd")
-                        token["bundle_detected"] = data.get("bundle_detected")
-                # Fetch symbol from DexScreener if missing
-                if not token.get("symbol"):
-                    try:
-                        r2 = await client.get(f"{DEXSCREENER}/tokens/{addr}", timeout=6)
-                        if r2.status_code == 200:
-                            pairs = r2.json().get("pairs", [])
-                            if pairs:
-                                p = pairs[0]
-                                token["symbol"] = p.get("baseToken", {}).get("symbol", "")
-                                if not token.get("name"):
-                                    token["name"] = p.get("baseToken", {}).get("name", "")
-                    except Exception:  # noqa: S110 — enrichment is best-effort
-                        pass
+            client = get_shared_client(10)
+            # Fetch risk scan
+            r = await client.post(
+                f"{BACKEND_URL}/api/v1/bot/scan",
+                headers=backend_headers(),
+                json={"address": addr, "chain": chain},
+            )
+            if r.status_code == 200:
+                data = r.json()
+                if isinstance(data, dict) and not data.get("error"):
+                    token["risk_score"] = data.get("risk_score")
+                    token["holders"] = data.get("holders")
+                    token["liquidity_usd"] = data.get("liquidity") or token.get("liquidity_usd")
+                    token["bundle_detected"] = data.get("bundle_detected")
+            # Fetch symbol from DexScreener if missing
+            if not token.get("symbol"):
+                try:
+                    r2 = await client.get(f"{DEXSCREENER}/tokens/{addr}", timeout=6)
+                    if r2.status_code == 200:
+                        pairs = r2.json().get("pairs", [])
+                        if pairs:
+                            p = pairs[0]
+                            token["symbol"] = p.get("baseToken", {}).get("symbol", "")
+                            if not token.get("name"):
+                                token["name"] = p.get("baseToken", {}).get("name", "")
+                except Exception:  # noqa: S110 — enrichment is best-effort
+                    pass
         except Exception:  # noqa: S110 — return token even if enrichment fails
             pass
         return token
@@ -541,17 +535,15 @@ async def _fetch_market_intel(
     malformed body). Callers render a graceful unavailable state on None.
     """
     try:
-        async with httpx.AsyncClient(timeout=timeout_secs) as client:
-            r = await client.get(
-                f"{BACKEND_URL}{path}",
-                params=params,
-                headers=backend_headers(),
-            )
-            if r.status_code != 200:
-                logger.debug("market intel %s status %s", path, r.status_code)
-                return None
-            body = r.json()
-            return body if isinstance(body, dict) else None
+        body = await http_get_json(
+            f"{BACKEND_URL}{path}",
+            params=params,
+            headers=backend_headers(),
+            timeout=timeout_secs,
+        )
+        if body is None:
+            logger.debug("market intel %s status non-200", path)
+        return body
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("market intel %s fetch failed: %s", path, exc)
         return None
@@ -838,15 +830,14 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     # Try the internal news-feed endpoint first (has bias/sentiment/factual ratings)
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(
-                f"{BACKEND_URL}/api/v1/internal/news-feed",
-                params={"channel": "news", "limit": 5, "min_score": 0},
-                headers=backend_headers(),
-            )
-            if r.status_code == 200:
-                body = r.json()
-                articles = body.get("items", [])
+        body = await http_get_json(
+            f"{BACKEND_URL}/api/v1/internal/news-feed",
+            params={"channel": "news", "limit": 5, "min_score": 0},
+            headers=backend_headers(),
+            timeout=10,
+        )
+        if body:
+            articles = body.get("items", [])
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         logger.warning("cmd_news internal feed failed: %s", e)
 
@@ -854,14 +845,13 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not articles:
         source_label = "Trending"
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                r = await client.get(
-                    f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5",
-                    headers=backend_headers(),
-                )
-                if r.status_code == 200:
-                    body = r.json()
-                    articles = body.get("items", [])
+            body = await http_get_json(
+                f"{BACKEND_URL}/api/v1/news/trending?window_hours=168&limit=5",
+                headers=backend_headers(),
+                timeout=10,
+            )
+            if body:
+                articles = body.get("items", [])
         except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning("cmd_news backend fetch failed: %s", e)
 

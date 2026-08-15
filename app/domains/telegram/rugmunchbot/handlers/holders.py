@@ -30,6 +30,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, holders_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import http_get_json
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -162,11 +163,10 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             ]
 
         async def _external_token_info() -> list[dict[str, Any]]:
-            async with httpx.AsyncClient(timeout=20) as client:
-                dex_resp = await client.get(f"{DEXSCREENER}/tokens/{address}")
-                if dex_resp.status_code != 200:
-                    return []
-                return dex_resp.json().get("pairs", [])
+            body = await http_get_json(f"{DEXSCREENER}/tokens/{address}", timeout=20)
+            if not body:
+                return []
+            return body.get("pairs", [])
 
         dex_pairs = await resolve_with_fallback(
             f"holder_token_info:{address[:10]}",
@@ -185,15 +185,13 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         backend_holders = []
         backend_data = {}
         try:
-            async with httpx.AsyncClient(timeout=20) as client:
-                bh_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/token/{address}",
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if bh_resp.status_code == 200:
-                    backend_data = bh_resp.json()
-                    backend_holders = backend_data.get("top_holders", [])
+            backend_data = await http_get_json(
+                f"{BACKEND_URL}/api/v1/databus/token/{address}",
+                headers=backend_headers(),
+                timeout=10,
+            )
+            if backend_data:
+                backend_holders = backend_data.get("top_holders", [])
         except (httpx.HTTPError, ConnectionError, TimeoutError):
             pass
 
