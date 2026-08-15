@@ -36,7 +36,7 @@ import importlib
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, Final, cast
 
 from app.osint import OsintReport
 
@@ -120,7 +120,9 @@ def _load_lookup(module_path: str, func_name: str) -> Callable[..., OsintReport]
         logger.debug("osint module %s unavailable: %s", module_path, exc)
         return None
     func = getattr(module, func_name, None)
-    return func if callable(func) else None
+    if callable(func):
+        return cast("Callable[..., OsintReport]", func)
+    return None
 
 
 def _run_module(key: str, target: str, target_type: str, timeout: int) -> tuple[str, OsintReport | None, str | None]:
@@ -145,7 +147,7 @@ def _run_module(key: str, target: str, target_type: str, timeout: int) -> tuple[
     except Exception as exc:  # a module failure must never crash the engine
         logger.warning("osint module %s failed for %r: %s", key, target, exc)
         return key, None, f"{key}: {type(exc).__name__}: {exc}"
-    if not isinstance(report, OsintReport):
+    if not isinstance(report, OsintReport):  # pyright: ignore[reportUnnecessaryIsInstance] — defensive: registry modules may return anything
         return key, None, f"{key}: returned {type(report).__name__}, expected OsintReport"
     return key, report, None
 

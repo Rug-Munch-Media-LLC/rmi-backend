@@ -52,7 +52,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -180,14 +180,15 @@ def _result_list(payload: Any) -> list[dict[str, Any]]:
     """Coerce an API response to a list of face dicts (empty on malformed)."""
     if not isinstance(payload, dict):
         return []
-    result = payload.get("result")
+    body = cast("dict[str, Any]", payload)
+    result = body.get("result")
     if not isinstance(result, list):
-        logger.warning("compreface: response has no 'result' list: %r", str(payload)[:200])
+        logger.warning("compreface: response has no 'result' list: %r", str(body)[:200])
         return []
     faces: list[dict[str, Any]] = []
-    for item in result:
+    for item in cast("list[Any]", result):
         if isinstance(item, dict):
-            faces.append(item)
+            faces.append(cast("dict[str, Any]", item))
     return faces
 
 
@@ -197,9 +198,9 @@ def _face_payload(face: dict[str, Any]) -> dict[str, Any]:
     subjects = face.get("subjects")
     matches: list[dict[str, Any]] = []
     if isinstance(subjects, list):
-        for entry in subjects:
+        for entry in cast("list[Any]", subjects):
             if isinstance(entry, dict) and entry.get("subject"):
-                matches.append(entry)
+                matches.append(cast("dict[str, Any]", entry))
     top = matches[0] if matches else None
     payload: dict[str, Any] = {
         "subject": top.get("subject") if top else None,
@@ -261,7 +262,7 @@ def add_face(image: str, subject: str, *, det_prob_threshold: float | None = Non
     payload = _post_image(image, "/api/v1/recognition/faces", params=params)
     if not isinstance(payload, dict):
         raise CompreFaceNotAvailable(f"CompreFace add_face returned an unexpected response: {payload!r}")
-    return payload
+    return cast("dict[str, Any]", payload)
 
 
 def recognize(

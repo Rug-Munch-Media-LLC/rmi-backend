@@ -30,6 +30,8 @@ import asyncio
 import logging
 from typing import Any
 
+from app.osint import OsintFinding, OsintReport
+
 try:
     import phonenumbers
     from phonenumbers import PhoneNumberType, carrier, geocoder, timezone
@@ -39,9 +41,11 @@ except ImportError as exc:  # pragma: no cover
     raise OsintNotAvailable("phonenumbers is not installed; run: pip install phonenumbers") from exc
 
 try:
-    import httpx
+    import httpx as _httpx
 except ImportError:  # pragma: no cover — httpx is a runtime dependency of the backend
-    httpx = None  # type: ignore[assignment]
+    _httpx = None  # type: ignore[assignment]
+
+httpx: Any = _httpx
 
 # ─── Optional supplemental source: Ignorant ────────────────────────────────
 # https://github.com/megadose/ignorant — checks which social platforms a phone
@@ -60,8 +64,6 @@ try:
     )
 except ImportError:  # pragma: no cover — optional source; dependency absent
     _IGNORANT_CHECKS = ()
-
-from app.osint import OsintFinding, OsintReport
 
 logger = logging.getLogger(__name__)
 

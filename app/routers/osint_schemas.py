@@ -39,7 +39,7 @@ class OsintReportModel(BaseModel):
 
     target: str
     target_type: str
-    findings: list[OsintFindingModel] = Field(default_factory=list)
+    findings: list[OsintFindingModel] = Field(default_factory=list[OsintFindingModel])
     errors: list[str] = Field(default_factory=list)
 
 
@@ -56,7 +56,7 @@ class AggregateReportModel(BaseModel):
     target: str
     target_type: str
     results: dict[str, OsintReportModel] = Field(default_factory=dict)
-    findings: list[OsintFindingModel] = Field(default_factory=list)
+    findings: list[OsintFindingModel] = Field(default_factory=list[OsintFindingModel])
     errors: list[str] = Field(default_factory=list)
     cached: bool = False
 
