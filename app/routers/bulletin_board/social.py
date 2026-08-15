@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import Request  # noqa: TC002 — FastAPI needs runtime resolution for request objects
@@ -13,6 +14,7 @@ from app.bulletin_board import (
     get_user_reputation,
     verify_x402_bot,
 )
+from app.bulletin_board.badges import USDC_MINT_SOLANA
 from app.core.errors import AuthorizationError, ValidationError
 from app.routers.bulletin_board.router import router
 
@@ -78,7 +80,11 @@ async def x402_bot_post(request: Request, data: dict[str, Any]) -> dict[str, Any
 
     if not await verify_x402_bot(tx_hash, bot_addr):
         raise AuthorizationError(
-            message="$1 to join - send USDC to x402 address, get tx_hash, post 30 days unlimited",
+            message=(
+                "Membership requires a verified on-chain payment: send >= $1 USDC "
+                "(Solana) to the configured payment address, then submit the tx_hash. "
+                "See GET /x402/info for the payment address and requirements."
+            ),
             status_code=402,
             code="payment.required",
         )
@@ -105,11 +111,19 @@ async def x402_bot_post(request: Request, data: dict[str, Any]) -> dict[str, Any
 
 @router.get("/x402/info")
 async def x402_bot_info() -> dict[str, Any]:
-    """Info for bots wanting to join the Bulletin Board."""
-    return {
+    """Info for bots wanting to join the Bulletin Board.
+
+    Membership requires a real on-chain USDC payment verified against the
+    configured payment address (``BB_X402_PAYMENT_ADDRESS``). When no address
+    is configured the endpoint says so explicitly — the old "$1 to join"
+    honor-system framing is gone.
+    """
+    payment_address = os.getenv("BB_X402_PAYMENT_ADDRESS", "").strip()
+    info: dict[str, Any] = {
         "service": "RMI Bulletin Board - x402 Bot Membership",
         "price": "$1.00 TO JOIN (30 days unlimited posting, one-time)",
-        "payment": "Send $1 USDC to rugmunch.io/x402 payment address, receive tx_hash",
+        "chain": "solana",
+        "usdc_mint": USDC_MINT_SOLANA,
         "membership_includes": [
             "Unlimited posting in all 11 categories for 30 days",
             "Comment and vote on any post",
@@ -133,3 +147,19 @@ async def x402_bot_info() -> dict[str, Any]:
         "required": ["bot_address", "tx_hash", "title", "content", "category"],
         "badges": ["bot_verified (on join)", "bot_pro (100+ posts)"],
     }
+    if payment_address:
+        info["payment_address"] = payment_address
+        info["payment"] = (
+            f"Send $1 USDC (Solana) to {payment_address}, then submit the tx_hash. "
+            "The transaction is verified on-chain: it must move >= $1 USDC from "
+            "your bot wallet to the payment address. Faked or unrelated tx_hashes "
+            "are rejected."
+        )
+        info["payment_verified_on_chain"] = True
+    else:
+        info["payment"] = (
+            "Membership is currently unavailable — no payment address is configured. "
+            "Do NOT send funds anywhere; bot posting requires a real on-chain payment."
+        )
+        info["membership_available"] = False
+    return info
