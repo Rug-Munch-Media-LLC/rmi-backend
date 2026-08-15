@@ -64,6 +64,21 @@ _PRICE_WORDS = re.compile(
     r"\b(price|worth|value|cost|how much|chart|pump|dump|market cap|mcap|fdv|trading at)\b",
     re.IGNORECASE,
 )
+# Risk-ranked picks — "riskiest / sketchiest / most dangerous" maps a
+# trending question to a risk-first ranking (trend_by_chain rank="risk")
+# instead of a %-change list. Deliberately includes the -iest superlatives
+# that _SECURITY_WORDS' \brisk\b boundary misses.
+_RISK_RANK_WORDS = re.compile(
+    r"\b(riskiest|riskier|risky|sketchiest|sketchy|shadiest|shady|"
+    r"scammy|scammiest|suspicious|sus|worst|most dangerous|dangerous|"
+    r"most likely to (rug|scam|dump)|avoid|red flags?|rug risk|"
+    r"honeypot risk|survive( the )?day|dump candidates?)\b",
+    re.IGNORECASE,
+)
+# "picks / tokens / coins" turns a bare risk-rank ask ("riskiest picks of the
+# day") into an implicit trending question — the user wants a ranked list of
+# today's universe, not a one-token scan.
+_PICKS_WORDS = re.compile(r"\b(picks?|tokens?|coins?)\b", re.IGNORECASE)
 # Technical-analysis questions — route to the technical_analysis tool (real
 # RSI-14 / EMA-9/21 / MACD / support-resistance, see tools/ta.py). "ta"
 # alone is risky in prose, so the bare token must be followed by for/on/of;
@@ -342,6 +357,16 @@ def extract_chain(text: str) -> str:
     return _CHAIN_ALIASES[m.group(1).lower()]
 
 
+def detect_risk_rank(text: str) -> bool:
+    """True when the question asks for RISK-FIRST picks (riskiest/sketchiest).
+
+    Maps "riskiest/sketchiest/red flags/most likely to rug" onto a
+    risk-ranked trending answer (trend_by_chain rank="risk"). Pure regex —
+    the -iest/-y forms are matched deliberately, not just bare "risk".
+    """
+    return bool(_RISK_RANK_WORDS.search(text))
+
+
 def route_tools(text: str) -> list[str]:
     """Return the ordered list of tools to run for ``text``.
 
@@ -363,13 +388,19 @@ def route_tools(text: str) -> list[str]:
     chain = extract_chain(text)
     excluded = _excluded_tools(text)
 
-    # Trending: cross-chain feed; when a chain is named also run the
-    # per-chain trend_algo (transparent scoring over our data).
-    if _TRENDING_WORDS.search(text) and "trending" not in excluded:
+    # Trending: chain-filtered feed; when a chain is named OR the question
+    # asks for risk-first picks ("riskiest/sketchiest"), also run the
+    # per-chain trend_algo (transparent scoring over our data). risk_rank
+    # makes that tool rank by RISK instead of momentum (rank kwarg below).
+    # A bare risk-rank ask ("riskiest picks of the day") is an implicit
+    # trending question when it names picks/tokens/coins.
+    risk_rank = detect_risk_rank(text)
+    trending_intent = bool(_TRENDING_WORDS.search(text)) or (risk_rank and bool(_PICKS_WORDS.search(text)))
+    if trending_intent and "trending" not in excluded:
         tools.append("trending")
         if _NEWS_WORDS.search(text) and "news_headlines" not in excluded:
             tools.append("news_headlines")
-        if chain:
+        if chain or risk_rank:
             tools.append("trend_by_chain")
 
     if (has_ticker or _PRICE_WORDS.search(text)) and "price_lookup" not in excluded:
@@ -452,10 +483,16 @@ def tool_kwargs(text: str, names: list[str]) -> dict[str, dict[str, Any]]:
     addrs = extract_addresses(text)
     syms = symbols_in(text)
     chain = extract_chain(text)
+    risk_rank = detect_risk_rank(text)
 
     per_tool: dict[str, dict[str, Any]] = {}
     for name in names:
         kwargs: dict[str, Any] = {}
+        if name == "trending":
+            # Chain-scoped: the user's requested chain filters the feed;
+            # "all" when no chain was named (honest cross-chain label).
+            kwargs["chain"] = chain or "all"
+            kwargs["limit"] = 10
         if name in (
             "price_lookup",
             "scanner_intel",
@@ -479,6 +516,7 @@ def tool_kwargs(text: str, names: list[str]) -> dict[str, dict[str, Any]]:
             kwargs["symbol"] = syms[0]
         if name == "trend_by_chain":
             kwargs["chain"] = chain or "all"
+            kwargs["rank"] = "risk" if risk_rank else "trend"
         if name == "smart_money":
             kwargs["chain"] = chain or "solana"
         if name == "birdeye_market":
@@ -488,6 +526,42 @@ def tool_kwargs(text: str, names: list[str]) -> dict[str, dict[str, Any]]:
             kwargs["query"] = text
         per_tool[name] = kwargs
     return per_tool
+
+
+def _compact_list(value: list[object], cap: int = 10) -> str:
+    """Render a list payload as compact lines (one per item when possible).
+
+    ``trending`` / ``trend_by_chain`` return token lists as list-of-dicts;
+    the old ``str(value)[:500]`` truncation cut mid-JSON and hid the fields
+    the LLM must cite (risk_flags / sketch_score / score). Each dict item is
+    projected onto its signal fields; non-dict items fall back to str().
+    """
+    if not value:
+        return "[]"
+    out: list[str] = []
+    for item in value[:cap]:
+        if isinstance(item, dict):
+            keys = (
+                "symbol",
+                "name",
+                "chain",
+                "address",
+                "price_usd",
+                "change_24h",
+                "volume_24h",
+                "score",
+                "sketch_score",
+                "risk_flags",
+                "risk_score",
+                "rank",
+            )
+            parts = [f"{k}={item[k]}" for k in keys if item.get(k) is not None]
+            out.append("{" + ", ".join(parts) + "}")
+        else:
+            out.append(str(item)[:200])
+    if len(value) > cap:
+        out.append(f"... {len(value) - cap} more")
+    return "\n      ".join(out)
 
 
 def build_tool_prompt_block(results: Mapping[str, object]) -> str:
@@ -511,8 +585,11 @@ def build_tool_prompt_block(results: Mapping[str, object]) -> str:
         payload = result.data
         if isinstance(payload, dict):
             for k, v in payload.items():
-                text = str(v) if not isinstance(v, (dict, list)) else str(v)[:500]
-                lines.append(f"    {k}: {text[:500]}")
+                if isinstance(v, list):
+                    lines.append(f"    {k}: {_compact_list(v)}")
+                else:
+                    text = str(v) if not isinstance(v, dict) else str(v)[:500]
+                    lines.append(f"    {k}: {text[:500]}")
         else:
             lines.append(f"    {str(payload)[:800]}")
     lines.append(
