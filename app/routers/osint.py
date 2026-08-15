@@ -26,7 +26,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -173,7 +173,7 @@ def _cache_get(target_type: str, target: str) -> dict[str, Any] | None:
         if raw is None:
             return None
         cached = json.loads(raw)
-        return cached if isinstance(cached, dict) else None
+        return cast("dict[str, Any]", cached) if isinstance(cached, dict) else None
     except Exception as exc:  # Redis down / corrupt payload — never crash the lookup
         logger.warning("osint_cache_get_failed target_type=%s err=%s", target_type, exc)
         return None

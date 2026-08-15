@@ -37,15 +37,17 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 
-try:
-    import httpx
-except ImportError:  # pragma: no cover — httpx is a runtime dependency of the backend
-    httpx = None  # type: ignore[assignment]
-
 from app.osint import OsintFinding, OsintNotAvailable, OsintReport
+
+try:
+    import httpx as _httpx
+except ImportError:  # pragma: no cover — httpx is a runtime dependency of the backend
+    _httpx = None  # type: ignore[assignment]
+
+httpx: Any = _httpx
 
 logger = logging.getLogger(__name__)
 
@@ -214,9 +216,10 @@ def _emailrep(email: str, report: OsintReport, timeout: float) -> None:
     if not isinstance(payload, dict):
         report.errors.append("emailrep: unexpected response shape")
         return
+    payload = cast("dict[str, Any]", payload)
 
     details = payload.get("details")
-    details_dict = details if isinstance(details, dict) else {}
+    details_dict = cast("dict[str, Any]", details) if isinstance(details, dict) else {}
 
     reputation = str(payload.get("reputation") or "unknown")
     suspicious = bool(payload.get("suspicious"))
@@ -266,7 +269,7 @@ def _emailrep(email: str, report: OsintReport, timeout: float) -> None:
 
     profiles = payload.get("profiles") or details_dict.get("profiles") or []
     if isinstance(profiles, list) and profiles:
-        profile_strs = [str(profile) for profile in profiles]
+        profile_strs = [str(profile) for profile in cast("list[Any]", profiles)]
         _finding(
             report,
             source="emailrep",
@@ -381,7 +384,7 @@ def _as_object_list(payload: Any) -> list[dict[str, Any]]:
     """Coerce a JSON payload into a list of objects (defensive)."""
     if not isinstance(payload, list):
         return []
-    return [item for item in payload if isinstance(item, dict)]
+    return [cast("dict[str, Any]", item) for item in payload if isinstance(item, dict)]
 
 
 def _record_http_error(report: OsintReport, source: str, exc: httpx.HTTPStatusError) -> None:

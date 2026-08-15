@@ -36,7 +36,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Final
+from typing import Any, Final, cast
 
 try:
     import httpx
@@ -190,7 +190,7 @@ def _redis_label(report: OsintReport, key: str) -> None:
         redis_client = get_redis()
         if redis_client is None:
             return
-        label = lookup_wallet_label(key, redis_client=redis_client)
+        label = lookup_wallet_label(key, redis_client=redis_client)  # pyright: ignore[reportUnknownVariableType]
         if not label:
             return
         name = label.get("name") or label.get("tag") or label.get("label_type") or label.get("project") or "unknown"
@@ -213,9 +213,10 @@ def _parse_chainabuse_reports(payload: dict[str, Any]) -> list[OsintFinding]:
     reports = payload.get("reports")
     if not isinstance(reports, list):
         return findings
-    for rpt in reports:
+    for rpt in cast("list[Any]", reports):
         if not isinstance(rpt, dict):
             continue
+        rpt = cast("dict[str, Any]", rpt)
         category = str(rpt.get("category") or "unknown")
         description = str(rpt.get("description") or rpt.get("report") or "")
         summary = f"Chainabuse: {category}"
@@ -324,11 +325,11 @@ def _load_sanctions() -> dict[str, Any] | None:
             continue
         index: dict[str, Any] = {}
         if isinstance(data, dict) and isinstance(data.get("addresses"), dict):
-            index = data["addresses"]
+            index = cast("dict[str, Any]", data["addresses"])
         elif isinstance(data, list):
-            for entry in data:
+            for entry in cast("list[Any]", data):
                 if isinstance(entry, dict) and entry.get("address"):
-                    index[str(entry["address"]).lower()] = entry
+                    index[str(entry["address"]).lower()] = cast("dict[str, Any]", entry)
         if index:
             _sanctions_cache = index
             logger.info("loaded sanctions list from %s (%d addresses)", path, len(index))
@@ -355,7 +356,8 @@ def _sanctions(report: OsintReport, key: str) -> None:
         )
         return
 
-    entries = entry.get("entries") if isinstance(entry, dict) else None
+    entry_dict = cast("dict[str, Any]", entry) if isinstance(entry, dict) else {}
+    entries = entry_dict.get("entries")
     if not isinstance(entries, list) or not entries:
         _add_finding(
             report,
@@ -364,12 +366,13 @@ def _sanctions(report: OsintReport, key: str) -> None:
             summary="address listed in OFAC sanctions list",
             confidence="high",
             address=key,
-            type=entry.get("type") if isinstance(entry, dict) else "",
+            type=entry_dict.get("type") or "",
         )
         return
-    for item in entries:
+    for item in cast("list[Any]", entries):
         if not isinstance(item, dict):
             continue
+        item = cast("dict[str, Any]", item)
         entity = str(item.get("entity") or "unknown")
         program = str(item.get("program") or "")
         summary = f"OFAC sanctioned: {entity}" + (f" [{program}]" if program else "")

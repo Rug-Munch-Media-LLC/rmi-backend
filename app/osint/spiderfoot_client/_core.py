@@ -8,29 +8,13 @@ email, username, wallet or IP it fans out across 100+ modules (DNS/WHOIS,
 certificate-transparency logs, breach feeds, social/profile enumeration,
 blockchain, …) and we map its per-event results onto our report model.
 
-API contract (OSS v4.0.0 — **not** the HX ``/rest/v1`` API, which is a paid
-cloud feature; the self-hosted web UI exposes these JSON endpoints when the
-request carries ``Accept: application/json``):
+Package layout (mirrors :mod:`app.osint.domain` / :mod:`app.osint.face`):
 
-    POST /startscan         -> ["SUCCESS", scanId] | ["ERROR", msg]
-    GET  /scanstatus?id=..  -> [name, target, created, started, ended, status, riskmatrix]
-    GET  /scaneventresults?id=..&eventType=ALL
-                           -> [[lastseen, data, source_data, module, confidence,
-                               visibility, risk, hash, fp, parent_fp, event_type], ...]
-    GET  /scanerrors?id=..  -> [error strings]
-
-Scan lifecycle: ``INITIALIZING -> STARTING -> STARTED -> RUNNING`` and then a
-terminal state ``FINISHED`` (success) or ``ERROR-FAILED`` / ``ABORTED``.
-
-Environment:
-
-    SPIDERFOOT_URL      base URL of the SpiderFoot instance
-                        (default ``http://127.0.0.1:5001``)
-    SPIDERFOOT_TOKEN    optional bearer token sent as ``Authorization: Bearer``
-                        (forward-compat / reverse-proxy auth; the OSS web UI
-                        itself has no token auth — keep it loopback-bound)
-    SPIDERFOOT_USECASE  module group used for the scan (default ``Passive``;
-                        the safe set — no active scanning of the target)
+* :mod:`app.osint.spiderfoot_client._core` — public entry point
+  (:func:`lookup`) + scan lifecycle orchestration.
+* :mod:`app.osint.spiderfoot_client._api` — low-level web-UI API calls
+  (start / status / results / errors) + environment resolution.
+* :mod:`app.osint.spiderfoot_client._mapping` — event-type -> finding mapping.
 
 Error handling — graceful by design:
 
@@ -57,16 +41,24 @@ Usage::
 
 from __future__ import annotations
 
-import html
 import logging
 import os
-import re
 import time
-from typing import Any
 
 import httpx
 
 from app.osint import OsintFinding, OsintNotAvailable, OsintReport
+from app.osint.spiderfoot_client._api import (
+    _POLL_INTERVAL_SECONDS,
+    _RUNNING_STATUSES,
+    _TERMINAL_STATUSES,
+    _env_url,
+    _scan_errors,
+    _scan_results,
+    _scan_status,
+    _start_scan,
+)
+from app.osint.spiderfoot_client._mapping import _dedupe_findings, _row_to_finding
 
 logger = logging.getLogger(__name__)
 
@@ -74,94 +66,10 @@ __all__ = ["lookup"]
 
 # ─── Tunables ────────────────────────────────────────────────────────
 
-#: Base URL of the self-hosted SpiderFoot instance.
-DEFAULT_SPIDERFOOT_URL = "http://127.0.0.1:5001"
-
 #: Module group used when the caller does not pin an explicit module list.
 #: "Passive" = the safe default set (199 modules that only consult third-party
 #: data sources; no active port scans / direct target interaction).
 DEFAULT_USECASE = "Passive"
-
-#: Scan statuses that mean "done" (success or failure).
-_TERMINAL_STATUSES: frozenset[str] = frozenset({"FINISHED", "ERROR-FAILED", "ABORTED"})
-
-#: Statuses the scan is still working in (poll again).
-_RUNNING_STATUSES: frozenset[str] = frozenset({"INITIALIZING", "STARTING", "STARTED", "RUNNING"})
-
-#: Poll interval while waiting for a scan to finish.
-_POLL_INTERVAL_SECONDS: float = 5.0
-
-#: Upper bound on the summary/data string length we put in a finding.
-_MAX_FIELD_LENGTH: int = 5000
-
-#: Seed/ROOT events (the target itself) are noise — skip them.
-_SKIP_EVENT_TYPES: frozenset[str] = frozenset({"ROOT"})
-
-#: Event types SpiderFoot never produces findings for even if seen.
-_NOISE_EVENT_TYPES: frozenset[str] = frozenset({"WEBSERVER_HTTP_HEADERS"})
-
-#: Mapping of interesting SpiderFoot event types to our report categories.
-#: Falls back to a snake_case version of the SpiderFoot type.
-_EVENT_CATEGORY: dict[str, str] = {
-    "DOMAIN_NAME": "domain",
-    "INTERNET_NAME": "domain",
-    "IP_ADDRESS": "ip_address",
-    "IPV6_ADDRESS": "ip_address",
-    "NETBLOCK_OWNER": "netblock",
-    "EMAILADDR": "email",
-    "USERNAME": "username",
-    "PHONE_NUMBER": "phone",
-    "BITCOIN_ADDRESS": "bitcoin",
-    "ETHEREUM_ADDRESS": "ethereum",
-    "HUMAN_NAME": "person",
-    "ORG_NAME": "organization",
-    "AFFILIATE_INTERNET_NAME": "affiliate",
-    "SUBDOMAIN": "subdomain",
-    "WEBSERVER_TECHNOLOGY": "technology",
-    "SSL_CERTIFICATE_ISSUED": "certificate",
-    "SSL_CERTIFICATE_ISSUER": "certificate",
-    "DNS_SERVER": "dns",
-    "MAIL_SERVER": "dns",
-    "NAMESERVER": "dns",
-    "CO_HOSTED_SITE": "co_hosted",
-    "PHYSICAL_ADDRESS": "address",
-    "GEOINFO": "geolocation",
-    "SOCIAL_MEDIA": "social",
-    "SOCIAL_PROFILE": "social",
-    "ACCOUNT": "account",
-    "BREACHED_ACCOUNT": "breach",
-    "LEAKED_ACCOUNT": "breach",
-    "SANCTIONED_ENTITY": "sanction",
-    "BLACKLISTED_IP": "blacklist",
-    "VULNERABILITY": "vulnerability",
-    "REPUTATION": "reputation",
-    "HISTORIC_WHOIS": "whois",
-    "DOMAIN_REGISTRAR": "whois",
-    "DOMAIN_WHOIS": "whois",
-    "OPERATING_SYSTEM": "technology",
-    "PROVIDER_TELCO": "provider",
-    "PROVIDER_HOSTING": "provider",
-    "PROVIDER_DNS": "provider",
-    "RAW_DATA": "raw",
-    "SEARCH_ENGINE_WEB_CONTENT": "web_content",
-}
-
-#: SpiderFoot module prefix we strip for readable ``source`` values.
-_MODULE_PREFIX = "sfp_"
-
-
-# ─── Small helpers ───────────────────────────────────────────────────
-
-
-def _env_url() -> str:
-    """Resolve the SpiderFoot base URL from the environment."""
-    return os.environ.get("SPIDERFOOT_URL", DEFAULT_SPIDERFOOT_URL).rstrip("/")
-
-
-def _env_token() -> str | None:
-    """Resolve the optional bearer token from the environment."""
-    token = os.environ.get("SPIDERFOOT_TOKEN", "").strip()
-    return token or None
 
 
 def _env_usecase() -> str:
@@ -173,199 +81,6 @@ def _env_usecase() -> str:
     if usecase.lower() == "all":
         return "all"
     return usecase[0].upper() + usecase[1:]
-
-
-def _category_from_type(event_type: str) -> str:
-    """Map a SpiderFoot event type to our report category."""
-    mapped = _EVENT_CATEGORY.get(event_type.upper())
-    if mapped:
-        return mapped
-    # Fallback: DOMAIN_NAME_EXTRA -> "domain_name_extra"
-    words = re.findall(r"[A-Z0-9]+(?:[a-z0-9]+)?", event_type)
-    return "_".join(words).lower() if words else event_type.lower()
-
-
-def _source_from_module(module: str) -> str:
-    """Map a SpiderFoot module name (sfp_whois) to a readable source."""
-    name = module or "spiderfoot"
-    if name.startswith(_MODULE_PREFIX):
-        name = name[len(_MODULE_PREFIX) :]
-    return name or "spiderfoot"
-
-
-def _confidence_from_values(confidence: Any, false_positive: Any) -> str:
-    """Derive high/medium/low from SpiderFoot confidence % and the fp flag."""
-    if str(false_positive).strip() in ("1", "True", "true"):
-        return "low"
-    try:
-        value = float(confidence)  # 0-100
-    except (TypeError, ValueError):
-        value = 50.0
-    if value >= 70:
-        return "high"
-    if value >= 40:
-        return "medium"
-    return "low"
-
-
-def _clean_text(value: Any) -> str:
-    """Normalize a SpiderFoot data field to a safe, bounded string."""
-    text = str(value or "").strip()
-    text = html.unescape(text)  # scaneventresults HTML-escapes data/source
-    text = re.sub(r"<SFURL>|</SFURL>", "", text)
-    text = re.sub(r"\s+", " ", text)
-    if len(text) > _MAX_FIELD_LENGTH:
-        text = text[:_MAX_FIELD_LENGTH] + "…"
-    return text
-
-
-# ─── API calls ───────────────────────────────────────────────────────
-
-
-def _request_json(
-    client: httpx.Client,
-    method: str,
-    path: str,
-    *,
-    params: dict[str, Any] | None = None,
-    data: dict[str, Any] | None = None,
-) -> Any:
-    """Perform a JSON API call against the SpiderFoot web UI."""
-    headers = {"Accept": "application/json"}
-    token = _env_token()
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    response = client.request(method, path, params=params, data=data, headers=headers)
-    response.raise_for_status()
-    return response.json()
-
-
-def _as_list(value: Any) -> list[Any]:
-    """Coerce an API response to a list.
-
-    Every endpoint this client uses (startscan / scanstatus /
-    scaneventresults / scanerrors) returns a JSON array. Non-list responses
-    (unexpected server behaviour) are treated as empty.
-    """
-    if isinstance(value, list):
-        narrowed: list[Any] = value
-        return narrowed
-    return []
-
-
-def _start_scan(client: httpx.Client, target: str, scanname: str, usecase: str) -> str:
-    """Start a scan and return its scan ID."""
-    payload = {
-        "scanname": scanname,
-        "scantarget": target,
-        "modulelist": "",
-        "typelist": "",
-        "usecase": usecase,
-    }
-    result = _request_json(client, "POST", "/startscan", data=payload)
-    # SpiderFoot answers ["SUCCESS", scanId] or ["ERROR", msg].
-    items = _as_list(result)
-    if len(items) < 2 or items[0] != "SUCCESS":
-        message = items[1] if len(items) > 1 else "unknown error"
-        raise RuntimeError(f"SpiderFoot failed to start scan: {message}")
-    scan_id = items[1]
-    if not isinstance(scan_id, str) or not scan_id:
-        raise RuntimeError("SpiderFoot returned an empty scan ID")
-    return scan_id
-
-
-def _scan_status(client: httpx.Client, scan_id: str) -> tuple[str, str]:
-    """Return ``(status, target)`` for a scan; empty tuple on unknown scan."""
-    result = _request_json(client, "GET", "/scanstatus", params={"id": scan_id})
-    # [name, target, created, started, ended, status, riskmatrix]
-    items = _as_list(result)
-    if len(items) < 6:
-        return "", ""
-    status = items[5]
-    target = items[1]
-    return (str(status) if status else "", str(target) if target else "")
-
-
-def _scan_results(client: httpx.Client, scan_id: str) -> list[list[Any]]:
-    """Fetch all event rows for a scan (raw list-of-lists)."""
-    result = _request_json(client, "GET", "/scaneventresults", params={"id": scan_id, "eventType": "ALL"})
-    rows: list[list[Any]] = []
-    for row in _as_list(result):
-        if isinstance(row, list):
-            entry: list[Any] = row
-            rows.append(entry)
-    return rows
-
-
-def _scan_errors(client: httpx.Client, scan_id: str) -> list[str]:
-    """Fetch module-level error messages for a scan."""
-    try:
-        result = _request_json(client, "GET", "/scanerrors", params={"id": scan_id})
-    except Exception as exc:
-        logger.warning("spiderfoot: could not fetch scan errors: %s", exc)
-        return []
-    messages: list[str] = []
-    for item in _as_list(result):
-        text = str(item).strip()
-        if text and text not in messages:
-            messages.append(text)
-    return messages[:100]
-
-
-def _row_to_finding(row: list[Any]) -> OsintFinding | None:
-    """Map one SpiderFoot ``scaneventresults`` row to an :class:`OsintFinding`."""
-    # [lastseen, data, source_data, module, confidence, visibility, risk,
-    #  hash, fp, parent_fp, event_type]
-    if len(row) < 11:
-        return None
-    event_type = str(row[10] or "").upper()
-    if event_type in _SKIP_EVENT_TYPES or event_type in _NOISE_EVENT_TYPES:
-        return None
-
-    module = str(row[3] or "")
-    data_text = _clean_text(row[1])
-    source_data = _clean_text(row[2])
-    false_positive = str(row[8]).strip() in ("1", "True", "true")
-    confidence = _confidence_from_values(row[4], row[8])
-    risk = _clean_text(row[6])
-
-    summary = data_text
-    if not summary:
-        summary = f"{_source_from_module(module)} reported {event_type.lower()}"
-
-    details: dict[str, Any] = {
-        "event_type": event_type,
-        "module": module,
-        "false_positive": false_positive,
-    }
-    if risk:
-        details["risk"] = risk
-    if source_data:
-        details["source_data"] = source_data
-    last_seen = _clean_text(row[0])
-    if last_seen:
-        details["last_seen"] = last_seen
-
-    return OsintFinding(
-        source=_source_from_module(module),
-        category=_category_from_type(event_type),
-        summary=summary,
-        confidence=confidence,
-        data=details,
-    )
-
-
-def _dedupe_findings(findings: list[OsintFinding]) -> list[OsintFinding]:
-    """Remove exact duplicates (same source/category/summary) while keeping order."""
-    seen: set[tuple[str, str, str]] = set()
-    out: list[OsintFinding] = []
-    for finding in findings:
-        key = (finding.source, finding.category, finding.summary)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(finding)
-    return out
 
 
 # ─── Entry point ─────────────────────────────────────────────────────
