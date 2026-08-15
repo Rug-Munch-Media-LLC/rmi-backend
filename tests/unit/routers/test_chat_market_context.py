@@ -12,7 +12,9 @@ injected into every chat system prompt) and its injection point in
   - ≤300-token budget.
   - 60s cache: a second call within the TTL does not refetch upstream.
   - ``market_verdict`` pure function.
-  - ``_build_messages`` injects the block into the system prompt.
+  - ``_build_messages`` appends the block AFTER the user turn (volatile data
+    must stay past the byte-stable system-prompt prefix for llama.cpp
+    ``cache_prompt`` KV reuse).
 """
 
 from __future__ import annotations
@@ -163,21 +165,27 @@ def test_market_verdict(fng, btc, eth, expected: str) -> None:
 
 async def test_build_messages_injects_market_block(monkeypatch: pytest.MonkeyPatch) -> None:
     """``_build_messages`` (used by BOTH website chat and the Telegram bot)
-    injects the market block into the system prompt."""
+    appends the market block AFTER the user turn — NOT into the system prompt.
+
+    The block is volatile (re-renders every 60s with live prices/trending);
+    it must stay past the byte-stable system-prompt prefix so llama.cpp
+    ``cache_prompt`` KV reuse is not broken on every cache window."""
     from app.routers.chat import _messages as messages_mod
 
     monkeypatch.setattr(messages_mod, "build_market_context_block", AsyncMock(return_value="MARKET CONTEXT (test)"))
     msgs = await _build_messages("user-test", "hello", system_context=None, history=[])
     system = next(m for m in msgs if m["role"] == "system")
-    assert "MARKET CONTEXT (test)" in system["content"]
+    user = msgs[-1]
+    assert user["role"] == "user"
+    assert "MARKET CONTEXT (test)" in user["content"]
+    assert "MARKET CONTEXT" not in system["content"]
 
 
 async def test_build_messages_without_block(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When the builder returns "" (sources down) the system prompt is
-    unchanged — no empty/invented market block is injected."""
+    """When the builder returns "" (sources down) neither the system prompt
+    nor the user turn gains an empty/invented market block."""
     from app.routers.chat import _messages as messages_mod
 
     monkeypatch.setattr(messages_mod, "build_market_context_block", AsyncMock(return_value=""))
     msgs = await _build_messages("user-test", "hello", system_context=None, history=[])
-    system = next(m for m in msgs if m["role"] == "system")
-    assert "MARKET CONTEXT" not in system["content"]
+    assert all("MARKET CONTEXT" not in m["content"] for m in msgs)

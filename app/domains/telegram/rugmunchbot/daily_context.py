@@ -16,6 +16,18 @@ paths never hammer the backend more than once per cache window. Every
 fetch and cache operation is fail-open: any error degrades to an empty
 section instead of breaking chat.
 
+KV-cache placement contract (llama.cpp ``cache_prompt``):
+  The digest CONTENT is volatile — it re-renders every ``CACHE_TTL`` (5 min)
+  with live prices/news/trending/launches. Timestamps are DAY-GRANULARITY
+  only (``%b %d %Y`` / ``%b %d`` — no HH:MM), so the *date prefix* is stable
+  for the whole day, but the digest text itself is not. Consumers that build
+  an LLM prompt for the local llama.cpp servers MUST inject the digest AFTER
+  the stable system-prompt prefix (e.g. appended to the user turn) — never
+  inside the byte-stable prefix — otherwise the 5-minute re-render breaks
+  KV-cache reuse on every window. (Verified 2026-08-15: timestamps in both
+  formatters are day-granularity; the volatile part is the data, not the
+  date stamp.)
+
 Public API
 ----------
 ``get_daily_context()`` -> str

@@ -296,6 +296,70 @@ def test_client_context_override_skips_server_rag(client: TestClient) -> None:
     assert "bot-provided RAG context" in system_msg
 
 
+# ── Response cache with caller-supplied grounding (Fix 2) ───────────────
+# The cache key now folds in a fingerprint of context_override.system_context
+# (the bot's persona), so a grounded request with the SAME grounding cache-hits
+# (was: client_grounded bypassed the cache unconditionally — every bot turn
+# paid a full 56-88s LLM call instead of an 11ms cache hit) while a DIFFERENT
+# persona never serves a stale cached answer.
+
+
+def test_grounded_repeat_request_hits_response_cache(client: TestClient) -> None:
+    persona = "PERSONA — same grounding for both turns"
+    calls = {"n": 0}
+
+    async def _fake_completion(**kwargs: Any) -> dict[str, Any]:
+        calls["n"] += 1
+        return _completion_result("Grounded answer.")
+
+    with patch.object(chat_mod, "do_chat_completion", new=AsyncMock(side_effect=_fake_completion)):
+        # First turn: cache miss → LLM call.
+        r1 = client.post(
+            "/api/v1/chat",
+            json={"message": "what is a honeypot", "context_override": {"system_context": persona}},
+        )
+        assert r1.status_code == 200
+        assert r1.json()["provider"] != "cache"
+        assert calls["n"] == 1
+        # Second turn: SAME message + SAME persona → cache hit, no LLM call.
+        r2 = client.post(
+            "/api/v1/chat",
+            json={"message": "what is a honeypot", "context_override": {"system_context": persona}},
+        )
+        assert r2.status_code == 200
+        assert r2.json()["provider"] == "cache"
+        assert r2.json()["latency_ms"] == 0
+        assert calls["n"] == 1
+
+
+def test_grounded_request_different_persona_misses_cache(client: TestClient) -> None:
+    """A DIFFERENT persona must NOT serve the cached answer — the cache is
+    bypassed only when the grounding actually changes, not unconditionally."""
+
+    async def _fake_completion(**kwargs: Any) -> dict[str, Any]:
+        return _completion_result("Answer.")
+
+    with patch.object(chat_mod, "do_chat_completion", new=AsyncMock(side_effect=_fake_completion)):
+        r1 = client.post(
+            "/api/v1/chat",
+            json={"message": "is x a rug pull", "context_override": {"system_context": "persona A"}},
+        )
+        assert r1.json()["provider"] != "cache"
+        # Different grounding → key differs → miss (fresh LLM call).
+        r2 = client.post(
+            "/api/v1/chat",
+            json={"message": "is x a rug pull", "context_override": {"system_context": "persona B"}},
+        )
+        assert r2.status_code == 200
+        assert r2.json()["provider"] != "cache"
+        # Same grounding as the first turn again → cache hit.
+        r3 = client.post(
+            "/api/v1/chat",
+            json={"message": "is x a rug pull", "context_override": {"system_context": "persona A"}},
+        )
+        assert r3.json()["provider"] == "cache"
+
+
 # ── POST /api/v1/chat/stream ──────────────────────────────────────────
 
 

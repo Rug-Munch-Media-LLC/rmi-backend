@@ -124,6 +124,14 @@ def _point_to_hit(point: Any) -> dict[str, Any]:
     ``severity`` (used by the labeled ``contract_security`` / ``audit_findings``
     corpora) is promoted into metadata so downstream formatters can label
     hits with the severity — otherwise it would be silently dropped.
+
+    The curated corpora (``security_patterns``, ``codebase_reference``)
+    store their body under ``code_block`` / ``description`` / ``title``
+    instead of ``content``/``text``; the fallback chain makes them
+    searchable through the facade (they previously returned hits with empty
+    text that every formatter silently dropped). Top-level ``verdict`` is
+    promoted into metadata the same way as ``severity`` so the
+    weakness/clean/bad_example labels survive to the LLM context.
     """
     payload = getattr(point, "payload", None) or {}
     metadata = dict(payload.get("metadata") or {})
@@ -133,10 +141,20 @@ def _point_to_hit(point: Any) -> dict[str, Any]:
     severity = payload.get("severity")
     if severity and "severity" not in metadata:
         metadata["severity"] = severity
+    verdict = payload.get("verdict")
+    if verdict and "verdict" not in metadata:
+        metadata["verdict"] = verdict
     return {
         "doc_id": str(getattr(point, "id", "")),
         "score": float(getattr(point, "score", 0.0) or 0.0),
-        "text": payload.get("content") or payload.get("text") or "",
+        "text": (
+            payload.get("content")
+            or payload.get("text")
+            or payload.get("code_block")
+            or payload.get("description")
+            or payload.get("title")
+            or ""
+        ),
         "metadata": metadata,
     }
 

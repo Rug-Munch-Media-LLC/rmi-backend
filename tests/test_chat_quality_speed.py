@@ -126,6 +126,11 @@ def test_system_prompt_keeps_identity_and_grounding_rules() -> None:
         "whale moved 10k eth to an exchange",  # market-flow read — fast
         "riskiest picks of the day",
         "what are the sketchiest tokens on solana with rug potential",
+        # Refined 2026-08-15: DEFINITIONAL questions are not forensics — the
+        # 9B is reserved for a real address/hash or forensics-term signal.
+        "what is a honeypot token",  # measured: was routing to 9B (87.6s cold vs 56.1s on 4B)
+        "explain how uniswap works",
+        "how does a rug pull happen",
     ],
 )
 def test_route_task_chat_for_simple_questions(message: str) -> None:
@@ -136,8 +141,6 @@ def test_route_task_chat_for_simple_questions(message: str) -> None:
     "message",
     [
         "why did bitcoin crash",
-        "explain how uniswap works",
-        "how does a rug pull happen",
         "compare bitcoin and ethereum",
         "analyze this token",
         "investigate this wallet",
@@ -153,6 +156,9 @@ def test_route_task_chat_for_simple_questions(message: str) -> None:
         "analyze this smart contract",
         "who is the deployer of this token",
         "check the tokenomics before i aped in",
+        # A real forensics signal beats the definitional rule: address present
+        # → 9B even with "is this a honeypot ..." phrasing.
+        "is this a honeypot 0x6982508145454Ce325dDbE47a25d4ec3d2311933",
     ],
 )
 def test_route_task_analysis_for_analytical_questions(message: str) -> None:
