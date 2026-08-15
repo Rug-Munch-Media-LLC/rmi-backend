@@ -294,18 +294,33 @@ def test_route_local_model_simple_chat() -> None:
     """Greeting/price/scan/short questions route to 4B (chat)."""
     for q in ("hello", "what's the price of btc", "scan this token", "gm", "ok"):
         assert _llm._route_local_model(q) == "chat", q
+    # Refined 2026-08-15: DEFINITIONAL questions are not forensics — they
+    # stay on the fast 4B even when they mention honeypot/mev keywords
+    # (measured: "what is a honeypot token" was routing to the 9B for an
+    # 87.6s cold answer vs 56.1s on the 4B).
+    for q in (
+        "what is a honeypot token",
+        "explain how mev works",
+        "define a rug pull",
+        "how does a honeypot work",
+    ):
+        assert _llm._route_local_model(q) == "chat", q
 
 
 def test_route_local_model_deep_analysis() -> None:
-    """Investigate/compare/trace/explain/long questions route to 9B (analysis)."""
+    """Investigate/compare/trace/forensic/address/long questions → 9B."""
     for q in (
         "investigate this wallet",
-        "explain how mev works",
         "why did this token dump",
         "compare these two tokens",
         "trace the funds on-chain",
+        "is this contract a honeypot",
+        "who is the deployer of this token",
     ):
         assert _llm._route_local_model(q) == "analysis", q
+    # A real forensics signal beats the definitional rule: an address present
+    # routes to the 9B even with "is this a honeypot ..." phrasing.
+    assert _llm._route_local_model("is this a honeypot " + "0x" + "a" * 40) == "analysis"
     # Long messages route to analysis (mirrors backend _route_task length gate).
     assert _llm._route_local_model("x" * 200) == "analysis"
 

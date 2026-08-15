@@ -226,17 +226,20 @@ def test_fanout_lists_only_real_populated_collections() -> None:
     for lst in (RAG_COLLECTIONS, KNOWLEDGE_COLLECTIONS):
         assert not banned.intersection(lst), f"phantom/empty collections still fanned out: {banned & set(lst)}"
 
+    # FOCUSED KNOWLEDGE SET (consolidated 2026-08-15): the fan-out is pruned
+    # to the 5 collections that cover the bot/chat knowledge intents without
+    # redundancy. Previously-populated data/market/scanner collections
+    # (threat_intel, scam_intel, news_v2, wallet_v2, contract_audits,
+    # coding_knowledge, regulation_enforcement, stablecoin_market) are no
+    # longer fanned out per message — scanner_v2 covers token-address asks,
+    # live tools cover market/news, and the pattern/exploit intent space is
+    # served by the kept set (see _rag.py RAG_COLLECTIONS rationale).
     real = {
-        "threat_intel",  # alias → threat_intel_v2 (11,940 pts)
-        "scam_intel",  # alias → scam_intel_v2 (600 pts)
-        "news_v2",  # 9,562 pts
-        "defi_exploits",  # 13,575 pts
-        "coding_knowledge",  # 1,826 pts
-        "scam_patterns",  # 9,921 pts
-        "regulation_enforcement",  # 16 pts
-        "wallet_v2",  # 13,499 pts
-        "contract_audits",  # 502 pts
-        "stablecoin_market",  # 329 pts
+        "security_patterns",  # curated vuln patterns (408 pts)
+        "codebase_reference",  # secure reference snippets (997 pts)
+        "defi_exploits",  # exploit writeups / PoCs (13,575 pts)
+        "contract_security",  # verdict-labeled good/bad contracts (221 pts)
+        "scam_patterns",  # scam pattern docs + rug_timeline alias (9,921 pts)
     }
     for lst in (RAG_COLLECTIONS, KNOWLEDGE_COLLECTIONS):
         missing = real - set(lst)

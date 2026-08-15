@@ -42,31 +42,61 @@ __all__ = [
 ]
 
 # ── RAG collections (searched for every message) ─────────────────────────
-# ONLY real, populated Qdrant collections are fanned out. Phantom legacy
-# names (``token_analysis``, ``wallet_profiles``, ``forensic_reports``) have
-# no Qdrant collection — they would silently resolve to ``rag_documents``
-# while the ``sources`` label claimed the requested name. Empty collections
-# (``scanned_tokens``, ``whale_transfers``) return nothing and only waste
-# concurrent requests. Those names are handled by
-# ``app.rag._qdrant._COLLECTION_ALIASES`` when requested directly by other
-# code paths (aliases land on the live corpus and hits are labeled with the
-# ACTUAL resolved collection via ``metadata["resolved_collection"]``).
+# FOCUSED KNOWLEDGE SET (consolidated 2026-08-15 — was 13 collections).
+# Every fan-out collection costs ONE Infinity embed + ONE Qdrant search +
+# ONE mandatory cross-encoder rerank per message, so the set is pruned to
+# the intent space the chat/bot actually grounds on, with no redundancy.
+# All 5 kept collections are verified populated AND searchable via the RAG
+# facade (all 1024d bge-m3 cosine — a single query embedding serves them).
+#
+# KEPT:
+#   security_patterns  — curated vuln patterns (408 pts; SWC registry,
+#                        verdict/severity labels) — "is X vulnerable /
+#                        how does the attack work" corpus.
+#   codebase_reference — secure reference snippets from reputable libs
+#                        (997 pts; verdict=clean) — "how to write it right".
+#   defi_exploits      — historical exploit writeups / PoCs (13.6K pts).
+#   contract_security  — verdict-labeled good/bad contract patterns (221 pts).
+#   scam_patterns      — scam pattern docs + rug_timeline alias (9.9K pts);
+#                        pattern/entry documentation, distinct from
+#                        defi_exploits' incident writeups — both match bot
+#                        intents ("rugpull / scam patterns" + "exploit
+#                        write-ups"); cross-collection dups collapse in dedup.
+#
+# DROPPED (redundant / thin / data-class — not knowledge):
+#   threat_intel (11.9K)        — live scanner findings, not knowledge;
+#                                 token-address asks use scanner_v2 instead.
+#   scam_intel (600)            — thin legacy intel; subsumed by scam_patterns.
+#   news_v2 (9.6K)              — news/market intel; market asks skip the bot's
+#                                 knowledge gate; current events via live web.
+#   coding_knowledge (1.8K)     — generic code KB; SWC content duplicated in
+#                                 security_patterns, snippets in codebase_reference.
+#   regulation_enforcement (16) — too thin to matter.
+#   wallet_v2 (13.5K)           — entity/risk-profile data, not knowledge.
+#   contract_audits (502)       — audit stubs; overlaps contract_security.
+#   audit_findings (10)         — too thin; incident class in defi_exploits.
+#   stablecoin_market (329)     — market data; market asks skip the gate.
+#
+# Phantom legacy names (``token_analysis``, ``wallet_profiles``,
+# ``forensic_reports``) have no Qdrant collection and empty collections
+# (``scanned_tokens``, ``whale_transfers``) are never fanned out — they are
+# handled by ``app.rag._qdrant._COLLECTION_ALIASES`` when requested directly
+# by other code paths (hits labeled with the ACTUAL resolved collection via
+# ``metadata["resolved_collection"]``).
 RAG_COLLECTIONS = [
-    "threat_intel",  # unified scanner + SENTINEL high-risk findings (alias → threat_intel_v2, 11.9K pts, live)
-    "scam_intel",  # legacy scam intelligence (alias → scam_intel_v2, 600 pts, live)
-    "news_v2",  # news articles and market intelligence (9.6K pts, live)
-    "defi_exploits",  # historical DeFi exploits / protocol hacks (13.6K pts, live)
-    "coding_knowledge",  # code-level security knowledge (1.8K pts)
-    "scam_patterns",  # scam pattern documentation + rug_timeline alias (9.9K pts, historical)
-    "regulation_enforcement",  # regulatory actions + enforcement intel (16 pts, live)
-    "wallet_v2",  # wallet labels, risk profiles, entity clusters (13.5K pts, live)
-    "contract_audits",  # smart-contract audit findings (502 pts)
-    "contract_security",  # verdict-labeled good/bad contract patterns + security patterns (221 pts, live)
-    "audit_findings",  # labeled audit findings w/ severity + remediation (10 pts, live)
-    "stablecoin_market",  # DeFiLlama stablecoin market caps (329 pts)
+    "security_patterns",  # curated vuln patterns (408 pts; SWC registry, verdict/severity)
+    "codebase_reference",  # secure reference snippets, reputable libs (997 pts)
+    "defi_exploits",  # historical exploit writeups / PoCs (13.6K pts)
+    "contract_security",  # verdict-labeled good/bad contract patterns (221 pts)
+    "scam_patterns",  # scam pattern docs + rug_timeline alias (9.9K pts)
 ]
 RAG_TOKEN_COLLECTIONS = ["scanner_v2"]  # scan-to-RAG memory (191 pts — added when a token address is present)
-RAG_TOP_K = 10
+# Per-collection candidate cap. 5 collections x 5 = <=25 candidates → dedup →
+# top-5 formatted (RAG_CONTEXT_MAX_CHARS binds long before the format count,
+# so fewer hits per collection does not shrink the visible context). This
+# halves the MANDATORY cross-encoder rerank's input load vs the old
+# 13 collections x top 10 (130 → 25 candidate reranks per message).
+RAG_TOP_K = 5
 RAG_SEARCH_TIMEOUT = 5.0  # overall budget (seconds) — web chat stays snappy
 RAG_CONTEXT_MAX_CHARS = 1800  # keeps the combined system context under the 2000-char cap
 RAG_HIT_MAX_CHARS = 700  # per-hit snippet
@@ -185,18 +215,41 @@ def _format_web_context(results: list[dict[str, str]], max_chars: int = WEB_CONT
 
 
 # ── Complexity-based model routing (pure function of message text) ──────
-# Analytical / forensic / contract-level questions ("why", "explain",
-# "investigate", on-chain terms, honeypot/deployer/tokenomics, long
-# messages) go to the stronger qwen-analysis 9B (Qwen3.5) model; simple /
-# definitional / quick questions stay on the fast qwen-chat 4B (Qwen3.5).
-# Tightened 2026-08-15 (kept in sync with the bot's _route_local_model in
-# handlers/chat_ai/_llm.py): removed "rug"/"whale" term triggers so
-# "riskiest/sketchiest ... rug potential" list asks stay on the fast 4B;
-# added explicit contract/forensics terms ("contract", "deployer",
-# "honeypot", "tokenomics", "audit") so genuine asks use the 9B.
+# Analytical / forensic / contract-level questions go to the stronger
+# qwen-analysis 9B (Qwen3.5) model; simple / definitional / quick questions
+# stay on the fast qwen-chat 4B (Qwen3.5).
+#
+# Refined 2026-08-15 (kept in sync with the bot's _route_local_model in
+# handlers/chat_ai/_llm.py): a DEFINITION ("what is X", "explain X",
+# "define X", "how does X work") is NOT forensics. The 9B is reserved for a
+# real analysis/forensics signal:
+#   * an address/hash is present (EVM 0x…40/64-hex or Solana base58), or
+#   * an explicit forensics term (analyze/investigate/trace/contract/
+#     deployer/tokenomics/audit), or
+#   * a non-definitional analysis ask ("why", "compare", "what happened",
+#     "deep", "honeypot", on-chain/forensic/mev/exploit).
+# Definitional questions with NONE of those signals stay on the fast 4B —
+# "what is a honeypot token" was measured routing to the 9B for an 87.6s
+# cold answer (31.5s slower than the 4B's 56.1s) for a definition. Also
+# keeps "riskiest/sketchiest ... rug potential" list asks on the fast 4B
+# (no "rug"/"whale" triggers).
+_ADDRESS_OR_HASH_RE = re.compile(r"\b0x[a-fA-F0-9]{40,64}\b|\b[1-9A-HJ-NP-Za-km-z]{32,44}\b")
+# Explicit forensics/contract signals — analysis even inside a definition.
+_ANALYSIS_FORENSIC_RE = re.compile(
+    r"\b(?:analyze|investigate|trace|contract|deployer|tokenomics|audit)\b",
+    re.IGNORECASE,
+)
+# Definitional questions — "what is / explain / define / how does X work":
+# an educational ask, NOT forensics. Overrides the weaker keyword triggers
+# below when no address/hash or forensics term is present.
+_DEFINITIONAL_RE = re.compile(
+    r"\b(?:what is|what's|what are|explain|define|how does|how do|how to|how is)\b",
+    re.IGNORECASE,
+)
+# Remaining weak analysis triggers — analysis only when the message is NOT
+# a definitional question (checked after _DEFINITIONAL_RE).
 _ANALYSIS_QUESTION_RE = re.compile(
-    r"\b(?:why|explain|how does|compare|analyze|investigate|trace|what happened|deep|"
-    r"contract|deployer|honeypot|tokenomics|audit)\b",
+    r"\b(?:why|compare|what happened|deep|honeypot)\b",
     re.IGNORECASE,
 )
 _ANALYSIS_TERMS = ("on-chain", "forensic", "mev", "exploit")
@@ -207,18 +260,28 @@ def _route_task(message: str) -> str:
     """Route ``message`` to task type ``analysis`` or ``chat``.
 
     Heuristics (pure function of the message text):
-    - ``analysis`` when the message asks why/explain/how does/compare/analyze/
-      investigate/trace/what happened/deep, or references on-chain/forensic/
-      MEV/exploit terms, or names contract/forensics concepts (contract,
-      deployer, honeypot, tokenomics, audit), or is long (>120 chars).
-    - ``chat`` otherwise (simple, definitional, quick questions, risk-rank
-      list asks like "riskiest picks of the day").
+    - ``analysis`` when the message carries a real analysis/forensics signal:
+      an address/hash present (EVM/Solana), an explicit forensics term
+      (analyze/investigate/trace/contract/deployer/tokenomics/audit), a
+      non-definitional analysis ask ("why", "compare", "what happened",
+      "deep", "honeypot", on-chain/forensic/mev/exploit), or is long
+      (>120 chars).
+    - ``chat`` otherwise — including definitional questions ("what is /
+      explain / define / how does X work") with no address and no forensics
+      term, and simple / quick / risk-rank list asks like "riskiest picks of
+      the day".
     """
     low = message.lower().strip()
     if not low:
         return "chat"
     if len(low) > _ANALYSIS_LENGTH_THRESHOLD:
         return "analysis"
+    if _ADDRESS_OR_HASH_RE.search(low):
+        return "analysis"
+    if _ANALYSIS_FORENSIC_RE.search(low):
+        return "analysis"
+    if _DEFINITIONAL_RE.search(low):
+        return "chat"
     if _ANALYSIS_QUESTION_RE.search(low):
         return "analysis"
     if any(term in low for term in _ANALYSIS_TERMS):
@@ -235,14 +298,22 @@ _MARKET_KEYWORDS = ("price", "mcap", "chart", "now", "today")
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
-def _cache_key(message: str) -> str:
+def _cache_key(message: str, *, grounding: str | None = None) -> str:
     """Deterministic cache key: sha256 of the lowercased, whitespace-normalized message.
 
     Case- and whitespace-insensitive so "SOL price?", "SOL PRICE" and
-    "  sol   price  " all hit the same entry.
+    "  sol   price  " all hit the same entry. When ``grounding`` is provided
+    (the caller-supplied ``context_override.system_context`` — e.g. the
+    Telegram bot's persona), it is folded into the digest so a cached answer
+    can never ignore a DIFFERENT persona/RAG block, while repeated questions
+    with the SAME grounding still cache-hit.
     """
     normalized = _WHITESPACE_RE.sub(" ", message.lower().strip())
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(normalized.encode("utf-8"))
+    if grounding:
+        digest.update(b"\0grounding\0")
+        digest.update(_WHITESPACE_RE.sub(" ", grounding.strip()).encode("utf-8"))
+    return digest.hexdigest()
 
 
 def _is_market_query(message: str) -> bool:

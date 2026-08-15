@@ -6,6 +6,14 @@ preparation logic lives in a focused module. ``_sanitize_history`` and
 only helper here that touches I/O (it reads the shared chat-history DB when
 no explicit ``history`` is passed).
 
+KV-cache prefix contract (llama.cpp ``cache_prompt``):
+  The system prompt assembled here is the byte-stable prefix the local
+  llama.cpp servers reuse across turns. It MUST stay per-day stable:
+  - Day-granularity date ONLY (``%Y-%m-%d``) — never minutes.
+  - The volatile market block (60s TTL, live prices/trending) is appended to
+    the USER turn, NOT the system prompt, so the prefix stays cacheable.
+  Keep per-turn volatile data out of the system prompt.
+
 The shared ``ai_guard`` instance lives here because ``_build_messages`` is its
 main consumer; ``app.routers.chat`` re-imports the same instance so the routes
 and the message builder share one guard.
@@ -114,13 +122,15 @@ async def _build_messages(
     system = SYSTEM_PROMPT.format(date=date_str, year=str(now.year))
 
     # ── Market context block (ambient market awareness for EVERY answer) ──
-    # Injected here so both the website chat path and the Telegram bot path
-    # (both call _build_messages) always carry live market context. Best-
-    # effort: build_market_context_block() returns "" when the market sources
-    # are down, so chat never waits on, breaks on, or fabricates this block.
+    # Fetch it here (best-effort: build_market_context_block() returns ""
+    # when the market sources are down, so chat never waits on, breaks on, or
+    # fabricates this block) but do NOT inject it into the system prompt.
+    # The block content re-renders every MARKET_CONTEXT_TTL (60s) — live
+    # prices/trending — so placing it in the system prompt would change the
+    # byte-stable prefix on every cache window and defeat llama.cpp
+    # ``cache_prompt`` KV reuse (see below: it is appended AFTER the user
+    # turn so the core system-prompt prefix stays cacheable).
     market_block = await build_market_context_block()
-    if market_block:
-        system += f"\n\n{market_block}"
 
     if system_context:
         # Escape any delimiter tokens in user context. Cap is sized for the
@@ -150,4 +160,16 @@ async def _build_messages(
         user_message=message,
         max_history=CONTEXT_MAX_MESSAGES,
     )
+
+    # ── Volatile market block goes AFTER the stable prefix ──
+    # The system prompt above is byte-stable for the whole day (day-granular
+    # date, stable persona, inert history). The market block re-renders every
+    # 60s, so it must NOT sit inside the cached system-prompt prefix. Appending
+    # it to the user turn keeps the model informed with fresh prices while
+    # leaving the system-prompt prefix cacheable across turns. Freshness is
+    # preserved (the block is still fetched per chat call, 60s TTL upstream);
+    # only its POSITION in the prompt moved past the cache boundary.
+    if market_block and messages:
+        # build_safe_messages always ends with the current user turn.
+        messages[-1]["content"] = f"{messages[-1]['content']}\n\n{market_block}"
     return messages

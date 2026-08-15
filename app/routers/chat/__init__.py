@@ -23,6 +23,7 @@ import json
 import os
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -31,6 +32,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.ai_router import (
+    LLAMA_HOST,
+    LOCAL_MODEL_PORTS,
     chat_completion as do_chat_completion,
     stream_chat_completion as do_stream_chat_completion,
 )
@@ -68,7 +71,7 @@ from ._prompts import (
     _SYMBOL_RE,  # noqa: F401  (re-export for existing importers)
     _VAGUE_REFERENTS,  # noqa: F401  (re-export for existing importers)
     DISCLAIMER,
-    SYSTEM_PROMPT,  # noqa: F401  (re-export for existing importers)
+    SYSTEM_PROMPT,
     _identity_answer,
     _looks_like_current_events,  # noqa: F401  (re-export for existing importers)
     _should_web_search,
@@ -299,6 +302,47 @@ async def _fetch_market_context() -> dict[str, Any]:
 # never a gate).
 
 
+# ── Per-turn RAG search memo (one search+embed per (collection, query)) ──
+# The chat handler fans the SAME RAG query out to every collection in
+# RAG_COLLECTIONS; each ``_rag_search_collection`` call routes through
+# ``RAGService().search`` → ``three_pillar_search`` → ``get_embedding``.
+# The engine's ``CachedEmbedder`` already dedupes identical query TEXT across
+# collections (md5-keyed, in-memory + Redis, TTL 86400 — verified in
+# ``app/rag/embedder.py``), so the same expanded query is only truly embedded
+# once per process. This memo adds a per-turn boundary cache on top: the same
+# (collection, query) is never searched (QueryExpander + Qdrant round-trip)
+# twice within the window — guarding alias collisions, duplicate collection
+# entries, and burst traffic on the same token. Only NON-EMPTY results are
+# cached, so a transient RAG outage self-heals instead of being masked by a
+# cached empty result.
+_RAG_MEMO_TTL = 60.0  # seconds — same freshness budget as the market block
+_rag_memo: dict[tuple[str, str, int], tuple[float, list[dict[str, Any]]]] = {}
+
+
+def _rag_memo_get(query: str, collection: str, top_k: int) -> list[dict[str, Any]] | None:
+    """Return memoized hits for (collection, query, top_k) within TTL, else None."""
+    entry = _rag_memo.get((query, collection, top_k))
+    if entry is None:
+        return None
+    expires_at, hits = entry
+    if time.monotonic() > expires_at:
+        _rag_memo.pop((query, collection, top_k), None)
+        return None
+    return hits
+
+
+def _rag_memo_set(query: str, collection: str, top_k: int, hits: list[dict[str, Any]]) -> None:
+    """Memoize non-empty hits; evict oldest when the memo exceeds the cap."""
+    if not hits:
+        return
+    _rag_memo[(query, collection, top_k)] = (time.monotonic() + _RAG_MEMO_TTL, hits)
+    if len(_rag_memo) > _CACHE_MAX_ENTRIES:
+        overflow = len(_rag_memo) - _CACHE_MAX_ENTRIES
+        oldest_keys = sorted(_rag_memo, key=lambda k: _rag_memo[k][0])[:overflow]
+        for k in oldest_keys:
+            _rag_memo.pop(k, None)
+
+
 async def _rag_search_collection(query: str, collection: str, top_k: int = RAG_TOP_K) -> list[dict[str, Any]]:
     """Search a single RAG collection (in-process facade — same engine as POST /api/v1/rag/v2/search).
 
@@ -306,12 +350,20 @@ async def _rag_search_collection(query: str, collection: str, top_k: int = RAG_T
     ``collection``/``doc_id``. Returns ``[]`` on any failure so callers fall
     through without RAG context. The import is lazy so the chat router still
     mounts if the RAG stack fails to import.
+
+    Per-turn memo: an identical (collection, query) searched within
+    ``_RAG_MEMO_TTL`` returns the cached hits without re-running the search
+    pipeline (and thus without re-embedding the query). See the memo
+    definition above for the freshness rationale.
     """
+    memo_hits = _rag_memo_get(query, collection, top_k)
+    if memo_hits is not None:
+        return memo_hits
     try:
         from app.rag import RAGService, SearchRequest
 
         resp = await RAGService().search(SearchRequest(query=query, collection=collection, top_k=top_k))
-        return [
+        hits = [
             {
                 "content": h.content,
                 "score": h.score,
@@ -324,6 +376,8 @@ async def _rag_search_collection(query: str, collection: str, top_k: int = RAG_T
     except Exception as e:  # RAG is best-effort — never break chat on search failure
         logger.debug("RAG search failed for collection=%s: %s", collection, e)
         return []
+    _rag_memo_set(query, collection, top_k, hits)
+    return hits
 
 
 async def _search_rag_context(message: str) -> tuple[str, int]:
@@ -347,6 +401,23 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
     if addresses:
         collections.extend(RAG_TOKEN_COLLECTIONS)
     query = _build_rag_query(message, addresses, symbols)
+
+    # ── Per-turn query-embedding warm (ONE embed per turn, not per collection) ──
+    # The fan-out below fires N concurrent searches with the SAME query text.
+    # Each search embeds the (expanded) query via the engine's CachedEmbedder,
+    # which dedupes identical text — BUT ``asyncio.gather`` starts all N at
+    # once, so a cold query would miss the memory cache simultaneously and
+    # fire N duplicate embed HTTP calls. Warm the embedder once, serially,
+    # with the exact text the engine will embed (QueryExpander is
+    # deterministic) so every concurrent search hits the cache. Fail-open:
+    # embedder down → searches fail the same way they would have anyway.
+    try:
+        from app.rag.embeddings import get_embedding
+        from app.rag.retrieval import QueryExpander
+
+        await asyncio.wait_for(get_embedding(QueryExpander().expand(query)), timeout=1.5)
+    except Exception as e:  # RAG is best-effort — warm failure never breaks chat
+        logger.debug("RAG query embed warm skipped: %s", e)
 
     async def _search_all() -> list[dict[str, Any]]:
         results = await asyncio.gather(
@@ -442,6 +513,90 @@ def _cache_set(key: str, response: str, ttl: int) -> None:
         oldest_keys = sorted(_chat_cache, key=lambda k: _chat_cache[k][0])[:overflow]
         for k in oldest_keys:
             _chat_cache.pop(k, None)
+
+
+# ── Local llama.cpp KV-cache pre-warm ─────────────────────────────────
+# llama.cpp ``cache_prompt`` reuse only pays off when a slot ALREADY holds
+# the tokenized prefix — a cold slot pays full prompt-processing latency on
+# the first query (measured: ~doubles first-turn time on CPU). This pre-warm
+# sends a tiny (max_tokens=1) ``cache_prompt`` completion to BOTH local
+# servers at startup, then re-warms periodically, so the model is loaded into
+# a slot and the byte-stable system-prompt prefix is cached BEFORE the first
+# user query. Best-effort: any failure logs at debug and is skipped — the
+# first real query still warms the slot naturally.
+_PREWARM_INTERVAL_SECONDS = 300.0  # re-warm every 5 min (slot cache can be evicted)
+_PREWARM_TIMEOUT = 10.0  # llama.cpp warm-up must never block anything
+
+
+def _build_prewarm_messages() -> list[dict[str, str]]:
+    """Build the exact byte-stable prefix used by real chat turns.
+
+    Mirrors ``_build_messages``: SYSTEM_PROMPT + day-granular date + hardened
+    directives, with NO volatile market/context/history blocks. This is the
+    prefix every real chat request shares, so priming it makes the first real
+    query reuse the slot's KV cache.
+    """
+    now = datetime.now(UTC)
+    date_str = now.strftime("%Y-%m-%d")
+    system = SYSTEM_PROMPT.format(date=date_str, year=str(now.year))
+    return ai_guard.build_safe_messages(system_prompt=system, history=[], user_message="ping", max_history=1)
+
+
+async def _prewarm_llama_slots_once() -> None:
+    """Send a 1-token ``cache_prompt`` completion to both local servers."""
+    messages = _build_prewarm_messages()
+    async with httpx.AsyncClient(timeout=httpx.Timeout(_PREWARM_TIMEOUT, connect=5.0)) as client:
+        for model, port in LOCAL_MODEL_PORTS.items():
+            try:
+                await client.post(
+                    f"http://{LLAMA_HOST}:{port}/v1/chat/completions",
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "max_tokens": 1,
+                        "temperature": 0.0,
+                        "cache_prompt": True,
+                        "chat_template_kwargs": {"enable_thinking": False},
+                    },
+                    headers={"Content-Type": "application/json"},
+                )
+            except Exception as e:  # fail-open — warm-up must never raise
+                logger.debug("llama_prewarm_skip model=%s err=%s", model, str(e)[:120])
+
+
+async def _prewarm_llama_slots_loop() -> None:
+    """Warm once at startup, then re-warm every ``_PREWARM_INTERVAL_SECONDS``."""
+    await _prewarm_llama_slots_once()
+    while True:
+        try:
+            await asyncio.sleep(_PREWARM_INTERVAL_SECONDS)
+        except asyncio.CancelledError:
+            return
+        await _prewarm_llama_slots_once()
+
+
+_prewarm_task: asyncio.Task[Any] | None = None
+
+
+def _start_llama_prewarm() -> None:
+    """Spawn the pre-warm loop as a background task (idempotent)."""
+    global _prewarm_task
+    if _prewarm_task is None or _prewarm_task.done():
+        _prewarm_task = asyncio.create_task(_prewarm_llama_slots_loop())
+
+
+def _stop_llama_prewarm() -> None:
+    """Cancel the pre-warm loop on shutdown (idempotent)."""
+    global _prewarm_task
+    if _prewarm_task is not None:
+        _prewarm_task.cancel()
+        _prewarm_task = None
+
+
+# Router-level startup/shutdown hooks: verified to fire even with an explicit
+# app lifespan (FastAPI collects router ``on_startup``/``on_shutdown`` handlers).
+router.add_event_handler("startup", _start_llama_prewarm)
+router.add_event_handler("shutdown", _stop_llama_prewarm)
 
 
 # ── Tool-use layer (live data grounding) ───────────────────────────────
@@ -540,20 +695,24 @@ async def chat(
 
     # ── RESPONSE CACHE (repeats) ──
     # Repeated/common questions short-circuit the LLM round-trip entirely.
-    # The cache is keyed only on the (sanitized) message; it is skipped when
-    # the caller supplied its own grounding (context_override.system_context,
-    # e.g. the Telegram bot) so a cached answer never ignores fresh RAG
-    # context. Identity/vague canned answers above already returned, so those
-    # are never cached. Failures are never cached either (we only store after
-    # a successful LLM response below).
+    # The cache key is the (sanitized) message PLUS a fingerprint of any
+    # caller-supplied grounding (context_override.system_context — e.g. the
+    # Telegram bot's persona). Previously a grounded request bypassed the
+    # cache unconditionally, so every bot turn paid a full 56-88s LLM call
+    # instead of an 11ms cache hit; now the same grounding → same key →
+    # cache hit, while a DIFFERENT persona/RAG block never serves a stale
+    # cached answer. Identity/vague canned answers above already returned,
+    # so those are never cached. Failures are never cached either (we only
+    # store after a successful LLM response below).
     client_grounded = bool(
         req.context_override
         and isinstance(req.context_override, dict)
         and isinstance(req.context_override.get("system_context"), str)
         and req.context_override.get("system_context", "").strip()
     )
-    cache_key = _cache_key(req.message)
-    cached = None if client_grounded else _cache_get(cache_key)
+    grounding_text = req.context_override.get("system_context") if client_grounded else None
+    cache_key = _cache_key(req.message, grounding=grounding_text)
+    cached = _cache_get(cache_key)
     if cached is not None:
         _save_message(user_id, "user", req.message)
         _save_message(
@@ -727,12 +886,14 @@ async def chat(
         response_content += f"\n\n{DISCLAIMER}"
 
     # ── Cache the (sanitized) success response ──
-    # Market-ish queries (price/mcap/chart/now/today) get a short TTL because
-    # their answers go stale fast; everything else an hour. This runs only on
-    # success, so failed calls are never cached.
-    if not client_grounded:
-        ttl = _CACHE_TTL_MARKET if _is_market_query(req.message) else _CACHE_TTL_DEFAULT
-        _cache_set(cache_key, response_content, ttl)
+    # Grounded requests are cached under the grounding-scoped key (same
+    # persona + same message → hit; different persona → miss). Market-ish
+    # queries (price/mcap/chart/now/today) get a short TTL because their
+    # answers go stale fast; everything else an hour (the persona changes
+    # daily, so 1h is well within the fresh-grounding window). This runs only
+    # on success, so failed calls are never cached.
+    ttl = _CACHE_TTL_MARKET if _is_market_query(req.message) else _CACHE_TTL_DEFAULT
+    _cache_set(cache_key, response_content, ttl)
 
     _apply_rate_limit_headers(response, request)
 
