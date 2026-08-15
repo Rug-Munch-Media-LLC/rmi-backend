@@ -131,19 +131,20 @@ def _point_to_hit(point: Any) -> dict[str, Any]:
     searchable through the facade (they previously returned hits with empty
     text that every formatter silently dropped). Top-level ``verdict`` is
     promoted into metadata the same way as ``severity`` so the
-    weakness/clean/bad_example labels survive to the LLM context.
+    weakness/clean/bad_example labels survive to the LLM context. The
+    curated corpora ALSO store their label fields flat at the top level
+    (``library_id`` / ``library_name`` / ``category`` / ``ecosystem`` /
+    ``pattern``) — those are promoted too so the chat/bot context formatters
+    can render ``[collection·library_id·verdict]`` / ``[collection·category·
+    severity]`` source labels (otherwise the fields would be silently
+    dropped before the LLM ever sees them).
     """
     payload = getattr(point, "payload", None) or {}
     metadata = dict(payload.get("metadata") or {})
-    source = payload.get("source", "")
-    if source and "source" not in metadata:
-        metadata["source"] = source
-    severity = payload.get("severity")
-    if severity and "severity" not in metadata:
-        metadata["severity"] = severity
-    verdict = payload.get("verdict")
-    if verdict and "verdict" not in metadata:
-        metadata["verdict"] = verdict
+    for _k in ("source", "severity", "verdict", "library_id", "library_name", "category", "ecosystem", "pattern"):
+        _v = payload.get(_k)
+        if _v and _k not in metadata:
+            metadata[_k] = _v
     return {
         "doc_id": str(getattr(point, "id", "")),
         "score": float(getattr(point, "score", 0.0) or 0.0),

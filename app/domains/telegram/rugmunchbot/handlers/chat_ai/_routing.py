@@ -609,11 +609,16 @@ async def chat_ai_response(
                 t.cancel()
             await asyncio.gather(*pending, return_exceptions=True)
 
-        # Stop typing indicator + interim placeholder task
-        typing_placeholder = [t for t in (typing_task, placeholder_task) if t is not None]
-        for t in typing_placeholder:
-            t.cancel()
-        await asyncio.gather(*typing_placeholder, return_exceptions=True)
+        # The interim "still digging" edit task has served its purpose — cancel
+        # it so it can never clobber the answer send. The typing indicator
+        # STAYS alive here: the $TOKEN decide-wait, the post-processing
+        # guardrail and the DB persist can still take a second, and the bubble
+        # must not drop before the answer actually lands. It is cancelled
+        # immediately before _send_and_trace_answer below; the finally block is
+        # the backstop for every early-return path.
+        if placeholder_task is not None:
+            placeholder_task.cancel()
+            await asyncio.gather(placeholder_task, return_exceptions=True)
 
         # $TOKEN price card vs AI answer: the DexScreener lookup was fired
         # CONCURRENTLY at the top (ai_chat_handler) so the pipeline never
@@ -680,6 +685,14 @@ async def chat_ai_response(
             return True
 
         await _persist_answer(user.id, text, answer)
+
+        # The answer is about to be sent — drop the typing bubble NOW so the
+        # user sees the bubble disappear and the reply land in the same beat
+        # (Telegram clears the bubble server-side once a message arrives, but
+        # cancelling here keeps us from re-firing a stale pulse mid-send).
+        if typing_task is not None:
+            typing_task.cancel()
+            await asyncio.gather(typing_task, return_exceptions=True)
 
         await _send_and_trace_answer(
             message,

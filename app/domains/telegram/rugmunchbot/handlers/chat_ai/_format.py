@@ -54,9 +54,12 @@ def _append_source_lines(
 
     Only ``web`` and ``rag`` sources carry a query worth citing; scanner /
     market metadata lines are skipped (the answer already attributes them).
-    No URLs are fabricated — bridge sources carry type+query metadata, and
-    the grounding rules already make the model cite outlet/headline inline.
-    Plain text only: ``_send_answer`` HTML-escapes every chunk.
+    RAG sources may carry a ``collection`` (e.g. ``security_patterns``) —
+    when present it is shown so the footer points at the exact corpus, not a
+    generic "RAG". No URLs are fabricated — bridge sources carry type+query
+    metadata, and the grounding rules already make the model cite
+    outlet/headline inline. Plain text only: ``_send_answer`` HTML-escapes
+    every chunk.
     """
     if not sources:
         return answer
@@ -71,7 +74,11 @@ def _append_source_lines(
         if stype == "web" and query:
             lines.append(f"\U0001f310 Web: {query[:90]}")
         elif stype == "rag" and query:
-            lines.append(f"\U0001f4da RAG: {query[:90]}")
+            col = str(s.get("collection") or "").strip()
+            if col:
+                lines.append(f"\U0001f4da RAG ({col}): {query[:90]}")
+            else:
+                lines.append(f"\U0001f4da RAG: {query[:90]}")
     if not lines:
         return answer
     return f"{answer}\n\n\u2014\n" + "\n".join(lines)

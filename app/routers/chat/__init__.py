@@ -98,6 +98,7 @@ from ._rag import (
     _format_web_context,
     _inject_tool_result,
     _is_market_query,
+    _rag_dedup_key,
     _route_task,
 )
 
@@ -439,9 +440,13 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
     deduped: list[dict[str, Any]] = []
     seen: set[str] = set()
     for h in sorted(hits, key=lambda x: float(x.get("score") or 0.0), reverse=True):
-        content = (h.get("content") or "").strip()[:100]
-        if content and content not in seen:
-            seen.add(content)
+        # Verdict-aware dedup key (full normalized content + verdict/severity):
+        # a CLEAN and a MALICIOUS snippet that share identical code MUST both
+        # surface — they carry opposite security meaning. The old 100-char
+        # prefix key also merged unrelated docs that merely shared a prefix.
+        key = _rag_dedup_key(h)
+        if key and key not in seen:
+            seen.add(key)
             deduped.append(h)
     if not deduped:
         return "", 0
@@ -449,7 +454,12 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
     # (not just the top_k slice we format into the prompt). X-RAG-Context uses
     # this count so callers can show an honest "grounded in N sources" footer.
     total_hits = len(deduped)
-    return _format_rag_context(deduped[:RAG_TOP_K]), total_hits
+    # Format ALL deduped hits (not just ``[:RAG_TOP_K]``): the formatter ranks
+    # by collection priority (security_patterns / contract_security first) and
+    # its own 1800-char budget is the real cap — a security_patterns hit that
+    # ranked 6th by raw score would otherwise be sliced away before the
+    # priority ranking could surface it.
+    return _format_rag_context(deduped), total_hits
 
 
 # ── Live web search routing (current-affairs fallback) ────────────────
