@@ -589,7 +589,7 @@ async def auto_label_stats() -> dict[str, Any]:
         raise AppError(message=str(e)[:200]) from e
 
 
-# ── AI-Powered Analysis Endpoints (wired to LiteLLM deepseek-analysis) ──
+# ── AI-Powered Analysis Endpoints (wired to LiteLLM qwen-analysis) ──
 
 
 class HolderClusterRequest(BaseModel):
@@ -602,7 +602,7 @@ class HolderClusterRequest(BaseModel):
 async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict[str, Any]:
     """AI-powered wallet cluster analysis for suspicious patterns.
 
-    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → deepseek-analysis
+    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → qwen-analysis
     to identify bundled launches, sniper coordination, wash trading rings,
     insider clusters, and dev-linked wallets.
     """
@@ -646,7 +646,7 @@ class ContractAnomalyRequest(BaseModel):
 async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str, Any]:
     """AI-powered contract anomaly detection for rug pull indicators.
 
-    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → deepseek-analysis
+    Uses local Ollama (DeepSeek-Qwen-8B) first, then LiteLLM → qwen-analysis
     to review token holder distribution, contract behavior, and on-chain
     patterns for honeypots, rug pulls, and manipulation indicators.
     """
@@ -716,6 +716,6 @@ async def ai_health_check() -> dict[str, Any]:
         "ollama_complex_model": OLLAMA_COMPLEX_MODEL,
         "litellm_available": litellm_ok,
         "litellm_url": LITELLM_BASE_URL,
-        "model": "ollama-first -> litellm/deepseek-analysis",
+        "model": "ollama-first -> litellm/qwen-analysis",
         "fallback": "deepseek-direct + rule-based",
     }

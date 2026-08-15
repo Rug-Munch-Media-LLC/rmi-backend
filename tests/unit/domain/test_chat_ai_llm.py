@@ -285,7 +285,7 @@ async def test_local_llm_simple_question_tries_qwen_first() -> None:
 
 
 async def test_local_llm_deep_question_tries_deepseek_first() -> None:
-    """A deep/analysis question routes to the 9B (deepseek-analysis) first."""
+    """A deep/analysis question routes to the 9B (qwen-analysis) first."""
     _FakeLLMClient.calls.clear()
     await _llm._call_local_llm("investigate this wallet's funding sources", 1)
     url, _ = _FakeLLMClient.calls[0]

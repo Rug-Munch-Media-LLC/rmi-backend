@@ -13,7 +13,7 @@ Layers (free stack, per AGENTS.md):
        * conceptual / educational questions ("what is X", "explain Y") get
          a knowledge answer synthesized by the EXISTING model chain
          (``ai_router.chat_completion``: local qwen-chat →
-         deepseek-analysis → DeepSeek Flash API fallback — no new external
+         qwen-analysis → DeepSeek Flash API fallback — no new external
          calls), clearly labeled as knowledge-based so it is never passed
          off as live web;
        * time-sensitive / market / news questions ("current price",
@@ -125,7 +125,7 @@ _KNOWLEDGE_SYSTEM_PROMPT = (
 async def _knowledge_fallback_answer(query: str) -> str:
     """Synthesize a knowledge answer through the EXISTING model chain.
 
-    Uses ``ai_router.chat_completion`` (local qwen-chat → deepseek-analysis
+    Uses ``ai_router.chat_completion`` (local qwen-chat → qwen-analysis
     → DeepSeek Flash API fallback) — the same chain the rest of the app
     uses. No new external calls. Bounded by
     ``KNOWLEDGE_FALLBACK_TIMEOUT`` so a slow CPU model can never stall the

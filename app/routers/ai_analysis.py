@@ -68,7 +68,7 @@ QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen/qwen-2.5-72b-instruct:free")
 
 # ── Direct llama.cpp config (NO litellm proxy, NO paid APIs) ──
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-DEEPSEEK_PORT = 8086  # deepseek-analysis (Qwen3.5-9B-Abliterated, non-reasoning; legacy alias)
+DEEPSEEK_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
 QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
 
 # Cache
@@ -514,10 +514,10 @@ async def _run_ai_analysis(
     """Try AI analysis, falling through providers: LiteLLM → Ollama → OpenRouter."""
     prompt = _build_analysis_prompt(chain, address, holder_data, scanner_data)
 
-    # ── Primary: llama.cpp deepseek-analysis (local, reasoning) ──
-    result = await _call_llama_analysis(prompt, DEEPSEEK_PORT, "deepseek-analysis")
+    # ── Primary: llama.cpp qwen-analysis (local, reasoning) ──
+    result = await _call_llama_analysis(prompt, DEEPSEEK_PORT, "qwen-analysis")
     if result:
-        return result, "llama/deepseek-analysis"
+        return result, "llama/qwen-analysis"
 
     # ── Fallback: llama.cpp qwen-chat (local, fast) ──
     result = await _call_llama_analysis(prompt, QWEN_PORT, "qwen-chat")

@@ -1,7 +1,7 @@
 """
 RugMaps AI Analysis — DIRECT llama.cpp (local models, NO paid APIs).
 Uses our own data: FAISS indexes, wallet labels, clustering engine, RAG cache.
-Routing order: llama.cpp deepseek-analysis → llama.cpp qwen-chat → rule-based.
+Routing order: llama.cpp qwen-analysis → llama.cpp qwen-chat → rule-based.
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ logger = get_logger(__name__)
 # 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
-DEEPSEEK_PORT = 8086  # deepseek-analysis (Qwen3.5-9B-Abliterated, non-reasoning; legacy alias)
-AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "deepseek-analysis")
+DEEPSEEK_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
+AI_MODEL = os.getenv("AI_ANALYSIS_MODEL", "qwen-analysis")
 # Fast model → token descriptions, simple labeling (Qwen3.5-4B llama.cpp :8085; Ollama fallback).
 OLLAMA_FAST_MODEL = os.getenv("OLLAMA_FAST_MODEL", "qwen3:4b")
 # Complex model → cluster interpretation, anomaly detection, rug pull narratives
@@ -188,7 +188,7 @@ async def _call_litellm_for_rugmaps(prompt: str, task_type: str = "analysis", ma
 
     Args:
         prompt: The full analysis prompt with token data.
-        task_type: "analysis" → deepseek-analysis (deep reasoning), "chat" → qwen-chat (fast).
+        task_type: "analysis" → qwen-analysis (deep reasoning), "chat" → qwen-chat (fast).
         max_tokens: Max response tokens.
 
     Returns:

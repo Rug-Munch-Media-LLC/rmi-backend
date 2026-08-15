@@ -67,15 +67,15 @@ QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
 QWEN_TIMEOUT = 45.0  # CPU LLM: generation dominates latency (~7 tok/s); 45s covers a 200-token answer
 
-# Qwen3.5-9B for deep analysis (alias deepseek-analysis — legacy name; hides thinking output)
+# Qwen3.5-9B for deep analysis (alias qwen-analysis; hides thinking output)
 DEEPSEEK_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
-DEEPSEEK_MODEL = "deepseek-analysis"
+DEEPSEEK_MODEL = "qwen-analysis"
 DEEPSEEK_TIMEOUT = 60.0  # halved: a 2-minute silent wait before failing to the next tier was worthless
 
 # ── Complexity router (local-first) ─────────────────────────────────────
 # Mirrors the backend ``_route_task`` (app/routers/chat/_rag.py): analytical /
 # forensic / explanation-heavy questions ("why", "explain", "investigate",
-# "trace", on-chain terms, long messages) → 9B deepseek-analysis; simple /
+# "trace", on-chain terms, long messages) → 9B qwen-analysis; simple /
 # grounded questions (greeting / price / scan / short) → 4B qwen-chat. The
 # local client orders its model attempts by intent so the RIGHT model answers
 # first (4B for quick chat, 9B for depth) instead of always 4B-first.
@@ -94,7 +94,7 @@ LOCAL_CTX_LIMIT_TOKENS = 16_000
 
 def _route_local_model(message: str) -> str:
     """Route ``message`` to a local model tier: ``"chat"`` (4B qwen-chat) or
-    ``"analysis"`` (9B deepseek-analysis). Mirrors the backend
+    ``"analysis"`` (9B qwen-analysis). Mirrors the backend
     ``_route_task`` so bot and backend agree (chat=4B / analysis=9B)."""
     low = message.lower().strip()
     if not low:
@@ -386,7 +386,7 @@ async def _call_local_llm(
 ) -> dict[str, Any] | None:
     """Local LLM fallback via llama.cpp servers for free chatting.
 
-    Qwen3.5-4B for quick chat, Qwen3.5-9B for deep analysis (aliases qwen-chat / deepseek-analysis).
+    Qwen3.5-4B for quick chat, Qwen3.5-9B for deep analysis (aliases qwen-chat / qwen-analysis).
     Thinking output is stripped from responses.
     ``sources`` are the bridge grounding sources prepended to the prompt;
     ``rag_count = len(sources)`` so the grounding footer renders the REAL

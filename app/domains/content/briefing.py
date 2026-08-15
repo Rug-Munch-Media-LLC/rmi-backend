@@ -330,7 +330,7 @@ async def llm_writer(
 
     Builds a system prompt with the §3 skeleton, §4 voice, and grounding
     rules, then asks ``completion`` (default ``ai_router.chat_completion`` →
-    local llama.cpp ``deepseek-analysis``) to write the post filling the
+    local llama.cpp ``qwen-analysis``) to write the post filling the
     skeleton using ONLY the provided context. Returns "" on any failure
     (completion raises, non-dict result, empty content) so ``draft_briefing``
     falls back to the deterministic template — publishing is never blocked on
@@ -362,7 +362,7 @@ async def llm_writer(
                 {"role": "system", "content": BRIEFING_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            model=model or "deepseek-analysis",
+            model=model or "qwen-analysis",
             task_type="analysis",
             temperature=0.6,
             max_tokens=_briefing_max_tokens(),

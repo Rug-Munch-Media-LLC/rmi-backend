@@ -11,7 +11,7 @@ datacenter IP.
 | OpenCode Zen (`opencode-zen`, `-backup`, `-3`) | **opencode CLI config only** (`~/.config/opencode/opencode.json`) | local egress proxies `127.0.0.1:18081-18083` |
 | KiloCode (`kilocode`, `-backup`, `-3`) | **opencode CLI config only** | local egress proxies `127.0.0.1:18091-18093` |
 | OpenRouter free (`openrouter`, `openrouter-backup`) | opencode CLI config **and** app code (`app/rag_agentic.py`, `app/hallucination_guard.py`, `app/routers/ai_analysis.py`, `app/routers/bot_api.py`) | `https://openrouter.ai/api/v1` direct |
-| Local llama.cpp (`qwen-chat`, `deepseek-analysis`) | `app/ai_router.py` | docker bridge `172.22.0.1` (private — never proxied) |
+| Local llama.cpp (`qwen-chat`, `qwen-analysis`) | `app/ai_router.py` | docker bridge `172.22.0.1` (private — never proxied) |
 
 Zen/KiloCode are **not** called from rmi-backend app code in their provider
 form: the app only reaches Zen through the fleet egress proxy at

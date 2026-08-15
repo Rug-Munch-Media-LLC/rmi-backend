@@ -125,7 +125,7 @@ async def test_llm_writer_calls_completion_with_expected_kwargs() -> None:
     assert await llm_writer(CONTEXT, SKELETON, completion=completion) == "prose"
 
     kwargs = completion.calls[0]
-    assert kwargs["model"] == "deepseek-analysis"
+    assert kwargs["model"] == "qwen-analysis"
     assert kwargs["task_type"] == "analysis"
     assert kwargs["temperature"] == 0.6
     assert kwargs["max_tokens"] == 512

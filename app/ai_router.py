@@ -7,8 +7,7 @@ to the self-hosted llama.cpp servers. NO litellm proxy, NO paid/external APIs.
 
 Local models (llama.cpp, OpenAI-compatible /v1 endpoints):
   - qwen-chat          (Qwen3.5-4B-Abliterated Q6_K, llama.cpp :8085, 8k ctx)
-  - deepseek-analysis  (Qwen3.5-9B-Abliterated Q6_K, llama.cpp :8086, 8k ctx)
-    ^ legacy alias — the underlying model is Qwen3.5 9B, not DeepSeek
+  - qwen-analysis      (Qwen3.5-9B-Abliterated Q6_K, llama.cpp :8086, 8k ctx)
 """
 
 from __future__ import annotations
@@ -35,12 +34,12 @@ router = APIRouter(tags=["AI Router"])
 # model_name → llama.cpp port on the docker bridge gateway.
 # Model aliases map to Qwen3.5 abliterated GGUFs (swap 2026-08-14):
 #   qwen-chat         → Huihui-Qwen3.5-4B-Abliterated Q6_K   (llama-chat :8085)
-#   deepseek-analysis → Huihui-Qwen3.5-9B-Abliterated Q6_K   (llama-analysis :8086)
-# Alias names are kept stable for caller compatibility; "deepseek-analysis" is a
-# legacy label — the underlying model is Qwen3.5 9B, not DeepSeek.
+#   qwen-analysis     → Huihui-Qwen3.5-9B-Abliterated Q6_K   (llama-analysis :8086)
+# Alias names are kept stable for caller compatibility; "qwen-analysis" is the
+# analysis-tier local alias (Qwen3.5 9B on llama.cpp :8086).
 LOCAL_MODEL_PORTS = {
     "qwen-chat": 8085,
-    "deepseek-analysis": 8086,
+    "qwen-analysis": 8086,
 }
 DEFAULT_MODEL = "qwen-chat"
 
@@ -52,21 +51,21 @@ LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 # ── Task → Model routing map ──
 TASK_MODEL_MAP = {
     "chat": "qwen-chat",
-    "analysis": "deepseek-analysis",
+    "analysis": "qwen-analysis",
     "simple": "qwen-chat",
-    "complex": "deepseek-analysis",
-    "code": "deepseek-analysis",
+    "complex": "qwen-analysis",
+    "code": "qwen-analysis",
     "bulk": "qwen-chat",
-    "chart": "deepseek-analysis",
-    "contract": "deepseek-analysis",
+    "chart": "qwen-analysis",
+    "contract": "qwen-analysis",
 }
 
 logger = get_logger("ai_router")
 
 # Model tiers (compat shim for /ai/models — reflects the local reality)
 MODEL_TIERS = {
-    "T0": {"name": "Local-Deep", "models": ["deepseek-analysis"], "max_cost_per_1k": 0.0},
-    "T1": {"name": "Local-Deep", "models": ["deepseek-analysis"], "max_cost_per_1k": 0.0},
+    "T0": {"name": "Local-Deep", "models": ["qwen-analysis"], "max_cost_per_1k": 0.0},
+    "T1": {"name": "Local-Deep", "models": ["qwen-analysis"], "max_cost_per_1k": 0.0},
     "T2": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
     "T3": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
     "T4": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
@@ -451,7 +450,7 @@ async def chat_completion(
             logger.warning("llama_cross_unreachable", model=other, error=str(e))
 
     # ── 3: DeepSeek Flash API (direct api.deepseek.com) fallback ──
-    # Local models are the preferred path (qwen-chat 4B → deepseek-analysis 9B, both Qwen3.5);
+    # Local models are the preferred path (qwen-chat 4B → qwen-analysis 9B, both Qwen3.5);
     # when BOTH local llama.cpp servers are down, fall back to the direct
     # DeepSeek Flash API so the bot never hard-fails on a local-model outage.
     try:
