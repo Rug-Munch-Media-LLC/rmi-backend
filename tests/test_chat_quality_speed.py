@@ -101,9 +101,18 @@ def test_system_prompt_has_never_invent_rule() -> None:
 def test_system_prompt_keeps_identity_and_grounding_rules() -> None:
     assert "RMI Terminal" in SYSTEM_PROMPT
     assert "Rug Munch Intelligence" in SYSTEM_PROMPT
-    assert "Risk Score / Key Findings / Verdict" in SYSTEM_PROMPT
+    # Token-analysis structure is a semantic requirement — "Risk Score" +
+    # "Verdict" must survive any prompt shortening.
+    assert "Risk Score" in SYSTEM_PROMPT
+    assert "Verdict" in SYSTEM_PROMPT
     assert "SECURITY" in SYSTEM_PROMPT
-    assert "2-4 short paragraphs" in SYSTEM_PROMPT
+    # Answer-the-CURRENT-question rule (semantic marker, robust to rewording).
+    assert "LATEST question" in SYSTEM_PROMPT
+    # v14 slim pass: the "2-4 short paragraphs" formatting prose was dropped;
+    # the retained formatting guidance is the terse Telegram Markdown rule.
+    assert "Concise" in SYSTEM_PROMPT
+    assert "Telegram Markdown" in SYSTEM_PROMPT
+    assert "no HTML" in SYSTEM_PROMPT
 
 
 # ── 3. Complexity-based routing ────────────────────────────────────────
@@ -190,6 +199,35 @@ def test_cache_key_deterministic_and_normalized() -> None:
     assert _cache_key("hello") != _cache_key("world")
     # Punctuation is content, not whitespace: "price?" != "price".
     assert _cache_key("SOL price?") != _cache_key("SOL price")
+
+
+# ── Grounding-scoped cache keys (Fix 2 regression tests) ───────────────
+# The cache key folds a fingerprint of ``context_override.system_context``
+# (the bot's persona / RAG block) into the digest: identical message +
+# identical grounding must cache-hit, while a DIFFERENT grounding (or no
+# grounding at all) must never serve a stale answer.
+
+
+def test_cache_key_same_message_same_grounding_is_equal() -> None:
+    persona = "PERSONA — same grounding for both turns"
+    assert _cache_key("what is a honeypot", grounding=persona) == _cache_key("what is a honeypot", grounding=persona)
+
+
+def test_cache_key_different_grounding_differs() -> None:
+    assert _cache_key("is x a rug pull", grounding="persona A") != _cache_key("is x a rug pull", grounding="persona B")
+
+
+def test_cache_key_grounded_and_ungrounded_differ() -> None:
+    """A grounded request must never share a key with the ungrounded one."""
+    assert _cache_key("is x a rug pull") != _cache_key("is x a rug pull", grounding="persona A")
+
+
+def test_cache_key_grounding_is_normalized_and_folded_in() -> None:
+    # Whitespace-normalized like the message part (grounding stays
+    # case-sensitive by design — see _cache_key docstring).
+    assert _cache_key("msg", grounding="PERSONA A") == _cache_key("msg", grounding="  PERSONA   A  ")
+    # Grounding actually participates in the digest, not a no-op.
+    assert _cache_key("msg", grounding="A") != _cache_key("msg", grounding="B")
 
 
 def test_cache_set_get_roundtrip() -> None:

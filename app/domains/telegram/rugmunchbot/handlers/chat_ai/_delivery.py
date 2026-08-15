@@ -52,8 +52,16 @@ logger = get_logger("rmi_bot.chat_ai")
 async def _keep_typing(chat: Any) -> None:
     """Keep the Telegram typing indicator alive until cancelled.
 
-    Telegram expires send_action('typing') after ~5 seconds. LLM calls take
-    10-30s on CPU, so we re-send every 4s to keep the bubble visible.
+    ``chat.send_action("typing")`` is python-telegram-bot's shorthand for the
+    Bot API ``sendChatAction`` call — the exact same server-side mechanism
+    that Telethon drives with ``functions.messages.SetTypingRequest(
+    peer=<chat>, action=types.SendMessageTypingAction())``. (This bot is PTB;
+    the Telethon client is only used by the headless user-session for group
+    management, never for chat replies.)
+
+    Telegram expires the typing bubble after ~5 seconds. LLM calls take
+    10-30s on CPU, so we re-send every 4s to keep the bubble visible. The
+    caller cancels this task the moment the answer is about to be sent.
     """
     while True:
         with contextlib.suppress(Exception):

@@ -102,6 +102,41 @@ def test_format_rag_context_labels_sources() -> None:
     assert "beta content" in text
 
 
+# ── RAG consolidation (2026-08-15): focused 5-collection knowledge set ─────
+
+
+def test_rag_collections_is_focused_five() -> None:
+    """RAG_COLLECTIONS is the consolidated focused 5 — not the old 13.
+
+    Every fan-out collection costs one embed + one Qdrant search + one
+    mandatory rerank, so the set was pruned to the intent space chat/bot
+    actually grounds on. This test pins the exact list so a future
+    re-expansion is a deliberate, reviewed change.
+    """
+    assert len(RAG_COLLECTIONS) == 5
+    assert RAG_COLLECTIONS == [
+        "security_patterns",
+        "codebase_reference",
+        "defi_exploits",
+        "contract_security",
+        "scam_patterns",
+    ]
+    # The knowledge corpora that anchor the security intent are included.
+    assert "codebase_reference" in RAG_COLLECTIONS
+    assert "security_patterns" in RAG_COLLECTIONS
+    # Dropped (data-class, not knowledge): no live scanner/news/market data.
+    for dropped in (
+        "threat_intel",
+        "scam_intel",
+        "news_v2",
+        "coding_knowledge",
+        "wallet_v2",
+        "contract_audits",
+        "audit_findings",
+    ):
+        assert dropped not in RAG_COLLECTIONS, f"{dropped} was dropped in the consolidation"
+
+
 # ── _search_rag_context orchestration ─────────────────────────────────
 
 
@@ -181,6 +216,61 @@ async def test_search_rag_context_dedupes_and_caps_top_k() -> None:
 
     with patch.object(chat_mod, "_rag_search_collection", side_effect=_fake_search):
         _, count = await _search_rag_context("dupe test")
+    assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_search_rag_context_keeps_verdict_differing_hits_separate() -> None:
+    """Dedup must NOT collapse identical text with DIFFERENT verdict labels.
+
+    The labeled good/bad corpora (contract_security verdict=good/bad_example,
+    security_patterns verdict=weakness, codebase_reference verdict=clean) can
+    return the same snippet text with opposite verdicts — collapsing them
+    would silently drop one side of the evidence the LLM needs to weigh
+    (secure-reference vs flagged). Same-verdict identical text still dedupes.
+    """
+
+    async def _fake_search(query: str, collection: str, top_k: int = 5) -> list[dict[str, Any]]:
+        verdict = {"contract_security": "good", "codebase_reference": "clean"}.get(collection, "weakness")
+        return [
+            {
+                "content": "identical text with differing verdict labels",
+                "score": 0.9,
+                "metadata": {"verdict": verdict},
+                "collection": collection,
+                "doc_id": f"doc-{collection}",
+            }
+        ]
+
+    with patch.object(chat_mod, "_rag_search_collection", side_effect=_fake_search):
+        context, count = await _search_rag_context("verdict dedup test")
+
+    # Three verdict labels → three distinct hits (not collapsed to one).
+    assert count == 3
+    # Each side of the good/bad evidence is visible to the LLM in the
+    # rendered context (assert the verdict values, not the label format —
+    # the formatter labels hits [collection·category·verdict]).
+    for verdict in ("good", "clean", "weakness"):
+        assert verdict in context, verdict
+
+
+@pytest.mark.asyncio
+async def test_search_rag_context_dedupes_same_verdict_same_text() -> None:
+    """Identical text AND identical verdict collapse to one hit."""
+
+    async def _fake_search(query: str, collection: str, top_k: int = 5) -> list[dict[str, Any]]:
+        return [
+            {
+                "content": "same text same verdict",
+                "score": 0.9,
+                "metadata": {"verdict": "clean"},
+                "collection": collection,
+                "doc_id": f"doc-{collection}",
+            }
+        ]
+
+    with patch.object(chat_mod, "_rag_search_collection", side_effect=_fake_search):
+        _, count = await _search_rag_context("same verdict dedup")
     assert count == 1
 
 

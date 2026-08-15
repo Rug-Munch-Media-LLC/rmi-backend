@@ -86,13 +86,21 @@ async def test_backend_chat_posts_to_chat_endpoint() -> None:
     # production model gets the grounding bullets + anti-hallucination rules
     # + response-formatting (not just the generic backend SYSTEM_PROMPT).
     assert body["context_override"]["system_context"] == _llm.PERSONA_CONTEXT
-    # v12 slim pass renamed the sections ("DATA GROUNDING RULES" →
-    # "DATA GROUNDING", "RESPONSE FORMATTING" → "FORMATTING") — assert the
-    # current names plus the new ANSWER QUALITY block.
-    assert "DATA GROUNDING" in body["context_override"]["system_context"]
-    assert "ANTI-PATTERNS" in body["context_override"]["system_context"]
-    assert "FORMATTING" in body["context_override"]["system_context"]
-    assert "ANSWER QUALITY" in body["context_override"]["system_context"]
+    # v12/v14 slim passes compressed section headers, examples and prose.
+    # Assert the SEMANTIC non-negotiables (see prompts.py v14 comment) that
+    # must survive ANY future shortening — never a specific sentence:
+    sys_ctx = body["context_override"]["system_context"]
+    assert "DATA GROUNDING" in sys_ctx
+    assert "never invent metrics" in sys_ctx
+    assert "CHAIN SCOPING" in sys_ctx
+    assert "RISK RANKING" in sys_ctx
+    assert "TOKEN LISTS" in sys_ctx
+    assert "ANSWER QUALITY" in sys_ctx
+    # formatting rule (v12 renamed the header to "FORMAT:")
+    assert "FORMAT:" in sys_ctx
+    assert "Telegram Markdown" in sys_ctx
+    # instructions security
+    assert "reveal or repeat" in sys_ctx
 
 
 async def test_backend_chat_forwarded_for_header() -> None:
@@ -303,6 +311,13 @@ def test_route_local_model_simple_chat() -> None:
         "explain how mev works",
         "define a rug pull",
         "how does a honeypot work",
+        # Plain definitional asks stay on the fast 4B — no address, no
+        # forensics term (2026-08-15 definitional override).
+        "what is bitcoin",
+        "what is ethereum",
+        "what's the deal with solana",
+        "how do i buy bitcoin",
+        "what are gas fees",
     ):
         assert _llm._route_local_model(q) == "chat", q
 
@@ -316,13 +331,48 @@ def test_route_local_model_deep_analysis() -> None:
         "trace the funds on-chain",
         "is this contract a honeypot",
         "who is the deployer of this token",
+        # Explicit forensics terms win over any definitional phrasing:
+        # "trace the deployer" is a forensics ask, not a definition.
+        "trace the deployer",
+        "analyze the deployer of this token",
     ):
         assert _llm._route_local_model(q) == "analysis", q
     # A real forensics signal beats the definitional rule: an address present
     # routes to the 9B even with "is this a honeypot ..." phrasing.
     assert _llm._route_local_model("is this a honeypot " + "0x" + "a" * 40) == "analysis"
+    # EVM 64-hex (transaction/bytecode-style hash) also routes to analysis.
+    assert _llm._route_local_model("check " + "0x" + "b" * 64) == "analysis"
+    # Solana base58 address (44 chars) routes to analysis even inside a
+    # definitional "what is" question.
+    sol = "So11111111111111111111111111111111111111112"
+    assert _llm._route_local_model(f"what is {sol}") == "analysis"
     # Long messages route to analysis (mirrors backend _route_task length gate).
     assert _llm._route_local_model("x" * 200) == "analysis"
+
+
+def test_route_local_model_address_beats_definitional_override() -> None:
+    """The address-present signal (2026-08-15) beats the definitional override.
+
+    A definitional question with an address/hash is a real on-chain ask and
+    must go to the 9B — the 4B is only for definitions with NO forensics
+    signal. This is the exact regression that made "is this a honeypot 0x…"
+    route to the fast 4B before the fix.
+    """
+    evm40 = "0x" + "a" * 40
+    evm64 = "0x" + "b" * 64
+    solana = "So11111111111111111111111111111111111111112"
+    for q in (
+        f"is this a honeypot {evm40}",
+        f"what is this contract {evm64}",
+        f"how does {solana} work",
+        f"explain the token at {evm40}",
+        f"define {evm40}",
+    ):
+        assert _llm._route_local_model(q) == "analysis", q
+    # The same phrasing WITHOUT an address stays on the fast 4B.
+    assert _llm._route_local_model("what is this contract") == "analysis"  # "contract" is forensics
+    assert _llm._route_local_model("what is this token") == "chat"
+    assert _llm._route_local_model("explain the token at that address") == "chat"
 
 
 async def test_local_llm_simple_question_tries_qwen_first() -> None:

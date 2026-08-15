@@ -31,6 +31,7 @@ __all__ = [
     "WEB_CONTEXT_MAX_CHARS",
     "WEB_HIT_MAX_CHARS",
     "_MAX_TOKEN_HINTS",
+    "_RAG_COLLECTION_PRIORITY",
     "_build_rag_query",
     "_cache_key",
     "_extract_token_hints",
@@ -38,6 +39,8 @@ __all__ = [
     "_format_web_context",
     "_inject_tool_result",
     "_is_market_query",
+    "_rag_dedup_key",
+    "_rag_hit_label",
     "_route_task",
 ]
 
@@ -149,42 +152,143 @@ def _build_rag_query(message: str, addresses: list[str], symbols: list[str]) -> 
     return query[:600]
 
 
+# Collection priority for context ranking. The curated vuln corpora
+# (security_patterns, contract_security) answer "is X vulnerable / how does
+# the attack work" best, so their hits are ranked ahead of code-reference
+# snippets (codebase_reference) and incident/scam writeups. Unknown
+# collections sort last (priority 5) and keep score order among themselves.
+_RAG_COLLECTION_PRIORITY = {
+    "security_patterns": 0,
+    "contract_security": 1,
+    "codebase_reference": 2,
+    "defi_exploits": 3,
+    "scam_patterns": 4,
+}
+_DEFAULT_COLLECTION_PRIORITY = 5
+
+
+def _rag_hit_label(h: dict[str, Any]) -> str:
+    """Compact ``[collection·primary·secondary]`` source label for a RAG hit.
+
+    The primary qualifier is the corpus's natural key (vuln ``category`` for
+    ``security_patterns``/``contract_security``, ``library_id`` for
+    ``codebase_reference``); the secondary is the verdict/severity the corpus
+    stamps (e.g. ``Critical`` for a SWC pattern, ``clean``/``malicious`` for a
+    code snippet). Falls back gracefully when metadata is absent so every hit
+    still carries a collection label.
+    """
+    col = str(h.get("collection") or "unknown")
+    metadata = h.get("metadata") or {}
+
+    def _get(*keys: str) -> str:
+        for k in keys:
+            v = h.get(k) or metadata.get(k)
+            if v:
+                return str(v).strip()
+        return ""
+
+    category = _get("category", "pattern")
+    severity = _get("severity")
+    verdict = _get("verdict")
+    library_id = _get("library_id", "library_name")
+
+    parts = [col]
+    if col == "codebase_reference":
+        if library_id:
+            parts.append(library_id)
+        if verdict:
+            parts.append(verdict)
+    elif col in ("security_patterns", "contract_security"):
+        if category:
+            parts.append(category)
+        if severity:
+            parts.append(severity.capitalize())
+        elif verdict:
+            parts.append(verdict)
+    else:
+        if severity:
+            parts.append(severity.capitalize())
+        elif verdict:
+            parts.append(verdict)
+    return "[" + "\u00b7".join(parts) + "]"
+
+
+# Compact model-facing guide appended to the RAG block so the LLM knows how
+# to cite the labeled sources (kept short — it counts against the budget).
+_RAG_CITATION_GUIDE = (
+    "RAG KNOWLEDGE \u2014 cite each source by its [collection\u00b7label], e.g. "
+    'a vuln pattern as "Reentrancy \u2014 Critical" or a code snippet as '
+    "[codebase_reference\u00b7openzeppelin/contracts\u00b7clean]. "
+    "Trust the verdict labels (clean vs malicious, severity)."
+)
+
+
+def _rag_dedup_key(hit: dict[str, Any]) -> str:
+    """Verdict-aware cross-collection dedup key for a RAG hit.
+
+    Normalizes the full content (whitespace-collapsed, lowercased) and folds
+    in the verdict/severity labels, so a clean snippet and a malicious
+    snippet that share identical code NEVER collapse into one hit \u2014 the
+    security meaning is part of the key. Mirrors the bot's ``_content_key``
+    semantics but keeps verdict/severity in the digest. Returns ``""`` for a
+    hit with no usable content (callers skip those).
+    """
+    content = (hit.get("content") or "").strip()
+    if not content:
+        content = str((hit.get("metadata") or {}).get("title") or "").strip()
+    norm = re.sub(r"\s+", " ", content.lower()).strip()
+    if not norm:
+        return ""
+    metadata = hit.get("metadata") or {}
+    verdict = str(hit.get("verdict") or metadata.get("verdict") or "").strip().lower()
+    severity = str(hit.get("severity") or metadata.get("severity") or "").strip().lower()
+    return hashlib.sha256(f"{norm}\0{verdict}\0{severity}".encode()).hexdigest()
+
+
 def _format_rag_context(hits: list[dict[str, Any]], max_chars: int = RAG_CONTEXT_MAX_CHARS) -> str:
     """Render top RAG hits as a compact, LLM-friendly context block.
 
-    Each hit is labeled with its collection + score so the LLM can weigh
-    source quality. When a hit carries a security label (``verdict`` from the
-    labeled good/bad contract corpus, or a hit-level/metadata ``severity``),
-    that label is appended so the model can distinguish secure-reference
-    (verdict=good) from flagged (verdict=bad / severity=critical) evidence.
-    Truncates to ``max_chars`` total.
+    Hits are ranked by collection priority first (security_patterns /
+    contract_security vuln corpora ahead of codebase_reference and incident
+    writeups), then by score, so vulnerability questions surface pattern
+    evidence first. Each hit is labeled with a compact source label
+    (``[collection·primary·secondary]``, e.g.
+    ``[security_patterns·Reentrancy·Critical]`` or
+    ``[codebase_reference·openzeppelin/contracts·clean]``) plus score, so the
+    LLM can attribute and cite each source. A short citation guide tells the
+    model how to cite the labels. Truncates to ``max_chars`` total (guide +
+    hits).
     """
+    ranked = sorted(
+        hits,
+        key=lambda h: (
+            _RAG_COLLECTION_PRIORITY.get(str(h.get("collection") or "unknown"), _DEFAULT_COLLECTION_PRIORITY),
+            -float(h.get("score") or 0.0),
+        ),
+    )
     parts: list[str] = []
-    total = 0
-    for i, h in enumerate(hits, 1):
+    guide = _RAG_CITATION_GUIDE
+    reserve = len(guide) + 2  # guide + blank line after it
+    # The guide counts against the budget too — reserve its space up front so
+    # the rendered block (guide + hits) can never exceed max_chars.
+    total = 0 if reserve > max_chars else reserve
+    for i, h in enumerate(ranked, 1):
         content = (h.get("content") or "").strip()
         if not content:
             continue
         snippet = content[:RAG_HIT_MAX_CHARS]
         col = h.get("collection") or "unknown"
         score = float(h.get("score") or 0.0)
-        block = f"[{i}] Source: {col} (score: {score:.3f})"
-        labels: list[str] = []
-        metadata = h.get("metadata") or {}
-        verdict = h.get("verdict") or metadata.get("verdict")
-        if verdict:
-            labels.append(f"verdict={verdict}")
-        severity = h.get("severity") or metadata.get("severity")
-        if severity:
-            labels.append(f"severity={severity}")
-        if labels:
-            block += f" [{' | '.join(labels)}]"
-        block += f"\n{snippet}"
+        block = f"[{i}] Source: {col} (score: {score:.3f}) {_rag_hit_label(h)}\n{snippet}"
         if total + len(block) > max_chars:
             break
         parts.append(block)
         total += len(block)
-    return "\n\n".join(parts)
+    if not parts:
+        return ""
+    if reserve > max_chars:
+        return "\n\n".join(parts)
+    return f"{guide}\n\n" + "\n\n".join(parts)
 
 
 # ── Live web search context formatting ──────────────────────────────────

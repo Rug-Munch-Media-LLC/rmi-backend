@@ -163,6 +163,10 @@ def _content_key(hit: dict[str, Any]) -> str:
     contract_security) WITHOUT over-collapsing distinct short docs that
     merely share a prefix — the old ``[:100]``-prefix key merged unrelated
     scanner findings that started with the same text.
+
+    The verdict/severity labels are folded INTO the hash so a CLEAN and a
+    MALICIOUS snippet with identical code never collapse into one hit —
+    they carry opposite security meaning and both must reach the LLM.
     """
     content = (hit.get("content") or "").strip()
     if not content:
@@ -170,7 +174,10 @@ def _content_key(hit: dict[str, Any]) -> str:
     norm = re.sub(r"\s+", " ", content.lower()).strip()
     if not norm:
         return ""
-    return hashlib.sha256(norm.encode("utf-8")).hexdigest()
+    metadata = hit.get("metadata") or {}
+    verdict = str(hit.get("verdict") or metadata.get("verdict") or "").strip().lower()
+    severity = str(hit.get("severity") or metadata.get("severity") or "").strip().lower()
+    return hashlib.sha256(f"{norm}\0{verdict}\0{severity}".encode()).hexdigest()
 
 
 async def rag_lookup(*, query: str = "") -> ToolResult:
