@@ -318,7 +318,7 @@ class TestMenus:
         # v12: Chart is a first-class capability wired to the existing
         # run_chart usage card (chart image + indicators).
         labels = " | ".join(c.label for c in menus.CAPABILITIES)
-        assert "Chart" in labels
+        assert "📈 Chart" in labels
         chart = menus.capability_by_callback("run_chart")
         assert chart is not None
-        assert chart.label == "Chart"
+        assert chart.label == "📈 Chart"

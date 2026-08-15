@@ -3,10 +3,10 @@
 RugMunchBot — prompt / persona constants (v10).
 
 The bot persona is injected on every bot→backend synthesis call via
-``context_override.system_context`` (see ``ai_chat._build_system_context``),
-so the character profile applies to free-text chat, /chat, /ask and any
-handler that calls ``chat_synthesis()``. The backend appends this block to
-its own SYSTEM_PROMPT (app/routers/chat.py).
+``context_override.system_context`` (see ``handlers/chat_ai/_llm.py``,
+``_call_backend_chat``), so the character profile applies to free-text
+chat, /chat, /ask and any handler that calls ``chat_ai_response()``. The
+backend appends this block to its own SYSTEM_PROMPT (app/routers/chat.py).
 
 The backend injects the current date/time with each request and may include
 SearXNG web results as "Web results (live)" context blocks. The bot chat
@@ -15,8 +15,9 @@ ships PERSONA_CONTEXT via ``context_override.system_context`` on tier-1
 the backend's auto-RAG.
 
 Version history:
-  v7 (ai_chat.py)  — "crypto generalist" block: no grounding rules, no
-                     source citation (explicitly forbade naming sources).
+  v7 (removed bot-side ``ai_chat.py``) — "crypto generalist" block: no
+                     grounding rules, no source citation (explicitly forbade
+                     naming sources).
   v8 (prompts.py)  — crypto-analyst persona: data-grounding rules,
                      anti-hallucination guardrails, source citation.
   v9 (prompts.py)  — time awareness, market-context framing, live-data

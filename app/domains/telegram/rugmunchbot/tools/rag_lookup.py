@@ -18,8 +18,9 @@ Why this tool exists:
 
 Layers (free stack, per AGENTS.md):
   1. Backend RAG facade — ``POST /api/v1/rag/v2/search`` (the same endpoint
-     the deprecated ``ai_chat.search_rag`` used), searched in parallel across
-     the intel collections, deduped by content, best hits kept.
+     the legacy bot-side RAG search used before the dedup refactor),
+     searched in parallel across the intel collections, deduped by content,
+     best hits kept.
   There is no layer 2: if RAG is down the tool reports ``ok=False`` and the
   pipeline degrades exactly as before — RAG is an enhancement, never a gate.
 

@@ -265,10 +265,11 @@ async def _fetch_market_context() -> dict[str, Any]:
 
 # ── RAG context grounding ───────────────────────────────────────────────
 # Web chat grounds the LLM with relevant RAG knowledge using the same
-# pattern as the Telegram bot's RAG+LLM synthesis
-# (app/domains/telegram/rugmunchbot/ai_chat.py): search RAG before the LLM
-# call, format the top hits, and inject them into the system prompt via the
-# ``context_override.system_context`` mechanism (see ``_build_messages``).
+# pattern as the Telegram bot's RAG+LLM synthesis (bot-side
+# ``tools/rag_lookup.py`` + ``handlers/chat_ai/_llm.py``): search RAG before
+# the LLM call, format the top hits, and inject them into the system prompt
+# via the ``context_override.system_context`` mechanism (see
+# ``_build_messages``).
 #
 # Collections searched for every message; ``scanner_v2`` is added when the
 # message mentions a token address. Focused on SECURITY + INTELLIGENCE +

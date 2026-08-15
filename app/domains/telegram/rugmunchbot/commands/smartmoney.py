@@ -10,6 +10,7 @@ import httpx
 
 from app.domains.telegram.rugmunchbot.config import BACKEND_URL, DEXSCREENER, backend_headers
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 logger = get_logger("rmi.smartmoney")
 
@@ -37,33 +38,33 @@ async def cmd_smartmoney(update, ctx) -> None:
         smart_money_data = None
         top_holders = []
 
-        async with httpx.AsyncClient(timeout=20) as client:
-            try:
-                r = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/token/{address}",
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if r.status_code == 200:
-                    data = r.json()
-                    smart_money_data = data.get("smart_money", [])
-                    top_holders = data.get("top_holders", [])
-            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
-                logger.debug("RMI backend call failed: %s", exc)
-
-            # Fallback: fetch DexScreener for basic info
-            r = await client.get(f"{DEXSCREENER}/tokens/{address}")
-            pair_data = {}
+        client = get_shared_client(20)
+        try:
+            r = await client.get(
+                f"{BACKEND_URL}/api/v1/databus/token/{address}",
+                headers=backend_headers(),
+                timeout=10,
+            )
             if r.status_code == 200:
-                pairs = r.json().get("pairs", [])
-                if pairs:
-                    p = pairs[0]
-                    pair_data = {
-                        "symbol": p.get("baseToken", {}).get("symbol", "???"),
-                        "name": p.get("baseToken", {}).get("name", "Unknown"),
-                        "price": p.get("priceUsd", 0),
-                        "mcap": p.get("marketCap", 0),
-                    }
+                data = r.json()
+                smart_money_data = data.get("smart_money", [])
+                top_holders = data.get("top_holders", [])
+        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
+            logger.debug("RMI backend call failed: %s", exc)
+
+        # Fallback: fetch DexScreener for basic info
+        r = await client.get(f"{DEXSCREENER}/tokens/{address}")
+        pair_data = {}
+        if r.status_code == 200:
+            pairs = r.json().get("pairs", [])
+            if pairs:
+                p = pairs[0]
+                pair_data = {
+                    "symbol": p.get("baseToken", {}).get("symbol", "???"),
+                    "name": p.get("baseToken", {}).get("name", "Unknown"),
+                    "price": p.get("priceUsd", 0),
+                    "mcap": p.get("marketCap", 0),
+                }
 
         symbol = pair_data.get("symbol", "???")
         name = pair_data.get("name", "Unknown")

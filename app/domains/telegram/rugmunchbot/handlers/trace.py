@@ -38,6 +38,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, trace_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -123,204 +124,204 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            data: dict[str, Any] = {}
-            cross_chain: list[Any] = []
+        client = get_shared_client(30)
+        data: dict[str, Any] = {}
+        cross_chain: list[Any] = []
 
-            async def _fetch_wallet() -> dict[str, Any]:
-                try:
-                    wallet_resp = await client.get(
-                        f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
-                        headers=backend_headers(),
-                        timeout=15,
-                    )
-                    if wallet_resp.status_code == 200:
-                        return wallet_resp.json()
-                except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
-                    logger.warning(f"trace wallet fetch failed: {e}")
-                return {}
-
-            async def _fetch_cross_chain() -> list[Any]:
-                try:
-                    cc_resp = await client.get(
-                        f"{BACKEND_URL}/api/v1/cross-chain/{address}",
-                        params={"chain": chain},
-                        headers=backend_headers(),
-                        timeout=10,
-                    )
-                    if cc_resp.status_code == 200:
-                        profile = cc_resp.json()
-                        primary = profile.get("primary_chain", chain)
-                        return [
-                            {
-                                "source_chain": primary,
-                                "dest_chain": m.get("chain", ""),
-                                "address": m.get("address", ""),
-                                "confidence": m.get("confidence", 0),
-                            }
-                            for m in profile.get("addresses", [])
-                        ]
-                except (httpx.HTTPError, ConnectionError, TimeoutError):
-                    pass
-                return []
-
-            # Wallet tokens + cross-chain run concurrently (previously
-            # sequential — up to 25s worst case).
-            data, cross_chain = await asyncio.gather(_fetch_wallet(), _fetch_cross_chain())
-
-            s = sep()
-            d = thin_sep()
-
-            lines = [
-                "🔍 <b>Cross-Chain Fund Trace</b>",
-                s,
-                f"<code>{address}</code>",
-                f"⛓️ Chain: {chain}",
-                "",
-            ]
-
-            # Funding Source
-            funding = data.get("funding_source")
-            if funding:
-                lines.extend(
-                    [
-                        "<b>💰 Funding Source</b>",
-                        d,
-                        f"  {funding}",
-                        "",
-                    ]
+        async def _fetch_wallet() -> dict[str, Any]:
+            try:
+                wallet_resp = await client.get(
+                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
+                    headers=backend_headers(),
+                    timeout=15,
                 )
-            elif data.get("is_exchange"):
-                lines.extend(
-                    [
-                        "💰 <b>Funding Source</b>",
-                        d,
-                        "  🏦 Exchange-funded wallet",
-                        "",
-                    ]
+                if wallet_resp.status_code == 200:
+                    return wallet_resp.json()
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+                logger.warning(f"trace wallet fetch failed: {e}")
+            return {}
+
+        async def _fetch_cross_chain() -> list[Any]:
+            try:
+                cc_resp = await client.get(
+                    f"{BACKEND_URL}/api/v1/cross-chain/{address}",
+                    params={"chain": chain},
+                    headers=backend_headers(),
+                    timeout=10,
                 )
-            else:
-                # Try to trace back first funder
-                lines.extend(
-                    [
-                        "💰 <b>Funding Source</b>",
-                        d,
-                        "  ❓ Unknown — wallet may be self-funded or untraceable",
-                        "",
+                if cc_resp.status_code == 200:
+                    profile = cc_resp.json()
+                    primary = profile.get("primary_chain", chain)
+                    return [
+                        {
+                            "source_chain": primary,
+                            "dest_chain": m.get("chain", ""),
+                            "address": m.get("address", ""),
+                            "confidence": m.get("confidence", 0),
+                        }
+                        for m in profile.get("addresses", [])
                     ]
-                )
+            except (httpx.HTTPError, ConnectionError, TimeoutError):
+                pass
+            return []
 
-            # Connected Wallets
-            connected = data.get("connected_wallets", [])
-            if connected:
-                lines.extend(
-                    [
-                        "🔗 <b>Connected Wallets</b>",
-                        d,
-                    ]
-                )
-                for _i, w in enumerate(connected[:8], 1):
-                    label = ""
-                    if isinstance(w, dict):
-                        addr_w = w.get("address", str(w))
-                        label = w.get("label", "")
-                        chain_w = w.get("chain", "")
-                        conn_type = w.get("type", "linked")
-                    else:
-                        addr_w = str(w)
-                        chain_w = ""
-                        conn_type = "linked"
+        # Wallet tokens + cross-chain run concurrently (previously
+        # sequential — up to 25s worst case).
+        data, cross_chain = await asyncio.gather(_fetch_wallet(), _fetch_cross_chain())
 
-                    conn_emoji = {
-                        "funded": "⬅️",
-                        "funded_by": "➡️",
-                        "linked": "🔗",
-                        "same_owner": "👤",
-                        "exchange": "🏦",
-                        "contract": "📄",
-                    }.get(conn_type, "🔗")
-                    chain_tag = f" ({chain_w})" if chain_w else ""
-                    label_tag = f" — {label}" if label else ""
-                    lines.append(f"  {conn_emoji} <code>{addr_w}</code>{chain_tag}{label_tag}")
-                if len(connected) > 8:
-                    lines.append(f"  ... and {len(connected) - 8} more")
-                lines.append("")
+        s = sep()
+        d = thin_sep()
 
-            # Cross-Chain Connections
-            if cross_chain:
-                lines.extend(
-                    [
-                        "🌉 <b>Cross-Chain Activity</b>",
-                        d,
-                    ]
-                )
-                for conn in cross_chain[:6]:
-                    src = conn.get("source_chain", "")
-                    dst = conn.get("dest_chain", "")
-                    amt = conn.get("amount_usd", 0)
-                    ts = conn.get("timestamp", "")
-                    lines.append(
-                        f"  🌐 {src} → {dst}"
-                        f"{' ($' + fmt_number(amt) + ')' if amt else ''}"
-                        f"{' | ' + ts[:10] if ts else ''}"
-                    )
-                if len(cross_chain) > 6:
-                    lines.append(f"  ... and {len(cross_chain) - 6} more")
-                lines.append("")
+        lines = [
+            "🔍 <b>Cross-Chain Fund Trace</b>",
+            s,
+            f"<code>{address}</code>",
+            f"⛓️ Chain: {chain}",
+            "",
+        ]
 
-            # Exchange Interactions
-            exchanges = data.get("exchange_interactions", data.get("exchanges", []))
-            if exchanges:
-                lines.extend(
-                    [
-                        "🏦 <b>Exchange Interactions</b>",
-                        d,
-                    ]
-                )
-                for ex in exchanges[:5]:
-                    if isinstance(ex, dict):
-                        name = ex.get("name", str(ex))
-                        direction = ex.get("direction", "interacted")
-                        amount = ex.get("amount_usd", 0)
-                    else:
-                        name = str(ex)
-                        direction = "interacted"
-                        amount = 0
-                    direction_emoji = {
-                        "deposit": "⬆️",
-                        "withdrawal": "⬇️",
-                        "interacted": "🔄",
-                    }.get(direction.lower(), "🔄")
-                    amt_str = f" ${fmt_number(amount)}" if amount else ""
-                    lines.append(f"  {direction_emoji} {_label_exchange(name)}{amt_str}")
-                lines.append("")
-
-            # Wallet Activity Summary
-            tx_count = data.get("tx_count", 0)
-            balance = data.get("balance_usd", 0)
-            age_days = data.get("wallet_age_days", 0)
-            pnl = data.get("pnl_estimate")
-
+        # Funding Source
+        funding = data.get("funding_source")
+        if funding:
             lines.extend(
                 [
-                    "<b>📊 Wallet Summary</b>",
+                    "<b>💰 Funding Source</b>",
                     d,
-                    f"  💰 Balance: <b>{fmt_number(balance)}</b>",
-                    f"  📝 Transactions: <b>{tx_count:,}</b>" if tx_count else "  📝 Transactions: N/A",
-                    f"  ⏳ Wallet Age: <b>{age_days} days</b>" if age_days else "  ⏳ Wallet Age: Unknown",
+                    f"  {funding}",
+                    "",
+                ]
+            )
+        elif data.get("is_exchange"):
+            lines.extend(
+                [
+                    "💰 <b>Funding Source</b>",
+                    d,
+                    "  🏦 Exchange-funded wallet",
+                    "",
+                ]
+            )
+        else:
+            # Try to trace back first funder
+            lines.extend(
+                [
+                    "💰 <b>Funding Source</b>",
+                    d,
+                    "  ❓ Unknown — wallet may be self-funded or untraceable",
+                    "",
                 ]
             )
 
-            if pnl is not None:
-                pnl_emoji = "📈" if pnl >= 0 else "📉"
-                lines.append(f"  {pnl_emoji} Est. P&L: <b>{fmt_number(pnl)}</b>")
+        # Connected Wallets
+        connected = data.get("connected_wallets", [])
+        if connected:
+            lines.extend(
+                [
+                    "🔗 <b>Connected Wallets</b>",
+                    d,
+                ]
+            )
+            for _i, w in enumerate(connected[:8], 1):
+                label = ""
+                if isinstance(w, dict):
+                    addr_w = w.get("address", str(w))
+                    label = w.get("label", "")
+                    chain_w = w.get("chain", "")
+                    conn_type = w.get("type", "linked")
+                else:
+                    addr_w = str(w)
+                    chain_w = ""
+                    conn_type = "linked"
 
-            if data.get("flags"):
-                lines.extend(["", "⚠️ <b>Flags</b>", d])
-                for flag in data["flags"][:5]:
-                    lines.append(f"  🔴 {flag}")
+                conn_emoji = {
+                    "funded": "⬅️",
+                    "funded_by": "➡️",
+                    "linked": "🔗",
+                    "same_owner": "👤",
+                    "exchange": "🏦",
+                    "contract": "📄",
+                }.get(conn_type, "🔗")
+                chain_tag = f" ({chain_w})" if chain_w else ""
+                label_tag = f" — {label}" if label else ""
+                lines.append(f"  {conn_emoji} <code>{addr_w}</code>{chain_tag}{label_tag}")
+            if len(connected) > 8:
+                lines.append(f"  ... and {len(connected) - 8} more")
+            lines.append("")
 
-            lines.append(footer_links())
+        # Cross-Chain Connections
+        if cross_chain:
+            lines.extend(
+                [
+                    "🌉 <b>Cross-Chain Activity</b>",
+                    d,
+                ]
+            )
+            for conn in cross_chain[:6]:
+                src = conn.get("source_chain", "")
+                dst = conn.get("dest_chain", "")
+                amt = conn.get("amount_usd", 0)
+                ts = conn.get("timestamp", "")
+                lines.append(
+                    f"  🌐 {src} → {dst}"
+                    f"{' ($' + fmt_number(amt) + ')' if amt else ''}"
+                    f"{' | ' + ts[:10] if ts else ''}"
+                )
+            if len(cross_chain) > 6:
+                lines.append(f"  ... and {len(cross_chain) - 6} more")
+            lines.append("")
+
+        # Exchange Interactions
+        exchanges = data.get("exchange_interactions", data.get("exchanges", []))
+        if exchanges:
+            lines.extend(
+                [
+                    "🏦 <b>Exchange Interactions</b>",
+                    d,
+                ]
+            )
+            for ex in exchanges[:5]:
+                if isinstance(ex, dict):
+                    name = ex.get("name", str(ex))
+                    direction = ex.get("direction", "interacted")
+                    amount = ex.get("amount_usd", 0)
+                else:
+                    name = str(ex)
+                    direction = "interacted"
+                    amount = 0
+                direction_emoji = {
+                    "deposit": "⬆️",
+                    "withdrawal": "⬇️",
+                    "interacted": "🔄",
+                }.get(direction.lower(), "🔄")
+                amt_str = f" ${fmt_number(amount)}" if amount else ""
+                lines.append(f"  {direction_emoji} {_label_exchange(name)}{amt_str}")
+            lines.append("")
+
+        # Wallet Activity Summary
+        tx_count = data.get("tx_count", 0)
+        balance = data.get("balance_usd", 0)
+        age_days = data.get("wallet_age_days", 0)
+        pnl = data.get("pnl_estimate")
+
+        lines.extend(
+            [
+                "<b>📊 Wallet Summary</b>",
+                d,
+                f"  💰 Balance: <b>{fmt_number(balance)}</b>",
+                f"  📝 Transactions: <b>{tx_count:,}</b>" if tx_count else "  📝 Transactions: N/A",
+                f"  ⏳ Wallet Age: <b>{age_days} days</b>" if age_days else "  ⏳ Wallet Age: Unknown",
+            ]
+        )
+
+        if pnl is not None:
+            pnl_emoji = "📈" if pnl >= 0 else "📉"
+            lines.append(f"  {pnl_emoji} Est. P&L: <b>{fmt_number(pnl)}</b>")
+
+        if data.get("flags"):
+            lines.extend(["", "⚠️ <b>Flags</b>", d])
+            for flag in data["flags"][:5]:
+                lines.append(f"  🔴 {flag}")
+
+        lines.append(footer_links())
 
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, address, chain, "trace", 0)
@@ -400,126 +401,126 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            # Get pair data from DexScreener
-            r = await client.get(f"{DEXSCREENER}/search/?q={address}", timeout=10)
-            if r.status_code != 200:
-                await msg.edit_text(
-                    "❌ <b>DexScreener unavailable</b>\n\nCould not fetch trade data.",
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_kb(),
-                )
-                return
-
-            pairs = r.json().get("pairs", [])
-            if not pairs:
-                await msg.edit_text(
-                    f"❌ <b>No trading pairs found</b>\n\n"
-                    f"No DEX activity detected for:\n<code>{address}</code>\n\n"
-                    f"• Check address is correct\n"
-                    f"• Token may not be traded yet",
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_kb(),
-                )
-                return
-
-            # Build dump report from all pairs
-            all_dumps: list[dict[str, Any]] = []
-            token_name = "???"  # noqa: S105 — placeholder until pair data resolves
-            token_symbol = "???"  # noqa: S105 — placeholder until pair data resolves
-            total_vol = 0.0
-            price = 0.0
-
-            for p in pairs[:5]:
-                bt = p.get("baseToken", {})
-                token_name = bt.get("name", "???")[:20]
-                token_symbol = bt.get("symbol", "???")
-
-                txns = p.get("txns", {})
-                h24 = txns.get("h24", {})
-                buys_24 = h24.get("buys", 0)
-                sells_24 = h24.get("sells", 0)
-
-                vol = p.get("volume", {})
-                vol_24h = float(vol.get("h24") or 0)
-                total_vol += vol_24h
-
-                price = float(p.get("priceUsd", 0))
-                chain_id = p.get("chainId", chain)
-                dex = p.get("dexId", "DEX")
-
-                # Calculate average trade size
-                total_txns = buys_24 + sells_24
-                avg_sell_size = (vol_24h * 0.5 / sells_24) if sells_24 > 0 else 0
-                sell_domination = (sells_24 / total_txns * 100) if total_txns > 0 else 0
-
-                if sells_24 > 0 and avg_sell_size > 1000:  # Filter for notable sells
-                    all_dumps.append(
-                        {
-                            "chain": chain_id,
-                            "dex": dex,
-                            "sells_24": sells_24,
-                            "avg_sell_size": avg_sell_size,
-                            "sell_pct": sell_domination,
-                            "vol_24h": vol_24h,
-                            "price": price,
-                        }
-                    )
-
-            pc = pairs[0].get("priceChange", {})
-            h24_change = pc.get("h24") or 0
-            h1_change = pc.get("h1") or 0
-            liq = pairs[0].get("liquidity", {}).get("usd", 0)
-
-            lines = [
-                "🐋 <b>Dump Detector</b>",
-                sep(),
-                f"<b>{token_name}</b> ({token_symbol}) {fmt_chain(chain)}",
-                f"<code>{address}</code>",
-                "",
-                "📊 <b>Market Summary</b>",
-                thin_sep(),
-                f"💰 Price: <b>{fmt_number(price)}</b>",
-                f"🔄 1h: {fmt_pct(h1_change)} | 24h: {fmt_pct(h24_change)}",
-                f"💧 Liquidity: <b>{fmt_number(liq)}</b>",
-                f"📊 24h Volume: <b>{fmt_number(total_vol)}</b>",
-            ]
-
-            if all_dumps:
-                lines.extend(["", "🐻 <b>Detected Dumps (24h)</b>", thin_sep()])
-                for d in all_dumps[:5]:
-                    sell_emoji = "🔴" if d["sell_pct"] > 60 else "🟠" if d["sell_pct"] > 40 else "🟡"
-                    lines.append(
-                        f"{sell_emoji} <b>{d['dex']}</b> [{fmt_chain(d['chain'])}]\n"
-                        f"   📤 {d['sells_24']:,} sells | Avg: {fmt_number(d['avg_sell_size'])}/trade\n"
-                        f"   📉 Sell domination: <b>{d['sell_pct']:.0f}%</b> | Vol: {fmt_number(d['vol_24h'])}"
-                    )
-            else:
-                lines.extend(["", "✅ <b>No significant dumps detected</b>", thin_sep()])
-                lines.append("  Buy/sell activity appears balanced in the last 24h.")
-
-            lines.extend(
-                [
-                    "",
-                    "💡 <b>Tip:</b> High sell domination (>60%) with declining price = active dump.",
-                    footer_links(),
-                ]
-            )
-
-            db.increment_usage(user.id, scan=True)
-            kb = InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
-                    [web_scan_button(address, chain)],
-                    [InlineKeyboardButton("◀️ Menu", callback_data="menu_main")],
-                ]
-            )
+        client = get_shared_client(15)
+        # Get pair data from DexScreener
+        r = await client.get(f"{DEXSCREENER}/search/?q={address}", timeout=10)
+        if r.status_code != 200:
             await msg.edit_text(
-                "\n".join(lines),
+                "❌ <b>DexScreener unavailable</b>\n\nCould not fetch trade data.",
                 parse_mode=ParseMode.HTML,
-                reply_markup=kb,
-                disable_web_page_preview=True,
+                reply_markup=back_kb(),
             )
+            return
+
+        pairs = r.json().get("pairs", [])
+        if not pairs:
+            await msg.edit_text(
+                f"❌ <b>No trading pairs found</b>\n\n"
+                f"No DEX activity detected for:\n<code>{address}</code>\n\n"
+                f"• Check address is correct\n"
+                f"• Token may not be traded yet",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
+
+        # Build dump report from all pairs
+        all_dumps: list[dict[str, Any]] = []
+        token_name = "???"  # noqa: S105 — placeholder until pair data resolves
+        token_symbol = "???"  # noqa: S105 — placeholder until pair data resolves
+        total_vol = 0.0
+        price = 0.0
+
+        for p in pairs[:5]:
+            bt = p.get("baseToken", {})
+            token_name = bt.get("name", "???")[:20]
+            token_symbol = bt.get("symbol", "???")
+
+            txns = p.get("txns", {})
+            h24 = txns.get("h24", {})
+            buys_24 = h24.get("buys", 0)
+            sells_24 = h24.get("sells", 0)
+
+            vol = p.get("volume", {})
+            vol_24h = float(vol.get("h24") or 0)
+            total_vol += vol_24h
+
+            price = float(p.get("priceUsd", 0))
+            chain_id = p.get("chainId", chain)
+            dex = p.get("dexId", "DEX")
+
+            # Calculate average trade size
+            total_txns = buys_24 + sells_24
+            avg_sell_size = (vol_24h * 0.5 / sells_24) if sells_24 > 0 else 0
+            sell_domination = (sells_24 / total_txns * 100) if total_txns > 0 else 0
+
+            if sells_24 > 0 and avg_sell_size > 1000:  # Filter for notable sells
+                all_dumps.append(
+                    {
+                        "chain": chain_id,
+                        "dex": dex,
+                        "sells_24": sells_24,
+                        "avg_sell_size": avg_sell_size,
+                        "sell_pct": sell_domination,
+                        "vol_24h": vol_24h,
+                        "price": price,
+                    }
+                )
+
+        pc = pairs[0].get("priceChange", {})
+        h24_change = pc.get("h24") or 0
+        h1_change = pc.get("h1") or 0
+        liq = pairs[0].get("liquidity", {}).get("usd", 0)
+
+        lines = [
+            "🐋 <b>Dump Detector</b>",
+            sep(),
+            f"<b>{token_name}</b> ({token_symbol}) {fmt_chain(chain)}",
+            f"<code>{address}</code>",
+            "",
+            "📊 <b>Market Summary</b>",
+            thin_sep(),
+            f"💰 Price: <b>{fmt_number(price)}</b>",
+            f"🔄 1h: {fmt_pct(h1_change)} | 24h: {fmt_pct(h24_change)}",
+            f"💧 Liquidity: <b>{fmt_number(liq)}</b>",
+            f"📊 24h Volume: <b>{fmt_number(total_vol)}</b>",
+        ]
+
+        if all_dumps:
+            lines.extend(["", "🐻 <b>Detected Dumps (24h)</b>", thin_sep()])
+            for d in all_dumps[:5]:
+                sell_emoji = "🔴" if d["sell_pct"] > 60 else "🟠" if d["sell_pct"] > 40 else "🟡"
+                lines.append(
+                    f"{sell_emoji} <b>{d['dex']}</b> [{fmt_chain(d['chain'])}]\n"
+                    f"   📤 {d['sells_24']:,} sells | Avg: {fmt_number(d['avg_sell_size'])}/trade\n"
+                    f"   📉 Sell domination: <b>{d['sell_pct']:.0f}%</b> | Vol: {fmt_number(d['vol_24h'])}"
+                )
+        else:
+            lines.extend(["", "✅ <b>No significant dumps detected</b>", thin_sep()])
+            lines.append("  Buy/sell activity appears balanced in the last 24h.")
+
+        lines.extend(
+            [
+                "",
+                "💡 <b>Tip:</b> High sell domination (>60%) with declining price = active dump.",
+                footer_links(),
+            ]
+        )
+
+        db.increment_usage(user.id, scan=True)
+        kb = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("🔍 Full Scan", callback_data=f"scan_{address}_{chain}")],
+                [web_scan_button(address, chain)],
+                [InlineKeyboardButton("◀️ Menu", callback_data="menu_main")],
+            ]
+        )
+        await msg.edit_text(
+            "\n".join(lines),
+            parse_mode=ParseMode.HTML,
+            reply_markup=kb,
+            disable_web_page_preview=True,
+        )
 
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
         logger.debug("cmd_dumps_error", exc_info=True)
@@ -593,126 +594,126 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            # Cross-chain profile via aggregator
-            profile: dict[str, Any] = {}
-            try:
-                cc_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/cross-chain/{address}",
-                    params={"chain": chain},
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if cc_resp.status_code == 200:
-                    profile = cc_resp.json()
-            except (httpx.HTTPError, ConnectionError, TimeoutError) as exc:
-                logger.debug("cmd_flow: cross-chain profile failed: %s", exc)
-
-            # Wallet intelligence from DataBus
-            wallet_data: dict[str, Any] = {}
-            try:
-                wallet_resp = await client.get(
-                    f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
-                    headers=backend_headers(),
-                    timeout=10,
-                )
-                if wallet_resp.status_code == 200:
-                    wallet_data = wallet_resp.json()
-            except (httpx.HTTPError, ConnectionError, TimeoutError) as exc:
-                logger.debug("cmd_flow: databus wallet failed: %s", exc)
-
-            if not profile and not wallet_data:
-                await msg.edit_text(
-                    f"❌ <b>No wallet data found</b>\n\n"
-                    f"No on-chain activity detected for:\n<code>{address}</code>\n\n"
-                    f"• Check the address is correct\n"
-                    f"• The wallet may have zero transactions",
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_kb(),
-                )
-                return
-
-            primary_chain = profile.get("primary_chain", chain)
-            connected = profile.get("addresses", [])
-            label = profile.get("label", "")
-
-            lines = [
-                "💰 <b>Fund Flow Trace</b>",
-                sep(),
-                f"<code>{address}</code>",
-                fmt_chain(primary_chain),
-                "",
-            ]
-
-            if label:
-                lines.extend(["🏷️ <b>Label:</b>", thin_sep(), f"  {label}", ""])
-
-            # Cross-Chain Connected Wallets
-            if connected:
-                lines.extend(
-                    [
-                        "🌉 <b>Cross-Chain Wallets</b>",
-                        thin_sep(),
-                    ]
-                )
-                for conn in connected[:8]:
-                    addr = conn.get("address", "")
-                    conf = conn.get("confidence", 0)
-                    method = conn.get("method", "")
-                    conf_pct = f"{conf * 100:.0f}%" if isinstance(conf, (int, float)) else ""
-                    method_tag = f" ({method})" if method and method != "Direct lookup" else ""
-                    lines.append(
-                        f"  🔗 <code>{short_addr(addr)}</code>{method_tag}{' | ' + conf_pct if conf_pct else ''}"
-                    )
-                if len(connected) > 8:
-                    lines.append(f"  ... and {len(connected) - 8} more")
-                lines.append("")
-
-            # Funding source from wallet intelligence
-            funding = wallet_data.get("funding_source") if isinstance(wallet_data, dict) else None
-            if funding:
-                lines.extend(
-                    [
-                        "🏦 <b>Funding Source</b>",
-                        thin_sep(),
-                        f"  {str(funding)[:200]}",
-                        "",
-                    ]
-                )
-
-            # Risk assessment
-            risk = profile.get("risk_score", 0) or 0
-            if risk:
-                lines.extend(
-                    [
-                        "⚠️ <b>Risk Assessment</b>",
-                        thin_sep(),
-                        f"  {risk_bar(float(risk))}",
-                        "",
-                    ]
-                )
-
-            # Chains covered
-            chains = profile.get("chains", [])
-            if chains:
-                lines.extend(
-                    [
-                        "⛓️ <b>Chains Detected</b>",
-                        thin_sep(),
-                        "  " + " · ".join(fmt_chain(c) for c in chains[:6]),
-                        "",
-                    ]
-                )
-
-            lines.append(footer_links())
-
-            db.increment_usage(user.id, scan=True)
-            await msg.edit_text(
-                "\n".join(lines),
-                parse_mode=ParseMode.HTML,
-                reply_markup=trace_kb(address, chain),
-                disable_web_page_preview=True,
+        client = get_shared_client(20)
+        # Cross-chain profile via aggregator
+        profile: dict[str, Any] = {}
+        try:
+            cc_resp = await client.get(
+                f"{BACKEND_URL}/api/v1/cross-chain/{address}",
+                params={"chain": chain},
+                headers=backend_headers(),
+                timeout=10,
             )
+            if cc_resp.status_code == 200:
+                profile = cc_resp.json()
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as exc:
+            logger.debug("cmd_flow: cross-chain profile failed: %s", exc)
+
+        # Wallet intelligence from DataBus
+        wallet_data: dict[str, Any] = {}
+        try:
+            wallet_resp = await client.get(
+                f"{BACKEND_URL}/api/v1/databus/wallet/{address}/tokens",
+                headers=backend_headers(),
+                timeout=10,
+            )
+            if wallet_resp.status_code == 200:
+                wallet_data = wallet_resp.json()
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as exc:
+            logger.debug("cmd_flow: databus wallet failed: %s", exc)
+
+        if not profile and not wallet_data:
+            await msg.edit_text(
+                f"❌ <b>No wallet data found</b>\n\n"
+                f"No on-chain activity detected for:\n<code>{address}</code>\n\n"
+                f"• Check the address is correct\n"
+                f"• The wallet may have zero transactions",
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
+
+        primary_chain = profile.get("primary_chain", chain)
+        connected = profile.get("addresses", [])
+        label = profile.get("label", "")
+
+        lines = [
+            "💰 <b>Fund Flow Trace</b>",
+            sep(),
+            f"<code>{address}</code>",
+            fmt_chain(primary_chain),
+            "",
+        ]
+
+        if label:
+            lines.extend(["🏷️ <b>Label:</b>", thin_sep(), f"  {label}", ""])
+
+        # Cross-Chain Connected Wallets
+        if connected:
+            lines.extend(
+                [
+                    "🌉 <b>Cross-Chain Wallets</b>",
+                    thin_sep(),
+                ]
+            )
+            for conn in connected[:8]:
+                addr = conn.get("address", "")
+                conf = conn.get("confidence", 0)
+                method = conn.get("method", "")
+                conf_pct = f"{conf * 100:.0f}%" if isinstance(conf, (int, float)) else ""
+                method_tag = f" ({method})" if method and method != "Direct lookup" else ""
+                lines.append(
+                    f"  🔗 <code>{short_addr(addr)}</code>{method_tag}{' | ' + conf_pct if conf_pct else ''}"
+                )
+            if len(connected) > 8:
+                lines.append(f"  ... and {len(connected) - 8} more")
+            lines.append("")
+
+        # Funding source from wallet intelligence
+        funding = wallet_data.get("funding_source") if isinstance(wallet_data, dict) else None
+        if funding:
+            lines.extend(
+                [
+                    "🏦 <b>Funding Source</b>",
+                    thin_sep(),
+                    f"  {str(funding)[:200]}",
+                    "",
+                ]
+            )
+
+        # Risk assessment
+        risk = profile.get("risk_score", 0) or 0
+        if risk:
+            lines.extend(
+                [
+                    "⚠️ <b>Risk Assessment</b>",
+                    thin_sep(),
+                    f"  {risk_bar(float(risk))}",
+                    "",
+                ]
+            )
+
+        # Chains covered
+        chains = profile.get("chains", [])
+        if chains:
+            lines.extend(
+                [
+                    "⛓️ <b>Chains Detected</b>",
+                    thin_sep(),
+                    "  " + " · ".join(fmt_chain(c) for c in chains[:6]),
+                    "",
+                ]
+            )
+
+        lines.append(footer_links())
+
+        db.increment_usage(user.id, scan=True)
+        await msg.edit_text(
+            "\n".join(lines),
+            parse_mode=ParseMode.HTML,
+            reply_markup=trace_kb(address, chain),
+            disable_web_page_preview=True,
+        )
 
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError) as e:
         logger.debug("cmd_flow_error", exc_info=True)

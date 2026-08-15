@@ -30,6 +30,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 if TYPE_CHECKING:
     from telegram import Update
@@ -330,16 +331,16 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
             "filters": None,
         }
 
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"{BACKEND_URL}/api/v1/scanner/webhooks",
-                json=webhook_data,
-                headers=backend_headers(),
-                timeout=10,
-            )
-            backend_id = None
-            if resp.status_code in (200, 201):
-                backend_id = resp.json().get("subscription", {}).get("id")
+        client = get_shared_client(10)
+        resp = await client.post(
+            f"{BACKEND_URL}/api/v1/scanner/webhooks",
+            json=webhook_data,
+            headers=backend_headers(),
+            timeout=10,
+        )
+        backend_id = None
+        if resp.status_code in (200, 201):
+            backend_id = resp.json().get("subscription", {}).get("id")
 
         # Store locally
         conn.execute(
@@ -412,12 +413,12 @@ async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_i
     backend_id = row["backend_id"]
     if backend_id:
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                await client.delete(
-                    f"{BACKEND_URL}/api/v1/scanner/webhooks/{backend_id}",
-                    headers=backend_headers(),
-                    timeout=5,
-                )
+            client = get_shared_client(5)
+            await client.delete(
+                f"{BACKEND_URL}/api/v1/scanner/webhooks/{backend_id}",
+                headers=backend_headers(),
+                timeout=5,
+            )
         except (httpx.HTTPError, ConnectionError, TimeoutError):
             pass
 
@@ -483,20 +484,20 @@ async def _test_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id:
 
     try:
         start = time.monotonic()
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                url,
-                json={
-                    "event": "test",
-                    "source": "rugmunchbot",
-                    "data": {
-                        "message": "This is a test webhook from RugMunch Intelligence.",
-                        "timestamp": time.time(),
-                    },
+        client = get_shared_client(10)
+        resp = await client.post(
+            url,
+            json={
+                "event": "test",
+                "source": "rugmunchbot",
+                "data": {
+                    "message": "This is a test webhook from RugMunch Intelligence.",
+                    "timestamp": time.time(),
                 },
-                headers={"User-Agent": "RugMunchBot/1.0 Webhook Test"},
-                timeout=10,
-            )
+            },
+            headers={"User-Agent": "RugMunchBot/1.0 Webhook Test"},
+            timeout=10,
+        )
         elapsed_ms = (time.monotonic() - start) * 1000
 
         # Never echo response body content — only safe metadata.

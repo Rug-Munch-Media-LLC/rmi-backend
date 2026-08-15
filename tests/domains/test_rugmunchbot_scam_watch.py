@@ -31,7 +31,11 @@ from app.domains.telegram.rugmunchbot.channels import (
     scheduler as channels_scheduler,
 )
 
-NOW = datetime(2026, 8, 14, 12, 0, tzinfo=UTC)
+# Dynamic NOW so the sweep time-window (default 6h lookback, computed against
+# the real clock in scam_watch.sweep_scam_channels) always includes "fresh"
+# messages and excludes the explicit `old` fixtures. A hardcoded date rots the
+# moment real time passes the lookback window.
+NOW = datetime.now(UTC)
 
 
 @pytest.fixture(autouse=True)

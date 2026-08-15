@@ -81,6 +81,7 @@ from app.domains.telegram.rugmunchbot.channels.importance import (
 )
 from app.domains.telegram.rugmunchbot.channels.telegram_news import sweep_telegram_news
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -337,19 +338,17 @@ async def ghost_publish_article(
         ]
     }
     try:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                f"{base_url}/ghost/api/admin/posts/",
-                headers={
-                    "Authorization": f"Ghost {token}",
-                    "Content-Type": "application/json",
-                    "Ghost-Version": "5.0",
-                    "Accept-Version": "v5.0",
-                },
-                json=payload,
-            )
+        client = get_shared_client(15)
+        resp = await client.post(
+            f"{base_url}/ghost/api/admin/posts/",
+            headers={
+                "Authorization": f"Ghost {token}",
+                "Content-Type": "application/json",
+                "Ghost-Version": "5.0",
+                "Accept-Version": "v5.0",
+            },
+            json=payload,
+        )
         if resp.status_code in (200, 201):
             post = resp.json().get("posts", [{}])[0]
             logger.info("personal:ghost_published id=%s slug=%s", post.get("id"), post.get("slug"))
