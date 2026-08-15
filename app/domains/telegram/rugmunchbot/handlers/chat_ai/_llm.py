@@ -39,6 +39,8 @@ from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools.intent import build_tool_prompt_block
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
     from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 logger = get_logger("rmi_bot.chat_ai")
@@ -60,12 +62,17 @@ MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
 QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
-QWEN_TIMEOUT = 90.0  # CPU LLM: prompt eval + generation can take 30-60s
+QWEN_TIMEOUT = 45.0  # CPU LLM: generation dominates latency (~7 tok/s); 45s covers a 200-token answer
 
 # Qwen3.5-9B for deep analysis (alias deepseek-analysis — legacy name; hides thinking output)
 DEEPSEEK_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-analysis"
-DEEPSEEK_TIMEOUT = 120.0
+DEEPSEEK_TIMEOUT = 60.0  # halved: a 2-minute silent wait before failing to the next tier was worthless
+
+# Zen-vs-local overlap: Zen gets this head-start before the local CPU fallback
+# starts, so a healthy Zen (answers in ~2-3s) still wins alone — local only
+# joins when Zen is still running (slow/hung) and races it via FIRST_COMPLETED.
+ZEN_HEAD_START_S = 2.0
 
 
 async def _call_backend_chat(
@@ -88,10 +95,10 @@ async def _call_backend_chat(
     payload: dict[str, Any] = {
         "message": message[:MAX_MESSAGE_CHARS],
         "history": history or [],
-        # Explicitly request a larger output budget so long answers (e.g.
-        # "how to learn TA") complete instead of truncating mid-sentence.
-        # The backend clamps 64..2048 for the /chat route default.
-        "max_tokens": 2048,
+        # Output budget for the backend RAG synthesis. 768 is enough for a
+        # full Telegram answer (long ones are chunked bot-side anyway) and
+        # cuts backend generation latency; the /chat route accepts 64..8192.
+        "max_tokens": 768,
     }
     headers = backend_headers()
     headers["X-Forwarded-For"] = str(user_id)
@@ -371,7 +378,7 @@ async def _call_local_llm(
                     json={
                         "model": model,
                         "messages": messages,
-                        "max_tokens": 350,  # room for detailed answers
+                        "max_tokens": 200,  # generation dominates CPU latency; answers are chunked anyway
                         "temperature": 0.7,
                         "chat_template_kwargs": {"enable_thinking": False},
                     },
@@ -479,6 +486,55 @@ async def _gather_fallback_context(
     scan_summary = results[2] if scan_ctx_task is not None else None
     return daily_context, scan_summary, bridge_ctx
 
+
+def _llm_task_result(task: asyncio.Task[dict[str, Any] | None]) -> dict[str, Any] | None:
+    """Read an LLM task's result defensively (cancelled/failed → ``None``)."""
+    if task.cancelled():
+        return None
+    try:
+        result = task.result()
+    except Exception:
+        return None
+    return result if isinstance(result, dict) else None
+
+
+async def _first_llm_answer(
+    zen_coro: Coroutine[Any, Any, dict[str, Any] | None],
+    local_coro: Coroutine[Any, Any, dict[str, Any] | None],
+) -> dict[str, Any] | None:
+    """Race the cloud Zen and local CPU fallbacks; return the first real answer.
+
+    Both coroutines run concurrently so a hung Zen no longer delays local
+    Qwen. Zen gets a small head-start (``ZEN_HEAD_START_S``): a healthy Zen
+    answers alone exactly like the old sequential path (local is only
+    started once Zen is still running after the head-start), preserving the
+    Zen-primary preference. Once both are running, whichever produces a
+    non-``None`` answer first is returned and the loser is cancelled; a
+    ``None`` (failure/timeout) from the first finisher falls back to the
+    other. Returns ``None`` only when both failed.
+    """
+    zen_task = asyncio.create_task(zen_coro, name="chat_ai_zen")
+    done, _ = await asyncio.wait({zen_task}, timeout=ZEN_HEAD_START_S)
+    if done:
+        result = _llm_task_result(zen_task)
+        if result:
+            # Zen answered within the head-start — local never needs to run.
+            # Close its coroutine so GC doesn't warn "never awaited".
+            local_coro.close()
+            return result
+    local_task = asyncio.create_task(local_coro, name="chat_ai_local")
+    pending: set[asyncio.Task[dict[str, Any] | None]] = {zen_task, local_task}
+    while pending:
+        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            result = _llm_task_result(task)
+            if result:
+                for other in pending:
+                    other.cancel()
+                return result
+    return None
+
+
 async def _build_fallback_answer(
     text: str,
     user: Any,
@@ -559,25 +615,28 @@ async def _build_fallback_answer(
         isinstance(s, dict) and s.get("type") == "market" for s in bridge_sources
     )
 
-    # Fallback: cloud Zen, then local CPU llama.cpp — both grounded with the
-    # bridge blocks + live tool data, reporting rag_count = len(sources).
+    # Fallback: cloud Zen AND local CPU llama.cpp run concurrently (Zen with a
+    # small head-start) — a hung Zen no longer delays local Qwen. Both are
+    # grounded with the bridge blocks + live tool data, reporting
+    # rag_count = len(sources); whichever answers first wins.
     deep = _is_deep_question(text)
-    result = await chat_ai._call_zen_llm(
-        prompt,
-        user.id,
-        history,
-        deep=deep,
-        sources=bridge_sources,
-        system_context=daily_context,
-    )
-    if not result:
-        result = await chat_ai._call_local_llm(
+    result = await _first_llm_answer(
+        chat_ai._call_zen_llm(
+            prompt,
+            user.id,
+            history,
+            deep=deep,
+            sources=bridge_sources,
+            system_context=daily_context,
+        ),
+        chat_ai._call_local_llm(
             prompt,
             user.id,
             history,
             sources=bridge_sources,
             system_context=daily_context,
-        )
+        ),
+    )
 
     # LLM chain completely down but tools returned REAL data → answer from
     # the tools themselves (no LLM, no guessing). Give the still-running

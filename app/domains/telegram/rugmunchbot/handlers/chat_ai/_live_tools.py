@@ -21,16 +21,17 @@ if TYPE_CHECKING:
 
 logger = get_logger("rmi_bot.chat_ai")
 
-# Bounded wait for bot-side live tools on the FALLBACK path. Kept at the
-# pre-change worst case (~20s = wallet_analysis timeout) so web_search's
-# knowledge fallback (up to ~50s when the bridge + SearXNG are down) can
-# never stall the fallback answer. Late-arriving results are re-joined by
-# the guardrail's bounded shield and the no-LLM tool answer window below.
-LIVE_TOOLS_WAIT = 20.0
+# Bounded wait for bot-side live tools on the FALLBACK path. 8s captures the
+# fast tools most questions hit (price, scan, market); the guardrail's
+# bounded shield re-joins late-arriving results (notably web_search's slow
+# knowledge fallback, up to ~50s when the bridge + SearXNG are down) without
+# stalling the fallback answer.
+LIVE_TOOLS_WAIT = 8.0
 # Extra window for the still-running tools (notably web_search's knowledge
 # fallback) when the ENTIRE LLM chain is down and the tool answer is the
 # only thing we can send — better a real answer than the generic fallback.
-TOOL_ANSWER_EXTRA_WAIT = 15.0
+TOOL_ANSWER_EXTRA_WAIT = 5.0
+
 
 async def _run_live_tools(text: str, history: list[dict[str, str]] | None = None) -> dict[str, ToolResult]:
     """Run the tool registry for a user question (best-effort, bounded).
@@ -85,6 +86,7 @@ async def _run_live_tools_bounded(
         if reuse_done and task.done() and not task.cancelled():
             return task.result()
         return {}
+
 
 __all__ = [
     "LIVE_TOOLS_WAIT",
