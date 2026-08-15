@@ -98,6 +98,9 @@ paths = [
   '''vendor/''',
   # Specific file: third-party scam address database (hex strings resemble keys)
   '''data/cryptoscamdb_urls\.yaml''',
+  # RAG exploit seed corpus: incident summaries legitimately mention
+  # "private-key" as a technique label + incident addresses (not real keys)
+  '''app/rag/seed_corpus/exploits\.jsonl''',
   # Security scanner: rule definitions match private-repo-reference by design
   '''scripts/enterprise-firewall\.py''',
   '''scripts/proprietary-firewall\.py''',
