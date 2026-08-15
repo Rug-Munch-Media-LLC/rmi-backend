@@ -20,6 +20,13 @@ Queue contract — Redis LIST ``bot:alerts:queue``, JSON items::
 Delivery mirrors ``deliver_pending_broadcasts``: pop FIFO → format → send,
 with a per-user rate limit (1 alert / 5 min, shared with price alerts) and
 a bounded in-memory dedupe set. Fails open: Redis/DB issues skip the tick.
+
+Sends are paced (~0.05s between attempts, same as the broadcast worker) so a
+burst of alerts stays under Telegram's rate limits. A failed send is NEVER
+silently dropped: the item is re-queued with a ``retry_count`` (bounded by
+``MAX_ALERT_RETRIES``, spaced across ticks) and parked in the dead-letter
+list ``bot:alerts:dead`` once the budget is exhausted. Failures are logged at
+WARNING; successful deliveries at INFO.
 """
 
 from __future__ import annotations
@@ -43,7 +50,9 @@ if TYPE_CHECKING:
 logger = get_logger("rmi_bot")
 
 ALERT_QUEUE_KEY = "bot:alerts:queue"
+ALERT_DEAD_LETTER_KEY = "bot:alerts:dead"  # alerts that exhausted their retry budget
 SEND_DELAY = 0.05  # seconds between sends (Telegram rate-limit politeness)
+MAX_ALERT_RETRIES = 3  # re-queue budget per alert; beyond → dead-letter list
 
 # Bounded dedupe: drop repeats of the same event_id seen within this many
 # most-recent events (the backend may dispatch the same event to multiple
@@ -76,35 +85,64 @@ async def pop_alert() -> dict[str, Any] | None:
 async def deliver_pending_alerts(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     """Deliver every queued intelligent-webhook alert. Returns processed count."""
     processed = 0
+    # Items re-queued after a failed send must wait for the NEXT tick (the job
+    # runs every 30s): retrying inside the same burst would defeat the pacing
+    # above and hammer Telegram. Track them by identity and stop draining when
+    # one surfaces again — it stays in the queue for the next tick.
+    requeued_this_tick: set[str] = set()
     while True:
         item = await pop_alert()
         if item is None:
             break
+        identity = _item_identity(item)
+        if identity in requeued_this_tick:
+            # Failed earlier this tick and re-queued at the tail: put it back
+            # and leave it for the next tick.
+            await _push_alert(item)
+            break
         processed += 1
-        await _deliver_one(ctx, item)
+        if not await _deliver_one(ctx, item):
+            await _requeue_or_deadletter(item)
+            requeued_this_tick.add(identity)
+        # Pace sends like the broadcast worker (Telegram rate-limit politeness).
+        await asyncio.sleep(SEND_DELAY)
     if processed:
         logger.info("alert_worker: delivered %s intelligent alert(s)", processed)
     return processed
 
 
-async def _deliver_one(ctx: ContextTypes.DEFAULT_TYPE, item: dict[str, Any]) -> None:
+async def _deliver_one(ctx: ContextTypes.DEFAULT_TYPE, item: dict[str, Any]) -> bool:
+    """Deliver one alert.
+
+    Returns True when no retry is needed (sent, or intentionally skipped:
+    invalid item, duplicate, rate-limited, unformattable). Returns False when
+    the send itself failed and the item should be re-queued.
+    """
     user_id = item.get("user_id")
     if not isinstance(user_id, int) or user_id <= 0:
         logger.warning("alert_worker: invalid user_id in alert item")
-        return
+        return True
 
     event_id = str(item.get("event_id") or "")
     if event_id and not _dedupe(event_id):
-        return
+        return True
 
     # Per-user rate limit (shared with price alerts: max 1 DM / 5 min).
-    if not check_alert_rate_limit(user_id):
-        return
+    # Retried items bypass it: check_alert_rate_limit records the timestamp
+    # BEFORE sending, so the failed first attempt already consumed the user's
+    # 5-min slot — the retry redeems that same slot instead of being dropped.
+    if not item.get("retry_count") and not check_alert_rate_limit(user_id):
+        return True
 
-    text = _format_alert(item)
+    try:
+        text = _format_alert(item)
+    except (ValueError, TypeError, KeyError) as exc:
+        logger.warning("alert_worker: cannot format alert type=%s user=%s: %s", item.get("type"), user_id, exc)
+        return True  # poison item — re-queuing won't fix formatting
+
     if not text:
         logger.debug("alert_worker: no formatted text for type=%s user=%s", item.get("type"), user_id)
-        return
+        return True
 
     try:
         await ctx.bot.send_message(
@@ -113,10 +151,73 @@ async def _deliver_one(ctx: ContextTypes.DEFAULT_TYPE, item: dict[str, Any]) -> 
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )
-    except TelegramError as exc:
-        logger.debug("alert_worker: send failed to user=%s: %s", user_id, exc)
-    except (ValueError, TypeError, KeyError, OSError) as exc:
-        logger.warning("alert_worker: send error to user=%s: %s", user_id, exc)
+    except Exception as exc:  # TelegramError and friends — never drop a failed send
+        item["last_error"] = str(exc)
+        logger.warning(
+            "alert_worker: send failed to user=%s type=%s event=%s: %s",
+            user_id,
+            item.get("type"),
+            event_id or "?",
+            exc,
+        )
+        return False
+    return True
+
+
+async def _requeue_or_deadletter(item: dict[str, Any]) -> None:
+    """Re-queue a failed alert (bounded retries) or move it to the dead-letter list.
+
+    Never drops silently: a failed send is either re-queued for the next tick
+    (retry_count incremented) or parked in ``bot:alerts:dead`` once
+    ``MAX_ALERT_RETRIES`` is exhausted.
+    """
+    retries = int(item.get("retry_count") or 0) + 1
+    item["retry_count"] = retries
+    reason = str(item.get("last_error") or "unknown")
+    summary = f"type={item.get('type')} user={item.get('user_id')} event={item.get('event_id') or '?'}"
+    r = get_redis_async()
+    if r is None:
+        logger.warning("alert_worker: redis unavailable — alert not re-queued (%s): %s", summary, reason)
+        return
+    try:
+        if retries >= MAX_ALERT_RETRIES:
+            await r.lpush(ALERT_DEAD_LETTER_KEY, json.dumps(item))
+            logger.warning("alert_worker: alert dead-lettered after %s attempts (%s): %s", retries, summary, reason)
+        else:
+            await r.lpush(ALERT_QUEUE_KEY, json.dumps(item))
+            logger.warning(
+                "alert_worker: alert re-queued for retry %s/%s (%s): %s",
+                retries,
+                MAX_ALERT_RETRIES,
+                summary,
+                reason,
+            )
+    except Exception:
+        logger.warning("alert_worker: re-queue failed (%s)", summary, exc_info=True)
+
+
+async def _push_alert(item: dict[str, Any], key: str = ALERT_QUEUE_KEY) -> None:
+    """Push an alert item back onto a Redis LIST (re-queue / dead-letter / tick halt)."""
+    r = get_redis_async()
+    if r is None:
+        return
+    try:
+        await r.lpush(key, json.dumps(item))
+    except Exception:
+        logger.warning("alert_worker: push back failed for key=%s", key, exc_info=True)
+
+
+def _item_identity(item: dict[str, Any]) -> str:
+    """Stable identity for an alert item: event_id when present, else normalized JSON.
+
+    Used to detect items re-queued earlier in the same tick (retry_count and
+    last_error are excluded so a retried item keeps its identity).
+    """
+    event_id = str(item.get("event_id") or "")
+    if event_id:
+        return f"evt:{event_id}"
+    stable = {k: v for k, v in item.items() if k not in ("retry_count", "last_error")}
+    return json.dumps(stable, sort_keys=True, default=str)
 
 
 def _dedupe(event_id: str) -> bool:

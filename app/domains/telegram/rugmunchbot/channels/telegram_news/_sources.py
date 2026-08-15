@@ -15,10 +15,12 @@ working — see the package docstring.
 
 from __future__ import annotations
 
+import asyncio
 import os
+import re
 import sys
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 from app.domains.news_ingest.discovery import discover_followed_channels
 from app.domains.news_ingest.ingest import (
@@ -27,7 +29,7 @@ from app.domains.news_ingest.ingest import (
     filter_seen_articles,
     read_channel_messages,
 )
-from app.domains.news_ingest.normalize import channel_message_to_article
+from app.domains.news_ingest.normalize import channel_message_to_article, is_telegram_link
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
@@ -43,15 +45,22 @@ logger = get_logger("rmi_bot.channels.tg_news")
 #: Default public crypto-news channels. All real, public handles; the ones also
 #: listed in ``app/databus/tg_channels.json`` carry that registry's confidence
 #: notes (some are [REVIEW] — re-verify before production monitoring).
+#:
+#: Language note: ``PANewsOfficial`` and ``wublockchain`` post mostly in
+#: Korean / Chinese and are kept in the default list on purpose — the
+#: English-only language gate in ``normalize.channel_message_to_article``
+#: (Unicode-script detection, never translation) drops their non-English
+#: posts at runtime while a future English post on those channels still
+#: lands. Do not remove them unless the runtime filter is replaced.
 _DEFAULT_CHANNELS: tuple[str, ...] = (
     "cointelegraph",  # official CoinTelegraph
-    "wublockchain",  # Wu Blockchain (Colin Wu) — high-frequency news aggregator
+    "wublockchain",  # Wu Blockchain (Colin Wu) — mostly CN/KR → runtime language filter
     "coindesk",  # official CoinDesk
     "TheBlock__",  # The Block [REVIEW: exact handle, double underscore]
     "cryptoslate",  # CryptoSlate
     "beincrypto",  # BeInCrypto
     "cryptonews",  # Cryptonews.com [REVIEW: verify handle]
-    "PANewsOfficial",  # PANews [REVIEW: verify casing]
+    "PANewsOfficial",  # PANews [REVIEW: verify casing] — mostly KR/CN → runtime language filter
     "WatcherGuru",  # Watcher Guru
     "bitcoinmagazine",  # Bitcoin Magazine [REVIEW: verify handle]
 )
@@ -331,6 +340,81 @@ def _inside_window(message: ChannelMessage, cutoff: datetime) -> bool:
     return _as_utc(posted) >= cutoff
 
 
+# ── Story image (best-effort og:image fallback) ──────────────────────────────
+
+_OG_IMAGE_TIMEOUT: float = 3.0
+_OG_HTML_MAX_CHARS: int = 512_000
+
+#: og:image / twitter:image meta extraction (attribute-order tolerant, case-
+#: insensitive). Best-effort only — a page without a usable image yields none.
+_OG_IMAGE_RES: Final = (
+    re.compile(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', re.IGNORECASE),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', re.IGNORECASE),
+    re.compile(r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']', re.IGNORECASE),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']', re.IGNORECASE),
+)
+
+
+def _normalize_image_url(raw: str, base_url: str) -> str | None:
+    """Resolve protocol-relative / root-relative og:image URLs to absolute."""
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("//"):
+        return f"https:{raw}"
+    if raw.startswith("/"):
+        from urllib.parse import urlsplit
+
+        parts = urlsplit(base_url)
+        return f"{parts.scheme}://{parts.netloc}{raw}"
+    return raw
+
+
+async def _fetch_og_image(url: str, timeout: float = _OG_IMAGE_TIMEOUT) -> str | None:
+    """Best-effort og:image for a real article URL (fail-open → ``None``).
+
+    Skips Telegram links (t.me pages have no meaningful story image) and
+    never raises: network errors, timeouts, non-200s, and pages without an
+    image meta tag all yield ``None``. Bound to *timeout* seconds so a slow
+    publisher never blocks the sweep.
+    """
+    if is_telegram_link(url):
+        return None
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(
+            timeout=timeout, follow_redirects=True, headers={"User-Agent": "rmi-news/1.0"}
+        ) as client:
+            response = await client.get(url)
+            if response.status_code != 200:
+                return None
+            html = response.text[:_OG_HTML_MAX_CHARS]
+        for pattern in _OG_IMAGE_RES:
+            match = pattern.search(html)
+            if match:
+                return _normalize_image_url(match.group(1), url)
+        return None
+    except Exception:  # fail-open by contract
+        logger.debug("tg_news:og_image_fetch_failed url=%s", url[:120], exc_info=True)
+        return None
+
+
+def _should_fetch_og_image(article: NewsArticle) -> bool:
+    """True when the sweep should try the source page's og:image for *article*.
+
+    Skips articles whose source URL is a t.me fallback (no meaningful story
+    image) and articles that already carry a real media reference. The
+    ``tg:`` marker that normalize sets for photo/video posts without a real
+    media id is replaced when the source og:image resolves.
+    """
+    url = (article.source_url or "").strip()
+    if not url or is_telegram_link(url):
+        return False
+    media = (article.media or "").strip()
+    return not media or media.startswith("tg:")
+
+
 # ── Sweep: read → normalize → time-filter → dedupe ──────────────────────────
 
 
@@ -393,4 +477,15 @@ async def sweep_telegram_news(
     articles, seen_skipped = filter_seen_articles(articles, DEFAULT_DEDUP_COLLECTION)
     if seen_skipped:
         logger.info("tg_news:cross_run_dedup skipped=%s kept=%s", seen_skipped, len(articles))
+    # Best-effort story image: capture the source page's og:image for any
+    # article without a real media reference (fail-open, never blocks).
+    missing_images = [a for a in articles if _should_fetch_og_image(a)]
+    if missing_images:
+        results = await asyncio.gather(
+            *(_fetch_og_image(a.source_url) for a in missing_images),
+            return_exceptions=True,
+        )
+        for article, image in zip(missing_images, results, strict=True):
+            if isinstance(image, str) and image.strip():
+                article.media = image.strip()
     return articles

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from app.domains.news_ingest.ingest import (
@@ -212,8 +212,12 @@ def test_dedupe_articles_source_url_fallback() -> None:
 
 
 def test_dedupe_articles_distinct_kept() -> None:
-    a = channel_message_to_article(_msg("Ethereum staking yield rises to 4.5% this quarter\n\n" * 4), "defi")
-    b = channel_message_to_article(_msg("Solana breaks new ATH after upgrade announcement\n\n" * 4), "crypto_news")
+    a = channel_message_to_article(
+        _msg("Ethereum staking yield rises to 4.5% this quarter\n\n" * 4, message_id=1), "defi"
+    )
+    b = channel_message_to_article(
+        _msg("Solana breaks new ATH after upgrade announcement\n\n" * 4, message_id=2), "crypto_news"
+    )
     assert a is not None
     assert b is not None
     assert len(dedupe_articles([a, b])) == 2
@@ -221,12 +225,147 @@ def test_dedupe_articles_distinct_kept() -> None:
 
 def test_dedupe_articles_empty_and_order() -> None:
     assert dedupe_articles([]) == []
-    a = channel_message_to_article(_msg("First headline about the merge\n\n" * 4), "crypto_news")
-    b = channel_message_to_article(_msg("Second headline about the merge\n\n" * 4), "crypto_news")
+    a = channel_message_to_article(_msg("First headline about the merge\n\n" * 4, message_id=1), "crypto_news")
+    b = channel_message_to_article(_msg("Second headline about the merge\n\n" * 4, message_id=2), "crypto_news")
     assert a is not None
     assert b is not None
     result = dedupe_articles([b, a])
     assert result == [b, a]
+
+
+def test_dedupe_articles_canonical_url_collapse() -> None:
+    """Same original article URL (rephrased across channels) → same story."""
+    first = channel_message_to_article(
+        _msg(
+            "Bitcoin ETF inflows hit a record\n\n"
+            "Institutions pile in as demand soars. Read more: https://cointelegraph.com/news/btc-etf-record",
+            username="cointelegraph",
+            message_id=11,
+        ),
+        "crypto_news",
+    )
+    rephrase = channel_message_to_article(
+        _msg(
+            "RECORD: Bitcoin ETF demand explodes\n\n"
+            "Fresh highs for the funds. Source: https://cointelegraph.com/news/btc-etf-record",
+            username="wublockchain",
+            message_id=22,
+        ),
+        "crypto_news",
+    )
+    assert first is not None
+    assert rephrase is not None
+    assert first.content_hash != rephrase.content_hash  # bodies genuinely differ
+    result = dedupe_articles([first, rephrase])
+    assert len(result) == 1
+    assert result[0] is first  # first-wins
+
+
+def test_dedupe_articles_normalized_title_collapse() -> None:
+    """Same headline (different bodies, no URL) → same story."""
+    a = NewsArticle(
+        title="🚨 BREAKING: SEC Delays Bitcoin ETF Decision Again!",
+        body="Completely different body text with no links whatsoever here",
+        source_channel="ch1",
+        source_url="https://t.me/ch1/1",
+    )
+    b = NewsArticle(
+        title="SEC Delays Bitcoin ETF Decision Again",
+        body="Another unrelated retelling with different words and no link",
+        source_channel="ch2",
+        source_url="https://t.me/ch2/2",
+    )
+    result = dedupe_articles([a, b])
+    assert len(result) == 1
+    assert result[0] is a
+
+
+def test_dedupe_articles_distinct_titles_kept() -> None:
+    """Two different headlines sharing a generic word must NOT collapse."""
+    a = NewsArticle(
+        title="Ethereum staking yield rises to 4.5% this quarter in the market",
+        body="body a",
+        source_channel="ch1",
+        source_url="https://t.me/ch1/1",
+    )
+    b = NewsArticle(
+        title="Solana breaks new ATH after upgrade announcement in the market",
+        body="body b",
+        source_channel="ch2",
+        source_url="https://t.me/ch2/2",
+    )
+    assert len(dedupe_articles([a, b])) == 2
+
+
+def test_extract_canonical_url_skips_tme_and_prefers_first() -> None:
+    from app.domains.news_ingest.ingest import extract_canonical_url
+
+    article = NewsArticle(
+        title="BTC rallies",
+        body="Read more: https://t.me/cointelegraph/5 then https://coindesk.com/news/story?x=1",
+        source_channel="ch",
+        source_url="https://t.me/ch/5",
+    )
+    assert extract_canonical_url(article) == "https://coindesk.com/news/story?x=1"
+    no_link = NewsArticle(
+        title="No links",
+        body="just text",
+        source_channel="ch",
+        source_url="https://t.me/ch/6",
+    )
+    assert extract_canonical_url(no_link) == ""
+
+
+def test_normalize_title_strips_emoji_and_punct() -> None:
+    from app.domains.news_ingest.ingest import normalize_title
+
+    # Emoji/punct stripped, whitespace collapsed, leading breaking marker removed.
+    assert normalize_title("🚨 BREAKING: Bitcoin tops $70k!") == "bitcoin tops $70k"
+    assert normalize_title("  Multiple   Spaces  ") == "multiple spaces"
+
+
+def test_is_breaking_article_detects_markers() -> None:
+    from app.domains.news_ingest.ingest import is_breaking_article
+
+    assert is_breaking_article(_news_article("🚨 BREAKING: something happened\n\n" * 4))
+    assert is_breaking_article(_news_article("JUST IN: new listing\n\n" * 4))
+    assert is_breaking_article(_news_article("URGENT: upgrade\n\n" * 4))
+    assert not is_breaking_article(_news_article("ETF inflows keep climbing\n\n" * 4))
+
+
+def test_lightweight_importance_ordering() -> None:
+    from datetime import timedelta
+
+    from app.domains.news_ingest.ingest import lightweight_importance, rank_articles
+
+    now = datetime(2026, 8, 13, 12, 0, tzinfo=UTC)
+    breaking = _news_article("🚨 BREAKING: SEC approves spot Bitcoin ETF\n\n" * 4)
+    breaking.source_channel = "CoinTelegraph"
+    breaking.posted_at = now - timedelta(minutes=10)
+    routine = _news_article("Weekly developer call recap\n\n" * 4)
+    routine.source_channel = "SomeGenericTechChannel"
+    routine.posted_at = now - timedelta(hours=5)
+    agg = _news_article("Bitcoin ETF news roundup\n\n" * 4)
+    agg.source_channel = "WatcherGuru"
+    agg.posted_at = now - timedelta(hours=2)
+
+    assert lightweight_importance(breaking, now=now) > lightweight_importance(routine, now=now)
+    ranked = rank_articles([routine, agg, breaking], now=now)
+    assert ranked[0] is breaking
+    assert ranked[-1] is routine
+
+
+def test_lightweight_importance_source_authority() -> None:
+    from app.domains.news_ingest.ingest import lightweight_importance
+
+    now = datetime(2026, 8, 13, 12, 0, tzinfo=UTC)
+    primary = _news_article("Bitcoin crosses $120k\n\n" * 4)
+    primary.source_channel = "CoinDesk"
+    primary.posted_at = now - timedelta(minutes=5)
+    aggregator = _news_article("Bitcoin crosses $120k\n\n" * 4)
+    aggregator.source_channel = "WatcherGuru"
+    aggregator.posted_at = now - timedelta(minutes=5)
+    assert lightweight_importance(primary, now=now) > lightweight_importance(aggregator, now=now)
 
 
 # ── filter_seen_articles / mark_articles_ingested (Redis dedup reuse) ──────
@@ -241,9 +380,44 @@ def _news_article(text: str, *, username: str = "cointelegraph", message_id: int
 def test_filter_seen_articles_drops_known_content() -> None:
     first = _news_article("Bitcoin tops $70k as ETFs keep buying\n\n" * 5, message_id=1)
     second = _news_article("Solana breaks new ATH after upgrade\n\n" * 5, username="solana_news", message_id=2)
-    with patch("app.rag.dedup.is_duplicate_content", side_effect=[True, False]):
+    # The cross-run filter checks the article's full key set (canonical URL /
+    # t.me URL / normalized title / content hash) — every key of `first` is
+    # considered already seen, every key of `second` is fresh.
+    from app.domains.news_ingest.ingest import article_dedup_keys
+
+    seen_keys = set(article_dedup_keys(first))
+    with patch(
+        "app.rag.dedup.is_duplicate_content",
+        side_effect=lambda fp, collection: fp in seen_keys,
+    ):
         fresh, skipped = filter_seen_articles([first, second], "tg_news")
     assert fresh == [second]
+    assert skipped == 1
+
+
+def test_filter_seen_articles_drops_rephrased_same_story() -> None:
+    """A rephrased story sharing the same canonical URL is still dropped."""
+    first = _news_article("Bitcoin tops $70k as ETFs keep buying\n\nRead more: https://example.com/btc", message_id=1)
+    rephrase = NewsArticle(
+        title="BTC hits $70k milestone 🚀",
+        body="A different retelling of the same rally. Full story: https://example.com/btc",
+        source_channel="WatcherGuru",
+        source_url="https://t.me/watcherguru/77",
+        category="crypto_news",
+        posted_at=first.posted_at,
+        content_hash="different-hash",
+        entities=["$BTC"],
+    )
+    from app.domains.news_ingest.ingest import article_dedup_keys
+
+    seen_keys = set(article_dedup_keys(first))
+    assert seen_keys, "first article must have dedup keys"
+    with patch(
+        "app.rag.dedup.is_duplicate_content",
+        side_effect=lambda fp, collection: fp in seen_keys,
+    ):
+        fresh, skipped = filter_seen_articles([rephrase], "tg_news")
+    assert fresh == []
     assert skipped == 1
 
 
@@ -271,9 +445,12 @@ def test_mark_articles_ingested_records_content_hashes() -> None:
     with patch("app.rag.dedup.mark_content_ingested") as mark:
         marked = mark_articles_ingested([article], "tg_news")
     assert marked == 1
-    mark.assert_called_once()
-    assert mark.call_args.args[0] == article.content_hash
-    assert mark.call_args.args[1] == "tg_news"
+    keys = {call.args[0] for call in mark.call_args_list}
+    assert article.content_hash in keys, "raw content hash must stay RAG-pipeline compatible"
+    assert all(call.args[1] == "tg_news" for call in mark.call_args_list)
+    # URL/title keys are now recorded too, so a later rephrase is caught.
+    assert any(str(k).startswith("url:") for k in keys)
+    assert any(str(k).startswith("title:") for k in keys)
 
 
 # ── read_channel_messages (fake clients) ───────────────────────────────────

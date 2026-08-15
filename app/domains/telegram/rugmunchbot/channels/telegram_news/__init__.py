@@ -68,14 +68,19 @@ verify them before production monitoring. No secrets involved.
 Dedup
 -----
 Four layers:
-* **In-batch** — ``dedupe_articles`` (content-hash / source-URL first-wins) so
-  the same story forwarded across channels collapses.
+* **In-batch** — ``dedupe_articles`` is **multi-key**: canonical source URL
+  (the first non-``t.me`` link inside the message) → channel ``t.me`` URL →
+  normalized title (lowercase, punctuation/emoji stripped, first 60 chars) →
+  content hash. The same story that is rephrased or forwarded across channels
+  — with a different body but the same original link or headline — collapses
+  to one article.
 * **Cross-run (Redis)** — ``app.domains.news_ingest.filter_seen_articles``
-  reuses the shared ``app.rag.dedup`` content-hash ZSETs
-  (``rag:dedup:content:tg_news``), so content seen in a previous sweep — or
-  ingested by the RAG pipeline — is never re-read/re-embedded. Fresh articles
-  are marked (``mark_articles_ingested``) only AFTER a successful
-  ``news_items`` insert (fail-open; Redis down never hides a story).
+  checks the **same key set** (URL / title / raw content hash) against the
+  shared ``app.rag.dedup`` ZSETs (``rag:dedup:content:tg_news``), so a story
+  seen in a previous sweep — even rephrased — is never re-read/re-embedded.
+  Fresh articles are marked (``mark_articles_ingested``, all keys) only AFTER
+  a successful ``news_items`` insert (fail-open; Redis down never hides a
+  story).
 * **Cross-run (Postgres)** — the ``news_items.news_id`` primary key is derived
   from the canonical ``https://t.me/<channel>/<message_id>`` URL, so
   re-sweeping the same message is skipped by the ``SELECT 1 ...
@@ -83,6 +88,29 @@ Four layers:
 * **Post-level** — the scheduler's in-memory ``_remember`` set (key prefix
   ``tgnews`` / ``tgalpha``) stops the digest re-posting the same article on
   the next tick.
+
+Post variety
+------------
+The news channel alternates between two post shapes:
+* **Breaking solo** — when the top ranked story carries a breaking marker
+  (🚨/BREAKING/URGENT/JUST IN/FLASH in its title,
+  :func:`is_breaking_article`), it is posted immediately on its own with the
+  official link (:func:`format_breaking_post`) instead of waiting for the
+  next digest.
+* **Multi-story digest** — otherwise the top 3-5 stories (by rerank
+  importance, secondarily by the deterministic
+  :func:`lightweight_importance` score) are posted numbered in one digest
+  (:func:`format_news_post`).
+
+Importance
+----------
+Two scorers back the routing:
+* **Rerank** (``channels/importance.py``, Infinity ``BAAI/bge-reranker-v2-m3``)
+  — the primary gate for what is posted at all (``RMI_NEWS_IMPORTANCE_THRESHOLD``).
+* **Lightweight** (``app.domains.news_ingest.lightweight_importance``) — a
+  deterministic 0-1 score (source authority, breaking markers, crypto
+  keywords, freshness) used as a stable secondary ordering and for the
+  website feed items.
 
 Pipeline order (efficiency contract)
 ------------------------------------
@@ -140,13 +168,23 @@ from app.core.redis import get_redis_async  # noqa: F401
 from app.domains.news_ingest.discovery import discover_followed_channels  # noqa: F401
 from app.domains.news_ingest.ingest import (
     DEFAULT_DEDUP_COLLECTION,  # noqa: F401
-    dedupe_articles,  # noqa: F401
-    filter_seen_articles,  # noqa: F401
-    mark_articles_ingested,  # noqa: F401
+    article_dedup_keys,
+    dedupe_articles,
+    extract_canonical_url,
+    extract_image_url,
+    filter_seen_articles,
+    is_breaking_article,
+    lightweight_importance,
+    mark_articles_ingested,
+    normalize_title,
+    rank_articles,
     read_channel_messages,  # noqa: F401
 )
 from app.domains.news_ingest.normalize import channel_message_to_article  # noqa: F401
-from app.domains.telegram.rugmunchbot.channels.formatters import format_news_post  # noqa: F401
+from app.domains.telegram.rugmunchbot.channels.formatters import (
+    format_breaking_post,
+    format_news_post,
+)
 from app.domains.telegram.rugmunchbot.channels.importance import (
     score_importance,  # noqa: F401
     select_important,  # noqa: F401
@@ -220,13 +258,25 @@ __all__ = [
     "TG_NEWS_POST_LIMIT",
     "TG_NEWS_RAG",
     "TG_NEWS_SWEEP_HOURS",
+    "article_dedup_keys",
     "channel_sources",
     "classify_channel_category",
+    "dedupe_articles",
+    "extract_canonical_url",
+    "extract_image_url",
+    "filter_seen_articles",
+    "format_breaking_post",
+    "format_news_post",
     "ingest_into_rag",
     "inject_into_news_cache",
+    "is_breaking_article",
+    "lightweight_importance",
+    "mark_articles_ingested",
+    "normalize_title",
     "persist_articles",
     "post_tg_news_update",
     "publish_market_awareness",
+    "rank_articles",
     "resolve_channel_sources",
     "sweep_telegram_news",
 ]

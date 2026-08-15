@@ -1,15 +1,32 @@
-"""Channel-monitoring ingestion: read → normalize → dedupe.
+"""Channel-monitoring ingestion: read → normalize → dedupe → rank.
 
 ``read_channel_messages`` is a thin async reader over the headless Telegram
 client. It never edits ``app.domains.telegram.headless_client`` and never
 raises — any failure degrades to an empty list so a single flaky channel can
 not take down the whole sweep.
+
+The dedup layers are URL / normalized-title aware so the same story that is
+rephrased across channels (or re-posted with a slightly different body)
+collapses into a single article instead of repeating:
+
+1. **Canonical source URL** — the first non-``t.me`` http(s) URL inside the
+   message (the original article link) is the strongest "same story" signal.
+2. **Channel URL** — the stable ``https://t.me/<channel>/<message_id>`` link.
+3. **Normalized title** — lowercase, punctuation/emoji stripped, first 60
+   chars (only used when the title is substantive, >= 20 chars).
+4. **Content hash** — last resort, raw ``content_hash`` (RAG-compatible).
+
+The same key set is used for the in-batch dedup (``dedupe_articles``) and the
+cross-run Redis dedup (``filter_seen_articles`` / ``mark_articles_ingested``),
+so a story seen in a previous sweep — even rephrased — is never re-read.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, Final
 
 from app.core.logging import get_logger
 from app.domains.news_ingest.models import ChannelMessage, NewsArticle
@@ -29,35 +46,146 @@ DEFAULT_DEDUP_COLLECTION: str = "tg_news"
 
 # ── Dedup (pure, no Redis) ────────────────────────────────────────────────
 
+#: Minimum normalized-title length before it is trusted as a dedup key.
+#: Shorter titles ("market update") are too generic to be a story fingerprint.
+_MIN_TITLE_KEY_CHARS: Final = 20
+#: Normalized-title truncation length (lowercase, punctuation stripped).
+_TITLE_KEY_CHARS: Final = 60
+
+_URL_RE = re.compile(r"https?://[^\s<>\"']+")
+_TME_LINK_RE = re.compile(r"^https?://(?:www\.)?t\.me/", re.IGNORECASE)
+_IMAGE_URL_RE = re.compile(
+    r"https?://[^\s<>\"']+\.(?:jpe?g|png|webp|gif|avif)(?:\?[^\s<>\"']*)?",
+    re.IGNORECASE,
+)
+#: Leading breaking markers stripped from a normalized title so "BREAKING: X"
+#: and "X" (the same story) share one dedup key.
+_NORM_BREAKING_PREFIX_RE = re.compile(r"^(?:breaking|urgent|just in|flash)\s+", re.IGNORECASE)
+
+#: Prefixes that keep news-ingest keys distinct inside the shared Redis
+#: ``rag:dedup:content:<collection>`` ZSET (the raw content hash stays
+#: unprefixed so RAG-pipeline marks keep matching).
+_DEDUP_KEY_URL = "url:"
+_DEDUP_KEY_TITLE = "title:"
+
+
+def _clean_url(url: str) -> str:
+    """Trim trailing punctuation that URL regexes tend to swallow."""
+    return url.rstrip(".,;:!?)]}>\"'")
+
+
+def extract_canonical_url(article: NewsArticle) -> str:
+    """First non-``t.me`` http(s) URL inside an article (title first, then body).
+
+    The canonical source URL is the strongest "same story" signal: every
+    channel that forwards/paraphrases the same piece usually keeps the
+    original article link. ``t.me`` links are skipped — they are the channel's
+    own share link, not the story. Returns ``""`` when nothing usable.
+    """
+    if article is None:
+        return ""
+    for text in (article.title, article.body):
+        for match in _URL_RE.finditer(text or ""):
+            url = _clean_url(match.group(0))
+            if not url or _TME_LINK_RE.match(url):
+                continue
+            return url
+    return ""
+
+
+def extract_image_url(article: NewsArticle) -> str:
+    """First inline image URL (``.jpg/.png/.webp/...``) in the message text.
+
+    Some news channels embed the article's hero image directly in the post
+    (``Image: https://.../photo.jpg``). Best-effort — returns ``""`` when the
+    text carries no image link (photo *media* on the Telegram message itself
+    is not exposed here; see [REVIEW] notes in the channel module).
+    """
+    if article is None:
+        return ""
+    for text in (article.title, article.body):
+        for match in _IMAGE_URL_RE.finditer(text or ""):
+            url = _clean_url(match.group(0))
+            if url:
+                return url
+    return ""
+
+
+def normalize_title(title: str) -> str:
+    """Canonical title form for dedup: lowercase, punctuation/emoji stripped.
+
+    Removes everything except word chars / whitespace / ``$`` (so ``$BTC``
+    survives), strips a leading breaking marker (``BREAKING:`` / ``URGENT`` /
+    ``JUST IN`` / ``FLASH`` — same story with or without the marker), then
+    collapses whitespace and truncates to ``_TITLE_KEY_CHARS``.
+    """
+    if not title:
+        return ""
+    text = title.lower()
+    text = re.sub(r"[^\w\s$]", " ", text)  # emoji/punct are non-word chars
+    text = re.sub(r"\s+", " ", text).strip()
+    text = _NORM_BREAKING_PREFIX_RE.sub("", text)
+    return text[:_TITLE_KEY_CHARS]
+
+
+def article_dedup_keys(article: NewsArticle) -> list[str]:
+    """Stable dedup keys for an article, strongest first.
+
+    Order: canonical source URL → channel t.me URL → normalized title →
+    raw content hash (unprefixed, shared with the RAG pipeline). Callers
+    (in-batch + cross-run dedup) treat an article as a duplicate when ANY of
+    its keys has been seen before — so a rephrased story that keeps its
+    original URL or headline collapses, while a genuinely new story passes.
+    """
+    if article is None:
+        return []
+    keys: list[str] = []
+    canonical = extract_canonical_url(article)
+    if canonical:
+        keys.append(f"{_DEDUP_KEY_URL}{url_hash(canonical)}")
+    if article.source_url:
+        keys.append(f"{_DEDUP_KEY_URL}{url_hash(article.source_url)}")
+    norm_title = normalize_title(article.title)
+    if len(norm_title) >= _MIN_TITLE_KEY_CHARS:
+        keys.append(f"{_DEDUP_KEY_TITLE}{content_hash(norm_title)}")
+    fp = article.content_hash or content_hash(f"{article.title}\n{article.body}")
+    if fp:
+        keys.append(fp)  # raw content hash — stays RAG-pipeline compatible
+    # Dedupe within the list (a URL may repeat when title/body repeat it).
+    return list(dict.fromkeys(keys))
+
 
 def dedupe_articles(articles: list[NewsArticle]) -> list[NewsArticle]:
-    """First-wins dedup on content hash, falling back to source URL.
+    """First-wins multi-key dedup (canonical URL / t.me URL / title / hash).
 
     Uses the pure ``app.rag.dedup`` helpers (``content_hash`` / ``url_hash``)
-    so batch dedup needs no Redis. Preserves input order; articles whose
-    hash matches an earlier one are dropped.
+    so batch dedup needs no Redis. Preserves input order; an article whose
+    canonical URL, channel URL, normalized title, or content hash matches an
+    earlier article is dropped — this collapses the same story forwarded
+    across channels even when each channel rephrases the body.
     """
     seen: set[str] = set()
     result: list[NewsArticle] = []
-    for article in articles:
-        if article.content_hash:
-            key = article.content_hash.strip()
-        elif article.source_url:
-            key = url_hash(article.source_url)
-        else:
-            key = content_hash(f"{article.title}\n{article.body}")
-        if not key or key in seen:
+    for article in articles or []:
+        keys = article_dedup_keys(article)
+        if not keys:
             continue
-        seen.add(key)
+        if any(key in seen for key in keys):
+            continue
+        seen.update(keys)
         result.append(article)
     return result
 
 
-def _article_fingerprint(article: NewsArticle) -> str:
-    """Stable content fingerprint for the shared Redis dedup sets."""
-    if article is None:
-        return ""
-    return article.content_hash or content_hash(f"{article.title}\n{article.body}")
+def _article_fingerprints(article: NewsArticle) -> list[str]:
+    """Stable dedup fingerprints for the shared Redis cross-run sets.
+
+    Mirrors :func:`article_dedup_keys` (canonical URL → t.me URL → title →
+    raw content hash) so ``filter_seen_articles`` / ``mark_articles_ingested``
+    key on the URL/title, not just the raw content hash — a rephrased story
+    from a previous sweep is still recognized.
+    """
+    return article_dedup_keys(article)
 
 
 def filter_seen_articles(
@@ -69,10 +197,13 @@ def filter_seen_articles(
     only after the article was actually persisted, so a transient Postgres
     outage never permanently hides an un-persisted story.
 
-    Reuses ``app.rag.dedup.is_duplicate_content`` — the same Redis ZSET the
-    RAG pipeline maintains — under a dedicated *collection* namespace
-    (``rag:dedup:content:tg_news``). Fail-open: Redis down / auth-failure
-    treats every article as fresh, matching the rest of the ingest layer.
+    Each article is checked against its **full key set** (canonical URL →
+    t.me URL → normalized title → raw content hash); any key already present
+    in the collection marks the story as seen. Reuses ``app.rag.dedup``'s
+    ``is_duplicate_content`` — the same Redis ZSET the RAG pipeline maintains
+    (``rag:dedup:content:tg_news``) — under a dedicated *collection*
+    namespace. Fail-open: Redis down / auth-failure treats every article as
+    fresh, matching the rest of the ingest layer.
 
     Returns ``(fresh, skipped)``; ``fresh`` preserves input order.
     """
@@ -81,15 +212,18 @@ def filter_seen_articles(
     fresh: list[NewsArticle] = []
     skipped = 0
     for article in articles or []:
-        fp = _article_fingerprint(article)
-        if not fp:
+        fps = _article_fingerprints(article)
+        if not fps:
             fresh.append(article)
             continue
-        try:  # fail-open by contract: dedup must never raise or drop articles
-            duplicate = is_duplicate_content(fp, collection)
-        except Exception:
-            logger.debug("news_ingest:dedup_check_failed", exc_info=True)
-            duplicate = False
+        duplicate = False
+        for fp in fps:
+            try:  # fail-open by contract: dedup must never raise or drop articles
+                if is_duplicate_content(fp, collection):
+                    duplicate = True
+                    break
+            except Exception:
+                logger.debug("news_ingest:dedup_check_failed", exc_info=True)
         if duplicate:
             skipped += 1
             continue
@@ -100,24 +234,165 @@ def filter_seen_articles(
 
 
 def mark_articles_ingested(articles: list[NewsArticle], collection: str = DEFAULT_DEDUP_COLLECTION) -> int:
-    """Record article content hashes in the shared Redis dedup sets.
+    """Record article dedup keys in the shared Redis sets.
 
     Best-effort (never raises): the ``app.rag.dedup`` markers are fail-open,
     so a Redis outage only means the next sweep re-reads the same content —
     the Postgres ``news_id`` guard still blocks duplicate persistence.
 
+    Marks **every** key of the article (URL / title / content hash) so a
+    later rephrase of the same story is caught by the cross-run check.
     Returns the number of articles marked.
     """
     from app.rag.dedup import mark_content_ingested
 
     marked = 0
     for article in articles or []:
-        fp = _article_fingerprint(article)
-        if not fp:
+        fps = _article_fingerprints(article)
+        if not fps:
             continue
-        mark_content_ingested(fp, collection)
+        for fp in fps:
+            mark_content_ingested(fp, collection)
         marked += 1
     return marked
+
+
+# ── Lightweight importance + breaking detection (pure, no network) ─────────
+
+#: Source-authority hints — direct outlets outrank aggregators/repackagers.
+_HIGH_AUTHORITY_HINTS: Final = (
+    "cointelegraph",
+    "coindesk",
+    "theblock",
+    "decrypt",
+    "bitcoin magazine",
+    "blockworks",
+    "the defiant",
+    "forbes",
+    "reuters",
+    "bloomberg",
+    "wall street journal",
+    "wsj",
+    "associated press",
+    "apnews",
+    "financial times",
+)
+#: Aggregator/repackager channels — lower authority than primary outlets.
+_LOW_AUTHORITY_HINTS: Final = (
+    "watcher",
+    "cryptoslate",
+    "cryptonews",
+    "wu blockchain",
+    "wublockchain",
+    "panews",
+    "cryptopanic",
+    "coinmarketcap",
+    "coingecko",
+    "daily hodl",
+    "altcoin buzz",
+)
+
+#: Title-level breaking markers → post the story solo (high priority).
+_BREAKING_TITLE_RE = re.compile(r"(?:🚨|\b(?:breaking|urgent|just in|flash)\b)", re.IGNORECASE)
+#: Body-level urgency markers → a strong importance bump, but not solo-worthy.
+_BREAKING_ANY_RE = re.compile(
+    r"(?:🚨|\b(?:breaking|urgent|just in|flash|alert|developing)\b)",
+    re.IGNORECASE,
+)
+
+#: Crypto-relevance keywords — market-moving vocabulary over generic tech.
+_CRYPTO_KEYWORD_RE = re.compile(
+    r"\b(?:bitcoin|btc|ethereum|eth|solana|etf|stablecoin|blackrock|sec|fomc|"
+    r"federal reserve|fed|halving|all[- ]time high|institutional|"
+    r"liquidation|hack|exploit|rug|drained|stolen|approves|rejects|delist|"
+    r"cbdc|regulation|lawsuit|crash)\b",
+    re.IGNORECASE,
+)
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Normalize a (possibly naive) datetime to UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def is_breaking_article(article: NewsArticle) -> bool:
+    """True when the *title* carries an explicit breaking marker.
+
+    Deterministic and cheap: checks the title (the first line the channel
+    posts) for 🚨 / BREAKING / URGENT / JUST IN / FLASH. Used by the channel
+    router to decide between a solo breaking post and a multi-story digest.
+    """
+    if article is None:
+        return False
+    return bool(_BREAKING_TITLE_RE.search(article.title or ""))
+
+
+def lightweight_importance(article: NewsArticle, now: datetime | None = None) -> float:
+    """Deterministic 0-1 importance score (no network, no reranker).
+
+    Combines cheap, explainable signals — the same axes the cross-encoder
+    reranker is calibrated on, usable everywhere (ordering, website feed):
+
+    * source authority — cointelegraph/coindesk/theblock & co. outrank
+      aggregator/repackager channels;
+    * breaking markers in the title (strong) or body (weak);
+    * crypto-relevance keyword density in the title (strong) and body (weak);
+    * freshness — newer posts score higher (age windows: <1h, <3h).
+
+    Fail-open: any missing field (no ``posted_at``, empty body) degrades to
+    the remaining signals; never raises. Returns a value in ``[0, 1]``.
+    """
+    if article is None:
+        return 0.0
+    score = 0.2  # baseline — every normalized article is minimally relevant
+    title = article.title or ""
+    body = article.body or ""
+
+    if is_breaking_article(article):
+        score += 0.25
+    elif _BREAKING_ANY_RE.search(f"{title} {body}"):
+        score += 0.12
+
+    source = (article.source_channel or "").lower()
+    if any(hint in source for hint in _HIGH_AUTHORITY_HINTS):
+        score += 0.25
+    elif any(hint in source for hint in _LOW_AUTHORITY_HINTS):
+        score += 0.0  # aggregator — no authority bump
+    else:
+        score += 0.12  # unknown source — neutral
+
+    title_hits = len(_CRYPTO_KEYWORD_RE.findall(title))
+    body_hits = len(_CRYPTO_KEYWORD_RE.findall(body))
+    score += 0.1 * min(title_hits, 3) + 0.03 * min(body_hits, 5)
+
+    if article.posted_at is not None:
+        try:
+            age_hours = (_as_utc(article.posted_at) - _as_utc(now or datetime.now(UTC))).total_seconds() / 3600.0
+            if age_hours < 1:
+                score += 0.1
+            elif age_hours < 3:
+                score += 0.05
+        except (TypeError, ValueError, OverflowError):
+            pass  # freshness is a bonus, never fatal
+
+    return round(min(1.0, max(0.0, score)), 4)
+
+
+def rank_articles(articles: list[NewsArticle], now: datetime | None = None) -> list[NewsArticle]:
+    """Return *articles* sorted by lightweight importance, best first.
+
+    Stable sort: articles with equal scores keep their input order, so the
+    digest is deterministic. Pure and dependency-free.
+    """
+    if not articles:
+        return []
+    return sorted(
+        articles,
+        key=lambda article: lightweight_importance(article, now=now),
+        reverse=True,
+    )
 
 
 # ── Telethon message conversion ────────────────────────────────────────────

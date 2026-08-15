@@ -45,11 +45,16 @@ class NewsArticle:
         title: First line of the cleaned message (truncated to 120 chars).
         body: Full cleaned message text.
         source_channel: Channel name / username the article came from.
-        source_url: Canonical ``https://t.me/<username>/<message_id>`` URL.
+        source_url: Canonical source URL — the article's real URL when the
+            message carries one (inline link / embedded preview / text URL),
+            else the ``https://t.me/<username>/<message_id>`` fallback.
         category: News category (from the source config).
         posted_at: Original message time.
         content_hash: SHA-256 content fingerprint (``app.rag.dedup.content_hash``).
         entities: Extracted crypto entities ($SYMBOL, EVM, Solana addresses).
+        media: Best-effort story image reference — a media id/url when the
+            message carries photo/video media, or the source page's og:image
+            URL (populated by the sweep; may be ``None``).
     """
 
     title: str
@@ -60,3 +65,4 @@ class NewsArticle:
     posted_at: datetime | None = None
     content_hash: str = ""
     entities: list[str] = field(default_factory=list)
+    media: str | None = None

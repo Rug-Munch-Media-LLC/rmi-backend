@@ -428,7 +428,7 @@ reranker (observability must never take search down).
 | **rmi-rag (sibling repo)** | Keep as standalone reference/edge deploy; RugBrain in rmi-backend is the production path. Avoid duplicate pipelines (RAG_MODERNIZATION.md flagged 4 overlapping pipelines — consolidate INTO RugBrain, don't add a 5th) | convergence |
 | **rmi-rag-wt-ragas** | Ragas harness → formalized as RugBrain L7 eval suite | eval |
 | **Knowledge Graph** (`app/graph_rag.py`) | Community/narrative expansion at retrieval time | KG → retrieval |
-| **rmi-codebase-mcp** | Security pattern library (ChromaDB, 14 categories) as a retrieval source for Security domain queries | pattern KB → RugBrain |
+| **rmi-codebase-mcp** | Security pattern library (Qdrant `security_patterns`, 14 categories) as a retrieval source for Security domain queries | pattern KB → RugBrain |
 
 ---
 
