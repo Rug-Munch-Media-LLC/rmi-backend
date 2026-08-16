@@ -131,6 +131,16 @@ LOCAL_LLM_TOTAL_BUDGET = 60.0  # outer deadline for the whole local model chain
 _TRANSIENT_ERRORS = (httpx.TransportError, ConnectionError, OSError, TimeoutError)
 
 
+# ── Untrusted-context delimiters (indirect prompt-injection hardening) ─────
+# All retrieved/external context — RAG hits, bridge market blocks, scan
+# summaries, live tool data, real-time digests — is UNTRUSTED DATA: news
+# articles / exploit PoCs can embed instructions that try to steer the model
+# or the user. Each block is wrapped in explicit delimiters so the system
+# prompts can tell the model to treat it strictly as reference data.
+def _untrusted_block(block: str) -> str:
+    return f"\n<untrusted_context>\n{block}\n</untrusted_context>\n"
+
+
 async def _post_with_retry(
     client: httpx.AsyncClient,
     url: str,
@@ -352,7 +362,7 @@ async def _call_local_llm_impl(
         system_content += (
             "\n\nCURRENT MARKET DIGEST (today's real-time context — cite it "
             "when relevant, never present it as your own memory):\n"
-            f"{system_context[:1400]}"
+            f"{_untrusted_block(system_context[:1400])}"
         )
     messages: list[dict[str, str]] = [
         {
@@ -636,11 +646,11 @@ async def _build_fallback_answer(
         if isinstance(rag_sources, list):
             bridge_sources = bridge_sources + [s for s in rag_sources if isinstance(s, dict)]
         if rag_context_block:
-            prompt = f"{rag_context_block}\n\n{prompt}"
+            prompt = f"{_untrusted_block(rag_context_block)}\n\n{prompt}"
     if bridge_context:
-        prompt = f"{bridge_context}\n\n{prompt}"
+        prompt = f"{_untrusted_block(bridge_context)}\n\n{prompt}"
     if scan_summary:
-        prompt = f"{scan_summary}\n\n{prompt}"
+        prompt = f"{_untrusted_block(scan_summary)}\n\n{prompt}"
 
     tool_block: str = ""
     try:
@@ -650,7 +660,7 @@ async def _build_fallback_answer(
         # there must never kill the fallback path — degrade to no tool block.
         logger.debug("fallback tool prompt block failed (user=%s): %s", user.id, exc)
     if tool_block:
-        prompt = f"{tool_block}\n\n{prompt}"
+        prompt = f"{_untrusted_block(tool_block)}\n\n{prompt}"
 
     # The fallback answer was grounded by the daily digest (system_context)
     # and/or a bridge market block — remember it for the grounding footer.
