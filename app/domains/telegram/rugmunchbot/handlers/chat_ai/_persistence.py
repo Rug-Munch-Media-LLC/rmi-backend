@@ -16,13 +16,14 @@ import contextlib
 
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.admin_state import track_ai_query, track_tokens
+from app.domains.telegram.rugmunchbot.db._base import run_db
 
 
 async def _persist_answer(user_id: int, text: str, answer: str) -> None:
     """Persist the user/assistant messages + usage/analytics counters."""
-    db.increment_usage(user_id, ai_msg=True)
-    db.add_chat_message(user_id, "user", text)
-    db.add_chat_message(user_id, "assistant", answer)
+    await run_db(db.increment_usage, user_id, ai_msg=True)
+    await run_db(db.add_chat_message, user_id, "user", text)
+    await run_db(db.add_chat_message, user_id, "assistant", answer)
     with contextlib.suppress(Exception):
         await track_ai_query()
         await track_tokens(len(answer) // 4)
