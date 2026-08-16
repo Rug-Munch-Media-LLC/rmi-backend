@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -23,24 +22,28 @@ HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
 
 
 class LocalBGEEmbedder:
-    """Local BAAI BGE-small-en-v1.5 embedder. CPU, ~80MB RAM, 384-dim."""
+    """Local BAAI BGE-small-en-v1.5 embedder — HARD-DISABLED.
+
+    The in-process sentence-transformers/torch path (~300MB resident in the bot
+    process, never unloaded) was the direct cause of memory pressure. This class
+    now fails fast and can NEVER load a local model or touch torch. Use the
+    remote embedders (Infinity primary, OpenRouter, HuggingFace) or the hash
+    fallback instead.
+    """
 
     MODEL_NAME = "BAAI/bge-small-en-v1.5"
-    _model = None
 
     @classmethod
     def _get_model(cls) -> Any:
-        if cls._model is None:
-            from sentence_transformers import SentenceTransformer
-
-            cls._model = SentenceTransformer(cls.MODEL_NAME)
-            logger.info(f"LocalBGEEmbedder loaded: {cls.MODEL_NAME} (384d)")
-        return cls._model
+        raise RuntimeError(
+            "LocalBGEEmbedder disabled: in-process sentence-transformers/torch model "
+            "loading removed for memory safety. Use remote embedders "
+            "(Infinity/OpenRouter/HuggingFace) or the hash fallback instead."
+        )
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        model = self._get_model()
-        embeddings = await asyncio.to_thread(lambda: model.encode(texts, normalize_embeddings=True).tolist())
-        return embeddings
+        self._get_model()  # always raises — no local model is ever loaded
+        raise RuntimeError("LocalBGEEmbedder disabled (see _get_model)")
 
     async def embed_one(self, text: str) -> list[float]:
         results = await self.embed([text])
