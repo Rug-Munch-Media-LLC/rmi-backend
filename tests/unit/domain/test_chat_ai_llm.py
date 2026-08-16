@@ -412,3 +412,132 @@ def test_route_tier_address_beats_definitional_override() -> None:
     assert _llm._route_tier("what is this contract") == "long"  # "contract" is forensics
     assert _llm._route_tier("what is this token") == "snappy"
     assert _llm._route_tier("explain the token at that address") == "snappy"
+
+
+# ── Question-type router (_gather_context / _classify_question) ────────────
+
+
+class _FakeRegistry:
+    """Registry fake capturing the tool spec and returning canned results."""
+
+    def __init__(self, results: dict[str, Any]) -> None:
+        self._results = results
+        self.spec: dict[str, Any] | None = None
+
+    async def run_many_kwargs(self, spec: dict[str, Any], **shared: Any) -> dict[str, Any]:
+        self.spec = spec
+        return dict(self._results)
+
+
+def test_classify_question_types() -> None:
+    """The deterministic type map: address → token; keywords → scam/news/market/edu."""
+    assert _llm._classify_question("") == ""
+    assert _llm._classify_question("hello there") == ""
+    # SPECIFIC TOKEN: address presence wins over every keyword type.
+    assert _llm._classify_question("is this a honeypot " + "0x" + "a" * 40) == "token"
+    assert _llm._classify_question("scan " + "So11111111111111111111111111111111111111112") == "token"
+    # SCAM/SAFETY (beats education — both share the security-pattern KB).
+    assert _llm._classify_question("is $BONK a honeypot") == "scam"
+    assert _llm._classify_question("what is a rug pull") == "scam"
+    # NEWS.
+    assert _llm._classify_question("what is the news about ethereum") == "news"
+    # MARKET/TA.
+    assert _llm._classify_question("what is the price of $BONK") == "market"
+    assert _llm._classify_question("check the rsi on $BONK") == "market"
+    # EDUCATION/LORE.
+    assert _llm._classify_question("what is bitcoin") == "education"
+    # Bare wallet forensics with no address → unknown (LLM answers from memory).
+    assert _llm._classify_question("investigate this wallet's funding sources") == ""
+
+
+async def test_gather_context_returns_empty_for_unknown_type() -> None:
+    """Unknown/greeting questions trigger NO source fetches (fast fail-open)."""
+    block, sources = await _llm._gather_context("hello there")
+    assert block == ""
+    assert sources == []
+
+
+async def test_gather_context_scam_uses_rag_lookup_only_without_address(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SCAM question without an address → rag_lookup (security-pattern KB),
+    never scanner_intel (it needs an address and would miss)."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    rag_ok = ToolResult(
+        tool="rag_lookup",
+        ok=True,
+        data={"context": "Honeypot: contract traps buyers", "hits": []},
+        source="rag:/api/v1/rag/v2/search",
+    )
+    fake = _FakeRegistry({"rag_lookup": rag_ok})
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    block, sources = await _llm._gather_context("is $BONK a honeypot")
+    assert fake.spec is not None
+    assert fake.spec["rag_lookup"] == {"query": "is $BONK a honeypot"}
+    assert "scanner_intel" not in fake.spec
+    assert "Honeypot" in block  # real RAG hit reached the prompt
+    assert sources[0]["type"] == "rag_lookup"
+    assert sources[0]["query"] == "is $BONK a honeypot"
+
+
+async def test_gather_context_token_routes_scanner_plus_price(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SPECIFIC TOKEN (address present) → scanner_intel + price_lookup."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    addr = "0x" + "b" * 40
+    fake = _FakeRegistry(
+        {
+            "scanner_intel": ToolResult(
+                tool="scanner_intel", ok=True, data={"risk_level": "low"}, source="backend:/api/v2/scanner/token/scan"
+            ),
+            "price_lookup": ToolResult(tool="price_lookup", ok=True, data={"pairs": []}, source="dexscreener"),
+        }
+    )
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    block, sources = await _llm._gather_context(f"scan {addr}")
+    assert fake.spec is not None
+    assert set(fake.spec) == {"scanner_intel", "price_lookup"}
+    assert fake.spec["scanner_intel"]["address"] == addr
+    assert "LIVE MARKET DATA" in block
+    assert {s["type"] for s in sources} == {"scanner_intel", "price_lookup"}
+
+
+async def test_gather_context_fail_open_on_registry_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failing registry (or timeout) degrades to empty context — never raises."""
+
+    async def _boom(spec: dict[str, Any], **shared: Any) -> dict[str, Any]:
+        raise RuntimeError("registry down")
+
+    fake = _FakeRegistry({})
+    fake.run_many_kwargs = _boom  # type: ignore[method-assign]
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    block, sources = await _llm._gather_context("is $BONK a honeypot")
+    assert block == ""
+    assert sources == []
+
+
+async def test_gather_context_news_uses_rag_news_v2(monkeypatch: pytest.MonkeyPatch) -> None:
+    """NEWS → app.rag.tools.get_news (RAG news_v2 hits with real URLs)."""
+
+    async def _fake_get_news(query: str, top_k: int = 5) -> dict[str, Any]:
+        return {
+            "query": query,
+            "count": 1,
+            "results": [
+                {
+                    "content": "Ethereum ETF inflows hit a record",
+                    "source": "coindesk",
+                    "canonical_url": "https://example.com/news/1",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("app.rag.tools.get_news", _fake_get_news)
+    block, sources = await _llm._gather_context("any news on ethereum?")
+    assert "RAG NEWS" in block
+    assert "Ethereum ETF inflows" in block
+    assert sources
+    assert sources[0]["type"] == "news"
+    assert sources[0]["url"] == "https://example.com/news/1"
