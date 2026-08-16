@@ -27,7 +27,6 @@ from app.domains.telegram.rugmunchbot.config import (
     WEBSITE_URL,
 )
 from app.domains.telegram.rugmunchbot.formatters import (
-    dex_buttons,
     dexscreener_url,
     explorer_url,
     is_owner,
@@ -52,14 +51,14 @@ def token_buttons(address: str, chain: str, *, include_scan: bool = True) -> lis
 
 
 def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButton]]:
-    """Shared main-menu rows (v10 — most-used first, no orphan buttons).
+    """Shared main-menu rows (v11 — core intents only, decluttered).
 
     Six primary capability sections, two buttons per row — most-used
-    actions on top, community links at the bottom:
+    actions on top:
       Scan         · Intelligence
       Alerts       · Wallet
       Account      · AI Chat
-      Help         · Channel
+      Help
 
     Every registered capability is reachable from one of the sections:
       Scan          → security audits / deep / SENTINEL / rug checks
@@ -69,6 +68,10 @@ def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButto
       Wallet        → wallet forensics / portfolio / watchlist / simulate
       Account       → dashboard / pricing / referrals / scam school
       Help          → full command reference / community links
+
+    Channel + website URL rows were folded into the Help submenu so the
+    welcome keyboard stays a grouped intent hub — every tap is one step
+    into a real flow.
 
     Every callback_data below has a handler in
     handlers/callback/__init__.py — do NOT rename them.
@@ -91,10 +94,6 @@ def _main_menu_rows(user_id: int | None = None) -> list[list[InlineKeyboardButto
         ],
         [
             InlineKeyboardButton("\U0001f4d6 Help", callback_data="menu_cat_help"),
-            InlineKeyboardButton("\U0001f4e2 Channel", url=TELEGRAM_CHANNEL),
-        ],
-        [
-            InlineKeyboardButton("\U0001f310 rugmunch.io", url=WEBSITE_URL),
         ],
     ]
     # Owner-only admin button — hidden from everyone else.
@@ -126,41 +125,32 @@ def welcome_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
 
 
 def menu_kb() -> InlineKeyboardMarkup:
-    """/menu quick-action keyboard (v13).
+    """/menu quick-action keyboard (v14 — core intents, decluttered).
 
-    One-tap shortcuts for the most-used capabilities, rendered under the
-    /menu capability atlas (``MENU_TEXT``). Every callback below reuses an
-    EXISTING wired surface (``run_*`` command cards / live inline data,
-    ``menu_cat_chat`` AI welcome card, ``menu_main``) — zero new callback
-    handlers needed. Do NOT rename the callback_data values.
+    Two buttons per row, one tap → the actual command/flow: Scan · Trending
+    · Price · Wallet · Alerts · Ask AI · Help · Main Menu. Every callback
+    below reuses an EXISTING wired surface (``run_*`` command cards / live
+    inline data, ``menu_cat_chat`` AI welcome card, ``menu_main``) — zero
+    new callback handlers needed. Do NOT rename the callback_data values.
     """
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("\U0001f50d Scan a token", callback_data="run_scan"),
-                InlineKeyboardButton("\U0001f52c Deep Scan", callback_data="run_deepscan"),
-            ],
-            [
-                InlineKeyboardButton("\U0001f4c8 Chart", callback_data="run_chart"),
-                InlineKeyboardButton("\U0001f4b0 Price", callback_data="run_price"),
-            ],
-            [
                 InlineKeyboardButton("\U0001f525 Trending", callback_data="run_trending"),
-                InlineKeyboardButton("\U0001f4f0 News", callback_data="run_news"),
             ],
             [
+                InlineKeyboardButton("\U0001f4b0 Price", callback_data="run_price"),
                 InlineKeyboardButton("\U0001f45b Wallet", callback_data="run_wallet"),
-                InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="run_portfolio"),
             ],
             [
                 InlineKeyboardButton("\U0001f514 Alerts", callback_data="run_alerts"),
                 InlineKeyboardButton("\U0001f916 Ask AI", callback_data="menu_cat_chat"),
             ],
             [
-                InlineKeyboardButton("\U0001f4da Scam School", callback_data="run_scamschool"),
                 InlineKeyboardButton("\U0001f4d6 Full Help", callback_data="run_help"),
+                InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="menu_main"),
             ],
-            [InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="menu_main")],
         ]
     )
 
@@ -526,15 +516,18 @@ def scan_actions_kb(address: str, chain: str) -> InlineKeyboardMarkup:
 
 
 def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
+    """Post-scan action keyboard (v7 — decluttered 2026-08-16).
+
+    Reference links (GMGN/DexScreener/DexTools/RugCharts/RugMaps) render as
+    tappable text in the report footer (``footer_links``) — no duplicate
+    link-button rows here. What remains are ACTION buttons: one tap runs a
+    real flow (holders/research/wallet/TA/alert/watch/deep/share).
+    """
     rows = [
         [web_scan_button(address, chain)],
         [
-            InlineKeyboardButton("👥 Holders", callback_data=f"holders_{address}_{chain}"),
+            InlineKeyboardButton("\U0001f465 Holders", callback_data=f"holders_{address}_{chain}"),
             InlineKeyboardButton("\U0001f50d Research", callback_data=f"research_{address}_{chain}"),
-        ],
-        [
-            InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
-            InlineKeyboardButton("\u2b50 Watch", callback_data=f"watch_{address}_{chain}"),
         ],
         [
             InlineKeyboardButton("\U0001f9db Wallet Check", callback_data=f"wallet_{address}_{chain}"),
@@ -542,21 +535,15 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("\U0001f514 Price Alert", callback_data=f"alert_{address}_{chain}"),
-            InlineKeyboardButton("\U0001f4ca Sentiment", callback_data=f"sentiment_{address}_{chain}"),
+            InlineKeyboardButton("\u2b50 Watch", callback_data=f"watch_{address}_{chain}"),
         ],
         [
+            InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
             InlineKeyboardButton("\U0001f4e4 Share", callback_data=f"share_{address}_{chain}"),
-            InlineKeyboardButton("\U0001f50d MEV Check", callback_data=f"mev_{address}_{chain}"),
         ],
+        [InlineKeyboardButton("\u2b50 Unlock Premium Features", callback_data="menu_pricing")],
+        [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
     ]
-    dex_btns = dex_buttons(address, chain)
-    for i in range(0, len(dex_btns), 2):
-        rows.append(dex_btns[i : i + 2])
-    # UX overhaul: tap-to-action token row (scan / chart / explorer) — covers chart/rugmap/share
-    rows.append(token_buttons(address, chain))
-    # Upgrade nudge for free users
-    rows.append([InlineKeyboardButton("\u2b50 Unlock Premium Features", callback_data="menu_pricing")])
-    rows.append([InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")])
     return InlineKeyboardMarkup(rows)
 
 
@@ -753,8 +740,6 @@ def deep_scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
                 InlineKeyboardButton("\U0001f575\ufe0f Investigate", callback_data=f"investigate_{address}_{chain}"),
             ],
-            # UX overhaul: tap-to-action token row (scan / chart / explorer)
-            token_buttons(address, chain),
             [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
         ]
     )

@@ -155,8 +155,11 @@ def _query_token_dex_stats(
     """Compute per-token first/last swap + count from dex_events.
 
     ``pair_created_ts`` is proxied by the earliest DEX swap timestamp (the
-    chain-indexers persist only ``type = 'swap'`` rows). Historical rows with
-    empty token0/token1 are covered via the pair→tokens cache.
+    chain-indexers persist only ``type = 'swap'`` rows). ``dex_events`` has no
+    ``token_address`` column — swaps are keyed by ``token0``/``token1``, so the
+    two sides are grouped separately (UNION ALL). Historical rows with empty
+    token0/token1 are attributed through the pair→tokens cache (a second,
+    pool-keyed query merged back via ``pool_to_tokens``).
     """
     client = _client()
     if client is None or not tokens:
@@ -173,40 +176,51 @@ def _query_token_dex_stats(
         _load_pair_cache = None  # type: ignore[assignment]
 
     token_addrs = [t["token_address"] for t in tokens]
+
+    # Known pools per token (pair cache) + pool → tracked-token attribution so
+    # pool-keyed historical rows can be merged back onto the right token.
     pools: set[str] = set()
+    pool_to_tokens: dict[str, set[str]] = {}
     if _get_pools_for_token is not None and _load_pair_cache is not None:
         try:
             for t in tokens:
+                t_addr = t["token_address"].lower()
                 pair_cache = _load_pair_cache(t.get("chain") or chain or "")
-                pools.update(_get_pools_for_token(pair_cache, t["token_address"]))
+                for pool_addr in _get_pools_for_token(pair_cache, t_addr):
+                    pools.add(pool_addr)
+                    pool_to_tokens.setdefault(pool_addr, set()).add(t_addr)
         except (ValueError, OSError):
             pass
 
-    params: dict[str, Any] = {
-        "tokens": tuple(token_addrs),
-        "pools": tuple(sorted(pools)) if pools else (),
-    }
     where_parts = ["type = 'swap'"]
+    params: dict[str, Any] = {"tokens": tuple(token_addrs)}
     if chain:
         where_parts.append("chain = %(chain)s")
         params["chain"] = chain
-    pool_clause = ""
-    if pools:
-        pool_clause = " OR contract_address IN %(pools)s"
     where_clause = " AND ".join(where_parts)
+
+    result: dict[str, dict[str, Any]] = {}
 
     try:
         rows = client.execute(
             f"""
             SELECT
-                token_address,
+                t_addr,
                 min(block_timestamp) AS first_dex_ts,
                 max(block_timestamp) AS last_swap_ts,
                 count() AS swap_count
-            FROM wallet_memory.dex_events
-            WHERE {where_clause}
-              AND (token0 IN %(tokens)s OR token1 IN %(tokens)s{pool_clause})
-            GROUP BY token_address
+            FROM (
+                SELECT token0 AS t_addr, block_timestamp
+                FROM wallet_memory.dex_events
+                WHERE {where_clause}
+                  AND token0 IN %(tokens)s
+                UNION ALL
+                SELECT token1 AS t_addr, block_timestamp
+                FROM wallet_memory.dex_events
+                WHERE {where_clause}
+                  AND token1 IN %(tokens)s
+            ) AS swaps_side
+            GROUP BY t_addr
             """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
             settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
@@ -215,14 +229,61 @@ def _query_token_dex_stats(
         logger.debug("fingerprint_token_dex_stats_failed: %s", exc)
         return {}
 
-    result: dict[str, dict[str, Any]] = {}
     for row in rows:
-        result[row[0].lower()] = {
-            "first_dex_ts": row[1],
-            "last_swap_ts": row[2],
-            "swap_count": int(row[3] or 0),
-        }
+        _merge_dex_stats(result, row[0], row[1], row[2], row[3])
+
+    # Historical pool-matched rows (empty token0/token1): attribute via the
+    # pair cache — each pool row is folded into every tracked token it hosts.
+    if pools:
+        try:
+            pool_rows = client.execute(
+                f"""
+                SELECT
+                    contract_address,
+                    min(block_timestamp) AS first_dex_ts,
+                    max(block_timestamp) AS last_swap_ts,
+                    count() AS swap_count
+                FROM wallet_memory.dex_events
+                WHERE {where_clause}
+                  AND contract_address IN %(pools)s
+                GROUP BY contract_address
+                """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+                {**params, "pools": tuple(sorted(pools))},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            )
+        except (ValueError, RuntimeError, OSError) as exc:
+            logger.debug("fingerprint_token_dex_stats_pool_failed: %s", exc)
+            pool_rows = []
+
+        for row in pool_rows:
+            for t_addr in pool_to_tokens.get(row[0].lower(), ()):
+                _merge_dex_stats(result, t_addr, row[1], row[2], row[3])
+
     return result
+
+
+def _merge_dex_stats(
+    result: dict[str, dict[str, Any]],
+    addr: Any,
+    first_ts: Any,
+    last_ts: Any,
+    count: Any,
+) -> None:
+    """Fold one dex_events aggregate row into the per-token result.
+
+    Multiple rows can contribute to the same token (token0 side + token1 side +
+    any pool-keyed rows): keep the earliest ``first_dex_ts``, the latest
+    ``last_swap_ts``, and sum ``swap_count``.
+    """
+    addr_s = str(addr or "").lower()
+    if not addr_s:
+        return
+    cur = result.setdefault(addr_s, {"first_dex_ts": None, "last_swap_ts": None, "swap_count": 0})
+    if first_ts is not None and (cur["first_dex_ts"] is None or first_ts < cur["first_dex_ts"]):
+        cur["first_dex_ts"] = first_ts
+    if last_ts is not None and (cur["last_swap_ts"] is None or last_ts > cur["last_swap_ts"]):
+        cur["last_swap_ts"] = last_ts
+    cur["swap_count"] = int(cur["swap_count"] or 0) + int(count or 0)
 
 
 def _query_funder(deployer_address: str, chain: str) -> dict[str, Any] | None:

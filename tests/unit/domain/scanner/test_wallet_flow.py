@@ -26,6 +26,7 @@ from app.domains.scanner.engines.wallet_flow import (
     _classify_node,
     _rank_counterparties,
     build_flow_graph,
+    build_flow_summary,
     clear_cache,
 )
 
@@ -329,6 +330,129 @@ class TestBuildFlowGraph:
         assert out == cached
         compute.assert_not_awaited()
         assert fake.executed == []  # no ClickHouse query executed
+
+
+class TestBuildFlowSummary:
+    """Unit tests for build_flow_summary — deterministic fund-flow summary."""
+
+    def setup_method(self) -> None:
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_summary_in_out_counterparties_exchange_share(self) -> None:
+        """In/out USD, labeled counterparties, and CEX share are derived."""
+        fake = FakeCHClient(
+            hop1=[
+                (_WALLET, _CP1, _TOKEN, 5000, "0xaaa"),  # outflow → CEX
+                (_CP2, _WALLET, _TOKEN, 3000, "0xbbb"),  # inflow ← EOA
+            ],
+            labels=[(_CP1, "Binance Hot Wallet", "exchange", "cex", "eth_labels", 0)],
+        )
+        with (
+            _mock_ch(fake),
+            _mock_usd(8000.0),
+            _no_redis_get(),
+            _no_redis_set(),
+        ):
+            out = await build_flow_summary(_WALLET, "ethereum", hops=1)
+
+        assert out is not None
+        assert out["wallet"] == _WALLET
+        assert out["in_usd"] == pytest.approx(3000.0)
+        assert out["out_usd"] == pytest.approx(5000.0)
+        assert out["net_usd"] == pytest.approx(2000.0)
+        assert out["in_tx_count"] == 1
+        assert out["out_tx_count"] == 1
+        assert out["usd_unavailable"] is False
+
+        cp_out = out["counterparty_out"]
+        assert cp_out
+        assert cp_out[0]["address"] == _CP1
+        assert cp_out[0]["type"] == "CEX"
+        assert cp_out[0]["label"] == "Binance Hot Wallet"
+        assert cp_out[0]["usd"] == pytest.approx(5000.0)
+
+        cp_in = out["counterparty_in"]
+        assert cp_in
+        assert cp_in[0]["address"] == _CP2
+        assert cp_in[0]["type"] == "EOA"
+
+        exch = out["exchange"]
+        assert exch["out_usd"] == pytest.approx(5000.0)
+        assert exch["in_usd"] == pytest.approx(0.0)
+        assert exch["tx_count"] == 1
+        # 5000 of 8000 total USD touches an exchange → 62.5%
+        assert exch["share_pct"] == pytest.approx(62.5)
+        assert out["wash"]["signal"] is False
+
+    @pytest.mark.asyncio
+    async def test_summary_wash_reciprocal_round_trip(self) -> None:
+        """Reciprocal A→B AND B→A transfers flag the wash pattern."""
+        fake = FakeCHClient(
+            hop1=[
+                (_WALLET, _CP1, _TOKEN, 500, "0xaaa"),
+                (_WALLET, _CP1, _TOKEN, 300, "0xaab"),
+                (_CP1, _WALLET, _TOKEN, 700, "0xbbb"),
+            ]
+        )
+        with (
+            _mock_ch(fake),
+            _mock_usd(1500.0),
+            _no_redis_get(),
+            _no_redis_set(),
+        ):
+            out = await build_flow_summary(_WALLET, "ethereum", hops=1)
+
+        assert out is not None
+        wash = out["wash"]
+        assert wash["reciprocal_pairs"] == 1
+        assert wash["tx_count"] == 3  # 2 out + 1 in round-trip transfers
+        assert wash["signal"] is True
+
+    @pytest.mark.asyncio
+    async def test_summary_usd_unavailable_uses_tx_share(self) -> None:
+        """When the price oracle fails, the summary degrades to tx-based share."""
+        fake = FakeCHClient(
+            hop1=[
+                (_WALLET, _CP1, _TOKEN, 500, "0xaaa"),  # outflow → CEX (1 tx)
+                (_CP1, _WALLET, _TOKEN, 700, "0xbbb"),  # inflow ← CEX (1 tx)
+                (_CP2, _WALLET, _TOKEN, 300, "0xccc"),  # inflow ← EOA (1 tx)
+            ],
+            labels=[(_CP1, "Binance Hot Wallet", "exchange", "cex", "eth_labels", 0)],
+        )
+        with (
+            _mock_ch(fake),
+            patch(
+                "app.domains.scanner.engines.wallet_flow._normalize_token_usd",
+                AsyncMock(return_value=None),  # oracle fails → USD unavailable
+            ),
+            _no_redis_get(),
+            _no_redis_set(),
+        ):
+            out = await build_flow_summary(_WALLET, "ethereum", hops=1)
+
+        assert out is not None
+        assert out["usd_unavailable"] is True
+        assert out["in_usd"] == 0.0
+        assert out["out_usd"] == 0.0
+        assert out["total_tx_count"] == 3
+        exch = out["exchange"]
+        assert exch["share_pct"] == 0.0
+        # 2 of 3 txs touch the CEX → 66.7% by tx
+        assert exch["share_tx_pct"] == pytest.approx(66.7)
+
+    @pytest.mark.asyncio
+    async def test_summary_none_when_graph_unavailable(self) -> None:
+        """No transfer history → graph unavailable → summary is None (fail-open)."""
+        fake = FakeCHClient(hop1=[])
+        with (
+            _mock_ch(fake),
+            _no_redis_get(),
+            _no_redis_set(),
+        ):
+            out = await build_flow_summary(_WALLET, "ethereum")
+
+        assert out is None
 
 
 class TestClassifyNode:

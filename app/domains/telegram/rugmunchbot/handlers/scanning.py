@@ -11,7 +11,7 @@ NOTE (degodding 2026-08-14): the handler bodies now live in the
   * ``handlers/_core_handlers.py``  — cmd_start, cmd_help, cmd_faq
   * ``handlers/_scan_handlers.py``  — cmd_scan, cmd_deepscan, sentinel_scan,
     cmd_wallet, cmd_compare, cmd_quick, cmd_deployer, cmd_hype +
-    ``_with_trade_buttons``, ``_poll_v2_scan_completion``
+    ``_poll_v2_scan_completion``
   * ``handlers/_ta_handlers.py``    — cmd_ta
   * ``handlers/_charts.py``         — _fetch_rugcharts_ohlcv, _fetch_rugcharts_intel
   * ``handlers/_image.py``          — _maybe_send_token_image
@@ -53,7 +53,6 @@ __all__ = [
     "_ta_rsi_emoji",
     "_ta_vol_arrow",
     # internal helpers
-    "_with_trade_buttons",
     "cmd_compare",
     "cmd_deepscan",
     "cmd_deployer",
@@ -99,7 +98,6 @@ from app.domains.telegram.rugmunchbot.handlers._help_text import (  # re-exporte
 from app.domains.telegram.rugmunchbot.handlers._image import _maybe_send_token_image  # re-exported
 from app.domains.telegram.rugmunchbot.handlers._scan_handlers import (  # re-exported
     _poll_v2_scan_completion,
-    _with_trade_buttons,
     cmd_compare,
     cmd_deepscan,
     cmd_deployer,

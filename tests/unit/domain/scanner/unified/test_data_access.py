@@ -167,3 +167,45 @@ class TestBackends:
             pytest.raises(DataAccessUnavailable),
         ):
             await b2_parquet_lookup("0xabc", "ethereum")
+
+
+class TestClickhouseTokenHistoryQuery:
+    """clickhouse_token_history must use the CURRENT dex_events schema.
+
+    The legacy query referenced the pre-drift ``base_address`` /
+    ``quote_address`` / ``dex_name`` / ``base_symbol`` columns that no longer
+    exist on ``wallet_memory.dex_events`` (the chain-indexer schema stores
+    ``token0`` / ``token1`` / ``dex`` / ``amount0`` / ``amount1``).
+    """
+
+    class _FakeCH:
+        def __init__(self, rows: list[list] | None = None) -> None:
+            self.rows = rows or []
+            self.sql: str | None = None
+            self.params: dict | None = None
+
+        def execute(self, sql: str, params: dict | None = None, settings: dict | None = None) -> list:
+            self.sql = sql
+            self.params = params
+            return self.rows
+
+    @pytest.mark.asyncio
+    async def test_query_uses_token0_token1_columns(self) -> None:
+        """/trace-side dex history matches on token0/token1, not drifted columns."""
+        fake = self._FakeCH([["2026-08-16 12:00:00", "uniswap", "0xa", "0xb", "100", "1", "0xhash"]])
+        with patch(
+            "app.domains.databus.providers.chains.lite_chain_indexer._get_ch_client",
+            return_value=fake,
+        ):
+            out = await clickhouse_token_history("0xa", "ethereum")
+
+        assert out["backend"] == "clickhouse"
+        assert fake.sql is not None
+        assert "token0" in fake.sql
+        assert "token1" in fake.sql
+        assert "base_address" not in fake.sql
+        assert "quote_address" not in fake.sql
+        assert "dex_name" not in fake.sql
+        assert "base_symbol" not in fake.sql
+        assert fake.params == {"address": "0xa", "chain": "ethereum"}
+        assert out["row_count"] == 1

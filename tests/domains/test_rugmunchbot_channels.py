@@ -541,6 +541,9 @@ class FakeJobQueue:
     def run_repeating(self, callback: Any, interval: Any, first: Any = None, name: Any = None, **kwargs: Any) -> None:
         self.jobs.append({"callback": callback, "interval": interval, "first": first, "name": name})
 
+    def run_daily(self, callback: Any, time: Any, days: Any = None, name: Any = None, **kwargs: Any) -> None:
+        self.jobs.append({"callback": callback, "time": time, "days": days, "name": name})
+
 
 class TestPostingJobs:
     async def test_news_job_sends_and_dedupes(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -673,12 +676,14 @@ class TestRegistration:
         channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
         # The legacy ``channel_news`` job is deprecated (commented out); the
         # routed tg_news lane now owns the news channel. Every enabled job
-        # with a resolvable chat id registers (scam_watch needs no chat id).
+        # with a resolvable chat id registers (scam_watch needs no chat id);
+        # the daily market summary registers when the main chat id resolves.
         assert {j["name"] for j in fake_jq.jobs} == {
             "channel_alerts",
             "channel_alpha",
             "channel_tg_news",
             "channel_scam_watch",
+            "daily_market_summary",
         }
 
     def test_master_switch_disables_all(self, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -676,7 +676,7 @@ async def ai_health_check() -> dict[str, Any]:
     # does not raise ImportError. Defaults mirror app/ai_analysis.py.
     LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL", "http://localhost:4000")
     LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "")
-    OLLAMA_BASE_URLS = [u for u in os.getenv("OLLAMA_BASE_URLS", "http://172.22.0.1:11434").split(",") if u]
+    OLLAMA_BASE_URLS = [u for u in os.getenv("OLLAMA_BASE_URLS", "http://localhost:11434").split(",") if u]
 
     ollama_ok = False
     ollama_url = ""

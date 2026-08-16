@@ -296,7 +296,7 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     huggingface_token: str = ""
     litellm_api_base: str = Field(
-        default="http://172.22.0.1:4000/v1",
+        default="http://localhost:4000/v1",
         description="LiteLLM / OpenAI-compatible proxy base URL. Set LITELLM_API_BASE env var.",
     )
 
