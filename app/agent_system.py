@@ -427,7 +427,7 @@ async def check_cache(msg: str, agent_id: str) -> str | None:
         cached = r.get(cache_key)
         if cached:
             logger.info(f"Cache hit for {agent_id}: {cache_key}")
-            return cached
+            return cached.decode() if isinstance(cached, bytes) else cached
     except (ConnectionError, OSError):
         pass
     return None

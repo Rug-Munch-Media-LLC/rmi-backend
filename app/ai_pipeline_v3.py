@@ -44,7 +44,9 @@ def _cache_get(key: str) -> str | None:
     if REDIS_AVAILABLE:
         try:
             value = _redis.get(f"rmi:ai:{key}")
-            return value.decode() if value is not None else None
+            if value is None:
+                return None
+            return value.decode() if isinstance(value, bytes) else value
         except (ConnectionError, OSError):
             pass
     return None

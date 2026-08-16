@@ -25,7 +25,7 @@ import asyncio
 import math
 import re
 from collections import Counter, defaultdict
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 
@@ -576,7 +576,7 @@ async def build_bm25_from_redis(
     for coll in collections:
         idx_key = f"rag:idx:{coll}"
         try:
-            doc_ids = await r.smembers(idx_key)
+            doc_ids = cast("set[str]", await r.smembers(idx_key))
             if not doc_ids:
                 continue
 
@@ -612,7 +612,7 @@ async def build_bm25_from_redis(
             logger.warning(f"BM25 indexing for {coll} failed: {e}")
 
     index.build()
-    await r.aclose()  # type: ignore[attr-defined]  # aclose exists at runtime (redis>=5.2)
+    await r.aclose()
 
     logger.info(
         f"BM25 index built: {total_indexed} docs, {len(index.df)} unique terms, avg doc length {index.avg_dl:.1f}"

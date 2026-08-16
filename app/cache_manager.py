@@ -213,7 +213,7 @@ class RMICache:
     """Centralized cache with Redis primary + dict fallback + credit tracking."""
 
     def __init__(self) -> None:
-        self._redis: redis_async.Redis[str] | None = None
+        self._redis: redis_async.Redis | None = None
         self._redis_available = False
         self._memory: dict[str, tuple[Any, float]] = {}
         # Credit tracking: {source: {"hits": N, "misses": N, "calls": [], "bytes": N}}

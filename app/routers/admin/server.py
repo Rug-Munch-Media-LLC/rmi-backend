@@ -30,11 +30,11 @@ async def admin_processes(request: Request, _=Depends(verify_admin)) -> dict[str
             with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
                 processes.append(
                     {
-                        "pid": proc.info["pid"],  # type: ignore[attr-defined]  # psutil Process.info is a dynamic per-iter attrs dict
-                        "name": proc.info["name"],  # type: ignore[attr-defined]
-                        "cpu": round(proc.info["cpu_percent"] or 0, 1),  # type: ignore[attr-defined]
-                        "memory": round(proc.info["memory_percent"] or 0, 1),  # type: ignore[attr-defined]
-                        "status": proc.info["status"],  # type: ignore[attr-defined]
+                        "pid": proc.info["pid"],  # psutil Process.info is a dynamic per-iter attrs dict
+                        "name": proc.info["name"],
+                        "cpu": round(proc.info["cpu_percent"] or 0, 1),
+                        "memory": round(proc.info["memory_percent"] or 0, 1),
+                        "status": proc.info["status"],
                     }
                 )
         processes.sort(key=lambda p: p["memory"], reverse=True)

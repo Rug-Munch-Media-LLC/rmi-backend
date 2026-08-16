@@ -269,7 +269,7 @@ def _emailrep(email: str, report: OsintReport, timeout: float) -> None:
 
     profiles = payload.get("profiles") or details_dict.get("profiles") or []
     if isinstance(profiles, list) and profiles:
-        profile_strs = [str(profile) for profile in cast("list[Any]", profiles)]
+        profile_strs = [str(profile) for profile in profiles]
         _finding(
             report,
             source="emailrep",

@@ -124,7 +124,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "") or None
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
-_redis: redis.Redis[Any] | None = None
+_redis: redis.Redis | None = None
 
 CACHE_TTL = 300  # 5 minutes
 
@@ -720,7 +720,7 @@ async def chat(
         and isinstance(req.context_override.get("system_context"), str)
         and req.context_override.get("system_context", "").strip()
     )
-    grounding_text = req.context_override.get("system_context") if client_grounded else None
+    grounding_text = req.context_override.get("system_context") if client_grounded and req.context_override else None
     cache_key = _cache_key(req.message, grounding=grounding_text)
     cached = _cache_get(cache_key)
     if cached is not None:

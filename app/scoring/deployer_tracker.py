@@ -35,7 +35,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis_async
@@ -304,7 +304,7 @@ async def _trace_pumpfun_deployer(
     try:
         # Try Helius first (best Solana RPC)
         try:
-            from app.helius_tools import get_token_creation_tx
+            from app.helius_tools import get_token_creation_tx  # type: ignore[attr-defined]
 
             creation_data = await get_token_creation_tx(token_address)
             if creation_data and creation_data.get("fee_payer"):
@@ -319,7 +319,7 @@ async def _trace_pumpfun_deployer(
 
         # Try RPC router
         try:
-            from app.domains.scanner.engines.rpc_router import (
+            from app.domains.scanner.engines.rpc_router import (  # type: ignore[attr-defined]
                 get_rpc_url,
                 rpc_call,
             )
@@ -331,7 +331,7 @@ async def _trace_pumpfun_deployer(
                 "method": "getSignaturesForAddress",
                 "params": [token_address, {"limit": 1}],
             }
-            sigs = await rpc_call(url, body)
+            sigs = await rpc_call(url, cast("Any", body))
             if sigs and isinstance(sigs, list) and len(sigs) > 0:
                 oldest = sigs[-1]  # oldest signature
                 tx_sig = oldest.get("signature", "")
@@ -386,7 +386,7 @@ async def _trace_evm_factory_deployer(
     transaction history or use the deployer_events table.
     """
     try:
-        from app.domains.scanner.engines.rpc_router import get_rpc_url, rpc_call
+        from app.domains.scanner.engines.rpc_router import get_rpc_url, rpc_call  # type: ignore[attr-defined]
 
         url = get_rpc_url(chain)
 
@@ -397,7 +397,7 @@ async def _trace_evm_factory_deployer(
                 "method": "eth_getTransactionByHash",
                 "params": [deploy_tx],
             }
-            tx_data = await rpc_call(url, body)
+            tx_data = await rpc_call(url, cast("Any", body))
             if tx_data and isinstance(tx_data, dict):
                 tx_from = tx_data.get("from", "")
                 if tx_from and tx_from.lower() != factory_address.lower():

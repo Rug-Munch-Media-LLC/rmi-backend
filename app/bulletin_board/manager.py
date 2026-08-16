@@ -110,7 +110,7 @@ class BulletinBoardManager:
 
         # Supabase backup
         try:
-            from supabase import (  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+            from supabase import (
                 create_client,
             )
 
@@ -199,7 +199,7 @@ class BulletinBoardManager:
         await r.hset("rmi:bulletin_posts", post_id, json.dumps(post_dict))
 
         try:
-            from supabase import (  # type: ignore[attr-defined]  # installed supabase stub lacks create_client
+            from supabase import (
                 create_client,
             )
 

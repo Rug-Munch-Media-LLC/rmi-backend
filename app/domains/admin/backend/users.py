@@ -10,7 +10,7 @@ import hashlib
 import json
 import os
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.domains.admin.backend.models import AdminRole
@@ -53,7 +53,7 @@ class AdminUserStore:
                 decode_responses=True,
             )
             admin_id = await r.hget("rmi:admins:email", email.lower())
-            return await AdminUserStore.get_admin(admin_id) if admin_id else None
+            return await AdminUserStore.get_admin(cast("str", admin_id)) if admin_id else None
         except (ConnectionError, OSError, ValueError) as e:
             logger.debug("get_admin_by_email_error", exc_info=True)
             logger.error(f"Get admin by email failed: {e}")
@@ -76,7 +76,7 @@ class AdminUserStore:
 
             # Also save to Supabase
             try:
-                from supabase import create_client  # type: ignore[attr-defined]  # PTB None-able fields
+                from supabase import create_client
 
                 supabase_url = os.getenv("SUPABASE_URL")
                 supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or ""

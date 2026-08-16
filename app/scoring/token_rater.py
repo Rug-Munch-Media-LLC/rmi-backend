@@ -27,9 +27,12 @@ is the authoritative baseline.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from app.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from app.cross_encoder_reranker import CrossEncoderReranker
 
 logger = get_logger(__name__)
 
@@ -589,7 +592,7 @@ class TokenRater:
 
     def __init__(self, use_reranker: bool = True) -> None:
         self.use_reranker = use_reranker
-        self._reranker = None
+        self._reranker: CrossEncoderReranker | None = None
 
     async def _get_reranker(self):
         """Lazy-load the cross-encoder reranker."""

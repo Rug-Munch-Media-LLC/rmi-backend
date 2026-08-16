@@ -152,7 +152,7 @@ for w in sweepable:
             if not w3.is_connected():
                 raise RuntimeError("RPC connection failed")
 
-            balance_wei = w3.eth.get_balance(w.address)  # type: ignore[arg-type]  # web3 accepts plain str address
+            balance_wei = w3.eth.get_balance(w.address)  # web3 accepts plain str address
             if balance_wei == 0:
                 raise RuntimeError("On-chain balance is 0")
 
@@ -161,7 +161,7 @@ for w in sweepable:
                 raise RuntimeError("Balance too low for gas")
 
             sweep_wei = balance_wei - gas_reserve
-            nonce = w3.eth.get_transaction_count(w.address)  # type: ignore[arg-type]  # web3 accepts plain str address
+            nonce = w3.eth.get_transaction_count(w.address)  # web3 accepts plain str address
 
             tx = {
                 "nonce": nonce,

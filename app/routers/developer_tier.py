@@ -21,7 +21,7 @@ import hashlib
 import json
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -289,7 +289,7 @@ async def get_usage(req: UsageRequest) -> Any:
     tool_usage = {}
     tool_keys = r.keys(f"rmi:dev:tool:{hashed}:*")
     for tk in tool_keys[:50]:  # Limit to 50 tools
-        tool_name = tk.decode().split(":")[-1]
+        tool_name = cast("bytes", tk).decode().split(":")[-1]
         count = int(r.get(tk) or 0)
         if count > 0:
             tool_usage[tool_name] = count

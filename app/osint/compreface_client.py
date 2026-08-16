@@ -186,7 +186,7 @@ def _result_list(payload: Any) -> list[dict[str, Any]]:
         logger.warning("compreface: response has no 'result' list: %r", str(body)[:200])
         return []
     faces: list[dict[str, Any]] = []
-    for item in cast("list[Any]", result):
+    for item in result:
         if isinstance(item, dict):
             faces.append(cast("dict[str, Any]", item))
     return faces
@@ -198,7 +198,7 @@ def _face_payload(face: dict[str, Any]) -> dict[str, Any]:
     subjects = face.get("subjects")
     matches: list[dict[str, Any]] = []
     if isinstance(subjects, list):
-        for entry in cast("list[Any]", subjects):
+        for entry in subjects:
             if isinstance(entry, dict) and entry.get("subject"):
                 matches.append(cast("dict[str, Any]", entry))
     top = matches[0] if matches else None

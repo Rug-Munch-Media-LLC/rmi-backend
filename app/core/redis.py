@@ -62,13 +62,13 @@ def _get_redis_url() -> str:
 
 REDIS_URL = _get_redis_url()
 
-_redis_client: redis.Redis[Any] | aioredis.Redis[Any] | None = None
+_redis_client: redis.Redis | aioredis.Redis | None = None
 _sync_pool: redis.ConnectionPool | None = None
 _async_pool: aioredis.ConnectionPool | None = None
 _degraded: bool = False
 
 
-def get_redis() -> redis.Redis[Any] | None:
+def get_redis() -> redis.Redis | None:
     """Get Redis client with connection pooling. Single source of truth."""
     global _redis_client, _sync_pool, _degraded
     import redis
@@ -99,7 +99,7 @@ def get_redis() -> redis.Redis[Any] | None:
         return None
 
 
-def get_redis_async() -> aioredis.Redis[Any] | None:
+def get_redis_async() -> aioredis.Redis | None:
     """Get async Redis client for async operations."""
     global _redis_client, _async_pool
     import redis.asyncio as aioredis
