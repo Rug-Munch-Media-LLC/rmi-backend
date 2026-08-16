@@ -51,6 +51,7 @@ logger = get_logger("rmi_bot")
 
 
 async def cmd_ta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Render a technical-analysis card for an address/symbol (RugCharts OHLCV)."""
     user = update.effective_user
     if user is None:
         return

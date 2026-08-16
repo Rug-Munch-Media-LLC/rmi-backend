@@ -11,6 +11,9 @@ import html
 from typing import TYPE_CHECKING, Any
 
 from app.domains.telegram.rugmunchbot.formatters._base import thin_sep
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -96,7 +99,8 @@ def _format_risk_signals_section(r: dict[str, Any]) -> list[str]:
     if not verdict and _risk_verdict_text is not None:
         try:
             verdict = _risk_verdict_text(rs.get("rug_risk_score") or {})
-        except Exception:
+        except Exception as e:
+            logger.debug("risk verdict render failed: %s", e)
             verdict = None
     if verdict:
         lines.append(f"  {html.escape(str(verdict))}")

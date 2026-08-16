@@ -65,6 +65,7 @@ class TTLCache(Generic[T]):
         return make_cache_key(namespace, key)
 
     def get(self, namespace: str, key: str) -> T | None:
+        """Return the cached value for (namespace, key), or None on miss/expiry."""
         skey = self._skey(namespace, key)
         item = self._store.get((namespace, skey))
         if item is None:
@@ -78,6 +79,7 @@ class TTLCache(Generic[T]):
         return value
 
     def set(self, namespace: str, key: str, value: T, ttl: float) -> None:
+        """Store ``value`` for (namespace, key) with TTL-policy-aware expiry + LRU eviction."""
         # Stable-data TTL policy wins for known tool namespaces (longer-lived
         # data = fewer API calls); unknown namespaces keep the caller TTL.
         effective = effective_ttl(namespace, ttl)
@@ -89,6 +91,7 @@ class TTLCache(Generic[T]):
             self._store.popitem(last=False)
 
     def clear(self, namespace: str | None = None) -> None:
+        """Evict all entries, or only those under ``namespace`` when given."""
         if namespace is None:
             self._store.clear()
             return

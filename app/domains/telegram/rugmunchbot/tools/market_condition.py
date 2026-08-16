@@ -229,6 +229,7 @@ async def _defillama_tvl_trend(
     sem = asyncio.Semaphore(3)
 
     async def one(slug: str) -> dict[str, Any] | None:
+        """Fetch and score the 7-day TVL trend for one chain slug."""
         async with sem:
             series = await _http_get_any(f"{DEFILLAMA}/historicalChainTvl/{slug}", timeout=8.0)
         if not isinstance(series, list) or not series:

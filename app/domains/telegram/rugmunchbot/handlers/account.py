@@ -8,6 +8,7 @@ Commands: account, pricing, topup, buystars, scamschool, refer
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -35,8 +36,12 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     topup_kb,
 )
 
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
-async def cmd_account(update: Update, ctx) -> None:
+
+async def cmd_account(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the user's account dashboard: tier, weekly usage, balances."""
     user = update.effective_user
     if user is None:
         return
@@ -94,7 +99,8 @@ async def cmd_account(update: Update, ctx) -> None:
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=kb, disable_web_page_preview=True)  # type: ignore[union-attr]  # PTB None-able fields
 
 
-async def cmd_pricing(update: Update, ctx) -> None:
+async def cmd_pricing(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the Stars-based premium pricing plans and current balance."""
     user = update.effective_user
     balance = 0
     if user:
@@ -135,7 +141,8 @@ async def cmd_pricing(update: Update, ctx) -> None:
     )
 
 
-async def cmd_topup(update: Update, ctx) -> None:
+async def cmd_topup(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the bonus-usage top-up menu (buy extra scans / AI messages)."""
     user = update.effective_user
     balance = 0
     if user:
@@ -155,7 +162,7 @@ async def cmd_topup(update: Update, ctx) -> None:
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=topup_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
-async def cmd_buystars(update: Update, ctx) -> None:
+async def cmd_buystars(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Buy Telegram Stars - purchase Stars to spend on scans, subs, etc."""
     user = update.effective_user
     if user is None:
@@ -172,7 +179,8 @@ async def cmd_buystars(update: Update, ctx) -> None:
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=buy_stars_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
-async def cmd_scamschool(update: Update, ctx) -> None:
+async def cmd_scamschool(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the scam-education topic menu."""
     text = (
         f"\U0001f4da <b>Scam School</b>\n{sep()}\n\n"
         f"Learn how to spot crypto scams <b>before</b> you get rugged.\n\n"
@@ -185,7 +193,8 @@ async def cmd_scamschool(update: Update, ctx) -> None:
     )
 
 
-async def cmd_refer(update: Update, ctx) -> None:
+async def cmd_refer(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the referral link and earned-bonus stats."""
     user = update.effective_user
     if user is None:
         return

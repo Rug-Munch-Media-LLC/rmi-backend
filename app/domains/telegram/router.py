@@ -276,8 +276,8 @@ async def api_telegram_health():
         import telethon  # noqa: F401 — availability probe
 
         headless_available = True
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug("telethon unavailable — headless disabled: %s", e)
 
     try:
         from app.domains.telegram.headless import _client_instance
@@ -308,7 +308,8 @@ async def api_group_embed_info(chat_id: int):
         try:
             # Try to get via direct fetch
             info = await client._fetch_group_info(chat_id)
-        except Exception:
+        except Exception as e:
+            logger.debug("group embed fetch failed: %s", e)
             # Return minimal info from cached state
             info = None
             for g in client._managed_groups.values():

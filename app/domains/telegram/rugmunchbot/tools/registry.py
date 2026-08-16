@@ -85,10 +85,12 @@ class ToolResult:
 
     @property
     def symbol_set(self) -> set[str]:
+        """Uppercased, de-duplicated set of symbols seen by the tool."""
         return {s.upper() for s in self.symbols if s}
 
     @property
     def address_set(self) -> set[str]:
+        """De-duplicated set of addresses seen by the tool."""
         return {a for a in self.addresses if a}
 
     def summary(self, limit: int = 400) -> str:
@@ -135,6 +137,7 @@ class ToolRegistry:
 
     @property
     def names(self) -> list[str]:
+        """Sorted names of all registered tools."""
         return sorted(self._handlers)
 
     def cache_key(self, name: str, kwargs: dict[str, Any]) -> str:
@@ -270,6 +273,7 @@ class ToolRegistry:
         return {k: v for k, v in merged.items() if k in sig.parameters}
 
     def clear_cache(self, namespace: str | None = None) -> None:
+        """Evict cached tool results, optionally scoped to ``namespace``."""
         self._cache.clear(namespace)
 
 

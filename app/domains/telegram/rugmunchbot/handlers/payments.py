@@ -33,6 +33,7 @@ _SEP = "\u2501" * 28
 
 
 async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Validate a Telegram Stars pre-checkout query against known payload prefixes."""
     query = update.pre_checkout_query
     payload = query.invoice_payload  # type: ignore[union-attr]  # PTB None-able fields
     valid_prefixes = ("buystars_", "topup_", "sub_", "deep_", "mon_")
@@ -44,6 +45,7 @@ async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Credit a confirmed Stars payment: buystars/topup/sub/deep/mon branches."""
     payment = update.message.successful_payment  # type: ignore[union-attr]  # PTB None-able fields
     user = update.effective_user
     if user is None:

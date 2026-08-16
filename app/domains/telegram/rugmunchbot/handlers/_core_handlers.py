@@ -37,6 +37,7 @@ logger = get_logger("rmi_bot")
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/start — upsert the user, handle referral codes, send the welcome menu."""
     user = update.effective_user
     if user is None:
         return

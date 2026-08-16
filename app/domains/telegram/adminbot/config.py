@@ -30,8 +30,8 @@ def _get_admin_token() -> str:
         )
         if token:
             return token
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        pass
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        logger.debug("gopass token fetch failed, falling back to env: %s", e)
     return os.environ.get("ADMIN_BOT_TOKEN", "")
 
 

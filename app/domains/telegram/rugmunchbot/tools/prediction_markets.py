@@ -78,8 +78,8 @@ def _resolution_status(closed: bool | None, end_date: str | None) -> str:
             end = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
             if (end - datetime.now(UTC)).total_seconds() <= 86400:
                 return "closing_soon"
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug("prediction market parse failed: %s", e)
     return "open"
 
 

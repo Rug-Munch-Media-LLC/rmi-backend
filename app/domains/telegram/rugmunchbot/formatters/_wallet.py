@@ -20,6 +20,9 @@ from app.domains.telegram.rugmunchbot.formatters._base import (
     thin_sep,
 )
 from app.domains.telegram.rugmunchbot.formatters._scan_report import _clip
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = [
     "_activity_score",
@@ -201,8 +204,8 @@ def format_wallet_composition_section(r: dict[str, Any], token_created_ts: str |
                 if cex is not None:
                     lines.append(f"\U0001f3e6 Exchange-funded (CEX, label-based): <b>{cex:.1f}%</b>")
                 return "\n".join(lines)
-        except (TypeError, ValueError):
-            pass  # unparseable dates — fall through to the full block
+        except (TypeError, ValueError) as e:
+            logger.debug("unparseable dates — fall through: %s", e)
 
     fresh = _f(wm.get("fresh_wallet_pct"))  # type: ignore[union-attr]  # PTB None-able fields
     first_tx = _f(wm.get("first_tx_pct"))  # type: ignore[union-attr]  # PTB None-able fields

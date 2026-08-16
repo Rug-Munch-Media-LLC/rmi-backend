@@ -73,8 +73,8 @@ async def cmd_mygroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                         chat_id = group.chat_id
                         _USER_GROUPS[user.id] = chat_id
                         break
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug("headless import unavailable: %s", e)
 
     if not chat_id:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
@@ -93,7 +93,8 @@ async def cmd_mygroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             info = await client._fetch_group_info(chat_id)
             invite_link = info.invite_link
             username = info.username
-        except Exception:
+        except Exception as e:
+            logger.warning("group invite fetch failed: %s", e)
             invite_link = None
             username = None
     except (ImportError, RuntimeError):
@@ -168,8 +169,8 @@ async def cmd_groupinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     f"   Participants: {vc.participant_count}\n"
                     f"   Duration: {vc.duration_seconds:.0f}s"
                 )
-    except Exception:  # noqa: S110 — intentional best-effort
-        pass
+    except Exception as e:
+        logger.warning("voice chat status fetch failed: %s", e)
 
     text = (
         f"🏛️ **Group Info**\n\n"

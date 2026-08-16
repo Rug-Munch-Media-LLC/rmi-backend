@@ -79,7 +79,7 @@ async def _fetch_cg_trending_news() -> list[dict[str, Any]] | None:
     return items
 
 
-async def cmd_rugcheck(update, ctx) -> None:
+async def cmd_rugcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Quick rug pull checklist - educational."""
     from telegram.constants import ParseMode
 
@@ -111,7 +111,7 @@ async def cmd_rugcheck(update, ctx) -> None:
         f"<b>\U0001f6e1\ufe0f Always run /scan before buying!</b>"
         f"{footer_links()}"
     )
-    await update.message.reply_text(
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         text, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True
     )
 
@@ -129,6 +129,7 @@ async def _fetch_dexscreener_trending(chain: str = "solana", limit: int = 20) ->
         semaphore = asyncio.Semaphore(10)
 
         async def fetch_token_details(item: dict[str, Any]) -> dict[str, Any] | None:
+            """Enrich one boosted-token entry with live pair data; None on failure."""
             if not isinstance(item, dict):
                 return None
             token_addr = item.get("tokenAddress") or item.get("address")
@@ -221,6 +222,7 @@ async def _fetch_dexscreener_fresh_launches(chain: str = "solana", limit: int = 
         semaphore = asyncio.Semaphore(10)
 
         async def fetch_profile_details(item: dict[str, Any]) -> dict[str, Any] | None:
+            """Enrich one fresh-launch profile with live pair data; None on failure."""
             if not isinstance(item, dict):
                 return None
             token_addr = item.get("tokenAddress") or ""
@@ -341,6 +343,7 @@ async def _enrich_with_quick_scan(tokens: list[dict[str, Any]], chain: str) -> l
         return tokens
 
     async def scan_one(token: dict[str, Any]) -> dict[str, Any]:
+        """Run a backend quick risk scan on one token; always returns the token."""
         addr = token.get("address")
         if not addr:
             return token
@@ -379,7 +382,8 @@ async def _enrich_with_quick_scan(tokens: list[dict[str, Any]], chain: str) -> l
     # Run scans in parallel (max 5 concurrent to avoid overload)
     semaphore = asyncio.Semaphore(5)
 
-    async def limited_scan(t):
+    async def limited_scan(t: dict[str, Any]) -> dict[str, Any]:
+        """Run :func:`scan_one` under a shared concurrency semaphore."""
         async with semaphore:
             return await scan_one(t)
 
@@ -819,6 +823,7 @@ def register_market(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
 
 
 async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Fetch and render the latest news (internal feed -> backend -> CoinGecko fallback)."""
     msg = await update.message.reply_text("\U0001f4f0 <b>Fetching news...</b>", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
     articles = []
     source_label = "RMI News Network"

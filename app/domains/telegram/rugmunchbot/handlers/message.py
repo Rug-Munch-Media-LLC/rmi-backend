@@ -26,10 +26,12 @@ _admin_kb_sent: set[int] = set()
 
 
 def admin_kb_is_sent(chat_id: int) -> bool:
+    """True when the persistent admin reply keyboard is already attached."""
     return chat_id in _admin_kb_sent
 
 
 def admin_kb_mark_sent(chat_id: int) -> None:
+    """Record that the admin reply keyboard is attached to ``chat_id``."""
     _admin_kb_sent.add(chat_id)
 
 

@@ -80,6 +80,7 @@ logger = get_logger("rmi_bot")
 
 
 async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Route inline keyboard callbacks (menus, scans, payments, admin) by data prefix."""
     query = update.callback_query
     if query is None:
         return

@@ -129,6 +129,7 @@ class SchedulerState:
         self._last_run[job] = (when or datetime.now(UTC)).isoformat()
 
     def last_run(self, job: str) -> datetime | None:
+        """Return the last tick start for ``job`` as a datetime (None if never)."""
         raw = self._last_run.get(job)
         if not raw:
             return None
@@ -138,6 +139,7 @@ class SchedulerState:
             return None
 
     def last_run_iso(self, job: str) -> str:
+        """Return the last tick start for ``job`` as an ISO string (empty if never)."""
         return self._last_run.get(job, "")
 
     # ── Load / save ──────────────────────────────────────────────────────
@@ -245,6 +247,7 @@ _state = SchedulerState()
 
 
 def get_state() -> SchedulerState:
+    """Return the module-level durable-state singleton."""
     return _state
 
 
@@ -259,10 +262,12 @@ def is_available() -> bool:
 
 
 def mark_last_run(job: str) -> None:
+    """Record a job tick start on the singleton (see :meth:`SchedulerState.mark_last_run`)."""
     _state.mark_last_run(job)
 
 
 def last_run_iso(job: str) -> str:
+    """Return the last tick start for ``job`` as an ISO string on the singleton."""
     return _state.last_run_iso(job)
 
 
