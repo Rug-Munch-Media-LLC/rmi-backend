@@ -8,6 +8,7 @@ write path), bulk ingestion and the collection/stats surface.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -30,6 +31,14 @@ from app.rag.embeddings import current_backend
 from app.rag.tracing import trace_span
 
 log = get_logger(__name__)
+
+
+#: Max concurrent chunk embed+store tasks per document. Chunk work is
+#: network-bound (Infinity embed + Qdrant upsert) and independent, so a
+#: modest concurrency cap collapses N serial round-trips into ~N/4 without
+#: hammering the embedder. Mirrors the embedder's own internal
+#: ``max_connections=8`` budget.
+_CHUNK_CONCURRENCY: int = 4
 
 
 # ── Ingest ───────────────────────────────────────────────────────────
@@ -97,34 +106,47 @@ async def ingest_document(
                 "skipped": skipped,
             }
 
-        # Embed + insert
-        added = 0
-        for c in new_chunks:
-            # Lazy import: call-time resolution from the embeddings module so
-            # ``mock.patch("app.rag.embeddings.get_embedding")`` (and the
-            # engine-shim alias) still intercept this path.
-            from app.rag.embeddings import get_embedding
+        # Embed + insert. Chunk work is independent (each chunk embeds and
+        # stores on its own) and network-bound (Infinity embed + Qdrant
+        # upsert), so run chunks concurrently with a bounded semaphore
+        # instead of serializing N chunk round-trips per document. The
+        # lazy per-chunk import stays inside the worker so the
+        # ``mock.patch("app.rag.embeddings.get_embedding")`` contract in
+        # tests still intercepts.
+        sem = asyncio.Semaphore(_CHUNK_CONCURRENCY)
 
-            vec = await get_embedding(c.text)
-            chunk_doc_id = f"{doc_id}:{c.content_hash[:8]}:{c.index}"
-            chunk_meta = {
-                **metadata,
-                "chunk_index": c.index,
-                "content_hash": c.content_hash,
-                "quality": c.quality,
-                "content_type": c.content_type,
-                "source_url": c.source_url,
-                "timestamp": c.timestamp,
-                "token_count": c.token_count,
-            }
-            idx.add(chunk_doc_id, vec, chunk_meta, text=c.text)
-            mark_ingested(c.content_hash, collection)
-            # Qdrant write path (consolidation Phase 1): additive + fail-open.
-            # New chunks also land in the unified ``rag_documents`` collection
-            # so the Qdrant primary search path stops returning empty (which
-            # previously forced the legacy fallback). Legacy writes above stay.
-            await _qdrant_upsert_chunk(chunk_doc_id, c, chunk_meta, collection)
-            added += 1
+        async def _embed_store(c: Chunk) -> None:
+            async with sem:
+                # Lazy import: call-time resolution from the embeddings module so
+                # ``mock.patch("app.rag.embeddings.get_embedding")`` (and the
+                # engine-shim alias) still intercept this path.
+                from app.rag.embeddings import get_embedding
+
+                vec = await get_embedding(c.text)
+                chunk_doc_id = f"{doc_id}:{c.content_hash[:8]}:{c.index}"
+                chunk_meta = {
+                    **metadata,
+                    "chunk_index": c.index,
+                    "content_hash": c.content_hash,
+                    "quality": c.quality,
+                    "content_type": c.content_type,
+                    "source_url": c.source_url,
+                    "timestamp": c.timestamp,
+                    "token_count": c.token_count,
+                }
+                idx.add(chunk_doc_id, vec, chunk_meta, text=c.text)
+                mark_ingested(c.content_hash, collection)
+                # Qdrant write path (consolidation Phase 1): additive + fail-open.
+                # New chunks also land in the unified ``rag_documents`` collection
+                # so the Qdrant primary search path stops returning empty (which
+                # previously forced the legacy fallback). Legacy writes above stay.
+                # The already-computed vector is passed through so the Qdrant path
+                # does NOT re-embed the same chunk text (it embeds again when
+                # ``vector`` is None).
+                await _qdrant_upsert_chunk(chunk_doc_id, c, chunk_meta, collection, vector=vec)
+
+        await asyncio.gather(*(_embed_store(c) for c in new_chunks))
+        added = len(new_chunks)
 
         span.set_attribute("ingest.status", "ok")
         span.set_attribute("ingest.chunks_added", added)
