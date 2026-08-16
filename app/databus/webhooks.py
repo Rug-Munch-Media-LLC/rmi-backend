@@ -84,12 +84,13 @@ async def handle_webhook(
     if not config:
         return {"error": f"Unknown service: {service}", "supported": list(WEBHOOK_CONFIGS.keys())}
 
-    # ── 1. Validate signature ──
+    # ── 1. Validate signature (fail-closed: unconfigured secret => reject) ──
     secret = os.getenv(config["secret_env"], "")
-    if secret:
-        sig_header = headers.get(config["verify_header"], "")
-        if not _verify_signature(secret, raw_body, sig_header):
-            return {"error": "Invalid signature", "status": "rejected"}
+    if not secret:
+        return {"error": "Webhook secret not configured", "status": "rejected"}
+    sig_header = headers.get(config["verify_header"], "")
+    if not _verify_signature(secret, raw_body, sig_header):
+        return {"error": "Invalid signature", "status": "rejected"}
 
     # ── 1b. Validate auth header (e.g., Helius sends authHeader as Bearer token) ──
     auth_env = config.get("auth_env", "")
@@ -189,9 +190,13 @@ async def handle_webhook(
 
 
 def _verify_signature(secret: str, body: bytes, signature: str) -> bool:
-    """HMAC signature verification."""
+    """HMAC signature verification (fail-closed).
+
+    Returns False when the secret or signature is missing so callers reject
+    unverifiable webhooks instead of accepting them.
+    """
     if not secret or not signature:
-        return True  # No secret configured, skip verification
+        return False
     try:
         expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
