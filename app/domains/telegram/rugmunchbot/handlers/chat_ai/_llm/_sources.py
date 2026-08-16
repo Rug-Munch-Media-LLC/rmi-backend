@@ -103,15 +103,17 @@ def _source_is_primary(url: str) -> bool:
 # and a source with no title/query renders by its bare domain — a real name,
 # never a fabricated label.
 _SOURCE_TYPE_LABELS = {
-    "rag": "our RAG knowledge base",
-    "scanner": "our scanner",
-    "market": "our market digest",
-    "backend": "our backend",
+    "rag": "RMI knowledge base",
+    "scanner": "RMI scanner",
+    "market": "RMI market digest",
+    "backend": "RMI knowledge base",
     "web": "web search",
 }
 # Source types that are OUR OWN intel (ClickHouse-backed indexer data, the
 # scanner, the RAG knowledge base, the daily market digest, the backend tier-1
 # RAG) — everything else is an external provider (DexScreener, CoinGecko, …).
+# Labels are RMI-branded: raw internal keys (/api/v1/..., backend:/bridge:)
+# never reach the footer or the answer body.
 _OUR_SOURCE_TYPES = ("rag", "scanner", "market", "backend")
 
 
@@ -144,6 +146,7 @@ def _source_display_name(s: dict[str, str]) -> str:
     if raw:
         name = _MD_LINK_RE.sub(r"\1", raw)
         name = re.sub(r"[*_`\[\]]", "", name).strip()
+        name = _scrub_internal_api_refs(name)
         return name[:80]
     url = str(s.get("url") or "").strip()
     if url:
@@ -155,16 +158,100 @@ def _source_display_name(s: dict[str, str]) -> str:
 
 def _source_is_ours(s: dict[str, str]) -> bool:
     """True when the source is OUR OWN intel (RAG KB, scanner, market digest,
-    backend RAG) rather than an external provider (DexScreener, CoinGecko, web)."""
+    backend RAG) rather than an external provider (DexScreener, CoinGecko, web).
+    Ours sources render RMI-branded in the grounding footer."""
     stype = str(s.get("type") or "").strip().lower()
     return stype in _OUR_SOURCE_TYPES
 
 
 def _source_type_label(stype: str) -> str:
-    """Friendly label for a bare source type (``rag`` → "our RAG knowledge
+    """Friendly label for a bare source type (``rag`` → "RMI knowledge
     base"). Only OUR source types and ``web`` have dedicated labels; unknown
-    types render as "our data" so internal buckets never go unnamed."""
-    return _SOURCE_TYPE_LABELS.get(stype, "our data")
+    types render as "RMI data" so internal buckets never go unnamed."""
+    return _SOURCE_TYPE_LABELS.get(stype, "RMI data")
+
+
+# ── Internal source keys → professional RMI brand labels ──────────────────
+# Raw internal API-surface keys (``backend:/api/v1/market/trending``,
+# ``bridge:/chat/context``) must never reach the community footer or the
+# answer body — they leak internal topology. Every internal key maps to a
+# clean RMI brand label; unknown keys fall back to the caller's tool-name
+# label (never a raw path).
+_INTERNAL_KEY_LABELS = (
+    ("backend:/api/v1/market/trending", "RMI market intel"),
+    ("backend:/api/v1/news/trending", "RMI news intel"),
+    ("backend:/api/v1/databus/market/prices", "RMI market intel"),
+    ("backend:/api/v1/market/prices", "RMI market intel"),
+    ("backend:/api/v1/databus/token", "RMI token data"),
+    ("backend:/api/v2/scanner/token/scan", "RMI scanner"),
+    ("backend:/api/v1/bot/scan", "RMI scanner"),
+    ("backend:/api/v1/databus/wallet", "RMI wallet analytics"),
+    ("backend:/api/v1/rugcharts", "RMI charts"),
+    ("bridge:/chat/context", "RMI knowledge base"),
+)
+
+# Internal scheme prefixes + leftover /api/vN fragments stripped from
+# model-emitted answer text (defense-in-depth for the answer body).
+_INTERNAL_SCHEME_RE = re.compile(r"\b(?:backend|bridge):")
+_INTERNAL_API_PATH_RE = re.compile(r"/api/v\d+[A-Za-z0-9_./{}:\-+]*")
+
+
+def _internal_source_label(src: str) -> str | None:
+    """Professional RMI label for an internal source key (``backend:/…``).
+
+    Returns ``None`` when the key is unknown — the caller falls back to the
+    tool-name label. Used by the grounding footer so raw internal API paths
+    never reach the message.
+    """
+    s = (src or "").strip().lower()
+    for key, label in _INTERNAL_KEY_LABELS:
+        if s.startswith(key):
+            return label
+    return None
+
+
+def _scrub_internal_api_refs(text: str) -> str:
+    """Rename/strip internal API-surface tokens from an answer before send.
+
+    The model occasionally echoes the raw grounding source key it was fed
+    ("source: backend:/api/v1/market/trending") — internal API topology
+    that must never reach the community. Known internal keys are renamed to
+    their RMI brand label; any leftover ``backend:``/``bridge:`` scheme
+    prefixes and bare ``/api/vN/...`` fragments are removed entirely.
+    Idempotent; safe on plain text.
+    """
+    if not text:
+        return text
+    out = text
+    for key, label in _INTERNAL_KEY_LABELS:
+        out = out.replace(key, label)
+    out = _INTERNAL_SCHEME_RE.sub("", out)
+    out = _INTERNAL_API_PATH_RE.sub("", out)
+    return out
+
+
+# A model sometimes emits its OWN "Sources:" footer INLINE (e.g. after item
+# 5 of a numbered list) instead of leaving the footer to the delivery layer.
+# The ONE real footer is appended at the very end by _append_source_block, so
+# everything from the first model-emitted "Sources:" header line onward is
+# dropped — the answer body keeps only its items, and exactly one sources
+# footer lands at the end.
+_INLINE_SOURCES_RE = re.compile("(?ism)^[ \t]*(?:📚[ \t]*)?[Ss]ources?:.*")
+
+
+def _strip_inline_sources(answer: str) -> str:
+    """Remove a model-emitted inline "Sources:" footer from the answer body.
+
+    The model occasionally writes its own "📚 Sources:" block mid-answer (the
+    reported bug: it landed between list items 5 and 6 of a trending answer),
+    duplicating the delivery footer. The canonical footer is appended at the
+    very END of the message, so drop everything from the first model-emitted
+    "Sources:" header line onward (plain-text content included). No-op when
+    the model did the right thing.
+    """
+    if not answer:
+        return answer
+    return _INLINE_SOURCES_RE.sub("", answer)
 
 
 def _links_to_plain_text(text: str) -> str:
@@ -207,6 +294,10 @@ def _append_source_block(
     ``_markdown_to_html`` delivery pipeline never mis-renders them. Returns
     the answer unchanged when ``sources`` is empty/None.
     """
+    # A model-emitted inline "Sources:" footer (mid-list) is stripped first —
+    # the ONE real footer is appended at the end below (or the answer body
+    # ends clean when there are no real sources).
+    answer = _strip_inline_sources(answer)
     if not sources:
         return answer
     # De-duplicate by normalized domain (URL-bearing sources only — a source
