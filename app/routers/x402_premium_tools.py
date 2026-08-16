@@ -10,7 +10,7 @@ import json
 import os
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
@@ -380,7 +380,7 @@ async def webhook_list(address: str | None = None) -> dict[str, Any]:
         ids = r.smembers(key)
         webhooks = []
         for wid in ids:
-            data = r.get(f"x402:webhook:{wid}")
+            data = r.get(f"x402:webhook:{cast('str', wid)}")
             if data:
                 webhooks.append(json.loads(data))
 

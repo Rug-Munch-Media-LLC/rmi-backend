@@ -10,7 +10,7 @@ import json
 import os
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 
@@ -59,7 +59,7 @@ class SecurityManager:
 
             if count >= max_req:
                 oldest = await r.zrange(key, 0, 0, withscores=True)
-                reset_at = oldest[0][1] + window if oldest else now + window
+                reset_at = (cast("float", oldest[0][1]) + window) if oldest else now + window
                 return {
                     "allowed": False,
                     "remaining": 0,

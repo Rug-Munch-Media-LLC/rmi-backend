@@ -30,7 +30,7 @@ class AlertRepository:
         if r is None:
             log.warning("alert_repo_redis_unavailable")
             return []
-        raw: dict[str, str] = await r.hgetall(self._key) or {}
+        raw: dict[bytes | str, bytes | str] = await r.hgetall(self._key) or {}
         out: list[AlertSubscription] = []
         for value in raw.values():
             try:
@@ -44,7 +44,7 @@ class AlertRepository:
         if r is None:
             log.warning("alert_repo_redis_unavailable")
             return None
-        raw: str | None = await r.hget(self._key, alert_id)
+        raw: bytes | str | None = await r.hget(self._key, alert_id)
         if raw is None:
             return None
         try:

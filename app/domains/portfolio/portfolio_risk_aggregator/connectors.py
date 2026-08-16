@@ -11,8 +11,6 @@ from .config import CHAIN_CONFIGS, COMMON_TOKENS, DEFAULT_TIMEOUT, ERC20_ABI, MA
 
 logger = get_logger(__name__)
 
-_Web3: Any
-HTTPProvider: Any
 try:
     from web3 import HTTPProvider, Web3 as _Web3
 
@@ -22,7 +20,6 @@ except ImportError:
     _Web3 = None
     HTTPProvider = None
 
-SolanaClient: Any
 try:
     from solana.rpc.api import Client as SolanaClient
 
@@ -56,7 +53,7 @@ class EVMConnector(ChainConnector):
             if self.config.get("poa"):
                 try:
                     # geth_poa_middleware removed in web3 v6; ImportError fallback below
-                    from web3.middleware import geth_poa_middleware  # type: ignore[attr-defined]
+                    from web3.middleware import geth_poa_middleware
 
                     self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
                 except ImportError:
@@ -161,7 +158,7 @@ class SolanaConnector(ChainConnector):
 
     async def get_native_balance(self, address: str) -> float:
         try:
-            from solana.rpc.api import Pubkey as SolPubkey  # type: ignore[attr-defined]  # PTB None-able fields
+            from solana.rpc.api import Pubkey as SolPubkey
 
             pubkey = SolPubkey.from_string(address)
             resp = await asyncio.to_thread(self.client.get_balance, pubkey)
@@ -175,7 +172,7 @@ class SolanaConnector(ChainConnector):
     async def get_token_balances(self, address: str) -> list[dict[str, Any]]:
         results = []
         try:
-            from solana.rpc.api import Pubkey as SolPubkey  # type: ignore[attr-defined]  # PTB None-able fields
+            from solana.rpc.api import Pubkey as SolPubkey
 
             pubkey = SolPubkey.from_string(address)
             resp = await asyncio.to_thread(self.client.get_token_accounts_by_owner_json_parsed, pubkey)

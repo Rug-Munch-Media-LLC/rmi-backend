@@ -71,6 +71,8 @@ def verify_wallet_signature(message: str, signature: str, address: str, chain: s
 
         # Parse nonce data (format: "address:timestamp")
         try:
+            if isinstance(nonce_data, bytes):
+                nonce_data = nonce_data.decode()
             stored_address, timestamp_str = nonce_data.split(":", 1)
             stored_timestamp = datetime.fromisoformat(timestamp_str)
 

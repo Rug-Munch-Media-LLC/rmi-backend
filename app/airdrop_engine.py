@@ -324,7 +324,7 @@ class SnapshotEngine:
         from solders.pubkey import Pubkey
 
         client = Client(rpc_url)
-        from solana.rpc.types import MemcmpOpts
+        from solana.rpc.types import MemcmpOpts  # type: ignore[attr-defined]
 
         mint = Pubkey.from_string(token_address)
 

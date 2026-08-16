@@ -15,7 +15,7 @@ import contextlib
 import json
 import os
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 
@@ -87,10 +87,10 @@ def _try_mark_down(store: str) -> None:
 
 # ── Redis connection (lazy) ─────────────────────────────────────────
 
-_redis_client: aioredis.Redis[Any] | None = None
+_redis_client: aioredis.Redis | None = None
 
 
-async def _get_redis() -> aioredis.Redis[Any] | None:
+async def _get_redis() -> aioredis.Redis | None:
     """Lazy-init Redis client. Returns None if unavailable."""
     global _redis_client
     if _redis_client is not None:
@@ -266,7 +266,7 @@ class WalletStorage:
 
     def __init__(self) -> None:
         self._ch: Any = None
-        self._redis: aioredis.Redis[Any] | None = None
+        self._redis: aioredis.Redis | None = None
 
     async def _ensure_connections(self) -> None:
         """Lazy connect on first use."""
@@ -747,7 +747,8 @@ class WalletStorage:
         """Direct Redis get for backward compatibility with wallet_label_loader."""
         if self._redis:
             try:
-                return await self._redis.get(key)
+                # Client is created with decode_responses=True, so values are str at runtime.
+                return cast("str | None", await self._redis.get(key))
             except (ValueError, ConnectionError, RuntimeError):
                 logger.warning("error")
         return None

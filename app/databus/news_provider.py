@@ -61,7 +61,7 @@ def _cache_set(key: str, data: dict[str, Any]) -> None:
     CACHE[key] = (data, time.time())
 
 
-async def _get_redis() -> aioredis.Redis[Any] | None:
+async def _get_redis() -> aioredis.Redis | None:
     """Get async Redis connection."""
     try:
         r = aioredis.Redis(

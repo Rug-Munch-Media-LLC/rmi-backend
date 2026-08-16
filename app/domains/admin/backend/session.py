@@ -10,7 +10,7 @@ import json
 import os
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from app.core.logging import get_logger
 from app.domains.admin.backend.models import AdminRole
@@ -72,7 +72,7 @@ class SessionManager:
             if len(sessions) > SessionManager.MAX_CONCURRENT_SESSIONS:
                 sorted_sessions = sorted(sessions)
                 for old_session in sorted_sessions[: -SessionManager.MAX_CONCURRENT_SESSIONS]:
-                    await SessionManager.destroy_session(old_session)
+                    await SessionManager.destroy_session(cast("str", old_session))
 
             return session_id
         except (json.JSONDecodeError, ConnectionError, OSError, ValueError, KeyError, TypeError) as e:
@@ -150,7 +150,7 @@ class SessionManager:
             )
             session_ids = await r.smembers(f"admin_sessions:{admin_id}")
             for sid in session_ids:
-                data = await r.get(f"admin_session:{sid}")
+                data = await r.get(f"admin_session:{cast('str', sid)}")
                 if data:
                     session = json.loads(data)
                     expires = datetime.fromisoformat(session["expires_at"])
@@ -178,7 +178,7 @@ class SessionManager:
             )
             session_ids = await r.smembers(f"admin_sessions:{admin_id}")
             for sid in session_ids:
-                await r.delete(f"admin_session:{sid}")
+                await r.delete(f"admin_session:{cast('str', sid)}")
                 count += 1
             await r.delete(f"admin_sessions:{admin_id}")
         except (ConnectionError, OSError, ValueError) as e:

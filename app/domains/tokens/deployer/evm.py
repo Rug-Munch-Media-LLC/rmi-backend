@@ -88,7 +88,7 @@ class EVMDeployer(ChainDeployer):
         signed = self.w3.eth.account.sign_transaction(tx, self.private_key)
         tx_hash = self.w3.eth.send_raw_transaction(signed.rawTransaction)
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-        contract_address = receipt.contractAddress  # type: ignore[attr-defined]  # PTB None-able fields
+        contract_address = receipt.contractAddress  # PTB None-able fields
         deployment = TokenDeployment(
             deployment_id=self._generate_deployment_id(self.chain, params.symbol, tx_hash.hex()),
             chain=self.chain,
@@ -99,7 +99,7 @@ class EVMDeployer(ChainDeployer):
             contract_address=contract_address,
             deployer_address=self.deployer_address,
             tx_hash=tx_hash.hex(),
-            block_number=receipt.blockNumber,  # type: ignore[attr-defined]  # PTB None-able fields
+            block_number=receipt.blockNumber,  # PTB None-able fields
             owner_address=owner,
             mintable=params.mintable,
             burnable=params.burnable,
@@ -149,7 +149,7 @@ class EVMDeployer(ChainDeployer):
         tx_hash = self.w3.eth.send_raw_transaction(signed.rawTransaction)
         receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
         contract_address = None
-        for log in receipt.logs:  # type: ignore[attr-defined]  # PTB None-able fields
+        for log in receipt.logs:  # PTB None-able fields
             if log.address.lower() == factory_address.lower():
                 contract_address = "0x" + log.data[-40:]
                 break
@@ -165,7 +165,7 @@ class EVMDeployer(ChainDeployer):
             contract_address=contract_address,
             deployer_address=self.deployer_address,
             tx_hash=tx_hash.hex(),
-            block_number=receipt.blockNumber,  # type: ignore[attr-defined]  # PTB None-able fields
+            block_number=receipt.blockNumber,  # PTB None-able fields
             owner_address=owner,
             mintable=params.mintable,
             burnable=params.burnable,

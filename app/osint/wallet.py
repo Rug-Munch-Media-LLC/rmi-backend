@@ -213,7 +213,7 @@ def _parse_chainabuse_reports(payload: dict[str, Any]) -> list[OsintFinding]:
     reports = payload.get("reports")
     if not isinstance(reports, list):
         return findings
-    for rpt in cast("list[Any]", reports):
+    for rpt in reports:
         if not isinstance(rpt, dict):
             continue
         rpt = cast("dict[str, Any]", rpt)
@@ -327,7 +327,7 @@ def _load_sanctions() -> dict[str, Any] | None:
         if isinstance(data, dict) and isinstance(data.get("addresses"), dict):
             index = cast("dict[str, Any]", data["addresses"])
         elif isinstance(data, list):
-            for entry in cast("list[Any]", data):
+            for entry in data:
                 if isinstance(entry, dict) and entry.get("address"):
                     index[str(entry["address"]).lower()] = cast("dict[str, Any]", entry)
         if index:
@@ -369,7 +369,7 @@ def _sanctions(report: OsintReport, key: str) -> None:
             type=entry_dict.get("type") or "",
         )
         return
-    for item in cast("list[Any]", entries):
+    for item in entries:
         if not isinstance(item, dict):
             continue
         item = cast("dict[str, Any]", item)

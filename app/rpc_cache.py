@@ -500,12 +500,12 @@ class RpcCache:
             logger.warning("Serialization fallback for %s: %s", type(value), e)
             return json.dumps({"__serialized__": str(value)}).encode("utf-8")
 
-    def _deserialize(self, raw: bytes) -> Any:
+    def _deserialize(self, raw: bytes | str) -> Any:
         """Deserialize bytes from Redis back to Python object."""
         import json
 
         try:
-            return json.loads(raw.decode("utf-8"))
+            return json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             logger.warning("Deserialization error: %s", e)
             return None
