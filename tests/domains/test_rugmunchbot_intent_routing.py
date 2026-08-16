@@ -233,6 +233,41 @@ class TestTechnicalAnalysisRouting:
         assert kw["technical_analysis"]["chain"] == "base"
 
 
+class TestPredictionRouting:
+    """Token-direction prediction questions route to technical_analysis (the
+    real indicators + prediction read) — NOT prediction_markets (event odds).
+    """
+
+    def test_will_pump_phrases_route_to_technical_analysis(self) -> None:
+        for question in (
+            "will $BONK pump?",
+            "will PEPE dump?",
+            "is $WIF going to pump?",
+            "will this token go up?",
+            "pump or dump for $DOGE?",
+            "what's the prediction for $SHIB?",
+            "price prediction for $PEPE",
+            "where is $BONK heading?",
+        ):
+            names = route_tools(question)
+            assert "technical_analysis" in names, f"failed to route prediction->ta: {question}"
+
+    def test_prediction_markets_questions_still_route_event_odds(self) -> None:
+        # "prediction markets" / polymarket / odds stay on prediction_markets.
+        for question in (
+            "prediction markets for the election",
+            "what are the odds on polymarket for BTC?",
+            "who will win the election?",
+        ):
+            names = route_tools(question)
+            assert "prediction_markets" in names, f"failed to route prediction_markets: {question}"
+
+    def test_prediction_kwargs_carry_symbol(self) -> None:
+        kw = tool_kwargs("will $BONK pump?", ["technical_analysis"])
+        assert kw["technical_analysis"]["symbol"] == "BONK"
+        assert kw["technical_analysis"]["address"] == ""
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # market_overview — market overview / how's the market / fear and greed / btc price
 # ══════════════════════════════════════════════════════════════════════════

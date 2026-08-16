@@ -328,7 +328,12 @@ async def detect_bundled_launch(
 
         _compute_launch_bundle_verdict(result)
 
-        if result["launch_cluster_score"] > 0 or result["common_funder_score"] > 0:
+        # ``scanned`` means the launch-window queries RAN. A clean launch
+        # (cluster/funder rows present, zero scores) is a legitimate "no
+        # bundle" verdict — not an outage. Only stay ``unavailable`` when no
+        # query returned data (no deploy block / no ClickHouse) or the block
+        # raised above.
+        if cluster is not None or funders is not None:
             result["result"] = "scanned"
     except (
         ConnectionError,

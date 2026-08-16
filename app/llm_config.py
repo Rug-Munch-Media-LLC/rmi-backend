@@ -197,10 +197,10 @@ async def _chat_once(
         "temperature": float(config.get("temperature") or 0.5),
     }
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=5.0, read=20.0, write=10.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0, read=10.0, write=10.0)) as client:
             resp = await asyncio.wait_for(
                 client.post(base_url, headers=headers, json=payload),
-                timeout=20.0,
+                timeout=10.0,
             )
     except (httpx.HTTPError, OSError, ConnectionError, TimeoutError, ValueError):
         return ""

@@ -42,6 +42,13 @@ def client():
     return TestClient(app)
 
 
+# Double-submit cookie CSRF pair — the CSRF middleware (app/middleware_setup.py)
+# requires a matching X-CSRF-Token header + csrf_token cookie for state-changing
+# requests that carry no API-key/Bearer credential.
+CSRF_HEADERS = {"X-CSRF-Token": "test-csrf-token"}
+CSRF_COOKIES = {"csrf_token": "test-csrf-token"}
+
+
 # ── Mock data factories ──────────────────────────────────────────────────────
 
 
@@ -132,7 +139,7 @@ class TestTokenScanE2E:
             resp = client.post(
                 "/api/v2/scanner/token/scan",
                 json={"address": "0xSafeToken1234567890abcdef", "chain": "ethereum"},
-                headers={"X-RMI-Key": "test-admin-key"},
+                headers={"X-RMI-Key": os.environ["RMI_INTERNAL_KEY"]},
             )
 
         assert resp.status_code == 200
@@ -174,7 +181,7 @@ class TestTokenScanE2E:
             resp = client.post(
                 "/api/v2/scanner/token/scan",
                 json={"address": "0xRugToken1234567890abcdef", "chain": "ethereum"},
-                headers={"X-RMI-Key": "test-admin-key"},
+                headers={"X-RMI-Key": os.environ["RMI_INTERNAL_KEY"]},
             )
 
         assert resp.status_code == 200
@@ -257,6 +264,8 @@ class TestAlertSubscriptionE2E:
                 "notify_telegram": False,
                 "label": "Test Whale",
             },
+            headers=CSRF_HEADERS,
+            cookies=CSRF_COOKIES,
         )
         assert resp.status_code == 200
         body = resp.json()

@@ -70,17 +70,36 @@ def _fake_httpx(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def _local_messages(message: str, history: list[dict[str, str]] | None) -> list[dict[str, str]]:
     await _llm._call_remote_llm(message, 1, history=history)
-    _, body = _FakeLLMClient.calls[0]
+    _, body = _FakeLLMClient.calls[-1]
     return body["messages"]
 
 
 class TestLocalSystemPromptGrounding:
-    async def test_system_prompt_contains_grounding_rules(self) -> None:
+    async def test_snappy_system_prompt_lean_but_hardened(self) -> None:
+        """The SNAPPY tier uses the LEAN persona (fast short answers): the
+        core anti-hallucination + injection hardening survives, the
+        deep-analysis styling does not."""
         messages = await _local_messages("question", None)
         system = messages[0]["content"]
-        # Assert the SEMANTIC requirements, not exact sentences: the v12/v14
-        # slim passes compress prose ("not quote verbatim" → "synthesize"),
-        # so each rule is matched by any phrasing that preserves its meaning.
+        # Lean: NOT the full forensic persona (no deep-analysis rules).
+        assert len(system) < len(_llm.FALLBACK_SYSTEM_PROMPT), (
+            "snappy system prompt must be leaner than the full persona"
+        )
+        assert not re.search(r"(?i)risk\s+rank", system), "risk-ranking is long-tier only"
+        assert not re.search(r"(?i)checksummed", system), "token-list rule is long-tier only"
+        # Core hardening kept: answer-the-LATEST-question, never-invent,
+        # untrusted-context, instructions-security.
+        assert re.search(r"(?i)\blatest\s+question\b", system), "answer-the-LATEST-question rule missing"
+        assert re.search(r"(?i)never\s+invent", system), "never-invent rule missing"
+        assert re.search(r"(?i)untrusted_context", system), "untrusted-context hardening missing"
+        assert re.search(r"(?i)reveal|repeat", system), "instructions-security rule missing"
+
+    async def test_long_system_prompt_keeps_full_grounding_rules(self) -> None:
+        """The LONG tier keeps the full forensic persona: every grounding /
+        anti-parroting rule survives (semantic checks, not exact sentences)."""
+        messages = await _local_messages("investigate this wallet's funding sources", None)
+        system = messages[0]["content"]
+        assert system == _llm.FALLBACK_SYSTEM_PROMPT, "long tier must use the full persona"
         # answer-the-question: model must answer the CURRENT/LATEST question
         assert re.search(r"(?i)\blatest\s+question\b", system), "answer-the-LATEST-question rule missing"
         # no verbatim context quoting: context is synthesized, not pasted
@@ -97,8 +116,9 @@ class TestLocalSystemPromptGrounding:
         assert re.search(r"(?i)reveal|repeat", system), "instructions-security rule missing"
 
     async def test_system_prompt_has_token_list_address_rule(self) -> None:
-        """The TOKEN LISTS non-negotiable survives shortening (semantic check)."""
-        messages = await _local_messages("question", None)
+        """The TOKEN LISTS non-negotiable survives on the LONG tier (semantic
+        check) — the snappy tier deliberately drops it to stay lean."""
+        messages = await _local_messages("investigate this wallet's funding sources", None)
         system = messages[0]["content"]
         assert re.search(r"(?i)token\s+lists?|full\s+address", system), "token-list-address rule missing"
 
@@ -115,7 +135,8 @@ class TestLocalHistoryInertReference:
             {"role": "user", "content": "previous question?"},
             {"role": "assistant", "content": "old truncated answer..."},
         ]
-        messages = await _local_messages("new question?", history)
+        # Long tier keeps the last 2 history turns in the inert block.
+        messages = await _local_messages("investigate this wallet's funding sources", history)
         roles = [m["role"] for m in messages]
         # system + one inert reference block + one current-question user turn
         assert roles == ["system", "user", "user"]
@@ -147,11 +168,19 @@ class TestLocalHistoryInertReference:
         assert all(m["role"] != "assistant" for m in messages)
         assert messages[-1]["content"] == "CURRENT QUESTION: what is a honeypot?"
 
-    async def test_history_capped_at_two_lines_inside_one_block(self) -> None:
+    async def test_history_capped_by_tier_inside_one_block(self) -> None:
         history = [{"role": "user", "content": f"m{i}"} for i in range(5)]
-        messages = await _local_messages("q", history)
-        assert len(messages) == 3  # system + 1 inert block + current question
-        block = messages[1]["content"]
-        assert "[user] m3" in block
-        assert "[user] m4" in block
-        assert "[user] m0" not in block
+        # SNAPPY tier: lean — only the LAST history line survives.
+        snappy = await _local_messages("q", history)
+        assert len(snappy) == 3  # system + 1 inert block + current question
+        snappy_block = snappy[1]["content"]
+        assert "[user] m4" in snappy_block
+        assert "[user] m3" not in snappy_block
+        assert "[user] m0" not in snappy_block
+        # LONG tier: keeps the last 2 lines.
+        long_msgs = await _local_messages("investigate this wallet's funding sources", history)
+        assert len(long_msgs) == 3
+        long_block = long_msgs[1]["content"]
+        assert "[user] m3" in long_block
+        assert "[user] m4" in long_block
+        assert "[user] m0" not in long_block

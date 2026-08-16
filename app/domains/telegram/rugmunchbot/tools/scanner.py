@@ -656,12 +656,19 @@ def _flatten_v2(body: dict[str, Any], address: str, chain: str) -> dict[str, Any
         "security_checks": _security_checks(evidence),
         # Bundle detection (own ClickHouse engine)
         "bundle_analysis": {
+            "result": bundle.get("result"),
             "is_bundled": bundle.get("is_bundled"),
             "risk_label": bundle.get("risk_label"),
             "confidence": bundle.get("confidence"),
             "launch_cluster_score": bundle.get("launch_cluster_score"),
+            "common_funder_score": bundle.get("common_funder_score"),
+            "similar_amount_score": bundle.get("similar_amount_score"),
             "deployer_funded_pct": bundle.get("deployer_funded_pct"),
             "first_time_buyer_pct": bundle.get("first_time_buyer_pct"),
+            # Wallet count surfaced in the deep report's bundle verdict line.
+            "launch_buyers": bundle.get("launch_buyers"),
+            "cluster_blocks": bundle.get("cluster_blocks"),
+            "common_funders": bundle.get("common_funders"),
         },
         # Wash-trading proxy (own volume-authenticity engine)
         "wash_trading": {

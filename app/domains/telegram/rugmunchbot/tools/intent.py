@@ -8,6 +8,7 @@ Intents map to tools:
   * trending / hot / what's pumping    -> trending (+ news_headlines, + trend_by_chain when a chain is named)
   * $SYMBOL / price of X               -> price_lookup
   * TA / technical analysis / rsi / macd on X -> technical_analysis (+ price_lookup)
+  * will X pump / pump or dump / prediction for X -> technical_analysis (+ price_lookup)
   * chart / price chart / candlestick chart on X -> chart (ASCII visual, + price_lookup)
   * have we seen this pattern before / similar patterns -> pattern_recall (Redis memory)
   * who's buying / smart money / top traders -> top_traders (needs address), smart_money, birdeye_market
@@ -87,6 +88,22 @@ _PICKS_WORDS = re.compile(r"\b(picks?|tokens?|coins?)\b", re.IGNORECASE)
 _TA_WORDS = re.compile(
     r"\b(technical analysis|technical indicators?|the ta|ta (for|on|of)|"
     r"rsi|macd|ema|candlestick|chart patterns?|support and resistance|support/resistance)\b",
+    re.IGNORECASE,
+)
+# Token-direction PREDICTION questions — "will $BONK pump", "is X going to
+# pump", "pump or dump", "prediction for X", "forecast". These route to the
+# technical_analysis tool (the real indicators + the prediction read) rather
+# than prediction_markets (which answers Polymarket/Kalshi-style EVENT odds
+# — see _PREDICTION_WORDS). Deliberately distinct: "prediction markets"
+# stays with prediction_markets, "prediction for $TOKEN" comes here.
+_PREDICT_TA_WORDS = re.compile(
+    r"\b(will (it|this|that|(this|that) (token|coin|one)|\$?[a-z0-9]+) (pump|dump|go up|go down|rise|rally|moon|crash|surge|fall)|"
+    r"is ((it|this|that)( token| coin)?|\$?[a-z0-9]+) (going to|about to) (pump|dump|moon|crash)|"
+    r"pump or dump|gonna (pump|dump|moon)|"
+    r"(price )?(prediction|forecast) (for|on)|"
+    r"what('s| is) the (prediction|outlook|forecast)( for)?|"
+    r"where('s| is) (it|this|that|\$?[a-z0-9]+) (heading|going)|"
+    r"price (target|prediction)|will it (keep|continue) (rising|pumping))\b",
     re.IGNORECASE,
 )
 # Price-action chart questions — route to the chart tool (tools/charting.py),
@@ -412,6 +429,12 @@ def route_tools(text: str) -> list[str]:
     # price_lookup); without a symbol/address the tool degrades to ok=False
     # and the chat layer answers "no live data" — never a guess.
     if _TA_WORDS.search(text) and "technical_analysis" not in excluded:
+        tools.append("technical_analysis")
+
+    # Token-direction prediction questions ("will $BONK pump", "pump or
+    # dump") surface the SAME real indicators + prediction read — never
+    # polymarket event odds (that stays with prediction_markets).
+    if _PREDICT_TA_WORDS.search(text) and "technical_analysis" not in excluded:
         tools.append("technical_analysis")
 
     # Price-action chart: "chart for $BONK" / "price chart" / "$BONK chart" —

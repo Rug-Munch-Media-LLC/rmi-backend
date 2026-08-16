@@ -93,7 +93,10 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._guards import (
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import _FALLBACK_MESSAGE
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._live_tools import _run_rag_lookup
-from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import _build_fallback_answer
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import (
+    _build_fallback_answer,
+    _gather_context,
+)
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import _format_scan_summary
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._persistence import _persist_answer
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._trace import trace_answer
@@ -513,6 +516,7 @@ async def chat_ai_response(
     bridge_ctx_task: asyncio.Task[Any] | None = None
     live_tools_task: asyncio.Task[Any] | None = None
     rag_task: asyncio.Task[Any] | None = None
+    router_ctx_task: asyncio.Task[Any] | None = None
 
     # The whole turn (guards -> backend RAG -> local LLM fallback -> live
     # tools -> guardrail -> send) runs as ONE nested coroutine so the caller
@@ -529,7 +533,7 @@ async def chat_ai_response(
         the outer deadline supersedes them.
         """
         nonlocal typing_task, placeholder_task, preliminary, backend_task
-        nonlocal daily_ctx_task, scan_ctx_task, bridge_ctx_task, live_tools_task, rag_task
+        nonlocal daily_ctx_task, scan_ctx_task, bridge_ctx_task, live_tools_task, rag_task, router_ctx_task
         # Pre-LLM guards: chat_enabled toggle -> injection -> quota -> flood ->
         # gibberish (tier-3 redirect). True = message already handled.
         if await _run_entry_guards(update, message, user, text, pipeline_start=pipeline_start):
@@ -596,6 +600,12 @@ async def chat_ai_response(
         # intel DB BEFORE any web/LLM fallback. On the tier-1 path the backend
         # RAGs itself, so this task is cancelled when the backend answers.
         rag_task = asyncio.create_task(_run_rag_lookup(text)) if should_rag_lookup(text) else None
+        # Question-type router context (fail-open, bounded ~5s internally):
+        # fired CONCURRENTLY with the backend so a fallback turn never waits
+        # for it serially (the old path started it only after the backend
+        # returned None — up to 5s of pure serial latency). Cancelled when the
+        # backend answers (tier-1 RAGs itself and never needs it).
+        router_ctx_task = asyncio.create_task(_gather_context(text))
 
         # Tier-1: backend auto-RAG (POST /api/v1/chat, real X-RAG-Context count).
         # The backend injects the current date/time and runs its own RAG
@@ -626,13 +636,16 @@ async def chat_ai_response(
                 bridge_ctx_task=bridge_ctx_task,
                 live_tools_task=live_tools_task,
                 rag_task=rag_task,
+                router_ctx_task=router_ctx_task,
             )
         else:
             # Backend answered — the bridge/daily context fetches running in the
             # background are no longer needed. Cancel them so no coroutine dangles.
             # NOTE: live_tools_task is NOT cancelled — the guardrail below needs
             # its results to verify the backend answer (bounded; self-terminates).
-            pending = [t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task, rag_task) if t is not None]
+            pending = [
+                t for t in (daily_ctx_task, scan_ctx_task, bridge_ctx_task, rag_task, router_ctx_task) if t is not None
+            ]
             for t in pending:
                 t.cancel()
             await asyncio.gather(*pending, return_exceptions=True)
@@ -833,6 +846,7 @@ async def chat_ai_response(
                 bridge_ctx_task,
                 live_tools_task,
                 rag_task,
+                router_ctx_task,
                 token_lookup_task,
             )
             if t is not None and not t.done()
