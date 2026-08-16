@@ -94,8 +94,16 @@ async def create_voice_chat(
             raise RuntimeError(f"Bot is not admin in chat {chat_id}. Status: {chat_member.status}")
 
         # Step 2: Create the voice chat using Telegram API
+        # Guard: python-telegram-bot's ``Bot`` has no ``create_voice_chat``
+        # method (voice-chat creation is not part of the Bot API) — fail with
+        # a clear error instead of calling a nonexistent attribute.
+        if not hasattr(bot, "create_voice_chat"):
+            raise RuntimeError(
+                "Bot.create_voice_chat is not available in this python-telegram-bot "
+                "version — voice chat creation is not supported."
+            )
         # Voice chats are created via the underlying API call
-        result: JSONValue = await bot.create_voice_chat(  # type: ignore[attr-defined]  # PTB None-able fields
+        result: JSONValue = await bot.create_voice_chat(  # PTB None-able fields
             chat_id=chat_id,
             voice_chat_title=title or "",
             voice_chat_video_chat=is_video,
@@ -157,7 +165,15 @@ async def end_voice_chat(bot: Bot, chat_id: int) -> bool:
     logger.info("end_voice_chat chat_id=%d", chat_id)
 
     try:
-        result: JSONValue = await bot.end_voice_chat(  # type: ignore[attr-defined]  # PTB None-able fields
+        # Guard: python-telegram-bot's ``Bot`` has no ``end_voice_chat``
+        # method — fail with a clear error instead of calling a nonexistent
+        # attribute (see create_voice_chat for the same guard).
+        if not hasattr(bot, "end_voice_chat"):
+            raise RuntimeError(
+                "Bot.end_voice_chat is not available in this python-telegram-bot "
+                "version — voice chat ending is not supported."
+            )
+        result: JSONValue = await bot.end_voice_chat(  # PTB None-able fields
             chat_id=chat_id,
         )
 
