@@ -366,9 +366,19 @@ def main() -> None:
     # S104: binding the outbound source to 0.0.0.0 (all IPv4) is intentional —
     # it forces IPv4 and avoids the broken IPv6 route.
     transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")  # noqa: S104  # nosec B104 - outbound source bind forces IPv4 to avoid broken IPv6 route (documented above)
-    request = HTTPXRequest(httpx_kwargs={"transport": transport})
+    # Bounded connection pool (4) + 20s read/write timeouts so the 4 concurrent
+    # update turns don't share a single connection or a tight 5s timeout.
+    request = HTTPXRequest(
+        connection_pool_size=4,
+        read_timeout=20,
+        write_timeout=20,
+        httpx_kwargs={"transport": transport},
+    )
 
-    app = Application.builder().token(BOT_TOKEN).request(request).build()
+    # Process updates concurrently (N=4): a slow update (e.g. /chat hitting
+    # llama.cpp) no longer blocks every other user's command. Bounded at 4 to
+    # protect the SQLite-backed db module and llama.cpp from concurrency thrash.
+    app = Application.builder().token(BOT_TOKEN).request(request).concurrent_updates(4).build()
 
     # Core commands
     _reg(app, "start", cmd_start)
