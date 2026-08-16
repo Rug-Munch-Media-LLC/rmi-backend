@@ -885,7 +885,9 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             published = _time_ago(a.get("published_at") or a.get("publishedAt"))
             pub_str = f" \u00b7 {published}" if published else ""
             url = a.get("url") or a.get("link") or ""
-            title_linked = f'<a href="{url}">{title}</a>' if url else title
+            title_linked = (
+                f'<a href="{html.escape(url, quote=True)}">{html.escape(title)}</a>' if url else html.escape(title)
+            )
 
             # Bias/sentiment/factual ratings
             bias = a.get("bias", "center")

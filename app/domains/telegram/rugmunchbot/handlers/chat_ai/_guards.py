@@ -27,6 +27,7 @@ from telegram.error import TelegramError
 import app.domains.telegram.rugmunchbot.handlers.chat_ai as chat_ai
 from app.domains.telegram.rugmunchbot import anti_abuse, db
 from app.domains.telegram.rugmunchbot.admin_state import track_ai_query, track_tokens
+from app.domains.telegram.rugmunchbot.db._base import run_db
 from app.domains.telegram.rugmunchbot.formatters import paywall_text
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._classify import _is_meaningful_question
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import _append_source_lines
@@ -247,7 +248,7 @@ async def _reply_local_intent(
         return False
     t0 = time.monotonic()
     logger.info("AI chat tier=2 (local intent) user=%s text=%.60s", user.id, text)
-    db.increment_usage(user.id, ai_msg=True)
+    await run_db(db.increment_usage, user.id, ai_msg=True)
     try:
         await track_ai_query()
         await track_tokens(len(local_response) // 4)
@@ -281,7 +282,7 @@ async def _reply_redirect(message: Message, user: Any, flood_receipt: str | None
         await chat_ai.refund_flood(user.id, flood_receipt)
     except Exception:
         logger.debug("refund_flood failed (user=%s)", user.id, exc_info=True)
-    db.increment_usage(user.id, ai_msg=True)
+    await run_db(db.increment_usage, user.id, ai_msg=True)
     try:
         await track_ai_query()
         await track_tokens(len(_REDIRECT_MESSAGE) // 4)
@@ -313,7 +314,7 @@ async def _run_entry_guards(
     Every branch sends the reply itself (the redirect also traces its
     answer), so the caller simply stops when this returns True.
     """
-    if db.get_bot_state("chat_enabled", "on") != "on":
+    if await run_db(db.get_bot_state, "chat_enabled", "on") != "on":
         await message.reply_text(_CHAT_DISABLED, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb(user.id))
         return True
 
@@ -325,7 +326,7 @@ async def _run_entry_guards(
         return True
 
     # Weekly AI-message quota per tier (free 15 / scout 75 / hunter 250 / pro 500).
-    allowed, _used, _limit = db.check_rate_limit(user.id, "ai_msg")
+    allowed, _used, _limit = await run_db(db.check_rate_limit, user.id, "ai_msg")
     if not allowed:
         await message.reply_text(
             paywall_text(user.id, "ai_msg"),
