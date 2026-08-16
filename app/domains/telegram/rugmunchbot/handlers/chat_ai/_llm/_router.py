@@ -22,6 +22,9 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._constants import (
     _CTX_EDU_RE,
     _CTX_MARKET_BROAD_RE,
     _CTX_MARKET_RE,
+    _CTX_NEED_HEAVY,
+    _CTX_NEED_LIGHT,
+    _CTX_NEED_NONE,
     _CTX_NEWS_RE,
     _CTX_SCAM_RE,
     _CTX_TA_RE,
@@ -91,6 +94,12 @@ def _classify_question(question: str) -> str:
     signal (SPECIFIC TOKEN beats every keyword type); SCAM/SAFETY beats
     education because "what is a honeypot" is equally answered by the
     security-pattern KB (rag_lookup) that both types share.
+
+    The TYPE alone does NOT decide how much to fetch — the cost tier
+    (:func:`_classify_context_need`) gates every gather: definitional /
+    conversational asks (even a scam-typed "what is a rug pull") are NONE
+    (~0 gather), single-asset price asks are LIGHT, and only genuinely
+    current asks (token scan, scam check, news, market-today, TA) are HEAVY.
     """
     if not question or not question.strip():
         return ""
@@ -113,6 +122,50 @@ def _classify_question(question: str) -> str:
     if _CTX_EDU_RE.search(low):
         return "education"
     return ""
+
+
+def _classify_context_need(question: str, qtype: str) -> str:
+    """COST-CLASSIFY: the context-NEED tier (none / light / heavy) for a typed
+    question — the gate that decides how much ``_gather_context`` fetches.
+
+    Returns one of ``_CTX_NEED_NONE`` / ``_CTX_NEED_LIGHT`` /
+    ``_CTX_NEED_HEAVY`` (regex only, no LLM):
+
+      * NONE  — definitional / conversational / greeting asks ("what is a rug
+        pull", "how does MEV work", "gm", unknown types): the LLM answers
+        from its own knowledge, ~0 gather time, NOTHING fetched (no
+        news/RAG/web/tools). Current-data intents below beat this — a price
+        ask "what is the price of X" still deserves a light lookup.
+      * LIGHT — single-asset price ask (qtype market, not broad/TA/trending):
+        ONE fast tool (price_lookup) only, no web fallback on a miss.
+      * HEAVY — genuinely-current asks: token address (scanner + price),
+        scam/security check, news/current events, market-today, TA/trending —
+        the full bounded gather inside ``_CONTEXT_GATHER_TIMEOUT``.
+    """
+    if qtype == "" or not question or not question.strip():
+        return _CTX_NEED_NONE
+    low = question.lower()
+    # Strongest signals first — current-data intents beat the definitional
+    # check ("what is the price of X" is a light price ask, not a definition;
+    # "how is the market" is a broad market read).
+    if qtype == "token":
+        return _CTX_NEED_HEAVY  # address present → scanner + price
+    if qtype == "market":
+        if _CTX_MARKET_BROAD_RE.search(low):
+            return _CTX_NEED_HEAVY  # market-today rich context
+        if _CTX_TA_RE.search(low) or _CTX_TRENDING_RE.search(low):
+            return _CTX_NEED_HEAVY  # TA / trending need their tool sets
+        return _CTX_NEED_LIGHT  # plain single-asset price ask
+    if qtype == "news":
+        return _CTX_NEED_HEAVY  # current events need current sources
+    # Definitional / conversational asks answer from the model itself — NO
+    # RAG KB / exploit / news / web scan (~0 gather). This is the fast path:
+    # "what is a rug pull" is scam-typed but definitional → NONE.
+    if _TIER_DEFINITIONAL_RE.search(low):
+        return _CTX_NEED_NONE
+    # Remaining typed asks (scam/education, non-definitional) are knowledge /
+    # safety checks the RAG intel KB grounds — HEAVY.
+    return _CTX_NEED_HEAVY
 
 
 async def _gather_rag_news_context(question: str) -> tuple[str, list[dict[str, str]]]:
@@ -272,13 +325,25 @@ async def _gather_web_fallback(question: str) -> tuple[str, list[dict[str, str]]
 async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
     """Thin question router: retrieve 1-2 relevant sources for ``question``.
 
-    Returns ``(context_block, sources)`` — both empty when the type is
-    unknown, no source answered, or the 5s budget expired (fail-open). The
-    caller passes these into the remote LLM's existing ``sources`` param and
-    the separately-budgeted RETRIEVED CONTEXT message, so the model answers
-    with real data instead of generic knowledge.
+    COST-AWARE: the context-NEED tier (:func:`_classify_context_need`) gates
+    EVERY gather. NONE (definitional / conversational / greeting / unknown)
+    returns immediately with NOTHING fetched — ~0 gather time — so "what is
+    a rug pull" answers fast from the model instead of scanning news/RAG/
+    exploits. LIGHT (single-asset price ask) runs price_lookup ONLY, no web
+    fallback. HEAVY runs the full bounded gather below (~5s, fail-open).
 
-    Type → source map (implemented):
+    Returns ``(context_block, sources)`` — both empty when the tier is NONE,
+    no source answered, or the 5s budget expired (fail-open). The caller
+    passes these into the remote LLM's existing ``sources`` param and the
+    separately-budgeted RETRIEVED CONTEXT message, so the model answers with
+    real data instead of generic knowledge.
+
+    Need tier → what is fetched:
+      * NONE   → nothing (fast path: definitional / greetings / unknown)
+      * LIGHT  → price_lookup only (single-asset price ask)
+      * HEAVY  → per type below, bounded by _CONTEXT_GATHER_TIMEOUT
+
+    Type → source map (implemented, all HEAVY except plain price):
       * MARKET/TA      → price_lookup (+ technical_analysis / trending);
                          live web results when the tool data is thin
       * SPECIFIC TOKEN → scanner_intel + price_lookup (address present)
@@ -291,7 +356,11 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
       by the caller) and cited as sources (``type: "web"``).
     """
     qtype = _classify_question(question)
-    if not qtype:
+    need = _classify_context_need(question, qtype)
+    # Cost tier gate: NONE (definitional / conversational / greeting /
+    # unknown) fetches NOTHING — the LLM answers from its own knowledge in
+    # ~0 router time (no news/RAG/web/tool fetches).
+    if need == _CTX_NEED_NONE or not qtype:
         return "", []
     if qtype == "news":
         return await _gather_news_context(question)
@@ -320,6 +389,12 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
             names.append("technical_analysis")
         elif _CTX_TRENDING_RE.search(low) and "trending" not in names:
             names.append("trending")
+    light = need == _CTX_NEED_LIGHT
+    if light:
+        # LIGHT: single-asset price ask → price_lookup ONLY — no TA/trending
+        # extras (the regexes above already excluded them) and no web
+        # fallback on a miss: this is the fast price path.
+        names = [n for n in names if n == "price_lookup"]
     # scanner_intel needs an address — drop it when the question names none
     # (avoids a pointless "address required" miss).
     if not extract_addresses(question):
@@ -340,6 +415,11 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
 
     ok_results = {name: r for name, r in results.items() if r.ok}
     if not ok_results:
+        # LIGHT price asks never spawn the web layer — empty context degrades
+        # to the model's own knowledge ("price unavailable"); light means
+        # ONE fast tool, nothing more.
+        if light:
+            return "", []
         # MARKET/TA or LORE question with thin/empty tool data → pull CURRENT
         # web results so the LLM still gets sourced context instead of
         # answering from training memory (fail-open: "" when SearXNG is

@@ -32,6 +32,9 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._constants import (
     _CTX_EDU_RE as _CTX_EDU_RE,
     _CTX_MARKET_BROAD_RE as _CTX_MARKET_BROAD_RE,
     _CTX_MARKET_RE as _CTX_MARKET_RE,
+    _CTX_NEED_HEAVY as _CTX_NEED_HEAVY,
+    _CTX_NEED_LIGHT as _CTX_NEED_LIGHT,
+    _CTX_NEED_NONE as _CTX_NEED_NONE,
     _CTX_NEWS_RE as _CTX_NEWS_RE,
     _CTX_SCAM_RE as _CTX_SCAM_RE,
     _CTX_TA_RE as _CTX_TA_RE,
@@ -73,6 +76,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._fallback import (
     _gather_fallback_context as _gather_fallback_context,
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._router import (
+    _classify_context_need as _classify_context_need,
     _classify_question as _classify_question,
     _gather_context as _gather_context,
     _gather_edu_lore_context as _gather_edu_lore_context,

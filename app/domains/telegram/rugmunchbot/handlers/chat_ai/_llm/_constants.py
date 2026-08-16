@@ -160,6 +160,24 @@ _TIER_ANALYSIS_LENGTH_THRESHOLD = 120  # chars — mirrors backend _route_task
 _CONTEXT_GATHER_TIMEOUT = 5.0  # total budget — chat stays snappy
 _CONTEXT_MAX_CHARS = 2400  # router context block budget (own window)
 
+# ── Context-need cost tiers (question router) ───────────────────────────────
+# _gather_context routes by COST as well as TYPE. The tier is computed by
+# ``_classify_context_need`` and gates EVERY gather:
+#   * NONE  — definitional / conversational / greeting ("what is X", "how
+#             does Y work", "explain Z", "gm"): the LLM answers from its own
+#             knowledge — NOTHING is fetched (~0 gather time, no news/RAG/web/
+#             tool calls). This is the fast path.
+#   * LIGHT — single-asset price ask ("what is the price of $BONK", "how much
+#             is BTC"): ONE fast tool (price_lookup) only, no TA/trending
+#             extras and NO web fallback on a miss.
+#   * HEAVY — genuinely-current asks (token address scan, scam/security
+#             check, news/current events, market-today, TA/trending): the
+#             full bounded gather (~5s) — scanner / RAG KB / news_v2 / rich
+#             market tools + SearXNG fallback as the type requires.
+_CTX_NEED_NONE = "none"
+_CTX_NEED_LIGHT = "light"
+_CTX_NEED_HEAVY = "heavy"
+
 # ── Web fallback (SearXNG) for thin primary sources ────────────────────────
 # Current-event / MARKET / lore questions need CURRENT, sourced intel. When
 # the primary source (RAG news_v2 for NEWS; price/scanner/RAG-KB tools for

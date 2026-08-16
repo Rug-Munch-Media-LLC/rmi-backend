@@ -535,3 +535,211 @@ class TestHoneypotDetection:
             )
         assert result["holder_count"] == 2
         assert result["risk_score"] >= 15
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Scam signal detections: deployer dump + dusting (2026-08-16)
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestDeployerDumpDetection:
+    """Tests for the deployer→pool (team-wallet dump) check."""
+
+    @pytest.mark.asyncio
+    async def test_deployer_flow_query_returns_counts(self):
+        """_query_deployer_flow should count deployer→pool transfers."""
+        from app.domains.scanner.engines.own_security_analysis import _query_deployer_flow
+
+        mock_client = MagicMock()
+        mock_client.execute.return_value = [(3, 1_500_000.0)]
+
+        with patch(
+            "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+            return_value=mock_client,
+        ):
+            flow = _query_deployer_flow("0xtoken", "ethereum", "0xdeployer", ["0xpool1"])
+        assert flow == {"out_count": 3, "out_value": 1_500_000.0}
+
+    @pytest.mark.asyncio
+    async def test_deployer_flow_query_graceful_without_ch(self):
+        """_query_deployer_flow should return None when ClickHouse is down."""
+        from app.domains.scanner.engines.own_security_analysis import _query_deployer_flow
+
+        with patch(
+            "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+            return_value=None,
+        ):
+            assert _query_deployer_flow("0xt", "eth", "0xd", []) is None
+
+    @pytest.mark.asyncio
+    async def test_detects_deployer_dump_after_launch_window(self):
+        """Deployer selling into a pool past the 1h launch window = dump flag."""
+        clear_cache()
+        mock_client = MagicMock()
+
+        def mock_execute(query, params=None, **kwargs):
+            if "deployer_events" in query:
+                # deployer, block_timestamp (48h old -> age_hours >= 1), tx, block
+                from datetime import UTC, datetime, timedelta
+
+                return [
+                    (
+                        "0xdeployer",
+                        datetime.now(UTC) - timedelta(hours=48),
+                        "0xtx",
+                        100,
+                    )
+                ]
+            if "evm_transfers" in query and "AS recipients" in query:
+                return []  # dust query — no fan-out
+            if "evm_transfers" in query and "sum(toFloat64OrZero(value))" in query:
+                return [(2, 5_000_000.0)]  # deployer → pool twice
+            if "evm_transfers" in query:
+                return [(10, 8, 9, 9)]  # transfer stats
+            return []
+
+        mock_client.execute = mock_execute
+
+        with (
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._load_pair_cache",
+                return_value={"0xpool1": ("0xtoken", "0xweth")},
+            ),
+        ):
+            result = await get_own_security("0xtoken", "ethereum")
+        assert result["deployer_dump_detected"] is True
+        assert result["deployer_dump_count"] == 2
+        assert result["risk_score"] >= 25
+
+    @pytest.mark.asyncio
+    async def test_no_dump_flag_within_launch_window(self):
+        """Initial LP seeding (t≈0) must not be flagged as a dump."""
+        clear_cache()
+        mock_client = MagicMock()
+
+        def mock_execute(query, params=None, **kwargs):
+            if "deployer_events" in query:
+                # Fresh deploy: age_hours < 1
+                from datetime import UTC, datetime
+
+                return [("0xdeployer", datetime.now(UTC), "0xtx", 100)]
+            if "evm_transfers" in query and "AS recipients" in query:
+                return []
+            if "evm_transfers" in query and "sum(toFloat64OrZero(value))" in query:
+                return [(1, 1_000_000.0)]  # single seeding transfer
+            if "evm_transfers" in query:
+                return [(10, 8, 9, 9)]
+            return []
+
+        mock_client.execute = mock_execute
+
+        with (
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._load_pair_cache",
+                return_value={"0xpool1": ("0xtoken", "0xweth")},
+            ),
+        ):
+            result = await get_own_security("0xtoken", "ethereum")
+        assert result["deployer_dump_detected"] is None
+        assert result["deployer_dump_count"] == 1
+
+
+class TestDustingDetection:
+    """Tests for the dusting / address-poisoning check."""
+
+    @pytest.mark.asyncio
+    async def test_dust_pattern_query_returns_sender(self):
+        """_query_dust_pattern should return the widest fan-out sender."""
+        from app.domains.scanner.engines.own_security_analysis import _query_dust_pattern
+
+        mock_client = MagicMock()
+        mock_client.execute.return_value = [("0xduster", 42)]
+
+        with patch(
+            "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+            return_value=mock_client,
+        ):
+            dust = _query_dust_pattern("0xtoken", "ethereum")
+        assert dust == {"sender": "0xduster", "recipients": 42}
+
+    @pytest.mark.asyncio
+    async def test_dust_pattern_graceful_without_ch(self):
+        """_query_dust_pattern should return None when ClickHouse is down."""
+        from app.domains.scanner.engines.own_security_analysis import _query_dust_pattern
+
+        with patch(
+            "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+            return_value=None,
+        ):
+            assert _query_dust_pattern("0xt", "eth") is None
+
+    @pytest.mark.asyncio
+    async def test_flags_dusting_at_20_plus_recipients(self):
+        """A single wallet distributing to 20+ addresses = dusting flag."""
+        clear_cache()
+        mock_client = MagicMock()
+
+        def mock_execute(query, params=None, **kwargs):
+            if "deployer_events" in query:
+                return []
+            if "evm_transfers" in query and "AS recipients" in query:
+                return [("0xduster", 25)]
+            if "evm_transfers" in query:
+                return [(30, 1, 26, 25)]
+            return []
+
+        mock_client.execute = mock_execute
+
+        with (
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._load_pair_cache",
+                return_value={},
+            ),
+        ):
+            result = await get_own_security("0xtoken", "ethereum")
+        assert result["dusting_detected"] is True
+        assert result["dust_sender"] == "0xduster"
+        assert result["dust_recipients"] == 25
+        assert result["risk_score"] >= 10
+
+    @pytest.mark.asyncio
+    async def test_no_dust_flag_below_threshold(self):
+        """Fan-out below 20 recipients must not flag dusting."""
+        clear_cache()
+        mock_client = MagicMock()
+
+        def mock_execute(query, params=None, **kwargs):
+            if "deployer_events" in query:
+                return []
+            if "evm_transfers" in query and "AS recipients" in query:
+                return [("0xorganic", 5)]
+            if "evm_transfers" in query:
+                return [(10, 8, 9, 9)]
+            return []
+
+        mock_client.execute = mock_execute
+
+        with (
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._get_ch_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "app.domains.scanner.engines.own_security_analysis._load_pair_cache",
+                return_value={},
+            ),
+        ):
+            result = await get_own_security("0xtoken", "ethereum")
+        assert result["dusting_detected"] is None

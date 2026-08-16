@@ -30,6 +30,7 @@ from app.domains.telegram.rugmunchbot.formatters._scan_report_common import (
     _clip,
     _collapse_blank_lines,
     _fmt_market_value,
+    _format_scam_signals_section,
     _holder_distribution_rows,
     _key_metrics_rows,
     _launch_intel_rows,
@@ -177,6 +178,11 @@ def _format_scan_report(
     risk_lines = _format_risk_signals_section(r)
     if risk_lines:
         lines.extend(risk_lines)
+
+    # ── 2c. Scam Signals (complete technique coverage matrix: 🔴/✅/—) ──
+    scam_lines = _format_scam_signals_section(r)
+    if scam_lines:
+        lines.extend(scam_lines)
 
     # ── 3. Market Data ──
     # Real live market figures from the scan's best-pair DexScreener snapshot
