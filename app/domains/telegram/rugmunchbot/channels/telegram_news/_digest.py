@@ -12,7 +12,9 @@ market-awareness snapshot (``publish_market_awareness``).
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 import re
 import sys
 import zlib
@@ -120,7 +122,7 @@ def _batch_parity(items: list[dict[str, Any]]) -> int:
     return zlib.crc32(seed.encode("utf-8")) & 1
 
 
-def _news_post_for(articles: list[NewsArticle]) -> NewsPost:
+def _news_post_for(articles: list[NewsArticle], commentaries: dict[str, str] | None = None) -> NewsPost:
     """Pick the news-channel post format deterministically for *articles*.
 
     Priority (breaking first, then story count / shared topic / parity):
@@ -132,8 +134,13 @@ def _news_post_for(articles: list[NewsArticle]) -> NewsPost:
 
     Every format carries the RAG linkage (``image_url`` + ``canonical_url`` +
     rewritten title) through the post dicts built by ``_article_to_post_dict``.
+    ``commentaries`` (optional, keyed by canonical URL / url / title — the
+    same keys :func:`attach_commentaries` returns) are applied to the matching
+    post dicts so each story's AI "why it matters" line renders in the post.
     """
     items = [_article_to_post_dict(a) for a in articles]
+    if commentaries:
+        _apply_commentaries(items, commentaries)
     if not items:
         return NewsPost("")
     if _tg.is_breaking_article(articles[0]):
@@ -146,6 +153,92 @@ def _news_post_for(articles: list[NewsArticle]) -> NewsPost:
     if len(items) >= 4 and _batch_parity(items) == 0:
         return format_news_post(items)
     return format_hybrid_post(items)
+
+
+# ── AI commentary ("why it matters" one-liner, bounded + fail-open) ─────────
+
+
+#: Timeout for one snappy-tier commentary call (parallel per batch).
+_COMMENTARY_TIMEOUT: float = 6.0
+#: One-line length budget for the rendered "why it matters" hook.
+_COMMENTARY_MAX_CHARS: int = 180
+
+_COMMENTARY_SYSTEM: str = (
+    "You are a crypto news editor. For the headline + summary you are given, "
+    "write ONE short sentence (max ~25 words) explaining why this story matters "
+    "to crypto traders and investors. Be concrete and specific, use only facts "
+    "present in the summary, no hype, no emojis, no markdown, no leading label."
+)
+
+
+def _commentary_key(item: dict[str, Any]) -> str:
+    """Stable key for a post-dict: canonical URL → url → title."""
+    return str(item.get("canonical_url") or item.get("url") or "").strip() or str(item.get("title") or "").strip()
+
+
+async def generate_commentary(item: dict[str, Any]) -> str:
+    """One bounded snappy-tier "why it matters" line for a story post-dict.
+
+    Calls ``app.llm_config.chat_with_fallback(messages, "snappy")`` under
+    ``asyncio.wait_for`` (``_COMMENTARY_TIMEOUT``). Fail-open by contract:
+    any error, timeout, or empty answer returns ``""`` so the post ships with
+    just the headline/hook — the tick is never blocked and never crashes.
+    The label ("Why it matters:") is left to the formatter; leading stars and
+    any echoed label are stripped from the model output.
+    """
+    title = str(item.get("title") or "").strip()
+    summary = str(item.get("summary") or item.get("description") or "").strip()
+    if not title and not summary:
+        return ""
+    prompt = f"Headline: {title}\nSummary: {summary[:800]}\n\nWrite the single 'Why it matters' line now."
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": _COMMENTARY_SYSTEM},
+        {"role": "user", "content": prompt},
+    ]
+    try:
+        from app.llm_config import chat_with_fallback
+
+        text = await asyncio.wait_for(chat_with_fallback(messages, "snappy"), timeout=_COMMENTARY_TIMEOUT)
+    except Exception:  # bounded + fail-open by contract
+        logger.debug("tg_news:commentary_failed title=%s", title[:60], exc_info=True)
+        return ""
+    text = (text or "").strip().replace("\n", " ")
+    low = text.lower()
+    if low.startswith("why it matters:"):
+        text = text[len("why it matters:") :].strip()
+    if text.startswith("*") and text.endswith("*"):
+        text = text.strip("*").strip()
+    return text[:_COMMENTARY_MAX_CHARS].strip()
+
+
+async def attach_commentaries(items: list[dict[str, Any]], *, limit: int = 5) -> dict[str, str]:
+    """Generate one bounded commentary per post-dict, in parallel, fail-open.
+
+    Returns a dict keyed by :func:`_commentary_key` → commentary text. Every
+    item is attempted; a failed/empty call simply contributes nothing so the
+    remaining stories still get their line. ``limit`` caps the batch (matches
+    the post limit so we never call the LLM for stories that won't post).
+    """
+    if not items:
+        return {}
+    batch = items[: max(1, limit)]
+    results = await asyncio.gather(*(generate_commentary(it) for it in batch), return_exceptions=True)
+    out: dict[str, str] = {}
+    for item, res in zip(batch, results, strict=True):
+        if isinstance(res, BaseException) or not res:
+            continue
+        key = _commentary_key(item)
+        if key:
+            out[key] = res
+    return out
+
+
+def _apply_commentaries(items: list[dict[str, Any]], commentaries: dict[str, str]) -> None:
+    """Set ``item["commentary"]`` from the keyed commentary dict (in place)."""
+    for item in items:
+        key = _commentary_key(item)
+        if key and commentaries.get(key):
+            item["commentary"] = commentaries[key]
 
 
 # ── Website feed injection (additive, fail-open) ────────────────────────────
@@ -324,3 +417,52 @@ async def publish_market_awareness(articles: list[NewsArticle], scored: list[Any
     except Exception as exc:  # fail-open by contract
         logger.warning("tg_news:market_awareness_failed err=%s", str(exc)[:200])
         return False
+
+
+# ── rugmunch.io feed publish (best-effort, fail-open) ───────────────────────
+
+
+#: Master switch for publishing routed high-importance stories to the
+#: rugmunch.io feed (Ghost content platform). Default ON — the publish itself
+#: is best-effort and fails open when Ghost is unreachable / unauthenticated
+#: (no session cookie, API key missing), so the Telegram posts are never
+#: blocked by the feed publish. Canonical ``RMI_TG_NEWS_FEED_ENABLED``.
+def _env_feed_bool(default: bool = True) -> bool:
+    raw = os.getenv("RMI_TG_NEWS_FEED_ENABLED")
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("true", "1", "yes", "on")
+
+
+TG_NEWS_FEED_ENABLED: bool = _env_feed_bool()
+
+#: Feed post type + tags for a routed news story (Ghost ``micro`` = short post).
+_FEED_POST_TYPE = "micro"
+_FEED_TAGS: tuple[str, ...] = ("news", "telegram")
+
+
+async def publish_story_to_feed(post_text: str, *, title: str) -> dict[str, Any]:
+    """Publish a routed high-importance story to the rugmunch.io feed (Ghost).
+
+    Mirrors ``daily_market_summary.publish_to_feed``: the rugmunch.io feed is
+    the Ghost content platform (``app.content_platform.create_post``). The
+    publish is attempted best-effort and fails open — a missing Ghost session
+    cookie / API key, network error, or Ghost HTTP error logs and returns
+    ``{"error": ...}``; the Telegram posts always go out regardless. Gated by
+    ``TG_NEWS_FEED_ENABLED`` (env ``RMI_TG_NEWS_FEED_ENABLED``, default on).
+    """
+    if not TG_NEWS_FEED_ENABLED:
+        logger.info("tg_news:feed_publish_disabled title=%s", title[:80])
+        return {"skipped": True}
+    try:
+        from app.content_platform import create_post
+
+        return await create_post(
+            content=post_text,
+            post_type=_FEED_POST_TYPE,
+            title=title,
+            tags=list(_FEED_TAGS),
+        )
+    except Exception as exc:  # fail-open — feed publish is additive
+        logger.warning("tg_news:feed_publish_failed title=%s err=%s", title[:80], str(exc)[:200])
+        return {"error": str(exc)}

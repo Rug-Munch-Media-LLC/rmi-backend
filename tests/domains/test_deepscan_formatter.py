@@ -623,3 +623,67 @@ def test_render_analyst_read_receives_timing_and_cluster_intel() -> None:
     assert "recently_funded_pct" in joined
     assert "funding_clusters" in joined
     assert "cluster_verdict" in joined
+
+
+# ── SENTINEL deepscan section: Cross-Token Linkage (recurring cluster + serial launcher) ──
+
+
+def test_sentinel_renders_recurring_cluster_line_in_cluster_section() -> None:
+    data = _sentinel_cluster_data(
+        {
+            "result": "scanned",
+            "cluster_line": "🕸️ 3 funders → 14 wallets · largest cluster 9 · coordinated",
+            "distinct_funders": 3,
+            "funded_wallets": 14,
+            "largest_cluster_size": 9,
+            "clusters": [],
+            "coordinated": True,
+            "coordinated_buyers": 6,
+            "funding_chain_buyers": 2,
+            "verdict": "coordinated",
+        }
+    )
+    data["cross_token_link"] = {
+        "result": "scanned",
+        "recurring_cluster_line": "🕸️ Recurring cluster: 7 wallets also bought 3 prior launches",
+        "recurring_wallets": 7,
+        "prior_launch_count": 3,
+        "prior_launch_tokens": [],
+    }
+    out = format_sentinel_deepscan_section(data)
+    assert "Recurring cluster: 7 wallets also bought 3 prior launches" in out
+
+
+def test_sentinel_renders_deployer_and_funder_link_lines() -> None:
+    data = _sentinel_data({"deployer_funded": [], "same_block_snipers": []})
+    data["cross_token_link"] = {
+        "result": "scanned",
+        "deployer_link_line": "🔗 Deployer linked to 4 prior launches: 0xabc…, 0xdef…",
+        "deployer_prior_count": 4,
+        "funder_link_line": "🔗 Funder also funded 2 other deployers",
+        "funder_deployer_count": 2,
+    }
+    out = format_sentinel_deepscan_section(data)
+    assert "🔗 <b>Cross-Token Linkage</b>" in out
+    assert "Deployer linked to 4 prior launches: 0xabc…, 0xdef…" in out
+    assert "Funder also funded 2 other deployers" in out
+
+
+def test_sentinel_omits_cross_token_when_absent() -> None:
+    out = format_sentinel_deepscan_section(_sentinel_data({"deployer_funded": [], "same_block_snipers": []}))
+    assert "Cross-Token" not in out
+    assert "Recurring cluster" not in out
+
+
+def test_sentinel_renders_recurring_line_even_when_cluster_unavailable() -> None:
+    data = _sentinel_cluster_data({"result": "unavailable", "cluster_line": "—", "verdict": "unknown"})
+    data["cross_token_link"] = {
+        "result": "scanned",
+        "recurring_cluster_line": "🕸️ Recurring cluster: 5 wallets also bought 2 prior launches",
+        "recurring_wallets": 5,
+        "prior_launch_count": 2,
+    }
+    out = format_sentinel_deepscan_section(data)
+    # Recurring signal survives even when the funding-source cluster analysis
+    # itself is unavailable — the cross-token check runs on its own data.
+    assert "Recurring cluster: 5 wallets also bought 2 prior launches" in out

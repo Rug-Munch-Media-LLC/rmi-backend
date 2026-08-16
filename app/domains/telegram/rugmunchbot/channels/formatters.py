@@ -45,6 +45,9 @@ _FEATURE_HOOK_CHARS = 160
 #: items keep the same tight budget, breaking posts keep more room.
 _DIGEST_TAKEAWAY_CHARS = 150
 _ALPHA_TAKEAWAY_CHARS = 120
+#: One-line AI "why it matters" commentary cap (the LLM already emits ≤180
+#: chars via ``_digest.generate_commentary``; this is a defensive re-clip).
+_COMMENTARY_HOOK_CHARS = 180
 
 _WHITESPACE_RE = re.compile(r"\s+")
 _MARKUP_TAGS_RE = re.compile(r"<[^>]*>")
@@ -158,13 +161,15 @@ def _now_stamp() -> str:
 
 
 def _story_line(item: dict[str, Any], index: int) -> list[str]:
-    """One numbered story: headline link + one-line takeaway + source.
+    """One numbered story: headline link + one-line takeaway + AI why-it-matters + source.
 
     Shared by the digest (``format_news_post``) and the themed roundup
     (``format_themed_post``) so every story gets the same curated treatment:
     a headline linking to the canonical source URL, then a clipped plain-text
     hook from the summary with the source name — never a bare link, never a
-    raw HTML/markdown leak.
+    raw HTML/markdown leak. When the scheduler attached an AI commentary
+    (``item["commentary"]``, a "why it matters" one-liner) it renders as a
+    💡 line so every posted story carries context beyond the headline.
     """
     title = _esc(item.get("title") or "Untitled")
     url = (item.get("url") or "").strip()
@@ -173,10 +178,13 @@ def _story_line(item: dict[str, Any], index: int) -> list[str]:
     source = _esc(item.get("source") or "unknown")
     lines = [f"{index}. {title}"]
     takeaway = _esc(_takeaway(item.get("summary") or item.get("description")))
+    commentary = _esc(_takeaway(item.get("commentary"), _COMMENTARY_HOOK_CHARS))
     if takeaway:
         lines.append(f"   {takeaway} — <i>{source}</i>")
     else:
         lines.append(f"   — <i>{source}</i>")
+    if commentary:
+        lines.append(f"   💡 {commentary}")
     return lines
 
 
@@ -217,6 +225,7 @@ def format_breaking_post(item: dict[str, Any]) -> NewsPost:
     title = _esc(item.get("title") or "Untitled")
     url = (item.get("url") or "").strip()
     summary = _esc(_takeaway(item.get("summary") or item.get("description"), _BREAKING_SUMMARY_CHARS))
+    commentary = _esc(_takeaway(item.get("commentary"), _COMMENTARY_HOOK_CHARS))
     source = _esc(item.get("source") or "unknown")
     headline = title if not url else f'<a href="{html.escape(url, quote=True)}">{title}</a>'
     lines = ["🚨 <b>BREAKING</b>", sep(), ""]
@@ -224,6 +233,9 @@ def format_breaking_post(item: dict[str, Any]) -> NewsPost:
     if summary:
         lines.append("")
         lines.append(summary)
+    if commentary:
+        lines.append("")
+        lines.append(f"💡 <b>Why it matters:</b> {commentary}")
     lines.append("")
     if url:
         lines.append(f'🔗 <i>Full story: <a href="{html.escape(url, quote=True)}">{source}</a></i>')
@@ -249,6 +261,7 @@ def format_feature_post(item: dict[str, Any]) -> NewsPost:
     url = (item.get("url") or "").strip()
     summary = _strip_markup(item.get("summary") or item.get("description"))
     hook = _first_sentence(summary)
+    commentary = _esc(_takeaway(item.get("commentary"), _COMMENTARY_HOOK_CHARS))
     lede = _lede_after_hook(summary, hook)
     source = _esc(item.get("source") or "unknown")
     headline = title if not url else f'<a href="{html.escape(url, quote=True)}">{title}</a>'
@@ -257,6 +270,9 @@ def format_feature_post(item: dict[str, Any]) -> NewsPost:
     if hook:
         lines.append("")
         lines.append(_esc(hook))
+    if commentary:
+        lines.append("")
+        lines.append(f"💡 <b>Why it matters:</b> {commentary}")
     if lede:
         lines.append("")
         lines.append(_esc(lede))
@@ -284,6 +300,7 @@ def format_hybrid_post(items: list[dict[str, Any]]) -> NewsPost:
     url = (lead.get("url") or "").strip()
     summary = _strip_markup(lead.get("summary") or lead.get("description"))
     hook = _first_sentence(summary)
+    commentary = _esc(_takeaway(lead.get("commentary"), _COMMENTARY_HOOK_CHARS))
     source = _esc(lead.get("source") or "unknown")
     headline = title if not url else f'<a href="{html.escape(url, quote=True)}">{title}</a>'
     lines = ["📰 <b>RugMunch News</b>", sep(), ""]
@@ -291,6 +308,9 @@ def format_hybrid_post(items: list[dict[str, Any]]) -> NewsPost:
     if hook:
         lines.append("")
         lines.append(_esc(hook))
+    if commentary:
+        lines.append("")
+        lines.append(f"💡 <b>Why it matters:</b> {commentary}")
     if url:
         lines.append(f'   <i>— <a href="{html.escape(url, quote=True)}">{source}</a></i>')
     else:

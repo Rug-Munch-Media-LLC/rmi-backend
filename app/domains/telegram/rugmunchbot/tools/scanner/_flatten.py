@@ -14,6 +14,31 @@ from app.domains.telegram.rugmunchbot.tools.scanner._providers import _safe_floa
 from app.domains.telegram.rugmunchbot.tools.scanner._security import _honeypot_verdict, _security_checks
 
 
+def _wash_trading_block(market: dict[str, Any]) -> dict[str, Any]:
+    """Build the ``wash_trading`` intel block from the engine's market payload.
+
+    Carries the full volume-authenticity evidence so the report formatter can
+    render the dedicated 📉 Fake Volume verdict line: fake-volume %, the
+    self-deal (buyer/seller-overlap) counts, the volume-to-holder churn ratio
+    and the engine's own "likely"/"organic" verdict. Every field is optional —
+    a provider that did not measure it stays None (never a fabricated 0).
+    """
+    return {
+        "fake_volume_pct": market.get("fake_volume_pct"),
+        "authentic_score": market.get("authentic_score"),
+        "risk_level": market.get("risk_level"),
+        "self_deal_wallets": market.get("self_deal_wallets"),
+        "self_deal_swaps": market.get("self_deal_swaps"),
+        "self_deal_swap_ratio": market.get("self_deal_swap_ratio"),
+        "active_holders": market.get("active_holders"),
+        "volume_to_holder_ratio": market.get("volume_to_holder_ratio"),
+        "wash_signals": market.get("wash_signals"),
+        "fake_volume_verdict": market.get("fake_volume_verdict"),
+        "fake_volume_detail": market.get("fake_volume_detail"),
+        "confidence": market.get("confidence"),
+    }
+
+
 def _flatten_v2(body: dict[str, Any], address: str, chain: str) -> dict[str, Any]:
     """Map the unified v2 scan payload into the chat-presentable intel block."""
     evidence = body.get("evidence")
@@ -100,10 +125,8 @@ def _flatten_v2(body: dict[str, Any], address: str, chain: str) -> dict[str, Any
             "cluster_blocks": bundle.get("cluster_blocks"),
             "common_funders": bundle.get("common_funders"),
         },
-        # Wash-trading proxy (own volume-authenticity engine)
-        "wash_trading": {
-            "fake_volume_pct": market.get("fake_volume_pct"),
-        },
+        # Wash-trading verdict (own volume-authenticity engine)
+        "wash_trading": _wash_trading_block(market),
         # Holder analysis (own engines + SENTINEL)
         "holder_analysis": {
             "total_holders": holder_analysis.get("total_holders"),
@@ -175,7 +198,7 @@ def _flatten_v1(body: dict[str, Any], address: str, chain: str) -> dict[str, Any
             "CR03": {"status": "fail" if body.get("is_mintable") else "pass", "details": "Mintable"},
         },
         "bundle_analysis": None,
-        "wash_trading": {"fake_volume_pct": None},
+        "wash_trading": _wash_trading_block({}),
         "holder_analysis": {
             "total_holders": body.get("holders"),
             "hhi": None,
@@ -228,7 +251,7 @@ def _flatten_dexscreener(address: str, chain: str) -> dict[str, Any]:
         "honeypot": "unknown",
         "security_checks": {},
         "bundle_analysis": None,
-        "wash_trading": {"fake_volume_pct": None},
+        "wash_trading": _wash_trading_block({}),
         "holder_analysis": None,
         "wallet_metrics": None,
         "funding_analysis": None,
@@ -366,9 +389,12 @@ def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
         # analysis (the legacy converter's duplicate 0-default was dead code —
         # the funding value always won in dict order).
         "exchange_pct": 0,
-        "volume_real_ratio": (
-            _safe_float(mkt.get("fake_volume_pct")) if mkt.get("fake_volume_pct") is not None else None
-        ),
+        # NOTE: the legacy scanner (tools/scanner/_scans.py) computes a real
+        # volume/mcap ratio here; the v2 converter used to mis-map the volume-
+        # authenticity engine's fake_volume_pct (0-100) into this ratio slot,
+        # which corrupted the "Vol/MCap ratio" line. The v2 path now carries
+        # the wash verdict in ``wash_trading`` instead and leaves this None.
+        "volume_real_ratio": None,
         "dev_wallet": deployer_addr or None,
         "dev_other_tokens": [],
         "errors": [],
@@ -400,6 +426,9 @@ def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
         # these at the top level of the v2 payload; degrade gracefully when
         # absent (legacy or older backend).
         "bundle_analysis": data.get("bundle_analysis"),
+        # v2 wash-trading verdict (own volume-authenticity engine) — the
+        # dedicated 📉 Fake Volume line on /scan + /deepscan reads this block.
+        "wash_trading": _wash_trading_block(mkt),
         "wallet_metrics": data.get("wallet_metrics"),
         "deployer_profile": (
             data.get("deployer_profile")

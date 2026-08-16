@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+from typing import Any
 
 from app.config import settings
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -234,11 +235,68 @@ def _is_placeholder_result(title: str, url: str) -> bool:
 
 
 async def _searxng_search(query: str, limit: int = 5) -> list[dict[str, str]]:
+    """SearXNG JSON search — direct, then residential-proxy tier (fail-open).
+
+    The direct attempt reuses the pooled ``tools._client`` httpx path. When
+    it yields zero results AND a residential proxy pool is configured
+    (``WEBSHARE_PROXY_LIST`` via gopass → env at deploy) AND the SearXNG
+    instance is remote (non-loopback), one retry is routed through a rotating
+    proxy so a blocked instance still resolves. Local (loopback) instances
+    are never proxied — a residential proxy cannot reach a loopback host
+    (it resolves ``127.0.0.1`` on ITS own network); upstream-engine blocking
+    for those is handled by the SearXNG instance's own outbound proxy config.
+    Returns ``[]`` on any failure — the caller's fallback chain stays intact.
+    """
     body = await http_get_json(
         f"{SEARXNG_URL}/search",
         params={"q": query, "format": "json"},
         timeout=SEARXNG_TIMEOUT,
     )
+    results = _searxng_filter(body, limit)
+    if results:
+        return results
+    if _searxng_host_is_loopback():
+        return []
+    return await _searxng_search_via_proxy(query, limit)
+
+
+def _searxng_host_is_loopback() -> bool:
+    """True when ``SEARXNG_URL`` points at a local instance (loopback)."""
+    from urllib.parse import urlsplit
+
+    host = (urlsplit(SEARXNG_URL).hostname or "").lower()
+    return host in ("localhost", "127.0.0.1", "::1") or host.startswith("127.")
+
+
+async def _searxng_search_via_proxy(query: str, limit: int) -> list[dict[str, str]]:
+    """Retry a SearXNG JSON search through the residential proxy pool.
+
+    Only reached when the direct attempt produced no results AND the rotator
+    is enabled AND the SearXNG host is remote. Fail-open: ``[]`` on any
+    failure. Proxy credentials are never logged (the rotator logs host only).
+    """
+    try:
+        from app.databus.proxy_rotator import get_proxy_rotator
+
+        rotator = get_proxy_rotator()
+        if not rotator.enabled:
+            return []
+        proxy = rotator.get_rotating_proxy()
+        if proxy is None:
+            return []  # all proxies on cooldown → direct-only
+        client = rotator.get_client(proxy=proxy)
+        response = await client.get(f"{SEARXNG_URL}/search", params={"q": query, "format": "json"})
+        if response.status_code != 200:
+            rotator.mark_failed(proxy)
+            return []
+        return _searxng_filter(response.json(), limit)
+    except Exception:
+        logger.debug("web_search searxng proxy attempt failed", exc_info=True)
+        return []
+
+
+def _searxng_filter(body: Any, limit: int = 5) -> list[dict[str, str]]:
+    """Filter a SearXNG JSON body into deduped, quality-gated results."""
     results = body.get("results") if body else None
     if not isinstance(results, list):
         return []
