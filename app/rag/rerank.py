@@ -48,7 +48,7 @@ async def rerank_results(query: str, documents: list[str], top_n: int = 5) -> li
         },
     ) as span:
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.post(
                     f"{settings.infinity_url.rstrip('/')}/rerank",
                     json={
