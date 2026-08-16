@@ -15,6 +15,15 @@ from __future__ import annotations
 
 from ._base import _resolve_db_path, get_db, init_db, logger
 from .alerts import get_active_alerts, mark_alert_triggered
+from .monitors import (
+    MONITOR_DEFAULT_DAYS,
+    add_monitor,
+    expire_monitors,
+    get_active_monitors,
+    get_monitors,
+    remove_monitor,
+    update_monitor_baseline,
+)
 from .stars import add_stars, apply_top_up, spend_stars
 from .tiers import (
     _current_week_start,
@@ -72,25 +81,30 @@ __all__ = [
     "CHAT_HISTORY_CONTEXT",
     "CHAT_HISTORY_KEEP",
     "DB_PATH",
+    "MONITOR_DEFAULT_DAYS",
     "_current_week_start",
     "_is_hashed_token",
     "_resolve_db_path",
     "_today_str",
     "activate_tier",
     "add_chat_message",
+    "add_monitor",
     "add_stars",
     "add_watchlist",
     "apply_top_up",
     "check_rate_limit",
     "clear_chat_history",
     "count_active_today",
+    "expire_monitors",
     "get_active_alerts",
+    "get_active_monitors",
     "get_admin_logs",
     "get_bot_state",
     "get_chat_history",
     "get_daily_stats",
     "get_db",
     "get_known_scam_addresses",
+    "get_monitors",
     "get_or_create_user",
     "get_user_by_id",
     "get_user_stats",
@@ -109,6 +123,7 @@ __all__ = [
     "mark_alert_triggered",
     "migrate_plaintext_api_tokens",
     "record_activity",
+    "remove_monitor",
     "remove_watchlist",
     "report_scam",
     "set_banned",
@@ -116,6 +131,7 @@ __all__ = [
     "set_user_tier",
     "spend_stars",
     "token_prefix",
+    "update_monitor_baseline",
     "verify_api_token",
 ]
 

@@ -67,6 +67,10 @@ _BOLD_RE = re.compile(r"\*{2,3}([^*\n]+?)\*{2,3}")
 # balanced pair — unmatched markers pass through as literal text.
 # ══════════════════════════════════════════════
 _INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
+# Markdown link [text](url) / bare URL / raw HTML anchor <a href="...">…</a>
+# — a cap or chunk cut must never split one of these (mirrors _parts.py).
+_LINK_RE = re.compile(r"\[[^\]]*\]\([^)]*\)|https?://[^\s)\]<>]+")
+_ANCHOR_RE = re.compile(r"<a\b[^>]*>.*?</a>", re.DOTALL)
 # Single-asterisk italic; the inner span must start/end on a non-space char
 # so arithmetic like ``x * 2 * y`` and stray ``* item`` bullets never match.
 _ITALIC_RE = re.compile(r"\*([^*\s][^*\n]*?[^*\s])\*")
@@ -584,6 +588,18 @@ def _cap_answer(text: str, max_chars: int = MAX_ANSWER_CHARS) -> str:
             if m.start() >= max_chars // 2:
                 cut = m.start()
             break
+    # Never cut inside a markdown link / bare URL / HTML anchor: back up to
+    # its start when the backed-up piece is still substantial, else advance
+    # past it when it still fits in the window (a whole link beats a broken
+    # one — the ellipsis then follows the link instead of splitting it).
+    for regex in (_LINK_RE, _ANCHOR_RE):
+        for m in regex.finditer(text):
+            if m.start() < cut < m.end():
+                if m.start() >= max_chars // 2:
+                    cut = m.start()
+                elif m.end() <= max_chars:
+                    cut = m.end()
+                break
     clipped = text[:cut].rstrip()
     # Never end mid-tag (<br, <b, <i...): back up to before the dangling '<'.
     lt = clipped.rfind("<")

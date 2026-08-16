@@ -11,15 +11,15 @@ importers of ``scanning.HELP_TEXT`` / ``_HELP_SECTIONS`` / ``CHANNEL_LABELS``
 keep working unchanged (same objects — ``HELP_TEXT`` is built once at import
 time, exactly as before).
 
-v13 (2026-08-16): rebuilt the two user-facing guides so they ACTUALLY guide:
+v14 (2026-08-16): rebuilt /help as a first-run EXPLAINER, not a command soup:
 
-  * ``/help``  (``HELP_TEXT``) — guided on-ramp: what the bot is ("Rug Munch
-    Intelligence Analyst"), a 3-step getting-started flow, flagship commands
-    with concrete examples, a "what you can ask" section, then the compact
-    grouped reference. Deliberately kept under Telegram's 4096-char message
-    limit (the old reference was ~5.3k chars and would fail to send).
+  * ``/help``  (``HELP_TEXT``) — "how the app works" onboarding: what the bot
+    is (the 3-line pitch), then five what-you-can-do groups — Scan & Safety /
+    Prices & Charts / Portfolio / News & Intel / Ask AI — each with a one-line
+    plain-English description and ONE example. No command-name soup. The
+    community-channels block and PRO TIPS are kept.
 
-  * ``/menu``  (``MENU_TEXT``) — capability atlas grouped by intent
+  * ``/menu``  (``MENU_TEXT``) — unchanged capability atlas grouped by intent
     (Scan & Safety / Prices & Charts / Portfolio & Wallets / News & Intel /
     Education / Account & Community). Every command listed is a REAL
     registered command (verified against ``bot.py``); each line carries a
@@ -44,104 +44,47 @@ from app.domains.telegram.rugmunchbot.formatters import (
 )
 
 # ══════════════════════════════════════════════
-# /help — grouped core reference (v13)
-# Compact "core cheat sheet" used inside the guided /help. The FULL command
-# atlas (every registered command, grouped by intent with examples) lives in
-# ``_MENU_SECTIONS`` → ``/menu``. All eight group headers are kept so the
-# BotFather ordering, the welcome-menu sections and the tests stay aligned.
+# /help — first-run EXPLAINER (v14)
+# Five what-you-can-do groups, each a (header, one-line plain-English
+# description, ONE example) triple. This is an on-ramp, NOT a command
+# dump — the full atlas lives in ``_MENU_SECTIONS`` → /menu. Every command
+# referenced here is a REAL registered command (verified against bot.py).
 # Rendered with HTML parse mode — every <code> tag is balanced.
 # ══════════════════════════════════════════════
-_HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
+_HELP_SECTIONS: list[tuple[str, str, str]] = [
     (
-        "Scan & Security",
-        [
-            ("scan", "address - quick security audit"),
-            ("deepscan", "address - ML deep scan (fraud-GNN, ABI, sell sim)"),
-            ("sentinelscan", "address - AEGIS 9-module scan"),
-            ("rugcheck", "address - red flag checklist"),
-            ("compare", "a b - side-by-side compare"),
-            ("deployer", "address - deployer fingerprint"),
-            ("hype", "address - 0-100 hype score"),
-            ("report", "address - report a scam"),
-        ],
+        "Scan & Safety",
+        "Audit any token for rug pulls, honeypots and bundle risk \u2014 before you buy.",
+        "/scan <code>&lt;address&gt;</code>",
     ),
     (
-        "Wallet & Tracing",
-        [
-            ("wallet", "address - wallet forensics"),
-            ("portfolio", "address - wallet holdings"),
-            ("trace", "address - cross-chain fund trace"),
-            ("smartmoney", "address - smart money detection"),
-        ],
+        "Prices & Charts",
+        "Live prices, chart images and technical signals for any token.",
+        "<code>$SOL</code>",
     ),
     (
-        "Market & Analysis",
-        [
-            ("market", "- market overview (BTC/ETH, F&G)"),
-            ("price", "address - token price"),
-            ("quick", "symbol - instant price check"),
-            ("chart", "address - chart image (OHLCV)"),
-            ("ta", "address - technical analysis"),
-            ("trending", "[chain] - hot tokens right now"),
-            ("movers", "- biggest 24h gainers & losers"),
-        ],
+        "Portfolio",
+        "Wallet holdings, forensics and watchlists \u2014 know what you own.",
+        "/wallet <code>&lt;address&gt;</code>",
     ),
     (
-        "News & Alerts",
-        [
-            ("news", "- latest crypto news"),
-            ("alerts", "- manage price & activity alerts"),
-            ("watch", "address - add to watchlist"),
-            ("watchlist", "- view your watchlist"),
-            ("whale", "address - whale alerts"),
-        ],
+        "News & Intel",
+        "Headlines, market trends and alerts \u2014 never miss a move.",
+        "/news",
     ),
     (
-        "Chat & Learn",
-        [
-            ("chat", "question - freestyle AI chat"),
-            ("ask", "question - deep RAG answer"),
-            ("research", "query - deep research (Hunter+)"),
-            ("faq", "- how the bot works, free? accuracy"),
-        ],
-    ),
-    (
-        "OSINT & Forensics",
-        [
-            ("osint", "username - find public accounts (maigret)"),
-            ("email", "email - breach & reputation check"),
-            ("track", "address - wallet entity/sanction/scam check"),
-        ],
-    ),
-    (
-        "Premium",
-        [
-            ("mev", "address - MEV risk & safe swaps"),
-            ("honeypot", "address - honeypot detector"),
-            ("lphealth", "address - liquidity pool health"),
-            ("deathclock", "address - survival prediction"),
-        ],
-    ),
-    (
-        "Account & Extras",
-        [
-            ("account", "- dashboard & usage stats"),
-            ("pricing", "- subscription plans"),
-            ("topup", "- buy extra scans"),
-            ("scamschool", "- learn the scam playbook"),
-        ],
+        "Ask AI",
+        "Freestyle AI answers with deep research context \u2014 no commands needed.",
+        "/chat <code>&lt;question&gt;</code>",
     ),
 ]
 
 _HELP_EMOJI: dict[str, str] = {
-    "Scan & Security": "\U0001f6e1\ufe0f",
-    "Wallet & Tracing": "\U0001f50d",
-    "Market & Analysis": "\U0001f4c8",
-    "News & Alerts": "\U0001f4f0",
-    "Chat & Learn": "\U0001f4ac",
-    "OSINT & Forensics": "\U0001f575\ufe0f",
-    "Premium": "\U0001f451",
-    "Account & Extras": "\U0001f4b3",
+    "Scan & Safety": "\U0001f6e1\ufe0f",
+    "Prices & Charts": "\U0001f4c8",
+    "Portfolio": "\U0001f45b",
+    "News & Intel": "\U0001f4f0",
+    "Ask AI": "\U0001f4ac",
 }
 
 # ══════════════════════════════════════════════
@@ -315,63 +258,45 @@ def _channels_section() -> str:
 
 
 def _build_help_text() -> str:
-    """Render the guided /help reference (HTML) — the on-ramp to the bot.
+    """Render the /help EXPLAINER (HTML) — "how the app works" onboarding.
 
-    v13: what the bot is, a 3-step getting-started flow, flagship commands
-    with concrete examples, a "what you can ask" section, then the compact
-    grouped reference. Stays under Telegram's 4096-char message limit.
+    v14: what the bot is (the 3-line pitch), then five what-you-can-do
+    groups — each a one-line plain-English description + ONE example. No
+    command-name soup. The community-channels block and PRO TIPS follow,
+    then the pointer to /menu for the full atlas. Stays well under
+    Telegram's 4096-char message limit.
     """
     s = sep()
     d = thin_sep()
     parts = [
-        f"\U0001f4d6 <b>Rug Munch Intelligence - Command Guide</b>\n{s}",
-        "\U0001f575\ufe0f <b>Rug Munch Bot</b> is the AI "
-        "<b>Rug Munch Intelligence Analyst</b> \u2014 paste any token "
-        "address or wallet and I'll audit for scams, run forensics and "
-        "give a risk score before you buy. Built by <b>Rug Munch "
-        "Intelligence</b> \u2014 <b>Rug Munch Media LLC</b> (Wyoming).\n",
-        f"\U0001f680 <b>GETTING STARTED</b> (3 steps)\n{d}",
-        "1\ufe0f\u20e3 /scan <code>address</code> \u2014 audit before you buy\n"
-        "2\ufe0f\u20e3 <code>$SOL</code> or /trending \u2014 see what's moving\n"
-        "3\ufe0f\u20e3 /chat <code>question</code> \u2014 ask me anything, e.g. "
-        "<i>\u201cis this safe?\u201d</i>\n",
-        f"\U0001f9f0 <b>HOW TO USE</b> (examples)\n{d}",
-        "/scan <code>address</code> \u2014 quick security audit\n"
-        "/deepscan <code>address</code> \u2014 ML deep scan (fraud-GNN)\n"
-        "/rugcheck <code>address</code> \u2014 red-flag checklist\n"
-        "/wallet <code>address</code> \u2014 wallet forensics\n"
-        "/portfolio <code>address</code> \u2014 wallet holdings\n"
-        "<code>$SOL</code> \u2014 instant price \u00b7 /chart <code>address</code> \u2014 chart + TA\n"
-        "/news \u2014 headlines \u00b7 /trending \u2014 hot tokens now\n"
-        "/ask <code>question</code> \u2014 deep RAG answers \u00b7 /chat \u2014 freestyle AI\n",
+        f"\U0001f4d6 <b>Rug Munch Bot \u2014 How It Works</b>\n{s}",
+        "\U0001f575\ufe0f <b>Rug Munch Intelligence Analyst</b> \u2014 scan any "
+        "token for rug, honeypot &amp; bundle risk, then get AI-written "
+        "verdicts, prices, charts, news and wallet intel \u2014 before you "
+        "buy. Built by <b>Rug Munch Intelligence</b> \u2014 "
+        "<b>Rug Munch Media LLC</b> (Wyoming).\n",
+        f"\U0001f680 <b>WHAT YOU CAN DO</b>\n{d}",
     ]
-    for header, cmds in _HELP_SECTIONS:
+    for header, desc, example in _HELP_SECTIONS:
         emoji = _HELP_EMOJI.get(header, "\U0001f4d6")
-        parts.append(f"\n{emoji} <b>{header}</b>\n{d}")
-        for cmd, desc in cmds:
-            parts.append(f"/{cmd} {desc}")
+        parts.append(f"\n{emoji} <b>{header}</b>\n{desc}\n\U0001f449 {example}")
     parts.append(
         f"\n\U0001f4ac <b>WHAT YOU CAN ASK</b> (via /chat or /ask)\n{d}\n"
-        "\U0001f4ca Market analysis \u2014 why is BTC dumping?\n"
-        "\U0001f4c8 Technical analysis \u2014 read the chart for $BONK\n"
-        "\U0001f6e1\ufe0f Scam detection \u2014 is this address a honeypot?\n"
-        "\U0001f4da Token education \u2014 explain pump &amp; dump\n"
-        "\U0001f9d9 Crypto lore \u2014 tell me about the DAO hack\n"
+        "\u2022 \u201cIs this token safe?\u201d \u2014 paste an address with your question\n"
+        "\u2022 \u201cWhy is BTC dumping?\u201d \u2014 market analysis\n"
+        "\u2022 \u201cExplain pump &amp; dump\u201d \u2014 plain-English education\n"
     )
     channels = _channels_section()
     if channels:
         parts.append(f"\n{channels}")
     parts.append(
         f"\n\U0001f4a1 <b>PRO TIPS</b>\n{d}\n"
-        "\u2022 Paste any <code>0x...</code> address to auto-scan\n"
-        "\u2022 Type <code>$PEPE</code> for instant price check\n"
-        "\u2022 Tap the buttons under any result (Chart / RugMap / Deep Scan)\n"
+        "\u2022 Paste any <code>0x...</code> address \u2014 I auto-scan it\n"
+        "\u2022 Type <code>$SOL</code> for an instant price check\n"
         "\u2022 In groups, <b>@mention or reply to me</b> \u2014 I stay quiet "
         "in group chats unless you call me (private DMs always answer)\n"
-        "\u2022 /chat <code>question</code> \u2014 freestyle AI works anywhere, "
-        "in any chat\n"
         "\u2022 See a scam? /report <code>address</code> keeps us all safer\n\n"
-        "\U0001f4d6 Full command list: /menu \u2014 grouped by category"
+        "\U0001f5fa\ufe0f Full command atlas: /menu \u2014 grouped by category"
     )
     parts.append(footer_links())
     return "\n".join(parts)

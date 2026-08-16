@@ -24,8 +24,10 @@ amounts come from the Helius payload itself.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
+import time
 from typing import Any
 
 from app.core.logging import get_logger
@@ -38,8 +40,43 @@ logger = get_logger("databus.alert_router")
 MIN_EVENT_USD: float = float(os.getenv("RMI_WEBHOOK_MIN_USD", "10000") or "10000")
 #: Per-wallet cooldown between alerts (seconds) — throttles churny wallets.
 COOLDOWN_SECONDS: int = int(os.getenv("RMI_WEBHOOK_COOLDOWN_SECONDS", "300") or "300")
-#: SOL→USD fallback used when the Helius payload carries no price info.
+#: SOL→USD fallback used when the live price fetch is unavailable.
 SOL_PRICE_USD: float = float(os.getenv("SOL_PRICE_USD", "150") or "150")
+#: Wrapped SOL mint (the F2 oracle resolves SOL/USD through its tier chain:
+#: own dex_events → DexScreener → CoinGecko → DeFiLlama, Redis-cached 5m).
+SOL_MINT: str = "So11111111111111111111111111111111111111112"
+#: In-process SOL price cache TTL (seconds) — webhook bursts share one price.
+_SOL_PRICE_TTL = 300
+#: Negative-cache TTL when the oracle is down — do NOT retry on every webhook.
+_SOL_PRICE_FAIL_TTL = 60
+_sol_price_cache: dict[str, Any] = {}
+
+
+async def _sol_price_usd() -> float:
+    """Live SOL→USD price, cached in-process (5m TTL), fail-open.
+
+    Resolves through the F2 price oracle (``get_token_price``) so it reuses
+    the existing free-API tier chain + Redis cache instead of a hardcoded
+    number. Returns the env ``SOL_PRICE_USD`` fallback when the oracle is
+    unreachable or slow — never raises. Failures are negatively cached for a
+    minute so an outage does not stall every inbound webhook.
+    """
+    cached = _sol_price_cache.get("price_usd")
+    ttl = _SOL_PRICE_FAIL_TTL if _sol_price_cache.get("_failed") else _SOL_PRICE_TTL
+    if cached is not None and time.time() - _sol_price_cache.get("_cached_at", 0) < ttl:
+        return float(cached)
+    try:
+        from app.domains.scanner.engines.price_oracle import get_token_price
+
+        result = await asyncio.wait_for(get_token_price(SOL_MINT, "solana"), timeout=8.0)
+        price = float((result or {}).get("price_usd", 0) or 0) if result else 0.0
+        if price > 0:
+            _sol_price_cache.update({"price_usd": price, "_cached_at": time.time(), "_failed": False})
+            return price
+    except Exception as exc:  # fail-open: never block the webhook
+        logger.debug("sol_price_fetch_failed error=%s", exc)
+    _sol_price_cache.update({"price_usd": SOL_PRICE_USD, "_cached_at": time.time(), "_failed": True})
+    return SOL_PRICE_USD
 
 
 #: Shorten addresses to ``0x1234…abcd`` (7/5 split like the bot's short_addr).
@@ -91,12 +128,14 @@ def _describe_side(label: str, short: str) -> str:
 # ── Helius event parsing ────────────────────────────────────────────────
 
 
-def _helius_amount_usd(payload: dict[str, Any]) -> float:
+def _helius_amount_usd(payload: dict[str, Any], sol_price_usd: float | None = None) -> float:
     """Estimate USD value of a Helius enhanced webhook payload.
 
-    Native SOL transfers (lamports) are priced with ``SOL_PRICE_USD``; a
-    ``valueUsd`` field wins when present (Arkham-style enrichment or a proxy
-    layer stamped it). Fail-open → 0.0.
+    Native SOL transfers (lamports) are priced with the live SOL price
+    (``sol_price_usd`` param, wired by :func:`route_webhook_alert` from
+    :func:`_sol_price_usd`; defaults to the env ``SOL_PRICE_USD`` for direct
+    sync callers). A ``valueUsd`` field wins when present (Arkham-style
+    enrichment or a proxy layer stamped it). Fail-open → 0.0.
     """
     raw = payload.get("valueUsd") or payload.get("value_usd")
     if raw:
@@ -110,7 +149,8 @@ def _helius_amount_usd(payload: dict[str, Any]) -> float:
             total_lamports += int(tr.get("amount", 0) or 0)
         except (TypeError, ValueError):
             continue
-    return (total_lamports / 1e9) * SOL_PRICE_USD
+    price = sol_price_usd if sol_price_usd is not None and sol_price_usd > 0 else SOL_PRICE_USD
+    return (total_lamports / 1e9) * price
 
 
 def _helius_token_summary(payload: dict[str, Any]) -> dict[str, Any]:
@@ -164,12 +204,15 @@ def _classify_event(payload: dict[str, Any], description: str, token: dict[str, 
     return "unknown"
 
 
-def parse_helius_event(payload: dict[str, Any]) -> dict[str, Any] | None:
+def parse_helius_event(payload: dict[str, Any], sol_price_usd: float | None = None) -> dict[str, Any] | None:
     """Extract structured signals from a Helius enhanced webhook payload.
 
     Returns a flat dict (``wallet``, ``counterparty``, ``amount_usd``,
     ``event_type``, ``signature``, ``timestamp``, ``description``,
     ``token``) or ``None`` when the payload carries no usable signal.
+
+    ``sol_price_usd`` (optional) is the live SOL price for native transfers;
+    when omitted the env ``SOL_PRICE_USD`` default is used.
     """
     wallet = str(payload.get("feePayer") or payload.get("wallet") or payload.get("address") or "").strip()
     if not wallet:
@@ -203,7 +246,7 @@ def parse_helius_event(payload: dict[str, Any]) -> dict[str, Any] | None:
     return {
         "wallet": wallet,
         "counterparty": counterparty,
-        "amount_usd": _helius_amount_usd(payload),
+        "amount_usd": _helius_amount_usd(payload, sol_price_usd),
         "event_type": event_type,
         "signature": str(payload.get("signature", "") or ""),
         "timestamp": ts,
@@ -366,7 +409,15 @@ async def route_webhook_alert(service: str, payload: dict[str, Any], event_id: s
     ``"throttled"`` / ``"duplicate"`` → no push.
     """
     try:
-        parsed = parse_helius_event(payload)
+        # Native SOL transfers carry no USD — fetch the live (cached) SOL
+        # price so amounts are real, not the static env default. Only fetch
+        # when actually needed: payloads with an explicit valueUsd (or no
+        # native transfers) skip the call entirely.
+        needs_sol_price = bool(payload.get("nativeTransfers")) and not (
+            payload.get("valueUsd") or payload.get("value_usd")
+        )
+        sol_price = await _sol_price_usd() if needs_sol_price else None
+        parsed = parse_helius_event(payload, sol_price_usd=sol_price)
         if parsed is None:
             return {"decision": "unparseable", "importance": 0.0, "event_type": "unknown"}
 
@@ -435,8 +486,11 @@ async def route_webhook_alert(service: str, payload: dict[str, Any], event_id: s
 __all__ = [
     "COOLDOWN_SECONDS",
     "MIN_EVENT_USD",
+    "SOL_MINT",
+    "SOL_PRICE_USD",
     "_assess_importance",
     "_format_alert",
+    "_sol_price_usd",
     "_wallet_label",
     "parse_helius_event",
     "route_webhook_alert",

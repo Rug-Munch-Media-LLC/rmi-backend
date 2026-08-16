@@ -56,17 +56,25 @@ def token_not_found_card(token: str, cmd: str = "scan") -> str:
     )
 
 
-def usage_hint(cmd: str, arg_spec: str, example: str, extra: str = "") -> str:
-    """Build a consistent usage hint with a concrete example.
+def usage_hint(
+    cmd: str,
+    arg_spec: str,
+    example: str,
+    extra: str = "",
+    examples: tuple[str, ...] = (),
+) -> str:
+    """Build a consistent usage hint with concrete example(s).
 
     ``arg_spec`` is the placeholder shown inside the code tag (e.g.
-    ``<address> [chain]``). ``example`` is the concrete value shown after
-    ``/<cmd> ``.
+    ``<address> [chain]``). ``example`` is the primary concrete value shown
+    after ``/<cmd> ``; ``examples`` adds secondary ``Example:`` lines (e.g.
+    chain variants) when the command accepts more than one shape.
     """
     parts = [
         f"<b>Usage:</b> <code>/{cmd} {arg_spec}</code>",
         f"Example: <code>/{cmd} {example}</code>",
     ]
+    parts.extend(f"Example: <code>/{cmd} {ex}</code>" for ex in examples)
     if extra:
         parts.append("")
         parts.append(extra)

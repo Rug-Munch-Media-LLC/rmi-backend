@@ -1,8 +1,8 @@
-"""Daily Market Summary — 7:00 AM ET editorial market breakdown.
+"""Daily Market Brief — 7:00 AM ET editorial market intelligence.
 
 A scheduled job (registered from ``channels/scheduler.py`` as
 ``daily_market_summary``) that runs every morning at **07:00 America/New_York**
-and writes + posts a detailed, editorial market breakdown to the operator's
+and writes + posts a high-quality editorial market brief to the operator's
 main channel (@cryptorugmuncher) and the rugmunch.io feed (Ghost content
 platform).
 
@@ -15,15 +15,24 @@ the post, it never crashes the JobQueue):
        condition verdict + fear/greed + breadth
        (``tools/market_condition.py::market_condition``), trending tokens
        (``tools/trending.py::trending`` — backend fused feed with DexScreener
-       fallback), top gainers/losers (backend ``/api/v1/market/movers``), and
-       RAG ``news_v2`` top stories (``app.rag.tools.get_news``). Every source
-       is optional; each failure logs and contributes nothing.
+       fallback), top gainers/losers (backend ``/api/v1/market/movers``),
+       RAG ``news_v2`` top stories (``app.rag.tools.get_news``), plus two
+       web-signal blocks from SearXNG (``tools/web.py::searxng_top_results``):
+       the day's dominant **narratives** (``_fetch_narratives``) and
+       **X/Twitter + KOL shilling signals** (``_fetch_kol_signals``, driven
+       off the day's real trending tokens, with page verification through the
+       existing ``telegram_news._sources._fetch_page`` direct→FlareSolverr
+       ladder when a snippet is thin). Every source is optional; each failure
+       logs and contributes nothing.
     2. **Write** — :func:`post_daily_market_summary` builds the prompt and
        calls ``app.llm_config.chat_with_fallback(messages, "long")``
        (Nemotron 3 Ultra via OpenRouter, paid ``:lowest`` fallback) which
-       returns a Telegram-HTML editorial: market overview → trending movers
-       (with % + why) → top news → sentiment → "what to watch today". When the
-       LLM returns empty the job logs and skips — never fabricates.
+       returns a Telegram-HTML editorial: market overview → 🧭 narrative →
+       trending movers (with % + why) → top news → sentiment → 📣 X / KOL
+       signals → "what to watch today". The KOL lines are real, sourced
+       mentions only (source links included) — the writer never invents a
+       shill. When the LLM returns empty the job logs and skips — never
+       fabricates.
     3. **Clean** — :func:`cleanup_html` normalizes markdown-ish artifacts to
        safe Telegram HTML and enforces the char budget (≤ 3500).
     4. **Post** — the report goes to ``_chat_id("main")`` (the registry
@@ -34,17 +43,22 @@ the post, it never crashes the JobQueue):
        ``["daily", "market-summary"]``) — fail-open, the Telegram post is never
        blocked by the feed publish.
 
-Env knobs (all optional):
-* ``RMI_DAILY_MARKET_SUMMARY_ENABLED`` — master switch (default ON)
-* ``RMI_DAILY_MARKET_SUMMARY_TIME``   — HH:MM in ``RMI_DAILY_MARKET_SUMMARY_TZ``
+Env knobs (all optional). New ``RMI_DAILY_MARKET_BRIEF_*`` names are
+canonical; the legacy ``RMI_DAILY_MARKET_SUMMARY_*`` names still work as
+aliases (the new name wins when both are set):
+* ``RMI_DAILY_MARKET_BRIEF_ENABLED`` — master switch (default ON)
+* ``RMI_DAILY_MARKET_BRIEF_TIME``   — HH:MM in ``RMI_DAILY_MARKET_BRIEF_TZ``
   (default ``"07:00"`` — 7:00 AM ET)
-* ``RMI_DAILY_MARKET_SUMMARY_TZ``     — IANA timezone (default
+* ``RMI_DAILY_MARKET_BRIEF_TZ``     — IANA timezone (default
   ``"America/New_York"``)
-* ``RMI_DAILY_MARKET_SUMMARY_MAX_CHARS`` — report length budget
+* ``RMI_DAILY_MARKET_BRIEF_MAX_CHARS`` — report length budget
   (default 3500, hard-capped under Telegram's 4096 soft limit)
-* ``RMI_DAILY_MARKET_SUMMARY_FEED_ENABLED`` — publish to the rugmunch.io feed
+* ``RMI_DAILY_MARKET_BRIEF_FEED_ENABLED`` — publish to the rugmunch.io feed
   (default ON; no-op without a Ghost session cookie — ``create_post`` fails
   open)
+* ``RMI_DAILY_MARKET_BRIEF_WEB_SIGNALS_ENABLED`` — gate for the two
+  web-search sections (🧭 NARRATIVE + 📣 X / KOL SIGNALS; default ON — when
+  OFF the brief runs on the deterministic market data only, the old behavior)
 """
 
 from __future__ import annotations
@@ -65,15 +79,25 @@ logger = get_logger("rmi_bot.channels.daily_market_summary")
 # ── Env knobs ───────────────────────────────────────────────────────────────
 
 
-def _env_bool(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
+def _env_bool_alias(new: str, old: str, default: bool) -> bool:
+    """Read the canonical (renamed) env var, falling back to the legacy name.
+
+    ``RMI_DAILY_MARKET_BRIEF_*`` is canonical; ``RMI_DAILY_MARKET_SUMMARY_*``
+    keeps working as an alias so existing deployments don't need edits. The
+    new name wins when both are set.
+    """
+    raw = os.getenv(new)
+    if raw is None:
+        raw = os.getenv(old)
     if raw is None:
         return default
     return raw.strip().lower() in ("true", "1", "yes", "on")
 
 
-def _env_int(name: str, default: int) -> int:
-    raw = os.getenv(name)
+def _env_int_alias(new: str, old: str, default: int) -> int:
+    raw = os.getenv(new)
+    if raw is None:
+        raw = os.getenv(old)
     if raw is None:
         return default
     try:
@@ -82,24 +106,52 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_str_alias(new: str, old: str, default: str) -> str:
+    raw = os.getenv(new)
+    if raw is None:
+        raw = os.getenv(old)
+    if raw is None or not raw.strip():
+        return default
+    return raw.strip()
+
+
 #: Master switch. Unlike the personal channel this defaults ON — the daily
-#: market summary is a core scheduled surface (7 days/week) — but operators
-#: can disable it with ``RMI_DAILY_MARKET_SUMMARY_ENABLED=0``.
-DAILY_MARKET_SUMMARY_ENABLED: bool = _env_bool("RMI_DAILY_MARKET_SUMMARY_ENABLED", True)
+#: market brief is a core scheduled surface (7 days/week) — but operators can
+#: disable it with ``RMI_DAILY_MARKET_BRIEF_ENABLED=0`` (legacy
+#: ``RMI_DAILY_MARKET_SUMMARY_ENABLED`` still works as an alias).
+DAILY_MARKET_SUMMARY_ENABLED: bool = _env_bool_alias(
+    "RMI_DAILY_MARKET_BRIEF_ENABLED", "RMI_DAILY_MARKET_SUMMARY_ENABLED", True
+)
 
 #: Report length budget (default 3500 chars per the spec; Telegram soft limit
 #: is 4096, so 3500 leaves headroom for the send layer).
-DAILY_MARKET_SUMMARY_MAX_CHARS: int = _env_int("RMI_DAILY_MARKET_SUMMARY_MAX_CHARS", 3500)
+DAILY_MARKET_SUMMARY_MAX_CHARS: int = _env_int_alias(
+    "RMI_DAILY_MARKET_BRIEF_MAX_CHARS", "RMI_DAILY_MARKET_SUMMARY_MAX_CHARS", 3500
+)
 
 #: Publish the same content to the rugmunch.io feed (Ghost content platform)
 #: after a successful Telegram post. Fail-open with no Ghost cookie.
-DAILY_MARKET_SUMMARY_FEED_ENABLED: bool = _env_bool("RMI_DAILY_MARKET_SUMMARY_FEED_ENABLED", True)
+DAILY_MARKET_SUMMARY_FEED_ENABLED: bool = _env_bool_alias(
+    "RMI_DAILY_MARKET_BRIEF_FEED_ENABLED", "RMI_DAILY_MARKET_SUMMARY_FEED_ENABLED", True
+)
+
+#: Gate for the two web-search sections (🧭 NARRATIVE + 📣 X / KOL SIGNALS).
+#: Default ON; when OFF the brief runs on the deterministic market data only
+#: (the pre-brief behavior). Canonical ``RMI_DAILY_MARKET_BRIEF_WEB_SIGNALS_ENABLED``
+#: with the legacy ``RMI_DAILY_MARKET_SUMMARY_WEB_SIGNALS_ENABLED`` alias.
+DAILY_MARKET_SUMMARY_WEB_SIGNALS_ENABLED: bool = _env_bool_alias(
+    "RMI_DAILY_MARKET_BRIEF_WEB_SIGNALS_ENABLED",
+    "RMI_DAILY_MARKET_SUMMARY_WEB_SIGNALS_ENABLED",
+    True,
+)
 
 #: IANA timezone for the 7:00 AM daily fire (default America/New_York = ET).
-DAILY_MARKET_SUMMARY_TZ: str = os.getenv("RMI_DAILY_MARKET_SUMMARY_TZ", "America/New_York")
+DAILY_MARKET_SUMMARY_TZ: str = _env_str_alias(
+    "RMI_DAILY_MARKET_BRIEF_TZ", "RMI_DAILY_MARKET_SUMMARY_TZ", "America/New_York"
+)
 
 #: ``HH:MM`` of day in ``DAILY_MARKET_SUMMARY_TZ`` (default 07:00 ET).
-DAILY_MARKET_SUMMARY_TIME: str = os.getenv("RMI_DAILY_MARKET_SUMMARY_TIME", "07:00")
+DAILY_MARKET_SUMMARY_TIME: str = _env_str_alias("RMI_DAILY_MARKET_BRIEF_TIME", "RMI_DAILY_MARKET_SUMMARY_TIME", "07:00")
 
 
 def summary_run_time() -> Any:
@@ -290,14 +342,171 @@ async def _fetch_news() -> list[dict[str, Any]]:
     return []
 
 
+# ── Web signals (SearXNG + the existing fetch ladder) — fail-open ─────────
+
+
+#: SearXNG queries used to surface the day's dominant crypto narrative(s).
+#: Thematic sector queries (not ticker-specific) — the LLM synthesizes the
+#: 1-2 dominant narratives from these hits, cite-or-omit.
+NARRATIVE_QUERIES: tuple[str, ...] = (
+    "crypto dominant narrative today sector",
+    "AI agents crypto narrative news today",
+    "RWA tokenization crypto news today",
+    "crypto restaking layer 2 narrative news today",
+)
+
+#: Base SearXNG queries for X/Twitter + KOL shilling signals. Token-specific
+#: queries ("<TICKER> crypto twitter") are added at runtime from the day's
+#: real trending tokens (see :func:`_kol_signal_queries`).
+KOL_SIGNAL_QUERIES: tuple[str, ...] = (
+    "crypto KOL shilling today",
+    "crypto influencer tokens trending twitter today",
+    "top crypto KOL mentions token today",
+)
+
+#: How many trending tokens get a per-token X-signal query (keeps the search
+#: count bounded — SearXNG is self-hosted/free, but every query adds ~6s).
+KOL_TOKEN_QUERIES_MAX: int = 3
+
+#: Cap for the per-hit snippet/preview handed to the LLM (token budget).
+_SIGNAL_SNIPPET_MAX = 180
+_SIGNAL_PREVIEW_MAX = 240
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+
+
+async def _fetch_narratives() -> list[dict[str, Any]]:
+    """SearXNG hits on the day's dominant crypto narratives.
+
+    Runs :data:`NARRATIVE_QUERIES` through ``tools.web.searxng_top_results``
+    (SearXNG-only — no bridge, no knowledge fallback, ~6s bound per query,
+    pooled httpx client) in parallel. Fail-open → ``[]``; each hit keeps the
+    ``query`` it came from so the LLM can attribute its narrative claim.
+    """
+    try:
+        from app.domains.telegram.rugmunchbot.tools.web import searxng_top_results
+
+        results = await asyncio.gather(
+            *(searxng_top_results(q, limit=3) for q in NARRATIVE_QUERIES),
+            return_exceptions=True,
+        )
+        out: list[dict[str, Any]] = []
+        for query, res in zip(NARRATIVE_QUERIES, results, strict=True):
+            if isinstance(res, BaseException) or not res:
+                continue
+            for r in res:
+                if not isinstance(r, dict):
+                    continue
+                hit = dict(r)
+                hit["query"] = query
+                hit["snippet"] = str(hit.get("snippet") or "")[:_SIGNAL_SNIPPET_MAX]
+                out.append(hit)
+        return out[:12]
+    except Exception as exc:  # fail-open — narratives are optional
+        logger.debug("daily_market_summary:narratives_failed err=%s", str(exc)[:120])
+    return []
+
+
+def _kol_signal_queries(trending: list[dict[str, Any]]) -> list[str]:
+    """Token-specific X-signal queries from the day's real trending tokens.
+
+    Pure/deterministic: ``"<TICKER> crypto twitter"`` for the first
+    ``KOL_TOKEN_QUERIES_MAX`` trending symbols (symbols only — never invented,
+    only tokens the trending tool actually returned).
+    """
+    queries: list[str] = []
+    for t in trending[:KOL_TOKEN_QUERIES_MAX]:
+        symbol = str(t.get("symbol") or "").strip().upper()
+        if symbol:
+            queries.append(f"{symbol} crypto twitter trending today")
+    return queries
+
+
+def _html_preview(html: str, limit: int = _SIGNAL_PREVIEW_MAX) -> str:
+    """Crude HTML → plain-text preview (regex-only, no parser dependency)."""
+    text = _TAG_RE.sub(" ", html)
+    text = _WS_RE.sub(" ", text)
+    return text.strip()[:limit]
+
+
+async def _kol_fetch_page(url: str, timeout: float = 4.0) -> str | None:
+    """Fetch a KOL/X source page via the existing direct→FlareSolverr ladder.
+
+    Reuses ``telegram_news._sources._fetch_page`` (direct httpx → rotating
+    pool → FlareSolverr, fail-open). Returns the raw HTML (capped upstream)
+    or ``None`` — the brief never blocks on a fetch; used only to verify a
+    thin/empty SearXNG snippet so the LLM has real fetched content.
+    """
+    try:
+        from app.domains.telegram.rugmunchbot.channels.telegram_news._sources import _fetch_page
+
+        return await asyncio.wait_for(_fetch_page(url, timeout), timeout=timeout + 1.0)
+    except Exception as exc:  # fail-open by contract
+        logger.debug("daily_market_summary:kol_page_failed url=%s err=%s", url[:120], str(exc)[:120])
+    return None
+
+
+async def _fetch_kol_signals(trending: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """SearXNG hits on what X/Twitter + KOLs are shilling right now.
+
+    Runs :data:`KOL_SIGNAL_QUERIES` plus per-token queries built from the
+    day's real trending tokens (see :func:`_kol_signal_queries`) through
+    ``tools.web.searxng_top_results`` in parallel. When a hit has an empty
+    snippet (search engine blocked/thin) the existing ``_fetch_page`` ladder
+    (direct → FlareSolverr) verifies up to 2 pages and attaches a plain-text
+    ``page_preview``. Fail-open → ``[]``.
+    """
+    try:
+        from app.domains.telegram.rugmunchbot.tools.web import searxng_top_results
+
+        queries = list(KOL_SIGNAL_QUERIES) + _kol_signal_queries(trending)
+        results = await asyncio.gather(
+            *(searxng_top_results(q, limit=3) for q in queries),
+            return_exceptions=True,
+        )
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        pending_fetch: list[dict[str, Any]] = []
+        for query, res in zip(queries, results, strict=True):
+            if isinstance(res, BaseException) or not res:
+                continue
+            for r in res:
+                if not isinstance(r, dict):
+                    continue
+                url = str(r.get("url") or "").strip()
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                hit = dict(r)
+                hit["query"] = query
+                hit["snippet"] = str(hit.get("snippet") or "")[:_SIGNAL_SNIPPET_MAX]
+                out.append(hit)
+                if not hit["snippet"] and len(pending_fetch) < 2:
+                    pending_fetch.append(hit)
+        # Verify thin snippets through the existing fetch ladder (bounded).
+        for hit in pending_fetch:
+            html = await _kol_fetch_page(hit["url"])
+            if html:
+                preview = _html_preview(html)
+                if preview:
+                    hit["page_preview"] = preview
+        return out[:12]
+    except Exception as exc:  # fail-open — KOL signals are optional
+        logger.debug("daily_market_summary:kol_signals_failed err=%s", str(exc)[:120])
+    return []
+
+
 async def gather_summary_data() -> dict[str, Any]:
-    """Pull every summary block from the existing data sources, in parallel.
+    """Pull every brief block from the existing data sources, in parallel.
 
     Returns a dict with keys ``prices`` (raw CoinGecko dict), ``condition``
     (market-condition payload), ``trending`` (token list), ``movers``
-    (``{gainers, losers}``), ``news`` (RAG hits) plus ``sources`` (which
-    fetchers succeeded) and ``generated_at``. This function never raises —
-    every block degrades to an empty value and is logged.
+    (``{gainers, losers}``), ``news`` (RAG hits), ``narratives`` (SearXNG
+    narrative hits), ``kol_signals`` (SearXNG X/KOL hits) plus ``sources``
+    (which fetchers succeeded) and ``generated_at``. The two web-signal
+    blocks only run when ``DAILY_MARKET_SUMMARY_WEB_SIGNALS_ENABLED`` and
+    never gate the brief — a broken SearXNG contributes nothing. This
+    function never raises — every block degrades to an empty value.
     """
     prices, condition, trending, movers, news = await asyncio.gather(
         _fetch_major_prices(),
@@ -311,12 +520,31 @@ async def gather_summary_data() -> dict[str, Any]:
     cleaned = [b if not isinstance(b, BaseException) else {} for b in blocks]
     sources = ["prices", "condition", "trending", "movers", "news"]
     active = [s for s, v in zip(sources, cleaned, strict=True) if v]
+
+    narratives: list[Any] = []
+    kol_signals: list[Any] = []
+    if DAILY_MARKET_SUMMARY_WEB_SIGNALS_ENABLED:
+        trends = cleaned[2] if isinstance(cleaned[2], list) else []
+        narratives, kol_signals = await asyncio.gather(
+            _fetch_narratives(),
+            _fetch_kol_signals(trends),
+            return_exceptions=True,
+        )
+        narratives = [] if isinstance(narratives, BaseException) else narratives
+        kol_signals = [] if isinstance(kol_signals, BaseException) else kol_signals
+        if narratives:
+            active.append("narratives")
+        if kol_signals:
+            active.append("kol_signals")
+
     return {
         "prices": cleaned[0] if isinstance(cleaned[0], dict) else {},
         "condition": cleaned[1] if isinstance(cleaned[1], dict) else {},
         "trending": cleaned[2] if isinstance(cleaned[2], list) else [],
         "movers": cleaned[3] if isinstance(cleaned[3], dict) else {},
         "news": cleaned[4] if isinstance(cleaned[4], list) else [],
+        "narratives": narratives,
+        "kol_signals": kol_signals,
         "sources": active,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
@@ -397,13 +625,37 @@ def _serialize_context(context: dict[str, Any]) -> str:
                 n_lines.append(content)
         parts.append("TOP NEWS (RAG news_v2): " + " || ".join(n_lines))
 
+    narratives = context.get("narratives") or []
+    if narratives:
+        nv_lines = []
+        for hit in narratives[:8]:
+            label = f"[{hit.get('query')}]" if hit.get("query") else ""
+            title = str(hit.get("title") or "").strip()[:120]
+            url = str(hit.get("url") or "").strip()
+            snippet = str(hit.get("snippet") or "").strip()[:160]
+            nv_lines.append(f'{label} "{title}" ({url}) {snippet}'.strip())
+        parts.append("NARRATIVE SIGNALS (web search): " + " | ".join(nv_lines))
+
+    kol_signals = context.get("kol_signals") or []
+    if kol_signals:
+        kol_lines = []
+        for hit in kol_signals[:8]:
+            label = f"[{hit.get('query')}]" if hit.get("query") else ""
+            title = str(hit.get("title") or "").strip()[:120]
+            url = str(hit.get("url") or "").strip()
+            snippet = str(hit.get("snippet") or "").strip()[:160]
+            preview = str(hit.get("page_preview") or "").strip()[:160]
+            text = snippet or preview
+            kol_lines.append(f'{label} "{title}" ({url}) {text}'.strip())
+        parts.append("X/KOL SIGNALS (web search): " + " | ".join(kol_lines))
+
     return "\n".join(parts)
 
 
 #: System prompt — editorial voice + Telegram HTML + grounding. Explicitly
-#: forbids bot clichés. The section order is the spec: overview → movers →
-#: news → sentiment → what-to-watch.
-SYSTEM_PROMPT = """You are the Daily Market Summary writer for Rug Munch Intelligence (@CryptoRugMunch) — a sharp, specific crypto market analyst writing the morning breakdown for a degen + institutional audience.
+#: forbids bot clichés. The section order is the brief spec: overview →
+#: narrative → movers → news → sentiment → X/KOL signals → what-to-watch.
+SYSTEM_PROMPT = """You are the Daily Market Brief writer for Rug Munch Intelligence (@CryptoRugMunch) — a sharp, specific crypto market analyst writing the morning intelligence brief for a degen + institutional audience.
 
 VOICE (non-negotiable):
 - Sharp and specific: real numbers, real names, real percentages — all and ONLY from the provided data. Evidence-first, no filler.
@@ -413,12 +665,16 @@ VOICE (non-negotiable):
 OUTPUT FORMAT — Telegram HTML, in this EXACT section order:
 <b>MARKET OVERVIEW</b>
 One line: BTC/ETH/SOL prices with 24h % from the data. Then 1-2 sentences on the tone (risk-on/off, breadth, global mcap) using ONLY the provided verdict/reasons.
+<b>🧭 NARRATIVE</b>
+1-2 sentences naming the day's dominant crypto narrative(s) (e.g. AI agents, RWA tokenization, memes, L2 wars, restaking) — synthesized ONLY from the NARRATIVE SIGNALS block. Name the theme + the token/sector carrying it, cite the signal source. If NARRATIVE SIGNALS is absent, OMIT this section entirely.
 <b>TRENDING MOVERS</b>
 Bullet lines: • SYMBOL +X% — why it moved (use the news/reasons context when it explains a mover; otherwise say what the data shows: volume, mcap). Include 3-5 movers with their real numbers.
 <b>TOP NEWS</b>
 3-5 bullets: • headline (source) — pick the stories that actually move markets today.
 <b>SENTIMENT</b>
 One line: Fear & Greed X/100 (classification) + the market verdict with 1 reason.
+<b>📣 X / KOL SIGNALS</b>
+2-4 bullet lines: • X is talking about $TOKEN because <real, specific reason> — (source link). Use ONLY the X/KOL SIGNALS block: real mentions with a real source URL per line. HONEST RULE: never invent a shill, a KOL name, or a tweet — if a signal has no usable source text, skip it. If X/KOL SIGNALS is absent, OMIT this section entirely.
 <b>WHAT TO WATCH TODAY</b>
 2-3 concrete, specific items (events, levels, tokens) grounded in the data — not generic advice.
 
@@ -426,7 +682,7 @@ HARD RULES:
 - Telegram HTML only: <b> and <i> tags, line breaks. No markdown, no backticks, no ``` fences, no <h1>, no <p>, no HTML boilerplate.
 - ≤ 3500 characters total. Tight. No section may run long.
 - Cite-or-omit: if a number is not in the provided data, do NOT invent it. Empty sections render as "N/A".
-- No emoji spam: at most one emoji in the header line (e.g. 📊).""".strip()
+- No emoji spam: at most one emoji in the opening line (e.g. 📊). Section headers use exactly the tags above (🧭 NARRATIVE, 📣 X / KOL SIGNALS) — no other emojis."""
 
 
 def build_messages(context: dict[str, Any]) -> list[dict[str, str]]:
@@ -443,7 +699,7 @@ def build_messages(context: dict[str, Any]) -> list[dict[str, str]]:
     except (TypeError, ValueError):
         date_str = "—"
     user_prompt = (
-        f"Write today's Daily Market Summary for {date_str}.\n\n"
+        f"Write today's Daily Market Brief for {date_str}.\n\n"
         "Here is the ONLY data you may use (cite-or-omit):\n"
         f"{_serialize_context(context)}\n\n"
         "Now write the report. Telegram HTML, sections in the exact order above, ≤3500 chars."
@@ -525,7 +781,7 @@ def cleanup_html(text: str, *, max_chars: int = DAILY_MARKET_SUMMARY_MAX_CHARS) 
 
 
 async def publish_to_feed(report: str, *, title: str | None = None) -> dict[str, Any]:
-    """Publish the summary to the rugmunch.io feed (Ghost content platform).
+    """Publish the brief to the rugmunch.io feed (Ghost content platform).
 
     The rugmunch.io social feed is backed by the Ghost content platform
     (``app.content_platform.py`` — "@CryptoRugMunch Feed engine"); the same
@@ -540,7 +796,7 @@ async def publish_to_feed(report: str, *, title: str | None = None) -> dict[str,
         return await create_post(
             content=report,
             post_type="briefing",
-            title=title or f"Daily Market Summary — {stamp}",
+            title=title or f"Daily Market Brief — {stamp}",
             tags=["daily", "market-summary"],
         )
     except Exception as exc:  # fail-open — feed publish is additive
@@ -610,6 +866,7 @@ __all__ = [
     "DAILY_MARKET_SUMMARY_MAX_CHARS",
     "DAILY_MARKET_SUMMARY_TIME",
     "DAILY_MARKET_SUMMARY_TZ",
+    "DAILY_MARKET_SUMMARY_WEB_SIGNALS_ENABLED",
     "SYSTEM_PROMPT",
     "build_messages",
     "cleanup_html",

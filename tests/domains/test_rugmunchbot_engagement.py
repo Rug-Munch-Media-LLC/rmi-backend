@@ -112,12 +112,17 @@ class TestOnboarding:
         row = self._fresh_row(created_at=None)  # type: ignore[arg-type]  # heuristic handles missing
         assert is_first_run(row) is False
 
-    def test_welcome_message_has_try_me_line(self) -> None:
+    def test_welcome_message_has_core_actions(self) -> None:
         text = welcome_message("Alice")
         assert "Alice" in text
-        assert "try me" in text.lower()
-        assert "$BONK" in text
-        assert "Quick start:" in text
+        # The 3-line "what the bot is" pitch.
+        assert "Rug Munch Intelligence Analyst" in text
+        assert "rug, honeypot &amp; bundle risk" in text
+        # The 3 core actions with examples.
+        assert "/scan" in text
+        assert "$SOL" in text
+        assert "/chat" in text
+        assert "before you buy" in text
 
     def test_welcome_message_is_html_safe(self) -> None:
         text = welcome_message("Alice")
@@ -127,7 +132,7 @@ class TestOnboarding:
 
     def test_quick_start_actions_are_existing_callbacks(self) -> None:
         callbacks = {cb for _label, cb in ONBOARDING_QUICK_START}
-        assert callbacks == {"run_scan", "run_trending", "menu_cat_help"}
+        assert callbacks == {"run_scan", "run_price", "run_chat", "menu_full"}
 
     def test_daily_hook_actions_are_existing_callbacks(self) -> None:
         callbacks = {cb for _label, cb in DAILY_HOOK_ACTIONS}
@@ -143,11 +148,14 @@ class TestEngagementKeyboards:
     def _flat(self, kb: InlineKeyboardMarkup) -> list[str]:
         return [b.callback_data for row in kb.inline_keyboard for b in row]
 
-    def test_quick_start_kb_has_three_buttons(self) -> None:
+    def test_quick_start_kb_has_four_buttons_with_more(self) -> None:
         kb = quick_start_kb()
         callbacks = self._flat(kb)
-        assert len(callbacks) == 3
-        assert set(callbacks) == {"run_scan", "run_trending", "menu_cat_help"}
+        assert len(callbacks) == 4
+        assert set(callbacks) == {"run_scan", "run_price", "run_chat", "menu_full"}
+        # Last row is the "More" button that opens /menu.
+        assert kb.inline_keyboard[-1][0].callback_data == "menu_full"
+        assert "More" in kb.inline_keyboard[-1][0].text
 
     def test_daily_hook_kb_has_two_buttons(self) -> None:
         kb = daily_hook_kb()
@@ -161,7 +169,7 @@ class TestEngagementKeyboards:
         merged = merge_menu_kb(base, hook)
         assert self._flat(merged) == self._flat(base) + self._flat(hook)
         # original keyboards are not mutated
-        assert len(self._flat(base)) == 3
+        assert len(self._flat(base)) == 4
         assert len(self._flat(hook)) == 2
 
 

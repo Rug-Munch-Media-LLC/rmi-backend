@@ -80,7 +80,13 @@ from app.domains.telegram.rugmunchbot.handlers.account import (
     cmd_scamschool,
     cmd_topup,
 )
-from app.domains.telegram.rugmunchbot.handlers.alerts import check_alerts, cmd_alert, cmd_alerts
+from app.domains.telegram.rugmunchbot.handlers.alerts import (
+    MONITOR_CHECK_INTERVAL,
+    check_alerts,
+    check_monitors,
+    cmd_alert,
+    cmd_alerts,
+)
 from app.domains.telegram.rugmunchbot.handlers.api_access import cmd_api
 from app.domains.telegram.rugmunchbot.handlers.ask import cmd_ask
 from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
@@ -143,6 +149,9 @@ from app.domains.telegram.rugmunchbot.handlers.scanning import (
 from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment
 from app.domains.telegram.rugmunchbot.handlers.trace import cmd_trace, register_trace_commands
 from app.domains.telegram.rugmunchbot.handlers.watchlist import (
+    cmd_monitor,
+    cmd_monitors,
+    cmd_unmonitor,
     cmd_unwatch,
     cmd_watch,
     cmd_watchlist,
@@ -502,6 +511,11 @@ def main() -> None:
     _reg(app, "watch", cmd_watch)
     _reg(app, "unwatch", cmd_unwatch)
 
+    # Monitor (Stars-paid premium)
+    _reg(app, "monitor", cmd_monitor)
+    _reg(app, "monitors", cmd_monitors)
+    _reg(app, "unmonitor", cmd_unmonitor)
+
     # Alerts
     _reg(app, "alerts", cmd_alerts)
     _reg(app, "alert", cmd_alert)
@@ -594,6 +608,10 @@ def main() -> None:
     if job_queue:
         # job_queue.run_daily(daily_scam_tip, dtime(hour=14, minute=0, tzinfo=UTC))  # disabled 2026-08-12
         job_queue.run_repeating(check_alerts, interval=ALERT_CHECK_INTERVAL, first=10)
+        # Stars-paid token monitors: re-scan for tax/ownership/mint/LP deltas
+        # and push meaningful changes as DMs (live LP/whale/price events flow
+        # through the webhook bridge independently).
+        job_queue.run_repeating(check_monitors, interval=MONITOR_CHECK_INTERVAL, first=120)
         # Admin-panel broadcasts (queued in Redis by the backend API)
         job_queue.run_repeating(deliver_pending_broadcasts, interval=30, first=15)
         # Intelligent webhook alerts (queued in Redis by the backend webhook

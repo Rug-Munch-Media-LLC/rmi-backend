@@ -221,7 +221,9 @@ async def cmd_sentiment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f4c8 <b>Market Sentiment</b>\n\n"
             "This feature requires <b>Scout tier</b> or higher.\n\n"
-            "\U0001f50d <b>Scout ($29.99/mo)</b> — Unlock market intelligence",
+            "\U0001f6f0\ufe0f <b>Monitor (250\u2605/30d)</b> — live LP/whale + "
+            "tax/ownership/mint alerts · 🔬 <b>Deep Scan (250\u2605)</b> — full forensics\n"
+            "💵 Core /scan + chat stay free.",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )

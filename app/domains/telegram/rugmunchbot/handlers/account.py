@@ -101,21 +101,31 @@ async def cmd_pricing(update: Update, ctx) -> None:
         u = db.get_or_create_user(user.id, user.username, user.first_name)
         balance = u.get("stars_balance", 0)
     d = thin_sep()
-    text = f"\u2b50 <b>Subscription Plans</b>\n{sep()}\n\n"
+    text = f"\u2b50 <b>Premium \u2014 pay with Stars</b>\n{sep()}\n\n"
     text += f"{BETA_BANNER}\n\n"
     text += f"Your balance: \u2b50{balance:,}\n\n"
+    text += (
+        "\U0001f4b0 <b>Free (core)</b> \u2014 /scan, chat, trending, scam school\n"
+        f"{d}\n"
+        "\U0001f6f0\ufe0f <b>Monitor</b> \u2014 \u2b50250 / 30 days\n"
+        "  \u2022 Live LP, whale + deployer wallet moves\n"
+        "  \u2022 Tax / ownership / mint change alerts\n"
+        f"{d}\n"
+        "\U0001f52c <b>Deep Scan</b> \u2014 \u2b50250 / token\n"
+        "  \u2022 Full forensics: rugmap, clusters, dev history\n"
+        f"{d}\n"
+    )
     for key, t in TIERS.items():
         if key == "free":
-            text += f"{t['emoji']} <b>{t['name']}</b> - $0\n{d}\n"
-        else:
-            text += f"{t['emoji']} <b>{t['name']}</b> - <b>${t['price_monthly']}/mo</b>\n{d}\n"
-        for f in t["features"]:
+            continue
+        text += f"{t['emoji']} <b>{t['name']}</b> \u2014 {t['price_stars']:,}\u2605 / 30 days\n"
+        for f in t["features"][:3]:
             text += f"  \u2022 {f}\n"
         text += "\n"
     text += (
         f"{sep()}\n"
-        f"\U0001f4b3 Pay with Telegram Stars\n"
-        f"\U0001f504 Weekly reset Monday 00:00 UTC\n\n"
+        f"\U0001f4b3 Pay with Telegram Stars (250\u2605 \u2248 $2.50)\n"
+        f"\U0001f504 Tier limits reset Monday 00:00 UTC\n\n"
         f'\U0001f310 <a href="{WEBSITE_URL}/pricing">Compare plans on rugmunch.io</a>\n'
         f"\U0001f4e7 Enterprise: {SUPPORT_EMAIL}"
         f"{footer_links()}"

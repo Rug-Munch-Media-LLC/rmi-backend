@@ -32,6 +32,11 @@ from app.domains.telegram.rugmunchbot.formatters import (
     format_deep_ml_scan_report,
     render_analyst_read_block,
 )
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_CHECK_ADDRESS,
+    failure_card,
+    usage_hint,
+)
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
@@ -56,13 +61,17 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f52c <b>Deep ML Scan</b>\n\n"
-            "Usage: /deepscan <code>address</code> [chain]\n\n"
-            "Examples:\n"
-            "  /deepscan <code>0xBE0eB53FC46b790099138e3d32C721856d41e865</code>\n"
-            "  /deepscan <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code> solana\n\n"
-            "ML anomaly scores (fraud-GNN, pyod, pygod), decompiled ABI, "
-            "sell-simulation honeypot/tax/blacklist flags and top findings.\n\n"
-            "\u23f3 Can take 30-90s (RPC + ML + EVM simulation).",
+            + usage_hint(
+                "deepscan",
+                "address [chain]",
+                "0xBE0eB53FC46b790099138e3d32C721856d41e865",
+                examples=("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v solana",),
+                extra=(
+                    "ML anomaly scores (fraud-GNN, pyod, pygod), decompiled ABI, "
+                    "sell-simulation honeypot/tax/blacklist flags and top findings.\n\n"
+                    "\u23f3 Can take 30-90s (RPC + ML + EVM simulation)."
+                ),
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -110,9 +119,11 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as exc:  # deep scan is best-effort; never crash the handler
         logger.warning("deepscan failed for %s: %s", address, exc)
         await msg.edit_text(
-            "\u274c <b>Deep Scan Failed</b>\n\n"
-            f"<code>{html.escape(address)}</code>\n\n"
-            "Could not complete the deep scan. Please try again in a moment.",
+            failure_card(
+                "Deep Scan Failed",
+                f"<code>{html.escape(address)}</code>\n\nCould not complete the deep scan.",
+                ACTION_CHECK_ADDRESS,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

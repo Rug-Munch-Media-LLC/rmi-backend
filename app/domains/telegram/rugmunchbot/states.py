@@ -114,3 +114,9 @@ def check_alert_rate_limit(user_id: int) -> bool:
 
 # ── Pending deep scan payments (token → details) ──
 _pending_deep_scans: dict[str, dict[str, Any]] = {}
+
+# ── Pending monitor payments (token → details) ──
+# Mirrors ``_pending_deep_scans``: the callback/command stores the pending
+# monitor under a random token and sends a Stars invoice with payload
+# ``mon_{token}``; ``successful_payment`` pops it on confirmation.
+_pending_monitors: dict[str, dict[str, Any]] = {}

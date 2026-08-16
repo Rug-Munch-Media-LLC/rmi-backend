@@ -294,3 +294,138 @@ def test_daily_market_summary_skips_when_disabled(monkeypatch: pytest.MonkeyPatc
     app = SimpleNamespace(job_queue=fake_jq)
     channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
     assert "daily_market_summary" not in {j["name"] for j in fake_jq.jobs}
+
+
+# ── Daily Market Brief: narrative + X/KOL web-signal sections ───────────────
+
+
+def _web_context() -> dict[str, Any]:
+    """A gather result that also carries the two web-signal blocks."""
+    ctx = _context()
+    ctx["narratives"] = [
+        {
+            "query": "AI agents crypto narrative news today",
+            "title": "AI agent tokens lead as crypto narrative shifts",
+            "url": "https://example.com/ai-agents-narrative",
+            "snippet": "AI agent tokens outperform as the sector narrative rotates.",
+        },
+    ]
+    ctx["kol_signals"] = [
+        {
+            "query": "PEPE crypto twitter trending today",
+            "title": "KOLs pile into PEPE as volume spikes",
+            "url": "https://example.com/pepe-shill",
+            "snippet": "Top crypto influencers are shilling PEPE again.",
+        },
+    ]
+    ctx["sources"] = ctx["sources"] + ["narratives", "kol_signals"]
+    return ctx
+
+
+def test_build_messages_includes_narrative_and_kol_blocks() -> None:
+    messages = dms.build_messages(_web_context())
+    user = messages[1]["content"]
+    assert "Daily Market Brief" in user  # renamed title
+    assert "NARRATIVE SIGNALS (web search)" in user
+    assert "X/KOL SIGNALS (web search)" in user
+    assert "https://example.com/ai-agents-narrative" in user
+    assert "https://example.com/pepe-shill" in user
+
+
+def test_build_messages_omits_web_blocks_when_absent() -> None:
+    messages = dms.build_messages(_context())
+    user = messages[1]["content"]
+    assert "NARRATIVE SIGNALS" not in user
+    assert "X/KOL SIGNALS" not in user
+
+
+def test_system_prompt_orders_brief_sections() -> None:
+    sys_prompt = dms.SYSTEM_PROMPT
+    assert "Daily Market Brief writer" in sys_prompt  # renamed identity
+    order = [
+        sys_prompt.index("MARKET OVERVIEW"),
+        sys_prompt.index("🧭 NARRATIVE"),
+        sys_prompt.index("TRENDING MOVERS"),
+        sys_prompt.index("TOP NEWS"),
+        sys_prompt.index("SENTIMENT"),
+        sys_prompt.index("📣 X / KOL SIGNALS"),
+        sys_prompt.index("WHAT TO WATCH TODAY"),
+    ]
+    assert order == sorted(order)  # exact section order
+    assert "never invent a shill" in sys_prompt  # honest KOL rule
+
+
+def test_kol_signal_queries_use_only_real_trending_tokens() -> None:
+    queries = dms._kol_signal_queries(
+        [
+            {"symbol": "pepe"},
+            {"symbol": " WIF "},
+            {"symbol": ""},
+            {"symbol": "BONK"},
+        ]
+    )
+    assert queries == ["PEPE crypto twitter trending today", "WIF crypto twitter trending today"]
+    # empty symbols are skipped, cap applies
+    assert len(queries) <= dms.KOL_TOKEN_QUERIES_MAX
+
+
+async def test_fetch_narratives_keeps_query_attribution(monkeypatch: pytest.MonkeyPatch) -> None:
+    hits = [
+        {"title": "AI agents lead", "url": "https://ex.com/1", "snippet": "snippet one"},
+        {"title": "RWA narrative", "url": "https://ex.com/2", "snippet": ""},
+    ]
+    monkeypatch.setattr(
+        "app.domains.telegram.rugmunchbot.tools.web.searxng_top_results",
+        AsyncMock(return_value=hits),
+    )
+    out = await dms._fetch_narratives()
+    assert out
+    assert all(h.get("query") for h in out)  # every hit attributes its query
+    assert any("AI agents" in h["query"] for h in out)
+
+
+async def test_fetch_kol_signals_verifies_thin_snippets_via_ladder(monkeypatch: pytest.MonkeyPatch) -> None:
+    hits = [
+        {"title": "KOL shill", "url": "https://ex.com/pepe", "snippet": ""},  # thin → ladder fetch
+        {"title": "Trending", "url": "https://ex.com/wif", "snippet": "rich snippet"},  # no fetch needed
+    ]
+    monkeypatch.setattr(
+        "app.domains.telegram.rugmunchbot.tools.web.searxng_top_results",
+        AsyncMock(return_value=hits),
+    )
+    monkeypatch.setattr(
+        dms,
+        "_kol_fetch_page",
+        AsyncMock(return_value="<html><body>KOLs are shilling $PEPE hard on X</body></html>"),
+    )
+    out = await dms._fetch_kol_signals([{"symbol": "pepe"}, {"symbol": "wif"}])
+    assert out
+    thin = next(h for h in out if h["url"] == "https://ex.com/pepe")
+    assert thin.get("page_preview")
+    assert "$PEPE" in thin["page_preview"]
+    rich = next(h for h in out if h["url"] == "https://ex.com/wif")
+    assert "page_preview" not in rich  # no ladder call when the snippet is fine
+    assert dms._kol_fetch_page.await_count == 1
+
+
+async def test_dry_run_brief_produces_narrative_and_kol_sections(monkeypatch: pytest.MonkeyPatch) -> None:
+    """End-to-end dry run: mocked gather + mocked LLM → cleaned Brief with the
+    new 🧭 NARRATIVE and 📣 X / KOL SIGNALS sections (source links survive)."""
+    raw = (
+        "📊 <b>Daily Market Brief</b>\n\n"
+        "<b>MARKET OVERVIEW</b>\nBTC $67,231 (+2.1%) · ETH $3,412 (-0.4%) · SOL $145 (+5.2%)\n\n"
+        "<b>🧭 NARRATIVE</b>\nAI agents are the day's dominant narrative — "
+        '<a href="https://example.com/ai-agents-narrative">AI agent tokens lead</a>.\n\n'
+        "<b>TRENDING MOVERS</b>\n• PEPE +38% — volume spike\n\n"
+        "<b>TOP NEWS</b>\n• Ethereum ETF inflows hit record high\n\n"
+        "<b>SENTIMENT</b>\nFear & Greed 62/100 (Greed)\n\n"
+        "<b>📣 X / KOL SIGNALS</b>\n• X is talking about $PEPE because KOLs are piling back in "
+        '(<a href="https://example.com/pepe-shill">source</a>)\n\n'
+        "<b>WHAT TO WATCH TODAY</b>\nWatch PEPE volume\n"
+    )
+    send_mock, _llm_mock, _feed_mock = await _run_job(monkeypatch, raw=raw, gather=_web_context())
+    sent = send_mock.await_args.args[2]
+    assert "<b>🧭 NARRATIVE</b>" in sent
+    assert "<b>📣 X / KOL SIGNALS</b>" in sent
+    assert '<a href="https://example.com/pepe-shill">source</a>' in sent  # source link survives
+    assert "$PEPE" in sent

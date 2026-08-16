@@ -41,6 +41,13 @@ from app.domains.telegram.rugmunchbot.formatters import (
     sep,
     thin_sep,
 )
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_CHECK_ADDRESS,
+    ACTION_TRY_AGAIN,
+    failure_card,
+    usage_hint,
+)
+from app.domains.telegram.rugmunchbot.keyboards import back_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import get_shared_client, http_get_any
 
@@ -239,11 +246,13 @@ async def cmd_lpcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f6e1\ufe0f <b>LP Health Check</b>\n\n"
-            "Usage: /lpcheck <code>address</code> [chain]\n\n"
-            "Examples:\n"
-            "  /lpcheck <code>0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852</code>\n"
-            "  /lpcheck <code>So11111111111111111111111111111111111111112</code> solana\n\n"
-            "\U0001f4a1 <i>Checks lock %, holder concentration and 24h liquidity change.</i>",
+            + usage_hint(
+                "lpcheck",
+                "address [chain]",
+                "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852",
+                examples=("So11111111111111111111111111111111111111112 solana",),
+                extra="\U0001f4a1 <i>Checks lock %, holder concentration and 24h liquidity change.</i>",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -264,28 +273,40 @@ async def cmd_lpcheck(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         if r.status_code != 200:
             await msg.edit_text(
-                "\u26a0\ufe0f <b>LP Check Unavailable</b>\n\n"
-                "The backend could not verify this pool right now.\nPlease try again in a moment.",
+                failure_card(
+                    "LP Check Unavailable",
+                    "The backend could not verify this pool right now.",
+                    ACTION_TRY_AGAIN,
+                ),
                 parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
             )
             return
         health = r.json()
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as exc:
         logger.debug("lp-health %s failed: %s", address, exc)
         await msg.edit_text(
-            "\u26a0\ufe0f <b>LP Check Unavailable</b>\n\n"
-            "The backend is not reachable right now.\nPlease try again in a moment.",
+            failure_card(
+                "LP Check Unavailable",
+                "The backend is not reachable right now.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
         )
         return
 
     if not isinstance(health, dict) or health.get("error"):
         detail = health.get("error") if isinstance(health, dict) else ""
         await msg.edit_text(
-            f"\u26a0\ufe0f <b>LP Not Found</b>\n\n"
-            f"No pool data for <code>{address}</code> on {chain.capitalize()}."
-            + (f"\n<i>{detail}</i>" if detail else ""),
+            failure_card(
+                "LP Not Found",
+                f"No pool data for <code>{address}</code> on {chain.capitalize()}."
+                + (f"\n<i>{detail}</i>" if detail else ""),
+                ACTION_CHECK_ADDRESS,
+            ),
             parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
         )
         return
 

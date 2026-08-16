@@ -478,6 +478,17 @@ SCAN_PACKS: dict[str, ScanPack] = {
         ],
         "stars": 250,
     },
+    "monitor": {
+        "name": "🛰️ Token Monitor",
+        "description": "30 days of live monitoring for ONE token",
+        "includes": [
+            "LP remove / lock changes",
+            "Whale + deployer wallet moves",
+            "Tax / ownership / mint changes",
+            "Price swings",
+        ],
+        "stars": 250,
+    },
     "wallet_forensic": {
         "name": "🕵️ Wallet Forensic Report",
         "description": "Full wallet investigation - P&L, connections, history",

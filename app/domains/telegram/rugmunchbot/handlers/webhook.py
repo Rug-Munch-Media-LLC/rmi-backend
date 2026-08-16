@@ -28,6 +28,11 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     sep,
 )
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_TRY_AGAIN,
+    failure_card,
+    usage_hint,
+)
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
@@ -269,8 +274,8 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     """Register a new webhook URL."""
     if len(ctx.args or []) < 2:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "❌ Usage: /webhook add <code>url</code> [event_type]\n\n"
-            "Example: /webhook add https://mybot.com/hook price_change",
+            "🔗 <b>Add Webhook</b>\n\n"
+            + usage_hint("webhook add", "url [event_type]", "https://mybot.com/hook price_change"),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -282,7 +287,11 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     ok, err = _validate_webhook_url(url)
     if not ok:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            f"❌ {err}",
+            failure_card(
+                "Invalid Webhook URL",
+                err,
+                "Example: /webhook add https://mybot.com/hook price_change",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -290,7 +299,11 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
         _assert_safe_target(url)
     except ValueError as e:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            f"❌ {e}",
+            failure_card(
+                "Unsafe Webhook URL",
+                str(e),
+                "Example: /webhook add https://mybot.com/hook price_change",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -298,9 +311,11 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     # Validate event type
     if event_type and event_type not in WEBHOOK_EVENTS:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            f"❌ Invalid event type: <code>{event_type}</code>\n\n"
-            f"Available: {', '.join(WEBHOOK_EVENTS.keys())}\n"
-            f"See /webhook events for details.",
+            failure_card(
+                "Invalid Event Type",
+                f"<code>{event_type}</code> is not supported.\nAvailable: {', '.join(WEBHOOK_EVENTS.keys())}",
+                "See /webhook events for details.",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -314,7 +329,11 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
     if count >= 10:
         conn.close()
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "❌ Maximum 10 active webhooks. Remove one first:\n  /webhook remove <code>id</code>",
+            failure_card(
+                "Webhook Limit Reached",
+                "Maximum 10 active webhooks.",
+                "Remove one with /webhook remove <code>id</code>, then add again.",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -379,7 +398,11 @@ async def _add_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_id: 
         logger.debug("webhook_add_error", exc_info=True)
         logger.error(f"webhook add error: {e}")
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "❌ Failed to register webhook. Please try again in a moment.",
+            failure_card(
+                "Webhook Failed",
+                "Could not register the webhook.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
         )
 
@@ -388,7 +411,8 @@ async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_i
     """Remove a webhook by ID."""
     if len(ctx.args or []) < 2 or not (ctx.args or [])[1].isdigit():
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
-            "❌ Usage: /webhook remove <code>id</code>\nFind IDs with: /webhook list",
+            "🔗 <b>Remove Webhook</b>\n\n"
+            + usage_hint("webhook remove", "id", "1", extra="Find IDs with: /webhook list"),
             parse_mode=ParseMode.HTML,
         )
         return

@@ -63,10 +63,11 @@ def test_build_help_text_renders() -> None:
     text = _help_text._build_help_text()
     assert isinstance(text, str)
     assert len(text) > 500
-    assert "Rug Munch Intelligence - Command Guide" in text
-    for header, _cmds in _help_text._HELP_SECTIONS:
+    assert "Rug Munch Bot" in text
+    assert "How It Works" in text
+    for header, _desc, _example in _help_text._HELP_SECTIONS:
         assert f"<b>{header}</b>" in text, f"missing help group header: {header}"
-    assert "Scan & Security" in text
+    assert "Scan & Safety" in text
     assert "PRO TIPS" in text
 
 
@@ -76,7 +77,7 @@ def test_help_text_matches_rendered_output() -> None:
 
 
 def test_help_text_lists_key_commands() -> None:
-    for cmd in ("/scan", "/deepscan", "/wallet", "/ta", "/compare", "/quick", "/deployer", "/hype"):
+    for cmd in ("/scan", "/wallet", "/news", "/chat", "$SOL", "/menu"):
         assert cmd in _help_text.HELP_TEXT, f"key command {cmd} missing from help text"
 
 
