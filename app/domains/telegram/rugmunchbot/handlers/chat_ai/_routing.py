@@ -60,6 +60,7 @@ from app.domains.telegram.rugmunchbot.config import (
     fmt_pct,
 )
 from app.domains.telegram.rugmunchbot.daily_context import get_daily_context
+from app.domains.telegram.rugmunchbot.db._base import run_db
 from app.domains.telegram.rugmunchbot.formatters import (
     TOKEN_RE,
     detect_chain,
@@ -479,7 +480,7 @@ async def chat_ai_response(
     if message is None or not text.strip():
         return False
 
-    u = db.get_or_create_user(user.id, user.username, user.first_name)
+    u = await run_db(db.get_or_create_user, user.id, user.username, user.first_name)
     if u.get("is_banned"):
         return True
     if chat_ai.check_spam(user.id):
@@ -581,7 +582,7 @@ async def chat_ai_response(
         # are only awaited when the backend returns None and the fallback path
         # actually needs them (and are cancelled when the backend answers).
         addresses = _extract_addresses(text)
-        history = cast("list[dict[str, str]]", db.get_chat_history(user.id))
+        history = cast("list[dict[str, str]]", await run_db(db.get_chat_history, user.id))
 
         backend_task = asyncio.create_task(chat_ai._call_backend_chat(text, user.id, history))
         daily_ctx_task = asyncio.create_task(get_daily_context())
@@ -856,7 +857,7 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     if not text:
         return
 
-    u = db.get_or_create_user(user.id, user.username, user.first_name)
+    u = await run_db(db.get_or_create_user, user.id, user.username, user.first_name)
     if u.get("is_banned"):
         return
     # NOTE: the per-user spam gate lives in chat_ai_response (single
@@ -864,7 +865,7 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     # STAMPS _user_last_action[user.id] = now (states.check_spam), then the
     # second call milliseconds later sees now - last < 3 → True → every
     # non-owner free-text reply was silently dropped.
-    db.record_activity(msg=True)
+    await run_db(db.record_activity, msg=True)
 
     # Owner admin console (v7): in private chats the owner gets a persistent
     # admin reply keyboard + one-tap routing for its buttons. This runs
@@ -877,7 +878,7 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             return
 
     # Admin kill-switch: whole bot disabled (synced from the admin API).
-    if db.get_bot_state("bot_enabled", "on") != "on":
+    if await run_db(db.get_bot_state, "bot_enabled", "on") != "on":
         return
 
     # Analytics: count every inbound message handled (Redis, for the admin API).
