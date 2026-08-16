@@ -496,8 +496,8 @@ class TestCapAnswer:
 
 
 class TestStripThinkBlocks:
-    """Regression: qwen-analysis (and the backend routing to it) emits
-    <think>...</think> reasoning chains; they must never reach the user."""
+    """Regression: reasoning-capable models emit <think>...</think> reasoning
+    chains; they must never reach the user."""
 
     def test_complete_block_removed(self) -> None:
         assert chat_ai.strip_think_blocks("Answer.\n<think>hidden chain</think>\nMore.") == "Answer.\n\nMore."
@@ -1366,7 +1366,7 @@ class TestChatAiResponse:
         # intent reply must take over. Local is explicitly dead here —
         # otherwise a live llama.cpp server would answer and the test would
         # be environment-dependent.
-        monkeypatch.setattr(chat_ai, "_call_local_llm", AsyncMock(return_value=None))
+        monkeypatch.setattr(chat_ai, "_call_remote_llm", AsyncMock(return_value=None))
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
         result = _run(chat_ai.chat_ai_response(upd, None, "what is a honeypot?", upd.effective_user))
@@ -1375,9 +1375,9 @@ class TestChatAiResponse:
 
     def test_backend_down_fallback_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(chat_ai, "_call_backend_chat", AsyncMock(return_value=None))
-        # Same as above: force the local fallback to fail so the honest
+        # Same as above: force the remote fallback to fail so the honest
         # unavailability message is edited into the placeholder.
-        monkeypatch.setattr(chat_ai, "_call_local_llm", AsyncMock(return_value=None))
+        monkeypatch.setattr(chat_ai, "_call_remote_llm", AsyncMock(return_value=None))
         msg = _FakeMessage()
         upd = _FakeUpdate(12345, "tester", msg)
         result = _run(chat_ai.chat_ai_response(upd, None, "explain yield farming", upd.effective_user))

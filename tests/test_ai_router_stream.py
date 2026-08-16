@@ -102,12 +102,18 @@ async def test_parse_openai_sse_skips_reasoning_delta() -> None:
 
 @pytest.mark.asyncio
 async def test_stream_chat_completion_yields_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import llm_config
     from app.ai_router import stream_chat_completion
 
     _install_fake_httpx(
         monkeypatch,
         _FakeResp(200, [_sse_payload("Hello"), _sse_payload(", "), _sse_payload("world"), "data: [DONE]"]),
     )
+
+    # The remote snappy tier needs a configured key or the stream fails open
+    # with [ERROR ...] before any provider is contacted.
+    monkeypatch.setenv("OPENROUTER_BACKUP_API_KEY", "test")
+    monkeypatch.setattr(llm_config, "OPENROUTER_BACKUP_API_KEY", "test")
 
     tokens = [
         t
@@ -141,11 +147,15 @@ async def test_stream_chat_completion_guardrail_block(monkeypatch: pytest.Monkey
 
 @pytest.mark.asyncio
 async def test_stream_chat_completion_all_providers_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import llm_config
     from app.ai_router import stream_chat_completion
 
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.delenv("LLM_API_KEY", raising=False)
-    monkeypatch.delenv("LLM_API_KEY_B64", raising=False)
+    # Configure the free providers so the chain actually attempts each tier;
+    # every provider returns 500 → the stream degrades to a single clean
+    # [ERROR ...] token. (With NO key the app's missing-key branch would be
+    # exercised instead of the all-providers-fail chain.)
+    monkeypatch.setenv("OPENROUTER_BACKUP_API_KEY", "test")
+    monkeypatch.setattr(llm_config, "OPENROUTER_BACKUP_API_KEY", "test")
 
     _install_fake_httpx(monkeypatch, _FakeResp(500, []))
 

@@ -513,7 +513,10 @@ class TestWebSearchKnowledgeFallback:
     async def test_web_down_conceptual_query_returns_knowledge_answer(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # No routes configured → bridge + SearXNG both 404 → zero live results.
         async def _fake_chat_completion(**kwargs: Any) -> dict[str, Any]:
-            return {"content": "Solana is a high-performance proof-of-stake blockchain.", "model": "qwen-chat"}
+            return {
+                "content": "Solana is a high-performance proof-of-stake blockchain.",
+                "model": "deepseek-v4-flash-free",
+            }
 
         monkeypatch.setattr("app.ai_router.chat_completion", _fake_chat_completion)
         result = await web.web_search(query="what is solana")

@@ -5,7 +5,7 @@ completion path:
 
 - the client is built through the rotator when it is enabled and the
   destination is public (proxy-first), and direct when disabled or when the
-  destination is a private/loopback host (local llama.cpp);
+  destination is a private/loopback host (e.g. the local Kilo gateway);
 - a 429/403/5xx response or a transport error on the proxied egress marks the
   proxy failed (cooldown) and retries the request once against a direct
   client.
@@ -114,9 +114,9 @@ def test_build_ai_client_direct_when_disabled() -> None:
     assert client.proxy is None
 
 
-def test_build_ai_client_skips_proxy_for_private_llama_host() -> None:
+def test_build_ai_client_skips_proxy_for_private_host() -> None:
     rotator = _FakeRotator(enabled=True)
-    client, proxy_url = _build_ai_client(rotator, "http://172.22.0.1:8085/v1/chat/completions")
+    client, proxy_url = _build_ai_client(rotator, "http://172.22.0.1:9999/v1/chat/completions")
     assert proxy_url is None
     assert rotator.client_calls == [None]
     assert client.proxy is None
@@ -128,14 +128,18 @@ def test_build_ai_client_skips_proxy_for_private_llama_host() -> None:
 @pytest.mark.asyncio
 async def test_chat_completion_builds_client_via_rotator_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.ai_router
+    from app import llm_config
 
     rotator = _FakeRotator(enabled=True)
     monkeypatch.setattr(app.ai_router, "get_proxy_rotator", lambda: rotator)
-    monkeypatch.setattr(app.ai_router, "LLAMA_HOST", "openrouter.ai")  # public host → proxy tier engages
+    # The remote snappy tier (openrouter.ai — public host) needs a configured
+    # key or chat_completion fails open before building any client.
+    monkeypatch.setenv("OPENROUTER_BACKUP_API_KEY", "test")
+    monkeypatch.setattr(llm_config, "OPENROUTER_BACKUP_API_KEY", "test")
 
     result = await app.ai_router.chat_completion(
         messages=[{"role": "user", "content": "hello"}],
-        model="qwen-chat",
+        model=None,
     )
     assert result["content"] == "hello from model"
     assert rotator.client_calls[0] == PROXY_URL
@@ -145,14 +149,16 @@ async def test_chat_completion_builds_client_via_rotator_when_enabled(monkeypatc
 @pytest.mark.asyncio
 async def test_chat_completion_direct_when_rotator_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.ai_router
+    from app import llm_config
 
     rotator = _FakeRotator(enabled=False)
     monkeypatch.setattr(app.ai_router, "get_proxy_rotator", lambda: rotator)
-    monkeypatch.setattr(app.ai_router, "LLAMA_HOST", "openrouter.ai")
+    monkeypatch.setenv("OPENROUTER_BACKUP_API_KEY", "test")
+    monkeypatch.setattr(llm_config, "OPENROUTER_BACKUP_API_KEY", "test")
 
     result = await app.ai_router.chat_completion(
         messages=[{"role": "user", "content": "hello"}],
-        model="qwen-chat",
+        model=None,
     )
     assert result["content"] == "hello from model"
     assert rotator.client_calls[0] is None
@@ -219,12 +225,12 @@ async def test_post_chat_direct_passthrough_no_proxy_logic() -> None:
     rotator = _FakeRotator(enabled=False)
     result = await _post_chat(
         rotator._direct,
-        "http://172.22.0.1:8085/v1/chat/completions",
-        "qwen-chat",
+        "http://172.22.0.1:9999/v1/chat/completions",
+        "deepseek-v4-flash-free",
         [{"role": "user", "content": "hi"}],
         0.7,
         100,
-        provider="llama-direct",
+        provider="direct-test",
     )
     assert result is not None
     assert result["content"] == "hello from model"
