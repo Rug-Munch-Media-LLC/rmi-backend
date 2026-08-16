@@ -9,6 +9,7 @@ Hunter+ tier feature.
 
 from __future__ import annotations
 
+import html
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -115,7 +116,7 @@ def _format_research_result(query: str, hits: list[dict[str, Any]]) -> str:
     lines = [
         "\U0001f50d <b>RAG Research Results</b>",
         s,
-        f"<b>Query:</b> <i>{query[:100]}</i>",
+        f"<b>Query:</b> <i>{html.escape(query[:100])}</i>",
         f"<b>Sources:</b> {len(hits)} relevant documents found",
         s,
     ]
@@ -139,9 +140,9 @@ def _format_research_result(query: str, hits: list[dict[str, Any]]) -> str:
         title = metadata.get("title", "") or metadata.get("name", "") or collection
         if source:
             if source.startswith("http"):
-                source_str = f"\n  📎 <a href='{source}'>{title[:60]}</a>"
+                source_str = f"\n  📎 <a href='{html.escape(source, quote=True)}'>{html.escape(title[:60])}</a>"
             else:
-                source_str = f"\n  📎 <i>{source[:100]}</i>"
+                source_str = f"\n  📎 <i>{html.escape(source[:100])}</i>"
         else:
             source_str = ""
 
@@ -239,7 +240,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f50d <b>Researching...</b>\n\n"
-        f"\U0001f4ac <i>{query[:100]}</i>\n\n"
+        f"\U0001f4ac <i>{html.escape(query[:100])}</i>\n\n"
         f"\U0001f50d Querying RAG collections: "
         f"{', '.join(_RESEARCH_COLLECTIONS)}...\n"
         f"\u23f3 This may take 15-30 seconds",
@@ -257,7 +258,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not hits:
             await msg.edit_text(
                 f"\U0001f50d <b>No Results Found</b>\n\n"
-                f"No relevant documents found for: <i>{query[:100]}</i>\n\n"
+                f"No relevant documents found for: <i>{html.escape(query[:100])}</i>\n\n"
                 f"<b>Tips:</b>\n"
                 f"\u2022 Try different keywords\n"
                 f"\u2022 Be more specific\n"
@@ -313,7 +314,7 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Research error: {e}")
         await msg.edit_text(
             f"\u274c <b>Research Failed</b>\n\n"
-            f"Could not complete research for: <i>{query[:100]}</i>\n"
+            f"Could not complete research for: <i>{html.escape(query[:100])}</i>\n"
             f"Error: {str(e)[:200]}\n\n"
             f"Please try again or use simpler terms.",
             parse_mode=ParseMode.HTML,

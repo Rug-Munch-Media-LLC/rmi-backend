@@ -130,14 +130,82 @@ def _build_query(message: str, addresses: list[str], symbols: list[str]) -> str:
     return query[:600]
 
 
+# Compact model-facing guide appended to the RAG block so the LLM knows how
+# to cite the labeled sources (kept short — it counts against the budget).
+# Mirrors ``app/routers/chat/_rag.py:_RAG_CITATION_GUIDE`` so the bot-side
+# fallback and the backend auto-RAG cite identically.
+_RAG_CITATION_GUIDE = (
+    "RAG KNOWLEDGE \u2014 cite each source by its [collection\u00b7label], e.g. "
+    'a vuln pattern as "Reentrancy \u2014 Critical" or a code snippet as '
+    "[codebase_reference\u00b7openzeppelin/contracts\u00b7clean]. "
+    "Trust the verdict labels (clean vs malicious, severity)."
+)
+
+
+def _rag_hit_label(h: dict[str, Any]) -> str:
+    """Compact ``[collection\u00b7primary\u00b7secondary]`` source label for a RAG hit.
+
+    Mirrors ``app/routers/chat/_rag.py:_rag_hit_label`` so the fallback marks
+    verdicts exactly like the backend path. The primary qualifier is the
+    corpus's natural key (vuln ``category`` for ``security_patterns`` /
+    ``contract_security``, ``library_id`` for ``codebase_reference``); the
+    secondary is the verdict/severity the corpus stamps (e.g. ``Critical``
+    for a SWC pattern, ``clean``/``malicious`` for a code snippet). Falls
+    back gracefully when metadata is absent so every hit still carries a
+    collection label.
+    """
+    col = str(h.get("collection") or "unknown")
+    metadata = h.get("metadata") or {}
+
+    def _get(*keys: str) -> str:
+        for k in keys:
+            v = h.get(k) or metadata.get(k)
+            if v:
+                return str(v).strip()
+        return ""
+
+    category = _get("category", "pattern")
+    severity = _get("severity")
+    verdict = _get("verdict")
+    library_id = _get("library_id", "library_name")
+
+    parts = [col]
+    if col == "codebase_reference":
+        if library_id:
+            parts.append(library_id)
+        if verdict:
+            parts.append(verdict)
+    elif col in ("security_patterns", "contract_security"):
+        if category:
+            parts.append(category)
+        if severity:
+            parts.append(severity.capitalize())
+        elif verdict:
+            parts.append(verdict)
+    else:
+        if severity:
+            parts.append(severity.capitalize())
+        elif verdict:
+            parts.append(verdict)
+    return "[" + "\u00b7".join(parts) + "]"
+
+
 def _format_context(hits: list[dict[str, Any]], max_chars: int = RAG_LOOKUP_CONTEXT_MAX_CHARS) -> str:
     """Render top RAG hits as a compact, LLM-friendly context block.
 
-    Each hit is labeled with its collection + score so the LLM can weigh
-    source quality. Truncates to ``max_chars`` total.
+    Each hit is labeled with its collection + score AND a verdict source
+    label (``[collection\u00b7category\u00b7severity/verdict]``, e.g.
+    ``[security_patterns\u00b7Reentrancy\u00b7Critical]`` or
+    ``[codebase_reference\u00b7openzeppelin/contracts\u00b7clean]``) so the LLM
+    can distinguish clean vs malicious snippets and cite each source. A short
+    citation guide is prepended; the guide counts against the budget, so its
+    space is reserved up front. Truncates to ``max_chars`` total (guide +
+    hits).
     """
     parts: list[str] = []
-    total = 0
+    guide = _RAG_CITATION_GUIDE
+    reserve = len(guide) + 2  # guide + blank line after it
+    total = 0 if reserve > max_chars else reserve
     for i, h in enumerate(hits, 1):
         content = (h.get("content") or "").strip()
         if not content:
@@ -145,12 +213,16 @@ def _format_context(hits: list[dict[str, Any]], max_chars: int = RAG_LOOKUP_CONT
         snippet = content[:RAG_LOOKUP_HIT_MAX_CHARS]
         col = h.get("collection") or "unknown"
         score = float(h.get("score") or 0.0)
-        block = f"[{i}] Source: {col} (score: {score:.3f})\n{snippet}"
+        block = f"[{i}] Source: {col} (score: {score:.3f}) {_rag_hit_label(h)}\n{snippet}"
         if total + len(block) > max_chars:
             break
         parts.append(block)
         total += len(block)
-    return "\n\n".join(parts)
+    if not parts:
+        return ""
+    if reserve > max_chars:
+        return "\n\n".join(parts)
+    return f"{guide}\n\n" + "\n\n".join(parts)
 
 
 def _content_key(hit: dict[str, Any]) -> str:

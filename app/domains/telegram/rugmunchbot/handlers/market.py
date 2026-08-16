@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import html
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -897,7 +898,7 @@ async def cmd_news(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
             lines.append(
                 f"{sent_emoji} {bias_e} [{tier_str}] {title_linked}\n"
-                f"  <i>{source}</i>{pub_str} \u00b7 Factuality: {factual}"
+                f"  <i>{html.escape(source)}</i>{pub_str} \u00b7 Factuality: {factual}"
             )
         lines.append(footer_links())
         text = "\n".join(lines)
