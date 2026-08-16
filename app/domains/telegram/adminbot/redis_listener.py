@@ -117,7 +117,7 @@ async def start_redis_listener(bot_app) -> None:
     except asyncio.CancelledError:
         logger.info("Redis listener cancelled")
     finally:
-        await client.aclose()  # type: ignore[attr-defined]  # PTB None-able fields
+        await client.aclose()
 
 
 def _format_payload(payload: dict[str, Any]) -> str:

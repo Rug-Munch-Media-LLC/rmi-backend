@@ -335,7 +335,8 @@ async def pop_broadcast() -> dict[str, Any] | None:
         raw = await r.rpop(BROADCAST_QUEUE_KEY)
         if not raw:
             return None
-        data = json.loads(raw)
+        payload = raw[0] if isinstance(raw, list) else raw
+        data = json.loads(payload)
         return data if isinstance(data, dict) else None
     except Exception:
         logger.warning("admin_state:pop_broadcast failed", exc_info=True)
