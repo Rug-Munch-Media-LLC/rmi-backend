@@ -85,7 +85,7 @@ class BatchIngestor:
         doc = Document(
             content=content,
             collection=collection,
-            doc_id=doc_id or f"ingest:{int(time.time() * 1000)}:{hash(content) % 10**8}",
+            doc_id=doc_id or f"ingest:{_content_hash(content)[:16]}",
             metadata=metadata or {},
             source_type=source_type,
         )

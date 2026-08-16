@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from app.core.logging import get_logger
+from app.rag.chunking import content_hash
 from app.rag.engine import (
     get_stats as engine_get_stats,
     ingest_document as engine_ingest_document,
@@ -91,7 +92,7 @@ class RAGService:
             content_len=len(req.content),
         )
         try:
-            doc_id = req.doc_id or f"doc:{int(time.time() * 1000)}"
+            doc_id = req.doc_id or f"doc:{content_hash(req.content)[:16]}"
             r = await engine_ingest_document(
                 collection=req.collection,
                 doc_id=doc_id,

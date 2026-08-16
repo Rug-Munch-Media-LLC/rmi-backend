@@ -531,9 +531,9 @@ class CatalogService:
 
         Returns the RAG ingest result plus the Qdrant point_id for cross-store ref.
         """
-        from uuid import uuid4
+        from app.rag.chunking import content_hash as _ch
 
-        doc_id = doc_id or f"finding:{uuid4().hex[:12]}"
+        doc_id = doc_id or f"finding:{_ch(content)[:16]}"
         try:
             r = await rag_ingest_document(
                 collection=collection,
