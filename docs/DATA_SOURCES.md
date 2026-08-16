@@ -54,8 +54,8 @@
 | 8 | **Polymarket** | `clob.polymarket.com/` | Prediction market data | None documented | Prediction markets |
 | 9 | **Messari (limited free)** | `api.messari.io/news/v1/news/feed` | Curated news with sentiment scores | 200 req/min | News intelligence |
 | 10 | **Hypersub** | Web scrape | Token launch and subscription data | N/A | Token discovery |
-| 11 | **SearXNG** | `hydra:8089/search` (self-hosted) | Privacy-respecting meta search engine | Unlimited | X web scraping, general search fallback |
-| 12 | **FlareSolverr** | `talos:8191` (self-hosted) | Cloudflare bypass for scraping | Unlimited | When `web-extract` fails on Cloudflare sites |
+| 11 | **SearXNG** | `[INTERNAL]:8089/search` (self-hosted) | Privacy-respecting meta search engine | Unlimited | X web scraping, general search fallback |
+| 12 | **FlareSolverr** | `[INTERNAL]:8191` (self-hosted) | Cloudflare bypass for scraping | Unlimited | When `web-extract` fails on Cloudflare sites |
 | 13 | **PublicNode** | Public EVM RPC endpoints | Free EVM RPC access (Ethereum, Base, Arbitrum, etc.) | Rate-limited | EVM chain data fallback |
 | 14 | **LlamaRPC** | `rpc.llamarpc.com` | Community EVM RPC | Rate-limited | EVM chain data fallback |
 | 15 | **DRPC** | Public DRPC endpoints | Free tier EVM RPC + Solana RPC | Rate-limited | EVM + Solana chain data |

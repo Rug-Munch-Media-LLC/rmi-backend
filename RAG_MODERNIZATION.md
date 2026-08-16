@@ -133,7 +133,7 @@ Pipeline:
 3. DEDUP — MD5 hash check against Redis
 4. QUALITY — score content, skip if < threshold
 5. CLASSIFY — route to correct collection
-6. EMBED — batch embed via bge-m3 (Ollama)
+6. EMBED — batch embed via bge-m3 (Infinity)
 7. STORE — Redis (hot) + FAISS (index) + R2 (cold)
 8. INDEX — update ANN index version
 ```

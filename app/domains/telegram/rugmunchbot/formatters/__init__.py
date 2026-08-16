@@ -74,6 +74,7 @@ from app.domains.telegram.rugmunchbot.formatters._sentinel import (
     format_sentinel_scan_report,
     format_wallet_composition_section,
     is_bluechip,
+    render_analyst_read_block,
 )
 from app.domains.telegram.rugmunchbot.formatters._wallet import (
     _activity_score,
@@ -145,6 +146,7 @@ __all__ = [
     "is_owner",
     "is_sol",
     "paywall_text",
+    "render_analyst_read_block",
     "sep",
     "short_addr",
     "social_proof_text",

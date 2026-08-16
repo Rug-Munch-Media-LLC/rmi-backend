@@ -36,6 +36,7 @@ from app.domains.telegram.rugmunchbot.formatters._scan_report_deepscan import (
     format_deep_ml_scan_report,
     format_sentinel_deepscan_section,
     format_sentinel_scan_report,
+    render_analyst_read_block,
 )
 from app.domains.telegram.rugmunchbot.formatters._scan_report_main import (
     format_deep_scan_report,
@@ -106,4 +107,5 @@ __all__ = [
     "format_sentinel_flags",
     "format_sentinel_scan_report",
     "is_bluechip",
+    "render_analyst_read_block",
 ]

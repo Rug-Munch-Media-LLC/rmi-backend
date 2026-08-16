@@ -28,7 +28,10 @@ from typing import TYPE_CHECKING
 from telegram.constants import ParseMode
 
 from app.domains.telegram.rugmunchbot import db
-from app.domains.telegram.rugmunchbot.formatters import format_deep_ml_scan_report
+from app.domains.telegram.rugmunchbot.formatters import (
+    format_deep_ml_scan_report,
+    render_analyst_read_block,
+)
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
@@ -95,8 +98,12 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         report = await asyncio.to_thread(deep_scan_address, address, chain=chain)
+        # AI "Analyst Read" — plain-language bundle/cluster interpretation,
+        # rendered BEFORE the deterministic sections. Fail-open: an empty
+        # block (LLM down / no bundle data in the report) is skipped.
+        analyst_read = await render_analyst_read_block(report.to_dict())
         await msg.edit_text(
-            format_deep_ml_scan_report(report),
+            format_deep_ml_scan_report(report, analyst_read=analyst_read),
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )

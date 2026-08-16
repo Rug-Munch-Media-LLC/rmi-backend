@@ -412,7 +412,7 @@ reranker (observability must never take search down).
 - Self-hosted Infinity + Qdrant + Redis = $0 marginal.
 - Free-tier data producers (existing list): CoinGecko, DefiLlama, Etherscan,
   Helius, Alchemy, SearXNG (self-hosted), n8n workflows.
-- LLM: free layers first (Ollama local, OpenCode Zen, Groq, OpenRouter FREE,
+- LLM: free layers first (OpenRouter FREE, OpenCode Zen, Groq,
   Gemini free); paid fallback only for revenue-generating endpoints behind
   x402.
 

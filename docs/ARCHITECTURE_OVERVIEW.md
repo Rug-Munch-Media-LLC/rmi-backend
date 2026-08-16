@@ -283,7 +283,7 @@ Data-shape references: `docs/SCHEMA.md`, `docs/DATABASE.md`.
 
 | Compose file | Provides |
 |---|---|
-| `rmi-backend/docker-compose.yml` | Databases, Ollama, MinIO, Redpanda, app (backend + worker), monitoring (`full` profile) |
+| `rmi-backend/docker-compose.yml` | Databases, MinIO, Redpanda, app (backend + worker), monitoring (`full` profile) |
 | `fleet-infra/rmi-infra/docker-compose.infrastructure.yml` | Infinity (`infinity-rag`), Qdrant, Prometheus, Grafana |
 | `rmi-rag/docker-compose.yml` | RAG API (`rmi-rag-api:8012`) + one-shot ingest |
 
@@ -300,7 +300,6 @@ Data-shape references: `docs/SCHEMA.md`, `docs/DATABASE.md`.
 | `rmi-postgres` | postgres:16-alpine | 127.0.0.1:5432 | — | default |
 | `rmi-clickhouse` | clickhouse/clickhouse-server:24-alpine | 8123, 9000 | — | default |
 | `rmi-neo4j` | neo4j:5-community | 7474, 7687 | 2 GB heap | `full` |
-| `rmi-ollama` | ollama/ollama:latest | 11434 | 8 GB / 4 CPUs | default |
 | `rmi-minio` | minio/minio:latest | 9000, 9001 | — | `full` |
 | `rmi-redpanda` | redpandadata/redpanda:latest | — | 1 GB | `full` |
 | `rmi-prometheus` / `rmi-grafana` | prom/prometheus · grafana/grafana | 9090 · 3000 | 1 GB each | `full` |

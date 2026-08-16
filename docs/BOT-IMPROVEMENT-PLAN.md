@@ -7,7 +7,7 @@
 **RugMunchBot** (`app/domains/telegram/rugmunchbot/`)
 - Single free-text pipeline: `handlers/chat_ai/__init__.py::chat_ai_response` (shared by free text, `/chat`, `/ask`).
 - Context assembly: bot fetches **bridge context** (`http://127.0.0.1:8095/chat/context` from `compose/chat/chat-rag-bridge.py` in fleet-infra) + **scan summary** (`/api/v1/bot/scan`) + **daily market context** (`daily_context.py`) → concatenates into one prompt string.
-- LLM routing: `_call_zen_llm` (OpenCode Zen DeepSeek V4 Flash Free, `127.0.0.1:18081`) → fallback `_call_local_llm` (Qwen3.5-4B :8085, Qwen3.5-9B :8086). **The backend `POST /api/v1/chat` auto-RAG path (`CHAT_ENDPOINT`, `ai_chat.py`) is deprecated and NOT called** — module docstrings still describe it.
+- LLM routing: `_call_zen_llm` (OpenCode Zen DeepSeek V4 Flash Free, `127.0.0.1:18081`) → fallback OpenRouter remote (local llama.cpp fallback decommissioned 2026-08; see [`docs/MODEL-ROUTING.md`](MODEL-ROUTING.md) — snappy/deep/paid-fallback models all remote via OpenRouter). **The backend `POST /api/v1/chat` auto-RAG path (`CHAT_ENDPOINT`, `ai_chat.py`) is deprecated and NOT called** — module docstrings still describe it. `[REVIEW]` exact fallback handler name in `app/domains/telegram/rugmunchbot/handlers/chat_ai/_llm.py`.
 - Guardrails: prompt-injection block, known-scam block, gibberish gate, weekly per-tier quota (15/75/250/500), flood control, HTML-safe chunking.
 - ~70 commands registered (scan family, market, research, trace, holders, watchlist, alerts, defi, prediction, premium).
 
