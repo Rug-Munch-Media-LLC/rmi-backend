@@ -44,7 +44,7 @@ class CryptoEmbedder:
     """Multi-head embedder for crypto scam detection."""
 
     def __init__(self) -> None:
-        self._local: LocalBGEEmbedder | None = None
+        self._local: LocalBGEEmbedder | None = None  # always None — local model path hard-disabled (memory safety)
         self._infinity: InfinityBGEEmbedder | None = None
         self._openrouter: OpenRouterEmbedder | None = None
         self._huggingface: HuggingFaceEmbedder | None = None
@@ -60,8 +60,9 @@ class CryptoEmbedder:
 
         self._infinity = InfinityBGEEmbedder()
         logger.info("CryptoEmbedder: Infinity bge-m3 ready (PRIMARY, 1024d)")
-        self._local = LocalBGEEmbedder()
-        logger.info("CryptoEmbedder: Local BGE-small ready (fallback, 384d)")
+        # Local BGE-small fallback is HARD-DISABLED: loading sentence-transformers/torch
+        # in-process (~300MB resident, never unloaded) caused memory pressure. Do not re-enable.
+        self._local = None
 
         if or_key:
             self._openrouter = OpenRouterEmbedder(api_key=or_key)
@@ -103,19 +104,15 @@ class CryptoEmbedder:
                 return await self._openrouter.embed(texts)
             except Exception as e:
                 logger.warning(f"OpenRouter/NVIDIA embedding failed: {e}")
-        if self._local:
-            try:
-                return await self._local.embed(texts)
-            except Exception as e:
-                logger.warning(f"Local BGE embedding failed: {e}")
         if self._huggingface:
             try:
                 return await self._huggingface.embed(texts)
             except Exception as e:
                 logger.warning(f"HuggingFace embedding failed: {e}")
         raise RuntimeError(
-            "CryptoEmbedder: ALL embedding backends failed. No hash fallback available. "
-            "Check Infinity/OpenRouter/HuggingFace connectivity."
+            "CryptoEmbedder: ALL remote embedding backends failed "
+            "(Infinity/OpenRouter/HuggingFace). Local in-process model is disabled "
+            "for memory safety — no fallback loaded. Check remote embedder connectivity."
         )
 
     async def _semantic_embed_one(self, text: str, head: str = "semantic") -> list[float]:
@@ -416,11 +413,11 @@ Code patterns: {"; ".join(code_snippets or [])[:3000]}"""
         return {
             "initialized": self._initialized,
             "providers": {
-                "local_bge": self._local is not None,
+                "local_bge": False,  # hard-disabled: in-process model load removed (memory safety)
                 "openrouter": self._openrouter is not None,
                 "huggingface": self._huggingface is not None,
             },
-            "primary": "local/bge-small-en-v1.5 (384d, $0/mo)",
+            "primary": "infinity/bge-m3 (1024d, remote)",
             "cache": {
                 "hits": self._cache_hits,
                 "misses": self._cache_misses,
