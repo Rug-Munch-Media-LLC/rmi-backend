@@ -19,7 +19,12 @@ import hashlib
 import sys
 from typing import TYPE_CHECKING, Any
 
-from app.domains.news_ingest.ingest import DEFAULT_DEDUP_COLLECTION, extract_canonical_url, mark_articles_ingested
+from app.domains.news_ingest.ingest import (
+    DEFAULT_DEDUP_COLLECTION,
+    extract_canonical_url,
+    extract_image_url,
+    mark_articles_ingested,
+)
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
@@ -88,6 +93,7 @@ def _article_to_news_item(article: NewsArticle) -> Any | None:
             title=article.title,
             summary=article.body,
             body_markdown=article.body,
+            image_url=extract_image_url(article) or getattr(article, "media", None) or None,
             source=article.source_channel,
             published_at=published,
             ingested_at=utcnow(),
@@ -202,18 +208,19 @@ async def persist_articles(articles: list[NewsArticle]) -> dict[str, int]:
                     await conn.execute(
                         """
                         INSERT INTO news_items (
-                            news_id, url, title, summary, body_markdown,
+                            news_id, url, title, summary, body_markdown, image_url,
                             source, published_at, ingested_at,
                             chains_mentioned, tokens_mentioned, sentiment_score,
                             bias, sentiment_label, factual_rating, source_tier,
                             rating_confidence
-                        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
                         """,
                         item.news_id,
                         str(item.url),
                         item.title,
                         item.summary,
                         item.body_markdown,
+                        item.image_url,
                         item.source,
                         item.published_at,
                         item.ingested_at,

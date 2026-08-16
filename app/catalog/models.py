@@ -271,6 +271,7 @@ class NewsItem(BaseModel):
     title: str
     summary: str
     body_markdown: str | None = None
+    image_url: str | None = None
     source: str
     published_at: datetime
     ingested_at: datetime

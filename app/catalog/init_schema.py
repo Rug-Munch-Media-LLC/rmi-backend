@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS news_items (
     title            TEXT NOT NULL,
     summary          TEXT,
     body_markdown    TEXT,
+    image_url        TEXT,
     source           TEXT NOT NULL,
     published_at     TIMESTAMPTZ NOT NULL,
     ingested_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -99,6 +100,7 @@ ALTER TABLE news_items ADD COLUMN IF NOT EXISTS sentiment_label TEXT;
 ALTER TABLE news_items ADD COLUMN IF NOT EXISTS factual_rating TEXT;
 ALTER TABLE news_items ADD COLUMN IF NOT EXISTS source_tier INT;
 ALTER TABLE news_items ADD COLUMN IF NOT EXISTS rating_confidence REAL;
+ALTER TABLE news_items ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 -- Auto-update the body_tsv column on insert/update
 CREATE OR REPLACE FUNCTION news_items_tsv_update() RETURNS trigger AS $$

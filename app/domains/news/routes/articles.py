@@ -59,6 +59,7 @@ async def list_news(
             cutoff = utcnow() - timedelta(hours=fetch_hours)
             query = (
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
+                "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, n.bias, "
                 "n.sentiment_label, n.factual_rating, n.source_tier, n.rating_confidence, "
                 "COALESCE(r.like_count, 0)::int AS upvotes, "
@@ -99,6 +100,7 @@ async def list_news(
                         url=r["url"],
                         title=r["title"],
                         summary=r["summary"] or "",
+                        image_url=r.get("image_url"),
                         source=r["source"],
                         published_at=r["published_at"],
                         chains_mentioned=list(r["chains_mentioned"] or []),
@@ -213,6 +215,7 @@ async def trending_news(
         async with catalog._pg_pool.acquire() as conn:
             rows = await conn.fetch(
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
+                "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, n.bias, "
                 "n.sentiment_label, n.factual_rating, n.source_tier, n.rating_confidence, "
                 "COALESCE(r.like_count, 0)::int AS upvotes, "
@@ -237,6 +240,7 @@ async def trending_news(
                 url=r["url"] or "",
                 title=r["title"] or "",
                 summary=r["summary"] or "",
+                image_url=r.get("image_url"),
                 source=r["source"] or "unknown",
                 published_at=r["published_at"],
                 chains_mentioned=list(r["chains_mentioned"] or []),
@@ -323,6 +327,7 @@ async def get_news(news_id: str) -> NewsItemOut:
         async with catalog._pg_pool.acquire() as conn:
             r = await conn.fetchrow(
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
+                "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, "
                 "COALESCE(r.like_count, 0)::int AS upvotes, "
                 "COALESCE(r.dislike_count, 0)::int AS downvotes, "
@@ -344,6 +349,7 @@ async def get_news(news_id: str) -> NewsItemOut:
                     url=r["url"],
                     title=r["title"],
                     summary=r["summary"] or "",
+                    image_url=r.get("image_url"),
                     source=r["source"],
                     published_at=r["published_at"],
                     chains_mentioned=list(r["chains_mentioned"] or []),
@@ -383,6 +389,7 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
         async with catalog._pg_pool.acquire() as conn:
             r = await conn.fetchrow(
                 "SELECT news_id, url, title, summary, source, published_at, "
+                "image_url, "
                 "sentiment_score, chains_mentioned, tokens_mentioned "
                 "FROM news_items WHERE news_id=$1",
                 news_id,
@@ -393,6 +400,7 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
                     url=r["url"],
                     title=r["title"],
                     summary=r["summary"] or "",
+                    image_url=r.get("image_url"),
                     source=r["source"],
                     published_at=r["published_at"],
                     chains_mentioned=list(r["chains_mentioned"] or []),
