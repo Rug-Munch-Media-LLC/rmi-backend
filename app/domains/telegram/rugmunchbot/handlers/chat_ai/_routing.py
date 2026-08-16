@@ -44,7 +44,7 @@ from html import escape
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, Update
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
@@ -842,6 +842,61 @@ async def chat_ai_response(
         await asyncio.gather(*pending_tasks, return_exceptions=True)
 
 
+def _is_bot_addressed(
+    update: Update,
+    message: Message,
+    bot_username: str | None = None,
+) -> bool:
+    """True when a free-text message is explicitly addressed to the bot.
+
+    Group-etiquette gate for the free-text AI pipeline: un-@mentioned group
+    chatter must never auto-trigger the AI (or the bare-address scan /
+    $TOKEN price card) and annoy the room, so group messages only fire when
+    the bot is @mentioned or replied to.
+
+      * private DMs — always addressed (the user opened a 1:1 chat);
+      * group / supergroup — addressed only when the message @mentions the
+        bot (``@RugMunchBot ...``) or replies to one of the bot's messages;
+      * channels / anything else — never addressed.
+
+    ``bot_username`` is optional: normally resolved from the update's bot
+    (populated by ``get_me()`` at startup, see bot.setup_bot_profile); pass
+    it explicitly in tests or when the update carries no bot instance. When
+    no username can be resolved the mention match fails closed (group
+    mentions are ignored rather than firing on any @handle).
+    """
+    chat = update.effective_chat
+    if chat is None:
+        return False
+    if chat.type == "private":
+        return True
+    if chat.type not in ("group", "supergroup"):
+        return False
+
+    # A reply to the bot's own message counts as addressing it.
+    reply = getattr(message, "reply_to_message", None)
+    reply_user = getattr(reply, "from_user", None) if reply is not None else None
+    if reply_user is not None and reply_user.is_bot:
+        return True
+
+    # @mention of the bot ("@RugMunchBot is this a honeypot?").
+    if not bot_username:
+        get_bot = getattr(update, "get_bot", None)
+        if callable(get_bot):
+            with contextlib.suppress(Exception):
+                bot_username = getattr(get_bot(), "username", None)
+    if not bot_username:
+        return False
+    text = message.text or ""
+    for ent in getattr(message, "entities", None) or ():
+        if getattr(ent, "type", None) != MessageEntity.MENTION:
+            continue
+        handle = text[ent.offset : ent.offset + ent.length].lstrip("@").lower()
+        if handle == bot_username.lower():
+            return True
+    return False
+
+
 async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Single free-text pipeline entry (MessageHandler).
 
@@ -855,6 +910,19 @@ async def ai_chat_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         return
     text = message.text.strip()
     if not text:
+        return
+
+    # Group-etiquette gate: the free-text pipeline only fires when the bot
+    # is explicitly addressed — private DMs always count; group messages
+    # only when the bot is @mentioned or replied to (see
+    # :func:`_is_bot_addressed`). Un-@mentioned group chatter returns
+    # silently (no AI, no scans, no $TOKEN cards). /chat and /ask are
+    # separate CommandHandlers and bypass this gate entirely.
+    # bot_username is resolved from ctx.bot first (populated by get_me() at
+    # startup), falling back to the update's attached bot inside the helper.
+    ctx_bot_username = getattr(getattr(ctx, "bot", None), "username", None)
+    if not _is_bot_addressed(update, message, bot_username=ctx_bot_username):
+        logger.debug("free-text not addressed to bot — ignored (chat=%s)", getattr(update.effective_chat, "type", "?"))
         return
 
     u = await run_db(db.get_or_create_user, user.id, user.username, user.first_name)
@@ -949,6 +1017,12 @@ def register_chat_ai(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     so no other ``MessageHandler(filters.TEXT & ~filters.COMMAND)`` may be
     registered alongside this one (the old ``handle_message`` registration
     was removed when the pipelines were merged).
+
+    GROUP ETIQUETTE: ``ai_chat_handler`` gates itself with
+    :func:`_is_bot_addressed` — free text fires in private DMs always, and in
+    groups only when the bot is @mentioned or replied to. Un-@mentioned
+    group messages are dropped before any AI/scan/$TOKEN work. /chat and
+    /ask are explicit CommandHandlers and always work.
     """
     from telegram.ext import MessageHandler, filters
 
@@ -959,6 +1033,7 @@ __all__ = [
     "SCAN_ENDPOINT",
     "SCAN_TIMEOUT",
     "TOKEN_CARD_DECIDE_WAIT",
+    "_is_bot_addressed",
     "_lookup_token_symbol",
     "_route_structural",
     "_send_answer",

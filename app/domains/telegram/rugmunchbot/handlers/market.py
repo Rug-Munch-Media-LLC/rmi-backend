@@ -462,12 +462,6 @@ async def render_trending(
     return _render_trending_text(tokens, chain, window), _build_trending_kb(tokens, chain, window)
 
 
-async def _build_trending_text(chain: str = "solana", limit: int = 20, window: str = "24h") -> str | None:
-    """Text-only trending renderer (kept for backward compatibility)."""
-    text, _kb = await render_trending(chain, limit, window)
-    return text
-
-
 async def cmd_trending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /trending [chain] — hot tokens from fused multi-source data."""
     chain = _resolve_chain(ctx.args[0]) if ctx.args else "solana"

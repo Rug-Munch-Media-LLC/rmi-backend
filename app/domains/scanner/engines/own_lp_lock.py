@@ -36,6 +36,7 @@ Data Sources:
 from __future__ import annotations
 
 import os
+import threading
 import time
 from typing import Any
 
@@ -59,7 +60,12 @@ _LP_LOCK_CACHE_TTL = 600  # 10 minutes — LP lock status changes rarely
 _LP_LOCK_CACHE_MAX = 100
 
 # ── Lazy ClickHouse client ────────────────────────────────────────────────
-_ch_client: Any = None
+# Thread-local client cache. clickhouse_driver.Client rejects concurrent
+# queries on one connection ("Simultaneous queries on single connection
+# detected"), and this engine fans queries out across ``run_sync`` worker
+# threads via asyncio.gather — one client per worker thread keeps the
+# connection sequential-safe while still reusing connections.
+_ch_local = threading.local()
 
 # ── Chain normalization ───────────────────────────────────────────────────
 _CHAIN_MAP: dict[str, str] = {
@@ -142,9 +148,9 @@ def _register_lock_contract(chain: str, address: str) -> None:
 
 def _get_ch_client() -> Any | None:
     """Lazy-init ClickHouse native protocol client."""
-    global _ch_client
-    if _ch_client is not None:
-        return _ch_client
+    cached = getattr(_ch_local, "client", None)
+    if cached is not None:
+        return cached
 
     ch_host = os.getenv("CLICKHOUSE_HOST") or os.getenv("CH_HOST", "rmi-clickhouse")
     ch_port = int(os.getenv("CLICKHOUSE_PORT") or os.getenv("CH_PORT") or "9000")
@@ -155,7 +161,7 @@ def _get_ch_client() -> Any | None:
     try:
         from clickhouse_driver import Client as CHClient
 
-        _ch_client = CHClient(
+        candidate = CHClient(
             host=ch_host,
             port=ch_port,
             user=ch_user,
@@ -164,12 +170,12 @@ def _get_ch_client() -> Any | None:
             connect_timeout=3,
             send_receive_timeout=15,
         )
-        _ch_client.execute("SELECT 1")
+        candidate.execute("SELECT 1")
         logger.info("Own LP lock ClickHouse connected: %s:%s/%s", ch_host, ch_port, ch_db)
-        return _ch_client
+        _ch_local.client = candidate
+        return candidate
     except (ImportError, ConnectionError, TimeoutError, RuntimeError, OSError) as e:
         logger.warning("Own LP lock ClickHouse unavailable: %s", e)
-        _ch_client = None
         return None
 
 
@@ -640,7 +646,7 @@ def get_cache_stats() -> dict[str, Any]:
         _LP_LOCK_CACHE_MAX,
         _LP_LOCK_CACHE_TTL,
         extra={
-            "clickhouse_connected": _ch_client is not None,
+            "clickhouse_connected": _get_ch_client() is not None,
             "known_lock_contracts": {chain: len(addrs) for chain, addrs in _KNOWN_LOCK_CONTRACTS.items()},
             "auto_discovered_locks": {chain: len(addrs) for chain, addrs in _AUTO_DISCOVERED_LOCKS.items()},
         },

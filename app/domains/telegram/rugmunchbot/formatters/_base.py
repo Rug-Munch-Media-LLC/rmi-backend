@@ -28,15 +28,21 @@ from app.domains.telegram.rugmunchbot.config import (
 # everyone while we test. Billing surfaces stay functional (they are the
 # future revenue path) but beta status must be prominent. Remove this block
 # and the free-tier quota bump in config.py when beta ends.
+# The optional Stars deep-scan pack is the ONE paid surface during beta —
+# copy must state that so "everything is free" never contradicts the
+# 250★ Deep Scan buttons.
 BETA_BANNER = (
     "\U0001f680 <b>FREE PUBLIC BETA</b> \u2014 all premium features "
     "unlocked while we test.\n"
     "\U0001f4c5 <b>Premium plans coming soon</b> \u2014 beta users get "
-    "launch discounts."
+    "launch discounts.\n"
+    "\u2b50 Optional: \U0001f52c <b>Deep Scan</b> buttons run on Telegram "
+    "Stars (250\u2605); everything else is free."
 )
 BETA_STATUS_LINE = "\U0001f680 <b>FREE PUBLIC BETA</b> \u2014 all features unlocked \U0001f389"
 BETA_PAYMENTS_LINE = (
-    "\U0001f680 <b>In beta</b> \u2014 everything\u2019s free right now, but payments live for early supporters."
+    "\U0001f680 <b>In beta</b> \u2014 every feature is free; optional "
+    "Telegram Stars purchases (deep scans, top-ups) are live for early supporters."
 )
 
 # --- Address detection helpers ---

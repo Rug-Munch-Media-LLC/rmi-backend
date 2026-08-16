@@ -70,7 +70,11 @@ def _shared_secrets() -> set[str]:
 
 
 def _owner_ids() -> set[int]:
-    """Resolve owner Telegram user IDs from config (with defaults)."""
+    """Resolve owner Telegram user IDs from env/config.
+
+    Empty when nothing is configured — the caller then denies (fail-closed);
+    there is deliberately no hardcoded fallback owner.
+    """
     ids: set[int] = set()
     for var in ("OWNER_CHAT_ID", "ADMIN_CHAT_ID", "TELEGRAM_ALLOWED_USERS"):
         raw = os.getenv(var, "").strip()
@@ -83,7 +87,7 @@ def _owner_ids() -> set[int]:
 
         ids |= {int(x) for x in OWNER_IDS if str(x).isdigit()}
     except Exception:
-        pass
+        logger.debug("bot_admin: rugmunchbot OWNER_IDS unavailable", exc_info=True)
     try:
         from app.config import settings
 
@@ -92,9 +96,7 @@ def _owner_ids() -> set[int]:
             if part.strip().isdigit():
                 ids.add(int(part.strip()))
     except Exception:
-        pass
-    if not ids:
-        ids = {7075336557}  # documented default owner
+        logger.debug("bot_admin: settings.telegram_allowed_users unavailable", exc_info=True)
     return ids
 
 

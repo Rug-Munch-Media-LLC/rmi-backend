@@ -57,7 +57,6 @@ _HELP_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         [
             ("scan", "address - quick security audit"),
             ("deepscan", "address - ML deep scan (fraud-GNN, ABI, sell sim)"),
-            ("scandeep", "address - full multi-phase forensic scan"),
             ("sentinelscan", "address - AEGIS 9-module scan"),
             ("rugcheck", "address - red flag checklist"),
             ("compare", "a b - side-by-side compare"),
@@ -156,7 +155,6 @@ _MENU_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         [
             ("scan", "<code>address</code> - quick security audit"),
             ("deepscan", "<code>address</code> - ML deep scan (fraud-GNN, ABI)"),
-            ("scandeep", "<code>address</code> - full forensic scan"),
             ("sentinelscan", "<code>address</code> - AEGIS 9-module scan"),
             ("rugcheck", "<code>address</code> - red-flag checklist"),
             ("deployer", "<code>address</code> - deployer fingerprint"),
@@ -368,6 +366,10 @@ def _build_help_text() -> str:
         "\u2022 Paste any <code>0x...</code> address to auto-scan\n"
         "\u2022 Type <code>$PEPE</code> for instant price check\n"
         "\u2022 Tap the buttons under any result (Chart / RugMap / Deep Scan)\n"
+        "\u2022 In groups, <b>@mention or reply to me</b> \u2014 I stay quiet "
+        "in group chats unless you call me (private DMs always answer)\n"
+        "\u2022 /chat <code>question</code> \u2014 freestyle AI works anywhere, "
+        "in any chat\n"
         "\u2022 See a scam? /report <code>address</code> keeps us all safer\n\n"
         "\U0001f4d6 Full command list: /menu \u2014 grouped by category"
     )

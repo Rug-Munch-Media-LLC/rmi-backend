@@ -8,7 +8,7 @@ Handles all inline keyboard button presses.
 from __future__ import annotations
 
 import secrets
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Update
@@ -448,11 +448,11 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     elif data.startswith("scan_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
-            await query.edit_message_text(
-                f"\U0001f50d Use /scan {parts[1]} to run a full scan.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            addr, chain = parts[1], parts[2]
+            from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_scan
+
+            ctx.args = [addr, chain]
+            await cmd_scan(update, ctx)
     elif data.startswith("share_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
@@ -472,31 +472,28 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         parts = data.split("_", 2)
         if len(parts) >= 3:
             addr, chain = parts[1], parts[2]
-            await query.edit_message_text(
-                f"👥 Use /holders {addr} {chain} to view holder analysis.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            from app.domains.telegram.rugmunchbot.handlers.holders import cmd_holders
+
+            ctx.args = [addr, chain]
+            await cmd_holders(update, ctx)
 
     elif data.startswith("trace_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
             addr, chain = parts[1], parts[2]
-            await query.edit_message_text(
-                f"🔍 Use /trace {addr} to trace cross-chain fund flows.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            from app.domains.telegram.rugmunchbot.handlers.trace import cmd_trace
+
+            ctx.args = [addr, chain]
+            await cmd_trace(update, ctx)
 
     elif data.startswith("wallet_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
             addr, chain = parts[1], parts[2]
-            await query.edit_message_text(
-                f"👛 Use /wallet {addr} to analyze this wallet.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_wallet
+
+            ctx.args = [addr, chain]
+            await cmd_wallet(update, ctx)
 
     elif data.startswith("chart_"):
         parts = data.split("_", 2)
@@ -528,15 +525,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         parts = data.split("_", 2)
         if len(parts) >= 3:
             addr, chain = parts[1], parts[2]
-            await query.edit_message_text(
-                f"🔔 To set a price alert:\n\n"
-                f"  /alert ABOVE {addr} 0.01\n"
-                f"  /alert BELOW {addr} 0.005\n"
-                f"  /alert CHANGE_5 {addr}\n\n"
-                f"Requires Scout+ tier.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            from app.domains.telegram.rugmunchbot.handlers.alerts import cmd_alerts
+
+            ctx.args = []
+            await cmd_alerts(update, ctx)
 
     elif data.startswith("upgrade_"):
         tier_key = data[8:]
@@ -654,41 +646,41 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
         elif len(parts) >= 3:
             addr_s, _chain_s = parts[1], parts[2]
-            await query.edit_message_text(
-                "\U0001f50d Use /research or /investigate for deep analysis.\n\n"
-                f"\U0001f50d /research <code>{addr_s}</code>\n"
-                f"\U0001f575\ufe0f /investigate <code>{addr_s}</code>",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
+
+            ctx.args = [addr_s]
+            await cmd_research(update, ctx)
     elif data.startswith("sentiment_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
-            _addr_sent, _chain_sent = parts[1], parts[2]
-            await query.edit_message_text(
-                "\U0001f4c8 Use /sentiment to check market sentiment.\n\n"
-                "Or use /ta for price-based technical analysis.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            from app.domains.telegram.rugmunchbot.handlers.sentiment import cmd_sentiment
+
+            ctx.args = []
+            await cmd_sentiment(update, ctx)
     elif data.startswith("investigate_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
-            addr_inv, _chain_inv = parts[1], parts[2]
-            await query.edit_message_text(
-                f"\U0001f575\ufe0f Use /investigate <code>{addr_inv}</code> for deep investigation.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            addr_inv, chain_inv = parts[1], parts[2]
+            from app.domains.telegram.rugmunchbot.handlers.osint import cmd_investigate
+
+            ctx.args = [addr_inv, chain_inv]
+            await cmd_investigate(update, ctx)
     elif data.startswith("ta_"):
         parts = data.split("_", 2)
         if len(parts) >= 3:
-            addr_ta, _chain_ta = parts[1], parts[2]
-            await query.edit_message_text(
-                f"\U0001f4ca Use /ta <code>{addr_ta}</code> for technical analysis.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_kb(),
-            )
+            addr_ta, chain_ta = parts[1], parts[2]
+            from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_ta
+
+            ctx.args = [addr_ta, chain_ta]
+            await cmd_ta(update, ctx)
+    elif data.startswith("mev_"):
+        parts = data.split("_", 2)
+        if len(parts) >= 3:
+            addr_mev, chain_mev = parts[1], parts[2]
+            from app.domains.telegram.rugmunchbot.commands.premium import cmd_mev
+
+            ctx.args = [addr_mev, chain_mev]
+            await cmd_mev(update, ctx)
     elif data.startswith("news_refresh"):
         await query.edit_message_text("\U0001f4f0 <b>Refreshing news...</b>", parse_mode=ParseMode.HTML)
         # Import and re-run cmd_news
@@ -877,8 +869,8 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def _dispatch_run_cmd(update: Update, ctx, cmd_arg: str | None = None) -> None:
-    """Handle run_* menu buttons: live inline data for trending/news/sentiment,
-    usage cards for everything else.
+    """Handle run_* menu buttons: live inline data for trending/news/sentiment/
+    market, real command execution for scan/price/chart, usage cards otherwise.
 
     ``cmd_arg`` is the raw callback payload after the ``run_`` prefix (from
     the callback handler). It is optional — when omitted (defensive) the
@@ -901,6 +893,9 @@ async def _dispatch_run_cmd(update: Update, ctx, cmd_arg: str | None = None) -> 
     if cmd in ("market", "movers", "launches", "whales"):
         await _inline_market_data(update, ctx, cmd)
         return
+    if cmd in ("scan", "price", "chart"):
+        await _exec_live_command(update, ctx, cmd)
+        return
 
     card = _RUN_CARDS.get(cmd)
     if card is None:
@@ -911,3 +906,26 @@ async def _dispatch_run_cmd(update: Update, ctx, cmd_arg: str | None = None) -> 
         reply_markup=back_kb(),
         disable_web_page_preview=True,
     )
+
+
+async def _exec_live_command(update: Update, ctx, cmd: str) -> None:
+    """Execute a real command handler for arg-less run_* menu buttons.
+
+    run_scan / run_price / run_chart carry no address payload, so we invoke
+    the registered command with empty args — it renders its own usage/entry
+    flow instead of a static card.
+    """
+    if cmd == "scan":
+        from app.domains.telegram.rugmunchbot.handlers.scanning import cmd_scan
+
+        handler: Any = cmd_scan
+    elif cmd == "price":
+        from app.domains.telegram.rugmunchbot.handlers.price import cmd_price
+
+        handler = cmd_price
+    else:
+        from app.domains.telegram.rugmunchbot.commands.chart import cmd_chart
+
+        handler = cmd_chart
+    ctx.args = []
+    await handler(update, ctx)

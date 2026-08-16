@@ -5,7 +5,7 @@ RugMunchBot -- DEPRECATED free-text message handler module (v5).
 This module was the OLD free-text AI chat pipeline (``handle_message`` with
 $TOKEN symbol lookup, bare-address auto-scan, tiered ``ai_chat_response``:
 RAG -> LLM -> local intent -> redirect). It has been SUPERSEDED by
-``handlers/chat_ai.py``, which is now the SINGLE free-text pipeline:
+``handlers/chat_ai/`` package, which is now the SINGLE free-text pipeline:
 
   * feature routing (owner admin console, bot kill-switch, known-scam block,
     bare-address auto-scan, $TOKEN price card)

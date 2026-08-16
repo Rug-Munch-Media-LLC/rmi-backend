@@ -518,7 +518,7 @@ def scan_actions_kb(address: str, chain: str) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton("\U0001f4e4 Share", url=_share_token_url(address, chain)),
-                InlineKeyboardButton("\U0001f52c Deep Scan", callback_data=f"deep_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
             ],
             [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
         ]
@@ -670,7 +670,7 @@ def holders_kb(address: str, chain: str) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton("\U0001f514 Set Alert", callback_data=f"alert_{address}_{chain}"),
-                InlineKeyboardButton("\U0001f52c Deep Scan", callback_data=f"deep_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
             ],
             [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
         ]
@@ -686,7 +686,7 @@ def trace_kb(address: str, chain: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("\U0001f50d Scan Token", callback_data=f"scan_{address}_{chain}"),
             ],
             [
-                InlineKeyboardButton("\U0001f52c Deep Scan", callback_data=f"deep_{address}_{chain}"),
+                InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
                 InlineKeyboardButton("\U0001f440 Watch", callback_data=f"watch_{address}_{chain}"),
             ],
             [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],

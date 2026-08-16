@@ -6,11 +6,14 @@ Extracted from ``admin_ops`` (degodding 2026-08-14).
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from typing import Any
 
 from app.domains.telegram.adminbot._ops_core import _err, _ok, _run_subprocess
+
+logger = logging.getLogger("admin_bot.admin_ops.backup")
 
 _BACKUP_SENTINEL = "/backups/.last-successful-backup"
 _GIT_BACKUP_SENTINEL = "/backups/.last-successful-backup-all"
@@ -203,7 +206,7 @@ def backup_report() -> dict[str, Any]:
                 except OSError:
                     continue
         except OSError:
-            pass
+            logger.debug("backup status: artifact listing failed", exc_info=True)
     recent.sort(reverse=True)
     if recent:
         lines.append("\n*Recent backup artifacts:*")

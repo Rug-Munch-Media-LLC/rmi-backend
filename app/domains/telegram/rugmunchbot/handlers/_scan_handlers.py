@@ -301,7 +301,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
         )
     except Exception:
-        pass
+        logger.debug("deepscan phase-1 progress edit failed", exc_info=True)
     try:
         result_v2 = await scan_token_v2(target, chain)
         if (
@@ -324,7 +324,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 parse_mode=ParseMode.HTML,
             )
         except Exception:
-            pass
+            logger.debug("deepscan phase-2 progress edit failed", exc_info=True)
         if result_v2 is not None:
             result = v2_token_to_legacy(result_v2)
         else:

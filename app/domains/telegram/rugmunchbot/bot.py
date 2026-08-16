@@ -54,7 +54,6 @@ from app.domains.telegram.rugmunchbot.commands.premium import (
     cmd_cluster,
     cmd_deathclock,
     cmd_impersonation,
-    cmd_launches,
     cmd_mev,
 )
 from app.domains.telegram.rugmunchbot.commands.premium_extra import cmd_whale
@@ -127,7 +126,6 @@ from app.domains.telegram.rugmunchbot.handlers.report import cmd_report
 from app.domains.telegram.rugmunchbot.handlers.research import cmd_research
 from app.domains.telegram.rugmunchbot.handlers.scanning import (
     cmd_compare,
-    cmd_deepscan as cmd_scandeep,
     cmd_deployer,
     cmd_faq,
     cmd_help,
@@ -319,6 +317,15 @@ def install_ban_gate(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
 async def setup_bot_profile(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Set bot description, about text, and command list via BotFather API."""
     bot = app.bot
+    # Resolve the bot's own identity (get_me) so ``bot.username`` is populated
+    # for the free-text group gate (@mention matching in _is_bot_addressed).
+    # Fail-soft: if identity cannot be resolved, private DMs and /chat still
+    # work and un-@mentioned group chatter stays ignored.
+    try:
+        await bot.get_me()
+        logger.info("Bot identity resolved: @%s", bot.username)
+    except Exception as e:
+        logger.warning(f"Could not resolve bot identity (mention gate disabled): {e}")
     try:
         await bot.set_my_description(description=BOT_DESCRIPTION)
         logger.info("Bot description set")
@@ -456,8 +463,6 @@ def main() -> None:
     _reg(app, "dex", cmd_dex)
     _reg(app, "scan", cmd_scan)
     _reg(app, "deepscan", cmd_deepscan)
-    # Previous scanner-based /deepscan is preserved under /scandeep.
-    _reg(app, "scandeep", cmd_scandeep)
     _reg(app, "sentinelscan", sentinel_scan)
     _reg(app, "deployer", cmd_deployer)
     _reg(app, "hype", cmd_hype)
@@ -511,7 +516,6 @@ def main() -> None:
     _reg(app, "mev", cmd_mev)
     _reg(app, "impersonation", cmd_impersonation)
     _reg(app, "deathclock", cmd_deathclock)
-    _reg(app, "launches", cmd_launches)
     _reg(app, "cluster", cmd_cluster)
     _reg(app, "whale", cmd_whale)
     _reg(app, "honeypot", cmd_honeypot)

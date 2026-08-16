@@ -23,6 +23,7 @@ Every function returns dict | None following the DataBus provider contract.
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,16 @@ def _signal_indexer_demand(chain: str, event_type: str) -> None:
 
 # ── Lazy ClickHouse client ────────────────────────────────────────────────
 _ch_client: Any = None
+# Thread-local client cache. ``clickhouse_driver.Client`` does NOT tolerate
+# concurrent queries on a single connection ("Simultaneous queries on single
+# connection detected"), and the scanner engines fan queries out across
+# ``run_sync`` (asyncio ``to_thread``) worker threads — holder_clusters,
+# wallet_flow, and the batch label/contract helpers all ``asyncio.gather``
+# concurrent queries. Caching one client per worker thread keeps the shared
+# connection sequential-safe while still reusing connections (the default
+# asyncio thread pool is bounded, so at most ~cpu+4 connections are created).
+# Strictly-sequential callers (the main thread) keep a single cached client.
+_ch_local = threading.local()
 
 
 def _new_ch_client() -> Any | None:
@@ -105,20 +116,27 @@ def _new_ch_client() -> Any | None:
 
 
 def _get_ch_client() -> Any | None:
-    """Lazy-init shared ClickHouse client for wallet_memory database.
+    """Lazy per-thread ClickHouse client for the wallet_memory database.
 
-    Single cached connection — safe only for strictly-sequential queries.
-    Concurrent ``run_sync`` callers must use ``_new_ch_client()`` instead.
+    ``clickhouse_driver.Client`` does not tolerate concurrent queries on one
+    connection, and scanner engines fan queries out across ``run_sync``
+    thread-pool workers. Caching per thread (via ``threading.local``) keeps
+    each connection strictly-sequential while allowing concurrency across
+    threads. The legacy module-level ``_ch_client`` global is kept as a
+    read-through alias of the main-thread client for compatibility.
     """
     global _ch_client
-    if _ch_client is not None:
-        return _ch_client
+    cached = getattr(_ch_local, "client", None)
+    if cached is not None:
+        return cached
     candidate = _new_ch_client()
     if candidate is None:
         return None
-    _ch_client = candidate
-    logger.info("Chain-indexer ClickHouse connected (shared client)")
-    return _ch_client
+    _ch_local.client = candidate
+    if threading.current_thread() is threading.main_thread():
+        _ch_client = candidate
+    logger.info("Chain-indexer ClickHouse connected (thread client)")
+    return _ch_local.client
 
 
 # ── Async wrapper ─────────────────────────────────────────────────────────
