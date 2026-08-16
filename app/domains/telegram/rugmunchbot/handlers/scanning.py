@@ -29,13 +29,17 @@ from __future__ import annotations
 __all__ = [
     "CHANNEL_LABELS",
     "HELP_TEXT",
+    "MENU_TEXT",
     # re-exported from _scanning_helpers (tests)
     "_DEPLOYER_BUCKET_EMOJI",
     # re-exported from _help_text (callers/tests)
     "_HELP_EMOJI",
     "_HELP_SECTIONS",
+    "_MENU_EMOJI",
+    "_MENU_SECTIONS",
     "_bucket_emoji",
     "_build_help_text",
+    "_build_menu_text",
     "_channel_url",
     "_channels_section",
     "_ds_created_iso",
@@ -56,6 +60,7 @@ __all__ = [
     "cmd_faq",
     "cmd_help",
     "cmd_hype",
+    "cmd_menu",
     "cmd_quick",
     # scan-family handlers
     "cmd_scan",
@@ -75,14 +80,19 @@ from app.domains.telegram.rugmunchbot.handlers._charts import (  # re-exported
 from app.domains.telegram.rugmunchbot.handlers._core_handlers import (  # re-exported
     cmd_faq,
     cmd_help,
+    cmd_menu,
     cmd_start,
 )
 from app.domains.telegram.rugmunchbot.handlers._help_text import (  # re-exported for callers/tests
     _HELP_EMOJI,
     _HELP_SECTIONS,
+    _MENU_EMOJI,
+    _MENU_SECTIONS,
     CHANNEL_LABELS,
     HELP_TEXT,
+    MENU_TEXT,
     _build_help_text,
+    _build_menu_text,
     _channel_url,
     _channels_section,
 )

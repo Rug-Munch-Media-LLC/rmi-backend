@@ -22,10 +22,11 @@ from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.daily_context import get_market_section
 from app.domains.telegram.rugmunchbot.formatters import faq_text, is_owner, welcome_card_text
 from app.domains.telegram.rugmunchbot.handlers._engagement import channels_menu_text, rotating_cta_for
-from app.domains.telegram.rugmunchbot.handlers._help_text import HELP_TEXT
+from app.domains.telegram.rugmunchbot.handlers._help_text import HELP_TEXT, MENU_TEXT
 from app.domains.telegram.rugmunchbot.handlers.onboarding import is_first_run, send_onboarding_welcome
 from app.domains.telegram.rugmunchbot.keyboards import (
     daily_hook_kb,
+    menu_kb,
     merge_menu_kb,
     owner_admin_reply_kb,
     welcome_menu_kb,
@@ -129,6 +130,25 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         text,
         parse_mode=ParseMode.HTML,
         reply_markup=kb,
+        disable_web_page_preview=True,
+    )
+
+
+async def cmd_menu(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """/menu (v13) — capability atlas grouped by intent.
+
+    Full grouped list of every registered command (Scan & Safety / Prices &
+    Charts / Portfolio & Wallets / News & Intel / Education / Account &
+    Community), each with a one-line description + example usage, plus a
+    quick-action inline keyboard built from existing wired callbacks.
+    """
+    user = update.effective_user
+    if user is None:
+        return
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+        MENU_TEXT,
+        parse_mode=ParseMode.HTML,
+        reply_markup=menu_kb(),
         disable_web_page_preview=True,
     )
 
