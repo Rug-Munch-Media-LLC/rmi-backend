@@ -9,6 +9,7 @@ accepted ``(update, ctx)`` — a TypeError crash on every menu button press.
 The function must:
   - accept the new optional ``cmd_arg`` without breaking old callers
   - route ``trending`` / ``news`` / ``sentiment`` to their live fetchers
+  - route ``scan`` / ``price`` / ``chart`` to the real command handlers
   - show usage cards for other commands (from ``query.data``)
   - degrade gracefully when ``query`` or ``query.data`` is missing
 """
@@ -46,10 +47,20 @@ class TestDispatchRunCmdSignature:
     async def test_accepts_optional_cmd_arg(self) -> None:
         """The new signature must accept the third positional arg (regression)."""
         query = _FakeQuery(data="run_chart")
-        await cb._dispatch_run_cmd(_FakeUpdate(query), _make_ctx(), "chart")
-        assert len(query.edited) == 1
-        # Chart usage card rendered
-        assert "Price Chart" in query.edited[0][0]
+        with patch.object(cb, "_exec_live_command", new=AsyncMock()) as mock_exec:
+            await cb._dispatch_run_cmd(_FakeUpdate(query), _make_ctx(), "chart")
+        # chart now routes to the real command handler, not a static card
+        assert len(query.edited) == 0
+        mock_exec.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_scan_price_chart_route_to_live_command(self) -> None:
+        """run_scan / run_price / run_chart execute the real command handlers."""
+        for cmd in ("scan", "price", "chart"):
+            query = _FakeQuery(data=f"run_{cmd}")
+            with patch.object(cb, "_exec_live_command", new=AsyncMock()) as mock_exec:
+                await cb._dispatch_run_cmd(_FakeUpdate(query), _make_ctx(), cmd)
+            mock_exec.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_omitted_cmd_arg_derives_from_query_data(self) -> None:
