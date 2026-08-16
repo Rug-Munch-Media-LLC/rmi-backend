@@ -9,6 +9,7 @@ funding sources, exchange interactions, and connected wallets.
 from __future__ import annotations
 
 import asyncio
+import html
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -16,6 +17,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import CommandHandler
 
+from app.core.ai_guardrails import sanitize_output
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
     BACKEND_URL,
@@ -160,7 +162,7 @@ async def _render_ai_flow_read(flow_summary: dict[str, Any]) -> str:
     text = (text or "").strip()
     if not text:
         return ""
-    return f"🧠 <b>AI Flow Read</b>\n{text[:_TRACE_AI_MAX_CHARS]}"
+    return f"🧠 <b>AI Flow Read</b>\n{html.escape(sanitize_output(text))[:_TRACE_AI_MAX_CHARS]}"
 
 
 def _fmt_counterparty(cp: dict[str, Any], usd_unavailable: bool) -> str:
