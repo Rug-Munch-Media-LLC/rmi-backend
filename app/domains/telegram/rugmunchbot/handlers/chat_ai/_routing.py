@@ -96,6 +96,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._live_tools import _run_r
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm import (
     _build_fallback_answer,
     _gather_context,
+    _route_tier,
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import _format_scan_summary
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._persistence import _persist_answer
@@ -141,6 +142,17 @@ TOKEN_CARD_DECIDE_WAIT = 1.0
 # turn past the deadline and the timeout handler swaps the placeholder for a
 # short graceful reply.
 CHAT_TURN_DEADLINE = 25.0
+
+# Long-tier (deep-analysis) turns get a SLIGHTLY higher end-to-end deadline
+# than snappy/backend turns. The deep fallback chain stacks a hard-capped
+# ~6s context gather (FALLBACK_CONTEXT_HARD_CAP) + a 15s long-model call
+# (REMOTE_LONG_TIMEOUT) + a possible 10s paid fallback
+# (llm_config._chat_once) — ~31s worst case, which no longer fits the snappy
+# 25s window. Snappy/backend turns keep the fast CHAT_TURN_DEADLINE; only
+# questions that _route_tier() sends to the "long" provider get the extra
+# room. The typing indicator + interim "still digging" placeholder keep the
+# user engaged for the longer wait (see _keep_typing / _edit_placeholder_if_slow).
+CHAT_TURN_DEADLINE_LONG = 34.0
 
 # Short graceful reply when a turn exceeds the hard end-to-end deadline.
 TIMEOUT_REPLY = "\u23f3 Taking longer than expected \u2014 try again or narrow your question."
@@ -527,10 +539,14 @@ async def chat_ai_response(
         """Run one full chat turn; returns after the answer is sent (or handled).
 
         Nested so :func:`chat_ai_response` can bound the entire turn with a
-        single ``asyncio.wait_for(CHAT_TURN_DEADLINE)`` — the inner stage
+        single ``asyncio.wait_for(turn_deadline)`` — the inner stage
         budgets (backend 60s, local LLM 60s, tools ~8s+5s) can stack to
-        ~121s without it. Cancellation propagates into the inner stages, so
-        the outer deadline supersedes them.
+        ~121s without it. The deadline is tier-aware: snappy/backend turns
+        get ``CHAT_TURN_DEADLINE`` (25s), long-tier deep turns get
+        ``CHAT_TURN_DEADLINE_LONG`` (34s) so the hard-capped context gather
+        + 15s long-model call + possible paid fallback fit. Cancellation
+        propagates into the inner stages, so the outer deadline supersedes
+        them.
         """
         nonlocal typing_task, placeholder_task, preliminary, backend_task
         nonlocal daily_ctx_task, scan_ctx_task, bridge_ctx_task, live_tools_task, rag_task, router_ctx_task
@@ -757,10 +773,18 @@ async def chat_ai_response(
     try:
         # ONE hard end-to-end deadline around the whole turn: whatever stage
         # is in flight (backend RAG / local LLM / tools / guardrail / send),
-        # the user gets a reply within CHAT_TURN_DEADLINE. wait_for cancels
-        # the pipeline on timeout and the handler below replies gracefully —
+        # the user gets a reply within the deadline. wait_for cancels the
+        # pipeline on timeout and the handler below replies gracefully —
         # this never surfaces to the PTB error handler as a crash.
-        await asyncio.wait_for(_generate_response(), timeout=CHAT_TURN_DEADLINE)
+        #
+        # Tier-aware: deep-analysis questions (routed to the "long" provider
+        # by _route_tier) get CHAT_TURN_DEADLINE_LONG so the hard-capped
+        # context gather + 15s long-model call + possible paid fallback fit;
+        # snappy/backend turns keep the fast CHAT_TURN_DEADLINE. The same
+        # deterministic _route_tier(text) the fallback chain uses, so the
+        # deadline always matches the tier that actually answers.
+        turn_deadline = CHAT_TURN_DEADLINE_LONG if _route_tier(text) == "long" else CHAT_TURN_DEADLINE
+        await asyncio.wait_for(_generate_response(), timeout=turn_deadline)
         return True
     except TimeoutError:
         # Hard deadline breached: cancel the typing/placeholder upkeep so no

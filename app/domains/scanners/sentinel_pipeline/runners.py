@@ -169,6 +169,34 @@ async def _run_cluster_analysis(token_address: str, chain: str, deployer: str | 
         return None
 
 
+async def _run_decentralization(
+    token_address: str,
+    chain: str,
+    deployer: str | None,
+    wallet_map: dict[str, Any] | None = None,
+    cluster_analysis: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """BubbleMaps-style decentralization score + cluster map (fail-open).
+
+    Reuses the wallet-map and cluster-analysis results the pipeline already
+    fetched (no duplicate ClickHouse queries); the engine falls back to
+    fetching them itself for standalone use.
+    """
+    try:
+        from app.domains.scanner.engines.own_decentralization import get_own_decentralization
+
+        return await get_own_decentralization(
+            token_address,
+            chain,
+            deployer=deployer,
+            wallet_map=wallet_map,
+            cluster_analysis=cluster_analysis,
+        )
+    except Exception as exc:
+        logger.debug("decentralization_engine_failed: %s", exc)
+        return None
+
+
 async def run_sentinel_scan(
     token_address: str,
     chain: str = "solana",
@@ -298,6 +326,20 @@ async def run_sentinel_scan(
             results[k] = None
             report.errors[k] = str(exc)[:200]
 
+    # ── BubbleMaps-style decentralization (reuses wallet_map + cluster results) ──
+    # Computed post-gather from the wallet-map / cluster-analysis payloads the
+    # pipeline already fetched — no duplicate ClickHouse queries. Fail-open:
+    # skipped when the wallet map itself was unavailable (no holder data).
+    wm_result = results.get("wallet_map")
+    if isinstance(wm_result, dict) and str(wm_result.get("result")) == "scanned":
+        results["decentralization"] = await _run_decentralization(
+            token_address,
+            chain,
+            dev_address,
+            wallet_map=wm_result,
+            cluster_analysis=results.get("cluster_analysis"),
+        )
+
     # ── Convert to dicts + extract scores ─────────────────────
     risk_scores: dict[str, float] = {}
     extractors: dict[str, Callable[..., float]] = {
@@ -366,6 +408,7 @@ async def run_sentinel_scan(
         "wallet_map": "wallet_map",
         "deployer_timeline": "deployer_timeline",
         "cluster_analysis": "cluster_analysis",
+        "decentralization": "decentralization",
     }
 
     for module_name, raw_result in results.items():

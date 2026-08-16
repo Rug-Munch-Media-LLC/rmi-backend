@@ -182,7 +182,8 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🕵️ <b>Deep Investigation</b>\n\n"
             "This feature requires <b>Pro tier</b>.\n\n"
-            "👑 <b>Pro ($99.99/mo)</b> — Unlimited investigations + priority\n\n"
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts\n"
+            "🔬 <b>Deep Scan (250★)</b> — full forensics on demand\n\n"
             "Upgrade now to unlock full investigative power!",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),

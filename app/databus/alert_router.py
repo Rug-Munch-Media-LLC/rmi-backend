@@ -145,6 +145,8 @@ def _helius_amount_usd(payload: dict[str, Any], sol_price_usd: float | None = No
             pass
     total_lamports = 0
     for tr in payload.get("nativeTransfers") or []:
+        if not isinstance(tr, dict):
+            continue  # hostile row (string / None) — skip, never crash
         try:
             total_lamports += int(tr.get("amount", 0) or 0)
         except (TypeError, ValueError):
@@ -157,7 +159,15 @@ def _helius_token_summary(payload: dict[str, Any]) -> dict[str, Any]:
     """Summarize the largest token transfer in the payload (if any)."""
     best: dict[str, Any] = {}
     for tr in payload.get("tokenTransfers") or []:
-        amount = float((tr.get("tokenAmount") or {}).get("uiAmount", 0) or 0)
+        if not isinstance(tr, dict):
+            continue  # hostile row (string / None) — skip, never crash
+        ta = tr.get("tokenAmount")
+        if not isinstance(ta, dict):
+            continue  # no usable tokenAmount — skip
+        try:
+            amount = float(ta.get("uiAmount", 0) or 0)
+        except (TypeError, ValueError):
+            amount = 0.0  # garbage uiAmount — fail open to dust
         if amount > float(best.get("ui_amount", 0) or 0):
             best = {
                 "mint": str(tr.get("mint", "") or ""),
@@ -265,9 +275,16 @@ def _assess_importance(parsed: dict[str, Any], entity_type: str) -> float:
     routine $1K transfer sits below the news band (~0.35) while a $1M
     whale move / deployer dump / mint-freeze clears the main gate (≥0.7).
     """
-    amount = float(parsed.get("amount_usd", 0) or 0)
+    if not isinstance(parsed, dict):
+        return 0.0
+    try:
+        amount = float(parsed.get("amount_usd", 0) or 0)
+    except (TypeError, ValueError):
+        amount = 0.0  # garbage amount — fail open to dust
     event_type = parsed.get("event_type", "transfer")
-    token = parsed.get("token") or {}
+    token = parsed.get("token")
+    if not isinstance(token, dict):
+        token = {}
 
     amount_factor = 0.0
     if amount >= 1_000_000:
@@ -297,7 +314,10 @@ def _assess_importance(parsed: dict[str, Any], entity_type: str) -> float:
     elif entity_type in ("exchange", "defi_protocol", "cex_hot_wallet"):
         entity_factor = 0.0  # attribution matters, not escalation
 
-    token_float = float(token.get("ui_amount", 0) or 0)
+    try:
+        token_float = float(token.get("ui_amount", 0) or 0)
+    except (TypeError, ValueError):
+        token_float = 0.0  # garbage ui_amount — fail open to dust
     # Dust penalty — sub-$1 token churn can never clear the news band.
     if 0 < token_float < 0.001 and amount < MIN_EVENT_USD:
         return 0.05

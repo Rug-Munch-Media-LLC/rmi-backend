@@ -127,6 +127,9 @@ class SentinelReport:
     # Funding-source clusters + coordinated-buy analysis (own ClickHouse
     # engine — own_cluster_analysis.get_own_cluster_analysis).
     cluster_analysis: dict[str, Any] | None = None
+    # BubbleMaps-style decentralization score + holder cluster map (own engine
+    # — own_decentralization.get_own_decentralization).
+    decentralization: dict[str, Any] | None = None
 
     # Module errors (module_name -> error message)
     errors: dict[str, str] = field(default_factory=dict)

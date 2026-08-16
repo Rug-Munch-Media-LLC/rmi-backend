@@ -279,3 +279,181 @@ def test_pricing_kb_has_working_stars_features() -> None:
     assert any("Monitor (250" in t for t in flat)
     assert any("Buy Stars" in t for t in flat)
     assert not any("$/mo" in t for t in flat)
+
+
+# ── Lighter delta path: security_only refresh + per-tick dedup ────────────
+
+
+@pytest.mark.asyncio
+async def test_check_monitors_uses_security_only_refresh() -> None:
+    """The delta job must use the cheap security-only scan path, not a full
+    market+enrichment scan."""
+    db.add_monitor(
+        7,
+        "0xabc",
+        "ethereum",
+        symbol="ABC",
+        baseline={
+            "buy_tax": 0.05,
+            "sell_tax": 0.09,
+            "owner_renounced": False,
+            "mintable": False,
+            "lp_locked": 0.8,
+            "honeypot": False,
+        },
+    )
+    scan_token_mock = AsyncMock(return_value={"address": "0xabc", "chain": "ethereum"})
+    ctx = AsyncMock()
+    with (
+        patch("app.domains.scanner.webhooks.telegram_bridge.enqueue_telegram_alert", AsyncMock(return_value=True)),
+        patch("app.domains.telegram.rugmunchbot.scanner.scan_token", scan_token_mock),
+    ):
+        from app.domains.telegram.rugmunchbot.handlers.alerts import check_monitors
+
+        await check_monitors(ctx)
+
+    scan_token_mock.assert_awaited_once_with("0xabc", "ethereum", security_only=True)
+
+
+@pytest.mark.asyncio
+async def test_check_monitors_dedupes_same_token_per_tick() -> None:
+    """Two users monitoring the SAME token share ONE security-only refresh."""
+    base = {
+        "buy_tax": 0.05,
+        "sell_tax": 0.09,
+        "owner_renounced": False,
+        "mintable": False,
+        "lp_locked": 0.8,
+        "honeypot": False,
+    }
+    db.add_monitor(7, "0xabc", "ethereum", symbol="ABC", baseline=base)
+    db.add_monitor(8, "0xabc", "ethereum", symbol="ABC", baseline=base)
+    scan_token_mock = AsyncMock(
+        return_value={"address": "0xabc", "chain": "ethereum", "buy_tax": 0.05, "sell_tax": 0.09}
+    )
+    ctx = AsyncMock()
+    with (
+        patch("app.domains.scanner.webhooks.telegram_bridge.enqueue_telegram_alert", AsyncMock(return_value=True)),
+        patch("app.domains.telegram.rugmunchbot.scanner.scan_token", scan_token_mock),
+    ):
+        from app.domains.telegram.rugmunchbot.handlers.alerts import check_monitors
+
+        await check_monitors(ctx)
+
+    scan_token_mock.assert_awaited_once()  # one refresh, not two
+
+
+# ── /monitor → invoice → successful payment → baseline → subscribe → DM ───
+
+
+def test_cmd_monitor_sends_stars_invoice() -> None:
+    """/monitor sends a Telegram Stars invoice (XTR, mon_ payload) before any
+    subscription is registered."""
+    from app.domains.telegram.rugmunchbot.handlers.watchlist import MONITOR_STARS, cmd_monitor
+
+    update = AsyncMock()
+    user = AsyncMock()
+    user.id = 42
+    user.username = "tester"
+    user.first_name = "T"
+    update.effective_user = user
+    update.message.chat.id = 42
+    ctx = AsyncMock()
+    ctx.args = ["0x6982508145454Ce325dDbE47a25d4ec3d2311933"]
+
+    import asyncio
+
+    asyncio.run(cmd_monitor(update, ctx))
+
+    ctx.bot.send_invoice.assert_awaited_once()
+    _, kwargs = ctx.bot.send_invoice.await_args
+    assert kwargs["payload"].startswith("mon_")
+    assert kwargs["currency"] == "XTR"
+    assert kwargs["prices"][0].amount == MONITOR_STARS
+    # No monitor row until payment clears.
+    assert db.get_monitors(42) == []
+
+
+@pytest.mark.asyncio
+async def test_successful_payment_mon_flow_baseline_subscribe_dm() -> None:
+    """Stars payment for a mon_ payload runs: baseline scan → db row → backend
+    subscription → "Monitor Active" DM. The delta job then DMs on change."""
+    from app.domains.telegram.rugmunchbot.handlers.payments import successful_payment
+
+    token = "tokabc123"
+    from app.domains.telegram.rugmunchbot.states import _pending_monitors
+
+    _pending_monitors[token] = {
+        "user_id": 42,
+        "address": "0xabc",
+        "chain": "ethereum",
+    }
+
+    scan_result = {
+        "address": "0xabc",
+        "chain": "ethereum",
+        "symbol": "ABC",
+        "buy_tax": 0.05,
+        "sell_tax": 0.09,
+        "owner_renounced": False,
+        "mintable": False,
+        "lp_locked": 0.8,
+        "honeypot": False,
+        "deployer_address": "0xdeployer",
+    }
+
+    update = AsyncMock()
+    user = AsyncMock()
+    user.id = 42
+    user.username = "tester"
+    user.first_name = "T"
+    update.effective_user = user
+    payment = AsyncMock()
+    payment.invoice_payload = f"mon_{token}"
+    payment.telegram_payment_charge_id = "chg_1"
+    payment.total_amount = 250
+    update.message.successful_payment = payment
+    edit_mock = AsyncMock()
+    update.message.reply_text.return_value = edit_mock
+
+    subscribed: list[tuple[int, str]] = []
+
+    async def _fake_subscribe(user_id, addr):
+        subscribed.append((user_id, addr))
+        return True
+
+    with (
+        patch("app.domains.telegram.rugmunchbot.handlers.payments.scan_token", AsyncMock(return_value=scan_result)),
+        patch(
+            "app.domains.telegram.rugmunchbot.handlers.alerts._subscribe_backend_monitor",
+            side_effect=_fake_subscribe,
+        ),
+    ):
+        await successful_payment(update, AsyncMock())
+
+    rows = db.get_monitors(42)
+    assert len(rows) == 1
+    assert rows[0]["token_address"] == "0xabc"
+    assert rows[0]["baseline"]["buy_tax"] == 0.05
+    assert subscribed == [(42, "0xabc")]
+    edit_mock.edit_text.assert_awaited_once()
+    assert "Monitor Active" in edit_mock.edit_text.await_args[0][0]
+    # Delta job DMs the registered user on a real change.
+    enqueued: list[dict] = []
+    ctx = AsyncMock()
+
+    async def _fake_enqueue(user_id, event_type, payload, event_id):
+        enqueued.append({"user_id": user_id, "type": event_type, "payload": payload})
+        return True
+
+    from app.domains.telegram.rugmunchbot.handlers.alerts import check_monitors
+
+    changed = dict(scan_result, buy_tax=0.25)
+    with (
+        patch("app.domains.scanner.webhooks.telegram_bridge.enqueue_telegram_alert", side_effect=_fake_enqueue),
+        patch("app.domains.telegram.rugmunchbot.scanner.scan_token", AsyncMock(return_value=changed)),
+    ):
+        await check_monitors(ctx)
+
+    assert any(e["user_id"] == 42 and e["type"] == "token.monitor_change" for e in enqueued)
+    _pending_monitors.pop(token, None)

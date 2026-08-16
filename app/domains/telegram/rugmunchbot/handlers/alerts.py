@@ -400,6 +400,13 @@ async def check_monitors(context: ContextTypes.DEFAULT_TYPE) -> None:
     Redis alert queue as webhook events (``enqueue_telegram_alert``) so the
     bot's ``deliver_pending_alerts`` job formats + sends the DM — no new
     delivery rail. Fail-open: one bad scan never crashes the tick.
+
+    LIGHT PATH: each monitor is refreshed with ``scan_token(...,
+    security_only=True)`` — the cheap EVM security-only recheck (GoPlus →
+    honeypot.is), skipping market data, databus, GMGN/risk enrichment and
+    RAG indexing. Multiple monitors on the SAME token share ONE refresh per
+    tick via a local cache, so a paid-user burst of N monitors on one token
+    costs one light upstream call instead of N full scans.
     """
     logger.info("\U0001f6f0\ufe0f Checking token monitors...")
     try:
@@ -418,6 +425,9 @@ async def check_monitors(context: ContextTypes.DEFAULT_TYPE) -> None:
     from app.domains.telegram.rugmunchbot.scanner import scan_token
 
     checked = 0
+    # Per-tick refresh cache: monitors on the same token share one
+    # security-only refresh (keyed by chain:address).
+    tick_cache: dict[str, dict[str, Any]] = {}
     for mon in monitors:
         if checked >= MONITOR_SCAN_BUDGET:
             logger.info("monitor_scan_budget_reached budget=%s", MONITOR_SCAN_BUDGET)
@@ -426,11 +436,15 @@ async def check_monitors(context: ContextTypes.DEFAULT_TYPE) -> None:
         baseline = mon.get("baseline") or {}
         addr = mon["token_address"]
         chain = mon.get("chain") or None
-        try:
-            result = await scan_token(addr, chain)
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
-            logger.warning("monitor_scan_failed token=%s err=%s", addr[:10], e)
-            continue
+        cache_key = f"{(chain or 'unknown').lower()}:{addr.lower()}"
+        result = tick_cache.get(cache_key)
+        if result is None:
+            try:
+                result = await scan_token(addr, chain, security_only=True)
+            except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
+                logger.warning("monitor_scan_failed token=%s err=%s", addr[:10], e)
+                continue
+            tick_cache[cache_key] = result
         current = _monitor_baseline(result)
         deltas = _monitor_deltas(baseline, current)
         db.update_monitor_baseline(mon["id"], current)

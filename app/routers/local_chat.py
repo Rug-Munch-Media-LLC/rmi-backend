@@ -14,6 +14,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.core.ai_guardrails import strip_think_tags
 from app.core.logging import get_logger
 from app.llm_config import get_long_config, get_snappy_config
 
@@ -42,8 +43,13 @@ class LocalChatResponse(BaseModel):
 
 
 def _strip_thinking(text: str) -> str:
-    """Strip reasoning/thinking blocks (legacy DeepSeek/Qwen), keep only the final answer."""
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    """Strip reasoning/thinking blocks (legacy DeepSeek/Qwen), keep only the final answer.
+
+    Think-block removal delegates to the single shared helper
+    (``app.core.ai_guardrails.strip_think_tags``); ``<answer>`` wrappers are
+    handled here.
+    """
+    text = strip_think_tags(text)
     text = re.sub(r"</?answer>", "", text)
     return text.strip()
 

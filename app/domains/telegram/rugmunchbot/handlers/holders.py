@@ -112,8 +112,6 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "👥 <b>Holder Analysis</b>\n\n"
             "This feature requires <b>Scout tier</b> or higher.\n\n"
-            "🔍 <b>Scout ($29.99/mo)</b> — Holder distribution + concentration\n"
-            "🎯 <b>Hunter ($49.99/mo)</b> — Whale alerts + smart money detection\n"
             "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),

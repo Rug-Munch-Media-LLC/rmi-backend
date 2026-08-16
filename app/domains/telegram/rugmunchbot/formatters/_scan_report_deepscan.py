@@ -748,6 +748,46 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
                 lines.append("  <code>\u2014</code>")
         lines.append("")
 
+    # ── 🫧 Decentralization + Bubble Map (BubbleMaps-style, own data) ──
+    decentralization = data.get("decentralization") or {}
+    if decentralization:
+        lines.append("\U0001fae7 <b>Decentralization & Bubble Map</b>")
+        lines.append(d)
+        dec_line = decentralization.get("decentralization_line")
+        bubble_line = decentralization.get("bubble_line")
+        has_content = any(str(x or "").strip() not in ("", "\u2014") for x in (dec_line, bubble_line))
+        if has_content:
+            if str(dec_line or "").strip() not in ("", "\u2014"):
+                lines.append(f"  <code>{html.escape(str(dec_line))}</code>")
+            if str(bubble_line or "").strip() not in ("", "\u2014"):
+                lines.append(f"  <code>{html.escape(str(bubble_line))}</code>")
+        else:
+            # Honest + fail-open: "—" when the engine has no data.
+            lines.append("  <code>\u2014</code>")
+        breakdown = decentralization.get("breakdown") or {}
+        if breakdown:
+            with contextlib.suppress(TypeError, ValueError):
+                top10 = float(breakdown.get("top10_pct") or 0)
+                top20 = float(breakdown.get("top20_pct") or 0)
+                whale = float(breakdown.get("whale_share") or 0)
+                lines.append(
+                    f"  \U0001f40b Top-10: <b>{top10:.0f}%</b> | Top-20: <b>{top20:.0f}%</b> | "
+                    f"Whales (>=5%): <b>{whale:.0f}%</b>"
+                )
+            if int(breakdown.get("distinct_funders") or 0) > 0:
+                with contextlib.suppress(TypeError, ValueError):
+                    df = int(breakdown.get("distinct_funders") or 0)
+                    largest = int(breakdown.get("largest_cluster_size") or 0)
+                    source = str(breakdown.get("cluster_source") or "clickhouse").title()
+                    lines.append(
+                        f"  \U0001f578\ufe0f Funding clusters: <b>{df}</b> ({source}) | Largest: <b>{largest}</b>"
+                    )
+            if int(breakdown.get("time_nodes") or 0) > 0:
+                with contextlib.suppress(TypeError, ValueError):
+                    tn = int(breakdown.get("time_nodes") or 0)
+                    lines.append(f"  \u23f1\ufe0f Time nodes (funded same-time): <b>{tn}</b>")
+        lines.append("")
+
     # ── Deployer reputation ──
     if dev:
         lines.append("\U0001f468\u200d\U0001f4bb <b>Deployer Reputation</b>")
