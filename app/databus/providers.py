@@ -68,6 +68,7 @@ _IMPL_NAMES = frozenset(
         "_solana_tracker_price",
         "_solana_tracker_token",
         "_solana_tracker_trending",
+        "_gmgn_trending",
         "_messari_news",
         "_coindesk_news",
         "_santiment_dev_activity",

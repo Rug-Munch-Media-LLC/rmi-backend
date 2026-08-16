@@ -187,10 +187,7 @@ async def get_own_cluster_analysis(
             launch_buyers = [b for b in (launch.get("launch_buyers") or []) if isinstance(b, dict)]
 
         if not launch_buyers:
-            result["note"] = (
-                "[REVIEW] funding-source clustering needs launch-buyer rows "
-                "(no ClickHouse evm_transfers coverage for this token/chain)"
-            )
+            result["note"] = "Funding-source clustering unavailable - no launch-buyer data for this token/chain"
             _cache_cluster(cache_key, result)
             return result
 
@@ -206,10 +203,7 @@ async def get_own_cluster_analysis(
                     funder_ts_map[str(row[0]).lower()] = row[3]
 
         if not funder_map:
-            result["note"] = (
-                "[REVIEW] funding-source clustering needs first-funder rows "
-                "(no ClickHouse evm_transfers funding coverage for this chain)"
-            )
+            result["note"] = "Funding-source clustering unavailable - no funding data for this chain"
             _cache_cluster(cache_key, result)
             return result
 
@@ -288,7 +282,7 @@ async def get_own_cluster_analysis(
         )
     except Exception as exc:  # pragma: no cover - defensive; never break a scan
         logger.debug("cluster_analysis_failed for %s: %s", token_address[:16], exc)
-        result["note"] = "[REVIEW] cluster analysis data source unreachable"
+        result["note"] = "Cluster detail unavailable - data source unreachable"
 
     _cache_cluster(cache_key, result)
 

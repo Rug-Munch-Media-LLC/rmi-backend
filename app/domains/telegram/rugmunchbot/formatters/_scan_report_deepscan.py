@@ -677,8 +677,8 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
             lines.append("  \U0001f7e2 No bundle detected")
         # Same-slot buy concentration (own_bundle_detect, Helius-backed on
         # Solana). Honest + fail-open: show the concentration when scanned,
-        # otherwise a [REVIEW] note (with the own bundle wallet count +
-        # confidence when the SENTINEL module itself found nothing).
+        # otherwise a short user-facing note (with the own bundle wallet
+        # count + confidence when the SENTINEL module itself found nothing).
         same_slot = bundle.get("same_slot")
         if isinstance(same_slot, dict):
             if same_slot.get("result") == "scanned":
@@ -693,11 +693,7 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
                         f"{sol_spent:.2f} SOL \u00b7 <b>{held_pct:.1f}%</b> held ({slot_txt})"
                     )
             elif same_slot.get("note"):
-                note = html.escape(str(same_slot["note"]))
-                if note.startswith("[REVIEW]"):
-                    lines.append(f"     <i>{note}</i>")
-                else:
-                    lines.append(f"     <i>[REVIEW] {note}</i>")
+                lines.append("     <i>\u26a0\ufe0f Same-slot detail unavailable \u2014 data source offline</i>")
                 if not bundle_detected:
                     n_own = int(same_slot.get("bundle_wallets") or 0)
                     conf = float(same_slot.get("confidence") or 0)
@@ -867,9 +863,9 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
                 lines.append(f"  \u23f1\ufe0f Time nodes (funded same hour): <b>{time_nodes}</b>")
         else:
             # Honest + fail-open: "—" when the engine has no data. A
-            # "[REVIEW] ..." note explains the data-source gap when present.
+            # A user-facing note explains the data-source gap when present.
             cluster_note = cluster.get("note")
-            if cluster_note and str(cluster_note).startswith("[REVIEW]"):
+            if cluster_note:
                 lines.append(f"  <i>{html.escape(str(cluster_note))}</i>")
             else:
                 lines.append("  <code>\u2014</code>")

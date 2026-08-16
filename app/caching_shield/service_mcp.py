@@ -74,60 +74,56 @@ async def _cached_call(
 
 
 class GMGNTools:
-    """GMGN token analytics - holder distribution, sniper detection, bundle analysis."""
+    """GMGN token analytics - holder distribution, sniper detection, bundle analysis.
 
-    def __init__(self) -> None:
-        self._key = os.getenv("GMGN_API_KEY", "")
-        self._base = "https://gmgn.ai/api/v1"
+    Backed by the real GMGN Agent API provider (``app.databus.gmgn_provider``).
+    The previous implementation hit non-existent ``gmgn.ai/api/v1`` routes with
+    Bearer auth and always failed; these now delegate to the working Agent API
+    (``X-APIKEY`` exist-auth) with the same caching shield.
+    """
 
     async def token_security(self, chain: str, address: str) -> dict[str, Any] | None:
         async def fn(chain: str, address: str) -> dict[str, Any | None] | None:
-            async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(
-                    f"{self._base}/token_security/{chain}/{address}",
-                    headers={"Authorization": f"Bearer {self._key}"},
-                )
-                if r.status_code == 200:
-                    d = r.json().get("data", {})
-                    return {
-                        "risk_score": d.get("risk_score"),
-                        "honeypot": d.get("is_honeypot"),
-                        "renounced": d.get("renounced_mint"),
-                        "lp_burned": d.get("lp_burned"),
-                        "top10_holder_pct": d.get("top10_holder_rate"),
-                    }
+            from app.databus.gmgn_provider import get_gmgn_provider
+
+            d = await get_gmgn_provider().get_token_security(address, chain)
+            if not d or d.get("source") != "gmgn":
                 return None
+            return {
+                "risk_score": d.get("rug_ratio"),
+                "honeypot": d.get("is_honeypot"),
+                "renounced": d.get("renounced_mint"),
+                "lp_burned": d.get("burn_status") == "burn",
+                "top10_holder_pct": d.get("top_10_holder_rate"),
+            }
 
         return await _cached_call("gmgn", "token_security", {"chain": chain, "address": address}, fn, 60)
 
     async def holder_distribution(self, chain: str, address: str) -> dict[str, Any] | None:
         async def fn(chain: str, address: str) -> dict[str, int] | None:
-            async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(
-                    f"{self._base}/token_holders/{chain}/{address}",
-                    headers={"Authorization": f"Bearer {self._key}"},
-                )
-                if r.status_code == 200:
-                    holders = r.json().get("data", {}).get("holders", [])
-                    return {"holder_count": len(holders), "top_holders": holders[:10]}
+            from app.databus.gmgn_provider import get_gmgn_provider
+
+            d = await get_gmgn_provider().get_holder_analysis(address, chain)
+            if not d or d.get("source") != "gmgn":
                 return None
+            return {
+                "holder_count": int(d.get("total_holders") or 0),
+                "top_holders": d.get("top_holders", [])[:10],
+            }
 
         return await _cached_call("gmgn", "holders", {"chain": chain, "address": address}, fn, 120)
 
     async def sniper_check(self, chain: str, address: str) -> dict[str, Any] | None:
         async def fn(chain: str, address: str) -> dict[str, Any | None] | None:
-            async with httpx.AsyncClient(timeout=10) as c:
-                r = await c.get(
-                    f"{self._base}/token_snipers/{chain}/{address}",
-                    headers={"Authorization": f"Bearer {self._key}"},
-                )
-                if r.status_code == 200:
-                    d = r.json().get("data", {})
-                    return {
-                        "sniper_count": d.get("sniper_count", 0),
-                        "snipers": d.get("snipers", [])[:5],
-                    }
+            from app.databus.gmgn_provider import get_gmgn_provider
+
+            d = await get_gmgn_provider().get_token_security(address, chain)
+            if not d or d.get("source") != "gmgn":
                 return None
+            return {
+                "sniper_count": int(d.get("sniper_count") or 0),
+                "insider_rate": d.get("suspected_insider_hold_rate"),
+            }
 
         return await _cached_call("gmgn", "snipers", {"chain": chain, "address": address}, fn, 60)
 

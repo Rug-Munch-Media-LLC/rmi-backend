@@ -43,6 +43,10 @@ logger = get_logger(__name__)
 
 GMGN_API_KEY = os.getenv("GMGN_API_KEY", "")
 GMGN_BASE = "https://gmgn.ai"
+# Official GMGN Agent API (used by the gmgn-cli SDK / openapi.gmgn.ai).
+# Auth: X-APIKEY header + timestamp (unix seconds) + client_id (UUID) query
+# params — see OpenApiClient.ts / signer.ts in GMGNAI/gmgn-skills.
+GMGN_OPENAPI_BASE = "https://openapi.gmgn.ai"
 
 # Browser-like headers — GMGN's public API rejects plain curl/httpx UAs.
 _BROWSER_HEADERS = {
@@ -172,6 +176,74 @@ class GMGNProvider:
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             logger.debug("GMGN token_info failed: %s", e)
         return None
+
+    # ═══════════════════════════════════════════════════════════════
+    # WALLET INTELLIGENCE (derived — feeds the unified scanner)
+    # ═══════════════════════════════════════════════════════════════
+
+    async def get_wallet_intelligence(self, wallet: str, chain: str = "solana") -> dict[str, Any]:
+        """Wallet insider/sniper/wash/PnL signals for the unified scanner.
+
+        Derives the legacy ``GMGNClient.get_wallet_intelligence`` shape from
+        the Agent API wallet detail (stats + activity) plus holder-derived
+        behavior heuristics. Returns a dict with ``insider_score``,
+        ``sniper_score``, ``wash_trading_score``, ``pump_dump_participant``,
+        ``flipper``, ``win_rate`` and ``pnl`` so the scanner risk factors
+        can be populated without the (never-implemented) legacy client.
+        """
+        try:
+            detail = await self.get_wallet_detail(wallet, chain, period="7d")
+            if not detail or detail.get("source") != "gmgn":
+                return {}
+            realized = float(detail.get("realized_profit") or 0)
+            winrate = float(detail.get("winrate") or 0)
+            buy_count = int(detail.get("buy") or 0)
+            sell_count = int(detail.get("sell") or 0)
+            pnl_gt5x = int(detail.get("pnl_gt_5x_num") or 0)
+            activities = detail.get("activities") or []
+            # Wash heuristic: near-equal buy/sell tx counts with meaningful volume.
+            total_tx = buy_count + sell_count
+            wash_score = 0.0
+            if total_tx >= 6:
+                ratio = buy_count / total_tx
+                wash_score = round((1 - abs(ratio - 0.5) * 2) * 100, 1) if 0.25 <= ratio <= 0.75 else 0.0
+            # Sniper heuristic: very high win-rate with short avg holding (early-exit
+            # behavior) or heavy PnL concentration in few tokens.
+            avg_hold = float(detail.get("avg_holding_period") or 0)
+            sniper_score = 0.0
+            if winrate >= 0.7 and avg_hold and avg_hold <= 86400 * 2:
+                sniper_score = 70.0
+            if pnl_gt5x >= 1:
+                sniper_score = max(sniper_score, 55.0)
+            # Insider heuristic: sustained high win-rate with few tokens traded.
+            insider_score = 0.0
+            if winrate >= 0.75 and int(detail.get("token_num") or 0) <= 5 and total_tx >= 5:
+                insider_score = 65.0
+            tags = detail.get("tags") or []
+            if any(t in ("smart_degen", "kol") for t in tags):
+                insider_score = max(insider_score, 40.0)
+            activity_side = 0
+            for row in activities:
+                if not isinstance(row, dict):
+                    continue
+                side = str(row.get("type", row.get("side", ""))).lower()
+                if side in ("buy", "sell"):
+                    activity_side += 1 if side == "buy" else -1
+            return {
+                "insider_score": insider_score,
+                "sniper_score": sniper_score,
+                "wash_trading_score": wash_score,
+                "pump_dump_participant": bool(pnl_gt5x >= 2 and realized < 0),
+                "flipper": bool(buy_count >= 10 and sell_count >= 10 and avg_hold and avg_hold <= 86400),
+                "win_rate": winrate,
+                "pnl": {"realized": realized, "unrealized": 0},
+                "net_activity": activity_side,
+                "source": "gmgn",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("GMGN wallet_intelligence failed: %s", e)
+        return {}
 
     # ═══════════════════════════════════════════════════════════════
     # LIVE TRADES
@@ -399,6 +471,390 @@ class GMGNProvider:
         return None
 
     # ═══════════════════════════════════════════════════════════════
+    # AGENT API (openapi.gmgn.ai) — security / trending / discover /
+    # wallet detail / kline. Auth: X-APIKEY + timestamp + client_id.
+    # ═══════════════════════════════════════════════════════════════
+
+    def _agent_auth_params(self, **extra: Any) -> dict[str, Any]:
+        """Build the Agent API auth query params (timestamp + client_id UUID).
+
+        Mirrors buildAuthQuery() in the official gmgn-skills SDK. The server
+        validates ``timestamp`` within ±5s and rejects ``client_id`` replays
+        within 7s, so both must be fresh per request.
+        """
+        import uuid
+
+        params: dict[str, Any] = {"timestamp": int(datetime.now(UTC).timestamp()), "client_id": str(uuid.uuid4())}
+        params.update(extra)
+        return params
+
+    def _agent_headers(self) -> dict[str, str]:
+        """Headers for the Agent API: X-APIKEY (exist auth) + JSON content type."""
+        headers = {
+            "accept": "application/json, text/plain, */*",
+            "content-type": "application/json",
+            "user-agent": "gmgn-provider/1.0",
+        }
+        if self.api_key:
+            headers["X-APIKEY"] = self.api_key
+        return headers
+
+    async def get_token_security(self, address: str, chain: str = "solana") -> dict[str, Any]:
+        """Get GMGN token security/audit info (honeypot, renounce, taxes, holder rate).
+
+        Live endpoint: ``GET /v1/token/security`` on the Agent API (verified
+        200 with JSON against openapi.gmgn.ai). Returns a normalized dict with
+        the keys the caching-shield / scanner callers rely on (``is_honeypot``,
+        ``renounced_mint``, ``burn_status``, ``top_10_holder_rate``,
+        ``rug_ratio``, ``sniper_count``, ``suspected_insider_hold_rate``).
+        """
+        if not self.api_key:
+            return {"address": address, "source": "none"}
+        result = await self._cached_or_fetch(
+            f"security:{chain}:{address}",
+            TOKEN_CACHE_TTL,
+            self._fetch_token_security,
+            address,
+            chain,
+        )
+        if result:
+            return result
+        return {"address": address, "source": "none"}
+
+    async def _fetch_token_security(self, address: str, chain: str) -> dict[str, Any] | None:
+        """Fetch token security from the GMGN Agent API."""
+        if not self._available:
+            return None
+        try:
+            chain_slug = _normalize_chain(chain)
+            resp = await self._request(
+                "GET",
+                f"{GMGN_OPENAPI_BASE}/v1/token/security",
+                headers=self._agent_headers(),
+                params=self._agent_auth_params(chain=chain_slug, address=address),
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if not data or data.get("code") != 0:
+                    logger.debug("GMGN token_security bad code: %s", (data or {}).get("code"))
+                    return None
+                sec = data.get("data") or {}
+                return {
+                    "address": address,
+                    "chain": chain,
+                    "is_honeypot": bool(sec.get("is_honeypot", sec.get("honeypot", False))),
+                    "renounced_mint": sec.get("renounced_mint", sec.get("renounced")),
+                    "burn_status": sec.get("burn_status"),
+                    "burn_ratio": sec.get("burn_ratio"),
+                    "top_10_holder_rate": sec.get("top_10_holder_rate", 0),
+                    "rug_ratio": sec.get("rug_ratio", 0),
+                    "sniper_count": sec.get("sniper_count", 0),
+                    "suspected_insider_hold_rate": sec.get("suspected_insider_hold_rate", 0),
+                    "buy_tax": sec.get("buy_tax"),
+                    "sell_tax": sec.get("sell_tax"),
+                    "average_tax": sec.get("average_tax"),
+                    "is_open_source": sec.get("is_open_source"),
+                    "is_blacklist": sec.get("is_blacklist", sec.get("blacklist")),
+                    "can_not_sell": sec.get("can_not_sell"),
+                    "source": "gmgn",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            logger.debug("GMGN token_security HTTP %s for %s", resp.status_code, address)
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("GMGN token_security failed: %s", e)
+        return None
+
+    async def get_trending(
+        self,
+        chain: str = "solana",
+        limit: int = 50,
+        interval: str = "1h",
+    ) -> list[dict[str, Any]]:
+        """Get trending/rank tokens from the GMGN Agent API.
+
+        Live endpoint: ``GET /v1/market/rank`` (verified 200). The response is
+        double-wrapped (``data.data.rank``) — unwrapped here into a flat list.
+        ``interval`` is accepted for compatibility with the databus price
+        provider callers (1m / 5m / 1h / 6h / 24h).
+        """
+        result = await self._cached_or_fetch_list(
+            f"trending:{chain}:{interval}",
+            TRADE_CACHE_TTL,
+            self._fetch_trending,
+            chain,
+            interval,
+            limit,
+        )
+        if result:
+            return result
+        return []
+
+    async def _fetch_trending(self, chain: str, interval: str, limit: int) -> list[dict[str, Any]] | None:
+        """Fetch trending rank from the GMGN Agent API (double-wrapped)."""
+        if not self._available:
+            return None
+        try:
+            chain_slug = _normalize_chain(chain)
+            resp = await self._request(
+                "GET",
+                f"{GMGN_OPENAPI_BASE}/v1/market/rank",
+                headers=self._agent_headers(),
+                params=self._agent_auth_params(
+                    chain=chain_slug,
+                    interval=interval,
+                    limit=max(1, min(int(limit), 100)),
+                ),
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if not data or data.get("code") != 0:
+                    logger.debug("GMGN trending bad code: %s", (data or {}).get("code"))
+                    return None
+                # Double-wrapped: {code:0, data: {code:0, data: {rank: [...]}}}
+                inner = (data.get("data") or {}).get("data") or {}
+                rank = inner.get("rank", (data.get("data") or {}).get("rank", []))
+                if isinstance(rank, list):
+                    return [
+                        {
+                            "address": p.get("address", ""),
+                            "chain": chain,
+                            "symbol": p.get("symbol", ""),
+                            "name": p.get("name", ""),
+                            "price": float(p.get("price", 0) or 0),
+                            "price_change_1h": float(p.get("price_change_percent1h", 0) or 0),
+                            "price_change_24h": float(
+                                p.get("price_change_percent24h", p.get("price_change_percent", 0)) or 0
+                            ),
+                            "volume_24h": float(p.get("volume", 0) or 0),
+                            "liquidity": float(p.get("liquidity", 0) or 0),
+                            "market_cap": float(p.get("market_cap", 0) or 0),
+                            "holder_count": int(p.get("holder_count", 0) or 0),
+                            "swaps_24h": int(p.get("swaps", 0) or 0),
+                            "buy_24h": int(p.get("buys", 0) or 0),
+                            "sell_24h": int(p.get("sells", 0) or 0),
+                            "created_at": p.get("creation_timestamp"),
+                            "launchpad": p.get("launchpad"),
+                            "source": "gmgn",
+                        }
+                        for p in rank
+                    ]
+            logger.debug("GMGN trending HTTP %s", resp.status_code)
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("GMGN trending failed: %s", e)
+        return None
+
+    async def get_discover(self, chain: str = "solana", limit: int = 50) -> list[dict[str, Any]]:
+        """Get discover/trenches tokens (incl. new_creation) from the Agent API.
+
+        Live endpoint: ``POST /v1/trenches`` (verified 200 with
+        ``new_creation`` / ``near_completion`` / ``completed`` sections).
+        Returns the flattened ``new_creation`` list — the same launch-detection
+        shape as :meth:`get_new_pairs` but from the Agent API (no Cloudflare).
+        """
+        result = await self._cached_or_fetch_list(
+            f"discover:{chain}",
+            TRADE_CACHE_TTL,
+            self._fetch_discover,
+            chain,
+            limit,
+        )
+        if result:
+            return result
+        return []
+
+    async def _fetch_discover(self, chain: str, limit: int) -> list[dict[str, Any]] | None:
+        """Fetch trenches/new creations from the GMGN Agent API."""
+        if not self._available:
+            return None
+        try:
+            chain_slug = _normalize_chain(chain)
+            body = {
+                "version": "v2",
+                "new_creation": {
+                    "filters": ["offchain", "onchain"],
+                    "launchpad_platform_v2": True,
+                    "limit": max(1, min(int(limit), 80)),
+                },
+            }
+            resp = await self._request(
+                "POST",
+                f"{GMGN_OPENAPI_BASE}/v1/trenches",
+                headers=self._agent_headers(),
+                params=self._agent_auth_params(chain=chain_slug),
+                json=body,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if not data or data.get("code") != 0:
+                    logger.debug("GMGN discover bad code: %s", (data or {}).get("code"))
+                    return None
+                # new_creation arrives as a plain list of token rows.
+                section = (data.get("data") or {}).get("new_creation") or []
+                rows = section if isinstance(section, list) else section.get("rank", section.get("list", []))
+                if isinstance(rows, list):
+                    return [
+                        {
+                            "address": p.get("address", ""),
+                            "chain": chain,
+                            "symbol": p.get("symbol", ""),
+                            "name": p.get("name", ""),
+                            "price": float(p.get("price", 0) or 0),
+                            "liquidity": float(p.get("liquidity", 0) or 0),
+                            "market_cap": float(p.get("market_cap", 0) or 0),
+                            "volume_24h": float(p.get("volume_24h", p.get("volume", 0)) or 0),
+                            "created_at": p.get("created_timestamp", p.get("creation_timestamp")),
+                            "launchpad": p.get("launchpad"),
+                            "holder_count": int(p.get("holder_count", 0) or 0),
+                            "source": "gmgn",
+                        }
+                        for p in rows
+                    ]
+            logger.debug("GMGN discover HTTP %s", resp.status_code)
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("GMGN discover failed: %s", e)
+        return None
+
+    async def get_wallet_detail(self, wallet: str, chain: str = "solana", period: str = "7d") -> dict[str, Any]:
+        """Get wallet stats + activity from the GMGN Agent API.
+
+        Live endpoints: ``GET /v1/user/wallet_stats`` and
+        ``GET /v1/user/wallet_activity`` (both verified 200). Merges the stats
+        (realized PnL, buy/sell counts, winrate, token count, avg holding) with
+        recent activity rows so the derived wallet-intelligence layer
+        (:meth:`get_wallet_intelligence`) can compute behavior heuristics.
+        """
+        if not self.api_key:
+            return {"wallet": wallet, "source": "none"}
+        try:
+            chain_slug = _normalize_chain(chain)
+            resp = await self._request(
+                "GET",
+                f"{GMGN_OPENAPI_BASE}/v1/user/wallet_stats",
+                headers=self._agent_headers(),
+                params=self._agent_auth_params(
+                    chain=chain_slug,
+                    wallet_address=wallet,
+                    period=period,
+                ),
+            )
+            if resp.status_code != 200:
+                logger.debug("GMGN wallet_stats HTTP %s", resp.status_code)
+                return {"wallet": wallet, "source": "none"}
+            data = resp.json()
+            if not data or data.get("code") != 0:
+                logger.debug("GMGN wallet_stats bad code: %s", (data or {}).get("code"))
+                return {"wallet": wallet, "source": "none"}
+            stats = data.get("data") or {}
+            pnl_stat = stats.get("pnl_stat") or {}
+            common = stats.get("common") or {}
+            # Activity feed (best-effort — wallet_stats alone is the core shape).
+            activities: list[Any] = []
+            try:
+                act_resp = await self._request(
+                    "GET",
+                    f"{GMGN_OPENAPI_BASE}/v1/user/wallet_activity",
+                    headers=self._agent_headers(),
+                    params=self._agent_auth_params(
+                        chain=chain_slug,
+                        wallet_address=wallet,
+                        limit=50,
+                    ),
+                )
+                if act_resp.status_code == 200:
+                    act_data = act_resp.json()
+                    if act_data and act_data.get("code") == 0:
+                        activities = (act_data.get("data") or {}).get("activities", []) or []
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+                logger.debug("GMGN wallet_activity failed (stats kept): %s", e)
+            return {
+                "wallet": wallet,
+                "chain": chain,
+                "realized_profit": stats.get("realized_profit", 0),
+                "realized_profit_pnl": stats.get("realized_profit_pnl", 0),
+                "buy": int(stats.get("buy", 0) or 0),
+                "sell": int(stats.get("sell", 0) or 0),
+                "winrate": pnl_stat.get("winrate", 0),
+                "token_num": int(pnl_stat.get("token_num", 0) or 0),
+                "avg_holding_period": pnl_stat.get("avg_holding_period", 0),
+                "pnl_gt_5x_num": int(pnl_stat.get("pnl_gt_5x_num", 0) or 0),
+                "tags": common.get("tags", []) if isinstance(common.get("tags"), list) else [],
+                "activities": activities,
+                "source": "gmgn",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("GMGN wallet_detail failed: %s", e)
+        return {"wallet": wallet, "source": "none"}
+
+    async def get_kline(
+        self,
+        address: str,
+        chain: str = "solana",
+        period: str = "1h",
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Get candlestick (OHLCV) data for a token from the GMGN Agent API.
+
+        Live endpoint: ``GET /v1/market/token_kline`` with ``resolution``
+        (verified 200 with a ``data.list`` of candles). ``period`` maps to the
+        API's ``resolution`` param (1m / 5m / 15m / 30m / 1h / 4h / 1d).
+        """
+        result = await self._cached_or_fetch_list(
+            f"kline:{chain}:{address}:{period}",
+            TRADE_CACHE_TTL,
+            self._fetch_kline,
+            address,
+            chain,
+            period,
+            limit,
+        )
+        if result:
+            return result
+        return []
+
+    async def _fetch_kline(self, address: str, chain: str, period: str, limit: int) -> list[dict[str, Any]] | None:
+        """Fetch OHLCV candles from the GMGN Agent API."""
+        if not self._available:
+            return None
+        try:
+            chain_slug = _normalize_chain(chain)
+            resp = await self._request(
+                "GET",
+                f"{GMGN_OPENAPI_BASE}/v1/market/token_kline",
+                headers=self._agent_headers(),
+                params=self._agent_auth_params(
+                    chain=chain_slug,
+                    address=address,
+                    resolution=period,
+                    limit=max(1, min(int(limit), 1000)),
+                ),
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if not data or data.get("code") != 0:
+                    logger.debug("GMGN kline bad code: %s", (data or {}).get("code"))
+                    return None
+                candles = (data.get("data") or {}).get("list", [])
+                if isinstance(candles, list):
+                    return [
+                        {
+                            "time": c.get("time"),
+                            "open": float(c.get("open", 0) or 0),
+                            "high": float(c.get("high", 0) or 0),
+                            "low": float(c.get("low", 0) or 0),
+                            "close": float(c.get("close", 0) or 0),
+                            "volume": float(c.get("volume", 0) or 0),
+                            "amount": float(c.get("amount", 0) or 0),
+                            "source": "gmgn",
+                        }
+                        for c in candles
+                    ]
+            logger.debug("GMGN kline HTTP %s", resp.status_code)
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.debug("GMGN kline failed: %s", e)
+        return None
+
+    # ═══════════════════════════════════════════════════════════════
     # FALLBACKS (DexScreener, Birdeye)
     # ═══════════════════════════════════════════════════════════════
 
@@ -541,6 +997,7 @@ class GMGNProvider:
         *,
         headers: dict[str, str] | None = None,
         params: dict[str, Any] | None = None,
+        json: Any = None,
     ) -> httpx.Response:
         """Proxy-first HTTP request with a single direct retry.
 
@@ -552,15 +1009,15 @@ class GMGNProvider:
         """
         if self._proxy_client is not None:
             try:
-                proxy_resp = await self._proxy_client.request(method, url, headers=headers, params=params)
+                proxy_resp = await self._proxy_client.request(method, url, headers=headers, params=params, json=json)
             except (httpx.HTTPError, ConnectionError, TimeoutError):
                 self._rotate_proxy()
-                return await self.client.request(method, url, headers=headers, params=params)
+                return await self.client.request(method, url, headers=headers, params=params, json=json)
             if proxy_resp.status_code in (403, 429) or proxy_resp.status_code >= 500:
                 self._rotate_proxy()
-                return await self.client.request(method, url, headers=headers, params=params)
+                return await self.client.request(method, url, headers=headers, params=params, json=json)
             return proxy_resp
-        return await self.client.request(method, url, headers=headers, params=params)
+        return await self.client.request(method, url, headers=headers, params=params, json=json)
 
     def _rotate_proxy(self) -> None:
         """Mark the current proxy failed and pick the next healthy egress."""

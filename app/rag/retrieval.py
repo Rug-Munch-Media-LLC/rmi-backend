@@ -591,6 +591,7 @@ class HybridRetriever:
         filters: dict[str, Any] | None = None,
         expand: bool = True,
         rerank: bool = True,
+        candidate_k: int | None = None,
     ) -> list[ScoredHit]:
         """Run hybrid retrieval with optional query expansion.
 
@@ -609,6 +610,11 @@ class HybridRetriever:
                 the engine could not (single hit / reranker unreachable).
                 Fail-open: if the reranker is unreachable the pre-rerank
                 order is returned unchanged.
+            candidate_k: Pre-rerank candidate pool size (defaults to
+                ``top_k`` — behavior-preserving). When larger than ``top_k``
+                the engine fetches ``candidate_k`` candidates, the reranker
+                ranks them, and the result is truncated to ``top_k`` — so
+                the cross-encoder sees a wider pool than the final answer.
 
         Returns:
             List of ScoredHit, sorted by relevance.
@@ -629,13 +635,16 @@ class HybridRetriever:
             # 1. Optionally expand the query
             search_query = self._expander.expand(query) if expand else query
 
-            # 2. Delegate to the M3 engine
+            # 2. Delegate to the M3 engine. ``candidate_k`` widens the pool
+            # the mandatory engine rerank sees; the final ``top_k`` slice
+            # happens after reranking below.
             from app.rag.engine import three_pillar_search
 
+            engine_top_k = candidate_k or top_k
             raw = await three_pillar_search(
                 query=search_query,
                 collection=collection,
-                top_k=top_k,
+                top_k=engine_top_k,
                 min_similarity=min_similarity,
                 filters=filters,
             )
@@ -680,6 +689,13 @@ class HybridRetriever:
             # engine rerank order (they carry an entity-match boost).
             if rerank and not engine_reranked and len(scored) > 1:
                 scored = await self._apply_rerank(query, scored, top_k)
+
+            # 4a. When a wider pre-rerank pool was requested, truncate to
+            # the post-rerank ``top_k`` here — the reranker (engine or
+            # Infinity) has ranked the candidates, so the top_k slice keeps
+            # the most relevant docs regardless of which path ran.
+            if candidate_k is not None and candidate_k > top_k:
+                scored = scored[:top_k]
 
             # 5. News-specific ranking boosts (freshness + entity overlap).
             # Applied after the cross-encoder so the reranker stays the

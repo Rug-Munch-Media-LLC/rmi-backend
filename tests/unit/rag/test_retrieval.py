@@ -11,8 +11,12 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.rag.retrieval import (
+    HybridRetriever,
     ScoredHit,
     apply_news_boosts,
     extract_crypto_entities,
@@ -155,3 +159,61 @@ def test_news_boost_resorts_by_boosted_score() -> None:
     out = apply_news_boosts([older_higher, breaking], "Bitcoin price", collection="news_v2", now=NOW)
     # breaking: 0.6 * 1.5 * 1.1 = 0.99 ; older: 0.9 * 0.5 * 1.1 = 0.495
     assert out[0].content == "breaking news"
+
+
+# ── candidate_k (pre-rerank pool → post-rerank top_k) ──────────────────
+
+
+def _scored_hit(content: str, rank: int, score: float) -> ScoredHit:
+    return ScoredHit(
+        content=content,
+        score=score,
+        final_score=score,
+        collection="news_v2",
+        doc_id=f"news:cand-{rank}",
+        metadata={"title": content, "published_at": "2026-08-02T12:00:00+00:00", "rerank_score": rank},
+    )
+
+
+@pytest.mark.asyncio
+async def test_retrieve_candidate_k_widens_engine_pool_and_truncates() -> None:
+    """candidate_k > top_k asks the engine for more, then slices to top_k."""
+    engine_hits = [_scored_hit(f"doc {i}", rank=i, score=1.0 - i * 0.01) for i in range(10)]
+    retriever = HybridRetriever()
+
+    # Mock the engine search to return 10 hits (as if the wider pool) and
+    # the graph enrichment to no-op; the engine rerank stamp makes the
+    # Infinity second pass skip (matches the production path).
+    async def _fake_search(*args, **kwargs):
+        return [{"doc_id": h.doc_id, "score": h.score, "text": h.content, "metadata": h.metadata} for h in engine_hits]
+
+    with (
+        patch("app.rag.retrieval.RelevanceScorer.rescore", side_effect=lambda raw, q: list(engine_hits)),
+        patch("app.rag.engine.three_pillar_search", new=_fake_search),
+        patch("app.knowledge_graph.graph.KnowledgeGraph.extract_entities", new=AsyncMock(return_value=[])),
+    ):
+        out = await retriever.retrieve("bitcoin", collection="news_v2", top_k=5, candidate_k=10, rerank=True)
+
+    assert len(out) == 5
+
+
+@pytest.mark.asyncio
+async def test_retrieve_without_candidate_k_keeps_top_k_pool() -> None:
+    """Default path (candidate_k=None) still fetches exactly top_k — behavior-preserving."""
+    engine_hits = [_scored_hit(f"doc {i}", rank=i, score=1.0 - i * 0.01) for i in range(5)]
+    retriever = HybridRetriever()
+
+    async def _fake_search(*args, **kwargs):
+        assert kwargs["top_k"] == 3
+        return [
+            {"doc_id": h.doc_id, "score": h.score, "text": h.content, "metadata": h.metadata} for h in engine_hits[:3]
+        ]
+
+    with (
+        patch("app.rag.retrieval.RelevanceScorer.rescore", side_effect=lambda raw, q: list(engine_hits[:3])),
+        patch("app.rag.engine.three_pillar_search", new=_fake_search),
+        patch("app.knowledge_graph.graph.KnowledgeGraph.extract_entities", new=AsyncMock(return_value=[])),
+    ):
+        out = await retriever.retrieve("bitcoin", collection="news_v2", top_k=3, rerank=True)
+
+    assert len(out) == 3

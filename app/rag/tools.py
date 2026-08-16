@@ -203,11 +203,47 @@ async def scan_token(query: str, chain: str = "ethereum") -> dict[str, Any]:
         return {"address": address, "chain": inferred, "error": "unavailable"}
 
 
-async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
+# ── News helper ───────────────────────────────────────────────────────
+
+#: Post-rerank results returned by ``get_news``.
+_NEWS_TOP_K: int = 5
+#: Pre-rerank candidate pool handed to the cross-encoder (wider than the
+#: final answer so Infinity bge-reranker ranks ~2x more candidates).
+_NEWS_CANDIDATE_K: int = 10
+
+
+def _news_canonical_url(metadata: dict[str, Any] | None) -> str | None:
+    """Canonical article URL from stored metadata, key-agnostic.
+
+    Every ingest path writes the source link under a different key:
+    crawler/story_ingest ``source_url``, story-cluster docs ``url`` +
+    ``source_urls``, and the crawler's canonical pass ``canonical_url``.
+    Returns the first non-empty candidate (strongest first), or None.
+    """
+    meta = metadata or {}
+    for key in ("canonical_url", "url"):
+        val = meta.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    source_urls = meta.get("source_urls")
+    if isinstance(source_urls, list) and source_urls:
+        first = source_urls[0]
+        if isinstance(first, str) and first.strip():
+            return first.strip()
+    src = meta.get("source_url")
+    if isinstance(src, str) and src.strip():
+        return src.strip()
+    return None
+
+
+async def get_news(query: str, top_k: int = _NEWS_TOP_K) -> dict[str, Any]:
     """Search the RAG ``news_v2`` collection for recent articles.
 
-    Uses the existing HybridRetriever so results are consistent with the
-    main RAG search facade. Fails open to an empty result set.
+    Retrieves a wider pre-rerank pool (``candidate_k=10``) so the Infinity
+    cross-encoder ranks ~2x the candidates before the final ``top_k``
+    slice. Results are deduped by canonical URL (same story from multiple
+    chunks/sources collapses to the highest-scoring hit). Fails open to an
+    empty result set.
     """
     try:
         from app.rag.retrieval import HybridRetriever
@@ -216,10 +252,17 @@ async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
             query=query,
             collection="news_v2",
             top_k=top_k,
+            candidate_k=_NEWS_CANDIDATE_K,
             rerank=True,
         )
-        results = [
-            {
+        # Dedup by canonical URL — a story clustered from N sources (or a
+        # multi-chunk doc) can surface several hits for the same article;
+        # keep the highest-scoring representative per URL.
+        by_url: dict[str, dict[str, Any]] = {}
+        for h in hits:
+            metadata = getattr(h, "metadata", None) or {}
+            canonical = _news_canonical_url(metadata)
+            result = {
                 "content": (h.content or "")[:300],
                 "score": round(float(h.final_score or h.score), 3),
                 "source": h.collection or "news",
@@ -227,11 +270,14 @@ async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
                 # Article image + canonical URL surface from stored metadata so
                 # the answer layer can cite/show the article image. Absent
                 # metadata (or a missing key) degrades to None.
-                "image_url": (getattr(h, "metadata", None) or {}).get("image_url"),
-                "canonical_url": (getattr(h, "metadata", None) or {}).get("canonical_url"),
+                "image_url": metadata.get("image_url"),
+                "canonical_url": canonical,
             }
-            for h in hits
-        ]
+            key = canonical or f"doc:{h.doc_id or id(h)}"
+            prev = by_url.get(key)
+            if prev is None or result["score"] > prev["score"]:
+                by_url[key] = result
+        results = list(by_url.values())
         return {"query": query, "count": len(results), "results": results, "source": "RAG news_v2"}
     except Exception as exc:
         log.debug("tool_get_news_failed err=%s", exc)

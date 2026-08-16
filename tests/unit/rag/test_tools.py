@@ -211,7 +211,81 @@ async def test_get_news() -> None:
     assert result["results"][0]["doc_id"] == "news:1"
     assert result["source"] == "RAG news_v2"
     hr.assert_called_once_with()
-    retriever.retrieve.assert_awaited_once_with(query="bitcoin etf", collection="news_v2", top_k=5, rerank=True)
+    # Wider pre-rerank pool (10) → post-rerank top_k (5), rerank enabled.
+    retriever.retrieve.assert_awaited_once_with(
+        query="bitcoin etf", collection="news_v2", top_k=5, candidate_k=10, rerank=True
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_news_canonical_url_fallback_and_image() -> None:
+    """Canonical URL resolves from story/crawler metadata keys; image passes."""
+    hits = [
+        SimpleNamespace(
+            content="Story body",
+            final_score=0.9,
+            score=0.8,
+            collection="news_v2",
+            doc_id="news:abc",
+            metadata={
+                "url": "https://coindesk.com/story-1",
+                "source_urls": ["https://coindesk.com/story-1", "https://theblock.co/story-1"],
+                "source_url": "https://channel.t.me/123",
+                "image_url": "https://img.example.com/photo.jpg",
+            },
+        )
+    ]
+    retriever = AsyncMock()
+    retriever.retrieve.return_value = hits
+    with patch("app.rag.retrieval.HybridRetriever", return_value=retriever):
+        result = await get_news("bitcoin etf")
+
+    assert result["count"] == 1
+    assert result["results"][0]["canonical_url"] == "https://coindesk.com/story-1"
+    assert result["results"][0]["image_url"] == "https://img.example.com/photo.jpg"
+
+
+@pytest.mark.asyncio
+async def test_get_news_dedupes_by_canonical_url() -> None:
+    """Two chunks of the same story (same URL) collapse to one result."""
+    hits = [
+        SimpleNamespace(
+            content="chunk one of the story",
+            final_score=0.7,
+            score=0.7,
+            collection="news_v2",
+            doc_id="news:a:chunk1",
+            metadata={"canonical_url": "https://theblock.co/same-story"},
+        ),
+        SimpleNamespace(
+            content="chunk two of the story",
+            final_score=0.95,
+            score=0.95,
+            collection="news_v2",
+            doc_id="news:a:chunk2",
+            metadata={"canonical_url": "https://theblock.co/same-story"},
+        ),
+        SimpleNamespace(
+            content="a different story",
+            final_score=0.6,
+            score=0.6,
+            collection="news_v2",
+            doc_id="news:b",
+            metadata={"source_url": "https://coindesk.com/other"},
+        ),
+    ]
+    retriever = AsyncMock()
+    retriever.retrieve.return_value = hits
+    with patch("app.rag.retrieval.HybridRetriever", return_value=retriever):
+        result = await get_news("bitcoin etf")
+
+    assert result["count"] == 2
+    urls = {r["canonical_url"] for r in result["results"]}
+    assert urls == {"https://theblock.co/same-story", "https://coindesk.com/other"}
+    # Highest-scoring representative wins for the duplicated story.
+    dup = next(r for r in result["results"] if r["canonical_url"] == "https://theblock.co/same-story")
+    assert dup["content"] == "chunk two of the story"
+    assert dup["score"] == 0.95
 
 
 # ── Fail-open ──────────────────────────────────────────────────────────

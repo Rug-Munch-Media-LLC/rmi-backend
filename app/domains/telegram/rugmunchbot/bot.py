@@ -60,7 +60,6 @@ from app.domains.telegram.rugmunchbot.commands.premium_extra import cmd_whale
 from app.domains.telegram.rugmunchbot.commands.premium_v2 import (
     cmd_honeypot,
     cmd_laundry,
-    cmd_lphealth,
 )
 from app.domains.telegram.rugmunchbot.config import (
     ALERT_CHECK_INTERVAL,
@@ -93,7 +92,7 @@ from app.domains.telegram.rugmunchbot.handlers.callback import handle_callback
 from app.domains.telegram.rugmunchbot.handlers.chat import cmd_chat
 from app.domains.telegram.rugmunchbot.handlers.chat_ai import register_chat_ai
 from app.domains.telegram.rugmunchbot.handlers.deepscan import cmd_deepscan
-from app.domains.telegram.rugmunchbot.handlers.defi import register_defi
+from app.domains.telegram.rugmunchbot.handlers.defi import cmd_lpcheck, register_defi
 from app.domains.telegram.rugmunchbot.handlers.error import error_handler
 from app.domains.telegram.rugmunchbot.handlers.groups import (
     cmd_banuser,
@@ -563,7 +562,7 @@ def main() -> None:
     _reg(app, "cluster", cmd_cluster)
     _reg(app, "whale", cmd_whale)
     _reg(app, "honeypot", cmd_honeypot)
-    _reg(app, "lphealth", cmd_lphealth)
+    _reg(app, "lphealth", cmd_lpcheck)  # alias — /lpcheck is canonical (same backend route)
     _reg(app, "laundry", cmd_laundry)
 
     # OSINT & Forensics (self-hosted OSINT section)

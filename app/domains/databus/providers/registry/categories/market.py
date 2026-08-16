@@ -195,6 +195,15 @@ def build_market_chains(locals_dict: dict[str, Any]) -> dict[str, ProviderChain]
                 monthly_quota=5000,
             ),
             Provider(
+                "gmgn_trending",
+                ProviderTier.FREE_API,
+                _g["_gmgn_trending"],
+                weight=7.0,
+                rate_limit_rps=1.0,
+                requires_key=True,
+                key_env="GMGN_API_KEY",
+            ),
+            Provider(
                 "dexscreener_trending",
                 ProviderTier.FREE_API,
                 _g["_dexscreener_price"],

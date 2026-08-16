@@ -94,12 +94,19 @@ async def ingest_into_rag(articles: list[NewsArticle]) -> dict[str, Any]:
         # Enrich each story doc with an image URL when one of its member
         # articles carried one (inline image link or the sweep-populated
         # ``media`` field; the website's ``NewsArticle.image_url`` field reads
-        # it from Qdrant metadata).
-        image_by_url = {
-            article.source_url: extract_image_url(article) or getattr(article, "media", None) or ""
-            for article in articles
-            if extract_image_url(article) or getattr(article, "media", None)
-        }
+        # it from Qdrant metadata). Key the map by BOTH the raw channel URL
+        # and the canonical source URL: story ``source_urls`` hold the
+        # canonical link (``extract_canonical_url`` in the cluster input), so
+        # a lookup keyed only on ``article.source_url`` would miss.
+        image_by_url: dict[str, str] = {}
+        for article in articles:
+            image = extract_image_url(article) or getattr(article, "media", None) or ""
+            if not image:
+                continue
+            image_by_url[article.source_url] = image
+            canonical = extract_canonical_url(article)
+            if canonical:
+                image_by_url[canonical] = image
         ingestor = BatchIngestor()
         # Story ingestion is independent and network-bound (embed + Qdrant
         # upsert per chunk), so run the per-story ingest concurrently with a
