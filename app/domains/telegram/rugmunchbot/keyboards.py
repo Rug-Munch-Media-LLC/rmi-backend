@@ -125,6 +125,46 @@ def welcome_menu_kb(user_id: int | None = None) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(_main_menu_rows(user_id))
 
 
+def menu_kb() -> InlineKeyboardMarkup:
+    """/menu quick-action keyboard (v13).
+
+    One-tap shortcuts for the most-used capabilities, rendered under the
+    /menu capability atlas (``MENU_TEXT``). Every callback below reuses an
+    EXISTING wired surface (``run_*`` command cards / live inline data,
+    ``menu_cat_chat`` AI welcome card, ``menu_main``) — zero new callback
+    handlers needed. Do NOT rename the callback_data values.
+    """
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("\U0001f50d Scan a token", callback_data="run_scan"),
+                InlineKeyboardButton("\U0001f52c Deep Scan", callback_data="run_deepscan"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4c8 Chart", callback_data="run_chart"),
+                InlineKeyboardButton("\U0001f4b0 Price", callback_data="run_price"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f525 Trending", callback_data="run_trending"),
+                InlineKeyboardButton("\U0001f4f0 News", callback_data="run_news"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f45b Wallet", callback_data="run_wallet"),
+                InlineKeyboardButton("\U0001f4c1 Portfolio", callback_data="run_portfolio"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f514 Alerts", callback_data="run_alerts"),
+                InlineKeyboardButton("\U0001f916 Ask AI", callback_data="menu_cat_chat"),
+            ],
+            [
+                InlineKeyboardButton("\U0001f4da Scam School", callback_data="run_scamschool"),
+                InlineKeyboardButton("\U0001f4d6 Full Help", callback_data="run_help"),
+            ],
+            [InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="menu_main")],
+        ]
+    )
+
+
 def _menu_row(label: str, cb: str) -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(label, callback_data=cb)]
 
