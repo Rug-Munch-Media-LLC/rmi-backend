@@ -23,6 +23,7 @@ from app.domains.telegram.rugmunchbot.config import (
 from app.domains.telegram.rugmunchbot.formatters import (
     _price_diff_pct,
     _risk_indicator,
+    detect_chain,
     footer_links,
     format_wallet_report,
     is_owner,
@@ -53,6 +54,12 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
+
+#: Hard budget for the wallet-trust enrichment. Deterministic own-data
+#: (ClickHouse), but 3-4 sequential bounded queries can stack to tens of
+#: seconds during a ClickHouse outage — a slow trust probe must never stall
+#: the wallet report. Timeout → fail-open (no trust line), report ships.
+_WALLET_TRUST_TIMEOUT: float = 8.0
 
 
 async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -91,6 +98,30 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 result["chain"] = chain
         else:
             result = await analyze_wallet(addr, chain)
+
+        # ── Intelligent wallet trust: 0-100 score + one-line verdict ──
+        # Computed from own ClickHouse signals (age / activity / funding /
+        # prior rugs / labels) with the scan result as supplementary context.
+        # Fail-open: renders "—" when no signal resolves — never blocks the
+        # wallet report.
+        try:
+            from app.domains.scanner.engines.own_wallet_trust import get_wallet_trust
+            from app.rag.scan_memory import schedule_wallet_memory_index
+
+            trust_chain = chain or str(result.get("chain") or "") or detect_chain(addr)
+            trust = await asyncio.wait_for(
+                get_wallet_trust(addr, trust_chain, context=result),
+                timeout=_WALLET_TRUST_TIMEOUT,
+            )
+            result["trust"] = trust
+            # RAG feed: accumulate the wallet's label/trust so the labeling
+            # system learns "we see them a lot". Fire-and-forget; never delays
+            # the report.
+            schedule_wallet_memory_index(result)
+        except Exception as e:  # trust is additive, never fatal
+            logger.debug("wallet_trust_failed", exc_info=True)
+            logger.warning(f"Wallet trust computation failed for {addr}: {e}")
+
         report = format_wallet_report(result)
         db.increment_usage(user.id, scan=True)
         await msg.edit_text(report, parse_mode=ParseMode.HTML, reply_markup=back_kb(), disable_web_page_preview=True)

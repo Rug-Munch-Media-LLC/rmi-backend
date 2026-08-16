@@ -27,6 +27,9 @@ class EmbeddingProvider(StrEnum):
 # scripts/ingest_stablecoin_market.py (DeFiLlama stablecoin market caps)
 # — included so generic market-context queries can recall stablecoin
 # liquidity signals.
+# ``scanned_wallets`` is a Qdrant-only collection written by the wallet
+# trust feed (app.rag.scan_memory.index_wallet_memory) — the labeling
+# system accumulates wallet trust/verdicts over time.
 COLLECTIONS: list[str] = [
     "scam_intel",
     "deployer_history",
@@ -34,6 +37,7 @@ COLLECTIONS: list[str] = [
     "contract_audit",
     "phishing_db",
     "scanned_tokens",
+    "scanned_wallets",
     "stablecoin_market",
 ]
 

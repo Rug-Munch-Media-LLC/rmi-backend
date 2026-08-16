@@ -23,6 +23,7 @@ import pytest
 
 from app.domains.telegram.rugmunchbot import config as bot_config
 from app.domains.telegram.rugmunchbot.channels import (
+    _scan_commentary as channels_scan_commentary,
     content as channels_content,
     formatters as channels_formatters,
     scheduler as channels_scheduler,
@@ -475,6 +476,143 @@ class TestScanCardFormatter:
             {"address": "0xscan3", "name": "No Score", "symbol": "NS", "chain": "base", "risk_level": "high"}
         )
         assert "Verdict: high" in post
+
+    def test_scan_card_surfaces_real_reasons_not_generic_verdict(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xscan4",
+                "name": "Honey Rug",
+                "symbol": "HNY",
+                "chain": "solana",
+                "risk_level": "critical",
+                "risk_score": 97,
+                "risk_flags": ["honeypot", "bundled_launch", "volume_fake"],
+            }
+        )
+        # The REAL why is surfaced — the generic verdict line is gone.
+        assert "sells can be blocked" in post
+        assert "bundled launch: supply concentrated" in post
+        assert "fake volume: wash-traded" in post
+        assert "high-risk verdict from the scanner" not in post
+
+    def test_scan_card_lp_unlocked_from_security_dict(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xscan5",
+                "name": "Open LP",
+                "symbol": "OLP",
+                "chain": "bsc",
+                "risk_level": "high",
+                "risk_score": 82,
+                "risk_flags": ["honeypot"],
+                "security": {"lp_locked": False},
+            }
+        )
+        assert "LP unlocked: can be yanked anytime" in post
+        assert "honeypot: sells can be blocked" in post
+
+    def test_scan_card_keeps_unknown_flags_raw(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xscan6",
+                "name": "Odd",
+                "symbol": "ODD",
+                "chain": "base",
+                "risk_level": "high",
+                "risk_score": 75,
+                "risk_flags": ["whale_dump_loop"],
+            }
+        )
+        assert "whale_dump_loop" in post
+
+    def test_scan_card_never_renders_unknown_question_marks(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xghost",
+                "name": "Unknown",
+                "symbol": "???",
+                "chain": "ethereum",
+                "risk_level": "high",
+                "risk_score": 88,
+                "risk_flags": ["lp_removed"],
+            }
+        )
+        assert "Unknown (???)" not in post
+        assert "(???)" not in post
+        assert "Unnamed token" in post
+
+    def test_scan_card_renders_symbol_only_without_question_marks(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xsym",
+                "name": "",
+                "symbol": "SYM",
+                "chain": "bsc",
+                "risk_level": "medium",
+                "risk_score": 71,
+                "risk_flags": ["volume_fake"],
+            }
+        )
+        assert "(???)" not in post
+        assert "<b>SYM</b>" in post
+
+    def test_scan_card_renders_name_only_without_question_marks(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xn",
+                "name": "Name Only",
+                "symbol": "???",
+                "chain": "solana",
+                "risk_level": "high",
+                "risk_score": 90,
+                "risk_flags": [],
+            }
+        )
+        assert "(???)" not in post
+        assert "Name Only" in post
+
+    def test_scan_card_renders_commentary_when_present_and_omits_when_absent(self) -> None:
+        with_line = channels_formatters.format_scan_card(
+            {
+                "address": "0xc",
+                "name": "Witty",
+                "symbol": "WIT",
+                "chain": "solana",
+                "risk_level": "critical",
+                "risk_score": 99,
+                "risk_flags": ["honeypot"],
+                "commentary": "another dog-meme rug — only the exit liquidity is decentralized",
+            }
+        )
+        assert "another dog-meme rug" in with_line
+        no_line = channels_formatters.format_scan_card(
+            {
+                "address": "0xc2",
+                "name": "Plain",
+                "symbol": "PLN",
+                "chain": "solana",
+                "risk_level": "critical",
+                "risk_score": 99,
+                "risk_flags": ["honeypot"],
+            }
+        )
+        assert "another dog-meme rug" not in no_line
+
+    def test_scan_card_escapes_commentary(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xc3",
+                "name": "Evil",
+                "symbol": "EVL",
+                "chain": "solana",
+                "risk_level": "critical",
+                "risk_score": 99,
+                "risk_flags": ["honeypot"],
+                "commentary": "<script>alert(1)</script>",
+            }
+        )
+        assert "<script>" not in post
+        assert "&lt;script&gt;" in post
 
 
 class TestAlphaFormatter:
@@ -952,6 +1090,188 @@ class TestWebhookToAlertsChannelSmoke:
         with patch.object(channels_content, "backend_get_json", new=AsyncMock(return_value=None)):
             assert await channels_content.fetch_scan_notes() == []
 
+    async def test_fetch_scan_notes_enriches_placeholder_identity_from_dexscreener(self) -> None:
+        with (
+            patch.object(
+                channels_content,
+                "backend_get_json",
+                new=AsyncMock(
+                    side_effect=[
+                        None,  # /launches/alerts miss
+                        {
+                            "scans": [
+                                {
+                                    "contract_address": "0xghost",
+                                    "token_name": "",
+                                    "token_symbol": "",
+                                    "chain": "solana",
+                                    "risk_score": 90,
+                                    "risk_level": "high",
+                                    "is_honeypot": True,
+                                }
+                            ]
+                        },
+                    ]
+                ),
+            ),
+            patch.object(
+                channels_content,
+                "http_get_json",
+                new=AsyncMock(
+                    return_value={
+                        "pairs": [{"chainId": "solana", "baseToken": {"name": "Ghost Coin", "symbol": "GHOST"}}]
+                    }
+                ),
+            ),
+        ):
+            notes = await channels_content.fetch_scan_notes(limit=5)
+        assert len(notes) == 1
+        assert notes[0]["name"] == "Ghost Coin"
+        assert notes[0]["symbol"] == "GHOST"
+
+    async def test_fetch_scan_notes_derives_liquidity_removed_flag(self) -> None:
+        with patch.object(
+            channels_content,
+            "backend_get_json",
+            new=AsyncMock(
+                side_effect=[
+                    None,
+                    {
+                        "scans": [
+                            {
+                                "contract_address": "0xopenlp",
+                                "token_name": "Open LP",
+                                "token_symbol": "OLP",
+                                "chain": "ethereum",
+                                "risk_score": 85,
+                                "risk_level": "high",
+                                "liquidity_locked": False,
+                            }
+                        ]
+                    },
+                ]
+            ),
+        ):
+            notes = await channels_content.fetch_scan_notes(limit=5)
+        assert len(notes) == 1
+        assert "liquidity_removed" in notes[0]["risk_flags"]
+
+    async def test_fetch_scan_notes_does_not_overwrite_real_identity(self) -> None:
+        with (
+            patch.object(
+                channels_content,
+                "backend_get_json",
+                new=AsyncMock(
+                    side_effect=[
+                        None,
+                        {
+                            "scans": [
+                                {
+                                    "contract_address": "0xreal",
+                                    "token_name": "Real Token",
+                                    "token_symbol": "REAL",
+                                    "chain": "solana",
+                                    "risk_score": 90,
+                                    "risk_level": "high",
+                                }
+                            ]
+                        },
+                    ]
+                ),
+            ),
+            patch.object(channels_content, "http_get_json", new=AsyncMock()) as dex_mock,
+        ):
+            notes = await channels_content.fetch_scan_notes(limit=5)
+        assert notes[0]["name"] == "Real Token"
+        assert notes[0]["symbol"] == "REAL"
+        dex_mock.assert_not_awaited()
+
+
+# ── Scan commentary (witty one-liner helper) ──────────────────────────────
+
+
+class TestScanCommentary:
+    async def test_attaches_honest_witty_line(self) -> None:
+        item = {
+            "address": "0xw",
+            "name": "Dog Wif Rug",
+            "symbol": "DWR",
+            "chain": "solana",
+            "risk_level": "critical",
+            "risk_score": 96,
+            "risk_flags": ["honeypot", "bundled_launch"],
+        }
+        with patch(
+            "app.llm_config.chat_with_fallback",
+            new=AsyncMock(return_value="the only thing decentralized here is the exit liquidity"),
+        ):
+            out = await channels_scan_commentary.attach_scan_commentary(item)
+        assert out is item
+        assert item["commentary"] == "the only thing decentralized here is the exit liquidity"
+
+    async def test_prompt_is_grounded_in_real_flags(self) -> None:
+        item = {
+            "address": "0xw2",
+            "name": "Honey",
+            "symbol": "HNY",
+            "chain": "bsc",
+            "risk_level": "high",
+            "risk_score": 90,
+            "risk_flags": ["honeypot", "lp_removed"],
+        }
+        with patch("app.llm_config.chat_with_fallback", new=AsyncMock(return_value="ok")) as llm:
+            await channels_scan_commentary.attach_scan_commentary(item)
+        prompt = llm.await_args.args[0][1]["content"]
+        assert "honeypot" in prompt
+        assert "lp_removed" in prompt
+        assert "Honey (HNY)" in prompt
+
+    async def test_fails_open_to_no_line(self) -> None:
+        item = {
+            "address": "0xw3",
+            "name": "Boom",
+            "symbol": "BOOM",
+            "chain": "solana",
+            "risk_level": "high",
+            "risk_score": 90,
+            "risk_flags": ["honeypot"],
+        }
+        with patch("app.llm_config.chat_with_fallback", new=AsyncMock(side_effect=RuntimeError("provider down"))):
+            out = await channels_scan_commentary.attach_scan_commentary(item)
+        assert out is item
+        assert "commentary" not in item
+
+    async def test_skips_clean_tokens_without_llm_call(self) -> None:
+        item = {
+            "address": "0xw4",
+            "name": "Clean",
+            "symbol": "CLN",
+            "chain": "base",
+            "risk_level": "low",
+            "risk_score": 10,
+            "risk_flags": [],
+        }
+        with patch("app.llm_config.chat_with_fallback", new=AsyncMock()) as llm:
+            out = await channels_scan_commentary.attach_scan_commentary(item)
+        assert out is item
+        assert "commentary" not in item
+        llm.assert_not_awaited()
+
+    async def test_clips_degenerate_output(self) -> None:
+        item = {
+            "address": "0xw5",
+            "name": "Long",
+            "symbol": "LNG",
+            "chain": "solana",
+            "risk_level": "high",
+            "risk_score": 90,
+            "risk_flags": ["honeypot"],
+        }
+        long_line = "x" * 500
+        with patch("app.llm_config.chat_with_fallback", new=AsyncMock(return_value=long_line)):
+            await channels_scan_commentary.attach_scan_commentary(item)
+        assert len(item["commentary"]) <= channels_scan_commentary._COMMENTARY_MAX_CHARS
+
 
 # ── Scheduler ─────────────────────────────────────────────────────────────
 
@@ -1071,7 +1391,10 @@ class TestPostingJobs:
                 "risk_flags": ["low_liquidity"],
             },
         ]
-        with patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=items)):
+        with (
+            patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=items)),
+            patch.object(channels_scheduler, "attach_scan_commentary", new=AsyncMock(side_effect=lambda i: i)),
+        ):
             assert await channels_scheduler.post_scan_update(ctx) == 2
         assert bot.send_message.await_count == 2
         texts = [call.kwargs["text"] for call in bot.send_message.await_args_list]
@@ -1098,7 +1421,10 @@ class TestPostingJobs:
             "risk_level": "high",
             "risk_score": 90,
         }
-        with patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=[item])):
+        with (
+            patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=[item])),
+            patch.object(channels_scheduler, "attach_scan_commentary", new=AsyncMock(side_effect=lambda i: i)),
+        ):
             assert await channels_scheduler.post_scan_update(ctx) == 1
             assert await channels_scheduler.post_scan_update(ctx) == 0  # same token never reposted
         assert bot.send_message.await_count == 1

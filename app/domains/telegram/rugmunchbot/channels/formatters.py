@@ -84,6 +84,11 @@ def _esc(value: object) -> str:
     return html.escape(str(value), quote=False)
 
 
+def _is_placeholder(value: object) -> bool:
+    """True when a name/symbol field carries no real identity (fail-open)."""
+    return str(value or "").strip().lower() in ("", "unknown", "???", "n/a", "null", "none")
+
+
 def _clip(text: str, limit: int = _MAX_BODY_CHARS) -> str:
     if len(text) <= limit:
         return text
@@ -438,6 +443,85 @@ _ALERT_VERDICT_REASONS: tuple[tuple[str, str], ...] = (
 _ALERT_VERDICT_FALLBACK = "flagged by the RugMunch scanner — verify before touching it"
 
 
+#: Compact scanner-flag → why-it's-risky phrase for scan cards (specific first).
+#: These are the HUMAN reasons a scan is notable — honeypot / bundle / fake
+#: volume / LP removed / flagged deployer — surfaced instead of the generic
+#: "high-risk verdict" line. Unknown flags stay raw so no signal is dropped.
+_SCAN_REASON_BITS: tuple[tuple[str, str], ...] = (
+    ("honeypot", "honeypot: sells can be blocked"),
+    ("rugpull", "rug indicators: exit liquidity at risk"),
+    ("rug_pull", "rug indicators: exit liquidity at risk"),
+    ("rug_indicators", "rug indicators: exit liquidity at risk"),
+    ("rug_pattern", "rug-pattern behavior"),
+    ("lp_removed", "LP removed: holders can't exit"),
+    ("liquidity_removed", "LP removed: holders can't exit"),
+    ("liquidity_unlocked", "LP unlocked: can be yanked anytime"),
+    ("lp_unlocked", "LP unlocked: can be yanked anytime"),
+    ("liquidity_low", "thin liquidity: price is easy to manipulate"),
+    ("low_liquidity", "thin liquidity: price is easy to manipulate"),
+    ("no_liquidity", "no liquidity: token can't be traded"),
+    ("volume_fake", "fake volume: wash-traded"),
+    ("wash_trad", "fake volume: wash-traded"),
+    ("bundled_launch", "bundled launch: supply concentrated"),
+    ("bundle_detect", "bundled launch: supply concentrated"),
+    ("bundle_suspect", "bundled launch: supply concentrated"),
+    ("pump_dump", "pump & dump pattern"),
+    ("malicious_deployer", "flagged deployer: dev can rug"),
+    ("high_risk_deployer", "flagged deployer: dev can rug"),
+    ("suspicious_deployer", "flagged deployer: dev can rug"),
+    ("dev_high_risk", "flagged deployer: dev can rug"),
+    ("concentrated_holders", "top wallets control the supply"),
+    ("concentrated_lp", "concentrated LP: shallow"),
+    ("mintable", "mintable: supply can be inflated"),
+    ("mint_authority", "mint authority: supply can be inflated"),
+    ("fresh_wallet", "fresh-wallet funded"),
+    ("deployer_dump", "deployer dumping"),
+    ("sanctioned", "sanctioned entity"),
+    ("copycat", "copycat of a known token"),
+    ("active_proxy_owner", "proxy owner: logic can swap"),
+)
+
+
+def _scan_reason_bits(item: dict[str, Any], *, limit: int = 3) -> list[str]:
+    """Human "why it's risky" phrases for a scan card, from flags + security.
+
+    Known flags map to their short reason (most specific first); unknown
+    flags stay raw so no signal is dropped. The ``security`` sub-dict adds
+    the LP-unlocked signal the flag rail does not carry. Falls back to the
+    generic :func:`alert_verdict` when nothing specific is known. Pure —
+    never raises.
+    """
+    bits: list[str] = []
+    seen: set[str] = set()
+    flags = [str(f).lower() for f in (item.get("risk_flags") or []) if f]
+    consumed: set[str] = set()
+    for flag in flags:
+        for needle, reason in _SCAN_REASON_BITS:
+            if needle in flag:
+                if reason not in seen:
+                    seen.add(reason)
+                    bits.append(reason)
+                consumed.add(flag)
+                break
+        if len(bits) >= limit:
+            break
+    security = item.get("security")
+    if isinstance(security, dict) and security.get("lp_locked") is False:
+        reason = "LP unlocked: can be yanked anytime"
+        if reason not in seen and len(bits) < limit:
+            seen.add(reason)
+            bits.append(reason)
+    for flag in flags:
+        if flag in consumed or len(bits) >= limit:
+            continue
+        if flag not in seen:
+            seen.add(flag)
+            bits.append(flag)
+    if not bits:
+        bits.append(alert_verdict(item))
+    return bits[:limit]
+
+
 def alert_verdict(item: dict[str, Any]) -> str:
     """One-line "why it matters" for a scanner alert, derived from known flags.
 
@@ -570,17 +654,31 @@ def format_main_escalation(item: dict[str, Any]) -> NewsPost:
 
 
 def format_scan_card(item: dict[str, Any]) -> NewsPost:
-    """Compact @rmiscans card: verdict + risk score + token + chain + scan link.
+    """Compact @rmiscans card: real reasons + risk score + token + links.
 
     One token per card (the scans job posts each notable scan as its own
-    card, ~10/day). The verdict line comes from the scanner flags
-    (``alert_verdict`` — "why it matters"), the score line renders the
-    numeric risk (or falls back to the risk level when the score is absent),
-    and the scan deep link always points at rugmunch.io/scanner. Carries the
-    item's image when one exists (text-only otherwise — fail-open).
+    card, ~10/day). The reasons line surfaces the ACTUAL why a token is
+    risky — honeypot / bundle / fake volume / LP removed / flagged deployer
+    (``_scan_reason_bits``) — instead of the generic "high-risk verdict";
+    the optional ``commentary`` key renders the one-line AI wit when present
+    (fail-open to no line). Name/symbol render honestly: no "Unknown (???)"
+    when only one of them is known. The score line renders the numeric risk
+    (or falls back to the risk level when the score is absent), and the scan
+    deep link always points at rugmunch.io/scanner. Carries the item's image
+    when one exists (text-only otherwise — fail-open).
     """
-    symbol = _esc(item.get("symbol") or "???")
-    name = _esc(item.get("name") or item.get("title") or symbol)
+    raw_name = str(item.get("name") or "").strip()
+    raw_symbol = str(item.get("symbol") or "").strip()
+    name = "" if _is_placeholder(raw_name) else raw_name
+    symbol = "" if _is_placeholder(raw_symbol) else raw_symbol
+    if name and symbol and symbol.lower() != name.lower():
+        label = f"{_esc(name)} ({_esc(symbol)})"
+    elif symbol:
+        label = _esc(symbol)
+    elif name:
+        label = _esc(name)
+    else:
+        label = "Unnamed token"
     addr = str(item.get("address") or item.get("token_address") or "")
     chain = _esc(item.get("chain") or "")
     risk = str(item.get("risk_level") or "unknown").lower()
@@ -592,14 +690,16 @@ def format_scan_card(item: dict[str, Any]) -> NewsPost:
     if not score_line:
         score_line = f"{_risk_emoji(risk)} Verdict: {risk}"
     lines = ["🛡️ <b>Scan of note</b>", sep(), ""]
-    lines.append(f"{_risk_emoji(risk)} <b>{name}</b> ({symbol}){f' · {chain}' if chain else ''}")
+    lines.append(f"{_risk_emoji(risk)} <b>{label}</b>{f' · {chain}' if chain else ''}")
     if addr:
         lines.append(f"<code>{_esc(addr)}</code>")
     lines.append(score_line)
-    lines.append(f"💡 {_esc(alert_verdict(item))}")
-    flags = [f for f in item.get("risk_flags") or [] if f]
-    if flags:
-        lines.append("   ⚠️ " + " · ".join(_esc(f) for f in flags[:5]))
+    reasons = _scan_reason_bits(item)
+    if reasons:
+        lines.append(f"{_risk_emoji(risk)} " + " · ".join(_esc(r) for r in reasons))
+    commentary = str(item.get("commentary") or "").strip()
+    if commentary:
+        lines.append(f"💬 {_esc(commentary)}")
     links = _item_links(item, addr=addr, chain=str(item.get("chain") or ""))
     if links:
         lines.append("")

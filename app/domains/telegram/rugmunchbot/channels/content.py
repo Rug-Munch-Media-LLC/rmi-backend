@@ -28,11 +28,13 @@ Nothing here is synthesized: every value comes from the listed live source.
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import suppress
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+from app.domains.telegram.rugmunchbot.tools._client import http_get_json
 
 logger = get_logger("rmi_bot.channels.content")
 
@@ -42,6 +44,10 @@ _NEWS_WINDOW_HOURS = 168
 #: ``/api/v1/launches/alerts`` (documented: tokens auto-scanned above 70/100
 #: risk). Used only to render the honest "condition met vs current" line.
 ALERT_RISK_THRESHOLD: int = 70
+
+#: Hard budget for the concurrent DexScreener identity backfill in
+#: ``fetch_scan_notes`` (fail-open — a timeout leaves names unresolved).
+_IDENTITY_ENRICH_TIMEOUT: float = 6.0
 
 #: Webhook-trigger event types (from ``databus.alert_router`` classification)
 #: that should ALSO surface on the alerts channel digest. These arrive via
@@ -97,6 +103,70 @@ def _scan_score_line(item: dict[str, Any]) -> str:
         with suppress(TypeError, ValueError):
             return f"risk {float(score):.0f}/100 ({risk_level})"
     return f"flagged {risk_level}"
+
+
+def _is_placeholder(value: object) -> bool:
+    """True when a name/symbol field carries no real identity (fail-open)."""
+    return str(value or "").strip().lower() in ("", "unknown", "???", "n/a", "null", "none")
+
+
+async def _enrich_scan_identity(item: dict[str, Any]) -> None:
+    """Backfill a scan note's missing name/symbol from DexScreener (in place).
+
+    Only fires when the note carries a placeholder identity (``Unknown`` /
+    ``???`` / empty) — real payload names are never overwritten. Uses the
+    free DexScreener ``/latest/dex/tokens/{address}`` endpoint via the shared
+    budget-gated client (``http_get_json``). Fail-open: a miss, budget skip,
+    or error leaves the note untouched; never raises.
+    """
+    if not (_is_placeholder(item.get("name")) or _is_placeholder(item.get("symbol"))):
+        return
+    addr = str(item.get("address") or item.get("token_address") or "").strip()
+    if not addr:
+        return
+    try:
+        body = await http_get_json(f"https://api.dexscreener.com/latest/dex/tokens/{addr}", timeout=5.0)
+        if not body:
+            return
+        pairs = body.get("pairs")
+        if not isinstance(pairs, list) or not pairs or not isinstance(pairs[0], dict):
+            return
+        base = pairs[0].get("baseToken")
+        if not isinstance(base, dict):
+            return
+        if _is_placeholder(item.get("name")):
+            candidate = str(base.get("name") or "").strip()
+            if candidate:
+                item["name"] = candidate
+        if _is_placeholder(item.get("symbol")):
+            candidate = str(base.get("symbol") or "").strip()
+            if candidate:
+                item["symbol"] = candidate
+        if _is_placeholder(item.get("chain")):
+            chain = str(pairs[0].get("chainId") or "").strip()
+            if chain:
+                item["chain"] = chain
+    except Exception:
+        logger.debug("channels:dex_identity_failed addr=%.40s", addr)
+
+
+async def _enrich_missing_identities(items: list[dict[str, Any]]) -> None:
+    """Concurrent, time-bounded DexScreener identity backfill for scan notes.
+
+    Runs every placeholder-named note's lookup in parallel under a hard
+    ``_IDENTITY_ENRICH_TIMEOUT`` so a slow DexScreener never blocks the
+    channel tick. Fail-open by contract: any timeout/error leaves the list
+    as-is.
+    """
+    if not items:
+        return
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(*(_enrich_scan_identity(it) for it in items), return_exceptions=True),
+            timeout=_IDENTITY_ENRICH_TIMEOUT,
+        )
+    except Exception:
+        logger.debug("channels:dex_identity_timeout items=%d", len(items))
 
 
 def _as_list(value: Any) -> list[dict[str, Any]]:
@@ -377,6 +447,17 @@ async def fetch_risk_alerts(limit: int = 5) -> list[dict[str, Any]]:
                     "alert_type": str(item.get("alert_type") or "scanner").strip(),
                     "condition": _alert_condition(item),
                     "image_url": _image_url(item.get("image_url") or item.get("image")),
+                    # Rich scan fields passthrough (best-effort) so card
+                    # formatters can surface the REAL why (security booleans,
+                    # deployer, liquidity) instead of a generic verdict.
+                    "security": security if isinstance(security, dict) else None,
+                    "deployer": str(
+                        item.get("deployer") or item.get("creator_address") or item.get("creator") or ""
+                    ).strip()
+                    or None,
+                    "liquidity": item.get("liquidity"),
+                    "age_hours": item.get("age_hours"),
+                    "holders": item.get("holders"),
                 }
             )
         scanner = [a for a in normalized if a["address"]]
@@ -419,6 +500,8 @@ def _scan_history_to_note(item: dict[str, Any]) -> dict[str, Any] | None:
             flags.append("rug_pull")
         if item.get("has_mint_authority"):
             flags.append("mint_authority")
+        if item.get("liquidity_locked") is False:
+            flags.append("liquidity_removed")
     name = str(item.get("token_name") or "Unknown").strip()
     return {
         "address": address,
@@ -483,7 +566,9 @@ async def fetch_scan_notes(limit: int = 10) -> list[dict[str, Any]]:
         return -1.0
 
     notes.sort(key=_score_key, reverse=True)
-    return notes[: max(1, limit)]
+    notes = notes[: max(1, limit)]
+    await _enrich_missing_identities(notes)
+    return notes
 
 
 __all__ = [
