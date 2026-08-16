@@ -9,7 +9,7 @@ methodology (2026-08-13). The pipeline is:
        (news_v2 / market_intel / known_scams / threat_intel / defi_exploits /
        whale_transfers). Never raises.
     2. ``draft_briefing()`` — renders the fixed §3 skeleton. The default
-        writer is the local-LLM ``llm_writer`` (production), which re-writes
+        writer is the remote-LLM ``llm_writer`` (production), which re-writes
         the prose from the gathered context; whenever the LLM is unavailable,
         disabled, or returns empty, a deterministic template fallback produces
         a real, accurate, source-cited post from the context alone.
@@ -56,10 +56,9 @@ BRIEFING_TELEGRAM_CHANNELS = ("main_channel", "rmicryptonews")
 # Telegram soft limit is 4096 chars; keep the compact briefing under it.
 BRIEFING_TELEGRAM_LIMIT = 3900
 
-# Token budget for the LLM briefing call. The local llama.cpp runs ~7 tok/s and
-# ``ai_router.chat_completion`` has a 120s httpx timeout — a 2048-token request
-# would take ≈5min and time out. A Morning Brief is short prose, so 512 tokens
-# is the default; operators can raise it with ``RMI_BRIEFING_MAX_TOKENS``.
+# Token budget for the LLM briefing call. A Morning Brief is short prose, so
+# 512 tokens is the default; operators can raise it with
+# ``RMI_BRIEFING_MAX_TOKENS``.
 DEFAULT_BRIEFING_MAX_TOKENS = 512
 
 
@@ -308,7 +307,7 @@ def _llm_writer_enabled() -> bool:
     """Whether ``draft_briefing``'s default writer is the LLM writer.
 
     Production (``ENVIRONMENT=prod``) uses ``llm_writer`` by default so the
-    Morning Brief is drafted by the local LLM. Dev/test keep the deterministic
+    Morning Brief is drafted by the remote LLM. Dev/test keep the deterministic
     template (pure, fast, deterministic) unless explicitly overridden with
     ``RMI_BRIEFING_LLM_WRITER=1``. Explicit ``0``/``false``/``no``/``off``
     always disables the LLM default.
@@ -326,21 +325,19 @@ async def llm_writer(
     model: str | None = None,
     completion: CompletionCallable | None = None,
 ) -> str:
-    """Draft the briefing prose with a local LLM (methodology §6).
+    """Draft the briefing prose with a remote LLM (methodology §6).
 
     Builds a system prompt with the §3 skeleton, §4 voice, and grounding
     rules, then asks ``completion`` (default ``ai_router.chat_completion`` →
-    local llama.cpp ``qwen-analysis``) to write the post filling the
-    skeleton using ONLY the provided context. Returns "" on any failure
-    (completion raises, non-dict result, empty content) so ``draft_briefing``
-    falls back to the deterministic template — publishing is never blocked on
-    the LLM.
+    remote long/deep tier) to write the post filling the skeleton using ONLY
+    the provided context. Returns "" on any failure (completion raises,
+    non-dict result, empty content) so ``draft_briefing`` falls back to the
+    deterministic template — publishing is never blocked on the LLM.
 
     ``completion`` is injectable so tests can assert on the messages without
-    hitting the network. ``max_tokens`` is capped at
-    :func:`_briefing_max_tokens` (default 512, env ``RMI_BRIEFING_MAX_TOKENS``)
-    so the call finishes inside ``ai_router.chat_completion``'s 120s httpx
-    timeout on the ~7 tok/s local llama.cpp.
+    hitting the network. ``max_tokens`` is capped at :func:`_briefing_max_tokens`
+    (default 512, env ``RMI_BRIEFING_MAX_TOKENS``) so the call stays inside
+    the provider timeout.
     """
     completion_call: CompletionCallable
     if completion is None:
@@ -362,7 +359,7 @@ async def llm_writer(
                 {"role": "system", "content": BRIEFING_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            model=model or "qwen-analysis",
+            model=model,  # None → resolved by task_type="analysis" → deep tier
             task_type="analysis",
             temperature=0.6,
             max_tokens=_briefing_max_tokens(),

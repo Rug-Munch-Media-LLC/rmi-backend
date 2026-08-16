@@ -110,7 +110,7 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
     Returns dict or None. Gracefully degrades.
 
     Provider routing:
-      - ollama → LiteLLM (qwen-chat on port 4000) or direct Ollama fallback
+      - ollama → remote chat-completion fallback or direct Ollama fallback
       - deepseek/openrouter → direct DeepSeek API (api.deepseek.com)
       - groq/mistral/gemini → via ai_router.chat_completion
     """
@@ -118,12 +118,12 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
 
     try:
         if provider == "ollama":
-            # Route local inference through LiteLLM for unified routing
+            # Route local inference through the remote chat-completion tier
             from app.ai_router import chat_completion
 
             result = await chat_completion(
                 messages=[{"role": "user", "content": prompt}],
-                task_type="chat",  # LiteLLM routes chat → qwen-chat
+                task_type="chat",  # ai_router routes chat → snappy tier
                 temperature=kwargs.get("temperature", 0.7),
                 max_tokens=kwargs.get("max_tokens", 2048),
             )
@@ -202,7 +202,11 @@ async def _call_provider(provider: str, model: str, prompt: str, **kwargs) -> An
                 max_tokens=kwargs.get("max_tokens", 2048),
             )
             if result and "content" in result:
-                return {"response": result["content"], "model": "qwen-chat", "provider": "litellm-fallback"}
+                return {
+                    "response": result["content"],
+                    "model": result.get("model", "chat-fallback"),
+                    "provider": "litellm-fallback",
+                }
         elif provider == "groq":
             from app.ai_router import chat_completion
 

@@ -23,7 +23,6 @@ import json
 import os
 import time
 import uuid
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -32,8 +31,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.ai_router import (
-    LLAMA_HOST,
-    LOCAL_MODEL_PORTS,
     chat_completion as do_chat_completion,
     stream_chat_completion as do_stream_chat_completion,
 )
@@ -71,7 +68,7 @@ from ._prompts import (
     _SYMBOL_RE,  # noqa: F401  (re-export for existing importers)
     _VAGUE_REFERENTS,  # noqa: F401  (re-export for existing importers)
     DISCLAIMER,
-    SYSTEM_PROMPT,
+    SYSTEM_PROMPT,  # noqa: F401  (re-export for existing importers)
     _identity_answer,
     _looks_like_current_events,  # noqa: F401  (re-export for existing importers)
     _should_web_search,
@@ -175,13 +172,12 @@ def _apply_rate_limit_headers(response: Response, request: Request) -> None:
 
 
 # ── Models ──
-# Chat answers are short prose — a 320-token budget cuts local-llama.cpp
-# generation ~5.5x vs the old 768 default (measured 2026-08-15 on the live
-# CPU host: 4B qwen-chat with the real ~2100-token bot prompt took 87-136s
-# at max_tokens=768, 24-27s at 320, 15s at 200 — generation dominates, so
-# the token budget is THE latency lever). The default can be raised at
-# deploy time via RMI_CHAT_MAX_TOKENS (clamped to 64..2048 — the Pydantic
-# Field bounds stay 64..8192 for explicit requests).
+# Chat answers are short prose — a 320-token budget keeps generation latency
+# snappy on the free remote chat tier (measured 2026-08-15 on the old CPU
+# host: generation dominated total latency, so the token budget IS the
+# latency lever). The default can be raised at deploy time via
+# RMI_CHAT_MAX_TOKENS (clamped to 64..2048 — the Pydantic Field bounds stay
+# 64..8192 for explicit requests).
 # 2026-08-14: raised 512 -> 1536 — 512 was truncating long educational answers
 # (e.g. "how to learn TA") mid-sentence for the bot, which sends no max_tokens.
 # 2026-08-15: 1536 -> 768 — context fetches (tool/RAG/web) now run in parallel
@@ -189,11 +185,11 @@ def _apply_rate_limit_headers(response: Response, request: Request) -> None:
 # prompt stays lean while the model gets fresher grounding; 768 keeps long
 # educational answers from truncating while bounding generation latency.
 # 2026-08-15: 768 -> 320 — the bot sends max_tokens explicitly (768) and the
-# 4B model needed 87-136s per answer on CPU, blowing past the 30s llama.cpp
-# client timeout and the bot's 60s backend timeout, forcing the slow fallback
-# chain. 320 tokens ≈ 1300 chars — a full Telegram answer for most queries
-# (long answers are chunked bot-side at 3800 chars). Long educational answers
-# may truncate at 320; raise per-deploy via RMI_CHAT_MAX_TOKENS if needed.
+# 4B local model needed 87-136s per answer on CPU, blowing past the client
+# timeout and the bot's 60s backend timeout, forcing the slow fallback chain.
+# 320 tokens ≈ 1300 chars — a full Telegram answer for most queries (long
+# answers are chunked bot-side at 3800 chars). Long educational answers may
+# truncate at 320; raise per-deploy via RMI_CHAT_MAX_TOKENS if needed.
 _CHAT_MAX_TOKENS_BASE = 320
 _CHAT_MAX_TOKENS_MIN = 64
 _CHAT_MAX_TOKENS_MAX = 2048
@@ -244,8 +240,6 @@ class StreamRequest(BaseModel):
     model: str | None = Field(default=None)
     tier: str = Field(default="T2", pattern="^(T0|T1|T2|T3|T4)$")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    # 2026-08-15: 2048 -> 512 — the streaming path also runs local llama.cpp
-    # on CPU; 512 tokens bounds a streamed answer to ~40s instead of ~3min.
     max_tokens: int = Field(default=512, ge=64, le=8192)
 
 
@@ -473,9 +467,10 @@ async def _search_rag_context(message: str) -> tuple[str, int]:
 # ── Complexity-based model routing ─────────────────────────────────────
 # Pure-function router: analytical / forensic / explanation-heavy questions
 # ("why", "explain", "investigate", on-chain terms, long messages) go to the
-# stronger qwen-analysis 9B (Qwen3.5) model; simple definitional / quick questions
-# stay on the fast qwen-chat 4B (Qwen3.5) (7 tok/s — the 4x speedup matters for trivial
-# asks, while hard questions get the model with enough reasoning power).
+# stronger deep (long) tier; simple definitional / quick questions stay on
+# the fast (snappy) tier (4x cheaper/faster — the speedup matters for
+# trivial asks, while hard questions get the model with enough reasoning
+# power).
 # ── Helper to save message ──
 def _save_message(user_id: str, role: str, content: str, metadata: dict[str, Any] | None = None) -> Any:
     msg_id = f"msg-{uuid.uuid4().hex[:10]}"
@@ -523,90 +518,6 @@ def _cache_set(key: str, response: str, ttl: int) -> None:
         oldest_keys = sorted(_chat_cache, key=lambda k: _chat_cache[k][0])[:overflow]
         for k in oldest_keys:
             _chat_cache.pop(k, None)
-
-
-# ── Local llama.cpp KV-cache pre-warm ─────────────────────────────────
-# llama.cpp ``cache_prompt`` reuse only pays off when a slot ALREADY holds
-# the tokenized prefix — a cold slot pays full prompt-processing latency on
-# the first query (measured: ~doubles first-turn time on CPU). This pre-warm
-# sends a tiny (max_tokens=1) ``cache_prompt`` completion to BOTH local
-# servers at startup, then re-warms periodically, so the model is loaded into
-# a slot and the byte-stable system-prompt prefix is cached BEFORE the first
-# user query. Best-effort: any failure logs at debug and is skipped — the
-# first real query still warms the slot naturally.
-_PREWARM_INTERVAL_SECONDS = 300.0  # re-warm every 5 min (slot cache can be evicted)
-_PREWARM_TIMEOUT = 10.0  # llama.cpp warm-up must never block anything
-
-
-def _build_prewarm_messages() -> list[dict[str, str]]:
-    """Build the exact byte-stable prefix used by real chat turns.
-
-    Mirrors ``_build_messages``: SYSTEM_PROMPT + day-granular date + hardened
-    directives, with NO volatile market/context/history blocks. This is the
-    prefix every real chat request shares, so priming it makes the first real
-    query reuse the slot's KV cache.
-    """
-    now = datetime.now(UTC)
-    date_str = now.strftime("%Y-%m-%d")
-    system = SYSTEM_PROMPT.format(date=date_str, year=str(now.year))
-    return ai_guard.build_safe_messages(system_prompt=system, history=[], user_message="ping", max_history=1)
-
-
-async def _prewarm_llama_slots_once() -> None:
-    """Send a 1-token ``cache_prompt`` completion to both local servers."""
-    messages = _build_prewarm_messages()
-    async with httpx.AsyncClient(timeout=httpx.Timeout(_PREWARM_TIMEOUT, connect=5.0)) as client:
-        for model, port in LOCAL_MODEL_PORTS.items():
-            try:
-                await client.post(
-                    f"http://{LLAMA_HOST}:{port}/v1/chat/completions",
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "max_tokens": 1,
-                        "temperature": 0.0,
-                        "cache_prompt": True,
-                        "chat_template_kwargs": {"enable_thinking": False},
-                    },
-                    headers={"Content-Type": "application/json"},
-                )
-            except Exception as e:  # fail-open — warm-up must never raise
-                logger.debug("llama_prewarm_skip model=%s err=%s", model, str(e)[:120])
-
-
-async def _prewarm_llama_slots_loop() -> None:
-    """Warm once at startup, then re-warm every ``_PREWARM_INTERVAL_SECONDS``."""
-    await _prewarm_llama_slots_once()
-    while True:
-        try:
-            await asyncio.sleep(_PREWARM_INTERVAL_SECONDS)
-        except asyncio.CancelledError:
-            return
-        await _prewarm_llama_slots_once()
-
-
-_prewarm_task: asyncio.Task[Any] | None = None
-
-
-def _start_llama_prewarm() -> None:
-    """Spawn the pre-warm loop as a background task (idempotent)."""
-    global _prewarm_task
-    if _prewarm_task is None or _prewarm_task.done():
-        _prewarm_task = asyncio.create_task(_prewarm_llama_slots_loop())
-
-
-def _stop_llama_prewarm() -> None:
-    """Cancel the pre-warm loop on shutdown (idempotent)."""
-    global _prewarm_task
-    if _prewarm_task is not None:
-        _prewarm_task.cancel()
-        _prewarm_task = None
-
-
-# Router-level startup/shutdown hooks: verified to fire even with an explicit
-# app lifespan (FastAPI collects router ``on_startup``/``on_shutdown`` handlers).
-router.add_event_handler("startup", _start_llama_prewarm)
-router.add_event_handler("shutdown", _stop_llama_prewarm)
 
 
 # ── Tool-use layer (live data grounding) ───────────────────────────────
@@ -681,7 +592,7 @@ async def chat(
     # ── VAGUE-QUESTION FAST-PATH ──
     # Underspecified questions ("what happened with the one token the other
     # day") get a clarification prompt — no RAG/web/LLM round-trip, no risk of
-    # a degenerate "- " answer from the local model.
+    # a degenerate "- " answer from the model.
     vague_answer = _vague_question(req.message)
     if vague_answer is not None:
         _save_message(user_id, "user", req.message)
@@ -873,8 +784,8 @@ async def chat(
 
     try:
         # Complexity-based routing: analytical/forensic questions go to the
-        # stronger qwen-analysis 9B (Qwen3.5) model, simple/quick ones to the fast
-        # qwen-chat 4B (Qwen3.5). An explicit req.model wins over routing.
+        # stronger deep (long) tier, simple/quick ones to the fast (snappy)
+        # tier. An explicit req.model wins over routing.
         task_type = "chat" if req.model else _route_task(req.message)
         result = await do_chat_completion(
             messages=messages,

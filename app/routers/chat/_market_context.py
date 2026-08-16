@@ -5,15 +5,15 @@ EVERY chat answer — both the website chat path and the Telegram bot path flow
 through ``POST /api/v1/chat`` → ``_build_messages``, so injecting here covers
 both.
 
-KV-cache placement contract (llama.cpp ``cache_prompt``):
+Volatile-context placement contract:
   This block is VOLATILE — it re-renders every ``MARKET_CONTEXT_TTL`` (60s)
   with live prices/trending. It is therefore appended to the USER turn (after
   the question) by ``_build_messages``, NOT injected into the system prompt.
   The system-prompt prefix (persona, day-granular date, inert history) stays
-  byte-stable for the whole day so the local llama.cpp servers can reuse the
-  KV cache across turns. Freshness is preserved (the block is still fetched
-  per chat call through the 60s upstream TTL); only its position moved past
-  the cache boundary.
+  byte-stable so the chat cache key and any prompt-prefix reuse stay stable
+  across turns. Freshness is preserved (the block is still fetched per chat
+  call through the 60s upstream TTL); only its position moved past the
+  stable-prefix boundary.
 
 Data sources (REUSED from the existing backend data layer — no reimplementation):
   - BTC/ETH price + 24h change: CoinGecko via ``market_intel.providers._cg``

@@ -1,19 +1,28 @@
 #!/usr/bin/env python3
 """
-AI Router — DIRECT LOCAL MODELS
-=================================
-All consumer chat (Telegram bot, website, rugmaps, rugcharts) routes DIRECTLY
-to the self-hosted llama.cpp servers. NO litellm proxy, NO paid/external APIs.
+AI Router — REMOTE PROVIDERS
+=============================
+All consumer chat (Telegram bot, website, rugmaps, rugcharts) routes through
+the free remote LLM providers configured in ``app.llm_config``. The former
+local model defaults were decommissioned 2026-08-16.
 
-Local models (llama.cpp, OpenAI-compatible /v1 endpoints):
-  - qwen-chat          (Qwen3.5-4B-Abliterated Q6_K, llama.cpp :8085, 8k ctx)
-  - qwen-analysis      (Qwen3.5-9B-Abliterated Q6_K, llama.cpp :8086, 8k ctx)
+Provider tiers:
+  - snappy  → ``get_snappy_config()`` — OpenRouter (laguna snappy), fast
+              short chat answers.
+  - long    → ``get_long_config()`` — OpenRouter (nemotron long), deep
+              reasoning / analysis answers.
+  - fallback→ ``get_fast_config()`` — direct DeepSeek API, last resort.
+
+Routing: ``_resolve_model`` maps the legacy local model aliases
+(``qwen-chat`` → snappy, ``qwen-analysis`` → long) and the task types to a
+tier; the tier selects the config. Every provider is called with httpx
+Bearer auth; when the configured API key is missing the call fails OPEN with
+a clear message instead of crashing the endpoint.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import re
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -30,63 +39,63 @@ from fastapi import APIRouter
 
 router = APIRouter(tags=["AI Router"])
 
-# ── Local model registry ──
-# model_name → llama.cpp port on the docker bridge gateway.
-# Model aliases map to Qwen3.5 abliterated GGUFs (swap 2026-08-14):
-#   qwen-chat         → Huihui-Qwen3.5-4B-Abliterated Q6_K   (llama-chat :8085)
-#   qwen-analysis     → Huihui-Qwen3.5-9B-Abliterated Q6_K   (llama-analysis :8086)
-# Alias names are kept stable for caller compatibility; "qwen-analysis" is the
-# analysis-tier local alias (Qwen3.5 9B on llama.cpp :8086).
-LOCAL_MODEL_PORTS = {
-    "qwen-chat": 8085,
-    "qwen-analysis": 8086,
+# ── Tier registry ──
+# Backward-compat aliases: callers may still pass model="qwen-chat"/"qwen-analysis".
+TIER_ALIASES = {
+    "qwen-chat": "snappy",
+    "qwen-analysis": "long",
 }
-DEFAULT_MODEL = "qwen-chat"
 
-# Backend runs in Docker on the rmi_network bridge (172.22.0.0/16); llama.cpp
-# runs on the HOST, so the container reaches it via the docker bridge gateway
-# 172.22.0.1 — NOT 127.0.0.1 (that's the container itself).
-LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-
-# ── Local llama.cpp read timeout (CPU latency budget) ──────────────────
-# The proxy rotator's default client timeout (30s) is a DATA-fetch budget;
-# CPU generation is far slower. Measured 2026-08-15 on the live host: the
-# real ~2100-token bot prompt takes 24-27s at max_tokens=320 (and a cold
-# first pass can double that with prompt processing), so a 30s read timeout
-# would kill every answer mid-generation. Local llama.cpp is a private
-# destination (never proxied) — a dedicated longer timeout is safe.
-LLAMA_TIMEOUT = 120.0
-
-# ── Task → Model routing map ──
-TASK_MODEL_MAP = {
-    "chat": "qwen-chat",
-    "analysis": "qwen-analysis",
-    "simple": "qwen-chat",
-    "complex": "qwen-analysis",
-    "code": "qwen-analysis",
-    "bulk": "qwen-chat",
-    "chart": "qwen-analysis",
-    "contract": "qwen-analysis",
+# Task → tier routing map (mirrors the old local task→model map).
+TASK_TIER_MAP = {
+    "chat": "snappy",
+    "simple": "snappy",
+    "bulk": "snappy",
+    "analysis": "long",
+    "complex": "long",
+    "code": "long",
+    "chart": "long",
+    "contract": "long",
 }
+
+DEFAULT_TIER = "snappy"
+
+# Remote read timeout (s). These are cloud providers — generation is fast;
+# the long (nemotron) tier can still take a while on deep reasoning prompts.
+REMOTE_TIMEOUT = 60.0
 
 logger = get_logger("ai_router")
 
-# Model tiers (compat shim for /ai/models — reflects the local reality)
+# Model tiers (compat shim for /ai/models — reflects the remote reality)
 MODEL_TIERS = {
-    "T0": {"name": "Local-Deep", "models": ["qwen-analysis"], "max_cost_per_1k": 0.0},
-    "T1": {"name": "Local-Deep", "models": ["qwen-analysis"], "max_cost_per_1k": 0.0},
-    "T2": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
-    "T3": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
-    "T4": {"name": "Local-Fast", "models": ["qwen-chat"], "max_cost_per_1k": 0.0},
+    "T0": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0},
+    "T1": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0},
+    "T2": {"name": "Snappy", "models": ["poolside/laguna-s-2.1:free"], "max_cost_per_1k": 0.0},
+    "T3": {"name": "Long", "models": ["nvidia/nemotron-3-ultra-550b-a55b:free"], "max_cost_per_1k": 0.0},
+    "T4": {"name": "Long", "models": ["nvidia/nemotron-3-ultra-550b-a55b:free"], "max_cost_per_1k": 0.0},
 }
 
 PROVIDERS = {
-    "llama.cpp": {"host": LLAMA_HOST, "ports": LOCAL_MODEL_PORTS, "local": True},
+    "zen": {"host": "opencode.ai", "tier": "snappy", "local": False},
+    "deepseek": {"host": "api.deepseek.com", "tier": "fallback", "local": False},
 }
 
 
+def _tier_config(tier: str) -> dict[str, Any]:
+    """Return the ``app.llm_config`` dict for a tier.
+
+    Fail-open: an unknown tier falls back to the snappy config so callers
+    never hit a KeyError from routing drift.
+    """
+    from app import llm_config
+
+    if tier == "long":
+        return llm_config.get_long_config()
+    return llm_config.get_snappy_config()
+
+
 def _strip_think_tags(text: str) -> str:
-    """Strip <think> tags from model output (legacy Qwen3/DeepSeek R1 reasoning; Qwen3.5 non-reasoning shouldn't emit them, kept defensively).
+    """Strip <think> tags from model output (legacy Qwen3/DeepSeek R1 reasoning; kept defensively).
 
     Handles both complete blocks (<think>...</think>) and unterminated blocks
     that get cut off when max_tokens is reached mid-think (strip everything from
@@ -98,8 +107,8 @@ def _strip_think_tags(text: str) -> str:
     return cleaned.strip()
 
 
-# Degenerate-output guard: the local models can emit a bare markdown bullet
-# ("- "), empty output, or punctuation-only on vague, context-free questions.
+# Degenerate-output guard: a model can emit a bare markdown bullet ("- "),
+# empty output, or punctuation-only on vague, context-free questions.
 # Replace those with a helpful fallback instead of surfacing "- " to users.
 _FALLBACK_RESPONSE = (
     "I couldn't find enough context to answer that. "
@@ -122,12 +131,22 @@ def _is_degenerate(text: str) -> bool:
 
 
 def _resolve_model(model: str | None, task_type: str | None) -> str:
-    """Resolve to a LOCAL model name. Non-local names are coerced to default."""
-    if model and model in LOCAL_MODEL_PORTS:
-        return model
-    if task_type and task_type in TASK_MODEL_MAP:
-        return TASK_MODEL_MAP[task_type]
-    return DEFAULT_MODEL
+    """Resolve to a TIER name (``snappy`` | ``long``).
+
+    Explicit legacy aliases win (``qwen-chat`` → snappy, ``qwen-analysis`` →
+    long); any other explicit model string is coerced to the task-type tier
+    (matching the old behavior of coercing unknown names to the default).
+    """
+    if model and model in TIER_ALIASES:
+        return TIER_ALIASES[model]
+    if task_type and task_type in TASK_TIER_MAP:
+        return TASK_TIER_MAP[task_type]
+    return DEFAULT_TIER
+
+
+def _provider_label(tier: str) -> str:
+    """Stable provider label for the response ``_provider`` field."""
+    return "zen-snappy" if tier == "snappy" else "kilo-long"
 
 
 class _ThinkStreamFilter:
@@ -207,10 +226,10 @@ async def list_models() -> dict[str, Any]:
 def _is_proxyable_destination(url: str) -> bool:
     """True when ``url`` targets a public host that should ride the proxy tier.
 
-    Private / loopback destinations (the local llama.cpp servers on the docker
-    bridge, localhost) are never proxied: a residential proxy cannot reach
-    RFC1918 space, so sending those through the tier would only burn a
-    rotation and add latency.
+    Private / loopback destinations (localhost, docker bridge, internal
+    gateways like a local LLM gateway on 127.0.0.1) are never proxied: a
+    residential proxy cannot reach RFC1918 space, so sending those through
+    the tier would only burn a rotation and add latency.
     """
     try:
         host = urlsplit(url).hostname
@@ -267,13 +286,12 @@ async def _post_chat(
     blocked/banned residential egress degrades to the datacenter IP instead
     of failing the call.
 
-    ``api_key`` (optional) adds a Bearer Authorization header for the direct
-    DeepSeek API fallback (local llama.cpp needs none).
+    ``api_key`` adds the Bearer Authorization header required by every
+    remote provider.
 
     ``timeout`` (optional) overrides the client's default read timeout for
-    THIS request — used for local llama.cpp, where CPU generation far
-    exceeds the rotator's 30s data-fetch budget. ``None`` keeps the
-    client-default timeout (proxied cloud calls stay on the 30s budget).
+    THIS request. ``None`` keeps the client-default timeout (proxied cloud
+    calls stay on the rotator's data-fetch budget).
     """
     payload = {
         "model": model,
@@ -281,19 +299,6 @@ async def _post_chat(
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-
-    # ── LOCAL llama.cpp latency levers (llama-direct / llama-direct-cross) ──
-    # * cache_prompt: ask the server to reuse the KV cache for the stable
-    #   prefix (system prompt + history) across turns. The server decides the
-    #   final prefix reuse based on its slot state, but explicit opt-in avoids
-    #   any client-default ambiguity. No-op for the DeepSeek API fallback.
-    # * enable_thinking=false: Qwen3/DeepSeek chat templates render an empty
-    #   <think> marker (and skip the reasoning preamble) so tokens go to the
-    #   answer, not a think chain. Unknown kwargs are ignored by OpenAI-style
-    #   servers, so only send it on the local llama.cpp path to be safe.
-    if provider.startswith("llama"):
-        payload["cache_prompt"] = True
-        payload["chat_template_kwargs"] = {"enable_thinking": False}
 
     _headers = {"Content-Type": "application/json"}
     if api_key:
@@ -312,7 +317,7 @@ async def _post_chat(
         resp = await _do_post(client)
     except (httpx.HTTPError, ConnectionError, TimeoutError):
         if not proxied:
-            logger.warning("local_llm_unreachable", provider=provider, url=url[:120])
+            logger.warning("llm_unreachable", provider=provider, url=url[:120])
             return None
         logger.warning("llm_proxy_transport_error", provider=provider, url=url[:120])
         rotator.mark_failed(proxy_url)
@@ -340,7 +345,7 @@ async def _post_chat(
 
     if resp.status_code != 200:
         logger.warning(
-            "local_llm_non_200",
+            "llm_non_200",
             provider=provider,
             status=resp.status_code,
             body=resp.text[:300],
@@ -364,12 +369,14 @@ async def _post_chat(
     }
 
 
-def _other_local(model: str) -> str:
-    """Return the other local model (cross-model redundancy)."""
-    for name in LOCAL_MODEL_PORTS:
-        if name != model:
-            return name
-    return DEFAULT_MODEL
+def _missing_key_message(tier: str, config: dict[str, Any]) -> str:
+    """Clear, actionable message when a provider API key is not configured."""
+    key_env = "OPENROUTER_BACKUP_API_KEY"
+    return (
+        f"AI provider unavailable: {key_env} is not configured (tier={tier}, "
+        f"model={config.get('model', '?')}). Set the key in the environment to "
+        "enable AI chat."
+    )
 
 
 # ── Direct chat completion (used by app.routers.chat) ──
@@ -383,16 +390,20 @@ async def chat_completion(
     temperature: float = 0.7,
     max_tokens: int = 512,
 ) -> dict[str, Any]:
-    """Call a LOCAL llama.cpp model directly via task-based routing.
+    """Call a remote LLM provider via tier-based routing.
 
-    Chain (all local, no external APIs):
-      1. Direct llama.cpp for the resolved model
-      2. The other local llama.cpp server (cross-model redundancy)
-      3. ExternalAPIError
+    Chain:
+      1. Primary tier (snappy = laguna / long = nemotron via OpenRouter)
+      2. The other tier (cross-provider redundancy)
+      3. Direct DeepSeek API fallback (``get_fast_config``)
+      4. ExternalAPIError with a clear message
+
+    Fails OPEN with a clear message when the provider API key is missing.
     """
     from app.core.ai_guardrails import sanitize_input as _guard_input, sanitize_output as _guard_output
+    from app.core.errors import ExternalAPIError
 
-    resolved_model = _resolve_model(model, task_type)
+    resolved_tier = _resolve_model(model, task_type)
 
     # ── GUARDRAILS: Sanitize last user message before sending ──
     messages_safe = list(messages)
@@ -401,7 +412,7 @@ async def chat_completion(
             original = messages_safe[i].get("content", "")
             cleaned = _guard_input(original)
             if cleaned.startswith("[BLOCKED"):
-                logger.warning("guardrails_blocked_input", model=resolved_model, reason=cleaned)
+                logger.warning("guardrails_blocked_input", tier=resolved_tier, reason=cleaned)
                 return {
                     "id": "guardrails-blocked",
                     "content": cleaned,
@@ -414,106 +425,93 @@ async def chat_completion(
             messages_safe[i]["content"] = cleaned
             break
 
-    # Client is proxy-first when the residential rotator is enabled and the
-    # destination is public (see _build_ai_client); local llama.cpp stays
-    # direct. _post_chat retries direct on a blocked/banned proxy.
-    rotator = get_proxy_rotator()
-    first_url = f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[resolved_model]}/v1/chat/completions"
-    client, proxy_url = _build_ai_client(rotator, first_url)
+    primary_cfg = _tier_config(resolved_tier)
+    if not primary_cfg.get("api_key"):
+        raise ExternalAPIError(message=_missing_key_message(resolved_tier, primary_cfg))
 
-    # Chat-tier tasks are HARD-CAPPED to the fast 4B (qwen-chat): on a
-    # timeout/error we skip the cross-model 9B fallback entirely and go
-    # straight to the DeepSeek API fallback. The 9B is reserved for explicit
-    # analysis/forensics tasks (task_type analysis/complex/code/chart/
-    # contract), where it is the PRIMARY model and the 4B is the fast cross
-    # fallback. Escalating a simple chat query to the 4x-slower 9B only
-    # guarantees the answer takes 2+ minutes on CPU.
-    chat_tier = resolved_model == "qwen-chat"
+    # Client is proxy-first when the residential rotator is enabled and the
+    # destination is public (see _build_ai_client); the local LLM gateway
+    # (127.0.0.1) and private bridges stay direct. _post_chat retries direct
+    # on a blocked/banned proxy.
+    rotator = get_proxy_rotator()
+    client, proxy_url = _build_ai_client(rotator, primary_cfg["base_url"])
 
     async with client:
-        # ── 1: Direct llama.cpp for the resolved model ──
+        # ── 1: Primary tier ──
         try:
             result = await _post_chat(
                 client,
-                first_url,
-                resolved_model,
+                primary_cfg["base_url"],
+                primary_cfg["model"],
                 messages_safe,
                 temperature,
                 max_tokens,
-                provider="llama-direct",
+                provider=_provider_label(resolved_tier),
                 proxy_url=proxy_url,
                 rotator=rotator,
-                timeout=LLAMA_TIMEOUT,
+                api_key=primary_cfg["api_key"],
+                timeout=REMOTE_TIMEOUT,
             )
             if result:
                 content = _guard_output(result["content"])
                 result["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
                 return result
         except Exception as e:
-            logger.warning("llama_direct_unreachable", model=resolved_model, error=str(e))
+            logger.warning("llm_primary_unreachable", tier=resolved_tier, error=str(e))
 
-        # ── 2: Cross-model local fallback (analysis tier only) ──
-        # qwen-chat (chat tier) never escalates to qwen-analysis: the 9B is
-        # the slow model and a chat query that timed out on the 4B would only
-        # time out AGAIN (slower) on the 9B — the DeepSeek API fallback below
-        # answers faster than a CPU 9B can. The reverse direction is kept:
-        # an analysis-tier 9B failure falls back to the fast 4B.
-        if not chat_tier:
-            other = _other_local(resolved_model)
-            other_url = f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions"
+        # ── 2: Cross-tier fallback (other provider) ──
+        other_tier = "long" if resolved_tier == "snappy" else "snappy"
+        other_cfg = _tier_config(other_tier)
+        if other_cfg.get("api_key"):
             try:
                 result = await _post_chat(
                     client,
-                    other_url,
-                    other,
+                    other_cfg["base_url"],
+                    other_cfg["model"],
                     messages_safe,
                     temperature,
                     max_tokens,
-                    provider="llama-direct-cross",
+                    provider=_provider_label(other_tier),
                     proxy_url=proxy_url,
                     rotator=rotator,
-                    timeout=LLAMA_TIMEOUT,
+                    api_key=other_cfg["api_key"],
+                    timeout=REMOTE_TIMEOUT,
                 )
                 if result:
                     content = _guard_output(result["content"])
                     result["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
                     return result
             except Exception as e:
-                logger.warning("llama_cross_unreachable", model=other, error=str(e))
+                logger.warning("llm_cross_unreachable", tier=other_tier, error=str(e))
 
-    # ── 3: DeepSeek Flash API (direct api.deepseek.com) fallback ──
-    # Local models are the preferred path (qwen-chat 4B → qwen-analysis 9B, both Qwen3.5);
-    # when BOTH local llama.cpp servers are down, fall back to the direct
-    # DeepSeek Flash API so the bot never hard-fails on a local-model outage.
-    try:
-        from app import llm_config
+        # ── 3: Direct DeepSeek API fallback ──
+        try:
+            from app import llm_config
 
-        _cfg = llm_config.get_fast_config()
-        if _cfg.get("api_key") and _cfg.get("base_url"):
-            _resp = await _post_chat(
-                client,
-                _cfg["base_url"],
-                _cfg["model"],
-                messages_safe,
-                temperature,
-                max_tokens,
-                provider="deepseek-api",
-                api_key=_cfg["api_key"],
-                proxy_url=proxy_url,
-                rotator=rotator,
-            )
-            if _resp:
-                content = _guard_output(_resp["content"])
-                _resp["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
-                return _resp
-    except Exception as e:
-        logger.warning("deepseek_api_fallback_failed", error=str(e))
-
-    from app.core.errors import ExternalAPIError
+            _cfg = llm_config.get_fast_config()
+            if _cfg.get("api_key") and _cfg.get("base_url"):
+                _resp = await _post_chat(
+                    client,
+                    _cfg["base_url"],
+                    _cfg["model"],
+                    messages_safe,
+                    temperature,
+                    max_tokens,
+                    provider="deepseek-api",
+                    api_key=_cfg["api_key"],
+                    proxy_url=proxy_url,
+                    rotator=rotator,
+                )
+                if _resp:
+                    content = _guard_output(_resp["content"])
+                    _resp["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
+                    return _resp
+        except Exception as e:
+            logger.warning("deepseek_api_fallback_failed", error=str(e))
 
     raise ExternalAPIError(
-        message="Local AI models unavailable. Check llama-chat (port 8085) / "
-        "llama-analysis (port 8086) systemd services."
+        message="AI providers unavailable: primary and fallback tiers all failed. "
+        "Check the OPENROUTER_BACKUP_API_KEY configuration."
     )
 
 
@@ -549,6 +547,9 @@ async def _stream_from(
     temperature: float,
     max_tokens: int,
     provider: str,
+    *,
+    api_key: str | None = None,
+    timeout: float | None = None,
 ) -> AsyncGenerator[str, None] | None:
     """Open an SSE stream; yield think-stripped tokens, or None on failure."""
     try:
@@ -559,21 +560,22 @@ async def _stream_from(
             "max_tokens": max_tokens,
             "stream": True,
         }
-        # Same local llama.cpp latency levers as _post_chat: prefix-cache the
-        # stable system-prompt prefix and disable the Qwen3/DeepSeek reasoning
-        # preamble so tokens go straight to the answer.
-        if provider.startswith("llama"):
-            payload["cache_prompt"] = True
-            payload["chat_template_kwargs"] = {"enable_thinking": False}
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        stream_kwargs: dict[str, Any] = {}
+        if timeout is not None:
+            stream_kwargs["timeout"] = httpx.Timeout(timeout, connect=10.0)
         async with client.stream(
             "POST",
             url,
             json=payload,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
+            **stream_kwargs,
         ) as resp:
             if resp.status_code != 200:
                 logger.warning(
-                    "local_llm_stream_non_200",
+                    "llm_stream_non_200",
                     provider=provider,
                     status=resp.status_code,
                     body=(await resp.aread())[:300],
@@ -589,7 +591,7 @@ async def _stream_from(
             if tail:
                 yield tail
     except Exception as e:
-        logger.warning("local_llm_stream_unreachable", provider=provider, model=model, error=str(e))
+        logger.warning("llm_stream_unreachable", provider=provider, model=model, error=str(e))
         return
 
 
@@ -601,15 +603,17 @@ async def stream_chat_completion(
     temperature: float = 0.7,
     max_tokens: int = 512,
 ) -> AsyncGenerator[str, None]:
-    """Stream a LOCAL llama.cpp response token-by-token (SSE-compatible).
+    """Stream a remote LLM response token-by-token (SSE-compatible).
 
-    Same direct-local chain as chat_completion.
+    Same primary → other-tier → deepseek fallback chain as chat_completion.
+    Fails OPEN with a clear ``[ERROR ...]`` token when the provider API key
+    is missing or every tier is unreachable.
     """
     import httpx
 
     from app.core.ai_guardrails import sanitize_input as _guard_input
 
-    resolved_model = _resolve_model(model, task_type)
+    resolved_tier = _resolve_model(model, task_type)
 
     messages_safe = list(messages)
     for i in range(len(messages_safe) - 1, -1, -1):
@@ -622,21 +626,26 @@ async def stream_chat_completion(
             messages_safe[i]["content"] = cleaned
             break
 
-    # Chat tier is hard-capped to the fast 4B (see chat_completion) — a
-    # streaming chat query never escalates to the slow 9B.
-    chat_tier = resolved_model == "qwen-chat"
+    primary_cfg = _tier_config(resolved_tier)
+    if not primary_cfg.get("api_key"):
+        from app.core.errors import ExternalAPIError
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(LLAMA_TIMEOUT, connect=10.0)) as client:
-        # ── 1: Direct llama.cpp (streaming) ──
+        yield f"[ERROR {ExternalAPIError(message=_missing_key_message(resolved_tier, primary_cfg))!s}]"
+        return
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(REMOTE_TIMEOUT, connect=10.0)) as client:
+        # ── 1: Primary tier (streaming) ──
         produced = False
         gen = _stream_from(
             client,
-            f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[resolved_model]}/v1/chat/completions",
-            resolved_model,
+            primary_cfg["base_url"],
+            primary_cfg["model"],
             messages_safe,
             temperature,
             max_tokens,
-            provider="llama-direct",
+            provider=_provider_label(resolved_tier),
+            api_key=primary_cfg["api_key"],
+            timeout=REMOTE_TIMEOUT,
         )
         if gen is not None:
             async for token in gen:
@@ -645,18 +654,21 @@ async def stream_chat_completion(
             if produced:
                 return
 
-        # ── 2: Cross-model local fallback (analysis tier only, streaming) ──
-        if not chat_tier:
-            other = _other_local(resolved_model)
+        # ── 2: Cross-tier fallback (streaming) ──
+        other_tier = "long" if resolved_tier == "snappy" else "snappy"
+        other_cfg = _tier_config(other_tier)
+        if other_cfg.get("api_key"):
             produced = False
             gen = _stream_from(
                 client,
-                f"http://{LLAMA_HOST}:{LOCAL_MODEL_PORTS[other]}/v1/chat/completions",
-                other,
+                other_cfg["base_url"],
+                other_cfg["model"],
                 messages_safe,
                 temperature,
                 max_tokens,
-                provider="llama-direct-cross",
+                provider=_provider_label(other_tier),
+                api_key=other_cfg["api_key"],
+                timeout=REMOTE_TIMEOUT,
             )
             if gen is not None:
                 async for token in gen:
@@ -665,4 +677,30 @@ async def stream_chat_completion(
                 if produced:
                     return
 
-    yield ("[ERROR Local AI models unavailable. Check llama-chat (8085) / llama-analysis (8086) services.]")
+        # ── 3: Direct DeepSeek API fallback (streaming) ──
+        try:
+            from app import llm_config
+
+            _cfg = llm_config.get_fast_config()
+            if _cfg.get("api_key") and _cfg.get("base_url"):
+                produced = False
+                gen = _stream_from(
+                    client,
+                    _cfg["base_url"],
+                    _cfg["model"],
+                    messages_safe,
+                    temperature,
+                    max_tokens,
+                    provider="deepseek-api",
+                    api_key=_cfg["api_key"],
+                )
+                if gen is not None:
+                    async for token in gen:
+                        produced = True
+                        yield token
+                    if produced:
+                        return
+        except Exception as e:
+            logger.warning("deepseek_api_stream_fallback_failed", error=str(e))
+
+    yield "[ERROR AI providers unavailable: primary and fallback tiers all failed.]"

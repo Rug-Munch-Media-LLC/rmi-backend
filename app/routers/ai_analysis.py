@@ -17,6 +17,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
+from app.llm_config import get_long_config
 
 logger = get_logger(__name__)
 
@@ -63,15 +64,6 @@ OPENROUTER_KEY = (
 )
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen/qwen-2.5-72b-instruct:free")
-
-# ── Direct llama.cpp config (NO litellm proxy, NO paid APIs) ──
-LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-QWEN_ANALYSIS_PORT = 8086  # qwen-analysis (Qwen3.5-9B-Abliterated, non-reasoning)
-QWEN_PORT = 8085  # qwen-chat (Qwen3.5-4B-Abliterated, fast)
-
-# CPU llama.cpp models can't serve huge outputs (~7 tok/s) — clamp local-model
-# max_tokens to a sane ceiling. 1500 tokens was ~2min of generation on the 9B.
-LOCAL_MODEL_MAX_TOKENS = 1024
 
 # Cache
 _analysis_cache: dict[str, dict[str, Any]] = {}
@@ -408,7 +400,7 @@ def _detect_anomalies_rule_based(
     return anomalies, clusters, risk_score, risk_level
 
 
-# ── AI Analysis (llama.cpp local or OpenRouter) ──────────────────
+# ── AI Analysis (remote LLM or OpenRouter) ─────────────────────────
 
 
 async def _call_qwen_openrouter(prompt: str) -> dict[str, Any] | None:
@@ -484,37 +476,44 @@ async def _run_ai_analysis(
     holder_data: dict[str, Any] | None,
     scanner_data: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, str]:
-    """Try AI analysis via local llama.cpp (qwen-analysis → qwen-chat)."""
+    """Try AI analysis via the free remote long config, then OpenRouter."""
     prompt = _build_analysis_prompt(chain, address, holder_data, scanner_data)
 
-    # ── Primary: llama.cpp qwen-analysis (local, reasoning) ──
-    result = await _call_llama_analysis(prompt, QWEN_ANALYSIS_PORT, "qwen-analysis")
+    # ── Primary: long config (free remote, deep analysis) ──
+    result = await _call_remote_analysis(prompt)
     if result:
-        return result, "llama/qwen-analysis"
+        return result, "long/nemotron-ultra"
 
-    # ── Fallback: llama.cpp qwen-chat (local, fast) ──
-    result = await _call_llama_analysis(prompt, QWEN_PORT, "qwen-chat")
+    # ── Fallback: OpenRouter (free tier) ──
+    result = await _call_qwen_openrouter(prompt)
     if result:
-        return result, "llama/qwen-chat"
+        return result, "openrouter/qwen"
 
     return None, ""
 
 
-async def _call_llama_analysis(prompt: str, port: int, model: str) -> dict[str, Any] | None:
-    """Call a local llama.cpp model directly. NO litellm, NO paid APIs."""
-    import re
+async def _call_remote_analysis(prompt: str) -> dict[str, Any] | None:
+    """Call the free remote long config (OpenAI-compatible chat completions)."""
+    cfg = get_long_config()
+    if not cfg.get("api_key"):
+        return None
 
     def _strip_think(text: str) -> str:
+        import re
+
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
         return re.sub(r"<think>.*", "", text, flags=re.DOTALL).strip()
 
     try:
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
-                f"http://{LLAMA_HOST}:{port}/v1/chat/completions",
-                headers={"Content-Type": "application/json"},
+                cfg["base_url"],
+                headers={
+                    "Authorization": f"Bearer {cfg['api_key']}",
+                    "Content-Type": "application/json",
+                },
                 json={
-                    "model": model,
+                    "model": cfg["model"],
                     "messages": [
                         {
                             "role": "system",
@@ -522,24 +521,17 @@ async def _call_llama_analysis(prompt: str, port: int, model: str) -> dict[str, 
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    "temperature": 0.2,
-                    # Clamp to LOCAL_MODEL_MAX_TOKENS — 1500 raw tokens was
-                    # ~2min of CPU generation on the 9B model.
-                    "max_tokens": min(LOCAL_MODEL_MAX_TOKENS, 1500),
-                    # llama.cpp latency levers (same as ai_router + bot
-                    # _call_local_llm): prefix-cache the stable system prompt
-                    # and skip the Qwen3.5 reasoning preamble.
-                    "cache_prompt": True,
-                    "chat_template_kwargs": {"enable_thinking": False},
+                    "temperature": cfg.get("temperature", 0.5),
+                    "max_tokens": cfg.get("max_tokens", 1024),
                 },
             )
             if resp.status_code == 200:
                 data = resp.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                 return _parse_ai_response(_strip_think(content))
-            logger.warning("llama_non_200", status=resp.status_code, body=resp.text[:200], model=model)
+            logger.warning("long_analysis_non_200", status=resp.status_code, body=resp.text[:200])
     except Exception as e:
-        logger.warning("llama_analysis_failed", error=str(e), model=model)
+        logger.warning("long_analysis_failed", error=str(e)[:200])
     return None
 
 
@@ -551,7 +543,7 @@ async def contract_analysis(request: ContractAnalysisRequest) -> ContractAnalysi
     """AI-powered contract analysis with anomaly detection.
 
     Accepts holder/distribution data and scanner results, runs AI analysis
-    via local llama.cpp (qwen-analysis/qwen-chat), and falls back to
+    via the free remote long config (OpenRouter fallback), and falls back to
     rule-based detection if AI is unavailable.
 
     Returns a comprehensive risk report with identified anomalies and clusters.
@@ -693,6 +685,8 @@ def _build_rule_summary(risk_score: int, risk_level: str, anomalies: list[dict[s
 async def ai_analysis_health() -> dict[str, Any]:
     """Check AI analysis availability across all providers."""
     openrouter_ok = bool(OPENROUTER_KEY)
+    long_cfg = get_long_config()
+    long_ok = bool(long_cfg.get("api_key"))
     litellm_ok = False
 
     # Check LiteLLM
@@ -705,7 +699,7 @@ async def ai_analysis_health() -> dict[str, Any]:
     except Exception as e:
         logger.warning("ai_health_litellm_check_failed", error=str(e))
 
-    overall = "ok" if (litellm_ok or openrouter_ok) else "degraded"
+    overall = "ok" if (litellm_ok or openrouter_ok or long_ok) else "degraded"
 
     return {
         "status": overall,
@@ -713,5 +707,7 @@ async def ai_analysis_health() -> dict[str, Any]:
         "litellm_url": LITELLM_BASE_URL,
         "openrouter_available": openrouter_ok,
         "openrouter_model": QWEN_MODEL,
+        "long_available": long_ok,
+        "long_model": long_cfg.get("model", ""),
         "fallback": "rule-based",
     }

@@ -348,8 +348,8 @@ async def token_holder_graph(
     skip_cache: bool = Query(False),
 ) -> Any | dict[str, Any]:
     """Generate a token holder graph with AI analysis and RAG caching.
-    Uses local llama.cpp qwen-analysis first, DeepSeek paid fallback, + our FAISS
-    indexes + wallet labels + semantic cache.
+    Uses the remote long (deep-reasoning) tier first, DeepSeek fallback, +
+    our FAISS indexes + wallet labels + semantic cache.
     Falls back to DexScreener pair data when on-chain holder graph is empty."""
     import asyncio
 
@@ -589,7 +589,7 @@ async def auto_label_stats() -> dict[str, Any]:
         raise AppError(message=str(e)[:200]) from e
 
 
-# ── AI-Powered Analysis Endpoints (wired to LiteLLM qwen-analysis) ──
+# ── AI-Powered Analysis Endpoints (wired to remote LLM tiers) ──────
 
 
 class HolderClusterRequest(BaseModel):
@@ -602,7 +602,7 @@ class HolderClusterRequest(BaseModel):
 async def ai_holder_cluster_analysis(req: HolderClusterRequest) -> dict[str, Any]:
     """AI-powered wallet cluster analysis for suspicious patterns.
 
-    Uses local llama.cpp qwen-analysis first, then a DeepSeek-chat fallback
+    Uses the remote long (deep-reasoning) tier first, then a DeepSeek fallback
     to identify bundled launches, sniper coordination, wash trading rings,
     insider clusters, and dev-linked wallets.
     """
@@ -646,7 +646,7 @@ class ContractAnomalyRequest(BaseModel):
 async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str, Any]:
     """AI-powered contract anomaly detection for rug pull indicators.
 
-    Uses local llama.cpp qwen-analysis first, then a DeepSeek-chat fallback
+    Uses the remote long (deep-reasoning) tier first, then a DeepSeek fallback
     to review token holder distribution, contract behavior, and on-chain
     patterns for honeypots, rug pulls, and manipulation indicators.
     """
@@ -666,7 +666,7 @@ async def ai_contract_anomaly_detection(req: ContractAnomalyRequest) -> dict[str
 
 @router.get("/ai-health")
 async def ai_health_check() -> dict[str, Any]:
-    """Check RugMaps AI analysis availability (LiteLLM-first routing)."""
+    """Check RugMaps AI analysis availability (remote-tier routing)."""
     import os
 
     import httpx
@@ -709,6 +709,6 @@ async def ai_health_check() -> dict[str, Any]:
         "ollama_url": ollama_url,
         "litellm_available": litellm_ok,
         "litellm_url": LITELLM_BASE_URL,
-        "model": "litellm/qwen-analysis -> deepseek-chat",
+        "model": "remote-long -> deepseek",
         "fallback": "deepseek-direct + rule-based",
     }

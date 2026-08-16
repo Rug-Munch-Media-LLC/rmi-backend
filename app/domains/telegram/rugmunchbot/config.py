@@ -245,27 +245,6 @@ async def check_backend_health() -> None:
         get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", backend_url, exc)
 
 
-# ══════════════════════════════════════════════
-# LOCAL LLM (llama.cpp — qwen-chat 4B / qwen-analysis 9B)
-# ══════════════════════════════════════════════
-# Host of the local llama.cpp servers used by the chat fallback
-# (handlers/chat_ai/_llm.py builds ``http://{LLAMA_HOST}:8085|8086`` URLs).
-# FAIL-CLOSED: no built-in host/IP. When unset/empty the local LLM fallback
-# is unavailable (the URLs are invalid and the fallback chain skips them) and
-# a warning is logged once per process.
-
-
-@lru_cache
-def _resolve_llama_host() -> str:
-    """Lazy llama.cpp host (env ``LLAMA_HOST``) — read on first access only."""
-    host = os.getenv("LLAMA_HOST", "").strip()
-    if not host:
-        from app.domains.telegram.rugmunchbot.support.logging import get_logger
-
-        get_logger("rmi.config").warning("LLAMA_HOST is unset/empty — local llama.cpp fallback disabled.")
-    return host
-
-
 # Alert engine
 ALERT_CHECK_INTERVAL = 300  # seconds between alert checks (5 min)
 
@@ -878,7 +857,6 @@ _IN_DOCKER: bool
 BACKEND_HOST: str
 BACKEND_URL: str
 SENTINEL_URL: str
-LLAMA_HOST: str
 BETA_MODE: bool
 CHANNEL_JOBS_ENABLED: bool
 NEWS_CHANNEL_ENABLED: bool
@@ -901,7 +879,6 @@ _LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
     "BACKEND_HOST": _resolve_backend_host,
     "BACKEND_URL": _resolve_backend_url,
     "SENTINEL_URL": _resolve_sentinel_url,
-    "LLAMA_HOST": _resolve_llama_host,
     "BETA_MODE": _resolve_beta_mode,
     "CHANNEL_JOBS_ENABLED": _resolve_channel_jobs_enabled,
     "NEWS_CHANNEL_ENABLED": _resolve_news_channel_enabled,

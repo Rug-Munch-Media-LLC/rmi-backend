@@ -17,7 +17,7 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-OLLAMA = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434")
 REAL_CATS_PATH = Path(os.getenv("REAL_CATS_PATH", str(Path.home() / "rmi/backend/data/real_cats.json")))
 
 # Test prompts for scam classification

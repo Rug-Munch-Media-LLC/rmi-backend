@@ -442,8 +442,8 @@ def main() -> None:
     )
 
     # Process updates concurrently (N=4): a slow update (e.g. /chat hitting
-    # llama.cpp) no longer blocks every other user's command. Bounded at 4 to
-    # protect the SQLite-backed db module and llama.cpp from concurrency thrash.
+    # the remote LLM) no longer blocks every other user's command. Bounded
+    # at 4 to protect the SQLite-backed db module from concurrency thrash.
     app = Application.builder().token(BOT_TOKEN).request(request).concurrent_updates(4).build()
 
     # Core commands

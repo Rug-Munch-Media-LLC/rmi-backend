@@ -1,11 +1,11 @@
 """
-Local Model Chat — proxies to llama.cpp servers (Qwen3.5-4B, Qwen3.5-9B).
-qwen-chat for quick chat, qwen-analysis (Qwen3.5-9B) for deep analysis.
+Local Model Chat — proxies to free remote OpenAI-compatible providers.
+``quick`` mode uses the snappy config (fast short answers), ``deep`` mode
+uses the long config (deeper reasoning answers).
 """
 
 from __future__ import annotations
 
-import os
 import re
 import time
 from typing import Any, Literal
@@ -15,21 +15,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
+from app.llm_config import get_long_config, get_snappy_config
 
 logger = get_logger("rmi.local_chat")
 
 router = APIRouter(prefix="/api/v1/chat/local", tags=["local-chat"])
 
-# Local model endpoints (bridge gateway — containers can't reach host 127.0.0.1)
-LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
-QWEN_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
-QWEN_MODEL = "qwen-chat"
-QWEN_ANALYSIS_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
-QWEN_ANALYSIS_MODEL = "qwen-analysis"
-
-# CPU llama.cpp models can't serve huge outputs (~7 tok/s) — clamp to a sane
-# ceiling. Clients may still request up to 4096 (schema stays compatible);
-# the real request is capped here via min().
+# Remote providers are fast — clamp max_tokens to a
+# sane ceiling so a client cannot request a huge unbounded generation.
 LOCAL_CHAT_MAX_TOKENS = 1024
 
 
@@ -57,17 +50,18 @@ def _strip_thinking(text: str) -> str:
 
 @router.post("", response_model=LocalChatResponse)
 async def local_chat(req: LocalChatRequest):
-    """Chat with local models. Quick mode uses Qwen3.5-4B, deep mode uses Qwen3.5-9B."""
+    """Chat with free remote models. Quick mode uses snappy, deep mode uses long."""
     start = time.time()
 
     if req.mode == "deep":
-        url = QWEN_ANALYSIS_URL
-        model = QWEN_ANALYSIS_MODEL
-        timeout = 30.0
+        cfg = get_long_config()
+        timeout = 60.0
     else:
-        url = QWEN_URL
-        model = QWEN_MODEL
-        timeout = 15.0
+        cfg = get_snappy_config()
+        timeout = 30.0
+
+    if not cfg.get("api_key"):
+        raise HTTPException(status_code=503, detail="AI provider unavailable: missing API key")
 
     # Build messages with history
     messages = [
@@ -93,25 +87,24 @@ async def local_chat(req: LocalChatRequest):
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(
-                url,
+                cfg["base_url"],
                 json={
-                    "model": model,
+                    "model": cfg["model"],
                     "messages": messages,
                     "max_tokens": min(req.max_tokens, LOCAL_CHAT_MAX_TOKENS),
-                    "temperature": 0.7,
-                    # llama.cpp latency levers (same as ai_router + bot
-                    # _call_local_llm): prefix-cache the stable system prompt
-                    # and skip the Qwen3.5 reasoning preamble.
-                    "cache_prompt": True,
-                    "chat_template_kwargs": {"enable_thinking": False},
+                    "temperature": cfg.get("temperature", 0.4),
+                },
+                headers={
+                    "Authorization": f"Bearer {cfg['api_key']}",
+                    "Content-Type": "application/json",
                 },
             )
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as e:
-        logger.debug("local chat unavailable: %s", e)
-        raise HTTPException(status_code=503, detail="Local model unavailable")
+        logger.debug("remote chat unavailable: %s", e)
+        raise HTTPException(status_code=503, detail="AI provider unavailable")
 
     if r.status_code != 200:
-        raise HTTPException(status_code=r.status_code, detail="Local model error")
+        raise HTTPException(status_code=r.status_code, detail="AI provider error")
 
     try:
         raw = r.json()
@@ -124,7 +117,7 @@ async def local_chat(req: LocalChatRequest):
 
     answer = choices[0].get("message", {}).get("content", "").strip()
 
-    # Strip thinking output from qwen-analysis
+    # Strip thinking output from the deep/long model
     if req.mode == "deep":
         answer = _strip_thinking(answer)
 
@@ -135,8 +128,8 @@ async def local_chat(req: LocalChatRequest):
 
     return LocalChatResponse(
         message=answer,
-        model=model,
-        provider="local",
+        model=cfg["model"],
+        provider=req.mode,
         mode=req.mode,
         latency_ms=latency_ms,
     )

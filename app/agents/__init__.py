@@ -1,7 +1,7 @@
 """Pydantic AI agent fleet for the RugMunch platform.
 
-Specialist agents with typed outputs, backed by local models (Qwen3.5-4B chat / Qwen3.5-9B analysis)
-via llama.cpp (OpenAI-compatible endpoint):
+Specialist agents with typed outputs, backed by the free remote LLM tier
+(DeepSeek V4 Flash Free via Zen, OpenAI-compatible endpoint):
 
 * ``scanner_agent``  — token risk analysis       → ``TokenRiskResult``
 * ``rag_agent``      — knowledge/exploit answers → ``KnowledgeResult``

@@ -319,24 +319,24 @@ def _format_web_context(results: list[dict[str, str]], max_chars: int = WEB_CONT
 
 
 # ── Complexity-based model routing (pure function of message text) ──────
-# Analytical / forensic / contract-level questions go to the stronger
-# qwen-analysis 9B (Qwen3.5) model; simple / definitional / quick questions
-# stay on the fast qwen-chat 4B (Qwen3.5).
+# Analytical / forensic / contract-level questions route to the deep/long
+# model tier (long config); simple / definitional / quick questions stay on
+# the fast/short tier (snappy config).
 #
 # Refined 2026-08-15 (kept in sync with the bot's _route_local_model in
 # handlers/chat_ai/_llm.py): a DEFINITION ("what is X", "explain X",
-# "define X", "how does X work") is NOT forensics. The 9B is reserved for a
-# real analysis/forensics signal:
+# "define X", "how does X work") is NOT forensics. The deep tier is reserved
+# for a real analysis/forensics signal:
 #   * an address/hash is present (EVM 0x…40/64-hex or Solana base58), or
 #   * an explicit forensics term (analyze/investigate/trace/contract/
 #     deployer/tokenomics/audit), or
 #   * a non-definitional analysis ask ("why", "compare", "what happened",
 #     "deep", "honeypot", on-chain/forensic/mev/exploit).
-# Definitional questions with NONE of those signals stay on the fast 4B —
-# "what is a honeypot token" was measured routing to the 9B for an 87.6s
-# cold answer (31.5s slower than the 4B's 56.1s) for a definition. Also
-# keeps "riskiest/sketchiest ... rug potential" list asks on the fast 4B
-# (no "rug"/"whale" triggers).
+# Definitional questions with NONE of those signals stay on the fast tier —
+# "what is a honeypot token" was measured routing to the deep model for an
+# 87.6s cold answer (31.5s slower than the fast model's 56.1s) for a
+# definition. Also keeps "riskiest/sketchiest ... rug potential" list asks on
+# the fast tier (no "rug"/"whale" triggers).
 _ADDRESS_OR_HASH_RE = re.compile(r"\b0x[a-fA-F0-9]{40,64}\b|\b[1-9A-HJ-NP-Za-km-z]{32,44}\b")
 # Explicit forensics/contract signals — analysis even inside a definition.
 _ANALYSIS_FORENSIC_RE = re.compile(
