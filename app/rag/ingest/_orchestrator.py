@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import time
 from typing import Any
 
 import httpx
@@ -276,10 +275,12 @@ async def ingest_all(
         ok_count = result.get("ok", result.get("accepted", 0))
         print(f"  {collection}: {status} (ok={ok_count}, total={len(fresh)})")
         # Small delay between collections to avoid rate limiting.
-        # ASYNC251: deliberate, inherited from the original god file (which
-        # carried a per-file ignore) — rate-limiting sleep, not blocking I/O.
+        # ``asyncio.sleep`` keeps the event loop responsive (``time.sleep``
+        # would block every other coroutine for the full second).
         if not dry_run:
-            time.sleep(1)  # noqa: ASYNC251
+            import asyncio
+
+            await asyncio.sleep(1)
 
     results["_summary"] = {"total_skipped_already_ingested": total_skipped, "force": force}
     return results

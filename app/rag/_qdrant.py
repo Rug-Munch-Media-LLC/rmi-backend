@@ -305,6 +305,7 @@ async def _qdrant_upsert_chunk(
     chunk: Chunk,
     chunk_meta: dict[str, Any],
     collection: str,
+    vector: list[float] | None = None,
 ) -> bool:
     """Upsert one ingested chunk into the unified Qdrant store (additive).
 
@@ -314,6 +315,11 @@ async def _qdrant_upsert_chunk(
     source), top-level filter fields (``chain``, ``address``, ``collection``
     provenance, unix timestamps) plus the full ``metadata`` object the
     engine's search path reads back (``app.rag.qdrant_store._point_to_hit``).
+
+    ``vector`` is the chunk's already-computed embedding when the caller
+    (``app.rag._ingest.ingest_document``) has it — passing it avoids
+    re-embedding the same chunk text inside ``upsert_rag_document`` (which
+    embeds again when ``vector`` is None), halving Infinity calls on ingest.
     """
     from app.rag.qdrant_store import upsert_rag_document
 
@@ -331,7 +337,7 @@ async def _qdrant_upsert_chunk(
         "metadata": chunk_meta,
     }
     try:
-        ok = await upsert_rag_document(chunk_doc_id, chunk.text, payload)
+        ok = await upsert_rag_document(chunk_doc_id, chunk.text, payload, vector=vector)
     except Exception as exc:  # fail-open contract (never raises into ingest)
         log.warning("rag_qdrant_chunk_upsert_failed doc_id=%s err=%s", chunk_doc_id, exc)
         return False

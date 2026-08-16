@@ -28,6 +28,7 @@ Contract notes:
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -47,6 +48,12 @@ logger = get_logger("rmi_bot.channels.tg_news")
 #: RAG collection the news lane feeds — the collection ``get_news`` (RAG
 #: tool) and the news router search (mirrors ``index_databus_news``).
 _RAG_NEWS_COLLECTION: str = "news_v2"
+
+#: Max concurrent per-story RAG ingests. Each story embeds + upserts chunks
+#: over the network; bounded concurrency collapses N serial stories into
+#: ~N/3 wall-time without overloading the embedder (whose own client caps
+#: at 8 connections).
+_STORY_INGEST_CONCURRENCY: int = 3
 
 
 async def ingest_into_rag(articles: list[NewsArticle]) -> dict[str, Any]:
@@ -94,8 +101,15 @@ async def ingest_into_rag(articles: list[NewsArticle]) -> dict[str, Any]:
             if extract_image_url(article) or getattr(article, "media", None)
         }
         ingestor = BatchIngestor()
-        for doc in story_docs:
-            try:
+        # Story ingestion is independent and network-bound (embed + Qdrant
+        # upsert per chunk), so run the per-story ingest concurrently with a
+        # bounded semaphore instead of serializing N stories. Keeps the
+        # per-story fail-open contract; the count dict is updated by the
+        # single task loop after all stories finish.
+        sem = asyncio.Semaphore(_STORY_INGEST_CONCURRENCY)
+
+        async def _ingest_story(doc: dict[str, Any]) -> Any:
+            async with sem:
                 metadata = dict(doc.get("metadata") or {})
                 if not metadata.get("image_url"):
                     for member_url in metadata.get("source_urls") or []:
@@ -110,15 +124,20 @@ async def ingest_into_rag(articles: list[NewsArticle]) -> dict[str, Any]:
                     metadata=doc["metadata"],
                     source_type="news",
                 )
-                if report.accepted:
-                    counts["ingested"] += 1
-                elif report.duplicate:
-                    counts["duplicates"] += 1
-                else:
-                    counts["errors"] += len(report.errors or []) or 1
-            except Exception as exc:  # fail-open per story
+                return report
+
+        reports = await asyncio.gather(*(_ingest_story(doc) for doc in story_docs), return_exceptions=True)
+        for report in reports:
+            if isinstance(report, BaseException):
                 counts["errors"] += 1
-                logger.debug("tg_news:rag_story_failed doc=%s err=%s", doc["doc_id"], str(exc)[:160])
+                logger.debug("tg_news:rag_story_failed err=%s", str(report)[:160])
+                continue
+            if report.accepted:
+                counts["ingested"] += 1
+            elif report.duplicate:
+                counts["duplicates"] += 1
+            else:
+                counts["errors"] += len(report.errors or []) or 1
         logger.info(
             "tg_news:rag_ingested articles=%s stories=%s ingested=%s duplicates=%s errors=%s",
             len(articles),
