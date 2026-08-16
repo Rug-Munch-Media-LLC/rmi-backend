@@ -9,7 +9,6 @@ write path), bulk ingestion and the collection/stats surface.
 from __future__ import annotations
 
 import asyncio
-import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -207,7 +206,9 @@ async def bulk_ingest(
             item_meta = it.get("metadata") or {}
             r = await ingest_document(
                 collection=collection,
-                doc_id=it.get("doc_id") or it.get("id", f"bulk:{int(time.time() * 1000)}"),
+                doc_id=it.get("doc_id")
+                or it.get("id")
+                or f"bulk:{content_hash(it.get('content') or it.get('text', ''))[:16]}",
                 content=it.get("content") or it.get("text", ""),
                 metadata=item_meta,
                 content_type=(it.get("content_type") or item_meta.get("content_type") or "general"),

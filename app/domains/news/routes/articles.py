@@ -33,6 +33,56 @@ from app.domains.news.routes.schemas import (
 router = APIRouter(tags=["news"])
 
 
+async def _engagement_joins() -> tuple[str, str]:
+    """Build reaction/comment SELECT + LEFT JOIN clauses for news queries.
+
+    ``news_reactions`` / ``news_comments`` are created by alembic
+    ``c1d2e3f4a5b6`` / ``app/catalog/init_schema.py``. On environments
+    where that migration has not been applied yet, a hard LEFT JOIN would
+    500 the feed/trending routes, so detect table presence first and fall
+    back to zeroed counts. Returns ``(select_sql, join_sql)``.
+    """
+    catalog = get_catalog()
+    async with catalog._pg_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT to_regclass('public.news_reactions') IS NOT NULL AS has_reactions, "
+            "to_regclass('public.news_comments') IS NOT NULL AS has_comments"
+        )
+        has_reactions = bool(row and row["has_reactions"])
+        has_comments = bool(row and row["has_comments"])
+    if not (has_reactions and has_comments):
+        return (
+            "0::int AS upvotes, 0::int AS downvotes, 0::int AS comment_count ",
+            "",
+        )
+    return (
+        "COALESCE(r.like_count, 0)::int AS upvotes, "
+        "COALESCE(r.dislike_count, 0)::int AS downvotes, "
+        "COALESCE(c.comment_count, 0)::int AS comment_count ",
+        "LEFT JOIN (SELECT news_id, "
+        "COUNT(*) FILTER (WHERE reaction = 'like')::int AS like_count, "
+        "COUNT(*) FILTER (WHERE reaction = 'dislike')::int AS dislike_count "
+        "FROM news_reactions GROUP BY news_id) r ON r.news_id = n.news_id "
+        "LEFT JOIN (SELECT news_id, COUNT(*)::int AS comment_count "
+        "FROM news_comments WHERE deleted_at IS NULL GROUP BY news_id) c "
+        "ON c.news_id = n.news_id ",
+    )
+
+
+async def _legacy_news_available() -> bool:
+    """True when the legacy ``crypto_news`` table exists.
+
+    The legacy fallback is optional — on databases migrated to the
+    ``news_items`` catalog table (or fresh installs) ``crypto_news`` may
+    not exist at all. Guard the fallback so a missing table degrades to
+    an empty list instead of a 500.
+    """
+    catalog = get_catalog()
+    async with catalog._pg_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT to_regclass('public.crypto_news') IS NOT NULL AS present")
+        return bool(row and row["present"])
+
+
 # ── POST /api/v1/news (list with filters) ─────────────────────────
 @router.post("/news", response_model=NewsListResponse)
 async def list_news(
@@ -57,22 +107,15 @@ async def list_news(
             # the returned items are still filtered by since_hours below.
             fetch_hours = max(since_hours, 72) if clustered else since_hours
             cutoff = utcnow() - timedelta(hours=fetch_hours)
+            engagement_select, engagement_join = await _engagement_joins()
             query = (
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
                 "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, n.bias, "
                 "n.sentiment_label, n.factual_rating, n.source_tier, n.rating_confidence, "
-                "COALESCE(r.like_count, 0)::int AS upvotes, "
-                "COALESCE(r.dislike_count, 0)::int AS downvotes, "
-                "COALESCE(c.comment_count, 0)::int AS comment_count "
+                f"{engagement_select}"
                 "FROM news_items n "
-                "LEFT JOIN (SELECT news_id, "
-                "COUNT(*) FILTER (WHERE reaction = 'like')::int AS like_count, "
-                "COUNT(*) FILTER (WHERE reaction = 'dislike')::int AS dislike_count "
-                "FROM news_reactions GROUP BY news_id) r ON r.news_id = n.news_id "
-                "LEFT JOIN (SELECT news_id, COUNT(*)::int AS comment_count "
-                "FROM news_comments WHERE deleted_at IS NULL GROUP BY news_id) c "
-                "ON c.news_id = n.news_id "
+                f"{engagement_join}"
                 "WHERE n.published_at > $1"
             )
             params: list[Any] = [cutoff]
@@ -122,7 +165,7 @@ async def list_news(
             get_logger(__name__).warning(f"news_list_new_fail: {e}")
 
     # Legacy fallback (crypto_news)
-    if not items and catalog._health.postgres:
+    if not items and catalog._health.postgres and await _legacy_news_available():
         try:
             query = "SELECT id, title, content, url, source, sentiment, tickers, published, ingested_at FROM crypto_news WHERE 1=1"
             params = []
@@ -212,23 +255,16 @@ async def trending_news(
     items: list[NewsItemOut] = []
     # Primary: news_items
     try:
+        engagement_select, engagement_join = await _engagement_joins()
         async with catalog._pg_pool.acquire() as conn:
             rows = await conn.fetch(
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
                 "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, n.bias, "
                 "n.sentiment_label, n.factual_rating, n.source_tier, n.rating_confidence, "
-                "COALESCE(r.like_count, 0)::int AS upvotes, "
-                "COALESCE(r.dislike_count, 0)::int AS downvotes, "
-                "COALESCE(c.comment_count, 0)::int AS comment_count "
+                f"{engagement_select}"
                 "FROM news_items n "
-                "LEFT JOIN (SELECT news_id, "
-                "COUNT(*) FILTER (WHERE reaction = 'like')::int AS like_count, "
-                "COUNT(*) FILTER (WHERE reaction = 'dislike')::int AS dislike_count "
-                "FROM news_reactions GROUP BY news_id) r ON r.news_id = n.news_id "
-                "LEFT JOIN (SELECT news_id, COUNT(*)::int AS comment_count "
-                "FROM news_comments WHERE deleted_at IS NULL GROUP BY news_id) c "
-                "ON c.news_id = n.news_id "
+                f"{engagement_join}"
                 "WHERE n.published_at > $1 "
                 "ORDER BY n.published_at DESC LIMIT 500",
                 cutoff,
@@ -263,7 +299,7 @@ async def trending_news(
         get_logger(__name__).warning(f"trending_new_fail: {e}")
 
     # Fallback: crypto_news (legacy) if no new items
-    if not items:
+    if not items and await _legacy_news_available():
         try:
             cutoff_epoch = cutoff.timestamp()
             async with catalog._pg_pool.acquire() as conn:
@@ -324,22 +360,15 @@ async def get_news(news_id: str) -> NewsItemOut:
     if not catalog._health.postgres:
         raise HTTPException(503, "postgres unavailable")
     try:
+        engagement_select, engagement_join = await _engagement_joins()
         async with catalog._pg_pool.acquire() as conn:
             r = await conn.fetchrow(
                 "SELECT n.news_id, n.url, n.title, n.summary, n.source, n.published_at, "
                 "n.image_url, "
                 "n.sentiment_score, n.chains_mentioned, n.tokens_mentioned, "
-                "COALESCE(r.like_count, 0)::int AS upvotes, "
-                "COALESCE(r.dislike_count, 0)::int AS downvotes, "
-                "COALESCE(c.comment_count, 0)::int AS comment_count "
+                f"{engagement_select}"
                 "FROM news_items n "
-                "LEFT JOIN (SELECT news_id, "
-                "COUNT(*) FILTER (WHERE reaction = 'like')::int AS like_count, "
-                "COUNT(*) FILTER (WHERE reaction = 'dislike')::int AS dislike_count "
-                "FROM news_reactions GROUP BY news_id) r ON r.news_id = n.news_id "
-                "LEFT JOIN (SELECT news_id, COUNT(*)::int AS comment_count "
-                "FROM news_comments WHERE deleted_at IS NULL GROUP BY news_id) c "
-                "ON c.news_id = n.news_id "
+                f"{engagement_join}"
                 "WHERE n.news_id=$1",
                 news_id,
             )
@@ -359,12 +388,14 @@ async def get_news(news_id: str) -> NewsItemOut:
                     downvotes=r["downvotes"],
                     comment_count=r["comment_count"],
                 )
-            r2 = await conn.fetchrow(
-                "SELECT id, title, content, url, source, sentiment, tickers, "
-                "published, ingested_at, category "
-                "FROM crypto_news WHERE id=$1",
-                news_id,
-            )
+            r2 = None
+            if await _legacy_news_available():
+                r2 = await conn.fetchrow(
+                    "SELECT id, title, content, url, source, sentiment, tickers, "
+                    "published, ingested_at, category "
+                    "FROM crypto_news WHERE id=$1",
+                    news_id,
+                )
         if r2:
             return _adapt_legacy_row(dict(r2))
         raise HTTPException(404, "news item not found")
@@ -407,7 +438,7 @@ async def analyze_news(news_id: str) -> NewsAnalysisResponse:
                     tokens_mentioned=list(r["tokens_mentioned"] or []),
                     sentiment_score=r["sentiment_score"],
                 )
-            if not item:
+            if not item and await _legacy_news_available():
                 r2 = await conn.fetchrow(
                     "SELECT id, title, content, url, source, sentiment, tickers, "
                     "published, ingested_at FROM crypto_news WHERE id=$1",
