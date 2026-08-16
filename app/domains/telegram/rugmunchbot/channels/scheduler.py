@@ -25,6 +25,14 @@ Cadence (env-overridable, defaults):
             scanner risk digest is curated (alert type, condition met vs
             current, why-it-matters, scan/chart links), reranker-gated, and
             ≥0.7 items ALSO post solo to @cryptorugmuncher.
+* scans    → every 90m (``RMI_CHANNEL_SCANS_INTERVAL_MINUTES``) — the
+            @rmiscans "scans of note" job: the day's most notable scanned
+            tokens (launch-alert ≥70 rail + scan history, deduped per
+            token), reranker-gated (skip <0.4), each posted as its own
+            compact card (verdict + risk score + token + chain + scan
+            link) — ~10/day across the cadence (per-tick cap
+            ``RMI_CHANNEL_SCANS_TICK_LIMIT``, default 2). Fail-open: no
+            scans today → nothing posted.
 * tg_news  → every 20m (``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES``; default
             tuned UP from 30m so stories post "often") — ingests public
             crypto-news Telegram channels via the headless client, persists
@@ -48,6 +56,7 @@ Cadence (env-overridable, defaults):
 Master switch: ``RMI_CHANNELS_ENABLED`` (default on). Per-channel switches:
 ``RMI_NEWS_CHANNEL_ENABLED`` / ``RMI_ALERTS_CHANNEL_ENABLED`` /
 ``RMI_ALPHA_CHANNEL_ENABLED`` / ``RMI_TG_NEWS_CHANNEL_ENABLED`` /
+``RMI_SCANS_CHANNEL_ENABLED`` /
 ``RMI_SCAM_WATCH_ENABLED`` (default on) / ``RMI_PERSONAL_CHANNEL_ENABLED``
 (default OFF — opt-in; see ``channels/personal_channel.py``).
 
@@ -94,6 +103,7 @@ from app.domains.telegram.rugmunchbot.channels._media import send_news_photo
 from app.domains.telegram.rugmunchbot.channels.content import (
     fetch_alpha_content,
     fetch_risk_alerts,
+    fetch_scan_notes,
     fetch_trending_news,
 )
 from app.domains.telegram.rugmunchbot.channels.daily_market_summary import (
@@ -107,6 +117,7 @@ from app.domains.telegram.rugmunchbot.channels.formatters import (
     format_alpha_post,
     format_main_escalation,
     format_news_post,
+    format_scan_card,
 )
 from app.domains.telegram.rugmunchbot.channels.importance import score_importance
 from app.domains.telegram.rugmunchbot.channels.personal_channel import (
@@ -138,6 +149,10 @@ from app.domains.telegram.rugmunchbot.config import (
     ALPHA_CHANNEL_LIMIT,
     CHANNEL_JOBS_ENABLED,
     NEWS_CHANNEL_LIMIT,
+    SCAN_CHANNEL_ENABLED,
+    SCAN_CHANNEL_INTERVAL_MINUTES,
+    SCAN_CHANNEL_LIMIT,
+    SCAN_CHANNEL_TICK_LIMIT,
     _resolve_channel_id,
 )
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -151,8 +166,16 @@ logger = get_logger("rmi_bot.channels")
 
 # First-run delays so the channels go live shortly after boot (not silent for
 # a full interval): news 45s, alerts 75s, alpha 105s, tg_news 135s,
-# scam_watch 165s, personal 195s.
-_FIRST_RUN_SECONDS = {"news": 45, "alerts": 75, "alpha": 105, "tg_news": 135, "scam_watch": 165, "personal": 195}
+# scam_watch 165s, personal 195s, scans 225s.
+_FIRST_RUN_SECONDS = {
+    "news": 45,
+    "alerts": 75,
+    "alpha": 105,
+    "tg_news": 135,
+    "scam_watch": 165,
+    "personal": 195,
+    "scans": 225,
+}
 
 # Bounded in-memory dedupe: don't re-post the same item on the next tick.
 _posted_keys: dict[str, set[str]] = {}
@@ -568,6 +591,74 @@ async def post_alert_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     return posted
 
 
+# ── Scans job ────────────────────────────────────────────────────────────
+
+
+async def post_scan_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    """Post the day's notable scans to @rmiscans, one compact card each.
+
+    Returns the number of cards posted (0..``SCAN_CHANNEL_TICK_LIMIT``). The
+    day's most notable scanned tokens (launch-alert ≥70 rail + scan history,
+    ``channels/content.py::fetch_scan_notes``) are deduped per token
+    (``_remember("scans", …)`` so the same token is never reposted), reranked
+    (``channels/importance.py``), and every item at/above the news floor
+    (``route_news``, default 0.4) posts as its own compact card — verdict +
+    risk score + token + chain + scan link (rugmunch.io/scanner). Fail-open:
+    an empty pool (no scans today / backend down) posts nothing, and a
+    reranker outage keeps the channel flowing with the heuristic fallback
+    (full window) exactly like the alerts job.
+    """
+    started = time.perf_counter()
+    chat_id = _chat_id("scans")
+    if not chat_id:
+        logger.info(
+            "channels:tick",
+            job="channel_scans",
+            items_swept=0,
+            items_scored=0,
+            items_posted=0,
+            items_failed=0,
+            latency_ms=_elapsed_ms(started),
+            reason="no_chat_id",
+        )
+        return 0
+    scans = await fetch_scan_notes(SCAN_CHANNEL_LIMIT)
+    fresh = [item for item in scans if _remember("scans", _dedupe_key("scans", item))]
+    if not fresh:
+        logger.info(
+            "channels:tick",
+            job="channel_scans",
+            items_swept=len(scans),
+            items_scored=0,
+            items_posted=0,
+            items_failed=0,
+            latency_ms=_elapsed_ms(started),
+            reason="no_fresh",
+        )
+        return 0
+    _, keep, reranker_down = await _score_and_partition(fresh, category="news", source="scanner")
+    # Post at most SCAN_CHANNEL_TICK_LIMIT cards per tick: the reranker gate
+    # (skip <0.4) + per-token dedupe are the volume controls; the tick cap
+    # just spreads the day's notable scans across the day (~10/day at the
+    # default 90m cadence).
+    posted = 0
+    for item in sorted(keep, key=lambda i: i.get("importance", 0.0), reverse=True)[:SCAN_CHANNEL_TICK_LIMIT]:
+        ok = await _post_photo_aware(ctx.bot, chat_id, format_scan_card(item), _safe_send)
+        if ok:
+            posted += 1
+    logger.info(
+        "channels:tick",
+        job="channel_scans",
+        items_swept=len(scans),
+        items_scored=len(fresh),
+        items_posted=posted,
+        items_failed=0,
+        latency_ms=_elapsed_ms(started),
+        reason=("reranker_fallback" if reranker_down else "below_floor" if not posted else None),
+    )
+    return posted
+
+
 # ── Alpha job ─────────────────────────────────────────────────────────────
 
 
@@ -726,6 +817,13 @@ def register_channel_jobs(app: Application[Any, Any, Any, Any, Any, Any]) -> Non
             first=_FIRST_RUN_SECONDS["alpha"],
             name="channel_alpha",
         )
+    if SCAN_CHANNEL_ENABLED and _chat_id("scans"):
+        job_queue.run_repeating(
+            _tick_wrapper("channel_scans", post_scan_update),
+            interval=SCAN_CHANNEL_INTERVAL_MINUTES * 60,
+            first=_FIRST_RUN_SECONDS["scans"],
+            name="channel_scans",
+        )
     # Routed tg_news job: registered when ANY routed destination resolves
     # (news / main @cryptorugmuncher / alpha) — the post path routes each
     # scored story to exactly one destination via ``route_news``.
@@ -764,13 +862,16 @@ def register_channel_jobs(app: Application[Any, Any, Any, Any, Any, Any]) -> Non
             days=tuple(range(7)),
             name="daily_market_summary",
         )
-    logger.info("channels:channel jobs registered (news/alerts/alpha/tg_news/scam_watch/personal/daily_market_summary)")
+    logger.info(
+        "channels:channel jobs registered (news/alerts/alpha/scans/tg_news/scam_watch/personal/daily_market_summary)"
+    )
 
 
 __all__ = [
     "post_alert_update",
     "post_alpha_update",
     "post_news_update",
+    "post_scan_update",
     "register_channel_jobs",
     "route_news",
     "run_scam_watch",

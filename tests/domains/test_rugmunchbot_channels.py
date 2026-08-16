@@ -8,8 +8,8 @@ Covers:
 
 No live network I/O — every fetch is patched at the module boundary it
 actually uses (``channels.content.backend_get_json`` /
-``channels.content._collect_whale_watch_alerts``), same pattern as the rest
-of the bot test suite.
+``channels.content._fetch_whale_moves`` / ``_fetch_early_entries`` /
+``_fetch_smart_money``), same pattern as the rest of the bot test suite.
 """
 
 from __future__ import annotations
@@ -435,6 +435,48 @@ class TestMainEscalationFormatter:
         assert "&lt;script&gt;" in post
 
 
+class TestScanCardFormatter:
+    def test_renders_compact_card_with_verdict_score_and_scan_link(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xscan1",
+                "name": "Scan Token",
+                "symbol": "SCAN",
+                "chain": "solana",
+                "risk_level": "critical",
+                "risk_score": 96,
+                "risk_flags": ["honeypot", "lp_removed"],
+            }
+        )
+        assert "Scan of note" in post
+        assert "Scan Token" in post
+        assert "96/100" in post
+        assert "honeypot" in post
+        # The scan deep link always resolves to rugmunch.io/scanner.
+        assert "rugmunch.io/scanner" in post
+        assert "0xscan1" in post
+
+    def test_scan_card_escapes_user_content(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {
+                "address": "0xscan2",
+                "name": "<b>Evil</b>",
+                "symbol": "X",
+                "chain": "bsc",
+                "risk_level": "high",
+                "risk_score": 80,
+            }
+        )
+        assert "<b>Evil</b>" not in post
+        assert "&lt;b&gt;Evil&lt;/b&gt;" in post
+
+    def test_scan_card_falls_back_to_risk_level_without_score(self) -> None:
+        post = channels_formatters.format_scan_card(
+            {"address": "0xscan3", "name": "No Score", "symbol": "NS", "chain": "base", "risk_level": "high"}
+        )
+        assert "Verdict: high" in post
+
+
 class TestAlphaFormatter:
     def _whale(self) -> dict[str, Any]:
         return {
@@ -527,16 +569,17 @@ class TestContentFetchers:
 
     async def test_fetch_alpha_content_composes_three_sources(self) -> None:
         with (
-            patch.object(channels_content, "_collect_whale_watch_alerts", new=AsyncMock(return_value=[])),
+            patch.object(channels_content, "_fetch_whale_moves", new=AsyncMock(return_value=[])),
+            patch.object(channels_content, "_fetch_early_entries", new=AsyncMock(return_value=[])),
+            patch.object(
+                channels_content,
+                "_fetch_smart_money",
+                new=AsyncMock(return_value=[{"address": "w1", "label": "Whale"}]),
+            ),
             patch.object(
                 channels_content,
                 "backend_get_json",
-                new=AsyncMock(
-                    side_effect=[
-                        {"smart_money_wallets": [{"address": "w1", "label": "Whale"}]},
-                        {"launches": [{"address": "0xL", "name": "NewCoin", "symbol": "NEW"}]},
-                    ]
-                ),
+                new=AsyncMock(return_value={"launches": [{"address": "0xL", "name": "NewCoin", "symbol": "NEW"}]}),
             ),
         ):
             content = await channels_content.fetch_alpha_content()
@@ -545,26 +588,59 @@ class TestContentFetchers:
         assert content["smart_money"][0]["address"] == "w1"
         assert content["launches"][0]["address"] == "0xL"
 
-    async def test_fetch_risk_alerts_merges_security_flags(self) -> None:
-        with patch.object(
-            channels_content,
-            "backend_get_json",
-            new=AsyncMock(
-                return_value={
-                    "alerts": [
-                        {
-                            "address": "0xbad",
-                            "name": "Bad Token",
-                            "symbol": "BAD",
-                            "chain": "bsc",
-                            "risk_level": "critical",
-                            "risk_score": 92,
-                            "risk_flags": ["honeypot"],
-                            "security": {"mintable": True, "lp_locked": False},
-                            "image_url": "https://img.example.com/bad.jpg",
-                        }
+    async def test_fetch_alpha_content_merges_early_entries_into_whale_moves(self) -> None:
+        with (
+            patch.object(
+                channels_content,
+                "_fetch_whale_moves",
+                new=AsyncMock(
+                    return_value=[
+                        {"kind": "whale_move", "token_address": "w", "title": "Whale move", "chain": "solana"}
                     ]
-                }
+                ),
+            ),
+            patch.object(
+                channels_content,
+                "_fetch_early_entries",
+                new=AsyncMock(
+                    return_value=[
+                        {"kind": "early_entry", "token_address": "e", "title": "🐣 Early whale", "chain": "solana"}
+                    ]
+                ),
+            ),
+            patch.object(channels_content, "_fetch_smart_money", new=AsyncMock(return_value=[])),
+            patch.object(channels_content, "backend_get_json", new=AsyncMock(return_value=None)),
+        ):
+            content = await channels_content.fetch_alpha_content()
+        # Early entries ride the same whale rail (scheduler untouched): both
+        # kinds are present, early entries first.
+        assert len(content["whale_moves"]) == 2
+        assert content["whale_moves"][0]["kind"] == "early_entry"
+        assert content["whale_moves"][1]["kind"] == "whale_move"
+
+    async def test_fetch_risk_alerts_merges_security_flags(self) -> None:
+        with (
+            patch.object(channels_content, "_fetch_pushed_webhook_alerts", new=AsyncMock(return_value=[])),
+            patch.object(
+                channels_content,
+                "backend_get_json",
+                new=AsyncMock(
+                    return_value={
+                        "alerts": [
+                            {
+                                "address": "0xbad",
+                                "name": "Bad Token",
+                                "symbol": "BAD",
+                                "chain": "bsc",
+                                "risk_level": "critical",
+                                "risk_score": 92,
+                                "risk_flags": ["honeypot"],
+                                "security": {"mintable": True, "lp_locked": False},
+                                "image_url": "https://img.example.com/bad.jpg",
+                            }
+                        ]
+                    }
+                ),
             ),
         ):
             alerts = await channels_content.fetch_risk_alerts()
@@ -577,6 +653,304 @@ class TestContentFetchers:
         assert alerts[0]["alert_type"] == "scanner"
         assert alerts[0]["condition"] == "risk 92/100 ≥ 70 (critical)"
         assert alerts[0]["image_url"] == "https://img.example.com/bad.jpg"
+
+    async def test_fetch_risk_alerts_merges_webhook_events(self) -> None:
+        """Webhook-trigger events (Redis rmi:alerts:recent) reach the digest."""
+        webhook_entries = [
+            {
+                "id": "alt_1755_ab12",
+                "type": "helius_webhook",
+                "title": "Deployer dump: Binance (cex_hot_wallet) moved 1,200,000 USDC",
+                "description": "Creator/team wallet moved 1,200,000 USDC — potential exit pressure.",
+                "severity": "high",
+                "chain": "solana",
+                "token": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "token_symbol": "USDC",
+                "wallet": "0xBeef",
+                "risk_score": 85,
+                "event_type": "deployer_dump",
+                "importance": 0.85,
+                "attribution": {
+                    "from": "binance (cex_hot_wallet)",
+                    "to": "0x1234…abcd",
+                },
+            }
+        ]
+        with (
+            patch.object(
+                channels_content,
+                "_fetch_pushed_webhook_alerts",
+                new=AsyncMock(return_value=[channels_content._webhook_item(webhook_entries[0])]),
+            ),
+            patch.object(channels_content, "backend_get_json", new=AsyncMock(return_value=None)),
+        ):
+            alerts = await channels_content.fetch_risk_alerts()
+        assert len(alerts) == 1
+        item = alerts[0]
+        assert item["alert_type"] == "deployer dump"
+        assert item["address"] == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        assert item["chain"] == "solana"
+        # Entity labels rendered in the condition line: binance → short address.
+        assert "binance (cex_hot_wallet) → 0x1234…abcd" in item["condition"]
+        # One-line why-it-matters: the verdict flag needle maps to a known line.
+        assert "high_risk_deployer" in item["risk_flags"]
+        # Dedupe key is per-alert (stable across restarts).
+        assert item["url"] == "alt_1755_ab12"
+
+    async def test_fetch_risk_alerts_interleaves_when_both_rails_have_items(self) -> None:
+        scanner = [{"address": "0xsc1", "name": "S1", "symbol": "S1", "risk_level": "high", "risk_score": 80}]
+        webhook = [
+            channels_content._webhook_item(
+                {
+                    "id": "alt_1",
+                    "type": "helius_webhook",
+                    "title": "LP change on MEME",
+                    "severity": "medium",
+                    "chain": "solana",
+                    "token_symbol": "MEME",
+                    "event_type": "lp_change",
+                }
+            )
+        ]
+        with (
+            patch.object(
+                channels_content,
+                "_fetch_pushed_webhook_alerts",
+                new=AsyncMock(return_value=webhook),
+            ),
+            patch.object(
+                channels_content,
+                "backend_get_json",
+                new=AsyncMock(return_value={"alerts": scanner}),
+            ),
+        ):
+            alerts = await channels_content.fetch_risk_alerts(limit=2)
+        assert [a["alert_type"] for a in alerts] == ["scanner", "lp change"]
+        assert channels_formatters.alert_verdict(alerts[1]) == "liquidity removed — holders cannot exit"
+
+    async def test_fetch_risk_alerts_webhook_fail_open(self) -> None:
+        """Redis down must not break the scanner digest."""
+        with (
+            patch.object(channels_content, "_fetch_pushed_webhook_alerts", new=AsyncMock(return_value=[])),
+            patch.object(
+                channels_content,
+                "backend_get_json",
+                new=AsyncMock(return_value={"alerts": [{"address": "0xok", "symbol": "OK"}]}),
+            ),
+        ):
+            alerts = await channels_content.fetch_risk_alerts()
+        assert len(alerts) == 1
+        assert alerts[0]["address"] == "0xok"
+
+    async def test_webhook_item_filters_non_webhook_rows(self) -> None:
+        # Not a webhook-typed entry → None.
+        assert channels_content._webhook_item({"type": "new_pair_risk", "title": "T"}) is None
+        # Any *_webhook entry normalizes (the event-type gate lives upstream
+        # in _fetch_pushed_webhook_alerts, which skips unknown/low rows).
+        item = channels_content._webhook_item(
+            {"type": "helius_webhook", "event_type": "whale_move", "severity": "high"}
+        )
+        assert item is not None
+        assert item["alert_type"] == "whale move"
+
+    async def test_fetch_pushed_webhook_alerts_gates_event_types(self) -> None:
+        from app.alert_pipeline import get_recent_alerts as _real_get_recent_alerts  # noqa: F401 (patch target)
+
+        entries = [
+            {"id": "a1", "type": "helius_webhook", "event_type": "deployer_dump", "severity": "high"},
+            {"id": "a2", "type": "helius_webhook", "event_type": "whale_move", "severity": "high"},
+            {"id": "a3", "type": "helius_webhook", "event_type": "unknown", "severity": "low"},
+            {"id": "a4", "type": "new_pair_risk", "event_type": "deployer_dump", "severity": "high"},
+            {"id": "a5", "type": "helius_webhook", "event_type": "", "severity": "critical"},
+        ]
+        with patch(
+            "app.alert_pipeline.get_recent_alerts",
+            new=AsyncMock(return_value=entries),
+        ):
+            items = await channels_content._fetch_pushed_webhook_alerts(limit=10)
+        # unknown/low dropped; non-webhook types dropped; missing event_type
+        # kept only when severity is high/critical.
+        assert [i["url"] for i in items] == ["a1", "a2", "a5"]
+
+    async def test_fetch_pushed_webhook_alerts_fail_open_on_redis_error(self) -> None:
+        with patch(
+            "app.alert_pipeline.get_recent_alerts",
+            new=AsyncMock(side_effect=ConnectionError("redis down")),
+        ):
+            assert await channels_content._fetch_pushed_webhook_alerts(limit=5) == []
+
+
+class TestWebhookToAlertsChannelSmoke:
+    """End-to-end smoke: a real router-classified webhook event reaches the
+    alerts channel digest, rendered with entity labels + why-it-matters."""
+
+    @pytest.mark.asyncio
+    async def test_helius_deployer_dump_renders_on_alerts_channel(self) -> None:
+        from app.databus.alert_router import route_webhook_alert
+
+        payload = {
+            "feePayer": "0xBE0eB53FC46b790099138e3d32C721856d41e865",
+            "valueUsd": 1_200_000.0,
+            "description": "Deployer wallet transferred 1,200,000 USDC to another wallet",
+            "tokenTransfers": [
+                {
+                    "fromUserAccount": "0xBE0eB53FC46b790099138e3d32C721856d41e865",
+                    "toUserAccount": "0xdead0000000000000000000000000000000000",
+                    "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                    "symbol": "USDC",
+                    "tokenAmount": {"amount": "1200000000", "decimals": 6, "uiAmount": 1200.0},
+                }
+            ],
+            "signature": "smoke_sig_0001",
+            "timestamp": 1755400002,
+            "type": "TRANSFERCHECKED",
+        }
+        captured: dict[str, Any] = {}
+
+        async def _capture_push(**kwargs: Any) -> str:
+            captured.update(kwargs)
+            return "alt_smoke"
+
+        with (
+            patch("app.databus.alert_router._throttle_wallet", return_value="ok"),
+            patch("app.alert_pipeline.push_alert", new=_capture_push),
+        ):
+            result = await route_webhook_alert("helius", payload, "evt:smoke:1")
+
+        assert result["decision"] in ("news", "main")
+        # Reconstruct the entry exactly as push_alert stores it in Redis
+        # (rmi:alerts:recent), then read it back through the channel fetcher.
+        entry: dict[str, Any] = {
+            "id": "alt_smoke",
+            "type": captured["alert_type"],
+            "title": captured["title"],
+            "description": captured["description"],
+            "severity": captured["severity"],
+            "chain": captured["chain"],
+            "token": captured["token"],
+            "token_symbol": captured["token_symbol"],
+            "wallet": captured["wallet"],
+            "risk_score": captured["risk_score"],
+            **captured["metadata"],
+        }
+        item = channels_content._webhook_item(entry)
+        assert item is not None
+        assert item["alert_type"] == result["event_type"].replace("_", " ")
+
+        with (
+            patch.object(
+                channels_content,
+                "_fetch_pushed_webhook_alerts",
+                new=AsyncMock(return_value=[item]),
+            ),
+            patch.object(channels_content, "backend_get_json", new=AsyncMock(return_value=None)),
+        ):
+            alerts = await channels_content.fetch_risk_alerts(limit=5)
+
+        assert len(alerts) == 1
+        text = channels_formatters.format_alerts_post(alerts)
+        # Entity label renders (binance → short address), not a bare full address.
+        assert "binance (cex_hot_wallet)" in text
+        assert "…" in text
+        # Clear one-line why it matters.
+        assert "Why it matters" in text
+        assert "high-risk deployer" in text
+        # The token is actionable: scan + chart deep links.
+        assert "rugmunch.io/scanner" in text
+        assert "gmgn.ai" in text
+
+    async def test_fetch_scan_notes_merges_rails_and_dedupes_by_address(self) -> None:
+        with patch.object(
+            channels_content,
+            "backend_get_json",
+            new=AsyncMock(
+                side_effect=[
+                    # 1st call — /launches/alerts (launch-alert rail).
+                    {
+                        "alerts": [
+                            {
+                                "address": "0xdup",
+                                "name": "Dup Token",
+                                "symbol": "DUP",
+                                "chain": "bsc",
+                                "risk_level": "critical",
+                                "risk_score": 95,
+                                "risk_flags": ["honeypot"],
+                            }
+                        ]
+                    },
+                    # 2nd call — /data/scan-history (scan_results rail).
+                    {
+                        "scans": [
+                            {
+                                "contract_address": "0xdup",
+                                "token_name": "Dup Token",
+                                "token_symbol": "DUP",
+                                "chain": "bsc",
+                                "risk_score": 95,
+                                "risk_level": "critical",
+                            },
+                            {
+                                "contract_address": "0xsafe",
+                                "token_name": "Safe Coin",
+                                "token_symbol": "SAFE",
+                                "chain": "solana",
+                                "risk_score": 12,
+                                "risk_level": "low",
+                            },
+                            {"token_symbol": "NOADDR", "risk_score": 50},
+                        ]
+                    },
+                ]
+            ),
+        ):
+            notes = await channels_content.fetch_scan_notes(limit=5)
+        # 0xdup appears once (launch-alert variant wins), 0xsafe included,
+        # the address-less record is dropped; sorted by risk score descending.
+        assert len(notes) == 2
+        by_addr = {n["address"].lower(): n for n in notes}
+        assert "0xdup" in by_addr
+        assert by_addr["0xdup"]["risk_flags"] == ["honeypot"]
+        assert by_addr["0xdup"]["condition"] == "risk 95/100 ≥ 70 (critical)"
+        assert "0xsafe" in by_addr
+        assert by_addr["0xsafe"]["condition"] == "risk 12/100 (low)"
+        assert notes[0]["risk_score"] == 95
+        assert notes[1]["risk_score"] == 12
+
+    async def test_fetch_scan_notes_derives_flags_from_scan_record_booleans(self) -> None:
+        with patch.object(
+            channels_content,
+            "backend_get_json",
+            new=AsyncMock(
+                side_effect=[
+                    None,  # /launches/alerts miss
+                    {
+                        "scans": [
+                            {
+                                "contract_address": "0xrug",
+                                "token_name": "Rug Record",
+                                "token_symbol": "RGR",
+                                "chain": "ethereum",
+                                "risk_score": 90,
+                                "risk_level": "high",
+                                "is_honeypot": False,
+                                "is_rug_pull": True,
+                                "has_mint_authority": True,
+                            }
+                        ]
+                    },
+                ]
+            ),
+        ):
+            notes = await channels_content.fetch_scan_notes(limit=5)
+        assert len(notes) == 1
+        assert "rug_pull" in notes[0]["risk_flags"]
+        assert "mint_authority" in notes[0]["risk_flags"]
+        assert "honeypot" not in notes[0]["risk_flags"]
+
+    async def test_fetch_scan_notes_empty_on_backend_miss(self) -> None:
+        with patch.object(channels_content, "backend_get_json", new=AsyncMock(return_value=None)):
+            assert await channels_content.fetch_scan_notes() == []
 
 
 # ── Scheduler ─────────────────────────────────────────────────────────────
@@ -674,6 +1048,74 @@ class TestPostingJobs:
         assert any("Risk Alerts" in t for t in texts)
         assert any("HIGH SIGNAL" in t for t in texts)
 
+    async def test_scan_job_posts_one_compact_card_per_notable_scan(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        _stub_scorer(monkeypatch, fallback=False, scores=[0.55, 0.45])
+        items = [
+            {
+                "address": "0xnote1",
+                "name": "Note Token",
+                "symbol": "NOTE",
+                "chain": "ethereum",
+                "risk_level": "high",
+                "risk_score": 88,
+                "risk_flags": ["rug_pull"],
+            },
+            {
+                "address": "0xnote2",
+                "name": "Other Token",
+                "symbol": "OTH",
+                "chain": "solana",
+                "risk_level": "medium",
+                "risk_score": 71,
+                "risk_flags": ["low_liquidity"],
+            },
+        ]
+        with patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=items)):
+            assert await channels_scheduler.post_scan_update(ctx) == 2
+        assert bot.send_message.await_count == 2
+        texts = [call.kwargs["text"] for call in bot.send_message.await_args_list]
+        assert all("Scan of note" in t for t in texts)
+        assert any("NOTE" in t for t in texts)
+        assert any("rugmunch.io/scanner" in t for t in texts)
+
+    async def test_scan_job_gates_below_floor_in_rerank_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        _stub_scorer(monkeypatch, fallback=False, scores=[0.1])
+        item = {"address": "0xlow", "name": "Noise", "symbol": "NOI", "risk_level": "low", "risk_score": 30}
+        with patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=[item])):
+            assert await channels_scheduler.post_scan_update(ctx) == 0
+        bot.send_message.assert_not_awaited()
+
+    async def test_scan_job_dedupes_token_across_ticks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        _stub_scorer(monkeypatch, fallback=True)
+        item = {
+            "address": "0xsame",
+            "name": "Same Token",
+            "symbol": "SAME",
+            "chain": "solana",
+            "risk_level": "high",
+            "risk_score": 90,
+        }
+        with patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=[item])):
+            assert await channels_scheduler.post_scan_update(ctx) == 1
+            assert await channels_scheduler.post_scan_update(ctx) == 0  # same token never reposted
+        assert bot.send_message.await_count == 1
+
+    async def test_scan_job_fails_open_when_no_scans(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        with patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=[])):
+            assert await channels_scheduler.post_scan_update(ctx) == 0
+        bot.send_message.assert_not_awaited()
+
+    async def test_scan_job_skips_when_channel_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: None)
+        with patch.object(channels_scheduler, "fetch_scan_notes", new=AsyncMock(return_value=[])):
+            assert await channels_scheduler.post_scan_update(ctx) == 0
+        bot.send_message.assert_not_awaited()
+
     async def test_alpha_job_escalates_high_importance_to_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
         ctx, bot = _ctx()
         _stub_scorer(monkeypatch, fallback=False, scores=[0.8])
@@ -718,6 +1160,7 @@ class TestRegistration:
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", True)
+        monkeypatch.setattr(channels_scheduler, "SCAN_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: f"-100{channel}")
         fake_jq = FakeJobQueue()
         app = SimpleNamespace(job_queue=fake_jq)
@@ -731,6 +1174,7 @@ class TestRegistration:
             "channel_alpha",
             "channel_tg_news",
             "channel_scam_watch",
+            "channel_scans",
             "daily_market_summary",
         }
 

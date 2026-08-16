@@ -286,6 +286,7 @@ class TestRegistrationWiring:
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "SCAM_WATCH_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "PERSONAL_CHANNEL_ENABLED", False)
+        monkeypatch.setattr(channels_scheduler, "SCAN_CHANNEL_ENABLED", False)
 
         from types import SimpleNamespace
 

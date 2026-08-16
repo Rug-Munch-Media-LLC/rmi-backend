@@ -30,14 +30,14 @@ MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 # Hosted GPU — seconds instead of the 70-90s CPU generation the old local
 # chain measured.
 REMOTE_SNAPPY_TIMEOUT = 12.0  # remote must stay fast for short chat answers
-REMOTE_LONG_TIMEOUT = 15.0  # deep-analysis must fit within the 25s turn deadline
+REMOTE_LONG_TIMEOUT = 22.0  # deep-analysis must fit within the long turn deadline
 
 # Output budget for the deep/long tier. Hosted GPU (no CPU budget): give the
 # long tier room to finish a thorough structured answer (direct answer →
 # mechanism → concrete figures → evidence → caveat → not-financial-advice
 # tail) instead of truncating at the 1024-token config cap. The snappy tier
 # stays lean (config 256) — short chat answers, fast first token.
-REMOTE_LONG_MAX_TOKENS = 1536
+REMOTE_LONG_MAX_TOKENS = 800
 
 # Budget for the SEPARATELY-labeled retrieved-context block (RAG hits +
 # bridge + scan + live tool data) in the remote fallback prompt. The user

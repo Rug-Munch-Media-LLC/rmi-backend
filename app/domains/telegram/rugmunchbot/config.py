@@ -825,6 +825,26 @@ def _resolve_alerts_channel_limit() -> int:
     return _env_int("RMI_CHANNEL_ALERTS_LIMIT", 5)
 
 
+@lru_cache
+def _resolve_scan_channel_enabled() -> bool:
+    return _env_bool("RMI_SCANS_CHANNEL_ENABLED", True)
+
+
+@lru_cache
+def _resolve_scan_channel_interval_minutes() -> int:
+    return _env_int("RMI_CHANNEL_SCANS_INTERVAL_MINUTES", 90)
+
+
+@lru_cache
+def _resolve_scan_channel_limit() -> int:
+    return _env_int("RMI_CHANNEL_SCANS_LIMIT", 10)
+
+
+@lru_cache
+def _resolve_scan_channel_tick_limit() -> int:
+    return _env_int("RMI_CHANNEL_SCANS_TICK_LIMIT", 2)
+
+
 # ══════════════════════════════════════════════
 # LAZY ACCESS (PEP 562 module __getattr__)
 # ══════════════════════════════════════════════
@@ -861,6 +881,10 @@ ALERTS_CHANNEL_INTERVAL_MINUTES: int
 NEWS_CHANNEL_LIMIT: int
 ALPHA_CHANNEL_LIMIT: int
 ALERTS_CHANNEL_LIMIT: int
+SCAN_CHANNEL_ENABLED: bool
+SCAN_CHANNEL_INTERVAL_MINUTES: int
+SCAN_CHANNEL_LIMIT: int
+SCAN_CHANNEL_TICK_LIMIT: int
 
 _LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
     "BOT_TOKEN": _resolve_bot_token,
@@ -882,6 +906,10 @@ _LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
     "NEWS_CHANNEL_LIMIT": _resolve_news_channel_limit,
     "ALPHA_CHANNEL_LIMIT": _resolve_alpha_channel_limit,
     "ALERTS_CHANNEL_LIMIT": _resolve_alerts_channel_limit,
+    "SCAN_CHANNEL_ENABLED": _resolve_scan_channel_enabled,
+    "SCAN_CHANNEL_INTERVAL_MINUTES": _resolve_scan_channel_interval_minutes,
+    "SCAN_CHANNEL_LIMIT": _resolve_scan_channel_limit,
+    "SCAN_CHANNEL_TICK_LIMIT": _resolve_scan_channel_tick_limit,
 }
 
 
