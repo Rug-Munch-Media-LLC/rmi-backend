@@ -836,3 +836,231 @@ async def test_gather_context_news_uses_rag_news_v2(monkeypatch: pytest.MonkeyPa
     assert sources
     assert sources[0]["type"] == "news"
     assert sources[0]["url"] == "https://example.com/news/1"
+
+
+# ── MARKET-TODAY rich context (broad market asks) ──────────────────────────
+
+
+def test_classify_question_market_today_vs_news() -> None:
+    """BROAD market asks classify as 'market' (beat NEWS); pure news stays news."""
+    for q in (
+        "how's the market today",
+        "how is the market",
+        "market analysis today",
+        "market update",
+        "what to watch today",
+        "top gainers and losers right now",
+        "is the market bullish or bearish",
+        "crypto market recap",
+    ):
+        assert _llm._classify_question(q) == "market", q
+    # A news ask is NOT a broad market ask — "market news" stays on NEWS.
+    assert _llm._classify_question("what is the latest market news") == "news"
+    assert _llm._classify_question("any news on ethereum") == "news"
+    # A single-asset price ask is NOT a broad market ask (negative lookahead).
+    assert _llm._classify_question("how is the market cap of bitcoin") == "market"
+
+
+def test_route_tier_market_today_is_long() -> None:
+    """Market-today / market-analysis asks answer on the LONG (nemotron) tier
+    with the full structure — never the snappy tier."""
+    for q in (
+        "how's the market today",
+        "market analysis today",
+        "market update please",
+        "what to watch today",
+        "top gainers and losers right now",
+        "crypto market recap",
+    ):
+        assert _llm._route_tier(q) == "long", q
+    # Single-asset price asks stay snappy (no regression).
+    assert _llm._route_tier("what's the price of btc") == "snappy"
+    assert _llm._route_tier("hello") == "snappy"
+
+
+async def test_gather_context_market_today_runs_rich_tools_and_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BROAD market ask → market_condition + market_overview + trending with a
+    structured block (majors → sentiment → gainers & losers → narrative →
+    what-to-watch) and the MARKET-TODAY answer hint appended."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    fake = _FakeRegistry(
+        {
+            "market_condition": ToolResult(
+                tool="market_condition",
+                ok=True,
+                data={
+                    "verdict": "risk_on",
+                    "confidence": "high",
+                    "score": 0.6,
+                    "reasons": [
+                        "Fear & Greed 62 (Greed) — supporting risk-on",
+                        "BTC 24h +2.4% — supporting risk-on",
+                    ],
+                    "signals": {
+                        "fear_greed": {"value": 62, "classification": "Greed"},
+                        "breadth": {"pumping": 21, "dumping": 24, "total": 45, "pump_ratio": 0.467},
+                    },
+                },
+                source="backend; coingecko",
+            ),
+            "market_overview": ToolResult(
+                tool="market_overview",
+                ok=True,
+                data={
+                    "prices": {
+                        "bitcoin": {"usd": 67123.0, "usd_24h_change": 2.4},
+                        "ethereum": {"usd": 3512.5, "usd_24h_change": -1.2},
+                        "solana": {"usd": 145.2, "usd_24h_change": 5.1},
+                    },
+                    "fear_greed": {"value": 62, "classification": "Greed"},
+                    "global_market_cap_usd": 2_400_000_000_000,
+                    "btc_dominance": 52.3,
+                },
+                source="backend; coingecko",
+            ),
+            "trending": ToolResult(
+                tool="trending",
+                ok=True,
+                data={
+                    "chain": "all",
+                    "tokens": [
+                        {"symbol": "PEPE", "name": "Pepe", "change_24h": 45.2, "price_usd": 0.0000123},
+                        {"symbol": "WIF", "name": "dogwifhat", "change_24h": 12.5, "price_usd": 1.9},
+                        {"symbol": "XYZ", "name": "XYZ Token", "change_24h": -28.1, "price_usd": 0.05},
+                        {"symbol": "ABC", "name": "ABC Token", "change_24h": -9.3, "price_usd": 0.2},
+                    ],
+                },
+                source="backend:/api/v1/market/trending",
+            ),
+        }
+    )
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    async def _fake_narrative() -> list[dict[str, Any]]:
+        return [
+            {
+                "title": "AI agents lead crypto narrative",
+                "url": "https://example.com/ai-agents",
+                "snippet": "AI agents and dogwifhat tokens are driving the day's gains",
+                "query": "crypto dominant narrative today sector",
+            }
+        ]
+
+    monkeypatch.setattr(
+        "app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._router._fetch_market_narrative",
+        _fake_narrative,
+    )
+
+    block, sources = await _llm._gather_context("how's the market today")
+
+    assert fake.spec is not None
+    assert set(fake.spec) == {"market_condition", "market_overview", "trending"}
+    assert "## MAJORS" in block
+    assert "BTC $67.12K" in block
+    assert "ETH $3.51K" in block
+    assert "SOL $145.20" in block
+    assert "+2.4% 24h" in block
+    assert "## SENTIMENT & MACRO READ" in block
+    assert "Fear & Greed: 62 (Greed)" in block
+    assert "risk_on" in block
+    assert "## TOP GAINERS (24h)" in block
+    assert "$PEPE +45.2%" in block
+    assert "$WIF +12.5%" in block
+    assert "## TOP LOSERS (24h)" in block
+    assert "$XYZ -28.1%" in block
+    assert "narrative ties it to" in block  # WIF driver from the narrative hit
+    assert "## DOMINANT NARRATIVE" in block
+    assert "AI agents" in block
+    assert "## WHAT TO WATCH" in block
+    assert "MARKET-TODAY ANSWER FORMAT" in block
+    assert {s["type"] for s in sources} == {"market_condition", "market_overview", "trending", "web"}
+
+
+async def test_gather_context_market_today_all_tools_down_uses_web(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BROAD market ask where every tool missed → the live web fallback stands
+    in (fail-open), exactly like the other question types."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    fake = _FakeRegistry(
+        {
+            "market_condition": ToolResult(tool="market_condition", ok=False, error="down"),
+            "market_overview": ToolResult(tool="market_overview", ok=False, error="down"),
+            "trending": ToolResult(tool="trending", ok=False, error="down"),
+        }
+    )
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    async def _fake_web(question: str) -> tuple[str, list[dict[str, str]]]:
+        return (
+            "LIVE WEB SEARCH (real-time web results):\n- Market wrap (source: example.com — https://example.com/wrap)",
+            [{"type": "web", "title": "Market wrap", "url": "https://example.com/wrap"}],
+        )
+
+    monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
+
+    block, sources = await _llm._gather_context("how's the market today")
+    assert "LIVE WEB SEARCH" in block
+    assert sources[0]["type"] == "web"
+    assert "MARKET-TODAY ANSWER FORMAT" not in block  # web fallback has no hint
+
+
+def test_build_market_today_block_pure_render() -> None:
+    """The pure block builder renders real payloads without I/O: majors,
+    sentiment, movers (with narrative driver), what-to-watch, and the
+    honest-field-unavailable footer."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    results = {
+        "market_overview": ToolResult(
+            tool="market_overview",
+            ok=True,
+            data={
+                "prices": {
+                    "bitcoin": {"usd": 100_000, "usd_24h_change": -1.5},
+                    "solana": {"usd": 180.0, "usd_24h_change": 8.8},
+                },
+                "global_market_cap_usd": 3_000_000_000_000,
+            },
+            source="backend",
+        ),
+        "market_condition": ToolResult(
+            tool="market_condition",
+            ok=True,
+            data={
+                "verdict": "risk_off",
+                "confidence": "medium",
+                "score": -0.5,
+                "reasons": ["Fear & Greed 25 (Extreme Fear) — supporting risk-off"],
+                "signals": {"fear_greed": {"value": 25, "classification": "Extreme Fear"}},
+            },
+            source="backend",
+        ),
+        "trending": ToolResult(
+            tool="trending",
+            ok=True,
+            data={
+                "tokens": [
+                    {"symbol": "BONK", "name": "Bonk", "change_24h": 30.0},
+                    {"symbol": "DOGE", "name": "Dogecoin", "change_24h": -15.0},
+                ]
+            },
+            source="backend",
+        ),
+    }
+    narratives = [
+        {"title": "Memecoin mania returns", "url": "https://example.com/memes", "snippet": "Bonk leads memecoin rally"}
+    ]
+
+    block = _llm._router._build_market_today_block(results, narratives)
+
+    assert "## MAJORS" in block
+    assert "BTC $100K (-1.5% 24h)" in block
+    assert "ETH: price/change unavailable" in block  # absent coin rendered honestly
+    assert "7d change unavailable" in block
+    assert "Extreme Fear" in block
+    assert "risk_off" in block
+    assert "$BONK +30.0%" in block
+    assert "narrative ties it to 'Memecoin mania returns'" in block
+    assert "$DOGE -15.0%" in block
+    assert "never hedge with a blanket 'no live data'" in block

@@ -56,6 +56,12 @@ MARKET_CONTEXT_CACHE_KEY = "chat:market_context_block"
 MARKET_CONTEXT_TTL = 60  # seconds — same freshness budget as chat._CACHE_TTL_MARKET
 MARKET_CONTEXT_FETCH_TIMEOUT = 3.0  # seconds — never let context delay chat
 TRENDING_LIMIT = 5
+# Own-data enrichment (indexer + scanner) for the surfaced trending tokens.
+# The enrichment task starts CONCURRENTLY with the core fetch above, so the
+# added latency is bounded by ENRICH_TIMEOUT only when the core sources are
+# already slow. Any timeout/cancellation degrades silently to external-only.
+ENRICH_MAX_TOKENS = 5  # cap at the top ~5 movers
+ENRICH_TIMEOUT = 2.5  # seconds — enrichment never delays the block past this
 
 _PRICE_PARAMS: dict[str, Any] = {
     "ids": "bitcoin,ethereum",
@@ -154,6 +160,21 @@ async def _fetch_all() -> tuple[dict[str, Any], tuple[int | None, str | None], l
     return prices, fng, trending
 
 
+async def _fetch_enrichment_lines() -> list[str]:
+    """Our own indexer/scanner enrichment for the surfaced trending tokens.
+
+    Fail-open: returns [] on any error so the market block never gains noise
+    or latency from our dataset (see ``_trending_enrichment``).
+    """
+    try:
+        from app.routers.chat._trending_enrichment import enrich_trending_lines
+
+        return await enrich_trending_lines(limit=ENRICH_MAX_TOKENS)
+    except Exception as e:  # fail-open — enrichment is optional
+        logger.debug("trending_enrichment_failed err=%s", str(e)[:120])
+        return []
+
+
 # ── Public builder ─────────────────────────────────────────────────────
 async def build_market_context_block() -> str:
     """Build the cached market-context block, or "" when sources are down.
@@ -163,10 +184,30 @@ async def build_market_context_block() -> str:
     not touch the upstream APIs. Any failure (network, timeout, partial data)
     returns "" — chat never waits on or breaks because of market context,
     and never receives fabricated numbers.
+
+    Own-data enrichment: the enrichment task (our indexer/scanner — holders,
+    deployer age, bundle flag, dex volume) starts CONCURRENTLY with the core
+    fetch and is awaited with a short timeout. If it is slow or fails, the
+    block is still emitted with prices + F&G + trending — external-only,
+    never "unverified" noise.
     """
     cached = _cget(MARKET_CONTEXT_CACHE_KEY, MARKET_CONTEXT_TTL)
     if cached is not None:
         return str(cached)
+
+    enrichment_task: asyncio.Task[list[str]] | None = asyncio.create_task(_fetch_enrichment_lines())
+
+    async def _discard_enrichment() -> None:
+        """Cancel the pending enrichment task on early (fail-open) exits."""
+        if enrichment_task is None:
+            return
+        enrichment_task.cancel()
+        try:
+            await enrichment_task
+        except asyncio.CancelledError:
+            pass  # expected — we just cancelled it
+        except Exception as e:  # fail-open — never propagate on teardown
+            logger.debug("trending_enrichment_cancel_failed err=%s", str(e)[:120])
 
     try:
         prices, fng, trending = await asyncio.wait_for(
@@ -175,15 +216,18 @@ async def build_market_context_block() -> str:
         )
     except Exception as e:  # fail-open — market context is optional
         logger.debug("market_context_fetch_failed err=%s", str(e)[:120])
+        await _discard_enrichment()
         return ""
 
     btc_price = _fmt_price(prices.get("btc_price"))
     eth_price = _fmt_price(prices.get("eth_price"))
     if not btc_price or not eth_price:
+        await _discard_enrichment()
         return ""  # core price source down — never fabricate prices
 
     fng_value, fng_class = fng
     if fng_value is None:
+        await _discard_enrichment()
         return ""  # verdict needs Fear & Greed — omit rather than invent
 
     btc_change = _fmt_pct(prices.get("btc_change"))
@@ -199,6 +243,24 @@ async def build_market_context_block() -> str:
     ]
     if trending:
         lines.append(f"Trending: {', '.join(trending)}")
+
+    # ── Own-data enrichment (bounded, fail-open) ──
+    enrich_lines: list[str] = []
+    if enrichment_task is not None:
+        try:
+            enrich_lines = await asyncio.wait_for(
+                asyncio.shield(enrichment_task),
+                timeout=ENRICH_TIMEOUT,
+            )
+        except TimeoutError:
+            enrich_lines = []
+        except Exception as e:
+            enrich_lines = []
+            logger.debug("trending_enrichment_wait_failed err=%s", str(e)[:120])
+        finally:
+            await _discard_enrichment()
+    if enrich_lines:
+        lines.append("Our data (indexer/scanner): " + " | ".join(enrich_lines))
 
     block = "\n".join(lines)
     _cset(MARKET_CONTEXT_CACHE_KEY, block)

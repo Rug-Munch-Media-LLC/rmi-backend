@@ -27,6 +27,12 @@ from telegram.error import TelegramError
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._classify import _is_deep_question
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import _render_bridge_actions
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import _STILL_DIGGING
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._sources import (
+    _normalize_source_domain,
+    _source_display_name,
+    _source_is_ours,
+    _source_type_label,
+)
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import (
     CHUNK_MAX_CHARS,
     _beautify_answer,
@@ -36,7 +42,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._markup import (
     _tables_to_lists,
 )
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._parts import send_in_parts, split_in_parts
-from app.domains.telegram.rugmunchbot.handlers.chat_ai._quality import _grounding_sources_count, strip_think_blocks
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._quality import strip_think_blocks
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._trace import trace_answer
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -47,6 +53,136 @@ if TYPE_CHECKING:
     from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
 
 logger = get_logger("rmi_bot.chat_ai")
+
+
+def _grounding_source_labels(
+    *,
+    provider: str,
+    rag_count: int,
+    bridge_sources: list[dict[str, str]] | None = None,
+    live_results: dict[str, ToolResult] | None = None,
+    rag_result: ToolResult | None = None,
+    has_market_context: bool = False,
+    max_labels: int = 4,
+) -> tuple[list[tuple[str, bool]], int, int]:
+    """Distinct, real source names behind an answer + the footer count.
+
+    Returns ``(labels, count, distinct)``:
+      * ``labels`` — up to ``max_labels`` distinct ``(name, is_ours)`` pairs
+        for the "Grounded in N sources: …" footer. URL-bearing sources are
+        de-duplicated by normalized domain (3 hits from coingecko.com render
+        as ONE "coingecko.com"); bare sources de-duplicate by display name
+        (two RAG hits both render as ONE "our RAG knowledge base"). Our own
+        intel — RAG KB, scanner, market digest, backend tier-1 RAG — carries
+        an "our …" label so the community sees we have our own data; external
+        providers (DexScreener, CoinGecko, web) stay plain.
+      * ``count`` — the footer number, NEVER a raw hit count. Usually equals
+        ``distinct``; the one exception is the backend path, which reports
+        only ``X-RAG-Context`` (a count, no names) — when no other named
+        source exists the count stays the backend's real hit number and the
+        generic "our RAG knowledge base" label names the source type.
+      * ``distinct`` — the true distinct-name count (``len(seen)``), used to
+        render the "… +N more" truncation marker when ``labels`` hit the cap.
+        Zero when nothing fed the answer.
+    """
+    bridge_sources = bridge_sources or []
+    live_results = live_results or {}
+    # Canonical names for OUR OWN live-tool surfaces so the same internal
+    # capability never double-counts (live security_scan == bridge scanner).
+    _our_tool_labels = {
+        "rag_lookup": "our RAG knowledge base",
+        "security_scan": "our scanner",
+        "wallet_analysis": "our wallet analytics",
+        "web_search": "our web search",
+    }
+    seen: set[str] = set()
+    labels: list[tuple[str, bool]] = []
+    distinct = 0
+
+    def _add(name: str, is_ours: bool) -> None:
+        nonlocal distinct
+        name = (name or "").strip()
+        if not name:
+            return
+        key = name.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        distinct += 1
+        if len(labels) < max_labels:
+            labels.append((name, is_ours))
+
+    def _bridge_label(s: dict[str, str]) -> tuple[str, bool]:
+        stype = str(s.get("type") or "").strip().lower()
+        is_ours = _source_is_ours(s)
+        name = _source_display_name(s)
+        # Our-own sources (rag/scanner/market/backend) with no URL render as
+        # their TYPE label ("our RAG knowledge base") so two KB hits collapse
+        # into ONE named source — queries stay in the message-level Sources
+        # block, the footer names the source. With a URL the real name/domain
+        # wins (e.g. a cited article inside our KB).
+        if name and (not is_ours or str(s.get("url") or "").strip()):
+            return name, is_ours
+        label = _source_type_label(stype)
+        # A non-ours bare source must never render as "our data".
+        if not is_ours and label == "our data":
+            label = "web search" if stype == "web" else "source"
+        return label, is_ours
+
+    # Bridge / router sources (dedupe by normalized domain).
+    for s in bridge_sources:
+        if not isinstance(s, dict):
+            continue
+        url = str(s.get("url") or "").strip()
+        domain = _normalize_source_domain(url) if url else ""
+        if domain and domain in seen:
+            continue
+        if domain:
+            seen.add(domain)
+        name, is_ours = _bridge_label(s)
+        _add(name, is_ours)
+
+    # Live tools that returned REAL data (a knowledge-fallback web answer is
+    # synthesized, not a data source — never named).
+    for tool, r in live_results.items():
+        if not r.ok:
+            continue
+        src = str(r.source or "").strip()
+        if tool == "web_search" and src.startswith("knowledge"):
+            continue
+        if tool == "rag_lookup":
+            _add("our RAG knowledge base", True)
+        elif src.startswith(("backend:", "bridge:")):
+            # Our own endpoints (quick scanner, wallet analytics, bridge) —
+            # the tool name identifies the internal surface.
+            _add(_our_tool_labels.get(tool, f"our {tool.replace('_', ' ')}"), True)
+        elif src:
+            key = src.lower()
+            # Same provider already named via a bridge domain (live "coingecko"
+            # vs bridge "coingecko.com") — never double-count it.
+            if not any(key in d or d in key for d in seen if "." in d):
+                _add(src, False)
+        else:
+            _add(tool.replace("_", " "), False)
+
+    # Direct RAG hit on the fallback path with no typed bridge sources.
+    if rag_result is not None and rag_result.ok:
+        _add("our RAG knowledge base", True)
+
+    # The daily market/news digest grounded the answer.
+    if has_market_context:
+        _add("our market digest", True)
+
+    # Backend tier-1: the real X-RAG-Context count, one generic label. When it
+    # is the ONLY source the backend's own hit number is the count (it is the
+    # only signal of how much grounding fed the answer) — with other named
+    # sources the count is the distinct set (RAG KB counts once).
+    if provider == "backend" and int(rag_count) > 0:
+        _add("our RAG knowledge base", True)
+        if distinct <= 1:
+            return labels, max(int(rag_count), 1), distinct
+
+    return labels, distinct, distinct
 
 
 async def _keep_typing(chat: Any) -> None:
@@ -113,13 +249,15 @@ async def _send_and_trace_answer(
     """
     with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
         await preliminary.delete()
-    # Truthful grounding footer: count the DISTINCT intelligence sources that
-    # actually fed the answer (RAG + live tools + web + market context), not
-    # just RAG hits. A replaced degenerate answer has no real grounding.
-    grounding_count = (
-        0
-        if answer_is_degenerate
-        else _grounding_sources_count(
+    # Truthful grounding footer: name the DISTINCT intelligence sources that
+    # actually fed the answer (RAG + live tools + web + market context) and
+    # count them — never a raw hit count, never a fabricated number. A
+    # replaced degenerate answer has no real grounding.
+    source_labels: list[tuple[str, bool]] = []
+    grounding_count = 0
+    distinct_sources = 0
+    if not answer_is_degenerate:
+        source_labels, grounding_count, distinct_sources = _grounding_source_labels(
             provider=str(result.get("provider") or ""),
             rag_count=int(result.get("rag_count") or 0),
             bridge_sources=bridge_sources,
@@ -127,11 +265,12 @@ async def _send_and_trace_answer(
             rag_result=rag_result,
             has_market_context=has_market_context,
         )
-    )
     parts_sent = await _send_answer(
         message,
         answer,
         grounding_count,
+        source_labels=source_labels,
+        distinct_sources=distinct_sources,
         actions=bridge_actions,
     )
 
@@ -168,6 +307,8 @@ async def _send_answer(
     answer: str,
     grounding_count: int,
     *,
+    source_labels: list[tuple[str, bool]] | None = None,
+    distinct_sources: int | None = None,
     actions: list[dict[str, str]] | None = None,
 ) -> int:
     """Reply with the answer, split into Telegram-sized parts. Returns the
@@ -196,12 +337,17 @@ async def _send_answer(
          step 6.
       8. ``send_in_parts`` delivers each part as its own message (keyboard on
          the last part; plain-text degrade on parse rejection).
-    A short "⚡ Grounded in N intelligence sources | Rug Munch Bot" footer is
+    A short "⚡ Grounded in N sources: <names> | Rug Munch Bot" footer is
     appended to the last chunk when the answer had real grounding.
     ``grounding_count`` is the number of DISTINCT intelligence sources that
-    actually fed the answer (RAG hits + live tools + web search + market
-    context — see ``_grounding_sources_count``); counts above 100 are shown
-    as "hundreds of sources".
+    actually fed the answer (see ``_grounding_source_labels`` — the same
+    function produces ``source_labels``, the real named sources: external
+    providers like DexScreener/CoinGecko plus our own intel, marked "our …").
+    When ``source_labels`` is omitted (direct callers) the count-only
+    "intelligence sources" wording is kept. Counts above 100 with no names
+    are shown as "hundreds of sources". Names are HTML-escaped here — the
+    footer is appended AFTER the escape pass, so untrusted bridge metadata
+    can never inject markup. Zero sources → no footer at all.
     ``actions`` (bridge-suggested buttons) are rendered as an inline
     keyboard on the last chunk when present; otherwise the back menu is used.
     """
@@ -216,13 +362,23 @@ async def _send_answer(
     escaped = [escape(c) for c in chunks]
     html = [_markdown_to_html(c) for c in escaped]
     if grounding_count > 0:
-        if grounding_count > 100:
-            source_label = "hundreds of intelligence sources"
+        if source_labels:
+            # Real named sources: external providers plain, our own intel
+            # already labeled "our …" (e.g. "our RAG knowledge base"). Names
+            # are untrusted bridge metadata — escape AFTER the answer escape
+            # pass so they can never inject HTML into the footer.
+            names = ", ".join(escape(name) for name, _is_ours in source_labels)
+            if distinct_sources is not None and distinct_sources > len(source_labels):
+                names += f", \u2026 +{distinct_sources - len(source_labels)} more"
+            count_word = "source" if grounding_count == 1 else "sources"
+            footer = f"Grounded in {grounding_count} {count_word}: {names}"
+        elif grounding_count > 100:
+            footer = "Grounded in hundreds of intelligence sources"
         elif grounding_count == 1:
-            source_label = "1 intelligence source"
+            footer = "Grounded in 1 intelligence source"
         else:
-            source_label = f"{grounding_count} intelligence sources"
-        html[-1] = f"{html[-1]}\n\n<i>\u26a1 Grounded in {source_label} | Rug Munch Bot</i>"
+            footer = f"Grounded in {grounding_count} intelligence sources"
+        html[-1] = f"{html[-1]}\n\n<i>\u26a1 {footer} | Rug Munch Bot</i>"
 
     kb = _render_bridge_actions(actions) or back_kb()
     await send_in_parts(

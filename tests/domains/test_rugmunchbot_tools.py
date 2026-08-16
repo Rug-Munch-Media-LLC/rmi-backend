@@ -360,6 +360,112 @@ class TestTrendingToolRealSymbols:
         assert result.symbols == []
 
 
+class TestTrendingAddressResolution:
+    """Every emitted trending token must carry a REAL on-chain address.
+
+    The backend feed merges DexScreener boosts (address present) with
+    CoinGecko trending (``address == ""`` / ``chain == "multi"``). Addressless
+    tokens are resolved through DexScreener search or DROPPED — the tool
+    never emits a token the guardrail would later render as
+    ``[address not verified]``.
+    """
+
+    def _ds_pairs(self) -> dict[str, Any]:
+        return {
+            "pairs": [
+                {
+                    "chainId": "ethereum",
+                    "baseToken": {"address": "0xPEPE_ETH", "symbol": "PEPE", "name": "Pepe"},
+                    "volume": {"h24": 500},
+                },
+                {
+                    "chainId": "solana",
+                    "baseToken": {"address": "SOLPEPE_ADDR", "symbol": "PEPE", "name": "Pepe"},
+                    "volume": {"h24": 900},
+                },
+            ]
+        }
+
+    async def test_addressless_token_resolved_via_dexscreener(self) -> None:
+        _FakeAsyncClient._responses = {
+            "/api/v1/market/trending": {
+                "items": [
+                    {"symbol": "BONK", "name": "Bonk", "address": "ADDR_BONK", "chain": "solana", "rank": 1},
+                    # CoinGecko leg: no on-chain address, chain "multi".
+                    {"symbol": "PEPE", "name": "Pepe", "address": "", "chain": "multi", "rank": 2},
+                ]
+            },
+            "dexscreener.com/latest/dex/search": self._ds_pairs(),
+        }
+        result = await trending(limit=10)
+        assert result.ok
+        # Both tokens survive; every one now carries a real address.
+        assert [t["symbol"] for t in result.data["tokens"]] == ["BONK", "PEPE"]
+        assert all(t.get("address") for t in result.data["tokens"])
+        pepe = next(t for t in result.data["tokens"] if t["symbol"] == "PEPE")
+        # Highest-volume symbol match wins; the real chain replaces "multi".
+        assert pepe["address"] == "SOLPEPE_ADDR"
+        assert pepe["chain"] == "solana"
+        assert "SOLPEPE_ADDR" in result.addresses
+        assert "ADDR_BONK" in result.addresses
+
+    async def test_unresolvable_addressless_token_dropped(self) -> None:
+        _FakeAsyncClient._responses = {
+            "/api/v1/market/trending": {
+                "items": [
+                    {"symbol": "BONK", "name": "Bonk", "address": "ADDR_BONK", "chain": "solana", "rank": 1},
+                    {"symbol": "FAKECOIN", "name": "Fake Coin", "address": "", "chain": "multi", "rank": 2},
+                ]
+            },
+            "dexscreener.com/latest/dex/search": {"pairs": []},
+        }
+        result = await trending(limit=10)
+        assert result.ok
+        assert [t["symbol"] for t in result.data["tokens"]] == ["BONK"]
+        assert all(t.get("address") for t in result.data["tokens"])
+        assert "FAKECOIN" not in result.symbol_set
+
+    async def test_all_addressless_unresolvable_ok_false(self) -> None:
+        # A clean "no verifiable data" beats a list of hedges.
+        _FakeAsyncClient._responses = {
+            "/api/v1/market/trending": {
+                "items": [
+                    {"symbol": "FAKECOIN", "name": "Fake Coin", "address": "", "chain": "multi", "rank": 1},
+                ]
+            },
+            "dexscreener.com/latest/dex/search": {"pairs": []},
+        }
+        result = await trending(limit=10)
+        assert not result.ok
+        assert result.addresses == []
+
+    async def test_chain_scoped_feed_never_emits_addressless_multi(self) -> None:
+        # CoinGecko "multi" entries have no chain → dropped for a chain-scoped
+        # question before resolution (they are not on the requested chain).
+        _FakeAsyncClient._responses = {
+            "/api/v1/market/trending": {
+                "items": [
+                    {"symbol": "BONK", "name": "Bonk", "address": "ADDR_BONK", "chain": "solana", "rank": 1},
+                    {"symbol": "PEPE", "name": "Pepe", "address": "", "chain": "multi", "rank": 2},
+                ]
+            },
+            "dexscreener.com/latest/dex/search": self._ds_pairs(),
+        }
+        result = await trending(chain="solana", limit=10)
+        assert result.ok
+        assert [t["symbol"] for t in result.data["tokens"]] == ["BONK"]
+        assert all(t.get("address") for t in result.data["tokens"])
+
+    async def test_existing_address_tokens_pass_through_no_search(self) -> None:
+        # No addressless tokens → no DexScreener search calls (zero overhead
+        # on the healthy path).
+        _FakeAsyncClient._responses = {"/api/v1/market/trending": _TRENDING_PAYLOAD}
+        result = await trending(limit=10)
+        assert result.ok
+        search_calls = [c for c in _FakeAsyncClient.calls if "dexscreener.com/latest/dex/search" in c["url"]]
+        assert search_calls == []
+
+
 class TestPriceLookupToolRealSymbols:
     async def test_price_lookup_returns_only_source_symbols(self) -> None:
         _FakeAsyncClient._responses = {
