@@ -359,7 +359,7 @@ graph LR
 
 ### LiteLLM
 - **Role**: LLM API gateway/proxy
-- **Integration**: Multi-provider routing (OpenAI, Anthropic, Ollama), cost tracking, failover
+- **Integration**: Multi-provider routing (OpenAI, Anthropic, OpenRouter), cost tracking, failover
 
 ---
 

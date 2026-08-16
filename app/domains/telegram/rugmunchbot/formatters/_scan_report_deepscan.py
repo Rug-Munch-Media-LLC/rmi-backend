@@ -12,6 +12,7 @@ here so there is exactly ONE deep-scan formatter path."""
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import html
 from typing import Any
@@ -30,6 +31,7 @@ __all__ = [
     "format_deep_ml_scan_report",
     "format_sentinel_deepscan_section",
     "format_sentinel_scan_report",
+    "render_analyst_read_block",
 ]
 
 # --- SENTINEL deep scan report (from POST /api/v1/x402-tools/sentinel_scan) ---
@@ -107,7 +109,149 @@ def _ml_what_to_watch(overall: str, findings: list[dict[str, Any]]) -> str:
     return "Standard caution \u2014 size in small and watch sell pressure."
 
 
-def format_deep_ml_scan_report(report: Any) -> str:
+# ─────────────────────────────────────────────────────────────────────────────
+# AI "Analyst Read" — plain-language bundle/cluster interpretation
+# ─────────────────────────────────────────────────────────────────────────────
+# The "beyond competitors" differentiator: most scanners print a raw
+# "bundle: N wallets" line; we hand the compact bundle/cluster intel to the
+# snappy LLM and let it explain WHY the structure matters in plain English.
+# Fail-open by design: empty intel, LLM timeout or blank answer all return ""
+# so the caller simply skips the block (never a blank section).
+
+#: Hard cap for the Analyst Read LLM call (snappy tier) — never stall a report.
+_ANALYST_READ_TIMEOUT = 8.0
+#: Max chars of rendered LLM output (LLM text is untrusted — always escaped).
+_ANALYST_READ_MAX_CHARS = 900
+
+_ANALYST_READ_SYSTEM = (
+    "You are the RugMunch deep-scan analyst. Write 2-3 SHORT plain-English "
+    "sentences interpreting a token's bundle/cluster structure for a trader. "
+    "Use ONLY the facts provided in the intel JSON — never invent numbers, "
+    "addresses or claims. Explain what the structure suggests (e.g. coordinated "
+    "launch vs organic demand) and why it matters. No markdown, no emojis, no "
+    "headers, no apologies."
+)
+
+
+def _build_bundle_intel(data: dict[str, Any]) -> dict[str, Any]:
+    """Compact bundle/cluster intel summary for the Analyst Read prompt.
+
+    Pulls ONLY values the scan actually reported — absent values are omitted
+    so the LLM never sees fabricated zeros. Reads the SENTINEL deepscan dict
+    shape: ``bundle_detection`` (with ``same_slot``), ``wallet_map``,
+    ``holder_analysis`` and ``contract_creation``.
+    """
+    bundle = _as_dict(data, "bundle_detection")
+    same_slot = _as_dict(bundle, "same_slot")
+    wallet_map = _as_dict(data, "wallet_map")
+    holder = _as_dict(data, "holder_analysis")
+    creation = _as_dict(data, "contract_creation")
+
+    intel: dict[str, Any] = {}
+
+    # Bundle wallet count: prefer the own-engine bundle count, then the
+    # SENTINEL deployer-funded + sniper lists, then the total bundled %.
+    n_same_bundle = _safe_int(same_slot.get("bundle_wallets"))
+    n_deployer = len(bundle.get("deployer_funded") or [])
+    n_snipers = len(bundle.get("same_block_snipers") or [])
+    n_bundle = n_same_bundle or (n_deployer + n_snipers) or None
+    if n_bundle:
+        intel["bundle_wallet_count"] = n_bundle
+    # Same-slot concentration (Solana, Helius-backed).
+    n_slot = _safe_int(same_slot.get("same_slot_wallets"))
+    if n_slot:
+        intel["same_slot_wallets"] = n_slot
+    sol_spent = _safe_float(same_slot.get("same_slot_sol_spent"))
+    if sol_spent:
+        intel["same_slot_sol_spent"] = round(sol_spent, 2)
+    held_pct = _safe_float(same_slot.get("same_slot_held_pct"))
+    if held_pct:
+        intel["same_slot_held_pct"] = round(held_pct, 1)
+    # Wallet roles (dev/whale/fish/shrimp/fresh/bundle counts).
+    roles = wallet_map.get("roles")
+    if isinstance(roles, dict):
+        present = {str(k): int(v) for k, v in roles.items() if _safe_int(v)}
+        if present:
+            intel["wallet_roles"] = present
+    # Deployer funding source (SENTINEL contract-creation module).
+    dfp = _safe_float(creation.get("deployer_funded_percentage"))
+    if dfp is not None:
+        intel["deployer_funded_pct"] = round(dfp, 1)
+    # Holder concentration.
+    top10 = _safe_float(holder.get("top_10_percentage"))
+    hhi = _safe_float(holder.get("hhi"))
+    if top10 is not None or hhi is not None:
+        conc: dict[str, Any] = {}
+        if top10 is not None:
+            conc["top10_pct"] = round(top10, 1)
+        if hhi is not None:
+            conc["hhi"] = round(hhi, 0)
+        intel["holder_concentration"] = conc
+
+    return intel
+
+
+def _as_dict(container: dict[str, Any], key: str) -> dict[str, Any]:
+    """Return ``container[key]`` when it is a dict, else empty dict (safe)."""
+    value = container.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _safe_int(value: Any) -> int | None:
+    """Best-effort int conversion (N/A-safe)."""
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_float(value: Any) -> float | None:
+    """Best-effort float conversion (N/A-safe)."""
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+async def render_analyst_read_block(data: dict[str, Any]) -> str:
+    """Render the "🧠 Analyst Read" block over a deep-scan data dict.
+
+    Builds the compact bundle/cluster intel summary, asks the snappy LLM
+    (``app.llm_config.chat_with_fallback(messages, "snappy")`` — free
+    OpenRouter tier with cheap paid fallback) for 2-3 plain-English sentences
+    interpreting WHY the cluster structure matters, and returns an HTML-safe
+    block. Fail-open: empty intel, timeout, rate-limit or blank answer all
+    return "" so the caller skips the block entirely.
+    """
+    intel = _build_bundle_intel(data)
+    if not intel:
+        return ""
+    import json
+
+    from app.llm_config import chat_with_fallback
+
+    messages: list[dict[str, str]] = [
+        {"role": "system", "content": _ANALYST_READ_SYSTEM},
+        {
+            "role": "user",
+            "content": (
+                "Token bundle/cluster intel (JSON, only facts we measured):\n"
+                f"{json.dumps(intel, default=str)[:800]}\n\n"
+                "Write the Analyst Read now."
+            ),
+        },
+    ]
+    try:
+        text = await asyncio.wait_for(chat_with_fallback(messages, "snappy"), timeout=_ANALYST_READ_TIMEOUT)
+    except Exception:
+        text = ""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    return f"\U0001f9e0 <b>Analyst Read</b>\n{html.escape(text)[:_ANALYST_READ_MAX_CHARS]}"
+
+
+def format_deep_ml_scan_report(report: Any, analyst_read: str = "") -> str:
     """Canonical ML deep-scan report (``/deepscan`` — fraud-GNN/pyod/pygod).
 
     Renders a ``app.deep_scan.DeepScanReport`` using the shared scan-report
@@ -133,6 +277,12 @@ def format_deep_ml_scan_report(report: Any) -> str:
         # ── 1. One-line verdict up top ──
         f"{emoji} <b>Verdict: {html.escape(overall.upper())}</b> \u2014 {_ml_verdict_sentence(overall, sell)}",
     ]
+
+    # ── 1b. AI Analyst Read (bundle/cluster plain-language interpretation) ──
+    # Renders BEFORE the deterministic sections. Fail-open: an empty/absent
+    # block (LLM down or no bundle data) is skipped entirely.
+    if analyst_read:
+        lines.extend(["", analyst_read])
 
     # ── 2. Key metrics as a tight bold table (ML-specific) ──
     fraud = scores.get("fraud_gnn") or {}
@@ -249,7 +399,7 @@ def _sentinel_watch_line(red_flags: list[Any], level: str) -> str:
     return "Low risk \u2014 standard DeFi caution still applies."
 
 
-def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
+def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "") -> str:
     """Render the SENTINEL deep-forensic section.
 
     Consumes the raw response from ``POST /api/v1/x402-tools/sentinel_scan``
@@ -288,6 +438,12 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
         f"{_risk_level_emoji(level)} <b>Verdict: {html.escape(level.upper())}</b> \u2014 Composite {risk:.0f}/100"
     )
     lines.append("")
+
+    # ── AI Analyst Read (bundle/cluster plain-language interpretation) ──
+    # Renders BEFORE the deterministic sections. Fail-open: an empty/absent
+    # block (LLM down or no bundle data) is skipped entirely.
+    if analyst_read:
+        lines.extend(["", analyst_read])
 
     # ── Risk Assessment ──
     lines.append("\U0001f3af <b>Risk Assessment</b>")
@@ -562,6 +718,36 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
         lines.append(f"  <code>{html.escape(str(wm_line))}</code>")
         lines.append("")
 
+    # ── 🕸️ Cluster Analysis (funding-source clusters + coordinated buys) ──
+    cluster = data.get("cluster_analysis") or {}
+    if cluster:
+        lines.append("\U0001f578\ufe0f <b>Cluster Analysis</b>")
+        lines.append(d)
+        if str(cluster.get("result")) == "scanned":
+            cline = cluster.get("cluster_line") or "\u2014"
+            lines.append(f"  <code>{html.escape(str(cline))}</code>")
+            try:
+                coord_buyers = int(cluster.get("coordinated_buyers") or 0)
+            except (TypeError, ValueError):
+                coord_buyers = 0
+            if coord_buyers:
+                lines.append(f"  \u26a0\ufe0f Coordinated buys (same block + shared funder): <b>{coord_buyers}</b>")
+            try:
+                chain_buyers = int(cluster.get("funding_chain_buyers") or 0)
+            except (TypeError, ValueError):
+                chain_buyers = 0
+            if chain_buyers:
+                lines.append(f"  \U0001f517 Funding-chain wallets (funder = launch buyer): <b>{chain_buyers}</b>")
+        else:
+            # Honest + fail-open: "—" when the engine has no data. A
+            # "[REVIEW] ..." note explains the data-source gap when present.
+            cluster_note = cluster.get("note")
+            if cluster_note and str(cluster_note).startswith("[REVIEW]"):
+                lines.append(f"  <i>{html.escape(str(cluster_note))}</i>")
+            else:
+                lines.append("  <code>\u2014</code>")
+        lines.append("")
+
     # ── Deployer reputation ──
     if dev:
         lines.append("\U0001f468\u200d\U0001f4bb <b>Deployer Reputation</b>")
@@ -615,6 +801,6 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
     return _collapse_blank_lines("\n".join(lines))
 
 
-def format_sentinel_scan_report(data: dict[str, Any]) -> str:
+def format_sentinel_scan_report(data: dict[str, Any], analyst_read: str = "") -> str:
     """Standalone /sentinelscan report — SENTINEL deep scan only."""
-    return format_sentinel_deepscan_section(data)
+    return format_sentinel_deepscan_section(data, analyst_read=analyst_read)

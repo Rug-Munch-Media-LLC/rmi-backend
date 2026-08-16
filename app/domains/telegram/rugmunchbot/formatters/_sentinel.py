@@ -49,6 +49,7 @@ from app.domains.telegram.rugmunchbot.formatters._scan_report import (
     format_sentinel_flags,
     format_sentinel_scan_report,
     is_bluechip,
+    render_analyst_read_block,
 )
 from app.domains.telegram.rugmunchbot.formatters._wallet import (
     format_wallet_composition_section,
@@ -90,4 +91,5 @@ __all__ = [
     "format_sentinel_scan_report",
     "format_wallet_composition_section",
     "is_bluechip",
+    "render_analyst_read_block",
 ]

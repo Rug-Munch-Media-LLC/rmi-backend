@@ -297,7 +297,7 @@ rmi-backend (FastAPI)
 │   ├── Security: GoPlus, TruffleHog, Semgrep
 │   ├── Social: CoinGecko, DexScreener, DefiLlama, LunarCrush
 │   ├── Analytics: Nansen, Arkham, Moralis, Blockchair
-│   ├── AI: OpenAI, Anthropic, Ollama, Cerebras, Mistral
+│   ├── AI: OpenAI, Anthropic, OpenRouter, Cerebras, Mistral
 │   ├── Infra: Cloudflare R2, Supabase, Stripe
 │   └── Other: Pryscraper (internal), GitHub, Etherscan
 │
@@ -345,7 +345,7 @@ pryscraper (FastAPI)
 │   └── Tor (anonymous crawling)
 │
 ├── External APIs
-│   ├── LLM Providers (OpenAI, Anthropic, Ollama, Cerebras)
+│   ├── LLM Providers (OpenAI, Anthropic, OpenRouter, Cerebras)
 │   ├── Apify (marketplace)
 │   └── Various target websites
 │

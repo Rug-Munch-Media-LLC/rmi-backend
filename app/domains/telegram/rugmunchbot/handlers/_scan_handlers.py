@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.config import (
@@ -43,6 +44,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     is_sol,
     paywall_text,
+    render_analyst_read_block,
     sep,
     thin_sep,
     web_scan_button,
@@ -61,6 +63,7 @@ from app.domains.telegram.rugmunchbot.handlers._scanning_helpers import (
     _ds_pairs,
     _merge_completed_scan,
 )
+from app.domains.telegram.rugmunchbot.handlers.chat_ai._delivery import _keep_typing
 from app.domains.telegram.rugmunchbot.keyboards import (
     back_kb,
     deep_scan_result_kb,
@@ -89,6 +92,7 @@ from app.domains.telegram.rugmunchbot.tools.scanner import (
 )
 
 if TYPE_CHECKING:
+    from telegram import Message
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
@@ -109,6 +113,61 @@ def _with_trade_buttons(kb: InlineKeyboardMarkup, address: str, chain: str) -> I
     rows = [list(row) for row in kb.inline_keyboard]
     rows[1:1] = trade_rows
     return InlineKeyboardMarkup(rows)
+
+
+async def _edit_stage_if_slow(
+    msg: Message,
+    text: str,
+    *,
+    started: float,
+    min_elapsed: float = 3.0,
+) -> None:
+    """Refresh the in-flight scan message to ``text`` once the scan has been
+    running for at least ``min_elapsed`` seconds.
+
+    Fast scans (cache hits, quick providers) return before the threshold and
+    never see placeholder churn; slow scans read like a human analyst working
+    through the checks. Fail-open: any Telegram hiccup is logged, not raised.
+    """
+    if time.monotonic() - started < min_elapsed:
+        return
+    try:
+        await msg.edit_text(text, parse_mode=ParseMode.HTML)
+    except (TelegramError, ConnectionError, OSError, TimeoutError):
+        logger.debug("scan stage edit skipped", exc_info=True)
+
+
+async def _staged_progress(
+    msg: Message,
+    stages: list[tuple[str, float]],
+    *,
+    started: float,
+) -> None:
+    """Drive ``msg`` through ``stages`` (``(text, min_elapsed_s)``) while a
+    long scan runs in a sibling task.
+
+    Each stage fires only once the scan has been running for at least
+    ``min_elapsed_s`` seconds. The caller cancels this task the moment the
+    scan result lands, so a fast scan is never clobbered by an interim edit.
+    """
+    for text, min_elapsed in stages:
+        wait = started + min_elapsed - time.monotonic()
+        if wait > 0:
+            await asyncio.sleep(wait)
+        try:
+            await msg.edit_text(text, parse_mode=ParseMode.HTML)
+        except (TelegramError, ConnectionError, OSError, TimeoutError):
+            logger.debug("scan staged progress edit skipped", exc_info=True)
+
+
+async def _stop_task(task: asyncio.Task[Any] | None) -> None:
+    """Cancel a background helper task and await its shutdown (no dangling
+    coroutine / CancelledError noise). Safe to call with ``None``."""
+    if task is None:
+        return
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
 
 
 async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -142,10 +201,15 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 reply_markup=upgrade_nudge_kb(tier),
             )
             return
+    started = time.monotonic()
     msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f50d <b>Scanning token...</b>\n<code>{target}</code>\n\n\u23f3 Running multi-source security checks...",
         parse_mode=ParseMode.HTML,
     )
+    # Human-analyst feel: keep the typing bubble alive while the providers
+    # run; the placeholder is refreshed with staged progress only when the
+    # scan is genuinely slow (see _edit_stage_if_slow gates below).
+    typing_task = asyncio.create_task(_keep_typing(msg.chat))
     try:
         # Short-TTL scan cache: repeat /scan of the same token is instant —
         # skip the whole provider chain (v2 POST + DexScreener supplement +
@@ -176,6 +240,14 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 reply_markup=back_kb(),
             )
             return
+        # Stage 2 (gated >3s): providers answered — surface the holder /
+        # deployer analysis step only when the scan actually took time.
+        await _edit_stage_if_slow(
+            msg,
+            f"\U0001f468\u200d\U0001f4bb <b>Analyzing deployer + holders...</b>\n<code>{target}</code>",
+            started=started,
+            min_elapsed=3.0,
+        )
         report = format_scan_report(result)
         # AI verdict summary on top: the snappy LLM reads the structured scan
         # facts into a 2-4 sentence plain-English verdict + "what to watch".
@@ -184,6 +256,14 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ai_verdict = await render_ai_verdict(result)
         if ai_verdict:
             report = f"{ai_verdict}\n\n{report}"
+        # Stage 3 (gated >6s): the verdict is composed — show it only once the
+        # whole flow has genuinely taken time (LLM verdict + providers).
+        await _edit_stage_if_slow(
+            msg,
+            f"\U0001f9e0 <b>Writing verdict...</b>\n<code>{target}</code>",
+            started=started,
+            min_elapsed=6.0,
+        )
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, target, result["chain"], "basic", result["risk_score"])
         # Use richer keyboard for premium users
@@ -210,6 +290,9 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
+    finally:
+        # The report (or failure card) has landed — drop the typing bubble.
+        await _stop_task(typing_task)
 
 
 async def _poll_v2_scan_completion(address: str, chain: str, max_wait_s: float = 24.0) -> dict[str, Any] | None:
@@ -278,6 +361,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 reply_markup=upgrade_nudge_kb(tier),
             )
             return
+    started = time.monotonic()
     msg = await update.message.reply_text(
         f"\U0001f52c <b>Deep scan started...</b>\n"
         f"<code>{target}</code>\n\n"
@@ -286,6 +370,8 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         f"\u23f3 This can take up to 2 minutes...",
         parse_mode=ParseMode.HTML,
     )
+    # Keep the typing bubble alive for the whole multi-phase run.
+    typing_task = asyncio.create_task(_keep_typing(msg.chat))
     # Phase 1: Market data
     await asyncio.sleep(2)
     try:
@@ -395,6 +481,15 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if wallet_section:
             enrichment_lines.append(wallet_section)
 
+        # Stage 3 (gated >10s): enrichment is done — the verdict is being
+        # composed. Deep scans are always slow, so this reads naturally.
+        await _edit_stage_if_slow(
+            msg,
+            f"\U0001f9e0 <b>Writing verdict...</b>\n<code>{target}</code>",
+            started=started,
+            min_elapsed=10.0,
+        )
+
         # Canonical deep-scan report: the /scan skeleton plus deep-only intel
         # (LP lock, bundle, snipers/insiders) and the enrichment sections
         # (RugMap cluster, market snapshot, wallet composition) rendered
@@ -423,6 +518,9 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
+    finally:
+        # The report (or failure card) has landed — drop the typing bubble.
+        await _stop_task(typing_task)
 
 
 async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -467,12 +565,32 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 reply_markup=upgrade_nudge_kb(tier),
             )
             return
+    started = time.monotonic()
     msg = await update.message.reply_text(
         "\U0001f52c <b>AEGIS scanning...</b>\n\n\U0001f4aa Running all 9 forensic modules \u2014 this takes a bit.",
         parse_mode=ParseMode.HTML,
     )
+    typing_task = asyncio.create_task(_keep_typing(msg.chat))
+    progress_task: asyncio.Task[Any] | None = None
     try:
-        result = await fetch_sentinel_scan(target, chain)
+        # Run the forensic pipeline in the background and drive the placeholder
+        # through staged, elapsed-gated progress edits while it works — a
+        # multi-second scan reads like an analyst, not a spinner.
+        scan_task = asyncio.create_task(fetch_sentinel_scan(target, chain))
+        progress_task = asyncio.create_task(
+            _staged_progress(
+                msg,
+                [
+                    ("\U0001f50d <b>Scanning security providers...</b>", 2.0),
+                    ("\U0001f468\u200d\U0001f4bb <b>Analyzing deployer + holders...</b>", 6.0),
+                    ("\U0001f9e0 <b>Writing verdict...</b>", 12.0),
+                ],
+                started=started,
+            )
+        )
+        result = await scan_task
+        # Stop the stager BEFORE the final edit so it can never clobber it.
+        await _stop_task(progress_task)
         if not result:
             await msg.edit_text(
                 failure_card("AEGIS Scan Failed", "Could not reach the forensic pipeline.", ACTION_TRY_AGAIN),
@@ -481,7 +599,11 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
         db.increment_usage(user.id, scan=True)
-        report = format_sentinel_deepscan_section(result)
+        # AI "Analyst Read" — plain-language bundle/cluster interpretation,
+        # rendered BEFORE the deterministic sections. Fail-open: empty block
+        # (LLM down / no bundle data) is skipped entirely.
+        analyst_read = await render_analyst_read_block(result)
+        report = format_sentinel_deepscan_section(result, analyst_read=analyst_read)
         report += f"\n\n{footer_links()}"
         await msg.edit_text(
             report,
@@ -497,6 +619,9 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
+    finally:
+        await _stop_task(typing_task)
+        await _stop_task(progress_task)
 
 
 async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

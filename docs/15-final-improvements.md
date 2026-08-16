@@ -72,7 +72,7 @@ If disk > 85% → auto-prune old logs.
 User-submitted content (comments, posts, reviews) → AI moderation.
 NSFW/spam/scam detection. Human review queue for edge cases.
 **Impact:** Community features without moderation overhead.
-**Depends on:** Ollama (classification) ✅, Ghost CMS
+**Depends on:** OpenRouter free (classification) ✅, Ghost CMS
 
 ### 12. Model A/B Testing Framework
 Deploy 2 prompt variants → split traffic 50/50 → measure accuracy.
@@ -83,11 +83,11 @@ Deploy 2 prompt variants → split traffic 50/50 → measure accuracy.
 ## TIER 4 — Advanced AI (Ongoing)
 
 ### 13. Fine-Tuned RMI Models
-Fine-tune qwen2.5-coder:7b on Real-CATS + MBAL + Elliptic.
+Fine-tune a small coder model (e.g. `qwen/qwen-2.5-7b-instruct:lowest` on OpenRouter) on Real-CATS + MBAL + Elliptic.
 `rmi-scam-detector:7b` — specialist model, 95%+ accuracy on rug detection.
-Deploy to Ollama. A/B test against generic models.
+Serve remotely (OpenRouter custom model / hosted API) — local serving was decommissioned 2026-08 (see `docs/MODEL-ROUTING.md`). A/B test against generic models.
 **Impact:** Proprietary AI advantage. Moats are built on custom models.
-**Depends on:** Ollama ✅, Real-CATS ✅, model eval ✅
+**Depends on:** OpenRouter (remote) ✅, Real-CATS ✅, model eval ✅
 
 ### 14. Multi-Modal Token Analysis
 Analyze token logos, website screenshots, social media images.

@@ -63,12 +63,11 @@ backend/
 │   │   └── bulletin/           board + models + service
 │   │
 │   ├── infra/                  external integrations
-│   │   ├── ollama.py
 │   │   ├── langfuse.py
 │   │   ├── vector_store.py
 │   │   ├── chains/             evm + solana + bitcoin + base + ...
 │   │   ├── apis/               coingecko + etherscan + birdeye + goplus + ...
-│   │   └── providers/          ollama + openrouter + huggingface + ...
+│   │   └── providers/          openrouter + huggingface + ...
 │   │
 │   └── workers/                background jobs (separate from API)
 │       ├── firehose.py

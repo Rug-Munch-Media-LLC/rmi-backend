@@ -34,6 +34,7 @@ from app.domains.scanner.engines.funding_analysis import (
 )
 from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
 from app.domains.scanner.engines.news_sentiment import analyze_token_news_sentiment
+from app.domains.scanner.engines.own_cluster_analysis import get_own_cluster_analysis
 from app.domains.scanner.engines.own_deployer_reputation import get_own_deployer_reputation
 from app.domains.scanner.engines.own_deployer_timeline import get_own_deployer_timeline
 from app.domains.scanner.engines.own_dex_data import check_data_freshness, get_own_dex_data
@@ -58,6 +59,7 @@ __all__ = [
     "get_batch_prices",
     "get_holder_count",
     # Phase 4
+    "get_own_cluster_analysis",
     "get_own_deployer_reputation",
     "get_own_deployer_timeline",
     "get_own_dex_data",

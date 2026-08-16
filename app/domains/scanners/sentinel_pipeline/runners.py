@@ -158,6 +158,17 @@ async def _run_deployer_timeline(deployer_address: str, chain: str) -> dict[str,
         return None
 
 
+async def _run_cluster_analysis(token_address: str, chain: str, deployer: str | None) -> dict[str, Any] | None:
+    """Funding-source cluster + coordinated-buy analysis engine (fail-open)."""
+    try:
+        from app.domains.scanner.engines.own_cluster_analysis import get_own_cluster_analysis
+
+        return await get_own_cluster_analysis(token_address, chain, deployer=deployer)
+    except Exception as exc:
+        logger.debug("cluster_analysis_engine_failed: %s", exc)
+        return None
+
+
 async def run_sentinel_scan(
     token_address: str,
     chain: str = "solana",
@@ -242,6 +253,8 @@ async def run_sentinel_scan(
     # ── Competitor deep-scan extras (fail-open engines) ──
     # First-20 wallet map: emoji role classification of early buyers/holders.
     coros["wallet_map"] = _run_wallet_map(token_address, chain, dev_address)
+    # Funding-source clusters + coordinated-buy detection (own ClickHouse).
+    coros["cluster_analysis"] = _run_cluster_analysis(token_address, chain, dev_address)
     # Deployer prior-token history timeline (needs the deployer address).
     if dev_address:
         coros["deployer_timeline"] = _run_deployer_timeline(dev_address, chain)
@@ -352,6 +365,7 @@ async def run_sentinel_scan(
         "cross_chain_trace": "cross_chain_trace",
         "wallet_map": "wallet_map",
         "deployer_timeline": "deployer_timeline",
+        "cluster_analysis": "cluster_analysis",
     }
 
     for module_name, raw_result in results.items():

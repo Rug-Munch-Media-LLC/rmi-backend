@@ -11,7 +11,10 @@ datacenter IP.
 | OpenCode Zen (`opencode-zen`, `-backup`, `-3`) | **opencode CLI config only** (`~/.config/opencode/opencode.json`) | local egress proxies `127.0.0.1:18081-18083` |
 | KiloCode (`kilocode`, `-backup`, `-3`) | **opencode CLI config only** | local egress proxies `127.0.0.1:18091-18093` |
 | OpenRouter free (`openrouter`, `openrouter-backup`) | opencode CLI config **and** app code (`app/rag_agentic.py`, `app/hallucination_guard.py`, `app/routers/ai_analysis.py`, `app/routers/bot_api.py`) | `https://openrouter.ai/api/v1` direct |
-| Local llama.cpp (`qwen-chat`, `qwen-analysis`) | `app/ai_router.py` | docker bridge `172.22.0.1` (private — never proxied) |
+
+Local llama.cpp (`qwen-chat`, `qwen-analysis`) was **decommissioned 2026-08** — there is
+no local model backend anymore; all chat/analysis is remote via OpenRouter free tier
+(see [`docs/MODEL-ROUTING.md`](MODEL-ROUTING.md)).
 
 Zen/KiloCode are **not** called from rmi-backend app code in their provider
 form: the app only reaches Zen through the fleet egress proxy at
@@ -25,8 +28,8 @@ form: the app only reaches Zen through the fleet egress proxy at
 when the rotator is enabled **and** the destination is public, direct
 otherwise. A 403/429/5xx or transport error on the proxied egress marks the
 proxy failed (cooldown) and retries once direct (gmgn_provider pattern).
-Private/loopback destinations (local llama.cpp) never go through the tier.
-Streaming (`stream_chat_completion`) is unchanged (local-only).
+Private/loopback destinations never go through the tier.
+Streaming (`stream_chat_completion`) is unchanged.
 
 ## Zen / KiloCode / OpenRouter-free at the opencode process level
 
@@ -38,7 +41,7 @@ gateways (same box) are not routed through the residential tier:
 ```bash
 export HTTP_PROXY="http://<user>:<pass>@proxy.webshare.io:1080"
 export HTTPS_PROXY="http://<user>:<pass>@proxy.webshare.io:1080"
-export NO_PROXY="127.0.0.1,localhost,172.22.0.0/16"
+export NO_PROXY="127.0.0.1,localhost,172.16.0.0/12"
 opencode
 ```
 
