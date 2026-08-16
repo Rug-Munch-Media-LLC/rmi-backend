@@ -11,6 +11,8 @@ One formatter per channel:
   topic/token, e.g. ``$BTC``).
 * ``format_alerts_post`` — alerts channel (urgent risk digest: why-flagged
                            first, /scan links).
+* ``format_scan_card``  — scans channel (@rmiscans) compact per-token card
+                           (verdict + risk score + token + chain + scan link).
 * ``format_alpha_post``  — alpha channel (high-signal: whale moves + smart
                            money + launches).
 
@@ -564,6 +566,50 @@ def format_main_escalation(item: dict[str, Any]) -> NewsPost:
     return post
 
 
+# ── Scans channel ────────────────────────────────────────────────────────
+
+
+def format_scan_card(item: dict[str, Any]) -> NewsPost:
+    """Compact @rmiscans card: verdict + risk score + token + chain + scan link.
+
+    One token per card (the scans job posts each notable scan as its own
+    card, ~10/day). The verdict line comes from the scanner flags
+    (``alert_verdict`` — "why it matters"), the score line renders the
+    numeric risk (or falls back to the risk level when the score is absent),
+    and the scan deep link always points at rugmunch.io/scanner. Carries the
+    item's image when one exists (text-only otherwise — fail-open).
+    """
+    symbol = _esc(item.get("symbol") or "???")
+    name = _esc(item.get("name") or item.get("title") or symbol)
+    addr = str(item.get("address") or item.get("token_address") or "")
+    chain = _esc(item.get("chain") or "")
+    risk = str(item.get("risk_level") or "unknown").lower()
+    score = item.get("risk_score")
+    score_line = ""
+    if score is not None:
+        with suppress(TypeError, ValueError):
+            score_line = f"{_risk_emoji(risk)} Risk {float(score):.0f}/100 — {risk}"
+    if not score_line:
+        score_line = f"{_risk_emoji(risk)} Verdict: {risk}"
+    lines = ["🛡️ <b>Scan of note</b>", sep(), ""]
+    lines.append(f"{_risk_emoji(risk)} <b>{name}</b> ({symbol}){f' · {chain}' if chain else ''}")
+    if addr:
+        lines.append(f"<code>{_esc(addr)}</code>")
+    lines.append(score_line)
+    lines.append(f"💡 {_esc(alert_verdict(item))}")
+    flags = [f for f in item.get("risk_flags") or [] if f]
+    if flags:
+        lines.append("   ⚠️ " + " · ".join(_esc(f) for f in flags[:5]))
+    links = _item_links(item, addr=addr, chain=str(item.get("chain") or ""))
+    if links:
+        lines.append("")
+        lines.append(links)
+    lines.extend(["", f"🕐 {_now_stamp()}", footer_links()])
+    post = NewsPost(_clip("\n".join(lines)))
+    post.image_url = _pick_image_url(item.get("image_url"))
+    return post
+
+
 # ── Alpha channel ─────────────────────────────────────────────────────────
 
 
@@ -702,5 +748,6 @@ __all__ = [
     "format_hybrid_post",
     "format_main_escalation",
     "format_news_post",
+    "format_scan_card",
     "format_themed_post",
 ]

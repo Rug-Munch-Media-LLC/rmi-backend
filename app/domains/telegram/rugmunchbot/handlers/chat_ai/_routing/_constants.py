@@ -44,7 +44,7 @@ CHAT_TURN_DEADLINE = 25.0
 # questions that _route_tier() sends to the "long" provider get the extra
 # room. The typing indicator + interim "still digging" placeholder keep the
 # user engaged for the longer wait (see _keep_typing / _edit_placeholder_if_slow).
-CHAT_TURN_DEADLINE_LONG = 34.0
+CHAT_TURN_DEADLINE_LONG = 40.0
 
 # Short graceful reply when a turn exceeds the hard end-to-end deadline.
 TIMEOUT_REPLY = "\u23f3 Taking longer than expected \u2014 try again or narrow your question."

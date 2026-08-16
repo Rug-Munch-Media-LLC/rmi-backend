@@ -1,5 +1,5 @@
 """
-RugMunchBot — scheduled channel content (news / alerts / alpha / personal).
+RugMunchBot — scheduled channel content (news / alerts / alpha / scans / personal).
 
 Wire-up for the bot-owned Telegram channels (``config.CHANNELS``): each
 channel gets its own content formatter and a JobQueue-based poster that runs
@@ -16,6 +16,10 @@ Channels
                ``app.domains.alerts.whale_watch`` when populated) + smart
                money wallets (backend ``/api/v1/databus/premium/smart-money``)
                + new launches (``/api/v1/launches/feed``).
+* ``scans``  — @rmiscans "scans of note" ~10/day: the day's most notable
+               scanned tokens (launch-alert ≥70 rail + scan history),
+               reranker-gated (skip <0.4), one compact card per token
+               (verdict + risk score + token + chain + scan link).
 * ``personal`` — the operator's @cryptorugmuncher channel: reranker-gated
                "bigger stories" (threshold 0.7) posted as operator-voice
                captions + cross-posted to the Ghost blog (Admin API) — see
@@ -36,6 +40,7 @@ from app.domains.telegram.rugmunchbot.channels.scheduler import (
     post_alert_update,
     post_alpha_update,
     post_news_update,
+    post_scan_update,
     register_channel_jobs,
 )
 
@@ -47,5 +52,6 @@ __all__ = [
     "post_alpha_update",
     "post_news_update",
     "post_personal_channel",
+    "post_scan_update",
     "register_channel_jobs",
 ]
