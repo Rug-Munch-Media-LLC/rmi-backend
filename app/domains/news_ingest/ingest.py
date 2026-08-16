@@ -24,6 +24,7 @@ so a story seen in a previous sweep — even rephrased — is never re-read.
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any, Final
@@ -466,6 +467,62 @@ def _reaction_counts(reactions: Any) -> dict[str, int] | None:
 # ── Thin reader ────────────────────────────────────────────────────────────
 
 
+#: Consecutive read failures before a channel is auto-disabled (then retried
+#: after a cooldown). Guards against spending an MTProto round-trip on a
+#: channel that repeatedly fails to resolve ("No user has X as username" for
+#: dead/renamed handles) on every sweep tick.
+_CHANNEL_FAILURE_THRESHOLD: Final = 3
+#: Cooldown after auto-disable before the channel is tried again.
+_CHANNEL_COOLDOWN_SECONDS: Final = 24 * 60 * 60
+
+#: channel_username -> consecutive read failures (reset on any success).
+_CHANNEL_READ_FAILURES: dict[str, int] = {}
+#: channel_username -> monotonic timestamp until which the channel is skipped.
+_CHANNEL_COOLDOWN_UNTIL: dict[str, float] = {}
+
+
+def is_channel_cooldown(channel_username: str, now: float | None = None) -> bool:
+    """True while *channel_username* is in auto-disable cooldown (skip the RPC).
+
+    Fail-open: unknown channels are never in cooldown.
+    """
+    if not channel_username:
+        return False
+    until = _CHANNEL_COOLDOWN_UNTIL.get(channel_username)
+    if until is None:
+        return False
+    return (now if now is not None else time.monotonic()) < until
+
+
+def note_channel_failure(
+    channel_username: str,
+    *,
+    threshold: int = _CHANNEL_FAILURE_THRESHOLD,
+    cooldown_seconds: float = _CHANNEL_COOLDOWN_SECONDS,
+) -> bool:
+    """Record a read failure; auto-disable after *threshold* consecutive ones.
+
+    Returns True when the channel was *just* disabled (caller should log at
+    warning). Failures are reset by :func:`note_channel_success`, so a channel
+    that recovers after cooldown starts from zero again.
+    """
+    if not channel_username:
+        return False
+    count = _CHANNEL_READ_FAILURES.get(channel_username, 0) + 1
+    if count >= max(1, threshold):
+        _CHANNEL_READ_FAILURES.pop(channel_username, None)
+        _CHANNEL_COOLDOWN_UNTIL[channel_username] = time.monotonic() + max(0.0, cooldown_seconds)
+        return True
+    _CHANNEL_READ_FAILURES[channel_username] = count
+    return False
+
+
+def note_channel_success(channel_username: str) -> None:
+    """Reset the failure counter — the channel resolved and read fine."""
+    if channel_username:
+        _CHANNEL_READ_FAILURES.pop(channel_username, None)
+
+
 async def read_channel_messages(client: Any, channel_username: str, limit: int = 50) -> list[ChannelMessage]:
     """Read the last *limit* messages from a channel. Never raises.
 
@@ -490,17 +547,26 @@ async def read_channel_messages(client: Any, channel_username: str, limit: int =
                 converted = _message_to_channel_message(msg, channel_username)
                 if converted is not None:
                     messages.append(converted)
+            note_channel_success(channel_username)
             return messages
 
         read_messages = getattr(client, "read_messages", None)
         if callable(read_messages):
             result = await read_messages(channel_username, limit)
+            note_channel_success(channel_username)
             if not result:
                 return []
             return [m for m in result if isinstance(m, ChannelMessage)]
 
         return []
     except Exception as e:
+        if note_channel_failure(channel_username):
+            logger.warning(
+                "news_ingest_channel_disabled channel=%s failures=%d cooldown_hours=%s",
+                channel_username,
+                _CHANNEL_FAILURE_THRESHOLD,
+                int(_CHANNEL_COOLDOWN_SECONDS // 3600),
+            )
         logger.warning("news_ingest_read_failed channel=%s err=%s", channel_username, e)
         return []
 
@@ -532,6 +598,9 @@ async def sweep_channels(client: Any, channels: list[dict[str, Any]], limit: int
     for channel in channels or []:
         username = channel_username_from_config(channel)
         if not username:
+            continue
+        if is_channel_cooldown(username):
+            logger.debug("news_ingest:channel_cooldown_skip channel=%s", username)
             continue
         category = str(channel.get("category") or "crypto_news")
         messages = await read_channel_messages(client, username, limit)

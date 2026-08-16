@@ -91,10 +91,14 @@ def _reset_dedupe() -> None:
 
 
 class TestSources:
-    def test_defaults_have_ten_handles(self) -> None:
-        assert len(tg_news._DEFAULT_CHANNELS) == 10
+    def test_defaults_have_six_handles(self) -> None:
+        assert len(tg_news._DEFAULT_CHANNELS) == 6
         assert "cointelegraph" in tg_news._DEFAULT_CHANNELS
         assert "WatcherGuru" in tg_news._DEFAULT_CHANNELS
+        # Dead/renamed handles that logged "No user has X as username" are
+        # excluded from the default list (auto-disable covers discovered ones).
+        for dead in ("wublockchain", "TheBlock__", "beincrypto", "cryptonews"):
+            assert dead not in tg_news._DEFAULT_CHANNELS
 
     def test_env_override_parses_commas_and_pipes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("RMI_TG_NEWS_CHANNELS", "cointelegraph|wublockchain,WatcherGuru")

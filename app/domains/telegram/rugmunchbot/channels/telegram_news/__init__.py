@@ -61,7 +61,9 @@ per-channel message reads are bounded by ``RMI_TG_NEWS_PER_CHANNEL_LIMIT``
 (default 30). When discovery is disabled, returns nothing, or the client is
 unavailable, the sweep falls back to the env-overridable explicit list
 ``RMI_TG_NEWS_CHANNELS`` (comma- or pipe-separated @handles), then to
-``_DEFAULT_CHANNELS`` (10 well-known public crypto-news channels). Several
+``_DEFAULT_CHANNELS`` (6 well-known public crypto-news channels; handles that
+repeatedly fail to resolve are commented out and auto-disabled by the ingest
+layer's per-channel cooldown). Several
 default handles carry ``[REVIEW]`` notes in ``app/databus/tg_channels.json``;
 verify them before production monitoring. No secrets involved.
 
