@@ -32,6 +32,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     is_owner,
     web_scan_button,
 )
+from app.domains.telegram.rugmunchbot.handlers._help_text import CODEBERG_ORG
 
 
 def token_buttons(address: str, chain: str, *, include_scan: bool = True) -> list[InlineKeyboardButton]:
@@ -407,6 +408,7 @@ def category_help_kb() -> InlineKeyboardMarkup:
         _menu_row("\U0001f4f1 Telegram Channel", "open_channel"),
         _menu_row("\U0001f4ac Community Chat", "open_group"),
         _menu_row("\U0001f310 Website", "open_website"),
+        [InlineKeyboardButton("\U0001f419 Open Source", url=CODEBERG_ORG)],
     ]
     channels_row = []
     for key, label in (("alerts", "\U0001f4e2 Alerts"), ("alpha", "\U0001f680 Alpha"), ("news", "\U0001f4f0 News")):

@@ -9,6 +9,8 @@ Computes token security indicators from our own ClickHouse data:
   - Token age / creation time from deployer_events
   - Buy/sell tax estimation from dex_events
   - Transfer pausability detection
+  - Deployer-dump detection (deployer → pool team sells, evm_transfers)
+  - Dusting / address-poisoning detection (single-sender fan-out)
 
 Architecture:
   - Queries evm_transfers, deployer_events, and dex_events
@@ -196,6 +198,12 @@ async def get_own_security(
         "is_mintable": None,
         "is_proxy": None,
         "total_supply": "",
+        "deployer_dump_detected": None,
+        "deployer_dump_count": 0,
+        "deployer_dump_value": 0.0,
+        "dusting_detected": None,
+        "dust_sender": "",
+        "dust_recipients": 0,
         "confidence": 0.0,
     }
 
@@ -207,11 +215,13 @@ async def get_own_security(
         deployer_task = asyncio.create_task(run_sync(_query_deployer_data, token_address, chain))
         transfer_task = asyncio.create_task(run_sync(_query_transfer_stats, token_address, chain))
         dex_task = asyncio.create_task(run_sync(_query_dex_tax_data, token_address, chain))
+        dust_task = asyncio.create_task(run_sync(_query_dust_pattern, token_address, chain))
 
-        d_data, t_stats, d_tax = await asyncio.gather(
+        d_data, t_stats, d_tax, dust = await asyncio.gather(
             deployer_task,
             transfer_task,
             dex_task,
+            dust_task,
         )
     except (
         ConnectionError,
@@ -234,6 +244,29 @@ async def get_own_security(
         result["deployment_tx"] = d_data.get("tx_hash", "")
         result["deployment_block"] = d_data.get("block_number")
         result["confidence"] = max(result["confidence"], 0.5)
+
+        # Deployer-dump (team-wallet sell) check: did the deployer move the
+        # token into a DEX pool after the launch window? Lightweight, reuses
+        # the pair cache + evm_transfers — no new scraping.
+        deployer = d_data.get("deployer", "")
+        if deployer:
+            try:
+                pair_cache = _load_pair_cache(chain)
+                pools = _get_pools_for_token(pair_cache, token_address)
+                flow = await run_sync(_query_deployer_flow, token_address, chain, deployer, pools)
+            except Exception as exc:  # fail-open, never block the scan
+                logger.debug("deployer_flow_query_failed: %s", exc)
+                flow = None
+            if flow:
+                result["deployer_dump_count"] = int(flow.get("out_count", 0) or 0)
+                result["deployer_dump_value"] = round(float(flow.get("out_value", 0) or 0), 2)
+                # Only flag after the launch window (first hour) — the initial
+                # LP seeding is a legitimate deployer→pool transfer at t≈0.
+                age_hours = result.get("age_hours")
+                if result["deployer_dump_count"] >= 1 and age_hours is not None and age_hours >= 1:
+                    result["deployer_dump_detected"] = True
+                    result["risk_score"] += 25
+                    result["confidence"] = max(result["confidence"], 0.6)
 
     # ── Transfer stats ──
     if t_stats:
@@ -258,6 +291,16 @@ async def get_own_security(
             result["risk_score"] += 40
         elif in_count > 0:
             result["is_honeypot"] = False
+
+        # Dusting / address-poisoning signal: a single wallet fanning out to
+        # a large number of distinct recipients (fake-holder seeding or a
+        # dust campaign). Threshold 20+ distinct recipients from one sender.
+        if dust:
+            result["dust_sender"] = dust.get("sender", "")
+            result["dust_recipients"] = int(dust.get("recipients", 0) or 0)
+            if result["dust_recipients"] >= 20:
+                result["dusting_detected"] = True
+                result["risk_score"] += 10
 
         # Low holder count = higher risk
         if result["holder_count"] < 10:
@@ -450,6 +493,149 @@ def _query_transfer_stats(
         CHDriverError,
     ) as exc:
         logger.debug("transfer_stats_query_failed: %s", exc)
+        return None
+
+
+def _query_deployer_flow(
+    token_address: str,
+    chain: str,
+    deployer: str,
+    pools: list[str],
+) -> dict[str, Any] | None:
+    """Query evm_transfers for deployer→pool (team-sell / dump) transfers.
+
+    Counts and sums raw token value moved FROM the deployer address INTO a
+    known DEX pool — the direct "deployer dumping into LP" pattern. When no
+    pool is known for the token (pair cache miss), falls back to ANY
+    outbound deployer transfer so the signal still surfaces honestly.
+
+    Returns: {
+        "out_count": int,
+        "out_value": float,   # raw token units (not USD)
+    }
+    """
+    client = _get_ch_client()
+    if client is None:
+        return None
+
+    try:
+        params: dict[str, Any] = {
+            "token": token_address,
+            "chain": chain,
+            "deployer": deployer,
+        }
+        if pools:
+            params["pools"] = pools
+            rows = client.execute(
+                """
+                SELECT
+                    count() AS out_count,
+                    sum(toFloat64OrZero(value)) AS out_value
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND from_address = %(deployer)s
+                  AND to_address != ''
+                  AND to_address != '0x0000000000000000000000000000000000000000'
+                  AND to_address != from_address
+                  AND to_address IN %(pools)s
+                """,
+                params,
+            )
+        else:
+            rows = client.execute(
+                """
+                SELECT
+                    count() AS out_count,
+                    sum(toFloat64OrZero(value)) AS out_value
+                FROM wallet_memory.evm_transfers
+                WHERE token_address = %(token)s
+                  AND chain = %(chain)s
+                  AND from_address = %(deployer)s
+                  AND to_address != ''
+                  AND to_address != '0x0000000000000000000000000000000000000000'
+                  AND to_address != from_address
+                """,
+                params,
+            )
+        if not rows:
+            return None
+        row = rows[0]
+        return {
+            "out_count": int(row[0] or 0),
+            "out_value": float(row[1] or 0),
+        }
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
+        logger.debug("deployer_flow_query_failed: %s", exc)
+        return None
+
+
+def _query_dust_pattern(
+    token_address: str,
+    chain: str,
+) -> dict[str, Any] | None:
+    """Query evm_transfers for a dusting / address-poisoning pattern.
+
+    Finds the single sender with the largest recipient fan-out. A wallet
+    that distributed to 20+ distinct addresses in a young token is a
+    seeding / dust campaign (fake holder diversification or address
+    poisoning) — not organic accumulation.
+
+    Returns: {
+        "sender": str,
+        "recipients": int,
+    }
+    """
+    client = _get_ch_client()
+    if client is None:
+        return None
+
+    try:
+        rows = client.execute(
+            """
+            SELECT
+                from_address AS sender,
+                uniqExact(to_address) AS recipients
+            FROM wallet_memory.evm_transfers
+            WHERE token_address = %(token)s
+              AND chain = %(chain)s
+              AND from_address != ''
+              AND from_address != '0x0000000000000000000000000000000000000000'
+              AND to_address != ''
+              AND to_address != '0x0000000000000000000000000000000000000000'
+            GROUP BY from_address
+            ORDER BY recipients DESC
+            LIMIT 1
+            """,
+            {"token": token_address, "chain": chain},
+        )
+        if not rows:
+            return None
+        row = rows[0]
+        return {
+            "sender": str(row[0] or ""),
+            "recipients": int(row[1] or 0),
+        }
+    except (
+        ConnectionError,
+        OSError,
+        TimeoutError,
+        RuntimeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        CHDriverError,
+    ) as exc:
+        logger.debug("dust_pattern_query_failed: %s", exc)
         return None
 
 

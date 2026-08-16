@@ -210,6 +210,41 @@ _MENU_EMOJI: dict[str, str] = {
     "Account & Community": "\U0001f464",
 }
 
+# ══════════════════════════════════════════════
+# Project & Open Source links (public Codeberg mirrors only — never the
+# internal forgejo/radicle remotes). Single source of truth for the compact
+# "🔗 Project & Open Source" block shown in the /start welcome and the /menu
+# atlas (reused by ``keyboards.category_help_kb``).
+# ══════════════════════════════════════════════
+
+#: Public Codeberg org page for the RugMunch open-source repos.
+CODEBERG_ORG: str = "https://codeberg.org/cryptorugmunch"
+
+#: The six public RMI open-source repos: (short label, public Codeberg URL).
+OPEN_SOURCE_REPOS: tuple[tuple[str, str], ...] = (
+    ("bot", f"{CODEBERG_ORG}/rugmunchbot"),
+    ("scraper", f"{CODEBERG_ORG}/pryscraper"),
+    ("frontend", f"{CODEBERG_ORG}/rmi-frontend"),
+    ("rag", f"{CODEBERG_ORG}/rmi-rag"),
+    ("indexer", f"{CODEBERG_ORG}/chain-indexer"),
+    ("wallet", f"{CODEBERG_ORG}/walletpress"),
+)
+
+
+def project_links_section() -> str:
+    """Compact '🔗 Project & Open Source' block for welcome/menu (HTML-safe).
+
+    Three lines only — one section header, the website, one repo line with
+    short labels — so it stays a small block, never a wall of links.
+    """
+    repos = " \u00b7 ".join(f'<a href="{url}">{html.escape(label, quote=True)}</a>' for label, url in OPEN_SOURCE_REPOS)
+    return (
+        "\U0001f517 <b>Project &amp; Open Source</b>\n"
+        '\U0001f310 <a href="https://rugmunch.io">rugmunch.io</a> \u2014 crypto intelligence\n'
+        f"\U0001f419 {repos}"
+    )
+
+
 # ── Community channels surfaced in /help (config.CHANNELS-backed) ──────────
 
 #: Display labels for the community channels, keyed by config.CHANNELS keys.
@@ -323,6 +358,7 @@ def _build_menu_text() -> str:
                 parts.append(f"\u2022 {cmd} {desc}")
             else:
                 parts.append(f"\u2022 /{cmd} {desc}")
+    parts.append(f"\n{project_links_section()}")
     return "\n".join(parts)
 
 

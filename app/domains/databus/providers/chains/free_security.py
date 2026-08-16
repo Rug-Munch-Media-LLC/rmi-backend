@@ -29,6 +29,17 @@ import httpx
 
 from app.core.logging import get_logger
 
+try:  # pragma: no cover - exercised only when the helper module is absent
+    from app.domains.scanner.modules._goplus_helpers import _goplus_owner_renounced
+except ImportError:  # pragma: no cover
+
+    def _goplus_owner_renounced(token_data: dict[str, Any]) -> bool | None:
+        owner = str(token_data.get("owner_address", "") or "").strip().lower()
+        if not owner or owner in ("null", "0x0000000000000000000000000000000000000000"):
+            return True
+        return None
+
+
 logger = get_logger("databus.providers.free_security")
 
 # ── Chain / network normalization tables ─────────────────────────────────
@@ -275,6 +286,12 @@ async def _free_security_goplus(**kwargs: Any) -> dict[str, Any] | None:
                 "is_whitelisted": token_data.get("is_whitelisted") == "1",
                 "can_take_back_ownership": token_data.get("can_take_back_ownership") == "1",
                 "hidden_owner": token_data.get("hidden_owner") == "1",
+                "owner_change_balance": token_data.get("owner_change_balance") == "1",
+                "selfdestruct": token_data.get("selfdestruct") == "1",
+                "transfer_pausable": token_data.get("transfer_pausable") == "1",
+                "trading_cooldown": token_data.get("trading_cooldown") == "1",
+                "slippage_modifiable": token_data.get("slippage_modifiable") == "1",
+                "owner_renounced": _goplus_owner_renounced(token_data),
                 "owner_address": token_data.get("owner_address", ""),
                 "buy_tax": buy_tax,
                 "sell_tax": sell_tax,

@@ -78,6 +78,12 @@ async def _goplus_api_scan(chain_id: str, token_address: str, chain: str) -> dic
                 "is_whitelisted": token_data.get("is_whitelisted") == "1",
                 "can_take_back_ownership": token_data.get("can_take_back_ownership") == "1",
                 "hidden_owner": token_data.get("hidden_owner") == "1",
+                "owner_change_balance": token_data.get("owner_change_balance") == "1",
+                "selfdestruct": token_data.get("selfdestruct") == "1",
+                "transfer_pausable": token_data.get("transfer_pausable") == "1",
+                "trading_cooldown": token_data.get("trading_cooldown") == "1",
+                "slippage_modifiable": token_data.get("slippage_modifiable") == "1",
+                "owner_renounced": _goplus_owner_renounced(token_data),
                 "owner_address": token_data.get("owner_address", ""),
                 "buy_tax": float(token_data.get("buy_tax", "0") or 0),
                 "sell_tax": float(token_data.get("sell_tax", "0") or 0),
@@ -90,6 +96,22 @@ async def _goplus_api_scan(chain_id: str, token_address: str, chain: str) -> dic
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError) as e:
         logger.warning("goplus_failed", token=token_address, error=str(e)[:100])
     return {"check": "goplus", "result": "error", "error": "GoPlus API unavailable"}
+
+
+def _goplus_owner_renounced(token_data: dict[str, Any]) -> bool | None:
+    """Best-effort owner-renounced derivation from GoPlus fields.
+
+    GoPlus has no direct ``is_owner_renounced`` boolean on the EVM
+    ``token_security`` payload, so we derive it honestly: the owner is
+    renounced only when GoPlus reports NO owner address (empty / zero).
+    When GoPlus returns an owner, renouncement is UNKNOWN (None) — the
+    ``can_take_back_ownership`` / ``hidden_owner`` flags are surfaced
+    separately so downstream can flag "owner-renounce lies".
+    """
+    owner = str(token_data.get("owner_address", "") or "").strip().lower()
+    if not owner or owner in ("null", "0x0000000000000000000000000000000000000000"):
+        return True
+    return None
 
 
 def _compute_goplus_risk_score(token_data: dict[str, Any]) -> int:
@@ -156,10 +178,23 @@ def _map_own_security_data(own_data: dict[str, Any]) -> dict[str, Any]:
         "is_whitelisted": False,
         "can_take_back_ownership": False,
         "hidden_owner": False,
+        "owner_change_balance": False,
+        "selfdestruct": False,
+        "transfer_pausable": False,
+        "trading_cooldown": False,
+        "slippage_modifiable": False,
+        "owner_renounced": own_data.get("ownership_renounced"),
         "owner_address": own_data.get("owner_address", ""),
         "buy_tax": own_data.get("buy_tax_pct", 0),
         "sell_tax": own_data.get("sell_tax_pct", 0),
         "holder_count": own_data.get("holder_count", 0),
         "total_supply": own_data.get("total_supply", ""),
+        # Own-engine scam signals (team-wallet dump + dusting / poisoning)
+        "deployer_dump_detected": own_data.get("deployer_dump_detected"),
+        "deployer_dump_count": own_data.get("deployer_dump_count", 0),
+        "deployer_dump_value": own_data.get("deployer_dump_value", 0.0),
+        "dusting_detected": own_data.get("dusting_detected"),
+        "dust_sender": own_data.get("dust_sender", ""),
+        "dust_recipients": own_data.get("dust_recipients", 0),
         "source": "own_clickhouse",
     }

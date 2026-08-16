@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 
 from telegram.constants import ParseMode
 
+from app.domains.telegram.rugmunchbot.handlers._help_text import project_links_section
 from app.domains.telegram.rugmunchbot.keyboards import quick_start_kb
 
 if TYPE_CHECKING:
@@ -98,13 +99,15 @@ def welcome_message(name: str = "") -> str:
     """
     greeting = f"Hey {name} \U0001f44b" if name else "Hey \U0001f44b"
     return (
-        f"{greeting} \u2014 I'm the <b>Rug Munch Intelligence Analyst</b>.\n\n"
+        f"{greeting} \u2014 I'm the <b>Rug Munch Intelligence Analyst</b>, "
+        f'crypto intelligence at <a href="https://rugmunch.io">rugmunch.io</a>.\n\n'
         f"Scan any token for rug, honeypot &amp; bundle risk.\n"
         f"Get AI-written verdicts, prices, charts, news and wallet intel.\n\n"
         f"<b>Try these</b>\n"
         f"\U0001f50d <code>/scan &lt;address&gt;</code> \u2014 audit any token before you buy\n"
         f"\U0001f4b0 <code>$SOL</code> \u2014 instant price check\n"
         f"\U0001f4ac <code>/chat &lt;question&gt;</code> \u2014 ask me anything\n\n"
+        f"{project_links_section()}\n\n"
         f"Tap an action below \U0001f447"
     )
 

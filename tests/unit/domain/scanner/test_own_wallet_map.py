@@ -49,11 +49,17 @@ class FakeFundingClient:
         holders: list[tuple] | None = None,
         first_tx: list[tuple] | None = None,
         funders: list[tuple] | None = None,
+        first_buy: list[tuple] | None = None,
+        wallet_funder: list[tuple] | None = None,
+        funder_tx_counts: list[tuple] | None = None,
         raise_on: str | None = None,
     ) -> None:
         self.holders = holders or []
         self.first_tx = first_tx or []
         self.funders = funders or []
+        self.first_buy = first_buy or []
+        self.wallet_funder = wallet_funder or []
+        self.funder_tx_counts = funder_tx_counts or []
         self.raise_on = raise_on
         self.executed: list[str] = []
 
@@ -62,8 +68,14 @@ class FakeFundingClient:
         if self.raise_on and self.raise_on in sql:
             raise TypeError(f"boom: {self.raise_on}")
         # Order matters: most specific fragments first.
+        if "sum(cnt) AS total" in sql:  # _query_funder_tx_counts
+            return self.funder_tx_counts
+        if "to_address = %(addr)s" in sql and "AS funder" in sql:  # _query_wallet_first_funder
+            return self.wallet_funder
         if "AS funder" in sql:  # _query_first_funders
             return self.funders
+        if "AS first_buy_ts" in sql:  # _query_holder_first_buy
+            return self.first_buy
         if "argMin(block_timestamp, block_timestamp) AS first_ts" in sql:  # first-tx (in/out)
             return self.first_tx
         if "holder_balances FINAL" in sql:  # _query_top_holders (EVM)
@@ -272,3 +284,297 @@ class TestClassifyHolders:
         ]
         classified = _classify_holders(holders)
         assert classified[0]["role"] == "fish"
+
+
+# ── CEX funding breakdown + deployer funding source ─────────────────────────
+# Real internal entity_registry addresses (Binance 7 / Coinbase 1 / Tornado):
+_BINANCE_7 = "0xBE0eB53FC46b790099138e3d32C721856d41e865"
+_COINBASE_1 = "0x503828976D22510aad0201ac7EC88293211D23Da"
+_TORNADO_01 = "0xA160cdAB225685dA1d56aa342Ad8841c3b53f291"
+
+
+def _cex_holder_rows() -> list[tuple]:
+    """8 holders — balances only drive roles; funding drives the breakdown."""
+    return [(f"0xholder_{i}", 1000.0 - i) for i in range(8)]
+
+
+def _cex_funder_rows() -> list[tuple]:
+    """8 holders: 3x Binance, 1x Coinbase, 4x unknown."""
+    rows = []
+    for i in range(3):
+        rows.append((f"0xholder_{i}", _BINANCE_7, "0xtx", _naive_dt(40)))
+    rows.append(("0xholder_3", _COINBASE_1, "0xtx", _naive_dt(40)))
+    for i in range(4, 8):
+        rows.append((f"0xholder_{i}", f"0xfunder_{i}", "0xtx", _naive_dt(40)))
+    return rows
+
+
+class TestCexFundingBreakdown:
+    """CEX-funding classification of holders' first-funders (requirement 1)."""
+
+    def setup_method(self) -> None:
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_breakdown_and_line(self) -> None:
+        """3 Binance + 1 Coinbase + 4 unknown funders → honest per-CEX %."""
+        fake = FakeFundingClient(holders=_cex_holder_rows(), funders=_cex_funder_rows())
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN)
+
+        assert out["result"] == "scanned"
+        assert out["cex_funding"]["breakdown"] == {"Binance": 3, "Coinbase": 1}
+        assert out["cex_funding"]["unknown_count"] == 4
+        assert out["cex_funding"]["total_classified_funders"] == 8
+        assert out["cex_funding_line"] == "🏦 CEX funding: Binance 38% · Coinbase 12% · unknown 50%"
+
+    @pytest.mark.asyncio
+    async def test_unknown_only(self) -> None:
+        """No CEX funders → 100% unknown bucket (honest, not fabricated CEXs)."""
+        fake = FakeFundingClient(holders=_cex_holder_rows(), funders=_cex_funder_rows())
+        fake.funders = [(f"0xholder_{i}", f"0xotc_{i}", "0xtx", _naive_dt(40)) for i in range(8)]
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN)
+
+        assert out["cex_funding"]["breakdown"] == {}
+        assert out["cex_funding_line"] == "🏦 CEX funding: unknown 100%"
+
+    @pytest.mark.asyncio
+    async def test_fail_open_to_dash_when_no_funders(self) -> None:
+        """No funder rows → both funding lines are honest '—'."""
+        fake = FakeFundingClient(holders=_cex_holder_rows())
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN)
+
+        assert out["result"] == "scanned"
+        assert out["cex_funding_line"] == "—"
+        assert out["deployer_funding_line"] == "—"
+        assert out["deployer_funding"] == {}
+
+
+class TestDeployerFunding:
+    """Deployer funding source: CEX vs mixer vs fresh vs unknown (requirement 2)."""
+
+    def setup_method(self) -> None:
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_deployer_funded_by_cex_when_holder(self) -> None:
+        """Deployer's funder is a Binance hot wallet (reused from holder list)."""
+        rows = [(f"0xholder_{i}", 1000.0 - i) for i in range(4)]
+        rows.append((_DEPLOYER, 5000.0))  # dev holder
+        funders = [(f"0xholder_{i}", f"0xfunder_{i}", "0xtx", _naive_dt(40)) for i in range(4)]
+        funders.append((_DEPLOYER, _BINANCE_7, "0xtx", _naive_dt(70)))
+        fake = FakeFundingClient(holders=rows, funders=funders)
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN, deployer=_DEPLOYER)
+
+        assert out["deployer_funding"] == {"source": "cex", "label": "Binance"}
+        assert out["deployer_funding_line"] == "🏦 Deployer funded by: Binance"
+
+    @pytest.mark.asyncio
+    async def test_deployer_funded_by_cex_when_not_holder(self) -> None:
+        """Deployer not among top holders → first-funder queried directly."""
+        fake = FakeFundingClient(
+            holders=_cex_holder_rows(),
+            wallet_funder=[(_BINANCE_7,)],
+        )
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN, deployer=_DEPLOYER)
+
+        assert out["deployer_funding"]["source"] == "cex"
+        assert out["deployer_funding_line"] == "🏦 Deployer funded by: Binance"
+
+    @pytest.mark.asyncio
+    async def test_deployer_funded_by_mixer(self) -> None:
+        """Deployer funded from Tornado Cash → mixer classification."""
+        rows = [(f"0xholder_{i}", 1000.0 - i) for i in range(4)]
+        rows.append((_DEPLOYER, 5000.0))
+        funders = [(f"0xholder_{i}", f"0xfunder_{i}", "0xtx", _naive_dt(40)) for i in range(4)]
+        funders.append((_DEPLOYER, _TORNADO_01, "0xtx", _naive_dt(70)))
+        fake = FakeFundingClient(holders=rows, funders=funders)
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN, deployer=_DEPLOYER)
+
+        assert out["deployer_funding"]["source"] == "mixer"
+        assert out["deployer_funding_line"].startswith("🌀 Deployer funded by: mixer")
+
+    @pytest.mark.asyncio
+    async def test_deployer_funded_by_fresh_wallet(self) -> None:
+        """Unknown funder with <10 total transfers → fresh wallet."""
+        rows = [(f"0xholder_{i}", 1000.0 - i) for i in range(4)]
+        rows.append((_DEPLOYER, 5000.0))
+        funders = [(f"0xholder_{i}", f"0xfunder_{i}", "0xtx", _naive_dt(40)) for i in range(4)]
+        funders.append((_DEPLOYER, "0xfunder_dev", "0xtx", _naive_dt(70)))
+        fake = FakeFundingClient(
+            holders=rows,
+            funders=funders,
+            funder_tx_counts=[("0xfunder_dev", 3)],
+        )
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN, deployer=_DEPLOYER)
+
+        assert out["deployer_funding"]["source"] == "fresh"
+        assert out["deployer_funding_line"] == "🌱 Deployer funded by: fresh wallet"
+
+    @pytest.mark.asyncio
+    async def test_deployer_funded_by_unknown_wallet(self) -> None:
+        """No CEX/mixer match + not fresh → honest unknown bucket."""
+        rows = [(f"0xholder_{i}", 1000.0 - i) for i in range(4)]
+        rows.append((_DEPLOYER, 5000.0))
+        funders = [(f"0xholder_{i}", f"0xfunder_{i}", "0xtx", _naive_dt(40)) for i in range(4)]
+        funders.append((_DEPLOYER, "0xfunder_dev", "0xtx", _naive_dt(70)))
+        fake = FakeFundingClient(
+            holders=rows,
+            funders=funders,
+            funder_tx_counts=[("0xfunder_dev", 42)],
+        )
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN, deployer=_DEPLOYER)
+
+        assert out["deployer_funding"]["source"] == "unknown"
+        assert out["deployer_funding_line"] == "🤷 Deployer funded by: unknown wallet"
+
+    @pytest.mark.asyncio
+    async def test_fail_open_when_no_deployer(self) -> None:
+        """No deployer provided → deployer funding stays honest '—'."""
+        fake = FakeFundingClient(holders=_cex_holder_rows(), funders=_cex_funder_rows())
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN)
+
+        assert out["deployer_funding"] == {}
+        assert out["deployer_funding_line"] == "—"
+
+
+# ── Buyer timing: fresh-wallet % + recently-funded % ─────────────────────────
+
+
+def _timing_holder_rows() -> list[tuple]:
+    """(address, balance) — small balances so roles stay sub-whale (timing is
+    computed over the raw holder dicts, roles are irrelevant to it)."""
+    return [
+        ("0xfresh_a", 5.0),  # born 2h before buy -> FRESH, funded 1h before -> RECENTLY FUNDED
+        ("0xfresh_b", 4.0),  # born 5h before buy -> FRESH, funded 20h before -> not recently funded
+        ("0xold_c", 3.0),  # born 30d before buy -> not fresh, funded 30m before -> RECENTLY FUNDED
+        ("0xold_d", 2.0),  # born 30d before buy -> not fresh, funded 3d before -> neither
+    ]
+
+
+def _timing_first_tx_rows() -> list[tuple]:
+    """(holder, first_ts, first_token, first_tx_hash) — wallet birth times."""
+    now = _naive_dt(0)
+    return [
+        ("0xfresh_a", now - timedelta(hours=2), "0xsometoken", "0xtx"),
+        ("0xfresh_b", now - timedelta(hours=5), "0xsometoken", "0xtx"),
+        ("0xold_c", now - timedelta(days=30), "0xsometoken", "0xtx"),
+        ("0xold_d", now - timedelta(days=30), "0xsometoken", "0xtx"),
+    ]
+
+
+def _timing_funder_rows() -> list[tuple]:
+    """(holder, funder, first_tx, first_ts) — funding event times."""
+    now = _naive_dt(0)
+    return [
+        ("0xfresh_a", "0xfunder_a", "0xtx", now - timedelta(hours=1)),
+        ("0xfresh_b", "0xfunder_b", "0xtx", now - timedelta(hours=20)),
+        ("0xold_c", "0xfunder_c", "0xtx", now - timedelta(minutes=30)),
+        ("0xold_d", "0xfunder_d", "0xtx", now - timedelta(days=3)),
+    ]
+
+
+def _timing_first_buy_rows() -> list[tuple]:
+    """(holder, first_buy_ts) — everyone buys ~now."""
+    now = _naive_dt(0)
+    return [(addr, now) for addr, _ in _timing_holder_rows()]
+
+
+class TestBuyerTiming:
+    """Fresh-wallet % + recently-funded % surfaced on the wallet map result."""
+
+    def setup_method(self) -> None:
+        clear_cache()
+
+    @pytest.mark.asyncio
+    async def test_fresh_and_recently_funded_percentages(self) -> None:
+        """2/4 fresh (born <24h before buy) and 2/4 funded (<6h before buy)."""
+        fake = FakeFundingClient(
+            holders=_timing_holder_rows(),
+            first_tx=_timing_first_tx_rows(),
+            funders=_timing_funder_rows(),
+            first_buy=_timing_first_buy_rows(),
+        )
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN)
+
+        assert out["result"] == "scanned"
+        timing = out["buyer_timing"]
+        assert timing["result"] == "scanned"
+        assert timing["fresh_wallet_pct"] == 50
+        assert timing["fresh_wallet_count"] == 2
+        assert timing["fresh_wallet_denominator"] == 4
+        assert timing["recently_funded_pct"] == 50
+        assert timing["recently_funded_count"] == 2
+        assert timing["recently_funded_denominator"] == 4
+        assert out["fresh_wallet_line"] == "🌱 Fresh wallets: 50% (created <24h before buy)"
+        assert out["recently_funded_line"] == "💸 Recently funded: 50% (funded <6h before buy)"
+
+        by_addr = {e["address"]: e for e in timing["breakdown"]}
+        assert by_addr["0xfresh_a"]["fresh_pre_buy"] is True
+        assert by_addr["0xfresh_b"]["fresh_pre_buy"] is True
+        assert by_addr["0xold_c"]["fresh_pre_buy"] is False
+        assert by_addr["0xold_c"]["recently_funded"] is True
+        assert by_addr["0xold_d"]["recently_funded"] is False
+
+    @pytest.mark.asyncio
+    async def test_fail_open_dash_when_no_buy_timestamps(self) -> None:
+        """No first-buy rows -> percentages absent, lines render '—' (honest)."""
+        fake = FakeFundingClient(
+            holders=_timing_holder_rows(),
+            first_tx=_timing_first_tx_rows(),
+            funders=_timing_funder_rows(),
+            first_buy=[],
+        )
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN)
+
+        assert out["result"] == "scanned"  # roles still classify fine
+        timing = out["buyer_timing"]
+        assert timing["result"] == "unavailable"
+        assert timing["fresh_wallet_pct"] is None
+        assert timing["recently_funded_pct"] is None
+        assert out["fresh_wallet_line"] == "—"
+        assert out["recently_funded_line"] == "—"
+
+    @pytest.mark.asyncio
+    async def test_denominators_skip_holders_missing_a_timestamp(self) -> None:
+        """Holders without funding rows contribute to fresh but not funded."""
+        fake = FakeFundingClient(
+            holders=_timing_holder_rows(),
+            first_tx=_timing_first_tx_rows(),
+            funders=_timing_funder_rows()[:1],  # only fresh_a has a funder row
+            first_buy=_timing_first_buy_rows(),
+        )
+        with _mock_funding_ch(fake):
+            out = await get_own_wallet_map(_TOKEN, _CHAIN)
+
+        timing = out["buyer_timing"]
+        # Fresh: all four have birth + buy -> 2/4 = 50%.
+        assert timing["fresh_wallet_pct"] == 50
+        assert timing["fresh_wallet_denominator"] == 4
+        # Funded: only fresh_a has a funding timestamp -> 1/1 = 100%.
+        assert timing["recently_funded_pct"] == 100
+        assert timing["recently_funded_denominator"] == 1
+
+    def test_pure_compute_with_garbage_dates_fail_open(self) -> None:
+        """Garbage timestamps are skipped, never crash the breakdown."""
+        from app.domains.scanner.engines.own_wallet_map import _compute_buyer_timing
+
+        timing = _compute_buyer_timing(
+            [
+                {"address": "0xa", "first_tx_ts": "not-a-date", "funding_ts": None, "buy_ts": _naive_dt(0)},
+                {"address": "0xb", "first_tx_ts": None, "funding_ts": "garbage", "buy_ts": None},
+            ]
+        )
+        assert timing["result"] == "unavailable"
+        assert timing["fresh_wallet_pct"] is None
+        assert timing["recently_funded_pct"] is None

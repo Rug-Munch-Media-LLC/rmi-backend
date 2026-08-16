@@ -31,7 +31,37 @@ Usage:
     #     "wallet_map_line": "🛠️2 🐳1 🐟8 🍤7 🌱1 📦1",
     #     "roles": {"dev": 2, "whale": 1, "fish": 8, "shrimp": 7, "fresh": 1, "bundle": 1},
     #     "classified": [...],
+    #     "buyer_timing": {
+    #         "result": "scanned",
+    #         "fresh_wallet_pct": 62, "fresh_wallet_count": 8,
+    #         "recently_funded_pct": 71, "recently_funded_count": 10,
+    #         "fresh_window_hours": 24, "funded_window_hours": 6,
+    #         "breakdown": [...],
+    #     },
+    #     "fresh_wallet_line": "🌱 Fresh wallets: 62% (created <24h before buy)",
+    #     "recently_funded_line": "💸 Recently funded: 71% (funded <6h before buy)",
+    #     "cex_funding": {
+    #         "breakdown": {"Binance": 3, "Coinbase": 1},
+    #         "unknown_count": 4,
+    #         "total_classified_funders": 8,
+    #     },
+    #     "cex_funding_line": "🏦 CEX funding: Binance 38% · Coinbase 12% · unknown 50%",
+    #     "deployer_funding": {"source": "cex", "label": "Binance"},
+    #     "deployer_funding_line": "🏦 Deployer funded by: Binance",
     # }
+    #
+    # ``buyer_timing`` is the deeper fresh-wallet / recently-funded analysis:
+    # what fraction of the first-buyers were armed right before they bought.
+    # Percentages are honest — the denominator is only holders with BOTH
+    # required timestamps, and absent data renders "—", never a fabricated 0%.
+    #
+    # ``cex_funding`` / ``cex_funding_line`` answer "who's behind this": each
+    # holder's first funder is classified against the internal entity registry
+    # (~28 CEX hot wallets) — the "% funded by each CEX" breakdown with the
+    # non-CEX (OTC / fresh / unlabeled) bucket reported as ``unknown``.
+    # ``deployer_funding`` / ``deployer_funding_line`` say what funded the
+    # deployer (CEX vs mixer vs fresh vs unknown). Both are honest: missing
+    # funder data renders "—", never a fabricated percentage.
 
 Data Sources:
   Primary: wallet_memory.holder_balances / evm_transfers /
@@ -53,8 +83,11 @@ from app.domains.scanner.engines._common import (
 )
 from app.domains.scanner.engines._funding_queries import (
     _query_first_funders,
+    _query_funder_tx_counts,
+    _query_holder_first_buy,
     _query_holder_first_tx,
     _query_top_holders,
+    _query_wallet_first_funder,
 )
 
 logger = get_logger(__name__)
@@ -77,6 +110,12 @@ _ROLE_ORDER: tuple[str, ...] = ("dev", "whale", "fish", "shrimp", "fresh", "bund
 
 #: A holder whose wallet was born (first on-chain tx) within this window is "fresh".
 _FRESH_WALLET_DAYS = 7
+#: Buyer-timing window: a first-buyer's wallet counts as "fresh" when its
+#: first-ever on-chain tx happened within this many hours BEFORE the buy.
+_FRESH_WALLET_HOURS = 24
+#: Buyer-timing window: a first-buyer counts as "recently funded" when its
+#: first funding event happened within this many hours BEFORE the buy.
+_RECENT_FUNDED_HOURS = 6
 #: Whale / fish size thresholds (percentage of tracked supply).
 _WHALE_PCT = 5.0
 _FISH_PCT = 1.0
@@ -125,6 +164,39 @@ def _normalize_chain(chain: str) -> str:
     return (chain or "").lower().strip()
 
 
+#: Human display names for CEX registry keys (entity_registry / known_entities).
+_CEX_DISPLAY: dict[str, str] = {
+    "binance": "Binance",
+    "coinbase": "Coinbase",
+    "kraken": "Kraken",
+    "okx": "OKX",
+    "okex": "OKX",
+    "bybit": "Bybit",
+    "kucoin": "KuCoin",
+    "gateio": "Gate.io",
+    "gate_io": "Gate.io",
+    "mexc": "MEXC",
+    "huobi": "Huobi",
+    "htx": "HTX",
+    "crypto.com": "Crypto.com",
+    "crypto_com": "Crypto.com",
+    "bitfinex": "Bitfinex",
+    "gemini": "Gemini",
+    "ftx": "FTX",
+    "labeled_cex": "CEX",
+}
+
+
+def _cex_display_name(key: str | None) -> str:
+    """Human display name for a CEX registry key (binance -> Binance)."""
+    if not key:
+        return "CEX"
+    norm = str(key).lower().replace("_", " ")
+    if norm in _CEX_DISPLAY:
+        return _CEX_DISPLAY[norm]
+    return " ".join(w.capitalize() for w in norm.split())
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
@@ -165,6 +237,13 @@ async def get_own_wallet_map(
         "wallet_map_line": "\u2014",  # —
         "roles": dict.fromkeys(_ROLE_ORDER, 0),
         "classified": [],
+        "buyer_timing": {},
+        "fresh_wallet_line": "\u2014",
+        "recently_funded_line": "\u2014",
+        "cex_funding": {"breakdown": {}, "unknown_count": 0, "total_classified_funders": 0},
+        "cex_funding_line": "\u2014",  # —
+        "deployer_funding": {},
+        "deployer_funding_line": "\u2014",  # —
         "confidence": 0.0,
     }
 
@@ -180,20 +259,38 @@ async def get_own_wallet_map(
 
     # ── Enrich: buy-time (wallet birth) + funding source ──
     try:
-        first_tx, funders = await _enrich_holders([h["address"] for h in holders], chain_norm)
+        first_tx, funders, funding_ts = await _enrich_holders([h["address"] for h in holders], chain_norm)
     except Exception as exc:
         logger.debug("wallet_map_enrich_failed: %s", exc)
-        first_tx, funders = {}, {}
+        first_tx, funders, funding_ts = {}, {}, {}
+
+    # ── Enrich: first buy of THIS token per holder (drives buyer timing) ──
+    try:
+        buy_ts = await _enrich_buy_ts(token_address, [h["address"] for h in holders], chain_norm)
+    except Exception as exc:
+        logger.debug("wallet_map_buy_ts_failed: %s", exc)
+        buy_ts = {}
 
     for h in holders:
         addr = h["address"]
         h["first_tx_ts"] = first_tx.get(addr)
         h["funder"] = funders.get(addr)
+        h["funding_ts"] = funding_ts.get(addr)
+        h["buy_ts"] = buy_ts.get(addr)
 
     classified = _classify_holders(holders, deployer=deployer)
     roles = dict.fromkeys(_ROLE_ORDER, 0)
     for entry in classified:
         roles[entry["role"]] += 1
+
+    # ── Buyer timing: fresh-wallet % + recently-funded % (honest, "—" absent) ──
+    timing = _compute_buyer_timing(holders)
+    fresh_line, funded_line = _build_timing_lines(timing)
+
+    # ── CEX funding: which exchanges funded the holders' wallets (honest) ──
+    cex_breakdown, cex_unknown, cex_total = _compute_cex_funding(classified, chain_norm)
+    # ── Deployer funding source: CEX vs mixer vs fresh vs unknown (one line) ──
+    deployer_funding = await _classify_deployer_funding(deployer, chain_norm, classified)
 
     result.update(
         {
@@ -201,6 +298,17 @@ async def get_own_wallet_map(
             "wallet_map_line": _build_map_line(roles),
             "roles": roles,
             "classified": classified,
+            "buyer_timing": timing,
+            "fresh_wallet_line": fresh_line,
+            "recently_funded_line": funded_line,
+            "cex_funding": {
+                "breakdown": cex_breakdown,
+                "unknown_count": cex_unknown,
+                "total_classified_funders": cex_total,
+            },
+            "cex_funding_line": _build_cex_funding_line(cex_breakdown, cex_unknown, cex_total),
+            "deployer_funding": {k: v for k, v in deployer_funding.items() if k != "deployer_funding_line"},
+            "deployer_funding_line": deployer_funding.get("deployer_funding_line", "\u2014"),
             "confidence": 0.8,
         }
     )
@@ -289,17 +397,23 @@ async def _fetch_birdeye_holders(token_address: str) -> list[dict[str, Any]]:
         return []
 
 
-async def _enrich_holders(holder_addrs: list[str], chain_norm: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Buy-time (first on-chain tx) + funding source per holder.
+async def _enrich_holders(
+    holder_addrs: list[str], chain_norm: str
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Buy-time (first on-chain tx), funding source + funding event time.
 
-    Returns ``(first_tx_map, funder_map)`` keyed by holder address. Both
-    degrade to ``{}`` when ClickHouse is unreachable or returns nothing.
+    Returns ``(first_tx_map, funder_map, funding_ts_map)`` keyed by holder
+    address. All three degrade to ``{}`` when ClickHouse is unreachable or
+    returns nothing. ``funding_ts_map`` is the holder's first-ever incoming
+    transfer timestamp (the funding event) — drives the recently-funded
+    buyer-timing metric.
     """
     first_tx_map: dict[str, Any] = {}
     funder_map: dict[str, Any] = {}
+    funding_ts_map: dict[str, Any] = {}
 
     if not holder_addrs or not chain_norm:
-        return first_tx_map, funder_map
+        return first_tx_map, funder_map, funding_ts_map
 
     try:
         first_tx_rows = await run_sync(_query_holder_first_tx, holder_addrs, chain_norm)
@@ -314,10 +428,31 @@ async def _enrich_holders(holder_addrs: list[str], chain_norm: str) -> tuple[dic
         for row in funder_rows or []:
             if len(row) >= 2 and row[0]:
                 funder_map[str(row[0]).lower()] = str(row[1] or "").lower()
+                if len(row) >= 4 and row[3] is not None:
+                    funding_ts_map[str(row[0]).lower()] = row[3]
     except Exception as exc:
         logger.debug("wallet_map_funders_failed: %s", exc)
 
-    return first_tx_map, funder_map
+    return first_tx_map, funder_map, funding_ts_map
+
+
+async def _enrich_buy_ts(token_address: str, holder_addrs: list[str], chain_norm: str) -> dict[str, Any]:
+    """First buy of THIS token per holder (the reference point for timing).
+
+    Returns a ``{holder: first_buy_ts}`` map, or ``{}`` when ClickHouse is
+    unreachable / returns nothing. Never raises.
+    """
+    buy_ts_map: dict[str, Any] = {}
+    if not holder_addrs or not chain_norm:
+        return buy_ts_map
+    try:
+        buy_rows = await run_sync(_query_holder_first_buy, token_address, chain_norm, holder_addrs)
+        for row in buy_rows or []:
+            if len(row) >= 2 and row[0]:
+                buy_ts_map[str(row[0]).lower()] = row[1]
+    except Exception as exc:
+        logger.debug("wallet_map_buy_ts_failed: %s", exc)
+    return buy_ts_map
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -384,6 +519,208 @@ def _bundle_funders(holders: list[dict[str, Any]]) -> set[str]:
     return {funder for funder, n in counts.items() if n >= 2}
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# CEX FUNDING CLASSIFICATION (who funded the wallets — "who's behind this")
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _classify_funder_cex(funder_addr: str | None, chain_norm: str) -> str | None:
+    """Exchange display name when the funder is a known CEX hot wallet.
+
+    Checks the internal ``entity_registry`` (~28 CEX hot-wallet labels) first,
+    then falls back to the per-chain ``known_entities`` label table for wider
+    coverage. Returns ``None`` when the funder is not a recognized CEX — the
+    honest OTC / fresh / unknown bucket.
+    """
+    if not funder_addr:
+        return None
+    try:
+        from app.entity_registry import (
+            ENTITY_TYPE_CEX_HOT_WALLET,
+            ENTITY_TYPE_EXCHANGE,
+            get_entity_registry,
+        )
+
+        match = get_entity_registry().classify_address(funder_addr)
+        if match and match.entity_type in (ENTITY_TYPE_CEX_HOT_WALLET, ENTITY_TYPE_EXCHANGE):
+            return _cex_display_name(match.entity_name)
+    except Exception as exc:
+        logger.debug("wallet_map_cex_registry_failed: %s", exc)
+    try:
+        from app.domains.scanner.engines.known_entities import get_exchange_name
+
+        name = get_exchange_name(funder_addr, chain_norm)
+        if name and str(name).lower() != "unknown":
+            return _cex_display_name(str(name))
+    except Exception as exc:
+        logger.debug("wallet_map_cex_known_entities_failed: %s", exc)
+    return None
+
+
+def _classify_funder_mixer(funder_addr: str | None, chain_norm: str) -> str | None:
+    """Mixer name when the funder is a known mixer (Tornado Cash, ...)."""
+    if not funder_addr:
+        return None
+    try:
+        from app.entity_registry import ENTITY_TYPE_MIXER, get_entity_registry
+
+        match = get_entity_registry().classify_address(funder_addr)
+        if match and match.entity_type == ENTITY_TYPE_MIXER:
+            return str(match.entity_name)
+    except Exception as exc:
+        logger.debug("wallet_map_mixer_registry_failed: %s", exc)
+    try:
+        from app.domains.scanner.engines.known_entities import label_wallet
+
+        label = label_wallet(funder_addr, chain_norm)
+        if label.get("type") == "mixer":
+            return str(label.get("name") or "mixer")
+    except Exception as exc:
+        logger.debug("wallet_map_mixer_known_entities_failed: %s", exc)
+    return None
+
+
+def _compute_cex_funding(
+    classified: list[dict[str, Any]],
+    chain_norm: str,
+) -> tuple[dict[str, int], int, int]:
+    """Per-CEX first-funder counts over the classified holders.
+
+    Each holder with a known first-funder is counted once under its CEX
+    (a Binance hot wallet funding 5 holders counts 5 times — the "% of
+    wallets funded by Binance" semantics). Funders that are not a recognized
+    CEX land in the ``unknown`` bucket (OTC / fresh / unlabeled).
+
+    Returns ``(breakdown, unknown_count, total)`` where ``total`` is the
+    number of classified holders with a non-null first-funder.
+    """
+    breakdown: dict[str, int] = {}
+    unknown = 0
+    total = 0
+    for entry in classified:
+        funder = entry.get("funder")
+        if not funder:
+            continue
+        total += 1
+        cex = _classify_funder_cex(funder, chain_norm)
+        if cex:
+            breakdown[cex] = breakdown.get(cex, 0) + 1
+        else:
+            unknown += 1
+    return breakdown, unknown, total
+
+
+def _build_cex_funding_line(breakdown: dict[str, int], unknown: int, total: int) -> str:
+    """Compact funding line, e.g. ``🏦 CEX funding: Binance 38% · Coinbase 12% · unknown 50%``.
+
+    Top CEXes (max 4) + the unknown bucket. Fail-open to "—" when no holder
+    has a resolvable first-funder.
+    """
+    if total <= 0:
+        return "\u2014"
+    parts: list[str] = []
+    for cex, count in sorted(breakdown.items(), key=lambda kv: kv[1], reverse=True)[:4]:
+        parts.append(f"{cex} {round(count / total * 100)}%")
+    if unknown:
+        parts.append(f"unknown {round(unknown / total * 100)}%")
+    if not parts:
+        return "\u2014"
+    return "\U0001f3e6 CEX funding: " + " \u00b7 ".join(parts)
+
+
+async def _fetch_wallet_funder(deployer: str, chain_norm: str) -> str | None:
+    """First-ever funder of a wallet (EVM; bounded, graceful)."""
+    try:
+        rows = await run_sync(_query_wallet_first_funder, deployer, chain_norm)
+        if rows and rows[0] and rows[0][0]:
+            return str(rows[0][0]).lower()
+    except Exception as exc:
+        logger.debug("wallet_map_deployer_funder_failed: %s", exc)
+    return None
+
+
+async def _is_fresh_funder(funder: str, chain_norm: str) -> bool:
+    """True when the funder has < 10 total on-chain transfers (fresh heuristic)."""
+    try:
+        rows = await run_sync(_query_funder_tx_counts, [funder], chain_norm)
+        if rows and rows[0] and rows[0][1] is not None:
+            return int(rows[0][1]) < 10
+    except Exception as exc:
+        logger.debug("wallet_map_funder_tx_count_failed: %s", exc)
+    return False
+
+
+async def _classify_deployer_funding(
+    deployer: str | None,
+    chain_norm: str,
+    classified: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """What funded the DEPLOYER: CEX / mixer / fresh / unknown — one line.
+
+    Reuses the deployer's funder from the classified holder list when the
+    deployer is still a top holder; otherwise queries the deployer's first
+    funder directly. Fail-open: returns ``{}`` (and a "—" line via the
+    caller's default) when no deployer or no funder is resolvable.
+    """
+    result: dict[str, Any] = {
+        "source": None,
+        "label": None,
+        "deployer_funding_line": "\u2014",
+    }
+    if not deployer:
+        return {}
+
+    funder = next(
+        (e.get("funder") for e in classified if e.get("role") == "dev" and e.get("funder")),
+        None,
+    )
+    if not funder:
+        funder = await _fetch_wallet_funder(deployer, chain_norm)
+    if not funder:
+        return {}
+
+    cex = _classify_funder_cex(funder, chain_norm)
+    if cex:
+        result.update(
+            {
+                "source": "cex",
+                "label": cex,
+                "deployer_funding_line": f"\U0001f3e6 Deployer funded by: {cex}",
+            }
+        )
+        return result
+
+    mixer = _classify_funder_mixer(funder, chain_norm)
+    if mixer:
+        result.update(
+            {
+                "source": "mixer",
+                "label": mixer,
+                "deployer_funding_line": f"\U0001f300 Deployer funded by: mixer ({mixer})",
+            }
+        )
+        return result
+
+    if await _is_fresh_funder(funder, chain_norm):
+        result.update(
+            {
+                "source": "fresh",
+                "label": "fresh",
+                "deployer_funding_line": "\U0001f331 Deployer funded by: fresh wallet",
+            }
+        )
+        return result
+
+    result.update(
+        {
+            "source": "unknown",
+            "label": "unknown",
+            "deployer_funding_line": "\U0001f937 Deployer funded by: unknown wallet",
+        }
+    )
+    return result
+
+
 def _is_fresh(first_ts: Any, cutoff: datetime) -> bool:
     """True when the wallet's first on-chain tx is newer than ``cutoff``."""
     if isinstance(first_ts, datetime):
@@ -404,6 +741,127 @@ def _to_iso(value: Any) -> str | None:
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BUYER TIMING (fresh-wallet % + recently-funded %)
+# ═══════════════════════════════════════════════════════════════════════════
+# Deeper first-buyer analysis for the deep scan: what fraction of the
+# classified first-buyers were armed right before they bought?
+#
+#   * FRESH WALLET — the wallet's first-ever on-chain tx happened within
+#     ``_FRESH_WALLET_HOURS`` BEFORE its first buy of the scanned token.
+#   * RECENTLY FUNDED — the wallet's first funding event happened within
+#     ``_RECENT_FUNDED_HOURS`` BEFORE the buy (funder → buy latency).
+#
+# Both are honest about coverage: each denominator is only the holders that
+# HAVE both timestamps — missing data is never assumed to be organic. When
+# no holder has usable timestamps the payload degrades to ``result:
+# "unavailable"`` and the renderer shows "—".
+
+
+def _to_naive_dt(value: Any) -> datetime | None:
+    """Normalize a ClickHouse/ISO datetime to naive UTC (None on garbage)."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None) if value.tzinfo else value
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+    except (TypeError, ValueError):
+        return None
+
+
+def _hours_between(earlier: Any, later: Any) -> float | None:
+    """Whole hours from ``earlier`` to ``later`` (None when either is missing)."""
+    a, b = _to_naive_dt(earlier), _to_naive_dt(later)
+    if a is None or b is None:
+        return None
+    try:
+        return (b - a).total_seconds() / 3600.0
+    except (TypeError, ValueError):
+        return None
+
+
+def _compute_buyer_timing(holders: list[dict[str, Any]]) -> dict[str, Any]:
+    """Fresh-wallet + recently-funded % over the classified first-buyers.
+
+    Reads ``first_tx_ts`` (wallet birth), ``funding_ts`` (first funding
+    event) and ``buy_ts`` (first buy of the scanned token) off each holder.
+
+    Returns a payload with per-holder breakdown + aggregate percentages:
+    ``fresh_wallet_pct`` / ``recently_funded_pct`` are ``None`` (rendered
+    "—") when no holder in that cohort has both required timestamps.
+    """
+    fresh_denom = 0
+    fresh_count = 0
+    funded_denom = 0
+    funded_count = 0
+    breakdown: list[dict[str, Any]] = []
+
+    for h in holders:
+        addr = str(h.get("address") or "")
+        birth = _to_naive_dt(h.get("first_tx_ts"))
+        funding = _to_naive_dt(h.get("funding_ts"))
+        buy = _to_naive_dt(h.get("buy_ts"))
+        entry: dict[str, Any] = {"address": addr, "buy_ts": _to_iso(h.get("buy_ts"))}
+
+        birth_buy_h = _hours_between(birth, buy)
+        if birth is not None and buy is not None and birth_buy_h is not None:
+            fresh_denom += 1
+            is_fresh = 0.0 <= birth_buy_h <= _FRESH_WALLET_HOURS
+            if is_fresh:
+                fresh_count += 1
+            entry["fresh_pre_buy"] = is_fresh
+            entry["wallet_age_at_buy_hours"] = round(birth_buy_h, 1)
+
+        funding_buy_h = _hours_between(funding, buy)
+        if funding is not None and buy is not None and funding_buy_h is not None:
+            funded_denom += 1
+            is_funded = 0.0 <= funding_buy_h <= _RECENT_FUNDED_HOURS
+            if is_funded:
+                funded_count += 1
+            entry["recently_funded"] = is_funded
+            entry["fund_to_buy_hours"] = round(funding_buy_h, 1)
+
+        breakdown.append(entry)
+
+    return {
+        "result": "scanned" if (fresh_denom or funded_denom) else "unavailable",
+        "fresh_wallet_count": fresh_count,
+        "fresh_wallet_denominator": fresh_denom,
+        "fresh_wallet_pct": round(fresh_count / fresh_denom * 100) if fresh_denom else None,
+        "fresh_window_hours": _FRESH_WALLET_HOURS,
+        "recently_funded_count": funded_count,
+        "recently_funded_denominator": funded_denom,
+        "recently_funded_pct": round(funded_count / funded_denom * 100) if funded_denom else None,
+        "funded_window_hours": _RECENT_FUNDED_HOURS,
+        "breakdown": breakdown,
+    }
+
+
+def _build_timing_lines(timing: dict[str, Any]) -> tuple[str, str]:
+    """Display lines for the deep scan, e.g. ``🌱 Fresh wallets: 62% (created <24h before buy)``.
+
+    Returns ``("—", "—")`` when the corresponding percentage is absent —
+    the deep-scan renderer then omits the line entirely.
+    """
+    fresh_pct = timing.get("fresh_wallet_pct")
+    funded_pct = timing.get("recently_funded_pct")
+    fresh_line = "\u2014"
+    funded_line = "\u2014"
+    if fresh_pct is not None:
+        fresh_line = (
+            f"\U0001f331 Fresh wallets: {int(fresh_pct)}% "
+            f"(created <{int(timing.get('fresh_window_hours') or _FRESH_WALLET_HOURS)}h before buy)"
+        )
+    if funded_pct is not None:
+        funded_line = (
+            f"\U0001f4b8 Recently funded: {int(funded_pct)}% "
+            f"(funded <{int(timing.get('funded_window_hours') or _RECENT_FUNDED_HOURS)}h before buy)"
+        )
+    return fresh_line, funded_line
 
 
 def _build_map_line(roles: dict[str, int]) -> str:

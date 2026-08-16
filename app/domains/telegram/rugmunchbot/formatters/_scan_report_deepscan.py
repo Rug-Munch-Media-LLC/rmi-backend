@@ -150,6 +150,7 @@ def _build_bundle_intel(data: dict[str, Any]) -> dict[str, Any]:
     wallet_map = _as_dict(data, "wallet_map")
     holder = _as_dict(data, "holder_analysis")
     creation = _as_dict(data, "contract_creation")
+    cluster = _as_dict(data, "cluster_analysis")
 
     intel: dict[str, Any] = {}
 
@@ -191,6 +192,69 @@ def _build_bundle_intel(data: dict[str, Any]) -> dict[str, Any]:
         if hhi is not None:
             conc["hhi"] = round(hhi, 0)
         intel["holder_concentration"] = conc
+
+    # Buyer timing (own wallet_map engine): fresh-wallet % + recently-funded %
+    # among the first-buyers. Absent values are omitted — never fabricated 0%.
+    timing = _as_dict(wallet_map, "buyer_timing")
+    fresh_pct = _safe_float(timing.get("fresh_wallet_pct"))
+    funded_pct = _safe_float(timing.get("recently_funded_pct"))
+    if fresh_pct is not None or funded_pct is not None:
+        timing_intel: dict[str, Any] = {}
+        if fresh_pct is not None:
+            timing_intel["fresh_wallet_pct"] = round(fresh_pct, 0)
+        if funded_pct is not None:
+            timing_intel["recently_funded_pct"] = round(funded_pct, 0)
+        fw_h = _safe_int(timing.get("fresh_window_hours"))
+        ff_h = _safe_int(timing.get("funded_window_hours"))
+        if fw_h:
+            timing_intel["fresh_window_hours"] = fw_h
+        if ff_h:
+            timing_intel["funded_window_hours"] = ff_h
+        intel["buyer_timing"] = timing_intel
+
+    # Funding-source clusters (own cluster_analysis engine): funder→wallet
+    # grouping + the coordinated / organic verdict. Only surfaced when the
+    # engine actually scanned (result == "scanned").
+    if str(cluster.get("result")) == "scanned":
+        cluster_intel: dict[str, Any] = {}
+        n_funders = _safe_int(cluster.get("distinct_funders"))
+        n_wallets = _safe_int(cluster.get("funded_wallets"))
+        largest = _safe_int(cluster.get("largest_cluster_size"))
+        coord = _safe_int(cluster.get("coordinated_buyers"))
+        chain_b = _safe_int(cluster.get("funding_chain_buyers"))
+        verdict = str(cluster.get("verdict") or "")
+        if n_funders:
+            cluster_intel["distinct_funders"] = n_funders
+        if n_wallets:
+            cluster_intel["funded_wallets"] = n_wallets
+        if largest:
+            cluster_intel["largest_cluster_size"] = largest
+        if coord:
+            cluster_intel["coordinated_buyers"] = coord
+        if chain_b:
+            cluster_intel["funding_chain_buyers"] = chain_b
+        if verdict:
+            cluster_intel["cluster_verdict"] = verdict
+        # Deeper dimensions (2-hop chain, supply grab, time nodes) — only
+        # surfaced when the engine measured them.
+        depth = _safe_int(cluster.get("funding_chain_depth"))
+        if depth:
+            cluster_intel["funding_chain_depth"] = depth
+        two_hop = _safe_int(cluster.get("two_hop_chain_buyers"))
+        if two_hop:
+            cluster_intel["two_hop_chain_buyers"] = two_hop
+        time_nodes = _safe_int(cluster.get("time_nodes"))
+        if time_nodes:
+            cluster_intel["time_nodes"] = time_nodes
+        supply_grab = cluster.get("supply_grab")
+        if isinstance(supply_grab, dict) and str(supply_grab.get("status") or "none") in ("holding", "dumped"):
+            cluster_intel["supply_grab"] = {
+                "status": str(supply_grab.get("status")),
+                "held_pct": round(_safe_float(supply_grab.get("held_pct")) or 0.0, 1),
+                "dumped_pct": round(_safe_float(supply_grab.get("dumped_pct")) or 0.0, 1),
+            }
+        if cluster_intel:
+            intel["funding_clusters"] = cluster_intel
 
     return intel
 
@@ -721,6 +785,30 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
         lines.append("\U0001f5fa\ufe0f <b>First-20 Wallet Map</b>")
         lines.append(d)
         lines.append(f"  <code>{html.escape(str(wm_line))}</code>")
+        # Buyer timing (own wallet_map engine): fresh-wallet % + recently-
+        # funded % among the first-buyers. Honest + fail-open: each line is
+        # rendered only when the engine measured it; both absent → "—" and
+        # the two lines are omitted entirely (never a fabricated 0%).
+        fresh_line = str(wallet_map.get("fresh_wallet_line") or "\u2014").strip()
+        funded_line = str(wallet_map.get("recently_funded_line") or "\u2014").strip()
+        if fresh_line not in ("", "\u2014") or funded_line not in ("", "\u2014"):
+            lines.append("")
+            if fresh_line not in ("", "\u2014"):
+                lines.append(f"  {html.escape(fresh_line)}")
+            if funded_line not in ("", "\u2014"):
+                lines.append(f"  {html.escape(funded_line)}")
+        # CEX funding breakdown (own wallet_map engine): which exchanges
+        # funded the holders' wallets — "who's behind this". Honest + fail-
+        # open: only rendered when the engine measured it (never a fabricated
+        # percentage); both absent → "—" and the lines are omitted entirely.
+        cex_line = str(wallet_map.get("cex_funding_line") or "\u2014").strip()
+        dep_line = str(wallet_map.get("deployer_funding_line") or "\u2014").strip()
+        if cex_line not in ("", "\u2014") or dep_line not in ("", "\u2014"):
+            lines.append("")
+            if cex_line not in ("", "\u2014"):
+                lines.append(f"  {html.escape(cex_line)}")
+            if dep_line not in ("", "\u2014"):
+                lines.append(f"  {html.escape(dep_line)}")
         lines.append("")
 
     # ── 🕸️ Cluster Analysis (funding-source clusters + coordinated buys) ──
@@ -731,6 +819,11 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
         if str(cluster.get("result")) == "scanned":
             cline = cluster.get("cluster_line") or "\u2014"
             lines.append(f"  <code>{html.escape(str(cline))}</code>")
+            # Richer 🔴 Bundle verdict (beyond BubbleMaps/DevsNightmare):
+            # same-slot + 2-hop funder chain + holding/dumped + time nodes.
+            bline = cluster.get("bundle_line")
+            if bline and str(bline).strip() not in ("", "\u2014"):
+                lines.append(f"  <code>{html.escape(str(bline))}</code>")
             try:
                 coord_buyers = int(cluster.get("coordinated_buyers") or 0)
             except (TypeError, ValueError):
@@ -743,6 +836,35 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
                 chain_buyers = 0
             if chain_buyers:
                 lines.append(f"  \U0001f517 Funding-chain wallets (funder = launch buyer): <b>{chain_buyers}</b>")
+            # ── Deeper dimensions: 2-hop chain, supply grab, time nodes ──
+            try:
+                depth = int(cluster.get("funding_chain_depth") or 0)
+            except (TypeError, ValueError):
+                depth = 0
+            if depth >= 2:
+                try:
+                    two_hop = int(cluster.get("two_hop_chain_buyers") or 0)
+                except (TypeError, ValueError):
+                    two_hop = 0
+                lines.append(f"  \U0001f517 2-hop funding chain: <b>{two_hop}</b> wallets")
+            supply_grab = cluster.get("supply_grab")
+            if isinstance(supply_grab, dict) and str(supply_grab.get("status") or "none") in ("holding", "dumped"):
+                with contextlib.suppress(TypeError, ValueError):
+                    sg_status = str(supply_grab.get("status") or "none")
+                    held_pct = float(supply_grab.get("held_pct") or 0)
+                    dumped_pct = float(supply_grab.get("dumped_pct") or 0)
+                    exited = int(supply_grab.get("exited_wallets") or 0)
+                    sg_word = "HOLDING" if sg_status == "holding" else "DUMPED"
+                    sg_line = f"  \U0001f4e6 Supply grab: <b>{sg_word}</b> \u2014 holding {held_pct:.1f}% (dumped {dumped_pct:.1f}%)"
+                    if exited:
+                        sg_line += f" \u00b7 {exited} exited"
+                    lines.append(sg_line)
+            try:
+                time_nodes = int(cluster.get("time_nodes") or 0)
+            except (TypeError, ValueError):
+                time_nodes = 0
+            if time_nodes:
+                lines.append(f"  \u23f1\ufe0f Time nodes (funded same hour): <b>{time_nodes}</b>")
         else:
             # Honest + fail-open: "—" when the engine has no data. A
             # "[REVIEW] ..." note explains the data-source gap when present.

@@ -249,6 +249,46 @@ def _query_token_coverage_start(token_address: str, chain: str) -> datetime | No
         return None
 
 
+def _query_holder_first_buy(
+    token_address: str,
+    chain: str,
+    holders: list[str],
+) -> list[tuple[Any, ...]] | None:
+    """First time each holder acquired the scanned token (their buy).
+
+    Returns rows of ``(holder, first_buy_ts)`` — the earliest incoming
+    transfer of ``token_address`` per holder. Drives the buyer-timing
+    metrics in ``own_wallet_map``: fresh-wallet (wallet born within N hours
+    before its buy) and recently-funded (funder → buy latency).
+    """
+    client = _get_ch_client()
+    if client is None or not holders:
+        return None
+    try:
+        return cast(
+            "list[tuple[Any, ...]] | None",
+            client.execute(
+                """
+            SELECT
+                to_address AS holder,
+                min(block_timestamp) AS first_buy_ts
+            FROM wallet_memory.evm_transfers
+            WHERE chain = %(chain)s
+              AND token_address = %(token)s
+              AND to_address IN %(holders)s
+              AND from_address NOT IN ('', '0x0000000000000000000000000000000000000000',
+                                          '0x000000000000000000000000000000000000dead')
+            GROUP BY to_address
+            """,
+                {"holders": tuple(holders), "token": token_address, "chain": chain},
+                settings={"max_execution_time": _QUERY_TIMEOUT_SECONDS},
+            ),
+        )
+    except (ValueError, RuntimeError, OSError) as exc:
+        logger.debug("holder_first_buy_query_failed: %s", exc)
+        return None
+
+
 def _query_holder_first_tx_in(
     holders: list[str], chain: str, client: Any | None = None
 ) -> list[tuple[Any, ...]] | None:

@@ -584,6 +584,114 @@ async def test_gather_context_returns_empty_for_unknown_type() -> None:
     assert sources == []
 
 
+def test_classify_context_need_tiers() -> None:
+    """COST-CLASSIFY: the context-NEED tier gates every gather.
+
+    NONE for definitional / conversational / greeting (even scam-typed
+    "what is a rug pull" and education-typed "what is MEV" — the model
+    answers those from its own knowledge, ~0 gather). LIGHT for a plain
+    single-asset price ask. HEAVY for genuinely-current asks (token scan,
+    scam check, news, market-today, TA)."""
+    from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._constants import (
+        _CTX_NEED_HEAVY,
+        _CTX_NEED_LIGHT,
+        _CTX_NEED_NONE,
+    )
+
+    need = lambda q: _llm._classify_context_need(q, _llm._classify_question(q))  # noqa: E731
+    # NONE — definitional / conversational / greeting / unknown.
+    assert need("") == _CTX_NEED_NONE
+    assert need("gm") == _CTX_NEED_NONE
+    assert need("hello there") == _CTX_NEED_NONE
+    assert need("what is a rug pull") == _CTX_NEED_NONE  # scam-typed but definitional
+    assert need("how does a rug pull work") == _CTX_NEED_NONE
+    assert need("what is MEV") == _CTX_NEED_NONE  # education-typed but definitional
+    assert need("what is bitcoin") == _CTX_NEED_NONE
+    assert need("explain what a honeypot is") == _CTX_NEED_NONE
+    # LIGHT — single-asset price ask (market, not broad/TA/trending).
+    assert need("what is the price of $BONK") == _CTX_NEED_LIGHT
+    assert need("how much is btc worth") == _CTX_NEED_LIGHT
+    # HEAVY — genuinely-current asks.
+    assert need("is $BONK a honeypot") == _CTX_NEED_HEAVY  # scam check (not definitional)
+    assert need("check the rsi on $BONK") == _CTX_NEED_HEAVY  # TA
+    assert need("what is trending today") == _CTX_NEED_HEAVY  # trending
+    assert need("any news on ethereum") == _CTX_NEED_HEAVY  # news
+    assert need("how's the market today") == _CTX_NEED_HEAVY  # market-today
+    addr = "0x" + "c" * 40
+    assert need(f"scan {addr}") == _CTX_NEED_HEAVY  # token address
+    # Non-definitional lore asks still get the RAG KB (HEAVY).
+    assert need("the meaning of MEV") == _CTX_NEED_HEAVY
+    assert need("rug pull red flags to watch for") == _CTX_NEED_HEAVY
+
+
+async def test_gather_context_definitional_skips_all_sources(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The NONE fast path: a definitional question gathers NOTHING — no
+    registry call, no RAG news, no web fetch, no scanner (the router returns
+    in ~0 time and the LLM answers from its own knowledge)."""
+    calls: list[str] = []
+
+    async def _boom(spec: dict[str, Any], **shared: Any) -> dict[str, Any]:
+        calls.append("registry")
+        raise AssertionError("registry must not be called on the NONE path")
+
+    fake = _FakeRegistry({})
+    fake.run_many_kwargs = _boom  # type: ignore[method-assign]
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    async def _fake_web(question: str) -> tuple[str, list[dict[str, str]]]:
+        calls.append("web")
+        raise AssertionError("web must not be called on the NONE path")
+
+    monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
+
+    for q in ("what is a rug pull", "how does a rug pull work", "what is MEV", "gm"):
+        block, sources = await _llm._gather_context(q)
+        assert block == "", q
+        assert sources == [], q
+    assert calls == []  # zero fetches across the whole fast path
+
+
+async def test_gather_context_light_price_only_no_web_on_miss(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LIGHT (plain price ask) runs price_lookup ONLY: no TA/trending extras,
+    and when the price tool misses it degrades to EMPTY — never the SearXNG
+    web layer (the fast price path stays fast)."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    fake = _FakeRegistry(
+        {
+            "price_lookup": ToolResult(
+                tool="price_lookup",
+                ok=True,
+                data={"query_symbol": "BONK", "pairs": [{"symbol": "BONK", "price_usd": 0.0000123}]},
+                source="dexscreener",
+            ),
+        }
+    )
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    web_calls: list[str] = []
+
+    async def _fake_web(question: str) -> tuple[str, list[dict[str, str]]]:
+        web_calls.append(question)
+        return ("LIVE WEB SEARCH", [{"type": "web", "title": "x", "url": "https://example.com/x"}])
+
+    monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
+
+    block, _ = await _llm._gather_context("what is the price of $BONK")
+    assert fake.spec is not None
+    assert set(fake.spec) == {"price_lookup"}  # ONE tool, no TA/trending/scanner
+    assert "LIVE MARKET DATA" in block
+    assert web_calls == []  # price ok → no web layer
+
+    # price_lookup MISSES → empty context (fail-open), STILL no web layer.
+    fake_miss = _FakeRegistry({"price_lookup": ToolResult(tool="price_lookup", ok=False, error="dexscreener down")})
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake_miss)
+    block2, sources2 = await _llm._gather_context("what is the price of $BONK")
+    assert block2 == ""
+    assert sources2 == []
+    assert web_calls == []  # light NEVER spawns the web layer
+
+
 async def test_gather_context_scam_uses_rag_lookup_only_without_address(monkeypatch: pytest.MonkeyPatch) -> None:
     """SCAM question without an address → rag_lookup (security-pattern KB),
     never scanner_intel (it needs an address and would miss)."""
@@ -633,7 +741,7 @@ async def test_gather_context_education_thin_rag_merges_web_and_hint(monkeypatch
 
     monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
 
-    block, sources = await _llm._gather_context("what is MEV")
+    block, sources = await _llm._gather_context("the meaning of MEV")
     assert "MEV: maximal extractable value" in block  # RAG intel reached the prompt
     assert "LIVE WEB SEARCH" in block  # thin RAG → web layer merged
     assert "EDUCATION/LORE ANSWER FORMAT" in block  # structure hint appended
@@ -678,7 +786,7 @@ async def test_gather_context_education_rich_rag_stands_alone_with_hint(monkeypa
 
     monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
 
-    block, sources = await _llm._gather_context("how does a rug pull work")
+    block, sources = await _llm._gather_context("rug pull red flags to watch for")
     assert "RAG KNOWLEDGE" in block  # direct rag_lookup context, not the market projection
     assert "LIVE MARKET DATA" not in block
     assert "LIVE WEB SEARCH" not in block  # rich KB stands alone — web NOT merged
@@ -704,7 +812,7 @@ async def test_gather_context_education_rag_down_uses_web_with_hint(monkeypatch:
 
     monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
 
-    block, sources = await _llm._gather_context("what is impermanent loss")
+    block, sources = await _llm._gather_context("the meaning of impermanent loss")
     assert "LIVE WEB SEARCH" in block
     assert "EDUCATION/LORE ANSWER FORMAT" in block
     assert sources[0]["type"] == "web"
