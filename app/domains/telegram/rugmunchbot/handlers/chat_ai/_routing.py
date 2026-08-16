@@ -130,6 +130,17 @@ BRIDGE_TIMEOUT = 12.0  # web search can take a few seconds; never block chat on 
 # serialized a 10s HTTP call before the pipeline even started.
 TOKEN_CARD_DECIDE_WAIT = 1.0
 
+# ONE hard end-to-end deadline around the whole chat turn. The inner stages
+# each keep their own budgets (backend RAG 60s, local LLM 60s, tools ~8s+5s),
+# but stacked worst-case they could hang a turn ~121s. This outer bound
+# guarantees the user always gets SOME reply: asyncio.wait_for cancels the
+# turn past the deadline and the timeout handler swaps the placeholder for a
+# short graceful reply.
+CHAT_TURN_DEADLINE = 25.0
+
+# Short graceful reply when a turn exceeds the hard end-to-end deadline.
+TIMEOUT_REPLY = "\u23f3 Taking longer than expected \u2014 try again or narrow your question."
+
 
 async def _fetch_scan_context(address: str) -> str | None:
     """Best-effort quick scanner read → compact risk summary line.
@@ -501,12 +512,28 @@ async def chat_ai_response(
     bridge_ctx_task: asyncio.Task[Any] | None = None
     live_tools_task: asyncio.Task[Any] | None = None
     rag_task: asyncio.Task[Any] | None = None
-    try:
+
+    # The whole turn (guards -> backend RAG -> local LLM fallback -> live
+    # tools -> guardrail -> send) runs as ONE nested coroutine so the caller
+    # below can bound it with a single asyncio.wait_for deadline. nonlocal
+    # keeps the task-lifecycle holders (created above) visible to the
+    # enclosing fail-open except/finally handlers.
+    async def _generate_response() -> None:
+        """Run one full chat turn; returns after the answer is sent (or handled).
+
+        Nested so :func:`chat_ai_response` can bound the entire turn with a
+        single ``asyncio.wait_for(CHAT_TURN_DEADLINE)`` — the inner stage
+        budgets (backend 60s, local LLM 60s, tools ~8s+5s) can stack to
+        ~121s without it. Cancellation propagates into the inner stages, so
+        the outer deadline supersedes them.
+        """
+        nonlocal typing_task, placeholder_task, preliminary, backend_task
+        nonlocal daily_ctx_task, scan_ctx_task, bridge_ctx_task, live_tools_task, rag_task
         # Pre-LLM guards: chat_enabled toggle -> injection -> quota -> flood ->
         # gibberish (tier-3 redirect). True = message already handled.
         if await _run_entry_guards(update, message, user, text, pipeline_start=pipeline_start):
             await _cancel_token_lookup(token_lookup_task)
-            return True
+            return
 
         # Tier-2: ONLY instant-reply for greetings, thanks, and capability inquiries.
         # Everything else goes to the LLM — the bot should answer what the user asks.
@@ -517,7 +544,7 @@ async def chat_ai_response(
             message, text, user, menu_kb=capability_menu
         ):
             await _cancel_token_lookup(token_lookup_task)
-            return True
+            return
 
         # Thumbs up — instant acknowledgment
         with contextlib.suppress(Exception):
@@ -628,7 +655,7 @@ async def chat_ai_response(
         if await _token_card_won(token_lookup_task):
             with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
                 await preliminary.delete()
-            return True
+            return
         await _cancel_token_lookup(token_lookup_task)
 
         # P2 race guard: the $TOKEN card can land just after the decide-wait
@@ -638,11 +665,11 @@ async def chat_ai_response(
         if token_card_flag is not None and token_card_flag.sent:
             with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
                 await preliminary.delete()
-            return True
+            return
 
         if not result:
             if await _reply_local_intent(message, text, user):
-                return True
+                return
             with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
                 await preliminary.edit_text(
                     _FALLBACK_MESSAGE,
@@ -660,7 +687,7 @@ async def chat_ai_response(
                 ok=False,
                 latency_ms=(time.monotonic() - pipeline_start) * 1000,
             )
-            return True
+            return
 
         answer = result["message"]
 
@@ -682,7 +709,7 @@ async def chat_ai_response(
         if token_card_flag is not None and token_card_flag.sent:
             with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
                 await preliminary.delete()
-            return True
+            return
 
         await _persist_answer(user.id, text, answer)
 
@@ -711,6 +738,51 @@ async def chat_ai_response(
             stripped_syms=stripped_syms,
             stripped_addrs=stripped_addrs,
         )
+        return
+
+    try:
+        # ONE hard end-to-end deadline around the whole turn: whatever stage
+        # is in flight (backend RAG / local LLM / tools / guardrail / send),
+        # the user gets a reply within CHAT_TURN_DEADLINE. wait_for cancels
+        # the pipeline on timeout and the handler below replies gracefully —
+        # this never surfaces to the PTB error handler as a crash.
+        await asyncio.wait_for(_generate_response(), timeout=CHAT_TURN_DEADLINE)
+        return True
+    except TimeoutError:
+        # Hard deadline breached: cancel the typing/placeholder upkeep so no
+        # stale "still digging" edit or typing pulse fires late, then swap
+        # the placeholder for a short graceful reply and trace the timeout.
+        # The finally below cancels every still-running pipeline task.
+        if typing_task is not None:
+            typing_task.cancel()
+        if placeholder_task is not None:
+            placeholder_task.cancel()
+        await asyncio.gather(
+            *(t for t in (typing_task, placeholder_task) if t is not None),
+            return_exceptions=True,
+        )
+        trace_answer(
+            question=text,
+            user_id=user.id,
+            intent="chat",
+            route="timeout",
+            ok=False,
+            latency_ms=(time.monotonic() - pipeline_start) * 1000,
+        )
+        if preliminary is not None:
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await preliminary.edit_text(
+                    TIMEOUT_REPLY,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=back_kb(),
+                )
+        else:
+            with contextlib.suppress(TelegramError, ConnectionError, OSError, TimeoutError):
+                await message.reply_text(
+                    TIMEOUT_REPLY,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=back_kb(),
+                )
         return True
     except Exception as exc:
         # ── FAIL-OPEN BOUNDARY (single-turn isolation) ─────────────────────
