@@ -38,6 +38,7 @@ __all__ = [
     "_clip",
     "_collapse_blank_lines",
     "_distribution_verdict",
+    "_fake_volume_verdict_text",
     "_float_or_none",
     "_fmt_market_value",
     "_format_scam_signals_section",
@@ -426,6 +427,63 @@ def _fake_volume_pct(r: dict[str, Any]) -> float | None:
     return min(100.0, max(0.0, (rv - 2.0) * 20.0)) if rv > 2.0 else 0.0
 
 
+def _volume_up_price_flat_churn(r: dict[str, Any]) -> str | None:
+    """Market-side churn note (volume up, price flat) — or None.
+
+    Cheap independent wash signal mirroring the GMGN cross-reference: a token
+    trading >$100k in 24h while the price moves <3% is churning volume without
+    real buying pressure. Only ever AUGMENTS the engine's own on-chain verdict
+    in the renderer — it never fires a fake-volume verdict on its own.
+    """
+    vol = _float_or_none(r.get("volume_24h"))
+    pc = _float_or_none(r.get("price_change_24h"))
+    if vol is None or pc is None:
+        return None
+    if vol > 100_000 and abs(pc) < 3:
+        return "vol up, price flat"
+    return None
+
+
+def _fake_volume_verdict_text(r: dict[str, Any]) -> str:
+    """Dedicated 📉 Fake Volume verdict value for /scan + /deepscan.
+
+    Three honest states (mirrors ``_bundle_verdict_row``):
+      - 🔴 <b>Likely</b> (wash-trading detected: N self-deals · volume 10x holders)
+      - 🟢 Organic volume patterns
+      - — (no volume-authenticity data — never claims "clean" without a check)
+
+    Evidence order: the own volume-authenticity engine's buyer/seller-overlap
+    self-deal count (same wallet buys AND sells), its volume-to-holder churn
+    ratio (high volume over a tiny holder base), the aggregate authentic
+    score, then the market-side volume-up/price-flat churn note. All detail
+    strings are HTML-escaped.
+    """
+    wash = r.get("wash_trading")
+    if not isinstance(wash, dict) or not wash:
+        return "\u2014"
+    verdict = str(wash.get("fake_volume_verdict") or "").strip()
+    if verdict not in ("likely", "organic"):
+        # Legacy payloads may only carry the percentage — fall back on it.
+        pct = _fake_volume_pct(r)
+        if pct is None:
+            return "\u2014"
+        verdict = "likely" if pct > 10 else "organic"
+
+    detail = str(wash.get("fake_volume_detail") or "").strip()
+    parts = [p.strip() for p in detail.split("\u00b7") if p.strip()]
+
+    if verdict == "likely":
+        churn = _volume_up_price_flat_churn(r)
+        if churn:
+            parts.append(churn)
+        if not parts:
+            pct = _fake_volume_pct(r)
+            parts.append(f"{pct:.0f}% fabricated" if pct is not None else "wash-trading signals")
+        inner = " \u00b7 ".join(html.escape(p) for p in parts)
+        return f"\U0001f534 <b>Likely</b> (wash-trading detected: {inner})"
+    return "\U0001f7e2 Organic volume patterns"
+
+
 def _fresh_wallet_pct(r: dict[str, Any]) -> float | None:
     """Fresh-wallet percentage (0-100), or None when no wallet metrics."""
     wm = r.get("wallet_metrics")
@@ -488,6 +546,11 @@ def _key_metrics_rows(r: dict[str, Any], *, deep: bool = False) -> list[str]:
     buy_tax = _tax_pct_str(r.get("buy_tax"))
     sell_tax = _tax_pct_str(r.get("sell_tax"))
     rows.append(f"  Buy/Sell Tax   <b>{buy_tax}</b> / <b>{sell_tax}</b>")
+
+    # Dedicated Fake Volume verdict (own volume-authenticity engine) — a
+    # clear one-line verdict for BOTH /scan and /deepscan, not buried in a
+    # sub-metric: 🔴 Likely (wash-trading detected: …) / 🟢 Organic / — .
+    rows.append(f"  \U0001f4c9 Fake Volume   {_fake_volume_verdict_text(r)}")
 
     if deep:
         lp = _lp_lock_pct(r)

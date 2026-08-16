@@ -873,6 +873,16 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
                 lines.append(f"  <i>{html.escape(str(cluster_note))}</i>")
             else:
                 lines.append("  <code>\u2014</code>")
+        # ── Cross-token recurring cluster (own cross_token_link engine) ──
+        # The same syndicate wallets showing up in PRIOR token launches —
+        # "serial launcher" signal competitors miss. Rendered when the engine
+        # measured a recurrence regardless of the cluster-analysis verdict
+        # (the recurring check runs on its own ClickHouse/KG data). Honest +
+        # fail-open: omitted entirely when the line is "—".
+        cross_token = data.get("cross_token_link") or {}
+        recurring_line = str(cross_token.get("recurring_cluster_line") or "\u2014").strip()
+        if recurring_line not in ("", "\u2014"):
+            lines.append(f"  {html.escape(recurring_line)}")
         lines.append("")
 
     # ── 🫧 Decentralization + Bubble Map (BubbleMaps-style, own data) ──
@@ -949,6 +959,19 @@ def format_sentinel_deepscan_section(data: dict[str, Any], analyst_read: str = "
             lines.append(d)
             lines.append(f"  {html.escape(str(tl_line))}")
             lines.append("")
+
+    # ── Cross-token linkage (serial-launcher: deployer + funder) ──
+    cross_token = data.get("cross_token_link") or {}
+    deployer_link = str(cross_token.get("deployer_link_line") or "\u2014").strip()
+    funder_link = str(cross_token.get("funder_link_line") or "\u2014").strip()
+    if deployer_link not in ("", "\u2014") or funder_link not in ("", "\u2014"):
+        lines.append("\U0001f517 <b>Cross-Token Linkage</b>")
+        lines.append(d)
+        if deployer_link not in ("", "\u2014"):
+            lines.append(f"  {html.escape(deployer_link)}")
+        if funder_link not in ("", "\u2014"):
+            lines.append(f"  {html.escape(funder_link)}")
+        lines.append("")
 
     # ── Recommendations ──
     lines.append("\U0001f4a1 <b>Recommendations</b>")

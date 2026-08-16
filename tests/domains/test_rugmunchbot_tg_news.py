@@ -87,18 +87,37 @@ def _reset_dedupe() -> None:
     channels_scheduler._posted_keys.clear()
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_llm() -> None:
+    """Keep the scheduled-job tests hermetic — no live OpenRouter calls.
+
+    The news pipeline now generates a bounded AI "why it matters" commentary
+    per posted story via ``app.llm_config.chat_with_fallback`` (snappy tier).
+    Patching it to return ``""`` exercises the fail-open path (title-only
+    post) without network I/O. Tests that want a canned commentary patch
+    ``tg_news.attach_commentaries`` or ``chat_with_fallback`` explicitly.
+    """
+    with patch("app.llm_config.chat_with_fallback", new=AsyncMock(return_value="")):
+        yield
+
+
 # ── Config / sources ─────────────────────────────────────────────────────────
 
 
 class TestSources:
     def test_defaults_have_curated_handles(self) -> None:
-        assert len(tg_news._DEFAULT_CHANNELS) == 33
+        assert len(tg_news._DEFAULT_CHANNELS) == 64
         assert "cointelegraph" in tg_news._DEFAULT_CHANNELS
         assert "WatcherGuru" in tg_news._DEFAULT_CHANNELS
         # Curated set spans news / security / on-chain — spot-check each tier.
         assert "coindesk" in tg_news._DEFAULT_CHANNELS
         assert "CertiKAlert" in tg_news._DEFAULT_CHANNELS
         assert "lookonchain" in tg_news._DEFAULT_CHANNELS
+        # 2026-08-16 expansion batch (t.me preview-probed) — spot-check tiers.
+        assert "thebitcoinnews" in tg_news._DEFAULT_CHANNELS
+        assert "BlockSecTeam" in tg_news._DEFAULT_CHANNELS
+        assert "arbitrum" in tg_news._DEFAULT_CHANNELS
+        assert "glassnode" in tg_news._DEFAULT_CHANNELS
         # Dead/renamed handles that logged "No user has X as username" are
         # excluded from the default list (auto-disable covers discovered ones).
         for dead in ("wublockchain", "TheBlock__", "beincrypto", "cryptonews"):
@@ -438,6 +457,85 @@ class TestPostVariety:
         assert "Institutions piled in all week." in caption  # longer lede
         assert bot.send_photo.await_args.kwargs["photo"] == "https://img.example.com/btc.jpg"
 
+    async def test_story_renders_ai_why_it_matters_commentary(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Each posted story carries an AI 'why it matters' one-liner (beyond the title)."""
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        story = _article(
+            "Third bridge exploit this week",
+            body="Attackers drained the bridge. Details at https://example.com/bridge",
+            message_id=50,
+        )
+
+        async def _fake_attach(items: list[dict[str, Any]], *, limit: int = 5) -> dict[str, str]:
+            return {
+                "https://example.com/bridge": ("this is the third exploit this week targeting the same bridge pattern")
+            }
+
+        monkeypatch.setattr(tg_news, "attach_commentaries", _fake_attach)
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[story])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        text = bot.send_message.await_args.kwargs["text"]
+        assert "Third bridge exploit this week" in text  # rewritten title stays
+        assert "Why it matters" in text  # AI commentary line renders
+        assert "third exploit this week" in text
+
+    async def test_commentary_fail_open_posts_title_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """LLM empty/failure → the post ships with just the title, no 💡 line.
+
+        The autouse ``_hermetic_llm`` fixture already makes
+        ``chat_with_fallback`` return ``""``, so ``attach_commentaries``
+        yields ``{}`` and the post renders title-only — never blocked.
+        """
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch)
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news")
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[_article("Fresh headline")])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        text = bot.send_message.await_args.kwargs["text"]
+        assert "Fresh headline" in text
+        assert "Why it matters" not in text
+
+    async def test_ghost_feed_failure_never_blocks_telegram_posts(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A gated/broken Ghost feed publish never blocks the news+main posts."""
+        ctx, bot = self._ctx()
+        _stub_importance(monkeypatch, importance=0.9)
+        monkeypatch.setattr(
+            channels_scheduler,
+            "_chat_id",
+            lambda channel: "-100news" if channel == "news" else "-100main",
+        )
+        monkeypatch.setattr(
+            tg_news,
+            "publish_story_to_feed",
+            AsyncMock(return_value={"error": "No Ghost session cookie"}),
+        )
+        big = _article(
+            "SEC greenlights spot Bitcoin ETF",
+            body="The SEC approved the product in a surprise move. Image: https://img.example.com/sec.jpg",
+            message_id=40,
+        )
+        with (
+            patch.object(tg_news, "sweep_telegram_news", new=AsyncMock(return_value=[big])),
+            patch.object(
+                tg_news, "persist_articles", new=AsyncMock(return_value={"ingested": 1, "duplicate": 0, "errors": 0})
+            ),
+        ):
+            assert await tg_news.post_tg_news_update(ctx) == 1
+        # News + main still went out despite the feed publish failing.
+        assert bot.send_photo.await_count == 2
+
     async def test_shared_token_posts_themed_roundup(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """≥2 stories mentioning the same $TOKEN → themed 🧵 roundup."""
         ctx, bot = self._ctx()
@@ -505,13 +603,25 @@ class TestPostVariety:
         assert "More:" in hybrid_text  # top-3 hybrid lead card
         assert "⭐" in hybrid_text
 
-    async def test_high_importance_non_breaking_posts_feature_card_to_main(
+    async def test_high_importance_non_breaking_posts_feature_card_to_news_main_and_feed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Importance ≥0.7 solo path fires with a compelling card, not a bare link."""
+        """Importance ≥0.7 → auto-posts to the news channel + main + ghost feed.
+
+        The high-importance solo path fires on @cryptorugmuncher with a
+        compelling card (not a bare link) AND the same story also surfaces on
+        the news channel; after the main post succeeds the rugmunch.io (Ghost)
+        feed publish is attempted best-effort.
+        """
         ctx, bot = self._ctx()
         _stub_importance(monkeypatch, importance=0.9)
-        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100main")
+        monkeypatch.setattr(
+            channels_scheduler,
+            "_chat_id",
+            lambda channel: "-100news" if channel == "news" else "-100main",
+        )
+        feed_mock = AsyncMock(return_value={"ok": True})
+        monkeypatch.setattr(tg_news, "publish_story_to_feed", feed_mock)
         big = _article(
             "SEC greenlights spot Bitcoin ETF",
             body="The SEC approved the product in a surprise move. Traders cheered the decision. Image: https://img.example.com/sec.jpg",
@@ -524,13 +634,18 @@ class TestPostVariety:
             ),
         ):
             assert await tg_news.post_tg_news_update(ctx) == 1
-        bot.send_photo.assert_awaited_once()
-        caption = bot.send_photo.await_args.kwargs["caption"]
-        assert "Top Story" in caption
-        assert "SEC greenlights spot Bitcoin ETF" in caption
-        assert "The SEC approved the product in a surprise move." in caption  # one-line hook
-        assert "BREAKING" not in caption  # no misleading 🚨 for a non-breaking story
-        assert bot.send_photo.await_args.kwargs["photo"] == "https://img.example.com/sec.jpg"
+        # One photo card to the news channel, one to @cryptorugmuncher.
+        assert bot.send_photo.await_count == 2
+        chats = {c.kwargs["chat_id"] for c in bot.send_photo.await_args_list}
+        assert chats == {"-100news", "-100main"}
+        for call in bot.send_photo.await_args_list:
+            caption = call.kwargs["caption"]
+            assert "Top Story" in caption
+            assert "SEC greenlights spot Bitcoin ETF" in caption
+            assert "The SEC approved the product in a surprise move." in caption  # one-line hook
+            assert "BREAKING" not in caption  # no misleading 🚨 for a non-breaking story
+            assert call.kwargs["photo"] == "https://img.example.com/sec.jpg"
+        feed_mock.assert_awaited_once()
 
 
 # ── Channel categorization (news / alpha / scam / other) ─────────────────────

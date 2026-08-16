@@ -100,7 +100,22 @@ def build_evidence(r: ScanResult) -> dict[str, Any]:
     # ── Market ──
     mkt: dict[str, Any] = {}
     if r.volume_auth and isinstance(r.volume_auth, dict):
+        # The volume-authenticity engine's full wash payload — not just the
+        # fake-volume percentage. The report formatter renders the dedicated
+        # 📉 Fake Volume verdict line from these (self-deal overlap,
+        # volume-to-holder churn, organic/likely verdict).
         mkt["fake_volume_pct"] = r.volume_auth.get("fake_volume_pct")
+        mkt["authentic_score"] = r.volume_auth.get("authentic_score")
+        mkt["risk_level"] = r.volume_auth.get("risk_level")
+        mkt["self_deal_wallets"] = r.volume_auth.get("self_deal_wallets")
+        mkt["self_deal_swaps"] = r.volume_auth.get("self_deal_swaps")
+        mkt["self_deal_swap_ratio"] = r.volume_auth.get("self_deal_swap_ratio")
+        mkt["active_holders"] = r.volume_auth.get("active_holders")
+        mkt["volume_to_holder_ratio"] = r.volume_auth.get("volume_to_holder_ratio")
+        mkt["wash_signals"] = r.volume_auth.get("wash_signals")
+        mkt["fake_volume_verdict"] = r.volume_auth.get("fake_volume_verdict")
+        mkt["fake_volume_detail"] = r.volume_auth.get("fake_volume_detail")
+        mkt["confidence"] = r.volume_auth.get("confidence")
     if r.premium and isinstance(r.premium, dict):
         mkt["premium"] = {
             feature: {"risk": d.get("risk", d.get("risk_level", "")) if isinstance(d, dict) else d}

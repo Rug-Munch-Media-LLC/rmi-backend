@@ -35,6 +35,7 @@ from app.domains.scanner.engines.funding_analysis import (
 from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
 from app.domains.scanner.engines.news_sentiment import analyze_token_news_sentiment
 from app.domains.scanner.engines.own_cluster_analysis import get_own_cluster_analysis
+from app.domains.scanner.engines.own_cross_token_link import get_own_cross_token_link
 from app.domains.scanner.engines.own_decentralization import get_own_decentralization
 from app.domains.scanner.engines.own_deployer_reputation import get_own_deployer_reputation
 from app.domains.scanner.engines.own_deployer_timeline import get_own_deployer_timeline
@@ -61,6 +62,7 @@ __all__ = [
     "get_holder_count",
     # Phase 4
     "get_own_cluster_analysis",
+    "get_own_cross_token_link",
     "get_own_decentralization",
     "get_own_deployer_reputation",
     "get_own_deployer_timeline",

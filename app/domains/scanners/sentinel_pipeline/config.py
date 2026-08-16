@@ -130,6 +130,9 @@ class SentinelReport:
     # BubbleMaps-style decentralization score + holder cluster map (own engine
     # — own_decentralization.get_own_decentralization).
     decentralization: dict[str, Any] | None = None
+    # Cross-token association (own engine — own_cross_token_link): recurring
+    # funding clusters across prior launches + serial-launcher deployer link.
+    cross_token_link: dict[str, Any] | None = None
 
     # Module errors (module_name -> error message)
     errors: dict[str, str] = field(default_factory=dict)

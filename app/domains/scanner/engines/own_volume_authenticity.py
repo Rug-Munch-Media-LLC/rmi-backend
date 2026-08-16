@@ -34,6 +34,13 @@ Usage:
     #         "transfer_volume": 95000.0,
     #         "ratio": 1.05,
     #     },
+    #     "self_deal_wallets": 3,          # wallets that buy AND sell
+    #     "self_deal_swaps": 41,
+    #     "self_deal_swap_ratio": 0.12,
+    #     "active_holders": 45,
+    #     "volume_to_holder_ratio": 2222.0,
+    #     "fake_volume_verdict": "likely",  # "likely" | "organic" | None
+    #     "fake_volume_detail": "3 self-deals · volume 2222x holders",
     #     "flags": [],
     #     "confidence": 0.7,
     #     "source": "own",
@@ -195,6 +202,16 @@ async def get_own_volume_authenticity(
             "transfer_volume": 0.0,
             "ratio": None,
         },
+        # Buyer/seller-overlap self-dealing (same wallet buys AND sells).
+        "self_deal_wallets": 0,
+        "self_deal_swaps": 0,
+        "self_deal_swap_ratio": 0.0,
+        # Volume-to-holder churn (high volume over a tiny holder base).
+        "active_holders": None,
+        "volume_to_holder_ratio": None,
+        # Clear FAKE-VOLUME verdict: "likely" | "organic" | None (unavailable).
+        "fake_volume_verdict": None,
+        "fake_volume_detail": "",
         "flags": [],
         "total_swaps": 0,
         "confidence": 0.0,
@@ -234,6 +251,19 @@ async def get_own_volume_authenticity(
     result["volume_comparison"]["transfer_volume"] = round(transfer_volume, 2)
     if transfer_volume > 0:
         result["volume_comparison"]["ratio"] = round(dex_volume / transfer_volume, 3)
+
+    # ── 2b. Self-dealing + volume-to-holder churn (buyer/seller overlap) ──
+    self_deal_wallets = dex_stats.get("self_deal_wallets", 0)
+    self_deal_swaps = dex_stats.get("self_deal_swaps", 0)
+    self_deal_swap_ratio = dex_stats.get("self_deal_swap_ratio", 0.0)
+    result["self_deal_wallets"] = self_deal_wallets
+    result["self_deal_swaps"] = self_deal_swaps
+    result["self_deal_swap_ratio"] = round(self_deal_swap_ratio, 4)
+
+    active_holders = (transfer_stats or {}).get("holder_count")
+    result["active_holders"] = active_holders
+    if active_holders and active_holders > 0:
+        result["volume_to_holder_ratio"] = round(dex_volume / active_holders, 2)
 
     # ── 3. Wash signals ──
     signals: list[dict[str, Any]] = []
@@ -313,6 +343,35 @@ async def get_own_volume_authenticity(
                 }
             )
 
+    # 3f. Buyer/seller-overlap self-dealing (same wallet buys AND sells)
+    if self_deal_wallets >= 2 and self_deal_swap_ratio > 0.05:
+        penalty = min(20.0, self_deal_swap_ratio * 40)
+        score -= penalty
+        signals.append(
+            {
+                "name": "self_dealing_overlap",
+                "score": round(self_deal_swap_ratio, 4),
+                "detail": (
+                    f"{self_deal_wallets} wallets both buy and sell ({round(self_deal_swap_ratio * 100, 1)}% of swaps)"
+                ),
+            }
+        )
+
+    # 3g. Volume-to-holder churn (high volume over a tiny holder base)
+    if active_holders is not None and active_holders < 200:
+        vol_holder_ratio = result["volume_to_holder_ratio"]
+        if vol_holder_ratio is not None and vol_holder_ratio >= 10:
+            score -= min(20.0, vol_holder_ratio * 2)
+            signals.append(
+                {
+                    "name": "volume_to_holder_churn",
+                    "score": round(vol_holder_ratio, 1),
+                    "detail": (
+                        f"{active_holders} active holders but volume is {vol_holder_ratio:.0f}x the holder count"
+                    ),
+                }
+            )
+
     # ── 4. Finalize ──
     score = max(0, min(100, round(score)))
     result["authentic_score"] = score
@@ -327,6 +386,20 @@ async def get_own_volume_authenticity(
         result["flags"].append("possible_wash_trading")
 
     result["confidence"] = round(min(1.0, 0.4 + 0.1 * min(total_swaps / 20, 1.0)), 2)
+
+    # ── 4b. Clear FAKE-VOLUME verdict from the strongest evidence ──
+    # "likely" when the wash-trading evidence is concrete (self-dealing,
+    # volume-to-holder churn, or the aggregate authentic score is low);
+    # "organic" when the scan ran clean. None when data was insufficient.
+    _verdict_detail: list[str] = []
+    if self_deal_wallets >= 2 and self_deal_swap_ratio > 0.05:
+        _verdict_detail.append(f"{self_deal_wallets} self-deals")
+    if active_holders is not None and active_holders < 200 and (result["volume_to_holder_ratio"] or 0) >= 10:
+        _verdict_detail.append(f"volume {result['volume_to_holder_ratio']:.0f}x holders")
+    if score < 70 and not _verdict_detail:
+        _verdict_detail.append(f"{result['fake_volume_pct']:.0f}% fabricated")
+    result["fake_volume_verdict"] = "likely" if _verdict_detail else "organic"
+    result["fake_volume_detail"] = " \u00b7 ".join(_verdict_detail)
 
     _cache_volume(cache_key, result)
 
@@ -364,6 +437,9 @@ def _query_dex_wash_stats(
             "top3_sender_share": float,
             "cycling_wallets": int,
             "cycling_ratio": float,
+            "self_deal_wallets": int,   # distinct wallets that buy AND sell
+            "self_deal_swaps": int,
+            "self_deal_swap_ratio": float,
         }
     """
     client = _get_ch_client()
@@ -449,6 +525,25 @@ def _query_dex_wash_stats(
             """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
             params,
         )
+
+        # Same-wallet buy+sell overlap (self-dealing): every sender who BOTH
+        # bought and sold the token in the window, at any depth. This is the
+        # direct wash-trading signal — a wallet can only "trade with itself"
+        # by appearing on both sides of the book.
+        self_deal_rows = client.execute(
+            f"""
+            SELECT
+                sender,
+                countIf(toFloat64OrZero(amount0_out) + toFloat64OrZero(amount1_out) > 0) AS buys,
+                countIf(toFloat64OrZero(amount0_in) + toFloat64OrZero(amount1_in) > 0) AS sells,
+                count() AS swaps
+            FROM wallet_memory.dex_events
+            WHERE {where_swaps}
+            GROUP BY sender
+            HAVING buys >= 1 AND sells >= 1
+            """,  # nosec B608 - param-bound query; f-string only interpolates allowlisted literals/placeholders
+            params,
+        )
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("dex_wash_stats_query_failed: %s", exc)
         return None
@@ -475,6 +570,8 @@ def _query_dex_wash_stats(
     multi_swap_txs = len(tx_rows)
     top3_swaps = sum(r[1] or 0 for r in sender_rows[:3])
     cycling_wallets = len(cycling_rows)
+    self_deal_wallets = len(self_deal_rows)
+    self_deal_swaps = sum(r[3] or 0 for r in self_deal_rows)
 
     return {
         "total_swaps": total_swaps,
@@ -488,6 +585,9 @@ def _query_dex_wash_stats(
         "top3_sender_share": round(top3_swaps / total_swaps, 4) if total_swaps else 0.0,
         "cycling_wallets": cycling_wallets,
         "cycling_ratio": round(cycling_wallets / unique_senders, 4) if unique_senders else 0.0,
+        "self_deal_wallets": self_deal_wallets,
+        "self_deal_swaps": self_deal_swaps,
+        "self_deal_swap_ratio": round(self_deal_swaps / total_swaps, 4) if total_swaps else 0.0,
     }
 
 
@@ -496,7 +596,13 @@ def _query_transfer_volume(
     chain: str,
     lookback_hours: int,
 ) -> dict[str, Any] | None:
-    """Sum on-chain transfer volume for the token from evm_transfers."""
+    """Sum on-chain transfer volume for the token from evm_transfers.
+
+    Also returns the distinct active recipient count in the window
+    (``holder_count``) so the engine can compute the volume-to-holder
+    churn signal: high traded volume over a tiny holder base is a cheap
+    wash-trading indicator.
+    """
     client = _get_ch_client()
     if client is None:
         return None
@@ -506,6 +612,7 @@ def _query_transfer_volume(
             """
             SELECT
                 count() AS transfer_count,
+                uniq(to_address) AS recipient_holders,
                 sum(toFloat64OrZero(value)) AS raw_value_sum
             FROM wallet_memory.evm_transfers
             WHERE token_address = %(token)s
@@ -523,7 +630,8 @@ def _query_transfer_volume(
 
         return {
             "transfer_count": rows[0][0] or 0,
-            "transfer_volume": _normalize_amount(rows[0][1] or 0, token_address, chain),
+            "holder_count": rows[0][1] or 0,
+            "transfer_volume": _normalize_amount(rows[0][2] or 0, token_address, chain),
         }
     except (ValueError, RuntimeError, OSError) as exc:
         logger.debug("transfer_volume_query_failed: %s", exc)

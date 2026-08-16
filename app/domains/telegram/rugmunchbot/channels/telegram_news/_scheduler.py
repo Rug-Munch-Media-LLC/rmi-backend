@@ -27,6 +27,7 @@ from app.domains.telegram.rugmunchbot.channels.formatters import (
 )
 from app.domains.telegram.rugmunchbot.channels.importance import select_important
 from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
+    _apply_commentaries,
     _article_to_post_dict,
     _news_post_for,
 )
@@ -78,6 +79,9 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     ``select_important`` keeps (rerank importance >=
     ``RMI_NEWS_IMPORTANCE_THRESHOLD``, or the top-N under the heuristic
     fallback when Infinity /rerank is down) are posted — per category.
+    Dedup (multi-key, canonical-URL-first) + rerank importance happen BEFORE
+    any post — the post-time ``_remember`` guard is a final freshness check,
+    so only fresh important stories ship.
 
     Post variety on the news channel (deterministic, by story count / shared
     topic / batch parity — see ``_digest._news_post_for``): a breaking top
@@ -96,7 +100,17 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     Main-channel solo (importance ≥ 0.7): the top story is posted solo; a
     breaking marker keeps the 🚨 ``format_breaking_post`` shape, otherwise the
     compelling ⭐ ``format_feature_post`` card (rewritten title + one-line
-    hook) is used with the story's image attached when one exists.
+    hook) is used with the story's image attached when one exists. High-
+    importance stories ALSO surface on the news channel (dual-post) and, after
+    a successful main post, are published to the rugmunch.io (Ghost) feed
+    best-effort (``publish_story_to_feed`` — fail-open when Ghost is gated).
+
+    AI commentary: every posted story gets a one-line "why it matters" hook
+    written by the snappy LLM tier (``attach_commentaries`` →
+    ``generate_commentary`` via ``app.llm_config.chat_with_fallback``) —
+    bounded per call, parallel per batch, fail-open to title-only when the
+    LLM times out/empties. Applied to news posts (all formats) and the
+    main-channel escalations.
 
     Additive side-effects (all fail-open):
     * freshly-persisted TG items are merged into the website full-feed Redis
@@ -111,7 +125,7 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     """
     # Lazy import keeps the scheduler ↔ this module import graph acyclic
     # (scheduler.py imports this module at module scope for registration).
-    from app.domains.telegram.rugmunchbot.channels.router import route_news
+    from app.domains.telegram.rugmunchbot.channels.router import ROUTE_ALPHA_CATEGORY, route_news
     from app.domains.telegram.rugmunchbot.channels.scheduler import (
         _chat_id,
         _dedupe_key,
@@ -147,6 +161,10 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     posted = 0
 
     # Unified routing: partition scored articles by destination via route_news.
+    # High-importance (≥0.7) stories route to ``main`` AND also surface on the
+    # news channel (requirement: important stories auto-post to news + main).
+    # Alpha-category stories keep the design invariant — they never land on
+    # the news channel (main-only above the gate, alpha lane below it).
     news_scored: list[Any] = []
     alpha_scored: list[Any] = []
     main_scored: list[Any] = []
@@ -154,6 +172,8 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
         dest = route_news(s.importance, s.article.category)
         if dest == "main":
             main_scored.append(s)
+            if s.article.category != ROUTE_ALPHA_CATEGORY:
+                news_scored.append(s)
         elif dest == "alpha":
             alpha_scored.append(s)
         elif dest == "news":
@@ -177,6 +197,9 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
             top = selected[0].article
             post = _article_to_post_dict(top)
             if _remember("tgnews", _dedupe_key("tgnews", post)):
+                # AI "why it matters" one-liner (bounded, fail-open) — the post
+                # ships with just the headline when the LLM call fails/empties.
+                _apply_commentaries([post], await _tg.attach_commentaries([post]))
                 ok = await _post_formatted(ctx.bot, news_chat_id, format_breaking_post(post), _safe_send)
                 if ok:
                     logger.info("tg_news:posted_breaking title=%s", top.title[:80])
@@ -188,10 +211,15 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
                 if _remember("tgnews", _dedupe_key("tgnews", _article_to_post_dict(scored_article.article)))
             ]
             if fresh:
+                fresh_articles = fresh[:TG_NEWS_POST_LIMIT]
+                post_items = [_article_to_post_dict(a) for a in fresh_articles]
+                # One bounded AI commentary per story (parallel, fail-open);
+                # ``_news_post_for`` attaches them onto the post dicts.
+                commentaries = await _tg.attach_commentaries(post_items)
                 ok = await _post_formatted(
                     ctx.bot,
                     news_chat_id,
-                    _news_post_for(fresh[:TG_NEWS_POST_LIMIT]),
+                    _news_post_for(fresh_articles, commentaries=commentaries),
                     _safe_send,
                 )
                 if ok:
@@ -210,11 +238,19 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
             top = selected_main[0].article
             post = _article_to_post_dict(top)
             if _remember("tgmain", _dedupe_key("tgmain", post)):
+                # AI "why it matters" one-liner for the main-channel card
+                # (bounded, fail-open — ships title-only when the LLM fails).
+                _apply_commentaries([post], await _tg.attach_commentaries([post]))
                 formatted = format_breaking_post(post) if _tg.is_breaking_article(top) else format_feature_post(post)
                 ok = await _post_formatted(ctx.bot, main_chat_id, formatted, _safe_send)
                 if ok:
                     logger.info("tg_news:posted_main title=%s", top.title[:80])
                     posted += 1
+                    # rugmunch.io (Ghost) feed publish — best-effort + fail-open:
+                    # the Telegram posts already went out; a missing Ghost API
+                    # key / session cookie never blocks them (requirement: ≥0.7
+                    # stories auto-post to news + main + ghost feed).
+                    await _tg.publish_story_to_feed(str(formatted), title=top.post_title or top.title)
 
     # Route: alpha → alpha channel (additive; no alpha chat id → skip)
     if alpha_chat_id and alpha_scored:

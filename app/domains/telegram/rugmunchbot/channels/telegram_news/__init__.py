@@ -61,8 +61,9 @@ per-channel message reads are bounded by ``RMI_TG_NEWS_PER_CHANNEL_LIMIT``
 (default 30). When discovery is disabled, returns nothing, or the client is
 unavailable, the sweep falls back to the env-overridable explicit list
 ``RMI_TG_NEWS_CHANNELS`` (comma- or pipe-separated @handles), then to
-``_DEFAULT_CHANNELS`` (33 curated high-signal public crypto-news channels —
-news outlets, security/exploit alerts, on-chain/alpha feeds; handles that
+``_DEFAULT_CHANNELS`` (64 curated high-signal public crypto-news channels —
+news outlets, security/exploit alerts, DeFi/protocol feeds, and
+on-chain/alpha feeds; handles that
 repeatedly fail to resolve are commented out and auto-disabled by the ingest
 layer's per-channel cooldown). Several
 default handles carry ``[REVIEW]`` notes in ``app/databus/tg_channels.json``;
@@ -220,6 +221,7 @@ from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
     _NEWS_FEED_CACHE_KEY,  # noqa: F401
     _NEWS_FEED_CACHE_MAX,  # noqa: F401
     _TG_ARTICLE_KIND,  # noqa: F401
+    _apply_commentaries,  # noqa: F401
     _article_to_feed_item,  # noqa: F401
     _article_to_post_dict,  # noqa: F401
     _batch_parity,  # noqa: F401
@@ -228,8 +230,11 @@ from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
     _redis_json_get,  # noqa: F401
     _redis_json_set,  # noqa: F401
     _shared_topic,  # noqa: F401
+    attach_commentaries,
+    generate_commentary,
     inject_into_news_cache,
     publish_market_awareness,
+    publish_story_to_feed,
 )
 from app.domains.telegram.rugmunchbot.channels.telegram_news._persist import (
     _CHAIN_KEYWORDS,  # noqa: F401
@@ -286,6 +291,7 @@ __all__ = [
     "TITLE_REWRITE_ENABLED",
     "TME_RESOLVE_ENABLED",
     "article_dedup_keys",
+    "attach_commentaries",
     "channel_sources",
     "classify_channel_category",
     "dedupe_articles",
@@ -297,6 +303,7 @@ __all__ = [
     "format_hybrid_post",
     "format_news_post",
     "format_themed_post",
+    "generate_commentary",
     "ingest_into_rag",
     "inject_into_news_cache",
     "is_breaking_article",
@@ -306,6 +313,7 @@ __all__ = [
     "persist_articles",
     "post_tg_news_update",
     "publish_market_awareness",
+    "publish_story_to_feed",
     "rank_articles",
     "resolve_channel_sources",
     "sweep_telegram_news",

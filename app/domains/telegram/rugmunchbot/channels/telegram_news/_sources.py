@@ -112,6 +112,42 @@ _DEFAULT_CHANNELS: tuple[str, ...] = (
     "ArkhamIntel",  # Arkham — entity/alert intel [REVIEW: Contact preview, needs membership]
     "OnChainWizard",  # OnChain Wizard — alpha/on-chain [REVIEW: Contact preview, needs membership]
     "AltcoinDaily",  # Altcoin Daily — alpha/community [REVIEW: Contact preview, needs membership]
+    # ── Expansion batch 2026-08-16 (t.me preview probe; all resolve) ──────
+    # ── News outlets (batch) ──────────────────────────────────────────────
+    "thebitcoinnews",  # The Bitcoin News (View)
+    "altcoinbuzz",  # Altcoin Buzz — news/alpha (View)
+    "cryptopanic",  # CryptoPanic — news aggregator [REVIEW: Contact preview, needs membership]
+    "cryptonewscom",  # Cryptonews.com [REVIEW: Contact preview, needs membership]
+    # ── Security / exploit alerts (batch) ─────────────────────────────────
+    "BlockSecTeam",  # BlockSec — security alerts (View)
+    "halborn",  # Halborn — security audits/alerts (View)
+    "solidityfinance",  # Solidity Finance — audits + alerts (View)
+    "Hacken",  # Hacken — security audits (View)
+    "verichains",  # Verichains — security research (View)
+    "trmlabs",  # TRM Labs — crypto risk/security (View)
+    "EthereumSecurity",  # Ethereum Foundation security [REVIEW: Contact preview, needs membership]
+    "FuzzLandAlert",  # FuzzLand — exploit/rugpull alerts [REVIEW: Contact preview, needs membership]
+    "BeosinAlert",  # Beosin — security alerts [REVIEW: Contact preview, needs membership]
+    "hypernative",  # Hypernative — exploit monitoring [REVIEW: Contact preview, needs membership]
+    "openzeppelin",  # OpenZeppelin — security research [REVIEW: Contact preview, needs membership]
+    # ── DeFi / protocol channels (batch) ──────────────────────────────────
+    "arbitrum",  # Arbitrum Announcements Official (View)
+    "avax",  # AVAX — Avalanche official (View)
+    "zksync",  # ZKsync — official (View)
+    "starknet",  # Starknet community (View)
+    "aptos",  # Aptos — official (View)
+    "lidofinance",  # Lido Finance — staking/defi (View)
+    "chainlink",  # Chainlink — official (View)
+    "Uniswap",  # Uniswap — official [REVIEW: Contact preview, needs membership]
+    "Aave",  # Aave — official [REVIEW: Contact preview, needs membership]
+    "base",  # Base — official [REVIEW: Contact preview, needs membership]
+    "solana",  # Solana — official [REVIEW: Contact preview, needs membership]
+    # ── On-chain / alpha (batch) ──────────────────────────────────────────
+    "glassnode",  # Glassnode — on-chain analytics (View)
+    "cryptowhaletrades",  # Crypto Whale Trading — whale/on-chain (View)
+    "icodrops",  # ICO Drops — token launch/alpha (View)
+    "nansen_ai",  # Nansen — on-chain analytics [REVIEW: Contact preview, needs membership]
+    "chainfeeds",  # ChainFeeds — crypto research digest [REVIEW: Contact preview, needs membership]
     # ── Known-dead handles (2026-08-16 MTProto probe: "No user has X as username") ──
     # "wublockchain",  # Wu Blockchain — DEAD handle
     # "TheBlock__",  # The Block — DEAD handle
@@ -236,6 +272,18 @@ _CHANNEL_NEWS_KEYWORDS: tuple[str, ...] = (
     "slate",
     "guru",
     "watcher",
+    # Security/exploit alert signals — discovered security firms and exploit
+    # alert channels ("PeckShield Alert", "CertiK Alert", "BlockSec") would
+    # otherwise fall through to ``other`` and be dropped from the sweep.
+    "alert",
+    "alerts",
+    "security",
+    "exploit",
+    "exploits",
+    "intel",
+    "audit",
+    "phishing",
+    "breach",
 )
 
 
@@ -483,8 +531,9 @@ async def _fetch_page(url: str, timeout: float) -> str | None:
     Ladder (fail-open, never raises):
       1. **Direct** httpx GET with a browser-ish UA, bounded by *timeout*.
       2. **Rotating residential pool** (``app.databus.proxy_rotator``) when
-         ``WEBSHARE_PROXY_LIST`` is configured — NOT configured today, so this
-         tier is a no-op until the deployment provides the env (see [REVIEW]).
+         ``WEBSHARE_PROXY_LIST`` is configured (gopass ``webshare_proxy_list``
+         → env at deploy; absent → tier disabled → direct, fail-open). Retries
+         once on the next proxy after a failure, then falls through.
       3. **FlareSolverr** at ``FLARESOLVERR_URL`` for WAF-blocked fetches —
          the live fleet instance on ``127.0.0.1:8192``.
 
@@ -512,19 +561,24 @@ async def _fetch_page(url: str, timeout: float) -> str | None:
         return body
 
     # 2) Rotating residential pool — only active when the deployment sets
-    # WEBSHARE_PROXY_LIST (empty today → skipped, matches "no pool exists").
+    # WEBSHARE_PROXY_LIST (gopass webshare_proxy_list → env at deploy; absent
+    # → rotator disabled → skip, direct egress preserved). Cascade per
+    # app.databus.proxy_rotator: proxy → next proxy (once) → fall through to
+    # FlareSolverr. Credentials are never logged.
     try:
         from app.databus.proxy_rotator import get_proxy_rotator
 
         rotator = get_proxy_rotator()
         if rotator.enabled:
             proxy = rotator.get_rotating_proxy()
-            client = rotator.get_client(proxy=proxy)
-            response = await client.get(url, headers={"User-Agent": "rmi-news/1.0"})
-            if response.is_success and not _is_waf_block(response.status_code, response.text[:_OG_HTML_MAX_CHARS]):
-                return response.text[:_OG_HTML_MAX_CHARS]
-            if proxy is not None:
-                rotator.mark_failed(proxy)
+            attempts = 0
+            while proxy is not None and attempts < 2:
+                attempts += 1
+                client = rotator.get_client(proxy=proxy)
+                response = await client.get(url, headers={"User-Agent": "rmi-news/1.0"})
+                if response.is_success and not _is_waf_block(response.status_code, response.text[:_OG_HTML_MAX_CHARS]):
+                    return response.text[:_OG_HTML_MAX_CHARS]
+                proxy = rotator.next_after_failure(proxy)
     except Exception:
         logger.debug("tg_news:proxy_pool_fetch_failed url=%s", url[:120], exc_info=True)
 

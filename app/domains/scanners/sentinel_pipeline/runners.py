@@ -169,6 +169,17 @@ async def _run_cluster_analysis(token_address: str, chain: str, deployer: str | 
         return None
 
 
+async def _run_cross_token_link(token_address: str, chain: str, deployer: str | None) -> dict[str, Any] | None:
+    """Cross-token association engine — recurring clusters + serial launcher (fail-open)."""
+    try:
+        from app.domains.scanner.engines.own_cross_token_link import get_own_cross_token_link
+
+        return await get_own_cross_token_link(token_address, chain, deployer=deployer)
+    except Exception as exc:
+        logger.debug("cross_token_link_engine_failed: %s", exc)
+        return None
+
+
 async def _run_decentralization(
     token_address: str,
     chain: str,
@@ -283,6 +294,9 @@ async def run_sentinel_scan(
     coros["wallet_map"] = _run_wallet_map(token_address, chain, dev_address)
     # Funding-source clusters + coordinated-buy detection (own ClickHouse).
     coros["cluster_analysis"] = _run_cluster_analysis(token_address, chain, dev_address)
+    # Cross-token association: recurring clusters across prior launches +
+    # serial-launcher deployer link (own ClickHouse / knowledge graph).
+    coros["cross_token_link"] = _run_cross_token_link(token_address, chain, dev_address)
     # Deployer prior-token history timeline (needs the deployer address).
     if dev_address:
         coros["deployer_timeline"] = _run_deployer_timeline(dev_address, chain)
@@ -408,6 +422,7 @@ async def run_sentinel_scan(
         "wallet_map": "wallet_map",
         "deployer_timeline": "deployer_timeline",
         "cluster_analysis": "cluster_analysis",
+        "cross_token_link": "cross_token_link",
         "decentralization": "decentralization",
     }
 

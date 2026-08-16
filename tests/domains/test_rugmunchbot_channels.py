@@ -154,7 +154,33 @@ class TestNewsFormatter:
         )
         assert "<script>" not in text
         assert "&lt;script&gt;" in text
-        assert "x&amp;y" in text
+
+    def test_renders_ai_why_it_matters_per_story(self) -> None:
+        text = channels_formatters.format_news_post(
+            [
+                {
+                    "title": "Third bridge exploit this week",
+                    "source": "CoinDesk",
+                    "url": "https://example.com/a",
+                    "commentary": "this is the third exploit this week targeting the same bridge pattern",
+                },
+                {"title": "SOL breaks out", "source": "The Block", "url": "https://example.com/b"},
+            ]
+        )
+        assert "Third bridge exploit this week" in text
+        assert "💡" in text
+        assert "third exploit this week" in text
+        # Stories without commentary render no 💡 line.
+        assert text.count("💡") == 1
+
+    def test_escapes_commentary_content(self) -> None:
+        text = channels_formatters.format_news_post(
+            [{"title": "T", "source": "X", "url": "https://example.com/t", "commentary": "<script>alert(1)</script>"}]
+        )
+        # Commentary passes through _takeaway (strip_markup): tags are removed
+        # entirely, never rendered as raw HTML.
+        assert "<script>" not in text
+        assert "alert(1)" in text
 
 
 class TestBreakingFormatter:
@@ -186,6 +212,20 @@ class TestBreakingFormatter:
         assert "&lt;b&gt;evil&lt;/b&gt;" in text
         assert "x&amp;y" in text
         assert len(text) <= 4096  # Telegram soft limit
+
+    def test_renders_ai_why_it_matters_commentary(self) -> None:
+        text = channels_formatters.format_breaking_post(
+            {
+                "title": "SEC approves spot Bitcoin ETF",
+                "summary": "The agency green-lit the long-awaited product in a surprise move.",
+                "source": "CoinDesk",
+                "url": "https://coindesk.com/news/sec-approves-etf",
+                "commentary": "a spot ETF opens a regulated on-ramp for institutional capital",
+            }
+        )
+        assert "Why it matters" in text
+        assert "regulated on-ramp" in text
+        assert 'href="https://coindesk.com/news/sec-approves-etf"' in text
 
 
 class TestFeatureFormatter:
@@ -221,6 +261,14 @@ class TestFeatureFormatter:
         post = channels_formatters.format_feature_post({"title": "Lone story", "summary": "", "source": "X", "url": ""})
         assert "Lone story" in post
         assert post.image_url == ""
+
+    def test_renders_ai_why_it_matters_commentary(self) -> None:
+        item = self._item()
+        item["commentary"] = "this is the third exploit this week targeting the same bridge pattern"
+        post = channels_formatters.format_feature_post(item)
+        assert "Why it matters" in post
+        assert "third exploit this week" in post
+        assert "Institutions piled in all week." in post  # lede still renders
 
 
 class TestHybridFormatter:
