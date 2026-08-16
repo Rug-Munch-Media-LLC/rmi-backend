@@ -61,7 +61,8 @@ per-channel message reads are bounded by ``RMI_TG_NEWS_PER_CHANNEL_LIMIT``
 (default 30). When discovery is disabled, returns nothing, or the client is
 unavailable, the sweep falls back to the env-overridable explicit list
 ``RMI_TG_NEWS_CHANNELS`` (comma- or pipe-separated @handles), then to
-``_DEFAULT_CHANNELS`` (6 well-known public crypto-news channels; handles that
+``_DEFAULT_CHANNELS`` (33 curated high-signal public crypto-news channels —
+news outlets, security/exploit alerts, on-chain/alpha feeds; handles that
 repeatedly fail to resolve are commented out and auto-disabled by the ingest
 layer's per-channel cooldown). Several
 default handles carry ``[REVIEW]`` notes in ``app/databus/tg_channels.json``;
@@ -93,16 +94,27 @@ Four layers:
 
 Post variety
 ------------
-The news channel alternates between two post shapes:
+The news channel rotates post formats deterministically (by story count,
+shared topic, and a stable batch-parity signal — see
+:func:`_news_post_for`) instead of repeating the same digest every tick:
+
 * **Breaking solo** — when the top ranked story carries a breaking marker
   (🚨/BREAKING/URGENT/JUST IN/FLASH in its title,
   :func:`is_breaking_article`), it is posted immediately on its own with the
-  official link (:func:`format_breaking_post`) instead of waiting for the
-  next digest.
-* **Multi-story digest** — otherwise the top 3-5 stories (by rerank
-  importance, secondarily by the deterministic
-  :func:`lightweight_importance` score) are posted numbered in one digest
-  (:func:`format_news_post`).
+  official link (:func:`format_breaking_post`).
+* **Solo top-story card** — a single fresh story is posted as a ⭐ feature
+  card: rewritten title + one-line hook + longer lede with the story's image
+  attached when one exists (:func:`format_feature_post`).
+* **Themed roundup** — when ≥2 stories share a ``$TOKEN`` topic they form a
+  🧵 themed roundup (:func:`format_themed_post`).
+* **Top-3 hybrid / numbered digest** — otherwise the batch alternates
+  between the top-3 hybrid (lead card + image + short list,
+  :func:`format_hybrid_post`) and the full numbered digest
+  (:func:`format_news_post`) via a deterministic batch-parity signal.
+
+High-importance (≥0.7) stories route to the operator's @cryptorugmuncher
+channel and post **solo** — 🚨 breaking shape when the marker is present,
+otherwise the compelling ⭐ feature card — with the story's image attached.
 
 Importance
 ----------
@@ -185,7 +197,10 @@ from app.domains.news_ingest.ingest import (
 from app.domains.news_ingest.normalize import channel_message_to_article  # noqa: F401
 from app.domains.telegram.rugmunchbot.channels.formatters import (
     format_breaking_post,
+    format_feature_post,
+    format_hybrid_post,
     format_news_post,
+    format_themed_post,
 )
 from app.domains.telegram.rugmunchbot.channels.importance import (
     score_importance,  # noqa: F401
@@ -207,9 +222,12 @@ from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
     _TG_ARTICLE_KIND,  # noqa: F401
     _article_to_feed_item,  # noqa: F401
     _article_to_post_dict,  # noqa: F401
+    _batch_parity,  # noqa: F401
     _category_is_news,  # noqa: F401
+    _news_post_for,  # noqa: F401
     _redis_json_get,  # noqa: F401
     _redis_json_set,  # noqa: F401
+    _shared_topic,  # noqa: F401
     inject_into_news_cache,
     publish_market_awareness,
 )
@@ -275,7 +293,10 @@ __all__ = [
     "extract_image_url",
     "filter_seen_articles",
     "format_breaking_post",
+    "format_feature_post",
+    "format_hybrid_post",
     "format_news_post",
+    "format_themed_post",
     "ingest_into_rag",
     "inject_into_news_cache",
     "is_breaking_article",

@@ -21,6 +21,7 @@ Nothing here is synthesized: every value comes from the listed live source.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.data_resolver import backend_get_json
@@ -29,6 +30,33 @@ from app.domains.telegram.rugmunchbot.support.logging import get_logger
 logger = get_logger("rmi_bot.channels.content")
 
 _NEWS_WINDOW_HOURS = 168
+
+#: Scanner gate the backend applies before an item appears on
+#: ``/api/v1/launches/alerts`` (documented: tokens auto-scanned above 70/100
+#: risk). Used only to render the honest "condition met vs current" line.
+ALERT_RISK_THRESHOLD: int = 70
+
+
+def _image_url(value: Any) -> str:
+    """Pass through a usable http(s) image URL from a backend payload ("" else)."""
+    if isinstance(value, str) and value.strip().startswith(("http://", "https://")):
+        return value.strip()
+    return ""
+
+
+def _alert_condition(item: dict[str, Any]) -> str:
+    """One-line "condition met vs current" for a scanner alert item.
+
+    When the payload carries a numeric ``risk_score`` the line states the
+    current score against the documented alert threshold; otherwise it falls
+    back to the risk-level verdict. Pure string building — never raises.
+    """
+    risk_level = str(item.get("risk_level") or "unknown")
+    score = item.get("risk_score")
+    if score is not None:
+        with suppress(TypeError, ValueError):
+            return f"risk {float(score):.0f}/100 ≥ {ALERT_RISK_THRESHOLD} ({risk_level})"
+    return f"flagged {risk_level}"
 
 
 def _as_list(value: Any) -> list[dict[str, Any]]:
@@ -95,8 +123,10 @@ async def _collect_whale_watch_alerts(limit: int) -> list[dict[str, Any]]:
                 "token_symbol": str(payload.get("token_symbol") or "").strip(),
                 "title": str(payload.get("title") or "Whale move").strip(),
                 "body": str(payload.get("body") or "").strip(),
+                "summary": str(payload.get("body") or payload.get("summary") or "").strip(),
                 "chain": str(payload.get("chain") or "solana").strip(),
                 "source": str(payload.get("source") or "whale_watcher").strip(),
+                "image_url": _image_url(payload.get("image_url") or payload.get("image")),
             }
         )
     return moves
@@ -125,6 +155,7 @@ async def _fetch_smart_money(chain: str, limit: int) -> list[dict[str, Any]]:
             "pnl_usd": w.get("pnl_usd"),
             "realized_pnl": w.get("realized_pnl"),
             "chain": chain,
+            "image_url": _image_url(w.get("image_url") or w.get("image")),
         }
         for w in wallets[:limit]
         if isinstance(w, dict) and str(w.get("address") or "").strip()
@@ -148,9 +179,11 @@ async def _fetch_launches(chain: str, limit: int) -> list[dict[str, Any]]:
             "symbol": str(item.get("symbol") or "???").strip(),
             "chain": str(item.get("chain") or chain).strip(),
             "risk_level": str(item.get("risk_level") or "unknown").strip(),
+            "risk_flags": [str(f) for f in item.get("risk_flags")] if isinstance(item.get("risk_flags"), list) else [],
             "age_hours": item.get("age_hours"),
             "liquidity_usd": item.get("liquidity_usd") or item.get("liquidity"),
             "holders": item.get("holders"),
+            "image_url": _image_url(item.get("image_url") or item.get("image")),
         }
         for item in launches[:limit]
         if str(item.get("address") or "").strip()
@@ -214,6 +247,9 @@ async def fetch_risk_alerts(limit: int = 5) -> list[dict[str, Any]]:
                 "risk_score": item.get("risk_score"),
                 "risk_flags": [str(f) for f in flags][:6],
                 "title": str(item.get("title") or "").strip(),
+                "alert_type": str(item.get("alert_type") or "scanner").strip(),
+                "condition": _alert_condition(item),
+                "image_url": _image_url(item.get("image_url") or item.get("image")),
             }
         )
     return [a for a in normalized if a["address"]]

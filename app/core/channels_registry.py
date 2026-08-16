@@ -88,7 +88,7 @@ CHANNEL_ROLES: dict[str, ChannelRole] = {
         env_var="RMI_ALERTS_CHANNEL_ID",
         public_handle="@rmialerts",
         fallback="-1003818352164",
-        description="RMI Security — Rug Alerts & Exploits — high-severity alert surface",
+        description="RMI Security Alerts — rug pulls, exploits & high-severity threats (auto-escalated to main)",
     ),
     "alpha": ChannelRole(
         role="alpha",
@@ -104,7 +104,7 @@ CHANNEL_ROLES: dict[str, ChannelRole] = {
         env_var="RMI_SCANS_CHANNEL_ID",
         public_handle="@rmiscans",
         fallback="-1003937506770",
-        description="RMI Scanner - Suspicious Tokens — scanner results for suspicious tokens",
+        description="RMI Scanner — deep security reports on suspicious tokens (verdict + metrics + links)",
     ),
     "main": ChannelRole(
         role="main",
@@ -112,7 +112,7 @@ CHANNEL_ROLES: dict[str, ChannelRole] = {
         env_var="RMI_MAIN_CHANNEL_ID",
         public_handle="@cryptorugmuncher",
         fallback="-1002056885429",
-        description="Main (personal/curated) channel — critical-only broadcasts",
+        description="Main channel @cryptorugmuncher — top curated stories + high-importance escalations from news/alerts/alpha",
     ),
     "updates": ChannelRole(
         role="updates",

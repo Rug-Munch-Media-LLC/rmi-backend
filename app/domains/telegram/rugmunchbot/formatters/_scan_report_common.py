@@ -31,6 +31,7 @@ from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import _fmt_u
 __all__ = [
     "_clip",
     "_collapse_blank_lines",
+    "_fmt_market_value",
     "_key_metrics_rows",
     "_launch_intel_rows",
     "_lp_lock_pct",
@@ -116,6 +117,23 @@ def _fmt_num(value: Any, *, suffix: str = "") -> str:
         return "N/A"
 
 
+def _fmt_market_value(value: Any) -> str:
+    """USD string for the Market Data block — "—" when the value is absent.
+
+    Keep-it-honest rule: a provider that did not report a field renders as
+    "—", while a genuine 0 (delisted pair, no liquidity) renders as ``$0``.
+    """
+    if value is None:
+        return "\u2014"
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "\u2014"
+    if v == 0:
+        return "$0"
+    return _fmt_usd_amount(v)
+
+
 def _lp_lock_pct(r: dict[str, Any]) -> float | None:
     """LP lock percentage (0-100) from any source, or None.
 
@@ -171,19 +189,29 @@ def _freeze_auth(r: dict[str, Any]) -> bool | None:
 
 
 def _holders_count(r: dict[str, Any]) -> int | None:
-    """Total holder count from any source, or None."""
+    """Total holder count from any source, or None.
+
+    Probes every provider shape the scanners emit: the GMGN enrichment dict
+    (``holder_count`` — normalized by ``gmgn_enrich._normalize_holders``),
+    SENTINEL ``holder_analysis`` (``total_holders``), the legacy
+    ``holder_analysis`` dict and the flat ``holders`` key. A missing count
+    returns None (the formatter renders "—"/N/A) — never a fabricated 0.
+    """
+    gmgn_holders = (r.get("gmgn") or {}).get("holders") if isinstance(r.get("gmgn"), dict) else None
+    sentinel_free = (r.get("sentinel") or {}).get("free") if isinstance(r.get("sentinel"), dict) else None
+    sentinel_ha = sentinel_free.get("holder_analysis") if isinstance(sentinel_free, dict) else None
     for source in (
-        (r.get("gmgn") or {}).get("holders") if isinstance(r.get("gmgn"), dict) else None,
-        (r.get("sentinel") or {}).get("free", {}).get("holder_analysis")
-        if isinstance(r.get("sentinel"), dict)
-        else None,
+        gmgn_holders,
+        sentinel_ha,
         r.get("holder_analysis"),
     ):
-        if isinstance(source, dict) and source.get("total_holders") is not None:
-            try:
-                return int(float(source["total_holders"]))
-            except (TypeError, ValueError):
-                pass
+        if isinstance(source, dict):
+            raw = source.get("holder_count", source.get("total_holders"))
+            if raw is not None:
+                try:
+                    return int(float(raw))
+                except (TypeError, ValueError):
+                    pass
     try:
         holders = r.get("holders")
         return int(float(holders)) if holders is not None else None
@@ -256,7 +284,7 @@ def _key_metrics_rows(r: dict[str, Any], *, deep: bool = False) -> list[str]:
         else f"  Risk Score     {_risk_emoji(None)} <b>N/A</b>",
     ]
     liquidity = r.get("liquidity_usd") or r.get("liquidity")
-    rows.append(f"  Liquidity      <b>{_fmt_usd_amount(liquidity)}</b>")
+    rows.append(f"  Liquidity      <b>{_fmt_market_value(liquidity)}</b>")
     holders = _holders_count(r)
     rows.append(f"  Holders        <b>{holders:,}</b>" if holders is not None else "  Holders        <b>N/A</b>")
 

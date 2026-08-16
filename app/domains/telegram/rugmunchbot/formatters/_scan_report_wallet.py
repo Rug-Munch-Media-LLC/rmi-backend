@@ -10,7 +10,7 @@ import contextlib
 import html
 from typing import Any
 
-from app.domains.telegram.rugmunchbot.formatters._base import thin_sep
+from app.domains.telegram.rugmunchbot.formatters._base import explorer_url, thin_sep
 from app.domains.telegram.rugmunchbot.formatters._scan_report_common import _short_addr
 from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import _deployer_history_line
 
@@ -42,9 +42,15 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
     lines.append("\U0001f468\u200d\U0001f4bb <b>Deployer</b>")
     lines.append(d)
 
-    # Deployer address (always shown)
-    if deployer_addr and deployer_addr != "unknown":
+    # Deployer address (always shown) + block-explorer link when resolved.
+    if deployer_addr and str(deployer_addr).lower() not in ("unknown", "null", "none"):
         lines.append(f"  \U0001f464 Address: <code>{html.escape(str(deployer_addr))}</code>")
+        with contextlib.suppress(ValueError, TypeError):
+            # malformed address/chain — keep the address, drop the link
+            lines.append(
+                f'  \U0001f50d <a href="{html.escape(explorer_url(str(deployer_addr), chain), quote=True)}">'
+                "Explorer</a>"
+            )
     else:
         lines.append("  \U0001f464 Address: <i>unknown</i>")
 

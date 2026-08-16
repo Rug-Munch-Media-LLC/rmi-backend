@@ -27,6 +27,7 @@ from app.domains.telegram.rugmunchbot.channels import (
     formatters as channels_formatters,
     scheduler as channels_scheduler,
 )
+from app.domains.telegram.rugmunchbot.channels.importance import ScoredArticle
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +58,35 @@ def _ctx() -> tuple[Mock, AsyncMock]:
     ctx = Mock()
     ctx.bot = bot
     return ctx, bot
+
+
+def _stub_scorer(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    fallback: bool = False,
+    scores: list[float] | None = None,
+) -> None:
+    """Patch ``channels_scheduler.score_importance`` with a deterministic stub.
+
+    Mirrors the real scorer's contract: one ``ScoredArticle`` per input
+    article, ``fallback=True`` meaning the reranker is down (the channel keeps
+    its full window, like ``select_important``'s fail-open fallback). Avoids
+    any network attempt at Infinity /rerank in tests.
+    """
+
+    async def _fake(articles: list[Any], focus_keywords: Any = None) -> list[ScoredArticle]:
+        values = [0.5] * len(articles) if scores is None else list(scores)
+        return [
+            ScoredArticle(
+                article=article,
+                importance=float(values[i]) if i < len(values) else 0.5,
+                best_query="stub",
+                fallback=fallback,
+            )
+            for i, article in enumerate(articles)
+        ]
+
+    monkeypatch.setattr(channels_scheduler, "score_importance", _fake)
 
 
 # ── Channel resolution ────────────────────────────────────────────────────
@@ -158,6 +188,105 @@ class TestBreakingFormatter:
         assert len(text) <= 4096  # Telegram soft limit
 
 
+class TestFeatureFormatter:
+    """Solo ⭐ top-story card: rewritten title + one-line hook + lede + image."""
+
+    def _item(self) -> dict[str, Any]:
+        return {
+            "title": "BTC rips to a new all-time high as ETF inflows surge",
+            "summary": "Bitcoin crossed $120k for the first time. Institutions piled in all week.",
+            "source": "CoinDesk",
+            "url": "https://coindesk.com/news/btc-ath",
+            "canonical_url": "https://coindesk.com/news/btc-ath",
+            "image_url": "https://img.coindesk.com/btc.jpg",
+        }
+
+    def test_renders_hook_and_longer_lede_not_bare_link(self) -> None:
+        text = channels_formatters.format_feature_post(self._item())
+        assert "Top Story" in text
+        assert "BTC rips to a new all-time high" in text
+        assert 'href="https://coindesk.com/news/btc-ath"' in text
+        # One-line hook = first sentence; longer lede = the rest.
+        assert "Bitcoin crossed $120k for the first time." in text
+        assert "Institutions piled in all week." in text
+        assert "CoinDesk" in text
+        assert "@RugMunchBot" in text  # footer
+
+    def test_carries_image_url(self) -> None:
+        post = channels_formatters.format_feature_post(self._item())
+        assert post.image_url == "https://img.coindesk.com/btc.jpg"
+        assert isinstance(post, str)
+
+    def test_no_image_no_hook_falls_back_gracefully(self) -> None:
+        post = channels_formatters.format_feature_post({"title": "Lone story", "summary": "", "source": "X", "url": ""})
+        assert "Lone story" in post
+        assert post.image_url == ""
+
+
+class TestHybridFormatter:
+    """Top-3 hybrid: lead card (image + hook) + short numbered rest."""
+
+    def _items(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "title": "Lead story",
+                "summary": "First sentence of the lead. More detail here.",
+                "source": "CoinDesk",
+                "url": "https://example.com/lead",
+                "canonical_url": "https://example.com/lead",
+                "image_url": "https://example.com/lead.jpg",
+            },
+            {"title": "Second story", "source": "The Block", "url": "https://example.com/2"},
+            {"title": "Third story", "source": "The Block", "url": "https://example.com/3"},
+        ]
+
+    def test_renders_lead_card_then_numbered_rest(self) -> None:
+        text = channels_formatters.format_hybrid_post(self._items())
+        assert "RugMunch News" in text  # hybrid keeps the channel header
+        assert "Lead story" in text
+        assert 'href="https://example.com/lead"' in text  # lead links to canonical source
+        assert "First sentence of the lead." in text  # one-line hook
+        assert "More:" in text
+        assert "Second story" in text
+        assert "Third story" in text
+
+    def test_carries_lead_image(self) -> None:
+        post = channels_formatters.format_hybrid_post(self._items())
+        assert post.image_url == "https://example.com/lead.jpg"
+
+
+class TestThemedFormatter:
+    """🧵 themed roundup: one topic label over numbered, source-cited items."""
+
+    def test_renders_theme_roundup_with_image(self) -> None:
+        items = [
+            {
+                "title": "$BTC ETF inflows hit a record",
+                "summary": "Institutions piled into $BTC funds.",
+                "source": "CoinDesk",
+                "url": "https://example.com/1",
+                "image_url": "https://example.com/btc.jpg",
+            },
+            {"title": "$BTC whale moves 5k coins", "source": "The Block", "url": "https://example.com/2"},
+        ]
+        post = channels_formatters.format_themed_post(items, theme="BTC")
+        assert "BTC Roundup" in post
+        assert "$BTC ETF inflows hit a record" in post
+        assert "$BTC whale moves 5k coins" in post
+        assert 'href="https://example.com/1"' in post  # items keep canonical source links
+        assert "Institutions piled into" in post  # one-line takeaway per story
+        assert post.image_url == "https://example.com/btc.jpg"
+        assert "@RugMunchBot" in post
+
+    def test_escapes_theme_label(self) -> None:
+        post = channels_formatters.format_themed_post(
+            [{"title": "T", "source": "X", "url": ""}],
+            theme="<script>",
+        )
+        assert "<script>" not in post
+        assert "&lt;script&gt;" in post
+
+
 class TestAlertsFormatter:
     def test_renders_risk_digest_with_scan_links(self) -> None:
         text = channels_formatters.format_alerts_post(
@@ -180,9 +309,82 @@ class TestAlertsFormatter:
         assert "honeypot" in text
         assert "85" in text
 
+    def test_renders_alert_type_condition_verdict_and_chart_link(self) -> None:
+        text = channels_formatters.format_alerts_post(
+            [
+                {
+                    "name": "Rug Token",
+                    "symbol": "RUG",
+                    "address": "0xabc123",
+                    "chain": "ethereum",
+                    "risk_level": "high",
+                    "risk_score": 85,
+                    "risk_flags": ["honeypot", "lp_removed"],
+                    "alert_type": "scanner",
+                    "condition": "risk 85/100 ≥ 70 (high)",
+                }
+            ]
+        )
+        assert "Scanner Alert" in text  # alert type
+        assert "Condition met: risk 85/100 ≥ 70 (high)" in text  # met vs current
+        assert "Why it matters" in text  # one-line verdict
+        assert "honeypot — sells can be blocked after buying" in text
+        assert "gmgn.ai" in text  # chart deep link
+        assert "rugmunch.io/scanner" in text  # scan deep link
+
+    def test_alert_verdict_known_flag_first(self) -> None:
+        assert "honeypot" in channels_formatters.alert_verdict({"risk_flags": ["honeypot"]})
+        assert "LP removed" in channels_formatters.alert_verdict({"risk_flags": ["lp_removed"]})
+        assert "flagged by the RugMunch scanner" in channels_formatters.alert_verdict({"risk_flags": ["zzz"]})
+
     def test_empty_state_is_honest(self) -> None:
         text = channels_formatters.format_alerts_post([])
         assert "No new high-risk tokens" in text
+
+
+class TestMainEscalationFormatter:
+    def test_renders_high_signal_card_with_condition_and_verdict(self) -> None:
+        post = channels_formatters.format_main_escalation(
+            {
+                "name": "Bridge Drain",
+                "symbol": "BRDG",
+                "address": "0xexploit1",
+                "chain": "ethereum",
+                "risk_level": "critical",
+                "risk_flags": ["exploit", "drained"],
+                "condition": "risk 98/100 ≥ 70 (critical)",
+                "image_url": "https://img.example.com/drain.jpg",
+            }
+        )
+        assert "HIGH SIGNAL" in post
+        assert "Bridge Drain" in post
+        assert "0xexploit1" in post
+        assert "Condition met" in post  # headline link goes to the scanner page
+        assert "Why it matters" in post
+        assert "rugmunch.io/scanner" in post
+        assert post.image_url == "https://img.example.com/drain.jpg"
+        assert "@RugMunchBot" in post  # footer
+
+    def test_alpha_whale_card_uses_summary_as_verdict(self) -> None:
+        post = channels_formatters.format_main_escalation(
+            {
+                "title": "Whale: 50k SOL moved",
+                "token_address": "So11111111111111111111111111111111111111112",
+                "chain": "solana",
+                "summary": "A dormant whale moved 50,000 SOL to a fresh wallet.",
+            }
+        )
+        assert "HIGH SIGNAL" in post
+        assert "Whale: 50k SOL moved" in post
+        assert "A dormant whale moved 50,000 SOL" in post
+        assert "gmgn.ai" in post  # chart link built from token_address
+
+    def test_escapes_user_content(self) -> None:
+        post = channels_formatters.format_main_escalation(
+            {"name": "<script>evil</script>", "symbol": "X", "address": "", "risk_flags": []}
+        )
+        assert "<script>" not in post
+        assert "&lt;script&gt;" in post
 
 
 class TestAlphaFormatter:
@@ -210,6 +412,31 @@ class TestAlphaFormatter:
         assert "/scan" in text
         assert "Smart Whale" in text
         assert "NewCoin" in text
+
+    def test_renders_verdict_and_actionable_links(self) -> None:
+        post = channels_formatters.format_alpha_post([self._whale()], [], [self._launch()])
+        # Launch verdict + whale chart link (built from token_address).
+        assert "low scan verdict" in post
+        assert "gmgn.ai" in post
+        assert "rugmunch.io/scanner" in post
+        # Smart-money wallet explorer for a solana wallet.
+        text = channels_formatters.format_alpha_post([], [self._smart()], [])
+        assert "solscan.io/account/abc123wallet" in text
+
+    def test_alpha_post_carries_image_when_available(self) -> None:
+        post = channels_formatters.format_alpha_post(
+            [
+                {
+                    "token_address": "w",
+                    "title": "Whale move",
+                    "chain": "solana",
+                    "image_url": "https://img.example.com/w.jpg",
+                }
+            ],
+            [],
+            [],
+        )
+        assert post.image_url == "https://img.example.com/w.jpg"
 
     def test_empty_sections_are_omitted_not_invented(self) -> None:
         text = channels_formatters.format_alpha_post([], [], [])
@@ -286,6 +513,7 @@ class TestContentFetchers:
                             "risk_score": 92,
                             "risk_flags": ["honeypot"],
                             "security": {"mintable": True, "lp_locked": False},
+                            "image_url": "https://img.example.com/bad.jpg",
                         }
                     ]
                 }
@@ -296,6 +524,11 @@ class TestContentFetchers:
         assert "honeypot" in alerts[0]["risk_flags"]
         assert "mintable" in alerts[0]["risk_flags"]
         assert "lp_locked" not in alerts[0]["risk_flags"]
+        # Curated-card fields the formatter renders (alert type, condition met
+        # vs current, image passthrough).
+        assert alerts[0]["alert_type"] == "scanner"
+        assert alerts[0]["condition"] == "risk 92/100 ≥ 70 (critical)"
+        assert alerts[0]["image_url"] == "https://img.example.com/bad.jpg"
 
 
 # ── Scheduler ─────────────────────────────────────────────────────────────
@@ -327,6 +560,8 @@ class TestPostingJobs:
 
     async def test_alpha_job_sends_composed_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
         ctx, bot = _ctx()
+        # Reranker down (fallback=True) → the digest keeps its full window.
+        _stub_scorer(monkeypatch, fallback=True)
         with patch.object(
             channels_scheduler,
             "fetch_alpha_content",
@@ -341,6 +576,84 @@ class TestPostingJobs:
             assert await channels_scheduler.post_alpha_update(ctx) == 1
         bot.send_message.assert_awaited_once()
         assert "Whale Moves" in bot.send_message.await_args.kwargs["text"]
+
+    async def test_alerts_job_escapes_reranker_fallback_keeps_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        _stub_scorer(monkeypatch, fallback=True)
+        item = {
+            "address": "0xbad1",
+            "name": "Rug Token",
+            "symbol": "RUG",
+            "chain": "ethereum",
+            "risk_level": "high",
+            "risk_score": 85,
+            "risk_flags": ["honeypot"],
+        }
+        with patch.object(channels_scheduler, "fetch_risk_alerts", new=AsyncMock(return_value=[item])):
+            assert await channels_scheduler.post_alert_update(ctx) == 1
+        bot.send_message.assert_awaited_once()
+        assert "Risk Alerts" in bot.send_message.await_args.kwargs["text"]
+
+    async def test_alerts_job_gates_below_floor_in_rerank_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        _stub_scorer(monkeypatch, fallback=False, scores=[0.1])
+        item = {"address": "0xlow1", "name": "Noise", "symbol": "NOI", "risk_level": "low"}
+        with patch.object(channels_scheduler, "fetch_risk_alerts", new=AsyncMock(return_value=[item])):
+            assert await channels_scheduler.post_alert_update(ctx) == 0
+        bot.send_message.assert_not_awaited()
+
+    async def test_alerts_job_escalates_high_importance_to_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        # ≥0.7 (route_news main gate) → alerts digest AND solo main card.
+        _stub_scorer(monkeypatch, fallback=False, scores=[0.92])
+        item = {
+            "address": "0xexploit1",
+            "name": "Bridge Drain",
+            "symbol": "BRDG",
+            "chain": "ethereum",
+            "risk_level": "critical",
+            "risk_score": 98,
+            "risk_flags": ["exploit", "drained"],
+            "condition": "risk 98/100 ≥ 70 (critical)",
+        }
+        with patch.object(channels_scheduler, "fetch_risk_alerts", new=AsyncMock(return_value=[item])):
+            assert await channels_scheduler.post_alert_update(ctx) == 2
+        assert bot.send_message.await_count == 2
+        texts = [call.kwargs["text"] for call in bot.send_message.await_args_list]
+        assert any("Risk Alerts" in t for t in texts)
+        assert any("HIGH SIGNAL" in t for t in texts)
+
+    async def test_alpha_job_escalates_high_importance_to_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        _stub_scorer(monkeypatch, fallback=False, scores=[0.8])
+        with patch.object(
+            channels_scheduler,
+            "fetch_alpha_content",
+            new=AsyncMock(
+                return_value={
+                    "whale_moves": [{"token_address": "w", "title": "Whale: 50k SOL moved", "chain": "solana"}],
+                    "smart_money": [],
+                    "launches": [],
+                }
+            ),
+        ):
+            assert await channels_scheduler.post_alpha_update(ctx) == 2
+        assert bot.send_message.await_count == 2
+        texts = [call.kwargs["text"] for call in bot.send_message.await_args_list]
+        assert any("Alpha Feed" in t for t in texts)
+        assert any("HIGH SIGNAL" in t for t in texts)
+
+    async def test_alpha_job_skips_when_channel_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        ctx, bot = _ctx()
+        monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: None)
+        _stub_scorer(monkeypatch, fallback=True)
+        with patch.object(
+            channels_scheduler,
+            "fetch_alpha_content",
+            new=AsyncMock(return_value={"whale_moves": [], "smart_money": [], "launches": []}),
+        ):
+            assert await channels_scheduler.post_alpha_update(ctx) == 0
+        bot.send_message.assert_not_awaited()
 
     async def test_safe_send_returns_false_on_telegram_error(self) -> None:
         bot = AsyncMock()

@@ -44,6 +44,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import html
+import os
 import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -257,6 +258,277 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+#: DexScreener timeframe keys we actually surface (priceChange m1/m5/h1/h6/h24,
+#: volume m5/h1/h6/h24). DexScreener exposes no 7d window — those stay honest
+#: "—" unless a provider reports them.
+_DS_PRICE_CHANGE_TFS = ("m1", "m5", "h1", "h6", "h24")
+_DS_VOLUME_TFS = ("m5", "h1", "h6", "h24")
+
+
+def _ds_timeframe_map(raw: Any, allowed: tuple[str, ...]) -> dict[str, float | None]:
+    """Extract a per-timeframe numeric map from a DexScreener sub-dict.
+
+    Returns only the timeframes DexScreener actually provides (``allowed``);
+    each value is a float when the payload carried a number, else None — a
+    missing timeframe is NEVER coerced to 0.0 (keep-it-honest rule).
+    """
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, float | None] = {}
+    for tf in allowed:
+        v = raw.get(tf)
+        try:
+            out[tf] = float(v) if v is not None else None
+        except (TypeError, ValueError):
+            out[tf] = None
+    return out
+
+
+def _ds_market_snapshot(pairs: Any) -> dict[str, Any]:
+    """Best-pair market snapshot from a DexScreener ``pairs`` list.
+
+    Picks the pair with the highest non-zero liquidity (ties broken by 24h
+    volume) — DexScreener returns many pairs per token and ``pairs[0]`` is
+    often a pump.fun bonding-curve pair with ``liquidity.usd: 0``, which is
+    why the report showed ``Liquidity: $0`` for normal tokens. Returns the
+    snapshot with honest ``None`` for fields the pair data lacks::
+
+        {
+            "liquidity": float | None,
+            "volume_24h": float | None,
+            "market_cap": float | None,
+            "price": float | None,
+            "pair_address": str,
+            "dex": str,
+            "created_at": int | None,
+            "volume_tf": {"h1": float|None, "h6": ..., "h24": ...},
+            "price_change_tf": {"h1": ..., "h6": ..., "h24": ...},
+        }
+
+    Returns an empty dict when there are no usable pairs (callers treat an
+    empty dict as "no market data" and keep their existing fallbacks).
+    """
+    if not isinstance(pairs, list):
+        return {}
+    best: dict[str, Any] | None = None
+    best_score = (-1.0, 0.0)
+    for pair in pairs:
+        if not isinstance(pair, dict):
+            continue
+        liq = _safe_float((pair.get("liquidity") or {}).get("usd"))
+        vol = _safe_float((pair.get("volume") or {}).get("h24"))
+        score = (liq, vol)
+        if score > best_score:
+            best_score = score
+            best = pair
+    if best is None:
+        return {}
+    base = best.get("baseToken") or {}
+    return {
+        "liquidity": best_score[0] if best_score[0] > 0 else None,
+        "volume_24h": _safe_float((best.get("volume") or {}).get("h24")) or None,
+        "market_cap": _safe_float(best.get("marketCap") or best.get("fdv")) or None,
+        "price": _safe_float(best.get("priceUsd")) or None,
+        "pair_address": best.get("pairAddress", "") or "",
+        "dex": best.get("dexId", "") or "",
+        "created_at": best.get("pairCreatedAt"),
+        "symbol": (base.get("symbol") or "") if isinstance(base, dict) else "",
+        "volume_tf": _ds_timeframe_map(best.get("volume"), _DS_VOLUME_TFS),
+        "price_change_tf": _ds_timeframe_map(best.get("priceChange"), _DS_PRICE_CHANGE_TFS),
+    }
+
+
+def _merge_market_snapshot(result: dict[str, Any], snap: dict[str, Any]) -> None:
+    """Merge a DexScreener market snapshot into a legacy scan result.
+
+    Fills the report's Market Data keys from real pair data, never
+    overwriting values the primary scan already provided (the v2 backend /
+    oracle win; DexScreener only tops up gaps). Timeframe volume/price-change
+    are stored under ``volume_1h/6h/24h`` + ``price_change_1h/6h/24h`` so the
+    formatter can render multi-timeframe figures. Missing fields stay None —
+    the formatter renders "—", never a fabricated 0.
+    """
+    if not isinstance(snap, dict) or not snap:
+        return
+    if not result.get("liquidity") and snap.get("liquidity"):
+        result["liquidity"] = snap["liquidity"]
+    if not result.get("volume_24h") and snap.get("volume_24h"):
+        result["volume_24h"] = snap["volume_24h"]
+    if not result.get("mcap") and snap.get("market_cap"):
+        result["mcap"] = snap["market_cap"]
+    if not result.get("price") and snap.get("price"):
+        result["price"] = snap["price"]
+    # DexScreener timeframe keys are h1/h6/h24; the report reads 1h/6h/24h.
+    tf_to_report = {"h1": "1h", "h6": "6h", "h24": "24h"}
+    for tf, report_tf in tf_to_report.items():
+        vol = (snap.get("volume_tf") or {}).get(tf)
+        if vol is not None:
+            result[f"volume_{report_tf}"] = vol
+        pc = (snap.get("price_change_tf") or {}).get(tf)
+        if pc is not None:
+            result[f"price_change_{report_tf}"] = pc
+    # m1/m5 price change is too noisy for the Market Data block — keep the
+    # mapping complete under ``price_change_min`` for any consumer that wants
+    # the finer windows.
+    for tf in ("m1", "m5"):
+        pc = (snap.get("price_change_tf") or {}).get(tf)
+        if pc is not None:
+            result.setdefault("price_change_min", {})[tf] = pc
+    if not result.get("pair_address") and snap.get("pair_address"):
+        result["pair_address"] = snap["pair_address"]
+    if not result.get("dex") and snap.get("dex"):
+        result["dex"] = snap["dex"]
+
+
+# ── Deployer + socials resolution (scan report Deployer / Socials blocks) ──
+# The free-tier v2 scan does NOT run the backend deployer module, so the
+# report used to render "Deployer: Address: unknown" and "NO SOCIALS" even
+# when DexScreener / Birdeye / the SENTINEL metadata fingerprint carried the
+# data. These helpers resolve both from the real sources, fail-open, and
+# never fabricate: no address → still "unknown", no links → still "NO SOCIALS".
+
+#: Deployer address sentinel values that mean "we genuinely don't know".
+_EMPTY_ADDR = {"", "unknown", "null", "none", "0x", "0x0"}
+
+
+def _extract_pair_intel(pair: dict[str, Any]) -> tuple[str, dict[str, str]]:
+    """Extract ``(creator_address, socials)`` from one DexScreener pair.
+
+    Creator: ``creatorAddress`` (canonical DexScreener field, same one the
+    backend SENTINEL resolver reads) then ``creator``. Socials: the pair
+    ``info.socials`` list (twitter/telegram/…) plus ``info.websites`` mapped
+    to the ``website`` key. Also accepts the ``baseToken.info`` nesting some
+    payloads use. Real data only — every value is stripped and validated.
+    """
+    creator = ""
+    raw_creator = pair.get("creatorAddress") or pair.get("creator")
+    if isinstance(raw_creator, str) and raw_creator.strip().lower() not in _EMPTY_ADDR:
+        creator = raw_creator.strip()
+
+    socials: dict[str, str] = {}
+
+    def _merge_info(info: Any) -> None:
+        if not isinstance(info, dict):
+            return
+        for s in info.get("socials") or []:
+            if not isinstance(s, dict):
+                continue
+            stype = str(s.get("type") or "").strip().lower()
+            surl = str(s.get("url") or "").strip()
+            if stype and surl:
+                socials[stype] = surl
+        for w in info.get("websites") or []:
+            if not isinstance(w, dict):
+                continue
+            wurl = str(w.get("url") or "").strip()
+            if wurl:
+                socials.setdefault("website", wurl)
+
+    _merge_info(pair.get("info"))
+    base = pair.get("baseToken")
+    if isinstance(base, dict):
+        _merge_info(base.get("info"))
+    return creator, socials
+
+
+async def _birdeye_creator(address: str, chain: str) -> str:
+    """Best-effort Birdeye ``token_overview`` ``creator`` (Solana, key-gated).
+
+    Returns "" when no ``BIRDEYE_API_KEY`` is configured, the payload is
+    missing, or the lookup fails — never raises. Only a value that looks like
+    a real address (32+ chars, not a sentinel) is returned.
+    """
+    key = os.getenv("BIRDEYE_API_KEY", "").strip()
+    if not key:
+        return ""
+    try:
+        body = await http_get_json(
+            "https://public-api.birdeye.so/defi/token_overview",
+            params={"address": address},
+            headers={"X-API-KEY": key, "x-chain": chain or "solana"},
+            timeout=6.0,
+        )
+        data = body.get("data") if isinstance(body, dict) else None
+        if isinstance(data, dict):
+            creator = str(data.get("creator") or "").strip()
+            if len(creator) >= 32 and creator.lower() not in _EMPTY_ADDR:
+                return creator
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+        logger.debug("birdeye_creator_failed", exc_info=True)
+    return ""
+
+
+async def _supplement_deployer_socials(
+    result: dict[str, Any],
+    address: str,
+    chain: str = "",
+) -> dict[str, Any]:
+    """Fill the report's market data, deployer address + socials from real sources.
+
+    Best-effort + fail-open (never raises). Resolution order:
+
+      1. DexScreener pair payload — the best-pair market snapshot (liquidity,
+         multi-timeframe volume/price change — see ``_ds_market_snapshot``),
+         ``creatorAddress``/``creator`` and the pair ``info`` socials/websites.
+      2. Birdeye ``token_overview.creator`` (Solana, only when an API key is
+         set and DexScreener had no creator).
+
+    The backend v2 evidence (``deployer_address`` / ``dev_wallet``) and the
+    SENTINEL metadata-fingerprint ``creator`` are already merged by
+    ``v2_token_to_legacy``/``_flatten_v2`` — this only fills what those left
+    empty. Existing values are never clobbered. Mutates and returns ``result``.
+    """
+    has_deployer = bool(result.get("deployer_address") or result.get("dev_wallet"))
+    socials = result.get("socials") if isinstance(result.get("socials"), dict) else {}
+
+    chain_norm = chain or str(result.get("chain") or "") or _detect_chain(address)
+    creator = ""
+    pair_socials: dict[str, str] = {}
+
+    try:
+        body = await http_get_json(f"{DEXSCREENER}/tokens/{address}", timeout=8.0)
+        pairs = (body or {}).get("pairs") if isinstance(body, dict) else None
+        if isinstance(pairs, list) and pairs:
+            # Market backfill ALWAYS runs (the report's Market Data block must
+            # show real liquidity / timeframe volume / price change even when
+            # the v2 backend already resolved the deployer). Uses the
+            # best-pair snapshot — ``pairs[0]`` is often a pump.fun bonding
+            # curve pair with zero liquidity, which is why the report showed
+            # ``Liquidity: $0`` for normal tokens.
+            _merge_market_snapshot(result, _ds_market_snapshot(pairs))
+            p = pairs[0]
+            pair_creator, pair_socials = _extract_pair_intel(p)
+            if not has_deployer and pair_creator:
+                creator = pair_creator
+            if not result.get("chain"):
+                result["chain"] = p.get("chainId") or chain_norm
+            if not result.get("name") or result.get("name") in ("Unknown", "???"):
+                bt = p.get("baseToken") or {}
+                if not result.get("name"):
+                    result["name"] = bt.get("name") or "Unknown"
+                if not result.get("symbol"):
+                    result["symbol"] = bt.get("symbol") or "???"
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+        logger.debug("deployer_socials_dexscreener_failed", exc_info=True)
+
+    if not creator and not has_deployer and (chain_norm or "").lower() == "solana":
+        creator = await _birdeye_creator(address, chain_norm)
+
+    creator = (creator or "").strip()
+    if creator and not has_deployer:
+        # Real address only — never fabricate when genuinely unavailable.
+        result["deployer_address"] = creator
+        if not result.get("dev_wallet"):
+            result["dev_wallet"] = creator
+
+    if pair_socials:
+        merged = dict(socials)
+        merged.update(pair_socials)
+        result["socials"] = merged
+
+    return result
+
+
 async def _token_meta_dict(address: str, chain: str, symbol: str = "") -> dict[str, Any]:
     """Resolve the token identity block through the cached ``token_meta`` tool.
 
@@ -345,6 +617,19 @@ def _flatten_v2(body: dict[str, Any], address: str, chain: str) -> dict[str, Any
     if not isinstance(wallet_metrics, dict):
         wallet_metrics = {}
 
+    # Deployer address: backend dev-reputation evidence first, then the
+    # SENTINEL metadata-fingerprint ``creator`` (Pump.fun — free tier runs
+    # this module even when the deployer reputation module does not).
+    dev = evidence.get("deployer")
+    if not isinstance(dev, dict):
+        dev = {}
+    deployer_addr = str(dev.get("deployer_address") or dev.get("address") or "").strip()
+    if not deployer_addr or deployer_addr.lower() in _EMPTY_ADDR:
+        mf = free.get("metadata_fingerprint") if isinstance(free, dict) else None
+        if isinstance(mf, dict):
+            deployer_addr = str(mf.get("creator") or "").strip()
+    deployer_addr = deployer_addr if deployer_addr.lower() not in _EMPTY_ADDR else ""
+
     safety = _safe_float(body.get("safety_score"))
     risk_score = round(100.0 - safety, 2)
 
@@ -407,6 +692,11 @@ def _flatten_v2(body: dict[str, Any], address: str, chain: str) -> dict[str, Any
         },
         # Deployer intel
         "deployer_profile": body.get("deployer_profile"),
+        "deployer_address": deployer_addr or None,
+        "dev_wallet": deployer_addr or None,
+        # Socials (dict of type -> url; empty when the backend carries none —
+        # the caller's DexScreener supplement fills them from pair ``info``).
+        "socials": body.get("socials") if isinstance(body.get("socials"), dict) else {},
         # Market
         "price_usd": body.get("price_usd"),
         "market_cap_usd": body.get("market_cap_usd"),
@@ -508,6 +798,9 @@ def _flatten_dexscreener(address: str, chain: str) -> dict[str, Any]:
         "holder_overlap": None,
         "liquidity_verification": None,
         "deployer_profile": None,
+        "deployer_address": None,
+        "dev_wallet": None,
+        "socials": {},
         "price_usd": None,
         "market_cap_usd": None,
         "liquidity_usd": None,
@@ -531,15 +824,18 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
         "chain": chain or detect_chain(address),
         "name": "Unknown",
         "symbol": "???",
-        "price": 0,
-        "mcap": 0,
-        "fdv": 0,
-        "volume_24h": 0,
-        "liquidity": 0,
-        "price_change_1h": 0,
-        "price_change_24h": 0,
-        "price_change_7d": 0,
-        "holders": 0,
+        "price": None,
+        "mcap": None,
+        "fdv": None,
+        "volume_24h": None,
+        "liquidity": None,
+        "price_change_1h": None,
+        "price_change_6h": None,
+        "price_change_24h": None,
+        "price_change_7d": None,
+        "volume_1h": None,
+        "volume_6h": None,
+        "holders": None,
         "pair_address": "",
         "dex": "",
         "created_at": None,
@@ -575,28 +871,42 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
             data = r.json()
             pairs = data.get("pairs", [])
             if pairs:
+                # Best-pair snapshot: DexScreener returns many pairs per token
+                # and ``pairs[0]`` is often a pump.fun bonding-curve pair with
+                # zero liquidity — pick the pair with the most liquidity and
+                # surface every real market field (see _ds_market_snapshot).
+                snap = _ds_market_snapshot(pairs)
                 p = pairs[0]
                 result["name"] = p.get("baseToken", {}).get("name", "Unknown")
-                result["symbol"] = p.get("baseToken", {}).get("symbol", "???")
+                result["symbol"] = snap.get("symbol") or p.get("baseToken", {}).get("symbol", "???")
                 # Null-safe numeric coercion: a null priceUsd (delisted /
                 # no-pair payloads) must never crash the scan reply.
-                result["price"] = _safe_float(p.get("priceUsd"))
-                result["mcap"] = _safe_float(p.get("marketCap") or p.get("fdv") or 0)
-                result["fdv"] = _safe_float(p.get("fdv") or result["mcap"])
-                vol = p.get("volume", {})
-                result["volume_24h"] = _safe_float(vol.get("h24") or 0)
-                liq = p.get("liquidity", {})
-                result["liquidity"] = _safe_float(liq.get("usd") or 0)
-                pc = p.get("priceChange", {})
-                result["price_change_1h"] = pc.get("h1") or 0
-                result["price_change_24h"] = pc.get("h24") or 0
-                result["price_change_7d"] = pc.get("d7") or 0
-                result["pair_address"] = p.get("pairAddress", "")
-                result["dex"] = p.get("dexId", "")
+                result["price"] = _safe_float(p.get("priceUsd")) or None
+                result["mcap"] = _safe_float(p.get("marketCap") or p.get("fdv")) or None
+                result["fdv"] = _safe_float(p.get("fdv") or result["mcap"]) or None
+                result["liquidity"] = snap.get("liquidity")
+                result["volume_24h"] = snap.get("volume_24h")
+                # Multi-timeframe price change (DexScreener priceChange has
+                # m1/m5/h1/h6/h24 — no 7d window; absent fields stay None so
+                # the formatter renders "—", never a fabricated 0).
+                pc_tf = snap.get("price_change_tf") or {}
+                result["price_change_1h"] = pc_tf.get("h1")
+                result["price_change_6h"] = pc_tf.get("h6")
+                result["price_change_24h"] = pc_tf.get("h24")
+                result["price_change_7d"] = None
+                result["volume_1h"] = (snap.get("volume_tf") or {}).get("h1")
+                result["volume_6h"] = (snap.get("volume_tf") or {}).get("h6")
+                result["pair_address"] = snap.get("pair_address") or p.get("pairAddress", "")
+                result["dex"] = snap.get("dex") or p.get("dexId", "")
                 result["chain"] = p.get("chainId", result["chain"])
-                result["created_at"] = p.get("pairCreatedAt")
-                socials = p.get("info", {}).get("socials", [])
-                result["socials"] = {s.get("type"): s.get("url") for s in socials}
+                result["created_at"] = snap.get("created_at") or p.get("pairCreatedAt")
+                # Deployer creator + socials (twitter/telegram/websites) from
+                # the pair payload — real data only; absent stays absent.
+                creator, pair_socials = _extract_pair_intel(p)
+                if creator:
+                    result["deployer_address"] = creator
+                if pair_socials:
+                    result["socials"].update(pair_socials)
     except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException) as e:
         result["errors"].append(f"DexScreener: {e}")
 
@@ -612,7 +922,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
     )
 
     # Volume authenticity
-    if result["volume_24h"] > 0 and result["mcap"] > 0:
+    if (result["volume_24h"] or 0) > 0 and (result["mcap"] or 0) > 0:
         ratio = result["volume_24h"] / result["mcap"]
         result["volume_real_ratio"] = ratio
         if ratio > 5:
@@ -620,7 +930,7 @@ async def scan_token(address: str, chain: str | None = None) -> dict[str, Any]:
             result["risk_score"] += 15
 
     # Liquidity check
-    if result["mcap"] > 0 and result["liquidity"] > 0:
+    if (result["mcap"] or 0) > 0 and (result["liquidity"] or 0) > 0:
         liq_ratio = result["liquidity"] / result["mcap"]
         if liq_ratio < 0.02:
             result["threats"].append("Very low liquidity vs mcap")
@@ -1084,20 +1394,79 @@ def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
     green = list(data.get("green_flags") or [])
     safety = _safe_float(data.get("safety_score"))
 
+    # Deployer address: backend dev-reputation evidence first, then the
+    # SENTINEL metadata-fingerprint ``creator`` (Pump.fun creator — the free
+    # tier runs metadata_fingerprint even though the deployer reputation
+    # module is PRO-only, which is why /scan used to show "unknown").
+    deployer_addr = str(dev.get("deployer_address") or dev.get("address") or "").strip()
+    if not deployer_addr or deployer_addr.lower() in _EMPTY_ADDR:
+        _sent = data.get("sentinel")
+        _sfree = _sent.get("free") if isinstance(_sent, dict) else None
+        _mf = _sfree.get("metadata_fingerprint") if isinstance(_sfree, dict) else None
+        if isinstance(_mf, dict):
+            deployer_addr = str(_mf.get("creator") or "").strip()
+    deployer_addr = deployer_addr if deployer_addr.lower() not in _EMPTY_ADDR else ""
+
+    # ── Real market data (fix 2026-08-16) ──
+    # The v2 payload carries the oracle's market snapshot when a tier provided
+    # it. Liquidity falls back to ``evidence.liquidity.liquidity_usd`` (the
+    # SENTINEL liquidity module), then to None — never a fabricated 0.
+    liquidity_usd = _safe_float(data.get("liquidity_usd"))
+    if not liquidity_usd:
+        ev_liq = evidence.get("liquidity")
+        if isinstance(ev_liq, dict):
+            liquidity_usd = _safe_float(ev_liq.get("liquidity_usd"))
+    if not liquidity_usd:
+        liquidity_usd = None
+
+    # Multi-timeframe price change / volume. The backend carries a compact
+    # ``market`` map when the price oracle tier provided it (see
+    # engines/_price_adapters.py DexScreener tier); the bot's DexScreener
+    # supplement fills these keys when the backend did not. Absent fields
+    # stay None — the formatter renders "—", never 0.
+    mkt_tf = data.get("market") if isinstance(data.get("market"), dict) else {}
+    price_change_tf = mkt_tf.get("price_change") if isinstance(mkt_tf.get("price_change"), dict) else {}
+    volume_tf = mkt_tf.get("volume") if isinstance(mkt_tf.get("volume"), dict) else {}
+    pc_1h = price_change_tf.get("h1") if price_change_tf.get("h1") is not None else None
+    pc_6h = price_change_tf.get("h6") if price_change_tf.get("h6") is not None else None
+    pc_24h = price_change_tf.get("h24") if price_change_tf.get("h24") is not None else None
+
+    # Holders: own evidence first, then GMGN enrichment (holder_count — the
+    # normalized shape from gmgn_enrich._normalize_holders), then the SENTINEL
+    # holder_analysis total. None when no provider reported a count.
+    gmgn_holders = data.get("gmgn", {}).get("holders") if isinstance(data.get("gmgn"), dict) else None
+    sent_free = data.get("sentinel", {}).get("free") if isinstance(data.get("sentinel"), dict) else None
+    sent_ha = sent_free.get("holder_analysis") if isinstance(sent_free, dict) else None
+    holder_count = holders.get("holder_count")
+    if not holder_count and isinstance(gmgn_holders, dict):
+        holder_count = gmgn_holders.get("holder_count") or gmgn_holders.get("total_holders")
+    if not holder_count and isinstance(sent_ha, dict):
+        holder_count = sent_ha.get("total_holders")
+    if holder_count is None:
+        holder_count = None
+    else:
+        try:
+            holder_count = int(float(holder_count))
+        except (TypeError, ValueError):
+            holder_count = None
+
     return {
         "address": data.get("token", ""),
         "chain": data.get("chain", "solana"),
         "name": data.get("name") or "Unknown",
         "symbol": data.get("symbol") or "???",
-        "price": _safe_float(data.get("price_usd")),
-        "mcap": _safe_float(data.get("market_cap_usd")),
-        "fdv": _safe_float(data.get("market_cap_usd")),
-        "volume_24h": _safe_float(data.get("volume_24h_usd")),
-        "liquidity": _safe_float(data.get("liquidity_usd")),
-        "price_change_1h": 0,
-        "price_change_24h": 0,
-        "price_change_7d": 0,
-        "holders": int(holders.get("holder_count") or 0),
+        "price": _safe_float(data.get("price_usd")) or None,
+        "mcap": _safe_float(data.get("market_cap_usd")) or None,
+        "fdv": _safe_float(data.get("market_cap_usd")) or None,
+        "volume_24h": _safe_float(data.get("volume_24h_usd")) or None,
+        "liquidity": liquidity_usd,
+        "price_change_1h": pc_1h,
+        "price_change_6h": pc_6h,
+        "price_change_24h": pc_24h,
+        "price_change_7d": None,
+        "volume_1h": volume_tf.get("h1"),
+        "volume_6h": volume_tf.get("h6"),
+        "holders": holder_count,
         "pair_address": "",
         "dex": "",
         "created_at": None,
@@ -1122,10 +1491,14 @@ def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
         "volume_real_ratio": (
             _safe_float(mkt.get("fake_volume_pct")) if mkt.get("fake_volume_pct") is not None else None
         ),
-        "dev_wallet": dev.get("deployer_address") or dev.get("address") or None,
+        "dev_wallet": deployer_addr or None,
         "dev_other_tokens": [],
         "errors": [],
-        "socials": {},
+        # Socials: the backend v2 payload may carry a ``socials`` map (the
+        # bot's DexScreener supplement fills it when the backend does not).
+        "socials": data.get("socials") if isinstance(data.get("socials"), dict) else {},
+        # Resolved deployer address (evidence + SENTINEL metadata creator)
+        "deployer_address": deployer_addr or None,
         # v2 explainable scoring
         "safety_score": safety,
         "confidence": _safe_float(data.get("confidence")),
@@ -1228,6 +1601,10 @@ async def scanner_intel(*, address: str = "", chain: str = "") -> ToolResult:
     # report fabricated "medium risk" for a token that does not exist.
     if isinstance(body, dict) and (body.get("name") or body.get("symbol")):
         intel = _flatten_v2(body, address, chain)
+        # Deployer + socials: free-tier v2 scans skip the backend deployer
+        # module, so backfill from DexScreener pair data (fail-open, only
+        # when the flatten left either empty).
+        intel = await _supplement_deployer_socials(intel, address, chain)
         meta = await _token_meta_dict(address, chain, symbol=str(body.get("symbol") or ""))
         intel["token"] = meta
         return ToolResult(
@@ -1269,6 +1646,14 @@ async def scanner_intel(*, address: str = "", chain: str = "") -> ToolResult:
     pairs = (body or {}).get("pairs") if isinstance(body, dict) else None
     if isinstance(pairs, list) and pairs:
         intel = _flatten_dexscreener(address, chain)
+        # The pair payload is already in hand — extract creator + socials
+        # (real data only; absent stays absent).
+        creator, pair_socials = _extract_pair_intel(pairs[0])
+        if creator:
+            intel["deployer_address"] = creator
+            intel["dev_wallet"] = creator
+        if pair_socials:
+            intel["socials"] = pair_socials
         meta = await _token_meta_dict(address, chain)
         intel["token"] = meta
         return ToolResult(

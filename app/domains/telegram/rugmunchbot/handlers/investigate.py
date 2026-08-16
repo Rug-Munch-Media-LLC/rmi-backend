@@ -53,13 +53,13 @@ _VERDICT_EMOJIS = {
 
 def _determine_verdict(scan_result: dict[str, Any], wallet_data: dict[str, Any]) -> tuple[str, str]:
     """Determine overall investigation verdict."""
-    risk = scan_result.get("risk_score", 0)
-    threats = len(scan_result.get("threats", []))
-    wallet_flags = len(wallet_data.get("flags", []))
-    bundle = scan_result.get("bundle_detected", False)
-    fresh = scan_result.get("fresh_wallet_pct", 0) > 50
-    honeypot = scan_result.get("honeypot", False)
-    low_liq = scan_result.get("liquidity", 0) < 1000 and scan_result.get("mcap", 0) > 10000
+    risk = scan_result.get("risk_score") or 0
+    threats = len(scan_result.get("threats") or [])
+    wallet_flags = len((wallet_data or {}).get("flags") or [])
+    bundle = bool(scan_result.get("bundle_detected"))
+    fresh = (scan_result.get("fresh_wallet_pct") or 0) > 50
+    honeypot = bool(scan_result.get("honeypot"))
+    low_liq = (scan_result.get("liquidity") or 0) < 1000 and (scan_result.get("mcap") or 0) > 10000
 
     score = risk
     if honeypot:
