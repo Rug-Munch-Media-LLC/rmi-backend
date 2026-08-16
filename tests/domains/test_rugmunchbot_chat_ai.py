@@ -729,7 +729,7 @@ class TestCallBackendChat:
         ctx = captured["json"]["context_override"]["system_context"]
         assert "PERSONA — Rug Munch Intelligence Analyst" in ctx
         assert "DATA GROUNDING" in ctx  # v12 slim pass renamed from "DATA GROUNDING RULES"
-        assert "ANTI-PATTERNS" in ctx
+        assert "UNTRUSTED CONTEXT" in ctx  # v14 slim pass merged ANTI-PATTERNS; prompt-injection hardening marker
         assert "ANSWER QUALITY" in ctx
 
 
