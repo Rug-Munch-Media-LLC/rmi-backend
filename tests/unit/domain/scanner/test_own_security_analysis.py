@@ -237,7 +237,10 @@ class TestCacheUtilities:
 
     def test_get_cache_stats_returns_expected_keys(self):
         """get_cache_stats should return cache metadata."""
-        stats = get_cache_stats()
+        # _get_ch_client() lazily opens a live ClickHouse connection since the
+        # degodding change; mock it so cache stats stay hermetic.
+        with patch("app.domains.scanner.engines.own_security_analysis._get_ch_client", return_value=None):
+            stats = get_cache_stats()
         assert stats["cache_size"] == 0
         assert stats["cache_max"] == _SECURITY_CACHE_MAX
         assert stats["cache_ttl_seconds"] == _SECURITY_CACHE_TTL
@@ -246,12 +249,13 @@ class TestCacheUtilities:
     def test_cache_stats_reflects_current_size(self):
         """Cache stats should update as items are added."""
         clear_cache()
-        stats = get_cache_stats()
-        assert stats["cache_size"] == 0
-        _cache_security("key1:eth", {"result": "a"})
-        assert get_cache_stats()["cache_size"] == 1
-        _cache_security("key2:eth", {"result": "b"})
-        assert get_cache_stats()["cache_size"] == 2
+        with patch("app.domains.scanner.engines.own_security_analysis._get_ch_client", return_value=None):
+            stats = get_cache_stats()
+            assert stats["cache_size"] == 0
+            _cache_security("key1:eth", {"result": "a"})
+            assert get_cache_stats()["cache_size"] == 1
+            _cache_security("key2:eth", {"result": "b"})
+            assert get_cache_stats()["cache_size"] == 2
 
     def test_cache_evicts_oldest_when_full(self):
         """Cache should evict oldest entries when over max."""

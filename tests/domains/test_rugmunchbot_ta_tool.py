@@ -80,6 +80,8 @@ def _pair(symbol: str = "TST", volume: float = 100_000.0) -> dict[str, Any]:
         "priceChange": {"h1": 0.5, "h6": 1.0, "h24": 5.2},
         "volume": {"h24": volume},
         "liquidity": {"usd": 50_000.0},
+        "marketCap": 1_250_000.0,
+        "fdv": 2_500_000.0,
         "url": "https://dexscreener.com/ethereum/0xPAIR",
     }
 
@@ -284,6 +286,20 @@ class TestTechnicalAnalysisTool:
         assert "BULLISH" in d["verdict"]["one_liner"]
         assert "RSI-14" in d["summary_text"]
         assert result.source.startswith("backend:")
+        # Richer market context is surfaced for the chat LLM.
+        m = d["market"]
+        assert m["price_usd"] == 1.23
+        assert m["change_24h"] == 5.2
+        assert m["change_1h"] == 0.5
+        assert m["volume_24h"] == 100_000.0
+        assert m["liquidity_usd"] == 50_000.0
+        assert m["market_cap"] == 1_250_000.0
+        assert m["fdv"] == 2_500_000.0
+        assert m["change_window_pct"] is not None
+        assert m["window_high"] > m["price_usd"]  # candle high above live price
+        assert m["window_low"] < m["price_usd"]
+        assert m["distance_from_window_high_pct"] > 0
+        assert "ath" not in {k.lower() for k in m}  # never fabricate an ATH
 
     async def test_downtrend_bearish_from_backend(self) -> None:
         _FakeAsyncClient._responses = {
@@ -321,6 +337,10 @@ class TestTechnicalAnalysisTool:
         assert d["indicators"] is None
         assert d["snapshot"]["price_usd"] == 1.23
         assert d["snapshot"]["change_24h"] == 5.2
+        assert d["snapshot"]["market_cap"] == 1_250_000.0
+        assert d["snapshot"]["fdv"] == 2_500_000.0
+        assert d["market"]["market_cap"] == 1_250_000.0
+        assert "change_window_pct" not in d["market"]  # no candles → no window data
         assert d["verdict"]["bias"] == "insufficient_data"
         assert "rsi" not in d  # never fabricate indicators
         assert result.symbols == ["TST"]
