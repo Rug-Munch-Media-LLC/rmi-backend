@@ -479,7 +479,8 @@ async def _supplement_deployer_socials(
     empty. Existing values are never clobbered. Mutates and returns ``result``.
     """
     has_deployer = bool(result.get("deployer_address") or result.get("dev_wallet"))
-    socials = result.get("socials") if isinstance(result.get("socials"), dict) else {}
+    _socials = result.get("socials")
+    socials = _socials if isinstance(_socials, dict) else {}
 
     chain_norm = chain or str(result.get("chain") or "") or _detect_chain(address)
     creator = ""
@@ -1418,7 +1419,7 @@ def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
     # The v2 payload carries the oracle's market snapshot when a tier provided
     # it. Liquidity falls back to ``evidence.liquidity.liquidity_usd`` (the
     # SENTINEL liquidity module), then to None — never a fabricated 0.
-    liquidity_usd = _safe_float(data.get("liquidity_usd"))
+    liquidity_usd: float | None = _safe_float(data.get("liquidity_usd"))
     if not liquidity_usd:
         ev_liq = evidence.get("liquidity")
         if isinstance(ev_liq, dict):
@@ -1431,9 +1432,12 @@ def v2_token_to_legacy(data: dict[str, Any]) -> dict[str, Any]:
     # engines/_price_adapters.py DexScreener tier); the bot's DexScreener
     # supplement fills these keys when the backend did not. Absent fields
     # stay None — the formatter renders "—", never 0.
-    mkt_tf = data.get("market") if isinstance(data.get("market"), dict) else {}
-    price_change_tf = mkt_tf.get("price_change") if isinstance(mkt_tf.get("price_change"), dict) else {}
-    volume_tf = mkt_tf.get("volume") if isinstance(mkt_tf.get("volume"), dict) else {}
+    _market = data.get("market")
+    mkt_tf = _market if isinstance(_market, dict) else {}
+    _pc = mkt_tf.get("price_change")
+    price_change_tf = _pc if isinstance(_pc, dict) else {}
+    _vol = mkt_tf.get("volume")
+    volume_tf = _vol if isinstance(_vol, dict) else {}
     pc_1h = price_change_tf.get("h1") if price_change_tf.get("h1") is not None else None
     pc_6h = price_change_tf.get("h6") if price_change_tf.get("h6") is not None else None
     pc_24h = price_change_tf.get("h24") if price_change_tf.get("h24") is not None else None

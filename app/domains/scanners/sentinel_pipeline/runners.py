@@ -136,6 +136,28 @@ def _refresh_singletons() -> None:
 # ═══════════════════════════════════════════════════════════════════
 
 
+async def _run_wallet_map(token_address: str, chain: str, deployer: str | None) -> dict[str, Any] | None:
+    """First-20 wallet map engine (fail-open; never raises)."""
+    try:
+        from app.domains.scanner.engines.own_wallet_map import get_own_wallet_map
+
+        return await get_own_wallet_map(token_address, chain, deployer=deployer)
+    except Exception as exc:
+        logger.debug("wallet_map_engine_failed: %s", exc)
+        return None
+
+
+async def _run_deployer_timeline(deployer_address: str, chain: str) -> dict[str, Any] | None:
+    """Deployer history timeline engine (fail-open; never raises)."""
+    try:
+        from app.domains.scanner.engines.own_deployer_timeline import get_own_deployer_timeline
+
+        return await get_own_deployer_timeline(deployer_address, chain)
+    except Exception as exc:
+        logger.debug("deployer_timeline_engine_failed: %s", exc)
+        return None
+
+
 async def run_sentinel_scan(
     token_address: str,
     chain: str = "solana",
@@ -216,6 +238,16 @@ async def run_sentinel_scan(
         for k in ("dev_reputation", "guilt_association", "sleep_cycle", "gas_trace"):
             report.errors[k] = "skipped: no dev_address provided"
             coros[k] = None
+
+    # ── Competitor deep-scan extras (fail-open engines) ──
+    # First-20 wallet map: emoji role classification of early buyers/holders.
+    coros["wallet_map"] = _run_wallet_map(token_address, chain, dev_address)
+    # Deployer prior-token history timeline (needs the deployer address).
+    if dev_address:
+        coros["deployer_timeline"] = _run_deployer_timeline(dev_address, chain)
+    else:
+        report.errors["deployer_timeline"] = "skipped: no dev_address provided"
+        coros["deployer_timeline"] = None
 
     if _WALLET_MEMORY_AVAILABLE_LOCAL and dev_address:
         coros["wallet_intel"] = get_wallet_engine().get_deployer_intelligence(dev_address, chain)
@@ -318,6 +350,8 @@ async def run_sentinel_scan(
         "block_zero_sniper": "block_zero_sniper",
         "gas_trace": "gas_trace",
         "cross_chain_trace": "cross_chain_trace",
+        "wallet_map": "wallet_map",
+        "deployer_timeline": "deployer_timeline",
     }
 
     for module_name, raw_result in results.items():

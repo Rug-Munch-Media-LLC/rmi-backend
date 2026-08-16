@@ -67,6 +67,7 @@ from app.domains.telegram.adminbot.commands import (
     cmd_push,
     cmd_quick,
     cmd_ragstats,
+    cmd_repair,
     cmd_restart,
     cmd_scanstats,
     cmd_service,
@@ -103,6 +104,15 @@ async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             await update.effective_message.reply_text(f"⚠️ Operation failed: {str(ctx.error)[:200]}")
 
 
+async def _ignore_non_private(update: Any, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """DM-only defense-in-depth: silently drop group/channel message updates.
+
+    Registered in handler group -1 (checked before every group-0 handler), so
+    commands sent from groups/channels never reach the owner-only surface.
+    """
+    return None
+
+
 # ═══════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════
@@ -128,6 +138,14 @@ def main() -> None:
     """Build the Application, register handlers, start Redis listener, poll."""
     app = Application.builder().token(ADMIN_BOT_TOKEN).post_init(_post_init).build()
 
+    # ── DM-only gate (group=-1: evaluated before every group-0 handler) ──
+    # Any message from a group/supergroup/channel is silently consumed here so
+    # the admin surface is reachable exclusively via private chat.
+    app.add_handler(
+        MessageHandler(filters.ChatType.GROUPS | filters.ChatType.CHANNEL, _ignore_non_private),
+        group=-1,
+    )
+
     # ── Core Commands ──
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
@@ -139,6 +157,7 @@ def main() -> None:
     app.add_handler(CommandHandler("backup", cmd_backup))
     app.add_handler(CommandHandler("deploy", cmd_deploy))
     app.add_handler(CommandHandler("logs", cmd_logs))
+    app.add_handler(CommandHandler("repair", cmd_repair))
     app.add_handler(CommandHandler("alerts", cmd_alerts))  # legacy alias → health dashboard
     app.add_handler(CommandHandler("health", cmd_health))  # explicit health dashboard command
     app.add_handler(CommandHandler("quick", cmd_quick))

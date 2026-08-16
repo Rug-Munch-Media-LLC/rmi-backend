@@ -448,6 +448,7 @@ class BundleDetector:
                 same_block_snipers=[],
                 behavior_clusters=[],
                 warnings=["Could not determine deployer"],
+                same_slot=await self._same_slot_concentration(token_address, chain),
             )
 
         # Get early buyers (first 10 blocks)
@@ -587,4 +588,22 @@ class BundleDetector:
             graph_fraud_report=graph_fraud_report,
             warnings=warnings,
             cross_launch_flags=cross_launch_flags,
+            same_slot=await self._same_slot_concentration(token_address, chain),
         )
+
+    async def _same_slot_concentration(self, token_address: str, chain: str) -> dict[str, Any] | None:
+        """Same-slot buy concentration via the own engine (best-effort).
+
+        Delegates to ``own_bundle_detect.detect_same_slot_bundler`` — the
+        canonical same-slot concentration engine (Helius-backed on Solana;
+        ``[REVIEW]`` note when the data source is unreachable). Never breaks
+        the bundle scan: failures degrade to ``None``.
+        """
+        try:
+            from app.domains.scanner.engines.own_bundle_detect import detect_same_slot_bundler
+
+            result = await detect_same_slot_bundler(token_address, chain)
+            return result if isinstance(result, dict) else None
+        except Exception as exc:  # pragma: no cover - defensive, never break bundle detection
+            logger.debug("same_slot_concentration_failed: %s", exc)
+            return None

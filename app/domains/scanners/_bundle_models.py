@@ -69,6 +69,11 @@ class BundleReport:
     graph_fraud_report: dict[str, object] | None = None
     warnings: list[str] = field(default_factory=list)
     cross_launch_flags: dict[str, Any] = field(default_factory=dict)
+    # Same-slot buy concentration (own_bundle_detect.detect_same_slot_bundler —
+    # Helius-backed on Solana; ``[REVIEW]`` note when the data source is
+    # unreachable). Kept separate from same_block_snipers so the deep report
+    # can render it as its own line.
+    same_slot: dict[str, Any] | None = None
 
 
 @dataclass

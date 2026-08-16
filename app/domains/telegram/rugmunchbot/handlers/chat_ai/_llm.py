@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import html
 import re
+import time
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -41,6 +42,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._live_tools import (
     TOOL_ANSWER_EXTRA_WAIT,
     _run_live_tools_bounded,
 )
+from app.domains.telegram.rugmunchbot.model_usage import record as _record_model_usage
 from app.domains.telegram.rugmunchbot.prompts import FALLBACK_SYSTEM_PROMPT, PERSONA_CONTEXT
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools.guardrails import extract_addresses
@@ -702,6 +704,8 @@ async def _call_backend_chat(
     message: str,
     user_id: int,
     history: list[dict[str, str]] | None = None,
+    *,
+    record_usage: bool = True,
 ) -> dict[str, Any] | None:
     """Backend RAG chat — ``POST /api/v1/chat`` (auto-RAG, news_v2 grounding).
 
@@ -736,6 +740,7 @@ async def _call_backend_chat(
     headers = backend_headers()
     headers["X-Forwarded-For"] = str(user_id)
 
+    t0 = time.monotonic()
     try:
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(CHAT_TIMEOUT, connect=5.0, read=CHAT_TIMEOUT, write=10.0)
@@ -760,20 +765,42 @@ async def _call_backend_chat(
         return None
     if not isinstance(raw, dict):
         return None
-    answer = (raw.get("message") or "").strip()
+    # Robust payload parsing (code-review HIGH #2): a malformed backend
+    # response (non-str ``message`` / non-dict ``usage`` / bad token count)
+    # used to raise AttributeError and either crash the turn or degrade a
+    # valid tier-1 answer to the canned fallback. Guard with isinstance
+    # (mirrors ``_call_remote_fast``) and degrade gracefully — never raise.
+    try:
+        raw_message = raw.get("message")
+        if not isinstance(raw_message, str):
+            logger.debug("backend chat malformed message (user=%s, type=%s)", user_id, type(raw_message).__name__)
+            return None
+        answer = raw_message.strip()
+        usage = raw.get("usage")
+        raw_tokens = usage.get("total_tokens", 0) if isinstance(usage, dict) else 0
+        # A bad token count is a non-fatal enrichment — default to 0 and keep
+        # the valid answer rather than dropping the whole tier-1 response.
+        tokens = raw_tokens if isinstance(raw_tokens, int) else 0
+    except (AttributeError, TypeError, ValueError) as exc:
+        logger.debug("backend chat malformed payload (user=%s): %s", user_id, exc)
+        return None
     if not answer:
         return None
     try:
         rag_count = int(r.headers.get("X-RAG-Context", "0") or "0")
     except (TypeError, ValueError):
         rag_count = 0
+    latency_ms = (time.monotonic() - t0) * 1000
+    model = raw.get("model") or "rmi-backend"
+    if record_usage:
+        _record_model_usage(tier="backend", model=model, latency_ms=latency_ms, tokens=tokens)
     return {
         "message": answer,
         "rag_count": rag_count,
-        "tokens": raw.get("usage", {}).get("total_tokens", 0),
-        "model": raw.get("model") or "rmi-backend",
+        "tokens": tokens,
+        "model": model,
         "provider": "backend",
-        "latency_ms": 0,
+        "latency_ms": latency_ms,
     }
 
 
@@ -832,6 +859,7 @@ async def _call_remote_fast(
         "HTTP-Referer": "https://rugmunch.io",
         "X-Title": "RMI Telegram Bot",
     }
+    t0 = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=5.0, read=timeout, write=10.0)) as client:
             r = await asyncio.wait_for(
@@ -867,6 +895,9 @@ async def _call_remote_fast(
         answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
         answer = re.sub(r"<think>.*", "", answer, flags=re.DOTALL).strip()
 
+    # Which attempt actually answered — feeds the model-usage tier breakdown
+    # (direct free tier: snappy/long; paid :lowest fallback: "fallback").
+    used_fallback = False
     if not answer:
         # FREE tier failed (rate-limited / non-200 / timeout / empty) — degrade
         # to the cost-aware helper so chat NEVER dies on a free-tier rate-limit:
@@ -876,6 +907,7 @@ async def _call_remote_fast(
             from app.llm_config import chat_with_fallback
 
             answer = (await chat_with_fallback(messages, tier)) or ""
+            used_fallback = bool(answer)
             if answer:
                 answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
                 answer = re.sub(r"<think>.*", "", answer, flags=re.DOTALL).strip()
@@ -885,6 +917,19 @@ async def _call_remote_fast(
 
     if not answer:
         return None
+    latency_ms = (time.monotonic() - t0) * 1000
+    if used_fallback:
+        # The paid :lowest model answered — report the fallback tier with the
+        # cheap-fallback model name (token count is unknown; keep 0 honest).
+        try:
+            from app.llm_config import get_cheap_fallback_config
+
+            fallback_model = str(get_cheap_fallback_config().get("model") or "paid-fallback")
+        except Exception:
+            fallback_model = "paid-fallback"
+        _record_model_usage(tier="fallback", model=fallback_model, latency_ms=latency_ms, tokens=0)
+    else:
+        _record_model_usage(tier=tier, model=model, latency_ms=latency_ms, tokens=usage)
     answer = _append_source_block(answer, sources)
     return {
         "message": answer,
@@ -892,7 +937,7 @@ async def _call_remote_fast(
         "tokens": usage,
         "model": model,
         "provider": "remote-fast",
-        "latency_ms": 0,
+        "latency_ms": latency_ms,
     }
 
 

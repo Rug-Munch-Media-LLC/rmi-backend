@@ -5,6 +5,8 @@ RugMunchBot -- Owner/admin command handlers (v5 admin panel).
 Owner-only commands:
   /admin                  -> admin dashboard with bot stats + actions
   /admin_stats            -> users, active today, messages, RAG, AI tokens
+  /credits                -> OpenRouter credit balance (usage / limit / free tier)
+  /users                  -> user count, top users, DAU
   /admin_broadcast <msg>  -> broadcast to all users (with confirmation)
   /admin_toggle [on|off]  -> disable/enable the bot globally
   /admin_toggle_chat [on|off] -> disable/enable AI chat (commands keep working)
@@ -15,6 +17,8 @@ Owner-only commands:
   /admin_logs             -> recent admin actions
 
 Every action is written to the admin audit log (db.log_admin_action).
+All commands are owner-gated (``is_owner``) and fail closed when
+``TELEGRAM_ALLOWED_USERS`` is unset (no hardcoded owner default).
 """
 
 from __future__ import annotations
@@ -74,8 +78,59 @@ def _usage_line(uid: int) -> str:
     return f"Scans: {scans} | AI msgs: {ai}"
 
 
+def _format_model_usage_line() -> str:
+    """Compact per-model chat usage block for the /admin dashboard.
+
+    Reads the lightweight in-process counter (tier / model / latency /
+    tokens) recorded by every successful chat LLM call. Process-lifetime
+    totals; the durable per-answer audit trail stays in the JSON trace logs.
+    """
+    try:
+        from app.domains.telegram.rugmunchbot.model_usage import snapshot as model_usage_snapshot
+
+        snap = model_usage_snapshot()
+    except Exception as exc:
+        logger.debug("model usage snapshot unavailable: %s", exc)
+        return "\U0001f916 Model usage: <i>unavailable</i>"
+    if not snap.get("total_calls"):
+        return "\U0001f916 Model usage: <i>no chat calls since start</i>"
+    tiers = snap.get("tiers", {})
+    tier_line = (
+        " | ".join(
+            f"{t}: {tiers[t]['calls']} calls, {tiers[t]['tokens']:,} tok"
+            for t in ("snappy", "long", "fallback", "backend")
+            if t in tiers
+        )
+        or "n/a"
+    )
+    top_models = " | ".join(f"{m}: {md['calls']} calls" for m, md in list(snap.get("models", {}).items())[:4]) or "n/a"
+    avg_latency = round(snap["total_latency_ms"] / snap["total_calls"], 0) if snap.get("total_calls") else 0
+    return (
+        f"\U0001f916 <b>Model usage (process)</b>\n{thin_sep()}\n"
+        f"\U0001f4ac Chat calls: <b>{snap.get('total_calls', 0):,}</b> | "
+        f"Tokens: <b>{snap.get('total_tokens', 0):,}</b> | "
+        f"\u23f1\ufe0f Avg: <b>{avg_latency:.0f}ms</b>\n"
+        f"\U0001f3af {tier_line}\n"
+        f"\U0001f4e6 {top_models}"
+    )
+
+
+async def _fetch_credit_block() -> str:
+    """Live OpenRouter credit line for /admin and /credits (fail-open)."""
+    try:
+        from app.domains.telegram.rugmunchbot.openrouter_credit import (
+            fetch_openrouter_credit,
+            format_credit_summary,
+        )
+
+        return format_credit_summary(await fetch_openrouter_credit())
+    except Exception as exc:
+        logger.debug("openrouter credit block failed: %s", exc)
+        return "\u26a0\ufe0f OpenRouter credit check unavailable"
+
+
 async def cmd_admin(update: Update, ctx) -> None:
-    """/admin — admin dashboard with stats and quick actions."""
+    """/admin — admin dashboard with stats and actions."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
@@ -94,6 +149,8 @@ async def cmd_admin(update: Update, ctx) -> None:
         f"\U0001f4ca <b>Today</b>\n{thin_sep()}\n"
         f"\U0001f4ac Messages: {ds['messages']} | \U0001f4d6 Commands: {ds['commands']}\n"
         f"\U0001f50d RAG queries: {ds['rag_queries']} | \U0001f916 AI tokens: {ds['ai_tokens']:,}\n\n"
+        f"{_format_model_usage_line()}\n\n"
+        f"{await _fetch_credit_block()}\n\n"
         f"\U0001f6e1\ufe0f Bot: <b>{db.get_bot_state('bot_enabled', 'on')}</b> | "
         f"\U0001f4ac Chat: <b>{db.get_bot_state('chat_enabled', 'on')}</b>\n\n"
         f"<i>Use /admin_stats for full details. Actions are logged.</i>"
@@ -142,6 +199,52 @@ async def cmd_admin_stats(update: Update, ctx) -> None:
         parse_mode=ParseMode.HTML,
         reply_markup=admin_kb(),
     )
+
+
+async def cmd_admin_credits(update: Update, ctx) -> None:
+    """/credits — live OpenRouter credit balance (owner-only)."""
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
+    if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
+        return
+    _log(uid, "admin_credits")
+    block = await _fetch_credit_block()
+    await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+        f"{block}\n\n<i>Checked live from OpenRouter \u2014 the API key is never shown.</i>",
+        parse_mode=ParseMode.HTML,
+        reply_markup=admin_kb(),
+    )
+
+
+async def cmd_admin_users(update: Update, ctx) -> None:
+    """/users — user count, top users, DAU (owner-only)."""
+    uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
+    if not is_owner(uid):
+        await _deny_admin_attempt(update, ctx)
+        return
+    _log(uid, "admin_users")
+    conn = db.get_db()
+    total = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
+    banned = conn.execute("SELECT COUNT(*) as c FROM users WHERE is_banned = 1").fetchone()["c"]
+    top = conn.execute(
+        "SELECT user_id, username, tier, total_scans, total_ai_msgs "
+        "FROM users ORDER BY (total_scans + total_ai_msgs) DESC LIMIT 10"
+    ).fetchall()
+    conn.close()
+    active_today = db.count_active_today()
+    lines = [
+        "\U0001f465 <b>Users</b>",
+        thin_sep(),
+        f"\U0001f4c8 Total: <b>{total}</b> | Active today (DAU): <b>{active_today}</b>",
+        f"\U0001f6ab Banned: <b>{banned}</b>",
+        thin_sep(),
+        "\U0001f3c6 <b>Top 10 by activity</b>",
+    ]
+    for i, row in enumerate(top, 1):
+        name = f"@{row['username']}" if row["username"] else f"<code>{row['user_id']}</code>"
+        activity = int(row["total_scans"] or 0) + int(row["total_ai_msgs"] or 0)
+        lines.append(f"{i}. {name} ({row['tier']}) \u2014 {activity:,} actions")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=admin_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
 async def cmd_admin_broadcast(update: Update, ctx) -> None:

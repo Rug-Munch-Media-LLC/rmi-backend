@@ -49,6 +49,32 @@ async def handle(data: str, query: CallbackQuery) -> bool:
         await query.edit_message_text("❌ Restart cancelled.", parse_mode=ParseMode.MARKDOWN)
         return True
 
+    # ── /repair <service> (systemd first, docker fallback) ──
+    elif data.startswith("repair_confirm_"):
+        name = data.replace("repair_confirm_", "")
+        if admin_audit is not None:
+            admin_audit.log_action("service.repair", name, query.from_user.id)
+        await query.edit_message_text(f"🔧 Repairing `{name}`...", parse_mode=ParseMode.MARKDOWN)
+        result = admin_server.restart_service(name)
+        if not result["ok"]:
+            # Unit may be a docker container instead — fall back to docker.
+            from app.domains.telegram.adminbot import admin_ops
+
+            docker_result = admin_ops.docker_restart(name)
+            if docker_result["ok"]:
+                result = {**docker_result, "ok": True, "output": f"docker restart {name}: {docker_result['output']}"}
+        status_emoji = "✅" if result["ok"] else "❌"
+        detail = result.get("output") or result.get("error") or "no output"
+        await query.edit_message_text(
+            f"{status_emoji} Repaired `{name}`\n\n```\n{detail[:2000]}\n```",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=refresh_keyboard("services", extra=[("🔧 Services", "services")]),
+        )
+        return True
+    elif data.startswith("repair_cancel"):
+        await query.edit_message_text("❌ Repair cancelled.", parse_mode=ParseMode.MARKDOWN)
+        return True
+
     # ── Service list + admin logs ──
     elif data == "svc_list":
         await query.edit_message_text("⏳ Listing services...")

@@ -14,6 +14,12 @@ Composes the already-added, self-contained analysis modules into a single
   bytecode (unverified contracts) after the code is fetched over RPC.
 * :mod:`app.pyrevm_engine` — ``simulate_sell_round_trip``: honeypot / tax /
   blacklist / anti-whale detection via local EVM execution of real bytecode.
+* Honeypot sell-sim check (``deep_scan_runners._run_honeypot_sell_sim``):
+  Honeypot.is ``/v2/IsHoneypot`` (primary, free) with GoPlus
+  ``token_security`` fallback (reuses the existing ``GOPLUS_API_KEY``) —
+  buy/sell/transfer taxes plus a ``SELL SIM OK`` / ``SELL SIM BLOCKED``
+  verdict. Complements pyrevm and is the only sell-sim source for non-EVM
+  chains (e.g. Solana).
 * :mod:`app.slither_analyzer` — ``analyze_source``: source-level static
   analysis. Requires verified Solidity source (``source_code=`` kwarg); when no
   source is available it is recorded as skipped.
@@ -40,6 +46,7 @@ critical); ``overall_risk`` is the maximum level across available modules:
 * pygod: ``is_anomaly -> high`` (only when a graph was provided).
 * heimdall: dangerous function names found in the decompiled ABI -> medium.
 * pyrevm: ``risk`` field mapped critical/dangerous/warning/safe.
+* honeypot sell-sim: ``BLOCKED`` verdict -> critical, ``EXTREME_TAXES`` -> high.
 * slither: High-impact security-relevant detector -> high, Medium -> medium.
 """
 
@@ -55,6 +62,7 @@ from app.core.logging import get_logger
 from app.deep_scan_runners import (
     _run_decompile,
     _run_fraud_gnn,
+    _run_honeypot_sell_sim,
     _run_pygod,
     _run_pyod,
     _run_sell_sim,
@@ -245,11 +253,24 @@ def deep_scan_address(
             }
         )
 
-    # 3) Sell simulation (EVM only) + Slither (requires source).
+    # 3) Sell simulation (pyrevm EVM local) + honeypot sell-sim check
+    #    (Honeypot.is / GoPlus — also covers non-EVM chains) + Slither.
     sell_sim, sell_findings, sell_level = _run_sell_sim(address, chain)
+    honeypot_sim, honeypot_findings, honeypot_level = _run_honeypot_sell_sim(address, chain)
     slither_result, slither_findings, slither_level = _run_slither(source_code, solc_version)
     findings.extend(sell_findings)
+    findings.extend(honeypot_findings)
     findings.extend(slither_findings)
+
+    # Merge the honeypot sell-sim check into the sell_sim payload. All its
+    # keys are namespaced (``sell_sim_verdict`` / ``buy_tax`` / ...) so the
+    # pyrevm fields (``simulation_success`` / ``tax_pct`` / ...) are never
+    # clobbered; warnings are combined (not replaced) and the risk level is
+    # the max of both.
+    combined_warnings = list(sell_sim.get("warnings") or []) + list(honeypot_sim.get("warnings") or [])
+    sell_sim = {**sell_sim, **honeypot_sim}
+    sell_sim["warnings"] = combined_warnings
+    sell_level = max(sell_level, honeypot_level)
 
     # 4) Aggregate risk.
     overall_level = max(fraud_level, pyod_level, pygod_level, decompile_level, sell_level, slither_level)
