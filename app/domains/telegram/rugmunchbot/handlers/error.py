@@ -30,6 +30,14 @@ async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     error = ctx.error
     logger.error(f"Exception: {error}", exc_info=error)
 
+    # Metrics: count every error (incl. transient) + remember the last one.
+    try:
+        from app.domains.telegram.rugmunchbot.observability import record_error
+
+        record_error(kind=type(error).__name__, message=str(error))
+    except Exception:
+        logger.debug("observability record_error failed", exc_info=True)
+
     if isinstance(error, RetryAfter):
         # Telegram 429 (flood control): respect the server-provided backoff so
         # PTB's retry-aware paths recover instead of hammering the API. Bounded

@@ -68,6 +68,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     scan_result_kb,
     upgrade_nudge_kb,
 )
+from app.domains.telegram.rugmunchbot.observability import record_scan
 from app.domains.telegram.rugmunchbot.scanner import (
     analyze_wallet,
     analyze_wallet_v2,
@@ -153,6 +154,7 @@ async def _stop_task(task: asyncio.Task[Any] | None) -> None:
 
 async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Scan a token contract: usage, rate-limit gate, then live security scan."""
+    record_scan("scan")
     user = update.effective_user
     if user is None:
         return
@@ -309,6 +311,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     data + on-chain intel for a much more detailed report than /scan.
     Slower (~1-2 min) but shows every phase it ran.
     """
+    record_scan("deepscan")
     user = update.effective_user
     if user is None or update.message is None:
         return
@@ -512,6 +515,7 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     honeypot). Slower than /deepscan but runs every forensic module and
     renders via format_sentinel_deepscan_section.
     """
+    record_scan("sentinel")
     user = update.effective_user
     if user is None or update.message is None:
         return

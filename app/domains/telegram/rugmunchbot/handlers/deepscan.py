@@ -30,6 +30,7 @@ from telegram.constants import ParseMode
 from app.domains.telegram.rugmunchbot import db
 from app.domains.telegram.rugmunchbot.formatters import (
     format_deep_ml_scan_report,
+    paywall_text,
     render_analyst_read_block,
 )
 from app.domains.telegram.rugmunchbot.handlers._messages import (
@@ -38,6 +39,7 @@ from app.domains.telegram.rugmunchbot.handlers._messages import (
     usage_hint,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
+from app.domains.telegram.rugmunchbot.states import check_spam, is_owner
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
@@ -57,6 +59,10 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     db.get_or_create_user(user.id, user.username, user.first_name)
+
+    # Per-user spam cooldown (3s) — mirror /scan: silent drop for rapid fire.
+    if check_spam(user.id):
+        return
 
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
@@ -86,6 +92,19 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     chain = ctx.args[1].strip().lower() if len(ctx.args) > 1 else "auto"
+
+    # Weekly scan quota per tier — same gate as /scan (owner bypass). Runs
+    # AFTER arg validation so a bare usage call never consumes quota, and
+    # BEFORE the expensive 30-90s ML/contract scan.
+    if not is_owner(user.id):
+        allowed, _used, _limit = db.check_rate_limit(user.id, "scan")
+        if not allowed:
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+                paywall_text(user.id, "scan"),
+                parse_mode=ParseMode.HTML,
+                reply_markup=back_kb(),
+            )
+            return
 
     msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
         f"\U0001f52c <b>Deep scan started...</b>\n<code>{html.escape(address)}</code>\n\n"

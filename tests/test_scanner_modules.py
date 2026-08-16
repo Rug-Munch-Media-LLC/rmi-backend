@@ -11,6 +11,24 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.domains.scanner.modules._core import _DEXSCREENER_CACHE
+
+
+@pytest.fixture(autouse=True)
+def _clear_dexscreener_cache() -> None:
+    """Clear the process-wide DexScreener cache before each test.
+
+    ``_fetch_dexscreener`` caches results per (token, chain) for the process
+    lifetime. Earlier test modules call the real fetcher for ``0xtoken``
+    (e.g. tests/unit/domain/scanner/test_modules.py) which can cache ``None``
+    under ``0xtoken:ethereum``; that stale entry defeats the
+    ``_fetch_with_fallback`` patch these tests rely on (the honeypot
+    fallback would return the cached value instead of the mocked pairs).
+    """
+    _DEXSCREENER_CACHE.clear()
+    yield
+    _DEXSCREENER_CACHE.clear()
+
 
 def _mock_httpx_response(data: dict, status: int = 200):
     """Create a mock httpx response. resp.json() is sync in httpx."""
