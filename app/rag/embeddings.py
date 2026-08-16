@@ -109,6 +109,7 @@ def current_backend() -> str:
         primary = getattr(inner, "_primary", inner)
         return primary.name
     except Exception:
+        log.debug("embedder_name_unavailable", exc_info=True)
         return "unavailable"
 
 

@@ -159,6 +159,7 @@ _MENU_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
         [
             ("news", "- latest crypto news"),
             ("events", "- news events & price impact"),
+            ("dune", "- curated on-chain intel (Dune queries)"),
             ("chat", "<code>question</code> - freestyle AI chat"),
             ("ask", "<code>question</code> - deep RAG answer"),
             ("research", "<code>query</code> - deep research (Hunter+)"),

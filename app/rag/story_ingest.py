@@ -305,6 +305,7 @@ async def _fetch_plain(url: str, rotator: Any) -> tuple[str, str, str, str] | No
             async with client:
                 resp = await _plain_get_once(client, url)
         except Exception:
+            log.debug("story_fetch_plain_transport_error url=%s proxy=%s", url, proxy, exc_info=True)
             resp = None
         if resp is None or resp.status_code in (403, 429):
             # Transport error or Cloudflare/rate-limit: rotate and retry.

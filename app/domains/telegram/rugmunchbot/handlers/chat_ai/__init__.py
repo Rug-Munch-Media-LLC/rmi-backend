@@ -53,7 +53,6 @@ from app.domains.telegram.rugmunchbot import anti_abuse as anti_abuse
 from app.domains.telegram.rugmunchbot.flood_control import check_flood as check_flood, refund_flood as refund_flood
 from app.domains.telegram.rugmunchbot.formatters import is_evm as is_evm, is_sol as is_sol, thin_sep
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import (
-    _append_source_lines as _append_source_lines,
     _format_tool_answer as _format_tool_answer,
     _render_bridge_actions as _render_bridge_actions,
 )

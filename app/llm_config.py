@@ -39,6 +39,18 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")  # optional, for direct NVIDIA 
 # primary OPENROUTER_KEY if the backup key is not provisioned.
 OPENROUTER_BACKUP_API_KEY = os.getenv("OPENROUTER_BACKUP_API_KEY", OPENROUTER_KEY)
 
+# Hugging Face Inference API (free hosted tier — community chat fallback).
+# Reads HUGGINGFACE_API_KEY first, then HUGGINGFACE_TOKEN (legacy name used by
+# the embedding providers). Provisioned from secrets manager (HF token).
+# With no key the free anonymous tier is used (rate-limited; 401s when gated).
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "") or os.getenv("HUGGINGFACE_TOKEN", "")
+# Default model: free hosted DeepSeek-R1-Distill-Qwen-7B — reasoning/analysis.
+HF_MODEL = os.getenv("RMI_HF_MODEL", "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
+# The legacy api-inference.huggingface.co host was deprecated by HF (no longer
+# resolves); the Inference Providers router is the canonical free OpenAI-compatible
+# endpoint and matches the OpenAI chat-completions shape used everywhere here.
+HF_INFERENCE_BASE = os.getenv("HF_INFERENCE_BASE", "https://router.huggingface.co/v1/chat/completions")
+
 # ── Base URLs ──────────────────────────────────────────────────────
 DEEPSEEK_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1")
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
@@ -138,6 +150,27 @@ def get_cheap_fallback_config() -> dict[str, Any]:
     }
 
 
+def get_hf_config() -> dict[str, Any]:
+    """Config for the Hugging Face Inference API free tier.
+
+    ``deepseek-ai/DeepSeek-R1-Distill-Qwen-7B`` — free, hosted (NOT local),
+    reasoning/analysis model used as a community-chat fallback. Same OpenAI
+    chat-completions shape as every other tier so callers reuse one code path
+    (e.g. ``_ask_llm_once`` in bot_api, ``_post_chat`` in ai_router). Fail-open:
+    callers treat a missing key or any HTTP error as ``""``.
+
+    Env is read at CALL time (not import time) so the key can be rotated and
+    tests can inject a token via monkeypatch.
+    """
+    return {
+        "model": os.getenv("RMI_HF_MODEL", HF_MODEL),
+        "base_url": os.getenv("HF_INFERENCE_BASE", HF_INFERENCE_BASE),
+        "api_key": os.getenv("HUGGINGFACE_API_KEY", "") or os.getenv("HUGGINGFACE_TOKEN", "") or HUGGINGFACE_API_KEY,
+        "max_tokens": 1024,
+        "temperature": 0.3,
+    }
+
+
 async def chat_with_fallback(
     messages: list[dict[str, str]],
     tier: str,
@@ -220,6 +253,56 @@ async def _chat_once(
         return ""
     content = content.strip()
     return content if content else ""
+
+
+async def chat_with_hf_fallback(
+    messages: list[dict[str, str]],
+    max_tokens: int | None = None,
+    timeout: float = 60.0,
+) -> str:
+    """One chat completion via the FREE Hugging Face Inference API tier.
+
+    Bounded + fail-open: returns ``""`` on ANY failure (no key, non-200,
+    rate-limit 429/402/503, timeout, empty/degenerate answer). Never raises
+    and never logs the key. Reasoning models (DeepSeek-R1) wrap their chain of
+    thought in ``<think>`` tags — those are stripped so callers get the final
+    answer only.
+    """
+    from app.core.ai_guardrails import strip_think_tags
+
+    cfg = get_hf_config()
+    api_key = str(cfg.get("api_key") or "")
+    base_url = str(cfg.get("base_url") or "")
+    model = str(cfg.get("model") or "")
+    if not base_url or not model or not messages:
+        return ""
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    headers["HTTP-Referer"] = "https://rugmunch.io"
+    headers["X-Title"] = "RMI HF Chat"
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens if max_tokens is not None else int(cfg.get("max_tokens") or 1024),
+        "temperature": float(cfg.get("temperature") or 0.3),
+    }
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=10.0)) as client:
+            resp = await client.post(base_url, headers=headers, json=payload)
+        if resp.status_code != 200:
+            logger.debug("hf_chat_non_200", status=resp.status_code, body=resp.text[:120])
+            return ""
+        raw = resp.json()
+        content = raw["choices"][0]["message"]["content"]
+    except (httpx.HTTPError, OSError, TimeoutError, ValueError, KeyError, IndexError, TypeError):
+        return ""
+    if not isinstance(content, str):
+        return ""
+    cleaned = strip_think_tags(content).strip()
+    return cleaned if cleaned else ""
 
 
 async def generate_content(

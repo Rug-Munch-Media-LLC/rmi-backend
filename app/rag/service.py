@@ -57,6 +57,7 @@ class RAGService:
 
             expanded_query = QueryExpander().expand(req.query)
         except Exception:
+            log.debug("query_expander_failed_falling_back", query_len=len(req.query), exc_info=True)
             expanded_query = req.query  # Fall through on expansion failure
 
         try:

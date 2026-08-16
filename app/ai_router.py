@@ -455,6 +455,35 @@ async def chat_completion(
         except Exception as e:
             logger.warning("deepseek_api_fallback_failed", error=str(e))
 
+        # ── 4: Hugging Face Inference API (free tier) — community chat last
+        # resort for ANALYSIS questions. Same OpenAI-compatible shape; bounded
+        # (30s timeout) + fail-open. The main chat stays on OpenRouter — HF
+        # only answers when every OpenRouter/DeepSeek tier is down.
+        try:
+            from app import llm_config as _llm_cfg
+
+            hf_cfg = _llm_cfg.get_hf_config()
+            if hf_cfg.get("base_url") and hf_cfg.get("model"):
+                _hf = await _post_chat(
+                    client,
+                    hf_cfg["base_url"],
+                    hf_cfg["model"],
+                    messages_safe,
+                    temperature,
+                    max_tokens,
+                    provider="huggingface",
+                    api_key=hf_cfg.get("api_key") or None,
+                    proxy_url=proxy_url,
+                    rotator=rotator,
+                    timeout=30.0,
+                )
+                if _hf:
+                    content = _guard_output(_hf["content"])
+                    _hf["content"] = _FALLBACK_RESPONSE if _is_degenerate(content) else content
+                    return _hf
+        except Exception as e:
+            logger.warning("hf_fallback_failed", error=str(e))
+
     raise ExternalAPIError(
         message="AI providers unavailable: primary and fallback tiers all failed. "
         "Check the OPENROUTER_BACKUP_API_KEY configuration."

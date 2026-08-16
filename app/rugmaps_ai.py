@@ -249,6 +249,50 @@ async def _call_deepseek_fallback(prompt: str, max_tokens: int = 800) -> str | N
     return None
 
 
+async def _call_huggingface_fallback(prompt: str, max_tokens: int = 800) -> str | None:
+    """Fallback: FREE Hugging Face Inference API tier (hosted DeepSeek-R1-Distill).
+
+    Same OpenAI-compatible shape as the other tiers; bounded (60s) + fail-open.
+    Returns None on ANY failure (no key → anonymous tier, 401/402/429/5xx, timeout).
+    """
+    from app import llm_config
+
+    cfg = llm_config.get_hf_config()
+    if not cfg.get("base_url") or not cfg.get("model"):
+        return None
+    import httpx
+
+    headers = {"Content-Type": "application/json"}
+    if cfg.get("api_key"):
+        headers["Authorization"] = f"Bearer {cfg['api_key']}"
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                cfg["base_url"],
+                headers=headers,
+                json={
+                    "model": cfg["model"],
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a blockchain forensic expert. Return ONLY valid JSON.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": cfg.get("temperature", 0.3),
+                    "max_tokens": max_tokens,
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                return content.strip() or None
+            logger.debug("hf_rugmaps_non_200", status=resp.status_code)
+    except Exception as e:
+        logger.debug("hf_rugmaps_failed", error=str(e))
+    return None
+
+
 async def _call_ai_priority(prompt: str, task_type: str = "analysis", max_tokens: int = 800) -> tuple[str | None, str]:
     """Route RugMaps AI: remote tier → direct DeepSeek.
 
@@ -267,6 +311,10 @@ async def _call_ai_priority(prompt: str, task_type: str = "analysis", max_tokens
     if content:
         cfg_fast = llm_config.get_fast_config()
         return content, f"deepseek/{cfg_fast['model']}"
+
+    content = await _call_huggingface_fallback(prompt, max_tokens=max_tokens)
+    if content:
+        return content, f"huggingface/{llm_config.HF_MODEL}"
 
     return None, "none"
 

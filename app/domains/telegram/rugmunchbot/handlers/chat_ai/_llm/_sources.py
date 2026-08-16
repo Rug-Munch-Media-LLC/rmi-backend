@@ -190,8 +190,7 @@ def _append_source_block(
     (``title — url``), de-duplicated by normalized domain (one entry per
     site) and ranked so primary/high-signal surfaces (official docs,
     block explorers, major outlets) render FIRST — fallback answers cite
-    where the intel came from. The remote-path twin of
-    ``_format._append_source_lines``. Plain text,
+    where the intel came from. Plain text,
     NOT markdown links (``[title](url)``) and NOT raw ``<a href>`` HTML:
     both render literally in the final message because ``_send_answer``
     HTML-escapes every chunk and ``_markdown_to_html`` has no link pass
@@ -203,10 +202,10 @@ def _append_source_block(
     plain text (never a fabricated/dead link). Titles are NOT pre-escaped
     here (``_send_answer``'s ``html.escape`` is the single escape layer for
     this untrusted bridge metadata — pre-escaping would double-escape
-    ``&``, same pattern as ``_append_source_lines``); markdown emphasis
-    markers are stripped from titles so the escape → ``_markdown_to_html``
-    delivery pipeline never mis-renders them. Returns the answer unchanged
-    when ``sources`` is empty/None.
+    ``&``, same pattern as the grounding footer in ``_delivery``); markdown
+    emphasis markers are stripped from titles so the escape →
+    ``_markdown_to_html`` delivery pipeline never mis-renders them. Returns
+    the answer unchanged when ``sources`` is empty/None.
     """
     if not sources:
         return answer

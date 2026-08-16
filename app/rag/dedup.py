@@ -790,6 +790,7 @@ def _group_from_hit(hit: Any) -> str | None:
         g = hit.metadata.get("group_id")
         return str(g) if g else None
     except Exception:
+        log.debug("group_from_hit_failed", exc_info=True)
         return None
 
 
