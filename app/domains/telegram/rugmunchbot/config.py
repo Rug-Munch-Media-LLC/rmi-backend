@@ -96,8 +96,18 @@ def _resolve_bot_token() -> str:
 @lru_cache
 def _resolve_owner_ids() -> set[int]:
     """Lazy owner/operator ids — env ``TELEGRAM_ALLOWED_USERS`` read on first
-    access only (no env read at import)."""
-    return {int(x.strip()) for x in os.getenv("TELEGRAM_ALLOWED_USERS", "7075336557").split(",") if x.strip()}
+    access only (no env read at import). FAIL-CLOSED: there is no built-in
+    owner id — when unset/empty no owner commands are enabled and a warning
+    is logged once per process."""
+    raw = os.getenv("TELEGRAM_ALLOWED_USERS", "").strip()
+    if not raw:
+        from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+        get_logger("rmi.config").warning(
+            "TELEGRAM_ALLOWED_USERS is unset/empty — no owner/operator ids configured (owner commands disabled)."
+        )
+        return set()
+    return {int(x.strip()) for x in raw.split(",") if x.strip()}
 
 
 BOT_USERNAME = "RugMunchBot"
@@ -235,6 +245,27 @@ async def check_backend_health() -> None:
         get_logger("rmi.config").warning("Backend UNREACHABLE at %s: %s", backend_url, exc)
 
 
+# ══════════════════════════════════════════════
+# LOCAL LLM (llama.cpp — qwen-chat 4B / qwen-analysis 9B)
+# ══════════════════════════════════════════════
+# Host of the local llama.cpp servers used by the chat fallback
+# (handlers/chat_ai/_llm.py builds ``http://{LLAMA_HOST}:8085|8086`` URLs).
+# FAIL-CLOSED: no built-in host/IP. When unset/empty the local LLM fallback
+# is unavailable (the URLs are invalid and the fallback chain skips them) and
+# a warning is logged once per process.
+
+
+@lru_cache
+def _resolve_llama_host() -> str:
+    """Lazy llama.cpp host (env ``LLAMA_HOST``) — read on first access only."""
+    host = os.getenv("LLAMA_HOST", "").strip()
+    if not host:
+        from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+        get_logger("rmi.config").warning("LLAMA_HOST is unset/empty — local llama.cpp fallback disabled.")
+    return host
+
+
 # Alert engine
 ALERT_CHECK_INTERVAL = 300  # seconds between alert checks (5 min)
 
@@ -273,8 +304,12 @@ SENTINEL_TIMEOUT = 60.0  # deep forensic scan can take a while (9+ modules)
 
 @lru_cache
 def _resolve_beta_mode() -> bool:
-    """Lazy beta-mode flag (env ``RMI_BOT_BETA_MODE``) — read on first access."""
-    return os.environ.get("RMI_BOT_BETA_MODE", "true").lower() in ("true", "1", "yes")
+    """Lazy beta-mode flag (env ``RMI_BOT_BETA_MODE``) — read on first access.
+
+    Default OFF (False): billing/premium gates are enforced unless an operator
+    explicitly opts into beta mode.
+    """
+    return os.environ.get("RMI_BOT_BETA_MODE", "false").lower() in ("true", "1", "yes")
 
 
 TIERS: dict[str, TierDefinition] = {
@@ -843,6 +878,7 @@ _IN_DOCKER: bool
 BACKEND_HOST: str
 BACKEND_URL: str
 SENTINEL_URL: str
+LLAMA_HOST: str
 BETA_MODE: bool
 CHANNEL_JOBS_ENABLED: bool
 NEWS_CHANNEL_ENABLED: bool
@@ -865,6 +901,7 @@ _LAZY_RESOLVERS: dict[str, Callable[[], Any]] = {
     "BACKEND_HOST": _resolve_backend_host,
     "BACKEND_URL": _resolve_backend_url,
     "SENTINEL_URL": _resolve_sentinel_url,
+    "LLAMA_HOST": _resolve_llama_host,
     "BETA_MODE": _resolve_beta_mode,
     "CHANNEL_JOBS_ENABLED": _resolve_channel_jobs_enabled,
     "NEWS_CHANNEL_ENABLED": _resolve_news_channel_enabled,

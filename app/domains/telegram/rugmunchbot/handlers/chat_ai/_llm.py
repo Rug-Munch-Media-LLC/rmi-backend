@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 import app.domains.telegram.rugmunchbot.handlers.chat_ai as chat_ai
-from app.domains.telegram.rugmunchbot.config import BACKEND_URL, backend_headers
+from app.domains.telegram.rugmunchbot.config import BACKEND_URL, LLAMA_HOST, backend_headers
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import _format_tool_answer
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._live_tools import (
     LIVE_TOOLS_WAIT,
@@ -57,16 +57,26 @@ MAX_MESSAGE_CHARS = 2000  # backend ChatRequest.message limit
 # ENDPOINTS & BUDGETS — LOCAL MODELS
 # ══════════════════════════════════════════════
 # Qwen3.5-4B for quick chat (fast, conversational; alias qwen-chat)
-# Bridge gateway — containers can't reach host 127.0.0.1
-LLAMA_HOST = os.getenv("LLAMA_HOST", "172.22.0.1")
+# Bridge gateway — containers can't reach host 127.0.0.1. ``LLAMA_HOST`` is
+# resolved lazily from config (env ``LLAMA_HOST``, FAIL-CLOSED when unset).
 QWEN_CHAT_URL = f"http://{LLAMA_HOST}:8085/v1/chat/completions"
 QWEN_MODEL = "qwen-chat"
-QWEN_TIMEOUT = 45.0  # CPU LLM: generation dominates latency (~7 tok/s); 45s covers a 200-token answer
+QWEN_TIMEOUT = (
+    45.0  # CPU LLM: generation dominates latency (~2.5-7 tok/s depending on host load); 45s covers LOCAL_LLM_MAX_TOKENS
+)
 
-# Qwen3.5-9B for deep analysis (alias qwen-analysis; hides thinking output)
-DEEPSEEK_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
-DEEPSEEK_MODEL = "qwen-analysis"
-DEEPSEEK_TIMEOUT = 60.0  # halved: a 2-minute silent wait before failing to the next tier was worthless
+# Qwen3.5-9B for deep analysis (alias qwen-analysis; hides thinking output).
+# NOTE: these were historically named ``DEEPSEEK_*`` — a misnomer; the
+# endpoint was always the local qwen-analysis server on :8086.
+QWEN_ANALYSIS_CHAT_URL = f"http://{LLAMA_HOST}:8086/v1/chat/completions"
+QWEN_ANALYSIS_MODEL = "qwen-analysis"
+QWEN_ANALYSIS_TIMEOUT = 60.0  # halved: a 2-minute silent wait before failing to the next tier was worthless
+
+# Backward-compat aliases (pre-rename names) — kept so existing importers and
+# tests keep working; they point at the same qwen-analysis :8086 endpoint.
+DEEPSEEK_CHAT_URL = QWEN_ANALYSIS_CHAT_URL
+DEEPSEEK_MODEL = QWEN_ANALYSIS_MODEL
+DEEPSEEK_TIMEOUT = QWEN_ANALYSIS_TIMEOUT
 
 # ── Complexity router (local-first) ─────────────────────────────────────
 # Mirrors the backend ``_route_task`` (app/routers/chat/_rag.py): analytical /
@@ -108,10 +118,21 @@ _LOCAL_ANALYSIS_QUESTION_RE = re.compile(
 _LOCAL_ANALYSIS_TERMS = ("on-chain", "forensic", "mev", "exploit")
 _LOCAL_ANALYSIS_LENGTH_THRESHOLD = 120  # chars — mirrors backend _route_task
 
-# Context ceiling for the local llama.cpp models (8k ctx each). Beyond
-# ~16k estimated tokens the local window would overflow/truncate. Estimated
-# as chars/4 (a conservative English token proxy).
-LOCAL_CTX_LIMIT_TOKENS = 16_000
+# Context ceiling for the local llama.cpp models. The live servers run
+# ``--ctx-size 4096`` (verified 2026-08-16 via /slots + process args), NOT
+# 8k as earlier comments claimed — so a prompt past ~4096 real tokens is
+# silently truncated, wasting prompt-eval time and producing garbage. The
+# guard estimates tokens as chars/4 and DEFERS the local LLM (tools-only /
+# canned path) instead of feeding an over-budget prompt to a 4k window.
+LOCAL_CTX_LIMIT_TOKENS = 4096
+
+# Local CPU generation budget (env-tunable). Measured 2026-08-16 on the live
+# host at load ~31: 4B ≈ 2.4-2.9 tok/s, 9B ≈ 2.2 tok/s — a 200-token answer
+# needed 70-90s, far past the 25s turn deadline, so the local chain was
+# always cancelled mid-generation. 64 tokens ≈ 9s at the claimed 7 tok/s and
+# ≈ 26s worst case at the measured 2.5 tok/s; answers are chunked bot-side
+# (3800 chars) so a shorter budget still renders fully.
+LOCAL_LLM_MAX_TOKENS = int(os.getenv("LOCAL_LLM_MAX_TOKENS", "64"))
 
 # Budget for the SEPARATELY-labeled retrieved-context block (RAG hits +
 # bridge + scan + live tool data) in the local fallback prompt. The user
@@ -131,6 +152,23 @@ LOCAL_LLM_CONTEXT_BUDGET = 6000
 LOCAL_LLM_RETRIES = 1
 LOCAL_LLM_RETRY_BACKOFF = 0.75  # seconds between retry attempts
 LOCAL_LLM_TOTAL_BUDGET = 60.0  # outer deadline for the whole local model chain
+
+# ── Remote-fast fallback (env-gated, DEFAULT OFF) ────────────────────────
+# The local llama.cpp models are the latency floor: CPU 4B/9B measured at
+# ~2.2-2.9 tok/s on a loaded host — a 200-token answer needs 70-90s and gets
+# cancelled by the 25s turn deadline, so complex local answers effectively
+# never land. The backend already has a remote fast provider chain
+# (app/llm_config: DeepSeek v4 Flash primary, OpenRouter free Nemotron
+# fallback) used by all RAG/content modules — the bot domain just never
+# called it. When ``RUGMUNCHBOT_REMOTE_FAST=1``, analysis-tier (complex /
+# long / forensics) questions are answered by that remote chain FIRST
+# (hosted GPU: seconds, better quality), with the local llama.cpp chain kept
+# as the fail-open backup. Short / definitional / chat-tier questions stay
+# local (the 4B is fine and free). Default OFF — operator opt-in, no
+# behavior change until enabled.
+REMOTE_FAST_ENABLED = os.getenv("RUGMUNCHBOT_REMOTE_FAST", "").strip().lower() in ("1", "true", "yes", "on")
+REMOTE_FAST_TIMEOUT = 20.0  # remote must beat local CPU; short hard cap per attempt
+REMOTE_FAST_MAX_TOKENS = 320  # hosted GPU — room for a real answer, still fast
 
 # Transient transport failures worth a retry: connection refused/reset,
 # read/connect timeout (httpx.TimeoutException + NetworkError both derive
@@ -220,8 +258,9 @@ def _local_context_too_large(
     system_context: str | None,
 ) -> bool:
     """Estimate whether the assembled local prompt would exceed the local
-    context window (``LOCAL_CTX_LIMIT_TOKENS``). Beyond it the 8k-ctx llama
-    models truncate/garbage. Conservative proxy: tokens ≈ chars / 4."""
+    context window (``LOCAL_CTX_LIMIT_TOKENS`` = 4096 on the live servers).
+    Beyond it the 4k-ctx llama models truncate/garbage. Conservative proxy:
+    tokens ≈ chars / 4."""
     total_chars = len(FALLBACK_SYSTEM_PROMPT) + len(message) + len(system_context or "")
     for msg in history or []:
         total_chars += len(str(msg.get("content") or ""))
@@ -338,6 +377,96 @@ async def _call_backend_chat(
     }
 
 
+async def _call_remote_fast(
+    messages: list[dict[str, str]],
+    user_id: int,
+    *,
+    sources: list[dict[str, str]] | None = None,
+) -> dict[str, Any] | None:
+    """Answer via the backend's remote fast provider chain (env-gated).
+
+    Uses ``app.llm_config.get_fast_config()`` — DeepSeek v4 Flash primary,
+    OpenRouter free Nemotron fallback — the SAME chain the backend RAG /
+    content modules use. Hosted GPU answers in seconds instead of the
+    70-90s CPU llama.cpp generation measured on the loaded host.
+
+    Fail-open: ANY failure (no key, transport error, non-200, bad payload,
+    empty answer) returns ``None`` so the caller falls through to the local
+    llama.cpp chain unchanged. Never raises.
+
+    Note: this path is DORMANT unless ``RUGMUNCHBOT_REMOTE_FAST=1`` — the
+    monkeypatch-contract tests patch ``chat_ai._call_local_llm`` and run with
+    the flag off, so they never exercise this helper.
+    """
+    try:
+        from app.llm_config import get_fast_config
+
+        cfg = get_fast_config()
+    except Exception as exc:  # fail-open on config/import issues
+        logger.debug("remote-fast config unavailable (user=%s): %s", user_id, exc)
+        return None
+    api_key = str(cfg.get("api_key") or "")
+    base_url = str(cfg.get("base_url") or "")
+    model = str(cfg.get("model") or "")
+    if not api_key or not base_url or not model:
+        logger.debug("remote-fast not configured (user=%s): key/base/model missing", user_id)
+        return None
+
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": REMOTE_FAST_MAX_TOKENS,
+        "temperature": 0.7,
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://rugmunch.io",
+        "X-Title": "RMI Telegram Bot",
+    }
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(REMOTE_FAST_TIMEOUT, connect=5.0, read=REMOTE_FAST_TIMEOUT, write=10.0)
+        ) as client:
+            r = await asyncio.wait_for(
+                client.post(base_url, headers=headers, json=payload),
+                timeout=REMOTE_FAST_TIMEOUT,
+            )
+    except asyncio.CancelledError:
+        raise
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError) as exc:
+        logger.debug("remote-fast unavailable (user=%s): %s", user_id, exc)
+        return None
+    if r.status_code != 200:
+        logger.debug("remote-fast HTTP %d (user=%s)", r.status_code, user_id)
+        return None
+    try:
+        raw = r.json()
+    except ValueError:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    choices = raw.get("choices", [])
+    if not choices or not isinstance(choices, list):
+        return None
+    answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
+    if not answer:
+        return None
+    # Strip any <think> preamble defensively (DeepSeek/OpenRouter may emit it).
+    answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL)
+    answer = re.sub(r"<think>.*", "", answer, flags=re.DOTALL).strip()
+    if not answer:
+        return None
+    return {
+        "message": answer,
+        "rag_count": len(sources or []),
+        "tokens": raw.get("usage", {}).get("total_tokens", 0),
+        "model": model,
+        "provider": "remote-fast",
+        "latency_ms": 0,
+    }
+
+
 async def _call_local_llm_impl(
     message: str,
     user_id: int,
@@ -435,15 +564,31 @@ async def _call_local_llm_impl(
     # grounded questions try the fast 4B first; deep/analysis questions try
     # the 9B first. chat_template_kwargs.enable_thinking=false disables the
     # Qwen3.5 reasoning preamble so all tokens go to the actual answer.
+    #
+    # REMOTE-FAST (env-gated, default off): analysis-tier questions are the
+    # worst latency case on CPU (9B measured ~2.2 tok/s → 90s for 200 tokens,
+    # always cancelled by the 25s turn deadline). When
+    # RUGMUNCHBOT_REMOTE_FAST=1, try the backend's hosted remote chain FIRST
+    # for those, keeping local llama.cpp as the fail-open backup. Chat-tier
+    # questions stay local (short + cheap on the 4B).
+    if REMOTE_FAST_ENABLED and _route_local_model(message) == "analysis":
+        remote_result = await _call_remote_fast(
+            messages,
+            user_id,
+            sources=sources,
+        )
+        if remote_result is not None:
+            return remote_result
+
     if _route_local_model(message) == "analysis":
         model_order = [
-            (DEEPSEEK_CHAT_URL, DEEPSEEK_MODEL, DEEPSEEK_TIMEOUT),
+            (QWEN_ANALYSIS_CHAT_URL, QWEN_ANALYSIS_MODEL, QWEN_ANALYSIS_TIMEOUT),
             (QWEN_CHAT_URL, QWEN_MODEL, QWEN_TIMEOUT),
         ]
     else:
         model_order = [
             (QWEN_CHAT_URL, QWEN_MODEL, QWEN_TIMEOUT),
-            (DEEPSEEK_CHAT_URL, DEEPSEEK_MODEL, DEEPSEEK_TIMEOUT),
+            (QWEN_ANALYSIS_CHAT_URL, QWEN_ANALYSIS_MODEL, QWEN_ANALYSIS_TIMEOUT),
         ]
     for url, model, timeout in model_order:
         try:
@@ -460,7 +605,7 @@ async def _call_local_llm_impl(
                     json={
                         "model": model,
                         "messages": messages,
-                        "max_tokens": 200,  # generation dominates CPU latency; answers are chunked anyway
+                        "max_tokens": LOCAL_LLM_MAX_TOKENS,  # generation dominates CPU latency; answers are chunked anyway
                         "temperature": 0.7,
                         # Same llama.cpp latency levers as ai_router._post_chat:
                         # prefix-cache the stable system-prompt prefix and skip
@@ -490,7 +635,7 @@ async def _call_local_llm_impl(
             continue
         answer = (choices[0].get("message", {}) or {}).get("content", "").strip()
 
-        # Strip thinking output (legacy DeepSeek/Qwen emitted <think> blocks; Qwen3.5 non-reasoning, kept defensively).
+        # Strip thinking output (legacy Qwen <think> blocks; Qwen3.5 non-reasoning, kept defensively).
         # Handle BOTH closed <think>...</think> AND unclosed <think> (when the
         # token budget runs out before the model finishes reasoning).
         # First remove properly closed think blocks
