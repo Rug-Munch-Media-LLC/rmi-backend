@@ -150,7 +150,7 @@ def _format_research_result(query: str, hits: list[dict[str, Any]]) -> str:
             [
                 f"<b>{i}. {col_emoji} [{collection}]</b> (relevance: {score:.0%}){source_str}",
                 d,
-                content,
+                html.escape(content),
                 "",
             ]
         )
