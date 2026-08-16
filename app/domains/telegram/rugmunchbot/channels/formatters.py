@@ -25,6 +25,27 @@ _MAX_BODY_CHARS = 4090
 _BREAKING_SUMMARY_CHARS = 600
 
 
+class NewsPost(str):
+    """A formatted post: a plain ``str`` plus an optional attached image URL.
+
+    ``image_url`` is ``""`` when the post has no usable image. Because the
+    value IS a ``str``, existing callers (``_safe_send``,
+    ``post_news_update``, tests) keep working unchanged; photo-aware callers
+    read ``.image_url`` and route through ``channels._media.send_news_photo``.
+    """
+
+    image_url: str = ""
+
+
+def _pick_image_url(value: object) -> str:
+    """Return *value* when it is a usable http(s) image URL, else ``""``."""
+    if isinstance(value, str) and value.strip():
+        url = value.strip()
+        if url.startswith(("http://", "https://")):
+            return url
+    return ""
+
+
 def _esc(value: object) -> str:
     """HTML-escape text for Telegram parse_mode=HTML (quotes left intact)."""
     return html.escape(str(value), quote=False)
@@ -49,8 +70,15 @@ def _now_stamp() -> str:
 # ── News channel ──────────────────────────────────────────────────────────
 
 
-def format_news_post(items: list[dict[str, Any]]) -> str:
-    """News digest: numbered, source-cited headlines with links."""
+def format_news_post(items: list[dict[str, Any]]) -> NewsPost:
+    """News digest: numbered, source-cited headlines with links.
+
+    Returns a ``NewsPost`` (a ``str``) whose ``.image_url`` is the first
+    story's usable http(s) image — the digest's photo when the scheduler
+    routes it through ``send_news_photo``. Items are the post-dicts shaped
+    by ``channels.telegram_news._digest._article_to_post_dict`` (which
+    already carries ``image_url``).
+    """
     lines = ["📰 <b>RugMunch News</b>", sep(), ""]
     for i, item in enumerate(items[:6], 1):
         title = _esc(item.get("title") or "Untitled")
@@ -67,17 +95,26 @@ def format_news_post(items: list[dict[str, Any]]) -> str:
         suffix = f" — {source}" + (f" ({', '.join(rating_bits)})" if rating_bits else "")
         lines.append(f"   <i>{suffix}</i>")
     lines.extend(["", f"🕐 {_now_stamp()}", footer_links()])
-    return _clip("\n".join(lines))
+    image_url = ""
+    for item in items[:6]:
+        candidate = _pick_image_url(item.get("image_url"))
+        if candidate:
+            image_url = candidate
+            break
+    post = NewsPost(_clip("\n".join(lines)))
+    post.image_url = image_url
+    return post
 
 
-def format_breaking_post(item: dict[str, Any]) -> str:
+def format_breaking_post(item: dict[str, Any]) -> NewsPost:
     """Solo breaking-news post: one high-importance story + official link.
 
     Used when the top ranked story carries a breaking marker (🚨/BREAKING/
     URGENT/JUST IN/FLASH). Links to the official source URL when one exists
     (falls back to the channel post URL), clips the summary, and keeps the
-    same footer as the digest. The Telegram photo media of the original post
-    is not attached here — see [REVIEW] notes in ``channels/telegram_news``.
+    same footer as the digest. The story's image (og:image / inline image,
+    the post-dict's ``image_url``) is carried on the returned ``NewsPost``
+    so the scheduler can attach it as a photo.
     """
     title = _esc(item.get("title") or "Untitled")
     url = (item.get("url") or "").strip()
@@ -94,7 +131,9 @@ def format_breaking_post(item: dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"🔗 <i>Full story: {source}</i>")
     lines.extend(["", f"🕐 {_now_stamp()}", footer_links()])
-    return _clip("\n".join(lines))
+    post = NewsPost(_clip("\n".join(lines)))
+    post.image_url = _pick_image_url(item.get("image_url"))
+    return post
 
 
 # ── Alerts channel ────────────────────────────────────────────────────────
@@ -203,4 +242,10 @@ def format_alpha_post(
     return _clip("\n".join(lines))
 
 
-__all__ = ["format_alerts_post", "format_alpha_post", "format_breaking_post", "format_news_post"]
+__all__ = [
+    "NewsPost",
+    "format_alerts_post",
+    "format_alpha_post",
+    "format_breaking_post",
+    "format_news_post",
+]

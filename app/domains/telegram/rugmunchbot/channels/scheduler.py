@@ -10,17 +10,22 @@ running.
 Cadence (env-overridable, defaults):
 * news     → every 4h  (``RMI_CHANNEL_NEWS_INTERVAL_HOURS``) — accepts
             fractional hours, so ``0.5`` = every 30min for a ~2x/hour cadence
-            when operators want the trending digest that fast
+            when operators want the trending digest that fast. DEPRECATED
+            2026-08-16: the legacy ``channel_news`` job is commented out —
+            the routed tg_news path now owns the news channel (see below).
 * alpha    → every 2h  (``RMI_CHANNEL_ALPHA_INTERVAL_HOURS``) — whale moves
             are collected on the same cadence so whale events surface in the
             digest within one interval (plus the existing event-driven rails)
 * alerts   → every 30m (``RMI_CHANNEL_ALERTS_INTERVAL_MINUTES``)
-* tg_news  → every 30m (``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES``) — ingests
-            public crypto-news Telegram channels via the headless client,
-            persists new articles to the website news table, reranks them
-            for importance (``channels/importance.py``, Infinity
-            BAAI/bge-reranker-v2-m3), then posts only the important digest
-            (see ``channels/telegram_news.py``)
+* tg_news  → every 20m (``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES``; default
+            tuned UP from 30m so stories post "often") — ingests public
+            crypto-news Telegram channels via the headless client, persists
+            new articles to the website news table, reranks them for
+            importance (``channels/importance.py``, Infinity
+            BAAI/bge-reranker-v2-m3), then routes each scored story to EXACTLY
+            ONE destination via ``channels/router.py::route_news`` (news →
+            news channel; main → @cryptorugmuncher; alpha → alpha channel;
+            below floor → skipped) — see ``channels/telegram_news.py``
  * scam_watch → every 1h (``RMI_SCAM_WATCH_INTERVAL_MINUTES``) — sweeps
  *             scam/shill channels via the headless client, extracts token
  *             addresses, and feeds them to the scanner (submit + durable
@@ -92,6 +97,7 @@ from app.domains.telegram.rugmunchbot.channels.personal_channel import (
     post_personal_channel,
     resolve_personal_chat_id,
 )
+from app.domains.telegram.rugmunchbot.channels.router import route_news
 from app.domains.telegram.rugmunchbot.channels.scam_watch import (
     SCAM_WATCH_ENABLED,
     SCAM_WATCH_INTERVAL_MINUTES,
@@ -99,9 +105,17 @@ from app.domains.telegram.rugmunchbot.channels.scam_watch import (
 )
 from app.domains.telegram.rugmunchbot.channels.telegram_news import (
     TG_NEWS_ENABLED,
-    TG_NEWS_INTERVAL_MINUTES,
     post_tg_news_update,
 )
+
+# Photo-aware posting for the tg_news post path. ``channels._media`` is owned
+# by the media lane; guard the import so a deployment without it degrades to
+# the plain text send (``_safe_send``) instead of failing to import.
+try:
+    from app.domains.telegram.rugmunchbot.channels._media import send_news_photo
+except ImportError:  # pragma: no cover — _media.py not deployed
+    send_news_photo = None  # type: ignore[assignment]
+
 from app.domains.telegram.rugmunchbot.config import (
     ALERTS_CHANNEL_ENABLED,
     ALERTS_CHANNEL_INTERVAL_MINUTES,
@@ -110,8 +124,6 @@ from app.domains.telegram.rugmunchbot.config import (
     ALPHA_CHANNEL_INTERVAL_HOURS,
     ALPHA_CHANNEL_LIMIT,
     CHANNEL_JOBS_ENABLED,
-    NEWS_CHANNEL_ENABLED,
-    NEWS_CHANNEL_INTERVAL_HOURS,
     NEWS_CHANNEL_LIMIT,
     _resolve_channel_id,
 )
@@ -151,9 +163,52 @@ _RETRY_BASE_DELAY = 0.5
 _RETRY_MAX_DELAY = 8.0
 
 
+def _env_interval_minutes(name: str, default: int) -> int:
+    """Positive integer minutes from env (``RMI_*_INTERVAL_MINUTES``)."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return max(1, int(raw.strip()))
+    except (TypeError, ValueError):
+        return default
+
+
+#: tg_news cadence — default tuned UP to 20 min (≈3 posts/hour) so stories
+#: post "often". Env-overridable via ``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES``
+#: (the same knob ``telegram_news/_sources.py`` reads; we keep the tuned
+#: default here at the registration site so the routed tg_news lane is the
+#: operative cadence without touching the telegram_news package).
+_TG_NEWS_INTERVAL_MINUTES = _env_interval_minutes("RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES", 20)
+
+
 def _chat_id(channel: str) -> str | None:
     """Resolve a channel chat id (gopass → env → fallback), None when unknown."""
     return _resolve_channel_id(channel)
+
+
+def _route_chat_id(destination: str) -> str | None:
+    """Chat id for a ``route_news`` destination ("news"/"main"/"alpha").
+
+    ``main`` resolves through the registry's ``main`` role → the operator's
+    @cryptorugmuncher channel. Unknown destinations (e.g. ``"skip"``) return
+    None so callers simply don't post.
+    """
+    if destination not in ("news", "main", "alpha"):
+        return None
+    return _chat_id(destination)
+
+
+async def _send_news_photo(bot: Any, chat_id: str, caption: str, photo_url: str | None = None) -> bool:
+    """Send a routed post, photo-aware when the media module is available.
+
+    Uses ``channels._media.send_news_photo`` (best-effort, falls back to text
+    internally) when the module exists AND a usable ``photo_url`` is given;
+    otherwise degrades to the plain ``_safe_send`` text path. Never raises.
+    """
+    if send_news_photo is not None and photo_url:
+        return await send_news_photo(bot, chat_id, caption, photo_url)
+    return await _safe_send(bot, chat_id, caption)
 
 
 def _remember(channel: str, key: str) -> bool:
@@ -291,7 +346,17 @@ async def _load_channel_state(ctx: Any = None) -> None:
 
 
 async def post_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
-    """Post the news digest to the news channel. Returns items sent (0-1)."""
+    """DEPRECATED 2026-08-16 — legacy 4h news digest (job ``channel_news``).
+
+    Superseded by the routed tg_news path (``post_tg_news_update`` +
+    ``channels/router.py::route_news``). The ``channel_news`` registration in
+    :func:`register_channel_jobs` is commented out so the news channel is no
+    longer double-posted by two jobs with different dedupe prefixes (``news:``
+    here vs ``tgnews:`` in the tg_news lane). Kept importable for
+    ``channels/__init__.py`` and direct-call tests; remove in a follow-up.
+
+    Posts the news digest to the news channel. Returns items sent (0-1).
+    """
     started = time.perf_counter()
     chat_id = _chat_id("news")
     if not chat_id:
@@ -472,13 +537,20 @@ def register_channel_jobs(app: Application[Any, Any, Any, Any, Any, Any]) -> Non
     if hasattr(job_queue, "run_once"):
         job_queue.run_once(_load_channel_state, when=1.0, name="channel_state_load")
 
-    if NEWS_CHANNEL_ENABLED and _chat_id("news"):
-        job_queue.run_repeating(
-            _tick_wrapper("channel_news", post_news_update),
-            interval=NEWS_CHANNEL_INTERVAL_HOURS * 3600,
-            first=_FIRST_RUN_SECONDS["news"],
-            name="channel_news",
-        )
+    # DEPRECATED 2026-08-16 — legacy 4h news digest job (``channel_news``).
+    # Superseded by the routed tg_news path (``channel_tg_news`` below):
+    # ``post_tg_news_update`` + ``channels/router.py::route_news`` now own the
+    # news channel, so keeping BOTH jobs registered would double-post the same
+    # story (the two jobs use different dedupe prefixes: ``news:`` here vs
+    # ``tgnews:``/``tgmain:``/``tgalpha:`` in the tg_news lane). Commented out;
+    # remove the ``post_news_update`` function in a follow-up.
+    # if NEWS_CHANNEL_ENABLED and _chat_id("news"):
+    #     job_queue.run_repeating(
+    #         _tick_wrapper("channel_news", post_news_update),
+    #         interval=NEWS_CHANNEL_INTERVAL_HOURS * 3600,
+    #         first=_FIRST_RUN_SECONDS["news"],
+    #         name="channel_news",
+    #     )
     if ALERTS_CHANNEL_ENABLED and _chat_id("alerts"):
         job_queue.run_repeating(
             _tick_wrapper("channel_alerts", post_alert_update),
@@ -493,10 +565,13 @@ def register_channel_jobs(app: Application[Any, Any, Any, Any, Any, Any]) -> Non
             first=_FIRST_RUN_SECONDS["alpha"],
             name="channel_alpha",
         )
-    if TG_NEWS_ENABLED and _chat_id("news"):
+    # Routed tg_news job: registered when ANY routed destination resolves
+    # (news / main @cryptorugmuncher / alpha) — the post path routes each
+    # scored story to exactly one destination via ``route_news``.
+    if TG_NEWS_ENABLED and any(_chat_id(dest) for dest in ("news", "main", "alpha")):
         job_queue.run_repeating(
             _tick_wrapper("channel_tg_news", post_tg_news_update, envelope=True),
-            interval=TG_NEWS_INTERVAL_MINUTES * 60,
+            interval=_TG_NEWS_INTERVAL_MINUTES * 60,
             first=_FIRST_RUN_SECONDS["tg_news"],
             name="channel_tg_news",
         )
@@ -523,5 +598,6 @@ __all__ = [
     "post_alpha_update",
     "post_news_update",
     "register_channel_jobs",
+    "route_news",
     "run_scam_watch",
 ]
