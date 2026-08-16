@@ -464,7 +464,10 @@ class TestMonitoringHelpers:
 
     def test_cache_stats_reports_size_and_contracts(self) -> None:
         lp._cache_lp_lock("test:key", {"is_locked": True})
-        stats = lp.get_cache_stats()
+        # _get_ch_client() lazily opens a live ClickHouse connection since the
+        # degodding change; mock it so cache stats stay hermetic.
+        with patch.object(lp, "_get_ch_client", return_value=None):
+            stats = lp.get_cache_stats()
         assert stats["cache_size"] == 1
         assert stats["cache_max"] == lp._LP_LOCK_CACHE_MAX
         assert stats["cache_ttl_seconds"] == lp._LP_LOCK_CACHE_TTL

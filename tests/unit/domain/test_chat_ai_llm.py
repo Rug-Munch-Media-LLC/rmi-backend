@@ -480,6 +480,109 @@ async def test_gather_context_scam_uses_rag_lookup_only_without_address(monkeypa
     assert sources[0]["query"] == "is $BONK a honeypot"
 
 
+async def test_gather_context_education_thin_rag_merges_web_and_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EDUCATION with a THIN RAG KB (fewer hits than the threshold) → the
+    live SearXNG web layer is ALSO pulled, and the education answer-structure
+    hint travels with the merged context block."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    rag_thin = ToolResult(
+        tool="rag_lookup",
+        ok=True,
+        data={
+            "context": "MEV: maximal extractable value — a transaction-ordering exploit",
+            "hits": [{"collection": "defi_exploits", "score": 0.51, "content": "MEV writeup"}],
+        },
+        source="rag:/api/v1/rag/v2/search",
+    )
+    fake = _FakeRegistry({"rag_lookup": rag_thin})
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    async def _fake_web(question: str) -> tuple[str, list[dict[str, str]]]:
+        return (
+            "LIVE WEB SEARCH (real-time web results):\n- MEV explained (source: example.com — https://example.com/mev)",
+            [{"type": "web", "title": "MEV explained", "url": "https://example.com/mev"}],
+        )
+
+    monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
+
+    block, sources = await _llm._gather_context("what is MEV")
+    assert "MEV: maximal extractable value" in block  # RAG intel reached the prompt
+    assert "LIVE WEB SEARCH" in block  # thin RAG → web layer merged
+    assert "EDUCATION/LORE ANSWER FORMAT" in block  # structure hint appended
+    assert "plain-language" in block
+    assert {s["type"] for s in sources} == {"rag_lookup", "web"}
+
+
+async def test_gather_context_education_rich_rag_stands_alone_with_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EDUCATION with a RICH RAG KB (≥ threshold hits) → the rag_lookup
+    context block renders DIRECTLY (never the LIVE MARKET DATA projection),
+    web results are NOT merged, and the education hint is appended. (The
+    concurrent web fetch still runs — it exists to guard the slow-KB race —
+    but a rich KB stands alone.)"""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    rag_rich = ToolResult(
+        tool="rag_lookup",
+        ok=True,
+        data={
+            "context": (
+                "RAG KNOWLEDGE — cite each source by its [collection·label].\n"
+                "[1] Source: defi_exploits (score: 0.61) [defi_exploits·Critical]\n"
+                "Rug pull: liquidity withdrawal attack writeup with full timeline.\n"
+                "[2] Source: scam_patterns (score: 0.55) [scam_patterns·High]\n"
+                "Pump-and-dump pattern: how the deployer distributes to insiders."
+            ),
+            "hits": [
+                {"collection": "defi_exploits", "score": 0.61, "content": "rug pull writeup"},
+                {"collection": "scam_patterns", "score": 0.55, "content": "pump-and-dump pattern"},
+            ],
+        },
+        source="rag:/api/v1/rag/v2/search",
+    )
+    fake = _FakeRegistry({"rag_lookup": rag_rich})
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    async def _fake_web(question: str) -> tuple[str, list[dict[str, str]]]:
+        return (
+            "LIVE WEB SEARCH (real-time web results):\n- Some web page (source: example.com — https://example.com/x)",
+            [{"type": "web", "title": "Some web page", "url": "https://example.com/x"}],
+        )
+
+    monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
+
+    block, sources = await _llm._gather_context("how does a rug pull work")
+    assert "RAG KNOWLEDGE" in block  # direct rag_lookup context, not the market projection
+    assert "LIVE MARKET DATA" not in block
+    assert "LIVE WEB SEARCH" not in block  # rich KB stands alone — web NOT merged
+    assert "EDUCATION/LORE ANSWER FORMAT" in block
+    assert sources[0]["type"] == "rag_lookup"
+    assert all(s["type"] != "web" for s in sources)
+
+
+async def test_gather_context_education_rag_down_uses_web_with_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EDUCATION with rag_lookup failing (timeout / no hits on the live KB)
+    → the SearXNG web layer answers and the education hint is appended."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    rag_fail = ToolResult(tool="rag_lookup", ok=False, error="rag lookup timed out")
+    fake = _FakeRegistry({"rag_lookup": rag_fail})
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    async def _fake_web(question: str) -> tuple[str, list[dict[str, str]]]:
+        return (
+            "LIVE WEB SEARCH (real-time web results):\n- Impermanent loss explained (source: Coinbase — https://example.com/il)",
+            [{"type": "web", "title": "Impermanent loss explained", "url": "https://example.com/il"}],
+        )
+
+    monkeypatch.setattr(_llm, "_gather_web_fallback", _fake_web)
+
+    block, sources = await _llm._gather_context("what is impermanent loss")
+    assert "LIVE WEB SEARCH" in block
+    assert "EDUCATION/LORE ANSWER FORMAT" in block
+    assert sources[0]["type"] == "web"
+
+
 async def test_gather_context_token_routes_scanner_plus_price(monkeypatch: pytest.MonkeyPatch) -> None:
     """SPECIFIC TOKEN (address present) → scanner_intel + price_lookup."""
     from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
@@ -501,6 +604,71 @@ async def test_gather_context_token_routes_scanner_plus_price(monkeypatch: pytes
     assert fake.spec["scanner_intel"]["address"] == addr
     assert "LIVE MARKET DATA" in block
     assert {s["type"] for s in sources} == {"scanner_intel", "price_lookup"}
+
+
+async def test_gather_context_ta_routes_technical_analysis_and_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """TA-typed question → price_lookup + technical_analysis with the
+    TA/MARKET ANSWER FORMAT hint appended to the retrieved context block."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    fake = _FakeRegistry(
+        {
+            "price_lookup": ToolResult(
+                tool="price_lookup",
+                ok=True,
+                data={
+                    "query_symbol": "BONK",
+                    "pairs": [{"symbol": "BONK", "price_usd": 0.0000123, "change_24h": 5.2}],
+                },
+                source="dexscreener",
+            ),
+            "technical_analysis": ToolResult(
+                tool="technical_analysis",
+                ok=True,
+                data={
+                    "symbol": "BONK",
+                    "indicators_available": True,
+                    "indicators": {"rsi_14": 62.0, "trend": "BULLISH"},
+                    "market": {"price_usd": 0.0000123, "change_24h": 5.2, "liquidity_usd": 50000.0},
+                    "verdict": {"bias": "bullish"},
+                },
+                source="backend:/api/v1/rugcharts/ohlcv",
+            ),
+        }
+    )
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    block, sources = await _llm._gather_context("check the rsi on $BONK")
+    assert fake.spec is not None
+    assert set(fake.spec) == {"price_lookup", "technical_analysis"}
+    assert fake.spec["technical_analysis"]["symbol"] == "BONK"
+    assert "LIVE MARKET DATA" in block
+    assert "TA/MARKET ANSWER FORMAT" in block  # structure hint travels with the context
+    assert "not financial advice" in block
+    assert {s["type"] for s in sources} == {"price_lookup", "technical_analysis"}
+
+
+async def test_gather_context_plain_price_has_no_ta_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A plain price ask (no TA keyword) does NOT append the TA hint and does
+    NOT invoke technical_analysis."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    fake = _FakeRegistry(
+        {
+            "price_lookup": ToolResult(
+                tool="price_lookup",
+                ok=True,
+                data={"query_symbol": "BONK", "pairs": [{"symbol": "BONK", "price_usd": 0.0000123}]},
+                source="dexscreener",
+            ),
+        }
+    )
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    block, _ = await _llm._gather_context("what is the price of $BONK")
+    assert fake.spec is not None
+    assert set(fake.spec) == {"price_lookup"}
+    assert "TA/MARKET ANSWER FORMAT" not in block
 
 
 async def test_gather_context_fail_open_on_registry_error(monkeypatch: pytest.MonkeyPatch) -> None:

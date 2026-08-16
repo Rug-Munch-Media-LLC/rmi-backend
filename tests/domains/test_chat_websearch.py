@@ -445,8 +445,10 @@ def test_system_prompt_has_date_awareness_and_year(client: TestClient) -> None:
     assert f"(year {now.year})" in system_msg
     # No per-minute granularity anywhere in the system prompt (prefix-cache killer).
     assert f" {now.strftime('%H:%M')} UTC" not in system_msg
-    assert "You know today's date." in system_msg
-    assert "use the web search results provided" in system_msg
+    # Date-awareness instruction (shortened prompt still tells the model the
+    # current date and to lean on web results for past-cutoff events).
+    assert "Current date:" in system_msg
+    assert "use web results" in system_msg
 
 
 def test_system_prompt_has_date_awareness_in_stream(client: TestClient) -> None:
@@ -457,7 +459,7 @@ def test_system_prompt_has_date_awareness_in_stream(client: TestClient) -> None:
         # The system prompt reaches the LLM through _build_messages — assert
         # the date-awareness instruction is present on every stream call.
         assert "(year " in messages[0]["content"]
-        assert "You know today's date." in messages[0]["content"]
+        assert "Current date:" in messages[0]["content"]
         yield "streamed"
 
     with (
