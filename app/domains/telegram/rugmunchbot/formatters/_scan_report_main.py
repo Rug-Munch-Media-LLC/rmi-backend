@@ -2,7 +2,21 @@
 
 Split out of ``formatters/_scan_report.py`` during the Batch 14
 de-godding pass: ``format_scan_report`` renders every section using the
-per-section helpers in the sibling ``_scan_report_*`` modules."""
+per-section helpers in the sibling ``_scan_report_*`` modules.
+
+Canonical layout (Batch 2026-08-16): ``_format_scan_report`` renders the
+same 4-part skeleton for regular ``/scan`` (``deep=False``) and the
+scanner-based ``/scandeep`` (``deep=True`` + extra sections):
+
+  1. one-line verdict up top (brand header + risk headline + sentence)
+  2. key metrics as a tight bold table (``_key_metrics_rows``)
+  3. evidence bullets (Security Assessment checks, Risk Signals, AEGIS)
+  4. a short "what to watch" line (``_what_to_watch_line``)
+
+``format_deep_scan_report`` is the single advanced entrypoint — the
+``/scandeep`` handler passes its enrichment sections (RugMap cluster, market
+snapshot, wallet composition) which render INSIDE the report, before the
+footer, instead of being appended after it."""
 
 from __future__ import annotations
 
@@ -12,7 +26,13 @@ from typing import TYPE_CHECKING, Any
 
 from app.domains.telegram.rugmunchbot.config import _risk_gauge, fmt_chain, fmt_pct, risk_bar, threat_indicator
 from app.domains.telegram.rugmunchbot.formatters._base import footer_links, sep, thin_sep
-from app.domains.telegram.rugmunchbot.formatters._scan_report_common import _clip, _collapse_blank_lines
+from app.domains.telegram.rugmunchbot.formatters._scan_report_common import (
+    _clip,
+    _collapse_blank_lines,
+    _key_metrics_rows,
+    _launch_intel_rows,
+    _what_to_watch_line,
+)
 from app.domains.telegram.rugmunchbot.formatters._scan_report_risk import _format_risk_signals_section, _verdict_text
 from app.domains.telegram.rugmunchbot.formatters._scan_report_sentinel import _format_sentinel_pro
 from app.domains.telegram.rugmunchbot.formatters._scan_report_token import _token_description, _token_image_url
@@ -38,11 +58,35 @@ except ImportError:
     format_verdict_header = None
 
 __all__ = [
+    "format_deep_scan_report",
     "format_scan_report",
 ]
 
 
 def format_scan_report(r: dict[str, Any]) -> str:
+    """Regular ``/scan`` report — canonical layout, no deep-only sections."""
+    return _format_scan_report(r, deep=False)
+
+
+def format_deep_scan_report(r: dict[str, Any], extra_sections: list[str] | None = None) -> str:
+    """Advanced ``/scandeep`` report — canonical layout + deep-only intel.
+
+    Renders the same skeleton as ``/scan`` but with a richer key-metrics
+    table (LP lock, bundle verdict, snipers/insiders), a deep-only
+    "Launch & Trading Intel" section (bundler/sniper detection, Token-2022
+    flags, MEV notes) and any ``extra_sections`` (RugMap cluster, market
+    snapshot, wallet composition) inside the report — before the footer,
+    never appended after it.
+    """
+    return _format_scan_report(r, deep=True, extra_sections=extra_sections or [])
+
+
+def _format_scan_report(
+    r: dict[str, Any],
+    *,
+    deep: bool = False,
+    extra_sections: list[str] | None = None,
+) -> str:
     s = sep()
     d = thin_sep()
 
@@ -95,6 +139,11 @@ def format_scan_report(r: dict[str, Any]) -> str:
     bundle_alert = _bundle_alert_line(r)
     if bundle_alert:
         lines.extend(["", bundle_alert])
+
+    # ── 1b. Key Metrics (canonical tight bold table; deep scans add rows) ──
+    key_metrics = _key_metrics_rows(r, deep=deep)
+    if key_metrics:
+        lines.extend(key_metrics)
 
     # ── 2. Security Assessment (risk bar + contract checks + taxes / LP lock) ──
     lines.extend(["", "\U0001f512 <b>Security Assessment</b>", d, risk_bar(risk)])
@@ -187,6 +236,20 @@ def format_scan_report(r: dict[str, Any]) -> str:
         lines.extend(["", "\U0001f52c <b>Advanced Analysis</b>", d])
         lines.extend(adv)
 
+    # ── 7b. Launch & Trading Intel (deep scans only: bundler/sniper, Token-2022, MEV) ──
+    if deep:
+        launch_rows = _launch_intel_rows(r)
+        if launch_rows:
+            lines.extend(["", "\U0001f3af <b>Launch & Trading Intel</b>", d])
+            lines.extend(launch_rows)
+
+    # ── 7c. Deep-scan enrichment sections (RugMap cluster, market snapshot,
+    #        wallet composition) render INSIDE the report, before the footer ──
+    if extra_sections:
+        for section in extra_sections:
+            if section:
+                lines.extend(["", section])
+
     # ── 8. Socials / Description ──
     # ALWAYS renders a Socials block when the token has any socials or an
     # image URL (never hidden behind a "NO SOCIALS" placeholder). Lists
@@ -228,6 +291,11 @@ def format_scan_report(r: dict[str, Any]) -> str:
         lines.append("  \u26a0\ufe0f NO SOCIALS")
     if description:
         lines.append(f"  \U0001f4dd <i>{html.escape(_clip(description, 300))}</i>")
+
+    # ── 8b. What to Watch (short actionable line — the last advice before footer) ──
+    watch_line = _what_to_watch_line(r)
+    if watch_line:
+        lines.extend(["", f"\U0001f440 <b>Watch:</b> {watch_line}"])
 
     # ── 9. Footer (trade links) ──
     lines.extend(["", s, "\U0001f4b1 <b>Trade:</b>"])

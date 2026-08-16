@@ -33,10 +33,14 @@ from app.domains.telegram.rugmunchbot.formatters._scan_report_common import (
     _short_addr,
 )
 from app.domains.telegram.rugmunchbot.formatters._scan_report_deepscan import (
+    format_deep_ml_scan_report,
     format_sentinel_deepscan_section,
     format_sentinel_scan_report,
 )
-from app.domains.telegram.rugmunchbot.formatters._scan_report_main import format_scan_report
+from app.domains.telegram.rugmunchbot.formatters._scan_report_main import (
+    format_deep_scan_report,
+    format_scan_report,
+)
 from app.domains.telegram.rugmunchbot.formatters._scan_report_risk import (
     _format_risk_signals_section,
     _verdict_text,
@@ -95,6 +99,8 @@ __all__ = [
     "_token_image_url",
     "_verdict_text",
     "_wallet_freshness_line",
+    "format_deep_ml_scan_report",
+    "format_deep_scan_report",
     "format_scan_report",
     "format_sentinel_deepscan_section",
     "format_sentinel_flags",

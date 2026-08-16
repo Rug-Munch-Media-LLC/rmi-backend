@@ -6,6 +6,7 @@ sentinel renderer consumed by ``format_scan_report``."""
 
 from __future__ import annotations
 
+import html
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.formatters._base import thin_sep
@@ -61,7 +62,7 @@ def format_sentinel_flags(r: dict[str, Any]) -> str:
                 if level in ("high", "critical"):
                     flags.append(f"\u26a0\ufe0f High holder concentration (HHI: <b>{hhi_f:.0f}</b>)")
                 else:
-                    flags.append(f"\U0001f465 Holder concentration (HHI: <b>{hhi_f:.0f}</b>, {level})")
+                    flags.append(f"\U0001f465 Holder concentration (HHI: <b>{hhi_f:.0f}</b>, {html.escape(level)})")
         # LP lock
         lv = free.get("liquidity_verification")
         if isinstance(lv, dict) and lv.get("total_locked_percentage") is not None:
@@ -73,7 +74,7 @@ def format_sentinel_flags(r: dict[str, Any]) -> str:
         # Contract authority
         ca = free.get("contract_authority")
         if isinstance(ca, dict):
-            ca_level = str(ca.get("risk_level") or "LOW").upper()
+            ca_level = html.escape(str(ca.get("risk_level") or "LOW")).upper()
             if ca_level in ("HIGH", "CRITICAL"):
                 flags.append(f"\U0001f512 Contract authority risk: <b>{ca_level}</b>")
         # Proxy
@@ -82,7 +83,7 @@ def format_sentinel_flags(r: dict[str, Any]) -> str:
             if px.get("can_upgrade"):
                 flags.append("\u26a0\ufe0f Upgradeable proxy (admin can change implementation)")
             elif px.get("is_proxy"):
-                flags.append(f"\U0001f4e6 Proxy contract ({px.get('proxy_type') or 'unknown'})")
+                flags.append(f"\U0001f4e6 Proxy contract ({html.escape(str(px.get('proxy_type') or 'unknown'))})")
         # Deployer reputation
         dr = free.get("dev_reputation")
         if isinstance(dr, dict):
@@ -90,7 +91,7 @@ def format_sentinel_flags(r: dict[str, Any]) -> str:
             if rep in ("suspicious", "dangerous"):
                 score = dr.get("reputation_score")
                 score_str = f"{int(score)}/100" if score is not None else "N/A"
-                flags.append(f"\U0001f468\u200d\U0001f4bb Dev reputation: <b>{rep}</b> ({score_str})")
+                flags.append(f"\U0001f468\u200d\U0001f4bb Dev reputation: <b>{html.escape(rep)}</b> ({score_str})")
         # Remaining module warnings (deduped, capped)
         for w in _module_warnings(
             free,
@@ -103,7 +104,7 @@ def format_sentinel_flags(r: dict[str, Any]) -> str:
         ):
             if len(flags) >= 6:
                 break
-            flags.append(f"\u26a0\ufe0f {_clip(w, 100)}")
+            flags.append(f"\u26a0\ufe0f {html.escape(_clip(w, 100))}")
     if not flags:
         flags.append("\u2705 No AEGIS red flags")
     lines = ["", "\U0001f6e1\ufe0f <b>AEGIS</b>", d]
@@ -140,7 +141,7 @@ def _format_sentinel_pro(r: dict[str, Any]) -> list[str]:
             emoji = (
                 "\U0001f534" if level in ("high", "critical") else "\U0001f7e0" if level == "medium" else "\U0001f7e2"
             )  # 🔴 / 🟡 / 🟢
-            flags.append(f"{emoji} Holder concentration: HHI <b>{hhi_f:.0f}</b> ({level})")
+            flags.append(f"{emoji} Holder concentration: HHI <b>{hhi_f:.0f}</b> ({html.escape(level)})")
 
     # LP lock
     lv = free.get("liquidity_verification")
@@ -160,7 +161,7 @@ def _format_sentinel_pro(r: dict[str, Any]) -> list[str]:
     # Contract authority
     ca = free.get("contract_authority")
     if isinstance(ca, dict):
-        ca_level = str(ca.get("risk_level") or "LOW").upper()
+        ca_level = html.escape(str(ca.get("risk_level") or "LOW")).upper()
         if ca_level in ("HIGH", "CRITICAL"):
             flags.append(f"\U0001f534 Contract authority risk: <b>{ca_level}</b>")
         elif ca_level == "MEDIUM":
@@ -172,7 +173,7 @@ def _format_sentinel_pro(r: dict[str, Any]) -> list[str]:
         if px.get("can_upgrade"):
             flags.append("\u26a0\ufe0f Upgradeable proxy (admin can change implementation)")
         elif px.get("is_proxy"):
-            flags.append(f"\U0001f4e6 Proxy contract ({px.get('proxy_type') or 'unknown'})")
+            flags.append(f"\U0001f4e6 Proxy contract ({html.escape(str(px.get('proxy_type') or 'unknown'))})")
 
     # Dev reputation
     dr = free.get("dev_reputation")
@@ -181,7 +182,7 @@ def _format_sentinel_pro(r: dict[str, Any]) -> list[str]:
         if rep in ("suspicious", "dangerous"):
             score = dr.get("reputation_score")
             score_str = f"{int(score)}/100" if score is not None else "N/A"
-            flags.append(f"\U0001f534 Dev reputation: <b>{rep}</b> ({score_str})")
+            flags.append(f"\U0001f534 Dev reputation: <b>{html.escape(rep)}</b> ({score_str})")
 
     # Decode raw warning codes (CR01, RP05, etc.)
     for w in _module_warnings(
@@ -197,7 +198,7 @@ def _format_sentinel_pro(r: dict[str, Any]) -> list[str]:
         if decoded and decoded not in flags:
             if len(flags) >= 8:
                 break
-            flags.append(f"\u26a0\ufe0f {_clip(decoded, 140)}")
+            flags.append(f"\u26a0\ufe0f {html.escape(_clip(decoded, 140))}")
 
     if not flags:
         flags.append("\u2705 No AEGIS red flags")

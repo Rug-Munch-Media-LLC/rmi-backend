@@ -9,6 +9,7 @@ formatting primitives and standard library.
 
 from __future__ import annotations
 
+import html
 from typing import Any
 
 # --- SENTINEL deep forensic flags (v2 /scan + deep scan) ---
@@ -136,7 +137,7 @@ def _bundle_alert_line(r: dict[str, Any]) -> str | None:
         conf = float(ba.get("confidence") or 0)
     except (TypeError, ValueError):
         conf = 0.0
-    risk = str(ba.get("risk_label") or "unknown").upper()
+    risk = html.escape(str(ba.get("risk_label") or "unknown")).upper()
     return f"\U0001f6a8 <b>BUNDLED LAUNCH DETECTED</b> \u2014 {conf:.0f}% confidence, {risk}"
 
 
