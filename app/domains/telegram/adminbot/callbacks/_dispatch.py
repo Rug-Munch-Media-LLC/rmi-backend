@@ -35,7 +35,7 @@ from app.domains.telegram.adminbot.callbacks import (
     _term,
 )
 from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID
-from app.domains.telegram.adminbot.helpers import back_button, is_owner
+from app.domains.telegram.adminbot.helpers import back_button, is_owner, is_private_chat
 
 # Optional modules (fail-open, mirrors the original callbacks.py guards).
 try:
@@ -100,6 +100,10 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     if data is None:
         return
     await query.answer()
+
+    # DM-only: callbacks from groups/channels are silently ignored.
+    if not is_private_chat(update):
+        return
 
     if not is_owner(update):
         # Hidden bot: no visible reply (not even "Unauthorized") — the

@@ -157,7 +157,10 @@ def format_deep_ml_scan_report(report: Any) -> str:
         metrics.append("  pygod            <i>skipped (no transfer graph)</i>")
     elif pygod or pygod.get("error"):
         metrics.append(_score_row("pygod", pygod, "model_type"))
-    metrics.append(f"  Sell-Sim Tax     <b>{_fmt_tax(sell.get('tax_pct'))}</b>")
+    # Sell tax: pyrevm's tax_pct first, then the honeypot sell-sim sell_tax.
+    metrics.append(
+        f"  Sell-Sim Tax     <b>{_fmt_tax(sell.get('tax_pct') if sell.get('tax_pct') is not None else sell.get('sell_tax'))}</b>"
+    )
     if decompiled.get("success"):
         metrics.append(f"  ABI Functions    <b>{len(decompiled.get('functions') or [])}</b>")
     metrics.append(f"  Findings         <b>{len(findings)}</b>")
@@ -165,6 +168,22 @@ def format_deep_ml_scan_report(report: Any) -> str:
 
     # ── 3. Evidence bullets ──
     # Sell-sim flags (honeypot / blacklist / anti-whale) — hard evidence.
+    lines.extend(["", "\U0001f4b8 <b>Sell Simulation</b>", d])
+    # Honeypot sell-sim verdict (Honeypot.is / GoPlus) — the clear OK / BLOCKED
+    # line. Honest + fail-open: "—" when no data source was reachable.
+    verdict = str(sell.get("sell_sim_verdict") or "unavailable").upper()
+    sim_source = html.escape(str(sell.get("source") or ""))
+    if verdict in ("OK", "BLOCKED", "EXTREME_TAXES"):
+        sim_tax = sell.get("sell_tax")
+        if verdict == "OK":
+            tax_txt = f" (tax {_fmt_tax(sim_tax)})" if sim_tax is not None else ""
+            verdict_line = f"  \U0001f7e2 Sell sim OK{tax_txt}"
+        else:
+            tax_txt = f" ({_fmt_tax(sim_tax)} sell tax)" if sim_tax is not None else ""
+            verdict_line = f"  \U0001f534 Sell sim BLOCKED / EXTREME taxes{tax_txt}"
+        if sim_source:
+            verdict_line += f" <i>({sim_source})</i>"
+        lines.append(verdict_line)
     if sell.get("simulation_success"):
         flags: list[str] = []
         if sell.get("can_sell") and sell.get("sell_to_pair_reverted"):
@@ -174,18 +193,13 @@ def format_deep_ml_scan_report(report: Any) -> str:
         if sell.get("anti_whale_hit"):
             flags.append("\U0001f40b anti-whale")
         risk = html.escape(str(sell.get("risk") or "unknown"))
-        lines.extend(
-            [
-                "",
-                "\U0001f4b8 <b>Sell Simulation</b>",
-                d,
-                f"  \U0001f504 risk={risk} \u00b7 tax {_fmt_tax(sell.get('tax_pct'))}"
-                + (f" \u00b7 {' '.join(flags)}" if flags else ""),
-            ]
+        lines.append(
+            f"  \U0001f504 risk={risk} \u00b7 tax {_fmt_tax(sell.get('tax_pct'))}"
+            + (f" \u00b7 {' '.join(flags)}" if flags else "")
         )
-    else:
+    elif verdict not in ("OK", "BLOCKED", "EXTREME_TAXES"):
         warn = (sell.get("warnings") or ["unavailable"])[0]
-        lines.extend(["", "\U0001f4b8 <b>Sell Simulation</b>", d, f"  <i>{html.escape(str(warn)[:80])}</i>"])
+        lines.append(f"  <i>{html.escape(str(warn)[:80])}</i>")
 
     # Decompiled ABI summary.
     if decompiled.get("success"):
@@ -436,6 +450,36 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
                 lines.append(f"     \u26a1 Jito bundles: <b>{int(bundle['jito_bundles_detected'])}</b>")
         else:
             lines.append("  \U0001f7e2 No bundle detected")
+        # Same-slot buy concentration (own_bundle_detect, Helius-backed on
+        # Solana). Honest + fail-open: show the concentration when scanned,
+        # otherwise a [REVIEW] note (with the own bundle wallet count +
+        # confidence when the SENTINEL module itself found nothing).
+        same_slot = bundle.get("same_slot")
+        if isinstance(same_slot, dict):
+            if same_slot.get("result") == "scanned":
+                with contextlib.suppress(TypeError, ValueError):
+                    n_slot = int(same_slot.get("same_slot_wallets") or 0)
+                    sol_spent = float(same_slot.get("same_slot_sol_spent") or 0)
+                    held_pct = float(same_slot.get("same_slot_held_pct") or 0)
+                    slot_no = same_slot.get("same_slot")
+                    slot_txt = f"slot {slot_no}" if slot_no is not None else "same slot"
+                    lines.append(
+                        f"     \u26a1 Same-slot: <b>{n_slot}</b> wallets \u00b7 "
+                        f"{sol_spent:.2f} SOL \u00b7 <b>{held_pct:.1f}%</b> held ({slot_txt})"
+                    )
+            elif same_slot.get("note"):
+                note = html.escape(str(same_slot["note"]))
+                if note.startswith("[REVIEW]"):
+                    lines.append(f"     <i>{note}</i>")
+                else:
+                    lines.append(f"     <i>[REVIEW] {note}</i>")
+                if not bundle_detected:
+                    n_own = int(same_slot.get("bundle_wallets") or 0)
+                    conf = float(same_slot.get("confidence") or 0)
+                    if n_own or conf:
+                        lines.append(
+                            f"     \U0001f4e6 Own bundle result: <b>{n_own}</b> wallets \u00b7 conf <b>{conf:.0f}%</b>"
+                        )
         for w in (bundle.get("warnings") or [])[:3]:
             lines.append(f"  \u26a0\ufe0f {_clip(w, 120)}")
         lines.append("")
@@ -509,6 +553,15 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
             lines.append(f"  {df_emoji} Deployer-Funded at Launch: <b>{dfpct:.0f}%</b>")
         lines.append("")
 
+    # ── First-20 Wallet Map (competitor feature) ──
+    wallet_map = data.get("wallet_map") or {}
+    if wallet_map:
+        wm_line = wallet_map.get("wallet_map_line") or "\u2014"
+        lines.append("\U0001f5fa\ufe0f <b>First-20 Wallet Map</b>")
+        lines.append(d)
+        lines.append(f"  <code>{html.escape(str(wm_line))}</code>")
+        lines.append("")
+
     # ── Deployer reputation ──
     if dev:
         lines.append("\U0001f468\u200d\U0001f4bb <b>Deployer Reputation</b>")
@@ -533,6 +586,16 @@ def format_sentinel_deepscan_section(data: dict[str, Any]) -> str:
         for w in (dev.get("warnings") or [])[:3]:
             lines.append(f"  \u26a0\ufe0f {_clip(w, 120)}")
         lines.append("")
+
+    # ── Deployer history timeline (competitor feature) ──
+    deployer_timeline = data.get("deployer_timeline") or {}
+    if deployer_timeline:
+        tl_line = deployer_timeline.get("deployer_timeline_line")
+        if tl_line and str(tl_line).strip() not in ("", "\u2014"):
+            lines.append("\U0001f4c5 <b>Deployer History Timeline</b>")
+            lines.append(d)
+            lines.append(f"  {html.escape(str(tl_line))}")
+            lines.append("")
 
     # ── Recommendations ──
     lines.append("\U0001f4a1 <b>Recommendations</b>")

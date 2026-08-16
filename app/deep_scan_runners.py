@@ -13,8 +13,11 @@ runner raises for module-level failures.
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
+
+import httpx
 
 from app.chain_registry import is_evm
 from app.core.logging import get_logger
@@ -36,6 +39,67 @@ SELL_RISK_LEVELS: dict[str, int] = {
     "safe": 0,
     "unknown": 0,
 }
+
+# ── Honeypot sell-sim check (Honeypot.is + GoPlus fallback) ────────────────
+
+#: Honeypot.is ``/v2/IsHoneypot`` chain IDs (EVM chains it supports).
+HONEYPOT_IS_CHAIN_IDS: dict[str, str] = {
+    "ethereum": "1",
+    "eth": "1",
+    "mainnet": "1",
+    "bsc": "56",
+    "bnb": "56",
+    "binance": "56",
+    "polygon": "137",
+    "matic": "137",
+    "arbitrum": "42161",
+    "arb": "42161",
+    "optimism": "10",
+    "op": "10",
+    "base": "8453",
+    "avalanche": "43114",
+    "avax": "43114",
+    "fantom": "250",
+    "ftm": "250",
+    "gnosis": "100",
+    "xdai": "100",
+    "linea": "59144",
+    "zksync": "324",
+}
+
+#: GoPlus ``token_security`` chain IDs — mirrors the scanner module map
+#: (``app.domains.scanner.modules._core.GOPLUS_CHAIN_IDS``) and adds aliases.
+GOPLUS_CHAIN_IDS: dict[str, str] = {
+    "solana": "solana",
+    "ethereum": "1",
+    "eth": "1",
+    "mainnet": "1",
+    "bsc": "56",
+    "bnb": "56",
+    "binance": "56",
+    "base": "8453",
+    "arbitrum": "42161",
+    "arb": "42161",
+    "polygon": "137",
+    "matic": "137",
+    "avalanche": "43114",
+    "avax": "43114",
+    "optimism": "10",
+    "op": "10",
+    "fantom": "250",
+    "ftm": "250",
+    "gnosis": "100",
+    "xdai": "100",
+    "linea": "59144",
+    "zksync": "324",
+}
+
+#: Sell-tax (percent) at/above which the honeypot sell-sim verdict is
+#: ``EXTREME_TAXES`` (surfaced as a red "BLOCKED / EXTREME taxes" line).
+SELL_SIM_EXTREME_TAX_PCT = 25.0
+
+#: Timeout for each honeypot sell-sim HTTP call (seconds).
+HONEYPOT_SIM_TIMEOUT_SECS = 8.0
 
 # Function-name substrings that indicate rug/exit-scam capability in a
 # decompiled ABI (self-contained subset of the scanner's known patterns).
@@ -276,6 +340,174 @@ def _run_sell_sim(address: str, chain: str) -> tuple[dict[str, Any], list[dict[s
             [{"module": "pyrevm_engine", "level": "error", "message": f"sell simulation failed: {exc}"}],
             0,
         )
+
+
+def _to_float_or(value: Any, default: float) -> float:
+    """Best-effort float conversion (None/bad input → ``default``)."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _honeypot_is_scan(address: str, chain_id: str) -> dict[str, Any]:
+    """Call Honeypot.is ``/v2/IsHoneypot`` (free, no API key).
+
+    Returns a scanned payload with the simulation taxes and honeypot verdict,
+    or an error payload. Never raises.
+    """
+    try:
+        with httpx.Client(timeout=HONEYPOT_SIM_TIMEOUT_SECS) as client:
+            resp = client.get(
+                "https://api.honeypot.is/v2/IsHoneypot",
+                params={"address": address, "chainID": chain_id},
+            )
+            if resp.status_code != 200:
+                return {"result": "error", "error": f"Honeypot.is HTTP {resp.status_code}"}
+            data = resp.json()
+        hp = data.get("honeypotResult") or {}
+        sim = hp.get("simulationResult") or {}
+        return {
+            "result": "scanned",
+            "is_honeypot": bool(hp.get("isHoneypot") or sim.get("isHoneypot")),
+            "buy_tax": _to_float_or(sim.get("buyTax"), 0.0),
+            "sell_tax": _to_float_or(sim.get("sellTax"), 0.0),
+            "transfer_tax": _to_float_or(sim.get("transferTax"), 0.0),
+        }
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+        logger.debug("honeypot_is_scan_failed: %s", str(exc)[:120])
+        return {"result": "error", "error": "Honeypot.is unreachable"}
+
+
+def _goplus_sell_sim_scan(address: str, chain: str) -> dict[str, Any]:
+    """Call GoPlus ``token_security`` as the honeypot sell-sim fallback.
+
+    Reuses the already-integrated ``GOPLUS_API_KEY`` (sent as the
+    ``X-API-Key`` header when set; the free tier also works without it) —
+    no new paid dependency. Returns a scanned payload with the tax flags
+    and honeypot verdict, or an error payload. Never raises.
+    """
+    chain_id = GOPLUS_CHAIN_IDS.get(chain, chain)
+    headers: dict[str, str] = {}
+    key = os.getenv("GOPLUS_API_KEY", "")
+    if key:
+        headers["X-API-Key"] = key
+    try:
+        with httpx.Client(timeout=HONEYPOT_SIM_TIMEOUT_SECS) as client:
+            resp = client.get(
+                f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}",
+                params={"contract_addresses": address.lower()},
+                headers=headers,
+            )
+            if resp.status_code != 200:
+                return {"result": "error", "error": f"GoPlus HTTP {resp.status_code}"}
+            data = resp.json()
+        result = data.get("result") or {}
+        token = result.get(address.lower()) if isinstance(result, dict) else None
+        if not isinstance(token, dict) or not token:
+            return {"result": "error", "error": "Token not indexed by GoPlus"}
+        return {
+            "result": "scanned",
+            "is_honeypot": str(token.get("is_honeypot", "0")) == "1",
+            "buy_tax": _to_float_or(token.get("buy_tax"), 0.0),
+            "sell_tax": _to_float_or(token.get("sell_tax"), 0.0),
+            "transfer_tax": None,  # GoPlus token_security exposes no transfer-tax field
+            "transfer_pausable": str(token.get("transfer_pausable", "0")) == "1",
+        }
+    except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+        logger.debug("goplus_sell_sim_scan_failed: %s", str(exc)[:120])
+        return {"result": "error", "error": "GoPlus unavailable"}
+
+
+def _run_honeypot_sell_sim(address: str, chain: str) -> tuple[dict[str, Any], list[dict[str, Any]], int]:
+    """Honeypot sell-simulation check — Honeypot.is primary, GoPlus fallback.
+
+    Primary: Honeypot.is ``/v2/IsHoneypot`` (free, no key) — a real buy/sell
+    simulation returning ``buyTax`` / ``sellTax`` / ``transferTax`` and an
+    ``isHoneypot`` verdict (EVM chains only).
+    Fallback: GoPlus ``token_security`` (reuses the existing
+    ``GOPLUS_API_KEY``; no new paid dep) — ``buy_tax`` / ``sell_tax`` /
+    ``is_honeypot``; also the only source for Solana.
+
+    Verdict: ``BLOCKED`` when the source flags a honeypot (cannot sell);
+    ``EXTREME_TAXES`` when sell tax >= ``SELL_SIM_EXTREME_TAX_PCT``;
+    ``OK`` otherwise; ``unavailable`` when no source is reachable (fail-open).
+
+    Returns ``(result, findings, severity 0..3)`` — never raises.
+    """
+    chain_norm = (chain or "").lower()
+    payload: dict[str, Any] | None = None
+    source_name = ""
+
+    hp_chain_id = HONEYPOT_IS_CHAIN_IDS.get(chain_norm)
+    if hp_chain_id:
+        candidate = _honeypot_is_scan(address, hp_chain_id)
+        if candidate.get("result") == "scanned":
+            payload, source_name = candidate, "honeypot.is"
+
+    if payload is None:
+        candidate = _goplus_sell_sim_scan(address, chain_norm)
+        if candidate.get("result") == "scanned":
+            payload, source_name = candidate, "goplus"
+
+    if payload is None:
+        return (
+            {
+                "check": "honeypot_sell_sim",
+                "result": "unavailable",
+                "source": "unavailable",
+                "sell_sim_verdict": "unavailable",
+                "buy_tax": None,
+                "sell_tax": None,
+                "transfer_tax": None,
+                "warnings": ["sell simulation data source unreachable"],
+            },
+            [
+                {
+                    "module": "honeypot_sell_sim",
+                    "level": "info",
+                    "message": "honeypot sell-sim check unavailable (Honeypot.is + GoPlus unreachable)",
+                }
+            ],
+            0,
+        )
+
+    is_honeypot = bool(payload.get("is_honeypot"))
+    sell_tax = _to_float_or(payload.get("sell_tax"), 0.0)
+    if is_honeypot:
+        verdict = "BLOCKED"
+        level = 3  # critical — the source cannot sell the token back
+    elif sell_tax >= SELL_SIM_EXTREME_TAX_PCT:
+        verdict = "EXTREME_TAXES"
+        level = 2  # high — extreme sell taxes
+    else:
+        verdict = "OK"
+        level = 0
+
+    result = {
+        "check": "honeypot_sell_sim",
+        "result": "scanned",
+        "source": source_name,
+        "sell_sim_verdict": verdict,
+        "is_honeypot": is_honeypot,
+        "buy_tax": payload.get("buy_tax"),
+        "sell_tax": payload.get("sell_tax"),
+        "transfer_tax": payload.get("transfer_tax"),
+        "transfer_pausable": payload.get("transfer_pausable"),
+        "warnings": [],
+    }
+    verdict_hint = "cannot sell (honeypot)" if is_honeypot else f"sell tax {sell_tax:.1f}%"
+    findings = [
+        {
+            "module": "honeypot_sell_sim",
+            "level": "warning" if level >= 2 else "info",
+            "message": (
+                f"honeypot sell-sim verdict={verdict} ({verdict_hint}) "
+                f"source={source_name} buy_tax={result['buy_tax']} sell_tax={result['sell_tax']}"
+            ),
+        }
+    ]
+    return result, findings, level
 
 
 def _run_slither(source_code: str | None, solc_version: str | None) -> tuple[dict[str, Any], list[dict[str, Any]], int]:

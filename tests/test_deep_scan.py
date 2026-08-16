@@ -167,6 +167,25 @@ def stub_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda source, solc_version=None: _slither_result(success=True, detectors=[]),
     )
     monkeypatch.setattr("app.slither_analyzer.is_security_relevant", lambda check: True)
+    # Honeypot sell-sim check (Honeypot.is / GoPlus) — stub to avoid network.
+    monkeypatch.setattr(
+        "app.deep_scan._run_honeypot_sell_sim",
+        lambda address, chain="ethereum": (
+            {
+                "check": "honeypot_sell_sim",
+                "result": "scanned",
+                "source": "goplus",
+                "sell_sim_verdict": "OK",
+                "is_honeypot": False,
+                "buy_tax": 0.0,
+                "sell_tax": 0.0,
+                "transfer_tax": None,
+                "warnings": [],
+            },
+            [{"module": "honeypot_sell_sim", "level": "info", "message": "honeypot sell-sim verdict=OK"}],
+            0,
+        ),
+    )
 
 
 # ── Composition ─────────────────────────────────────────────────────────────

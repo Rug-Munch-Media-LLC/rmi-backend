@@ -137,19 +137,31 @@ async def run_bundle_analysis(r: ScanResult, address: str, chain: str) -> None:
     """Run own ClickHouse bundle-launch detection (best-effort).
 
     Detects coordinated sniper/bot buys in the first blocks after deployment
-    (see ``engines/own_bundle_detect.detect_bundled_launch``) and stores the
-    result on ``ScanResult.bundle_analysis`` so scoring can emit
+    (see ``engines/own_bundle_detect.detect_bundled_launch``), plus same-slot
+    buy concentration on Solana (``detect_same_slot_bundler``, Helius-backed;
+    degrades to a ``[REVIEW]`` note when Helius is unreachable), and stores
+    the result on ``ScanResult.bundle_analysis`` so scoring can emit
     ``BUNDLE_DETECTED``. Never raises — a missing engine or ClickHouse
     outage degrades to ``unavailable``.
     """
     try:
-        from app.domains.scanner.engines.own_bundle_detect import detect_bundled_launch
+        from app.domains.scanner.engines.own_bundle_detect import (
+            detect_bundled_launch,
+            detect_same_slot_bundler,
+        )
 
-        bundle = await detect_bundled_launch(address, chain)
+        bundle_task = asyncio.create_task(detect_bundled_launch(address, chain))
+        same_slot_task = asyncio.create_task(detect_same_slot_bundler(address, chain))
+        gathered = await asyncio.gather(bundle_task, same_slot_task, return_exceptions=True)
+        bundle: Any = gathered[0]
+        same_slot: Any = gathered[1]
+
         if isinstance(bundle, dict):
             r.bundle_analysis = bundle
             r.modules_run.append("bundle_analysis")
             if bundle.get("result") == "scanned":
                 r.enrichment_sources.append("bundle_analysis:own")
+        if isinstance(same_slot, dict) and isinstance(r.bundle_analysis, dict):
+            r.bundle_analysis["same_slot"] = same_slot
     except Exception as exc:
         logger.debug("bundle_analysis_failed", error=str(exc)[:120])

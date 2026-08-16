@@ -35,12 +35,14 @@ from app.domains.scanner.engines.funding_analysis import (
 from app.domains.scanner.engines.holder_clusters import analyze_holder_clusters
 from app.domains.scanner.engines.news_sentiment import analyze_token_news_sentiment
 from app.domains.scanner.engines.own_deployer_reputation import get_own_deployer_reputation
+from app.domains.scanner.engines.own_deployer_timeline import get_own_deployer_timeline
 from app.domains.scanner.engines.own_dex_data import check_data_freshness, get_own_dex_data
 from app.domains.scanner.engines.own_holder_age import get_own_holder_age
 from app.domains.scanner.engines.own_holder_analysis import get_holder_count, get_own_holder_analysis
 from app.domains.scanner.engines.own_price_oracle import get_batch_prices, get_token_price
 from app.domains.scanner.engines.own_security_analysis import get_own_security
 from app.domains.scanner.engines.own_volume_authenticity import get_own_volume_authenticity
+from app.domains.scanner.engines.own_wallet_map import get_own_wallet_map
 from app.domains.scanner.engines.own_whale_detect import get_own_whale_detection
 
 __all__ = [
@@ -57,12 +59,14 @@ __all__ = [
     "get_holder_count",
     # Phase 4
     "get_own_deployer_reputation",
+    "get_own_deployer_timeline",
     "get_own_dex_data",
     "get_own_holder_age",
     # Phase 2
     "get_own_holder_analysis",
     "get_own_security",
     "get_own_volume_authenticity",
+    "get_own_wallet_map",
     "get_own_whale_detection",
     # Phase 1
     "get_token_price",

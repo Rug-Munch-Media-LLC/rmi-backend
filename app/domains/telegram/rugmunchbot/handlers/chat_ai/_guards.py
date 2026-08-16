@@ -25,6 +25,7 @@ from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
 import app.domains.telegram.rugmunchbot.handlers.chat_ai as chat_ai
+from app.core.ai_guardrails import sanitize_output
 from app.domains.telegram.rugmunchbot import anti_abuse, db
 from app.domains.telegram.rugmunchbot.admin_state import track_ai_query, track_tokens
 from app.domains.telegram.rugmunchbot.db._base import run_db
@@ -494,6 +495,18 @@ async def _post_guardrail(
         logger.warning("AI chat answer degenerated after guardrail (user=%s)", user_id)
         answer = _DEGENERATE_MESSAGE
         answer_is_degenerate = True
+
+    # ── OUTPUT SANITIZATION (final scrub) ────────────────────────────────
+    # The backend chat path already runs ``sanitize_output`` (chat router /
+    # ai_router) before any response leaves the API. The bot path never did —
+    # so RAG/bridge context could leak internal identifiers (hostnames like
+    # internal hostnames, gopass paths, repo paths, delimiter
+    # tokens) straight into Telegram. Run the SAME scrub here, on the FINAL
+    # answer, so the snappy/long remote path AND the tools fallback path are
+    # both covered (this funnel is the single exit every provider uses).
+    # Deliberately last: the guardrail can append citation/no-live-data lines
+    # above, and the degenerate replacement must happen before this scrub.
+    answer = sanitize_output(answer)
 
     return answer, live_results, stripped_syms, stripped_addrs, answer_is_degenerate
 

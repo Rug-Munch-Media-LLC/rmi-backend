@@ -272,6 +272,42 @@ async def cmd_restart(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+@owner_only
+async def cmd_repair(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Restart a systemd unit OR docker container — /repair <service>.
+
+    Confirmation-gated. On confirm, ``repair_confirm_<name>`` tries
+    ``systemctl restart`` first and falls back to ``docker restart`` when the
+    unit does not exist (see callbacks/_server.py).
+    """
+    if update.message is None:
+        return
+    args = ctx.args or []
+    if not args:
+        await update.message.reply_text(
+            "🔧 *Repair Service*\n\n"
+            "Usage: `/repair <service>`\n\n"
+            "Restarts a systemd unit or docker container (systemd first,\n"
+            "docker fallback).\n\n"
+            "Examples:\n"
+            "`/repair rmi-backend`\n"
+            "`/repair rugmunchbot`\n"
+            "`/repair rmiadminbot`\n\n"
+            "⚠️ You will be asked to confirm before the restart executes.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        return
+    name = args[0]
+    if not all(c.isalnum() or c in "-_" for c in name):
+        await update.message.reply_text(f"❌ Invalid service name: `{name}`", parse_mode=ParseMode.MARKDOWN)
+        return
+    await update.message.reply_text(
+        f"🔧 *Confirm repair*\n\nRestart `{name}` (systemd or docker)?",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=confirm_keyboard("repair", payload=name),
+    )
+
+
 # ═══════════════════════════════════════════════
 # v5 — CONTROL PANEL / BOT MANAGEMENT / REBOOT
 # ═══════════════════════════════════════════════

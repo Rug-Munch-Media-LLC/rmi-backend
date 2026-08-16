@@ -11,7 +11,7 @@ from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
-from telegram.constants import ParseMode
+from telegram.constants import ChatType, ParseMode
 
 from app.domains.telegram import access_guard
 from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID, OWNER_IDS
@@ -47,11 +47,17 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 
+def is_private_chat(update: Update) -> bool:
+    """DM-only gate: True only for private chats (never groups/channels)."""
+    chat = update.effective_chat
+    return chat is not None and chat.type == ChatType.PRIVATE
+
+
 def is_owner(update: Update) -> bool:
-    """Check if the user is a known owner."""
+    """Check if the user is a known owner AND the chat is a private DM."""
     if update.effective_user is None:
         return False
-    return update.effective_user.id in OWNER_IDS
+    return update.effective_user.id in OWNER_IDS and is_private_chat(update)
 
 
 def owner_only(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
@@ -61,10 +67,16 @@ def owner_only(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., C
     "unauthorized" message), so the bot does not advertise its existence
     or its admin surface. Every denied attempt is logged and a
     rate-limited alert is sent to the owner chat (defense-in-depth).
+
+    DM-only: updates from groups/channels are silently ignored (no alert),
+    so the admin surface is reachable exclusively via private chat.
     """
 
     async def wrapper(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Any | None:
         uid = update.effective_user.id if update.effective_user else 0
+        # DM-only gate — non-private chats are ignored outright (no alert).
+        if not is_private_chat(update):
+            return None
         # Rate-limit check (silent drop for spam)
         if is_rate_limited(uid):
             return None

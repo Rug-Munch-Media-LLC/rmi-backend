@@ -119,6 +119,12 @@ class SentinelReport:
     # Cross-Chain Trace (W4-V2)
     cross_chain_trace: dict[str, Any] | None = None
 
+    # Competitor features (deep-scan extras):
+    # First-20 wallet map — emoji role classification of early buyers/holders.
+    wallet_map: dict[str, Any] | None = None
+    # Deployer prior-token history timeline line.
+    deployer_timeline: dict[str, Any] | None = None
+
     # Module errors (module_name -> error message)
     errors: dict[str, str] = field(default_factory=dict)
 

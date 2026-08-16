@@ -111,6 +111,7 @@ from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin,
     cmd_admin_ban,
     cmd_admin_broadcast,
+    cmd_admin_credits,
     cmd_admin_logs,
     cmd_admin_set_tier,
     cmd_admin_stats,
@@ -118,6 +119,7 @@ from app.domains.telegram.rugmunchbot.handlers.owner import (
     cmd_admin_toggle_chat,
     cmd_admin_unban,
     cmd_admin_user,
+    cmd_admin_users,
 )
 from app.domains.telegram.rugmunchbot.handlers.payments import precheckout, successful_payment
 from app.domains.telegram.rugmunchbot.handlers.prediction import register_prediction
@@ -535,6 +537,8 @@ def main() -> None:
     # Owner / admin panel (owner-only — hidden from BotFather list)
     _reg(app, "admin", cmd_admin)
     _reg(app, "admin_stats", cmd_admin_stats)
+    _reg(app, "credits", cmd_admin_credits)
+    _reg(app, "users", cmd_admin_users)
     _reg(app, "admin_set_tier", cmd_admin_set_tier)
     _reg(app, "admin_broadcast", cmd_admin_broadcast)
     _reg(app, "admin_toggle", cmd_admin_toggle)

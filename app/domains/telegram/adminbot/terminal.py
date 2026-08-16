@@ -14,7 +14,12 @@ from telegram.constants import ParseMode
 from app.domains.telegram import access_guard
 from app.domains.telegram.adminbot import admin_terminal
 from app.domains.telegram.adminbot.config import ADMIN_CHAT_ID
-from app.domains.telegram.adminbot.helpers import is_owner, main_menu_keyboard, owner_only
+from app.domains.telegram.adminbot.helpers import (
+    is_owner,
+    is_private_chat,
+    main_menu_keyboard,
+    owner_only,
+)
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
@@ -66,6 +71,8 @@ async def handle_terminal_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     if not admin_terminal.in_terminal(user_id):
         return
+    if not is_private_chat(update):
+        return  # DM-only: silently ignore group/channel messages.
     if not is_owner(update):
         # Hidden bot: silent deny even in terminal mode; log + owner alert.
         chat = update.effective_chat

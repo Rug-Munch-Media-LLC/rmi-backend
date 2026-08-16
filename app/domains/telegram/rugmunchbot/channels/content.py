@@ -179,7 +179,7 @@ async def _fetch_launches(chain: str, limit: int) -> list[dict[str, Any]]:
             "symbol": str(item.get("symbol") or "???").strip(),
             "chain": str(item.get("chain") or chain).strip(),
             "risk_level": str(item.get("risk_level") or "unknown").strip(),
-            "risk_flags": [str(f) for f in item.get("risk_flags")] if isinstance(item.get("risk_flags"), list) else [],
+            "risk_flags": [str(f) for f in (item.get("risk_flags") or [])],
             "age_hours": item.get("age_hours"),
             "liquidity_usd": item.get("liquidity_usd") or item.get("liquidity"),
             "holders": item.get("holders"),
