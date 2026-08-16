@@ -224,6 +224,11 @@ async def get_news(query: str, top_k: int = 5) -> dict[str, Any]:
                 "score": round(float(h.final_score or h.score), 3),
                 "source": h.collection or "news",
                 "doc_id": h.doc_id,
+                # Article image + canonical URL surface from stored metadata so
+                # the answer layer can cite/show the article image. Absent
+                # metadata (or a missing key) degrades to None.
+                "image_url": (getattr(h, "metadata", None) or {}).get("image_url"),
+                "canonical_url": (getattr(h, "metadata", None) or {}).get("canonical_url"),
             }
             for h in hits
         ]

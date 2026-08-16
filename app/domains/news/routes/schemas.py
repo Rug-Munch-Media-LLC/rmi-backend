@@ -66,6 +66,7 @@ class NewsItemOut(BaseModel):
     url: str | None = None
     title: str | None = None
     summary: str | None = ""
+    image_url: str | None = None
     source: str | None = "unknown"
     published_at: datetime | None = None
     chains_mentioned: list[str] = Field(default_factory=list)
