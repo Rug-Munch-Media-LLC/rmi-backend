@@ -46,6 +46,7 @@ from app.domains.scanner.engines.own_price_oracle import get_batch_prices, get_t
 from app.domains.scanner.engines.own_security_analysis import get_own_security
 from app.domains.scanner.engines.own_volume_authenticity import get_own_volume_authenticity
 from app.domains.scanner.engines.own_wallet_map import get_own_wallet_map
+from app.domains.scanner.engines.own_wallet_trust import get_wallet_trust
 from app.domains.scanner.engines.own_whale_detect import get_own_whale_detection
 
 __all__ = [
@@ -76,5 +77,6 @@ __all__ = [
     "get_own_whale_detection",
     # Phase 1
     "get_token_price",
+    "get_wallet_trust",
     "resolve_cross_chain_entity",
 ]

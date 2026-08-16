@@ -29,8 +29,9 @@ Cadence (env-overridable, defaults):
             @rmiscans "scans of note" job: the day's most notable scanned
             tokens (launch-alert ≥70 rail + scan history, deduped per
             token), reranker-gated (skip <0.4), each posted as its own
-            compact card (verdict + risk score + token + chain + scan
-            link) — ~10/day across the cadence (per-tick cap
+            compact card (real risk reasons + risk score + token + chain +
+            scan link, plus a witty one-liner when the LLM is up)
+            — ~10/day across the cadence (per-tick cap
             ``RMI_CHANNEL_SCANS_TICK_LIMIT``, default 2). Fail-open: no
             scans today → nothing posted.
 * tg_news  → every 20m (``RMI_CHANNEL_TG_NEWS_INTERVAL_MINUTES``; default
@@ -100,6 +101,7 @@ from telegram.error import TelegramError
 from app.domains.news_ingest.models import NewsArticle
 from app.domains.telegram.rugmunchbot.channels import scheduler_state
 from app.domains.telegram.rugmunchbot.channels._media import send_news_photo
+from app.domains.telegram.rugmunchbot.channels._scan_commentary import attach_scan_commentary
 from app.domains.telegram.rugmunchbot.channels.content import (
     fetch_alpha_content,
     fetch_risk_alerts,
@@ -602,11 +604,13 @@ async def post_scan_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     ``channels/content.py::fetch_scan_notes``) are deduped per token
     (``_remember("scans", …)`` so the same token is never reposted), reranked
     (``channels/importance.py``), and every item at/above the news floor
-    (``route_news``, default 0.4) posts as its own compact card — verdict +
-    risk score + token + chain + scan link (rugmunch.io/scanner). Fail-open:
-    an empty pool (no scans today / backend down) posts nothing, and a
-    reranker outage keeps the channel flowing with the heuristic fallback
-    (full window) exactly like the alerts job.
+    (``route_news``, default 0.4) posts as its own compact card — real risk
+    reasons (honeypot / bundle / LP removed / flagged deployer) + risk score
+    + token + chain + scan link (rugmunch.io/scanner), each card topped with
+    a bounded witty one-liner (``attach_scan_commentary``, fail-open to no
+    line). Fail-open: an empty pool (no scans today / backend down) posts
+    nothing, and a reranker outage keeps the channel flowing with the
+    heuristic fallback (full window) exactly like the alerts job.
     """
     started = time.perf_counter()
     chat_id = _chat_id("scans")
@@ -643,6 +647,8 @@ async def post_scan_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     # default 90m cadence).
     posted = 0
     for item in sorted(keep, key=lambda i: i.get("importance", 0.0), reverse=True)[:SCAN_CHANNEL_TICK_LIMIT]:
+        # One bounded witty one-liner per card (fail-open to no line).
+        item = await attach_scan_commentary(item)
         ok = await _post_photo_aware(ctx.bot, chat_id, format_scan_card(item), _safe_send)
         if ok:
             posted += 1

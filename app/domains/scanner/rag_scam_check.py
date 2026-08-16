@@ -135,7 +135,11 @@ async def check_scam(
         query_parts.append(token_address)
         query = " ".join(query_parts)
         if query:
-            async with httpx.AsyncClient(timeout=10) as client:
+            # Fail-fast RAG probe: the vector search is best-effort enrichment.
+            # A slow/hanging rmi-rag-api (e.g. its embedding backend is down)
+            # must not burn seconds of the scan budget — degrade to the
+            # deterministic pattern fallback below within 2.5s.
+            async with httpx.AsyncClient(timeout=2.5) as client:
                 resp = await client.get(
                     "http://rmi-rag-api:8012/api/v1/search",
                     params={"q": query, "collection": "scam_intel", "limit": 5},

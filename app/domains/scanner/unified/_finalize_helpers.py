@@ -12,6 +12,8 @@ external backend is unavailable, so a failing helper never fails the scan.
 from __future__ import annotations
 
 import asyncio
+import os
+import time
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
@@ -28,6 +30,71 @@ if TYPE_CHECKING:
     from app.domains.scanner.unified.model import ScanResult
 
 logger = get_logger(__name__)
+
+# ── RAG enrichment budget (embedding fail-fast) ──────────────────────────
+# RAG enrichment (semantic scam-similarity search) is best-effort. When the
+# embedding service (Infinity /embeddings) is slow or down, a single
+# retrieval can hang for the embedder's full retry budget (60s httpx timeout
+# x 3 attempts per collection, x 9 collections). This module never lets that
+# stall the scan: enrichment is hard-capped at ``RAG_ENRICH_BUDGET_S`` and,
+# after a timeout, is skipped entirely for ``RAG_ENRICH_COOLDOWN_S`` so
+# repeat scans during an outage fail fast instead of re-paying the budget.
+RAG_ENRICH_BUDGET_S = float(os.getenv("RAG_ENRICH_BUDGET_S", "6.0"))
+RAG_ENRICH_COOLDOWN_S = float(os.getenv("RAG_ENRICH_COOLDOWN_S", "60"))
+# Monotonic timestamp of the last enrichment timeout (0 = healthy).
+_RAG_ENRICH_LAST_FAILURE: float = 0.0
+
+
+async def _enrich_scan_result_bounded(result: ScanResult) -> Any:
+    """Best-effort RAG enrichment with a hard time budget + outage latch.
+
+    Returns the ``RAGContext`` (or ``None`` when RAG is unavailable).
+    Guarantees:
+      - never blocks longer than ``RAG_ENRICH_BUDGET_S``
+      - after a timeout, skips enrichment entirely for
+        ``RAG_ENRICH_COOLDOWN_S`` (the embedder is down — do not re-pay
+        the budget on every scan)
+      - never raises: the scan result is returned unchanged on any failure
+
+    Only *timeouts* trip the cooldown latch — an embedder that fails fast
+    (e.g. connection refused) already degrades quickly and should not
+    suppress later recoveries.
+    """
+    global _RAG_ENRICH_LAST_FAILURE
+    if time.monotonic() - _RAG_ENRICH_LAST_FAILURE < RAG_ENRICH_COOLDOWN_S:
+        logger.debug(
+            "rag_enrichment_skipped_cooldown token=%s",
+            result.token_address[:16],
+        )
+        return None
+    try:
+        from app.rag.intelligence import RAGIntelligenceEnricher
+
+        enricher = RAGIntelligenceEnricher()
+        rag_context = await asyncio.wait_for(
+            enricher.enrich_scan_result(result),
+            timeout=RAG_ENRICH_BUDGET_S,
+        )
+        # Success — clear the outage latch so a recovered embedder is used.
+        _RAG_ENRICH_LAST_FAILURE = 0.0
+        return rag_context
+    except TimeoutError:
+        _RAG_ENRICH_LAST_FAILURE = time.monotonic()
+        logger.warning(
+            "rag_enrichment_timed_out budget_s=%.1f token=%s",
+            RAG_ENRICH_BUDGET_S,
+            result.token_address[:16],
+        )
+        return None
+    except Exception:
+        logger.debug("RAG enrichment unavailable", exc_info=True)
+        return None
+
+
+def _reset_rag_enrich_latch() -> None:
+    """Clear the RAG-outage cooldown latch (for tests)."""
+    global _RAG_ENRICH_LAST_FAILURE
+    _RAG_ENRICH_LAST_FAILURE = 0.0
 
 
 async def run_news_sentiment(r: ScanResult, address: str, chain: str) -> None:
@@ -167,15 +234,10 @@ async def finalize_background(
         logger.debug("market_scoring_failed", error=str(exc)[:120])
 
     # ── Enrich with RAG context (similar patterns from previous scans) ──
-    try:
-        from app.rag.intelligence import RAGIntelligenceEnricher
-
-        enricher = RAGIntelligenceEnricher()
-        rag_context = await enricher.enrich_scan_result(result)
-        result.rag_context = rag_context
-    except Exception:
-        logger.debug("RAG enrichment unavailable", exc_info=True)
-        result.rag_context = None
+    # Hard-bounded + fail-fast: a hanging embedder must never stall the
+    # scan finalize. On timeout/failure the scan keeps its deterministic
+    # result and rag_context degrades to None (skip-with-warning).
+    result.rag_context = await _enrich_scan_result_bounded(result)
 
     # ── Record own-data coverage metrics ──
     try:
