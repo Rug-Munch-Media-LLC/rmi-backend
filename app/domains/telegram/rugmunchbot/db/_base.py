@@ -187,6 +187,22 @@ def init_db() -> None:
             last_ping TEXT,
             created_at INTEGER
         );
+        -- v6: Stars-paid token monitors (tax/ownership/LP/mint + whale/deployer
+        -- watch). baseline_json holds the security snapshot at registration so
+        -- the periodic delta job can surface meaningful changes as DMs.
+        CREATE TABLE IF NOT EXISTS monitors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_address TEXT NOT NULL,
+            chain TEXT,
+            symbol TEXT,
+            deployer_address TEXT,
+            baseline_json TEXT,
+            created_at INTEGER,
+            expires_at INTEGER,
+            is_active INTEGER DEFAULT 1
+        );
+        CREATE INDEX IF NOT EXISTS idx_monitors_user ON monitors(user_id, is_active);
         CREATE TABLE IF NOT EXISTS api_tokens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,

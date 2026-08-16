@@ -20,6 +20,12 @@ from telegram.constants import ParseMode
 from app.domains.telegram.rugmunchbot import anti_abuse, db
 from app.domains.telegram.rugmunchbot.config import OWNER_IDS
 from app.domains.telegram.rugmunchbot.formatters import detect_chain
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_CHECK_ADDRESS,
+    ACTION_TRY_AGAIN,
+    failure_card,
+    usage_hint,
+)
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
@@ -39,14 +45,17 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not ctx.args:
         await update.message.reply_text(
             "\U0001f6ab <b>Report a Scam</b>\n\n"
-            "Usage: <code>/report &lt;address&gt; [reason]</code>\n\n"
-            "Found a token that looks like a honeypot, rug pull or scam? "
-            "Report it and we'll investigate.\n\n"
-            "<b>Example:</b>\n"
-            "/report <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code> "
-            "honeypot \u2014 can't sell\n\n"
-            "\U0001f4a1 Reports are reviewed by the Rug Munch team and feed "
-            "our shared scam denylist \u2014 you're helping everyone stay safe.",
+            + usage_hint(
+                "report",
+                "address [reason]",
+                "0x6982508145454Ce325dDbE47a25d4ec3d2311933 honeypot — can't sell",
+                extra=(
+                    "Found a token that looks like a honeypot, rug pull or scam? "
+                    "Report it and we'll investigate.\n\n"
+                    "\U0001f4a1 Reports are reviewed by the Rug Munch team and feed "
+                    "our shared scam denylist — you're helping everyone stay safe."
+                ),
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -59,16 +68,22 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     if not (is_evm(address) or is_sol(address)):
         await update.message.reply_text(
-            "\u274c <b>Invalid address</b>\n\n"
-            "That doesn't look like a valid token address. Please send an "
-            "EVM (0x...) or Solana address.",
+            failure_card(
+                "Invalid Address",
+                "That doesn't look like a valid token address. Please send an EVM (0x...) or Solana address.",
+                "Example: /report <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code> honeypot",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
 
     if len(address) > 64:
         await update.message.reply_text(
-            "\u274c <b>Invalid address</b>\n\nAddress is too long to be a contract address.",
+            failure_card(
+                "Invalid Address",
+                "Address is too long to be a contract address.",
+                ACTION_CHECK_ADDRESS,
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -77,7 +92,11 @@ async def cmd_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     ok = db.report_scam(user.id, address, chain, reason)
     if not ok:
         await update.message.reply_text(
-            "\u274c <b>Report failed</b>\n\nCould not store the report. Please try again in a moment.",
+            failure_card(
+                "Report Failed",
+                "Could not store the report.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
         )
         return

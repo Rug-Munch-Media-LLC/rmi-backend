@@ -71,7 +71,11 @@ _redis_set = redis_set
 logger = get_logger(__name__)
 
 # ── Cache ─────────────────────────────────────────────────────────────────
-REDIS_TTL_SECONDS = 300  # 5 minutes
+# 10-minute graph cache so repeated /trace calls reuse an already-priced
+# graph instead of re-resolving USD (the price oracle fallback chain — own
+# dex_events → DexScreener → CoinGecko → DeFiLlama — can take seconds when
+# an upstream tier is slow or 429ing; the longer TTL keeps USD visible).
+REDIS_TTL_SECONDS = 600  # 10 minutes
 REDIS_CACHE_PREFIX = "wallet_flow"
 _FLOW_CACHE: dict[str, dict[str, Any]] = {}
 _FLOW_CACHE_TTL = 120  # 2 minutes in-process mirror
@@ -568,7 +572,15 @@ def _rank_counterparties(
 
 
 async def _normalize_token_usd(token: str, chain: str, raw_total: float) -> float | None:
-    """Convert a raw token amount to USD via the F2 price oracle."""
+    """Convert a raw token amount to USD via the F2 price oracle.
+
+    The per-token budget is 15s, not 5s: the oracle resolves through a tiered
+    chain (own dex_events → DexScreener → CoinGecko → DeFiLlama → ...) and a
+    slow or 429ing upstream tier (CoinGecko) routinely pushes a successful
+    fallback resolution past 5s — a 5s cap made traces report
+    ``usd_unavailable`` even though a later tier had the price. The 30s
+    overall gather cap in ``_compute_graph`` still bounds total latency.
+    """
     if raw_total <= 0:
         return None
     try:
@@ -576,7 +588,7 @@ async def _normalize_token_usd(token: str, chain: str, raw_total: float) -> floa
 
         return await asyncio.wait_for(
             normalize_amount(token, chain, raw_total),
-            timeout=5.0,
+            timeout=15.0,
         )
     except (httpx.HTTPError, ConnectionError, OSError, TimeoutError, ValueError) as exc:
         logger.debug("wallet_flow_usd_failed token=%s: %s", token[:16], exc)

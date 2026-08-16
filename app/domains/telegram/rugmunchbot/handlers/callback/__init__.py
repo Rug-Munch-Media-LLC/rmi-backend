@@ -35,6 +35,7 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
     welcome_card_text,
 )
+from app.domains.telegram.rugmunchbot.handlers._help_text import MENU_TEXT
 from app.domains.telegram.rugmunchbot.handlers.callback._admin import (
     _deny_callback_attempt,
     _dispatch_admin_cb,
@@ -62,6 +63,7 @@ from app.domains.telegram.rugmunchbot.keyboards import (
     category_scan_kb,
     category_security_kb,
     category_wallet_kb,
+    menu_kb,
     pricing_kb,
     scamschool_kb,
     token_buttons,
@@ -93,6 +95,14 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             welcome_card_text(),
             parse_mode=ParseMode.HTML,
             reply_markup=welcome_menu_kb(user.id),
+            disable_web_page_preview=True,
+        )
+    elif data == "menu_full":
+        # First-run "More" button → the full /menu capability atlas (MENU_TEXT).
+        await query.edit_message_text(
+            MENU_TEXT,
+            parse_mode=ParseMode.HTML,
+            reply_markup=menu_kb(),
             disable_web_page_preview=True,
         )
     elif data == "menu_cat_admin":
@@ -293,9 +303,30 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         )
     elif data == "menu_pricing":
         await query.edit_message_text(
-            "\u2b50 <b>Upgrade Plan</b>\n\nSelect a tier:",
+            "\u2b50 <b>Premium — pay with Stars</b>\n\n"
+            "\U0001f4b0 <b>Core /scan + chat are free.</b>\n\n"
+            "\U0001f6f0\ufe0f <b>Monitor</b> (250\u2605/30d) \u2014 live LP/whale + "
+            "tax/ownership/mint change alerts\n"
+            "\U0001f52c <b>Deep Scan</b> (250\u2605) \u2014 full forensics on demand\n"
+            "\U0001f451 <b>Tier upgrades</b> \u2014 higher scan/AI weekly limits\n\n"
+            "Start a monitor with /monitor <code>address</code>, or pick a plan:",
             parse_mode=ParseMode.HTML,
             reply_markup=pricing_kb(),
+        )
+    elif data == "menu_monitor_howto":
+        await query.edit_message_text(
+            "\U0001f6f0\ufe0f <b>Token Monitor (250\u2605 / 30 days)</b>\n\n"
+            "Watch a token for rug-relevant changes and get DM alerts:\n"
+            "\u2022 LP add/remove & lock changes\n"
+            "\u2022 Whale + deployer wallet moves\n"
+            "\u2022 Tax / ownership / mint changes\n"
+            "\u2022 Price swings\n\n"
+            "How to start:\n"
+            "  /monitor <code>address</code> [chain]\n\n"
+            "You'll get a Telegram Stars invoice \u2014 pay once, monitor for 30 days.\n"
+            "Manage: /monitors \u00b7 Stop: /unmonitor <code>address</code>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_kb(),
         )
     elif data == "menu_topup":
         await query.edit_message_text(
@@ -535,7 +566,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         if tier_key in TIERS:
             tier_info = TIERS[tier_key]
             await query.edit_message_text(
-                f"{tier_info['emoji']} <b>{tier_info['name']} — ${tier_info['price_monthly']}/mo</b>\n\n"
+                f"{tier_info['emoji']} <b>{tier_info['name']} — {tier_info['price_stars']:,}\u2605/30d</b>\n\n"
                 f"Unlock {tier_info['scans_per_week']} scans/week, "
                 f"{tier_info['ai_msgs_per_week']} AI messages/week, and:\n"
                 + "\n".join(f"• {f}" for f in tier_info["features"][:6])
@@ -793,6 +824,43 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             logger.debug("unknown_error", exc_info=True)
             logger.error(f"Deep scan invoice error: {e}")
             _pending_deep_scans.pop(token, None)
+            await query.answer(
+                "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",
+                show_alert=True,
+            )
+    elif data.startswith("monitor_"):
+        parts = data.split("_", 2)
+        if len(parts) < 3:
+            await query.answer("Invalid request.", show_alert=True)
+            return
+        addr, chain = parts[1], parts[2]
+        token = secrets.token_hex(8)
+        from app.domains.telegram.rugmunchbot.states import _pending_monitors
+
+        _pending_monitors[token] = {
+            "user_id": user.id,
+            "address": addr,
+            "chain": chain,
+        }
+        try:
+            msg = query.message
+            if msg is None:
+                await query.answer("Message unavailable.", show_alert=True)
+                return
+            await ctx.bot.send_invoice(
+                chat_id=msg.chat.id,
+                title="\U0001f6f0\ufe0f Token Monitor",
+                description=f"30 days of live monitoring for {addr} on {chain}.",
+                payload=f"mon_{token}",
+                provider_token="",
+                currency="XTR",
+                prices=[LabeledPrice("Token Monitor (30d)", int(SCAN_PACKS["monitor"]["stars"]))],
+            )
+            await query.answer()
+        except (httpx.HTTPError, KeyError, TypeError) as e:
+            logger.debug("unknown_error", exc_info=True)
+            logger.error(f"Monitor invoice error: {e}")
+            _pending_monitors.pop(token, None)
             await query.answer(
                 "Could not create invoice. Ensure bot has Telegram Stars enabled in @BotFather.",
                 show_alert=True,

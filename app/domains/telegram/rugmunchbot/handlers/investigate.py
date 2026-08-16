@@ -31,6 +31,11 @@ from app.domains.telegram.rugmunchbot.formatters import (
     sep,
     thin_sep,
 )
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_TRY_AGAIN,
+    failure_card,
+    usage_hint,
+)
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, investigate_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.scanner import scan_token, scan_token_v2, v2_token_to_legacy
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -153,15 +158,21 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🕵️ <b>Deep Investigation</b>\n\n"
-            "Usage: /investigate <code>address</code>\n\n"
-            "Runs a comprehensive investigation combining:\n"
-            "  • Full security scan (honeypot, rug, bundle)\n"
-            "  • Wallet forensics (dev wallet, funding)\n"
-            "  • Holder concentration analysis\n"
-            "  • Cross-chain fund tracing\n"
-            "  • Smart money detection\n"
-            "  • AI-powered risk assessment\n\n"
-            "👑 <b>Pro tier</b> required — $99.99/mo",
+            + usage_hint(
+                "investigate",
+                "address",
+                "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+                extra=(
+                    "Runs a comprehensive investigation combining:\n"
+                    "  • Full security scan (honeypot, rug, bundle)\n"
+                    "  • Wallet forensics (dev wallet, funding)\n"
+                    "  • Holder concentration analysis\n"
+                    "  • Cross-chain fund tracing\n"
+                    "  • Smart money detection\n"
+                    "  • AI-powered risk assessment\n\n"
+                    "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics"
+                ),
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -478,9 +489,11 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         logger.debug("cmd_investigate_error", exc_info=True)
         logger.error(f"Investigation error: {e}")
         await msg.edit_text(
-            f"❌ <b>Investigation Failed</b>\n\n"
-            f"Could not complete investigation for <code>{address}</code>.\n"
-            f"Please try again in a moment.",
+            failure_card(
+                "Investigation Failed",
+                f"Could not complete investigation for <code>{address}</code>.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

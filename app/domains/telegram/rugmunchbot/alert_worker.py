@@ -331,6 +331,15 @@ def _format_alert(item: dict[str, Any]) -> str:
             f"\U0001f4b0 <b>Value:</b> {value}\n"
             f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
         )
+    elif etype == "token.monitor_change":
+        changes = payload.get("changes") or []
+        changes_text = "\n".join(f"\u2022 {c}" for c in changes) if changes else "Security properties changed."
+        text = (
+            f"\U0001f6f0\ufe0f <b>Monitor Change: {symbol}</b>\n{header}"
+            f"<b>{symbol}</b> <code>{token_addr}</code>\n\n"
+            f"{changes_text}\n"
+            f"\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
+        )
     else:
         text = f"\U0001f514 <b>Alert: {symbol}</b>\n{header}\U0001f4c1 <b>Chain:</b> {_fmt_chain_short(chain)}\n"
 

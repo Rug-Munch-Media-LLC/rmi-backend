@@ -8,7 +8,7 @@ Telegram Stars payment pre-checkout and successful payment routing.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from telegram.error import TelegramError
 
@@ -20,7 +20,7 @@ from app.domains.telegram.rugmunchbot.config import (
 )
 from app.domains.telegram.rugmunchbot.keyboards import scan_result_kb
 from app.domains.telegram.rugmunchbot.scanner import scan_token
-from app.domains.telegram.rugmunchbot.states import _pending_deep_scans
+from app.domains.telegram.rugmunchbot.states import _pending_deep_scans, _pending_monitors
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ _SEP = "\u2501" * 28
 async def precheckout(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.pre_checkout_query
     payload = query.invoice_payload  # type: ignore[union-attr]  # PTB None-able fields
-    valid_prefixes = ("buystars_", "topup_", "sub_", "deep_")
+    valid_prefixes = ("buystars_", "topup_", "sub_", "deep_", "mon_")
     if any(payload.startswith(p) for p in valid_prefixes):
         await query.answer(ok=True)  # type: ignore[union-attr]  # PTB None-able fields
     else:
@@ -157,6 +157,62 @@ async def successful_payment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
         else:
             await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
                 "\u2705 Payment received but the scan request expired. Please run /scan again.",
+                parse_mode="HTML",
+            )
+
+    elif payload.startswith("mon_"):
+        token = payload[4:]
+        pending = _pending_monitors.pop(token, None)
+        if pending and pending["user_id"] == user.id:
+            addr = pending["address"]
+            chain = pending["chain"]
+            msg = await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+                f"\U0001f6f0\ufe0f <b>Monitor Started</b>\n\nRegistering live monitoring for <code>{addr}</code>...",
+                parse_mode="HTML",
+            )
+            baseline: dict[str, Any] = {}
+            deployer: str | None = None
+            symbol: str | None = None
+            try:
+                from app.domains.telegram.rugmunchbot.handlers.alerts import _monitor_baseline
+
+                result = await scan_token(addr, chain)
+                baseline = _monitor_baseline(result)
+                deployer = result.get("deployer_address")
+                symbol = result.get("symbol")
+            except (TelegramError, ValueError, KeyError, TypeError) as e:
+                logger.warning(f"Monitor baseline scan failed, continuing with empty baseline: {e}")
+
+            ok = db.add_monitor(
+                user.id,
+                addr,
+                chain,
+                symbol=symbol,
+                deployer_address=deployer,
+                baseline=baseline,
+            )
+            if ok:
+                from app.domains.telegram.rugmunchbot.handlers.alerts import _subscribe_backend_monitor
+
+                await _subscribe_backend_monitor(user.id, addr)
+                await msg.edit_text(
+                    f"\U0001f6f0\ufe0f <b>Monitor Active</b>\n\n"
+                    f"Token: <code>{addr}</code>\n"
+                    f"Chain: {chain}\n"
+                    f"\U0001f4cb Watching: LP changes, whale/deployer moves, "
+                    f"tax/ownership/mint changes, price swings\n\n"
+                    f"\U0001f514 You'll be DM'd when something meaningful changes.\n"
+                    f"Manage: /monitors \u00b7 Stop: /unmonitor <code>{addr}</code>",
+                    parse_mode="HTML",
+                )
+            else:
+                await msg.edit_text(
+                    f"\u2705 Payment received, but <code>{addr}</code> is already monitored. Use /monitors to manage.",
+                    parse_mode="HTML",
+                )
+        else:
+            await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
+                "\u2705 Payment received but the monitor request expired. Please run /monitor again.",
                 parse_mode="HTML",
             )
 

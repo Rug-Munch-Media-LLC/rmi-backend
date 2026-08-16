@@ -31,6 +31,12 @@ from app.domains.telegram.rugmunchbot.formatters import (
     footer_links,
     thin_sep,
 )
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_CHECK_ADDRESS,
+    ACTION_TRY_AGAIN,
+    failure_card,
+    usage_hint,
+)
 from app.domains.telegram.rugmunchbot.keyboards import back_kb
 from app.domains.telegram.rugmunchbot.services.pricing import resolve
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -96,11 +102,13 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "💰 <b>Token Price</b>\n\n"
-            "Usage: /price <code>address</code> [chain]\n\n"
-            "Examples:\n"
-            "  /price <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code>\n"
-            "  /price <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code> solana\n\n"
-            "💡 <i>Get price data directly by contract address, not symbol.</i>",
+            + usage_hint(
+                "price",
+                "address [chain]",
+                "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+                examples=("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v solana",),
+                extra="💡 <i>Get price data directly by contract address, not symbol.</i>",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -148,14 +156,16 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
         else:
             text = (
-                f"❌ <b>Price Not Available</b>\n\n"
-                f"<code>{address}</code>\n\n"
-                f"No price data found for this token. It may:\n"
-                f"• Not have a trading pair yet\n"
-                f"• Be on an unsupported chain\n"
-                f"• Have no liquidity\n\n"
-                f"Try /scan for a full security analysis."
-                f"{footer_links()}"
+                failure_card(
+                    "Price Not Available",
+                    f"<code>{address}</code>\n\n"
+                    "No price data found for this token. It may:\n"
+                    "• Not have a trading pair yet\n"
+                    "• Be on an unsupported chain\n"
+                    "• Have no liquidity",
+                    "Try /scan for a full security analysis.",
+                )
+                + footer_links()
             )
             kb = InlineKeyboardMarkup(
                 [
@@ -169,9 +179,11 @@ async def cmd_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, OSError) as e:
         logger.warning("cmd_price failed for %s: %s", address, e)
         await msg.edit_text(
-            f"❌ <b>Price Check Failed</b>\n\n"
-            f"Could not fetch price for <code>{address}</code>.\n"
-            f"Please try again in a moment.",
+            failure_card(
+                "Price Check Failed",
+                f"Could not fetch price for <code>{address}</code>.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -186,11 +198,13 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "💱 <b>DEX Data</b>\n\n"
-            "Usage: /dex <code>address</code> [chain]\n\n"
-            "Shows trading pairs, liquidity, and DEX info for a token.\n\n"
-            "Examples:\n"
-            "  /dex <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code>\n"
-            "  /dex <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code> solana",
+            + usage_hint(
+                "dex",
+                "address [chain]",
+                "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+                examples=("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v solana",),
+                extra="Shows trading pairs, liquidity, and DEX info for a token.",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -213,9 +227,11 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if not pairs:
             await msg.edit_text(
-                f"❌ <b>No Trading Pairs Found</b>\n\n"
-                f"No DEX pairs found for <code>{address}</code>.\n"
-                f"The token may not be tradable on any DEX yet.",
+                failure_card(
+                    "No Trading Pairs Found",
+                    f"No DEX pairs found for <code>{address}</code>.\nThe token may not be tradable on any DEX yet.",
+                    ACTION_CHECK_ADDRESS,
+                ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=back_kb(),
             )
@@ -259,9 +275,11 @@ async def cmd_dex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except (httpx.HTTPError, ConnectionError, TimeoutError, ValueError, KeyError, TypeError, OSError) as e:
         logger.warning("cmd_dex failed for %s: %s", address, e)
         await msg.edit_text(
-            f"❌ <b>DEX Query Failed</b>\n\n"
-            f"Could not fetch DEX data for <code>{address}</code>.\n"
-            f"Please try again in a moment.",
+            failure_card(
+                "DEX Query Failed",
+                f"Could not fetch DEX data for <code>{address}</code>.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

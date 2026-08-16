@@ -510,7 +510,12 @@ def scan_actions_kb(address: str, chain: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("\U0001f4e4 Share", url=_share_token_url(address, chain)),
                 InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
             ],
-            [InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main")],
+            [
+                InlineKeyboardButton(
+                    "\U0001f6f0\ufe0f Monitor (250\u2605)", callback_data=f"monitor_{address}_{chain}"
+                ),
+                InlineKeyboardButton("\U0001f3d9\ufe0f Main Menu", callback_data="menu_main"),
+            ],
         ]
     )
 
@@ -541,6 +546,9 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton("\U0001f52c Deep Scan (250\u2605)", callback_data=f"deep_{address}_{chain}"),
             InlineKeyboardButton("\U0001f4e4 Share", callback_data=f"share_{address}_{chain}"),
         ],
+        [
+            InlineKeyboardButton("\U0001f6f0\ufe0f Monitor (250\u2605)", callback_data=f"monitor_{address}_{chain}"),
+        ],
         [InlineKeyboardButton("\u2b50 Unlock Premium Features", callback_data="menu_pricing")],
         [InlineKeyboardButton("\U0001f3d9\ufe0f Menu", callback_data="menu_main")],
     ]
@@ -548,13 +556,26 @@ def scan_result_kb(address: str, chain: str) -> InlineKeyboardMarkup:
 
 
 def pricing_kb() -> InlineKeyboardMarkup:
-    rows = []
+    """Premium pricing buttons — Stars-based (no fake $/mo framing).
+
+    Tiers are priced in Telegram Stars (their real ``sub_`` invoice price,
+    ``price_stars``); the working on-demand premium features (Monitor / Deep
+    Scan) are promoted on top and reached from scan results + /monitor.
+    """
+    rows = [
+        [
+            InlineKeyboardButton(
+                "\U0001f6f0\ufe0f Monitor (250\u2605/30d) \u2014 /monitor <addr>", callback_data="menu_monitor_howto"
+            )
+        ],
+        [InlineKeyboardButton("\u2b50 Buy Stars", callback_data="menu_buystars")],
+    ]
     for key in ["scout", "hunter", "pro"]:
         t = TIERS[key]
         rows.append(
             [
                 InlineKeyboardButton(
-                    f"{t['emoji']} {t['name']} - ${t['price_monthly']}/mo",
+                    f"{t['emoji']} {t['name']} - {t['price_stars']:,}\u2605/30d",
                     callback_data=f"sub_{key}",
                 )
             ]
@@ -749,13 +770,13 @@ def upgrade_nudge_kb(current_tier: str) -> InlineKeyboardMarkup:
     """Keyboard shown when user hits usage limits."""
     buttons = []
     if current_tier == "free":
-        buttons.append([InlineKeyboardButton("🔍 Scout ($29.99/mo)", callback_data="sub_scout")])
-        buttons.append([InlineKeyboardButton("🎯 Hunter ($49.99/mo)", callback_data="sub_hunter")])
+        buttons.append([InlineKeyboardButton("🔍 Scout - 2,999★/30d", callback_data="sub_scout")])
+        buttons.append([InlineKeyboardButton("🎯 Hunter - 4,999★/30d", callback_data="sub_hunter")])
     elif current_tier == "scout":
-        buttons.append([InlineKeyboardButton("🎯 Hunter ($49.99/mo)", callback_data="sub_hunter")])
-        buttons.append([InlineKeyboardButton("👑 Pro ($99.99/mo)", callback_data="sub_pro")])
+        buttons.append([InlineKeyboardButton("🎯 Hunter - 4,999★/30d", callback_data="sub_hunter")])
+        buttons.append([InlineKeyboardButton("👑 Pro - 9,999★/30d", callback_data="sub_pro")])
     elif current_tier == "hunter":
-        buttons.append([InlineKeyboardButton("👑 Pro ($99.99/mo)", callback_data="sub_pro")])
+        buttons.append([InlineKeyboardButton("👑 Pro - 9,999★/30d", callback_data="sub_pro")])
     buttons.append([InlineKeyboardButton("💳 View All Plans", callback_data="menu_pricing")])
     buttons.append([InlineKeyboardButton("🔄 Buy Top-Up", callback_data="menu_topup")])
     buttons.append([InlineKeyboardButton("🔙 Menu", callback_data="menu_main")])
@@ -782,18 +803,20 @@ def api_kb(has_token: bool = False) -> InlineKeyboardMarkup:
 
 
 def quick_start_kb() -> InlineKeyboardMarkup:
-    """First-run quick-start: 3 one-tap actions on the onboarding welcome.
+    """First-run quick-start: the 3 core actions + a "More" button → /menu.
 
-    Scan a token / What's trending / What can you do? — all three buttons
-    reuse existing callbacks so the onboarding flow needs no new handlers.
+    Scan / Price / Ask AI mirror the example actions in the onboarding
+    welcome message; the final "More" row opens the full /menu capability
+    atlas via the ``menu_full`` callback (renders the existing ``MENU_TEXT``).
     """
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("\U0001f50d Scan a token", callback_data="run_scan"),
-                InlineKeyboardButton("\U0001f525 What's trending", callback_data="run_trending"),
+                InlineKeyboardButton("\U0001f50d Scan", callback_data="run_scan"),
+                InlineKeyboardButton("\U0001f4b0 Price", callback_data="run_price"),
             ],
-            [InlineKeyboardButton("\U0001f4ac What can you do?", callback_data="menu_cat_help")],
+            [InlineKeyboardButton("\U0001f4ac Ask AI", callback_data="run_chat")],
+            [InlineKeyboardButton("\U0001f4d6 More \u25be", callback_data="menu_full")],
         ]
     )
 

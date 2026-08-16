@@ -51,12 +51,32 @@ KNOWN_CEX_WALLETS: dict[str, list[str]] = {
     ],
     "kucoin": [
         "0x2B5634C42055806a59e9107ED44D43c426E58258",  # Kucoin 1
+        "0x689c56aef474df92d44a1b70850f808488f9769c",  # Kucoin 2
     ],
     "gateio": [
         "0x0D0707963952f2fBA59dD06f2b425ace40b492Fe",  # Gate.io 1
+        "0x1c4b70a3968436b9a0a9cf5205c787eb81bb558c",  # Gate.io 2
     ],
     "mexc": [
         "0x75e89d5979E4f6Fba9F97c104c2F0AFB3F1dcB88",  # MEXC 1
+    ],
+    "huobi": [
+        "0x6748F50f686bFb106c8EBd7376a0360768aD1AF3",  # Huobi/HTX 1 (main hot wallet)
+    ],
+    "crypto.com": [
+        "0x6262998ced04146fa42253a5c0af90ca02dfd2a3",  # Crypto.com 1
+        "0x46340b20830761efd32832a74d7169b29feb9758",  # Crypto.com 2
+        "0x72a53cdbbcc1b9efa39c834aed550584312fba93",  # Crypto.com 3
+    ],
+    "bitfinex": [
+        "0x876EabF441B2EE5bB5b3154DABb9230521bDa862",  # Bitfinex hot wallet
+    ],
+    "gemini": [
+        "0xd24400ae8BfEBb18cA49Be86258a3C749cf46853",  # Gemini hot wallet
+    ],
+    "ftx": [
+        "0xc098b2a3aa256d2140208c3de6543aaef5cd3a94",  # FTX 1
+        "0x2faf487A4414Fe77e2327F0bf4AE2a264a776AD2",  # FTX US
     ],
 }
 

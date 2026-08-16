@@ -28,6 +28,11 @@ from app.domains.telegram.rugmunchbot.formatters import (
     sep,
     thin_sep,
 )
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_TRY_AGAIN,
+    failure_card,
+    usage_hint,
+)
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, holders_kb, paywall_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import http_get_json
@@ -91,12 +96,13 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "👥 <b>Holder Analysis</b>\n\n"
-            "Usage: /holders <code>address</code> [chain]\n\n"
-            "<b>Examples:</b>\n"
-            "  /holders <code>0x6982508145454Ce325dDbE47a25d4ec3d2311933</code>\n"
-            "  /holders <code>EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</code>\n\n"
-            "Shows top holders, concentration risk, whale detection.\n"
-            "🔍 <b>Scout tier</b> or higher required.",
+            + usage_hint(
+                "holders",
+                "address [chain]",
+                "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+                examples=("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",),
+                extra="Shows top holders, concentration risk, whale detection.\n🔍 <b>Scout tier</b> or higher required.",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -108,7 +114,7 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "This feature requires <b>Scout tier</b> or higher.\n\n"
             "🔍 <b>Scout ($29.99/mo)</b> — Holder distribution + concentration\n"
             "🎯 <b>Hunter ($49.99/mo)</b> — Whale alerts + smart money detection\n"
-            "👑 <b>Pro ($99.99/mo)</b> — Full holder timeline + clustering",
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )
@@ -331,9 +337,11 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_holders_error", exc_info=True)
         logger.error(f"Holder analysis error: {e}")
         await msg.edit_text(
-            f"❌ <b>Holder Analysis Failed</b>\n\n"
-            f"Could not fetch holder data for <code>{address}</code>.\n"
-            f"Please try again in a moment.",
+            failure_card(
+                "Holder Analysis Failed",
+                f"Could not fetch holder data for <code>{address}</code>.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )

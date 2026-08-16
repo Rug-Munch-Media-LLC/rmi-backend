@@ -58,14 +58,14 @@ def test_command_list_total_description_within_telegram_limit() -> None:
 
 # ── /help reference text ──────────────────────────────────────────────────
 
+# v14: /help is a first-run EXPLAINER grouped by what-you-can-do — each
+# group carries a one-line plain-English description + ONE example.
 EXPECTED_HELP_HEADERS = [
-    "Scan & Security",
-    "Wallet & Tracing",
-    "Market & Analysis",
-    "News & Alerts",
-    "Chat & Learn",
-    "Premium",
-    "Account & Extras",
+    "Scan & Safety",
+    "Prices & Charts",
+    "Portfolio",
+    "News & Intel",
+    "Ask AI",
 ]
 
 
@@ -75,15 +75,13 @@ def test_help_text_renders_group_headers() -> None:
 
 
 def test_help_text_renders_key_commands() -> None:
-    for cmd in ("scan", "wallet", "price", "chart", "trace", "market", "news", "alerts", "chat"):
-        assert f"/{cmd} " in HELP_TEXT or f"/{cmd}\n" in HELP_TEXT, f"key command /{cmd} missing from help text"
+    for cmd in ("/scan", "/wallet", "/news", "/chat", "$SOL", "/menu"):
+        assert cmd in HELP_TEXT, f"key command {cmd} missing from help text"
 
 
-def test_help_text_renders_every_section_command() -> None:
-    for _header, cmds in _HELP_SECTIONS:
-        for cmd, desc in cmds:
-            line = f"/{cmd} {desc}"
-            assert line in HELP_TEXT, f"help text is missing line: {line!r}"
+def test_help_text_renders_every_section_example() -> None:
+    for _header, _desc, example in _HELP_SECTIONS:
+        assert example in HELP_TEXT, f"help text is missing example: {example!r}"
 
 
 def test_help_text_html_tags_balanced() -> None:
@@ -94,7 +92,7 @@ def test_help_text_html_tags_balanced() -> None:
 
 
 def test_help_text_sections_unique() -> None:
-    headers = [h for h, _ in _HELP_SECTIONS]
+    headers = [h for h, _desc, _example in _HELP_SECTIONS]
     assert len(headers) == len(set(headers))
 
 
@@ -115,14 +113,13 @@ def test_help_text_contains_backstory() -> None:
 
 
 def test_help_text_commands_grouped_by_requested_categories() -> None:
-    # The requested best-in-class categories must be present as headers.
+    # The requested what-you-can-do explainer categories must be present.
     for header in (
-        "Scan & Security",
-        "Wallet & Tracing",
-        "Market & Analysis",
-        "News & Alerts",
-        "Chat & Learn",
-        "Premium",
+        "Scan & Safety",
+        "Prices & Charts",
+        "Portfolio",
+        "News & Intel",
+        "Ask AI",
     ):
         assert f"<b>{header}</b>" in HELP_TEXT, f"missing category header: {header}"
 
@@ -175,6 +172,7 @@ def test_faq_text_html_safe() -> None:
 # handlers/callback/__init__.py — do NOT add new ones without a handler.
 KNOWN_CALLBACKS = {
     "menu_main",
+    "menu_full",
     "menu_cat_admin",
     "menu_cat_scan",
     "menu_cat_wallet",

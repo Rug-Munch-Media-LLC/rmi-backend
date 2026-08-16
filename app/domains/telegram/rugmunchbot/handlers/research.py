@@ -214,8 +214,9 @@ async def cmd_research(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "\U0001f50d <b>RAG Research</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
-            "\U0001f3af <b>Hunter ($49.99/mo)</b> — 400 scans/wk + RAG research\n"
-            "\U0001f451 <b>Pro ($99.99/mo)</b> — Unlimited research + investigations",
+            "\U0001f3af <b>Hunter tier</b> — 400 scans/wk + RAG research\n"
+            "\U0001f6f0\ufe0f <b>Monitor (250\u2605/30d)</b> — live LP/whale + "
+            "tax/ownership/mint alerts · 🔬 <b>Deep Scan (250\u2605)</b> — full forensics",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )

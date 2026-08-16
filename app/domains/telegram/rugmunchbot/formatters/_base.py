@@ -458,9 +458,9 @@ def paywall_text(user_id: int, action: str = "scan") -> str:
         f"\U0001f381 <b>Bonus Balance:</b> {bonus} extra\n"
         f"{beta_note}"
         f"\n<b>Unlock more power:</b>\n\n"
-        f"\U0001f50d <b>Scout ($29.99/mo)</b> - 150 scans/wk + bundle detection\n"
-        f"\U0001f3af <b>Hunter ($49.99/mo)</b> - 400 scans/wk + wallet forensics\n"
-        f"\U0001f451 <b>Pro ($99.99/mo)</b> - 1,000 scans/wk + smart money alerts\n\n"
+        f"\U0001f6f0\ufe0f <b>Monitor (250\u2605/30d)</b> \u2014 live LP/whale + tax/ownership/mint change alerts\n"
+        f"\U0001f52c <b>Deep Scan (250\u2605)</b> \u2014 full forensics on demand\n"
+        f"\U0001f4b0 <b>Core /scan + chat stay free.</b>\n\n"
         f"Or buy one-time top-ups - <b>never expire!</b>\n"
         f"\U0001f50b 10 scans = \u2b5075 | 50 scans = \u2b50300 | 100 scans = \u2b50500"
     )

@@ -36,6 +36,11 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
     web_scan_button,
 )
+from app.domains.telegram.rugmunchbot.handlers._messages import (
+    ACTION_TRY_AGAIN,
+    failure_card,
+    usage_hint,
+)
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, trace_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
@@ -250,12 +255,16 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🔍 <b>Cross-Chain Fund Trace</b>\n\n"
-            "Usage: /trace <code>address</code>\n\n"
-            "Traces fund flows across chains, identifies funding sources,\n"
-            "exchange interactions, and connected wallets.\n\n"
-            "<b>Example:</b>\n"
-            "  /trace <code>0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045</code>\n\n"
-            "🎯 <b>Hunter tier</b> or higher required.",
+            + usage_hint(
+                "trace",
+                "address",
+                "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+                extra=(
+                    "Traces fund flows across chains, identifies funding sources,\n"
+                    "exchange interactions, and connected wallets.\n\n"
+                    "🎯 <b>Hunter tier</b> or higher required."
+                ),
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -266,7 +275,7 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "🔍 <b>Cross-Chain Fund Trace</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
             "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
-            "👑 <b>Pro ($99.99/mo)</b> — Deep chain analytics + clustering",
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )
@@ -524,8 +533,11 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_trace_error", exc_info=True)
         logger.error(f"Trace error: {e}")
         await msg.edit_text(
-            f"❌ <b>Trace Failed</b>\n\nCould not trace funds for <code>{address}</code>.\n"
-            "Please try again in a moment.",
+            failure_card(
+                "Trace Failed",
+                f"Could not trace funds for <code>{address}</code>.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -552,11 +564,13 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🐋 <b>Dump Detector</b>\n\n"
             "Find large sell-offs for any token.\n\n"
-            "<b>Usage:</b> /dumps <code>token_address</code> [chain]\n\n"
-            "<b>Examples:</b>\n"
-            "  /dumps <code>0x6982...1933</code>\n"
-            "  /dumps <code>EPjFWdd5...Dt1v</code> solana\n\n"
-            "<i>Detects sells over $1K as potential dumps.</i>",
+            + usage_hint(
+                "dumps",
+                "token_address [chain]",
+                "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+                examples=("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v solana",),
+                extra="<i>Detects sells over $1K as potential dumps.</i>",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -567,7 +581,7 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "🐋 <b>Dump Detector</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
             "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
-            "👑 <b>Pro ($99.99/mo)</b> — Deep chain analytics + clustering",
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )
@@ -715,7 +729,11 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_dumps_error", exc_info=True)
         logger.error(f"Dump scan error: {e}")
         await msg.edit_text(
-            "❌ <b>Dump Scan Failed</b>\n\nCould not run the dump-pattern scan.\nPlease try again in a moment.",
+            failure_card(
+                "Dump Scan Failed",
+                "Could not run the dump-pattern scan.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
@@ -745,11 +763,13 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "💰 <b>Fund Flow Tracer</b>\n\n"
             "Follow the money — trace where a wallet's funds\n"
             "came from and where they've been going.\n\n"
-            "<b>Usage:</b> /flow <code>wallet_address</code> [chain]\n\n"
-            "<b>Examples:</b>\n"
-            "  /flow <code>0xd8dA6B...6045</code>\n"
-            "  /flow <code>vitalik.eth</code> ethereum\n\n"
-            "<i>Shows funding sources, destinations, and connected wallets.</i>",
+            + usage_hint(
+                "flow",
+                "wallet_address [chain]",
+                "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+                examples=("vitalik.eth ethereum",),
+                extra="<i>Shows funding sources, destinations, and connected wallets.</i>",
+            ),
             parse_mode=ParseMode.HTML,
         )
         return
@@ -760,7 +780,7 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "💰 <b>Fund Flow Tracer</b>\n\n"
             "This feature requires <b>Hunter tier</b> or higher.\n\n"
             "🎯 <b>Hunter ($49.99/mo)</b> — Fund flow tracing\n"
-            "👑 <b>Pro ($99.99/mo)</b> — Deep chain analytics + clustering",
+            "🛰️ <b>Monitor (250★/30d)</b> — live LP/whale + tax/ownership/mint alerts · 🔬 <b>Deep Scan (250★)</b> — full forensics",
             parse_mode=ParseMode.HTML,
             reply_markup=paywall_kb(),
         )
@@ -906,7 +926,11 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug("cmd_flow_error", exc_info=True)
         logger.error(f"Flow error: {e}")
         await msg.edit_text(
-            "❌ <b>Flow Trace Failed</b>\n\nCould not trace the money flow.\nPlease try again in a moment.",
+            failure_card(
+                "Flow Trace Failed",
+                "Could not trace the money flow.",
+                ACTION_TRY_AGAIN,
+            ),
             parse_mode=ParseMode.HTML,
             reply_markup=back_kb(),
         )
