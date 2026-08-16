@@ -16,13 +16,17 @@ re-imported lazily exactly like the original module so
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from app.domains.telegram.rugmunchbot.channels.formatters import format_breaking_post, format_news_post
+from app.domains.telegram.rugmunchbot.channels._media import send_news_photo
+from app.domains.telegram.rugmunchbot.channels.formatters import (
+    NewsPost,
+    format_breaking_post,
+    format_news_post,
+)
 from app.domains.telegram.rugmunchbot.channels.importance import select_important
 from app.domains.telegram.rugmunchbot.channels.telegram_news._digest import (
     _article_to_post_dict,
-    _category_is_news,
 )
 from app.domains.telegram.rugmunchbot.channels.telegram_news._sources import TG_NEWS_POST_LIMIT
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
@@ -35,6 +39,22 @@ else:
     _tg = sys.modules[__package__ or ""]
 
 logger = get_logger("rmi_bot.channels.tg_news")
+
+
+async def _post_formatted(bot: Any, chat_id: str, post: NewsPost, safe_send: Any) -> bool:
+    """Post a formatter result, attaching its image when one is available.
+
+    ``post`` is the ``NewsPost`` from ``format_news_post`` /
+    ``format_breaking_post`` (a ``str`` carrying an optional ``.image_url``).
+    With a usable http(s) image the post goes through ``send_news_photo``
+    (photo + caption; falls back to text internally). Without one the plain
+    text ``safe_send`` path (the caller's lazily-imported ``_safe_send``,
+    with retries + ``disable_web_page_preview=True``) is used.
+    """
+    image_url = getattr(post, "image_url", "") or ""
+    if image_url:
+        return await send_news_photo(bot, chat_id, caption=post, photo_url=image_url)
+    return await safe_send(bot, chat_id, post)
 
 
 async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
@@ -78,6 +98,7 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
     """
     # Lazy import keeps the scheduler ↔ this module import graph acyclic
     # (scheduler.py imports this module at module scope for registration).
+    from app.domains.telegram.rugmunchbot.channels.router import route_news
     from app.domains.telegram.rugmunchbot.channels.scheduler import (
         _chat_id,
         _dedupe_key,
@@ -87,7 +108,8 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
     news_chat_id = _chat_id("news")
     alpha_chat_id = _chat_id("alpha")
-    if not news_chat_id and not alpha_chat_id:
+    main_chat_id = _chat_id("main")
+    if not news_chat_id and not alpha_chat_id and not main_chat_id:
         return 0
 
     articles = await _tg.sweep_telegram_news()
@@ -111,9 +133,21 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
     posted = 0
 
-    # Route: news category → news channel
-    if news_chat_id:
-        news_scored = [s for s in scored if _category_is_news(s.article.category)]
+    # Unified routing: partition scored articles by destination via route_news.
+    news_scored: list[Any] = []
+    alpha_scored: list[Any] = []
+    main_scored: list[Any] = []
+    for s in scored:
+        dest = route_news(s.importance, s.article.category)
+        if dest == "main":
+            main_scored.append(s)
+        elif dest == "alpha":
+            alpha_scored.append(s)
+        elif dest == "news":
+            news_scored.append(s)
+
+    # Route: news → news channel
+    if news_chat_id and news_scored:
         selected = select_important(news_scored, top_n=TG_NEWS_POST_LIMIT)
         # Secondary sort by the deterministic lightweight importance score
         # (stable) so the digest is ordered best-first even when the rerank
@@ -127,7 +161,7 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
             top = selected[0].article
             post = _article_to_post_dict(top)
             if _remember("tgnews", _dedupe_key("tgnews", post)):
-                ok = await _safe_send(ctx.bot, news_chat_id, format_breaking_post(post))
+                ok = await _post_formatted(ctx.bot, news_chat_id, format_breaking_post(post), _safe_send)
                 if ok:
                     logger.info("tg_news:posted_breaking title=%s", top.title[:80])
                     posted += 1
@@ -138,18 +172,31 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
                 if _remember("tgnews", _dedupe_key("tgnews", _article_to_post_dict(scored_article.article)))
             ]
             if fresh:
-                ok = await _safe_send(
+                ok = await _post_formatted(
                     ctx.bot,
                     news_chat_id,
                     format_news_post([_article_to_post_dict(a) for a in fresh[:TG_NEWS_POST_LIMIT]]),
+                    _safe_send,
                 )
                 if ok:
                     logger.info("tg_news:posted_news count=%s", min(len(fresh), TG_NEWS_POST_LIMIT))
                     posted += 1
 
-    # Route: alpha category → alpha channel (additive; no alpha chat id → skip)
-    if alpha_chat_id:
-        alpha_scored = [s for s in scored if s.article.category == "alpha"]
+    # Route: main (importance ≥ 0.7) → @cryptorugmuncher channel, solo.
+    if main_chat_id and main_scored:
+        selected_main = select_important(main_scored, top_n=TG_NEWS_POST_LIMIT)
+        selected_main = sorted(selected_main, key=lambda s: s.importance, reverse=True)
+        if selected_main:
+            top = selected_main[0].article
+            post = _article_to_post_dict(top)
+            if _remember("tgmain", _dedupe_key("tgmain", post)):
+                ok = await _post_formatted(ctx.bot, main_chat_id, format_breaking_post(post), _safe_send)
+                if ok:
+                    logger.info("tg_news:posted_main title=%s", top.title[:80])
+                    posted += 1
+
+    # Route: alpha → alpha channel (additive; no alpha chat id → skip)
+    if alpha_chat_id and alpha_scored:
         selected_alpha = select_important(alpha_scored, top_n=TG_NEWS_POST_LIMIT)
         fresh_alpha = [
             scored_article.article
@@ -157,10 +204,11 @@ async def post_tg_news_update(ctx: ContextTypes.DEFAULT_TYPE) -> int:
             if _remember("tgalpha", _dedupe_key("tgalpha", _article_to_post_dict(scored_article.article)))
         ]
         if fresh_alpha:
-            ok = await _safe_send(
+            ok = await _post_formatted(
                 ctx.bot,
                 alpha_chat_id,
                 format_news_post([_article_to_post_dict(a) for a in fresh_alpha[:TG_NEWS_POST_LIMIT]]),
+                _safe_send,
             )
             if ok:
                 logger.info("tg_news:posted_alpha count=%s", min(len(fresh_alpha), TG_NEWS_POST_LIMIT))
