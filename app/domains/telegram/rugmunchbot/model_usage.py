@@ -25,6 +25,7 @@ counter. Never raises — recording is best-effort (fail-open).
 
 from __future__ import annotations
 
+import contextlib
 import threading
 import time
 from datetime import UTC, datetime
@@ -71,6 +72,12 @@ def record(tier: str, model: str = "", latency_ms: float = 0.0, tokens: int = 0)
         d = _days.setdefault(day, {"calls": 0, "tokens": 0})
         d["calls"] += 1
         d["tokens"] += tokens
+
+    # Mirror into Prometheus/observability counters (best-effort, never raises).
+    with contextlib.suppress(Exception):
+        from app.domains.telegram.rugmunchbot.observability import record_chat
+
+        record_chat(tier, model, latency_ms)
 
 
 def snapshot() -> dict[str, Any]:

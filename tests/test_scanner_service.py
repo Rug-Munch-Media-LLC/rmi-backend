@@ -19,16 +19,16 @@ import pytest
 
 
 def test_calculate_safety_score_baseline():
-    """Safety score starts at 50 (neutral) with no modules."""
+    """Safety score starts at 35 (unknown = moderately risky, not neutral)."""
     from app.domains.scanner.service import _calculate_safety_score
 
     modules_run: list[dict] = [{"module": "test", "status": "error"}]
     score = _calculate_safety_score(modules_run)
-    assert score == 50
+    assert score == 35
 
 
 def test_calculate_safety_score_clean_bonus():
-    """Verified contract gives clean_bonus of +10."""
+    """Verified contract gives clean_bonus weighted by module reliability (+8*0.6)."""
     from app.domains.scanner.service import _calculate_safety_score
 
     modules_run = [
@@ -39,11 +39,11 @@ def test_calculate_safety_score_clean_bonus():
         }
     ]
     score = _calculate_safety_score(modules_run)
-    assert score == 60  # 50 + 10
+    assert score == 39  # 35 + 8 * weight(verification=0.6) = 39.8 -> 39
 
 
 def test_calculate_safety_score_honeypot_penalty():
-    """Honeypot flag gives -35 penalty."""
+    """Honeypot flag gives -35 penalty weighted by module reliability (*0.9)."""
     from app.domains.scanner.service import _calculate_safety_score
 
     modules_run = [
@@ -54,11 +54,11 @@ def test_calculate_safety_score_honeypot_penalty():
         }
     ]
     score = _calculate_safety_score(modules_run)
-    assert score == 15  # 50 - 35
+    assert score == 3  # 35 - 35 * weight(goplus=0.9) = 3.5 -> 3
 
 
 def test_calculate_safety_score_spam_penalty():
-    """Spam flag gives -30 penalty."""
+    """Spam flag gives -30 penalty weighted by module reliability (*0.6)."""
     from app.domains.scanner.service import _calculate_safety_score
 
     modules_run = [
@@ -69,11 +69,11 @@ def test_calculate_safety_score_spam_penalty():
         }
     ]
     score = _calculate_safety_score(modules_run)
-    assert score == 20  # 50 - 30
+    assert score == 17  # 35 - 30 * weight(spam=0.6) = 17
 
 
 def test_calculate_safety_score_sanctioned():
-    """Sanctioned flag gives -50 penalty."""
+    """Sanctioned flag gives -50 penalty weighted by module reliability (*0.6)."""
     from app.domains.scanner.service import _calculate_safety_score
 
     modules_run = [
@@ -84,7 +84,8 @@ def test_calculate_safety_score_sanctioned():
         }
     ]
     score = _calculate_safety_score(modules_run)
-    assert score == 0  # 50 - 50
+    # 35 - 50*0.6 = 5, then severe_risk_count=2 applies 1.2x -> -1 -> clamped to 0
+    assert score == 0
 
 
 def test_calculate_safety_score_combined():
@@ -117,10 +118,10 @@ def test_calculate_safety_score_combined():
             "result": {"result": "scanned", "is_spam": False},
         },
     ]
-    # Baseline 50 + clean_bonus: verified(+10) + copycat_clean(+5) = +15
+    # Baseline 35 + clean_bonus: verified(+8*0.6=4.8) + copycat_clean(+5*0.8=4.0) = +8.8
     score = _calculate_safety_score(modules_run)
-    # 50 + 15 = 65 (the +10 extra for 4+ modules was removed from the scoring function)
-    assert score == 65
+    # 35 + 8.8 = 43.8 -> 43 (confidence boost needs >=5 modules with data)
+    assert score == 43
 
 
 def test_calculate_safety_score_clamped():
@@ -146,10 +147,11 @@ def test_calculate_safety_score_failed_critical_module_penalty():
         _calculate_safety_score,
     )
 
-    # GoPlus returns an error result dict -> penalty applied, not skipped
+    # GoPlus returns an error result dict -> weighted penalty applied, not skipped
     modules_run = [{"module": "goplus", "status": "success", "result": {"result": "error", "error": "HTTP 500"}}]
     score = _calculate_safety_score(modules_run)
-    assert score == 50 - DEFAULT_RISK_PENALTY
+    # Baseline 35 - DEFAULT_RISK_PENALTY * weight(goplus=0.9) = 21.5 -> int truncates to 21
+    assert score == int(35 - DEFAULT_RISK_PENALTY * 0.9)
 
     # Both critical vetting providers down -> token must not score safe
     all_down = [
@@ -157,7 +159,8 @@ def test_calculate_safety_score_failed_critical_module_penalty():
         {"module": "honeypot", "result": {"result": "error", "error": "Timeout"}},
     ]
     score = _calculate_safety_score(all_down)
-    assert score == 50 - 2 * DEFAULT_RISK_PENALTY
+    # 35 - 15*0.9 (goplus) - 15*1.0 (honeypot) = 6.5 -> int truncates to 6
+    assert score == int(35 - DEFAULT_RISK_PENALTY * 0.9 - DEFAULT_RISK_PENALTY * 1.0)
 
 
 def test_calculate_safety_score_failed_non_critical_module_skip():
@@ -169,7 +172,7 @@ def test_calculate_safety_score_failed_non_critical_module_skip():
         {"module": "spam", "result": {"result": "pending"}},
     ]
     score = _calculate_safety_score(modules_run)
-    assert score == 50
+    assert score == 35
 
 
 def test_risk_level_from_safety_medium_not_safe():

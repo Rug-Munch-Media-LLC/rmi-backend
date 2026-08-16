@@ -42,6 +42,7 @@ from app.domains.telegram.rugmunchbot.handlers._messages import (
     usage_hint,
 )
 from app.domains.telegram.rugmunchbot.keyboards import back_kb, paywall_kb, trace_kb
+from app.domains.telegram.rugmunchbot.states import check_spam
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 from app.domains.telegram.rugmunchbot.tools._client import get_shared_client
 
@@ -252,6 +253,10 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     db.get_or_create_user(user.id, user.username, user.first_name)
+
+    # Per-user spam cooldown (3s) — mirror /scan: silent drop for rapid fire.
+    if check_spam(user.id):
+        return
 
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
@@ -561,6 +566,10 @@ async def cmd_dumps(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
     db.get_or_create_user(user.id, user.username, user.first_name)
 
+    # Per-user spam cooldown (3s) — mirror /scan: silent drop for rapid fire.
+    if check_spam(user.id):
+        return
+
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields
             "🐋 <b>Dump Detector</b>\n\n"
@@ -758,6 +767,10 @@ async def cmd_flow(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
     db.get_or_create_user(user.id, user.username, user.first_name)
+
+    # Per-user spam cooldown (3s) — mirror /scan: silent drop for rapid fire.
+    if check_spam(user.id):
+        return
 
     if not ctx.args:
         await update.message.reply_text(  # type: ignore[union-attr]  # PTB None-able fields

@@ -162,6 +162,14 @@ async def _deliver_one(ctx: ContextTypes.DEFAULT_TYPE, item: dict[str, Any]) -> 
             exc,
         )
         return False
+
+    # Metrics: count the delivered webhook event (best-effort, never raises).
+    try:
+        from app.domains.telegram.rugmunchbot.observability import record_webhook_event
+
+        record_webhook_event(str(item.get("type") or "unknown"))
+    except Exception:
+        logger.debug("observability record_webhook_event failed", exc_info=True)
     return True
 
 
@@ -184,6 +192,12 @@ async def _requeue_or_deadletter(item: dict[str, Any]) -> None:
         if retries >= MAX_ALERT_RETRIES:
             await r.lpush(ALERT_DEAD_LETTER_KEY, json.dumps(item))
             logger.warning("alert_worker: alert dead-lettered after %s attempts (%s): %s", retries, summary, reason)
+            try:
+                from app.domains.telegram.rugmunchbot.observability import record_error
+
+                record_error(kind="alert_deadletter", message=f"{summary}: {reason}")
+            except Exception:
+                logger.debug("observability record_error failed", exc_info=True)
         else:
             await r.lpush(ALERT_QUEUE_KEY, json.dumps(item))
             logger.warning(

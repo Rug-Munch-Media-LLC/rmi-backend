@@ -157,6 +157,13 @@ from app.domains.telegram.rugmunchbot.handlers.watchlist import (
     cmd_watchlist,
 )
 from app.domains.telegram.rugmunchbot.handlers.webhook import cmd_webhook
+from app.domains.telegram.rugmunchbot.observability import (
+    record_error,
+    record_job,
+    set_scheduler_running,
+    start_server,
+    stop_server,
+)
 from app.domains.telegram.rugmunchbot.states import is_owner
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
 
@@ -214,6 +221,27 @@ def _reg(app: Application[Any, Any, Any, Any, Any, Any], name: str, handler) -> 
         await handler(update, ctx)
 
     app.add_handler(CommandHandler(name, tracked))
+
+
+def _metrics_job(name: str, fn: Any) -> Any:
+    """Wrap a scheduled job with run/failure counters + error logging.
+
+    Additive + cheap: counts every invocation, and on an unexpected
+    exception increments the error counter, records the last error and
+    logs before re-raising so PTB's error handler still sees it.
+    """
+
+    @wraps(fn)
+    async def wrapped(*args: Any, **kwargs: Any) -> Any:
+        record_job(name)
+        try:
+            return await fn(*args, **kwargs)
+        except Exception as e:
+            record_error(kind=f"job:{name}", message=str(e))
+            logger.error("scheduled_job_failed name=%s err=%s", name, e, exc_info=True)
+            raise
+
+    return wrapped
 
 
 def install_maintenance_gate(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
@@ -607,19 +635,24 @@ def main() -> None:
     job_queue = app.job_queue
     if job_queue:
         # job_queue.run_daily(daily_scam_tip, dtime(hour=14, minute=0, tzinfo=UTC))  # disabled 2026-08-12
-        job_queue.run_repeating(check_alerts, interval=ALERT_CHECK_INTERVAL, first=10)
+        job_queue.run_repeating(_metrics_job("check_alerts", check_alerts), interval=ALERT_CHECK_INTERVAL, first=10)
         # Stars-paid token monitors: re-scan for tax/ownership/mint/LP deltas
         # and push meaningful changes as DMs (live LP/whale/price events flow
         # through the webhook bridge independently).
-        job_queue.run_repeating(check_monitors, interval=MONITOR_CHECK_INTERVAL, first=120)
+        job_queue.run_repeating(
+            _metrics_job("check_monitors", check_monitors), interval=MONITOR_CHECK_INTERVAL, first=120
+        )
         # Admin-panel broadcasts (queued in Redis by the backend API)
-        job_queue.run_repeating(deliver_pending_broadcasts, interval=30, first=15)
+        job_queue.run_repeating(
+            _metrics_job("deliver_pending_broadcasts", deliver_pending_broadcasts), interval=30, first=15
+        )
         # Intelligent webhook alerts (queued in Redis by the backend webhook
         # engine → telegram_bridge; whale/price/liquidity/launch push alerts)
-        job_queue.run_repeating(deliver_pending_alerts, interval=30, first=15)
+        job_queue.run_repeating(_metrics_job("deliver_pending_alerts", deliver_pending_alerts), interval=30, first=15)
         # Scheduled channel content: news / alerts / alpha digests (env-driven
         # cadence + per-channel switches; each job fails open).
         register_channel_jobs(app)
+        set_scheduler_running(True)
 
     # Startup
     async def startup(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
@@ -633,10 +666,19 @@ def main() -> None:
     # Belt-and-suspenders: if the app stops via ANY path (signal, stop_running()
     # from a handler, fatal error), close the Telethon client before the loop
     # closes. post_stop runs after Application.stop() returns; it is a no-op
-    # when the signal path already closed the client.
-    app.post_stop = close_headless_on_shutdown
+    # when the signal path already closed the client. Also stops the
+    # observability HTTP server + flips the scheduler gauge.
+    async def _post_stop(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
+        set_scheduler_running(False)
+        stop_server()
+        await close_headless_on_shutdown(app)
+
+    app.post_stop = _post_stop
 
     logger.info("\U0001f6e1\ufe0f CryptoRugMunch Bot v6 starting...")
+    # Serve /healthz + /metrics for the systemd unit / load balancer (daemon
+    # thread; host/port via RUGMUNCHBOT_METRICS_HOST / RUGMUNCHBOT_METRICS_PORT).
+    start_server()
     app.run_polling(drop_pending_updates=True)
 
 
