@@ -28,7 +28,9 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._classify import _is_deep
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._format import _render_bridge_actions
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._helpers import _STILL_DIGGING
 from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._sources import (
+    _internal_source_label,
     _normalize_source_domain,
+    _scrub_internal_api_refs,
     _source_display_name,
     _source_is_ours,
     _source_type_label,
@@ -72,15 +74,15 @@ def _grounding_source_labels(
         for the "Grounded in N sources: …" footer. URL-bearing sources are
         de-duplicated by normalized domain (3 hits from coingecko.com render
         as ONE "coingecko.com"); bare sources de-duplicate by display name
-        (two RAG hits both render as ONE "our RAG knowledge base"). Our own
+        (two RAG hits both render as ONE "RMI knowledge base"). Our own
         intel — RAG KB, scanner, market digest, backend tier-1 RAG — carries
-        an "our …" label so the community sees we have our own data; external
-        providers (DexScreener, CoinGecko, web) stay plain.
+        an RMI brand label so the community sees we have our own data;
+        external providers (DexScreener, CoinGecko, web) stay plain.
       * ``count`` — the footer number, NEVER a raw hit count. Usually equals
         ``distinct``; the one exception is the backend path, which reports
         only ``X-RAG-Context`` (a count, no names) — when no other named
         source exists the count stays the backend's real hit number and the
-        generic "our RAG knowledge base" label names the source type.
+        generic "RMI knowledge base" label names the source type.
       * ``distinct`` — the true distinct-name count (``len(seen)``), used to
         render the "… +N more" truncation marker when ``labels`` hit the cap.
         Zero when nothing fed the answer.
@@ -90,10 +92,10 @@ def _grounding_source_labels(
     # Canonical names for OUR OWN live-tool surfaces so the same internal
     # capability never double-counts (live security_scan == bridge scanner).
     _our_tool_labels = {
-        "rag_lookup": "our RAG knowledge base",
-        "security_scan": "our scanner",
-        "wallet_analysis": "our wallet analytics",
-        "web_search": "our web search",
+        "rag_lookup": "RMI knowledge base",
+        "security_scan": "RMI scanner",
+        "wallet_analysis": "RMI wallet analytics",
+        "web_search": "RMI web search",
     }
     seen: set[str] = set()
     labels: list[tuple[str, bool]] = []
@@ -117,15 +119,15 @@ def _grounding_source_labels(
         is_ours = _source_is_ours(s)
         name = _source_display_name(s)
         # Our-own sources (rag/scanner/market/backend) with no URL render as
-        # their TYPE label ("our RAG knowledge base") so two KB hits collapse
+        # their TYPE label ("RMI knowledge base") so two KB hits collapse
         # into ONE named source — queries stay in the message-level Sources
         # block, the footer names the source. With a URL the real name/domain
         # wins (e.g. a cited article inside our KB).
         if name and (not is_ours or str(s.get("url") or "").strip()):
             return name, is_ours
         label = _source_type_label(stype)
-        # A non-ours bare source must never render as "our data".
-        if not is_ours and label == "our data":
+        # A non-ours bare source must never render as "RMI data".
+        if not is_ours and label == "RMI data":
             label = "web search" if stype == "web" else "source"
         return label, is_ours
 
@@ -151,11 +153,13 @@ def _grounding_source_labels(
         if tool == "web_search" and src.startswith("knowledge"):
             continue
         if tool == "rag_lookup":
-            _add("our RAG knowledge base", True)
+            _add("RMI knowledge base", True)
         elif src.startswith(("backend:", "bridge:")):
-            # Our own endpoints (quick scanner, wallet analytics, bridge) —
-            # the tool name identifies the internal surface.
-            _add(_our_tool_labels.get(tool, f"our {tool.replace('_', ' ')}"), True)
+            # Our own endpoints (quick scanner, wallet analytics, bridge).
+            # Map the raw internal key to its RMI brand label first; fall
+            # back to the tool name so no /api/ path ever reaches the footer.
+            label = _internal_source_label(src) or _our_tool_labels.get(tool, f"RMI {tool.replace('_', ' ')}")
+            _add(label, True)
         elif src:
             key = src.lower()
             # Same provider already named via a bridge domain (live "coingecko"
@@ -167,18 +171,18 @@ def _grounding_source_labels(
 
     # Direct RAG hit on the fallback path with no typed bridge sources.
     if rag_result is not None and rag_result.ok:
-        _add("our RAG knowledge base", True)
+        _add("RMI knowledge base", True)
 
     # The daily market/news digest grounded the answer.
     if has_market_context:
-        _add("our market digest", True)
+        _add("RMI market digest", True)
 
     # Backend tier-1: the real X-RAG-Context count, one generic label. When it
     # is the ONLY source the backend's own hit number is the count (it is the
     # only signal of how much grounding fed the answer) — with other named
     # sources the count is the distinct set (RAG KB counts once).
     if provider == "backend" and int(rag_count) > 0:
-        _add("our RAG knowledge base", True)
+        _add("RMI knowledge base", True)
         if distinct <= 1:
             return labels, max(int(rag_count), 1), distinct
 
@@ -342,7 +346,7 @@ async def _send_answer(
     ``grounding_count`` is the number of DISTINCT intelligence sources that
     actually fed the answer (see ``_grounding_source_labels`` — the same
     function produces ``source_labels``, the real named sources: external
-    providers like DexScreener/CoinGecko plus our own intel, marked "our …").
+    providers like DexScreener/CoinGecko plus our own intel, RMI-branded).
     When ``source_labels`` is omitted (direct callers) the count-only
     "intelligence sources" wording is kept. Counts above 100 with no names
     are shown as "hundreds of sources". Names are HTML-escaped here — the
@@ -351,7 +355,9 @@ async def _send_answer(
     ``actions`` (bridge-suggested buttons) are rendered as an inline
     keyboard on the last chunk when present; otherwise the back menu is used.
     """
-    raw = _beautify_answer(_tables_to_lists(strip_think_blocks(_normalize_llm_markup(answer))))
+    raw = _beautify_answer(
+        _tables_to_lists(strip_think_blocks(_scrub_internal_api_refs(_normalize_llm_markup(answer))))
+    )
     # No 1000-word walls: a rambling answer is trimmed to a sane length at a
     # paragraph/sentence boundary (with an ellipsis) BEFORE the Telegram
     # chunker — a simple query must never become a multi-part monologue.
@@ -364,10 +370,11 @@ async def _send_answer(
     if grounding_count > 0:
         if source_labels:
             # Real named sources: external providers plain, our own intel
-            # already labeled "our …" (e.g. "our RAG knowledge base"). Names
-            # are untrusted bridge metadata — escape AFTER the answer escape
-            # pass so they can never inject HTML into the footer.
-            names = ", ".join(escape(name) for name, _is_ours in source_labels)
+            # already RMI-branded (e.g. "RMI knowledge base"). Names are
+            # untrusted bridge metadata — scrub internal API refs then escape
+            # AFTER the answer escape pass so they can never inject HTML into
+            # the footer.
+            names = ", ".join(escape(_scrub_internal_api_refs(name)) for name, _is_ours in source_labels)
             if distinct_sources is not None and distinct_sources > len(source_labels):
                 names += f", \u2026 +{distinct_sources - len(source_labels)} more"
             count_word = "source" if grounding_count == 1 else "sources"

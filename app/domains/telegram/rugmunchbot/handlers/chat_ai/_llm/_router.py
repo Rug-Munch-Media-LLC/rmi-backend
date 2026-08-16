@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import re
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.handlers.chat_ai import _llm as _llm_mod
@@ -34,6 +35,7 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._constants import (
     _EDU_RAG_THIN_CHARS,
     _EDU_RAG_THIN_HITS,
     _MARKET_ANSWER_HINT,
+    _MARKET_MOVERS_DEFAULT,
     _NEWS_THIN_THRESHOLD,
     _TA_ANSWER_HINT,
     _TIER_ADDRESS_OR_HASH_RE,
@@ -42,6 +44,9 @@ from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._constants import (
     _TIER_ANALYSIS_QUESTION_RE,
     _TIER_ANALYSIS_TERMS,
     _TIER_DEFINITIONAL_RE,
+    _TRENDING_ANSWER_HINT,
+    _TRENDING_CONTEXT_MAX_CHARS,
+    _TRENDING_FETCH_LIMIT,
     _WEB_FALLBACK_TIMEOUT,
     _WEB_RESULTS_MAX,
 )
@@ -77,6 +82,17 @@ def _route_tier(message: str) -> str:
     # deep tier.
     if _CTX_MARKET_BROAD_RE.search(low):
         return "long"
+    # TRENDING / movers LIST asks ("20 tokens trending today", "top 20
+    # gainers") go LONG: the long model's output budget (REMOTE_LONG_MAX_TOKENS)
+    # fits a ~20-token list with narratives + scan links, and the long tier's
+    # context budget (REMOTE_LLM_CONTEXT_BUDGET) fits the bigger trending
+    # block. Single-token pump/TA asks stay snappy (the TA regex overlaps
+    # "pump"), and a plain "what's trending?" without a requested count stays
+    # snappy too — the count is what signals a big list.
+    if _CTX_TRENDING_RE.search(low) and not _CTX_TA_RE.search(low):
+        want = _requested_token_count(low)
+        if want is not None and want >= 10:
+            return "long"
     if _TIER_DEFINITIONAL_RE.search(low):
         return "snappy"
     if _TIER_ANALYSIS_QUESTION_RE.search(low):
@@ -84,6 +100,27 @@ def _route_tier(message: str) -> str:
     if any(term in low for term in _TIER_ANALYSIS_TERMS):
         return "long"
     return "snappy"
+
+
+# Explicit token-count ask ("20 tokens trending today", "top 10 gainers") —
+# the signal that a trending/movers answer wants a BIG list (the long tier +
+# a ~20-token block) instead of the compact default.
+_TRENDING_COUNT_RE = re.compile(r"\b(\d{1,3})\s*(?:tokens?|coins?|gainers?|losers?|movers?)\b")
+
+
+def _requested_token_count(question: str) -> int | None:
+    """Explicit token count in the ask (``None`` when none is stated).
+
+    ``"20 tokens trending today"`` -> 20; ``"top 10 gainers"`` -> 10;
+    ``"what's trending"`` -> ``None``. Clamped to >= 1.
+    """
+    m = _TRENDING_COUNT_RE.search((question or "").lower())
+    if not m:
+        return None
+    try:
+        return max(1, int(m.group(1)))
+    except ValueError:
+        return None
 
 
 def _classify_question(question: str) -> str:
@@ -378,6 +415,7 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
     # append the TA answer-format hint to the retrieved context (see
     # ``_TA_ANSWER_HINT``). TRENDING questions get the trending tool instead.
     is_ta_question = qtype == "market" and bool(_CTX_TA_RE.search(low))
+    is_trending_question = qtype == "market" and not is_ta_question and bool(_CTX_TRENDING_RE.search(low))
     # BROAD market-today / market-analysis asks get the RICH market context
     # (majors + sentiment/verdict + gainers & losers + narrative + what to
     # watch) via a dedicated gather — single-token price/TA asks keep the
@@ -405,6 +443,14 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
     spec = tool_kwargs(question, names)
     if "rag_lookup" in names:
         spec["rag_lookup"] = {"query": question}
+    # TRENDING asks: fetch ~20 candidates (the intent default is 10) and run
+    # the daily-brief narrative fetch CONCURRENTLY so the answer can list up
+    # to 20 tokens with one-line drivers — assembled with the TRENDING hint
+    # (open "Here's what's trending:", scan links, sources only in footer).
+    if is_trending_question:
+        if spec.get("trending"):
+            spec["trending"]["limit"] = _TRENDING_FETCH_LIMIT
+        return await _gather_trending_context(question, spec)
     try:
         from app.domains.telegram.rugmunchbot.tools import get_registry
 
@@ -444,6 +490,204 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
 
 
 # ── MARKET-TODAY rich context (broad market asks) ──────────────────────────
+
+
+# ── TRENDING rich context (~20 tokens + narrative, "what's trending" asks) ───────────
+
+
+def _render_trending_tokens(
+    tokens: list[Any],
+    cap: int = _TRENDING_FETCH_LIMIT,
+    max_chars: int | None = None,
+) -> str:
+    """Compact per-token lines mirroring ``tools/intent._compact_list``'s
+    signal projection (the model-facing shape the intent module already
+    uses) — but up to ``cap`` tokens so a "20 tokens trending" ask actually
+    SEES ~20 candidates instead of the intent module's fixed 10. ``max_chars``
+    (when given) bounds the output to COMPLETE lines only — never a token
+    line cut mid-address (a truncated address would break the scan link).
+    Pure.
+    """
+    if not tokens:
+        return ""
+    out: list[str] = []
+    # LEAN projection: the 20-cap render must fit the router budget, so only
+    # the fields the trending answer actually cites survive (symbol, name,
+    # chain, 24h change, and the address the scan link needs). price/volume/
+    # mcap per token stay out — the block would truncate before 20 tokens.
+    keys = ("symbol", "name", "chain", "change_24h", "address")
+    used = 0
+    for item in tokens[:cap]:
+        if isinstance(item, dict):
+            parts = [f"{k}={_fmt_signal(k, item[k])}" for k in keys if item.get(k) is not None]
+            line = "{" + ", ".join(parts) + "}"
+        else:
+            line = str(item)[:200]
+        if max_chars is not None and used and used + len(line) > max_chars:
+            break  # budget guard — stop at a complete line, never mid-token
+        out.append(line)
+        used += len(line) + 6  # 6 = the "\n      " join separator
+    if max_chars is not None:
+        return "\n      ".join(out)
+    if len(tokens) > cap:
+        out.append(f"... {len(tokens) - cap} more")
+    return "\n      ".join(out)
+
+
+def _render_trending_section(
+    result: Any,
+    cap: int = _TRENDING_FETCH_LIMIT,
+    max_chars: int | None = None,
+) -> str:
+    """The trending tool section for the LLM prompt (up to ``cap`` tokens).
+
+    Mirrors ``build_tool_prompt_block``'s section shape (source line, then
+    ``tokens: {…}`` lines) so the model parses the SAME format it already
+    knows — with the router's larger cap. ``max_chars`` bounds the token
+    lines to complete entries. Returns ``''`` on a miss.
+    """
+    if result is None or not getattr(result, "ok", False) or not isinstance(result.data, dict):
+        return ""
+    source = getattr(result, "source", "") or "trending"
+    lines = [f"- trending [source: {source}]:"]
+    data = result.data
+    tokens = data.get("tokens")
+    if isinstance(tokens, list):
+        rendered = _render_trending_tokens(tokens, cap, max_chars=max_chars)
+        if rendered:
+            lines.append(f"    tokens: {rendered}")
+    for k, v in data.items():
+        if k == "tokens":
+            continue
+        if isinstance(v, (dict, list)):
+            lines.append(f"    {k}: {str(v)[:500]}")
+        else:
+            lines.append(f"    {k}: {_fmt_signal(k, v)[:500]}")
+    return "\n".join(lines)
+
+
+def _build_trending_context_block(
+    ok_results: dict[str, Any],
+    narratives: list[dict[str, Any]],
+    cap: int = _TRENDING_FETCH_LIMIT,
+    max_chars: int | None = None,
+) -> str:
+    """Trending-typed context block: up to ``cap`` tokens + narrative hits.
+
+    Renders the trending tool itself with the router's larger cap (the shared
+    intent renderer caps token lists at 10) and the remaining tools via the
+    shared ``build_tool_prompt_block``, then appends the daily-brief narrative
+    hits (same shape as the market-today block) so the model can tie drivers
+    to movers. Pure function, never raises.
+    """
+    other = {name: r for name, r in ok_results.items() if name != "trending"}
+    parts: list[str] = []
+    if other:
+        parts.append(build_tool_prompt_block(other))
+    trend = _render_trending_section(ok_results.get("trending"), cap, max_chars=max_chars)
+    if trend:
+        parts.append(trend)
+    if narratives:
+        lines = ["## DOMINANT NARRATIVE (daily-brief narrative fetch)"]
+        for n in narratives[:3]:
+            if not isinstance(n, dict):
+                continue
+            title = str(n.get("title") or "narrative").strip()[:80]
+            snippet = str(n.get("snippet") or "").strip()[:160]
+            url = str(n.get("url") or "").strip()
+            line = f"- {title}"
+            if snippet:
+                line += f": {snippet}"
+            if url:
+                line += f" ({url})"
+            lines.append(line)
+        parts.append("\n".join(lines))
+    if not parts:
+        return "LIVE MARKET DATA (real, fetched just now):\n- no live tool data"
+    return "\n\n".join(parts)
+
+
+async def _gather_trending_context(question: str, spec: dict[str, Any]) -> tuple[str, list[dict[str, str]]]:
+    """TRENDING context: ~20 tokens + narrative drivers + trending hint.
+
+    Runs the routed tools (price_lookup + trending, trending already capped
+    at ``_TRENDING_FETCH_LIMIT`` by the caller) CONCURRENTLY with the
+    daily-brief narrative fetch (fail-open) — same pattern as the
+    market-today gather — then assembles a block that renders up to
+    ``_TRENDING_FETCH_LIMIT`` tokens (fewer when the user stated a smaller
+    count) with the TRENDING answer hint (open "Here's what's trending:",
+    scan links, sources only in the footer). Fail-open like every gather.
+    """
+    from app.domains.telegram.rugmunchbot.tools import get_registry
+
+    render_cap = min(_requested_token_count(question) or 10, _TRENDING_FETCH_LIMIT)
+    # Budget the token lines to COMPLETE entries: reserve the hint + a slice
+    # for the narrative/header so no address is ever cut mid-line (a cut
+    # address would break the scan link the hint tells the model to emit).
+    block_budget = max(0, _TRENDING_CONTEXT_MAX_CHARS - len(_TRENDING_ANSWER_HINT) - 2)
+    token_budget = max(0, block_budget - 700)
+    try:
+        tools_task = asyncio.create_task(get_registry().run_many_kwargs(spec))
+        narrative_task = asyncio.create_task(_fetch_market_narrative())
+    except Exception as exc:
+        logger.debug("question-router trending gather failed (query %.60s): %s", question, exc)
+        return "", []
+    try:
+        await asyncio.wait(
+            {tools_task, narrative_task},
+            timeout=_CONTEXT_GATHER_TIMEOUT,
+            return_when=asyncio.ALL_COMPLETED,
+        )
+    except Exception as exc:
+        logger.debug("question-router trending gather failed (query %.60s): %s", question, exc)
+    tools: dict[str, Any] = {}
+    narratives: list[dict[str, Any]] = []
+    try:
+        if not tools_task.cancelled() and tools_task.done():
+            tools = tools_task.result() or {}
+    except Exception as exc:
+        logger.debug("question-router trending tools failed (query %.60s): %s", question, exc)
+    try:
+        if not narrative_task.cancelled() and narrative_task.done():
+            narratives = narrative_task.result() or []
+    except Exception as exc:
+        logger.debug("question-router trending narrative failed (query %.60s): %s", question, exc)
+    finally:
+        for t in (tools_task, narrative_task):
+            if not t.done():
+                t.cancel()
+        if tools_task.cancelled() or narrative_task.cancelled():
+            await asyncio.gather(tools_task, narrative_task, return_exceptions=True)
+
+    ok_results = {name: r for name, r in tools.items() if getattr(r, "ok", False)}
+    if not ok_results:
+        return await _llm_mod._gather_web_fallback(question)
+    try:
+        block = _build_trending_context_block(
+            ok_results,
+            narratives,
+            cap=render_cap,
+            max_chars=token_budget,
+        )
+        # Reserve room for the hint so it always survives truncation — the
+        # trending block gets its own (larger) budget for ~20 tokens.
+        block = block[: max(0, _TRENDING_CONTEXT_MAX_CHARS - len(_TRENDING_ANSWER_HINT) - 2)]
+        block = f"{block}\n\n{_TRENDING_ANSWER_HINT}"
+    except Exception as exc:
+        logger.debug("question-router trending block failed (query %.60s): %s", question, exc)
+        return "", []
+    sources: list[dict[str, str]] = [
+        {"type": name, "query": question[:90], "title": f"{name} \u00b7 {r.source or 'live data'}"}
+        for name, r in ok_results.items()
+    ]
+    for n in narratives[:4]:
+        if not isinstance(n, dict):
+            continue
+        url = str(n.get("url") or "").strip()
+        title = str(n.get("title") or url or "narrative").strip()[:60]
+        if url:
+            sources.append({"type": "web", "title": title, "url": url})
+    return block, sources
 
 
 async def _fetch_market_narrative() -> list[dict[str, Any]]:
@@ -621,6 +865,7 @@ def _what_to_watch_seed(results: dict[str, Any], narratives: list[dict[str, Any]
 def _build_market_today_block(
     results: dict[str, Any],
     narratives: list[dict[str, Any]],
+    mover_cap: int = _MARKET_MOVERS_DEFAULT,
 ) -> str:
     """Assemble the rich market-today context block from real tool payloads.
 
@@ -628,11 +873,13 @@ def _build_market_today_block(
     market_overview majors (BTC/ETH/SOL price + 24h) + global mcap/dominance,
     trending tokens (top gainers AND losers with % and a narrative-backed
     driver when supported), the daily-brief narrative hits and a
-    what-to-watch seed. Every line carries ONLY numbers present in the
-    payloads — a missing signal renders as ``unavailable``, never invented.
-    ``results`` is the ``{name: ToolResult}`` dict from the registry;
-    ``narratives`` the ``{title, url, snippet, query}`` hits from the
-    daily-brief narrative fetch.
+    what-to-watch seed. ``mover_cap`` is the per-side cap (default 3); a
+    count-bearing ask raises it so gainers + losers surface ~20 tokens total.
+    Every line carries ONLY numbers present in the payloads — a missing
+    signal renders as ``unavailable``, never invented. ``results`` is the
+    ``{name: ToolResult}`` dict from the registry; ``narratives`` the
+    ``{title, url, snippet, query}`` hits from the daily-brief narrative
+    fetch.
     """
     lines: list[str] = ["LIVE MARKET DATA (real, fetched just now):"]
     _add = lines.append
@@ -693,11 +940,11 @@ def _build_market_today_block(
     gainers, losers = _movers_from_trending(results)
     if gainers:
         _add("## TOP GAINERS (24h)")
-        for t in gainers[:3]:
+        for t in gainers[:mover_cap]:
             _add(f"- {_mover_label(t)}{_mover_driver(t, narratives)}")
     if losers:
         _add("## TOP LOSERS (24h)")
-        for t in losers[:3]:
+        for t in losers[:mover_cap]:
             _add(f"- {_mover_label(t)}{_mover_driver(t, narratives)}")
     if not gainers and not losers:
         _add("## MOVERS — unavailable (no live trending feed)")
@@ -755,6 +1002,10 @@ async def _gather_market_today_context(question: str) -> tuple[str, list[dict[st
     if _CTX_TA_RE.search(question.lower()):
         names.append("technical_analysis")
     spec = tool_kwargs(question, names)
+    # TRENDING/movers asks fetch ~20 candidates (the intent default is 10) so
+    # the market block can surface up to ~20 movers when a count is requested.
+    if spec.get("trending"):
+        spec["trending"]["limit"] = _TRENDING_FETCH_LIMIT
     try:
         tools_task = asyncio.create_task(get_registry().run_many_kwargs(spec))
         narrative_task = asyncio.create_task(_fetch_market_narrative())
@@ -796,10 +1047,20 @@ async def _gather_market_today_context(question: str) -> tuple[str, list[dict[st
         # gets sourced context (fail-open: "" when SearXNG is down too).
         return await _llm_mod._gather_web_fallback(question)
     try:
-        block = _build_market_today_block(ok_results, narratives)
+        # A count-bearing ask ("top 20 gainers") raises the per-side mover
+        # cap toward _TRENDING_FETCH_LIMIT // 2 (~20 tokens total).
+        mover_cap = min(_requested_token_count(question) or _MARKET_MOVERS_DEFAULT, _TRENDING_FETCH_LIMIT // 2)
+        block = _build_market_today_block(ok_results, narratives, mover_cap=mover_cap)
+        # TRENDING-typed broad asks ("top gainers and losers today") get the
+        # TRENDING hint (open "Here's what's trending:", scan links, sources
+        # only in footer) + the larger trending block budget; plain broad
+        # market asks keep the MARKET-TODAY structure hint.
+        trending_ask = bool(_CTX_TRENDING_RE.search(question.lower()))
+        hint = _TRENDING_ANSWER_HINT if trending_ask else _MARKET_ANSWER_HINT
+        budget = _TRENDING_CONTEXT_MAX_CHARS if trending_ask else _CONTEXT_MAX_CHARS
         # Reserve room for the hint so it always survives truncation.
-        block = block[: max(0, _CONTEXT_MAX_CHARS - len(_MARKET_ANSWER_HINT) - 2)]
-        block = f"{block}\n\n{_MARKET_ANSWER_HINT}"
+        block = block[: max(0, budget - len(hint) - 2)]
+        block = f"{block}\n\n{hint}"
     except Exception as exc:
         logger.debug("question-router market-today block failed (query %.60s): %s", question, exc)
         return "", []

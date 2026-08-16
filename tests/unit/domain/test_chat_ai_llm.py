@@ -1172,3 +1172,169 @@ def test_build_market_today_block_pure_render() -> None:
     assert "narrative ties it to 'Memecoin mania returns'" in block
     assert "$DOGE -15.0%" in block
     assert "never hedge with a blanket 'no live data'" in block
+
+
+# ── TRENDING / MOVERS fixes (2026-08-16) ────────────────────────────────
+# The trending answer shipped 10 tokens with a "Per the scan:" hook and a
+# model-emitted "📚 Sources:" footer mid-list. Fixed: ~20 tokens when asked,
+# the "Here's what's trending:" hook, scan links, sources only in the footer.
+
+
+def test_requested_token_count() -> None:
+    from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._router import _requested_token_count
+
+    assert _requested_token_count("20 tokens trending today") == 20
+    assert _requested_token_count("top 10 gainers") == 10
+    assert _requested_token_count("what's trending") is None
+    assert _requested_token_count("") is None
+
+
+def test_route_tier_trending_list_is_long() -> None:
+    """A count-bearing trending/movers LIST ask routes LONG (output budget for
+    ~20 items); a plain "what's trending" and a single-token pump ask stay
+    snappy (no latency regression on the common paths)."""
+    assert _llm._route_tier("20 tokens trending today + narrative") == "long"
+    assert _llm._route_tier("top 20 gainers today") == "long"
+    assert _llm._route_tier("what's trending") == "snappy"
+    assert _llm._route_tier("will $BONK pump") == "snappy"  # TA overlap stays fast
+    assert _llm._route_tier("hello") == "snappy"
+
+
+def test_render_trending_tokens_shows_20() -> None:
+    """The router's trending token renderer surfaces ~20 candidates (the shared
+    intent renderer is fixed at 10)."""
+    from app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._router import _render_trending_tokens
+
+    tokens = [{"symbol": f"T{i}", "change_24h": i - 10.0, "address": f"0x{i:040x}"} for i in range(25)]
+    out = _render_trending_tokens(tokens, cap=20)
+    assert "symbol=T0" in out
+    assert "symbol=T19" in out
+    assert "symbol=T20" not in out  # capped at 20
+    assert "... 5 more" in out  # overflow reported honestly
+
+
+async def test_gather_context_trending_20_tokens_with_narrative_and_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A "20 tokens trending today + narrative" ask fetches ~20 candidates,
+    renders them with the daily-brief narrative, and appends the TRENDING
+    hint (open "Here's what's trending:", scan links, sources in footer)."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    tokens = [
+        {
+            "symbol": f"T{i:02d}",
+            "name": f"Token{i}",
+            "change_24h": 50.0 - i,
+            "address": f"0x{i:040x}",
+            "chain": "ethereum",
+        }
+        for i in range(22)
+    ]
+    fake = _FakeRegistry(
+        {
+            "price_lookup": ToolResult(tool="price_lookup", ok=False, error="no symbol"),
+            "trending": ToolResult(
+                tool="trending",
+                ok=True,
+                data={"chain": "all", "limit": 20, "tokens": tokens},
+                source="backend:/api/v1/market/trending",
+            ),
+        }
+    )
+    monkeypatch.setattr("app.domains.telegram.rugmunchbot.tools.get_registry", lambda: fake)
+
+    async def _fake_narrative() -> list[dict[str, Any]]:
+        return [
+            {
+                "title": "AI agents lead crypto narrative",
+                "url": "https://example.com/ai-agents",
+                "snippet": "AI agents are driving the day's gains",
+                "query": "crypto dominant narrative today sector",
+            }
+        ]
+
+    monkeypatch.setattr(
+        "app.domains.telegram.rugmunchbot.handlers.chat_ai._llm._router._fetch_market_narrative",
+        _fake_narrative,
+    )
+
+    block, sources = await _llm._gather_context("20 tokens trending today + narrative")
+
+    assert fake.spec is not None
+    assert fake.spec["trending"]["limit"] == 20  # fetch ~20, not the intent default 10
+    # ~20 candidates actually reach the model.
+    assert "symbol=T00" in block
+    assert "symbol=T19" in block
+    assert "symbol=T20" not in block  # 20-token cap (22 fetched)
+    # Narrative travels with the block so the model can tie drivers to movers.
+    assert "## DOMINANT NARRATIVE" in block
+    assert "AI agents" in block
+    # TRENDING hint — the question-type hook, never the scan/market credit.
+    assert "TRENDING ANSWER FORMAT" in block
+    assert "Here's what's trending:" in block
+    assert "rugmunch.io/scanner?address=" in block  # scan-link instruction
+    assert "Sources:" in block
+    assert "NEVER emit" in block
+    assert {s["type"] for s in sources} == {"trending", "web"}
+    # The hint survived the block budget (reserved, never truncated away).
+    assert block.endswith("always DYOR'.")
+
+
+def test_build_market_today_block_mover_cap() -> None:
+    """A count-bearing broad ask raises the per-side mover cap (gainers +
+    losers surface ~20 tokens total); the default stays compact (3)."""
+    from app.domains.telegram.rugmunchbot.tools.registry import ToolResult
+
+    results = {
+        "trending": ToolResult(
+            tool="trending",
+            ok=True,
+            data={
+                "tokens": [{"symbol": f"G{i}", "change_24h": 100.0 - i} for i in range(12)]
+                + [{"symbol": f"L{i}", "change_24h": -(100.0 - i)} for i in range(12)]
+            },
+            source="backend",
+        ),
+    }
+    block = _llm._router._build_market_today_block(results, [], mover_cap=10)
+    assert "$G0" in block
+    assert "$G9" in block
+    assert "$G10" not in block
+    assert "$L0" in block
+    assert "$L9" in block
+    # Default stays 3 per side.
+    compact = _llm._router._build_market_today_block(results, [])
+    assert "$G2" in compact
+    assert "$G3" not in compact
+
+
+def test_append_source_block_strips_inline_sources() -> None:
+    """A model-emitted '📚 Sources:' mid-list is stripped; the ONE real footer
+    lands at the very end (the reported mid-list bleed bug)."""
+    answer = (
+        "1. $PEPE +45.2% — Pepe\n"
+        "2. $WIF +12.5% — dogwifhat\n"
+        "3. $XYZ -28.1% — XYZ Token\n"
+        "4. $ABC -9.3% — ABC Token\n"
+        "5. $DEF +3.1% — DEF Token\n"
+        "\U0001f4da Sources: Pepe — https://example.com/pepe, WIF — https://example.com/wif\n"
+        "6. $GHI +2.0% — GHI Token"
+    )
+    out = _llm._append_source_block(
+        answer,
+        [{"type": "web", "title": "Example", "url": "https://example.com"}],
+    )
+    assert "\U0001f4da Sources: Pepe" not in out  # model-emitted footer gone
+    assert "6. $GHI" not in out  # everything from the inline footer onward dropped
+    assert "Example — https://example.com" in out
+    # Exactly ONE footer, at the end.
+    assert out.count("\U0001f4da Sources:") == 1
+    assert out.rstrip().endswith("Example — https://example.com")
+
+
+def test_append_source_block_strips_inline_sources_without_real_sources() -> None:
+    """Even when no real sources exist, a model-emitted inline footer is
+    removed so the answer body ends clean (no orphan mid-list footer)."""
+    answer = "1. $PEPE +45.2%\n2. $WIF +12.5%\n\U0001f4da Sources: memory cite"
+    out = _llm._append_source_block(answer, None)
+    assert "\U0001f4da Sources:" not in out
+    assert "2. $WIF +12.5%" in out
