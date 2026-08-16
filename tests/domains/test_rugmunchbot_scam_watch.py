@@ -441,7 +441,6 @@ class FakeJobQueue:
 class TestRegistration:
     def test_registers_scam_watch_job(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", True)
-        monkeypatch.setattr(channels_scheduler, "NEWS_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", False)
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", False)

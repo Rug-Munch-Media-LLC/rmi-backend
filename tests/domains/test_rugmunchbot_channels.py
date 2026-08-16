@@ -351,7 +351,6 @@ class TestPostingJobs:
 class TestRegistration:
     def test_registers_all_jobs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", True)
-        monkeypatch.setattr(channels_scheduler, "NEWS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", True)
@@ -359,8 +358,10 @@ class TestRegistration:
         fake_jq = FakeJobQueue()
         app = SimpleNamespace(job_queue=fake_jq)
         channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
+        # The legacy ``channel_news`` job is deprecated (commented out); the
+        # routed tg_news lane now owns the news channel. Every enabled job
+        # with a resolvable chat id registers (scam_watch needs no chat id).
         assert {j["name"] for j in fake_jq.jobs} == {
-            "channel_news",
             "channel_alerts",
             "channel_alpha",
             "channel_tg_news",
@@ -383,18 +384,17 @@ class TestRegistration:
 
     def test_unset_channel_skips_that_job(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(channels_scheduler, "CHANNEL_JOBS_ENABLED", True)
-        monkeypatch.setattr(channels_scheduler, "NEWS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALERTS_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "ALPHA_CHANNEL_ENABLED", True)
         monkeypatch.setattr(channels_scheduler, "TG_NEWS_ENABLED", True)
-        # Only news resolves a chat id → only the news + tg_news jobs register.
+        # Only news resolves a chat id → the tg_news job registers (its routed
+        # lane needs at least one of news/main/alpha), alerts/alpha skip.
         # scam_watch feeds the scanner and needs no chat id, so it registers too.
         monkeypatch.setattr(channels_scheduler, "_chat_id", lambda channel: "-100news" if channel == "news" else None)
         fake_jq = FakeJobQueue()
         app = SimpleNamespace(job_queue=fake_jq)
         channels_scheduler.register_channel_jobs(app)  # type: ignore[arg-type]
         assert [j["name"] for j in fake_jq.jobs] == [
-            "channel_news",
             "channel_tg_news",
             "channel_scam_watch",
         ]
