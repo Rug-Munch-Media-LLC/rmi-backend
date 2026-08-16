@@ -113,8 +113,8 @@ async def _fetch_wallet_tokens(client: httpx.AsyncClient, address: str) -> dict[
         )
         if wallet_resp.status_code == 200:
             return wallet_resp.json()
-    except (httpx.HTTPError, ConnectionError, TimeoutError):
-        pass
+    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+        logger.warning("investigate backend fetch failed: %s", e)
     return {}
 
 
@@ -139,8 +139,8 @@ async def _fetch_cross_chain(client: httpx.AsyncClient, address: str, chain: str
                 }
                 for m in profile.get("addresses", [])
             ]
-    except (httpx.HTTPError, ConnectionError, TimeoutError):
-        pass
+    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+        logger.warning("investigate history fetch failed: %s", e)
     return []
 
 
@@ -242,8 +242,8 @@ async def cmd_investigate(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 )
                 if dev_resp.status_code == 200:
                     dev_data = dev_resp.json()
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+                logger.warning("investigate token fetch failed: %s", e)
 
         # Build investigation report
         verdict, verdict_desc = _determine_verdict(scan_result, wallet_data)

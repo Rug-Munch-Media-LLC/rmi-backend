@@ -65,8 +65,10 @@ def _get_token(gopass_path: str, env_keys: list[str]) -> str:
         )
         if token:
             return token
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        pass
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+        get_logger("rmi.config").debug("gopass token fetch failed, falling back to env: %s", e.__class__.__name__)
     for key in env_keys:
         env_token = os.getenv(key)
         if env_token:

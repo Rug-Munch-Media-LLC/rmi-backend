@@ -152,6 +152,7 @@ async def _stop_task(task: asyncio.Task[Any] | None) -> None:
 
 
 async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Scan a token contract: usage, rate-limit gate, then live security scan."""
     user = update.effective_user
     if user is None:
         return
@@ -605,6 +606,7 @@ async def sentinel_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Run wallet forensics on an address (usage, then wallet analysis)."""
     user = update.effective_user
     if user is None:
         return
@@ -658,6 +660,7 @@ async def cmd_wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Compare two token contracts and render a verdict card."""
     user = update.effective_user
     if user is None:
         return
@@ -702,7 +705,8 @@ async def cmd_compare(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             better.append(f"\U0001f4a7 <b>{r2['name']}</b> \u2014 higher liquidity")
         price_diff = _price_diff_pct(r1["price"], r2["price"])
 
-        def mini(r) -> str:
+        def mini(r: dict[str, Any]) -> str:
+            """Render one compact per-token comparison block."""
             risk_ind = _risk_indicator(r["risk_score"])
             return (
                 f"<b>{r['name']}</b> ({r['symbol']})\n"

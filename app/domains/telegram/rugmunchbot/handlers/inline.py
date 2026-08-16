@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 
 async def handle_inline(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle inline queries: offer scan/deployer results for EVM/Solana addresses."""
     query = update.inline_query.query.strip()  # type: ignore[union-attr]  # PTB None-able fields
     if not query:
         return

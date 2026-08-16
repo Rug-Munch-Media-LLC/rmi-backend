@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -36,6 +37,9 @@ from app.domains.telegram.rugmunchbot.config import OWNER_IDS, TIERS
 from app.domains.telegram.rugmunchbot.formatters import is_owner, thin_sep
 from app.domains.telegram.rugmunchbot.keyboards import admin_confirm_kb, admin_kb
 from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
 
@@ -129,7 +133,7 @@ async def _fetch_credit_block() -> str:
         return "\u26a0\ufe0f OpenRouter credit check unavailable"
 
 
-async def cmd_admin(update: Update, ctx) -> None:
+async def cmd_admin(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin — admin dashboard with stats and actions."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -158,7 +162,7 @@ async def cmd_admin(update: Update, ctx) -> None:
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=admin_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
-async def cmd_admin_stats(update: Update, ctx) -> None:
+async def cmd_admin_stats(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_stats — users count, active today, messages today, RAG queries, AI tokens."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -201,7 +205,7 @@ async def cmd_admin_stats(update: Update, ctx) -> None:
     )
 
 
-async def cmd_admin_credits(update: Update, ctx) -> None:
+async def cmd_admin_credits(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/credits — live OpenRouter credit balance (owner-only)."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -216,7 +220,7 @@ async def cmd_admin_credits(update: Update, ctx) -> None:
     )
 
 
-async def cmd_admin_users(update: Update, ctx) -> None:
+async def cmd_admin_users(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/users — user count, top users, DAU (owner-only)."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -247,7 +251,7 @@ async def cmd_admin_users(update: Update, ctx) -> None:
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML, reply_markup=admin_kb())  # type: ignore[union-attr]  # PTB None-able fields
 
 
-async def cmd_admin_broadcast(update: Update, ctx) -> None:
+async def cmd_admin_broadcast(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_broadcast <message> — request confirmation, then broadcast."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -304,7 +308,7 @@ async def _do_broadcast(bot: Bot, msg_text: str, owner_uid: int | None = None) -
     return sent, failed
 
 
-async def cmd_admin_toggle(update: Update, ctx) -> None:
+async def cmd_admin_toggle(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_toggle [on|off] — globally enable/disable the bot (maintenance)."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -341,7 +345,7 @@ async def cmd_admin_toggle(update: Update, ctx) -> None:
     )
 
 
-async def cmd_admin_toggle_chat(update: Update, ctx) -> None:
+async def cmd_admin_toggle_chat(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_toggle_chat [on|off] — disable/enable AI chat (commands keep working)."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -375,7 +379,7 @@ async def cmd_admin_toggle_chat(update: Update, ctx) -> None:
     )
 
 
-async def cmd_admin_user(update: Update, ctx) -> None:
+async def cmd_admin_user(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_user <user_id> — show user details, tier, usage."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -433,12 +437,13 @@ async def cmd_admin_user(update: Update, ctx) -> None:
     )
 
 
-async def cmd_admin_set_tier(update: Update, ctx) -> None:
+async def cmd_admin_set_tier(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_set_tier <user_id> <tier> [days] — change user tier."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
         await _deny_admin_attempt(update, ctx)
         return
+    ctx.args = ctx.args or []
     if len(ctx.args) < 2:
         await update.message.reply_text("Usage: /admin_set_tier <user_id> <tier> [days]")  # type: ignore[union-attr]  # PTB None-able fields
         return
@@ -461,7 +466,7 @@ async def cmd_admin_set_tier(update: Update, ctx) -> None:
     )
 
 
-async def cmd_admin_ban(update: Update, ctx) -> None:
+async def cmd_admin_ban(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_ban <user_id> — ban user."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -486,7 +491,7 @@ async def cmd_admin_ban(update: Update, ctx) -> None:
         await update.message.reply_text(f"\u274c User {target} not found.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
 
-async def cmd_admin_unban(update: Update, ctx) -> None:
+async def cmd_admin_unban(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_unban <user_id> — unban user."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -508,7 +513,7 @@ async def cmd_admin_unban(update: Update, ctx) -> None:
         await update.message.reply_text(f"\u274c User {target} not found.", parse_mode=ParseMode.HTML)  # type: ignore[union-attr]  # PTB None-able fields
 
 
-async def cmd_admin_logs(update: Update, ctx) -> None:
+async def cmd_admin_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """/admin_logs — recent admin actions."""
     uid = update.effective_user.id  # type: ignore[union-attr]  # PTB None-able fields
     if not is_owner(uid):
@@ -531,7 +536,7 @@ async def cmd_admin_logs(update: Update, ctx) -> None:
 # ── Callback helpers (used by handlers/callback.py) ──
 
 
-async def cb_broadcast_confirm(owner_uid: int, chat_id: int, bot, message_id: int | None = None) -> None:
+async def cb_broadcast_confirm(owner_uid: int, chat_id: int, bot: Bot, message_id: int | None = None) -> None:
     """Execute a confirmed broadcast."""
     msg_text = _pending_broadcast.pop(owner_uid, "")
     if not msg_text:
@@ -548,4 +553,5 @@ async def cb_broadcast_confirm(owner_uid: int, chat_id: int, bot, message_id: in
 
 
 def pending_broadcast(owner_uid: int) -> str | None:
+    """Return the pending broadcast text for the owner, or None."""
     return _pending_broadcast.get(owner_uid)

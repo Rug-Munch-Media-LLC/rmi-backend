@@ -291,8 +291,8 @@ async def cmd_sentiment(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 gas_val = int(gas)
                 gas_emoji = "\U0001f534" if gas_val > 100 else "\U0001f7e1" if gas_val > 50 else "\U0001f7e2"
                 lines.append(f"{gas_emoji} ETH Gas: <b>{gas_val} Gwei</b>")
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.debug("sentiment score parse failed: %s", e)
 
         lines.extend(
             [

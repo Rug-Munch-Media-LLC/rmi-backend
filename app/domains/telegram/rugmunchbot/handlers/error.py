@@ -26,6 +26,7 @@ RETRY_AFTER_SLEEP_CAP = 5.0
 
 
 async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Global PTB error handler: log + backoff on 429, stay quiet on transport errors."""
     error = ctx.error
     logger.error(f"Exception: {error}", exc_info=error)
 

@@ -26,6 +26,10 @@ from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import (
     _risk_level_emoji,
     _sentinel_recommendations,
 )
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 __all__ = [
     "format_deep_ml_scan_report",
@@ -243,7 +247,8 @@ async def render_analyst_read_block(data: dict[str, Any]) -> str:
     ]
     try:
         text = await asyncio.wait_for(chat_with_fallback(messages, "snappy"), timeout=_ANALYST_READ_TIMEOUT)
-    except Exception:
+    except Exception as e:
+        logger.warning("analyst read generation failed: %s", e)
         text = ""
     text = (text or "").strip()
     if not text:

@@ -153,7 +153,8 @@ async def _render_ai_flow_read(flow_summary: dict[str, Any]) -> str:
     ]
     try:
         text = await asyncio.wait_for(chat_with_fallback(messages, "snappy"), timeout=_TRACE_AI_TIMEOUT)
-    except Exception:  # fail-open boundary for the AI read
+    except Exception as e:  # fail-open boundary for the AI read
+        logger.warning("trace AI read failed: %s", e)
         text = ""
     text = (text or "").strip()
     if not text:
@@ -336,8 +337,8 @@ async def cmd_trace(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         }
                         for m in profile.get("addresses", [])
                     ]
-            except (httpx.HTTPError, ConnectionError, TimeoutError):
-                pass
+            except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+                logger.warning("trace holders fetch failed: %s", e)
             return []
 
         # Own ClickHouse flow summary + wallet tokens + cross-chain run

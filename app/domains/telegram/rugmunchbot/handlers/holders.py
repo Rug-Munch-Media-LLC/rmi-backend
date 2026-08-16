@@ -198,8 +198,8 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 backend_data = fetched
             if backend_data:
                 backend_holders = backend_data.get("top_holders", [])
-        except (httpx.HTTPError, ConnectionError, TimeoutError):
-            pass
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.warning("holders backend fetch failed: %s", e)
 
         # Build holder list from available data sources
         top_holders = []
@@ -293,8 +293,8 @@ async def cmd_holders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         )
                     if backend_data.get("bundle_detected"):
                         lines.append("  📦 Bundle activity detected — coordinated buys")
-                except (KeyError, TypeError):
-                    pass
+                except (KeyError, TypeError) as e:
+                    logger.debug("holders line render failed: %s", e)
 
         else:
             # Fallback: show what we can from DEX data

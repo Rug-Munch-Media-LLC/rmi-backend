@@ -444,8 +444,8 @@ async def _remove_webhook(update: Update, ctx: ContextTypes.DEFAULT_TYPE, user_i
                 headers=backend_headers(),
                 timeout=5,
             )
-        except (httpx.HTTPError, ConnectionError, TimeoutError):
-            pass
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.warning("webhook backend fetch failed: %s", e)
 
     conn.execute("DELETE FROM webhooks WHERE id = ?", (wh_id,))
     conn.commit()

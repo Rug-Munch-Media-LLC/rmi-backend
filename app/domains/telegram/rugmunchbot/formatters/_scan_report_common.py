@@ -27,6 +27,9 @@ import re
 from typing import Any
 
 from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import _fmt_usd_amount
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = [
     "_bundle_verdict_row",
@@ -152,8 +155,8 @@ def _lp_lock_pct(r: dict[str, Any]) -> float | None:
         lv = free.get("liquidity_verification") if isinstance(free, dict) else None
         if isinstance(lv, dict) and lv.get("total_locked_percentage") is not None:
             return float(lv["total_locked_percentage"])
-    except (TypeError, ValueError):
-        pass
+    except (TypeError, ValueError) as e:
+        logger.debug("lp lock percentage parse failed: %s", e)
     raw = r.get("lp_locked")
     if raw is None:
         return None
@@ -215,8 +218,8 @@ def _bundle_wallet_count(ba: dict[str, Any]) -> int | None:
     if raw is not None:
         try:
             return int(raw)
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.debug("token age parse failed: %s", e)
     for key in ("cluster_blocks", "bundle_blocks"):
         blocks = ba.get(key)
         if isinstance(blocks, list) and blocks:
@@ -388,8 +391,8 @@ def _holders_count(r: dict[str, Any]) -> int | None:
             if raw is not None:
                 try:
                     return int(float(raw))
-                except (TypeError, ValueError):
-                    pass
+                except (TypeError, ValueError) as e:
+                    logger.debug("time-ago parse failed: %s", e)
     try:
         holders = r.get("holders")
         return int(float(holders)) if holders is not None else None
@@ -518,8 +521,8 @@ def _token_2022_flag(r: dict[str, Any]) -> str | None:
             "token-2022",
         ):
             return "Token-2022 program — extensions may hide transfer hooks / freeze"
-    except (AttributeError, TypeError):
-        pass
+    except (AttributeError, TypeError) as e:
+        logger.debug("bonding curve parse failed: %s", e)
     return None
 
 
@@ -536,8 +539,8 @@ def _mev_note(r: dict[str, Any]) -> str | None:
             warnings = mev.get("warnings")
             if isinstance(warnings, list) and warnings:
                 return f"MEV: {html.escape(str(warnings[0])[:90])}"
-    except (AttributeError, TypeError):
-        pass
+    except (AttributeError, TypeError) as e:
+        logger.debug("market stats parse failed: %s", e)
     return None
 
 

@@ -16,6 +16,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.domains.telegram.rugmunchbot.config import fmt_number, fmt_pct
 from app.domains.telegram.rugmunchbot.formatters import footer_links, sep
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _time_ago(dt_iso: str | None) -> str:
@@ -104,8 +107,8 @@ def _age_badge(created_at_ms: int | None) -> str:
         for threshold, badge in AGE_BADGES:
             if age_hours < threshold:
                 return badge
-    except Exception:  # noqa: S110 — badge is best-effort
-        pass
+    except (ValueError, TypeError, OverflowError, OSError) as e:
+        logger.debug("age badge compute failed: %s", e)
     return "❓"
 
 
@@ -128,7 +131,8 @@ def _risk_emoji(risk_score: int | float | None) -> str:
         if score >= 40:
             return "🟡"
         return "🟢"
-    except Exception:
+    except (TypeError, ValueError) as e:
+        logger.debug("risk emoji score parse failed: %s", e)
         return "⚪"
 
 

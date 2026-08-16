@@ -391,6 +391,7 @@ def _tick_wrapper(
     """
 
     async def wrapped(ctx: Any) -> Any:
+        """Run one scheduled job tick: record start, invoke callback, persist state."""
         started = time.perf_counter()
         scheduler_state.mark_last_run(job_name)
         result: Any = None

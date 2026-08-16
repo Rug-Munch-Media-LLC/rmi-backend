@@ -26,6 +26,7 @@ from app.domains.telegram.rugmunchbot.keyboards import back_kb, pricing_kb, toke
 
 if TYPE_CHECKING:
     from telegram import Update
+    from telegram.ext import ContextTypes
 
 # Monitor pack price comes from the same SCAN_PACKS table as the deep scan
 # (250★ — mirrors the deep-scan invoice pattern, see handlers/payments.py).
@@ -33,7 +34,8 @@ MONITOR_STARS = int(SCAN_PACKS["monitor"]["stars"])
 MONITOR_DAYS = db.MONITOR_DEFAULT_DAYS
 
 
-async def cmd_watchlist(update: Update, ctx) -> None:
+async def cmd_watchlist(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """List the user's watchlist with per-token alert/monitor badges."""
     user = update.effective_user
     if user is None:
         return
@@ -73,7 +75,8 @@ async def cmd_watchlist(update: Update, ctx) -> None:
     )
 
 
-async def cmd_watch(update: Update, ctx) -> None:
+async def cmd_watch(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Add a token to the watchlist (or show usage when unset / tier-blocked)."""
     user = update.effective_user
     if user is None:
         return
@@ -112,7 +115,8 @@ async def cmd_watch(update: Update, ctx) -> None:
             )
 
 
-async def cmd_unwatch(update: Update, ctx) -> None:
+async def cmd_unwatch(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Remove a token from the watchlist."""
     user = update.effective_user
     if user is None:
         return
@@ -136,7 +140,7 @@ async def cmd_unwatch(update: Update, ctx) -> None:
 # ── Monitor (Stars-paid premium feature) ─────────────────────────────────
 
 
-async def cmd_monitor(update: Update, ctx) -> None:
+async def cmd_monitor(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Start a paid monitor: /monitor <address> [chain].
 
     Sends a Telegram Stars invoice (250★ / 30 days, same pattern as the deep
@@ -213,7 +217,7 @@ async def cmd_monitor(update: Update, ctx) -> None:
         )
 
 
-async def cmd_monitors(update: Update, ctx) -> None:
+async def cmd_monitors(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """List active monitors for the user."""
     user = update.effective_user
     if user is None:
@@ -239,7 +243,7 @@ async def cmd_monitors(update: Update, ctx) -> None:
     )
 
 
-async def cmd_unmonitor(update: Update, ctx) -> None:
+async def cmd_unmonitor(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Stop a monitor: /unmonitor <address>."""
     user = update.effective_user
     if user is None:

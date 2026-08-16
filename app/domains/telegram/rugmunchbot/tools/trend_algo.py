@@ -545,6 +545,7 @@ async def trend_by_chain(*, chain: str = "all", limit: int = 10, rank: str = "tr
     sem = asyncio.Semaphore(_METRIC_FETCH_CONCURRENCY)
 
     async def fetch_one(idx: int, cand: dict[str, Any]) -> tuple[int, dict[str, Any] | None]:
+        """Fetch pair metrics for one candidate; returns (idx, metrics-or-None)."""
         async with sem:
             return idx, await _fetch_pair_metrics(cand["address"])
 
@@ -627,6 +628,7 @@ async def trend_by_chain(*, chain: str = "all", limit: int = 10, rank: str = "tr
         holder_sem = asyncio.Semaphore(4)
 
         async def holder_one(tok: dict[str, Any]) -> None:
+            """Fetch Birdeye holder count for one Solana token (best-effort)."""
             async with holder_sem:
                 tok["holders"] = await _birdeye_holders(tok["address"], tok["chain"])
 

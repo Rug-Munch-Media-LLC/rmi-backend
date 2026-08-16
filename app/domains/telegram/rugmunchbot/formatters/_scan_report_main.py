@@ -46,6 +46,9 @@ from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import (
     _bundle_alert_line,
     _wallet_freshness_line,
 )
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -103,8 +106,8 @@ def _format_scan_report(
                 age_str = f" | Age: {age.days}d"
             else:
                 age_str = f" | Age: {age.seconds // 3600}h"
-        except (ConnectionError, OSError, TimeoutError):
-            pass
+        except (ConnectionError, OSError, TimeoutError) as e:
+            logger.warning("scan age lookup failed: %s", e)
 
     chain_str = fmt_chain(r["chain"])
     try:
@@ -126,7 +129,8 @@ def _format_scan_report(
     if format_verdict_header is not None:
         try:
             vh = format_verdict_header(r)
-        except Exception:
+        except Exception as e:
+            logger.debug("verdict header render failed: %s", e)
             vh = None
         if vh:
             vh_lines = vh.split("\n") if isinstance(vh, str) else [str(line) for line in vh]

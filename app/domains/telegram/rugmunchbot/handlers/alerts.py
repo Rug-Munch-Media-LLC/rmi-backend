@@ -385,8 +385,8 @@ def _monitor_deltas(baseline: dict[str, Any], current: dict[str, Any]) -> list[s
         try:
             if float(after_lp) <= float(before_lp) - 0.2:
                 changes.append(f"LP locked: {_pct(before_lp)} \u2192 {_pct(after_lp)}")
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug("lp delta parse failed: %s", e)
     return changes
 
 
@@ -525,8 +525,8 @@ async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                     ts = a["alert_triggered_at"]
                     if "T" in ts:
                         ts_str = f" \u2014 {ts[:10]}"
-                except (ConnectionError, OSError, TimeoutError):
-                    pass
+                except (ConnectionError, OSError, TimeoutError) as e:
+                    logger.warning("alert triggered ts parse failed: %s", e)
             text += f"  \u2022 <b>{a.get('symbol', '???')}</b> \U0001f514 {fmt_number(a['alert_price'])}{ts_str}\n"
         if len(triggered_alerts) > 5:
             text += f"  ... and {len(triggered_alerts) - 5} more\n"

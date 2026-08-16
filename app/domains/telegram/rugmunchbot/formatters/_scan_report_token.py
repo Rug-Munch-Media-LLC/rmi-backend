@@ -8,6 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
+
 __all__ = [
     "_token_description",
     "_token_image_url",
@@ -46,6 +50,6 @@ def _token_description(r: dict[str, Any]) -> str:
             snippet = mf.get("description_snippet")
             if isinstance(snippet, str) and snippet.strip():
                 return snippet.strip()
-    except (AttributeError, TypeError):
-        pass
+    except (AttributeError, TypeError) as e:
+        logger.debug("token meta parse failed: %s", e)
     return ""

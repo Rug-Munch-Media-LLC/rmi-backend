@@ -13,6 +13,9 @@ from typing import Any
 from app.domains.telegram.rugmunchbot.formatters._base import explorer_url, thin_sep
 from app.domains.telegram.rugmunchbot.formatters._scan_report_common import _short_addr
 from app.domains.telegram.rugmunchbot.formatters._sentinel_helpers import _deployer_history_line
+from app.domains.telegram.rugmunchbot.support.logging import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = [
     "_format_deployer_section",
@@ -63,8 +66,8 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
             lp_name = html.escape(str(launchpad.get("name", "unknown")))
             lp_type = html.escape(str(launchpad.get("type", "")))
             lines.append(f"  \U0001f680 Launchpad: <b>{lp_name}</b> ({lp_type})")
-    except (ConnectionError, OSError, ImportError):
-        pass
+    except (ConnectionError, OSError, ImportError) as e:
+        logger.warning("launchpad detect failed: %s", e)
 
     # Reputation label
     if reputation_label and reputation_label != "UNKNOWN":
@@ -77,8 +80,8 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
             score = float(reputation_score)
             emoji = "🟢" if score >= 70 else "🟡" if score >= 40 else "🔴"
             lines.append(f"  {emoji} Trust Score: <b>{score:.0f}/100</b>")
-        except (TypeError, ValueError):
-            pass
+        except (TypeError, ValueError) as e:
+            logger.debug("deployer wallet parse failed: %s", e)
 
     # Deployer metrics (from own engine)
     deployer_metrics = r.get("deployer_metrics", {})
@@ -109,8 +112,8 @@ def _format_deployer_section(r: dict[str, Any]) -> list[str]:
             try:
                 hpct = float(honeypot_pct) * 100 if float(honeypot_pct) <= 1.0 else float(honeypot_pct)
                 lines.append(f"  \U0001f52a Honeypot Rate: <b>{hpct:.0f}%</b>")
-            except (TypeError, ValueError):
-                pass
+            except (TypeError, ValueError) as e:
+                logger.debug("wallet snapshot parse failed: %s", e)
         if chains_used:
             lines.append(f"  \U0001f310 Chains: <b>{html.escape(', '.join(str(c) for c in chains_used))}</b>")
         if label:
