@@ -1033,19 +1033,22 @@ class TestSendAnswer:
 
     def test_long_answer_capped_before_send(self) -> None:
         # A 1000-word wall must never become a multi-part monologue: the
-        # answer cap trims it to a single sane-length part (with an ellipsis)
-        # BEFORE the Telegram chunker. The exact raw-length bound is asserted
+        # answer cap trims it to MAX_ANSWER_CHARS (with an ellipsis) BEFORE
+        # the Telegram chunker, so a 12.5k wall becomes at most two bounded
+        # parts, never a wall of parts. The exact raw-length bound is asserted
         # directly on _cap_answer (TestCapAnswer); here we verify the send
-        # path delivers ONE trimmed part, never a wall of parts.
+        # path caps + splits to a bounded number of parts.
         msg = _FakeMessage()
         long_answer = "This is a complete sentence with padding here. " * 200  # ~12.5k chars
         parts_sent = _run(chat_ai._send_answer(msg, long_answer, 0))
-        assert parts_sent == 1
+        assert parts_sent == 2
         parts = [r[0][0] for r in msg.replies]
-        assert len(parts) == 1
-        assert len(parts[0]) < len(long_answer)
+        assert len(parts) == 2
+        assert all(len(p) < len(long_answer) for p in parts)
+        # each part fits the Telegram-safe chunk bound
+        assert all(len(p) <= chat_ai.CHUNK_MAX_CHARS for p in parts)
         # honest truncation marker — never a mid-sentence hard cut
-        assert parts[0].endswith("\u2026")
+        assert parts[-1].endswith("\u2026")
 
     def test_live_leak_regression_no_raw_markdown_or_html(self) -> None:
         """The live-reported leaks — `##`/`###` headers, `---` separators,
@@ -1186,12 +1189,12 @@ class TestRawHtmlNormalization:
         answer = "**Risk: 42/100. Check chart.** " * 250  # ~11.5k chars
         _run(chat_ai._send_answer(msg, answer, 0))
         parts = [r[0][0] for r in msg.replies]
-        assert len(parts) == 1
-        assert len(parts[0]) < len(answer)
-        assert parts[0].count("<b>") == parts[0].count("</b>"), parts[0][-80:]
+        assert len(parts) == 2  # capped to MAX_ANSWER_CHARS, split into bounded parts
+        assert all(len(p) < len(answer) for p in parts)
+        assert all(p.count("<b>") == p.count("</b>") for p in parts), parts[-1][-80:]
         # Every **bold** span that survived the cap is whole — no dangling
         # marker, no mid-span cut.
-        assert "**" not in parts[0], parts[0][-80:]
+        assert all("**" not in p for p in parts), parts[-1][-80:]
 
 
 class TestGroundingSourcesCount:
@@ -1524,10 +1527,10 @@ class TestChatAiResponseQuality:
         upd = _FakeUpdate(12345, "tester", msg)
         _run(chat_ai.chat_ai_response(upd, None, "explain this long topic?", upd.effective_user))
         parts = [r[0][0] for r in msg.replies if "Sentence with padding" in r[0][0]]
-        assert len(parts) == 1
+        assert len(parts) == 2  # capped to MAX_ANSWER_CHARS → at most two bounded parts
         # honest truncation marker just before the grounding footer — the
         # cap trimmed the raw answer, never a mid-sentence hard cut
-        assert "\u2026\n\n<i>\u26a1 Grounded in 3 intelligence sources" in parts[0]
+        assert "\u2026\n\n<i>\u26a1 Grounded in 3 intelligence sources" in parts[-1]
 
     def test_footer_counts_live_tools_not_just_rag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Bug 2 regression: the "Grounded in N" footer must count the live

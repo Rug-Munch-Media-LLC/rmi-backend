@@ -110,6 +110,7 @@ def _isolate(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(fmt_mod, "OWNER_IDS", {999000111})
     monkeypatch.setattr(trace_mod.db, "get_or_create_user", lambda *a, **k: None)
     monkeypatch.setattr(trace_mod.db, "increment_usage", lambda *a, **k: True)
+    monkeypatch.setattr(trace_mod.db, "log_scan", lambda *a, **k: None)
     monkeypatch.setattr(trace_mod.db, "get_user_tier", lambda uid: "hunter")
     monkeypatch.setattr(trace_mod.db, "check_rate_limit", lambda *a, **k: (True, 0, 0))
 
@@ -328,6 +329,158 @@ class TestCmdFlowTrace:
 
         assert len(msg.edits) == 1
         assert "No wallet data found" in msg.edits[0][0]
+
+
+TRACE_FLOW_SUMMARY = {
+    "wallet": VALID_WALLET.lower(),
+    "chain": "ethereum",
+    "hops": 2,
+    "in_usd": 3000.0,
+    "out_usd": 5000.0,
+    "net_usd": 2000.0,
+    "in_tx_count": 1,
+    "out_tx_count": 1,
+    "total_tx_count": 2,
+    "usd_unavailable": False,
+    "counterparty_in": [
+        {
+            "address": "0x2222222222222222222222222222222222222222",
+            "usd": 3000.0,
+            "tx_count": 1,
+            "type": "EOA",
+            "label": None,
+        }
+    ],
+    "counterparty_out": [
+        {
+            "address": "0x3333333333333333333333333333333333333333",
+            "usd": 5000.0,
+            "tx_count": 1,
+            "type": "CEX",
+            "label": "Binance Hot Wallet",
+        }
+    ],
+    "exchange": {"in_usd": 0.0, "out_usd": 5000.0, "tx_count": 1, "share_pct": 62.5, "share_tx_pct": 50.0},
+    "wash": {"reciprocal_pairs": 0, "tx_count": 0, "signal": False},
+    "edge_count": 2,
+    "node_count": 3,
+    "note": "Hop-1 + top-10 hop-2 counterparties; USD via F2 price oracle",
+}
+
+
+class TestCmdTraceOwnData:
+    """/trace renders the own ClickHouse fund-flow trace + AI read (fail-open)."""
+
+    def _fake_client(self, wallet_payload: dict, cc_payload: dict) -> type:
+        class _Resp:
+            status_code = 200
+
+            def __init__(self, payload: dict) -> None:
+                self._payload = payload
+
+            def json(self) -> dict:
+                return self._payload
+
+        class _FakeClient:
+            def __init__(self, *a: Any, **k: Any) -> None:
+                pass
+
+            async def __aenter__(self) -> _FakeClient:
+                return self
+
+            async def __aexit__(self, *a: Any) -> None:
+                return None
+
+            async def get(self, url: str, *a: Any, **k: Any) -> _Resp:
+                if "/cross-chain/" in url:
+                    return _Resp(cc_payload)
+                return _Resp(wallet_payload)
+
+        return _FakeClient
+
+    @pytest.mark.asyncio
+    async def test_trace_renders_clickhouse_flow_and_ai_read(self) -> None:
+        """/trace surfaces the deterministic flow AND the AI read together."""
+        msg = _FakeMessage()
+        ctx = _FakeContext(args=[VALID_WALLET])
+        ai_read = (
+            "🧠 <b>AI Flow Read</b>\n"
+            "Funds were funded by a single EOA and 62% of USD volume exited "
+            "to a Binance-labeled wallet — consistent with cashing out."
+        )
+        with (
+            patch.object(trace_mod.httpx, "AsyncClient", self._fake_client({}, {})),
+            patch.object(trace_mod, "_fetch_clickhouse_flow", AsyncMock(return_value=TRACE_FLOW_SUMMARY)),
+            patch.object(trace_mod, "_render_ai_flow_read", AsyncMock(return_value=ai_read)),
+        ):
+            await trace_mod.cmd_trace(_FakeUpdate(msg), ctx)
+
+        assert len(msg.edits) == 1
+        text, kwargs = msg.edits[0]
+        assert "Fund Flow (own chain data)" in text
+        assert "Exchange share:" in text
+        assert "Binance Hot Wallet" in text
+        assert "Top senders" in text
+        assert "AI Flow Read" in text
+        assert "cashing out" in text
+        assert kwargs.get("reply_markup") is not None
+
+    @pytest.mark.asyncio
+    async def test_trace_ai_read_fails_open_keeps_flow(self) -> None:
+        """/trace LLM down → deterministic flow still renders, no AI block."""
+        msg = _FakeMessage()
+        ctx = _FakeContext(args=[VALID_WALLET])
+        with (
+            patch.object(trace_mod.httpx, "AsyncClient", self._fake_client({}, {})),
+            patch.object(trace_mod, "_fetch_clickhouse_flow", AsyncMock(return_value=TRACE_FLOW_SUMMARY)),
+            patch.object(trace_mod, "_render_ai_flow_read", AsyncMock(return_value="")),
+        ):
+            await trace_mod.cmd_trace(_FakeUpdate(msg), ctx)
+
+        assert len(msg.edits) == 1
+        text, _kwargs = msg.edits[0]
+        assert "Fund Flow (own chain data)" in text
+        assert "AI Flow Read" not in text
+        assert "Trace Failed" not in text
+
+    @pytest.mark.asyncio
+    async def test_trace_fails_open_without_clickhouse(self) -> None:
+        """/trace ClickHouse down → falls back to the legacy external path."""
+        msg = _FakeMessage()
+        ctx = _FakeContext(args=[VALID_WALLET])
+        wallet_payload = {"funding_source": "Funded by exchange 0x1234", "tx_count": 42}
+        with (
+            patch.object(trace_mod.httpx, "AsyncClient", self._fake_client(wallet_payload, FLOW_PROFILE)),
+            patch.object(trace_mod, "_fetch_clickhouse_flow", AsyncMock(return_value=None)),
+        ):
+            await trace_mod.cmd_trace(_FakeUpdate(msg), ctx)
+
+        assert len(msg.edits) == 1
+        text, _kwargs = msg.edits[0]
+        assert "Fund Flow (own chain data)" not in text  # no ClickHouse block
+        assert "AI Flow Read" not in text
+        assert "Funding Source" in text  # legacy external path still renders
+        assert "Cross-Chain Activity" in text
+
+    @pytest.mark.asyncio
+    async def test_trace_clickhouse_flow_exception_fails_open(self) -> None:
+        """/trace flow-builder crash → legacy path renders, never an error card."""
+        msg = _FakeMessage()
+        ctx = _FakeContext(args=[VALID_WALLET])
+        with (
+            patch.object(trace_mod.httpx, "AsyncClient", self._fake_client({}, {})),
+            patch.object(
+                trace_mod,
+                "_fetch_clickhouse_flow",
+                AsyncMock(side_effect=RuntimeError("CH down")),
+            ),
+        ):
+            await trace_mod.cmd_trace(_FakeUpdate(msg), ctx)
+
+        assert len(msg.edits) == 1
+        text, _kwargs = msg.edits[0]
+        assert "Fund Flow (own chain data)" not in text
+        assert "Trace Failed" not in text
 
 
 class TestRegisterTraceCommands:

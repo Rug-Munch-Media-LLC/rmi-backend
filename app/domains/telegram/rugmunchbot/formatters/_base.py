@@ -116,9 +116,10 @@ def _ref_code(platform: str) -> str:
 
 def footer_links(address: str = "", chain: str = "") -> str:
     """Bot footer with links. When a token is provided, includes
-    GMGN → DexScreener → DexTools trade links (GMGN carries the owner's
-    ref code) plus RugCharts + RugMaps deep links so users can jump to
-    visual analysis. HTML-safe for Telegram (only ``<a>`` tags)."""
+    GMGN → DexScreener → DexTools → RugCharts → RugMaps as a clean SINGLE
+    tappable-text line (GMGN carries the owner's ref code) so the report
+    ends with one links footer instead of a button stack. HTML-safe for
+    Telegram (only ``<a>`` tags)."""
     if address:
         trade = (
             f'<a href="{gmgn_url(address, chain)}">GMGN</a>'
@@ -130,7 +131,7 @@ def footer_links(address: str = "", chain: str = "") -> str:
             f' | \U0001f5fa\ufe0f <a href="https://rugmunch.io/rugmaps?token={address}&chain={chain}">RugMaps</a>'
         )
         return (
-            f"\n{sep()}\n{trade}\n{charts}\n"
+            f"\n{sep()}\n{trade} | {charts}\n"
             f'\U0001f50d Rug Munch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'
         )
     return f'\n{sep()}\n\U0001f50d Rug Munch Bot | <a href="{TELEGRAM_CHANNEL}">/help</a> | @RugMunchBot'

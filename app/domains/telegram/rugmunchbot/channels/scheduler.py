@@ -96,6 +96,11 @@ from app.domains.telegram.rugmunchbot.channels.content import (
     fetch_risk_alerts,
     fetch_trending_news,
 )
+from app.domains.telegram.rugmunchbot.channels.daily_market_summary import (
+    DAILY_MARKET_SUMMARY_ENABLED,
+    post_daily_market_summary,
+    summary_run_time,
+)
 from app.domains.telegram.rugmunchbot.channels.formatters import (
     NewsPost,
     format_alerts_post,
@@ -745,7 +750,20 @@ def register_channel_jobs(app: Application[Any, Any, Any, Any, Any, Any]) -> Non
             first=_FIRST_RUN_SECONDS["personal"],
             name="channel_personal",
         )
-    logger.info("channels:channel jobs registered (news/alerts/alpha/tg_news/scam_watch/personal)")
+    # Daily Market Summary — 7:00 AM America/New_York, 7 days/week, on the
+    # main channel (@cryptorugmuncher). Writes an editorial market breakdown
+    # via ``chat_with_fallback(messages, "long")`` and posts it to the main
+    # channel + the rugmunch.io feed (both fail-open) — see
+    # ``channels/daily_market_summary.py``. Env knobs:
+    # ``RMI_DAILY_MARKET_SUMMARY_ENABLED`` / ``_TIME`` / ``_TZ``.
+    if DAILY_MARKET_SUMMARY_ENABLED and _chat_id("main"):
+        job_queue.run_daily(
+            _tick_wrapper("daily_market_summary", post_daily_market_summary, envelope=True),
+            time=summary_run_time(),
+            days=tuple(range(7)),
+            name="daily_market_summary",
+        )
+    logger.info("channels:channel jobs registered (news/alerts/alpha/tg_news/scam_watch/personal/daily_market_summary)")
 
 
 __all__ = [

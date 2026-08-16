@@ -79,12 +79,18 @@ async def _lookup_clickhouse(address: str, chain: str, query: str, limit: int = 
 
 
 async def clickhouse_token_history(address: str, chain: str, limit: int = 50) -> dict[str, Any]:
-    """Return recent dex_events for *address* from ClickHouse (Option 2)."""
+    """Return recent dex_events for *address* from ClickHouse (Option 2).
+
+    Queries ``wallet_memory.dex_events`` — the address is matched against
+    ``token0`` / ``token1`` (the current schema; the old ``base_address`` /
+    ``quote_address`` columns were removed in the chain-indexer schema
+    drift, and the drifted ``token_address`` column no longer exists).
+    """
     query = (
-        "SELECT block_timestamp, dex_name, base_symbol, quote_symbol, "
-        "base_amount, quote_amount, tx_hash "
+        "SELECT block_timestamp, dex, token0, token1, amount0, amount1, tx_hash "
         "FROM wallet_memory.dex_events "
-        "WHERE lower(base_address) = lower({address:String}) OR lower(quote_address) = lower({address:String}) "
+        "WHERE chain = {chain:String} "
+        "AND (lower(token0) = lower({address:String}) OR lower(token1) = lower({address:String})) "
         "ORDER BY block_timestamp DESC LIMIT {limit:UInt32}"
     )
     return await _lookup_clickhouse(address, chain, query, limit)

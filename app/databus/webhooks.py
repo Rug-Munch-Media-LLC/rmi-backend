@@ -152,22 +152,29 @@ async def handle_webhook(
     # ── 5. Trigger premium scanner based on event type ──
     scan_triggers = _get_scan_triggers(service, event_type, payload)
 
-    # ── 6. Push to alert pipeline if high risk ──
+    # ── 6. Intelligent alert routing (Arkham-style, importance-gated) ──
+    # The webhook is parsed (Helius-aware), enriched with wallet labels
+    # (exchange/defi/mixer/known actor), scored, gated by the news
+    # reranker bands (channels.route_news) and throttled per wallet — only
+    # meaningful events surface to the alerts channel. Fail-open: any
+    # router error degrades to a skip decision, never a webhook 5xx.
     risk = _assess_webhook_risk(service, event_type, payload)
-    if risk["level"] in ("HIGH", "CRITICAL"):
-        try:
-            from app.alert_pipeline import push_alert
+    routing = ""
+    try:
+        from app.databus.alert_router import route_webhook_alert
 
-            await push_alert(
-                alert_type=f"{service}_webhook",
-                title=f"[{service.upper()}] {risk['title']}",
-                severity=risk["level"].lower(),
-                description=risk["description"],
-                chain=payload.get("chain", "unknown"),
-                metadata={"webhook_service": service, "event_id": event_id},
-            )
-        except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
-            pass
+        routed = await route_webhook_alert(service, payload, event_id)
+        routing = routed.get("decision", "")
+        if routing in ("main", "news"):
+            risk = {
+                "level": "CRITICAL" if routing == "main" else "HIGH",
+                "title": routed.get("importance", 0.0),
+                "description": routing,
+            }
+    except (ConnectionError, OSError, TimeoutError, httpx.HTTPError, httpx.TimeoutException):
+        pass
+    except Exception:
+        logger.debug("webhook_alert_router_unavailable", service=service, exc_info=True)
 
     return {
         "status": "processed",
@@ -175,6 +182,7 @@ async def handle_webhook(
         "event_id": event_id,
         "event_type": event_type,
         "risk_level": risk["level"],
+        "routing": routing,  # main|news = alert pushed; skip|throttled|duplicate|unparseable = gated out
         "scan_triggers": scan_triggers,
         "cached": True,
     }

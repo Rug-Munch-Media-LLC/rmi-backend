@@ -2,9 +2,8 @@
 """
 RugMunchBot -- scan-family command handlers (degodded 2026-08-14).
 
-Extracted from ``handlers/scanning.py``: ``_with_trade_buttons``,
-``cmd_scan``, ``_poll_v2_scan_completion``, ``cmd_deepscan``,
-``sentinel_scan``, ``cmd_wallet``, ``cmd_compare``, ``cmd_quick``,
+Extracted from ``handlers/scanning.py``: ``cmd_scan``, ``_poll_v2_scan_completion``,
+``cmd_deepscan``, ``sentinel_scan``, ``cmd_wallet``, ``cmd_compare``, ``cmd_quick``,
 ``cmd_deployer``, ``cmd_hype``. Re-exported by ``handlers.scanning`` so
 existing importers/tests keep working unchanged.
 """
@@ -49,7 +48,6 @@ from app.domains.telegram.rugmunchbot.formatters import (
     thin_sep,
     web_scan_button,
 )
-from app.domains.telegram.rugmunchbot.formatters._base import dex_button_rows
 from app.domains.telegram.rugmunchbot.handlers._image import _maybe_send_token_image
 from app.domains.telegram.rugmunchbot.handlers._messages import (
     ACTION_CHECK_ADDRESS,
@@ -96,23 +94,6 @@ if TYPE_CHECKING:
     from telegram.ext import ContextTypes
 
 logger = get_logger("rmi_bot")
-
-
-def _with_trade_buttons(kb: InlineKeyboardMarkup, address: str, chain: str) -> InlineKeyboardMarkup:
-    """Return ``kb`` with the referral trade-button rows inserted.
-
-    Inserts ``dex_button_rows(address, chain)`` (chain-filtered DEX_REF_LINKS
-    with ref codes + DexScreener/DexTools) right after the first row so the
-    trade buttons ride on the SAME message as the scan report. Used for the
-    premium-tier keyboards (``deep_scan_result_kb``), which do not otherwise
-    include the trade row; ``scan_result_kb`` already embeds it.
-    """
-    trade_rows = dex_button_rows(address, chain)
-    if not trade_rows:
-        return kb
-    rows = [list(row) for row in kb.inline_keyboard]
-    rows[1:1] = trade_rows
-    return InlineKeyboardMarkup(rows)
 
 
 async def _edit_stage_if_slow(
@@ -266,12 +247,11 @@ async def cmd_scan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
         db.increment_usage(user.id, scan=True)
         db.log_scan(user.id, target, result["chain"], "basic", result["risk_score"])
-        # Use richer keyboard for premium users
+        # Use richer keyboard for premium users — reference/trade links now
+        # live in the report footer, so the keyboard is actions only.
         user_tier = db.get_user_tier(user.id)
         if user_tier in ("hunter", "pro"):
-            # deep_scan_result_kb has no trade row — attach the ref buttons
-            # (same message as the report) via _with_trade_buttons.
-            result_kb = _with_trade_buttons(deep_scan_result_kb(target, result["chain"]), target, result["chain"])
+            result_kb = deep_scan_result_kb(target, result["chain"])
         else:
             result_kb = scan_result_kb(target, result["chain"])
         await msg.edit_text(
@@ -499,7 +479,7 @@ async def cmd_deepscan(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         db.log_scan(user.id, target, result["chain"], "deep", result["risk_score"])
         user_tier = db.get_user_tier(user.id)
         if user_tier in ("hunter", "pro"):
-            result_kb = _with_trade_buttons(deep_scan_result_kb(target, result["chain"]), target, result["chain"])
+            result_kb = deep_scan_result_kb(target, result["chain"])
         else:
             result_kb = scan_result_kb(target, result["chain"])
         await msg.edit_text(

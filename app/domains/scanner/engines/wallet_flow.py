@@ -404,6 +404,149 @@ async def _compute_graph(wallet: str, chain: str, hops: int, max_nodes: int) -> 
     }
 
 
+async def build_flow_summary(
+    wallet: str,
+    chain: str,
+    hops: int = 2,
+    max_nodes: int = _DEFAULT_MAX_NODES,
+    force_fresh: bool = False,
+) -> dict[str, Any] | None:
+    """Deterministic fund-flow summary for /trace (own ClickHouse data).
+
+    Runs the same hop-1 / hop-2 ClickHouse queries as ``build_flow_graph``
+    (evm_transfers + wallet_labels + dex_events) and derives a compact,
+    AI-safe summary:
+
+      - in/out USD + tx counts (net position)
+      - top-5 counterparties by USD, labeled + typed (CEX/DEX/bridge/mixer)
+      - exchange vs non-exchange share (USD-based and tx-based)
+      - wash signal: reciprocal (A→B AND B→A) transfer pairs
+
+    Returns ``None`` when the underlying graph is not scanned (ClickHouse
+    down, no transfer history, invalid inputs) so callers fail open.
+    """
+    graph = await build_flow_graph(wallet, chain, hops=hops, max_nodes=max_nodes, force_fresh=force_fresh)
+    if not isinstance(graph, dict) or graph.get("result") != "scanned":
+        return None
+    return _summarize_flow(graph)
+
+
+def _summarize_flow(graph: dict[str, Any]) -> dict[str, Any]:
+    """Derive the compact flow summary from a scanned wallet_flow graph.
+
+    Pure function over the graph payload (no ClickHouse access) so it is
+    trivially unit-testable and deterministic for the AI prompt.
+    """
+    wallet = str(graph.get("wallet") or "").lower()
+    nodes = graph.get("nodes") or []
+    edges = graph.get("edges") or []
+    node_info: dict[str, tuple[str, str]] = {
+        str(n.get("id") or ""): (str(n.get("type") or ""), str(n.get("label") or "")) for n in nodes
+    }
+
+    in_usd = 0.0
+    out_usd = 0.0
+    in_tx = 0
+    out_tx = 0
+    exchange_in_usd = 0.0
+    exchange_out_usd = 0.0
+    exchange_tx = 0
+    cp_in: dict[str, dict[str, Any]] = {}
+    cp_out: dict[str, dict[str, Any]] = {}
+    edge_pairs: set[tuple[str, str]] = set()
+    edge_tx_by_pair: dict[tuple[str, str], int] = {}
+
+    for e in edges:
+        frm = str(e.get("from") or "").lower()
+        to = str(e.get("to") or "").lower()
+        usd = float(e.get("usd") or 0)
+        tx = int(e.get("tx_count") or 0)
+        key = (frm, to)
+        edge_pairs.add(key)
+        edge_tx_by_pair[key] = edge_tx_by_pair.get(key, 0) + tx
+        if to == wallet:
+            in_usd += usd
+            in_tx += tx
+            cp_type, cp_label = node_info.get(frm, ("", ""))
+            bucket = cp_in.setdefault(
+                frm,
+                {"address": frm, "usd": 0.0, "tx_count": 0, "type": cp_type, "label": cp_label or None},
+            )
+            bucket["usd"] += usd
+            bucket["tx_count"] += tx
+            if cp_type == "CEX":
+                exchange_in_usd += usd
+                exchange_tx += tx
+        elif frm == wallet:
+            out_usd += usd
+            out_tx += tx
+            cp_type, cp_label = node_info.get(to, ("", ""))
+            bucket = cp_out.setdefault(
+                to,
+                {"address": to, "usd": 0.0, "tx_count": 0, "type": cp_type, "label": cp_label or None},
+            )
+            bucket["usd"] += usd
+            bucket["tx_count"] += tx
+            if cp_type == "CEX":
+                exchange_out_usd += usd
+                exchange_tx += tx
+
+    # Wash (round-trip) signal: reciprocal pairs A->B AND B->A present.
+    # Canonical (f < t) direction so one round trip counts as ONE pair.
+    wash_pairs = sorted((f, t) for (f, t) in edge_pairs if f < t and (t, f) in edge_pairs)
+    wash_tx = sum(edge_tx_by_pair.get((f, t), 0) + edge_tx_by_pair.get((t, f), 0) for f, t in wash_pairs)
+
+    total_usd = in_usd + out_usd
+    total_tx = in_tx + out_tx
+    usd_available = total_usd > 0
+    exchange_usd = exchange_in_usd + exchange_out_usd
+    exchange_share_pct = round(exchange_usd / total_usd * 100, 1) if usd_available else 0.0
+    exchange_share_tx_pct = round(exchange_tx / total_tx * 100, 1) if total_tx > 0 else 0.0
+
+    def _top(cps: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+        ranked = sorted(cps.values(), key=lambda c: (c["usd"], c["tx_count"]), reverse=True)
+        return [
+            {
+                "address": c["address"],
+                "usd": round(c["usd"], 2),
+                "tx_count": c["tx_count"],
+                "type": c["type"],
+                "label": c["label"],
+            }
+            for c in ranked[:5]
+        ]
+
+    return {
+        "wallet": wallet,
+        "chain": graph.get("chain") or "",
+        "hops": graph.get("hops") or 1,
+        "in_usd": round(in_usd, 2),
+        "out_usd": round(out_usd, 2),
+        "net_usd": round(out_usd - in_usd, 2),
+        "in_tx_count": in_tx,
+        "out_tx_count": out_tx,
+        "total_tx_count": total_tx,
+        "usd_unavailable": not usd_available,
+        "counterparty_in": _top(cp_in),
+        "counterparty_out": _top(cp_out),
+        "exchange": {
+            "in_usd": round(exchange_in_usd, 2),
+            "out_usd": round(exchange_out_usd, 2),
+            "tx_count": exchange_tx,
+            "share_pct": exchange_share_pct,
+            "share_tx_pct": exchange_share_tx_pct,
+        },
+        "wash": {
+            "reciprocal_pairs": len(wash_pairs),
+            "tx_count": wash_tx,
+            "signal": wash_tx >= 3,
+        },
+        "edge_count": len(edges),
+        "node_count": len(nodes),
+        "note": graph.get("note"),
+    }
+
+
 def _rank_counterparties(
     wallet: str,
     edge_raw: dict[tuple[str, str, str], dict[str, Any]],
