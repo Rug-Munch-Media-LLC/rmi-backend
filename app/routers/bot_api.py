@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.core.redis import get_redis_async
-from app.llm_config import get_cheap_fallback_config, get_long_config, get_snappy_config
+from app.llm_config import get_cheap_fallback_config, get_hf_config, get_long_config, get_snappy_config
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/bot", tags=["bot"])
@@ -208,6 +208,7 @@ async def bot_ask(req: BotAskRequest) -> dict[str, Any]:
     chain: list[tuple[str, dict[str, Any]]] = [
         ("snappy", get_snappy_config()),
         ("long", get_long_config()),
+        ("huggingface", get_hf_config()),  # free HF Inference tier (same setup as telegram)
         ("fallback", get_cheap_fallback_config()),
     ]
     for provider, config in chain:

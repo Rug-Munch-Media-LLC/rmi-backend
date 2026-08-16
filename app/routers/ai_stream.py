@@ -127,6 +127,13 @@ async def list_providers() -> dict[str, Any]:
         "latency_ms": 500,
         "cost_per_1M_input": 0.0,
     }
+    hf_cfg = llm_config.get_hf_config()
+    hf_entry = {
+        "model": hf_cfg["model"],
+        "provider": "huggingface",
+        "latency_ms": 2000,
+        "cost_per_1M_input": 0.0,
+    }
     return {
         "providers": {
             "fast": [snappy_entry],
@@ -136,5 +143,41 @@ async def list_providers() -> dict[str, Any]:
             "vision": [snappy_entry],
             "embed": [snappy_entry],
             "code": [snappy_entry],
+            "huggingface": [hf_entry],
         }
     }
+
+
+@router.post("/hf")
+async def hf_analysis(req: StreamRequest) -> dict[str, Any]:
+    """Community-chat ANALYSIS via the FREE Hugging Face Inference tier.
+
+    The main chat stays on OpenRouter; this endpoint answers detailed/analysis
+    questions with the hosted HF model (deepseek-r1-distill). Bounded (60s,
+    ``max_tokens`` capped) + fail-open: on ANY provider failure it returns an
+    explicit error payload instead of raising. Frontend integration point for
+    rugmaps/rugcharts "detailed analysis" — POST the intel brief / cluster data
+    as ``prompt``.
+    """
+    from app import llm_config as _cfg
+
+    if not _cfg.HUGGINGFACE_API_KEY:
+        return {
+            "response": "",
+            "error": "HUGGINGFACE_API_KEY not set — set it (secrets manager (HF token)) or rely on the anonymous tier",
+            "model": _cfg.HF_MODEL,
+            "provider": "huggingface",
+        }
+    answer = await _cfg.chat_with_hf_fallback(
+        messages=[{"role": "user", "content": req.prompt}],
+        max_tokens=1024,
+        timeout=60.0,
+    )
+    if not answer:
+        return {
+            "response": "",
+            "error": "HF Inference tier failed (401 anonymous/402 credits-exhausted/429/5xx) — check HUGGINGFACE_API_KEY",
+            "model": _cfg.HF_MODEL,
+            "provider": "huggingface",
+        }
+    return {"response": answer, "model": _cfg.HF_MODEL, "provider": "huggingface", "tier": "huggingface"}

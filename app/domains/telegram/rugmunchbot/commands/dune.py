@@ -150,7 +150,8 @@ async def cmd_dune(update, ctx) -> None:
 
     lines.extend(
         [
-            "<i>Real rows from public Dune queries; '—' = query unavailable.</i>",
+            "<i>Real rows from public Dune queries; '\u2014' = query unavailable.</i>",
+            "<i>More intel: /menu</i>",
         ]
     )
 

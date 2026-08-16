@@ -173,3 +173,83 @@ def test_shill_signals_safe_empty(client: TestClient) -> None:
     assert body["count"] == 0
     assert body["alerts"] == []
     assert body["source"] == "shill_detector"
+
+
+def test_profiles_list_shape(client: TestClient) -> None:
+    """Enriched profile list: total + rated counts, entries carry the summary shape."""
+    resp = client.get("/api/v1/kol/profiles", params={"limit": 25})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] > 100  # expanded dataset (registry + wallet handles + curated)
+    assert body["rated"] > 0  # rug-history/scammer figures have computed ratings
+    assert len(body["profiles"]) == 25
+    for p in body["profiles"]:
+        assert p["handle"]
+        assert p["display_name"]
+        assert "avatar_url" in p
+        assert "wallet_count" in p
+        assert "calls_count" in p
+        assert "rating" in p  # null when insufficient data — never omitted
+        assert "rating_grade" in p
+
+
+def test_profiles_category_filter(client: TestClient) -> None:
+    resp = client.get("/api/v1/kol/profiles", params={"category": "trader", "limit": 10})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["category"] == "trader"
+    assert all(p["category"] == "trader" for p in body["profiles"])
+
+
+def test_profiles_detail_curated(client: TestClient) -> None:
+    """Curated famous figure resolves with calls, performance and risk."""
+    resp = client.get("/api/v1/kol/profiles/blknoiz06")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["found"] is True
+    assert body["profile"]["display_name"] == "Ansem"
+    assert len(body["profile"]["calls"]) >= 1
+    perf = body["profile"]["performance"]
+    assert isinstance(perf["score"], (int, float))
+    assert perf["grade"] in {"A", "B", "C", "D", "F"}
+    assert body["profile"]["risk"]["known_scammer"] is True
+    assert "wallet_count" in body
+
+
+def test_profiles_detail_wallet_only_fallback(client: TestClient) -> None:
+    """Handles present only in the wallet list resolve with a minimal profile."""
+    resp = client.get("/api/v1/kol/profiles/profit")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["found"] is True
+    assert body["wallet_count"] > 0
+    assert body["profile"]["performance"]["score"] is None  # withheld, not guessed
+
+
+def test_profiles_detail_unknown_404(client: TestClient) -> None:
+    resp = client.get("/api/v1/kol/profiles/definitely_not_a_real_kol_xyz")
+    assert resp.status_code == 404
+    body = resp.json()
+    assert body["error"] == "not_found"
+
+
+def test_leaderboard_entries_enriched(client: TestClient) -> None:
+    """Leaderboard entries gain additive profile fields (avatar/category/wallet_count)."""
+    ks.register_known_scammer("ProfiledScam")
+    ks.score_kol("ProfiledScam", persist=False)
+    resp = client.get("/api/v1/kol/leaderboard")
+    assert resp.status_code == 200
+    entries = resp.json()["leaderboard"]
+    assert any(e["handle"] == "profiledscam" for e in entries)
+    for e in entries:
+        assert "wallet_count" in e
+
+
+def test_kol_profile_has_profile_subobject(client: TestClient) -> None:
+    """The existing /kol/{handle} profile now also carries enriched metadata."""
+    resp = client.get("/api/v1/kol/kol/blknoiz06")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["profile"] is not None
+    assert body["profile"]["display_name"] == "Ansem"
+    assert "wallet_count" in body["profile"]

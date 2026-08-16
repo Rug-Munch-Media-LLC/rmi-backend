@@ -573,6 +573,7 @@ async def _fetch_rss_articles(
                     }
                 )
             except Exception:
+                logger.debug("RSS entry skipped source=%s title=%r", source_name, title[:80])
                 continue
         if result:
             logger.debug(f"RSS {source_name}: {len(result)} articles")

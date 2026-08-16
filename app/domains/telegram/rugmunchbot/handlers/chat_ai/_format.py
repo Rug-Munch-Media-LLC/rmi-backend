@@ -45,45 +45,6 @@ def _render_bridge_actions(
     return InlineKeyboardMarkup(rows) if rows else None
 
 
-def _append_source_lines(
-    answer: str,
-    sources: list[dict[str, str]] | None,
-    limit: int = 3,
-) -> str:
-    """Append up to ``limit`` compact citation lines from the bridge sources.
-
-    Only ``web`` and ``rag`` sources carry a query worth citing; scanner /
-    market metadata lines are skipped (the answer already attributes them).
-    RAG sources may carry a ``collection`` (e.g. ``security_patterns``) —
-    when present it is shown so the footer points at the exact corpus, not a
-    generic "RAG". No URLs are fabricated — bridge sources carry type+query
-    metadata, and the grounding rules already make the model cite
-    outlet/headline inline. Plain text only: ``_send_answer`` HTML-escapes
-    every chunk.
-    """
-    if not sources:
-        return answer
-    lines: list[str] = []
-    for s in sources:
-        if len(lines) >= limit:
-            break
-        if not isinstance(s, dict):
-            continue
-        stype = str(s.get("type") or "")
-        query = str(s.get("query") or "").strip()
-        if stype == "web" and query:
-            lines.append(f"\U0001f310 Web: {query[:90]}")
-        elif stype == "rag" and query:
-            col = str(s.get("collection") or "").strip()
-            if col:
-                lines.append(f"\U0001f4da RAG ({col}): {query[:90]}")
-            else:
-                lines.append(f"\U0001f4da RAG: {query[:90]}")
-    if not lines:
-        return answer
-    return f"{answer}\n\n\u2014\n" + "\n".join(lines)
-
-
 def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
     """Render REAL tool data as a markdown answer (no LLM involved).
 
@@ -195,4 +156,4 @@ def _format_tool_answer(results: dict[str, ToolResult]) -> str | None:
     return "\n".join(lines)
 
 
-__all__ = ["_append_source_lines", "_format_tool_answer", "_render_bridge_actions"]
+__all__ = ["_format_tool_answer", "_render_bridge_actions"]

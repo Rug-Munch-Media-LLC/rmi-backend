@@ -44,6 +44,7 @@ from app.domains.telegram.rugmunchbot.broadcast_worker import deliver_pending_br
 from app.domains.telegram.rugmunchbot.channels import register_channel_jobs
 from app.domains.telegram.rugmunchbot.commands import (
     cmd_chart,
+    cmd_dune,
     cmd_events,
     cmd_portfolio,
     cmd_rugmap,
@@ -524,6 +525,7 @@ def main() -> None:
     _reg(app, "research", cmd_research)
     _reg(app, "ask", cmd_ask)
     _reg(app, "chat", cmd_chat)
+    _reg(app, "dune", cmd_dune)  # curated on-chain intel (Dune queries)
 
     # Account / billing
     _reg(app, "account", cmd_account)

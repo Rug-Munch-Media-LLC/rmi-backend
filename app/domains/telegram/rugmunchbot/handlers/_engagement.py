@@ -15,10 +15,15 @@ This module is deliberately free of Telegram / DB / network dependencies so
 any handler (or the chat_ai pipeline) can use it without import cycles.
 
 [REVIEW] Integration point for chat answers: the AI chat pipeline renders its
-final answer in ``handlers/chat_ai/__init__.py::_send_answer``. The clean
-additive hook is to append ``append_footer_cta(html[-1], seed=user_id)`` to
-the last chunk there. This module only ships the helper — wiring it into
-chat_ai is left to that pipeline's owner to avoid a parallel-batch conflict.
+final answer in ``handlers/chat_ai/_delivery.py::_send_answer`` (the package
+``__init__`` is a re-export shim; the module path moved during the 2026-08-16
+split). The clean additive hook is to append ``append_footer_cta(html[-1],
+seed=user_id)`` to the last chunk there. This module only ships the helper —
+wiring it into chat_ai is left to that pipeline's owner to avoid a
+parallel-batch conflict. NOT yet wired: the answer already carries a
+grounding footer ("⚡ Grounded in N sources … | Rug Munch Bot"), and a
+second footer line on every AI answer risks reading as spam — revisit only
+with a one-line CTA that replaces, never stacks, the grounding footer.
 """
 
 from __future__ import annotations
