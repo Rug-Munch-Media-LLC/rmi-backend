@@ -13,6 +13,8 @@ ingested in the shared Redis content-hash sets only after a real insert.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hashlib
 import sys
 from typing import TYPE_CHECKING, Any
@@ -103,6 +105,63 @@ def _article_to_news_item(article: NewsArticle) -> Any | None:
         return None
 
 
+async def _ensure_postgres_health(catalog: Any) -> bool:
+    """Self-heal the cached ``catalog._health.postgres`` flag.
+
+    The catalog's store probe (``CatalogService._init_stores``) is one-shot:
+    the ``self._redis is not None`` guard makes the Postgres block run only
+    once per process, so a transient failure at boot leaves the flag stuck
+    ``False`` even after the container recovers. Reuse the catalog's asyncpg
+    pool (creating it lazily when it never came up) and run a lightweight
+    ``SELECT 1`` under a short timeout. Never cache ``False``: each failed
+    persist re-probes on the next tick.
+    """
+    if getattr(getattr(catalog, "_health", None), "postgres", False):
+        return True
+    lock = getattr(catalog, "_init_lock", None)
+    guard: Any = lock if lock is not None else contextlib.nullcontext()
+    try:
+        async with guard:
+            if getattr(getattr(catalog, "_health", None), "postgres", False):
+                return True  # another task recovered it while we waited
+            pool = getattr(catalog, "_pg_pool", None)
+            if pool is None:
+                import asyncpg
+
+                cfg = getattr(catalog, "config", None)
+                pg: dict[str, Any] = (cfg or {}).get("postgres", {}) if isinstance(cfg, dict) else {}
+                if not pg.get("password"):
+                    return False
+                catalog._pg_pool = await asyncio.wait_for(
+                    asyncpg.create_pool(
+                        host=pg["host"],
+                        port=pg["port"],
+                        user=pg["user"],
+                        password=pg["password"],
+                        database=pg["database"],
+                        min_size=1,
+                        max_size=8,
+                        command_timeout=10,
+                    ),
+                    timeout=3,
+                )
+            else:
+
+                async def _probe() -> None:
+                    async with pool.acquire() as conn:
+                        await conn.fetchval("SELECT 1")
+
+                await asyncio.wait_for(_probe(), timeout=3)
+            health = getattr(catalog, "_health", None)
+            if health is not None:
+                health.postgres = True
+            logger.info("tg_news:postgres_recovered")
+            return True
+    except Exception as exc:
+        logger.warning("tg_news:postgres_reprobe_failed err=%s", str(exc)[:160])
+        return False
+
+
 async def persist_articles(articles: list[NewsArticle]) -> dict[str, int]:
     """Insert new articles into ``news_items`` (website feed), deduped by PK.
 
@@ -119,7 +178,7 @@ async def persist_articles(articles: list[NewsArticle]) -> dict[str, int]:
 
         catalog = get_catalog()
         await catalog._init_stores()  # catalog store probe (same as RSS ingest)
-        if not catalog._health.postgres:
+        if not catalog._health.postgres and not await _ensure_postgres_health(catalog):
             logger.warning("tg_news:persist_skipped_postgres_unavailable")
             return counts
 
