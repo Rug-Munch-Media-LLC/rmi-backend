@@ -171,6 +171,28 @@ async def _solana_tracker_trending(**kw: Any) -> dict[str, Any] | None:
     return None
 
 
+async def _gmgn_trending(**kw: Any) -> dict[str, Any] | None:
+    """GMGN Agent API — trending tokens (GET /v1/market/rank).
+
+    Uses the real GMGN Agent API via ``app.databus.gmgn_provider`` (the
+    public web quotation API is Cloudflare-blocked). Requires GMGN_API_KEY
+    from the environment; returns the same ``{"trending": [...], "source"}``
+    shape as the other trending providers so the chain contract holds.
+    """
+    try:
+        from app.databus.gmgn_provider import get_gmgn_provider
+
+        chain = kw.get("chain", "solana")
+        interval = kw.get("interval", "1h")
+        limit = min(int(kw.get("limit", 20)), 100)
+        data = await get_gmgn_provider().get_trending(chain=chain, interval=interval, limit=limit)
+        if data:
+            return {"trending": data, "source": "gmgn"}
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
+    return None
+
+
 # ── Messari (freemium, 200 req/min) ──
 
 

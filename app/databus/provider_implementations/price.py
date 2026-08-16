@@ -149,3 +149,19 @@ async def _solana_tracker_trending(**kw) -> dict[str, Any] | None:
     except (ValueError, ConnectionError, TimeoutError, RuntimeError):
         logger.warning("provider error")
     return None
+
+
+async def _gmgn_trending(**kw) -> dict[str, Any] | None:
+    """GMGN Agent API - trending tokens (market/rank)."""
+    try:
+        from app.databus.gmgn_provider import get_gmgn_provider
+
+        chain = kw.get("chain", "solana")
+        interval = kw.get("interval", "1h")
+        limit = min(int(kw.get("limit", 20)), 100)
+        data = await get_gmgn_provider().get_trending(chain=chain, interval=interval, limit=limit)
+        if data:
+            return {"trending": data, "source": "gmgn"}
+    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
+        logger.warning("provider error")
+    return None

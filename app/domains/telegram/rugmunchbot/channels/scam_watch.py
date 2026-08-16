@@ -31,9 +31,11 @@ Source taxonomy (``ScamSourceType``)
 Sources
 -------
 1. Explicit env list ``RMI_SCAM_CHANNELS`` (comma- or pipe-separated
-   @handles; no secrets). Default empty — [REVIEW]: the owner should seed
-   their vetted list here. No handles are hardcoded because unverified
-   real handles could mislabel innocent channels.
+   @handles; no secrets). Defaults to the vetted scam/shill handles already
+   flagged in the followed-channels registry (``kind=scammer_caller`` /
+   ``category=shill_promotions`` — CertiKAlert, PeckShieldAlert, ScamSniffer,
+   SlowMist, zachxbt, cryptobanter) so the sweep never starts empty even if
+   the registry file is missing. Set the env var to override.
 2. The followed-channels registry ``app/databus/tg_channels.json`` —
    entries with ``kind=scammer_caller`` / ``kind=scammer_group`` and
    ``category=shill_promotions`` are picked up automatically (this is the
@@ -164,9 +166,18 @@ SCAM_WATCH_SCAN_LIMIT = _env_int("RMI_SCAM_WATCH_SCAN_LIMIT", 5)
 SCAM_WATCH_QUEUE_LIMIT = _env_int("RMI_SCAM_WATCH_QUEUE_LIMIT", 50)
 SCAM_WATCH_ENQUEUE = _env_bool("RMI_SCAM_WATCH_ENQUEUE", True)
 SCAM_WATCH_INCLUDE_WATCHERS = _env_bool("RMI_SCAM_WATCH_INCLUDE_WATCHERS", False)
-#: Explicit @handles to watch (comma/pipe separated). Empty by default —
-#: [REVIEW] the owner should seed their vetted list via env.
-SCAM_CHANNELS = _env_list("RMI_SCAM_CHANNELS", [])
+#: Explicit @handles to watch (comma/pipe separated). Defaults to the vetted
+#: scam/shill handles already flagged in the followed-channels registry
+#: (``kind=scammer_caller`` / ``category=shill_promotions``); env overrides.
+_DEFAULT_SCAM_CHANNELS: tuple[str, ...] = (
+    "CertiKAlert",
+    "PeckShieldAlert",
+    "ScamSniffer",
+    "SlowMist",
+    "zachxbt",
+    "cryptobanter",
+)
+SCAM_CHANNELS = _env_list("RMI_SCAM_CHANNELS", list(_DEFAULT_SCAM_CHANNELS))
 #: Extra handles/titles to exclude from dialog auto-discovery.
 SCAM_WATCH_EXCLUDE = _env_list("RMI_SCAM_WATCH_EXCLUDE", [])
 

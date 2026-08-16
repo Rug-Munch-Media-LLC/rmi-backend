@@ -1,6 +1,7 @@
 """
-Premium V2 Commands — Honeypot Map, LP Health, Token Laundry.
-All free during beta.
+Premium V2 Commands — Honeypot Map, Token Laundry.
+All free during beta. (LP health lives in handlers/defi.py — /lpcheck is
+canonical; /lphealth is aliased to it in bot.py.)
 """
 
 from __future__ import annotations
@@ -110,66 +111,6 @@ async def cmd_honeypot(update, ctx) -> None:
         lines.append(f"\n💡 {data['notes']}")
 
     lines.append("\n<i>Red = honeypot. Green = appears safe. Always DYOR.</i>")
-    await msg.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# /lphealth — LIQUIDITY POOL HEALTH
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-async def cmd_lphealth(update, ctx) -> None:
-    """Handle /lphealth — check liquidity pool health."""
-    msg = update.message
-    args = ctx.args
-
-    if not args:
-        await msg.reply_text(
-            "💧 <b>LP Health Check</b>\n\n"
-            "Usage: <code>/lphealth &lt;token_address&gt; [chain]</code>\n\n"
-            "Checks liquidity pool health:\n"
-            "• LP lock status & duration\n"
-            "• Liquidity concentration\n"
-            "• Pool age & stability\n"
-            "• Rug pull risk from LP\n\n"
-            "Example: <code>/lphealth 0x...</code>\n"
-            "<i>Free during beta — check if LP is safe.</i>",
-            parse_mode="HTML",
-        )
-        return
-
-    address = args[0]
-    chain = args[1] if len(args) > 1 else "ethereum"
-
-    await msg.chat.send_action("typing")
-    data = await _backend_get(f"/api/v1/lp-health/check/{address}", params={"chain": chain})
-
-    if not data:
-        await msg.reply_text("❌ LP health check unavailable.\n\nPlease try again in a moment.", parse_mode="HTML")
-        return
-
-    health = data.get("health_score", 0)
-    emoji = "🟢" if health >= 70 else "🟡" if health >= 40 else "🔴"
-
-    lines = [
-        "💧 <b>LP Health</b>",
-        f"<code>{address}</code> ({chain.title()})",
-        "",
-        f"{emoji} <b>Health Score:</b> {health}/100",
-    ]
-
-    if data.get("lp_locked") is not None:
-        lines.append(f"🔒 LP Locked: {'Yes' if data['lp_locked'] else 'No'}")
-    if data.get("lock_duration"):
-        lines.append(f"⏱️ Lock Duration: {data['lock_duration']}")
-    if data.get("liquidity_usd"):
-        lines.append(f"💵 Liquidity: {_fmt_usd(data['liquidity_usd'])}")
-    if data.get("pool_age_days"):
-        lines.append(f"📅 Pool Age: {data['pool_age_days']:.0f} days")
-    if data.get("concentration_risk"):
-        lines.append(f"⚠️ Concentration Risk: {data['concentration_risk']}")
-
-    lines.append("\n<i>Higher score = safer LP. <40 = high rug risk.</i>")
     await msg.reply_text("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
 
