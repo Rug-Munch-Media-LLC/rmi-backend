@@ -41,6 +41,8 @@ from app.domains.chat_tools import (
     _detect_tool_intent,
     _exec_market,
     _exec_news,
+    _exec_perp,
+    _exec_prediction,
     _exec_price,
     _exec_scan,
     _exec_suspicious,
@@ -67,6 +69,8 @@ _INTENT_EXECUTOR_TABLE = [
     (f"who funded {_EVM}", "trace", _exec_trace),
     ("latest news", "news", _exec_news),
     ("shady solana tokens you noticed launching", "suspicious", _exec_suspicious),
+    ("show me prediction markets", "prediction", _exec_prediction),
+    ("hyperliquid funding rates", "perp", _exec_perp),
 ]
 
 

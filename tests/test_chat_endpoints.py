@@ -58,6 +58,21 @@ def app():
 
 
 @pytest.fixture(autouse=True)
+def _clear_chat_cache() -> None:
+    """The chat response cache is keyed on the message text (see
+    ``app.routers.chat._cache_key``). Without clearing it, a repeated message
+    across tests short-circuits to a stale cached answer — and a stale
+    ``X-RAG-Context`` (e.g. the RAG-header test would see the 0 recorded by
+    the earlier plain-completion test instead of the patched count).
+    """
+    import app.routers.chat as chat_mod
+
+    chat_mod._chat_cache.clear()
+    yield
+    chat_mod._chat_cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def _allow_global_rate_limits():
     """Open the unified rate limiter so the middleware never 429s tests."""
     from app.core.rate_limiter import UnifiedRateLimiter
@@ -71,12 +86,17 @@ def _allow_global_rate_limits():
 
 @pytest.fixture
 def chat_db(tmp_path, monkeypatch):
-    """Redirect the chat SQLite DB to a temp file and create tables."""
-    import app.routers.chat as chat_mod
+    """Redirect the chat SQLite DB to a temp file and create tables.
+
+    The persistence helpers moved to ``app.routers.chat_db`` (extracted from
+    the chat router), so the path is patched there — ``_get_db()`` resolves
+    the module-global ``DB_PATH`` at call time.
+    """
+    import app.routers.chat_db as chat_db_mod
 
     db_path = str(tmp_path / "chat_test.db")
-    monkeypatch.setattr(chat_mod, "DB_PATH", db_path)
-    chat_mod._ensure_tables()
+    monkeypatch.setattr(chat_db_mod, "DB_PATH", db_path)
+    chat_db_mod._ensure_tables()
     return db_path
 
 

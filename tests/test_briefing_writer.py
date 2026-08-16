@@ -125,7 +125,9 @@ async def test_llm_writer_calls_completion_with_expected_kwargs() -> None:
     assert await llm_writer(CONTEXT, SKELETON, completion=completion) == "prose"
 
     kwargs = completion.calls[0]
-    assert kwargs["model"] == "qwen-analysis"
+    # Default model is None — the migrated ai_router resolves it via
+    # task_type="analysis" → deep/long tier.
+    assert kwargs["model"] is None
     assert kwargs["task_type"] == "analysis"
     assert kwargs["temperature"] == 0.6
     assert kwargs["max_tokens"] == 512
@@ -133,8 +135,8 @@ async def test_llm_writer_calls_completion_with_expected_kwargs() -> None:
 
 async def test_llm_writer_respects_explicit_model_override() -> None:
     completion = CapturingCompletion(result={"content": "prose"})
-    assert await llm_writer(CONTEXT, SKELETON, model="qwen-chat", completion=completion) == "prose"
-    assert completion.calls[0]["model"] == "qwen-chat"
+    assert await llm_writer(CONTEXT, SKELETON, model="deepseek-v4-flash-free", completion=completion) == "prose"
+    assert completion.calls[0]["model"] == "deepseek-v4-flash-free"
 
 
 # ── llm_writer — fail-open contract ("" → deterministic fallback) ───────────

@@ -54,10 +54,22 @@ def _fake_httpx(monkeypatch: pytest.MonkeyPatch) -> None:
     _FakeLLMClient._payload = {"choices": [{"message": {"content": "ok"}}], "usage": {"total_tokens": 3}}
     _FakeLLMClient.calls = []
     monkeypatch.setattr(_llm.httpx, "AsyncClient", _FakeLLMClient)
+    # Remote-only: fake the free-provider configs so the seam actually POSTs
+    # (a missing key would short-circuit before the fake client records).
+    monkeypatch.setattr(
+        _llm,
+        "get_snappy_config",
+        lambda: {"model": "m", "base_url": "https://snappy.test/chat/completions", "api_key": "k", "max_tokens": 256},
+    )
+    monkeypatch.setattr(
+        _llm,
+        "get_long_config",
+        lambda: {"model": "m", "base_url": "https://long.test/chat/completions", "api_key": "k", "max_tokens": 1024},
+    )
 
 
 async def _local_messages(message: str, history: list[dict[str, str]] | None) -> list[dict[str, str]]:
-    await _llm._call_local_llm(message, 1, history=history)
+    await _llm._call_remote_llm(message, 1, history=history)
     _, body = _FakeLLMClient.calls[0]
     return body["messages"]
 
@@ -91,7 +103,7 @@ class TestLocalSystemPromptGrounding:
         assert re.search(r"(?i)token\s+lists?|full\s+address", system), "token-list-address rule missing"
 
     async def test_system_prompt_digest_still_appended(self) -> None:
-        await _llm._call_local_llm("q", 1, system_context="BTC at 100k, risk-on tape")
+        await _llm._call_remote_llm("q", 1, system_context="BTC at 100k, risk-on tape")
         _, body = _FakeLLMClient.calls[0]
         system = body["messages"][0]["content"]
         assert "BTC at 100k, risk-on tape" in system
