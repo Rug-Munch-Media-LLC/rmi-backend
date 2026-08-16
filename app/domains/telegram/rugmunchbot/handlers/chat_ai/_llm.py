@@ -210,6 +210,18 @@ def _route_tier(message: str) -> str:
 _CONTEXT_GATHER_TIMEOUT = 5.0  # total budget — chat stays snappy
 _CONTEXT_MAX_CHARS = 2400  # router context block budget (own window)
 
+# ── Web fallback (SearXNG) for thin primary sources ────────────────────────
+# Current-event / MARKET / lore questions need CURRENT, sourced intel. When
+# the primary source (RAG news_v2 for NEWS; price/scanner/RAG-KB tools for
+# MARKET/lore) is thin or empty, the router ALSO pulls live web results via
+# ``tools.web.searxng_top_results`` (SearXNG-only: no bridge, no knowledge
+# LLM). Bounded + fail-open like every other router fetch.
+_WEB_FALLBACK_TIMEOUT = 3.5  # router-side cap; tool layer itself is ~6s
+_WEB_RESULTS_MAX = 5
+# A NEWS gather with FEWER RAG news_v2 hits than this is "thin" — the router
+# then falls through to live web results so current events stay current.
+_NEWS_THIN_THRESHOLD = 2
+
 # Type word sets (compact mirrors of tools/intent.py — keep in sync).
 _CTX_MARKET_RE = re.compile(
     r"\b(price|worth|value|cost|how much|market cap|mcap|fdv|trading at|"
@@ -275,7 +287,7 @@ def _classify_question(question: str) -> str:
     return ""
 
 
-async def _gather_news_context(question: str) -> tuple[str, list[dict[str, str]]]:
+async def _gather_rag_news_context(question: str) -> tuple[str, list[dict[str, str]]]:
     """RAG news_v2 hits via the existing ``app.rag.tools.get_news`` facade.
 
     Fail-open: any failure (import, timeout, empty hits) returns empty
@@ -309,6 +321,80 @@ async def _gather_news_context(question: str) -> tuple[str, list[dict[str, str]]
     return "\n".join(lines)[:_CONTEXT_MAX_CHARS], sources
 
 
+async def _gather_news_context(question: str) -> tuple[str, list[dict[str, str]]]:
+    """NEWS context: RAG news_v2 hits, PLUS live SearXNG results when the
+    news_v2 corpus is thin (< ``_NEWS_THIN_THRESHOLD`` hits).
+
+    Current-event questions ("what's happening", "latest news", "market
+    today") need CURRENT, sourced intel — a thin RAG corpus cannot provide
+    that, so the router falls through to the live web layer. Both blocks are
+    plain text (the caller wraps them in the existing ``<untrusted_context>``
+    delimiter) and their sources merge into the grounding footer.
+    """
+    rag_block, rag_sources = await _gather_rag_news_context(question)
+    if len(rag_sources) >= _NEWS_THIN_THRESHOLD:
+        return rag_block, rag_sources
+    web_block, web_sources = await _gather_web_fallback(question)
+    parts = [b for b in (rag_block, web_block) if b]
+    if not parts:
+        return "", []
+    return "\n\n".join(parts)[:_CONTEXT_MAX_CHARS], rag_sources + web_sources
+
+
+def _render_web_results(results: list[dict[str, str]]) -> tuple[str, list[dict[str, str]]]:
+    """Render SearXNG results as an HTML-escaped context block + sources.
+
+    Web snippets/pages are UNTRUSTED data — a page could embed markup that
+    tries to inject HTML into the final Telegram answer, so every field
+    (snippet, title, URL) is ``html.escape``d here; the caller wraps the
+    block in the ``<untrusted_context>`` delimiter and the sources flow into
+    the grounding footer (``_append_source_block`` escapes them again for
+    the markdown links). Returns ``("", [])`` when nothing usable survived.
+    """
+    lines = ["LIVE WEB SEARCH (real-time web results — cite by source/URL):"]
+    sources: list[dict[str, str]] = []
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        url = str(r.get("url") or "").strip()
+        title = str(r.get("title") or "").strip()
+        snippet = str(r.get("snippet") or "").strip()
+        if not url:
+            continue
+        text = (snippet or title).strip()
+        if not text:
+            continue
+        label = (title or url)[:60]
+        lines.append(f"- {html.escape(text[:200])} (source: {html.escape(label)} — {html.escape(url)})")
+        sources.append({"type": "web", "title": text[:60], "url": url})
+    if len(lines) == 1:
+        return "", []
+    return "\n".join(lines)[:_CONTEXT_MAX_CHARS], sources
+
+
+async def _gather_web_fallback(question: str) -> tuple[str, list[dict[str, str]]]:
+    """SearXNG web fallback for thin/empty router sources (fail-open).
+
+    Uses ``tools.web.searxng_top_results`` (SearXNG-only — no bridge, no
+    knowledge LLM), bounded by ``_WEB_FALLBACK_TIMEOUT`` so the router stays
+    close to its ~5s snappy budget. Any failure returns empty context and
+    the LLM answers from its own knowledge.
+    """
+    try:
+        from app.domains.telegram.rugmunchbot.tools.web import searxng_top_results
+
+        results = await asyncio.wait_for(
+            searxng_top_results(question, limit=_WEB_RESULTS_MAX),
+            timeout=_WEB_FALLBACK_TIMEOUT,
+        )
+    except Exception as exc:
+        logger.debug("question-router web fallback failed (query %.60s): %s", question, exc)
+        return "", []
+    if not results:
+        return "", []
+    return _render_web_results(results)
+
+
 async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
     """Thin question router: retrieve 1-2 relevant sources for ``question``.
 
@@ -319,11 +405,16 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
     with real data instead of generic knowledge.
 
     Type → source map (implemented):
-      * MARKET/TA      → price_lookup (+ technical_analysis / trending)
+      * MARKET/TA      → price_lookup (+ technical_analysis / trending);
+                         live web results when the tool data is thin
       * SPECIFIC TOKEN → scanner_intel + price_lookup (address present)
       * SCAM/SAFETY    → rag_lookup security-pattern KB (+ scanner_intel when address)
-      * EDUCATION/LORE → rag_lookup intel KB (security_patterns / defi_exploits / scam_patterns)
-      * NEWS           → RAG news_v2 via app.rag.tools.get_news
+      * EDUCATION/LORE → rag_lookup intel KB (security_patterns / defi_exploits / scam_patterns);
+                         live web results when the KB is thin
+      * NEWS           → RAG news_v2 via app.rag.tools.get_news, PLUS live
+                         SearXNG results when the news_v2 corpus is thin
+      Web results are HTML-escaped, untrusted-wrapped (``<untrusted_context>``
+      by the caller) and cited as sources (``type: "web"``).
     """
     qtype = _classify_question(question)
     if not qtype:
@@ -358,7 +449,11 @@ async def _gather_context(question: str) -> tuple[str, list[dict[str, str]]]:
 
     ok_results = {name: r for name, r in results.items() if r.ok}
     if not ok_results:
-        return "", []
+        # MARKET/TA or LORE question with thin/empty tool data → pull CURRENT
+        # web results so the LLM still gets sourced context instead of
+        # answering from training memory (fail-open: "" when SearXNG is
+        # down too).
+        return await _gather_web_fallback(question)
     try:
         block = build_tool_prompt_block(ok_results)[:_CONTEXT_MAX_CHARS]
     except Exception as exc:

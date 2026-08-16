@@ -107,15 +107,6 @@ from app.domains.telegram.rugmunchbot.channels.telegram_news import (
     TG_NEWS_ENABLED,
     post_tg_news_update,
 )
-
-# Photo-aware posting for the tg_news post path. ``channels._media`` is owned
-# by the media lane; guard the import so a deployment without it degrades to
-# the plain text send (``_safe_send``) instead of failing to import.
-try:
-    from app.domains.telegram.rugmunchbot.channels._media import send_news_photo
-except ImportError:  # pragma: no cover — _media.py not deployed
-    send_news_photo = None  # type: ignore[assignment]
-
 from app.domains.telegram.rugmunchbot.config import (
     ALERTS_CHANNEL_ENABLED,
     ALERTS_CHANNEL_INTERVAL_MINUTES,
@@ -197,18 +188,6 @@ def _route_chat_id(destination: str) -> str | None:
     if destination not in ("news", "main", "alpha"):
         return None
     return _chat_id(destination)
-
-
-async def _send_news_photo(bot: Any, chat_id: str, caption: str, photo_url: str | None = None) -> bool:
-    """Send a routed post, photo-aware when the media module is available.
-
-    Uses ``channels._media.send_news_photo`` (best-effort, falls back to text
-    internally) when the module exists AND a usable ``photo_url`` is given;
-    otherwise degrades to the plain ``_safe_send`` text path. Never raises.
-    """
-    if send_news_photo is not None and photo_url:
-        return await send_news_photo(bot, chat_id, caption, photo_url)
-    return await _safe_send(bot, chat_id, caption)
 
 
 def _remember(channel: str, key: str) -> bool:

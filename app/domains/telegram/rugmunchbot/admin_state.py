@@ -117,7 +117,7 @@ def _sqlite_state_fallback(state: dict[str, Any]) -> dict[str, Any]:
         state["enabled"] = enabled == "on"
         state["chat_enabled"] = chat_enabled == "on"
     except Exception:
-        pass
+        logger.warning("admin_state:sqlite fallback failed", exc_info=True)
     return state
 
 

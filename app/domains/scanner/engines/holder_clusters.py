@@ -449,8 +449,8 @@ def _query_holder_balances(token_address: str, chain: str) -> list[tuple[Any, ..
             )
             WHERE addr != ''
             GROUP BY addr
-            HAVING sum(balance) > 0
-            ORDER BY sum(balance) DESC
+            HAVING balance > 0
+            ORDER BY balance DESC
             LIMIT %(limit)s
             """,
             {"token": token_address, "chain": chain, "limit": _MAX_HOLDERS},

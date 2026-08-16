@@ -7,9 +7,14 @@ Usage:
   /chat <question>       -> full AI pipeline (backend RAG chat, news-aware)
   /chat reset            -> clear your conversation context
 
-The actual pipeline lives in handlers/chat_ai.py (chat_ai_response) and is
+The actual pipeline lives in handlers/chat_ai/ (chat_ai_response) and is
 shared with free-text messages and /ask, so /chat behaves identically to
 just typing a message.
+
+Group etiquette: since v12 the free-text pipeline (handlers/chat_ai/
+_routing.py::ai_chat_handler) only fires when the bot is explicitly
+addressed — private DMs always, and groups only on @mention or reply.
+/chat is an explicit command and always works, in any chat type.
 """
 
 from __future__ import annotations
@@ -43,8 +48,10 @@ CHAT_WELCOME = (
     "\u2022 /chat <code>how do honeypots work?</code>\n"
     "\u2022 /chat <code>write a Solidity ERC-20 with a tax</code>\n"
     "\u2022 /chat <code>is this wallet risky?</code> <i>+ paste address</i>\n\n"
-    "\U0001f4ac <b>Tip:</b> just type any message \u2014 no command needed. "
-    "I keep the last 5 messages for context (use <code>/chat reset</code> to clear).\n\n"
+    "\U0001f4ac <b>Tip:</b> I answer free text in private DMs and when you "
+    "@mention or reply to me in groups \u2014 in shared rooms I stay quiet "
+    "unless you call me. I keep the last 5 messages for context (use "
+    "<code>/chat reset</code> to clear).\n\n"
     "\U0001f6ab See a scam? <code>/report &lt;address&gt;</code> to flag it.\n\n"
     "\U0001f4f3 Free tier: 15 AI msgs/week \u00b7 Scout: 75 \u00b7 Hunter: 250 \u00b7 Pro: 500"
 )

@@ -317,7 +317,7 @@ async def _enrich_token_name(item: dict[str, Any]) -> dict[str, Any]:
                 if not item.get("chain"):
                     item["chain"] = p.get("chainId", "")
     except Exception:
-        pass
+        logger.debug("daily_context:dex enrichment failed for %s", addr, exc_info=True)
     return item
 
 

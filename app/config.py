@@ -249,7 +249,8 @@ class Settings(BaseSettings):
 
     # ── Telegram ─────────────────────────────────────────────────────────
     telegram_bot_token: str = ""
-    telegram_allowed_users: str = "7075336557"
+    # No default: owner/operator ids must be provisioned explicitly via env.
+    telegram_allowed_users: str = ""
     scanner_alerts_enabled: bool = Field(
         default=True,
         description=(

@@ -72,7 +72,7 @@ async def _dispatch_admin_cb(update: Update, ctx, data: str) -> None:
     elif data == "admin_user_prompt":
         await query.edit_message_text(
             "\U0001f465 <b>User Lookup</b>\n\nUse <code>/admin_user &lt;user_id&gt;</code>\n\n"
-            "Example: /admin_user 7075336557",
+            "Example: /admin_user 123456789",
             parse_mode=ParseMode.HTML,
             reply_markup=admin_kb(),
         )

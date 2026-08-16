@@ -13,7 +13,7 @@ includes /backups; /var/log is NOT writable with ProtectSystem=strict).
 Record shape::
 
     {"ts": 1723000000.0, "time": "2026-08-08 14:00:00 UTC",
-     "user_id": 7075336557, "action": "docker.restart", "detail": "rmi-backend"}
+     "user_id": 123456789, "action": "docker.restart", "detail": "rmi-backend"}
 
 The record is a single JSON object per line (JSONL), append-only.
 """

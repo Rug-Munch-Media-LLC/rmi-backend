@@ -16,21 +16,19 @@ logger = get_logger("databus.providers.free_apis")
 
 
 async def _coingecko_price(**kwargs) -> dict[str, Any] | None:
-    """CoinGecko — free for low volume."""
-    token = kwargs.get("mint", "") or kwargs.get("token", "")
-    api_key = kwargs.get("api_key", "")
-    try:
-        headers = {"x-cg-pro-api-key": api_key} if api_key else {}
-        async with httpx.AsyncClient(timeout=10) as c:
-            r = await c.get(
-                f"https://api.coingecko.com/api/v3/simple/token_price/{token}",
-                headers=headers,
-            )
-            if r.status_code == 200:
-                return r.json()
-    except (ValueError, ConnectionError, TimeoutError, RuntimeError):
-        logger.warning("provider error")
-    return None
+    """CoinGecko token price — delegates to the canonical implementation.
+
+    The legacy ``simple/token_price/{token}`` URL put a contract address in
+    the platform-id slot (the endpoint expects a platform id like
+    ``ethereum`` plus a ``contract_addresses`` param) and always returned
+    404/empty. ``free_security._free_market_coingecko`` maps chain →
+    CoinGecko platform id and builds the params correctly — delegate to it
+    so the legacy ``_coingecko_price`` name used by the ``token_price`` /
+    ``market_overview`` chains returns real prices.
+    """
+    from app.domains.databus.providers.chains.free_security import _free_market_coingecko
+
+    return await _free_market_coingecko(**kwargs)
 
 
 async def _defillama_tvl(**kw) -> dict[str, Any] | None:

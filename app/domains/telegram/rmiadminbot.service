@@ -13,7 +13,9 @@ Restart=always
 RestartSec=10
 TimeoutStopSec=15
 Environment=HOME=/root
-Environment=ADMIN_CHAT_ID=7075336557
+# Set to the operator chat id (no real id committed; the admin bot fails fast
+# at startup if this is unset/invalid).
+Environment=ADMIN_CHAT_ID=__FILL_OWNER_CHAT_ID__
 # SECURITY: bot token is NEVER set via Environment=. secure_launcher fetches
 # it from the secret store (rmi/rmiadminbot/bot_token) and unsets it before polling.
 SyslogIdentifier=rmiadminbot

@@ -52,11 +52,14 @@ async def cmd_account(update: Update, ctx) -> None:
 
     nudge = ""
     if tier == "free":
-        # FREE PUBLIC BETA: no upgrade pressure — everything is unlocked
-        # while we test. Billing stays one tap away for the launch.
+        # FREE PUBLIC BETA: no upgrade pressure — every feature is unlocked
+        # while we test; the optional Stars deep-scan pack is the only paid
+        # surface. Billing stays one tap away for the launch.
         nudge = (
             f"\n{thin_sep()}\n"
             f"{BETA_STATUS_LINE}\n"
+            f"\u2b50 The \U0001f52c <b>Deep Scan</b> button costs "
+            f"250\u2605 (Telegram Stars); everything else is free.\n"
             f"\U0001f4c5 <b>Premium plans coming soon</b> \u2014 "
             f"beta users get launch discounts."
         )

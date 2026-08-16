@@ -38,7 +38,7 @@ logger = get_logger("rmi_bot.tools.web")
 
 BRIDGE_CONTEXT_ENDPOINT = os.getenv("BRIDGE_CONTEXT_ENDPOINT", "http://127.0.0.1:8095/chat/context")
 SEARXNG_URL = os.getenv("SEARXNG_URL", "http://127.0.0.1:8889").rstrip("/")
-SEARXNG_TIMEOUT = 8.0
+SEARXNG_TIMEOUT = 6.0
 
 # ══════════════════════════════════════════════════════════════════════════
 # KNOWLEDGE FALLBACK CONSTANTS
@@ -186,6 +186,21 @@ async def _searxng_search(query: str, limit: int = 5) -> list[dict[str, str]]:
         if title and url:
             out.append({"title": title, "url": url, "snippet": snippet[:300]})
     return out
+
+
+async def searxng_top_results(query: str, limit: int = 5) -> list[dict[str, str]]:
+    """SearXNG-ONLY live results for the chat question router.
+
+    Unlike :func:`web_search` this skips the bridge and the knowledge
+    fallback — just the SearXNG JSON layer, bounded by ``SEARXNG_TIMEOUT``
+    (~6s), fail-open, reusing the pooled httpx client
+    (``tools/_client.http_get_json``). Returns up to ``limit`` results as
+    ``{title, url, snippet}`` — ``[]`` on any failure so the caller's
+    fail-open chain stays intact.
+    """
+    if not query or not query.strip():
+        return []
+    return await _searxng_search(query, limit=limit)
 
 
 async def _bridge_context(query: str, history: list[dict[str, str]] | None = None) -> tuple[str, list[dict[str, str]]]:
